@@ -83,7 +83,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     layers[:gap_tf_cryostat] = 3.343
     layers[:cryostat] = 0.05
     ini.build.layers = layers
-    ini.build.n_first_wall_conformal_layers = 5
+    ini.build.n_first_wall_conformal_layers = 4 
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
@@ -91,7 +91,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.pf_active.technology = :nbti
     act.ActorPFdesign.symmetric = false
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :circle_ellipse
     ini.tf.n_coils = 18
     ini.tf.technology = :nb3sn_iter
 

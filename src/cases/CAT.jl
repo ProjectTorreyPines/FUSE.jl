@@ -15,7 +15,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.time.simulation_start = 0.006
 
     ini.build.layers = layers_meters_from_fractions(; blanket=1.0, shield=0.5, vessel=0.25, pf_inside_tf=false, pf_outside_tf=true, thin_vessel_walls=true)
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
 
     ini.oh.n_coils = 6
     ini.pf_active.n_coils_inside = 0
@@ -25,7 +25,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :circle_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = :nb3sn_iter
 

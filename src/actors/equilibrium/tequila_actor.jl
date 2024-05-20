@@ -21,6 +21,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
+    #== IMAS psi grid settings ==#
+    R::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi R axis")
+    Z::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi Z axis")
 end
 
 mutable struct ActorTEQUILA{D,P} <: SingleAbstractActor{D,P}
@@ -120,7 +123,7 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, actor.dd; actor.ψbound, actor.par.free_boundary)
+        tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound)
     catch e
         display(plot(actor.shot))
         display(contour())
@@ -129,7 +132,8 @@ function _finalize(actor::ActorTEQUILA)
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_boundary::Bool=false)
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; ψbound::Real=0.0)
+    free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     eq1d = eqt.profiles_1d
@@ -151,12 +155,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     ϵ = shot.surfaces[3, end]
     κ = shot.surfaces[4, end]
     a = R0 * ϵ
-    Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
-    Zdim = κ * 1.6 * a
 
     nψ_grid = 129
-    nz_grid = 129
-    nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
 
     psit = shot.C[2:2:end, 1]
     psia = psit[1]
@@ -178,8 +178,38 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd; ψbound::Real=0.0, free_b
     eq2d.psi = collect(shot.surfaces')
 
     # RZ
-    Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
-    Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
+    if ismissing(par, :Z)
+        nz_grid = nψ_grid
+        if !isempty(dd.wall.description_2d)
+            wall = IMAS.first_wall(dd.wall)
+            Zgrid = range(minimum(wall.z), maximum(wall.z), nz_grid)
+        else
+            Zdim = κ * 1.6 * a
+            Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
+        end
+    else
+        Zgrid = par.Z
+        nz_grid = length(Zgrid)
+    end
+    Zdim = abs(-(extrema(Zgrid)...)) / 2
+
+    if ismissing(par, :R)
+        if !isempty(dd.wall.description_2d)
+            wall = IMAS.first_wall(dd.wall)
+            Rdim = (maximum(wall.r) - minimum(wall.r)) / 2
+            nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+            Rgrid = range(minimum(wall.r), maximum(wall.r), nr_grid)
+        else
+            Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
+            nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+            Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
+        end
+    else
+        Rgrid = par.R
+        Rdim = abs(-(extrema(Rgrid)...)) / 2
+        nr_grid = length(Rgrid)
+    end
+
     eq2d = eqt.profiles_2d[2]
     eq2d.grid.dim1 = Rgrid
     eq2d.grid.dim2 = Zgrid

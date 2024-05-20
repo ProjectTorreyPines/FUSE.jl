@@ -31,6 +31,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
         check=x -> @assert x > 0.0 "must be: step_size > 0.0"
     )
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
+    save_input_tglf_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder at the last iteration"; default="")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -96,6 +97,13 @@ function _step(actor::ActorFluxMatcher)
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
     end
 
+    # make sure no zeros are in norms
+    for i in 1:length(actor.norms)
+        if actor.norms[i] == 0.0
+            actor.norms[i] = 1.0
+        end
+    end
+
     z_init = pack_z_profiles(cp1d, par)
     z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping
 
@@ -140,12 +148,12 @@ function _step(actor::ActorFluxMatcher)
                 opts...
             )
         finally
-            # @show flux_match_errors(actor, z_scaled_history[end], initial_cp1d)
             actor_logging(dd, old_logging)
         end
     end
 
-    flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    # evaluate profiles at the best-matching gradients
+    flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -168,15 +176,18 @@ function _step(actor::ActorFluxMatcher)
         display(p)
     end
 
-    # for completely collapsed cases we don't want it to crash in the optimizer so
+    # for completely collapsed cases we don't want it to crash in the optimizer
+    # Also when the power flowing through the separatrix is below zero we want to punish the profiles (otherwise we generate energy from nothing)
     cp1d = dd.core_profiles.profiles_1d[]
-    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te
+    total_sources = IMAS.total_sources(dd)
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te ||
+       !(total_sources.electrons.power_inside[end] + total_sources.total_ion_power_inside[end] >= 0)
         @warn "Profiles completely collpased due to insufficient source versus turbulence"
         te = cp1d.electrons.temperature
         teped = @ddtime(dd.summary.local.pedestal.t_e.value)
         lowest_profile = IMAS.Hmode_profiles(te[end], teped, teped * 1.5, length(te), 1.1, 1.1, 2 * (1 - @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)))
         cp1d.electrons.temperature = lowest_profile
-        if par.evolve_Ti
+        if par.evolve_Ti == :flux_match
             for ion in cp1d.ion
                 ion.temperature = lowest_profile
             end
@@ -216,7 +227,8 @@ function flux_match_errors(
     initial_cp1d::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
-    prog::Any=nothing)
+    prog::Any=nothing,
+    save_input_tglf_folder::String="")
 
     dd = actor.dd
     par = actor.par
@@ -250,6 +262,13 @@ function flux_match_errors(
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
+    if !isempty(save_input_tglf_folder)
+        for (idx, input_tglf) in enumerate(actor.actor_ct.actor_turb.input_tglfs)
+            name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
+            TGLFNN.save(input_tglf, name)
+        end
+    end
+
     # compare fluxes
     errors = flux_match_errors(dd, par, actor.norms, prog)
 
@@ -279,23 +298,22 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
     norms = Float64[]
 
-    if par.evolve_Ti == :flux_match #[W / m^2]
+    if par.evolve_Ti == :flux_match #[W / m²]
         push!(norms, target_transformation(total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
 
-    if par.evolve_Te == :flux_match #[W / m^2]
+    if par.evolve_Te == :flux_match #[W / m²]
         push!(norms, target_transformation(total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
 
-    if par.evolve_rotation == :flux_match #[kg / m s^2]
+    if par.evolve_rotation == :flux_match #[kg / m s²]
         push!(norms, target_transformation(total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
-    if evolve_densities[:electrons] == :flux_match #[m^-2 s^-1]
+    if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
         push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
     end
-
     return norms
 end
 
@@ -453,7 +471,7 @@ function flux_match_simple(
 
     while (any(ferror .> ftol) && any(xerror .> xtol))
         i += 1
-        zprofiles = zprofiles .- par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(fluxes .^ 2 + targets .^ 2)
+        zprofiles = zprofiles .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         fluxes = flux_match_fluxes(dd, par, prog)
         targets = flux_match_targets(dd, par, prog)

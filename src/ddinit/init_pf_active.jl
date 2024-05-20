@@ -147,17 +147,18 @@ function init_pf_active!(
     bd.pf_active.rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
     bd.pf_active.rail[1].outline.z = z_ohcoils
     bd.pf_active.rail[1].outline.distance = range(-1, 1, n_coils[1])
-    for z_oh in z_ohcoils
+    for (kk, z_oh) in enumerate(z_ohcoils)
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
         resize!(pf_active.coil[k].element, 1)
         pf_active.coil[k].identifier = "optim"
-        pf_active.coil[k].name = "OH"
+        pf_active.coil[k].name = "OH $kk"
         pf_active.coil[k].element[1].geometry.rectangle.r = r_oh
         pf_active.coil[k].element[1].geometry.rectangle.z = z_oh
         pf_active.coil[k].element[1].geometry.rectangle.width = w_oh
         pf_active.coil[k].element[1].geometry.rectangle.height = h_oh
-        @ddtime pf_active.coil[k].current.data = 0.0
+        pf_active.coil[k].current.time = IMAS.top_ids(eqt).time
+        pf_active.coil[k].current.data = pf_active.coil[k].current.time .* 0.0
     end
 
     # coils_cleareance is an array the length of the PF rails
@@ -279,17 +280,18 @@ function init_pf_active!(
         z_coils = [abs(z) < 1E-6 ? 0.0 : z for z in z_coils]
 
         # populate IMAS data structure
-        for (r, z) in zip(r_coils, z_coils)
+        for (kk,(r, z)) in enumerate(zip(r_coils, z_coils))
             k = length(pf_active.coil) + 1
             resize!(pf_active.coil, k)
             resize!(pf_active.coil[k].element, 1)
             pf_active.coil[k].identifier = "optim"
-            pf_active.coil[k].name = "PF"
+            pf_active.coil[k].name = "PF $kk"
             pf_active.coil[k].element[1].geometry.rectangle.r = r
             pf_active.coil[k].element[1].geometry.rectangle.z = z
             pf_active.coil[k].element[1].geometry.rectangle.width = coil_size
             pf_active.coil[k].element[1].geometry.rectangle.height = coil_size
-            @ddtime pf_active.coil[k].current.data = 0.0
+            pf_active.coil[k].current.time = IMAS.top_ids(eqt).time
+            pf_active.coil[k].current.data = pf_active.coil[k].current.time .* 0.0
         end
     end
 

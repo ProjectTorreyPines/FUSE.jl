@@ -51,9 +51,6 @@ Memoize.@memoize function imas2jl_data_type(imas_data_type::String)
             else
                 jlzero = 0.0
             end
-        elseif dim == 1
-            jldata_type = Vector{type_translator[tp]}
-            jlzero = Array{type_translator[tp]}(undef, 0)
         else
             jldata_type = Array{type_translator[tp],dim}
             jlzero = Array{type_translator[tp]}(undef, (0 for k in 1:dim)...)
@@ -161,6 +158,7 @@ function imas_julia_struct(desired_structure::Vector{String})
 
     all_info = Dict{String,Info}()
     all_info["global_time"] = Info(Tuple([]), "s", "FLT_0D", "Generic global time", true)
+    all_info["dd"] = Info(Tuple([]), "-", "STRUCTURE", "Top level structure", false)
 
     branches = []
     timedep_structures = String[]
@@ -208,7 +206,11 @@ function imas_julia_struct(desired_structure::Vector{String})
                 if path[end] == "time" # leave `time` leaves as Float64
                     my_dtype = ":: $jldata_type"
                 else
-                    my_dtype = replace(":: $jldata_type", "Float64" => "T")
+                    if contains("$jldata_type", "{")
+                        my_dtype = replace(":: $jldata_type", "Float64" => "<:T")
+                    else
+                        my_dtype = replace(":: $jldata_type", "Float64" => "T")
+                    end
                 end
                 my_zero = replace(repr(jlzero), "Float64" => "T")
                 h[item] = (my_dtype, my_zero)

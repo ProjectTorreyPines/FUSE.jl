@@ -10,16 +10,17 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersAc
     _time::Float64 = NaN
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
-mutable struct ActorCXbuild{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorCXbuild{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCXbuild{P}
-    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}; kw...) where {D<:Real,P<:Real}
+    act::ParametersAllActors
+    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCXbuild)
         par = par(kw...)
-        return new{D,P}(dd, par)
+        return new{D,P}(dd, par, act)
     end
 end
 
@@ -33,7 +34,7 @@ Generates the 2D cross section of the tokamak build
     Manipulates data in `dd.build`
 """
 function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorCXbuild(dd, act.ActorCXbuild; kw...)
+    actor = ActorCXbuild(dd, act.ActorCXbuild, act; kw...)
     step(actor)
     finalize(actor)
     if actor.par.do_plot
@@ -46,6 +47,7 @@ end
 function _step(actor::ActorCXbuild)
     dd = actor.dd
     par = actor.par
+    act = actor.act
 
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
@@ -69,6 +71,10 @@ function _step(actor::ActorCXbuild)
 
     blanket_regions!(bd, eqt)
 
+    if act.ActorLFSsizing.maintenance != :none
+        port_regions!(bd; act.ActorLFSsizing.maintenance, act.ActorLFSsizing.tor_modularity, act.ActorLFSsizing.pol_modularity)
+    end
+
     IMAS.find_strike_points!(eqt, dd.divertors)
 
     return actor
@@ -84,53 +90,63 @@ If `max_segment_relative_error == 0.0` then no segmentation is applied.
 If `symmetric === nothing` then symmetry of the plasma is automatically determined.
 """
 function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T, max_segment_relative_error::T; symmetric::Union{Bool,Nothing}=nothing) where {T<:Real}
-    mxh = IMAS.MXH(eq_r, eq_z, 4)
-
-    # automatic symmetry detection
-    if symmetric === nothing
-        symmetric = sum(abs.(mxh.c)) < 1E-3
-    end
-
-    # R,Z from theta
-    Θ = LinRange(-π / 2 * 3 / 2, π / 2 * 3 / 2, 100) # overshoot
-    R = [r for (r, z) in mxh.(Θ)]
-    Z = [z for (r, z) in mxh.(Θ)]
-    Z = (Z .- mxh.Z0) .* 1.1 .+ mxh.Z0
-
-    # correct hfs to have a flat center stack wall
-    R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
-
-    if max_segment_relative_error <= 0.0
-        R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
+    if max_segment_relative_error < 0.0
+        R, Z = buffer(eq_r, eq_z, gap)
 
     else
-        # flat midplane wall
-        R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error / 2.0))
-        R[R.>(maximum(eq_r)+gap)] .= maximum(eq_r) + gap
-        R, Z = buffer(R, Z, -gap * (1.0 + max_segment_relative_error / 2.0))
-        circshift!(Z, argmin(R))
-        circshift!(R, argmin(R))
+        mxh = IMAS.MXH(eq_r, eq_z, 4)
 
-        # segments
-        R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
-        if symmetric
-            R = (R .+ reverse(R)) / 2.0
-            Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
+        # automatic symmetry detection
+        if symmetric === nothing
+            symmetric = sum(abs.(mxh.c)) / length(mxh.c) < 1E-3
         end
 
-        # rounded joints
-        R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error))
+        # negative δ
+        δ = sin(mxh.s[1])
+        if δ < 0.0
+            Θ = LinRange(π / 4, 2 * π - π / 4, 100) # overshoot
+        else
+            Θ = LinRange(-π * 3 / 4, π * 3 / 4, 100) # overshoot
+        end
+
+        # R,Z from theta
+        R = [r for (r, z) in mxh.(Θ)]
+        Z = [z for (r, z) in mxh.(Θ)]
+        Z = (Z .- mxh.Z0) .* 1.1 .+ mxh.Z0
+
+        # correct hfs to have a flat center stack wall
+        if δ < 0.0
+            R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [maximum(eq_r) - R[1], 0.0, 0.0, maximum(eq_r) - R[end]]).(Θ)
+        else
+            R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
+        end
+
+        if max_segment_relative_error == 0.0
+            R, Z = buffer(R, Z, gap)
+
+        else
+            if symmetric # this works because points are distributed like Θ
+                R = (R .+ reverse(R)) / 2.0
+                Z = ((Z .- mxh.Z0) .- reverse(Z .- mxh.Z0)) / 2.0 .+ mxh.Z0
+            end
+
+            # segments
+            R, Z = IMAS.rdp_simplify_2d_path(R, Z, gap * max_segment_relative_error)
+
+            # rounded joints
+            R, Z = buffer(R, Z, gap * (1.0 + max_segment_relative_error))
+        end
     end
 
     return R, Z
 end
 
 """
-    wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; max_divertor_length_fraction_z_plasma::Real=0.2)
+    wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; max_divertor_length_fraction_z_plasma::Real=0.15)
 
 Generate first wall and divertors outline starting from an equilibrium and radial build
 """
-function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; max_divertor_length_fraction_z_plasma::Real=0.2)
+function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; max_divertor_length_fraction_z_plasma::Real=0.15)
     # Set the radial build thickness of the plasma vacuum chamber
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
     rlcfs, zlcfs = eqt.boundary.outline.r, eqt.boundary.outline.z
@@ -149,8 +165,8 @@ function wall_from_eq!(
     gap::Float64;
     upper_divertor::Bool,
     lower_divertor::Bool,
-    max_divertor_length_fraction_z_plasma::Real=0.2
-)
+    max_divertor_length_fraction_z_plasma::Real)
+
     upper_divertor = Int(upper_divertor)
     lower_divertor = Int(lower_divertor)
 
@@ -225,7 +241,6 @@ function wall_from_eq!(
         if isempty(pr1)
             continue
         end
-        inner_slot_poly = xy_polygon(convex_hull(pr, pz; closed_polygon=true))
 
         # do not add more than one private flux region for each of the x-points
         if Zx > ZA
@@ -241,16 +256,10 @@ function wall_from_eq!(
         end
 
         # remove private flux region from wall (necessary because of Z expansion)
-        # this may fail if the private region is small or weirdly shaped
-        try
-            wall_poly = LibGEOS.difference(wall_poly, inner_slot_poly)
-        catch e
-            if typeof(e) <: LibGEOS.GEOSError
-                continue
-            else
-                rethrow(e)
-            end
-        end
+        pr1m = [pr1; pr1[1]; pr1[end]]
+        pz1m = [pz1; sign(pz1[1]) * 100; sign(pz1[end]) * 100]
+        pm_poly = xy_polygon(convex_hull(pr1m, pz1m; closed_polygon=true))
+        wall_poly = LibGEOS.difference(wall_poly, pm_poly)
 
         # add the divertor slots
         α = 0.25
@@ -258,6 +267,7 @@ function wall_from_eq!(
         pz2 = vcat(pz1, ZA * α + Zx * (1 - α))
 
         slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
+        inner_slot_poly = xy_polygon(convex_hull(pr, pz; closed_polygon=true))
         slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
         slot = LibGEOS.buffer(slot, div_gap)
 
@@ -335,7 +345,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     end
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
-    ψb, _ = IMAS.find_psi_boundary(eqt)
+    ψb = eqt.profiles_1d.psi[end]
     ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
     linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
 
@@ -509,6 +519,53 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
     return nothing
 end
 
+"""
+    port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
+
+Defines maintenance port structures
+"""
+function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
+    vessel = IMAS.get_build_layer(bd.layer; type=_vessel_, fs=_lfs_)
+    cryostat = IMAS.get_build_layer(bd.layer; type=_cryostat_)
+
+    # calculate radial port locations
+    vessel_maxz = maximum(vessel.outline.z)
+    vessel_minz = minimum(vessel.outline.z)
+    horz_port_maxr = maximum(cryostat.outline.r) * 1.1
+    horz_port_maxz = 0.25 * (vessel_maxz - vessel_minz) + vessel_minz
+    vert_port_maxz = maximum(cryostat.outline.z)
+
+    # outer segment of the vacuum vessel
+    istart = argmin(vessel.outline.z)
+    pr = circshift(vessel.outline.r, 1 - istart)
+    pz = circshift(vessel.outline.z, 1 - istart)
+    index = argmax(pz)
+    vR = [pr[index:end]; pr[1]]
+    vZ = [pz[index:end]; pz[1]]
+
+    # build port structure based on maintenance type
+    if maintenance == :none
+        return nothing
+
+    elseif maintenance == :vertical
+        rVP_hfs_ib, rVP_hfs_ob, rVP_lfs_ib, rVP_lfs_ob = IMAS.vertical_maintenance(bd; tor_modularity, pol_modularity)
+        pr = vcat(rVP_hfs_ib, rVP_hfs_ib, vR, vR[end], horz_port_maxr, horz_port_maxr, rVP_lfs_ob, rVP_lfs_ob, rVP_hfs_ib)
+        pz = vcat(vert_port_maxz, vZ[1], vZ, vessel_minz, vessel_minz, horz_port_maxz, horz_port_maxz, vert_port_maxz, vert_port_maxz)
+        name = "vertical maintenance port"
+
+    elseif maintenance == :horizontal
+        pr = vcat(vR, vR[end], horz_port_maxr, horz_port_maxr, vR[1])
+        pz = vcat(vZ, vessel_minz, vessel_minz, vessel_maxz, vessel_maxz)
+        name = "horizontal maintenance port"
+    end
+
+    structure = resize!(bd.structure, "type" => Int(_port_), "name" => name)
+    structure.outline.r = pr
+    structure.outline.z = pz
+
+    return nothing
+end
+
 function IMAS.resample_2d_path(layer::IMAS.build__layer; method::Symbol=:linear, kw...)
     layer.outline.r, layer.outline.z = IMAS.resample_2d_path(layer.outline.r, layer.outline.z; method, kw...)
     return layer
@@ -537,41 +594,139 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     plasma.outline.r = pr
     plasma.outline.z = pz
 
-    # all layers between plasma and TF
-    # k-1 means the layer outside (ie. towards the tf)
-    # k   is the current layer
-    # k+1 means the layer inside (ie. towards the plasma)
-    tf_to_plasma = IMAS.get_build_indexes(bd.layer; fs=_hfs_)
-    plasma_to_tf = reverse(tf_to_plasma)
-    for k in plasma_to_tf
-        layer = bd.layer[k]
-        layer_shape = BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-        @debug "$(layer.name) $(layer_shape)"
-
-        obstruction_outline = nothing
-        vertical_clearance = 1.0
-        if contains(lowercase(layer.name), "coils")
-            coils = pfa.coil
-            if !isempty(coils)
-                obstruction_outline = convex_outline(pfa.coil)#collect(findall(:shaping, pfa.coil)))   
-                vertical_clearance = 0.2
-            end
-        end
-
-        layer.shape, layer.shape_parameters = optimize_shape(bd, k + 1, k, layer_shape; vertical_clearance, resolution=n_points / 201.0, obstruction_outline)
+    # up-down symmetric plasma
+    is_z_offset = false
+    if abs(sum(pz) / sum(abs, pz)) > 1E-2
+        is_z_offset = true
     end
 
-    # resample
-    for k in tf_to_plasma[1:end-1]
-        IMAS.resample_2d_path(bd.layer[k]; n_points, method=:linear)
+    # up-down symmetric plasma
+    is_negative_D = false
+    _, imaxr = findmax(pr)
+    _, iminr = findmin(pr)
+    _, imaxz = findmax(pz)
+    _, iminz = findmin(pz)
+    r_at_max_z, _ = pr[imaxz], pz[imaxz]
+    r_at_min_z, _ = pr[iminz], pz[iminz]
+    _, max_r = pz[imaxr], pr[imaxr]
+    _, min_r = pz[iminr], pr[iminr]
+    a = 0.5 * (max_r - min_r)
+    R = 0.5 * (max_r + min_r)
+    δu = (R - r_at_max_z) / a
+    δl = (R - r_at_min_z) / a
+    if δu + δl < -0.1
+        is_negative_D = true
+    end
+
+    #plot()
+    plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
+    pushfirst!(plasma_to_tf, plasma_to_tf[1] + 1)
+
+    # @show plasma_to_tf
+    # plot(bd.layer[plasma_to_tf[1]])
+
+    verbose = false
+    k = 2
+    n_rails = 1
+    while k <= length(plasma_to_tf)
+        layer = bd.layer[plasma_to_tf[k]]
+        layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
+        if layer_shape == IMAS._negative_offset_
+            # go forward until find a normal layer
+            neg_off_layers = []
+            for kk in k:length(plasma_to_tf)
+                layer = bd.layer[plasma_to_tf[kk]]
+                layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
+                if layer_shape != IMAS._negative_offset_ || (contains(lowercase(layer.name), "coils") && !isempty(pfa.coil))
+                    if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
+                        verbose && @show "A1", layer.name, layer_shape
+                        if !isempty(bd.pf_active, :rail)
+                            n_rails += 1
+                            obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
+                        else
+                            obstruction_outline = convex_outline(pfa.coil)
+                        end
+                        vertical_clearance = 1.1
+                    else
+                        verbose && @show "A2", layer.name, layer_shape
+                        obstruction_outline = nothing
+                        vertical_clearance = 1.0
+                    end
+                    layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                        bd,
+                        plasma_to_tf[k-1],
+                        plasma_to_tf[kk],
+                        layer_shape;
+                        vertical_clearance,
+                        resolution=n_points / 201.0,
+                        obstruction_outline,
+                        is_negative_D,
+                        is_z_offset
+                    )
+                    k = kk
+                    #display(plot!(bd.layer[plasma_to_tf[k]]))
+                    break
+                else
+                    # deal with negative offsets later
+                    push!(neg_off_layers, kk)
+                end
+            end
+            # go back with negative offset layers
+            for kk in reverse(neg_off_layers)
+                layer = bd.layer[plasma_to_tf[kk]]
+                layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
+                verbose && @show "C", layer.name, layer_shape
+                layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                    bd,
+                    plasma_to_tf[kk+1],
+                    plasma_to_tf[kk],
+                    layer_shape;
+                    vertical_clearance=1.0,
+                    resolution=n_points / 201.0,
+                    obstruction_outline=nothing,
+                    is_negative_D,
+                    is_z_offset
+                )
+                # display(plot!(bd.layer[plasma_to_tf[kk]]))
+            end
+
+        else
+            if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
+                verbose && @show "B1", layer.name, layer_shape
+                if !isempty(bd.pf_active, :rail)
+                    n_rails += 1
+                    obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
+                else
+                    obstruction_outline = convex_outline(pfa.coil)
+                end
+                vertical_clearance = 1.0
+            else
+                verbose && @show "B2", layer.name, layer_shape
+                obstruction_outline = nothing
+                vertical_clearance = 1.0
+            end
+            layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                bd,
+                plasma_to_tf[k-1],
+                plasma_to_tf[k],
+                layer_shape;
+                vertical_clearance,
+                resolution=n_points / 201.0,
+                obstruction_outline,
+                is_negative_D,
+                is_z_offset
+            )
+            # display(plot!(bd.layer[plasma_to_tf[k]]))
+        end
+
+        k += 1
     end
 
     # _in_
     TF = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_)
-    D = minimum(TF.outline.z)
-    U = maximum(TF.outline.z)
-    for k in IMAS.get_build_indexes(bd.layer; fs=_in_)
-        layer = bd.layer[k]
+    D = minimum(TF.outline.z) + TF.thickness / 2.0
+    U = maximum(TF.outline.z) - TF.thickness / 2.0
+    for layer in IMAS.get_build_layers(bd.layer; fs=_in_)
         L = layer.start_radius
         R = layer.end_radius
         layer.outline.r, layer.outline.z = rectangle_shape(L, R, D, U)
@@ -581,9 +736,12 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
     iout = IMAS.get_build_indexes(bd.layer; fs=_out_)
     if lowercase(bd.layer[iout[end]].name) == "cryostat"
         olfs = IMAS.get_build_indexes(bd.layer; fs=_lfs_)[end]
-        optimize_shape(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)))
+        # if !isempty(pfa.coil)
+        #     obstruction_outline = convex_outline(pfa.coil)
+        # end
+        optimize_layer_outline(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)); vertical_clearance=1.3)
         for k in reverse(iout[2:end])
-            optimize_shape(bd, k, k - 1, _negative_offset_)
+            optimize_layer_outline(bd, k, k - 1, _negative_offset_)
         end
     else
         for k in iout
@@ -596,22 +754,32 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
         end
     end
 
+    # resample
+    for layer in bd.layer
+        if layer.type != Int(_plasma_) || getproperty(layer, :shape, _undefined_) != Int(_offset_)
+            layer.outline.r, layer.outline.z = IMAS.rdp_simplify_2d_path(layer.outline.r, layer.outline.z, 1E-3)
+            layer.outline.r, layer.outline.z = IMAS.split_long_segments(layer.outline.r, layer.outline.z, n_points)
+        end
+    end
+
     return bd
 end
 
 """
-    optimize_shape(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape_enum::BuildLayerShape; vertical_clearance::Float64=1.0, resolution::Float64=1.0, obstruction_outline=nothing)
+    optimize_layer_outline(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape_enum::BuildLayerShape; vertical_clearance::Float64=1.0, resolution::Float64=1.0, obstruction_outline=nothing)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
-function optimize_shape(
+function optimize_layer_outline(
     bd::IMAS.build,
     obstr_index::Int,
     layer_index::Int,
     shape_enum::BuildLayerShape;
     vertical_clearance::Float64=1.0,
     resolution::Float64=1.0,
-    obstruction_outline=nothing
+    obstruction_outline=nothing,
+    is_z_offset::Bool=false,
+    is_negative_D::Bool=false
 )
     shape = Int(shape_enum)
 
@@ -641,31 +809,22 @@ function optimize_shape(
         end
     end
 
-    hfs_thickness = o_start - l_start
-    lfs_thickness = l_end - o_end
-
     oR = obstr.outline.r
     oZ = obstr.outline.z
     if obstruction_outline !== nothing
         hull = convex_hull(vcat(oR, obstruction_outline.r), vcat(oZ, obstruction_outline.z); closed_polygon=true)
         oR = [r for (r, z) in hull]
         oZ = [z for (r, z) in hull]
+        o_start = minimum(oR)
+        o_end = maximum(oR)
     end
 
-    if layer.side == Int(_out_)
-        target_clearance = lfs_thickness * 1.3 * vertical_clearance
-        use_curvature = false
-    else
-        use_curvature = shape_enum == IMAS._rectangle_ ? false : true
-        target_clearance = min(hfs_thickness, lfs_thickness) * vertical_clearance
-        target_clearance = min(hfs_thickness, lfs_thickness) * vertical_clearance
-    end
-    r_offset = (lfs_thickness .- hfs_thickness) / 2.0
+    hfs_thickness = o_start - l_start
+    lfs_thickness = l_end - o_end
 
     # handle offset, negative offset, and convex-hull
     if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
-        R, Z = buffer(oR, oZ, (hfs_thickness + lfs_thickness) / 2.0)
-        R .+= r_offset
+        R, Z = buffer(oR, oZ, hfs_thickness, lfs_thickness)
         if shape == Int(_convex_hull_)
             hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
@@ -675,53 +834,27 @@ function optimize_shape(
         shape_parameters = Float64[]
 
     else # handle shapes
-        if shape > 1000
-            shape = mod(shape, 1000)
-        end
-        if shape > 100
-            shape = mod(shape, 100)
+        use_curvature = true
+        if layer.side == Int(_out_) || shape_enum ∈ (IMAS._rectangle_, IMAS._silo_)
+            use_curvature = false
         end
 
-        if shape == Int(_silo_)
-            is_up_down_symmetric = false
-        elseif abs(sum(oZ) / sum(abs, oZ)) < 1E-2
-            is_up_down_symmetric = true
-        else
-            is_up_down_symmetric = false
-        end
-
-        is_negative_D = false
-        if shape != Int(_silo_)
-            _, imaxr = findmax(oR)
-            _, iminr = findmin(oR)
-            _, imaxz = findmax(oZ)
-            _, iminz = findmin(oZ)
-            r_at_max_z, max_z = oR[imaxz], oZ[imaxz]
-            r_at_min_z, min_z = oR[iminz], oZ[iminz]
-            z_at_max_r, max_r = oZ[imaxr], oR[imaxr]
-            z_at_min_r, min_r = oZ[iminr], oR[iminr]
-            a = 0.5 * (max_r - min_r)
-            R = 0.5 * (max_r + min_r)
-            δu = (R - r_at_max_z) / a
-            δl = (R - r_at_min_z) / a
-            if δu + δl < -0.1
-                is_negative_D = true
-            end
-        end
-
+        shape = mod(mod(shape, 1000), 100)
         if is_negative_D
             shape = shape + 1000
         end
-
-        if !is_up_down_symmetric
+        if is_z_offset
             shape = shape + 100
         end
 
+        oZ = oZ .* vertical_clearance
+
         func = shape_function(shape; resolution)
-        shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, target_clearance)
+        initial_clerance = max(hfs_thickness, lfs_thickness) * vertical_clearance
+        shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
 
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
-        shape_parameters = optimize_shape(oR, oZ, target_clearance, func, l_start, l_end, shape_parameters; use_curvature)
+        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters; use_curvature)
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...; resample=false)
     end
 
@@ -757,6 +890,16 @@ function convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf
     return out
 end
 
+function convex_outline(rail::IMAS.build__pf_active__rail{T})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
+    rails = parent(rail)
+    irail = IMAS.index(rail)
+    coil_start = sum([rails[k].coils_number for k in 1:irail-1]) + 1
+    coil_end = coil_start + rail.coils_number - 1
+    dd = IMAS.top_dd(rail)
+    coils = [dd.pf_active.coil[k] for k in coil_start:coil_end]
+    return convex_outline(coils)
+end
+
 #= ========================================== =#
 #  Visualization of IMAS.build.layer as table  #
 #= ========================================== =#
@@ -771,22 +914,22 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
         R_end=Float64[],
         material=String[],
         area=Float64[],
-        volume=Float64[]
-    )
+        volume=Float64[],
+        shape=String[])
 
     for layer in layers
         group = replace(string(BuildLayerSide(layer.side)), "_" => "")
         type = replace(string(BuildLayerType(layer.type)), "_" => "")
         type = replace(type, r"^gap" => "")
-        details = replace(lowercase(layer.name), r"^[hl]fs " => "")
-        details = replace(details, r"^gap .*" => "")
-        details = replace(details, r"\b" * type * r"\b" => "")
+        details = replace(lowercase(layer.name), r"^[hl]fs " => "", r"^gap .*" => "", r"\b" * type * r"\b" => "")
         material = getproperty(layer, :material, "?")
         material = split(material, ",")[1]
         material = replace(material, "Vacuum" => "")
         area = getproperty(layer, :area, NaN)
         volume = getproperty(layer, :volume, NaN)
-        push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume])
+        shape = string(IMAS.BuildLayerShape(mod(mod(getproperty(layer, :shape, Int(IMAS._undefined_)), 1000), 100)))
+        shape = replace(shape, "_undefined_" => "", r"^_" => "", r"_$" => "", "_" => " ")
+        push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume, shape])
     end
 
     return df

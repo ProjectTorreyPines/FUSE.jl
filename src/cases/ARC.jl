@@ -11,9 +11,9 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
 
     ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 3.45
-    ini.equilibrium.ϵ = 0.27 #a/R0
-    ini.equilibrium.κ = 1.80 #kappa_a = 1.60, kappa_sep = 1.80
-    ini.equilibrium.δ = 0.50 #delta_sep
+    ini.equilibrium.ϵ = 0.27
+    ini.equilibrium.κ = 2.00
+    ini.equilibrium.δ = 0.35
     ini.equilibrium.B0 = -11.5
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
@@ -24,14 +24,16 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.82
     layers[:OH] = 0.3
-    layers[:hfs_TF] = 0.55
-    layers[:gap_hfs_vacuum_vessel] = 0.186
+    layers[:hfs_TF] = 0.6
+    layers[:hfs_gap_blanket_TF] = 0.186
     layers[:hfs_blanket] = 0.4
-    layers[:hfs_wall] = 0.186
+    layers[:hfs_vacuum_vessel] = 0.166
+    layers[:hfs_wall] = 0.02
     layers[:plasma] = 2.05
-    layers[:lfs_wall] = 0.186
+    layers[:lfs_wall] = 0.02
+    layers[:lfs_vacuum_vessel] = 0.166
     layers[:lfs_blanket] = 0.95
-    layers[:gap_lfs_vacuum_vessel] = 0.186
+    layers[:lfs_gap_blanket_TF] = 0.28
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119
     layers[:cryostat] = 0.186
@@ -76,8 +78,8 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     act.ActorEquilibrium.symmetrize = true
     act.ActorCXbuild.rebuild_wall = true
 
-    act.ActorHFSsizing.j_tolerance = 0.1
-    act.ActorHFSsizing.stress_tolerance = 0.1
+    ini.requirements.coil_j_margin = 0.1
+    ini.requirements.coil_stress_margin = 0.1
 
     set_new_base!(ini)
     set_new_base!(act)

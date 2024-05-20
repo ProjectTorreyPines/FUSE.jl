@@ -6,7 +6,7 @@ import Serialization
         ini::ParametersAllInits,
         act::ParametersAllActors,
         actor_or_workflow::Union{Type{<:AbstractActor},Function},
-        objective_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
+        objective_functions::Vector{<:IMAS.ObjectiveFunction}=ObjectiveFunction[],
         constraint_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
         exploitation_vs_exploration::Float64=0.0,
         N::Int=10,
@@ -21,8 +21,8 @@ function workflow_multiobjective_optimization(
     ini::ParametersAllInits,
     act::ParametersAllActors,
     actor_or_workflow::Union{Type{<:AbstractActor},Function},
-    objective_functions::Vector{<:ObjectiveFunction}=ObjectiveFunction[],
-    constraint_functions::Vector{<:ConstraintFunction}=ConstraintFunction[];
+    objective_functions::Vector{<:IMAS.ObjectiveFunction}=IMAS.ObjectiveFunction[],
+    constraint_functions::Vector{<:IMAS.ConstraintFunction}=IMAS.ConstraintFunction[];
     exploitation_vs_exploration::Float64=0.0,
     N::Int=10,
     iterations::Int=N,
@@ -38,7 +38,7 @@ function workflow_multiobjective_optimization(
     if isempty(objective_functions)
         error(
             "Must specify objective functions. Available pre-baked functions from ObjectiveFunctionsLibrary:\n  * " *
-            join(keys(ObjectiveFunctionsLibrary), "\n  * ")
+            join(keys(IMAS.ObjectiveFunctionsLibrary), "\n  * ")
         )
     end
 
@@ -150,8 +150,8 @@ end
         state::Metaheuristics.State,
         ini::ParametersAllInits,
         act::ParametersAllActors,
-        objectives_functions::Vector{<:ObjectiveFunction},
-        constraints_functions::Vector{<:ConstraintFunction})
+        objectives_functions::Vector{<:IMAS.ObjectiveFunction},
+        constraints_functions::Vector{<:IMAS.ConstraintFunction})
 
 Save Metaheuristics.State to file
 """
@@ -160,8 +160,8 @@ function save_optimization(
     state::Metaheuristics.State,
     ini::ParametersAllInits,
     act::ParametersAllActors,
-    objectives_functions::Vector{<:ObjectiveFunction},
-    constraints_functions::Vector{<:ConstraintFunction}
+    objectives_functions::Vector{<:IMAS.ObjectiveFunction},
+    constraints_functions::Vector{<:IMAS.ConstraintFunction}
 )
     data = Dict("state" => state, "ini" => ini, "act" => act, "objective_functions" => objectives_functions, "constraint_functions" => constraints_functions)
     open(filename, "w") do io
