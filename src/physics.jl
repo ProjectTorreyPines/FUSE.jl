@@ -912,15 +912,14 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 """
 function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
 
-    # NOTE: when calling curvature we multiply Z by 2 to form x-points preferentially in Z direction (even for circular plasma, for example)
     function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
         points .= points0
         if upper
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, 2 * Z)[(Z.>(Z0+ZX)/2.0)]))^2.0
+            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.>(Z0+ZX)/2.0)]))^2.0
         else
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, 2 * Z)[(Z.<(Z0+ZX)/2.0)]))^2.0
+            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.<(Z0+ZX)/2.0)]))^2.0
         end
     end
 
@@ -929,13 +928,13 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     end
 
     if upper
-        k = argmax(abs.(IMAS.curvature(mr, 2 * mz)) .* (mz .> Z0))
+        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
         index = mz .> Z0
         mri = mr[index]
         mzi = mz[index]
         i = findfirst(i -> (mri[i] == mr[k] && mzi[i] == mz[k]), 1:length(mri))
     else
-        k = argmax(abs.(IMAS.curvature(mr, 2 * mz)) .* (mz .< Z0))
+        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
         index = mz .< Z0
         mri = mr[index]
         mzi = mz[index]
