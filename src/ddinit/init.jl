@@ -174,7 +174,6 @@ Makes `ini` and `act` self-consistent and consistent with one another
 NOTE: operates in place
 """
 function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-
     if !ismissing(ini.core_profiles, :T_ratio)
         act.ActorFixedProfiles.T_ratio_core = ini.core_profiles.T_ratio
         act.ActorPedestal.T_ratio_pedestal = ini.core_profiles.T_ratio

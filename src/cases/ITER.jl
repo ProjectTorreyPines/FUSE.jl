@@ -49,10 +49,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::S
         ini.equilibrium.R0 = R0
         ini.equilibrium.Z0 = Z0
         ini.equilibrium.ϵ = ϵ
-        ini.equilibrium.κ = t -> 1.0 + ramp((t - 50) / 100.0) * (κ - 1)
-        ini.equilibrium.δ = t -> ramp((t - 50) / 150.0) * δ
-        ini.equilibrium.ζ = t -> ramp((t - 50) / 150.0) * ζ
-        ini.equilibrium.𝚶 = t -> ramp((t - 50) / 150.0) * 𝚶
+        ini.equilibrium.κ = κ
+        ini.equilibrium.δ = δ
+        ini.equilibrium.ζ = ζ
+        ini.equilibrium.𝚶 = 𝚶
     elseif boundary_from == :MXH_params
         ini.equilibrium.MXH_params = [
             R0, Z0, ϵ, κ, 0.00337,

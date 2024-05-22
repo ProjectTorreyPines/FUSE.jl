@@ -565,10 +565,6 @@ function triple_arc(
     Z = Z .* factor
     R = (R .- minimum(R)) .* factor .+ r_start
 
-    # hull = convex_hull(R, Z; closed_polygon=true)
-    # R = [r for (r, z) in hull]
-    # Z = [z for (r, z) in hull]
-
     return R, Z
 end
 
