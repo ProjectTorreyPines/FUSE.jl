@@ -69,6 +69,10 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::S
     ini.time.pulse_shedule_time_basis = range(0, 300, 1000)
     ini.time.simulation_start = 300.0
 
+    ini.rampup.side = :lfs
+    ini.rampup.ends_at = 100.0
+    ini.rampup.diverted_at = 80.0
+
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 1.329
