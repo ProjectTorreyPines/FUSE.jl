@@ -78,6 +78,7 @@ function _finalize(actor::ActorRABBIT)
 
     if num_t > 2
         for i in 2:num_t
+            source.profiles_1d[i].grid.rho_tor_norm = output.rho_data
             source.profiles_1d[i].total_ion_energy = output.powi_data[:, i]
             source.profiles_1d[i].electrons.energy = output.powe_data[:, i]
             source.profiles_1d[i].electrons.particles = vec(sum(output.bdep_data[:, i, :]; dims=2))
