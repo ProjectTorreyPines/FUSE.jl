@@ -219,7 +219,6 @@ end
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
 function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
-
     # MXHboundary adds x-points
     pr = mxhb.r_boundary
     pz = mxhb.z_boundary
@@ -286,62 +285,62 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     return pc
 end
 
+"""
+    limited_to_diverted(
+        initial_minor_radius_fraction::Float64,
+        mxhb_diverted::MXHboundary,
+        r_inner_wall::Float64,
+        r_outer_wall::Float64,
+        wall_side::Symbol)
 
-function limited_to_diverted(initial_minor_radius::Float64, mxhb_end::MXHboundary, r_inner_wall::Float64, r_outer_wall::Float64, wall_side::Symbol, diverted_at_fraction::Float64, n_points::Int)
+Generates starting circular boundary and transition limited-to-diverted mxh boundaries
+"""
+function limited_to_diverted(
+    initial_minor_radius_fraction::Float64,
+    mxhb_diverted::MXHboundary,
+    r_inner_wall::Float64,
+    r_outer_wall::Float64,
+    wall_side::Symbol)
+
+    @assert 0.0 < initial_minor_radius_fraction <= 1.0
     @assert wall_side in (:hfs, :lfs)
-    mxh_end = mxhb_end.mxh
-    r_end, z_end = mxh_end(n_points)
 
-    t = range(0, -2pi, n_points)
-    r = initial_minor_radius * cos.(t)
-    z = initial_minor_radius * sin.(t)
-    if wall_side == :lfs
-        r .+= r_outer_wall .- maximum(r)
-        z .+= z_end[argmax(r_end)]
+    # final diverted shape
+    mxh_diverted = mxhb_diverted.mxh
+    r_diverted, z_diverted = mxh_diverted()
+    δ_diverted = sin(mxh_diverted.s[1])
+    if δ_diverted > 0.0
+        index_z_height = argmax(r_diverted)
     else
-        r .+= r_inner_wall .- minimum(r)
-        z .+= z_end[argmin(r_end)]
-    end
-    r_start = r
-    z_start = z
-    mxh_start = IMAS.MXH(r_start, z_start, length(mxh_end.c))
-
-    offset = 0.0
-    mxh = deepcopy(mxh_start)
-
-    r_z = Tuple{Vector{Float64}, Vector{Float64}}[]
-    for α in (0.0, diverted_at_fraction)
-        mxh.R0 = mxh_end.R0 .* α .+ mxh_start.R0 .* (1 - α)
-        mxh.Z0 = mxh_end.Z0 .* α .+ mxh_start.Z0 .* (1 - α)
-        mxh.ϵ = mxh_end.ϵ .* α .+ mxh_start.ϵ .* (1 - α)
-        mxh.κ = mxh_end.κ .* α .+ mxh_start.κ .* (1 - α)
-        mxh.c0 = mxh_end.c0 .* α .+ mxh_start.c0 .* (1 - α)
-        mxh.c = mxh_end.c .* α .+ mxh_start.c .* (1 - α)
-        mxh.s = mxh_end.s .* α .+ mxh_start.s .* (1 - α)
-
-        r, z = mxh(n_points)
-        if α <= diverted_at_fraction
-            if wall_side == :lfs
-                offset = r_outer_wall .- maximum(r)
-            else
-                offset = r_inner_wall .- minimum(r)
-            end
-            β = 1.0
-            color = :red
-        else
-            β = (1 - α) / (1 - diverted_at_fraction)
-            color = :blue
-        end
-        r .+= β * offset
-        push!(r_z, (r,z))
+        index_z_height = argmin(r_diverted)
     end
 
-    return r_z
+    # starting circular shape
+    t = range(0, -2pi, length(r_diverted))
+    if wall_side == :lfs
+        a = (r_outer_wall - minimum(r_diverted)) / 2.0
+    else
+        a = (maximum(r_diverted) - r_inner_wall) / 2.0
+    end
+    initial_minor_radius = a * initial_minor_radius_fraction
+    r_start = initial_minor_radius * cos.(t)
+    z_start = initial_minor_radius * sin.(t)
+    if wall_side == :lfs
+        r_start .+= r_outer_wall .- maximum(r_start)
+        z_start .+= z_diverted[index_z_height]
+    else
+        r_start .+= r_inner_wall .- minimum(r_start)
+        z_start .+= z_diverted[index_z_height]
+    end
+    mxh_start = IMAS.MXH(r_start, z_start, 0)
+
+    # diverted to limited shape
+    r = [r_start; r_diverted]
+    z = [z_start; z_diverted]
+    hull = convex_hull(r, z; closed_polygon=true)
+    r = [x for (x, y) in hull]
+    z = [y for (x, y) in hull]
+    mxh_transition = IMAS.MXH(r, z, length(mxh_diverted.c))
+
+    return mxh_start, mxh_transition
 end
-
-
-# x = [x; x_start]
-# y = [y; y_start]
-# hull = convex_hull(x, y; closed_polygon=true)
-# x = [x for (x, y) in hull]
-# y = [y for (x, y) in hull]
