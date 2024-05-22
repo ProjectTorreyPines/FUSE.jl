@@ -167,7 +167,7 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
             end
         end
 
-    # if it is a constant
+        # if it is a constant
     else
         if simplify_time_traces != 0.0 || isempty(SimulationParameters.time_range(par))
             time = Float64[-Inf, SimulationParameters.global_time(par), Inf]
@@ -285,3 +285,63 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
 
     return pc
 end
+
+
+function limited_to_diverted(initial_minor_radius::Float64, mxhb_end::MXHboundary, r_inner_wall::Float64, r_outer_wall::Float64, wall_side::Symbol, diverted_at_fraction::Float64, n_points::Int)
+    @assert wall_side in (:hfs, :lfs)
+    mxh_end = mxhb_end.mxh
+    r_end, z_end = mxh_end(n_points)
+
+    t = range(0, -2pi, n_points)
+    r = initial_minor_radius * cos.(t)
+    z = initial_minor_radius * sin.(t)
+    if wall_side == :lfs
+        r .+= r_outer_wall .- maximum(r)
+        z .+= z_end[argmax(r_end)]
+    else
+        r .+= r_inner_wall .- minimum(r)
+        z .+= z_end[argmin(r_end)]
+    end
+    r_start = r
+    z_start = z
+    mxh_start = IMAS.MXH(r_start, z_start, length(mxh_end.c))
+
+    offset = 0.0
+    mxh = deepcopy(mxh_start)
+
+    r_z = Tuple{Vector{Float64}, Vector{Float64}}[]
+    for α in (0.0, diverted_at_fraction)
+        mxh.R0 = mxh_end.R0 .* α .+ mxh_start.R0 .* (1 - α)
+        mxh.Z0 = mxh_end.Z0 .* α .+ mxh_start.Z0 .* (1 - α)
+        mxh.ϵ = mxh_end.ϵ .* α .+ mxh_start.ϵ .* (1 - α)
+        mxh.κ = mxh_end.κ .* α .+ mxh_start.κ .* (1 - α)
+        mxh.c0 = mxh_end.c0 .* α .+ mxh_start.c0 .* (1 - α)
+        mxh.c = mxh_end.c .* α .+ mxh_start.c .* (1 - α)
+        mxh.s = mxh_end.s .* α .+ mxh_start.s .* (1 - α)
+
+        r, z = mxh(n_points)
+        if α <= diverted_at_fraction
+            if wall_side == :lfs
+                offset = r_outer_wall .- maximum(r)
+            else
+                offset = r_inner_wall .- minimum(r)
+            end
+            β = 1.0
+            color = :red
+        else
+            β = (1 - α) / (1 - diverted_at_fraction)
+            color = :blue
+        end
+        r .+= β * offset
+        push!(r_z, (r,z))
+    end
+
+    return r_z
+end
+
+
+# x = [x; x_start]
+# y = [y; y_start]
+# hull = convex_hull(x, y; closed_polygon=true)
+# x = [x for (x, y) in hull]
+# y = [y for (x, y) in hull]

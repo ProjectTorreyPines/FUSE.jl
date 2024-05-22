@@ -58,7 +58,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::S
             R0, Z0, ϵ, κ, 0.00337,
             0.15912, -0.05842, -0.04573, 0.00694, 0.00614, 0.00183,
             asin(δ), -ζ, -0.05597, -0.01655, 0.00204, 0.00306]
-    elseif boundary_from == :ODS && init_from
+    elseif boundary_from == init_from == :ods
         # pass
     else
         error("invalid boundary_from=:$boundary_from")
