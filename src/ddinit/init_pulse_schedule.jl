@@ -65,15 +65,25 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 end
 
             else
-                # NOT SETUP FOR TIME DEPENDENCE YET
-                nx = n_xpoints(ini.equilibrium.xpoints) # XPOINTS NOT SETUP FOR TIME DEPENDENCE YET
+                # can handle rampup but not time-dependence after that
+                nx = n_xpoints(ini.equilibrium.xpoints)
                 mxh = IMAS.MXH(ini, dd1)
                 ini.equilibrium(mxh)
                 mxhb = fitMXHboundary(mxh, nx)
 
-                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, -Inf)
-                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, global_time(ini))
-                init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
+                if !ismissing(ini.rampup, :ends_at)
+                    wall = wall_radii(ini.build.layers, mxh.R0)
+                    mxh_bore, mxh_lim2div = limited_to_diverted(.75, mxhb, wall.r_hfs, wall.r_lfs, ini.rampup.side)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh_bore, -Inf)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh_bore, 0.0)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh_lim2div, ini.rampup.diverted_at)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, ini.rampup.ends_at)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
+                else
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, -Inf)
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, global_time(ini))
+                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
+                end
             end
 
             # density & zeff
@@ -323,24 +333,26 @@ function limited_to_diverted(
         a = (maximum(r_diverted) - r_inner_wall) / 2.0
     end
     initial_minor_radius = a * initial_minor_radius_fraction
-    r_start = initial_minor_radius * cos.(t)
-    z_start = initial_minor_radius * sin.(t)
+    r_bore = initial_minor_radius * cos.(t)
+    z_bore = initial_minor_radius * sin.(t)
     if wall_side == :lfs
-        r_start .+= r_outer_wall .- maximum(r_start)
-        z_start .+= z_diverted[index_z_height]
+        r_bore .+= r_outer_wall .- maximum(r_bore)
+        z_bore .+= z_diverted[index_z_height]
     else
-        r_start .+= r_inner_wall .- minimum(r_start)
-        z_start .+= z_diverted[index_z_height]
+        r_bore .+= r_inner_wall .- minimum(r_bore)
+        z_bore .+= z_diverted[index_z_height]
     end
-    mxh_start = IMAS.MXH(r_start, z_start, 0)
+    mxh_bore = IMAS.MXH(r_bore, z_bore, 0)
+    mxhb_bore = FUSE.MXHboundary(mxh_bore; upper_x_point=false, lower_x_point=false)
 
     # diverted to limited shape
-    r = [r_start; r_diverted]
-    z = [z_start; z_diverted]
+    r = [r_bore; r_diverted]
+    z = [z_bore; z_diverted]
     hull = convex_hull(r, z; closed_polygon=true)
     r = [x for (x, y) in hull]
     z = [y for (x, y) in hull]
-    mxh_transition = IMAS.MXH(r, z, length(mxh_diverted.c))
+    mxh_lim2div = IMAS.MXH(r, z, length(mxh_diverted.c))
+    mxhb_lim2div = FUSE.MXHboundary(mxh_lim2div; upper_x_point=any(mxhb_diverted.ZX .> mxhb_diverted.mxh.Z0), lower_x_point=any(mxhb_diverted.ZX .< mxhb_diverted.mxh.Z0))
 
-    return mxh_start, mxh_transition
+    return (mxhb_bore=mxhb_bore, mxhb_lim2div=mxhb_lim2div)
 end

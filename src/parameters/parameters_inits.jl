@@ -73,13 +73,13 @@ Plots ini time dependent time traces including plasma boundary
         nx = n_xpoints(ini.equilibrium.xpoints)
         mxh = IMAS.MXH(ini)
         mxhb = fitMXHboundary(mxh, nx)
-        wr = wall_radii(ini)
+        wr = wall_radii(ini.build.layers, mxh.R0)
         @series begin
             label := ""
             seriestype := :vline
             subplot := 1
             colour := :black
-            [wr.R_wall_hfs, wr.R_wall_lfs]
+            [wr.r_hfs, wr.r_lfs]
         end
         @series begin
             label := ""
@@ -109,25 +109,25 @@ Plots ini time dependent time traces including plasma boundary
 end
 
 """
-    wall_radii(ini)
+    wall_radii(layers::AbstractVector{<:FUSEparameters__build_layer}, equilibrium_R0::Float64)
 
 returns the hfs and lfs radii of the wall
 """
-function wall_radii(ini::ParametersAllInits)
+function wall_radii(layers::AbstractVector{<:FUSEparameters__build_layer}, equilibrium_R0::Float64)
     radius = 0.0
-    for layer in ini.build.layers
+    for layer in layers
         if layer.name == "plasma"
             break
         end
         radius += layer.thickness
     end
     if radius == 0.0
-        R_wall_hfs = R_wall_lfs = 0.0
+        r_hfs = r_lfs = 0.0
     else
-        R0 = radius + ini.build.layers[:plasma].thickness / 2.0
-        factor = ini.equilibrium.R0 / R0
-        R_wall_hfs = radius * factor
-        R_wall_lfs = (radius + ini.build.layers[:plasma].thickness) * factor
+        layers_R0 = radius + layers[:plasma].thickness / 2.0
+        factor = equilibrium_R0 / layers_R0 # factor by which layers are scaled based on equilibrium R0
+        r_hfs = radius * factor
+        r_lfs = (radius + layers[:plasma].thickness) * factor
     end
-    return (R_wall_hfs=R_wall_hfs, R_wall_lfs=R_wall_lfs)
+    return (r_hfs=r_hfs, r_lfs=r_lfs)
 end

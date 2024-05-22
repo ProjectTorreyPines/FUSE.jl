@@ -97,6 +97,7 @@ mutable struct ParametersInitsBuild{T<:Real} <: ParametersAllInits{T}
     equilibrium::FUSEparameters__equilibrium{T}
     core_profiles::FUSEparameters__core_profiles{T}
     pf_active::FUSEparameters__pf_active{T}
+    rampup::FUSEparameters__rampup{T}
     nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
     ec_launcher::ParametersVector{FUSEparameters__ec_launcher{T}}
     pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
@@ -124,6 +125,7 @@ function ParametersInitsBuild{T}(; n_layers::Int=0, kw...) where {T<:Real}
         ini_plasma.equilibrium,
         ini_plasma.core_profiles,
         ini_plasma.pf_active,
+        ini_plasma.rampup,
         ini_plasma.nb_unit,
         ini_plasma.ec_launcher,
         ini_plasma.pellet_launcher,
