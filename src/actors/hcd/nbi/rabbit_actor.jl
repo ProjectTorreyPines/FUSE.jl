@@ -23,7 +23,6 @@ end
 
 """
     ActorRABBIT(dd::IMAS.dd, act::ParametersAllActors; kw...)
-
 """
 function ActorRABBIT(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorRABBIT(dd, act.ActorRABBIT; kw...)
@@ -34,7 +33,7 @@ end
 
 function _step(actor::ActorRABBIT)
     dd = actor.dd
-    
+
     all_inputs = RABBIT.FUSEtoRABBITinput(dd)
 
     powe_data, powi_data, jnbcd_data, bdep_data, torqdepo_data, rho_data, time_data = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
@@ -45,8 +44,8 @@ function _step(actor::ActorRABBIT)
     output.jnbcd_data = jnbcd_data
     output.bdep_data = bdep_data
     output.torque_data = torqdepo_data
-    output.rho_data = rho_data 
-    output.time_data = time_data 
+    output.rho_data = rho_data
+    output.time_data = time_data
 
     actor.outputs = output
 
@@ -61,7 +60,7 @@ function _finalize(actor::ActorRABBIT)
 
     num_t = length(output.time_data)
     source = resize!(cs.source, :nbi, "identifier.name" => "nbi"; wipe=true)
-    
+
     if num_t > 2
         prof_1d = resize!(source.profiles_1d, num_t)
     else
@@ -71,18 +70,18 @@ function _finalize(actor::ActorRABBIT)
     source.profiles_1d[1].grid.rho_tor_norm = output.rho_data
     ion = resize!(source.profiles_1d[1].ion, 1)[1]
 
-    source.profiles_1d[1].total_ion_energy = output.powi_data[:,1]
-    source.profiles_1d[1].electrons.energy = output.powe_data[:,1]
-    source.profiles_1d[1].electrons.particles = vec(sum(output.bdep_data[:,1,:], dims = 2))
-    source.profiles_1d[1].j_parallel = output.jnbcd_data[:,1]
-    source.profiles_1d[1].momentum_tor = vec(sum(output.torque_data[:,1,:], dims = 2))
+    source.profiles_1d[1].total_ion_energy = output.powi_data[:, 1]
+    source.profiles_1d[1].electrons.energy = output.powe_data[:, 1]
+    source.profiles_1d[1].electrons.particles = vec(sum(output.bdep_data[:, 1, :]; dims=2))
+    source.profiles_1d[1].j_parallel = output.jnbcd_data[:, 1]
+    source.profiles_1d[1].momentum_tor = vec(sum(output.torque_data[:, 1, :]; dims=2))
 
     if num_t > 2
         for i in 2:num_t
-            source.profiles_1d[i].total_ion_energy = output.powi_data[:,i]
-            source.profiles_1d[i].electrons.energy = output.powe_data[:,i]
-            source.profiles_1d[i].electrons.particles = vec(sum(output.bdep_data[:,i,:], dims = 2))
-            source.profiles_1d[i].momentum_tor = vec(sum(output.torque_data[:,i,:], dims = 2))
+            source.profiles_1d[i].total_ion_energy = output.powi_data[:, i]
+            source.profiles_1d[i].electrons.energy = output.powe_data[:, i]
+            source.profiles_1d[i].electrons.particles = vec(sum(output.bdep_data[:, i, :]; dims=2))
+            source.profiles_1d[i].momentum_tor = vec(sum(output.torque_data[:, i, :]; dims=2))
         end
     end
 
