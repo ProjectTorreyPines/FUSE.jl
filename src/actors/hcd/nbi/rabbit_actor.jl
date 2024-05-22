@@ -37,7 +37,7 @@ function _step(actor::ActorRABBIT)
     
     all_inputs = RABBIT.FUSEtoRABBITinput(dd)
 
-    powe_data, powi_data, jnbcd_data, bdep_data, torqdepo_data, rho_data, time_data = RABBIT.run_RABBIT(all_inputs; remove_inputs=false)
+    powe_data, powi_data, jnbcd_data, bdep_data, torqdepo_data, rho_data, time_data = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
     output = RABBIT.RABBIToutput()
 
     output.powe_data = powe_data
@@ -90,26 +90,6 @@ function _finalize(actor::ActorRABBIT)
         IMAS.ion_element!(ion, "H$(Int(floor(nbu.species.a)))"; fast=true)
     end
 
-    p = plot(actor.outputs.rho_data, powe[:,1])
-
-    for i in 2:length(actor.outputs.time_data)
-        plot!(p, actor.outputs.rho_data, powe[:,i])
-    end
-
-    xlabel!(p, "rho")
-    ylabel!(p, "Power density profile to electrons - W/m^3 ")
-    display(p)
-
-    pp = plot(actor.outputs.rho_data, powi[:,1])
-
-    for i in 2:length(actor.outputs.time_data)
-        plot!(pp, actor.outputs.rho_data, powi[:,i])
-    end
-
-    xlabel!(pp, "rho")
-    ylabel!(pp, "Power density profile to ions - W/m^3 ")
-    display(pp)
-   
     return actor
 
 end
