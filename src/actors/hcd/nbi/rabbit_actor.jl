@@ -82,6 +82,7 @@ function _finalize(actor::ActorRABBIT)
             source.profiles_1d[i].total_ion_energy = output.powi_data[:, i]
             source.profiles_1d[i].electrons.energy = output.powe_data[:, i]
             source.profiles_1d[i].electrons.particles = vec(sum(output.bdep_data[:, i, :]; dims=2))
+            source.profiles_1d[i].j_parallel = output.jnbcd_data[:, i]
             source.profiles_1d[i].momentum_tor = vec(sum(output.torque_data[:, i, :]; dims=2))
         end
     end
