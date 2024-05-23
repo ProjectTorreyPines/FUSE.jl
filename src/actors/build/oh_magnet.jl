@@ -2,7 +2,7 @@
 #  OH magnet  #
 #= ========= =#
 """
-    oh_maximum_J_B!(bd::IMAS.build; j_tolerance)
+    oh_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
 
 Evaluate maxium OH current density and magnetic field for given geometry and technology
 
@@ -11,7 +11,7 @@ NOTES:
   - Equations from GASC (Stambaugh FST 2011)
   - Also relevant: `Engineering design solutions of flux swing with structural requirements for ohmic heating solenoids` Smith, R. A. September 30, 1977
 """
-function oh_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
+function oh_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
     OH = IMAS.get_build_layer(bd.layer; type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
@@ -23,7 +23,7 @@ function oh_maximum_J_B!(bd::IMAS.build; j_tolerance::Float64)
         magneticFieldSolenoidBore = currentDensityOH / 1E6 * (0.4 * π * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
         critical_j = mat_oh.critical_current_density(;Bext=magneticFieldSolenoidBore)
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityOH if critical_j==0
-        return abs(critical_j - currentDensityOH * (1.0 + j_tolerance))
+        return abs(critical_j - currentDensityOH * (1.0 + coil_j_margin))
     end
     res = Optim.optimize(max_J_OH, 0.0, 1E9, Optim.GoldenSection(); rel_tol=1E-3)
 

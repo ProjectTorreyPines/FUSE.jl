@@ -110,6 +110,10 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
     eq.vacuum_toroidal_field.b0[1] = @ddtime(eq.vacuum_toroidal_field.b0)
     eqb.global_quantities.psi_boundary = ψp_constant
     eqb.profiles_1d.psi = [ψp_constant]
+    eqb.boundary.outline.r = pr
+    eqb.boundary.outline.z = pz
+    eqb.global_quantities.magnetic_axis.r = mxh.R0
+    eqb.global_quantities.magnetic_axis.z = mxh.Z0
 
     return nothing
 end

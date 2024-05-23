@@ -23,8 +23,8 @@ The FUSE project is built upon different Julia packages. Several of these are ma
 
 ## How to add/modify entries in `dd`
 
-1. add/edit Json files in the `IMASDD/data_structures_extra` folder
-2. run `IMASDD/src/generate_dd.jl`
+1. add/edit Json files in the `FUSE/generate_dd/data_structures_extra` folder
+2. run `FUSE/generate_dd/generate_dd.jl`
 
 !!! note
     The `dd` data structure is defined as a Julia `struct`. Like all `struct` re-definitions, changes to the `dd` data structure will requires your Julia interpreters to be restarted to pick-up the updates.

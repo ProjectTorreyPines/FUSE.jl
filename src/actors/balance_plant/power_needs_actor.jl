@@ -46,6 +46,9 @@ function _step(actor::ActorPowerNeeds)
     bop = dd.balance_of_plant
     bop_electric = bop.power_electric_plant_operation
     empty!(bop_electric)
+    if ismissing(bop, :time)
+        bop.time = [dd.global_time]
+    end
 
     ## heating and current drive systems
     system = :HCD

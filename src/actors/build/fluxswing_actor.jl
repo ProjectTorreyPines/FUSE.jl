@@ -6,14 +6,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T<:Real} <: Parameters
     _name::Symbol = :not_set
     _time::Float64 = NaN
     operate_oh_at_j_crit::Entry{Bool} = Entry{Bool}("-", """
-If `true` it makes the OH operate at its current limit (within specified `j_tolerance`).
+If `true` it makes the OH operate at its current limit (within specified dd.requirements.coil_j_margin`).
 The flattop duration and maximum toroidal magnetic field follow from that.
 Otherwise we evaluate what is the current needed for dd.requirements.flattop_duration,
 which may or may not exceed the OH critical current limit.
 If dd.requirements.flattop_duration is not set, then operate_oh_at_j_crit is assumed.""";
         default=false
     )
-    j_tolerance::Entry{T} = Entry{T}("-", "Tolerance on the OH current limit"; default=0.4)
 end
 
 mutable struct ActorFluxSwing{D,P} <: SingleAbstractActor{D,P}
@@ -68,7 +67,7 @@ function _step(actor::ActorFluxSwing)
         bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
         oh_required_J_B!(bd)
     else
-        oh_maximum_J_B!(bd; par.j_tolerance)
+        oh_maximum_J_B!(bd; requirements.coil_j_margin)
         bd.flux_swing.flattop = flattop_flux_estimates(bd) # flattop flux based on available current
     end
 

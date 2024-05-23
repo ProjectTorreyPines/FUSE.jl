@@ -59,42 +59,34 @@ function _step(actor::ActorTGLF)
     par = actor.par
     dd = actor.dd
 
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
     cp1d = dd.core_profiles.profiles_1d[]
-    ix_eq = [argmin(abs.(eq1d.rho_tor_norm .- rho)) for rho in par.rho_transport]
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
 
-
-    ϵ_st40 = 1 / 1.9
-    ϵ_D3D = 0.67 / 1.67
-
-    ϵ = dd.equilibrium.time_slice[].boundary.minor_radius / dd.equilibrium.time_slice[].boundary.geometric_axis.r
-    theta_0 = (0.7 - 0.2) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.2
-    theta_1 = (0.7 - 0.8) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.8
-    theta_trapped = range(theta_0, theta_1, length(cp1d.grid.rho_tor_norm))
+    # eqt = dd.equilibrium.time_slice[]
+    # ϵ_st40 = 1.0 / 1.9
+    # ϵ_D3D = 0.67 / 1.67
+    # ϵ = eqt.boundary.minor_radius / eqt.boundary.geometric_axis.r
+    # theta_0 = (0.7 - 0.2) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.2
+    # theta_1 = (0.7 - 0.8) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.8
+    # theta_trapped = range(theta_0, theta_1, length(cp1d.grid.rho_tor_norm))
 
     for (k, gridpoint_cp) in enumerate(ix_cp)
         input_tglf = InputTGLF(dd, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
-            if par.model == :TGLFNN
-                # TGLF-NN has some difficulty with the sign of rotation / shear
-                actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
-                actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
-            end
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k)
                 nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
-                actor.input_tglfs[k].WIDTH_SPECTRUM .= 0.0
+                actor.input_tglfs[k].WIDTH_SPECTRUM .= 1.65
                 actor.input_tglfs[k].FIND_WIDTH = true # first case should find the widths
             end
             update_input_tjlf!(actor.input_tglfs[k], input_tglf)
         end
 
-        if ϵ > ϵ_D3D
-            actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
-        end
+        # if ϵ > ϵ_D3D
+        #     actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
+        # end
 
         # Setting up the TJLF / TGLF run with the custom parameter mask (this overwrites all the above)
         if !ismissing(par, :custom_input_files)
@@ -108,11 +100,14 @@ function _step(actor::ActorTGLF)
 
     if par.model == :TGLFNN
         actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
+
     elseif par.model == :TGLF
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
+
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
-        actor.flux_solutions = [IMAS.flux_solution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
+        actor.flux_solutions =
+            [IMAS.flux_solution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
     end
 
     return actor
@@ -148,7 +143,6 @@ function model_filename(par::FUSEparameters__ActorTGLF)
     end
     return filename
 end
-
 
 """
     update_input_tjlf!(input_tglf::InputTGLF)
@@ -233,7 +227,6 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
 
     return input_tjlf
 end
-
 
 function Base.show(input::Union{InputTGLF,InputTJLF})
     for field_name in fieldnames(typeof(input))

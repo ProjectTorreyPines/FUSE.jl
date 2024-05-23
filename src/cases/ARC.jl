@@ -78,8 +78,8 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     act.ActorEquilibrium.symmetrize = true
     act.ActorCXbuild.rebuild_wall = true
 
-    act.ActorHFSsizing.j_tolerance = 0.1
-    act.ActorHFSsizing.stress_tolerance = 0.1
+    ini.requirements.coil_j_margin = 0.1
+    ini.requirements.coil_stress_margin = 0.1
 
     set_new_base!(ini)
     set_new_base!(act)

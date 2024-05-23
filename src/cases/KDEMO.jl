@@ -36,7 +36,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
     ini.build.divertors = :lower
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
 
     ini.equilibrium.B0 = 7.5
     ini.equilibrium.R0 = 6.8
@@ -63,6 +63,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :nb3sn
 
+    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
     # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
     ini.tf.technology = :nb3sn_kdemo

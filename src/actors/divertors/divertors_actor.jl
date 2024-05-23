@@ -80,7 +80,7 @@ function _step(actor::ActorDivertors)
             resize!(target.two_point_model)
             target.two_point_model[].sol_heat_decay_length = λ_omp
 
-            # target flux expansion [-] and wetted area [m^2]
+            # target flux expansion [-] and wetted area [m²]
             flxexp = @ddtime(target.flux_expansion.data = sol1.total_flux_expansion[strike_index])
             λ_target = flxexp * λ_omp
             wetted_area = @ddtime(target.wetted_area.data = λ_target * 2π * sol1.r[strike_index])
@@ -100,7 +100,7 @@ function _step(actor::ActorDivertors)
                 println()
             end
 
-            # get the peak power heatflux [W.m^2]
+            # get the peak power heatflux [W.m²]
             power_flux_peak = @ddtime(target.power_flux_peak.data = boundary_plasma_model.results.q_perp_target_spread)
 
             # get the total power on the divertor [W]

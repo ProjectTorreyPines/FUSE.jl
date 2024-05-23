@@ -117,6 +117,10 @@ function init(
             end
         end
 
+        # initialize balance of plant
+        verbose && @info "INIT: init_balance_of_plant"
+        init_balance_of_plant!(dd, ini, act, dd1)
+       
         # initialize requirements
         verbose && @info "INIT: init_requirements"
         init_requirements!(dd, ini, act, dd1)

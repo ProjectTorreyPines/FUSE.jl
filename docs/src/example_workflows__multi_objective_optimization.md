@@ -41,7 +41,6 @@ using Distributed
 ini, act = FUSE.case_parameters(:FPP; version=:v1_demount, init_from=:scalars, STEP=true)
 #act.ActorPFcoilsOpt.optimization_scheme = :none; # don't spend time optimizing the PFs
 act.ActorStabilityLimits.models = [:beta_troyon_1984, :model_201, :model_401] # include βn check
-act.ActorTauenn.eped_only_powerlaw = true # more reliable for broader exploration
 ```
 
 ### Define optimization variables and ranges
