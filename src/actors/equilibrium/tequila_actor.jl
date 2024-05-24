@@ -230,7 +230,6 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
         psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound=psib, λ_regularize=-1.0)
         eq2d.psi .= psi_free_rz'
 
-        IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
         pf_current_limits(dd.pf_active, dd.build)
 
     else

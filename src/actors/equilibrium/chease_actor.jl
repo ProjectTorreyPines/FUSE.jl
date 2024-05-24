@@ -152,7 +152,6 @@ function _finalize(actor::ActorCHEASE)
     end
 
     if par.free_boundary
-        IMAS.tweak_psi_to_match_psilcfs!(dd.equilibrium.time_slice[]; ψbound)
         pf_current_limits(dd.pf_active, dd.build)
     end
 
