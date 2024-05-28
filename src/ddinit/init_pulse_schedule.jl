@@ -19,11 +19,14 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             end
         end
 
+        ps = dd.pulse_schedule
+        pc = dd.pulse_schedule.position_control
+
         if init_from == :scalars
             # ip
             time, data = get_time_dependent(ini.equilibrium, :ip; simplify_time_traces)
-            dd.pulse_schedule.flux_control.time = time
-            dd.pulse_schedule.flux_control.i_plasma.reference = data
+            ps.flux_control.time = time
+            ps.flux_control.i_plasma.reference = data
 
             # R0 should not be time dependent for definition of B0
             if !isempty(dd.build.layer)
@@ -38,9 +41,9 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
 
             # B0
             time, data = get_time_dependent(ini.equilibrium, :B0; simplify_time_traces)
-            dd.pulse_schedule.tf.time = time
-            dd.pulse_schedule.tf.b_field_tor_vacuum.reference = data
-            dd.pulse_schedule.tf.r0 = R0
+            ps.tf.time = time
+            ps.tf.b_field_tor_vacuum.reference = data
+            ps.tf.r0 = R0
 
             # initialize position_control from mxh
             if ini.equilibrium.boundary_from == :scalars
@@ -57,9 +60,9 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                     mxh = IMAS.MXH(R0, Z0, ϵ, κ, 0.0, [𝚶, 0.0], [asin(δ), -ζ])
                     nx = n_xpoints(data.xpoints[k])
                     mxhb = fitMXHboundary(mxh, nx)
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, time0)
+                    init_pulse_schedule_postion_control(pc, mxhb, time0)
                     if k == length(time) - 1 && time[k+1] == Inf
-                        init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
+                        init_pulse_schedule_postion_control(pc, mxhb, Inf)
                         break
                     end
                 end
@@ -74,81 +77,87 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 if !ismissing(ini.rampup, :ends_at)
                     wall = wall_radii(ini.build.layers, mxh.R0)
                     mxh_bore, mxh_lim2div = limited_to_diverted(.75, mxhb, wall.r_hfs, wall.r_lfs, ini.rampup.side)
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh_bore, -Inf)
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh_bore, 0.0)
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxh_lim2div, ini.rampup.diverted_at)
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, ini.rampup.ends_at)
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
+                    init_pulse_schedule_postion_control(pc, mxh_bore, -Inf)
+                    init_pulse_schedule_postion_control(pc, mxh_bore, 0.0)
+                    init_pulse_schedule_postion_control(pc, mxh_lim2div, ini.rampup.diverted_at)
+                    init_pulse_schedule_postion_control(pc, mxhb, ini.rampup.ends_at)
+                    init_pulse_schedule_postion_control(pc, mxhb, Inf)
+                    pc.x_point[1].r.reference[end-3:end-1] .= pc.x_point[1].r.reference[end-1]
+                    pc.x_point[1].z.reference[end-3:end-1] .= pc.x_point[1].z.reference[end-1]
+                    pc.x_point[2].r.reference[end-3:end-1] .= pc.x_point[2].r.reference[end-1]
+                    pc.x_point[2].z.reference[end-3:end-1] .= pc.x_point[2].z.reference[end-1]
+
                 else
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, -Inf)
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, global_time(ini))
-                    init_pulse_schedule_postion_control(dd.pulse_schedule.position_control, mxhb, Inf)
+                    init_pulse_schedule_postion_control(pc, mxhb, -Inf)
+                    init_pulse_schedule_postion_control(pc, mxhb, global_time(ini))
+                    init_pulse_schedule_postion_control(pc, mxhb, Inf)
                 end
+
             end
 
             # density & zeff
             time, data = get_time_dependent(ini.core_profiles, [:zeff, :greenwald_fraction_ped, :ne_ped, :greenwald_fraction]; simplify_time_traces)
-            dd.pulse_schedule.density_control.time = time
-            dd.pulse_schedule.density_control.zeff.reference = data.zeff
-            dd.pulse_schedule.density_control.zeff_pedestal.reference = data.zeff
+            ps.density_control.time = time
+            ps.density_control.zeff.reference = data.zeff
+            ps.density_control.zeff_pedestal.reference = data.zeff
             if !(typeof(data.greenwald_fraction_ped) <: Vector{Missing})
-                dd.pulse_schedule.density_control.n_e_pedestal_greenwald_fraction.reference = data.greenwald_fraction_ped
+                ps.density_control.n_e_pedestal_greenwald_fraction.reference = data.greenwald_fraction_ped
             end
             if !(typeof(data.ne_ped) <: Vector{Missing})
-                dd.pulse_schedule.density_control.n_e_pedestal.reference = data.ne_ped
+                ps.density_control.n_e_pedestal.reference = data.ne_ped
             end
             if !(typeof(data.greenwald_fraction) <: Vector{Missing})
-                dd.pulse_schedule.density_control.n_e_greenwald_fraction.reference = data.greenwald_fraction
+                ps.density_control.n_e_greenwald_fraction.reference = data.greenwald_fraction
             end
 
             # NB
-            resize!(dd.pulse_schedule.nbi.unit, length(ini.nb_unit))
+            resize!(ps.nbi.unit, length(ini.nb_unit))
             for (k, ini_nbu) in enumerate(ini.nb_unit)
                 time, data = get_time_dependent(ini_nbu, [:power_launched, :rho_0, :width]; simplify_time_traces)
-                dd.pulse_schedule.nbi.time = time
-                dd.pulse_schedule.nbi.unit[k].power.reference = data.power_launched
-                dd.pulse_schedule.nbi.unit[k].deposition_rho_tor_norm.reference = data.rho_0
-                dd.pulse_schedule.nbi.unit[k].deposition_rho_tor_norm_width.reference = data.width
+                ps.nbi.time = time
+                ps.nbi.unit[k].power.reference = data.power_launched
+                ps.nbi.unit[k].deposition_rho_tor_norm.reference = data.rho_0
+                ps.nbi.unit[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # EC
-            resize!(dd.pulse_schedule.ec.beam, length(ini.ec_launcher))
+            resize!(ps.ec.beam, length(ini.ec_launcher))
             for (k, ini_ecb) in enumerate(ini.ec_launcher)
                 time, data = get_time_dependent(ini_ecb, [:power_launched, :rho_0, :width]; simplify_time_traces)
-                dd.pulse_schedule.ec.time = time
-                dd.pulse_schedule.ec.beam[k].power_launched.reference = data.power_launched
-                dd.pulse_schedule.ec.beam[k].deposition_rho_tor_norm.reference = data.rho_0
-                dd.pulse_schedule.ec.beam[k].deposition_rho_tor_norm_width.reference = data.width
+                ps.ec.time = time
+                ps.ec.beam[k].power_launched.reference = data.power_launched
+                ps.ec.beam[k].deposition_rho_tor_norm.reference = data.rho_0
+                ps.ec.beam[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # IC
-            resize!(dd.pulse_schedule.ic.antenna, length(ini.ic_antenna))
+            resize!(ps.ic.antenna, length(ini.ic_antenna))
             for (k, ini_ica) in enumerate(ini.ic_antenna)
                 time, data = get_time_dependent(ini_ica, [:power_launched, :rho_0, :width]; simplify_time_traces)
-                dd.pulse_schedule.ic.time = time
-                dd.pulse_schedule.ic.antenna[k].power.reference = data.power_launched
-                dd.pulse_schedule.ic.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
-                dd.pulse_schedule.ic.antenna[k].deposition_rho_tor_norm_width.reference = data.width
+                ps.ic.time = time
+                ps.ic.antenna[k].power.reference = data.power_launched
+                ps.ic.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
+                ps.ic.antenna[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # LH
-            resize!(dd.pulse_schedule.lh.antenna, length(ini.lh_antenna))
+            resize!(ps.lh.antenna, length(ini.lh_antenna))
             for (k, ini_lha) in enumerate(ini.lh_antenna)
                 time, data = get_time_dependent(ini_lha, [:power_launched, :rho_0, :width]; simplify_time_traces)
-                dd.pulse_schedule.lh.time = time
-                dd.pulse_schedule.lh.antenna[k].power.reference = data.power_launched
-                dd.pulse_schedule.lh.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
-                dd.pulse_schedule.lh.antenna[k].deposition_rho_tor_norm_width.reference = data.width
+                ps.lh.time = time
+                ps.lh.antenna[k].power.reference = data.power_launched
+                ps.lh.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
+                ps.lh.antenna[k].deposition_rho_tor_norm_width.reference = data.width
             end
 
             # PL
-            resize!(dd.pulse_schedule.pellet.launcher, length(ini.pellet_launcher))
+            resize!(ps.pellet.launcher, length(ini.pellet_launcher))
             for (k, ini_peln) in enumerate(ini.pellet_launcher)
                 time, data = get_time_dependent(ini_peln, [:frequency, :rho_0, :width]; simplify_time_traces)
-                dd.pulse_schedule.pellet.time = time
-                dd.pulse_schedule.pellet.launcher[k].frequency.reference = data.frequency
-                dd.pulse_schedule.pellet.launcher[k].deposition_rho_tor_norm.reference = data.rho_0
-                dd.pulse_schedule.pellet.launcher[k].deposition_rho_tor_norm_width.reference = data.width
+                ps.pellet.time = time
+                ps.pellet.launcher[k].frequency.reference = data.frequency
+                ps.pellet.launcher[k].deposition_rho_tor_norm.reference = data.rho_0
+                ps.pellet.launcher[k].deposition_rho_tor_norm_width.reference = data.width
             end
         end
 
