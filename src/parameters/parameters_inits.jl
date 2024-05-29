@@ -73,7 +73,7 @@ Plots ini time dependent time traces including plasma boundary
         nx = n_xpoints(ini.equilibrium.xpoints)
         mxh = IMAS.MXH(ini)
         mxhb = fitMXHboundary(mxh, nx)
-        wr = wall_radii(ini.build.layers, mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
+        wr = wall_radii(mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
         @series begin
             label := ""
             seriestype := :vline

@@ -66,8 +66,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 if ismissing(ini.rampup, :ends_at)
                     init_pulse_schedule_postion_control(pc, mxhb, time0)
                 else
-                    wr = wall_radii(ini.build.layers, mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
-                    @show wr
+                    wr = wall_radii(mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
                     mxh_bore, mxh_lim2div = limited_to_diverted(0.75, mxhb, wr.r_hfs, wr.r_lfs, ini.rampup.side)
                     if time0 <= 0.0
                         init_pulse_schedule_postion_control(pc, mxh_bore, time0)
