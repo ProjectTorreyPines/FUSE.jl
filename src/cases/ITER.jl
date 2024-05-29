@@ -34,8 +34,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::S
     end
     act.ActorEquilibrium.model = :TEQUILA
 
-    mapper(v) = v < -0.5 ? :lower : :none
-    ini.equilibrium.xpoints = (t -> mapper(-step(t - 100.0)))
+    ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = boundary_from
 
     R0 = 6.2

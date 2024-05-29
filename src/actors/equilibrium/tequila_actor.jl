@@ -9,11 +9,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     _time::Float64 = NaN
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=11)
+    number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=21)
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=10)
     number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=4)
-    number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=20)
-    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
+    number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=30)
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.25)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-3)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -91,7 +91,9 @@ function _step(actor::ActorTEQUILA)
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
-        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
+        ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz)^2)) / 2.0
+        pr, pz = limit_curvature(pr, pz, ab / 10.0)
+        pr, pz = IMAS.rdp_simplify_2d_path(pr, pz, ab / 1000.0)
         mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve

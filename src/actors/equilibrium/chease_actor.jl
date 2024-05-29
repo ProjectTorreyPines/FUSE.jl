@@ -110,7 +110,9 @@ function _finalize(actor::ActorCHEASE)
         # constraints for the private flux region
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
-        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
+        ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz)^2)) / 2.0
+        pr, pz = limit_curvature(pr, pz, ab / 10.0)
+        pr, pz = IMAS.rdp_simplify_2d_path(pr, pz, ab / 1000.0)
 
         # Flux Control Points
         flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, psib)

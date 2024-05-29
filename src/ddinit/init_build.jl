@@ -296,7 +296,7 @@ function wall_radii(layers::ParametersVector{<:FUSEparameters__build_layer}, R0:
     factor = plasma_start / layer_plasma_start
     r_hfs = 0.0
     r_lfs = 0.0
-    for (k, layer) in enumerate(layers)
+    for layer in layers
         if layer.type == _plasma_
             r_lfs = r_hfs + 2.0 * (a + gap)
             break
