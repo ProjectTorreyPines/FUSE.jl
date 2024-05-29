@@ -1,7 +1,7 @@
 #= ================== =#
-#  ActorFixedProfiles  #
+#  ActorEPEDProfiles  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorEPEDProfiles{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -9,53 +9,59 @@ Base.@kwdef mutable struct FUSEparameters__ActorFixedProfiles{T<:Real} <: Parame
     n_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core"; default=1.0)
-    update_pedestal::Entry{Bool} = Entry{Bool}("-", "Update pedestal and modify profiles accordingly"; default=true)
 end
 
-mutable struct ActorFixedProfiles{D,P} <: CompoundAbstractActor{D,P}
+mutable struct ActorEPEDProfiles{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorFixedProfiles{P}
-    ped_actor::ActorPedestal{D,P}
+    par::FUSEparameters__ActorEPEDProfiles{P}
 end
 
 """
-    ActorFixedProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorEPEDProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Updates pedestal height and width and blends with core profiles that are defined by shaping factors.
 
 Does not change on-axis values of plasma profiles.
 """
-function ActorFixedProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorFixedProfiles(dd, act.ActorFixedProfiles, act; kw...)
+function ActorEPEDProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorEPEDProfiles(dd, act.ActorEPEDProfiles, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorFixedProfiles(dd::IMAS.dd, par::FUSEparameters__ActorFixedProfiles, act::ParametersAllActors; kw...)
+function ActorEPEDProfiles(dd::IMAS.dd, par::FUSEparameters__ActorEPEDProfiles, act::ParametersAllActors; kw...)
     par = par(kw...)
-    ped_actor = ActorPedestal(dd, act.ActorPedestal; update_core_profiles=false, par.T_ratio_pedestal, ip_from=:equilibrium, βn_from=:equilibrium, ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule)
-    return ActorFixedProfiles(dd, par, ped_actor)
+    return ActorEPEDProfiles(dd, par)
 end
 
 """
-    _step(actor::ActorFixedProfiles)
+    _step(actor::ActorEPEDProfiles)
 """
-function _step(actor::ActorFixedProfiles)
+function _step(actor::ActorEPEDProfiles)
     par = actor.par
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # update pedestal
-    if par.update_pedestal
-        finalize(step(actor.ped_actor))
-    end
+    sol = run_EPED(dd, :pulse_schedule,:pulse_schedule, :equilibrium,  :equilibrium,false, false)
+    ne_ped = IMAS.get_from(dd, Val{:ne_ped}, :pulse_schedule)
+    zeff_ped =  IMAS.get_from(dd, Val{:zeff_ped}, :pulse_schedule)
+
+    pped = sol.pressure.GH.H
+    w_ped = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - sol.width.GH.H)
+
+    impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
+    zi = sum(impurity) / length(impurity)
+    nival =ne_ped  * (zeff_ped - 1) / (zi^2 - zi)
+    nval = ne_ped  - zi * nival
+    nsum = ne_ped  + nval + nival
+    tped = (pped * 1e6) / nsum / constants.e
 
     # update electron temperature profile using
     # * new pedestal height & width
     # * existing Te0 & T_shaping 
     Te = cp1d.electrons.temperature
-    Te_ped = @ddtime(dd.summary.local.pedestal.t_e.value)
+    Te_ped = 2.0 * tped / (1.0 + par.T_ratio_pedestal)
     w_ped = @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)
     tval = IMAS.Hmode_profiles(Te[end], Te_ped, Te[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, 1.0 - w_ped)
     cp1d.electrons.temperature = tval
@@ -86,7 +92,6 @@ function _step(actor::ActorFixedProfiles)
     # * new pedestal height & width
     # * existing ne0 & n_shaping 
     ne = cp1d.electrons.density_thermal
-    ne_ped = @ddtime(dd.summary.local.pedestal.n_e.value)
     # first store ratios of electron density to ion densities
     ion_fractions = zeros(Float64, length(cp1d.ion), length(ne))
     for (ii, ion) in enumerate(cp1d.ion)
@@ -108,11 +113,11 @@ function _step(actor::ActorFixedProfiles)
 end
 
 """
-    _finalize(actor::ActorFixedProfiles)
+    _finalize(actor::ActorEPEDProfiles)
 
 Updates IMAS.core_sources
 """
-function _finalize(actor::ActorFixedProfiles)
+function _finalize(actor::ActorEPEDProfiles)
     dd = actor.dd
 
     # update sources
