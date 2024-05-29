@@ -22,7 +22,6 @@ function init(
         # always empty non-hardware IDSs
         empty!(dd.equilibrium)
         empty!(dd.core_profiles)
-        empty!(dd.pulse_schedule)
         empty!(dd.core_sources)
         empty!(dd.summary)
 
@@ -43,7 +42,8 @@ function init(
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
-        if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
+        if ismissing(dd.pulse_schedule.flux_control, :time) || isempty(dd.pulse_schedule.flux_control.time)
+            empty!(dd.pulse_schedule)
             verbose && @info "INIT: init_pulse_schedule"
             init_pulse_schedule!(dd, ini, act, dd1)
             if do_plot

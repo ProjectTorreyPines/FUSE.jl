@@ -276,26 +276,35 @@ function scale_build_layers!(layers::ParametersVector{<:FUSEparameters__build_la
     end
 end
 
-function scale_build_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
-    gap = a * gap_fraction
+"""
+    wall_radii(layers::ParametersVector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+
+Returns the hfs and lfs radii of the wall
+"""
+function wall_radii(layers::ParametersVector{<:FUSEparameters__build_layer}, R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+    gap = a * plasma_gap_fraction
     plasma_start = R0 - a - gap
     layer_plasma_start = 0.0
-    for (layer, thickness) in layers
-        if layer == :plasma
+    for layer in layers
+        if layer.type == _plasma_
             break
         end
-        if thickness > 0.0
-            layer_plasma_start += thickness
+        if layer.thickness > 0.0
+            layer_plasma_start += layer.thickness
         end
     end
     factor = plasma_start / layer_plasma_start
-    for (layer, thickness) in layers
-        if layer == :plasma
-            layers[layer] = 2.0 * (a + gap)
+    r_hfs = 0.0
+    r_lfs = 0.0
+    for (k, layer) in enumerate(layers)
+        if layer.type == _plasma_
+            r_lfs = r_hfs + 2.0 * (a + gap)
+            break
         else
-            layers[layer] = thickness * factor
+            r_hfs += layer.thickness * factor
         end
     end
+    return (r_hfs=r_hfs, r_lfs=r_lfs)
 end
 
 function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)

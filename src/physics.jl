@@ -896,7 +896,14 @@ end
 end
 
 """
-    add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::Union{Nothing,T}, Z0::T; upper::Bool) where {T<:Real}
+    add_xpoint(
+        mr::AbstractVector{T},
+        mz::AbstractVector{T},
+        R0::Union{Nothing,T}=nothing,
+        Z0::Union{Nothing,T}=nothing;
+        upper::Bool,
+        α_multiplier::Float64
+    ) where {T<:Real}
 
 Add a X-point to a boundary that does not have one.
 
@@ -906,7 +913,14 @@ The X-point is placed on a line that goes from (R0,Z0) through the point of maxi
 
 Control of the X-point location can be achieved by modifying R0, Z0.
 """
-function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
+function add_xpoint(
+    mr::AbstractVector{T},
+    mz::AbstractVector{T},
+    R0::Union{Nothing,T}=nothing,
+    Z0::Union{Nothing,T}=nothing;
+    upper::Bool,
+    α_multiplier::Float64
+) where {T<:Real}
 
     function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
         points .= points0
@@ -947,9 +961,9 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.05, 1.5, Optim.GoldenSection())
 
     points = collect(zip([mr; mr[1]], [mz; mz[1]]))
-    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, res.minimizer[1])
+    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, 1.0 + (res.minimizer[1] - 1.0) * α_multiplier)
 
-    return RX, ZX, R, Z
+    return (RX=RX, ZX=ZX, R=R, Z=Z)
 end
 
 function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
@@ -959,7 +973,7 @@ function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:R
     RZ = convex_hull!(points; closed_polygon=true)
     R = T[r for (r, z) in RZ]
     Z = T[z for (r, z) in RZ]
-    return RX, ZX, R, Z
+    return (RX=RX, ZX=ZX, R=R, Z=Z)
 end
 
 """
@@ -993,15 +1007,16 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RL = R0
     end
 
+    RXU, ZXU, _ = add_xpoint(mr, mz, RU, Z0; upper=true, α_multiplier=(upper_x_point ? 1.0 : 2.0))
+    RXL, ZXL, _ = add_xpoint(mr, mz, RL, Z0; upper=false, α_multiplier=(lower_x_point ? 1.0 : 2.0))
+
     RX = Float64[]
     ZX = Float64[]
     if upper_x_point
-        RXU, ZXU, _ = add_xpoint(mr, mz, RU, Z0; upper=true)
         push!(RX, RXU)
         push!(ZX, ZXU)
     end
     if lower_x_point
-        RXL, ZXL, _ = add_xpoint(mr, mz, RL, Z0; upper=false)
         push!(RX, RXL)
         push!(ZX, ZXL)
     end
@@ -1047,8 +1062,8 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
 
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
-    mxhb.RX = RX
-    mxhb.ZX = ZX
+    mxhb.RX = [RXU, RXL]
+    mxhb.ZX = [ZXU, ZXL]
     mxhb.r_boundary = R
     mxhb.z_boundary = Z
 
