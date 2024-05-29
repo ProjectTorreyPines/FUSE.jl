@@ -140,3 +140,42 @@ function _finalize(actor::ActorPedestal)
 
     return actor
 end
+
+"""
+function run_EPED(dd, ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw,warn_nn_train_bounds )
+
+    Runs EPED from dd and outputs the EPED solution as the sol struct
+"""
+function run_EPED(dd, ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw,warn_nn_train_bounds )
+
+    eq = dd.equilibrium
+    eqt = eq.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
+    if !(m == 2.0 || m == 2.5)
+        @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
+    end
+
+    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_ped_from)
+    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from)
+    βn = IMAS.get_from(dd, Val{:βn}, βn_from)
+    ip = IMAS.get_from(dd, Val{:ip}, ip_from)
+
+    Bt = abs(@ddtime(eq.vacuum_toroidal_field.b0)) * eq.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
+
+    inputs = EPEDNN.InputEPED(
+        eqt.boundary.minor_radius,
+        βn,
+        Bt,
+        EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
+        abs(ip) / 1e6,
+        eqt.boundary.elongation,
+        m,
+        neped / 1e19,
+        eqt.boundary.geometric_axis.r,
+        zeffped)
+    epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
+    sol = epedmod(inputs; only_powerlaw, warn_nn_train_bounds)
+    return sol
+end
