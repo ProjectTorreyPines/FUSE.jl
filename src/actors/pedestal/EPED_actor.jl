@@ -27,7 +27,7 @@ mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEPED{P}
     epedmod::EPEDNN.EPEDmodel
-    inputs::Union{Missing,EPEDNN.InputEPED}
+    inputs::EPEDNN.InputEPED
     wped::Union{Missing,Real}
     pped::Union{Missing,Real}
 end
