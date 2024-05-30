@@ -126,7 +126,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
-    act.ActorPedestal.ped_factor=0.8
+    act.ActorEPED.ped_factor=0.8
 
     act.ActorWholeFacility.update_build = false
 

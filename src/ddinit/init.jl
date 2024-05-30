@@ -170,7 +170,7 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
 
     if !ismissing(ini.core_profiles, :T_ratio)
         act.ActorEPEDProfiles.T_ratio_core = ini.core_profiles.T_ratio
-        act.ActorPedestal.T_ratio_pedestal = ini.core_profiles.T_ratio
+        act.ActorEPED.T_ratio_pedestal = ini.core_profiles.T_ratio
     end
 
     if !ismissing(ini.core_profiles, :T_shaping)
