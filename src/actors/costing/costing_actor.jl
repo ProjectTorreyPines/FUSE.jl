@@ -10,11 +10,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersAc
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{Int} = Entry{Int}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()))
-    future_inflation_rate::Entry{T} = Entry{T}("-", "Predicted average rate of future inflation"; default=0.025)
-    plant_lifetime::Entry{Int} = Entry{Int}("year", "Lifetime of the plant"; default=40)
-    availability::Entry{T} = Entry{T}("-", "Availability fraction of the plant"; default=0.8)
-    production_increase::Entry{T} = Entry{T}("-", "Factor by which production of ReBCO multiplies"; default=1.0)
-    learning_rate::Entry{T} = Entry{T}("-", "Learning rate for ReBCO technology production"; default=0.85)
+    future_inflation_rate::Entry{Real} = Entry{Real}("-", "Predicted average rate of future inflation"; default=0.025)
+    plant_lifetime::Entry{Real} = Entry{Real}("year", "Lifetime of the plant"; default=40)
+    availability::Entry{Real} = Entry{Real}("-", "Availability fraction of the plant"; default=0.8)
+    production_increase::Entry{Real} = Entry{Real}("-", "Factor by which production of ReBCO multiplies"; default=1.0)
+    learning_rate::Entry{Real} = Entry{Real}("-", "Learning rate for ReBCO technology production"; default=0.85)
+    power_uncertainty::Entry{T} = Entry{T}("-", "Uncertainty to introduce on resulting powers from BOP"; default=0.0)
 end
 
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
@@ -51,6 +52,7 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
     dd.costing.availability = act.ActorCosting.availability
     dd.costing.future.learning.hts.production_increase = act.ActorCosting.production_increase
     dd.costing.future.learning.hts.learning_rate = act.ActorCosting.learning_rate
+    dd.costing.power_uncertainty = act.ActorCosting.power_uncertainty
 
     if par.model == :Sheffield
         cst_actor = ActorCostingSheffield(dd, act.ActorCostingSheffield)

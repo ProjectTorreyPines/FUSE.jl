@@ -3,8 +3,8 @@ using FusionMaterials: FusionMaterials
 Base.@kwdef mutable struct FUSEparameters__time{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :time
-    pulse_shedule_time_basis::Entry{AbstractRange{Float64}} = Entry{AbstractRange{Float64}}("s", "Time basis used to discretize the pulse schedule")
-    simulation_start::Entry{Float64} = Entry{Float64}("s", "Time at which the simulation starts"; default=0.0)
+    pulse_shedule_time_basis::Entry{AbstractRange{Real}} = Entry{AbstractRange{Real}}("s", "Time basis used to discretize the pulse schedule")
+    simulation_start::Entry{Real} = Entry{Real}("s", "Time at which the simulation starts"; default=0.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInitPlasma{T}

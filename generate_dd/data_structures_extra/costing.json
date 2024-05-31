@@ -141,7 +141,7 @@
  },
  "costing.cost_operations.yearly_cost": {
   "data_type": "FLT_0D",
-  "documentation": "Anual cost to operate the plant",
+  "documentation": "Annual cost to operate the plant",
   "type": "static",
   "units": "$M/year"
  },
@@ -162,7 +162,7 @@
  },
  "costing.levelized_CoE": {
   "data_type": "FLT_0D",
-  "documentation": "Levelized cost of electiricity (total cost / total electricy generated)",
+  "documentation": "Levelized cost of electiricity (total cost / total electricity generated)",
   "type": "static",
   "units": "$/kWh"
  },
@@ -171,6 +171,11 @@
   "documentation": "Lifetime of the plant",
   "type": "static",
   "units": "year"
+ },
+ "costing.power_uncertainty": {
+  "data_type": "FLT_0D",
+  "documentation": "Uncertainty on BOP powers",
+  "type": "static"
  },
  "costing.time": {
   "units": "s",

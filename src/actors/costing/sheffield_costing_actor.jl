@@ -1,3 +1,5 @@
+using Measurements
+
 #= ===================== =#
 #  ActorCostingSheffield  #
 #= ===================== =#
@@ -6,12 +8,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorCostingSheffield{T<:Real} <: Par
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    construction_lead_time::Entry{T} = Entry{T}("year", "Duration of construction"; default=8.0)
-    fixed_charge_rate::Entry{T} = Entry{T}("-", "Constant dollar fixed charge rate"; default=0.078)
+    construction_lead_time::Entry{Real} = Entry{Real}("year", "Duration of construction"; default=8.0)
+    fixed_charge_rate::Entry{Real} = Entry{Real}("-", "Constant dollar fixed charge rate"; default=0.078)
     capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=false)
     capitalize_divertor::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st divertor in direct captial cost"; default=false)
-    divertor_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m²", "Divertor fluence over its lifetime"; default=10.0)
-    blanket_fluence_lifetime::Entry{T} = Entry{T}("MW*yr/m²", "Blanket fluence over its lifetime"; default=15.0)
+    divertor_fluence_lifetime::Entry{Real} = Entry{Real}("MW*yr/m²", "Divertor fluence over its lifetime"; default=10.0)
+    blanket_fluence_lifetime::Entry{Real} = Entry{Real}("MW*yr/m²", "Blanket fluence over its lifetime"; default=15.0)
 end
 
 mutable struct ActorCostingSheffield{D,P} <: SingleAbstractActor{D,P}
@@ -96,6 +98,18 @@ function _step(actor::ActorCostingSheffield)
     neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
     power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
+    error = 0.1 # later make this par.error
+
+    power_thermal = measurement(power_thermal, power_thermal * error)
+    power_electric_generated = measurement(power_electric_generated, power_electric_generated * error)
+    power_electric_net = measurement(power_electric_net, power_electric_net * error)
+    
+    ddR = IMAS.uncertain(actor.dd)
+    cst = ddR.costing
+
+    cost_direct = cst.cost_direct_capital
+    cost_ops = cst.cost_operations
+
 
     ###### Direct Capital ######
     total_direct_capital_cost = 0.0
@@ -155,7 +169,7 @@ function _step(actor::ActorCostingSheffield)
 
     sys = resize!(cost_ops.system, "name" => "blanket")
     sys.yearly_cost =
-        cost_fuel_Sheffield(:blanket, par.capitalize_blanket, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, power_electric_net, da)
+        cost_fuel_Sheffield(:blanket, par.capitalize_blanket, dd, fixed_charge_rate, availability, plant_lifetime, neutron_flux, blanket_fluence_lifetime, da)
     total_fuel_cost += sys.yearly_cost
 
     sys = resize!(cost_ops.system, "name" => "divertor")
@@ -169,7 +183,6 @@ function _step(actor::ActorCostingSheffield)
         neutron_flux,
         thermal_flux,
         divertor_fluence_lifetime,
-        power_electric_net,
         da
     )
     total_fuel_cost += sys.yearly_cost
@@ -210,7 +223,6 @@ function _finalize(actor::ActorCostingSheffield)
     for sys in actor.dd.costing.cost_direct_capital.system
         sort!(sys.subsystem; by=x -> x.cost, rev=true)
     end
-
     return actor
 end
 
@@ -331,7 +343,6 @@ function cost_fuel_Sheffield(
     plant_lifetime::Real,
     neutron_flux::Real,
     blanket_fluence_lifetime::Real,
-    power_electric_net::Real,
     da::DollarAdjust
 )
     da.year_assessed = 2016
@@ -371,7 +382,6 @@ function cost_fuel_Sheffield(
     neutron_flux::Real,
     thermal_flux::Real,
     divertor_fluence_lifetime::Real,
-    power_electric_net,
     da::DollarAdjust
 )
     da.year_assessed = 2016

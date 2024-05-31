@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.25:0.1:0.85)
+    rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "ρ transport grid"; default=0.25:0.1:0.85)
     evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Ion temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Electron temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =

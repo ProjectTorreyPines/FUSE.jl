@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersAct
     n_field::Entry{Int} = Entry{Int}( "-", "1:phi, 2:phi+apar, 3:phi+apar+bpar"; default=1, check=x -> @assert 1 <= x <= 3 "n_fields must be either 1,2 or 3")
     delta_t::Entry{Float64} = Entry{Float64}("-", "CGYRO step size "; default=0.005)
     max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.0)
-    rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
+    rho_transport::Entry{AbstractVector{<:T}} = Entry{AbstractVector{<:T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
 end
 

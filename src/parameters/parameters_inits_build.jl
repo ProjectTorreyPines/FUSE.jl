@@ -37,8 +37,8 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInitBuild
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :layer
     name::Entry{String} = Entry{String}("-", "Name of the layer")
-    thickness::Entry{Float64} =
-        Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
+    thickness::Entry{Real} =
+        Entry{Real}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
     material::Switch{Symbol} = Switch{Symbol}(
         FusionMaterials.all_materials(),
         "-",
