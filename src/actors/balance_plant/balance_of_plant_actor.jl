@@ -5,7 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: Param
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    generator_conversion_efficiency::Entry{T} = Entry{T}("-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
@@ -45,16 +44,8 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
 end
 
 function _step(actor::ActorBalanceOfPlant)
-    dd = actor.dd
-    par = actor.par
-    bop = dd.balance_of_plant
-
-    bop_thermal = bop.power_plant
-    @ddtime(bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency)
-
     finalize(step(actor.thermal_plant_actor))
     finalize(step(actor.power_needs_actor))
-
     return actor
 end
 
