@@ -45,7 +45,9 @@ end
 function _step(actor::ActorCostingARIES)
     dd = actor.dd
     par = actor.par
-    cst = dd.costing
+
+    ddU = IMAS.uncertain(dd)
+    cst = ddU.costing
 
     cost_direct = cst.cost_direct_capital
     cost_ops = cst.cost_operations
