@@ -7,7 +7,7 @@ Arguments:
 
   - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:MXH_params, ne_setting=:greenwald_fraction_ped)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_lh=1, n_pl=1)
     act = ParametersActors()
 
@@ -98,8 +98,14 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from=:M
     ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
-    ini.core_profiles.greenwald_fraction_ped = (t -> 0.95/1.2) ↔ (2, (100.0, 300.0), (0.3/1.2, 0.95/1.2), (:match, :float))
-    ini.core_profiles.greenwald_fraction = ini.core_profiles.greenwald_fraction_ped * 1.2
+
+    ini.core_profiles.ne_setting = ne_setting
+    if ne_setting == :greenwald_fraction_ped
+        ini.core_profiles.ne_value =  (t -> 0.95/1.2) ↔ (2, (100.0, 300.0), (0.3/1.2, 0.95/1.2), (:match, :float))
+    elseif ne_setting == :greenwald_fraction
+        ini.core_profiles.ne_value = 0.8
+    end
+
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 0.9
     ini.core_profiles.T_shaping = 1.8
