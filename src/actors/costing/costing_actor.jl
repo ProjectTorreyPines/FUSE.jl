@@ -70,5 +70,6 @@ end
 
 function _finalize(actor::ActorCosting)
     finalize(actor.cst_actor)
+    store_nominal_values(actor.dd)
     return actor
 end

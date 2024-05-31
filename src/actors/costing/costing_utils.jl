@@ -195,3 +195,43 @@ function bop_powers(bop::IMAS.balance_of_plant)
 
     return total_useful_heat_power, power_electric_generated, power_electric_net
 end
+
+#= =========== =#
+#  uncertainty  #
+#= =========== =#
+
+function store_nominal_values(dd::IMAS.dd)
+    cst = dd.costing
+    cstU = IMAS.uncertain(dd).costing
+
+    cdc = cst.cost_direct_capital
+    cdcU = cstU.cost_direct_capital
+    resize!(cdc.system, length(cdcU.system))
+    for i in 1:length(cdc.system)
+        cdc.system[i].name = cdcU.system[i].name
+        cdc.system[i].cost = Measurements.value(cdcU.system[i].cost)
+
+        resize!(cdc.system[i].subsystem, length(cdcU.system[i].subsystem))
+        for j in 1:length(cdc.system[i].subsystem)
+            cdc.system[i].subsystem[j].name = cdcU.system[i].subsystem[j].name
+            cdc.system[i].subsystem[j].cost = Measurements.value(cdcU.system[i].subsystem[j].cost)
+        end
+    end
+
+    cops = cst.cost_operations
+    copsU = cstU.cost_operations
+
+    resize!(cops.system, length(copsU.system))
+    for i in 1:length(cops.system)
+        cops.system[i].name = copsU.system[i].name
+        cops.system[i].yearly_cost = Measurements.value(copsU.system[i].yearly_cost)
+
+        resize!(cops.system[i].subsystem, length(copsU.system[i].subsystem))
+        for j in 1:length(cops.system[i].subsystem)
+            cops.system[i].subsystem[j].name = copsU.system[i].subsystem[j].name
+            cops.system[i].subsystem[j].yearly_cost = Measurements.value(copsU.system[i].subsystem[j].yearly_cost)
+        end
+    end
+
+    cst.levelized_CoE = Measurements.value(cstU.levelized_CoE)
+end

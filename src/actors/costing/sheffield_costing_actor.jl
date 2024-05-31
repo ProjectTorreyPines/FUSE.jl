@@ -98,7 +98,7 @@ function _step(actor::ActorCostingSheffield)
     neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
 
     power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
-    error = 0.1 # later make this par.error
+    error = dd.costing.power_uncertainty
 
     power_thermal = measurement(power_thermal, power_thermal * error)
     power_electric_generated = measurement(power_electric_generated, power_electric_generated * error)
