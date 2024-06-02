@@ -1034,7 +1034,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         end
         RR = [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
         ZZ = [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
-        RR, ZZ = IMAS.resample_plasma_boundary(RR, ZZ; n_points=length(R) * 2)
+        RR, ZZ = IMAS.resample_plasma_boundary(RR, ZZ; n_points=length(R) * 2, method=:cubic)
         if upper_x_point
             I = ZZ .< Z[1]
         else
@@ -1052,12 +1052,18 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RR1 = [-(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]; R1[2:end-1]; -(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]]
         ZZ2 = [Z2[2:end-1] .+ ΔZ; Z2[2:end-1]; Z2[2:end-1] .- ΔZ]
         RR2 = [-(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]; R2[2:end-1]; -(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]]
-        RR1, ZZ1 = IMAS.resample_plasma_boundary(RR1, ZZ1; n_points=length(R) * 2)
-        RR2, ZZ2 = IMAS.resample_plasma_boundary(RR2, ZZ2; n_points=length(R) * 2)
-        I1 = (ZZ1 .< Z1[1]) .&& (ZZ1 .> Z1[end])
-        I2 = (ZZ2 .< Z1[1]) .&& (ZZ2 .> Z1[end])
-        R = [R1[1]; RR1[I1]; R1[end]; RR2[I2]; R1[1]]
-        Z = [Z1[1]; ZZ1[I1]; Z1[end]; ZZ2[I2]; Z1[1]]
+        RR1, ZZ1 = IMAS.resample_2d_path(RR1, ZZ1; n_points=length(R) * 3, method=:cubic)
+        RR2, ZZ2 = IMAS.resample_2d_path(RR2, ZZ2; n_points=length(R) * 3, method=:cubic)
+        crossings = IMAS.intersection(RR1, ZZ1, RR2, ZZ2).crossings
+        if crossings[1][2] > crossings[2][2]
+            ((RXU, ZXU), (RXL, ZXL)) = crossings
+        else
+            ((RXU, ZXU), (RXL, ZXL)) = crossings
+        end
+        I1 = (ZZ1 .< ZXU) .&& (ZZ1 .> ZXL)
+        I2 = (ZZ2 .< ZXU) .&& (ZZ2 .> ZXL)
+        R = [RXU; RR1[I1]; RXL; RR2[I2]; RXU]
+        Z = [ZXU; ZZ1[I1]; ZXL; ZZ2[I2]; ZXU]
     end
 
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
