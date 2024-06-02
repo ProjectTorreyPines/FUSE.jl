@@ -193,5 +193,5 @@ function bop_powers(bop::IMAS.balance_of_plant)
         power_electric_net = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.power_electric_net))
     end
 
-    return total_useful_heat_power, power_electric_generated, power_electric_net
+    return (total_useful_heat_power=total_useful_heat_power, power_electric_generated=power_electric_generated, power_electric_net=power_electric_net)
 end

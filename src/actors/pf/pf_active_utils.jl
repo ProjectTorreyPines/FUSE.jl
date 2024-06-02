@@ -44,7 +44,6 @@ function GS_IMAS_pf_active__coil(
     end
 
     return coil
-
 end
 
 function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol=:quad, zero_currents::Bool=false) where {D<:Real}
@@ -53,7 +52,7 @@ function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol=:quad, zero_c
         if zero_currents
             @ddtime(coil.current.data = 0.0)   # zero currents for all coils
         end
-        if :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
+        if :shaping ∉ (IMAS.index_2_name(coil.function)[f.index] for f in coil.function)
             continue
         end
         if IMAS.is_ohmic_coil(coil)
@@ -329,7 +328,7 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
     lbounds = Float64[]
     ubounds = Float64[]
     for rail in bd.pf_active.rail
-        if rail.name !== "OH"
+        if rail.name == "PF"
             # not symmetric
             if !symmetric
                 coil_distances = collect(range(-1.0, 1.0, rail.coils_number))[1:end]
@@ -404,7 +403,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     optim_coils[koptim].z = z_oh[koh]
                     optim_coils[koptim].height = height_oh
                 end
-            else
+            elseif rail.name == "PF"
                 r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r)
                 z_interp = IMAS.interp1d(rail.outline.distance, rail.outline.z)
                 # not symmetric

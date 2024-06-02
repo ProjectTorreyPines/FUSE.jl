@@ -101,7 +101,7 @@ function _finalize(actor::ActorEquilibrium)
     catch e
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
         par.do_plot && display(current())
-        p = contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
+        contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
         display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi', levels=[0], lw=3, color=:black, colorbar_entry=false))
         rethrow(e)
     end

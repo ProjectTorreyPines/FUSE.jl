@@ -20,6 +20,14 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInitPlasma{T}
     dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "`dd` to initialize from")
 end
 
+Base.@kwdef mutable struct FUSEparameters__rampup{T} <: ParametersInitPlasma{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :rampup
+    side::Switch{Symbol} = Switch{Symbol}([:hfs, :lfs], "-", "Side of the vacuum vessel where the plasma is limited at breakdown")
+    ends_at::Entry{Float64} = Entry{Float64}("s", "Until when does the rampup lasts")
+    diverted_at::Entry{Float64} = Entry{Float64}("s", "Time at which x-point is formed and plasma can peel-off the wall")
+end
+
 Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :equilibrium
@@ -148,6 +156,7 @@ mutable struct ParametersInitsPlasma{T<:Real} <: ParametersAllInits{T}
     equilibrium::FUSEparameters__equilibrium{T}
     core_profiles::FUSEparameters__core_profiles{T}
     pf_active::FUSEparameters__pf_active{T}
+    rampup::FUSEparameters__rampup{T}
     nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
     ec_launcher::ParametersVector{FUSEparameters__ec_launcher{T}}
     pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
@@ -165,6 +174,7 @@ function ParametersInitsPlasma{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic:
         FUSEparameters__equilibrium{T}(),
         FUSEparameters__core_profiles{T}(),
         FUSEparameters__pf_active{T}(),
+        FUSEparameters__rampup{T}(),
         ParametersVector{FUSEparameters__nb_unit{T}}(),
         ParametersVector{FUSEparameters__ec_launcher{T}}(),
         ParametersVector{FUSEparameters__pellet_launcher{T}}(),

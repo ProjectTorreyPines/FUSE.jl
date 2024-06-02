@@ -22,7 +22,6 @@ function init(
         # always empty non-hardware IDSs
         empty!(dd.equilibrium)
         empty!(dd.core_profiles)
-        empty!(dd.pulse_schedule)
         empty!(dd.core_sources)
         empty!(dd.summary)
 
@@ -43,11 +42,19 @@ function init(
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
-        if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium) || !isempty(dd1.pulse_schedule)
+        if ismissing(dd.pulse_schedule.flux_control, :time) || isempty(dd.pulse_schedule.flux_control.time)
+            empty!(dd.pulse_schedule)
             verbose && @info "INIT: init_pulse_schedule"
             init_pulse_schedule!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.pulse_schedule))
+            end
+        end
+
+        # wall
+        if ini.general.init_from == :ods
+            if !isempty(dd1.wall.description_2d)
+                dd.wall = deepcopy(dd1.wall)
             end
         end
 
@@ -167,7 +174,6 @@ Makes `ini` and `act` self-consistent and consistent with one another
 NOTE: operates in place
 """
 function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-
     if !ismissing(ini.core_profiles, :T_ratio)
         act.ActorEPEDProfiles.T_ratio_core = ini.core_profiles.T_ratio
         act.ActorEPED.T_ratio_pedestal = ini.core_profiles.T_ratio
