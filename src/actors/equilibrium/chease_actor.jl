@@ -110,18 +110,21 @@ function _finalize(actor::ActorCHEASE)
         # constraints for the private flux region
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
-        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
+        n = length(pr)
+        ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz)^2)) / 2.0
+        pr, pz = limit_curvature(pr, pz, ab / 10.0)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * n, method=:linear)
 
         # Flux Control Points
         flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, psib)
         if !isempty(eqt.boundary.strike_point)
-            strike_weight = length(flux_cps) / length(eqt.boundary.strike_point)
+            strike_weight = 1.0
             strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
             append!(flux_cps, strike_cps)
         end
 
         # Saddle Control Points
-        saddle_weight = length(flux_cps) / length(eqt.boundary.x_point)
+        saddle_weight = 1.0
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
@@ -152,7 +155,6 @@ function _finalize(actor::ActorCHEASE)
     end
 
     if par.free_boundary
-        IMAS.tweak_psi_to_match_psilcfs!(dd.equilibrium.time_slice[]; ψbound)
         pf_current_limits(dd.pf_active, dd.build)
     end
 

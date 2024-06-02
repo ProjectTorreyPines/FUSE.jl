@@ -15,9 +15,6 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if !isempty(dd1.wall.description_2d)
-                dd.wall = deepcopy(dd1.wall)
-            end
             if length(dd1.build.layer) > 0
                 dd.build = deepcopy(dd1.build)
             else
@@ -279,26 +276,16 @@ function scale_build_layers!(layers::ParametersVector{<:FUSEparameters__build_la
     end
 end
 
-function scale_build_layers!(layers::OrderedCollections.OrderedDict{Symbol,Float64}, R0::Float64, a::Float64, gap_fraction::Float64)
-    gap = a * gap_fraction
-    plasma_start = R0 - a - gap
-    layer_plasma_start = 0.0
-    for (layer, thickness) in layers
-        if layer == :plasma
-            break
-        end
-        if thickness > 0.0
-            layer_plasma_start += thickness
-        end
-    end
-    factor = plasma_start / layer_plasma_start
-    for (layer, thickness) in layers
-        if layer == :plasma
-            layers[layer] = 2.0 * (a + gap)
-        else
-            layers[layer] = thickness * factor
-        end
-    end
+"""
+    wall_radii(R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+
+Returns the hfs and lfs radii of the wall
+"""
+function wall_radii(R0::Float64, a::Float64, plasma_gap_fraction::Float64)
+    gap = a * plasma_gap_fraction
+    r_hfs = R0 - a - gap
+    r_lfs = R0 + a + gap
+    return (r_hfs=r_hfs, r_lfs=r_lfs)
 end
 
 function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
@@ -355,7 +342,6 @@ end
 Handy function for initializing layers based on few scalars
 """
 function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
-
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 2.0
