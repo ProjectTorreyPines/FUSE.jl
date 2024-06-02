@@ -58,7 +58,12 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             end
             time_backup = ini.time.simulation_start
             for (k, time0) in enumerate(time)
-                ini.time.simulation_start = time0
+                if time0 < time_backup
+                    # This is necessary because equilibrium quantities may not be defined at < simulation_start as it happens for example when starting from ODS
+                    ini.time.simulation_start = time_backup
+                else
+                    ini.time.simulation_start = time0
+                end
                 nx = n_xpoints(ini.equilibrium.xpoints)
                 mxh = IMAS.MXH(ini, dd1)
                 ini.equilibrium(mxh)
