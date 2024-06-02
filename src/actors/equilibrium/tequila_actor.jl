@@ -91,9 +91,10 @@ function _step(actor::ActorTEQUILA)
     if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
+        n = length(pr)
         ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz)^2)) / 2.0
         pr, pz = limit_curvature(pr, pz, ab / 10.0)
-        pr, pz = IMAS.rdp_simplify_2d_path(pr, pz, ab / 1000.0)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * n, method=:linear)
         mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
