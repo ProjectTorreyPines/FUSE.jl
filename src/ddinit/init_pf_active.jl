@@ -49,7 +49,6 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
                 push!(n_coils, ini.pf_active.n_coils_outside)
             end
             init_pf_active!(dd.pf_active, dd.build, dd.equilibrium.time_slice[], n_coils)
-
         end
 
         IMAS.coil_technology(dd.build.tf.technology, ini.tf.technology, :tf)
@@ -151,14 +150,19 @@ function init_pf_active!(
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
         resize!(pf_active.coil[k].element, 1)
-        pf_active.coil[k].identifier = "optim"
-        pf_active.coil[k].name = "OH $kk"
-        pf_active.coil[k].element[1].geometry.rectangle.r = r_oh
-        pf_active.coil[k].element[1].geometry.rectangle.z = z_oh
-        pf_active.coil[k].element[1].geometry.rectangle.width = w_oh
-        pf_active.coil[k].element[1].geometry.rectangle.height = h_oh
-        pf_active.coil[k].current.time = IMAS.top_ids(eqt).time
-        pf_active.coil[k].current.data = pf_active.coil[k].current.time .* 0.0
+        coil = pf_active.coil[k]
+        coil.identifier = "optim"
+        coil.name = "OH $kk"
+        coil.element[1].geometry.rectangle.r = r_oh
+        coil.element[1].geometry.rectangle.z = z_oh
+        coil.element[1].geometry.rectangle.width = w_oh
+        coil.element[1].geometry.rectangle.height = h_oh
+        coil.current.time = IMAS.top_ids(eqt).time
+        coil.current.data = coil.current.time .* 0.0
+        func = resize!(coil.function, :flux; wipe=false)
+        func.description = "OH"
+        func = resize!(coil.function, :shaping; wipe=false)
+        func.description = "PF"
     end
 
     # coils_cleareance is an array the length of the PF rails
@@ -284,14 +288,24 @@ function init_pf_active!(
             k = length(pf_active.coil) + 1
             resize!(pf_active.coil, k)
             resize!(pf_active.coil[k].element, 1)
-            pf_active.coil[k].identifier = "optim"
-            pf_active.coil[k].name = "PF $kk"
-            pf_active.coil[k].element[1].geometry.rectangle.r = r
-            pf_active.coil[k].element[1].geometry.rectangle.z = z
-            pf_active.coil[k].element[1].geometry.rectangle.width = coil_size
-            pf_active.coil[k].element[1].geometry.rectangle.height = coil_size
-            pf_active.coil[k].current.time = IMAS.top_ids(eqt).time
-            pf_active.coil[k].current.data = pf_active.coil[k].current.time .* 0.0
+            coil = pf_active.coil[k]
+            coil.identifier = "optim"
+            coil.name = "PF $kk"
+            coil.element[1].geometry.rectangle.r = r
+            coil.element[1].geometry.rectangle.z = z
+            coil.element[1].geometry.rectangle.width = coil_size
+            coil.element[1].geometry.rectangle.height = coil_size
+            coil.current.time = IMAS.top_ids(eqt).time
+            coil.current.data = coil.current.time .* 0.0
+            if krail == length(bd.pf_active.rail)
+                bd.pf_active.rail[krail].name = "PF"
+                func = resize!(coil.function, :shaping; wipe=false)
+                func.description = "PF"
+            else
+                bd.pf_active.rail[krail].name = "vertical"
+                func = resize!(coil.function, :vertical; wipe=false)
+                func.description = "vertical"
+            end
         end
     end
 
