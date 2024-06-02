@@ -86,10 +86,10 @@ threads:
 
 # remove everything under $HOME/.julia besides $HOME/.julia/dev
 nuke_julia:
-	mv $(JULIA_PKG_DEVDIR) $(call realpath,$(JULIA_DIR)/../asddsaasddsa)
+	mv $(JULIA_PKG_DEVDIR) $(call realpath,$(JULIA_DIR))/../asddsaasddsa
 	rm -rf $(JULIA_DIR)
 	mkdir -p $(JULIA_DIR)
-	mv $(call realpath,$(JULIA_DIR)/../asddsaasddsa) $(JULIA_PKG_DEVDIR)
+	mv $(call realpath,$(JULIA_DIR))/../asddsaasddsa $(JULIA_PKG_DEVDIR)
 
 # install the GAregistry to the list of Julia registries
 registry:
