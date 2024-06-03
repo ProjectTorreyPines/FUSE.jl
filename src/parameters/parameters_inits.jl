@@ -49,38 +49,61 @@ function yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersIn
 end
 
 """
-    plot_ini(ini::ParametersAllInits)
+    plot_ini(ini::ParametersAllInits; time0=global_time(ini))
 
 Plots ini time dependent time traces including plasma boundary
 """
-@recipe function plot_ini(ini::ParametersAllInits)
+@recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini))
+    @assert typeof(time0) <: Float64
+
+    # count number of time-dependent parameters
     N = 0
     for par in SimulationParameters.leaves(ini)
         if typeof(par.value) <: Function
             N += 1
         end
     end
-
     layout := @layout [N + 1]
 
-    mxh = IMAS.MXH(ini)
-    @series begin
-        label := ""
-        subplot := 1
-        aspectratio := :equal
-        xlim := (0, mxh.R0 * 2)
-        mxh
-    end
+    time_bkp = ini.time.simulation_start
+    try
+        ini.time.simulation_start = time0
 
-    k = 1
-    for par in SimulationParameters.leaves(ini)
-        if typeof(par.value) <: Function
-            k += 1
-            @series begin
-                label := ""
-                subplot := k
-                par
+        # plot equilibrium including x-points
+        nx = n_xpoints(ini.equilibrium.xpoints)
+        mxh = IMAS.MXH(ini)
+        mxhb = fitMXHboundary(mxh, nx)
+        wr = wall_radii(mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
+        @series begin
+            label := ""
+            seriestype := :vline
+            subplot := 1
+            colour := :black
+            [wr.r_hfs, wr.r_lfs]
+        end
+        @series begin
+            label := ""
+            subplot := 1
+            aspectratio := :equal
+            xlim := (0, mxh.R0 * 2)
+            mxhb
+        end
+
+        # plot time dependent parameters
+        k = 1
+        for par in SimulationParameters.leaves(ini)
+            if typeof(par.value) <: Function
+                k += 1
+                @series begin
+                    label := ""
+                    subplot := k
+                    time0 := time0
+                    par
+                end
             end
         end
+
+    finally
+        ini.time.simulation_start = time_bkp
     end
 end
