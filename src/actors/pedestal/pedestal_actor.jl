@@ -75,10 +75,10 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     if par.density_match == :ne_ped
-        @show "adf"
         _finalize(_step(actor.ped_actor))
 
     elseif par.density_match == :ne_line
+        error("not fully implemented yet")
         ne_line_wanted = @ddtime(dd.pulse_schedule.density_control.n_e_line.reference)
         ne_ped_over_ne_sep = cp1d.electrons.density_thermal[end] / neped
         if par.model == :EPED
@@ -101,8 +101,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         end
         ped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, rho_nml=0.9, rho_ped=0.95)
     end
-
-
 
     return actor
 end
