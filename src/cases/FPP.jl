@@ -65,7 +65,7 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.boundary_from = :scalars
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    ini.core_profiles.ne_value = 0.7
+    ini.core_profiles.ne_value = 0.1
     ini.core_profiles.T_ratio = 0.825
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 2.5
