@@ -233,5 +233,12 @@ function store_nominal_values(dd::IMAS.dd)
         end
     end
 
+    cdecom = cst.cost_decommissioning
+    cdecomU = cstU.cost_decommissioning
+
+    resize!(cdecom.system, 1)
+    cdecom.system[1].name = "decommissioning"
+    cdecom.system[1].cost = Measurements.value(cdecomU.cost)
+
     cst.levelized_CoE = Measurements.value(cstU.levelized_CoE)
 end
