@@ -273,8 +273,7 @@ function _step(actor::ActorThermalPlant)
                 :breeder_heat₊Tout]
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
-
-            ode_sol = DifferentialEquations.solve(actor.prob)
+            ode_sol = DifferentialEquations.solve(actor.prob,DifferentialEquations.Rosenbrock23() )
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
