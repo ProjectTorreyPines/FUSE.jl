@@ -61,40 +61,15 @@ function _step(actor::ActorPedestal)
     dd = actor.dd
     par = actor.par
 
-    eq = dd.equilibrium
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
-    if !(m == 2.0 || m == 2.5)
-        @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
-    end
+    sol = run_EPED(eqt, cp1d; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_ped_from)
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_ped_from)
-    βn = IMAS.get_from(dd, Val{:βn}, par.βn_from)
-    ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
-
-    Bt = abs(@ddtime(eq.vacuum_toroidal_field.b0)) * eq.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
-
-    actor.inputs = EPEDNN.InputEPED(
-        eqt.boundary.minor_radius,
-        βn,
-        Bt,
-        EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper),
-        abs(ip) / 1e6,
-        eqt.boundary.elongation,
-        m,
-        neped / 1e19,
-        eqt.boundary.geometric_axis.r,
-        zeffped)
-
-    sol = actor.epedmod(actor.inputs; par.only_powerlaw, par.warn_nn_train_bounds)
-
-    if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
-        actor.pped = 1.5 * sol.pressure.GH.H
+    if sol.pressure.GH.H < 1.5 * cp1d.pressure_thermal[end] / 1E6
+        actor.pped = 1.5 * cp1d.pressure_thermal[end] / 1E6
         actor.wped = max(sol.width.GH.H, 0.01)
-        @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.5 = $(round(actor.pped*1e6)) [Pa] assumed "
+        @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped = p_edge * 1.5 = $(round(actor.pped)) [MPa] assumed."
     else
         actor.pped = sol.pressure.GH.H
         actor.wped = sol.width.GH.H
@@ -142,15 +117,27 @@ function _finalize(actor::ActorPedestal)
 end
 
 """
-function run_EPED(dd, ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw,warn_nn_train_bounds )
+    run_EPED(
+        eqt::IMAS.equilibrium__time_slice,
+        cp1d::IMAS.core_profiles__profiles_1d;
+        ne_ped_from::Symbol,
+        zeff_ped_from::Symbol,
+        βn_from::Symbol,
+        ip_from::Symbol,
+        only_powerlaw::Bool,
+        warn_nn_train_bounds::Bool)
 
-    Runs EPED from dd and outputs the EPED solution as the sol struct
+Sets up and runs EPED from data in IMAS and outputs the EPED solution structure
 """
-function run_EPED(dd, ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw,warn_nn_train_bounds )
-
-    eq = dd.equilibrium
-    eqt = eq.time_slice[]
-    cp1d = dd.core_profiles.profiles_1d[]
+function run_EPED(
+    eqt::IMAS.equilibrium__time_slice,
+    cp1d::IMAS.core_profiles__profiles_1d;
+    ne_ped_from::Symbol,
+    zeff_ped_from::Symbol,
+    βn_from::Symbol,
+    ip_from::Symbol,
+    only_powerlaw::Bool,
+    warn_nn_train_bounds::Bool)
 
     m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
     if !(m == 2.0 || m == 2.5)
@@ -162,7 +149,7 @@ function run_EPED(dd, ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerl
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
 
-    Bt = abs(@ddtime(eq.vacuum_toroidal_field.b0)) * eq.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
+    Bt = abs(@ddtime(eqt.global_quantities.vacuum_toroidal_field.b0)) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
     inputs = EPEDNN.InputEPED(
         eqt.boundary.minor_radius,
@@ -175,7 +162,8 @@ function run_EPED(dd, ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerl
         neped / 1e19,
         eqt.boundary.geometric_axis.r,
         zeffped)
+
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    sol = epedmod(inputs; only_powerlaw, warn_nn_train_bounds)
-    return sol
+
+    return epedmod(inputs; only_powerlaw, warn_nn_train_bounds)
 end
