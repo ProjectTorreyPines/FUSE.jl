@@ -49,7 +49,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     # Keep the Ti/Te ratio constant
     Ti_over_Te = cp1d.ion[1].temperature[rho_idx09] / cp1d.electrons.temperature[rho_idx09]
     res = Optim.optimize(x -> cost_t08(x, cp1d, par.ped_to_core_fraction, Ti_over_Te), 50, 5e3, Optim.GoldenSection(); rel_tol=1E-3)
-    cost_t08(res.minimizer, cp1d, ratio_wanted, Ti_over_Te)
+    cost_t08(res.minimizer, cp1d, par.ped_to_core_fraction, Ti_over_Te)
 
     return actor
 end

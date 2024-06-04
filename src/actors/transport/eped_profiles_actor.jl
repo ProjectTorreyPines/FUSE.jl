@@ -43,7 +43,7 @@ function _step(actor::ActorEPEDProfiles)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
 
-    sol = run_EPED(dd, :pulse_schedule,:pulse_schedule, :equilibrium,  :equilibrium,false, false)
+    sol = run_EPED(dd; ne_from=:pulse_schedule, zeff_ped_from=:pulse_schedule, βn_from=:equilibrium,  ip_from=:pulse_schedule, only_powerlaw=false, warn_nn_train_bounds=false)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, :pulse_schedule)
     zeff_ped =  IMAS.get_from(dd, Val{:zeff_ped}, :pulse_schedule)
 
