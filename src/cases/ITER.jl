@@ -118,7 +118,7 @@ function case_parameters(
     if ne_setting == :greenwald_fraction_ped
         ini.core_profiles.ne_value = (t -> 0.95 / 1.2) ↔ (2, (100.0, 300.0), (0.3 / 1.2, 0.95 / 1.2), (:match, :float))
     elseif ne_setting == :greenwald_fraction
-        ini.core_profiles.ne_value = 0.8
+        ini.core_profiles.ne_value = 0.75
     end
 
     ini.core_profiles.helium_fraction = 0.01
