@@ -565,10 +565,6 @@ function triple_arc(
     Z = Z .* factor
     R = (R .- minimum(R)) .* factor .+ r_start
 
-    # hull = convex_hull(R, Z; closed_polygon=true)
-    # R = [r for (r, z) in hull]
-    # Z = [z for (r, z) in hull]
-
     return R, Z
 end
 
@@ -900,7 +896,14 @@ end
 end
 
 """
-    add_xpoint(mr::Vector{T}, mz::Vector{T}, R0::Union{Nothing,T}, Z0::T; upper::Bool) where {T<:Real}
+    add_xpoint(
+        mr::AbstractVector{T},
+        mz::AbstractVector{T},
+        R0::Union{Nothing,T}=nothing,
+        Z0::Union{Nothing,T}=nothing;
+        upper::Bool,
+        α_multiplier::Float64
+    ) where {T<:Real}
 
 Add a X-point to a boundary that does not have one.
 
@@ -910,17 +913,23 @@ The X-point is placed on a line that goes from (R0,Z0) through the point of maxi
 
 Control of the X-point location can be achieved by modifying R0, Z0.
 """
-function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Nothing,T}=nothing, Z0::Union{Nothing,T}=nothing; upper::Bool) where {T<:Real}
+function add_xpoint(
+    mr::AbstractVector{T},
+    mz::AbstractVector{T},
+    R0::Union{Nothing,T}=nothing,
+    Z0::Union{Nothing,T}=nothing;
+    upper::Bool,
+    α_multiplier::Float64
+) where {T<:Real}
 
-    # NOTE: when calling curvature we multiply Z by 2 to form x-points preferentially in Z direction (even for circular plasma, for example)
     function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
         points .= points0
         if upper
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, 2 * Z)[(Z.>(Z0+ZX)/2.0)]))^2.0
+            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.>(Z0+ZX)/2.0)]))^2.0
         else
             RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, 2 * Z)[(Z.<(Z0+ZX)/2.0)]))^2.0
+            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.<(Z0+ZX)/2.0)]))^2.0
         end
     end
 
@@ -929,13 +938,13 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     end
 
     if upper
-        k = argmax(abs.(IMAS.curvature(mr, 2 * mz)) .* (mz .> Z0))
+        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
         index = mz .> Z0
         mri = mr[index]
         mzi = mz[index]
         i = findfirst(i -> (mri[i] == mr[k] && mzi[i] == mz[k]), 1:length(mri))
     else
-        k = argmax(abs.(IMAS.curvature(mr, 2 * mz)) .* (mz .< Z0))
+        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
         index = mz .< Z0
         mri = mr[index]
         mzi = mz[index]
@@ -952,9 +961,9 @@ function add_xpoint(mr::AbstractVector{T}, mz::AbstractVector{T}, R0::Union{Noth
     res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.05, 1.5, Optim.GoldenSection())
 
     points = collect(zip([mr; mr[1]], [mz; mz[1]]))
-    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, res.minimizer[1])
+    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, 1.0 + (res.minimizer[1] - 1.0) * α_multiplier)
 
-    return RX, ZX, R, Z
+    return (RX=RX, ZX=ZX, R=R, Z=Z)
 end
 
 function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
@@ -964,7 +973,7 @@ function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:R
     RZ = convex_hull!(points; closed_polygon=true)
     R = T[r for (r, z) in RZ]
     Z = T[z for (r, z) in RZ]
-    return RX, ZX, R, Z
+    return (RX=RX, ZX=ZX, R=R, Z=Z)
 end
 
 """
@@ -998,15 +1007,16 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RL = R0
     end
 
+    RXU, ZXU, _ = add_xpoint(mr, mz, RU, Z0; upper=true, α_multiplier=(upper_x_point ? 1.0 : 2.0))
+    RXL, ZXL, _ = add_xpoint(mr, mz, RL, Z0; upper=false, α_multiplier=(lower_x_point ? 1.0 : 2.0))
+
     RX = Float64[]
     ZX = Float64[]
     if upper_x_point
-        RXU, ZXU, _ = add_xpoint(mr, mz, RU, Z0; upper=true)
         push!(RX, RXU)
         push!(ZX, ZXU)
     end
     if lower_x_point
-        RXL, ZXL, _ = add_xpoint(mr, mz, RL, Z0; upper=false)
         push!(RX, RXL)
         push!(ZX, ZXL)
     end
@@ -1024,7 +1034,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         end
         RR = [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
         ZZ = [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
-        RR, ZZ = IMAS.resample_plasma_boundary(RR, ZZ; n_points=length(R) * 2)
+        RR, ZZ = IMAS.resample_plasma_boundary(RR, ZZ; n_points=length(R) * 2, method=:cubic)
         if upper_x_point
             I = ZZ .< Z[1]
         else
@@ -1042,18 +1052,24 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RR1 = [-(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]; R1[2:end-1]; -(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]]
         ZZ2 = [Z2[2:end-1] .+ ΔZ; Z2[2:end-1]; Z2[2:end-1] .- ΔZ]
         RR2 = [-(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]; R2[2:end-1]; -(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]]
-        RR1, ZZ1 = IMAS.resample_plasma_boundary(RR1, ZZ1; n_points=length(R) * 2)
-        RR2, ZZ2 = IMAS.resample_plasma_boundary(RR2, ZZ2; n_points=length(R) * 2)
-        I1 = (ZZ1 .< Z1[1]) .&& (ZZ1 .> Z1[end])
-        I2 = (ZZ2 .< Z1[1]) .&& (ZZ2 .> Z1[end])
-        R = [R1[1]; RR1[I1]; R1[end]; RR2[I2]; R1[1]]
-        Z = [Z1[1]; ZZ1[I1]; Z1[end]; ZZ2[I2]; Z1[1]]
+        RR1, ZZ1 = IMAS.resample_2d_path(RR1, ZZ1; n_points=length(R) * 3, method=:cubic)
+        RR2, ZZ2 = IMAS.resample_2d_path(RR2, ZZ2; n_points=length(R) * 3, method=:cubic)
+        crossings = IMAS.intersection(RR1, ZZ1, RR2, ZZ2).crossings
+        if crossings[1][2] > crossings[2][2]
+            ((RXU, ZXU), (RXL, ZXL)) = crossings
+        else
+            ((RXU, ZXU), (RXL, ZXL)) = crossings
+        end
+        I1 = (ZZ1 .< ZXU) .&& (ZZ1 .> ZXL)
+        I2 = (ZZ2 .< ZXU) .&& (ZZ2 .> ZXL)
+        R = [RXU; RR1[I1]; RXL; RR2[I2]; RXU]
+        Z = [ZXU; ZZ1[I1]; ZXL; ZZ2[I2]; ZXU]
     end
 
     IMAS.reorder_flux_surface!(R, Z, R0, Z0)
 
-    mxhb.RX = RX
-    mxhb.ZX = ZX
+    mxhb.RX = [RXU, RXL]
+    mxhb.ZX = [ZXU, ZXL]
     mxhb.r_boundary = R
     mxhb.z_boundary = Z
 

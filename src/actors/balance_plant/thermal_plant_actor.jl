@@ -12,30 +12,31 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: Paramet
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    heat_load_from::Switch{Symbol} = Switch{Symbol}([:dd, :actor], "-", ""; default=:dd)
+    model::Switch{Symbol} = Switch{Symbol}([:fixed_cycle_efficiency, :network], "-", "Power plant heat cycle efficiency"; default=:network)
+    fixed_cycle_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_cycle_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorThermalPlant{P}       # Actors must carry with them the parameters they are run with
-    model::Symbol                       # 
-    components::Vector{MTK.ODESystem}   # Vector of type ODESystem
-    connections::Vector{MTK.Equation}   # Connection equations
-    odeparams::Vector{MTK.Num}          # Circuit Parameters 
-    odedict::Dict{MTK.Symbol,MTK.ODESystem}         # Dictionary where symbol name => symbol
+    par::FUSEparameters__ActorThermalPlant{P}   # Actors must carry with them the parameters they are run with
+    power_cycle_type::Symbol
+    components::Vector{MTK.ODESystem}           # Vector of type ODESystem
+    connections::Vector{MTK.Equation}           # Connection equations
+    odeparams::Vector{MTK.Num}                  # Circuit Parameters 
+    odedict::Dict{MTK.Symbol,MTK.ODESystem}     # Dictionary where symbol name => symbol
     buildstatus::Bool
-    fullbuild                                       #::MTK.ODESystem - high level ODESystem
-    plant       #::MTK.ODESystem                        # simplified ODESystem
-    prob        #::MTK.ODEProblem
+    fullbuild                                   #::MTK.ODESystem - high level ODESystem
+    plant                                       #::MTK.ODESystem - simplified ODESystem
+    prob                                        #::MTK.ODEProblem
     G
     gplot
     sym2var::Dict
     var2val::Dict
     optpar::Vector{Symbol}
-    x   # Parameters actors
-    u   # Load vector
+    x                                           # Parameters actors
+    u                                           # Load vector
 end
 
 function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}; kw...) where {D<:Real,P<:Real}
@@ -81,23 +82,36 @@ function _step(actor::ActorThermalPlant)
     dd = actor.dd
     par = actor.par
 
-    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
-    use_actor_u = par.heat_load_from == :dd ? false : true
+    bop = dd.balance_of_plant
 
-    # don't calculate anything in absence of a blanket 
-    blankets = IMAS.get_build_layers(dd.build.layer, type=_blanket_)
-    if !use_actor_u && isempty(blankets)
-        empty!(dd.balance_of_plant)
-        dd.balance_of_plant.power_plant.power_cycle_type = string(actor.model)
-        @warn "No blanket present for ActorThermalPlant to do anything"
-        return actor
+    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
+    use_actor_u = false
+
+    if use_actor_u
+        breeder_heat_load = actor.u[1]
+        divertor_heat_load = actor.u[2]
+        wall_heat_load = actor.u[3]
+    else
+        blankets = IMAS.get_build_layers(dd.build.layer; type=_blanket_)
+        if isempty(blankets) # don't calculate anything in absence of a blanket
+            empty!(dd.balance_of_plant)
+            bop.power_plant.power_cycle_type = string(actor.power_cycle_type)
+            @warn "No blanket present for ActorThermalPlant to do anything"
+            return actor
+        end
+        breeder_heat_load = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
+        divertor_heat_load = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
+        wall_heat_load = abs(IMAS.radiation_losses(dd.core_sources))
+        actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
     end
 
-    breeder_heat_load = (use_actor_u == false) ? (isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)) : actor.u[1]
-    divertor_heat_load = (use_actor_u == false) ? (isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)) : actor.u[2]
-    wall_heat_load = (use_actor_u == false) ? abs(IMAS.radiation_losses(dd.core_sources)) : actor.u[3]
-
-    actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
+    # fixed cycle efficiency
+    if par.model == :fixed_cycle_efficiency
+        @ddtime(bop.thermal_efficiency_cycle = par.fixed_cycle_efficiency)
+        @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
+        @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * par.fixed_cycle_efficiency)
+        return actor
+    end
 
     # Buidling the TSM System
     if !actor.buildstatus
@@ -109,7 +123,7 @@ function _step(actor::ActorThermalPlant)
         # relies on the heat flow (solution) trajectory through the entire plant in order to find the correct edge direction (within the MetaGraph object), 
         # since balance equations are directionless without context, 
         # This only matters for the first step since that is when TSMD builds the graph object, afterwards 0 values are not an issue
-        if 0 ∈ actor.u
+        if any(actor.u .== 0.0)
             breeder_heat_load = 500e6
             divertor_heat_load = 100e6
             wall_heat_load = 100e6
@@ -122,8 +136,8 @@ function _step(actor::ActorThermalPlant)
         Tmin_wall = 350     # Minimum cooling temperature for first wall
         Tmax_div = 1000    # Maximum cooling temperature for Divertor
         Tmin_div = 350     # Minimum cooling temperature for Divertor
-        Tmax_breeder = actor.model == :rankine ? 1136 : 1300 # Maximum cooling temperature for Breeder blanket
-        Tmin_breeder = actor.model == :rankine ? 674.7 : 900 # Minimum cooling temperature for Breeder blanket
+        Tmax_breeder = actor.power_cycle_type == :rankine ? 1136 : 1300 # Maximum cooling temperature for Breeder blanket
+        Tmin_breeder = actor.power_cycle_type == :rankine ? 674.7 : 900 # Minimum cooling temperature for Breeder blanket
         Nhx = 4                  # Nhx = the number of heat exchangers to add to the loop, 4: 3 to connect to cooling loops, 1 to connect to primary power cycle
         flowrate = 300                # mass flow rate of the intermediate loop (kg/s)
         Tmin_interloop = 350 # minimum temperature for inter loop (Kelvin)
@@ -143,7 +157,7 @@ function _step(actor::ActorThermalPlant)
         # intermediate loop
         inter_loop_sys, inter_loop_connections, iparams, idict = TSMD.intermediate_loop(; Nhx=Nhx, flowrate=flowrate, Tmin=Tmin_interloop)
 
-        if actor.model == :rankine
+        if actor.power_cycle_type == :rankine
             cycle_flowrate = 250      # kg/s
             ηpump = 0.7      # isentropic effeciency of the pump
             ηturbine = 0.95    # Isentropic effeciency of the turbine
@@ -259,8 +273,7 @@ function _step(actor::ActorThermalPlant)
                 :breeder_heat₊Tout]
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
-
-            ode_sol = DifferentialEquations.solve(actor.prob)
+            ode_sol = DifferentialEquations.solve(actor.prob,DifferentialEquations.Rosenbrock23() )
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
@@ -289,7 +302,7 @@ function _step(actor::ActorThermalPlant)
             TSMD.set_plot_props!(gcopy)
             actor.gplot = gcopy
 
-        elseif actor.model == :brayton
+        elseif actor.power_cycle_type == :brayton
             cyclesys, cconnections, cparams, cdict = TSMD.brayton_cycle(; flowrate=300)
             energy_con = vcat(
                 TSMD.work_connect(
@@ -420,7 +433,9 @@ function _step(actor::ActorThermalPlant)
             actor.gplot = gcopy
 
         else
-            error("ActorThermalPlant model `:$(actor.model)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\"]")
+            error(
+                "ActorThermalPlant model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_cycle_efficiency\"]"
+            )
         end
         actor.x = [getval(a, actor) for a in actor.optpar]
     end
@@ -482,7 +497,7 @@ function _step(actor::ActorThermalPlant)
                 xlim=[-15, 75],
                 ylim=[-21, 21],
                 xticks=[0, 1, 2, 3, 4, 5, 6, 7],
-                plot_title="Balance Of Plant Circuit: $(titlecase(string(actor.model)))",
+                plot_title="Balance Of Plant Circuit: $(titlecase(string(actor.power_cycle_type)))",
                 plot_titlefonthalign=:hcenter,
                 plot_titlefontvalign=:bottom,
                 dpi=200,
@@ -665,7 +680,7 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
 
     bop = dd.balance_of_plant
     bop_plant = bop.power_plant
-    bopsys = bop_plant.system
+    bop_sys = bop_plant.system
 
     compnamesubs = Dict(
         "enfw" => "en fw",
@@ -688,14 +703,14 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
 
     # initializing the 1st level of dd
     if length(bop_plant.system) != length(syslabs)
-        empty!(dd.balance_of_plant.power_plant.system)
+        empty!(bop.power_plant.system)
         resize!(bop_plant.system, length(syslabs))
         for i in eachindex(syslabs)
             bop_plant.system[i].name = syslabs[i]
         end
     end
-    bopsys = bop_plant.system
-    bops_dict = Dict(bopsys[i].name => i for i in eachindex(syslabs)) # dict where name => index
+
+    bops_dict = Dict(bop_sys[i].name => i for i in eachindex(syslabs)) # dict where name => index
     valid_s = collect(keys(bops_dict))
 
     nparent_dict = TSMD.node_propdict(gcopy, :parent)
@@ -713,21 +728,21 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
             # parent index in dd
             dd_sys_idx = bops_dict[parent_]
 
-            component_names = [c.name for c in bopsys[dd_sys_idx].component[:]]
+            component_names = [c.name for c in bop_sys[dd_sys_idx].component[:]]
             comp = sysdict[i]
             compname = format_name(nname_dict[i]) != parent_ ? format_name(nname_dict[i]) : titlecase(string(nname_dict[i]))
 
             # if it is not already within the system
             if !(compname ∈ component_names)
-                resize!(bopsys[dd_sys_idx].component, length(bopsys[dd_sys_idx].component) + 1)
-                bopsys[dd_sys_idx].component[end].name = compname
+                resize!(bop_sys[dd_sys_idx].component, length(bop_sys[dd_sys_idx].component) + 1)
+                bop_sys[dd_sys_idx].component[end].name = compname
             end
 
-            component_names = [c.name for c in bopsys[dd_sys_idx].component[:]]
+            component_names = [c.name for c in bop_sys[dd_sys_idx].component[:]]
 
             # index of component in parent system
             idx = findfirst(x -> x == compname, component_names)
-            bopcomp = bopsys[dd_sys_idx].component[idx]
+            bopcomp = bop_sys[dd_sys_idx].component[idx]
 
             pps = propertynames(comp)
             hasnext = [hasproperty(getproperty(comp, p), :ṁ) for p in pps]    # has a fluid port
@@ -893,13 +908,13 @@ function optimize_thermal_plant(opt_actor)
         @debug @sprintf("%-16s = %+-8.4g", string(yvars[i]), y0[i])
     end
     @debug ""
-    
+
     # optimize
     res = Optim.optimize(mflow_opt_func, x0_opt, Optim.NelderMead(), Optim.Options(; optp...))
     @debug string(res)
     xf = Optim.minimizer(res)
     yf = eval_optfunc(xf, x0, mflow_opt_idx, lb, ub, yvars, opt_actor)
-    
+
     # print after optimization
     @debug "xf = $(r2.(opt_actor.x))"
     for i in eachindex(yvars)

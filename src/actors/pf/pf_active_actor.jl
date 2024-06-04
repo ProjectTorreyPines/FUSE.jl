@@ -218,9 +218,11 @@ function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}; zero_currents::Bool
             @ddtime(coil.current.data = 0.0)   # zero currents for all coils
         end
         pfcoil = GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
-        if coil.identifier == "optim"
+        if :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
+            push!(fixed_coils, pfcoil)
+        elseif coil.identifier == "optim"
             push!(optim_coils, pfcoil)
-        elseif coil.identifier == "fixed" || :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
+        elseif coil.identifier == "fixed"
             push!(fixed_coils, pfcoil)
         else
             push!(pinned_coils, pfcoil)
