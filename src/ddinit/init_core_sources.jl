@@ -1,5 +1,3 @@
-import NumericalIntegration: cumul_integrate
-
 """
     init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
