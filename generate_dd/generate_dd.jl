@@ -300,7 +300,12 @@ function imas_julia_struct(desired_structure::Vector{String})
             push!(inits, "Dict()")
             push!(fields, "    _ddR :: Union{Nothing,dd{Real}}")
             push!(inits, "nothing")
-            push!(txt_parent, "    if T <: Float64", "        setfield!(ids, :_ddR, lazycopy(Real,ids))", "    end")
+            push!(txt_parent,
+            "    if T <: Float64",
+            "        ddR = lazycopy(Real,ids)",
+            "        setfield!(ids, :_ddR, ddR)",
+            "        setfield!(ddR, :_parent, WeakRef(ids))",
+            "    end")
         end
 
         txt_parent = join(txt_parent, "\n")

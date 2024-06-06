@@ -4,6 +4,7 @@ import Memoize
 import Dates
 import FusionMaterials
 import FusionMaterials: Material
+import Measurements
 
 #= ================================= =#
 #  Learning rate for HTS - from GASC  #
@@ -200,45 +201,13 @@ end
 #  uncertainty  #
 #= =========== =#
 
-function store_nominal_values(dd::IMAS.dd)
-    cst = dd.costing
-    cstU = IMAS.uncertain(dd).costing
+function Base.setproperty!(idsR::IMAS.IDS{Real}, field::Symbol, val::Measurements.Measurement)
+    IMAS.setraw!(idsR, field, val)
 
-    cdc = cst.cost_direct_capital
-    cdcU = cstU.cost_direct_capital
-    resize!(cdc.system, length(cdcU.system))
-    for i in 1:length(cdc.system)
-        cdc.system[i].name = cdcU.system[i].name
-        cdc.system[i].cost = Measurements.value(cdcU.system[i].cost)
+    loc = IMAS.location(idsR)
+    top_dd = parent(IMAS.top_dd(idsR))
+    ids = IMAS.goto(top_dd, loc)
 
-        resize!(cdc.system[i].subsystem, length(cdcU.system[i].subsystem))
-        for j in 1:length(cdc.system[i].subsystem)
-            cdc.system[i].subsystem[j].name = cdcU.system[i].subsystem[j].name
-            cdc.system[i].subsystem[j].cost = Measurements.value(cdcU.system[i].subsystem[j].cost)
-        end
-    end
-
-    cops = cst.cost_operations
-    copsU = cstU.cost_operations
-
-    resize!(cops.system, length(copsU.system))
-    for i in 1:length(cops.system)
-        cops.system[i].name = copsU.system[i].name
-        cops.system[i].yearly_cost = Measurements.value(copsU.system[i].yearly_cost)
-
-        resize!(cops.system[i].subsystem, length(copsU.system[i].subsystem))
-        for j in 1:length(cops.system[i].subsystem)
-            cops.system[i].subsystem[j].name = copsU.system[i].subsystem[j].name
-            cops.system[i].subsystem[j].yearly_cost = Measurements.value(copsU.system[i].subsystem[j].yearly_cost)
-        end
-    end
-
-    cdecom = cst.cost_decommissioning
-    cdecomU = cstU.cost_decommissioning
-
-    resize!(cdecom.system, 1)
-    cdecom.system[1].name = "decommissioning"
-    cdecom.system[1].cost = Measurements.value(cdecomU.cost)
-
-    cst.levelized_CoE = Measurements.value(cstU.levelized_CoE)
+    setproperty!(ids, field, Measurements.value(val))
+ 
 end
