@@ -243,7 +243,7 @@ end
         dd::Union{Nothing,IMAS.dd},
         ini::Union{Nothing,ParametersAllInits},
         act::Union{Nothing,ParametersAllActors};
-        error::Any=nothing;
+        error::Any=nothing,
         timer::Bool=true,
         varinfo::Bool=false,
         freeze::Bool=true,
@@ -263,7 +263,7 @@ function save(
     dd::Union{Nothing,IMAS.dd},
     ini::Union{Nothing,ParametersAllInits},
     act::Union{Nothing,ParametersAllActors};
-    error::Any=nothing;
+    error::Any=nothing,
     timer::Bool=true,
     varinfo::Bool=false,
     freeze::Bool=true,
