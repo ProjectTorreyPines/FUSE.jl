@@ -242,8 +242,8 @@ end
         savedir::AbstractString,
         dd::Union{Nothing,IMAS.dd},
         ini::Union{Nothing,ParametersAllInits},
-        act::Union{Nothing,ParametersAllActors},
-        e::Union{Nothing,Exception}=nothing;
+        act::Union{Nothing,ParametersAllActors};
+        error::Any=nothing;
         timer::Bool=true,
         varinfo::Bool=false,
         freeze::Bool=true,
@@ -262,8 +262,8 @@ function save(
     savedir::AbstractString,
     dd::Union{Nothing,IMAS.dd},
     ini::Union{Nothing,ParametersAllInits},
-    act::Union{Nothing,ParametersAllActors},
-    e::Union{Nothing,Exception}=nothing;
+    act::Union{Nothing,ParametersAllActors};
+    error::Any=nothing;
     timer::Bool=true,
     varinfo::Bool=false,
     freeze::Bool=true,
@@ -279,9 +279,15 @@ function save(
 
     # first write error.txt so that if we are parsing while running optimizer,
     # the parser can immediately see if this is a failing case
-    if e !== nothing
+    if typeof(error) <: Nothing
+        pass
+    elseif typeof(error) <: Exception
         open(joinpath(savedir, "error.txt"), "w") do file
-            return showerror(file, e, catch_backtrace())
+            return showerror(file, error, catch_backtrace())
+        end
+    else
+        open(joinpath(savedir, "error.txt"), "w") do file
+            return println(file, string(error))
         end
     end
 
