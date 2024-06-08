@@ -25,7 +25,7 @@ function case_parameters(
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
-        act.ActorStabilityLimits.raise_on_breach = false
+#        act.ActorStabilityLimits.raise_on_breach = false
         if boundary_from == :auto
             boundary_from = :ods
         end
@@ -117,9 +117,9 @@ function case_parameters(
 
     ini.core_profiles.ne_setting = ne_setting
     if ne_setting == :greenwald_fraction_ped
-        ini.core_profiles.ne_value = (t -> 0.95 / 1.2) ↔ (2, (100.0, 300.0), (0.3 / 1.2, 0.95 / 1.2), (:match, :float))
-    elseif ne_setting == :greenwald_fraction
         ini.core_profiles.ne_value = 0.75
+    elseif ne_setting == :greenwald_fraction
+        ini.core_profiles.ne_value = 0.9
     end
 
     ini.core_profiles.helium_fraction = 0.01

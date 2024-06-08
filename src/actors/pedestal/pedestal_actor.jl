@@ -19,6 +19,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
@@ -39,15 +40,6 @@ function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function blend_core_edge(actor::ActorEPED)
-    return
-end
-
-function blend_core_edge(actor::ActorWPED)
-    return
-end
-
-
 function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
@@ -56,7 +48,6 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     elseif par.model == :WPED
         ped_actor = ActorWPED(dd, act.ActorWPED)
     end
-
     return ActorPedestal(dd, par, ped_actor)
 end
 
@@ -101,6 +92,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         end
         ped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, rho_nml=0.9, rho_ped=0.95)
     end
+
 
     return actor
 end
