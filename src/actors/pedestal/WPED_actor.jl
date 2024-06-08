@@ -7,14 +7,21 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     _time::Float64 = NaN
     #== actor parameters ==#
     ped_to_core_fraction::Entry{T} = Entry{T}("-", "ratio of pedestal stored energy to core stored energy"; default=0.3)
+    rho_boundary::Entry{T} = Entry{T}("-", "Boundary point of the WPED method"; default=0.9)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+end
+
+mutable struct OptimizationWPED
+    α_Te::Float64
+    α_Ti::Float64
+    value_bound::Float64
 end
 
 mutable struct ActorWPED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorWPED{P}
-    result::Nothing
+    optimization_guesses::OptimizationWPED
 end
-
 """
     ActorWPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
@@ -31,7 +38,7 @@ end
 function ActorWPED(dd::IMAS.dd, par::FUSEparameters__ActorWPED; kw...)
     logging_actor_init(ActorWPED)
     par = par(kw...)
-    return ActorWPED(dd, par, nothing)
+    return ActorWPED(dd, par, OptimizationWPED(0.0, 0.0, 3e3))
 end
 
 """
@@ -44,14 +51,138 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
+    rho = cp1d.grid.rho_tor_norm
+    rho_bound_idx = argmin(abs.(rho .- par.rho_boundary))
+    initial_Ti_over_Te = cp1d.ion[1].temperature[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
 
-    rho_idx09 = argmin(abs.(cp1d.grid.rho_tor_norm .- 0.9))
-    # Keep the Ti/Te ratio constant
-    Ti_over_Te = cp1d.ion[1].temperature[rho_idx09] / cp1d.electrons.temperature[rho_idx09]
-    res = Optim.optimize(x -> cost_t08(x, cp1d, par.ped_to_core_fraction, Ti_over_Te), 50, 5e3, Optim.GoldenSection(); rel_tol=1E-3)
-    cost_t08(res.minimizer, cp1d, par.ped_to_core_fraction, Ti_over_Te)
+    rho_edge = collect(LinRange(par.rho_boundary, 1.0, 201))
+
+    if par.do_plot
+        q = plot(rho, cp1d.electrons.temperature; label="Te before WPED blending", xlabel="rho", ylabel="Te [eV]")
+        qq = plot(rho, cp1d.ion[1].temperature; label="Ti before WPED blending", xlabel="rho", ylabel="Ti [eV]")
+    end
+
+    res_value_bound = Optim.optimize(
+        value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, par.ped_to_core_fraction, par.rho_boundary, rho_edge, initial_Ti_over_Te),
+        1.0,
+        8e3,
+        Optim.GoldenSection();
+        rel_tol=1E-3
+    )
+    cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, par.ped_to_core_fraction, par.rho_boundary, rho_edge, initial_Ti_over_Te)
+
+    if par.do_plot
+        display(plot!(q, rho, cp1d.electrons.temperature; label="Te after"))
+        display(plot!(qq, rho, cp1d.ion[1].temperature; label="Ti after"))
+    end
 
     return actor
+end
+
+function cost_WPED_ztarget_pedratio(
+    cp1d::IMAS.core_profiles__profiles_1d,
+    value_bound::Real,
+    ratio_wanted::Real,
+    rho_boundary::Real,
+    rho_edge::AbstractVector,
+    initial_Ti_over_Te::Real
+)
+    cp1d_copy = deepcopy(cp1d)
+    cost = cost_WPED_ztarget_pedratio!(cp1d_copy, value_bound, ratio_wanted, rho_boundary, rho_edge, initial_Ti_over_Te)
+    return cost
+end
+
+function cost_WPED_ztarget_pedratio!(
+    cp1d::IMAS.core_profiles__profiles_1d,
+    value_bound::Real,
+    ratio_wanted::Real,
+    rho_boundary::Real,
+    rho_edge::AbstractVector,
+    initial_Ti_over_Te::Real
+)
+    rho = cp1d.grid.rho_tor_norm
+    Te = cp1d.electrons.temperature
+    Ti = cp1d.ion[1].temperature
+
+    res_α_Te = Optim.optimize(α -> cost_WPED_α_Te(cp1d, α, value_bound, rho_boundary, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
+    cost_WPED_α!(rho, Te, res_α_Te.minimizer, value_bound, rho_boundary, rho_edge)
+
+    res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti(cp1d, α, value_bound * initial_Ti_over_Te, rho_boundary, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
+    cost_WPED_α!(rho, Ti, res_α_Ti.minimizer, value_bound * initial_Ti_over_Te, rho_boundary, rho_edge)
+    for ion in cp1d.ion[2:end] # be carefull here to select only the thermal ions
+        ion.temperature = Ti
+    end
+
+    core, edge = core_and_edge_energy(cp1d, rho_boundary)
+    ratio = edge / core
+
+    cost = ((ratio .- ratio_wanted) / ratio_wanted)^2
+
+    return cost
+end
+
+
+function cost_WPED_α_Ti(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_boundary::Real, rho_edge::AbstractVector)
+    Ti = deepcopy(cp1d.ion[1].temperature)
+    rho = cp1d.grid.rho_tor_norm
+    cost = cost_WPED_α!(rho, Ti, α_Ti, value_bound, rho_boundary, rho_edge)
+    for ion in cp1d.ion[2:end] # be carefull here to select only the thermal ions
+        ion.temperature = Ti
+    end
+    return cost
+end
+
+function cost_WPED_α_Te(cp1d::IMAS.core_profiles__profiles_1d, α_Te::Real, value_bound::Real, rho_boundary::Real, rho_edge::AbstractVector)
+    Te = deepcopy(cp1d.electrons.temperature)
+    rho = cp1d.grid.rho_tor_norm
+    return cost_WPED_α!(rho, Te, α_Te, value_bound, rho_boundary, rho_edge)
+end
+
+function cost_WPED_α!(rho, Te, α_Te::Real, value_bound::Real, rho_boundary::Real, rho_edge::AbstractVector)
+    rho_bound_idx = argmin(abs.(rho .- rho_boundary))
+
+    z_whole_profile = IMAS.calc_z(rho, Te, :backward)
+
+    Te[1:rho_bound_idx] = Te[1:rho_bound_idx] .+ (-Te[rho_bound_idx] + value_bound)
+
+    profile_ped = IMAS.Edge_profile(rho_edge, rho_boundary, value_bound, Te[end], α_Te)
+    Te[rho_bound_idx:end] .= IMAS.interp1d(rho_edge, profile_ped).(rho[rho_bound_idx:end])
+
+    z_target_Te = z_whole_profile[rho_bound_idx]
+    z_profile = IMAS.calc_z(rho_edge, profile_ped, :backward)
+
+    return ((z_profile[1] - z_target_Te) / z_target_Te)^2
+end
+
+
+function cost_WPED_α_Ti!(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_boundary::Real, rho_edge::AbstractVector, initial_Ti_over_Te::Real)
+    Ti = cp1d.ion[1].temperature
+    rho = cp1d.grid.rho_tor_norm
+    rho_bound_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho_boundary))
+
+    Ti_edge = IMAS.Edge_profile(rho_edge, rho_boundary, value_bound / initial_Ti_over_Te, Ti[end], α_Ti)
+    Ti[rho_bound_idx:end] = IMAS.interp1d(rho_edge, Ti_edge).(rho[rho_bound_idx:end])
+    for ion in cp1d.ion
+        ion.temperature = Ti
+    end
+
+    z_target_Ti = -IMAS.interp1d(rho, IMAS.calc_z(rho, Ti, :backward)).(rho_boundary)
+    z_value_Ti = -IMAS.calc_z(rho_edge, Ti_edge, :backward)[1]
+
+    return ((z_value_Ti - z_target_Ti) / z_target_Ti)^2
+end
+
+
+function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_boundary::Real)
+    p = cp1d.pressure_thermal
+    rho_bound_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho_boundary))
+    p_edge = deepcopy(p)
+    p_edge[1:rho_bound_idx] .= p[rho_bound_idx]
+    p_core = p .- p_edge
+    core_value = 3 / 2 .* IMAS.cumul_integrate(cp1d.grid.volume, p_core)
+    edge_value = 3 / 2 .* IMAS.cumul_integrate(cp1d.grid.volume, p_edge)
+
+    return core_value[end], edge_value[end]
 end
 
 """
@@ -64,38 +195,4 @@ function _finalize(actor::ActorWPED)
     par = actor.par
 
     return actor
-end
-
-
-function cost_t08(T08, cp1d, ratio_wanted, Ti_over_Te)
-
-    rho_idx09 = argmin(abs.(cp1d.grid.rho_tor_norm .- 0.9))
-
-    Te = cp1d.electrons.temperature
-    Tlin = LinRange(T08, Te[end], length(Te) - rho_idx09 + 1)
-    cp1d.electrons.temperature[rho_idx09+1:end] .= Tlin[2:end]
-    cp1d.electrons.temperature[1:rho_idx09] = cp1d.electrons.temperature[1:rho_idx09] .- cp1d.electrons.temperature[rho_idx09] .+ Tlin[1]
-
-    Tlin = LinRange(T08, Te[end], length(Te) - rho_idx09 + 1) .* Ti_over_Te
-    for ion in cp1d.ion
-        ion.temperature[rho_idx09+1:end] .= Tlin[2:end]
-        ion.temperature[1:rho_idx09] = ion.temperature[1:rho_idx09] .- ion.temperature[rho_idx09] .+ Tlin[1]
-    end
-
-    core, edge = core_and_edge_energy(cp1d)
-    ratio = edge / core
-    return ((ratio .- ratio_wanted) / ratio_wanted)^2
-end
-
-
-function core_and_edge_energy(cp1d)
-    p = cp1d.pressure_thermal
-    rho_idx09 = argmin(abs.(cp1d.grid.rho_tor_norm .- 0.9))
-    p_edge = deepcopy(p)
-    p_edge[1:rho_idx09] .= p[rho_idx09]
-    p_core = p .- p_edge
-    core_value = 3 / 2 .* IMAS.cumul_integrate(cp1d.grid.volume, p_core)
-    edge_value = 3 / 2 .* IMAS.cumul_integrate(cp1d.grid.volume, p_edge)
-
-    return core_value[end], edge_value[end]
 end
