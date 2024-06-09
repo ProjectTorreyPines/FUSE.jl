@@ -88,7 +88,7 @@ function _step(actor::ActorDynamicPlasma)
 
     # setup things for Ip control
     if par.ip_controller
-        η_avg = integrate(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
+        η_avg = trapz(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
         IMAS.pid_controller(ctrl_ip, η_avg * 5.0, η_avg * 0.5, 0.0)
         if IMAS.fxp_request_service(ctrl_ip)
