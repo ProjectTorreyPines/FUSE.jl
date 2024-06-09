@@ -136,8 +136,8 @@ function _step(actor::ActorStationaryPlasma)
             finalize(step(actor.actor_eq))
 
             # evaluate change in current and pressure profiles after the update
-            error_jtor = integrate(cp1d.grid.area, (cp1d.j_tor .- j_tor_before) .^ 2) / integrate(cp1d.grid.area, j_tor_before .^ 2)
-            error_pressure = integrate(cp1d.grid.volume, (cp1d.pressure .- pressure_before) .^ 2) / integrate(cp1d.grid.volume, pressure_before .^ 2)
+            error_jtor = trapz(cp1d.grid.area, (cp1d.j_tor .- j_tor_before) .^ 2) / trapz(cp1d.grid.area, j_tor_before .^ 2)
+            error_pressure = trapz(cp1d.grid.volume, (cp1d.pressure .- pressure_before) .^ 2) / trapz(cp1d.grid.volume, pressure_before .^ 2)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
