@@ -76,11 +76,11 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     summary_ped = dd.summary.local.pedestal
     nominal_rho_ped = max(0.95, par.rho_ped .+ (1.0 - par.rho_ped) / 2.0)
     @ddtime summary_ped.position.rho_tor_norm = nominal_rho_ped
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, ne_from)
-    @ddtime summary_ped.z_eff.value = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from)
-    @ddtime summary_ped.t_e.value = interp1d(rho, cp1d.electrons.temperature).(nominal_rho_ped)
-    @ddtime summary_ped.t_i_average.value = interp1d(rho, cp1d.t_i_average).(nominal_rho_ped)
-    blend_core_edge_Hmode(cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
+    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles)
+    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, :core_profiles)
+    @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(nominal_rho_ped)
+    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(nominal_rho_ped)
+    IMAS.blend_core_edge_Hmode(cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
 
     if par.do_plot
         display(plot!(q, rho, cp1d.electrons.temperature; label="Te after"))
@@ -135,7 +135,7 @@ function cost_WPED_ztarget_pedratio!(
 end
 
 function cost_WPED_α_Ti(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
-    Ti = deepcopy(cp1d.cp1d.t_i_average)
+    Ti = deepcopy(cp1d.t_i_average)
     rho = cp1d.grid.rho_tor_norm
     cost = cost_WPED_α!(rho, Ti, α_Ti, value_bound, rho_ped, rho_edge)
     for ion in cp1d.ion
