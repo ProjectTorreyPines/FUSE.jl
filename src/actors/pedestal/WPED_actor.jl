@@ -155,23 +155,6 @@ function cost_WPED_α!(rho, temperature, α::Real, value_bound::Real, rho_bounda
     return ((z_profile[1] - z_target_Te) / z_target_Te)^2
 end
 
-function cost_WPED_α_Ti!(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_boundary::Real, rho_edge::AbstractVector, Ti_over_Te::Real)
-    Ti = cp1d.ion[1].temperature
-    rho = cp1d.grid.rho_tor_norm
-    rho_bound_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho_boundary))
-
-    Ti_edge = IMAS.Edge_profile(rho_edge, rho_boundary, value_bound / Ti_over_Te, Ti[end], α_Ti)
-    Ti[rho_bound_idx:end] = IMAS.interp1d(rho_edge, Ti_edge).(rho[rho_bound_idx:end])
-    for ion in cp1d.ion
-        ion.temperature = Ti
-    end
-
-    z_target_Ti = -IMAS.interp1d(rho, IMAS.calc_z(rho, Ti, :backward)).(rho_boundary)
-    z_value_Ti = -IMAS.calc_z(rho_edge, Ti_edge, :backward)[1]
-
-    return ((z_value_Ti - z_target_Ti) / z_target_Ti)^2
-end
-
 function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_boundary::Real)
     p = cp1d.pressure_thermal
     rho_bound_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho_boundary))
