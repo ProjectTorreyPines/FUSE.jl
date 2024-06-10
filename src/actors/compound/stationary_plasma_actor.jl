@@ -8,8 +8,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T<:Real} <: Par
     max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
     #== display and debugging parameters ==#
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
@@ -51,9 +51,16 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
     if act.ActorCoreTransport.model == :FluxMatcher
-        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium, ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule)
-        actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
-        actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+        actor_ped = ActorPedestal(
+            dd,
+            act.ActorPedestal,
+            act;
+            ip_from=:core_profiles,
+            βn_from=:equilibrium, 
+            ne_from=:pulse_schedule,
+            zeff_ped_from=:pulse_schedule,
+            rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
+            rho_ped=actor_tr.tr_actor.par.rho_transport[end])
     else
         actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
     end

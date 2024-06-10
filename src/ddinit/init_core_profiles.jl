@@ -57,14 +57,14 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 dd.core_profiles,
                 dd.equilibrium,
                 dd.summary;
-                greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
-                greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
-                ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
                 pressure_core,
                 helium_fraction=ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
+                ini.core_profiles.ne_setting,
+                ini.core_profiles.ne_value,
                 ini.core_profiles.T_ratio,
                 ini.core_profiles.T_shaping,
                 ini.core_profiles.n_shaping,
+                ini.core_profiles.ne_sep_to_ped_ratio,
                 ini.core_profiles.w_ped,
                 ini.core_profiles.zeff,
                 ini.core_profiles.rot_core,
@@ -83,9 +83,8 @@ function init_core_profiles!(
     cp::IMAS.core_profiles,
     eq::IMAS.equilibrium,
     summary::IMAS.summary;
-    greenwald_fraction::Union{Real,Missing},
-    greenwald_fraction_ped::Union{Real,Missing},
-    ne_ped::Union{Real,Missing},
+    ne_setting::Symbol,
+    ne_value::Real,
     pressure_core::Real,
     helium_fraction::Real,
     w_ped::Real,
@@ -98,6 +97,7 @@ function init_core_profiles!(
     T_ratio::Real=1.0,
     T_shaping::Real=1.8,
     n_shaping::Real=0.9,
+    ne_sep_to_ped_ratio::Real = 0.25,
     ngrid::Int=101)
 
     cp1d = resize!(cp.profiles_1d)
@@ -107,19 +107,22 @@ function init_core_profiles!(
     cp1d.zeff = ones(ngrid) .* zeff
     cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8, rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
-    # Density handling
-    @assert !ismissing(ne_ped) || !ismissing(greenwald_fraction) || !ismissing(greenwald_fraction_ped) "At least one of ini.core_profiles ne_ped / greenwald_fraction_ped / greenwald_fraction must be set"
-    @assert !ismissing(ne_ped) ⊻ !ismissing(greenwald_fraction_ped) "One and only one of ini.core_profiles.ne_ped or ini.core_profiles.greenwald_fraction_ped must be set"
-    if ismissing(ne_ped)
-        ne_ped = greenwald_fraction_ped * IMAS.greenwald_density(eqt)
+    # Density handling for H-mode profile
+    if ne_setting == :ne_ped
+        ne_ped = ne_value
+        ne_core = 1.4 * ne_ped
+    elseif ne_setting == :greenwald_fraction_ped
+        ne_ped = ne_value * IMAS.greenwald_density(eqt)
+        ne_core = 1.4 * ne_ped
+    elseif ne_setting == :greenwald_fraction
+        ne_ped = IMAS.greenwald_density(eqt) * 0.8 * ne_value
+        function cost_greenwald_fraction(ne0, greenwald_fraction_wanted)
+            cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
+            return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction_wanted)^2
+        end
+        res = Optim.optimize(x-> cost_greenwald_fraction(x,ne_value), ne_ped/10 ,ne_ped*10, Optim.GoldenSection(),rel_tol=1E-3)
+        ne_core = res.minimizer 
     end
-    if ismissing(greenwald_fraction)
-        # guess greewald fraction from ne_ped
-        ne0_guess = ne_ped * 1.4
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0_guess, ngrid, n_shaping, n_shaping, w_ped)
-        greenwald_fraction = IMAS.greenwald_fraction(eqt, cp1d)
-    end
-
     # Set ions:
     bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
     # 1. DT
@@ -136,18 +139,10 @@ function init_core_profiles!(
     @ddtime summary.local.pedestal.zeff.value = zeff
 
     # Set densities
-    function cost_greenwald_fraction(ne0)
-        ne0 = ne0[1]
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
-        return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction)^2
-    end
-    ne0_guess = ne_ped * 1.4
-    res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(; g_tol=1E-4))
-    ne_core = res.minimizer[1]
     if ne_core < ne_ped
         @warn "The core density is lower than the pedestal density, lower the pedestal density (ini.core_profiles.ne_ped)"
     end
-    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
+    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
     niFraction = zeros(3)
     # DT == 1

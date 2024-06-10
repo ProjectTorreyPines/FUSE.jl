@@ -7,7 +7,12 @@ Arguments:
 
   - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
-function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::Symbol=:auto)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(
+    ::Type{Val{:ITER}};
+    init_from::Symbol,
+    boundary_from::Symbol=:auto,
+    ne_setting::Symbol=:greenwald_fraction_ped
+)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_lh=1, n_pl=1)
     act = ParametersActors()
 
@@ -20,6 +25,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::S
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
+#        act.ActorStabilityLimits.raise_on_breach = false
         if boundary_from == :auto
             boundary_from = :ods
         end
@@ -108,8 +114,14 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::S
     ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
-    ini.core_profiles.greenwald_fraction_ped = (t -> 0.95 / 1.2) ↔ (2, (100.0, 300.0), (0.3 / 1.2, 0.95 / 1.2), (:match, :float))
-    ini.core_profiles.greenwald_fraction = ini.core_profiles.greenwald_fraction_ped * 1.2
+
+    ini.core_profiles.ne_setting = ne_setting
+    if ne_setting == :greenwald_fraction_ped
+        ini.core_profiles.ne_value = 0.75
+    elseif ne_setting == :greenwald_fraction
+        ini.core_profiles.ne_value = 0.9
+    end
+
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 0.9
     ini.core_profiles.T_shaping = 1.8
@@ -136,7 +148,7 @@ function case_parameters(::Type{Val{:ITER}}; init_from::Symbol, boundary_from::S
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
-    act.ActorPedestal.ped_factor = 0.8
+    act.ActorEPED.ped_factor = 0.8
 
     act.ActorWholeFacility.update_build = false
 
