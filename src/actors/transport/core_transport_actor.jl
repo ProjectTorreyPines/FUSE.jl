@@ -5,14 +5,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: Parame
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :FixedProfiles, :none], "-", "Transport actor to run"; default=:none)
+    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :none], "-", "Transport actor to run"; default=:none)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCoreTransport{P}
-    tr_actor::Union{ActorFluxMatcher{D,P},ActorFixedProfiles{D,P},ActorNoOperation{D,P}}
+    tr_actor::Union{ActorFluxMatcher{D,P},ActorEPEDProfiles{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -32,8 +32,8 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     par = par(kw...)
     if par.model == :FluxMatcher
         tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
-    elseif par.model == :FixedProfiles
-        tr_actor = ActorFixedProfiles(dd, act.ActorFixedProfiles, act)
+    elseif par.model == :EPEDProfiles
+        tr_actor = ActorEPEDProfiles(dd, act.ActorEPEDProfiles, act)
     elseif par.model == :none
         tr_actor = ActorNoOperation(dd, act.ActorNoOperation)
     end

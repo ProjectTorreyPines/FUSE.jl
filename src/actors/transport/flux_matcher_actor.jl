@@ -62,10 +62,11 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
     actor_ped = ActorPedestal(
         dd,
-        act.ActorPedestal;
+        act.ActorPedestal,
+        act;
         ip_from=:equilibrium,
         βn_from=:core_profiles,
-        ne_ped_from=:pulse_schedule,
+        ne_from=:pulse_schedule,
         zeff_ped_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end]

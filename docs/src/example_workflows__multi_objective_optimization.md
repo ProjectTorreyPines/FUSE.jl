@@ -50,7 +50,8 @@ act.ActorStabilityLimits.models = [:beta_troyon_1984, :model_201, :model_401] # 
 # nominal value and ranges
 ini.ec_launchers.power_launched = ini.ec_launchers.power_launched[1] ↔ [1e6, 200e6];
 ini.core_profiles.zeff = ini.core_profiles.zeff ↔ [1.1, 2.5]
-ini.core_profiles.greenwald_fraction = ini.core_profiles.greenwald_fraction ↔ [0.8, 1.3]
+ini.core_profiles.ne_setting = :greenwald_fraction
+ini.core_profiles.ne_value = 1.0 ↔ [0.8, 1.3]
 #ini.equilibrium.δ = ini.equilibrium.δ ↔ [-0.7,0.7]
 #ini.equilibrium.ζ = ini.equilibrium.ζ ↔ [0,0.2]
 ini.equilibrium.κ = 0.95 # k set to be 95% of maximum controllable value

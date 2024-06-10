@@ -920,3 +920,28 @@ function malloc_trim_if_glibc()
         #println("Not on a Linux system.")
     end
 end
+
+"""
+    extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.ExtractFunctionsLibrary)
+
+Extracts scalars quantities from ExtractFunctionsLibrary in parallel and return the dataframe
+"""
+function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.ExtractFunctionsLibrary)
+    extr = Dict(extract(dds[1], xtract))
+    df = DataFrames.DataFrame(extr)
+    for k in 2:length(dds)
+        push!(df, df[1, :])
+    end
+    p = ProgressMeter.Progress(length(dds); showspeed=true)
+    Threads.@threads for k in eachindex(dds)
+        try
+            tmp = Dict(extract(dds[k], xtract))
+            df[k, :] = tmp
+        catch
+            continue
+        end
+        ProgressMeter.next!(p)
+    end
+    ProgressMeter.finish!(p)
+    return df
+end
