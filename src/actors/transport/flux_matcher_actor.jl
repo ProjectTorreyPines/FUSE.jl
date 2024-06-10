@@ -500,7 +500,7 @@ function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     tmp = [
         ("         error", error),
         ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
-        ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
     ]
@@ -534,7 +534,7 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     z_profiles = Float64[]
 
     if par.evolve_Ti == :flux_match
-        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature, :backward)[cp_gridpoints]
+        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward)[cp_gridpoints]
         append!(z_profiles, z_Ti)
     end
 
@@ -587,7 +587,7 @@ function unpack_z_profiles(
     counter = 0
 
     if par.evolve_Ti == :flux_match
-        Ti_new = IMAS.profile_from_z_transport(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+        Ti_new = IMAS.profile_from_z_transport(cp1d.t_i_average, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
         counter += N
         for ion in cp1d.ion
             ion.temperature = Ti_new

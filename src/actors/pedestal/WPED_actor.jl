@@ -57,11 +57,11 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     rho_bound_idx = argmin(abs.(rho .- par.rho_ped))
     rho_edge = range(par.rho_ped, 1.0, 201)
 
-    Ti_over_Te = cp1d.ion[1].temperature[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
+    Ti_over_Te = cp1d.t_i_average[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
 
     if par.do_plot
         q = plot(rho, cp1d.electrons.temperature; label="Te before WPED blending", xlabel="rho", ylabel="Te [eV]")
-        qq = plot(rho, cp1d.ion[1].temperature; label="Ti before WPED blending", xlabel="rho", ylabel="Ti [eV]")
+        qq = plot(rho, cp1d.t_i_average; label="Ti before WPED blending", xlabel="rho", ylabel="Ti [eV]")
     end
 
     res_value_bound = Optim.optimize(
@@ -79,12 +79,12 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, ne_from)
     @ddtime summary_ped.z_eff.value = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from)
     @ddtime summary_ped.t_e.value = interp1d(rho, cp1d.electrons.temperature).(nominal_rho_ped)
-    @ddtime summary_ped.t_i_average.value = interp1d(rho, cp1d.ion[1].temperature).(nominal_rho_ped)
+    @ddtime summary_ped.t_i_average.value = interp1d(rho, cp1d.t_i_average).(nominal_rho_ped)
     blend_core_edge_Hmode(cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
 
     if par.do_plot
         display(plot!(q, rho, cp1d.electrons.temperature; label="Te after"))
-        display(plot!(qq, rho, cp1d.ion[1].temperature; label="Ti after"))
+        display(plot!(qq, rho, cp1d.t_i_average; label="Ti after"))
     end
 
     return actor
@@ -113,15 +113,17 @@ function cost_WPED_ztarget_pedratio!(
 
     rho = cp1d.grid.rho_tor_norm
     Te = cp1d.electrons.temperature
-    Ti = cp1d.ion[1].temperature
+    Ti = cp1d.t_i_average
 
     res_α_Te = Optim.optimize(α -> cost_WPED_α_Te(cp1d, α, value_bound, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
     cost_WPED_α!(rho, Te, res_α_Te.minimizer, value_bound, rho_ped, rho_edge)
 
     res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti(cp1d, α, value_bound * Ti_over_Te, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
     cost_WPED_α!(rho, Ti, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped, rho_edge)
-    for ion in cp1d.ion[2:end] # be carefull here to select only the thermal ions
-        ion.temperature = Ti
+    for ion in cp1d.ion
+        if !ismissing(ion, :density_thermal)
+            ion.temperature = Ti
+        end
     end
 
     core, edge = core_and_edge_energy(cp1d, rho_ped)
@@ -133,11 +135,13 @@ function cost_WPED_ztarget_pedratio!(
 end
 
 function cost_WPED_α_Ti(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
-    Ti = deepcopy(cp1d.ion[1].temperature)
+    Ti = deepcopy(cp1d.cp1d.t_i_average)
     rho = cp1d.grid.rho_tor_norm
     cost = cost_WPED_α!(rho, Ti, α_Ti, value_bound, rho_ped, rho_edge)
-    for ion in cp1d.ion[2:end] # be carefull here to select only the thermal ions
-        ion.temperature = Ti
+    for ion in cp1d.ion
+        if !ismissing(ion, :density_thermal)
+            ion.temperature = Ti
+        end
     end
     return cost
 end
