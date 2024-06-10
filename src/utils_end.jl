@@ -280,7 +280,7 @@ function save(
     # first write error.txt so that if we are parsing while running optimizer,
     # the parser can immediately see if this is a failing case
     if typeof(error) <: Nothing
-        pass
+        # pass
     elseif typeof(error) <: Exception
         open(joinpath(savedir, "error.txt"), "w") do file
             return showerror(file, error, catch_backtrace())
