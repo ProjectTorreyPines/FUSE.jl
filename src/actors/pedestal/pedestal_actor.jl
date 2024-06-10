@@ -25,7 +25,7 @@ end
 mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPedestal{P}
-    ped_actor::Union{Nothing,ActorEPED{D,P}, ActorWPED{D,P}}
+    ped_actor::Union{Nothing,ActorEPED{D,P},ActorWPED{D,P}}
 end
 
 """
@@ -46,7 +46,7 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     if par.model == :EPED
         ped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.rho_nml, par.rho_ped)
     elseif par.model == :WPED
-        ped_actor = ActorWPED(dd, act.ActorWPED)
+        ped_actor = ActorWPED(dd, act.ActorWPED; rho_boundary=par.rho_ped)
     end
     return ActorPedestal(dd, par, ped_actor)
 end

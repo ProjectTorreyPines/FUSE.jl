@@ -1,8 +1,8 @@
 import EPEDNN
 
-#= ============= =#
+#= ========= =#
 #  ActorEPED  #
-#= ============= =#
+#= ========= =#
 Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActorPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -65,8 +65,8 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
     sol = run_EPED(dd, actor.inputs, actor.epedmod; ne_from=par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
-    if sol.pressure.GH.H * 1e6 < cp1d.pressure_thermal[end]
-        actor.pped = 1.1 * cp1d.pressure_thermal[end]
+    if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
+        actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
         actor.wped = max(sol.width.GH.H, 0.01)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.1 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
@@ -121,24 +121,24 @@ function run_EPED(
     ip_from::Symbol,
     only_powerlaw::Bool,
     warn_nn_train_bounds::Bool)
-    
+
     inputs = EPEDNN.InputEPED()
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
     return run_EPED(dd, inputs, epedmod; ne_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
 end
 
 """
-run_EPED(
-dd::IMAS.dd,
-eped_inputs::EPEDNN.InputEPED,
-epedmod::EPEDNN.EPED1NNmodel;
-ne_ped_from::Symbol,
-zeff_ped_from::Symbol,
-βn_from::Symbol,
-ip_from::Symbol,
-only_powerlaw::Bool,
-warn_nn_train_bounds::Bool
-)
+    run_EPED(
+        dd::IMAS.dd,
+        eped_inputs::EPEDNN.InputEPED,
+        epedmod::EPEDNN.EPED1NNmodel;
+        ne_ped_from::Symbol,
+        zeff_ped_from::Symbol,
+        βn_from::Symbol,
+        ip_from::Symbol,
+        only_powerlaw::Bool,
+        warn_nn_train_bounds::Bool)
+
 Runs EPED from dd and outputs the EPED solution as the sol struct
 """
 function run_EPED(
@@ -150,8 +150,7 @@ function run_EPED(
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
-    warn_nn_train_bounds::Bool
-)
+    warn_nn_train_bounds::Bool)
 
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
