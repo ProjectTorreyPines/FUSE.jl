@@ -70,9 +70,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
             te_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - w_ped)
             ti_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - w_ped)
             zeff_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(1 - w_ped)
-            if ismissing(ini.core_profiles, :ne_ped) && ismissing(ini.core_profiles, :greenwald_fraction_ped)
-                ini.core_profiles.greenwald_fraction_ped = ne_ped / IMAS.greenwald_density(dd1)
-            end
+
             if ismissing(ini.core_profiles, :w_ped)
                 ini.core_profiles.w_ped = w_ped
             end
@@ -81,9 +79,6 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
             end
             if ismissing(ini.core_profiles, :T_ratio)
                 ini.core_profiles.T_ratio = ti_ped / te_ped
-            end
-            if ismissing(ini.core_profiles, :greenwald_fraction)
-                ini.core_profiles.greenwald_fraction = IMAS.greenwald_fraction(dd1)
             end
         end
 

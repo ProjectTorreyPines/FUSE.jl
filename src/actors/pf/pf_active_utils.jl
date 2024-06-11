@@ -443,7 +443,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0)
+function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
     Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
 
     function optimal_area(x; coil, r0, z0, width0, height0)
@@ -481,6 +481,42 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
             height0 = pfcoil.element[1].geometry.rectangle.height
             res = Optim.optimize(x -> optimal_area(x; coil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
             push!(areas, abs(res.minimizer[1]))
+        end
+    end
+
+    # find symmetric coils and make them equal area
+    if symmetric
+        symmetric_pairs = Tuple{Int,Int}[]
+        k1 = 0
+        for coil1 in coils
+            pfcoil1 = getfield(coil1, :imas)
+            if !IMAS.is_ohmic_coil(pfcoil1)
+                k1 += 1
+                k2 = 0
+                min_symmetric_distance = Inf
+                for coil2 in coils
+                    pfcoil2 = getfield(coil2, :imas)
+                    if !IMAS.is_ohmic_coil(pfcoil2)
+                        k2 += 1
+                        if k1 > k2
+                            symmetric_distance = sqrt(
+                                (pfcoil1.element[1].geometry.rectangle.r - pfcoil2.element[1].geometry.rectangle.r)^2 +
+                                (pfcoil1.element[1].geometry.rectangle.z + pfcoil2.element[1].geometry.rectangle.z)^2
+                            )
+                            if symmetric_distance < min_symmetric_distance && symmetric_distance < sqrt(max(areas[k2], areas[k1]))
+                                push!(symmetric_pairs, (k1, k2))
+                                min_symmetric_distance = symmetric_distance
+                            end
+                        end
+                    end
+                end
+            end
+            if !isempty(symmetric_pairs)
+                k1, k2 = pop!(symmetric_pairs)
+                max_area = max(areas[k2], areas[k1])
+                areas[k2] = max_area
+                areas[k1] = max_area
+            end
         end
     end
 

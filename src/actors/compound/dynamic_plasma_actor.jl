@@ -52,9 +52,16 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
     if act.ActorCoreTransport.model == :FluxMatcher
-        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium, ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule)
-        actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
-        actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+        actor_ped = ActorPedestal(
+            dd,
+            act.ActorPedestal,
+            act;
+            ip_from=:core_profiles,
+            βn_from=:equilibrium, 
+            ne_from=:pulse_schedule,
+            zeff_ped_from=:pulse_schedule,
+            rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
+            rho_ped=actor_tr.tr_actor.par.rho_transport[end])
     else
         actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
     end

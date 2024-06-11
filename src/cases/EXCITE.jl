@@ -52,8 +52,8 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.equilibrium.xpoints = t -> step((t - Δt / 7) / (Δt / 2)) < 0.5 ? :none : :double
     ini.equilibrium.boundary_from = :scalars
 
-    ini.core_profiles.greenwald_fraction = 0.42
-    ini.core_profiles.greenwald_fraction_ped = 0.25
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value = 0.25
     ini.core_profiles.T_ratio = 0.825
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 1.5
