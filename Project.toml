@@ -69,7 +69,3 @@ VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 XSteamTP = "d40c7a0e-b328-4954-9d8e-c203ade7593f"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
-
-[compat]
-
-ModelingToolkit = "< 9.11"

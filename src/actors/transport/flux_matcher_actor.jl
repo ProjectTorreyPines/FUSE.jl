@@ -283,8 +283,13 @@ function error_transformation(target::T, output::T, norm::T) where {T}
     return (target .- output) ./ norm
 end
 
-function target_transformation(target::Vector{Float64})
-    return sum(abs.(target)) / length(target)
+function target_transformation(target::Vector{Float64}, default::Float64)
+    norm = sum(abs.(target)) / length(target)
+    if norm == 0.0
+        return default
+    else
+        return norm
+    end
 end
 
 """
@@ -300,21 +305,22 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     norms = Float64[]
 
     if par.evolve_Ti == :flux_match #[W / m²]
-        push!(norms, target_transformation(total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+        push!(norms, target_transformation(total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints], 1E4))
     end
 
     if par.evolve_Te == :flux_match #[W / m²]
-        push!(norms, target_transformation(total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+        push!(norms, target_transformation(total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints], 1E4))
     end
 
     if par.evolve_rotation == :flux_match #[kg / m s²]
-        push!(norms, target_transformation(total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+        push!(norms, target_transformation(total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]), 1.0)
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
-        push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]))
+        push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints], 1E17))
     end
+
     return norms
 end
 
