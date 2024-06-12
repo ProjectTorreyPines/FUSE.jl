@@ -79,7 +79,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     ini.requirements.flattop_duration = 5.0
 
     act.ActorPFdesign.symmetric = true
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
     act.ActorWholeFacility.update_build = false
 
     if use_ods_sources

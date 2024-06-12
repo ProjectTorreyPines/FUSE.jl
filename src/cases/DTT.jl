@@ -86,7 +86,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
 
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
 
     set_new_base!(ini)
     set_new_base!(act)
