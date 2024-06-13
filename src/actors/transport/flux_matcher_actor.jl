@@ -93,6 +93,8 @@ function _step(actor::ActorFluxMatcher)
     # normalizations for each of the channels
     # updated with exponential forget for subsequent step() calls
     if isempty(actor.norms)
+        # calculate fluxes from initial profiles
+        finalize(step(actor.actor_ct))
         actor.norms = flux_match_norms(dd, par)
     else
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
@@ -138,7 +140,7 @@ function _step(actor::ActorFluxMatcher)
     else
         res = try
             res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog),
+                z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog).errors,
                 z_init_scaled;
                 show_trace=false,
                 store_trace=true,
@@ -220,7 +222,7 @@ end
         err_history::Vector{Float64}=Float64[],
         prog::Any=nothing)
 
-Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns error between the two
+Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns named tuple with (targets, fluxes, errors)
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
@@ -271,54 +273,63 @@ function flux_match_errors(
     end
 
     # compare fluxes
-    errors = flux_match_errors(dd, par, actor.norms, prog)
+    targets, fluxes, errors = flux_match_errors(dd, par, actor.norms, prog)
 
     # update error history
     push!(err_history, norm(errors))
 
-    return errors
+    return (targets=targets, fluxes=fluxes, errors=errors)
 end
 
-function error_transformation(target::T, output::T, norm::T) where {T}
-    return (target .- output) ./ norm
+function error_transformation(targets::T, fluxes::T, norm::T) where {T}
+    return (targets .- fluxes) ./ norm
 end
 
-function target_transformation(target::Vector{Float64}, default::Float64)
-    norm = sum(abs.(target)) / length(target)
-    if norm == 0.0
-        return default
-    else
-        return norm
-    end
+function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) where {T<:Real}
+    return sqrt.(sum(norm_source .^ 2 .+ norm_transp .^ 2) / length(norm_source))
 end
 
 """
     flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
-Returns vector of normalizations for the different channels that are evolved
+Returns vector of normalizations for the different channels that are being evolved.
+
+This normalization affects how hard the optimizer tries to match one channel versus another.
+
+The normalization is calculated as the mean square average of the transport and source fluxes.
 """
 function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
+    total_fluxes = IMAS.total_fluxes(dd.core_transport)
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
+    cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
 
     norms = Float64[]
 
     if par.evolve_Ti == :flux_match #[W / m²]
-        push!(norms, target_transformation(total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints], 1E4))
+        norm_source = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        norm_transp = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        push!(norms, norm_transformation(norm_source, norm_transp))
     end
 
     if par.evolve_Te == :flux_match #[W / m²]
-        push!(norms, target_transformation(total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints], 1E4))
+        norm_source = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        norm_transp = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        push!(norms, norm_transformation(norm_source, norm_transp))
     end
 
     if par.evolve_rotation == :flux_match #[kg / m s²]
-        push!(norms, target_transformation(total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]), 1.0)
+        norm_source = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        norm_transp = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        push!(norms, norm_transformation(norm_source, norm_transp))
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
-        push!(norms, target_transformation(total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints], 1E17))
+        norm_source = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+        norm_transp = total_fluxes.electrons.particles.flux[cf_gridpoints]
+        push!(norms, norm_transformation(norm_source, norm_transp))
     end
 
     return norms
@@ -332,21 +343,20 @@ Evaluates the flux_matching errors for the :flux_match species and channels
 NOTE: flux matching is done in physical units
 """
 function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
-
     nrho = length(par.rho_transport)
-    output = flux_match_fluxes(dd, par, prog)
-    target = flux_match_targets(dd, par, prog)
-    norms_all = similar(output)
+    fluxes = flux_match_fluxes(dd, par, prog)
+    targets = flux_match_targets(dd, par, prog)
+    norms_all = similar(fluxes)
     for (inorm, norm) in enumerate(norms)
         norms_all[(inorm-1)*nrho+1:inorm*nrho] .= norm
     end
 
-    errors = error_transformation(target, output, norms_all)
+    errors = error_transformation(targets, fluxes, norms_all)
     if prog !== nothing
         ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
     end
 
-    return errors
+    return (targets=targets, fluxes=fluxes, errors=errors)
 end
 
 """
@@ -466,30 +476,25 @@ function flux_match_simple(
     par = actor.par
 
     i = 0
-    ferror = 1e10
-    xerror = 1e10
+    ferror = Inf
+    xerror = Inf
 
     zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
-    flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
-    fluxes = flux_match_fluxes(dd, par, prog)
-    targets = flux_match_targets(dd, par, prog)
-    fluxes_old = deepcopy(fluxes)
-    zprofiles_old = deepcopy(zprofiles)
-
+    targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+    fluxes_old = fluxes
+    zprofiles_old = zprofiles
     while (any(ferror .> ftol) && any(xerror .> xtol))
         i += 1
         zprofiles = zprofiles .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
-        flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
-        fluxes = flux_match_fluxes(dd, par, prog)
-        targets = flux_match_targets(dd, par, prog)
+        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
 
         tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(zprofiles, zprofiles_old)]
-        xerror = abs.(zprofiles_old - zprofiles) / tmp
+        xerror = abs.(zprofiles_old - zprofiles) ./ tmp
         tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(fluxes_old, fluxes)]
-        ferror = abs.(fluxes_old - fluxes) / tmp
+        ferror = abs.(fluxes_old - fluxes) ./ tmp
 
-        fluxes_old = deepcopy(fluxes)
-        zprofiles_old = deepcopy(zprofiles)
+        fluxes_old = fluxes
+        zprofiles_old = zprofiles
 
         if (i >= par.max_iterations)
             @info "Unable to flux-match within $(par.max_iterations) iterations maximum(ferr) = $(maximum(ferror)) (ftol=$ftol) maximum(xerr) = $(maximum(xerror)) (xtol = $xtol)"
@@ -499,7 +504,6 @@ function flux_match_simple(
 
     return (zero=z_scaled_history[argmin(err_history)],)
 end
-
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     cp1d = dd.core_profiles.profiles_1d[]
