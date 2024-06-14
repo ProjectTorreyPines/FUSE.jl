@@ -74,7 +74,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInitBuil
     lh_power_threshold_fraction::Entry{T} = Entry{T}(IMAS.requirements, :lh_power_threshold_fraction; check=x -> @assert x >= 0.0 "must be: lh_power_threshold_fraction >= 0.0")
     h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2; check=x -> @assert x >= 0.0 "must be: h98y2 >= 0.0")
     hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03; check=x -> @assert x >= 0.0 "must be: hds03 >= 0.0")
-    βn::Entry{T} = Entry{T}(IMAS.requirements, :βn; check=x -> @assert x >= 0.0 "must be: βn >= 0.0")
+    beta_normal::Entry{T} = Entry{T}(IMAS.requirements, :beta_normal; check=x -> @assert x >= 0.0 "must be: βn >= 0.0")
     Psol_R::Entry{T} = Entry{T}(IMAS.requirements, :Psol_R; check=x -> @assert x >= 0.0 "must be: Psol/R >= 0.0")
     q95::Entry{T} = Entry{T}(IMAS.requirements, :q95; check=x -> @assert x >= 0.0 "must be: q95 >= 0.0")
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin; default=0.4, check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
