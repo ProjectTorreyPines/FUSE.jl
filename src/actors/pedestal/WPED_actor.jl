@@ -65,7 +65,6 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     rho = cp1d.grid.rho_tor_norm
     rho_bound_idx = argmin(abs.(rho .- par.rho_ped))
-    rho_edge = range(par.rho_ped, 1.0, 201)
 
     if par.do_plot
         q = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
@@ -74,13 +73,13 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     Ti_over_Te = cp1d.t_i_average[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
     res_value_bound = Optim.optimize(
-        value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, par.ped_to_core_fraction, par.rho_ped, rho_edge, Ti_over_Te),
+        value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, par.ped_to_core_fraction, par.rho_ped, Ti_over_Te),
         1.0,
         cp1d.electrons.temperature[1],
         Optim.GoldenSection();
         rel_tol=1E-3)
 
-    cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, par.ped_to_core_fraction, par.rho_ped, rho_edge, Ti_over_Te)
+    cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, par.ped_to_core_fraction, par.rho_ped, Ti_over_Te)
 
     @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(par.rho_ped)
     @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(par.rho_ped)
@@ -98,11 +97,10 @@ function cost_WPED_ztarget_pedratio(
     value_bound::Real,
     ped_to_core_fraction::Real,
     rho_ped::Real,
-    rho_edge::AbstractVector,
     Ti_over_Te::Real
 )
     cp1d_copy = deepcopy(cp1d)
-    cost = cost_WPED_ztarget_pedratio!(cp1d_copy, value_bound, ped_to_core_fraction, rho_ped, rho_edge, Ti_over_Te)
+    cost = cost_WPED_ztarget_pedratio!(cp1d_copy, value_bound, ped_to_core_fraction, rho_ped, Ti_over_Te)
     return cost
 end
 
@@ -111,14 +109,13 @@ function cost_WPED_ztarget_pedratio!(
     value_bound::Real,
     ped_to_core_fraction::Real,
     rho_ped::Real,
-    rho_edge::AbstractVector,
     Ti_over_Te::Real
 )
-    res_α_Te = Optim.optimize(α -> cost_WPED_α_Te!(cp1d, α, value_bound, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
-    cost_WPED_α_Te!(cp1d, res_α_Te.minimizer, value_bound, rho_ped, rho_edge)
+    res_α_Te = Optim.optimize(α -> cost_WPED_α_Te!(cp1d, α, value_bound, rho_ped), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
+    cost_WPED_α_Te!(cp1d, res_α_Te.minimizer, value_bound, rho_ped)
 
-    res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
-    cost_WPED_α_Ti!(cp1d, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped, rho_edge)
+    res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
+    cost_WPED_α_Ti!(cp1d, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped)
 
     # ped_to_core_fraction is defined at ρ = 0.9
     core, edge = core_and_edge_energy(cp1d, 0.9)
@@ -129,10 +126,10 @@ function cost_WPED_ztarget_pedratio!(
     return cost
 end
 
-function cost_WPED_α_Ti!(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
+function cost_WPED_α_Ti!(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_ped::Real)
     Ti = cp1d.t_i_average
     rho = cp1d.grid.rho_tor_norm
-    cost = IMAS.cost_WPED_α!(rho, Ti, α_Ti, value_bound, rho_ped, rho_edge)
+    cost = IMAS.cost_WPED_α!(rho, Ti, α_Ti, value_bound, rho_ped)
     for ion in cp1d.ion
         if !ismissing(ion, :temperature)
             ion.temperature = Ti
@@ -141,10 +138,10 @@ function cost_WPED_α_Ti!(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, va
     return cost
 end
 
-function cost_WPED_α_Te!(cp1d::IMAS.core_profiles__profiles_1d, α_Te::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
+function cost_WPED_α_Te!(cp1d::IMAS.core_profiles__profiles_1d, α_Te::Real, value_bound::Real, rho_ped::Real)
     Te = cp1d.electrons.temperature
     rho = cp1d.grid.rho_tor_norm
-    return IMAS.cost_WPED_α!(rho, Te, α_Te, value_bound, rho_ped, rho_edge)
+    return IMAS.cost_WPED_α!(rho, Te, α_Te, value_bound, rho_ped)
 end
 
 function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_ped::Real)
