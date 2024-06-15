@@ -80,7 +80,7 @@ end
 """
     _finalize(actor::ActorEPED)
 
-Writes results to dd.summary.local.pedestal and possibly updates core_profiles
+Writes results to dd.summary.local.pedestal and updates core_profiles
 """
 function _finalize(actor::ActorEPED)
     dd = actor.dd
@@ -109,7 +109,7 @@ function _finalize(actor::ActorEPED)
     @ddtime summary_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
 
     # this function takes information about the H-mode pedestal from summary IDS and blends it with core_profiles core
-    IMAS.blend_core_edge_Hmode(cp1d, summary_ped, par.rho_nml, par.rho_ped)
+    IMAS.blend_core_edge(:H_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped)
 
     return actor
 end
@@ -161,8 +161,8 @@ function run_EPED(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from)
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from)
+    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing)
+    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from, nothing)
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
 

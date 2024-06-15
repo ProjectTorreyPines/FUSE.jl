@@ -9,6 +9,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     ped_to_core_fraction::Entry{T} = Entry{T}("-", "ratio of pedestal stored energy to core stored energy"; default=0.3)
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
+    #== data flow parameters ==#
+    ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -53,17 +56,23 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
+
+    summary_ped = dd.summary.local.pedestal
+    @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
+    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_ped_from, par.rho_ped)
+    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_ped_from, par.rho_ped)
+    IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
+
     rho = cp1d.grid.rho_tor_norm
     rho_bound_idx = argmin(abs.(rho .- par.rho_ped))
     rho_edge = range(par.rho_ped, 1.0, 201)
 
-    Ti_over_Te = cp1d.t_i_average[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
-
     if par.do_plot
-        q = plot(rho, cp1d.electrons.temperature; label="Te before WPED blending", xlabel="rho", ylabel="Te [eV]")
-        qq = plot(rho, cp1d.t_i_average; label="Ti before WPED blending", xlabel="rho", ylabel="Ti [eV]")
+        q = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
+        qq = plot(cp1d, :t_i_average; label="Ti before WPED blending", xlabel="rho")
     end
 
+    Ti_over_Te = cp1d.t_i_average[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
     res_value_bound = Optim.optimize(
         value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, par.ped_to_core_fraction, par.rho_ped, rho_edge, Ti_over_Te),
         1.0,
@@ -73,18 +82,12 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, par.ped_to_core_fraction, par.rho_ped, rho_edge, Ti_over_Te)
 
-    summary_ped = dd.summary.local.pedestal
-    nominal_rho_ped = max(0.95, par.rho_ped .+ (1.0 - par.rho_ped) / 2.0)
-    @ddtime summary_ped.position.rho_tor_norm = nominal_rho_ped
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles)
-    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, :core_profiles)
-    @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(nominal_rho_ped)
-    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(nominal_rho_ped)
-    IMAS.blend_core_edge_Hmode(cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
+    @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(par.rho_ped)
+    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(par.rho_ped)
 
     if par.do_plot
-        display(plot!(q, rho, cp1d.electrons.temperature; label="Te after"))
-        display(plot!(qq, rho, cp1d.t_i_average; label="Ti after"))
+        display(plot!(q, cp1d.electrons, :temperature; label="Te after WPED blending"))
+        display(plot!(qq, cp1d, :t_i_average; label="Ti after WPED blending"))
     end
 
     return actor
@@ -96,8 +99,8 @@ function cost_WPED_ztarget_pedratio(
     ped_to_core_fraction::Real,
     rho_ped::Real,
     rho_edge::AbstractVector,
-    Ti_over_Te::Real)
-
+    Ti_over_Te::Real
+)
     cp1d_copy = deepcopy(cp1d)
     cost = cost_WPED_ztarget_pedratio!(cp1d_copy, value_bound, ped_to_core_fraction, rho_ped, rho_edge, Ti_over_Te)
     return cost
@@ -109,24 +112,16 @@ function cost_WPED_ztarget_pedratio!(
     ped_to_core_fraction::Real,
     rho_ped::Real,
     rho_edge::AbstractVector,
-    Ti_over_Te::Real)
+    Ti_over_Te::Real
+)
+    res_α_Te = Optim.optimize(α -> cost_WPED_α_Te!(cp1d, α, value_bound, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
+    cost_WPED_α_Te!(cp1d, res_α_Te.minimizer, value_bound, rho_ped, rho_edge)
 
-    rho = cp1d.grid.rho_tor_norm
-    Te = cp1d.electrons.temperature
-    Ti = cp1d.t_i_average
+    res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
+    cost_WPED_α_Ti!(cp1d, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped, rho_edge)
 
-    res_α_Te = Optim.optimize(α -> cost_WPED_α_Te(cp1d, α, value_bound, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
-    cost_WPED_α!(rho, Te, res_α_Te.minimizer, value_bound, rho_ped, rho_edge)
-
-    res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti(cp1d, α, value_bound * Ti_over_Te, rho_ped, rho_edge), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
-    cost_WPED_α!(rho, Ti, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped, rho_edge)
-    for ion in cp1d.ion
-        if !ismissing(ion, :density_thermal)
-            ion.temperature = Ti
-        end
-    end
-
-    core, edge = core_and_edge_energy(cp1d, rho_ped)
+    # ped_to_core_fraction is defined at ρ = 0.9
+    core, edge = core_and_edge_energy(cp1d, 0.9)
     ratio = edge / core
 
     cost = ((ratio .- ped_to_core_fraction) / ped_to_core_fraction)^2
@@ -134,38 +129,22 @@ function cost_WPED_ztarget_pedratio!(
     return cost
 end
 
-function cost_WPED_α_Ti(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
-    Ti = deepcopy(cp1d.t_i_average)
+function cost_WPED_α_Ti!(cp1d::IMAS.core_profiles__profiles_1d, α_Ti::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
+    Ti = cp1d.t_i_average
     rho = cp1d.grid.rho_tor_norm
-    cost = cost_WPED_α!(rho, Ti, α_Ti, value_bound, rho_ped, rho_edge)
+    cost = IMAS.cost_WPED_α!(rho, Ti, α_Ti, value_bound, rho_ped, rho_edge)
     for ion in cp1d.ion
-        if !ismissing(ion, :density_thermal)
+        if !ismissing(ion, :temperature)
             ion.temperature = Ti
         end
     end
     return cost
 end
 
-function cost_WPED_α_Te(cp1d::IMAS.core_profiles__profiles_1d, α_Te::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
-    Te = deepcopy(cp1d.electrons.temperature)
+function cost_WPED_α_Te!(cp1d::IMAS.core_profiles__profiles_1d, α_Te::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
+    Te = cp1d.electrons.temperature
     rho = cp1d.grid.rho_tor_norm
-    return cost_WPED_α!(rho, Te, α_Te, value_bound, rho_ped, rho_edge)
-end
-
-function cost_WPED_α!(rho, temperature, α::Real, value_bound::Real, rho_ped::Real, rho_edge::AbstractVector)
-    rho_bound_idx = argmin(abs.(rho .- rho_ped))
-
-    z_whole_profile = IMAS.calc_z(rho, temperature, :backward)
-
-    temperature[1:rho_bound_idx] = temperature[1:rho_bound_idx] .+ (-temperature[rho_bound_idx] + value_bound)
-
-    profile_ped = IMAS.Edge_profile(rho_edge, rho_ped, value_bound, temperature[end], α)
-    temperature[rho_bound_idx:end] .= IMAS.interp1d(rho_edge, profile_ped).(rho[rho_bound_idx:end])
-
-    z_target_Te = z_whole_profile[rho_bound_idx]
-    z_profile = IMAS.calc_z(rho_edge, profile_ped, :backward)
-
-    return ((z_profile[1] - z_target_Te) / z_target_Te)^2
+    return IMAS.cost_WPED_α!(rho, Te, α_Te, value_bound, rho_ped, rho_edge)
 end
 
 function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_ped::Real)
@@ -177,16 +156,4 @@ function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_ped::Re
     core_value = 3 / 2 .* IMAS.cumtrapz(cp1d.grid.volume, p_core)
     edge_value = 3 / 2 .* IMAS.cumtrapz(cp1d.grid.volume, p_edge)
     return core_value[end], edge_value[end]
-end
-
-"""
-    _finalize(actor::ActorWPED)
-
-Writes results to dd.summary.local.pedestal and possibly updates core_profiles
-"""
-function _finalize(actor::ActorWPED)
-    dd = actor.dd
-    par = actor.par
-
-    return actor
 end
