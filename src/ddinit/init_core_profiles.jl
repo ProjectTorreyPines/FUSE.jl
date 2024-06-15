@@ -190,9 +190,8 @@ function cost_Pfusion_p0(p::Real, target_pfus::Real, dd::IMAS.dd, ini::Parameter
         dd.core_profiles,
         dd.equilibrium,
         dd.summary;
-        greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
-        greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
-        ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
+        ne_setting=ini.core_profiles.ne_setting,
+        ne_value=ini.core_profiles.ne_value,
         pressure_core=p,
         helium_fraction=ini.core_profiles.helium_fraction,
         T_ratio=ini.core_profiles.T_ratio,
