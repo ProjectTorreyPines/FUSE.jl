@@ -55,7 +55,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             dd,
             act.ActorPedestal,
             act;
-            ip_from=:pulse_schedule,
+            ip_from=:core_profiles,
             βn_from=:equilibrium, 
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
@@ -69,7 +69,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq)
 end
@@ -105,12 +105,9 @@ function _step(actor::ActorStationaryPlasma)
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
-        # run HCD to get updated current drive
 
-
-        # uless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
+        # unless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
-
 
             # get current and pressure profiles before updating them
             j_tor_before = cp1d.j_tor
@@ -123,7 +120,7 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
             finalize(step(actor.actor_hc))
     
-            # evolve j_ohmic
+            # evolve j_ohmic (because hcd has changed non-inductive current drive)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
@@ -135,11 +132,7 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
 
-            # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-            finalize(step(actor.actor_hc))
-
-            # evolve j_ohmic
+            # evolve j_ohmic (because transport and pedestal have updated my bootstrap)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
