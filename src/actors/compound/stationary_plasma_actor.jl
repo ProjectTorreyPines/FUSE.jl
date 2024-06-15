@@ -55,7 +55,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             dd,
             act.ActorPedestal,
             act;
-            ip_from=:core_profiles,
+            ip_from=:pulse_schedule,
             βn_from=:equilibrium, 
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
@@ -69,7 +69,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
 
     return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq)
 end
@@ -106,21 +106,26 @@ function _step(actor::ActorStationaryPlasma)
     cp1d = dd.core_profiles.profiles_1d[]
     try
         # run HCD to get updated current drive
-        ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-        finalize(step(actor.actor_hc))
 
-        # evolve j_ohmic
-        ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-        finalize(step(actor.actor_jt))
 
         # uless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
+
+
             # get current and pressure profiles before updating them
             j_tor_before = cp1d.j_tor
             pressure_before = cp1d.pressure
 
             # core_profiles, core_sources, core_transport grids from latest equilibrium
             latest_equilibrium_grids!(dd)
+            
+            # run HCD to get updated current drive
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
+            finalize(step(actor.actor_hc))
+    
+            # evolve j_ohmic
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
+            finalize(step(actor.actor_jt))
 
             # run transport actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
@@ -198,7 +203,7 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
         ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
-        ("                 Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
     ]
