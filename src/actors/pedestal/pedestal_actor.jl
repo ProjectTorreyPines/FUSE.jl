@@ -46,7 +46,7 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     logging_actor_init(ActorPedestal)
     par = par(kw...)
     eped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.rho_nml, par.rho_ped)
-    wped_actor = ActorWPED(dd, act.ActorWPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.rho_nml, par.rho_ped)
+    wped_actor = ActorWPED(dd, act.ActorWPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.rho_ped)
     return ActorPedestal(dd, par, nothing, eped_actor, wped_actor)
 end
 
@@ -76,6 +76,11 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         else
             actor.ped_actor = actor.wped_actor
             mode = :L_mode
+            if eqt.boundary.triangularity < 0.0
+                actor.wped_actor.par.ped_to_core_fraction = 0.3
+            else
+                actor.wped_actor.par.ped_to_core_fraction = 0.05
+            end
         end
     end
 
@@ -89,9 +94,9 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             summary_ped = dd.summary.local.pedestal
             @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
             @ddtime summary_ped.n_e.value = ne_initial * density_scale
-            
+
             IMAS.blend_core_edge(mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
-            
+
             ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
             return ((ne_line - ne_line_wanted) / ne_line_wanted)^2
         end

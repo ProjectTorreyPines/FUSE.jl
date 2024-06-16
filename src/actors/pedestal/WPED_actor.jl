@@ -6,9 +6,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    ped_to_core_fraction::Entry{T} = Entry{T}("-", "ratio of pedestal stored energy to core stored energy"; default=0.3)
-    rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
-    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
+    ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@ρ=0.9) to core stored energy [0.05 for L-mode, 0.3 for -δ plasmas]")
+    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the edge region starts")
     #== data flow parameters ==#
     ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
@@ -61,7 +60,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
     @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_ped_from, par.rho_ped)
     @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_ped_from, par.rho_ped)
-    IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
+    IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, NaN, par.rho_ped; what=:densities)
 
     rho = cp1d.grid.rho_tor_norm
     rho_bound_idx = argmin(abs.(rho .- par.rho_ped))
