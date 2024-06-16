@@ -211,16 +211,14 @@ function init_core_profiles!(
     return cp
 end
 
-
 function cost_Pfusion_p0(pressure_core::Real, target_pfus::Real, dd::IMAS.dd, ini::ParametersAllInits)
     init_core_profiles!(
         dd.core_profiles,
         dd.equilibrium,
         dd.summary;
         ini.core_profiles.plasma_mode,
-        greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
-        greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
-        ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
+        ne_setting=ini.core_profiles.ne_setting,
+        ne_value=ini.core_profiles.ne_value,
         pressure_core,
         ini.core_profiles.helium_fraction,
         ini.core_profiles.T_ratio,
