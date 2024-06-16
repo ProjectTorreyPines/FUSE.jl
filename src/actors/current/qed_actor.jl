@@ -11,6 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActorP
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
+    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
@@ -57,6 +58,7 @@ function _step(actor::ActorQED)
     par = actor.par
 
     eqt = dd.equilibrium.time_slice[]
+    cpg = dd.core_profiles.global_quantities
     cp1d = dd.core_profiles.profiles_1d[]
 
     if par.Nt == 0
@@ -72,6 +74,10 @@ function _step(actor::ActorQED)
         if par.solve_for == :ip
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
             Vedge = nothing
+            if abs(Ip) < abs(@ddtime(cpg.current_non_inductive)) && par.allow_floating_plasma_current
+                Ip = nothing
+                Vedge = 0.0
+            end
         else
             Ip = nothing
             Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
@@ -139,6 +145,10 @@ function _step(actor::ActorQED)
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
                 Vedge = nothing
+                if abs(Ip) < abs(@ddtime(cpg.current_non_inductive)) && par.allow_floating_plasma_current
+                    Ip = nothing
+                    Vedge = 0.0
+                end
             else
                 Ip = nothing
                 Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tnow)
@@ -178,11 +188,6 @@ function _finalize(actor::ActorQED)
     else
         cp1d.j_ohmic = cp1d.j_total .- cp1d.j_non_inductive
     end
-    empty!(cp1d, :j_tor) # restore expression
-
-    # update dd.core_sources related to current
-    IMAS.bootstrap_source!(dd)
-    IMAS.ohmic_source!(dd)
 
     return actor
 end
