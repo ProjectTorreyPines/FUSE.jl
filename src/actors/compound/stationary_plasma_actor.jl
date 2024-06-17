@@ -51,14 +51,15 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
     if act.ActorCoreTransport.model == :FluxMatcher
+        par_p = act.ActorPedestal
         actor_ped = ActorPedestal(
             dd,
             act.ActorPedestal,
             act;
-            ip_from=:core_profiles,
-            βn_from=:equilibrium, 
-            ne_from=:pulse_schedule,
-            zeff_ped_from=:pulse_schedule,
+            ip_from=ismissing(getproperty(par_p, :ip_from,  missing)) ? :core_profiles : par_p.ip_from,
+            βn_from= ismissing(getproperty(par_p, :βn_from,  missing)) ? :equilibrium : par_p.βn_from,  
+            ne_from= ismissing(getproperty(par_p, :ne_from,  missing)) ? :pulse_schedule : par_p.ne_from,
+            zeff_ped_from= ismissing(getproperty(par_p, :zeff_ped_from,  missing)) ? :pulse_schedule : par_p.zeff_ped_from,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
             rho_ped=actor_tr.tr_actor.par.rho_transport[end])
     else

@@ -160,7 +160,6 @@ function run_EPED(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    :pulse_schedule
     neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from)
 
     zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from)
