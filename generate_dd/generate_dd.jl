@@ -109,7 +109,7 @@ end
 #  IMAS data structure  #
 #= =================== =#
 ids_names = imas_dd_ids_names()
-ids_extras = String["balance_of_plant", "blanket", "build", "costing", "neutronics", "solid_mechanics", "requirements", "stability"]
+ids_extras = String["balance_of_plant", "blanket", "build", "costing", "neutronics", "solid_mechanics", "requirements", "risk", "stability"]
 append!(ids_names, ids_extras)
 ids_names = unique(ids_names)
 
