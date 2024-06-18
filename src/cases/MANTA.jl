@@ -11,15 +11,17 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 1.21,
         :OH => 0.33,
-        :gap_OH_TF => 0.08,
         :hfs_TF => 0.6,
         :hfs_blanket_coils => 1.,
+        :hfs_vacuum_vessel => 0.166,
+
         :hfs_first_wall => 0.02,
 
         :plasma => 2.4,
         
         :lfs_first_wall => 0.02,
         :lfs_blanket_coils => 1.,
+        :lfs_vacuum_vessel => 0.166,
 
         :lfs_TF => 0.6,
         :gap_cryostat => 1.4,
@@ -30,7 +32,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
 
-    ini.equilibrium.B0 = 11.0
+    ini.equilibrium.B0 = 10. # 11 Tesla is impossible according to HFSizing actor lowered to 10.
     ini.equilibrium.R0 = 4.55
     ini.equilibrium.ϵ = 0.2637362637
     ini.equilibrium.κ = 1.4
@@ -43,7 +45,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
 
     #ini.core_profiles.ne_setting = :greenwald_fraction_ped
     # fgr = 0.88 , but not nessesary pedestal
-    ini.core_profiles.ne_value = 1.8e20
+    ini.core_profiles.ne_value = 1.7e20
     ini.core_profiles.ne_setting = :ne_ped
     #ini.core_profiles.ne_value = 1.95e20
     ini.core_profiles.ne_sep_to_ped_ratio = 0.66
@@ -82,6 +84,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
 
     ini.requirements.power_electric_net = 90e6 
     ini.requirements.tritium_breeding_ratio = 1.15
+    ini.requirements.flattop_duration = 45. * 60.
 
     set_new_base!(ini)
     set_new_base!(act)
