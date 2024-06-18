@@ -82,10 +82,6 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
 
     ini.requirements.power_electric_net = 90e6 
     ini.requirements.tritium_breeding_ratio = 1.15
-    ini.requirements.βn = 1.35
-    ini.requirements.q95 = 2.3
-
-    
 
     set_new_base!(ini)
     set_new_base!(act)
