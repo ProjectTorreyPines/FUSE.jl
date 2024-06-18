@@ -13,18 +13,14 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
         :OH => 0.33,
         :hfs_TF => 0.6,
         :hfs_vacuum_vessel => 0.166,
-
-        :hfs_blanket_coils => 1.,
-
+        :hfs_blanket_coils => 1.0,
         :hfs_first_wall => 0.02,
-
+        
         :plasma => 2.4,
         
         :lfs_first_wall => 0.02,
-        :lfs_blanket_coils => 1.,
-        :lfs_vacuum_vessel => 0.166,
-
-        :lfs_TF => 0.6,
+        :lfs_blanket_coils => 1.0,
+        :lfs_vacuum_vessel => 0.166, :lfs_TF => 0.6,
         :gap_cryostat => 1.4,
         :cryostat => 0.2
     )
@@ -33,11 +29,11 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
 
-    ini.equilibrium.B0 = 10. # 11 Tesla is impossible according to HFSizing actor lowered to 10.
+    ini.equilibrium.B0 = 10.0 # 11 Tesla is impossible according to HFSizing actor lowered to 10.
     ini.equilibrium.R0 = 4.55
     ini.equilibrium.ϵ = 0.2637362637
     ini.equilibrium.κ = 1.4
-    ini.equilibrium.δ =-0.45
+    ini.equilibrium.δ = -0.45
     ini.equilibrium.ζ = -0.25
     ini.equilibrium.pressure_core = 2.2E6
     ini.equilibrium.ip = 10.e6
@@ -83,9 +79,9 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
 
     ini.ic_antenna[1].power_launched = 4.0e6   #ICRH?
 
-    ini.requirements.power_electric_net = 90e6 
+    ini.requirements.power_electric_net = 90e6
     ini.requirements.tritium_breeding_ratio = 1.15
-    ini.requirements.flattop_duration = 45. * 60.
+    ini.requirements.flattop_duration = 45.0 * 60.0 # from https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 
     set_new_base!(ini)
     set_new_base!(act)
@@ -94,8 +90,8 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
 end
 
 function TraceCAD(::Type{Val{:MANTA}})
-    x_length=8.3
-    x_offset=-0.4
-    y_offset=-0.5
+    x_length = 8.3
+    x_offset = -0.4
+    y_offset = -0.5
     return TraceCAD(:MANTA, x_length, x_offset, y_offset)
 end
