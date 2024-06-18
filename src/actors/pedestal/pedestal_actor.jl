@@ -88,11 +88,13 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.ped_actor))
 
     elseif par.ne_from == :pulse_schedule && par.density_match == :ne_line
-        ne_initial = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, par.rho_ped)
+        actor.ped_actor.par.ne_ped_from = :core_profiles
+        finalize(step(actor.ped_actor))
+
+        summary_ped = dd.summary.local.pedestal
+        ne_initial = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, nothing)
         ne_line_wanted = IMAS.n_e_line(dd.pulse_schedule)
         function cost_ne_ped_from_nel(density_scale, ne_line_wanted)
-            summary_ped = dd.summary.local.pedestal
-            @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
             @ddtime summary_ped.n_e.value = ne_initial * density_scale
 
             IMAS.blend_core_edge(mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
@@ -103,7 +105,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         res = Optim.optimize(x -> cost_ne_ped_from_nel(x, ne_line_wanted), 0.01, 100, Optim.GoldenSection(); rel_tol=1E-3)
         cost_ne_ped_from_nel(res.minimizer, ne_line_wanted)
 
-        actor.ped_actor.par.ne_ped_from = :core_profiles
         finalize(step(actor.ped_actor))
         actor.ped_actor.par.ne_ped_from = :pulse_schedule
     end
