@@ -12,8 +12,9 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
         :gap_OH => 1.21,
         :OH => 0.33,
         :hfs_TF => 0.6,
-        :hfs_blanket_coils => 1.,
         :hfs_vacuum_vessel => 0.166,
+
+        :hfs_blanket_coils => 1.,
 
         :hfs_first_wall => 0.02,
 
