@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :auto], "-", "Pedestal model to use"; default=:auto)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :auto], "-", "Pedestal model to use"; default=:EPED)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
