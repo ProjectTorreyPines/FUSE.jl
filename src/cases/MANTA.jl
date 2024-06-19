@@ -36,13 +36,13 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.δ = -0.45
     ini.equilibrium.ζ = -0.25
     ini.equilibrium.pressure_core = 2.2E6
-    ini.equilibrium.ip = 10.e6
+    ini.equilibrium.ip = 9.e6
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
     #ini.core_profiles.ne_setting = :greenwald_fraction_ped
     # fgr = 0.88 , but not nessesary pedestal
-    ini.core_profiles.ne_value = 1.7e20
+    ini.core_profiles.ne_value = 1.5e20
     ini.core_profiles.ne_setting = :ne_ped
     #ini.core_profiles.ne_value = 1.95e20
     ini.core_profiles.ne_sep_to_ped_ratio = 0.66
