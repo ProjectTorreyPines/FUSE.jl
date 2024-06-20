@@ -179,8 +179,12 @@ function init_pf_active!(
     lfs_out_indexes = IMAS.get_build_indexes(bd.layer; fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257
-    rmask, zmask, mask = IMAS.structures_mask(bd; ngrid)
-    dr = (rmask[2] - rmask[1])
+    if true
+        dr = maximum(bd.layer[end].outline.r) / ngrid
+    else
+        rmask, zmask, mask = IMAS.structures_mask(bd; ngrid)
+        dr = (rmask[2] - rmask[1])
+    end
     for k in lfs_out_indexes
         layer = bd.layer[k]
 
