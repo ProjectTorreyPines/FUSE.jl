@@ -179,10 +179,10 @@ function init_pf_active!(
     lfs_out_indexes = IMAS.get_build_indexes(bd.layer; fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257
-    if true
+    if eqt.boundary.triangularity > 0.0
         dr = maximum(bd.layer[end].outline.r) / ngrid
     else
-        rmask, zmask, mask = IMAS.structures_mask(bd; ngrid)
+        rmask, zmask, mask = IMAS.structures_mask(bd; ngrid, layer_check=layer -> layer.material == "vacuum" || contains(lowercase(layer.name), "coils"))
         dr = (rmask[2] - rmask[1])
     end
     for k in lfs_out_indexes
@@ -213,10 +213,12 @@ function init_pf_active!(
         rail_r, rail_z = buffer(inner_layer.outline.r, inner_layer.outline.z, dcoil)
         rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3.0)
 
-        # let rails start along the lines connecting the magnetic axis and the point of maximum elongation
-        rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z)
+        if eqt.boundary.triangularity > 0.0
+            # let rails start along the lines connecting the magnetic axis and the point of maximum elongation
+            RA = eqt.global_quantities.magnetic_axis.r
+            ZA = eqt.global_quantities.magnetic_axis.z
+            rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA)
 
-        if true
             valid_r, valid_z = rail_r, rail_z
             distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
 
@@ -233,6 +235,7 @@ function init_pf_active!(
                     push!(valid_k, k)
                 end
             end
+
             if length(valid_k) == 0
                 bd.pf_active.rail[krail].outline.r = Float64[]
                 bd.pf_active.rail[krail].outline.z = Float64[]
