@@ -1,8 +1,14 @@
 """
     case_parameters(:MANTA)
+
+MANTA (Modular Adjustable Negative-Triangularity ARC)
+
+https://arxiv.org/abs/2405.20243
+
+https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
 function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=1, n_ic=1)
+    ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
 
     ini.general.casename = "MANTA"
@@ -15,9 +21,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
         :hfs_vacuum_vessel => 0.166,
         :hfs_blanket_coils => 1.0,
         :hfs_first_wall => 0.02,
-        
         :plasma => 2.4,
-        
         :lfs_first_wall => 0.02,
         :lfs_blanket_coils => 1.0,
         :lfs_vacuum_vessel => 0.166, :lfs_TF => 0.6,
@@ -64,9 +68,8 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :rebco
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :rectangle
     ini.tf.n_coils = 18
-    # same technology as ARC?
     ini.tf.technology = :rebco
 
     ini.center_stack.bucked = true
@@ -75,13 +78,11 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.oh.n_coils = 6
     ini.oh.technology = :rebco
 
-    ini.ec_launcher[1].power_launched = 5.0e02  # does not work if it is not specified
-
     ini.ic_antenna[1].power_launched = 4.0e6   #ICRH?
 
     ini.requirements.power_electric_net = 90e6
     ini.requirements.tritium_breeding_ratio = 1.15
-    ini.requirements.flattop_duration = 45.0 * 60.0 # from https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
+    ini.requirements.flattop_duration = 45.0 * 60.0
 
     set_new_base!(ini)
     set_new_base!(act)
