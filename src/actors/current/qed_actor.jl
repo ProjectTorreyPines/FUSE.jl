@@ -74,7 +74,7 @@ function _step(actor::ActorQED)
         if par.solve_for == :ip
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
             Vedge = nothing
-            if abs(Ip) < abs(@ddtime(cpg.current_non_inductive)) && par.allow_floating_plasma_current
+            if par.allow_floating_plasma_current && abs(Ip) < abs(@ddtime(cpg.current_non_inductive))
                 Ip = nothing
                 Vedge = 0.0
             end
@@ -145,7 +145,7 @@ function _step(actor::ActorQED)
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
                 Vedge = nothing
-                if abs(Ip) < abs(@ddtime(cpg.current_non_inductive)) && par.allow_floating_plasma_current
+                if par.allow_floating_plasma_current && abs(Ip) < abs(@ddtime(cpg.current_non_inductive))
                     Ip = nothing
                     Vedge = 0.0
                 end
