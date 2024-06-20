@@ -207,6 +207,7 @@ function init_pf_active!(
         dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
         inner_layer = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k-1].identifier, fs=_hfs_)
         rail_r, rail_z = buffer(inner_layer.outline.r, inner_layer.outline.z, dcoil)
+        rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3.0)
 
         # let rails start along the lines connecting the magnetic axis and the point of maximum elongation
         rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z)
@@ -216,8 +217,6 @@ function init_pf_active!(
             distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
 
         else
-            rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3.0)
-
             # mark what regions on that rail do not intersect solid structures and can hold coils
             valid_k = []
             for (k, (r, z)) in enumerate(zip(rail_r, rail_z))
