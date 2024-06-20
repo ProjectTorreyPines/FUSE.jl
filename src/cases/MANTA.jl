@@ -15,16 +15,17 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.general.init_from = :scalars
 
     ini.build.layers = OrderedCollections.OrderedDict(
-        :gap_OH => 1.21,
+        :gap_OH => 1.3,
         :OH => 0.33,
-        :hfs_TF => 0.6,
+        :hfs_TF => 0.7,
         :hfs_vacuum_vessel => 0.166,
-        :hfs_blanket_coils => 1.0,
+        :hfs_blanket_coils => .9,
         :hfs_first_wall => 0.02,
         :plasma => 2.4,
         :lfs_first_wall => 0.02,
-        :lfs_blanket_coils => 1.0,
-        :lfs_vacuum_vessel => 0.166, :lfs_TF => 0.6,
+        :lfs_blanket_coils => .75,
+        :lfs_vacuum_vessel => 0.166,
+        :lfs_TF => 0.7,
         :gap_cryostat => 1.4,
         :cryostat => 0.2
     )
