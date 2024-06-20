@@ -163,7 +163,7 @@ function beta_model_105(dd::IMAS.dd)
     plasma_inductance = dd.equilibrium.time_slice[].global_quantities.li_3
 
     model_value = beta_normal / plasma_inductance
-    target_value = 4.4
+    target_value = 4.0
 
     @ddtime(model.fraction = model_value / target_value)
 end
