@@ -65,12 +65,17 @@ function _finalize(actor::ActorCurrent)
 
     # restore expression
     cp1d = dd.core_profiles.profiles_1d[]
-    empty!(cp1d, :j_tor)
-    empty!(cp1d, :j_total)
+    for field in [:j_bootstrap, :j_non_inductive, :j_total, :j_tor]
+        IMAS.empty!(cp1d, field)
+    end
 
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
     IMAS.ohmic_source!(dd)
+
+    for field in [:j_bootstrap, :j_non_inductive]
+        IMAS.freeze!(cp1d, field)
+    end
 
     return actor
 end
