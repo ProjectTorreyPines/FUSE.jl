@@ -100,7 +100,7 @@ function _step(actor::ActorStationaryPlasma)
         chease_par.rescale_eq_to_ip = true
     end
 
-    prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.Progress((par.max_iter + 1) * 5; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
     old_logging = actor_logging(dd, !(par.verbose && !par.do_plot))
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
@@ -120,21 +120,17 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
 
-            # evolve j_ohmic (because transport and pedestal have updated my bootstrap)
+            # run HCD to get updated current drive
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
+            finalize(step(actor.actor_hc))
+
+            # evolve j_ohmic (transport, pedestal update bootstrap and hcd changed non-inductive)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
             finalize(step(actor.actor_eq))
-
-            # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-            finalize(step(actor.actor_hc))
-
-            # evolve j_ohmic (because hcd has changed non-inductive current drive)
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-            finalize(step(actor.actor_jt))
 
             # run transport actor
             # we close the loop on the transport actor because flux matching is sensitive to changes in equilibrium
