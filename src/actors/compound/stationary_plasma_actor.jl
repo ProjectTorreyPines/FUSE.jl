@@ -56,7 +56,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             act.ActorPedestal,
             act;
             ip_from=:core_profiles,
-            βn_from=:equilibrium, 
+            βn_from=:equilibrium,
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
@@ -115,18 +115,6 @@ function _step(actor::ActorStationaryPlasma)
 
             # core_profiles, core_sources, core_transport grids from latest equilibrium
             latest_equilibrium_grids!(dd)
-            
-            # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-            finalize(step(actor.actor_hc))
-    
-            # evolve j_ohmic (because hcd has changed non-inductive current drive)
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-            finalize(step(actor.actor_jt))
-
-            # run transport actor
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
-            finalize(step(actor.actor_tr))
 
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
@@ -139,6 +127,19 @@ function _step(actor::ActorStationaryPlasma)
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
             finalize(step(actor.actor_eq))
+
+            # run HCD to get updated current drive
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
+            finalize(step(actor.actor_hc))
+
+            # evolve j_ohmic (because hcd has changed non-inductive current drive)
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
+            finalize(step(actor.actor_jt))
+
+            # run transport actor
+            # we close the loop on the transport actor because flux matching is sensitive to changes in equilibrium
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
+            finalize(step(actor.actor_tr))
 
             # evaluate change in current and pressure profiles after the update
             error_jtor = trapz(cp1d.grid.area, (cp1d.j_tor .- j_tor_before) .^ 2) / trapz(cp1d.grid.area, j_tor_before .^ 2)
