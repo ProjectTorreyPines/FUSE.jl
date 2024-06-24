@@ -57,7 +57,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
             act.ActorPedestal,
             act;
             ip_from=:core_profiles,
-            βn_from=:equilibrium, 
+            βn_from=:equilibrium,
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
@@ -114,67 +114,105 @@ function _step(actor::ActorDynamicPlasma)
     # this is to fix an issue where having data at the base layer prevents the evaluation of expressions on the lazy copied IDSs
     empty!(dd.core_profiles.profiles_1d[], :j_tor)
 
-    try
-        for (kk, tt) in enumerate(range(t0, t1, 2 * par.Nt + 1)[2:end])
-            dd.global_time = tt
+    timer = TimerOutputs.TimerOutput()
+    TimerOutputs.reset_timer!("ActorDynamicPlasma_internals")
+    TimerOutputs.@timeit timer "ActorDynamicPlasma_internals" begin
+        try
+            for (kk, tt) in enumerate(range(t0, t1, 2 * par.Nt + 1)[2:end])
+                dd.global_time = tt
 
-            # prepare time dependent arrays of structures
-            # NOTE: dd.core_profiles is different because it is updated
-            #       by actor_jt at the 1/2 steps, but also (mostly)
-            #       by actor_tr and actor_ped at the 1/2 steps.
-            #       For dd.core_profiles we thus create a new time slice
-            #       at the 1/2 steps which is then retimed at the 2/2 steps.
-            IMAS.new_timeslice!(dd.equilibrium, tt)
-            IMAS.new_timeslice!(dd.core_sources, tt)
+                # prepare time dependent arrays of structures
+                # NOTE: dd.core_profiles is different because it is updated
+                #       by actor_jt at the 1/2 steps, but also (mostly)
+                #       by actor_tr and actor_ped at the 1/2 steps.
+                #       For dd.core_profiles we thus create a new time slice
+                #       at the 1/2 steps which is then retimed at the 2/2 steps.
+                TimerOutputs.@timeit timer "new_timeslice__equilibrium" begin
+                    IMAS.new_timeslice!(dd.equilibrium, tt)
+                end
+                TimerOutputs.@timeit timer "new_timeslice__core_sources" begin
+                    IMAS.new_timeslice!(dd.core_sources, tt)
+                end
 
-            if mod(kk, 2) == 1
-                IMAS.new_timeslice!(dd.core_profiles, tt)
-
-                # evolve j_ohmic
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
-                if par.evolve_current
-                    if par.ip_controller
-                        controller(dd, Val{:ip})
+                if mod(kk, 2) == 1
+                    TimerOutputs.@timeit timer "new_timeslice__core_profiles" begin
+                        IMAS.new_timeslice!(dd.core_profiles, tt)
                     end
-                    finalize(step(actor.actor_jt))
+
+                    cp1d = dd.core_profiles.profiles_1d[]
+                    for ion in cp1d.ion
+                        ion.density = ion.density
+                    end
+                    cp1d.pressure_thermal = cp1d.pressure_thermal
+
+                    # evolve j_ohmic
+                    TimerOutputs.@timeit timer "evolve__j_ohmic" begin
+                        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
+                        if par.evolve_current
+                            if par.ip_controller
+                                controller(dd, Val{:ip})
+                            end
+                            finalize(step(actor.actor_jt))
+                        end
+                    end
+                else
+                    TimerOutputs.@timeit timer "retime__core_profiles" begin
+                        IMAS.IMASDD.retime!(dd.core_profiles, tt)
+                    end
+
+                    # run transport actor
+                    TimerOutputs.@timeit timer "evolve__transport" begin
+                        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
+                        if par.evolve_transport
+                            finalize(step(actor.actor_tr))
+                            for ion in cp1d.ion
+                                empty!(ion, :density)
+                                ion.density = ion.density
+                            end
+                            empty!(cp1d, :pressure_thermal)
+                            cp1d.pressure_thermal = cp1d.pressure_thermal
+                        end
+                    end
+
+                    # run pedestal actor
+                    TimerOutputs.@timeit timer "evolve__pedestal" begin
+                        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, mod(kk, 2) + 1))
+                        if par.evolve_pedestal
+                            finalize(step(actor.actor_ped))
+                        end
+                    end
                 end
-            else
-                IMAS.IMASDD.retime!(dd.core_profiles, tt)
 
-                # run transport actor
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
-                if par.evolve_transport
-                    finalize(step(actor.actor_tr))
+                # run equilibrium actor with the updated beta
+                TimerOutputs.@timeit timer "evolve__equilibrium" begin
+                    ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
+                    if par.evolve_equilibrium
+                        finalize(step(actor.actor_eq))
+                    end
                 end
 
-                # run pedestal actor
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, mod(kk, 2) + 1))
-                if par.evolve_pedestal
-                    finalize(step(actor.actor_ped))
+                # run HCD to get updated current drive
+                TimerOutputs.@timeit timer "evolve__hcd" begin
+                    ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
+                    if par.evolve_hcd
+                        finalize(step(actor.actor_hc))
+                    end
+                end
+
+                # run the pf_active actor to get update coil currents
+                TimerOutputs.@timeit timer "evolve_pf_active" begin
+                    ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
+                    if par.evolve_pf_active
+                        finalize(step(actor.actor_pf))
+                    end
                 end
             end
-
-            # run equilibrium actor with the updated beta
-            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
-            if par.evolve_equilibrium
-                finalize(step(actor.actor_eq))
-            end
-
-            # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
-            if par.evolve_hcd
-                finalize(step(actor.actor_hc))
-            end
-
-            # run the pf_active actor to get update coil currents
-            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
-            if par.evolve_pf_active
-                finalize(step(actor.actor_pf))
-            end
+        finally
+            actor_logging(dd, old_logging)
         end
-    finally
-        actor_logging(dd, old_logging)
     end
+
+    @show timer
 
     return actor
 end
@@ -215,13 +253,20 @@ Inclusinon in BEAMER presentation can then be done with:
 """
 function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm)
+    p = plot(; layout=l, size=(1600, 1000), margin=5 * Plots.Measures.mm)
+
+    if length(dd.core_profiles.global_quantities.ip) > 1
+        time_range = extrema(dd.summary.time)
+    else
+        time_range = (-Inf, Inf)
+    end
 
     # Ip and Vloop
     subplot = 1
     plot!(dd.pulse_schedule.flux_control.time,
         dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
         seriestype=:time,
+        xlim=time_range,
         color=:gray,
         label="Ip reference [MA]",
         lw=2.0,
@@ -232,22 +277,23 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(
         dd.core_profiles.time,
         dd.core_profiles.global_quantities.ip / 1E6;
+        xlim=time_range,
         seriestype=:time,
         color=:blue,
-        label="Ip  [MA]",
+        label="Ip [MA]",
         ylabel="Ip [MA]",
         lw=2.0,
         subplot
     )
     if IMAS.controller(dd.controllers, "ip") !== nothing
         plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
-        vline!([time0]; label="", subplot)
         time, data = IMAS.vloop_time(dd.controllers)
         plot!(
             twinx(),
             time,
             data .* 1E3;
             seriestype=:time,
+            xlim=time_range,
             color=:red,
             ylabel="Vloop [mV]",
             label="",
@@ -255,6 +301,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
             subplot
         )
     end
+    vline!([time0]; label="", subplot)
 
     # equilibrium, build, and pf_active
     subplot = 2
@@ -273,15 +320,15 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
     plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
 
-    # q
-    subplot = 9
-    plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
-    plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="q", subplot)
-
-    # # fusion power
+    # # q
     # subplot = 9
-    # plot!(dd.summary.fusion.power, :value; lw=2.0, label="", ylabel="Fusion power [MW]", normalization=5*1E-6, subplot, title="Fusion power")
-    # vline!([time0]; label="", subplot)
+    # plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
+    # plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="q", subplot)
+
+    # fusion power
+    subplot = 9
+    plot!(dd.summary.fusion.power, :value; lw=2.0, label="", ylabel="Fusion power [MW]", normalization=5 * 1E-6, subplot, title="Fusion power", xlim=time_range)
+    vline!([time0]; label="", subplot)
 
     # core_sources
     subplot = 5
