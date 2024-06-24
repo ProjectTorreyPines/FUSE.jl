@@ -139,12 +139,6 @@ function _step(actor::ActorDynamicPlasma)
                         IMAS.new_timeslice!(dd.core_profiles, tt)
                     end
 
-                    cp1d = dd.core_profiles.profiles_1d[]
-                    for ion in cp1d.ion
-                        ion.density = ion.density
-                    end
-                    cp1d.pressure_thermal = cp1d.pressure_thermal
-
                     # evolve j_ohmic
                     TimerOutputs.@timeit timer "evolve__j_ohmic" begin
                         ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
@@ -165,12 +159,6 @@ function _step(actor::ActorDynamicPlasma)
                         ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
                         if par.evolve_transport
                             finalize(step(actor.actor_tr))
-                            for ion in cp1d.ion
-                                empty!(ion, :density)
-                                ion.density = ion.density
-                            end
-                            empty!(cp1d, :pressure_thermal)
-                            cp1d.pressure_thermal = cp1d.pressure_thermal
                         end
                     end
 
@@ -256,7 +244,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     p = plot(; layout=l, size=(1600, 1000), margin=5 * Plots.Measures.mm)
 
     if length(dd.core_profiles.global_quantities.ip) > 1
-        time_range = extrema(dd.summary.time)
+        time_range = extrema(dd.core_profiles.time)
     else
         time_range = (-Inf, Inf)
     end
