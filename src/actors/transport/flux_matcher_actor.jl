@@ -253,7 +253,7 @@ function flux_match_errors(
 
     # evaluate sources (ie. target fluxes)
     IMAS.sources!(dd)
-    if par.Δt < Inf
+    if false && par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
@@ -640,6 +640,13 @@ function unpack_z_profiles(
         @assert length(q_specie) == 1 "only one specie can be set as :quasi_neutrality: $(evolve_densities)"
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
     end
+
+    # for ion in cp1d.ion
+    #     empty!(ion, :density)
+    #     ion.density = ion.density
+    # end
+    # empty!(cp1d, :pressure_thermal)
+    # cp1d.pressure_thermal = cp1d.pressure_thermal
 
     return cp1d
 end

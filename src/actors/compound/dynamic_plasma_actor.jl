@@ -127,73 +127,77 @@ function _step(actor::ActorDynamicPlasma)
                 #       by actor_tr and actor_ped at the 1/2 steps.
                 #       For dd.core_profiles we thus create a new time slice
                 #       at the 1/2 steps which is then retimed at the 2/2 steps.
+                println(kk)
                 TimerOutputs.@timeit timer "new_timeslice__equilibrium" begin
                     IMAS.new_timeslice!(dd.equilibrium, tt)
                 end
                 TimerOutputs.@timeit timer "new_timeslice__core_sources" begin
                     IMAS.new_timeslice!(dd.core_sources, tt)
                 end
+                # TimerOutputs.@timeit timer "retime__core_profiles" begin
+                #     IMAS.IMASDD.retime!(dd.core_profiles, tt)
+                # end
 
-                if mod(kk, 2) == 1
-                    TimerOutputs.@timeit timer "new_timeslice__core_profiles" begin
-                        IMAS.new_timeslice!(dd.core_profiles, tt)
-                    end
+                # if mod(kk, 2) == 1
+                #     TimerOutputs.@timeit timer "new_timeslice__core_profiles" begin
+                #         IMAS.new_timeslice!(dd.core_profiles, tt)
+                #     end
 
-                    # evolve j_ohmic
-                    TimerOutputs.@timeit timer "evolve__j_ohmic" begin
-                        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
-                        if par.evolve_current
-                            if par.ip_controller
-                                controller(dd, Val{:ip})
-                            end
-                            finalize(step(actor.actor_jt))
-                        end
-                    end
-                else
-                    TimerOutputs.@timeit timer "retime__core_profiles" begin
-                        IMAS.IMASDD.retime!(dd.core_profiles, tt)
-                    end
+                #     # evolve j_ohmic
+                #     TimerOutputs.@timeit timer "evolve__j_ohmic" begin
+                #         ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
+                #         if par.evolve_current
+                #             if par.ip_controller
+                #                 controller(dd, Val{:ip})
+                #             end
+                #             finalize(step(actor.actor_jt))
+                #         end
+                #     end
+                # else
+                #     TimerOutputs.@timeit timer "retime__core_profiles" begin
+                #         IMAS.IMASDD.retime!(dd.core_profiles, tt)
+                #     end
 
-                    # run transport actor
-                    TimerOutputs.@timeit timer "evolve__transport" begin
-                        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
-                        if par.evolve_transport
-                            finalize(step(actor.actor_tr))
-                        end
-                    end
+                #     # run transport actor
+                #     TimerOutputs.@timeit timer "evolve__transport" begin
+                #         ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
+                #         if par.evolve_transport
+                #             finalize(step(actor.actor_tr))
+                #         end
+                #     end
 
-                    # run pedestal actor
-                    TimerOutputs.@timeit timer "evolve__pedestal" begin
-                        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, mod(kk, 2) + 1))
-                        if par.evolve_pedestal
-                            finalize(step(actor.actor_ped))
-                        end
-                    end
-                end
+                #     # run pedestal actor
+                #     TimerOutputs.@timeit timer "evolve__pedestal" begin
+                #         ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, mod(kk, 2) + 1))
+                #         if par.evolve_pedestal
+                #             finalize(step(actor.actor_ped))
+                #         end
+                #     end
+                # end
 
-                # run equilibrium actor with the updated beta
-                TimerOutputs.@timeit timer "evolve__equilibrium" begin
-                    ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
-                    if par.evolve_equilibrium
-                        finalize(step(actor.actor_eq))
-                    end
-                end
+                # # run equilibrium actor with the updated beta
+                # TimerOutputs.@timeit timer "evolve__equilibrium" begin
+                #     ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
+                #     if par.evolve_equilibrium
+                #         finalize(step(actor.actor_eq))
+                #     end
+                # end
 
-                # run HCD to get updated current drive
-                TimerOutputs.@timeit timer "evolve__hcd" begin
-                    ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
-                    if par.evolve_hcd
-                        finalize(step(actor.actor_hc))
-                    end
-                end
+                # # run HCD to get updated current drive
+                # TimerOutputs.@timeit timer "evolve__hcd" begin
+                #     ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
+                #     if par.evolve_hcd
+                #         finalize(step(actor.actor_hc))
+                #     end
+                # end
 
-                # run the pf_active actor to get update coil currents
-                TimerOutputs.@timeit timer "evolve_pf_active" begin
-                    ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
-                    if par.evolve_pf_active
-                        finalize(step(actor.actor_pf))
-                    end
-                end
+                # # run the pf_active actor to get update coil currents
+                # TimerOutputs.@timeit timer "evolve_pf_active" begin
+                #     ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
+                #     if par.evolve_pf_active
+                #         finalize(step(actor.actor_pf))
+                #     end
+                # end
             end
         finally
             actor_logging(dd, old_logging)
@@ -213,10 +217,10 @@ function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractAc
         ("      end time", t1),
         ("          time", dd.global_time),
         ("         stage", "$(name(actor)) ($phase/2)"),
-        ("       Ip [MA]", IMAS.get_from(dd, Val{:ip}, :core_profiles) / 1E6),
-        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
-        ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+        #("       Ip [MA]", IMAS.get_from(dd, Val{:ip}, :core_profiles) / 1E6),
+        # ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
+        # ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
+        # ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
     )
 end
 
