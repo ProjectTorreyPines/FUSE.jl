@@ -11,7 +11,7 @@ function case_parameters(
     ::Type{Val{:ITER}};
     init_from::Symbol,
     boundary_from::Symbol=:auto,
-    ne_setting::Symbol=:greenwald_fraction
+    ne_setting::Symbol=:ne_ped
 )::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_lh=1, n_pl=1)
     act = ParametersActors()
@@ -118,8 +118,11 @@ function case_parameters(
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
     ini.core_profiles.ne_setting = ne_setting
-    if ne_setting == :greenwald_fraction_ped
-        ini.core_profiles.ne_value = 0.75
+    if ne_setting == :ne_ped
+        ini.core_profiles.ne_value = 0.9 * 0.75 * IMAS.greenwald_density(ini.equilibrium.ip, layers[:plasma] / 2.0)
+        act.ActorPedestal.density_match = :ne_ped
+    elseif ne_setting == :greenwald_fraction_ped
+        ini.core_profiles.ne_value = 0.9 * 0.75
         act.ActorPedestal.density_match = :ne_ped
     elseif ne_setting == :greenwald_fraction
         ini.core_profiles.ne_value = 0.9
@@ -127,7 +130,7 @@ function case_parameters(
     end
 
     ini.core_profiles.helium_fraction = 0.01
-    ini.core_profiles.T_ratio = 0.9
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 1.0
     ini.core_profiles.zeff = 2.0
@@ -135,15 +138,15 @@ function case_parameters(
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.nb_unit[1].power_launched = t -> ramp(t / rampup_ends)
+    ini.nb_unit[1].power_launched = t -> (1 .+ ramp(t / rampup_ends)) * 16.7e6
     ini.nb_unit[1].beam_energy = 1e6
 
-    ini.ec_launcher[1].power_launched = t -> ramp(t / rampup_ends) * 20E6
+    ini.ec_launcher[1].power_launched = t -> (1 .+ ramp(t / rampup_ends)) * 10E6
     ini.ec_launcher[1].rho_0 = 0.0
 
-    ini.ic_antenna[1].power_launched = t -> step(t - 2.0 * rampup_ends) * 24E6
+    ini.ic_antenna[1].power_launched = t -> (1 .+ ramp(t / rampup_ends)) * 12E6
 
-    ini.lh_antenna[1].power_launched = t -> step(t - 2.0 * rampup_ends) * 10E6
+    ini.lh_antenna[1].power_launched = t -> (1 .+ ramp(t / rampup_ends)) * 5E6
 
     ini.pellet_launcher[1].shape = :cylindrical
     ini.pellet_launcher[1].species = :T
@@ -152,7 +155,6 @@ function case_parameters(
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
-    act.ActorEPED.ped_factor = 0.8
 
     act.ActorWholeFacility.update_build = false
 
