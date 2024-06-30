@@ -113,8 +113,8 @@ function _step(actor::ActorFluxMatcher)
     z_scaled_history = Vector{NTuple{length(z_init_scaled),Float64}}()
     err_history = Float64[]
 
-    ftol = 1E-3 # relative error
-    xtol = 1E-2 # difference in input array
+    ftol = 1E-4 # relative error
+    xtol = 1E-3 # difference in input array
 
     prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
@@ -253,8 +253,8 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate sources (ie. target fluxes)
-    IMAS.sources!(dd; bootstrap=false)
     if par.Δt < Inf
+    IMAS.sources!(dd; bootstrap=false, ohmic=false, only_DT=true)
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
@@ -278,6 +278,9 @@ function flux_match_errors(
     fluxes = flux_match_fluxes(dd, par, prog)
     targets = flux_match_targets(dd, par, prog)
 
+    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    area = cp1d.grid.area[cp_gridpoints]
+
     # Evaluate the flux_matching errors
     nrho = length(par.rho_transport)
     errors = similar(fluxes)
@@ -286,7 +289,7 @@ function flux_match_errors(
         if sum(abs.(targets[index])) != 0.0
             norm = sum(abs.(targets[index])) / length(index)
         end
-        errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (par.rho_transport ./ par.rho_transport[1]) .^ 2
+        errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (area ./ area[1])
     end
 
     # update error history
