@@ -110,14 +110,6 @@ function _step(actor::ActorFluxMatcher)
     z_init = pack_z_profiles(cp1d, par)
     z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping
 
-    if par.optimizer_algorithm == :newton
-        opts = Dict(:method => :newton, :factor => par.step_size)
-    elseif par.optimizer_algorithm == :anderson
-        opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size)
-    elseif par.optimizer_algorithm == :trust_region
-        opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
-    end
-
     z_scaled_history = Vector{NTuple{length(z_init_scaled),Float64}}()
     err_history = Float64[]
 
@@ -138,12 +130,19 @@ function _step(actor::ActorFluxMatcher)
     elseif par.optimizer_algorithm == :simple
         res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
     else
+        if par.optimizer_algorithm == :newton
+            opts = Dict(:method => :newton, :factor => par.step_size)
+        elseif par.optimizer_algorithm == :anderson
+            opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size)
+        elseif par.optimizer_algorithm == :trust_region
+            opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
+        end
         res = try
             res = NLsolve.nlsolve(
                 z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog).errors,
                 z_init_scaled;
                 show_trace=false,
-                store_trace=true,
+                store_trace=false,
                 extended_trace=false,
                 iterations=par.max_iterations,
                 ftol,
@@ -284,7 +283,10 @@ function flux_match_errors(
     errors = similar(fluxes)
     for (inorm, norm) in enumerate(actor.norms)
         index = (inorm-1)*nrho+1:inorm*nrho
-        errors[index] .= @views (targets[index] .- fluxes[index]) ./ abs.(targets[index])
+        if sum(abs.(targets[index])) != 0.0
+            norm = sum(abs.(targets[index])) / length(index)
+        end
+        errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (par.rho_transport ./ par.rho_transport[1]) .^ 2
     end
 
     # update error history
@@ -299,7 +301,7 @@ function flux_match_errors(
 end
 
 function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) where {T<:Real}
-    return sqrt.(sum(norm_source .^ 2 .+ norm_transp .^ 2) / length(norm_source))
+    return sqrt(sum(norm_source .^ 2 .+ norm_transp .^ 2)) / length(norm_source)
 end
 
 """
