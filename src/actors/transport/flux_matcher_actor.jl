@@ -223,6 +223,8 @@ end
         prog::Any=nothing)
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns named tuple with (targets, fluxes, errors)
+
+NOTE: flux matching is done in physical units
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
@@ -252,12 +254,13 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate sources (ie. target fluxes)
-    IMAS.sources!(dd)
+    IMAS.sources!(dd; bootstrap=false)
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
-    if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
+    # handle fixed widths in TJLF
+    if actor.actor_ct.actor_turb.par.model == :TJLF && !par.find_widths && !isempty(err_history)
         for input_tglf in actor.actor_ct.actor_turb.input_tglfs
             input_tglf.FIND_WIDTH = false
         end
@@ -272,17 +275,27 @@ function flux_match_errors(
         end
     end
 
-    # compare fluxes
-    targets, fluxes, errors = flux_match_errors(dd, par, actor.norms, prog)
+    # get transport fluxes and sources
+    fluxes = flux_match_fluxes(dd, par, prog)
+    targets = flux_match_targets(dd, par, prog)
+
+    # Evaluate the flux_matching errors
+    nrho = length(par.rho_transport)
+    errors = similar(fluxes)
+    for (inorm, norm) in enumerate(actor.norms)
+        index = (inorm-1)*nrho+1:inorm*nrho
+        errors[index] .= @views (targets[index] .- fluxes[index]) ./ abs.(targets[index])
+    end
 
     # update error history
     push!(err_history, norm(errors))
 
-    return (targets=targets, fluxes=fluxes, errors=errors)
-end
+    # update progress meter
+    if prog !== nothing
+        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
+    end
 
-function error_transformation(targets::T, fluxes::T, norm::T) where {T}
-    return (targets .- fluxes) ./ norm
+    return (targets=targets, fluxes=fluxes, errors=errors)
 end
 
 function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) where {T<:Real}
@@ -333,30 +346,6 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     return norms
-end
-
-"""
-    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
-
-Evaluates the flux_matching errors for the :flux_match species and channels
-
-NOTE: flux matching is done in physical units
-"""
-function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
-    nrho = length(par.rho_transport)
-    fluxes = flux_match_fluxes(dd, par, prog)
-    targets = flux_match_targets(dd, par, prog)
-    norms_all = similar(fluxes)
-    for (inorm, norm) in enumerate(norms)
-        norms_all[(inorm-1)*nrho+1:inorm*nrho] .= norm
-    end
-
-    errors = error_transformation(targets, fluxes, norms_all)
-    if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
-    end
-
-    return (targets=targets, fluxes=fluxes, errors=errors)
 end
 
 """
@@ -640,6 +629,9 @@ function unpack_z_profiles(
         @assert length(q_specie) == 1 "only one specie can be set as :quasi_neutrality: $(evolve_densities)"
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
     end
+
+    empty!(cp1d, :pressure_thermal)
+    cp1d.pressure_thermal = cp1d.electrons.pressure_thermal .+ cp1d.pressure_ion_total
 
     return cp1d
 end
