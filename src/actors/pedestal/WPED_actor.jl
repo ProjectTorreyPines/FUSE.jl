@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@ρ=0.9) to core stored energy [0.05 for L-mode, 0.3 for -δ plasmas]")
+    ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas]")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the edge region starts")
     #== data flow parameters ==#
     ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
