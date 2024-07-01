@@ -1860,9 +1860,9 @@ weakdeps = ["ChainRulesCore", "ForwardDiff", "SpecialFunctions"]
 
 [[deps.LoweredCodeUtils]]
 deps = ["JuliaInterpreter"]
-git-tree-sha1 = "c6a36b22d2cca0e1a903f00f600991f97bf5f426"
+git-tree-sha1 = "eeaedcf337f33c039f9f3a209a8db992deefd7e9"
 uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "2.4.6"
+version = "2.4.8"
 
 [[deps.Lz4_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
