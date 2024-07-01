@@ -42,6 +42,7 @@ function init(
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
+        ps_was_set = false
         if ismissing(dd.pulse_schedule.flux_control, :time) || isempty(dd.pulse_schedule.flux_control.time)
             empty!(dd.pulse_schedule)
             verbose && @info "INIT: init_pulse_schedule"
@@ -49,6 +50,7 @@ function init(
             if do_plot
                 display(plot(dd.pulse_schedule))
             end
+            ps_was_set = true
         end
 
         # wall
@@ -135,6 +137,23 @@ function init(
         # initialize missing IDSs from ODS (if loading from ODS)
         verbose && @info "INIT: init_missing_from_ods"
         init_missing_from_ods!(dd, ini, act, dd1)
+
+        # add strike point information to pulse_schedule
+        if ps_was_set
+            IMAS.find_strike_points!(dd.equilibrium.time_slice[], dd.divertors)
+            pc = dd.pulse_schedule.position_control
+            resize!(pc.strike_point, 4)
+            for k in 1:4
+                if k <= length(dd.equilibrium.time_slice[].boundary.strike_point)
+                    strike = dd.equilibrium.time_slice[].boundary.strike_point[k]
+                    pc.strike_point[k].r.reference = fill(strike.r, size(pc.time))
+                    pc.strike_point[k].z.reference = fill(strike.z, size(pc.time))
+                else
+                    pc.strike_point[k].r.reference = zeros(size(pc.time))
+                    pc.strike_point[k].z.reference = zeros(size(pc.time))
+                end
+            end
+        end
 
         return dd
     end
