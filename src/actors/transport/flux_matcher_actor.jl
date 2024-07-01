@@ -284,12 +284,15 @@ function flux_match_errors(
     # Evaluate the flux_matching errors
     nrho = length(par.rho_transport)
     errors = similar(fluxes)
-    for (inorm, norm) in enumerate(actor.norms)
+    for (inorm, norm0) in enumerate(actor.norms)
         index = (inorm-1)*nrho+1:inorm*nrho
         if sum(abs.(targets[index])) != 0.0
             norm = sum(abs.(targets[index])) / length(index)
+            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (area ./ area[1])
+        else
+            # if targets are all zero then use initial norms and give this channel less weight
+            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 / 10.0
         end
-        errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (area ./ area[1])
     end
 
     # update error history
@@ -304,7 +307,7 @@ function flux_match_errors(
 end
 
 function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) where {T<:Real}
-    return sqrt(sum(norm_source .^ 2 .+ norm_transp .^ 2)) / length(norm_source)
+    return (sum(abs.(norm_source)) .+ sum(abs.(norm_transp))) / length(norm_source) / 2.0
 end
 
 """
@@ -584,6 +587,10 @@ function unpack_z_profiles(
     cp1d::IMAS.core_profiles__profiles_1d,
     par::FUSEparameters__ActorFluxMatcher,
     z_profiles::AbstractVector{<:Real})
+
+    # bound range of accepted z_profiles to avoid issues during optimization
+    z_max = 10.0
+    z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
     cp_rho_transport = [cp1d.grid.rho_tor_norm[argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm))] for rho_x in par.rho_transport]
 
