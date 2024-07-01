@@ -18,7 +18,7 @@ end
 mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFactive{P}
-    eq_out::IMAS.equilibrium{D}
+    eqt_out::IMAS.equilibrium__time_slice{D}
     boundary_control_points::Vector{VacuumFields.FluxControlPoint{Float64}}
     flux_control_points::Vector{VacuumFields.FluxControlPoint{Float64}}
     saddle_control_points::Vector{VacuumFields.SaddleControlPoint{Float64}}
@@ -51,7 +51,7 @@ function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     return ActorPFactive(
         dd,
         par,
-        dd.equilibrium,
+        dd.equilibrium.time_slice[],
         boundary_control_points,
         flux_control_points,
         saddle_control_points,
@@ -111,7 +111,7 @@ end
 """
     _finalize(actor::ActorPFactive)
 
-Update actor.eq_out 2D equilibrium PSI based on coils currents
+Update actor.eqt_out 2D equilibrium PSI based on coils currents
 """
 function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
@@ -121,10 +121,9 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     pf_current_limits(dd.pf_active, dd.build)
 
     # evaluate eq_out
-    actor.eq_out = IMAS.lazycopy(dd.equilibrium)
     eqt_in = dd.equilibrium.time_slice[]
     eqt2d_in = findfirst(:rectangular, eqt_in.profiles_2d)
-    eqt_out = actor.eq_out.time_slice[dd.global_time]
+    actor.eqt_out = eqt_out = deepcopy(eqt_in)
     eqt2d_out = findfirst(:rectangular, eqt_out.profiles_2d)
     if !ismissing(eqt_in.global_quantities, :ip)
         # convert dd.pf_active to coils for VacuumFields calculation

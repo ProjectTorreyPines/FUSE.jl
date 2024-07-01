@@ -10,7 +10,6 @@ end
 """
     plot_ActorPF_cx(
         actor::ActorPFactive{D,P};
-        time_index=nothing,
         equilibrium=true,
         build=true,
         coils_flux=false,
@@ -21,7 +20,6 @@ Plot recipe for ActorPFdesign and ActorPFactive
 """
 @recipe function plot_ActorPFactive_cx(
     actor::ActorPFactive{D,P};
-    time_index=nothing,
     equilibrium=true,
     build=true,
     coils_flux=false,
@@ -29,7 +27,6 @@ Plot recipe for ActorPFdesign and ActorPFactive
     control_points=true,
     plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
-    @assert typeof(time_index) <: Union{Nothing,Integer}
     @assert typeof(equilibrium) <: Bool
     @assert typeof(build) <: Bool
     @assert typeof(coils_flux) <: Bool
@@ -40,13 +37,8 @@ Plot recipe for ActorPFdesign and ActorPFactive
     dd = actor.dd
     par = actor.par
 
-    if time_index === nothing
-        time_index = findfirst(x -> x.time == dd.global_time, actor.eq_out.time_slice)
-    end
-    time0 = actor.eq_out.time_slice[time_index].time
-
     # if there is no equilibrium then treat this as a field_null plot
-    eqt2d = findfirst(:rectangular, actor.eq_out.time_slice[time_index].profiles_2d)
+    eqt2d = findfirst(:rectangular, actor.eqt_out.profiles_2d)
     field_null = false
     if eqt2d === nothing || ismissing(eqt2d, :psi)
         coils_flux = equilibrium
@@ -98,7 +90,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
         end
 
         # ψ coil currents
-        ψbound = actor.eq_out.time_slice[time_index].global_quantities.psi_boundary
+        ψbound = actor.eqt_out.global_quantities.psi_boundary
         ψ = [sum(VacuumFields.ψ(coil, r, z; Bp_fac=2π) for coil in coils) for r in R, z in Z]
 
         ψmin = minimum(x -> isnan(x) ? Inf : x, ψ)
@@ -153,7 +145,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 cx := true
                 label --> "Final (λ_reg=$(round(log10(actor.λ_regularize);digits=1)))"
                 color --> :red
-                actor.eq_out.time_slice[time_index]
+                actor.eqt_out
             end
             @series begin
                 cx := true
@@ -168,7 +160,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
 
     # plot pf_active coils
     @series begin
-        time0 --> time0
+        time0 --> actor.eqt_out.time
         dd.pf_active
     end
 
