@@ -64,12 +64,12 @@ function _step(actor::ActorQED)
     if par.Nt == 0
         # @info("QED: initialize")
         # initialize
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=true)
+        actor.QO = qed_init_from_imas(eqt, cp1d)
 
     elseif par.Δt == Inf
         # @info("QED: steady state")
         # steady state solution
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
+        actor.QO = qed_init_from_imas(eqt, cp1d)
 
         if par.solve_for == :ip
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
@@ -91,7 +91,7 @@ function _step(actor::ActorQED)
         α_ni_evo_ip = 1.0 / 5.0 # early application of non-inductive current
         α_η_evo_ip = 5.0 # later transition to H-mode
 
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=true)
+        actor.QO = qed_init_from_imas(eqt, cp1d)
 
         t0 = dd.global_time + par.Δt
         t1 = dd.global_time
@@ -125,7 +125,7 @@ function _step(actor::ActorQED)
 
     else
         # @info("QED: current diffusion for $(par.Δt) [s]")
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=false)
+        actor.QO = qed_init_from_imas(eqt, cp1d)
 
         t0 = dd.global_time
         t1 = dd.global_time + par.Δt
@@ -194,7 +194,7 @@ end
 
 # utils
 """
-    qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d)
+    qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Bool=true)
 
 Setup QED from data in IMAS `dd`
 
@@ -202,7 +202,7 @@ NOTE: QED is initalized from equilibrium and not core_profiles because
 it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
-function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Bool=false)
+function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Bool=true)
     R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
 
     rho_tor = eqt.profiles_1d.rho_tor
@@ -227,6 +227,8 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
         y .*= ρ_j_non_inductive[2]
     end
+
+    # uniform_rho just works better, and QED is fast enough that it can handle many radial points
     if uniform_rho
         ρ_grid = collect(range(0.0, 1.0, 2001))
     else
