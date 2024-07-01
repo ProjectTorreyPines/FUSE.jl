@@ -124,6 +124,7 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     eqt_in = dd.equilibrium.time_slice[]
     eqt2d_in = findfirst(:rectangular, eqt_in.profiles_2d)
     actor.eqt_out = eqt_out = deepcopy(eqt_in)
+    setfield!(actor.eqt_out, :_parent, WeakRef(dd.equilibrium.time_slice))
     eqt2d_out = findfirst(:rectangular, eqt_out.profiles_2d)
     if !ismissing(eqt_in.global_quantities, :ip)
         # convert dd.pf_active to coils for VacuumFields calculation

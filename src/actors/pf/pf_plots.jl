@@ -153,7 +153,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 color --> :gray
                 lcfs --> true
                 lw := 1
-                actor.dd.equilibrium.time_slice[time_index]
+                actor.dd.equilibrium.time_slice[]
             end
         end
     end
