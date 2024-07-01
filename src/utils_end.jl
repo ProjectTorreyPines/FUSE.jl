@@ -526,6 +526,7 @@ function digest(
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false)
         plot!(p, dd.pf_active; time0, subplot=2)
+        plot!(p, dd.build.pf_active.rail, subplot=2)
         display(p)
     end
 
