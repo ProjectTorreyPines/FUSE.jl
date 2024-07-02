@@ -68,6 +68,10 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInitPla
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
     polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < polarized_fuel_fraction < 1.0")
+    ITB_radius::Entry{T} = Entry{T}("-", "Radius at which the ITB starts in rho")
+    ITB_width::Entry{T} = Entry{T}("-", "Width of the ITB in rho")
+    ITB_height_temperature::Entry{T} = Entry{T}("eV", "Height of the temperature ITB")
+    ITB_height_density::Entry{T} = Entry{T}("m⁻³", "Height of the density ITB")
 end
 
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInitPlasma{T}

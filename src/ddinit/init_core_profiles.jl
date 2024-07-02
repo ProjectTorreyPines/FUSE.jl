@@ -62,6 +62,10 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.ne_setting,
                 ini.core_profiles.ne_value,
                 ini.core_profiles.T_ratio,
+                ITB_radius=getproperty(ini.core_profiles, :ITB_radius, missing),
+                ITB_width=getproperty(ini.core_profiles, :ITB_width, missing),
+                ITB_height_temperature=getproperty(ini.core_profiles, :ITB_height_temperature, missing),
+                ITB_height_density=getproperty(ini.core_profiles, :ITB_height_density, missing),                
                 ini.core_profiles.T_shaping,
                 ini.core_profiles.n_shaping,
                 ini.core_profiles.ne_sep_to_ped_ratio,
@@ -95,6 +99,10 @@ function init_core_profiles!(
     ejima::Union{Real,Missing},
     polarized_fuel_fraction::Real,
     T_ratio::Real=1.0,
+    ITB_radius::Union{Real,Missing}=missing,
+    ITB_width::Union{Real,Missing}=missing,
+    ITB_height_temperature::Union{Real,Missing}=missing,
+    ITB_height_density::Union{Real,Missing}=missing,
     T_shaping::Real=1.8,
     n_shaping::Real=0.9,
     ne_sep_to_ped_ratio::Real = 0.25,
@@ -107,6 +115,15 @@ function init_core_profiles!(
     cp1d.zeff = ones(ngrid) .* zeff
     cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8, rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
+
+    function profiles_function(edge::Real, ped::Real, core::Real, ngrid::Int64, expin::Real, expout::Real, widthp::Real, ITBr::Union{Real,Missing}, ITBw::Union{Real,Missing}, ITBh::Union{Real,Missing})
+        if !ismissing(ITB_radius) && !ismissing(ITB_radius) !ismissing(ITB_radius)
+            return IMAS.ITB_profiles(edge, ped, core, ngrid, expin, expout, widthp, ITBr, ITBw, ITBh)
+        else
+            return IMAS.Hmode_profiles(edge, ped, core, ngrid, expin, expout, widthp)
+        end
+    end
+
     # Density handling for H-mode profile
     if ne_setting == :ne_ped
         ne_ped = ne_value
@@ -117,7 +134,7 @@ function init_core_profiles!(
     elseif ne_setting == :greenwald_fraction
         ne_ped = IMAS.greenwald_density(eqt) * 0.8 * ne_value
         function cost_greenwald_fraction(ne0, greenwald_fraction_wanted)
-            cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
+            cp1d.electrons.density_thermal = profiles_function(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped,ITB_radius,ITB_width, ITB_height_density )
             return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction_wanted)^2
         end
         res = Optim.optimize(x-> cost_greenwald_fraction(x,ne_value), ne_ped/10 ,ne_ped*10, Optim.GoldenSection(),rel_tol=1E-3)
@@ -142,7 +159,7 @@ function init_core_profiles!(
     if ne_core < ne_ped
         @warn "The core density is lower than the pedestal density, lower the pedestal density (ini.core_profiles.ne_ped)"
     end
-    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
+    cp1d.electrons.density_thermal = profiles_function(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped,ITB_radius,ITB_width, ITB_height_density)
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
     niFraction = zeros(3)
     # DT == 1
@@ -164,7 +181,7 @@ function init_core_profiles!(
     Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
     @ddtime summary.local.pedestal.t_e.value = Te_ped
 
-    cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
+    cp1d.electrons.temperature = profiles_function(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped, ITB_radius,ITB_width, ITB_height_temperature)
     for i in 1:length(cp1d.ion)
         cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
     end
@@ -195,6 +212,10 @@ function cost_Pfusion_p0(p::Real, target_pfus::Real, dd::IMAS.dd, ini::Parameter
         pressure_core=p,
         helium_fraction=ini.core_profiles.helium_fraction,
         T_ratio=ini.core_profiles.T_ratio,
+        ITB_radius=ini.core_profiles.ITB_radius=getproperty(ini.core_profiles, :ITB_radius, missing),
+        ITB_width=ini.core_profiles.ITB_width=getproperty(ini.core_profiles, :ITB_width, missing),
+        ITB_height_temperature=getproperty(ini.core_profiles, :ITB_height_temperature, missing),
+        ITB_height_density=getproperty(ini.core_profiles, :ITB_height_density, missing),
         T_shaping=ini.core_profiles.T_shaping,
         n_shaping=ini.core_profiles.n_shaping,
         w_ped=ini.core_profiles.w_ped,
