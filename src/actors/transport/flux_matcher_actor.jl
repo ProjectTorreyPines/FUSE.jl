@@ -254,7 +254,7 @@ function flux_match_errors(
 
     # evaluate sources (ie. target fluxes)
     if par.Δt < Inf
-    IMAS.sources!(dd; bootstrap=false, ohmic=false, only_DT=true)
+    IMAS.sources!(dd; bootstrap=false, ohmic=false)
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
