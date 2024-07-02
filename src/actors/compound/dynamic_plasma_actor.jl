@@ -213,9 +213,9 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true)
+function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, kw...)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm)
+    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm, kw...)
 
     # Ip and Vloop
     subplot = 1
@@ -241,7 +241,6 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     )
     if IMAS.controller(dd.controllers, "ip") !== nothing
         plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
-        vline!([time0]; label="", subplot)
         time, data = IMAS.vloop_time(dd.controllers)
         plot!(
             twinx(),
@@ -255,6 +254,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
             subplot
         )
     end
+    vline!([time0]; label="", subplot)
 
     # equilibrium, build, and pf_active
     subplot = 2
