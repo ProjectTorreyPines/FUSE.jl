@@ -129,7 +129,7 @@ function init(
         # initialize balance of plant
         verbose && @info "INIT: init_balance_of_plant"
         init_balance_of_plant!(dd, ini, act, dd1)
-       
+
         # initialize requirements
         verbose && @info "INIT: init_requirements"
         init_requirements!(dd, ini, act, dd1)
@@ -140,14 +140,13 @@ function init(
 
         # add strike point information to pulse_schedule
         if ps_was_set
-            IMAS.find_strike_points!(dd.equilibrium.time_slice[], dd.divertors)
+            Rxx, Zxx, _ = IMAS.find_strike_points(dd.equilibrium.time_slice[], dd.divertors; private_flux_regions=true)
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, 4)
             for k in 1:4
-                if k <= length(dd.equilibrium.time_slice[].boundary.strike_point)
-                    strike = dd.equilibrium.time_slice[].boundary.strike_point[k]
-                    pc.strike_point[k].r.reference = fill(strike.r, size(pc.time))
-                    pc.strike_point[k].z.reference = fill(strike.z, size(pc.time))
+                if k <= length(Rxx)
+                    pc.strike_point[k].r.reference = fill(Rxx[k], size(pc.time))
+                    pc.strike_point[k].z.reference = fill(Zxx[k], size(pc.time))
                 else
                     pc.strike_point[k].r.reference = zeros(size(pc.time))
                     pc.strike_point[k].z.reference = zeros(size(pc.time))
