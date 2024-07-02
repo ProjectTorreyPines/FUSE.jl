@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T<:Real} <: ParametersA
     _time::Float64 = NaN
     green_model::Switch{Symbol} = Switch{Symbol}(options_green_model, "-", "Model used for the coils Green function calculations"; default=:quad)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
@@ -46,8 +46,8 @@ function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
     par = par(kw...)
 
-    boundary_control_points, flux_control_points, saddle_control_points = default_control_points(dd.equilibrium.time_slice[])
-    
+    boundary_control_points, flux_control_points, saddle_control_points = default_control_points(dd.equilibrium.time_slice[], dd.pulse_schedule.position_control)
+
     return ActorPFactive(
         dd,
         par,
@@ -156,21 +156,22 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 end
 
 function default_control_points(eqt::IMAS.equilibrium__time_slice)
+    psib = eqt.global_quantities.psi_boundary
     if ismissing(eqt.global_quantities, :ip) # field nulls
         fixed_eq = nothing
-        image_eq = nothing
         rb, zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        boundary_control_points = VacuumFields.FluxControlPoints(rb, zb, eqt.global_quantities.psi_boundary)
+        boundary_control_points = VacuumFields.FluxControlPoints(rb, zb, psib)
 
     else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
-        image_eq = VacuumFields.Image(fixed_eq)
         boundary_control_points = VacuumFields.boundary_control_points(fixed_eq, 0.999)
     end
 
+    # Flux Control Points
     strike_weight = 1.0
-    flux_control_points = [VacuumFields.FluxControlPoint(s_point.r, s_point.z, strike_weight) for s_point in eqt.boundary.strike_point]
+    flux_control_points = [VacuumFields.FluxControlPoint(s_point.r, s_point.z, psib, strike_weight) for s_point in eqt.boundary.strike_point]
 
+    # Saddle Control Points
     saddle_weight = 1.0
     saddle_control_points = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
