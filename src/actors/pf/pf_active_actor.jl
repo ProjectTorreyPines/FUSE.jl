@@ -168,10 +168,10 @@ function default_control_points(eqt::IMAS.equilibrium__time_slice)
         boundary_control_points = VacuumFields.boundary_control_points(fixed_eq, 0.999)
     end
 
-    flux_weight = length(eqt.boundary_separatrix.strike_point) / length(eqt.boundary_separatrix.strike_point)
-    flux_control_points = [VacuumFields.FluxControlPoint(s_point.r, s_point.z, flux_weight) for s_point in eqt.boundary_separatrix.strike_point]
+    strike_weight = 1.0
+    flux_control_points = [VacuumFields.FluxControlPoint(s_point.r, s_point.z, strike_weight) for s_point in eqt.boundary.strike_point]
 
-    saddle_weight = length(boundary_control_points) / length(eqt.boundary.x_point)
+    saddle_weight = 1.0
     saddle_control_points = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
     return boundary_control_points, flux_control_points, saddle_control_points
