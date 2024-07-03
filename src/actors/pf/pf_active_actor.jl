@@ -156,11 +156,10 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
 end
 
 function default_control_points(eqt::IMAS.equilibrium__time_slice, pc::IMAS.pulse_schedule__position_control)
-    psib = eqt.global_quantities.psi_boundary
-
     boundary_control_points, flux_control_points, saddle_control_points = default_control_points(eqt)
 
     if !isempty(pc.strike_point)
+        psib = eqt.global_quantities.psi_boundary
         # we favor taking the strike points from the pulse schedule, if available
         strike_weight = 1.0
         flux_control_points = VacuumFields.FluxControlPoint{Float64}[]

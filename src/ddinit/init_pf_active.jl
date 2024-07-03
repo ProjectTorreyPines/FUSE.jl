@@ -54,7 +54,7 @@ function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vec
     rail_r = circshift(rail_r[1:end-1], index)
     curve = abs.(IMAS.curvature(pr, pz))
 
-    α = 1000.0
+    α = 10.0
     index = Int[]
 
     index = pz .> ZA
