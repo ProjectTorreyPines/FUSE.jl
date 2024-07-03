@@ -87,8 +87,19 @@ function _step(actor::ActorTEQUILA)
 
     Fbnd = eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0
 
+    # see if boundary has not changed
+    same_boundary = false
+    if actor.shot !== nothing
+        if length(actor.old_boundary_outline_r) == length(eqt.boundary.outline.r)
+            if (sum(abs.(actor.old_boundary_outline_r .- eqt.boundary.outline.r)) + sum(abs.(actor.old_boundary_outline_z .- eqt.boundary.outline.z))) /
+               length(eqt.boundary.outline.r) < 1E-3
+                same_boundary = true
+            end
+        end
+    end
+
     # TEQUILA shot
-    if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
+    if actor.shot === nothing || !same_boundary
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
         n = length(pr)
@@ -99,6 +110,8 @@ function _step(actor::ActorTEQUILA)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
         concentric_first = true
+        actor.old_boundary_outline_r = eqt.boundary.outline.r
+        actor.old_boundary_outline_z = eqt.boundary.outline.z
     else
         # reuse flux surface information if boundary has not changed
         actor.shot = TEQUILA.Shot(actor.shot; P, Jt, Pbnd, Fbnd, Ip_target)
@@ -116,9 +129,6 @@ function _step(actor::ActorTEQUILA)
 
         rethrow(e)
     end
-
-    actor.old_boundary_outline_r = eqt.boundary.outline.r
-    actor.old_boundary_outline_z = eqt.boundary.outline.z
 
     return actor
 end
