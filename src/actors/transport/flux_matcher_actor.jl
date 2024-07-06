@@ -21,7 +21,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
-    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
+    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
     optimizer_algorithm::Switch{Symbol} =
         Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}(
@@ -182,7 +182,7 @@ function _step(actor::ActorFluxMatcher)
     # Also when the power flowing through the separatrix is below zero we want to punish the profiles (otherwise we generate energy from nothing)
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd)
-    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te ||
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te == :flux_match ||
        !(total_sources.electrons.power_inside[end] + total_sources.total_ion_power_inside[end] >= 0)
         @warn "Profiles completely collpased due to insufficient source versus turbulence"
         te = cp1d.electrons.temperature
@@ -275,11 +275,11 @@ function flux_match_errors(
     end
 
     # get transport fluxes and sources
-    fluxes = flux_match_fluxes(dd, par, prog)
-    targets = flux_match_targets(dd, par, prog)
+    fluxes = flux_match_fluxes(dd, par)
+    targets = flux_match_targets(dd, par)
 
     cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
-    area = cp1d.grid.area[cp_gridpoints]
+    surface = cp1d.grid.surface[cp_gridpoints]
 
     # Evaluate the flux_matching errors
     nrho = length(par.rho_transport)
@@ -288,7 +288,7 @@ function flux_match_errors(
         index = (inorm-1)*nrho+1:inorm*nrho
         if sum(abs.(targets[index])) != 0.0
             norm = sum(abs.(targets[index])) / length(index)
-            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (area ./ area[1])
+            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (surface ./ surface[1])
         else
             # if targets are all zero then use initial norms and give this channel less weight
             errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 / 10.0
@@ -322,7 +322,7 @@ The normalization is calculated as the mean square average of the transport and 
 function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
-    total_fluxes = IMAS.total_fluxes(dd.core_transport)
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, par.rho_transport)
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
     cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
 
@@ -363,7 +363,7 @@ Evaluates the flux_matching targets for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
@@ -405,34 +405,33 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, 
 end
 
 """
-    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
 Evaluates the flux_matching fluxes for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    total_fluxes = IMAS.total_fluxes(dd.core_transport)
-    cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, par.rho_transport)
 
     fluxes = Float64[]
 
     if par.evolve_Ti == :flux_match
-        flux = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        flux = total_fluxes.total_ion_energy.flux
         check_output_fluxes(flux, "total_ion_energy")
         append!(fluxes, flux)
     end
 
     if par.evolve_Te == :flux_match
-        flux = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        flux = total_fluxes.electrons.energy.flux
         check_output_fluxes(flux, "electrons.energy")
         append!(fluxes, flux)
     end
 
     if par.evolve_rotation == :flux_match
-        flux = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        flux = total_fluxes.momentum_tor.flux
         check_output_fluxes(flux, "momentum_tor")
         append!(fluxes, flux)
     end
@@ -440,7 +439,7 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, p
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            flux = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            flux = total_fluxes.electrons.particles.flux
             check_output_fluxes(flux, "electrons.particles")
             append!(fluxes, flux)
         end
@@ -589,7 +588,7 @@ function unpack_z_profiles(
     z_profiles::AbstractVector{<:Real})
 
     # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10.0
+    z_max = 5.0
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
     cp_rho_transport = [cp1d.grid.rho_tor_norm[argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm))] for rho_x in par.rho_transport]
