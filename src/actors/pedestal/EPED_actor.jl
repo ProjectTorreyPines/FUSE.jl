@@ -166,7 +166,7 @@ function run_EPED(
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
 
-    Bt = abs(@ddtime(eqt.global_quantities.vacuum_toroidal_field.b0)) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
+    Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
     eped_inputs.a = eqt.boundary.minor_radius
     eped_inputs.betan = βn
