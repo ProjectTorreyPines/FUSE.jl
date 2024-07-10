@@ -58,8 +58,9 @@ function _step(actor::ActorQED)
     par = actor.par
 
     eqt = dd.equilibrium.time_slice[]
-    cpg = dd.core_profiles.global_quantities
     cp1d = dd.core_profiles.profiles_1d[]
+
+    current_non_inductive = trapz(cp1d.grid.area, cp1d.j_non_inductive)
 
     if par.Nt == 0
         # @info("QED: initialize")
@@ -74,7 +75,7 @@ function _step(actor::ActorQED)
         if par.solve_for == :ip
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
             Vedge = nothing
-            if par.allow_floating_plasma_current && abs(Ip) < abs(@ddtime(cpg.current_non_inductive))
+            if par.allow_floating_plasma_current && abs(Ip) < abs(current_non_inductive)
                 Ip = nothing
                 Vedge = 0.0
             end
@@ -145,7 +146,7 @@ function _step(actor::ActorQED)
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tnow)
                 Vedge = nothing
-                if par.allow_floating_plasma_current && abs(Ip) < abs(@ddtime(cpg.current_non_inductive))
+                if par.allow_floating_plasma_current && abs(Ip) < abs(current_non_inductive)
                     Ip = nothing
                     Vedge = 0.0
                 end
