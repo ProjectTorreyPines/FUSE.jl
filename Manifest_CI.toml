@@ -499,9 +499,9 @@ version = "0.6.3"
 
 [[deps.CoordRefSystems]]
 deps = ["Random", "Rotations", "StaticArrays", "Unitful", "Zygote"]
-git-tree-sha1 = "ea85ab9068a9a761e9e7426800d0bc9987a12eb7"
+git-tree-sha1 = "9325596c71033a2e746c4759653a11871cc95f9a"
 uuid = "b46f11dc-f210-4604-bfba-323c1ec968cb"
-version = "0.9.3"
+version = "0.9.4"
 
 [[deps.CoordinateConventions]]
 git-tree-sha1 = "14c556f7f202cce529187c7e1059dc6340ef0692"
@@ -1656,9 +1656,9 @@ version = "0.1.17"
 
 [[deps.LazyArrays]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "SparseArrays"]
-git-tree-sha1 = "dc1e013bd685c1e7975bf3cf835c5f5aa96a7c19"
+git-tree-sha1 = "f0c4de8f39888b91ba7e1ed348cd283a57f4cddd"
 uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "2.1.5"
+version = "2.1.6"
 
     [deps.LazyArrays.extensions]
     LazyArraysBandedMatricesExt = "BandedMatrices"
