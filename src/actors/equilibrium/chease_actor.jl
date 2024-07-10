@@ -108,8 +108,8 @@ function _finalize(actor::ActorCHEASE)
         # Boundary control points
         flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, ψbound)
 
-        # Flux control points !!! strike point constraint does not work with CHEASE !?!??!?
-        if false && !isempty(eqt.boundary.strike_point)
+        # Flux control points
+        if !isempty(eqt.boundary.strike_point)
             strike_weight = 1.0
             strike_cps = [VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
             append!(flux_cps, strike_cps)
