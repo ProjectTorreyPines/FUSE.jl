@@ -219,7 +219,8 @@ end
         initial_cp1d::IMAS.core_profiles__profiles_1d;
         z_scaled_history::Vector=[],
         err_history::Vector{Float64}=Float64[],
-        prog::Any=nothing)
+        prog::Any=nothing,
+        save_input_tglf_folder::String="")
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns named tuple with (targets, fluxes, errors)
 
@@ -253,8 +254,8 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate sources (ie. target fluxes)
-    if par.Δt < Inf
     IMAS.sources!(dd; bootstrap=false, ohmic=false)
+    if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
