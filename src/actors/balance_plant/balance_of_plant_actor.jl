@@ -8,11 +8,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: Param
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
+ext = Base.get_extension(@__MODULE__, :ThermalSystemModelsExt)
+
 mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBalanceOfPlant{P}
     act::ParametersAllActors
-    thermal_plant_actor::ActorThermalPlant{D}
+    thermal_plant_actor::Union{ActorNoOperation{D}, AbstractActorThermalPlant{D}}
     power_needs_actor::ActorPowerNeeds{D}
 end
 
@@ -34,10 +36,12 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     logging_actor_init(ActorBalanceOfPlant)
     par = par(kw...)
 
+
     # set the time
     @ddtime(dd.balance_of_plant.time = dd.global_time)
 
-    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant)
+    ext = Base.get_extension(@__MODULE__, :ThermalSystemModelsExt)
+    thermal_plant_actor = isnothing(ext) ? ActorNoOperation(dd, act.ActorNoOperation) : ext.ActorThermalPlant(dd, act.ActorThermalPlant)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
 
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
