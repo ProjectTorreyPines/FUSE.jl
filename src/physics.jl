@@ -465,25 +465,22 @@ end
 
 Asymmetric rectangular shape
 """
-function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(round(n_points * resolution))
-    n_points = max(5, n_points)
-    if n_points == 5
+function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
+    if resolution == 0.0
         R = [r_start, r_start, r_end, r_end, r_start]
         Z = [z_low, z_high, z_high, z_low, z_low]
     else
+        n_points = Int(round(n_points / 4 * resolution))
         R = vcat(
-            r_start,
-            range(r_start, r_start, n_points)[2:end],
-            range(r_end, r_start, n_points)[2:end],
+            range(r_start, r_start, n_points),
+            range(r_start, r_end, n_points)[2:end],
             range(r_end, r_end, n_points)[2:end],
-            range(r_start, r_end, n_points))
+            range(r_end, r_start, n_points)[2:end])
         Z = vcat(
-            z_low,
-            range(z_high, z_low, n_points)[2:end],
+            range(z_low, z_high, n_points),
             range(z_high, z_high, n_points)[2:end],
-            range(z_low, z_high, n_points)[2:end],
-            range(z_low, z_low, n_points))
+            range(z_high, z_low, n_points)[2:end],
+            range(z_low, z_low, n_points)[2:end])
     end
     return R, Z
 end
@@ -493,7 +490,7 @@ end
 
 Symmetric rectangular shape
 """
-function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5, resolution::Float64=1.0) where {T<:Real}
+function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=400, resolution::Float64=0.0) where {T<:Real}
     Δ = height / 2.0
     return rectangle_shape(r_start, r_end, -Δ, Δ; n_points, resolution)
 end
