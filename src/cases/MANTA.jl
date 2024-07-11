@@ -19,11 +19,11 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
         :OH => 0.33,
         :hfs_TF => 0.7,
         :hfs_vacuum_vessel => 0.166,
-        :hfs_blanket_coils => .9,
+        :hfs_blanket_coils => 0.9,
         :hfs_first_wall => 0.02,
         :plasma => 2.4,
         :lfs_first_wall => 0.02,
-        :lfs_blanket_coils => .75,
+        :lfs_blanket_coils => 0.75,
         :lfs_vacuum_vessel => 0.166,
         :lfs_TF => 0.7,
         :gap_cryostat => 1.4,
@@ -34,7 +34,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
 
-    ini.equilibrium.B0 = 10.0 # 11 Tesla is impossible according to HFSizing actor lowered to 10.
+    ini.equilibrium.B0 = 11.0
     ini.equilibrium.R0 = 4.55
     ini.equilibrium.ϵ = 0.2637362637
     ini.equilibrium.κ = 1.4
@@ -45,24 +45,16 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
-    #ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    # fgr = 0.88 , but not nessesary pedestal
-    ini.core_profiles.ne_value = 1.5e20
     ini.core_profiles.ne_setting = :ne_ped
-    #ini.core_profiles.ne_value = 1.95e20
+    ini.core_profiles.ne_value = 1.45e20
     ini.core_profiles.ne_sep_to_ped_ratio = 0.66
-    #ini.core_profiles.w_ped=0.6
-    #ini.core_profiles.ne_sep=0.85e20 
-    # n0 was set such that density peaking followed the Angioni scaling
-    #ini.core_profiles.te_ped=4e3
-    #ini.core_profiles.te_sep=0.8e3
     ini.core_profiles.T_ratio = 1.01
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :Kr
+    ini.core_profiles.impurity = :Ne
     ini.core_profiles.helium_fraction = 0.025
 
     ini.pf_active.n_coils_inside = 6
@@ -79,7 +71,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.oh.n_coils = 6
     ini.oh.technology = :rebco
 
-    ini.ic_antenna[1].power_launched = 4.0e6   #ICRH?
+    ini.ic_antenna[1].power_launched = 4.0e6
 
     ini.requirements.power_electric_net = 90e6
     ini.requirements.tritium_breeding_ratio = 1.15
