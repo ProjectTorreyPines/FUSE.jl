@@ -17,8 +17,6 @@
     "core_profiles.profiles_1d[:].electrons.pressure_thermal",
     "core_profiles.profiles_1d[:].ion[:].density",
     "core_profiles.profiles_1d[:].ion[:].pressure_thermal",
-    "core_profiles.profiles_1d[:].j_tor",
-    "core_profiles.profiles_1d[:].j_total",
     "core_profiles.profiles_1d[:].pressure",
     "core_profiles.profiles_1d[:].pressure_ion_total",
     "core_profiles.profiles_1d[:].pressure_parallel",
