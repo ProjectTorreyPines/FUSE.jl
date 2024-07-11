@@ -642,8 +642,21 @@ function unpack_z_profiles(
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
     end
 
-    empty!(cp1d, :pressure_thermal)
-    cp1d.pressure_thermal = cp1d.electrons.pressure_thermal .+ cp1d.pressure_ion_total
+    # freeze certain core_profiles quantites
+    z = zero(cp1d.grid.rho_tor_norm)
+    for field in [:density_fast, :density, :pressure_thermal, :pressure]
+        IMAS.refreeze!(cp1d.electrons, field, z)
+    end
+
+    for field in [:density_fast, :density, :pressure_thermal]
+        for ion in cp1d.ion
+            IMAS.refreeze!(ion, field, z)
+        end
+    end
+
+    for field in [:pressure_ion_total, :pressure_thermal]
+        IMAS.refreeze!(cp1d, field, z)
+    end
 
     return cp1d
 end

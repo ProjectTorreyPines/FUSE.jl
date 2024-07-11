@@ -51,17 +51,14 @@ Steps the selected current evolution actor
 function _step(actor::ActorCurrent)
     dd = actor.dd
 
-    # restore expression
+    # freeze jboot and j_non_inductive before updating johmic
     cp1d = dd.core_profiles.profiles_1d[]
-    for field in [:j_bootstrap, :j_non_inductive, :j_total, :j_tor]
-        IMAS.empty!(cp1d, field)
-    end
-    # freeze jboot and j_non_inductive
     for field in [:j_bootstrap, :j_non_inductive]
-        IMAS.freeze!(cp1d, field)
+        IMAS.refreeze!(cp1d, field)
     end
 
     step(actor.jt_actor)
+
     return actor
 end
 
@@ -74,6 +71,12 @@ function _finalize(actor::ActorCurrent)
     dd = actor.dd
     
     finalize(actor.jt_actor)
+
+    # freeze j_total and j_tor after johmic update
+    cp1d = dd.core_profiles.profiles_1d[]
+    for field in [:j_total, :j_tor]
+        IMAS.refreeze!(cp1d, field)
+    end
 
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
