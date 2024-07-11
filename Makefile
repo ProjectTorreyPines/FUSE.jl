@@ -498,4 +498,36 @@ curl -X POST \
 https://api.github.com/repos/ProjectTorreyPines/$(rp).jl/merges \
 -d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
+# update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
+# The starting information is taken from IMASDD.jl and moved to the target repo
+# >> make apache repo=CHEASE
+# in addition, one must add the DOCUMENTER_KEY to the repo
+# https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
+apache:
+	cp ../IMASDD/LICENSE ../$(repo)/ ;\
+\
+cp ../IMASDD/NOTICE.md ../$(repo)/ ;\
+sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
+\
+mkdir -p ../$(repo)/.github/workflows ;\
+cp ../IMASDD/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASDD/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASDD/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
+\
+cp ../IMASDD/README.md ../$(repo)/ ;\
+sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
+\
+cp -R ../IMASDD/docs ../$(repo)/ ;\
+sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
+echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
+rm ../$(repo)/docs/Manifest.toml ;\
+rm -rf ../$(repo)/docs/build ;\
+\
+cp -R ../IMASDD/.JuliaFormatter.toml ../$(repo)/ ;\
+\
+cp -R ../IMASDD/.gitignore ../$(repo)/ ;\
+\
+julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
+
+
 .PHONY:
