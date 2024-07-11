@@ -161,7 +161,7 @@ function default_control_points(eqt::IMAS.equilibrium__time_slice, pc::IMAS.puls
     if !isempty(pc.strike_point)
         psib = eqt.global_quantities.psi_boundary
         # we favor taking the strike points from the pulse schedule, if available
-        strike_weight = 1.0
+        strike_weight = 0.01
         flux_control_points = VacuumFields.FluxControlPoint{Float64}[]
         for strike_point in pc.strike_point
             r = @ddtime(strike_point.r.reference)
@@ -189,11 +189,11 @@ function default_control_points(eqt::IMAS.equilibrium__time_slice)
     end
 
     # Flux Control Points
-    strike_weight = 1.0
+    strike_weight = 0.01
     flux_control_points = [VacuumFields.FluxControlPoint(s_point.r, s_point.z, psib, strike_weight) for s_point in eqt.boundary.strike_point]
 
     # Saddle Control Points
-    saddle_weight = 1.0
+    saddle_weight = 0.01
     saddle_control_points = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
     return boundary_control_points, flux_control_points, saddle_control_points

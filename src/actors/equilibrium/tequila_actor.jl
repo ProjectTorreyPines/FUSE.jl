@@ -222,13 +222,13 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
 
         # Flux control points
         if !isempty(eqt.boundary.strike_point)
-            strike_weight = 0.1
+            strike_weight = 0.01
             strike_cps = [VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
             append!(flux_cps, strike_cps)
         end
 
         # Saddle control points
-        saddle_weight = 0.1
+        saddle_weight = 0.01
         saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
