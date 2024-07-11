@@ -499,9 +499,9 @@ version = "0.6.3"
 
 [[deps.CoordRefSystems]]
 deps = ["Random", "Rotations", "StaticArrays", "Unitful", "Zygote"]
-git-tree-sha1 = "9325596c71033a2e746c4759653a11871cc95f9a"
+git-tree-sha1 = "d0e0277d709ab0323ba54246cb2eed76358dc911"
 uuid = "b46f11dc-f210-4604-bfba-323c1ec968cb"
-version = "0.9.4"
+version = "0.9.5"
 
 [[deps.CoordinateConventions]]
 git-tree-sha1 = "14c556f7f202cce529187c7e1059dc6340ef0692"
@@ -1656,9 +1656,9 @@ version = "0.1.17"
 
 [[deps.LazyArrays]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "SparseArrays"]
-git-tree-sha1 = "f0c4de8f39888b91ba7e1ed348cd283a57f4cddd"
+git-tree-sha1 = "a32ffcab2b67af985fe57e23c9708388e5927931"
 uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "2.1.6"
+version = "2.1.7"
 
     [deps.LazyArrays.extensions]
     LazyArraysBandedMatricesExt = "BandedMatrices"
@@ -2037,9 +2037,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Colorfy", "CoordRefSystems", "DelaunayTriangulation", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Transducers", "TransformsBase", "Unitful"]
-git-tree-sha1 = "8301d7cb334dc3c6cc56a57a4183031938d1eb07"
+git-tree-sha1 = "aa006fa1eb20f3cfef57b9e29f056f96d94f0eb7"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.46.3"
+version = "0.46.4"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
