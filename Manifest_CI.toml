@@ -269,8 +269,8 @@ uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 version = "0.5.0"
 
 [[deps.CHEASE]]
-deps = ["EFIT", "Fortran90Namelists", "MXHEquilibrium"]
-git-tree-sha1 = "c0622213f86181b0d9f3c78c53c0e8a2cd3835e5"
+deps = ["CoordinateConventions", "EFIT", "Fortran90Namelists", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic"]
+git-tree-sha1 = "f58691123bcd2fdcdbbb3b25ce1180a40abaf260"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/CHEASE.jl.git"
 uuid = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
@@ -1325,15 +1325,15 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "FuseUtils", "IMASDD", "Interpolations", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "99cbe57a440cde284bb49e619dba61fd06956900"
+git-tree-sha1 = "83e3fe1187f0754dee7f15abf31679ce4bc0777a"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
 version = "0.1.0"
 
 [[deps.IMASDD]]
-deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "OrderedCollections", "PCHIPInterpolation", "PrecompileTools", "Printf", "StaticArraysCore"]
-git-tree-sha1 = "16dc89becd9db11c7e1316a70efa2dbdc301223c"
+deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "OrderedCollections", "PCHIPInterpolation", "PrecompileTools", "Printf", "StaticArraysCore", "TimerOutputs"]
+git-tree-sha1 = "8e674878e00ed1951ebcad592a0826bccb61d0c1"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -3158,7 +3158,7 @@ version = "0.1.0"
 
 [[deps.TGLFNN]]
 deps = ["BSON", "Dates", "Flux", "IMAS", "Measurements", "Memoize", "StatsBase"]
-git-tree-sha1 = "5749a36005eb6c0f86fd5cf0997f2feee750f919"
+git-tree-sha1 = "ce962c971d36f138d349a74584ef9a85ee9d256f"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TGLFNN.jl.git"
 uuid = "558c7b13-fd9f-4806-b461-592296cfa9d0"
@@ -3166,7 +3166,7 @@ version = "0.1.0"
 
 [[deps.TJLF]]
 deps = ["Arpack", "LinearAlgebra", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "525cda5ae753af6b2d22aa5ce660037f3d70ce06"
+git-tree-sha1 = "0fe555d047f16d57c4b5673466e03a3de5bec214"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TJLF.jl.git"
 uuid = "12ecd31c-256b-4db5-a799-cd5afeb0bd7d"
@@ -3360,7 +3360,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["FastGaussQuadrature", "IMAS", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "PlotUtils", "RecipesBase", "StaticArrays", "TEQUILA"]
-git-tree-sha1 = "29667db9bc8977413a5704e62908ec91def8a894"
+git-tree-sha1 = "f80facb91213b5ee7508201c1fdc57753f86edd1"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
