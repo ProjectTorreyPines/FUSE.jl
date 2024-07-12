@@ -3,17 +3,10 @@
 #= ================= =#
 # ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
 
-import FUSE
-# import FUSE: IMAS, ParametersAllActors, SingleAbstractActor, FUSEparameters__ActorThermalPlant, AbstractActorThermalPlant
-# import FUSE: logging_actor_init, step, _step
-# import FUSE: _blanket_
-# import FUSE: @ddtime, @sprintf
-for n in names(FUSE; all=true)
-    if Base.isidentifier(n) && n ∉ (Symbol(FUSE), :eval, :include)
-        @eval import FUSE: $n
-    end
-end
+using IMAS
+import IMAS: _blanket_
 import Optim
+import Printf: @sprintf
 import ThermalSystemModels: Dynamics as TSMD
 import ThermalSystemModels.Dynamics: DifferentialEquations, ModelingToolkit as MTK
 
