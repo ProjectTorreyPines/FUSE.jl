@@ -188,7 +188,7 @@ function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractAc
         ("          time", dd.global_time),
         ("         stage", "$(name(actor)) ($phase/2)"),
         ("       Ip [MA]", IMAS.get_from(dd, Val{:ip}, :core_profiles) / 1E6),
-        ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
     )
@@ -213,9 +213,11 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true)
+function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, kw...)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm)
+    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm, kw...)
+
+    cp1d = dd.core_profiles.profiles_1d[time0]
 
     # Ip and Vloop
     subplot = 1
@@ -232,6 +234,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(
         dd.core_profiles.time,
         dd.core_profiles.global_quantities.ip / 1E6;
+        ylim=extrema(dd.core_profiles.global_quantities.ip / 1E6),
         seriestype=:time,
         color=:blue,
         label="Ip  [MA]",
@@ -241,7 +244,6 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     )
     if IMAS.controller(dd.controllers, "ip") !== nothing
         plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
-        vline!([time0]; label="", subplot)
         time, data = IMAS.vloop_time(dd.controllers)
         plot!(
             twinx(),
@@ -255,6 +257,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
             subplot
         )
     end
+    vline!([time0]; label="", subplot)
 
     # equilibrium, build, and pf_active
     subplot = 2
@@ -266,12 +269,12 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     # core_profiles temperatures
     subplot = 3
     plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" initial", subplot, normalization=1E-3)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]")#, ylim=(0.0, 25.0))
+    plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]")#, ylim=(0.0, 25.0))
 
     # core_profiles densities
     subplot = 4
     plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
+    plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
 
     # q
     subplot = 9
@@ -286,8 +289,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     # core_sources
     subplot = 5
     plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation, weighted=:area, title="Parallel current source", normalization=1E-6, ylabel="[MA]")#, ylim=(0.0, 10.0))
+
     subplot = 6
-    plot!(
+    plot!(        
         dd.core_sources;
         time0,
         only=1,
@@ -300,6 +304,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         normalization=1E-6,
         ylabel="[MW]"
     )#, ylim=(-40.0, 41.0))
+
     subplot = 7
     plot!(
         dd.core_sources;
@@ -314,6 +319,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         normalization=1E-6,
         ylabel="[MW]"
     )#, ylim=(-40.0, 41.0))
+
     subplot = 8
     plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation, weighted=:volume, title="Electron particle source", ylabel="[s⁻¹]")#, ylim=(0.0, 1.1E20))
 
@@ -326,6 +332,15 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(dd.core_transport; time0, only=2, subplot)#, ylim=(0.0, 2.2E5))
     subplot = 12
     plot!(dd.core_transport; time0, only=3, subplot)#, ylim=(0.0, 6.5E17))
+
+    # # inverse scale lenghts
+    # max_scale = 5
+    # subplot = 14
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward); subplot, ylim=(-max_scale, max_scale), lw=2.0)
+    # subplot = 15
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward); subplot, ylim=(-max_scale, max_scale), lw=2.0)
+    # subplot = 16
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward); subplot, ylim=(-max_scale, max_scale), lw=2.0)
 
     return p
 end

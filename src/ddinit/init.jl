@@ -42,6 +42,7 @@ function init(
         consistent_ini_act!(ini, act)
 
         # initialize pulse_schedule
+        ps_was_set = false
         if ismissing(dd.pulse_schedule.flux_control, :time) || isempty(dd.pulse_schedule.flux_control.time)
             empty!(dd.pulse_schedule)
             verbose && @info "INIT: init_pulse_schedule"
@@ -49,6 +50,7 @@ function init(
             if do_plot
                 display(plot(dd.pulse_schedule))
             end
+            ps_was_set = true
         end
 
         # wall
@@ -127,7 +129,7 @@ function init(
         # initialize balance of plant
         verbose && @info "INIT: init_balance_of_plant"
         init_balance_of_plant!(dd, ini, act, dd1)
-       
+
         # initialize requirements
         verbose && @info "INIT: init_requirements"
         init_requirements!(dd, ini, act, dd1)
@@ -135,6 +137,22 @@ function init(
         # initialize missing IDSs from ODS (if loading from ODS)
         verbose && @info "INIT: init_missing_from_ods"
         init_missing_from_ods!(dd, ini, act, dd1)
+
+        # add strike point information to pulse_schedule
+        if ps_was_set
+            Rxx, Zxx, _ = IMAS.find_strike_points(dd.equilibrium.time_slice[], dd.divertors; private_flux_regions=true)
+            pc = dd.pulse_schedule.position_control
+            resize!(pc.strike_point, 4)
+            for k in 1:4
+                if k <= length(Rxx)
+                    pc.strike_point[k].r.reference = fill(Rxx[k], size(pc.time))
+                    pc.strike_point[k].z.reference = fill(Zxx[k], size(pc.time))
+                else
+                    pc.strike_point[k].r.reference = zeros(size(pc.time))
+                    pc.strike_point[k].z.reference = zeros(size(pc.time))
+                end
+            end
+        end
 
         return dd
     end
@@ -175,16 +193,16 @@ NOTE: operates in place
 """
 function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
     if !ismissing(ini.core_profiles, :T_ratio)
-        act.ActorEPEDProfiles.T_ratio_core = ini.core_profiles.T_ratio
+        act.ActorEPEDprofiles.T_ratio_core = ini.core_profiles.T_ratio
         act.ActorEPED.T_ratio_pedestal = ini.core_profiles.T_ratio
     end
 
     if !ismissing(ini.core_profiles, :T_shaping)
-        act.ActorEPEDProfiles.T_shaping = ini.core_profiles.T_shaping
+        act.ActorEPEDprofiles.T_shaping = ini.core_profiles.T_shaping
     end
 
     if !ismissing(ini.core_profiles, :n_shaping)
-        act.ActorEPEDProfiles.n_shaping = ini.core_profiles.n_shaping
+        act.ActorEPEDprofiles.n_shaping = ini.core_profiles.n_shaping
     end
 
     if !ismissing(ini.equilibrium, :xpoints)
