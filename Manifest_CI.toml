@@ -177,16 +177,17 @@ weakdeps = ["SparseArrays"]
     BandedMatricesSparseArraysExt = "SparseArrays"
 
 [[deps.BangBang]]
-deps = ["Compat", "ConstructionBase", "InitialValues", "LinearAlgebra", "Requires", "Setfield", "Tables"]
-git-tree-sha1 = "7aa7ad1682f3d5754e3491bb59b8103cae28e3a3"
+deps = ["Accessors", "Compat", "ConstructionBase", "InitialValues", "LinearAlgebra", "Requires"]
+git-tree-sha1 = "08e5fc6620a8d83534bf6149795054f1b1e8370a"
 uuid = "198e06fe-97b7-11e9-32a5-e1d131e6ad66"
-version = "0.3.40"
+version = "0.4.2"
 
     [deps.BangBang.extensions]
     BangBangChainRulesCoreExt = "ChainRulesCore"
     BangBangDataFramesExt = "DataFrames"
     BangBangStaticArraysExt = "StaticArrays"
     BangBangStructArraysExt = "StructArrays"
+    BangBangTablesExt = "Tables"
     BangBangTypedTablesExt = "TypedTables"
 
     [deps.BangBang.weakdeps]
@@ -194,6 +195,7 @@ version = "0.3.40"
     DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
     StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
+    Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
     TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [[deps.Base64]]
@@ -270,7 +272,7 @@ version = "0.5.0"
 
 [[deps.CHEASE]]
 deps = ["CoordinateConventions", "EFIT", "Fortran90Namelists", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic"]
-git-tree-sha1 = "f58691123bcd2fdcdbbb3b25ce1180a40abaf260"
+git-tree-sha1 = "81de892107fda3925235eaa1598ad3f86af98db2"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/CHEASE.jl.git"
 uuid = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
@@ -499,16 +501,16 @@ version = "0.6.3"
 
 [[deps.CoordRefSystems]]
 deps = ["Random", "Rotations", "StaticArrays", "Unitful", "Zygote"]
-git-tree-sha1 = "d0e0277d709ab0323ba54246cb2eed76358dc911"
+git-tree-sha1 = "582207940ef92493fcae6adb5c96b610e5219c16"
 uuid = "b46f11dc-f210-4604-bfba-323c1ec968cb"
-version = "0.9.5"
+version = "0.9.6"
 
 [[deps.CoordinateConventions]]
-git-tree-sha1 = "14c556f7f202cce529187c7e1059dc6340ef0692"
+git-tree-sha1 = "24a82d61623dbdb060c82d419f811c7a5cf201e5"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/CoordinateConventions.jl.git"
 uuid = "7204ce3a-f536-43d2-be4a-fbed74e90d86"
-version = "0.1.0"
+version = "1.0.0"
 
 [[deps.CpuId]]
 deps = ["Markdown"]
@@ -918,9 +920,9 @@ version = "1.3.8+0"
 
 [[deps.FLoops]]
 deps = ["BangBang", "Compat", "FLoopsBase", "InitialValues", "JuliaVariables", "MLStyle", "Serialization", "Setfield", "Transducers"]
-git-tree-sha1 = "ffb97765602e3cbe59a0589d237bf07f245a8576"
+git-tree-sha1 = "0a2e5873e9a5f54abb06418d57a8df689336a660"
 uuid = "cc61a311-1640-44b5-9fba-1b764f453329"
-version = "0.2.1"
+version = "0.2.2"
 
 [[deps.FLoopsBase]]
 deps = ["ContextVariablesX"]
@@ -1110,7 +1112,7 @@ uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
 version = "0.4.11"
 
 [[deps.FuseUtils]]
-git-tree-sha1 = "8aed1e7fee8f6f7942fc5323e106c861474d3618"
+git-tree-sha1 = "aaae5407986cfd58358888d3ec984a0ab9ec8032"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FuseUtils.jl.git"
 uuid = "c8e4ee58-0bec-4a6a-b552-9dd24d6374ac"
@@ -1333,7 +1335,7 @@ version = "0.1.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "OrderedCollections", "PCHIPInterpolation", "PrecompileTools", "Printf", "StaticArraysCore", "TimerOutputs"]
-git-tree-sha1 = "8e674878e00ed1951ebcad592a0826bccb61d0c1"
+git-tree-sha1 = "7df523c9f2ccff439cc200f29a048ae2ed9251ee"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -1367,16 +1369,17 @@ uuid = "22cec73e-a1b8-11e9-2c92-598750a2cf9c"
 version = "0.3.1"
 
 [[deps.InlineStrings]]
-deps = ["Parsers"]
-git-tree-sha1 = "86356004f30f8e737eff143d57d41bd580e437aa"
+git-tree-sha1 = "45521d31238e87ee9f9732561bfee12d4eebd52d"
 uuid = "842dd82b-1e85-43dc-bf29-5d0ee9dffc48"
-version = "1.4.1"
+version = "1.4.2"
 
     [deps.InlineStrings.extensions]
     ArrowTypesExt = "ArrowTypes"
+    ParsersExt = "Parsers"
 
     [deps.InlineStrings.weakdeps]
     ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
+    Parsers = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 
 [[deps.IntelOpenMP_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
@@ -1513,9 +1516,9 @@ version = "1.22.2"
 
 [[deps.JuliaFormatter]]
 deps = ["CSTParser", "CommonMark", "DataStructures", "Glob", "Pkg", "PrecompileTools", "Tokenize"]
-git-tree-sha1 = "1c4880cb70a5c6c87ea36deccc3d7f9e7969c18c"
+git-tree-sha1 = "b101a476705594c2a8ba106d731497058874bcf4"
 uuid = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
-version = "1.0.56"
+version = "1.0.57"
 
 [[deps.JuliaInterpreter]]
 deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
@@ -1655,22 +1658,14 @@ uuid = "10f19ff3-798f-405d-979b-55457f8fc047"
 version = "0.1.17"
 
 [[deps.LazyArrays]]
-deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "SparseArrays"]
-git-tree-sha1 = "a32ffcab2b67af985fe57e23c9708388e5927931"
+deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "MatrixFactorizations", "SparseArrays"]
+git-tree-sha1 = "35079a6a869eecace778bcda8641f9a54ca3a828"
 uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "2.1.7"
+version = "1.10.0"
+weakdeps = ["StaticArrays"]
 
     [deps.LazyArrays.extensions]
-    LazyArraysBandedMatricesExt = "BandedMatrices"
-    LazyArraysBlockArraysExt = "BlockArrays"
-    LazyArraysBlockBandedMatricesExt = "BlockBandedMatrices"
     LazyArraysStaticArraysExt = "StaticArrays"
-
-    [deps.LazyArrays.weakdeps]
-    BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
-    BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
-    BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
-    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1965,13 +1960,9 @@ version = "1.31.0"
 
 [[deps.MatrixFactorizations]]
 deps = ["ArrayLayouts", "LinearAlgebra", "Printf", "Random"]
-git-tree-sha1 = "07c98fdf57c9b45b987cf250c4bdc7200fa39eb2"
+git-tree-sha1 = "6731e0574fa5ee21c02733e397beb133df90de35"
 uuid = "a3b82374-2e81-5b9e-98ce-41277c0e4c87"
-version = "3.0.0"
-weakdeps = ["BandedMatrices"]
-
-    [deps.MatrixFactorizations.extensions]
-    MatrixFactorizationsBandedMatricesExt = "BandedMatrices"
+version = "2.2.0"
 
 [[deps.MaybeInplace]]
 deps = ["ArrayInterface", "LinearAlgebra", "MacroTools", "SparseArrays"]
@@ -2060,10 +2051,10 @@ uuid = "bcdb8e00-2c21-11e9-3065-2b553b22f898"
 version = "3.3.5"
 
 [[deps.MicroCollections]]
-deps = ["BangBang", "InitialValues", "Setfield"]
-git-tree-sha1 = "629afd7d10dbc6935ec59b32daeb33bc4460a42e"
+deps = ["Accessors", "BangBang", "InitialValues"]
+git-tree-sha1 = "44d32db644e84c75dab479f1bc15ee76a1a3618f"
 uuid = "128add7d-3638-4c79-886c-908ea0c25c34"
-version = "0.1.4"
+version = "0.2.0"
 
 [[deps.MicrosoftMPI_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2073,7 +2064,7 @@ version = "10.1.4+2"
 
 [[deps.MillerExtendedHarmonic]]
 deps = ["Dierckx", "LinearAlgebra", "Optim", "RecipesBase"]
-git-tree-sha1 = "a063ada8ff0d40e401b64221371a45e9c354287d"
+git-tree-sha1 = "d63098288d64292659d3f76a9b9267c54f1480b2"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
 uuid = "c82744c2-dc08-461a-8c37-87ab04d0f9b8"
@@ -2181,9 +2172,9 @@ version = "0.1.0"
 
 [[deps.NNlib]]
 deps = ["Adapt", "Atomix", "ChainRulesCore", "GPUArraysCore", "KernelAbstractions", "LinearAlgebra", "Pkg", "Random", "Requires", "Statistics"]
-git-tree-sha1 = "1288e6db94d98f7d194454452176b82edb25b32c"
+git-tree-sha1 = "333cd68c28bb57ac23c50acd1036ecd7dd78bf57"
 uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.9.19"
+version = "0.9.20"
 
     [deps.NNlib.extensions]
     NNlibAMDGPUExt = "AMDGPU"
@@ -3166,7 +3157,7 @@ version = "0.1.0"
 
 [[deps.TJLF]]
 deps = ["Arpack", "LinearAlgebra", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "0fe555d047f16d57c4b5673466e03a3de5bec214"
+git-tree-sha1 = "bd19f4b4ed796f53ccfa705c6d2e59b90dff9bbe"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TJLF.jl.git"
 uuid = "12ecd31c-256b-4db5-a799-cd5afeb0bd7d"
@@ -3249,10 +3240,10 @@ weakdeps = ["Random", "Test"]
     TestExt = ["Test", "Random"]
 
 [[deps.Transducers]]
-deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "ConstructionBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "Setfield", "SplittablesBase", "Tables"]
-git-tree-sha1 = "3064e780dbb8a9296ebb3af8f440f787bb5332af"
+deps = ["Accessors", "Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "ConstructionBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "SplittablesBase", "Tables"]
+git-tree-sha1 = "5215a069867476fc8e3469602006b9670e68da23"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
-version = "0.4.80"
+version = "0.4.82"
 
     [deps.Transducers.extensions]
     TransducersBlockArraysExt = "BlockArrays"
