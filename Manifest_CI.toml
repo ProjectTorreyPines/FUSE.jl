@@ -272,7 +272,7 @@ version = "0.5.0"
 
 [[deps.CHEASE]]
 deps = ["CoordinateConventions", "EFIT", "Fortran90Namelists", "MXHEquilibrium", "MeshTools", "MillerExtendedHarmonic"]
-git-tree-sha1 = "81de892107fda3925235eaa1598ad3f86af98db2"
+git-tree-sha1 = "573346fda5abe87c6549588c6897e4475125848c"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/CHEASE.jl.git"
 uuid = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
@@ -1017,7 +1017,7 @@ version = "2.23.1"
 
 [[deps.FiniteElementHermite]]
 deps = ["BandedMatrices", "FastGaussQuadrature", "QuadGK", "StaticArrays"]
-git-tree-sha1 = "ca931d5e553ada33831c13006d0666c76ae76bb7"
+git-tree-sha1 = "fdc5deda10cfcc0a07ea7afceee0646afd17e7c2"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FiniteElementHermite.jl.git"
 uuid = "6ce10167-d368-4c0e-af34-9787cdd175e5"
@@ -1327,7 +1327,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "FuseUtils", "IMASDD", "Interpolations", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "83e3fe1187f0754dee7f15abf31679ce4bc0777a"
+git-tree-sha1 = "b048599d06519b6a767551b50227d5b88874f313"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1920,7 +1920,7 @@ version = "5.4.0+0"
 
 [[deps.MXHEquilibrium]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "ForwardDiff", "HCubature", "Interpolations", "LRUCache", "LinearAlgebra", "Memoize", "MeshTools", "MillerExtendedHarmonic", "NetCDF", "Optim", "PolygonOps", "StaticArrays", "Trapz", "Zygote"]
-git-tree-sha1 = "a97742a7e9cca407d8e64233448d1f55d2e58020"
+git-tree-sha1 = "8a2cb3c72ebd35dc149b371fbc687e1431876a6c"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MXHEquilibrium.jl.git"
 uuid = "8efa4e5a-7b9a-4eec-876e-01d13d5b5d75"
@@ -2020,7 +2020,7 @@ version = "0.4.12"
 
 [[deps.MeshTools]]
 deps = ["FileIO", "Gmsh", "LRUCache", "LinearAlgebra", "Memoize", "MeshIO", "Meshes"]
-git-tree-sha1 = "7334b13940b8d603729f101960abd5ee7b529c29"
+git-tree-sha1 = "9113e740310c9fad3e03a3dc376ec05f1c1df47c"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MeshTools.jl.git"
 uuid = "804828d9-b4e9-4eca-b847-748d6c7bafa9"
@@ -2028,9 +2028,9 @@ version = "0.2.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Colorfy", "CoordRefSystems", "DelaunayTriangulation", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "SparseArrays", "StaticArrays", "StatsBase", "Transducers", "TransformsBase", "Unitful"]
-git-tree-sha1 = "aa006fa1eb20f3cfef57b9e29f056f96d94f0eb7"
+git-tree-sha1 = "9f41ca8d9e95cdf7d1aa546015434f17847aad77"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.46.4"
+version = "0.46.5"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -2064,7 +2064,7 @@ version = "10.1.4+2"
 
 [[deps.MillerExtendedHarmonic]]
 deps = ["Dierckx", "LinearAlgebra", "Optim", "RecipesBase"]
-git-tree-sha1 = "d63098288d64292659d3f76a9b9267c54f1480b2"
+git-tree-sha1 = "11ce9f0f2c1eb9ab79dba29bdd3c9bbfa58487fd"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
 uuid = "c82744c2-dc08-461a-8c37-87ab04d0f9b8"
@@ -2374,9 +2374,9 @@ uuid = "c2071276-7c44-58a7-b746-946036e04d0a"
 version = "0.24.1+0"
 
 [[deps.PCHIPInterpolation]]
-git-tree-sha1 = "0a19c7df8f154657088ac84b58347863e45c465d"
+git-tree-sha1 = "fa9c9839789b203e99580cd09c212df78f883562"
 uuid = "afe20452-48d1-4729-9a8b-50fb251f06cd"
-version = "0.2.0"
+version = "0.2.1"
 weakdeps = ["RecipesBase"]
 
     [deps.PCHIPInterpolation.extensions]
@@ -2563,9 +2563,9 @@ version = "0.1.4"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "763a8ceb07833dd51bb9e3bbca372de32c0605ad"
+git-tree-sha1 = "80686d28ecb3ee7fb3ac5371cacaa0d673eb0d4a"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.10.0"
+version = "1.10.1"
 
 [[deps.PtrArrays]]
 git-tree-sha1 = "f011fbb92c4d401059b2212c05c0601b70f8b759"
