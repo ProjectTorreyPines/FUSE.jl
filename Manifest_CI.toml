@@ -177,17 +177,16 @@ weakdeps = ["SparseArrays"]
     BandedMatricesSparseArraysExt = "SparseArrays"
 
 [[deps.BangBang]]
-deps = ["Accessors", "Compat", "ConstructionBase", "InitialValues", "LinearAlgebra", "Requires"]
-git-tree-sha1 = "08e5fc6620a8d83534bf6149795054f1b1e8370a"
+deps = ["Compat", "ConstructionBase", "InitialValues", "LinearAlgebra", "Requires", "Setfield", "Tables"]
+git-tree-sha1 = "7aa7ad1682f3d5754e3491bb59b8103cae28e3a3"
 uuid = "198e06fe-97b7-11e9-32a5-e1d131e6ad66"
-version = "0.4.2"
+version = "0.3.40"
 
     [deps.BangBang.extensions]
     BangBangChainRulesCoreExt = "ChainRulesCore"
     BangBangDataFramesExt = "DataFrames"
     BangBangStaticArraysExt = "StaticArrays"
     BangBangStructArraysExt = "StructArrays"
-    BangBangTablesExt = "Tables"
     BangBangTypedTablesExt = "TypedTables"
 
     [deps.BangBang.weakdeps]
@@ -195,7 +194,6 @@ version = "0.4.2"
     DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
     StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
     StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
-    Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
     TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [[deps.Base64]]
@@ -932,7 +930,7 @@ version = "0.1.1"
 
 [[deps.FXP]]
 deps = ["JSON", "Jedis"]
-git-tree-sha1 = "8ee55eac8b2783b6ce71b9bd090e18b0dbb3d0c5"
+git-tree-sha1 = "2ef699800163171a630c56db96953c2b1894fd62"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FXP.jl.git"
 uuid = "e356478e-5a30-45f6-9775-70cc66e4fbd4"
@@ -1120,7 +1118,7 @@ version = "1.0.0-DEV"
 
 [[deps.FusionMaterials]]
 deps = ["IMAS"]
-git-tree-sha1 = "34b3bc7a4f644909d873d1ff104df59ab1d2b8da"
+git-tree-sha1 = "ea3c3c9defaa0d1d99ea623325cf69cf46f362a4"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/FusionMaterials.jl.git"
 uuid = "4c86da02-02c8-4634-8460-96566129f8e0"
@@ -1327,7 +1325,7 @@ version = "0.3.23"
 
 [[deps.IMAS]]
 deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "FuseUtils", "IMASDD", "Interpolations", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
-git-tree-sha1 = "b048599d06519b6a767551b50227d5b88874f313"
+git-tree-sha1 = "219ba9c57a8e1eeab8f9a478c13ae4062762df51"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
@@ -1658,14 +1656,22 @@ uuid = "10f19ff3-798f-405d-979b-55457f8fc047"
 version = "0.1.17"
 
 [[deps.LazyArrays]]
-deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "MatrixFactorizations", "SparseArrays"]
-git-tree-sha1 = "35079a6a869eecace778bcda8641f9a54ca3a828"
+deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "SparseArrays"]
+git-tree-sha1 = "46dd13736e33cc3bfc610f62b6c7f84b9c95539a"
 uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "1.10.0"
-weakdeps = ["StaticArrays"]
+version = "2.1.8"
 
     [deps.LazyArrays.extensions]
+    LazyArraysBandedMatricesExt = "BandedMatrices"
+    LazyArraysBlockArraysExt = "BlockArrays"
+    LazyArraysBlockBandedMatricesExt = "BlockBandedMatrices"
     LazyArraysStaticArraysExt = "StaticArrays"
+
+    [deps.LazyArrays.weakdeps]
+    BandedMatrices = "aae01518-5342-5314-be14-df237901396f"
+    BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+    BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
+    StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [[deps.LazyArtifacts]]
 deps = ["Artifacts", "Pkg"]
@@ -1920,7 +1926,7 @@ version = "5.4.0+0"
 
 [[deps.MXHEquilibrium]]
 deps = ["Contour", "CoordinateConventions", "EFIT", "ForwardDiff", "HCubature", "Interpolations", "LRUCache", "LinearAlgebra", "Memoize", "MeshTools", "MillerExtendedHarmonic", "NetCDF", "Optim", "PolygonOps", "StaticArrays", "Trapz", "Zygote"]
-git-tree-sha1 = "8a2cb3c72ebd35dc149b371fbc687e1431876a6c"
+git-tree-sha1 = "47082c61e9cb3768f3c95d84a8c29eb88d640163"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MXHEquilibrium.jl.git"
 uuid = "8efa4e5a-7b9a-4eec-876e-01d13d5b5d75"
@@ -1960,9 +1966,13 @@ version = "1.31.0"
 
 [[deps.MatrixFactorizations]]
 deps = ["ArrayLayouts", "LinearAlgebra", "Printf", "Random"]
-git-tree-sha1 = "6731e0574fa5ee21c02733e397beb133df90de35"
+git-tree-sha1 = "07c98fdf57c9b45b987cf250c4bdc7200fa39eb2"
 uuid = "a3b82374-2e81-5b9e-98ce-41277c0e4c87"
-version = "2.2.0"
+version = "3.0.0"
+weakdeps = ["BandedMatrices"]
+
+    [deps.MatrixFactorizations.extensions]
+    MatrixFactorizationsBandedMatricesExt = "BandedMatrices"
 
 [[deps.MaybeInplace]]
 deps = ["ArrayInterface", "LinearAlgebra", "MacroTools", "SparseArrays"]
@@ -2020,7 +2030,7 @@ version = "0.4.12"
 
 [[deps.MeshTools]]
 deps = ["FileIO", "Gmsh", "LRUCache", "LinearAlgebra", "Memoize", "MeshIO", "Meshes"]
-git-tree-sha1 = "9113e740310c9fad3e03a3dc376ec05f1c1df47c"
+git-tree-sha1 = "2bbc1912d92df45352877f5644e2a881c978c68e"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MeshTools.jl.git"
 uuid = "804828d9-b4e9-4eca-b847-748d6c7bafa9"
@@ -2051,10 +2061,10 @@ uuid = "bcdb8e00-2c21-11e9-3065-2b553b22f898"
 version = "3.3.5"
 
 [[deps.MicroCollections]]
-deps = ["Accessors", "BangBang", "InitialValues"]
-git-tree-sha1 = "44d32db644e84c75dab479f1bc15ee76a1a3618f"
+deps = ["BangBang", "InitialValues", "Setfield"]
+git-tree-sha1 = "629afd7d10dbc6935ec59b32daeb33bc4460a42e"
 uuid = "128add7d-3638-4c79-886c-908ea0c25c34"
-version = "0.2.0"
+version = "0.1.4"
 
 [[deps.MicrosoftMPI_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -2064,7 +2074,7 @@ version = "10.1.4+2"
 
 [[deps.MillerExtendedHarmonic]]
 deps = ["Dierckx", "LinearAlgebra", "Optim", "RecipesBase"]
-git-tree-sha1 = "11ce9f0f2c1eb9ab79dba29bdd3c9bbfa58487fd"
+git-tree-sha1 = "1d5f58ad28cdc454590d59a57ab5a6edba969335"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"
 uuid = "c82744c2-dc08-461a-8c37-87ab04d0f9b8"
@@ -2574,7 +2584,7 @@ version = "1.2.0"
 
 [[deps.QED]]
 deps = ["ArgParse", "BandedMatrices", "FiniteElementHermite", "ForwardDiff", "JSON", "LinearAlgebra", "Requires"]
-git-tree-sha1 = "b8b61a52c1524b36d4135081cbf9431cf61134c6"
+git-tree-sha1 = "54da3210236b2638e6dd1ff15af9825eccbfad6b"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/QED.jl.git"
 uuid = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
@@ -2892,7 +2902,7 @@ version = "1.1.0"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase", "YAML"]
-git-tree-sha1 = "6bb52be69c0a03357abb854c50c28abb74ac9b01"
+git-tree-sha1 = "e7b99803d7a712e9082527f64a8ed2c00b9f7505"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
@@ -3141,7 +3151,7 @@ version = "5.33.0"
 
 [[deps.TEQUILA]]
 deps = ["BSON", "FFTW", "FiniteElementHermite", "ForwardDiff", "JuMP", "LinearAlgebra", "LinearSolve", "MXHEquilibrium", "MillerExtendedHarmonic", "NLopt", "Optim", "PlotUtils", "PreallocationTools", "QuadGK", "RecipesBase", "Roots", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "180b215d6ecdebfcbce4cf0fdc3ac01e57806707"
+git-tree-sha1 = "9e720c490677aae91c7d0aa18ca8e8e0928cb773"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/TEQUILA.jl.git"
 uuid = "a60c9cbd-e72f-4185-96b6-b8fc312c4d37"
@@ -3240,10 +3250,10 @@ weakdeps = ["Random", "Test"]
     TestExt = ["Test", "Random"]
 
 [[deps.Transducers]]
-deps = ["Accessors", "Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "ConstructionBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "SplittablesBase", "Tables"]
-git-tree-sha1 = "5215a069867476fc8e3469602006b9670e68da23"
+deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "ConstructionBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "Setfield", "SplittablesBase", "Tables"]
+git-tree-sha1 = "3064e780dbb8a9296ebb3af8f440f787bb5332af"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
-version = "0.4.82"
+version = "0.4.80"
 
     [deps.Transducers.extensions]
     TransducersBlockArraysExt = "BlockArrays"
@@ -3351,7 +3361,7 @@ version = "0.2.0"
 
 [[deps.VacuumFields]]
 deps = ["FastGaussQuadrature", "IMAS", "LinearAlgebra", "MXHEquilibrium", "MillerExtendedHarmonic", "PlotUtils", "RecipesBase", "StaticArrays", "TEQUILA"]
-git-tree-sha1 = "f80facb91213b5ee7508201c1fdc57753f86edd1"
+git-tree-sha1 = "35377eb440b7d565d1bb9d328ca332aacbfe4474"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/VacuumFields.jl.git"
 uuid = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
