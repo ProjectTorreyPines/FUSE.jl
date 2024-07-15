@@ -91,7 +91,7 @@ function imas_dd_ids_names(extras::Bool=true)::Vector{String}
 end
 
 """
-    function imas_dd_ids(ids_name::String, extras::Bool=true)
+    imas_dd_ids(ids_name::String, extras::Bool=true)
 
 Read the IMAS data structures in OMAS JSON format, possibly including extra structures
 """

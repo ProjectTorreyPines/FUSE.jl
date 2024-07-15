@@ -746,7 +746,7 @@ function evolve_densities_dict_creation(
 end
 
 """
-    function check_output_fluxes(output::Vector{Float64}, what::String)
+    check_output_fluxes(output::Vector{Float64}, what::String)
 
 Checks if there are any NaNs in the output
 """
