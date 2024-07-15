@@ -30,8 +30,8 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.tf.technology = :nb3sn_iter
 
     ini.oh.technology = :nb3sn_iter
-    ini.core_profiles.greenwald_fraction = 0.8
-    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value =  0.8 * 0.75
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8

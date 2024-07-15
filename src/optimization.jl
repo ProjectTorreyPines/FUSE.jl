@@ -83,9 +83,9 @@ function optimization_engine(
 
         return ff, gg, hh
 
-    catch e
+    catch error
         # save empty dd and error to directory
-        save(savedir, nothing, ini, act, e; timer=true, freeze=false, overwrite_files=true)
+        save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
 
         # rethrow(e) # uncomment for debugging purposes
 

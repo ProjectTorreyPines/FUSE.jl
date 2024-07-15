@@ -465,25 +465,22 @@ end
 
 Asymmetric rectangular shape
 """
-function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(round(n_points * resolution))
-    n_points = max(5, n_points)
-    if n_points == 5
+function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
+    if resolution == 0.0
         R = [r_start, r_start, r_end, r_end, r_start]
         Z = [z_low, z_high, z_high, z_low, z_low]
     else
+        n_points = Int(round(n_points / 4 * resolution))
         R = vcat(
-            r_start,
-            range(r_start, r_start, n_points)[2:end],
-            range(r_end, r_start, n_points)[2:end],
+            range(r_start, r_start, n_points),
+            range(r_start, r_end, n_points)[2:end],
             range(r_end, r_end, n_points)[2:end],
-            range(r_start, r_end, n_points))
+            range(r_end, r_start, n_points)[2:end])
         Z = vcat(
-            z_low,
-            range(z_high, z_low, n_points)[2:end],
+            range(z_low, z_high, n_points),
             range(z_high, z_high, n_points)[2:end],
-            range(z_low, z_high, n_points)[2:end],
-            range(z_low, z_low, n_points))
+            range(z_high, z_low, n_points)[2:end],
+            range(z_low, z_low, n_points)[2:end])
     end
     return R, Z
 end
@@ -493,7 +490,7 @@ end
 
 Symmetric rectangular shape
 """
-function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5, resolution::Float64=1.0) where {T<:Real}
+function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=400, resolution::Float64=0.0) where {T<:Real}
     Δ = height / 2.0
     return rectangle_shape(r_start, r_end, -Δ, Δ; n_points, resolution)
 end
@@ -922,58 +919,60 @@ function add_xpoint(
     α_multiplier::Float64
 ) where {T<:Real}
 
-    function cost(points0::Vector, points::Vector, i::Integer, R0::T, Z0::T, α::Float64)
-        points .= points0
-        if upper
-            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.>(Z0+ZX)/2.0)]))^2.0
-        else
-            RX, ZX, R, Z = add_xpoint(points, i, R0, Z0, α)
-            return (1.0 - maximum(abs, IMAS.curvature(R, Z)[(Z.<(Z0+ZX)/2.0)]))^2.0
-        end
+    function cost(pr::Vector{Float64}, pz::Vector{Float64}, i::Integer, R0::T, Z0::T, α::Float64)
+        return abs(add_xpoint(pr, pz, i, R0, Z0, α).θX - π / 2)
     end
 
     if Z0 === nothing
         Z0 = sum(mz) / length(mz)
     end
 
-    if upper
-        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
-        index = mz .> Z0
-        mri = mr[index]
-        mzi = mz[index]
-        i = findfirst(i -> (mri[i] == mr[k] && mzi[i] == mz[k]), 1:length(mri))
-    else
-        k = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
-        index = mz .< Z0
-        mri = mr[index]
-        mzi = mz[index]
-        i = findfirst(i -> (mri[i] == mr[k] && mzi[i] == mz[k]), 1:length(mri))
-    end
-
     if R0 === nothing
-        R0 = mri[i]
+        R0 = sum(mr) / length(mr)
     end
 
-    points = collect(zip([mri; mri[1]], [mzi; mzi[1]]))
-    points0 = deepcopy(points)
+    if upper
+        i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .> Z0))
+    else
+        i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
+    end
 
-    res = Optim.optimize(α -> cost(points0, points, i, R0, Z0, α), 1.05, 1.5, Optim.GoldenSection())
-
-    points = collect(zip([mr; mr[1]], [mz; mz[1]]))
-    RX, ZX, R, Z = add_xpoint(points, k, R0, Z0, 1.0 + (res.minimizer[1] - 1.0) * α_multiplier)
-
-    return (RX=RX, ZX=ZX, R=R, Z=Z)
+    res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+    return add_xpoint(mr, mz, i, R0, Z0, 1.0 + (res.minimizer[1] - 1.0) * α_multiplier)
 end
 
-function add_xpoint(points::Vector, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
-    RX = points[i][1] .* α .+ R0 .* (1.0 .- α)
-    ZX = points[i][2] .* α .+ Z0 .* (1.0 .- α)
-    points[end] = (RX, ZX)
-    RZ = convex_hull!(points; closed_polygon=true)
-    R = T[r for (r, z) in RZ]
-    Z = T[z for (r, z) in RZ]
-    return (RX=RX, ZX=ZX, R=R, Z=Z)
+function add_xpoint(pr::Vector{Float64}, pz::Vector{Float64}, i::Integer, R0::T, Z0::T, α::T) where {T<:Real}
+    @assert IMAS.is_closed_polygon(pr, pz)
+    RX = pr[i] .* α .+ R0 .* (1.0 .- α)
+    ZX = pz[i] .* α .+ Z0 .* (1.0 .- α)
+
+    pr = @views pr[1:end-1]
+    pz = @views pz[1:end-1]
+    n = length(pr)
+
+    min_angle = Inf
+    i_min = 0
+    max_angle = -Inf
+    i_max = 0
+    for i in 1:n
+        @inbounds angle = atan(pz[i] - ZX, pr[i] - RX)
+        if angle < min_angle
+            min_angle = angle
+            i_min = i
+        end
+        if angle > max_angle
+            max_angle = angle
+            i_max = i
+        end
+    end
+
+    index = [mod(idx - 1, n) + 1 for idx in i_max:i_max+n-(i_max-i_min)]
+    R = @views [RX; pr[index]; RX]
+    Z = @views [ZX; pz[index]; ZX]
+
+    θX = max_angle - min_angle
+
+    return (RX=RX, ZX=ZX, R=R, Z=Z, θX=θX)
 end
 
 """
@@ -1007,8 +1006,17 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RL = R0
     end
 
-    RXU, ZXU, _ = add_xpoint(mr, mz, RU, Z0; upper=true, α_multiplier=(upper_x_point ? 1.0 : 2.0))
-    RXL, ZXL, _ = add_xpoint(mr, mz, RL, Z0; upper=false, α_multiplier=(lower_x_point ? 1.0 : 2.0))
+    R, Z = mr, mz
+    RXU, ZXU, R1, Z1, _ = add_xpoint(R, Z, RU, Z0; upper=true, α_multiplier=(upper_x_point ? 1.0 : 2.0))
+    if upper_x_point
+        R = R1
+        Z = Z1
+    end
+    RXL, ZXL, R2, Z2 = add_xpoint(R, Z, RL, Z0; upper=false, α_multiplier=(lower_x_point ? 1.0 : 2.0))
+    if lower_x_point
+        R = R2
+        Z = Z2
+    end
 
     RX = Float64[]
     ZX = Float64[]
@@ -1021,10 +1029,6 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         push!(ZX, ZXL)
     end
 
-    RZ = convex_hull(vcat(mr, RX), vcat(mz, ZX); closed_polygon=true)
-    R = [r for (r, z) in RZ]
-    Z = [z for (r, z) in RZ]
-
     # resample boundary after convex_hull in such a way to preserve x-points and add proper curvature in the x-point region
     if upper_x_point + lower_x_point == 1
         if upper_x_point
@@ -1032,8 +1036,8 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         else
             R, Z = IMAS.reorder_flux_surface!(R, Z, argmin(Z))
         end
-        RR = [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
-        ZZ = [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
+        RR = @views [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
+        ZZ = @views [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
         RR, ZZ = IMAS.resample_plasma_boundary(RR, ZZ; n_points=length(R) * 2, method=:cubic)
         if upper_x_point
             I = ZZ .< Z[1]
@@ -1045,13 +1049,15 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     else
         R, Z = IMAS.reorder_flux_surface!(R, Z, argmax(Z))
         izmin = argmin(Z)
-        R1, R2 = R[1:izmin], R[izmin:end]
-        Z1, Z2 = Z[1:izmin], Z[izmin:end]
+        R1 = @views R[1:izmin]
+        Z1 = @views Z[1:izmin]
+        R2 = @views R[izmin:end]
+        Z2 = @views Z[izmin:end]
         ΔZ = (Z1[end] - Z[1])
-        ZZ1 = [Z1[2:end-1] .- ΔZ; Z1[2:end-1]; Z1[2:end-1] .+ ΔZ]
-        RR1 = [-(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]; R1[2:end-1]; -(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]]
-        ZZ2 = [Z2[2:end-1] .+ ΔZ; Z2[2:end-1]; Z2[2:end-1] .- ΔZ]
-        RR2 = [-(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]; R2[2:end-1]; -(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]]
+        ZZ1 = @views [Z1[2:end-1] .- ΔZ; Z1[2:end-1]; Z1[2:end-1] .+ ΔZ]
+        RR1 = @views [-(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]; R1[2:end-1]; -(reverse(R1[2:end-1]) .- R1[1]) .+ R1[1]]
+        ZZ2 = @views [Z2[2:end-1] .+ ΔZ; Z2[2:end-1]; Z2[2:end-1] .- ΔZ]
+        RR2 = @views [-(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]; R2[2:end-1]; -(reverse(R2[2:end-1]) .- R2[1]) .+ R2[1]]
         RR1, ZZ1 = IMAS.resample_2d_path(RR1, ZZ1; n_points=length(R) * 3, method=:cubic)
         RR2, ZZ2 = IMAS.resample_2d_path(RR2, ZZ2; n_points=length(R) * 3, method=:cubic)
         crossings = IMAS.intersection(RR1, ZZ1, RR2, ZZ2).crossings
@@ -1183,10 +1189,11 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         x -> cost(x; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area, target_volume),
         vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c),
         Optim.NelderMead(),
-        Optim.Options(; iterations=1000)
+        Optim.Options(; iterations=1000, g_tol=1E-5)
     )
     mxhb_from_params!(mxhb0, res.minimizer; upper_x_point, lower_x_point, n_points)
     IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
+
     if debug
         println(res)
         println(mxh)

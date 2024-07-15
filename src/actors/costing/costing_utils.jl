@@ -95,6 +95,11 @@ end
 Adjusts costs assessed in a previous year to current or future dollar amount
 """
 function future_dollars(dollars::Real, da::DollarAdjust)
+
+    if dollars == 0.0
+        return 0.0
+    end
+
     CPI = load_inflation_rate()
 
     # from old dollars to current dollars

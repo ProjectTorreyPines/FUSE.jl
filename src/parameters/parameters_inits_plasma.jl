@@ -53,12 +53,11 @@ end
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
-    greenwald_fraction::Entry{T} =
-        Entry{T}("-", "Line average electron density expressed as fraction of Greenwald density"; check=x -> @assert x > 0.0 "must be: greenwald_fraction > 0.0")
-    greenwald_fraction_ped::Entry{T} =
-        Entry{T}("-", "Pedestal electron density expressed as fraction of Greenwald density"; check=x -> @assert x > 0.0 "must be: greenwald_fraction_ped > 0.0")
-    ne_ped::Entry{T} = Entry{T}("m^-3", "Pedestal electron density"; check=x -> @assert x > 0.0 "must be: ne_ped > 0.0")
+    plasma_mode::Switch{Symbol} = Switch{Symbol}([:H_mode, :L_mode], "-", "Plasma configuration"; default=:H_mode)
+    ne_value::Entry{T} = Entry{T}("-", "Value based on setup method"; check=x -> @assert x > 0.0 "must be > 0.0")
+    ne_setting ::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
     w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
+    ne_sep_to_ped_ratio::Entry{T} = Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")

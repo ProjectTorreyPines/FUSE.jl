@@ -48,8 +48,8 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
 
-    ini.core_profiles.greenwald_fraction = 0.95
-    ini.core_profiles.greenwald_fraction_ped = 0.675
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value = 0.675
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9

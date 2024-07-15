@@ -179,8 +179,8 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.impurity = :Ne #Barium :Ba
     ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
 
-    ini.core_profiles.greenwald_fraction = 0.95
-    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction - 0.1
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value = 0.85
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 1.2

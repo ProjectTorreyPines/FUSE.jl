@@ -2,6 +2,17 @@
  "requirements": {
   "documentation": "FPP parameters used to set design objectives and constraints"
  },
+ "requirements.Psol_R": {
+  "data_type": "FLT_0D",
+  "documentation": "Psol / R",
+  "units": "W/m",
+  "type": "static"
+ },
+ "requirements.beta_normal": {
+  "data_type": "FLT_0D",
+  "documentation": "Normalized total plasma beta (MHD)",
+  "type": "static"
+ },
  "requirements.coil_j_margin": {
   "data_type": "FLT_0D",
   "documentation": "Magnet coil J_crit / J_max",
@@ -76,11 +87,6 @@
  "requirements.tritium_breeding_ratio": {
   "data_type": "FLT_0D",
   "documentation": "Tritium breeding ratio of the whole plant",
-  "type": "static"
- },
- "requirements.βn": {
-  "data_type": "FLT_0D",
-  "documentation": "Normalized total plasma beta (MHD)",
   "type": "static"
  }
 }
