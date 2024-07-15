@@ -183,7 +183,7 @@ end
 # parallel #
 # ======== #
 """
-    function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
+    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
 
 Start multiprocessing environment
 
