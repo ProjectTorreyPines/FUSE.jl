@@ -337,10 +337,6 @@ Pkg.add("PyCall");\
 Pkg.build("PyCall");\
 '
 
-# remove old packages
-cleanup:
-	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
-
 # setup ./docs environment to build documentation
 develop_docs:
 	julia -e '\
@@ -475,15 +471,6 @@ dd:
 # always expected to be expressions when coming out of init()
 init_expressions:
 	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
-
-# copy .JuliaFormatter.toml to all dependencies
-formatter:
-	julia -e '\
-using Pkg;\
-Pkg.activate();\
-Pkg.add(["JuliaFormatter"]);\
-'
-	$(foreach package, ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
 
 # create an empty commit
 empty_commit:
