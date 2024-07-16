@@ -91,17 +91,19 @@ nuke_julia:
 	mkdir -p $(JULIA_DIR)
 	mv $(call realpath,$(JULIA_DIR))/../asddsaasddsa $(JULIA_PKG_DEVDIR)
 
-# install the GAregistry to the list of Julia registries
+# install the FuseRegistry to the list of Julia registries
 registry:
-	julia -e 'using Pkg;Pkg.add("Revise")' # call this first to make sure General registry gets installed
-	if [ ! -d "$(JULIA_PKG_REGDIR)" ]; then mkdir -p $(JULIA_PKG_REGDIR); fi
-	cd $(JULIA_PKG_REGDIR);\
-	if [ ! -d "$(JULIA_PKG_REGDIR)/GAregistry" ]; then git clone git@github.com:ProjectTorreyPines/GAregistry.git GAregistry ; fi
-	julia -e 'using Pkg; Pkg.Registry.update("GAregistry"); Pkg.add("LocalRegistry")'
+	julia -e 'using Pkg; Pkg.add("Revise"); pkg"registry add git@github.com:ProjectTorreyPines/FuseRegistry.jl.git"; Pkg.add("LocalRegistry")'
 
-# register all packages that are under development
+# register a private version of a package (using SSH), like this:
+# >> make register repo=IMASDD
 register:
-	$(foreach package,$(DEV_PACKAGES),julia -e 'println("$(package)"); using Pkg; Pkg.Registry.update("GAregistry"); Pkg.activate(""); using LocalRegistry; LocalRegistry.is_dirty(path, gitconfig)= false; register("$(package)", registry="GAregistry")';)
+	julia -e '\
+using Pkg;\
+Pkg.Registry.update("FuseRegistry");\
+Pkg.activate("");\
+using LocalRegistry;\
+LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
 
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
 develop:
@@ -491,11 +493,53 @@ empty_commit:
 # GitHub merge of `branch` into `master` for a series of repos
 # >> make branch_master branch=my_branch repos='FUSE IMAS IMASDD'
 branch_master:
+ifeq ($(repos),)
+	$(error repos variable is not set)
+endif
 	$(foreach rp,$(repos), \
 curl -X POST \
 -H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
 -H "Accept: application/vnd.github.v3+json" \
 https://api.github.com/repos/ProjectTorreyPines/$(rp).jl/merges \
 -d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
+
+# update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
+# The starting information is taken from IMASDD.jl and moved to the target repo
+# >> make apache repo=CHEASE
+# in addition, one must add the DOCUMENTER_KEY to the repo
+# https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
+apache:
+ifeq ($(repo),)
+	$(error repo variable is not set)
+endif
+	echo $(repo)
+	cp ../IMASDD/LICENSE ../$(repo)/ ;\
+\
+cp ../IMASDD/NOTICE.md ../$(repo)/ ;\
+sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
+\
+mkdir -p ../$(repo)/.github/workflows ;\
+cp ../IMASDD/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASDD/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASDD/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
+\
+cp ../IMASDD/README.md ../$(repo)/ ;\
+sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
+\
+cp -R ../IMASDD/docs ../$(repo)/ ;\
+sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
+echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
+rm ../$(repo)/docs/Manifest.toml ;\
+rm -rf ../$(repo)/docs/build ;\
+\
+cp -R ../IMASDD/.JuliaFormatter.toml ../$(repo)/ ;\
+\
+cp -R ../IMASDD/.gitignore ../$(repo)/ ;\
+\
+julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
+
+# loop over all FUSE packages
+all_apache:
+	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) apache repo=$(package);)
 
 .PHONY:

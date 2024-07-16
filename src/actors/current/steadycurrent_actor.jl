@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: P
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "allows the plasma current to increase or decrease based on the non-inductive current"; default=false)
+    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
@@ -40,27 +40,21 @@ end
 function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
     par = actor.par
+
     eqt = dd.equilibrium.time_slice[]
     cpg = dd.core_profiles.global_quantities
     cp1d = dd.core_profiles.profiles_1d[]
 
     ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)
-    if abs(ip_target) < abs(@ddtime(cpg.current_non_inductive))
-        if par.allow_floating_plasma_current
-            println("set j_ohmic to zero and allow ip to be floating")
-            cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
-        else
-            @warn "j_ohmic will change sign, as the non-inductive current $(round(@ddtime(cpg.current_non_inductive),digits=3)) has larger magnitude than ip_target $(round(ip_target,digits=3))"
-            IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
-        end
-    else
-        # update j_ohmic (this also restores j_tor, j_total as expressions)
-        IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
-    end
 
-    # update core_sources related to current
-    IMAS.bootstrap_source!(dd)
-    IMAS.ohmic_source!(dd)
+    # update j_ohmic
+    IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
+
+    # allow floating plasma current
+    current_non_inductive = trapz(cp1d.grid.area, cp1d.j_non_inductive)
+    if abs(ip_target) < abs(current_non_inductive) && par.allow_floating_plasma_current
+        cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
+    end
 
     return actor
 end

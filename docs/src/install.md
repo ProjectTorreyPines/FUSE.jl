@@ -103,14 +103,6 @@ To update Julia and make FUSE work under the new environment do as follows:
    make IJulia
    ```
 
-# Install CHEASE
-```
-mamba install -c conda-forge gfortran
-git clone https://gitlab.epfl.ch/spc/chease.git
-cd chease/src-f90
-make chease
-```
-
 # Install GACODE
 1. Download and Install Xquartz: https://www.xquartz.org
 

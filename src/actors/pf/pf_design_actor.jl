@@ -126,7 +126,7 @@ end
 """
     _finalize(actor::ActorPFdesign)
 
-Update actor.eq_out 2D equilibrium PSI based on coils currents
+Update actor.eqt2d_out 2D equilibrium PSI based on coils currents
 """
 function _finalize(actor::ActorPFdesign{D,P}) where {D<:Real,P<:Real}
     par = actor.par

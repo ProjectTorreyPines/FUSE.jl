@@ -287,7 +287,8 @@ function _step(actor::ActorHFSsizing)
 
     catch e
         print_details()
-        plot(old_build)
+        plot(eqt; cx=true)
+        plot!(old_build)
         display(plot!(dd.build; cx=false))
         dd.build = old_build
         rethrow(e)

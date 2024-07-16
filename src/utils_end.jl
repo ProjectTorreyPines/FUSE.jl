@@ -525,7 +525,8 @@ function digest(
         plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false)
-        plot!(p, dd.pf_active; time0, subplot=2)
+        plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
+        plot!(p, dd.build.pf_active.rail, subplot=2)
         display(p)
     end
 

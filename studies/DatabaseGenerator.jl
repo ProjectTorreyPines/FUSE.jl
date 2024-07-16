@@ -151,6 +151,6 @@ end
 
 function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
     cp1d = dd.core_profiles.profiles_1d[]
-    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1], zeff=cp1d.zeff[1])
+    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.t_i_average[1], zeff=cp1d.zeff[1])
 end
 
