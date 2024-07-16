@@ -114,7 +114,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
 
             # size the PF coils based on the currents they are carrying
-            size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=dd.requirements.coil_j_margin)
+            size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=dd.requirements.coil_j_margin, par.symmetric)
         end
     end
 
@@ -126,7 +126,7 @@ end
 """
     _finalize(actor::ActorPFdesign)
 
-Update actor.eq_out 2D equilibrium PSI based on coils currents
+Update actor.eqt2d_out 2D equilibrium PSI based on coils currents
 """
 function _finalize(actor::ActorPFdesign{D,P}) where {D<:Real,P<:Real}
     par = actor.par

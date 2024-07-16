@@ -20,6 +20,14 @@ Base.@kwdef mutable struct FUSEparameters__general{T} <: ParametersInitPlasma{T}
     dd::Entry{IMAS.dd} = Entry{IMAS.dd}("-", "`dd` to initialize from")
 end
 
+Base.@kwdef mutable struct FUSEparameters__rampup{T} <: ParametersInitPlasma{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :rampup
+    side::Switch{Symbol} = Switch{Symbol}([:hfs, :lfs], "-", "Side of the vacuum vessel where the plasma is limited at breakdown")
+    ends_at::Entry{Float64} = Entry{Float64}("s", "Until when does the rampup lasts")
+    diverted_at::Entry{Float64} = Entry{Float64}("s", "Time at which x-point is formed and plasma can peel-off the wall")
+end
+
 Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :equilibrium
@@ -45,12 +53,11 @@ end
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInitPlasma{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
-    greenwald_fraction::Entry{T} =
-        Entry{T}("-", "Line average electron density expressed as fraction of Greenwald density"; check=x -> @assert x > 0.0 "must be: greenwald_fraction > 0.0")
-    greenwald_fraction_ped::Entry{T} =
-        Entry{T}("-", "Pedestal electron density expressed as fraction of Greenwald density"; check=x -> @assert x > 0.0 "must be: greenwald_fraction_ped > 0.0")
-    ne_ped::Entry{T} = Entry{T}("m^-3", "Pedestal electron density"; check=x -> @assert x > 0.0 "must be: ne_ped > 0.0")
+    plasma_mode::Switch{Symbol} = Switch{Symbol}([:H_mode, :L_mode], "-", "Plasma configuration"; default=:H_mode)
+    ne_value::Entry{T} = Entry{T}("-", "Value based on setup method"; check=x -> @assert x > 0.0 "must be > 0.0")
+    ne_setting ::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
     w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
+    ne_sep_to_ped_ratio::Entry{T} = Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
@@ -150,6 +157,7 @@ mutable struct ParametersInitsPlasma{T<:Real} <: ParametersAllInits{T}
     equilibrium::FUSEparameters__equilibrium{T}
     core_profiles::FUSEparameters__core_profiles{T}
     pf_active::FUSEparameters__pf_active{T}
+    rampup::FUSEparameters__rampup{T}
     nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
     ec_launcher::ParametersVector{FUSEparameters__ec_launcher{T}}
     pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
@@ -167,6 +175,7 @@ function ParametersInitsPlasma{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic:
         FUSEparameters__equilibrium{T}(),
         FUSEparameters__core_profiles{T}(),
         FUSEparameters__pf_active{T}(),
+        FUSEparameters__rampup{T}(),
         ParametersVector{FUSEparameters__nb_unit{T}}(),
         ParametersVector{FUSEparameters__ec_launcher{T}}(),
         ParametersVector{FUSEparameters__pellet_launcher{T}}(),

@@ -95,6 +95,11 @@ end
 Adjusts costs assessed in a previous year to current or future dollar amount
 """
 function future_dollars(dollars::Real, da::DollarAdjust)
+
+    if dollars == 0.0
+        return 0.0
+    end
+
     CPI = load_inflation_rate()
 
     # from old dollars to current dollars
@@ -193,5 +198,5 @@ function bop_powers(bop::IMAS.balance_of_plant)
         power_electric_net = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.power_electric_net))
     end
 
-    return total_useful_heat_power, power_electric_generated, power_electric_net
+    return (total_useful_heat_power=total_useful_heat_power, power_electric_generated=power_electric_generated, power_electric_net=power_electric_net)
 end

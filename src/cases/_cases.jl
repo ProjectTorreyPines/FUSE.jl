@@ -16,8 +16,36 @@ test_cases["SPARC"] = ([:SPARC], Dict())
 test_cases["KDEMO"] = ([:KDEMO], Dict())
 test_cases["DTT"] = ([:DTT], Dict())
 test_cases["EXCITE"] = ([:EXCITE], Dict())
-test_cases["EXCITE"] = ([:EXCITE], Dict())
+test_cases["MANTA"] = ([:MANTA], Dict())
 test_cases["STEP"] = ([:STEP], Dict(:init_from => :scalars, :pf_from=>:ods))
+
+
+"""
+    test(testname::String, dd::IMAS.DD; sol::Bool=false, whole_facility::Bool=false)
+
+Convenience function used to run test cases as done by CI
+"""
+function test(testname::String, dd::IMAS.DD; sol::Bool=false, whole_facility::Bool=false)
+    if testname ∉ keys(test_cases)
+        error("`$testname` not recognized. Valid tests are: $(collect(keys(test_cases)))")
+    end
+
+    args, kw = test_cases[testname]
+    ini, act = case_parameters(args...; kw...)
+
+    init(dd, ini, act)
+
+    if sol
+        IMAS.sol(dd)
+    end
+
+    if whole_facility
+        FUSE.ActorWholeFacility(dd, act)
+    end
+
+    return act
+end
+
 #= ===== =#
 #  cases  #
 #= ===== =#

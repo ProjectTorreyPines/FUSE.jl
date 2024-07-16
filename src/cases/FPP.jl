@@ -52,20 +52,20 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 1
 
-    ini.equilibrium.B0 = 4.713171689711136
-    ini.equilibrium.R0 = 4.824432302041749
-    ini.equilibrium.ϵ = 0.2857142857142857
-    ini.equilibrium.κ = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.3826 + 0.5
-    ini.equilibrium.δ = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.7
-    ini.equilibrium.ζ = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.05
-    ini.equilibrium.𝚶 = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.2
-    ini.equilibrium.pressure_core = t -> ramp((t - Δt / 8) / Δt, 0.3) * 1.0e6 + 0.2e6
-    ini.equilibrium.ip = t -> ramp(t / Δt, 0.05) * 7.0e6 + ramp((t - Δt / 2) / (Δt / 2), 0.125) * 1.0E6
-    ini.equilibrium.xpoints = t -> step((t - Δt / 7) / (Δt / 2)) < 0.5 ? :none : :lower
+    ini.equilibrium.B0 = 4.7
+    ini.equilibrium.R0 = 4.8
+    ini.equilibrium.ϵ = 0.28
+    ini.equilibrium.κ = 0.8
+    ini.equilibrium.δ = 0.7
+    ini.equilibrium.ζ = 0.1
+    ini.equilibrium.𝚶 = 0.1
+    ini.equilibrium.pressure_core = 1.2e6
+    ini.equilibrium.ip = 8.0e6
+    ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
 
-    ini.core_profiles.greenwald_fraction = 1.0
-    ini.core_profiles.greenwald_fraction_ped = 0.7
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value = 0.1
     ini.core_profiles.T_ratio = 0.825
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 2.5
@@ -91,20 +91,14 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.ec_launcher[1].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 40000.0
+    ini.requirements.flattop_duration = 36000.0
     ini.requirements.tritium_breeding_ratio = 1.1
-
-    Δt = 200 # change pulse duration to change rate of change of plasma dynamics
-    ini.time.pulse_shedule_time_basis = range(0.0, Δt; step=Δt / 1000)
-    ini.time.simulation_start = Δt / 2
 
     #### ACT ####
 
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
     act.ActorEquilibrium.model = :TEQUILA
-
-    act.ActorTEQUILA.relax = 0.25
 
     # finalize
     set_new_base!(ini)

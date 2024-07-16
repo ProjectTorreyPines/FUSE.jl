@@ -8,8 +8,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T<:Real} <: Par
     max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
     #== display and debugging parameters ==#
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
@@ -51,9 +51,16 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
     if act.ActorCoreTransport.model == :FluxMatcher
-        actor_ped = ActorPedestal(dd, act.ActorPedestal; ip_from=:core_profiles, βn_from=:equilibrium, ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule)
-        actor_ped.par.rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
-        actor_ped.par.rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+        actor_ped = ActorPedestal(
+            dd,
+            act.ActorPedestal,
+            act;
+            ip_from=:core_profiles,
+            βn_from=:equilibrium, 
+            ne_from=:pulse_schedule,
+            zeff_ped_from=:pulse_schedule,
+            rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
+            rho_ped=actor_tr.tr_actor.par.rho_transport[end])
     else
         actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
     end
@@ -98,22 +105,24 @@ function _step(actor::ActorStationaryPlasma)
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
-        # run HCD to get updated current drive
-        ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-        finalize(step(actor.actor_hc))
 
-        # evolve j_ohmic
-        ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-        finalize(step(actor.actor_jt))
-
-        # uless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
+        # unless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
+
             # get current and pressure profiles before updating them
             j_tor_before = cp1d.j_tor
             pressure_before = cp1d.pressure
 
             # core_profiles, core_sources, core_transport grids from latest equilibrium
             latest_equilibrium_grids!(dd)
+            
+            # run HCD to get updated current drive
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
+            finalize(step(actor.actor_hc))
+    
+            # evolve j_ohmic (because hcd has changed non-inductive current drive)
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
+            finalize(step(actor.actor_jt))
 
             # run transport actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
@@ -123,11 +132,7 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
 
-            # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-            finalize(step(actor.actor_hc))
-
-            # evolve j_ohmic
+            # evolve j_ohmic (because transport and pedestal have updated my bootstrap)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
@@ -136,8 +141,8 @@ function _step(actor::ActorStationaryPlasma)
             finalize(step(actor.actor_eq))
 
             # evaluate change in current and pressure profiles after the update
-            error_jtor = integrate(cp1d.grid.area, (cp1d.j_tor .- j_tor_before) .^ 2) / integrate(cp1d.grid.area, j_tor_before .^ 2)
-            error_pressure = integrate(cp1d.grid.volume, (cp1d.pressure .- pressure_before) .^ 2) / integrate(cp1d.grid.volume, pressure_before .^ 2)
+            error_jtor = trapz(cp1d.grid.area, (cp1d.j_tor .- j_tor_before) .^ 2) / trapz(cp1d.grid.area, j_tor_before .^ 2)
+            error_pressure = trapz(cp1d.grid.volume, (cp1d.pressure .- pressure_before) .^ 2) / trapz(cp1d.grid.volume, pressure_before .^ 2)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
@@ -191,7 +196,7 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
         ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
-        ("                 Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
     ]

@@ -91,7 +91,7 @@ function imas_dd_ids_names(extras::Bool=true)::Vector{String}
 end
 
 """
-    function imas_dd_ids(ids_name::String, extras::Bool=true)
+    imas_dd_ids(ids_name::String, extras::Bool=true)
 
 Read the IMAS data structures in OMAS JSON format, possibly including extra structures
 """
@@ -229,6 +229,13 @@ function imas_julia_struct(desired_structure::Vector{String})
     # here we loop over each julia structure
     is_structarray = false
     for branch in reverse(branches)
+
+        is_ggd = false
+        if any(contains(path, "grid_ggd") for path in branch)
+            is_ggd = true
+            @show branch
+        end
+
         h = ddict
         for item in branch
             h = h[item]
@@ -236,7 +243,9 @@ function imas_julia_struct(desired_structure::Vector{String})
 
         is_structarray = length(branch) > 0 && occursin("[", branch[end])
         if is_structarray
-            if join(branch, ".") ∈ timedep_structures
+            if is_ggd
+                struct_type = "IDSvectorRawElement{T}"
+            elseif join(branch, ".") ∈ timedep_structures
                 struct_type = "IDSvectorTimeElement{T}"
             else
                 struct_type = "IDSvectorStaticElement{T}"
@@ -245,6 +254,8 @@ function imas_julia_struct(desired_structure::Vector{String})
             struct_type = "DD{T}"
         elseif length(branch) == 1
             struct_type = "IDStop{T}"
+        elseif is_ggd
+            struct_type = "IDSraw{T}"
         else
             struct_type = "IDS{T}"
         end

@@ -69,7 +69,10 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.equilibrium.MXH_params = IMAS.flat_coeffs(IMAS.MXH(mxh_volume.r_boundary, mxh_volume.z_boundary))
 
     # Core_profiles parameters
-    ini.core_profiles.ne_ped = data_row[:NEL] / 1.4
+    ## This should become ne_line and ne_line matching!
+    ini.core_profiles.ne_setting = :ne_ped
+    ini.core_profiles.ne_value = data_row[:NEL] / 1.4
+    ##
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9

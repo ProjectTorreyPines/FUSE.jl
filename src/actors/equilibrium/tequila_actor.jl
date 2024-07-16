@@ -9,12 +9,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     _time::Float64 = NaN
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
-    number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=11)
-    number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=10)
+    number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=31)
+    number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=8)
     number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=4)
-    number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=20)
-    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
-    tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-3)
+    number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=1000)
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.3)
+    tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
@@ -87,15 +87,30 @@ function _step(actor::ActorTEQUILA)
 
     Fbnd = eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0
 
+    # see if boundary has not changed
+    same_boundary = false
+    if actor.shot !== nothing
+        if length(actor.old_boundary_outline_r) == length(eqt.boundary.outline.r)
+            if (sum(abs.(actor.old_boundary_outline_r .- eqt.boundary.outline.r)) + sum(abs.(actor.old_boundary_outline_z .- eqt.boundary.outline.z)))/length(eqt.boundary.outline.r) < 1E-3
+                same_boundary = true
+            end
+        end
+    end
+
     # TEQUILA shot
-    if actor.shot === nothing || actor.old_boundary_outline_r != eqt.boundary.outline.r || actor.old_boundary_outline_z != eqt.boundary.outline.z
+    if actor.shot === nothing || !same_boundary
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
-        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
+        n = length(pr)
+        ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz)^2)) / 2.0
+        pr, pz = limit_curvature(pr, pz, ab / 10.0)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * n, method=:linear)
         mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
         concentric_first = true
+        actor.old_boundary_outline_r = eqt.boundary.outline.r
+        actor.old_boundary_outline_z = eqt.boundary.outline.z
     else
         # reuse flux surface information if boundary has not changed
         actor.shot = TEQUILA.Shot(actor.shot; P, Jt, Pbnd, Fbnd, Ip_target)
@@ -113,9 +128,6 @@ function _step(actor::ActorTEQUILA)
 
         rethrow(e)
     end
-
-    actor.old_boundary_outline_r = eqt.boundary.outline.r
-    actor.old_boundary_outline_z = eqt.boundary.outline.z
 
     return actor
 end
@@ -179,31 +191,19 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
 
     # RZ
     if ismissing(par, :Z)
+        Zdim = κ * 1.6 * a
         nz_grid = nψ_grid
-        if !isempty(dd.wall.description_2d)
-            wall = IMAS.first_wall(dd.wall)
-            Zgrid = range(minimum(wall.z), maximum(wall.z), nz_grid)
-        else
-            Zdim = κ * 1.6 * a
-            Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
-        end
+        Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
     else
         Zgrid = par.Z
+        Zdim = abs(-(extrema(Zgrid)...)) / 2
         nz_grid = length(Zgrid)
     end
-    Zdim = abs(-(extrema(Zgrid)...)) / 2
 
     if ismissing(par, :R)
-        if !isempty(dd.wall.description_2d)
-            wall = IMAS.first_wall(dd.wall)
-            Rdim = (maximum(wall.r) - minimum(wall.r)) / 2
-            nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
-            Rgrid = range(minimum(wall.r), maximum(wall.r), nr_grid)
-        else
-            Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
-            nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
-            Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
-        end
+        Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
+        nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+        Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
     else
         Rgrid = par.R
         Rdim = abs(-(extrema(Rgrid)...)) / 2
@@ -217,32 +217,31 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
     eq2d.psi = fill(Inf, (length(eq2d.grid.dim1), length(eq2d.grid.dim2)))
 
     if free_boundary
-        pr = eqt.boundary.outline.r
-        pz = eqt.boundary.outline.z
-        pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
-
-        # Flux Control Points
+        # Boundary control points
         flux_cps = VacuumFields.boundary_control_points(shot, 0.999, psib)
+
+        # Flux control points
         if !isempty(eqt.boundary.strike_point)
-            strike_weight = length(flux_cps) / length(eqt.boundary.strike_point)
-            strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
+            strike_weight = 0.01
+            strike_cps = VacuumFields.FluxControlPoint{Float64}[VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
             append!(flux_cps, strike_cps)
         end
 
-        # Saddle Control Points
-        saddle_weight = length(flux_cps) / length(eqt.boundary.x_point)
-        saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        # Saddle control points
+        saddle_weight = 0.01
+        saddle_cps = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
+        # Coils locations
         if isempty(dd.pf_active.coil)
-            coils = encircling_coils(pr, pz, RA, ZA, 8)
+            coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
             coils = IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
         end
 
-        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound=psib, λ_regularize=-1.0)
+        # from fixed boundary to free boundary via VacuumFields
+        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         eq2d.psi .= psi_free_rz'
 
-        IMAS.tweak_psi_to_match_psilcfs!(eqt; ψbound)
         pf_current_limits(dd.pf_active, dd.build)
 
     else

@@ -117,7 +117,7 @@ NOTES:
 * If j_ohmic profile is missing then steady state ohmic profile is assumed
 """
 function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
-    return abs(integrate(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * (requirements.flattop_duration) # V*s
+    return abs(trapz(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * (requirements.flattop_duration) # V*s
 end
 
 """
