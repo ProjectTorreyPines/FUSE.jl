@@ -91,7 +91,8 @@ function _step(actor::ActorTEQUILA)
     same_boundary = false
     if actor.shot !== nothing
         if length(actor.old_boundary_outline_r) == length(eqt.boundary.outline.r)
-            if (sum(abs.(actor.old_boundary_outline_r .- eqt.boundary.outline.r)) + sum(abs.(actor.old_boundary_outline_z .- eqt.boundary.outline.z)))/length(eqt.boundary.outline.r) < 1E-3
+            if (sum(abs.(actor.old_boundary_outline_r .- eqt.boundary.outline.r)) + sum(abs.(actor.old_boundary_outline_z .- eqt.boundary.outline.z))) /
+               length(eqt.boundary.outline.r) < 1E-3
                 same_boundary = true
             end
         end
@@ -222,7 +223,9 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
         # Flux control points
         if !isempty(eqt.boundary.strike_point)
             strike_weight = 0.01
-            strike_cps = VacuumFields.FluxControlPoint{Float64}[VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+            strike_cps = VacuumFields.FluxControlPoint{Float64}[
+                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
+            ]
             append!(flux_cps, strike_cps)
         end
 
