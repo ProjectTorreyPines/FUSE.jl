@@ -159,7 +159,17 @@ function _step(actor::ActorFluxMatcher)
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
-        display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
+
+        channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
+        nchannels = Int(size(channels_evolution)[2]/length(par.rho_transport))
+        data = reshape(channels_evolution, (length(err_history),length(par.rho_transport),nchannels))
+        p = plot()
+        for ch in 1:nchannels
+            for kr in 1:length(par.rho_transport)
+                plot!(data[:,kr,ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label="channel $ch")
+            end
+        end
+        display(p)
 
         N_channels = Int(floor(length(z_init_scaled) / length(par.rho_transport)))
         p = plot(; layout=(N_channels, 2), size=(1000, 1000))
