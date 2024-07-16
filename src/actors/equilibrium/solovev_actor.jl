@@ -1,5 +1,4 @@
 import MXHEquilibrium
-import EFIT
 import Optim
 
 #= ============ =#
