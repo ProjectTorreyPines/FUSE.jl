@@ -95,15 +95,19 @@ nuke_julia:
 registry:
 	julia -e 'using Pkg; Pkg.add("Revise"); pkg"registry add git@github.com:ProjectTorreyPines/FuseRegistry.jl.git"; Pkg.add("LocalRegistry")'
 
-# register a private version of a package (using SSH), like this:
+# register a package to FuseRegistry
 # >> make register repo=IMASDD
 register:
 	julia -e '\
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
-Pkg.activate("");\
+Pkg.activate();\
 using LocalRegistry;\
 LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
+
+# register all packages with FuseRegistry
+all_register:
+	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) register repo=$(package);)
 
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
 develop:
@@ -541,7 +545,8 @@ awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "ver
 git -C ../$(repo) add Project.toml ;\
 git -C ../$(repo) commit -m "v$${new_version}" ;\
 git -C ../$(repo) tag -d v$${new_version} ;\
-git -C ../$(repo) tag -a v$${new_version} -m "v$${new_version}"
+git -C ../$(repo) tag -a v$${new_version} -m "v$${new_version}" ;\
+git -C ../$(repo) push
 
 # loop over FUSE packages and bump up their versions
 # >> make bump_versions repos="IMAS IMASDD"
@@ -552,7 +557,7 @@ endif
 	$(foreach package,$(repos), $(MAKE) bump_version repo=$(package);)
 
 # loop over all FUSE packages and bump up their versions
-all_bump_versions:
+all_bump_version:
 	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) bump_version repo=$(package);)
 
 
