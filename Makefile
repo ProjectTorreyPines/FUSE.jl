@@ -496,11 +496,11 @@ branch_master:
 ifeq ($(repos),)
 	$(error repos variable is not set)
 endif
-	$(foreach rp,$(repos), \
+	$(foreach repo,$(repos), \
 curl -X POST \
 -H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
 -H "Accept: application/vnd.github.v3+json" \
-https://api.github.com/repos/ProjectTorreyPines/$(rp).jl/merges \
+https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
 -d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 # update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
@@ -541,5 +541,32 @@ julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; Docume
 # loop over all FUSE packages
 all_apache:
 	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) apache repo=$(package);)
+
+# bump patch version of a repo
+# >> make bump_version repo=IMAS
+bump_version:
+ifeq ($(repo),)
+	$(error repo variable is not set)
+endif
+	echo $(repo) ;\
+new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
+awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+git -C ../$(repo) add Project.toml ;\
+git -C ../$(repo) commit -m "v$${new_version}" ;\
+git -C ../$(repo) tag -d v$${new_version} ;\
+git -C ../$(repo) tag -a v$${new_version} -m "v$${new_version}"
+
+# loop over FUSE packages and bump up their versions
+# >> make bump_versions repos="IMAS IMASDD"
+bump_versions:
+ifeq ($(repos),)
+	$(error repos variable is not set)
+endif
+	$(foreach package,$(repos), $(MAKE) bump_version repo=$(package);)
+
+# loop over all FUSE packages and bump up their versions
+all_bump_versions:
+	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) bump_version repo=$(package);)
+
 
 .PHONY:
