@@ -95,15 +95,19 @@ nuke_julia:
 registry:
 	julia -e 'using Pkg; Pkg.add("Revise"); pkg"registry add git@github.com:ProjectTorreyPines/FuseRegistry.jl.git"; Pkg.add("LocalRegistry")'
 
-# register a private version of a package (using SSH), like this:
+# register a package to FuseRegistry
 # >> make register repo=IMASDD
 register:
 	julia -e '\
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
-Pkg.activate("");\
+Pkg.activate();\
 using LocalRegistry;\
 LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
+
+# register all packages with FuseRegistry
+all_register:
+	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) register repo=$(package);)
 
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
 develop:
@@ -340,10 +344,6 @@ Pkg.add("PyCall");\
 Pkg.build("PyCall");\
 '
 
-# remove old packages
-cleanup:
-	julia -e 'using Pkg; using Dates; Pkg.gc(; collect_delay=Dates.Day(0))'
-
 # setup ./docs environment to build documentation
 develop_docs:
 	julia -e '\
@@ -424,47 +424,17 @@ manifest_ci_commit:
 	git fetch
 	git checkout manifest
 	git merge master
-	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)/git/g' Manifest.toml > Manifest_CI.toml
+	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)@/https:\\/\\//g' Manifest.toml > Manifest_CI.toml
 	git add Manifest_CI.toml
 	git commit --allow-empty -m "Manifest $(TODAY)"
 	git push --set-upstream origin manifest
 endif
 
-# merge manifest branch into the current branch
-merge_manifest_ci:
-	git merge origin/manifest
-
-# merges the Manifest_CI.toml into Manifest.toml
-# this is useful to get the same environment where the CI passed regression tests
-manifest_ci: merge_manifest_ci
-	julia -e ';\
-using TOML;\
-;\
-Manifest_path = "$(CURRENTDIR)/Manifest.toml";\
-Manifest = TOML.parse(read(Manifest_path, String));\
-;\
-Manifest_CI_path = "$(CURRENTDIR)/Manifest_CI.toml";\
-Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
-;\
-for dep_name in sort!(collect(keys(Manifest_CI["deps"])));\
-    depCI = Manifest_CI["deps"][dep_name][1];\
-    if dep_name ∉ keys(Manifest["deps"]);\
-        continue;\
-    end;\
-    dep = Manifest["deps"][dep_name][1];\
-    if "repo-url" in keys(depCI);\
-        println(dep_name);\
-        Manifest_CI["deps"][dep_name][1] = dep;\
-    elseif "version" ∈ keys(depCI) && dep["version"] != depCI["version"];\
-        println("$$dep_name $$(dep["version"]) => $$(depCI["version"])");\
-    end;\
-end;\
-;\
-open(Manifest_path, "w") do io;\
-    TOML.print(io, Manifest_CI);\
-end;\
-'
-	julia -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
+# run julia using the Manifest_CI.toml
+manifest_ci:
+	@TEMP_DIR=$$(mktemp -d /var/tmp/manifest_ci.XXXXXX) && echo $$TEMP_DIR &&\
+	sed "s/git@/https:\\/\\//g" Manifest_CI.toml > $$TEMP_DIR/Manifest.toml && \
+	cd $$TEMP_DIR && julia -i -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
 
 # remove all Manifest.toml files
 rm_manifests:
@@ -479,15 +449,6 @@ dd:
 init_expressions:
 	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
 
-# copy .JuliaFormatter.toml to all dependencies
-formatter:
-	julia -e '\
-using Pkg;\
-Pkg.activate();\
-Pkg.add(["JuliaFormatter"]);\
-'
-	$(foreach package, ServeFUSE $(FUSE_PACKAGES_MAKEFILE),cp .JuliaFormatter.toml ../$(package)/;)
-
 # create an empty commit
 empty_commit:
 	git reset HEAD
@@ -499,11 +460,11 @@ branch_master:
 ifeq ($(repos),)
 	$(error repos variable is not set)
 endif
-	$(foreach rp,$(repos), \
+	$(foreach repo,$(repos), \
 curl -X POST \
 -H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
 -H "Accept: application/vnd.github.v3+json" \
-https://api.github.com/repos/ProjectTorreyPines/$(rp).jl/merges \
+https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
 -d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 # update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
@@ -544,5 +505,49 @@ julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; Docume
 # loop over all FUSE packages
 all_apache:
 	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) apache repo=$(package);)
+
+# bump patch version of a repo
+# >> make bump_version repo=IMAS
+bump_version:
+ifeq ($(repo),)
+	$(error repo variable is not set)
+endif
+	echo $(repo) ;\
+new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
+awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+git -C ../$(repo) add Project.toml ;\
+git -C ../$(repo) commit -m "v$${new_version}" ;\
+git -C ../$(repo) tag -d v$${new_version} ;\
+git -C ../$(repo) tag -a v$${new_version} -m "v$${new_version}" ;\
+git -C ../$(repo) push
+
+# loop over FUSE packages and bump up their versions
+# >> make bump_versions repos="IMAS IMASDD"
+bump_versions:
+ifeq ($(repos),)
+	$(error repos variable is not set)
+endif
+	$(foreach package,$(repos), $(MAKE) bump_version repo=$(package);)
+
+# loop over all FUSE packages and bump up their versions
+all_bump_version:
+	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) bump_version repo=$(package);)
+
+# print dependency tree of the packages in dev folder
+dev_deps_tree:
+	julia -e' ;\
+using AbstractTrees ;\
+using Pkg ;\
+function AbstractTrees.printnode(io::IO, uuid::Base.UUID) ;\
+    dep = get(Pkg.dependencies(), uuid, nothing) ;\
+    print(io, dep.name) ;\
+end ;\
+function AbstractTrees.children(uuid::Base.UUID) ;\
+    dep = get(Pkg.dependencies(), uuid, nothing) ;\
+    dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+    tmp= sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
+end ;\
+AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
+'
 
 .PHONY:

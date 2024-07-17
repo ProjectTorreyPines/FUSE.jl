@@ -55,7 +55,9 @@ function _step(actor::ActorCHEASE)
     # boundary
     pr = eqt.boundary.outline.r
     pz = eqt.boundary.outline.z
-    pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
+    ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
+    pr, pz = limit_curvature(pr, pz, ab / 20.0)
+    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * length(pr), method=:linear)
 
     # scalars
     Ip = eqt.global_quantities.ip
@@ -111,7 +113,9 @@ function _finalize(actor::ActorCHEASE)
         # Flux control points
         if !isempty(eqt.boundary.strike_point)
             strike_weight = 0.01
-            strike_cps = VacuumFields.FluxControlPoint{Float64}[VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+            strike_cps = VacuumFields.FluxControlPoint{Float64}[
+                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
+            ]
             append!(flux_cps, strike_cps)
         end
 

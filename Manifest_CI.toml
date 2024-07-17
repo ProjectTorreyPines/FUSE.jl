@@ -814,7 +814,7 @@ version = "0.2.0"
 
 [[deps.EPEDNN]]
 deps = ["BSON", "Dates", "Flux", "Memoize"]
-git-tree-sha1 = "406f6f33637f8f0cc9220889fe9c62a2a42195fa"
+git-tree-sha1 = "5959ca6300cb18617c19ec18c0a356725b1ecdf7"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/EPEDNN.jl.git"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503991"
