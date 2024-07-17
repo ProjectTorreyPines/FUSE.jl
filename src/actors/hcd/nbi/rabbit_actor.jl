@@ -152,7 +152,7 @@ function FUSEtoRABBITinput(dd::IMAS.dd)
 
         inp.psi = eqt.profiles_1d.psi ./ 2pi
         inp.vol = eqt.profiles_1d.volume
-        inp.area = eqt.profiles_1d.area .* 0.0 # this is zeroed out in OMFITrabbitEq class
+        inp.area = eqt.profiles_1d.area
 
         cp1d = dd.core_profiles.profiles_1d[time]
 
@@ -164,23 +164,13 @@ function FUSEtoRABBITinput(dd::IMAS.dd)
         inp.dene = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density).(inp.rho) .* cm3_to_m3
         inp.rot_freq_tor = inp.rho .* 0.0
         inp.zeff = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(inp.rho)
-
-        for i in 2:length(cp1d.ion)
-            @assert cp1d.ion[1].temperature == cp1d.ion[i].temperature "All ion temperatures should be the same"
-        end
-        inp.ti = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature).(inp.rho) .* eV_to_keV
+        inp.ti = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(inp.rho) .* eV_to_keV
 
         pnbis = Float64[]
         for ps in dd.pulse_schedule.nbi.unit
             push!(pnbis, IMAS.get_time_array(ps.power, :reference, time))
         end
-
-        if length(eq.time_slice) > 2
-            times = ones(length(eq.time_slice) - 1)
-        else
-            times = ones(2)
-        end
-        inp.pnbi = pnbis .* times
+        inp.pnbi = pnbis
 
         inp.n_sources = length(dd.nbi.unit)
         inp.injection_energy = dd.nbi.unit[1].energy.data
