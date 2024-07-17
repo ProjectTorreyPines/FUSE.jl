@@ -421,47 +421,17 @@ manifest_ci_commit:
 	git fetch
 	git checkout manifest
 	git merge master
-	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)/git/g' Manifest.toml > Manifest_CI.toml
+	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)@/https:\\/\\//g' Manifest.toml > Manifest_CI.toml
 	git add Manifest_CI.toml
 	git commit --allow-empty -m "Manifest $(TODAY)"
 	git push --set-upstream origin manifest
 endif
 
-# merge manifest branch into the current branch
-merge_manifest_ci:
-	git merge origin/manifest
-
-# merges the Manifest_CI.toml into Manifest.toml
-# this is useful to get the same environment where the CI passed regression tests
-manifest_ci: merge_manifest_ci
-	julia -e ';\
-using TOML;\
-;\
-Manifest_path = "$(CURRENTDIR)/Manifest.toml";\
-Manifest = TOML.parse(read(Manifest_path, String));\
-;\
-Manifest_CI_path = "$(CURRENTDIR)/Manifest_CI.toml";\
-Manifest_CI = TOML.parse(read(Manifest_CI_path, String));\
-;\
-for dep_name in sort!(collect(keys(Manifest_CI["deps"])));\
-    depCI = Manifest_CI["deps"][dep_name][1];\
-    if dep_name ∉ keys(Manifest["deps"]);\
-        continue;\
-    end;\
-    dep = Manifest["deps"][dep_name][1];\
-    if "repo-url" in keys(depCI);\
-        println(dep_name);\
-        Manifest_CI["deps"][dep_name][1] = dep;\
-    elseif "version" ∈ keys(depCI) && dep["version"] != depCI["version"];\
-        println("$$dep_name $$(dep["version"]) => $$(depCI["version"])");\
-    end;\
-end;\
-;\
-open(Manifest_path, "w") do io;\
-    TOML.print(io, Manifest_CI);\
-end;\
-'
-	julia -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
+# run julia using the Manifest_CI.toml
+manifest_ci:
+	@TEMP_DIR=$$(mktemp -d /var/tmp/manifest_ci.XXXXXX) && echo $$TEMP_DIR &&\
+	sed "s/git@/https:\\/\\//g" Manifest_CI.toml > $$TEMP_DIR/Manifest.toml && \
+	cd $$TEMP_DIR && julia -i -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
 
 # remove all Manifest.toml files
 rm_manifests:
