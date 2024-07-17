@@ -530,5 +530,21 @@ endif
 all_bump_version:
 	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) bump_version repo=$(package);)
 
+# print dependency tree of the packages in dev folder
+dev_deps_tree:
+	julia -e' ;\
+using AbstractTrees ;\
+using Pkg ;\
+function AbstractTrees.printnode(io::IO, uuid::Base.UUID) ;\
+    dep = get(Pkg.dependencies(), uuid, nothing) ;\
+    print(io, dep.name) ;\
+end ;\
+function AbstractTrees.children(uuid::Base.UUID) ;\
+    dep = get(Pkg.dependencies(), uuid, nothing) ;\
+    dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+    tmp= sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
+end ;\
+AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
+'
 
 .PHONY:
