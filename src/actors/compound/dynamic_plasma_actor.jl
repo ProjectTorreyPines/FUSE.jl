@@ -265,6 +265,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
     plot!(dd.build; legend=false, subplot)
     plot!(dd.pf_active; time0, subplot, colorbar=:none, axis=false)
+    plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
 
     # core_profiles temperatures
     subplot = 3
