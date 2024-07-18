@@ -10,10 +10,8 @@ end
 
 const log_topics = Dict{Symbol,Logging.LogLevel}()
 
-# initialize logging level to `Error` for the different topics
-for topic in (:actors,)
-    log_topics[topic] = Logging.Error
-end
+# initialize logging level for different topics
+log_topics[:actors] = Logging.Info
 
 """
     logging(level::Logging.LogLevel, topic::Symbol, text::AbstractString)
