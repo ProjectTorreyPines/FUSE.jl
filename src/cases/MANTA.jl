@@ -71,7 +71,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.oh.n_coils = 6
     ini.oh.technology = :rebco
 
-    ini.ic_antenna[1].power_launched = 4.0e6
+    ini.ic_antenna[1].power_launched = 40.e6
 
     ini.requirements.power_electric_net = 90e6
     ini.requirements.tritium_breeding_ratio = 1.15
