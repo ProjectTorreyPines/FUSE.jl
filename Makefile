@@ -445,7 +445,7 @@ rm_manifests:
 
 # update dd from the json files
 dd:
-	julia generate_dd/generate_dd.jl
+	julia -e 'import GenerateDD; GenerateDD.generate_dd()'
 
 # generates init_expressions.json file, which lists entries that are
 # always expected to be expressions when coming out of init()
