@@ -7,7 +7,20 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
 
 Once installed, restart your termninal to pick-up the `julia` executable
 
-## FUSE installation
+## FUSE installation for users
+
+FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
+
+For installation:
+
+```julia
+using Pkg
+Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+Pkg.Registry.add("General")
+Pkg.add("FUSE")
+```
+
+## FUSE installation for developers
 1. Clone the FUSE repository under the `~/.julia/dev` folder ():
 
    ```bash
