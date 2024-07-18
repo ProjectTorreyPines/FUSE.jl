@@ -61,7 +61,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :rebco
 
-    ini.tf.shape = :rectangle
+    ini.tf.shape = :racetrack
     ini.tf.n_coils = 18
     ini.tf.technology = :rebco
 

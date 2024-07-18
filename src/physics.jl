@@ -23,7 +23,8 @@ function layer_shape_message(shape_function_index)
              8: miller             (shape_parameters = [elongation, triangularity])
              9: square_miller      (shape_parameters = [elongation, triangularity, squareness])
             10: spline             (shape_parameters = [hfact, rz...)
-            11: silo               (shape_parameters = [h_start, h_end)
+            11: racetrack          (shape_parameters = [height, radius_ratio])
+            12: silo               (shape_parameters = [h_start, h_end)
            10x: shape + z_offset   (shape_parameters = [..., z_offset])
           100x: negative shape     (shape_parameters = [...])"
 end
@@ -59,6 +60,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             shape_parameters = [centerpost_height, height]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
+        elseif shape_index_mod == Int(_racetrack_)
+            shape_parameters = [height, 0.25]
         elseif shape_index_mod == Int(_triple_arc_)
             shape_parameters = [height, 0.5, 0.5, 45, 45]
         elseif shape_index_mod ∈ (Int(_miller_), Int(_square_miller_))
@@ -114,6 +117,8 @@ function shape_function(shape_function_index::Int; resolution::Float64)
             func = double_ellipse
         elseif shape_index_mod == Int(_rectangle_)
             func = rectangle_shape
+        elseif shape_index_mod == Int(_racetrack_)
+            func = racetrack
         elseif shape_index_mod == Int(_triple_arc_)
             func = triple_arc
         elseif shape_index_mod == Int(_miller_)
@@ -486,13 +491,39 @@ function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::In
 end
 
 """
-    rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5) where {T<:Real}
+    rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5, resolution::Float64=0.0) where {T<:Real}
 
 Symmetric rectangular shape
 """
 function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=400, resolution::Float64=0.0) where {T<:Real}
     Δ = height / 2.0
     return rectangle_shape(r_start, r_end, -Δ, Δ; n_points, resolution)
+end
+
+"""
+    racetrack(r_start::T, r_end::T, z_low::T, z_high::T, radius_ratio::T; n_points::Int=5, resolution::Float64=0.0) where {T<:Real}
+
+Asymmetric racetrack shape
+"""
+function racetrack(r_start::T, r_end::T, z_low::T, z_high::T, radius_ratio::T; n_points::Int=400, resolution::Float64=1.0) where {T<:Real}
+    R, Z = rectangle_shape(r_start, r_end, z_low, z_high; n_points, resolution)
+    if radius_ratio != 0.0
+        radius_ratio = mirror_bound(abs(radius_ratio), 0.0, 1.0 - 1E-3)
+        radius = min((z_high - z_low), (r_end - r_start)) / 2.0 * radius_ratio
+        R, Z = buffer(R, Z, -radius)
+        R, Z = buffer(R, Z, +radius)
+    end
+    return R, Z
+end
+
+"""
+    racetrack(r_start::T, r_end::T, height::T, radius_ratio::T; n_points::Integer=5, resolution::Float64=0.0) where {T<:Real}
+
+Symmetric racetrack shape
+"""
+function racetrack(r_start::T, r_end::T, height::T, radius_ratio::T; n_points::Integer=400, resolution::Float64=1.0) where {T<:Real}
+    Δ = height / 2.0
+    return racetrack(r_start, r_end, -Δ, Δ, radius_ratio; n_points, resolution)
 end
 
 """
