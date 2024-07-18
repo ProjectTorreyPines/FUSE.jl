@@ -284,11 +284,12 @@ function optimize_outline(
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
             shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature),
-            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options())
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(iterations=10000,f_tol=1E-4,x_tol=1E-3))
+        shape_parameters = Optim.minimizer(res)
         if verbose
+            cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature, verbose=true)
             println(res)
         end
-        shape_parameters = Optim.minimizer(res)
     end
 
     # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
