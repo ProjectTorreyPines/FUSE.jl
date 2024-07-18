@@ -484,6 +484,7 @@ sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.
 \
 mkdir -p ../$(repo)/.github/workflows ;\
 cp ../IMASDD/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASDD/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
 cp ../IMASDD/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
 cp ../IMASDD/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
 \
