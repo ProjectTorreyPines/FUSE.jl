@@ -270,14 +270,14 @@ function optimize_outline(
                 @show target_clearance
                 @show minimum_distance
                 @show cost_min_clearance^2
-                @show cost_mean_distance^2
+                @show (cost_mean_distance - cost_min_clearance)^2
                 @show cost_inside^2
                 @show cost_max_curvature^2
                 println()
             end
 
             # return cost
-            return norm((cost_min_clearance, cost_mean_distance, cost_inside, cost_max_curvature))
+            return norm((cost_min_clearance, (cost_mean_distance - cost_min_clearance), cost_inside, cost_max_curvature))
         end
 
         initial_guess = copy(shape_parameters)
@@ -466,9 +466,11 @@ function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n
 end
 
 """
-    rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=5) where {T<:Real}
+    rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
 
 Asymmetric rectangular shape
+
+NOTE: by default resolution=0, which returns 5 points
 """
 function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
     if resolution == 0.0
@@ -491,9 +493,11 @@ function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::In
 end
 
 """
-    rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=5, resolution::Float64=0.0) where {T<:Real}
+    rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=400, resolution::Float64=0.0) where {T<:Real}
 
 Symmetric rectangular shape
+
+NOTE: by default resolution=0, which returns 5 points
 """
 function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=400, resolution::Float64=0.0) where {T<:Real}
     Δ = height / 2.0
@@ -501,7 +505,7 @@ function rectangle_shape(r_start::T, r_end::T, height::T; n_points::Integer=400,
 end
 
 """
-    racetrack(r_start::T, r_end::T, z_low::T, z_high::T, radius_ratio::T; n_points::Int=5, resolution::Float64=0.0) where {T<:Real}
+    racetrack(r_start::T, r_end::T, z_low::T, z_high::T, radius_ratio::T; n_points::Int=400, resolution::Float64=1.0) where {T<:Real}
 
 Asymmetric racetrack shape
 """
@@ -517,7 +521,7 @@ function racetrack(r_start::T, r_end::T, z_low::T, z_high::T, radius_ratio::T; n
 end
 
 """
-    racetrack(r_start::T, r_end::T, height::T, radius_ratio::T; n_points::Integer=5, resolution::Float64=0.0) where {T<:Real}
+    racetrack(r_start::T, r_end::T, height::T, radius_ratio::T; n_points::Integer=400, resolution::Float64=1.0) where {T<:Real}
 
 Symmetric racetrack shape
 """
