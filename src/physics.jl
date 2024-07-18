@@ -252,7 +252,8 @@ function optimize_outline(
             end
 
             # target clearance  O(1)
-            minimum_distance, cost_mean_distance = IMAS.min_distance_error_two_shapes(Rv, Zv, r_obstruction, z_obstruction, target_clearance)
+            minimum_distance, mean_distance = IMAS.min_mean_distance_two_shapes(Rv, Zv, r_obstruction, z_obstruction)
+            cost_mean_distance = (mean_distance - target_clearance) / ((hfs_thickness + lfs_thickness) / 2.0)
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
@@ -270,14 +271,14 @@ function optimize_outline(
                 @show target_clearance
                 @show minimum_distance
                 @show cost_min_clearance^2
-                @show (cost_mean_distance - cost_min_clearance)^2
+                @show cost_mean_distance^2
                 @show cost_inside^2
                 @show cost_max_curvature^2
                 println()
             end
 
             # return cost
-            return norm((cost_min_clearance, (cost_mean_distance - cost_min_clearance), cost_inside, cost_max_curvature))
+            return norm((cost_min_clearance, cost_mean_distance, cost_inside, cost_max_curvature))
         end
 
         initial_guess = copy(shape_parameters)
