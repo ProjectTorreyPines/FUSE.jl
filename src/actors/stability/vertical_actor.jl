@@ -93,7 +93,6 @@ function _step(actor::ActorVerticalStability)
     image = VacuumFields.Image(eqt)
 
     coils = vcat(active_coils, passive_coils)
-
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
 
     for (k, coil) in enumerate(active_coils)
@@ -126,17 +125,17 @@ function _finalize(actor::ActorVerticalStability)
 
     # Stability margin
     mode = mhd.toroidal_mode[1]
-    mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability (N.B., not in Hz)"
+    mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability"
     mode.perturbation_type.name = "m_s"
     mode.n_tor = 0
-    mode.growthrate = actor.stability_margin # not in Hz
+    mode.metric = actor.stability_margin # not in Hz
 
     # Normalized growth rate
     mode = mhd.toroidal_mode[2]
-    mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability (N.B., not in Hz)"
+    mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability"
     mode.perturbation_type.name = "γτ"
     mode.n_tor = 0
-    mode.growthrate = actor.normalized_growth_rate # not in Hz
+    mode.metric = actor.normalized_growth_rate # not in Hz
 
     return actor
 end
