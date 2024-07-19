@@ -139,7 +139,7 @@ function _step(actor::ActorDynamicPlasma)
                     finalize(step(actor.actor_jt))
                 end
             else
-                IMAS.IMASDD.retime!(dd.core_profiles, tt)
+                IMAS.retime!(dd.core_profiles, tt)
 
                 # run transport actor
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
