@@ -98,6 +98,7 @@ registry:
 # register a package to FuseRegistry
 # >> make register repo=IMASDD
 register:
+	sed -i.bak "s/https:\/\/github.com\//git@github.com:/g" $(JULIA_DIR)/registries/FuseRegistry/.git/config && rm $(JULIA_DIR)/registries/FuseRegistry/.git/config.bak ;\	
 	julia -e '\
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
