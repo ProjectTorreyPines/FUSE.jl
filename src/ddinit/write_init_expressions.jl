@@ -33,7 +33,7 @@ Returns the intersection of initializing for all cases as a OrderedSet
 """
 function load_init_expressions()
     json_str = read(joinpath(__FUSE__, "src", "ddinit", "init_expressions.json"), String)
-    return OrderedCollections.OrderedSet(parse(json_str))
+    return OrderedCollections.OrderedSet(JSON.parse(json_str))
 end
 
 """
