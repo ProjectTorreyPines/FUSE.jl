@@ -222,26 +222,20 @@ function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_
     rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
 
     valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis)
+    r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
 
-    # normalized distance between -1 and 1
-    distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
-    distance = (distance .- distance[1])
-    distance = (distance ./ distance[end]) .* 2.0 .- 1.0
-
-    coils_distance = range(-1.0, 1.0, n_coils)
-    r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
-    z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
-
-    r_ohcoils = minimum(bnd_r) / 3
     n_oh = 8
+    r_ohcoils = minimum(bnd_r) / 3
+    z_ohcoils, h_oh = size_oh_coils(min(valid_z[1],valid_z[end]), max(valid_z[1],valid_z[end]), 0.0, n_oh)
+    w_oh = minimum(bnd_r) / 3
 
-    z_ohcoils, h_oh = size_oh_coils((minimum(bnd_z) + minimum(rail_z)) / 2.0, (maximum(bnd_z) + maximum(rail_z)) / 2.0, 0.0, n_oh)
-    w_oh = minimum(bnd_r) / 3.0
+    w_pf = sum(sqrt.(diff(valid_r) .^ 2.0 .+ diff(valid_z) .^ 2.0)) / n_coils / sqrt(2.0)
 
     coils = [
         [VacuumFields.ParallelogramCoil(r, z, w_oh, h_oh, 0.0, 90.0) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
-        [VacuumFields.ParallelogramCoil(r, z, w_oh, w_oh, 0.0, 90.0) for (r, z) in zip(r_coils, z_coils)]
+        [VacuumFields.ParallelogramCoil(r, z, w_pf, w_pf, 0.0, 90.0) for (r, z) in zip(r_coils, z_coils)]
     ]
+
     return coils
 end
 
