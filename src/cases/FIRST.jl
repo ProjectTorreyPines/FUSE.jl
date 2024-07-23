@@ -20,9 +20,9 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
         pf_outside_tf=true)
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = true
-    ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 1
 
+    ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.B0 = 0.8
     ini.equilibrium.R0 = 0.45
     ini.equilibrium.ϵ = 0.32 / ini.equilibrium.R0
@@ -30,8 +30,8 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.δ = 0.5
     ini.equilibrium.pressure_core = 1E5
     ini.equilibrium.ip = 1.8E6
-    ini.equilibrium.xpoints = :lower
-    ini.equilibrium.boundary_from = :scalars
+
+    ini.equilibrium.xpoints = :double
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.675

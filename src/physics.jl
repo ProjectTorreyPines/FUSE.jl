@@ -1133,7 +1133,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     end
 
-    symmetric = IMAS.is_updown_symmetric(mxh)
+    symmetric = IMAS.is_updown_symmetric(mxh) && !xor(upper_x_point, lower_x_point)
 
     pr, pz = mxh()
     i = argmax(pz)
@@ -1147,7 +1147,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     M = 12
     N = min(M, length(mxh.s))
 
-    # change mxh parameters so that the boundary with x-points has the desired elongation, triangularity, squareness
+    # change mxhb0 parameters so that the boundary  with x-points fit has the desired elongation, triangularity, squareness when fit with mxh0 
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
 
@@ -1157,7 +1157,8 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         L += 1
         mxhb0.mxh.κ = params[L]
         if symmetric
-            mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
+            mxhb0.mxh.c0 = 0.0
+            mxhb0.mxh.s = params[L+1:end]
             mxhb0.mxh.c = mxhb0.mxh.s .* 0.0
         else
             L += 1
@@ -1246,11 +1247,19 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
 
     if debug
         println(res)
+
+        println("mxh")
         println(mxh)
+
+        println("mxh0")
         println(mxh0)
+
+        println("mxhb0.mxh")
         println(mxhb0.mxh)
+
         display(plot(mxh0))
     end
+
     return mxhb0
 end
 
