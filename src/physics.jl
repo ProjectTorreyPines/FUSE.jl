@@ -264,7 +264,7 @@ function optimize_outline(
             cost_max_curvature = 0.0
             if use_curvature
                 curvature = abs.(IMAS.curvature(R, Z))
-                cost_max_curvature = 1.0 / (1.0 - maximum(curvature)^2)
+                cost_max_curvature = atan(1.0 / (1.0 - maximum(curvature)^2)) / pi * 2
             end
 
             if verbose
