@@ -284,7 +284,7 @@ function optimize_outline(
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
             shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature),
-            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(iterations=10000,f_tol=1E-4,x_tol=1E-3))
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=10000, f_tol=1E-4, x_tol=1E-3))
         shape_parameters = Optim.minimizer(res)
         if verbose
             cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature, verbose=true)
@@ -1133,6 +1133,8 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     end
 
+    symmetric = IMAS.is_updown_symmetric(mxh)
+
     pr, pz = mxh()
     i = argmax(pz)
     RXU = pr[i]
@@ -1154,10 +1156,15 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mxhb0.mxh.Z0 = params[L]
         L += 1
         mxhb0.mxh.κ = params[L]
-        L += 1
-        mxhb0.mxh.c0 = params[L]
-        mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
-        mxhb0.mxh.c = params[L+Integer((end - L) / 2)+1:end]
+        if symmetric
+            mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
+            mxhb0.mxh.c = mxhb0.mxh.s .* 0.0
+        else
+            L += 1
+            mxhb0.mxh.c0 = params[L]
+            mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
+            mxhb0.mxh.c = params[L+Integer((end - L) / 2)+1:end]
+        end
         return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
     end
 
@@ -1222,9 +1229,15 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
 
         return sqrt(c)
     end
+
+    if symmetric
+        params = vcat(mxh.Z0, mxh.κ, mxh.s)
+    else
+        params = vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c)
+    end
     res = Optim.optimize(
         x -> cost(x; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area, target_volume),
-        vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c),
+        params,
         Optim.NelderMead(),
         Optim.Options(; iterations=1000, g_tol=1E-5)
     )
