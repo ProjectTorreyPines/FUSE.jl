@@ -224,7 +224,7 @@ function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_
     valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis)
     r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
 
-    n_oh = 8
+    n_oh = n_coils
     r_ohcoils = minimum(bnd_r) / 3
     z_ohcoils, h_oh = size_oh_coils(min(valid_z[1],valid_z[end]), max(valid_z[1],valid_z[end]), 0.0, n_oh)
     w_oh = minimum(bnd_r) / 3
