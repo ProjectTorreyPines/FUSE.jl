@@ -140,7 +140,7 @@ function init_pf_active!(
     # OH coils are distributed on a rail within the OH region
     r_oh = sum(extrema(OH_layer.outline.r)) / 2.0
     w_oh = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r) - 2 * coils_cleareance[1]
-    z_ohcoils, h_oh = size_oh_coils(OH_layer.outline.z, coils_cleareance[1], n_coils[1])
+    z_ohcoils, h_oh = size_oh_coils(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), coils_cleareance[1], n_coils[1])
     bd.pf_active.rail[1].name = "OH"
     bd.pf_active.rail[1].coils_number = n_coils[1]
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
@@ -322,11 +322,11 @@ function init_pf_active!(
     return pf_active
 end
 
-function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
-    Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
+function size_oh_coils(min_z, max_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
+    Δrail = max_z - min_z
     Δclear = coils_cleareance * coils_number
     Δcoil = (height * Δrail - Δclear) / coils_number
-    rail_offset = (maximum(rail_outline_z) + minimum(rail_outline_z)) / 2.0
+    rail_offset = (max_z + min_z) / 2.0
     z = range(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
     z = z .+ (offset * (1 - height) * Δrail)
     return z, Δcoil

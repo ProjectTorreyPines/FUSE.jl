@@ -215,7 +215,7 @@ end
 """
     encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
 
-Generates VacuumFields.PointCoil around the plasma boundary using some educated guesses for where the pf coils should be
+Generates VacuumFields.ParallelogramCoil around the plasma boundary using some educated guesses for where the PF and OH coils should be
 """
 function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
     rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
@@ -232,16 +232,17 @@ function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_
     r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
     z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
 
-    r_ohcoils = minimum(bnd_r) / 3.0
-    n_oh = Int(ceil((maximum(bnd_z) - minimum(bnd_z)) / r_ohcoils * 2))
-    r_ohcoils = 0.01 # this seems to work better
+    r_ohcoils = minimum(bnd_r) / 3
+    n_oh = 8
 
-    z_ohcoils = range((minimum(bnd_z) * 2 + minimum(rail_z)) / 3.0, (maximum(bnd_z) * 2 + maximum(rail_z)) / 3.0, n_oh)
+    z_ohcoils, h_oh = size_oh_coils((minimum(bnd_z) + minimum(rail_z)) / 2.0, (maximum(bnd_z) + maximum(rail_z)) / 2.0, 0.0, n_oh)
+    w_oh = minimum(bnd_r) / 3.0
 
-    return [
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)]
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
+    coils = [
+        [VacuumFields.ParallelogramCoil(r, z, w_oh, h_oh, 0.0, 90.0) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
+        [VacuumFields.ParallelogramCoil(r, z, w_oh, w_oh, 0.0, 90.0) for (r, z) in zip(r_coils, z_coils)]
     ]
+    return coils
 end
 
 """
@@ -395,7 +396,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                 else
                     offset = 0.0
                 end
-                z_oh, height_oh = size_oh_coils(rail.outline.z, rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
+                z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
                 z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
                 for k in 1:rail.coils_number
                     koptim += 1
