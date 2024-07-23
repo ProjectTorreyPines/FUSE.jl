@@ -67,10 +67,6 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
             dd.build.layer[k].shape = Int(_negative_offset_)
         end
 
-        # set TF shape (shape is set by inner)
-        dd.build.layer[plama_to_tf[end-1]].shape = Int(ini.tf.shape)
-        dd.build.layer[plama_to_tf[end]].shape = Int(_convex_hull_)
-
         # Allow first few layers to have shapes conformal with the first wall
         for k in 1:ini.build.n_first_wall_conformal_layers
             dd.build.layer[plama_to_tf[k]].shape = Int(_convex_hull_)
@@ -78,9 +74,14 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 
         # first wall is of type offset instead of convex hull, to allow for concave shape
         k = plama_to_tf[1]
-        if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)) || (dd.build.layer[k+1].type == Int(_wall_)))
+        if (dd.build.layer[k].type == Int(_wall_)) &&
+           ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)) || (dd.build.layer[k+1].type == Int(_wall_)))
             dd.build.layer[k].shape = Int(_offset_)
         end
+
+        # set TF shape (shape is set by inner layer)
+        dd.build.layer[plama_to_tf[end-1]].shape = Int(ini.tf.shape)
+        dd.build.layer[plama_to_tf[end]].shape = Int(_convex_hull_)
 
         # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
