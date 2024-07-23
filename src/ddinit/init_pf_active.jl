@@ -47,33 +47,21 @@ the magnetic axis (RA,ZA) and the point of maximum curvature along the equilibri
 """
 function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
     IMAS.reorder_flux_surface!(rail_r, rail_z)
-    symmetric = IMAS.is_updown_symmetric(rail_r, rail_z)
 
     index = argmin(rail_r)
     rail_z = circshift(rail_z[1:end-1], index)
     rail_r = circshift(rail_r[1:end-1], index)
+
     curve = abs.(IMAS.curvature(pr, pz))
-
-    α = 10.0
     index = Int[]
-
     index = pz .> ZA
     RU = pr[index][argmax(curve[index])]
     ZU = pz[index][argmax(curve[index])]
-
     index = pz .< ZA
     RL = pr[index][argmax(curve[index])]
     ZL = pz[index][argmax(curve[index])]
 
-    if symmetric
-        if ((RU - RA)^2 + (ZU - ZA)^2) > ((RL - RA)^2 + (ZL - ZA)^2)
-            RL = RU
-            ZL = -ZU + 2 * ZA
-        else
-            RU = RL
-            ZU = -ZL + 2 * ZA
-        end
-    end
+    α = 10.0
 
     ru = [RA, (RU - RA) * α + RA]
     zu = [ZA, (ZU - ZA) * α + ZA]
@@ -87,8 +75,8 @@ function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vec
     idx_l2 = intsc.indexes[1][1]
     crx_l2 = intsc.crossings[1]
 
-    rail_r = [crx_u1[1]; rail_r[idx_u1:idx_l2]; crx_l2[1]]
-    rail_z = [crx_u1[2]; rail_z[idx_u1:idx_l2]; crx_l2[2]]
+    rail_r = [crx_u1[1]; rail_r[idx_u1+1:idx_l2]; crx_l2[1]]
+    rail_z = [crx_u1[2]; rail_z[idx_u1+1:idx_l2]; crx_l2[2]]
 
     return rail_r, rail_z
 end
