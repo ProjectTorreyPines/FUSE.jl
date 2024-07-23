@@ -155,27 +155,6 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
-function default_control_points(eqt::IMAS.equilibrium__time_slice, pc::IMAS.pulse_schedule__position_control)
-    boundary_control_points, flux_control_points, saddle_control_points = default_control_points(eqt)
-
-    if !isempty(pc.strike_point)
-        psib = eqt.global_quantities.psi_boundary
-        # we favor taking the strike points from the pulse schedule, if available
-        strike_weight = 0.01
-        flux_control_points = VacuumFields.FluxControlPoint{Float64}[]
-        for strike_point in pc.strike_point
-            r = @ddtime(strike_point.r.reference)
-            if r == 0.0 || isnan(r)
-                continue
-            end
-            z = @ddtime(strike_point.z.reference)
-            push!(flux_control_points, VacuumFields.FluxControlPoint(r, z, psib, strike_weight))
-        end
-    end
-
-    return boundary_control_points, flux_control_points, saddle_control_points
-end
-
 function default_control_points(eqt::IMAS.equilibrium__time_slice)
     psib = eqt.global_quantities.psi_boundary
     if ismissing(eqt.global_quantities, :ip) # field nulls
@@ -195,6 +174,29 @@ function default_control_points(eqt::IMAS.equilibrium__time_slice)
     # Saddle Control Points
     saddle_weight = 0.01
     saddle_control_points = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+
+    return boundary_control_points, flux_control_points, saddle_control_points
+end
+
+function default_control_points(eqt::IMAS.equilibrium__time_slice, pc::IMAS.pulse_schedule__position_control)
+    boundary_control_points, flux_control_points, saddle_control_points = default_control_points(eqt)
+
+    if !isempty(pc.strike_point)
+        psib = eqt.global_quantities.psi_boundary
+        # we favor taking the strike points from the pulse schedule, if available
+        strike_weight = 0.01
+        empty!(flux_control_points)
+        for strike_point in pc.strike_point
+            r = @ddtime(strike_point.r.reference)
+            if r == 0.0 || isnan(r)
+                continue
+            end
+            z = @ddtime(strike_point.z.reference)
+            if strike_weight != 0.0
+                push!(flux_control_points, VacuumFields.FluxControlPoint(r, z, psib, strike_weight))
+            end
+        end
+    end
 
     return boundary_control_points, flux_control_points, saddle_control_points
 end

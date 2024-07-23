@@ -338,24 +338,44 @@ function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
 end
 
 """
-    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
+    layers_meters_from_fractions(;
+        lfs_multiplier::Float64=0.0,
+        wall::Float64=0.1,
+        blanket::Float64,
+        shield::Float64,
+        vessel::Float64,
+        pf_inside_tf::Bool,
+        pf_outside_tf::Bool,
+        thin_vessel_walls::Bool=false
+    )
 
 Handy function for initializing layers based on few scalars
 """
-function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
+function layers_meters_from_fractions(;
+    lfs_multiplier::Float64,
+    wall::Float64,
+    blanket::Float64,
+    shield::Float64,
+    vessel::Float64,
+    pf_inside_tf::Bool,
+    pf_outside_tf::Bool,
+    thin_vessel_walls::Bool=false
+)
+
+    lfs_asymmetry(x) = x * lfs_multiplier
+
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 2.0
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
-    if vessel > 0.0
-        if thin_vessel_walls
-            layers[:hfs_vacuum_vessel_wall_outer] = 0.1
-            layers[:hfs_vacuum_vessel] = vessel
-            layers[:hfs_vacuum_vessel_wall_inner] = 0.1
-        else
-            layers[:hfs_vacuum_vessel] = vessel
-        end
+    @assert vessel >= 0.0
+    if thin_vessel_walls
+        layers[:hfs_vacuum_vessel_wall_outer] = 0.1 * vessel
+        layers[:hfs_vacuum_vessel] = 0.8 * vessel
+        layers[:hfs_vacuum_vessel_wall_inner] = 0.1 * vessel
+    else
+        layers[:hfs_vacuum_vessel] = vessel
     end
     if pf_inside_tf
         layers[:gap_hfs_coils] = 0.0
@@ -366,25 +386,25 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     if blanket > 0.0
         layers[:hfs_blanket] = blanket
     end
-    layers[:hfs_wall] = 0.1
+    layers[:hfs_wall] = wall
     layers[:plasma] = 0.0 # this number does not matter
-    layers[:lfs_wall] = 0.1
+    layers[:lfs_wall] = lfs_asymmetry(wall)
     if blanket > 0.0
-        layers[:lfs_blanket] = blanket * 2.0
+        layers[:lfs_blanket] = lfs_asymmetry(blanket * 2.0)
     end
     if shield > 0.0
-        layers[:lfs_shield] = shield
+        layers[:lfs_shield] = lfs_asymmetry(shield)
     end
     if pf_inside_tf
-        layers[:gap_lfs_coils] = 2.25
+        layers[:gap_lfs_coils] = lfs_asymmetry(2.25)
     end
     if vessel > 0.0
         if thin_vessel_walls
-            layers[:lfs_vacuum_vessel_wall_inner] = 0.1
-            layers[:lfs_vacuum_vessel] = vessel
-            layers[:lfs_vacuum_vessel_wall_outer] = 0.1
+            layers[:lfs_vacuum_vessel_wall_inner] = lfs_asymmetry(0.1 * vessel)
+            layers[:lfs_vacuum_vessel] = lfs_asymmetry(0.8 * vessel)
+            layers[:lfs_vacuum_vessel_wall_outer] = lfs_asymmetry(0.1 * vessel)
         else
-            layers[:lfs_vacuum_vessel] = vessel
+            layers[:lfs_vacuum_vessel] = lfs_asymmetry(vessel)
         end
     end
     layers[:lfs_TF] = 1.0

@@ -37,7 +37,6 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     ini.time.simulation_start = shot_mappings[scenario][:time0]
     ini.general.dd = load_ods(ini)
 
-    #ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_plug => 1.2,
         :hfs_TF => 1.9,
