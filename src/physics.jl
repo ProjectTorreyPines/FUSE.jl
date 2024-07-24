@@ -772,8 +772,9 @@ Buffer polygon defined by x,y arrays by a quantity b
 function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(poly, b)
-    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
-    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    coords = GeoInterface.coordinates(poly_b)[1]
+    x_b = T[v[1] for v in coords]
+    y_b = T[v[2] for v in coords]
     return x_b, y_b
 end
 
@@ -783,8 +784,8 @@ end
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
 """
 function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
-    x_b, y_b = buffer(x, y, (b_lfs + b_hfs) / 2.0)
-    x_offset = (b_lfs .- b_hfs) / 2.0
+    x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
+    x_offset = 0.5 * (b_lfs - b_hfs)
     x_b .+= x_offset
     return x_b, y_b
 end
@@ -798,8 +799,9 @@ function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvatu
     @assert max_curvature > 0.0
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature), max_curvature)
-    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
-    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    coords = GeoInterface.coordinates(poly_b)[1]
+    x_b = T[v[1] for v in coords]
+    y_b = T[v[2] for v in coords]
     return x_b, y_b
 end
 
