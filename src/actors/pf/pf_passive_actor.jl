@@ -123,8 +123,8 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     outer_outline = IMAS.closed_polygon(outer_layer.outline.r, outer_layer.outline.z)
 
     # reorder surface so that it starts on the hfs
-    pr = outer_outline.r
-    pz = outer_outline.z
+    pr = inner_outline.r
+    pz = inner_outline.z
     R0 = (maximum(pr) + minimum(pr)) * 0.5
     Z0 = (maximum(pz) + minimum(pz)) * 0.5
     indexes, crossings = IMAS.intersection(pr, pz, [0.0, R0], [Z0, Z0])
