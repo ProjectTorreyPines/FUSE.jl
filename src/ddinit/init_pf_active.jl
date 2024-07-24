@@ -293,15 +293,9 @@ function init_pf_active!(
             coil.element[1].geometry.rectangle.height = coil_size
             coil.current.time = IMAS.top_ids(eqt).time
             coil.current.data = coil.current.time .* 0.0
-            if krail == length(bd.pf_active.rail)
-                bd.pf_active.rail[krail].name = "PF"
-                func = resize!(coil.function, :shaping; wipe=false)
-                func.description = "PF"
-            else
-                bd.pf_active.rail[krail].name = "vertical"
-                func = resize!(coil.function, :vertical; wipe=false)
-                func.description = "vertical"
-            end
+            bd.pf_active.rail[krail].name = "PF"
+            func = resize!(coil.function, :shaping; wipe=false)
+            func.description = "PF"
         end
     end
 
