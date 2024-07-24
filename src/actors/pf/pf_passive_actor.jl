@@ -104,16 +104,6 @@ function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, 
 end
 
 """
-    wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-
-Build quads between first wall and the next layer
-"""
-function wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-    plasma_index = IMAS.get_build_index(bd.layer; type=_plasma_)
-    return layer_quads(bd.layer[plasma_index], bd.layer[plasma_index+1], precision, max_seg_length)
-end
-
-"""
     layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
 
 Build quads between two layers
