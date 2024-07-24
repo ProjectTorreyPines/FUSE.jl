@@ -105,11 +105,11 @@ function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, 
 end
 
 """
-    layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+    layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, min_n_segments::Int)
 
 Build quads between two layers
 """
-function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, min_n_segments::Int)
     inner_outline = IMAS.closed_polygon(inner_layer.outline.r, inner_layer.outline.z)
     outer_outline = IMAS.closed_polygon(outer_layer.outline.r, outer_layer.outline.z)
 
@@ -130,6 +130,8 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     @views Z1 = Z1[2:end]
 
     # split long segments
+    L_inner = sum(sqrt.(diff(inner_layer.outline.r).^2 .+ diff(inner_layer.outline.z).^2))
+    max_seg_length = L_inner / min_n_segments
     R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
 
     # radiate lines from polygon vertices

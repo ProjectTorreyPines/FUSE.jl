@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: Pa
     _time::Float64 = NaN
     #== actor parameters ==#
     wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=0.1)
-    wall_max_seg_length::Entry{Float64} = Entry{Float64}("-", "Maximum segment length for making wall quadralaterals"; default=0.5)
+    min_n_segments::Entry{Int} = Entry{Int}("-", "Minimum number of quadralaterals"; default=15)
     default_passive_material::Entry{Symbol} = Entry{Symbol}("-", "Default material to use for poorly defined vacuum vessel"; default=:steel)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -72,7 +72,7 @@ function _step(actor::ActorVerticalStability)
     end
     kout = kvessel[end]
     kin = kvessel[1] - 1
-    quads = layer_quads(bd.layer[kin], bd.layer[kout], par.wall_precision, par.wall_max_seg_length)
+    quads = layer_quads(bd.layer[kin], bd.layer[kout], par.wall_precision, par.min_n_segments)
 
     # convert quads to VacuumFields.QuadCoil
     actor.passive_coils = VacuumFields.QuadCoil[VacuumFields.QuadCoil(R, Z) for (R, Z) in quads]
