@@ -97,6 +97,7 @@ function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, 
     pf_passive.loop[end].name = replace(name, r"[lh]fs " => "")
     pf_passive.loop[end].element[end].geometry.outline.r = r
     pf_passive.loop[end].element[end].geometry.outline.z = z
+    pf_passive.loop[end].element[end].geometry.geometry_type = IMAS.name_2_index(pf_passive.loop[end].element[end].geometry)[:outline]
     if !isempty(identifier)
         pf_passive.loop[end].element[end].identifier = identifier
     end
