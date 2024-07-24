@@ -98,6 +98,11 @@ registry:
 # register a package to FuseRegistry
 # >> make register repo=IMASDD
 register:
+	@current_branch=$(shell git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
+	if [ "$$current_branch" != "master" ]; then \
+		echo "Error: $(repo) is not on the master branch" ;\
+		exit 1 ;\
+	fi
 	sed -i.bak "s/https:\/\/github.com\//git@github.com:/g" $(JULIA_DIR)/registries/FuseRegistry/.git/config && rm $(JULIA_DIR)/registries/FuseRegistry/.git/config.bak
 	julia -e '\
 using Pkg;\
@@ -105,12 +110,16 @@ Pkg.Registry.update("FuseRegistry");\
 Pkg.activate();\
 using LocalRegistry;\
 LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
+	version=$$(grep '^version' ../$(repo)/Project.toml | sed -E 's/version = "(.*)"/\1/') ;\
+	git -C ../$(repo) tag -a v$${version} -m "v$${version}" ;\
+	git -C ../$(repo) push origin v$${version} ;\
+	gh release create v$${version} --generate-notes --repo ProjectTorreyPines/$(repo).jl
 
 # register all packages with FuseRegistry
 all_register:
 	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) register repo=$(package);)
 
-# install FUSE packages in global environment to easily develop and test changes made across multiple packages at once 
+# install FUSE packages in global environment to easily develop and test changes made across multiple packages at once
 develop:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
