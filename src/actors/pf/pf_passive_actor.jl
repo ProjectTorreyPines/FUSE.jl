@@ -97,20 +97,11 @@ function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, 
     pf_passive.loop[end].name = replace(name, r"[lh]fs " => "")
     pf_passive.loop[end].element[end].geometry.outline.r = r
     pf_passive.loop[end].element[end].geometry.outline.z = z
+    pf_passive.loop[end].element[end].geometry.geometry_type = IMAS.name_2_index(pf_passive.loop[end].element[end].geometry)[:outline]
     if !isempty(identifier)
         pf_passive.loop[end].element[end].identifier = identifier
     end
     return pf_passive.loop[end]
-end
-
-"""
-    wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-
-Build quads between first wall and the next layer
-"""
-function wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-    plasma_index = IMAS.get_build_index(bd.layer; type=_plasma_)
-    return layer_quads(bd.layer[plasma_index], bd.layer[plasma_index+1], precision, max_seg_length)
 end
 
 """
@@ -123,8 +114,8 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     outer_outline = IMAS.closed_polygon(outer_layer.outline.r, outer_layer.outline.z)
 
     # reorder surface so that it starts on the hfs
-    pr = outer_outline.r
-    pz = outer_outline.z
+    pr = inner_outline.r
+    pz = inner_outline.z
     R0 = (maximum(pr) + minimum(pr)) * 0.5
     Z0 = (maximum(pz) + minimum(pz)) * 0.5
     indexes, crossings = IMAS.intersection(pr, pz, [0.0, R0], [Z0, Z0])

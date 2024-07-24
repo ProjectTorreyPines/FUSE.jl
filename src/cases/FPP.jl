@@ -53,7 +53,7 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.build.n_first_wall_conformal_layers = 1
 
     ini.equilibrium.B0 = 4.7
-    ini.equilibrium.R0 = 4.8
+    ini.equilibrium.R0 = 4.9
     ini.equilibrium.ϵ = 0.28
     ini.equilibrium.κ = 0.8
     ini.equilibrium.δ = 0.7

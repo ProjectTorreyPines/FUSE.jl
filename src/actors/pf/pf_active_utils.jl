@@ -215,33 +215,28 @@ end
 """
     encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
 
-Generates VacuumFields.PointCoil around the plasma boundary using some educated guesses for where the pf coils should be
+Generates VacuumFields.ParallelogramCoil around the plasma boundary using some educated guesses for where the PF and OH coils should be
 """
 function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
     rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
     rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
 
     valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis)
+    r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
 
-    # normalized distance between -1 and 1
-    distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
-    distance = (distance .- distance[1])
-    distance = (distance ./ distance[end]) .* 2.0 .- 1.0
+    n_oh = n_coils
+    r_ohcoils = minimum(bnd_r) / 3
+    z_ohcoils, h_oh = size_oh_coils(min(valid_z[1],valid_z[end]), max(valid_z[1],valid_z[end]), 0.0, n_oh)
+    w_oh = minimum(bnd_r) / 3
 
-    coils_distance = range(-1.0, 1.0, n_coils)
-    r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
-    z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
+    w_pf = sum(sqrt.(diff(valid_r) .^ 2.0 .+ diff(valid_z) .^ 2.0)) / n_coils / sqrt(2.0)
 
-    r_ohcoils = minimum(bnd_r) / 3.0
-    n_oh = Int(ceil((maximum(bnd_z) - minimum(bnd_z)) / r_ohcoils * 2))
-    r_ohcoils = 0.01 # this seems to work better
-
-    z_ohcoils = range((minimum(bnd_z) * 2 + minimum(rail_z)) / 3.0, (maximum(bnd_z) * 2 + maximum(rail_z)) / 3.0, n_oh)
-
-    return [
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)]
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
+    coils = [
+        [VacuumFields.ParallelogramCoil(r, z, w_oh, h_oh, 0.0, 90.0) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
+        [VacuumFields.ParallelogramCoil(r, z, w_pf, w_pf, 0.0, 90.0) for (r, z) in zip(r_coils, z_coils)]
     ]
+
+    return coils
 end
 
 """
@@ -395,7 +390,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                 else
                     offset = 0.0
                 end
-                z_oh, height_oh = size_oh_coils(rail.outline.z, rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
+                z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
                 z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
                 for k in 1:rail.coils_number
                     koptim += 1

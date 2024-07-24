@@ -57,7 +57,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
             act.ActorPedestal,
             act;
             ip_from=:core_profiles,
-            βn_from=:equilibrium, 
+            βn_from=:equilibrium,
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
@@ -95,7 +95,9 @@ function _step(actor::ActorDynamicPlasma)
 
     # setup things for Ip control
     if par.ip_controller
-        η_avg = trapz(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
+        conductivity_parallel = cp1d.conductivity_parallel
+        f = (k, x) -> 1.0 / conductivity_parallel[k]
+        η_avg = trapz(cp1d.grid.area, f) / cp1d.grid.area[end]
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
         IMAS.pid_controller(ctrl_ip, η_avg * 5.0, η_avg * 0.5, 0.0)
         if IMAS.fxp_request_service(ctrl_ip)
@@ -139,7 +141,7 @@ function _step(actor::ActorDynamicPlasma)
                     finalize(step(actor.actor_jt))
                 end
             else
-                IMAS.IMASDD.retime!(dd.core_profiles, tt)
+                IMAS.retime!(dd.core_profiles, tt)
 
                 # run transport actor
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
@@ -292,7 +294,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation, weighted=:area, title="Parallel current source", normalization=1E-6, ylabel="[MA]")#, ylim=(0.0, 10.0))
 
     subplot = 6
-    plot!(        
+    plot!(
         dd.core_sources;
         time0,
         only=1,

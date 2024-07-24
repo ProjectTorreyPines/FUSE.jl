@@ -98,6 +98,7 @@ registry:
 # register a package to FuseRegistry
 # >> make register repo=IMASDD
 register:
+	sed -i.bak "s/https:\/\/github.com\//git@github.com:/g" $(JULIA_DIR)/registries/FuseRegistry/.git/config && rm $(JULIA_DIR)/registries/FuseRegistry/.git/config.bak ;\	
 	julia -e '\
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
@@ -134,7 +135,7 @@ revise:
 
 # list branches of all the ProjectTorreyPines packages used by FUSE
 branch: .PHONY
-	@cd $(CURRENTDIR); $(foreach package,FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+	@cd $(CURRENTDIR); $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
 
 # install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # looks for same branch name for all repositories otherwise falls back to master
@@ -220,7 +221,7 @@ undo_single_branch:
 # clone and update all FUSE packages
 clone_pull_all: branch
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) FUSE ServeFUSE $(FUSE_PACKAGES_MAKEFILE)
+	make -i $(PARALLELISM) FUSE ServeFUSE GenerateDD $(FUSE_PACKAGES_MAKEFILE)
 
 playground: .PHONY
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
@@ -487,6 +488,7 @@ sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.
 \
 mkdir -p ../$(repo)/.github/workflows ;\
 cp ../IMASDD/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASDD/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
 cp ../IMASDD/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
 cp ../IMASDD/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
 \

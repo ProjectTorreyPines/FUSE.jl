@@ -47,33 +47,21 @@ the magnetic axis (RA,ZA) and the point of maximum curvature along the equilibri
 """
 function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
     IMAS.reorder_flux_surface!(rail_r, rail_z)
-    symmetric = IMAS.is_updown_symmetric(rail_r, rail_z)
 
     index = argmin(rail_r)
     rail_z = circshift(rail_z[1:end-1], index)
     rail_r = circshift(rail_r[1:end-1], index)
+
     curve = abs.(IMAS.curvature(pr, pz))
-
-    α = 10.0
     index = Int[]
-
     index = pz .> ZA
     RU = pr[index][argmax(curve[index])]
     ZU = pz[index][argmax(curve[index])]
-
     index = pz .< ZA
     RL = pr[index][argmax(curve[index])]
     ZL = pz[index][argmax(curve[index])]
 
-    if symmetric
-        if ((RU - RA)^2 + (ZU - ZA)^2) > ((RL - RA)^2 + (ZL - ZA)^2)
-            RL = RU
-            ZL = -ZU + 2 * ZA
-        else
-            RU = RL
-            ZU = -ZL + 2 * ZA
-        end
-    end
+    α = 10.0
 
     ru = [RA, (RU - RA) * α + RA]
     zu = [ZA, (ZU - ZA) * α + ZA]
@@ -87,8 +75,8 @@ function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vec
     idx_l2 = intsc.indexes[1][1]
     crx_l2 = intsc.crossings[1]
 
-    rail_r = [crx_u1[1]; rail_r[idx_u1:idx_l2]; crx_l2[1]]
-    rail_z = [crx_u1[2]; rail_z[idx_u1:idx_l2]; crx_l2[2]]
+    rail_r = [crx_u1[1]; rail_r[idx_u1+1:idx_l2]; crx_l2[1]]
+    rail_z = [crx_u1[2]; rail_z[idx_u1+1:idx_l2]; crx_l2[2]]
 
     return rail_r, rail_z
 end
@@ -140,7 +128,7 @@ function init_pf_active!(
     # OH coils are distributed on a rail within the OH region
     r_oh = sum(extrema(OH_layer.outline.r)) / 2.0
     w_oh = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r) - 2 * coils_cleareance[1]
-    z_ohcoils, h_oh = size_oh_coils(OH_layer.outline.z, coils_cleareance[1], n_coils[1])
+    z_ohcoils, h_oh = size_oh_coils(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), coils_cleareance[1], n_coils[1])
     bd.pf_active.rail[1].name = "OH"
     bd.pf_active.rail[1].coils_number = n_coils[1]
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
@@ -305,15 +293,9 @@ function init_pf_active!(
             coil.element[1].geometry.rectangle.height = coil_size
             coil.current.time = IMAS.top_ids(eqt).time
             coil.current.data = coil.current.time .* 0.0
-            if krail == length(bd.pf_active.rail)
-                bd.pf_active.rail[krail].name = "PF"
-                func = resize!(coil.function, :shaping; wipe=false)
-                func.description = "PF"
-            else
-                bd.pf_active.rail[krail].name = "vertical"
-                func = resize!(coil.function, :vertical; wipe=false)
-                func.description = "vertical"
-            end
+            bd.pf_active.rail[krail].name = "PF"
+            func = resize!(coil.function, :shaping; wipe=false)
+            func.description = "PF"
         end
     end
 
@@ -322,11 +304,11 @@ function init_pf_active!(
     return pf_active
 end
 
-function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
-    Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
+function size_oh_coils(min_z, max_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
+    Δrail = max_z - min_z
     Δclear = coils_cleareance * coils_number
     Δcoil = (height * Δrail - Δclear) / coils_number
-    rail_offset = (maximum(rail_outline_z) + minimum(rail_outline_z)) / 2.0
+    rail_offset = (max_z + min_z) / 2.0
     z = range(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
     z = z .+ (offset * (1 - height) * Δrail)
     return z, Δcoil
