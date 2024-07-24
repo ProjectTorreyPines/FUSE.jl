@@ -68,3 +68,6 @@ VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 XSteam = "95ff35a0-be81-11e9-2ca3-5b4e338e8476"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
+
+[compat]
+FuseUtils = "1.1"
