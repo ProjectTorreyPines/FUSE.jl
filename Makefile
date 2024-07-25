@@ -555,4 +555,57 @@ end ;\
 AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
 '
 
+# Apply compat patches and save the resulting Project_PR???.toml files
+download_project_tomls:
+	@echo "Downloading Project.toml files from CompatHelper PRs in repository: $(repo)"
+	cd ../$(repo) && \
+	pr_numbers_and_shas=$$(gh pr list --state open --json number,headRefOid,title --jq '.[] | select(.title != null and (.title | contains("CompatHelper:"))) | "\(.number):\(.headRefOid)"') && \
+	echo "PR numbers and commit SHAs: $$pr_numbers_and_shas" && \
+	for pr_info in $$pr_numbers_and_shas; do \
+		pr_number=$${pr_info%%:*}; \
+		commit_sha=$${pr_info##*:}; \
+		echo "Fetching Project.toml from commit $$commit_sha for PR #$$pr_number..."; \
+		git show $$commit_sha:Project.toml > Project_PR$${pr_number}.toml; \
+	done && \
+	echo "Project.toml files downloaded."
+
+# Combine Project_PR???.toml files using Julia
+combine_project_toml:
+	@echo "Combining Project.toml files in repository: $(repo)"
+	@cd ../$(repo) && \
+	julia -e 'using TOML; \
+		project_dir = "./"; \
+		project_files = filter(x -> startswith(x, "Project_PR") && endswith(x, ".toml"), readdir(project_dir)); \
+		combined_compat = Dict{String, String}(); \
+		for file in project_files; \
+			println(file); \
+		    project_path = joinpath(project_dir, file); \
+		    project_toml = TOML.parsefile(project_path); \
+		    compat_entries = project_toml["compat"]; \
+		    for (pkg, version) in compat_entries; \
+		        combined_compat[pkg] = version; \
+		    end; \
+		end; \
+		project_toml = TOML.parsefile("Project.toml"); \
+		project_toml["compat"] = combined_compat; \
+		open("Project.toml", "w") do io;\
+			TOML.print(io, project_toml); \
+		end; \
+		println("Combined Project.toml saved as Project_combined.toml");'
+
+# Apply compat patches, combine them in the original Project.toml, and cleanup
+compat: download_project_tomls combine_project_toml
+	#rm ../$(repo)/Project_PR*.toml
+
+compat_cleanup:
+	@echo "Closing corresponding PRs and deleting temporary Project_PR???.toml files"
+	cd ../$(repo) && \
+	for file in Project_PR*.toml; do \
+		pr_number=$$(echo $$file | sed -n 's/.*Project_PR\([0-9]*\).toml/\1/p'); \
+		echo "Closing PR #$$pr_number..."; \
+		gh pr close $$pr_number --delete-branch; \
+		rm $$file; \
+	done && \
+	echo "PRs closed and temporary files deleted."
+
 .PHONY:
