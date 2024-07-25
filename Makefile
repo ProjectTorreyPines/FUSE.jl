@@ -587,7 +587,8 @@ combine_project_toml:
 		    end; \
 		end; \
 		project_toml = TOML.parsefile("Project.toml"); \
-		project_toml["compat"] = combined_compat; \
+		project_toml["compat"] = combined_compat |> sort; \
+		project_toml["deps"] = project_toml["deps"] |> sort; \
 		open("Project.toml", "w") do io;\
 			TOML.print(io, project_toml); \
 		end; \
