@@ -182,7 +182,7 @@ Pkg.activate("./docs");\
 Pkg.develop(["FUSE"; fuse_packages])'
 
 # install FUSE without using the registry
-install_no_registry: forward_compatibility clone_pull_all develop special_dependencies
+install_no_registry: forward_compatibility registry clone_pull_all develop special_dependencies
 
 # install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
 install_via_registry: forward_compatibility registry develop special_dependencies
