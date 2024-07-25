@@ -71,4 +71,5 @@ XSteam = "95ff35a0-be81-11e9-2ca3-5b4e338e8476"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
+DataFrames = "1"
 FuseUtils = "1.1"
