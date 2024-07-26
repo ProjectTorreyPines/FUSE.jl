@@ -97,6 +97,7 @@ function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, 
     pf_passive.loop[end].name = replace(name, r"[lh]fs " => "")
     pf_passive.loop[end].element[end].geometry.outline.r = r
     pf_passive.loop[end].element[end].geometry.outline.z = z
+    pf_passive.loop[end].element[end].geometry.geometry_type = IMAS.name_2_index(pf_passive.loop[end].element[end].geometry)[:outline]
     if !isempty(identifier)
         pf_passive.loop[end].element[end].identifier = identifier
     end
@@ -104,27 +105,17 @@ function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, 
 end
 
 """
-    wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-
-Build quads between first wall and the next layer
-"""
-function wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-    plasma_index = IMAS.get_build_index(bd.layer; type=_plasma_)
-    return layer_quads(bd.layer[plasma_index], bd.layer[plasma_index+1], precision, max_seg_length)
-end
-
-"""
-    layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+    layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, min_n_segments::Int)
 
 Build quads between two layers
 """
-function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, min_n_segments::Int)
     inner_outline = IMAS.closed_polygon(inner_layer.outline.r, inner_layer.outline.z)
     outer_outline = IMAS.closed_polygon(outer_layer.outline.r, outer_layer.outline.z)
 
     # reorder surface so that it starts on the hfs
-    pr = outer_outline.r
-    pz = outer_outline.z
+    pr = inner_outline.r
+    pz = inner_outline.z
     R0 = (maximum(pr) + minimum(pr)) * 0.5
     Z0 = (maximum(pz) + minimum(pz)) * 0.5
     indexes, crossings = IMAS.intersection(pr, pz, [0.0, R0], [Z0, Z0])
@@ -139,6 +130,8 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     @views Z1 = Z1[2:end]
 
     # split long segments
+    L_inner = sum(sqrt.(diff(inner_layer.outline.r).^2 .+ diff(inner_layer.outline.z).^2))
+    max_seg_length = L_inner / min_n_segments
     R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
 
     # radiate lines from polygon vertices

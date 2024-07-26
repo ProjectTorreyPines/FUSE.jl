@@ -2,7 +2,7 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_, _undefined_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_, _racetrack_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -74,7 +74,8 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInitBuil
     lh_power_threshold_fraction::Entry{T} = Entry{T}(IMAS.requirements, :lh_power_threshold_fraction; check=x -> @assert x >= 0.0 "must be: lh_power_threshold_fraction >= 0.0")
     h98y2::Entry{T} = Entry{T}(IMAS.requirements, :h98y2; check=x -> @assert x >= 0.0 "must be: h98y2 >= 0.0")
     hds03::Entry{T} = Entry{T}(IMAS.requirements, :hds03; check=x -> @assert x >= 0.0 "must be: hds03 >= 0.0")
-    βn::Entry{T} = Entry{T}(IMAS.requirements, :βn; check=x -> @assert x >= 0.0 "must be: βn >= 0.0")
+    beta_normal::Entry{T} = Entry{T}(IMAS.requirements, :beta_normal; check=x -> @assert x >= 0.0 "must be: βn >= 0.0")
+    Psol_R::Entry{T} = Entry{T}(IMAS.requirements, :Psol_R; check=x -> @assert x >= 0.0 "must be: Psol/R >= 0.0")
     q95::Entry{T} = Entry{T}(IMAS.requirements, :q95; check=x -> @assert x >= 0.0 "must be: q95 >= 0.0")
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin; default=0.4, check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; default=0.2, check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")

@@ -15,26 +15,6 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
             if length(dd1.pf_active.coil) > 0
                 dd.pf_active = deepcopy(dd1.pf_active)
                 IMAS.set_coils_function(dd.pf_active.coil)
-
-                # create rails from coils
-                if false
-                    OH = [coil for coil in dd.pf_active.coil if IMAS.is_ohmic_coil(coil)]
-                    PF = [coil for coil in dd.pf_active.coil if !IMAS.is_ohmic_coil(coil)]
-                    empty!(dd.build.pf_active.rail)
-                    for (name, coils) in (("OH", OH), ("PF", PF))
-                        rail = resize!(dd.build.pf_active.rail, length(dd.build.pf_active.rail) + 1)[end]
-                        rail.name = name
-                        rail.coils_cleareance = maximum([norm([coil.element[1].geometry.rectangle.width, coil.element[1].geometry.rectangle.height]) for coil in coils])
-                        rail.coils_number = length(coils)
-                        rail.outline.r = [coil.element[1].geometry.rectangle.r for coil in coils]
-                        rail.outline.z = [coil.element[1].geometry.rectangle.z for coil in coils]
-                        distance = cumsum(sqrt.(IMAS.gradient(rail.outline.r) .^ 2 .+ IMAS.gradient(rail.outline.z) .^ 2))
-                        distance = (distance .- distance[1])
-                        distance = (distance ./ distance[end]) .* 2.0 .- 1.0
-                        rail.outline.distance = distance
-                    end
-                end
-
             else
                 init_from = :scalars
             end
@@ -60,35 +40,44 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
 end
 
 """
-    clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Real}
+    clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
 
 clip rails (rail_r, rail_z) so that they start/end along the intersection with the lines connecting
-the magnetic axis (RA,ZA) and the point of maximum elongation along the equilibrium boundary (pr,pz)
+the magnetic axis (RA,ZA) and the point of maximum curvature along the equilibrium boundary (pr,pz)
 """
-function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Real}
+function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
     IMAS.reorder_flux_surface!(rail_r, rail_z)
-    rail_z = circshift(rail_z[1:end-1], argmin(rail_r))
-    rail_r = circshift(rail_r[1:end-1], argmin(rail_r))
 
-    α = 1000.0
-    index = []
+    index = argmin(rail_r)
+    rail_z = circshift(rail_z[1:end-1], index)
+    rail_r = circshift(rail_r[1:end-1], index)
 
-    RU = pr[argmax(pz)]
-    ZU = pz[argmax(pz)]
+    curve = abs.(IMAS.curvature(pr, pz))
+    index = Int[]
+    index = pz .> ZA
+    RU = pr[index][argmax(curve[index])]
+    ZU = pz[index][argmax(curve[index])]
+    index = pz .< ZA
+    RL = pr[index][argmax(curve[index])]
+    ZL = pz[index][argmax(curve[index])]
+
+    α = 10.0
+
     ru = [RA, (RU - RA) * α + RA]
     zu = [ZA, (ZU - ZA) * α + ZA]
-    push!(index, IMAS.intersection(rail_r, rail_z, ru, zu)[1][1][1])
+    intsc = IMAS.intersection(rail_r, rail_z, ru, zu)
+    idx_u1 = intsc.indexes[1][1]
+    crx_u1 = intsc.crossings[1]
 
-    RL = pr[argmin(pz)]
-    ZL = pz[argmin(pz)]
     rl = [RA, (RL - RA) * α + RA]
     zl = [ZA, (ZL - ZA) * α + ZA]
-    push!(index, IMAS.intersection(rail_r, rail_z, rl, zl)[1][1][1])
+    intsc = IMAS.intersection(rail_r, rail_z, rl, zl)
+    idx_l2 = intsc.indexes[1][1]
+    crx_l2 = intsc.crossings[1]
 
-    sort!(index)
+    rail_r = [crx_u1[1]; rail_r[idx_u1+1:idx_l2]; crx_l2[1]]
+    rail_z = [crx_u1[2]; rail_z[idx_u1+1:idx_l2]; crx_l2[2]]
 
-    rail_r = rail_r[index[1]:index[2]]
-    rail_z = rail_z[index[1]:index[2]]
     return rail_r, rail_z
 end
 
@@ -139,7 +128,7 @@ function init_pf_active!(
     # OH coils are distributed on a rail within the OH region
     r_oh = sum(extrema(OH_layer.outline.r)) / 2.0
     w_oh = maximum(OH_layer.outline.r) - minimum(OH_layer.outline.r) - 2 * coils_cleareance[1]
-    z_ohcoils, h_oh = size_oh_coils(OH_layer.outline.z, coils_cleareance[1], n_coils[1])
+    z_ohcoils, h_oh = size_oh_coils(minimum(OH_layer.outline.z), maximum(OH_layer.outline.z), coils_cleareance[1], n_coils[1])
     bd.pf_active.rail[1].name = "OH"
     bd.pf_active.rail[1].coils_number = n_coils[1]
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
@@ -178,8 +167,12 @@ function init_pf_active!(
     lfs_out_indexes = IMAS.get_build_indexes(bd.layer; fs=[_lfs_, _out_])
     krail = 1
     ngrid = 257
-    rmask, zmask, mask = IMAS.structures_mask(bd; ngrid)
-    dr = (rmask[2] - rmask[1])
+    if eqt.boundary.triangularity > 0.0
+        dr = maximum(bd.layer[end].outline.r) / ngrid
+    else
+        rmask, zmask, mask = IMAS.structures_mask(bd; ngrid, layer_check=layer -> layer.material == "vacuum" || contains(lowercase(layer.name), "coils"))
+        dr = (rmask[2] - rmask[1])
+    end
     for k in lfs_out_indexes
         layer = bd.layer[k]
 
@@ -206,12 +199,14 @@ function init_pf_active!(
         dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
         inner_layer = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k-1].identifier, fs=_hfs_)
         rail_r, rail_z = buffer(inner_layer.outline.r, inner_layer.outline.z, dcoil)
-        rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3)
+        rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3.0)
 
-        # let rails start along the lines connecting the magnetic axis and the point of maximum elongation
-        rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z)
+        if eqt.boundary.triangularity > 0.0
+            # let rails start along the lines connecting the magnetic axis and the point of maximum elongation
+            RA = eqt.global_quantities.magnetic_axis.r
+            ZA = eqt.global_quantities.magnetic_axis.z
+            rail_r, rail_z = clip_rails(rail_r, rail_z, eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA)
 
-        if true
             valid_r, valid_z = rail_r, rail_z
             distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
 
@@ -228,6 +223,7 @@ function init_pf_active!(
                     push!(valid_k, k)
                 end
             end
+
             if length(valid_k) == 0
                 bd.pf_active.rail[krail].outline.r = Float64[]
                 bd.pf_active.rail[krail].outline.z = Float64[]
@@ -284,7 +280,7 @@ function init_pf_active!(
         z_coils = [abs(z) < 1E-6 ? 0.0 : z for z in z_coils]
 
         # populate IMAS data structure
-        for (kk,(r, z)) in enumerate(zip(r_coils, z_coils))
+        for (kk, (r, z)) in enumerate(zip(r_coils, z_coils))
             k = length(pf_active.coil) + 1
             resize!(pf_active.coil, k)
             resize!(pf_active.coil[k].element, 1)
@@ -297,15 +293,9 @@ function init_pf_active!(
             coil.element[1].geometry.rectangle.height = coil_size
             coil.current.time = IMAS.top_ids(eqt).time
             coil.current.data = coil.current.time .* 0.0
-            if krail == length(bd.pf_active.rail)
-                bd.pf_active.rail[krail].name = "PF"
-                func = resize!(coil.function, :shaping; wipe=false)
-                func.description = "PF"
-            else
-                bd.pf_active.rail[krail].name = "vertical"
-                func = resize!(coil.function, :vertical; wipe=false)
-                func.description = "vertical"
-            end
+            bd.pf_active.rail[krail].name = "PF"
+            func = resize!(coil.function, :shaping; wipe=false)
+            func.description = "PF"
         end
     end
 
@@ -314,11 +304,11 @@ function init_pf_active!(
     return pf_active
 end
 
-function size_oh_coils(rail_outline_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
-    Δrail = maximum(rail_outline_z) - minimum(rail_outline_z)
+function size_oh_coils(min_z, max_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
+    Δrail = max_z - min_z
     Δclear = coils_cleareance * coils_number
     Δcoil = (height * Δrail - Δclear) / coils_number
-    rail_offset = (maximum(rail_outline_z) + minimum(rail_outline_z)) / 2.0
+    rail_offset = (max_z + min_z) / 2.0
     z = range(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
     z = z .+ (offset * (1 - height) * Δrail)
     return z, Δcoil

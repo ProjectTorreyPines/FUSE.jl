@@ -7,7 +7,20 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
 
 Once installed, restart your termninal to pick-up the `julia` executable
 
-## FUSE installation
+## FUSE installation for users
+
+FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
+
+For installation:
+
+```julia
+using Pkg
+Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+Pkg.Registry.add("General")
+Pkg.add("FUSE")
+```
+
+## FUSE installation for developers
 1. Clone the FUSE repository under the `~/.julia/dev` folder ():
 
    ```bash
@@ -102,14 +115,6 @@ To update Julia and make FUSE work under the new environment do as follows:
    make install
    make IJulia
    ```
-
-# Install CHEASE
-```
-mamba install -c conda-forge gfortran
-git clone https://gitlab.epfl.ch/spc/chease.git
-cd chease/src-f90
-make chease
-```
 
 # Install GACODE
 1. Download and Install Xquartz: https://www.xquartz.org

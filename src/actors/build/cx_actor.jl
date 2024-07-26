@@ -852,8 +852,6 @@ function optimize_layer_outline(
         func = shape_function(shape; resolution)
         initial_clerance = max(hfs_thickness, lfs_thickness) * vertical_clearance
         shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
-
-        layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
         shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters; use_curvature)
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...; resample=false)
     end

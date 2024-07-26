@@ -5,7 +5,7 @@ DIII-D
 
 Arguments:
 
-  - scenario: `:H_mode`, `:L_mode` or `:default` (loads an experimental d3d case)
+  - scenario: `:default` (loads an experimental d3d case), `:H_mode` (updates core_profiles and core_sources), `:L_mode` (updates core_profiles and core_sources)
 """
 function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=false)::Tuple{ParametersAllInits,ParametersAllActors}
 
@@ -19,25 +19,22 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     machine_description = joinpath("__FUSE__", "sample", "D3D_machine.json")
     shot_mappings = Dict(
         :H_mode => Dict(
-            :time0 => 2.7,
             :nbi_power => 4.56e6,
             :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"
         ),
         :L_mode => Dict(
-            :time0 => 2.0,
             :nbi_power => 2.4e6,
             :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))"
         ),
-        :default => Dict(:time0 => 1.0,
+        :default => Dict(
             :nbi_power => 5.0e6,
             :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
     )
 
+    ini.time.simulation_start = 0.0
     ini.ods.filename = shot_mappings[scenario][:filename]
-    ini.time.simulation_start = shot_mappings[scenario][:time0]
     ini.general.dd = load_ods(ini)
 
-    #ini.build.layers = layers_meters_from_fractions(; blanket=0.0, shield=0.0, vessel=0.0, pf_inside_tf=true, pf_outside_tf=false)
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_plug => 1.2,
         :hfs_TF => 1.9,
@@ -50,6 +47,8 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         :gap_world => 1.0
     )
     ini.build.layers[:hfs_wall].material = :graphite
+
+    ini.equilibrium.xpoints = :upper
 
     ini.build.n_first_wall_conformal_layers = 1
     act.ActorCXbuild.rebuild_wall = false
@@ -66,8 +65,8 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
 
     ini.oh.technology = :copper
 
-    ini.core_profiles.greenwald_fraction = 0.7
-    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction * 0.75
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value = 0.75 * 0.75
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
     ini.core_profiles.n_shaping = 0.9

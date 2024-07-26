@@ -75,7 +75,7 @@
 1. For larger jobs especially, consider doing what follows on a login node.
    To do this (eg. a whole worker node of 40 cores for 4 days)
 
-    srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l
+    `srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l`
 
    !!! note
        Use the queue, time, cpu, and memory limits that make the most sense for your application

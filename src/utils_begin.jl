@@ -183,7 +183,7 @@ end
 # parallel #
 # ======== #
 """
-    function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
+    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
 
 Start multiprocessing environment
 
@@ -220,6 +220,34 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             end
         else
             error("Not running on omega cluster")
+        end
+
+    elseif cluster == "stellar"
+        if occursin("stellar", gethostname())
+            gigamem_per_node = 192
+            cpus_per_node = 96
+            if nworkers > 0
+                nodes = 4
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
+            end
+            np = nworkers + 1
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            ENV["JULIA_WORKER_TIMEOUT"] = "360"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="pppl-medium",
+                    exclusive="",
+                    topology=:master_worker,
+                    time="00:48:00",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
+                )
+            end
+        else
+            error("Not running on stellar cluster")
         end
 
     elseif cluster == "saga"

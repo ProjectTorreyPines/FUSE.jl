@@ -84,7 +84,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         r_oh = ini.build.layers[1].thickness + ini.build.layers[2].thickness / 2.0
         b = ini.equilibrium.ϵ * ini.equilibrium.R0 * ini.equilibrium.κ
         z_oh = (ini.equilibrium.Z0 - b, ini.equilibrium.Z0 + b)
-        z_ohcoils, h_oh = size_oh_coils([z_oh[1], z_oh[2]], 0.1, ini.oh.n_coils, 1.0, 0.0)
+        z_ohcoils, h_oh = size_oh_coils(z_oh[1], z_oh[2], 0.1, ini.oh.n_coils, 1.0, 0.0)
         oh_zh = [(z, h_oh) for z in z_ohcoils]
 
         empty!(coils)
@@ -179,8 +179,8 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
     ini.core_profiles.impurity = :Ne #Barium :Ba
     ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
 
-    ini.core_profiles.greenwald_fraction = 0.95
-    ini.core_profiles.greenwald_fraction_ped = ini.core_profiles.greenwald_fraction - 0.1
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value = 0.85
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 1.2

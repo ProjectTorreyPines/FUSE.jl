@@ -280,7 +280,7 @@ function save(
     # first write error.txt so that if we are parsing while running optimizer,
     # the parser can immediately see if this is a failing case
     if typeof(error) <: Nothing
-        pass
+        # pass
     elseif typeof(error) <: Exception
         open(joinpath(savedir, "error.txt"), "w") do file
             return showerror(file, error, catch_backtrace())
@@ -525,7 +525,8 @@ function digest(
         plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false)
-        plot!(p, dd.pf_active; time0, subplot=2)
+        plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
+        plot!(p, dd.build.pf_active.rail, subplot=2)
         display(p)
     end
 
@@ -919,4 +920,29 @@ function malloc_trim_if_glibc()
     else
         #println("Not on a Linux system.")
     end
+end
+
+"""
+    extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.ExtractFunctionsLibrary)
+
+Extracts scalars quantities from ExtractFunctionsLibrary in parallel and return the dataframe
+"""
+function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.ExtractFunctionsLibrary)
+    extr = Dict(extract(dds[1], xtract))
+    df = DataFrames.DataFrame(extr)
+    for k in 2:length(dds)
+        push!(df, df[1, :])
+    end
+    p = ProgressMeter.Progress(length(dds); showspeed=true)
+    Threads.@threads for k in eachindex(dds)
+        try
+            tmp = Dict(extract(dds[k], xtract))
+            df[k, :] = tmp
+        catch
+            continue
+        end
+        ProgressMeter.next!(p)
+    end
+    ProgressMeter.finish!(p)
+    return df
 end

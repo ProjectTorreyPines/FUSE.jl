@@ -89,20 +89,21 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ini.time.simulation_start = time_backup
 
             # density & zeff
-            time, data = get_time_dependent(ini.core_profiles, [:zeff, :greenwald_fraction_ped, :ne_ped, :greenwald_fraction]; simplify_time_traces)
-            ps.density_control.time = time
-            ps.density_control.zeff.reference = data.zeff
-            ps.density_control.zeff_pedestal.reference = data.zeff
-            if !(typeof(data.greenwald_fraction_ped) <: Vector{Missing})
-                ps.density_control.n_e_pedestal_greenwald_fraction.reference = data.greenwald_fraction_ped
-            end
-            if !(typeof(data.ne_ped) <: Vector{Missing})
-                ps.density_control.n_e_pedestal.reference = data.ne_ped
-            end
-            if !(typeof(data.greenwald_fraction) <: Vector{Missing})
-                ps.density_control.n_e_greenwald_fraction.reference = data.greenwald_fraction
-            end
+            time, data = get_time_dependent(ini.core_profiles, [:zeff, :ne_value]; simplify_time_traces)
+            dd.pulse_schedule.density_control.time = time
+            dd.pulse_schedule.density_control.zeff.reference = data.zeff
+            dd.pulse_schedule.density_control.zeff_pedestal.reference = data.zeff
 
+            if ini.core_profiles.ne_setting == :greenwald_fraction_ped
+                dd.pulse_schedule.density_control.n_e_pedestal_greenwald_fraction.reference = data.ne_value
+            elseif ini.core_profiles.ne_setting == :ne_ped
+                dd.pulse_schedule.density_control.n_e_pedestal.reference = data.ne_value
+            elseif ini.core_profiles.ne_setting == :ne_line
+                dd.pulse_schedule.density_control.n_e_line.reference = data.ne_value
+            elseif ini.core_profiles.ne_setting == :greenwald_fraction
+                dd.pulse_schedule.density_control.n_e_greenwald_fraction.reference = data.ne_value
+            end
+            
             # NB
             resize!(ps.nbi.unit, length(ini.nb_unit))
             for (k, ini_nbu) in enumerate(ini.nb_unit)
