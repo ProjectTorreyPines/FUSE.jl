@@ -281,8 +281,11 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
         coil.temperature = [-1, coil_tech.temperature]
 
         # current limit evaluated at all magnetic fields and temperatures
+        coil_area = IMAS.area(coil)
+        frac_conductor = IMAS.fraction_conductor(coil_tech)
+        turns = coil.element[1].turns_with_sign
         coil.current_limit_max = [
-            abs(mat_pf.critical_current_density(; Bext=b) * IMAS.area(coil) * IMAS.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
+            abs(mat_pf.critical_current_density(; Bext=b) * coil_area * frac_conductor / turns) for
             b in coil.b_field_max,
             t in coil.temperature
         ]
