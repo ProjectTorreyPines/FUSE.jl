@@ -98,6 +98,9 @@ registry:
 # register a package to FuseRegistry
 # >> make register repo=IMASDD
 register:
+ifeq ($(repo),)
+	$(error repo variable is not set)
+endif
 	@current_branch=$(shell git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
 	if [ "$$current_branch" != "master" ]; then \
 		echo "Error: $(repo) is not on the master branch" ;\
@@ -521,9 +524,43 @@ julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; Docume
 all_apache:
 	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) apache repo=$(package);)
 
+# utility to error if Project.toml in repo has not been manually modified
+error_if_project_toml_is_dirty:
+ifeq ($(repo),)
+	$(error repo variable is not set)
+endif
+	if ! git -C ../$(repo) diff --quiet -- Project.toml ; then \
+		echo "Error: Project.toml has uncommitted changes." ;\
+		exit 1 ;\
+	fi
+
+# utility to error if previous commit was a version bump
+error_on_previous_commit_is_a_version_bump:
+ifeq ($(repo),)
+	$(error repo variable is not set)
+endif
+	previous_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
+	if echo "$$previous_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
+		echo "Error: The previous commit was a version bump." ;\
+		exit 1 ;\
+	fi
+
+# bump minor version of a repo
+# >> make bump_minor repo=IMAS
+bump_minor: error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
+ifeq ($(repo),)
+	$(error repo variable is not set)
+endif
+	echo $(repo) ;\
+new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
+awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+git -C ../$(repo) add Project.toml ;\
+git -C ../$(repo) commit -m "v$${new_version}" ;\
+git -C ../$(repo) push
+
 # bump patch version of a repo
-# >> make bump_version repo=IMAS
-bump_version:
+# >> make bump_patch repo=IMAS
+bump_patch: error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
 ifeq ($(repo),)
 	$(error repo variable is not set)
 endif
@@ -532,21 +569,11 @@ new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]
 awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 git -C ../$(repo) add Project.toml ;\
 git -C ../$(repo) commit -m "v$${new_version}" ;\
-git -C ../$(repo) tag -d v$${new_version} ;\
-git -C ../$(repo) tag -a v$${new_version} -m "v$${new_version}" ;\
 git -C ../$(repo) push
 
-# loop over FUSE packages and bump up their versions
-# >> make bump_versions repos="IMAS IMASDD"
-bump_versions:
-ifeq ($(repos),)
-	$(error repos variable is not set)
-endif
-	$(foreach package,$(repos), $(MAKE) bump_version repo=$(package);)
+register_minor: resolve bump_minor register
 
-# loop over all FUSE packages and bump up their versions
-all_bump_version:
-	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) bump_version repo=$(package);)
+register_patch: resolve bump_patch register
 
 # print dependency tree of the packages in dev folder
 dev_deps_tree:
