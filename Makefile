@@ -189,8 +189,8 @@ install_no_registry: forward_compatibility registry clone_pull_all develop speci
 install_via_registry: forward_compatibility registry develop special_dependencies
 
 # install used by CI (add packages, do not dev them)
-install_ci_add: https_add special_dependencies
-install_ci_dev: https_dev special_dependencies
+install_ci_add: registry https_add special_dependencies
+install_ci_dev: registry https_dev special_dependencies
 
 # set default install method
 install: install_no_registry
