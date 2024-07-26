@@ -645,4 +645,15 @@ ifeq ($(repo),)
 	$(error `repos` variable is not set)
 endif
 
+# take latest commit on feature branch and pushes it to master
+cherry_pick_to_master: error_missing_repo_var
+	cd ../$(repo) && \
+	git stash; \
+	LATEST_COMMIT=$$(git rev-parse HEAD); \
+	git checkout master; \
+	git cherry-pick $$LATEST_COMMIT; \
+	git push origin master; \
+	git checkout -; \
+	git stash pop
+
 .PHONY:
