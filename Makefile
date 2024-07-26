@@ -455,7 +455,7 @@ manifest_ci:
 
 # remove all Manifest.toml files
 rm_manifests:
-	find ..  -maxdepth 3 -type f -name "Manifest.toml" -exec rm -f \{\} \;
+	@find ..  -maxdepth 3 -type f -name "Manifest.toml" -exec rm -f \{\} \;
 
 # update dd from the json files
 dd:
@@ -468,16 +468,13 @@ init_expressions:
 
 # create an empty commit
 empty_commit:
-	git reset HEAD
-	git commit --allow-empty -m 'empty commit'
+	@git reset HEAD
+	@git commit --allow-empty -m 'empty commit'
 
 # GitHub merge of `branch` into `master` for a series of repos
 # >> make branch_master branch=my_branch repos='FUSE IMAS IMASDD'
-branch_master:
-ifeq ($(repos),)
-	$(error repos variable is not set)
-endif
-	$(foreach repo,$(repos), \
+branch_master: error_missing_repos_var
+	@$(foreach repo,$(repos), \
 curl -X POST \
 -H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
 -H "Accept: application/vnd.github.v3+json" \
@@ -489,12 +486,9 @@ https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
 # >> make apache repo=CHEASE
 # in addition, one must add the DOCUMENTER_KEY to the repo
 # https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
-apache:
-ifeq ($(repo),)
-	$(error repo variable is not set)
-endif
-	echo $(repo)
-	cp ../IMASDD/LICENSE ../$(repo)/ ;\
+apache: error_missing_repo_var
+	@echo $(repo)
+	@cp ../IMASDD/LICENSE ../$(repo)/ ;\
 \
 cp ../IMASDD/NOTICE.md ../$(repo)/ ;\
 sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
@@ -522,24 +516,18 @@ julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; Docume
 
 # loop over all FUSE packages
 all_apache:
-	$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) apache repo=$(package);)
+	@$(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE), $(MAKE) apache repo=$(package);)
 
 # utility to error if Project.toml in repo has not been manually modified
-error_if_project_toml_is_dirty:
-ifeq ($(repo),)
-	$(error repo variable is not set)
-endif
-	if ! git -C ../$(repo) diff --quiet -- Project.toml ; then \
+error_if_project_toml_is_dirty: error_missing_repo_var
+	@if ! git -C ../$(repo) diff --quiet -- Project.toml ; then \
 		echo "Error: Project.toml has uncommitted changes." ;\
 		exit 1 ;\
 	fi
 
 # utility to error if previous commit was a version bump
-error_on_previous_commit_is_a_version_bump:
-ifeq ($(repo),)
-	$(error repo variable is not set)
-endif
-	previous_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
+error_on_previous_commit_is_a_version_bump: error_missing_repo_var
+	@previous_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
 	if echo "$$previous_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
 		echo "Error: The previous commit was a version bump." ;\
 		exit 1 ;\
@@ -547,11 +535,8 @@ endif
 
 # bump minor version of a repo
 # >> make bump_minor repo=IMAS
-bump_minor: error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
-ifeq ($(repo),)
-	$(error repo variable is not set)
-endif
-	echo $(repo) ;\
+bump_minor: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
+	@echo $(repo) ;\
 new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
 awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 git -C ../$(repo) add Project.toml ;\
@@ -560,11 +545,8 @@ git -C ../$(repo) push
 
 # bump patch version of a repo
 # >> make bump_patch repo=IMAS
-bump_patch: error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
-ifeq ($(repo),)
-	$(error repo variable is not set)
-endif
-	echo $(repo) ;\
+bump_patch: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
+	@echo $(repo) ;\
 new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
 awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 git -C ../$(repo) add Project.toml ;\
@@ -577,7 +559,7 @@ register_patch: resolve bump_patch register
 
 # print dependency tree of the packages in dev folder
 dev_deps_tree:
-	julia -e' ;\
+	@julia -e' ;\
 using AbstractTrees ;\
 using Pkg ;\
 function AbstractTrees.printnode(io::IO, uuid::Base.UUID) ;\
@@ -593,11 +575,11 @@ AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
 '
 
 # Apply compat patches and save the resulting Project_PR???.toml files
-download_project_tomls:
+download_project_tomls: error_missing_repo_var
 	@echo "Downloading Project.toml files from CompatHelper PRs in repository: $(repo)"
-	cd ../$(repo) && \
+	@cd ../$(repo) && \
+	git fetch && \
 	pr_numbers_and_shas=$$(gh pr list --state open --json number,headRefOid,title --jq '.[] | select(.title != null and (.title | contains("CompatHelper:"))) | "\(.number):\(.headRefOid)"') && \
-	echo "PR numbers and commit SHAs: $$pr_numbers_and_shas" && \
 	for pr_info in $$pr_numbers_and_shas; do \
 		pr_number=$${pr_info%%:*}; \
 		commit_sha=$${pr_info##*:}; \
@@ -607,13 +589,13 @@ download_project_tomls:
 	echo "Project.toml files downloaded."
 
 # Combine Project_PR???.toml files using Julia
-combine_project_toml:
+combine_project_toml: error_missing_repo_var
 	@echo "Combining Project.toml files in repository: $(repo)"
 	@cd ../$(repo) && \
 	julia -e 'using TOML; \
 		project_dir = "./"; \
 		project_files = filter(x -> startswith(x, "Project_PR") && endswith(x, ".toml"), readdir(project_dir)); \
-		combined_compat = Dict{String, String}(); \
+		combined_compat = TOML.parsefile("Project.toml")["compat"]; \
 		for file in project_files; \
 			println(file); \
 		    project_path = joinpath(project_dir, file); \
@@ -632,10 +614,15 @@ combine_project_toml:
 		println("Combined Project.toml saved as Project_combined.toml");'
 
 # Apply compat patches, combine them in the original Project.toml, and cleanup
-compat: download_project_tomls combine_project_toml
-	#rm ../$(repo)/Project_PR*.toml
+compat: error_missing_repo_var download_project_tomls combine_project_toml
+	@echo ""
+	@echo "To remove temporary Project_PR???.toml files and close CompatHelper PRs, do:"
+	@echo ""
+	@echo "    make compat_cleanup repo=$(repo)"
+	@echo ""
 
-compat_cleanup:
+# Remove temporary Project_PR???.toml files and close CompatHelper PRs
+compat_cleanup: error_missing_repo_var
 	@echo "Closing corresponding PRs and deleting temporary Project_PR???.toml files"
 	cd ../$(repo) && \
 	for file in Project_PR*.toml; do \
@@ -644,6 +631,18 @@ compat_cleanup:
 		gh pr close $$pr_number --delete-branch; \
 		rm $$file; \
 	done && \
-	echo "PRs closed and temporary files deleted."
+	echo "CompatHelper PRs closed and temporary files deleted."
+
+# Throw an error if environment variable `repo` is not set
+error_missing_repo_var:
+ifeq ($(repo),)
+	$(error `repo` variable is not set)
+endif
+
+# Throw an error if environment variable `repos` is not set
+error_missing_repos_var:
+ifeq ($(repo),)
+	$(error `repos` variable is not set)
+endif
 
 .PHONY:
