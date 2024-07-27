@@ -1,5 +1,4 @@
 import QED
-import FiniteElementHermite
 
 #= ======== =#
 #  ActorQED  #

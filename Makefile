@@ -128,8 +128,6 @@ using Pkg;\
 Pkg.activate();\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
-Pkg.activate(".");\
-Pkg.develop(fuse_packages);\
 '
 	@make revise
 
@@ -192,10 +190,10 @@ Pkg.activate("./docs");\
 Pkg.develop(["FUSE"; fuse_packages])'
 
 # install FUSE without using the registry
-install_no_registry: forward_compatibility registry clone_pull_all develop
+install_no_registry: registry clone_pull_all develop
 
 # install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
-install_via_registry: forward_compatibility registry develop
+install_via_registry: registry develop
 
 # install used by CI (add packages, do not dev them)
 install_ci_add: registry https_add
@@ -206,25 +204,15 @@ install: install_no_registry
 
 # update_all, a shorthand for install and precompile
 update_all: install
-	@julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
+	@julia -e 'using Pkg; Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
 # update, a synonim of clone_pull and develop
-update: forward_compatibility clone_pull_all develop resolve
+update: clone_pull_all develop resolve
 
 # resolve the current environment (eg. after manually adding a new package)
 resolve:
-	@julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.precompile()'
+	@julia -e 'using Pkg; Pkg.resolve(); Pkg.precompile()'
 
-# delete local packages that have become obsolete
-forward_compatibility:
-	@julia -e '\
-using Pkg;\
-for package in ("Equilibrium", "Broker", "ZMQ", "FUSE_GA");\
-	try; Pkg.activate();    Pkg.rm(package); catch; end;\
-	try; Pkg.activate("."); Pkg.rm(package); catch; end;\
-	try; Pkg.activate("./docs"); Pkg.rm(package); catch; end;\
-end;\
-'
 # undo --single-branch clones of git repos
 undo_single_branch:
 	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cd ../$(package)/; echo `pwd`; git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; git fetch origin;)
@@ -442,9 +430,11 @@ endif
 
 # run julia using the Manifest_CI.toml
 manifest_ci:
-	@TEMP_DIR=$$(mktemp -d /var/tmp/manifest_ci.XXXXXX) && echo $$TEMP_DIR &&\
+	@TEMP_DIR=$$(mktemp -d /var/tmp/manifest_ci.XXXXXX) &&\
+	echo $$TEMP_DIR &&\
 	sed "s/git@/https:\\/\\//g" Manifest_CI.toml > $$TEMP_DIR/Manifest.toml && \
-	cd $$TEMP_DIR && julia -i -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
+	cd $$TEMP_DIR &&\
+	julia -i -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
 
 # remove all Manifest.toml files
 rm_manifests:
