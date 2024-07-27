@@ -97,10 +97,7 @@ registry:
 
 # register a package to FuseRegistry
 # >> make register repo=IMASDD
-register:
-ifeq ($(repo),)
-	$(error repo variable is not set)
-endif
+register: error_missing_repo_var
 	@current_branch=$(shell git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
 	if [ "$$current_branch" != "master" ]; then \
 		echo "Error: $(repo) is not on the master branch" ;\
@@ -125,9 +122,8 @@ all_register:
 
 # install FUSE packages in global environment to easily develop and test changes made across multiple packages at once
 develop:
-	julia -e '\
+	@julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
 using Pkg;\
 Pkg.activate();\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
@@ -135,20 +131,31 @@ Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 Pkg.activate(".");\
 Pkg.develop(fuse_packages);\
 '
-	make revise
+	@make revise
 
 # load Revise when Julia starts up
 revise:
-	julia -e 'using Pkg; Pkg.add("Revise")'
-	mkdir -p $(JULIA_DIR)/config
-	touch $(JULIA_CONF)
-	grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
-	echo "using Revise" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
-	rm -f "$(JULIA_CONF).tmp"
+	@echo "Setting Revise.jl to run at startup"
+	@julia -e 'using Pkg; Pkg.add("Revise")'
+	@mkdir -p $(JULIA_DIR)/config
+	@touch $(JULIA_CONF)
+	@grep -v -F -x "using Revise" "$(JULIA_CONF)" > "$(JULIA_CONF).tmp" || true
+	@echo "using Revise" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
+	@rm -f "$(JULIA_CONF).tmp"
 
-# list branches of all the ProjectTorreyPines packages used by FUSE
-branch: .PHONY
-	@cd $(CURRENTDIR); $(foreach package,FUSE $(FUSE_PACKAGES_MAKEFILE),printf "%25s" "$(package)"; echo ":  `cd ../$(package); git rev-parse --abbrev-ref HEAD | sed 's/$$/ \*/' | sed 's/^master \*$$/master/'`";)
+# list branches of all the ProjectTorreyPines packages used by FUSE with version and dirty * flag
+status:
+	@cd $(CURRENTDIR); \
+	packages="FUSE $(FUSE_PACKAGES_MAKEFILE)"; \
+	sorted_packages=`echo $$packages | tr ' ' '\n' | sort | tr '\n' ' '`; \
+	for package in $$sorted_packages; do \
+		package_dir="../$$package"; \
+		branch=`cd $$package_dir && git rev-parse --abbrev-ref HEAD`; \
+		version=`grep -m1 'version =' $$package_dir/Project.toml | awk -F' = ' '{print $$2}'`; \
+		dirty=`cd $$package_dir && [ -n "$$(git status --porcelain)" ] && echo "*" || echo ""`; \
+		printf "%25s" "$$package"; \
+		echo ":  $$version @ $$branch$$dirty"; \
+	done
 
 # install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # looks for same branch name for all repositories otherwise falls back to master
@@ -156,7 +163,6 @@ https_add:
 	julia -e ';\
 $(feature_or_master_julia);\
 fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
 using Pkg;\
 Pkg.activate(".");\
 dependencies = Pkg.PackageSpec[];\
@@ -186,40 +192,32 @@ Pkg.activate("./docs");\
 Pkg.develop(["FUSE"; fuse_packages])'
 
 # install FUSE without using the registry
-install_no_registry: forward_compatibility registry clone_pull_all develop special_dependencies
+install_no_registry: forward_compatibility registry clone_pull_all develop
 
 # install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
-install_via_registry: forward_compatibility registry develop special_dependencies
+install_via_registry: forward_compatibility registry develop
 
 # install used by CI (add packages, do not dev them)
-install_ci_add: registry https_add special_dependencies
-install_ci_dev: registry https_dev special_dependencies
+install_ci_add: registry https_add
+install_ci_dev: registry https_dev
 
 # set default install method
 install: install_no_registry
 
-# dependencies that are not in the global registry
-special_dependencies: #DISABLED
-#	@julia -e ';\
-using Pkg;\
-dependencies = Pkg.PackageSpec[PackageSpec(url="https://github.com/IanButterworth/Flux.jl", rev="ib/cudaext")];\
-Pkg.add(dependencies);\
-'
-
 # update_all, a shorthand for install and precompile
 update_all: install
-	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
+	@julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
 # update, a synonim of clone_pull and develop
 update: forward_compatibility clone_pull_all develop resolve
 
 # resolve the current environment (eg. after manually adding a new package)
 resolve:
-	julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.precompile()'
+	@julia -e 'using Pkg; Pkg.resolve(); Pkg.activate("."); Pkg.resolve(); Pkg.precompile()'
 
 # delete local packages that have become obsolete
 forward_compatibility:
-	julia -e '\
+	@julia -e '\
 using Pkg;\
 for package in ("Equilibrium", "Broker", "ZMQ", "FUSE_GA");\
 	try; Pkg.activate();    Pkg.rm(package); catch; end;\
@@ -232,9 +230,9 @@ undo_single_branch:
 	$(foreach package,$(FUSE_PACKAGES_MAKEFILE),cd ../$(package)/; echo `pwd`; git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"; git fetch origin;)
 
 # clone and update all FUSE packages
-clone_pull_all: branch
+clone_pull_all: status
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	make -i $(PARALLELISM) FUSE ServeFUSE GenerateDD $(FUSE_PACKAGES_MAKEFILE)
+	@make -i $(PARALLELISM) FUSE ServeFUSE GenerateDD $(FUSE_PACKAGES_MAKEFILE)
 
 playground: .PHONY
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
@@ -319,9 +317,6 @@ RABBIT:
 	$(call clone_pull_repo,$@)
 
 ThermalSystemModels:
-	@find ~/.julia/environments/ -type f -name "*.toml" -exec sed -i.bak 's/ThermalSystem_Models/ThermalSystemModels/g' {} \; -exec rm -f {}.bak \;
-	@find ../ -type f -name "*.toml" -exec sed -i.bak 's/ThermalSystem_Models/ThermalSystemModels/g' {} \; -exec rm -f {}.bak \;
-	@rm -rf ../ThermalSystem_Models
 	$(call clone_pull_repo,$@)
 
 GenerateDD:
@@ -329,9 +324,8 @@ GenerateDD:
 
 ServeFUSE:
 	$(call clone_pull_repo,$@)
-	julia -e '\
+	@julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
 using Pkg;\
 Pkg.activate("../ServeFUSE/task_tiller");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
@@ -365,7 +359,6 @@ Pkg.build("PyCall");\
 develop_docs:
 	julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
-println(fuse_packages);\
 using Pkg;\
 Pkg.activate("./docs");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
@@ -651,6 +644,7 @@ cherry_pick_to_master: error_missing_repo_var
 	git stash; \
 	LATEST_COMMIT=$$(git rev-parse HEAD); \
 	git checkout master; \
+	git pull; \
 	git cherry-pick $$LATEST_COMMIT; \
 	git push origin master; \
 	git checkout -; \
