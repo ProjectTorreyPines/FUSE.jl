@@ -72,7 +72,7 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 [compat]
 ADAS = "1"
 AbstractTrees = "0.4"
-BoundaryPlasmaModels = "0.1"
+BoundaryPlasmaModels = "1.0"
 CHEASE = "1.0"
 CSV = "0.10"
 ClusterManagers = "0.4"
