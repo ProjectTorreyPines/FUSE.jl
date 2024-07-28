@@ -150,7 +150,7 @@ status:
 		package_dir="../$$package"; \
 		branch=`cd $$package_dir && git rev-parse --abbrev-ref HEAD`; \
 		version=`grep -m1 'version =' $$package_dir/Project.toml | awk -F' = ' '{print $$2}'`; \
-		dirty=`cd $$package_dir && [ -n "$$(git status --porcelain)" ] && echo "*" || echo ""`; \
+		dirty=`cd $$package_dir && [ -n "$$(git status --porcelain)" ] && echo " (dirty)" || echo ""`; \
 		printf "%25s" "$$package"; \
 		echo ":  $$version @ $$branch$$dirty"; \
 	done
@@ -516,12 +516,22 @@ error_on_previous_commit_is_a_version_bump: error_missing_repo_var
 		exit 1 ;\
 	fi
 
+# bump major version of a repo
+# >> make bump_major repo=IMAS
+bump_major: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
+	@echo $(repo) ;\
+new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
+awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+git -C ../$(repo) add Project.toml ;\
+git -C ../$(repo) commit -m "v$${new_version}" ;\
+git -C ../$(repo) push
+
 # bump minor version of a repo
 # >> make bump_minor repo=IMAS
 bump_minor: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
 	@echo $(repo) ;\
 new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
-awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 git -C ../$(repo) add Project.toml ;\
 git -C ../$(repo) commit -m "v$${new_version}" ;\
 git -C ../$(repo) push
@@ -535,6 +545,8 @@ awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "ver
 git -C ../$(repo) add Project.toml ;\
 git -C ../$(repo) commit -m "v$${new_version}" ;\
 git -C ../$(repo) push
+
+register_major: resolve bump_major register
 
 register_minor: resolve bump_minor register
 
