@@ -134,7 +134,11 @@ function init_pf_active!(
     bd.pf_active.rail[1].coils_cleareance = coils_cleareance[1]
     bd.pf_active.rail[1].outline.r = ones(length(z_ohcoils)) * r_oh
     bd.pf_active.rail[1].outline.z = z_ohcoils
-    bd.pf_active.rail[1].outline.distance = range(-1, 1, n_coils[1])
+    if n_coils[1] == 1
+        bd.pf_active.rail[1].outline.distance = [0.0]
+    else
+        bd.pf_active.rail[1].outline.distance = range(-1, 1, n_coils[1])
+    end
     for (kk, z_oh) in enumerate(z_ohcoils)
         k = length(pf_active.coil) + 1
         resize!(pf_active.coil, k)
@@ -305,11 +309,16 @@ function init_pf_active!(
 end
 
 function size_oh_coils(min_z, max_z, coils_cleareance, coils_number, height=1.0, offset=0.0)
-    Δrail = max_z - min_z
-    Δclear = coils_cleareance * coils_number
-    Δcoil = (height * Δrail - Δclear) / coils_number
-    rail_offset = (max_z + min_z) / 2.0
-    z = range(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
-    z = z .+ (offset * (1 - height) * Δrail)
+    if coils_number == 1
+        z = [0.0]
+        Δcoil = max_z - min_z
+    else
+        Δrail = max_z - min_z
+        Δclear = coils_cleareance * coils_number
+        Δcoil = (height * Δrail - Δclear) / coils_number
+        rail_offset = (max_z + min_z) / 2.0
+        z = range(-height * Δrail / 2.0 + Δcoil / 2.0, height * Δrail / 2.0 - Δcoil / 2.0, coils_number) .+ rail_offset
+        z = z .+ (offset * (1 - height) * Δrail)
+    end
     return z, Δcoil
 end

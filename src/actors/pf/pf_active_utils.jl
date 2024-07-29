@@ -348,7 +348,7 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
     end
     oh_height_off = Float64[]
     for rail in bd.pf_active.rail
-        if rail.name == "OH"
+        if rail.name == "OH" && rail.coils_number > 1
             push!(oh_height_off, 1.0)
             push!(lbounds, 1.0 - 1.0 / rail.coils_number)
             push!(ubounds, 1.0)
@@ -367,12 +367,15 @@ end
 
 function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::IMAS.build)
     λ_regularize = packed[end]
-    if symmetric
-        n_oh_params = 1
-    else
-        n_oh_params = 2
-    end
-    if any(rail.name == "OH" for rail in bd.pf_active.rail)
+
+
+#    @show collect(findall(rail -> rail.name == "OH", bd.pf_active.rail))
+    if any(rail.name == "OH" for rail in bd.pf_active.rail) && bd.pf_active.rail[1].coils_number > 1
+        if symmetric
+            n_oh_params = 1
+        else
+            n_oh_params = 2
+        end
         oh_height_off = packed[end-n_oh_params:end-1]
         distances = packed[1:end-n_oh_params]
     else
@@ -386,20 +389,22 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         koh = 0
         for rail in bd.pf_active.rail
             if rail.name == "OH"
-                # mirror OH size when it reaches maximum extent of the rail
-                oh_height_off[1] = mirror_bound(oh_height_off[1], 1.0 - 1.0 / rail.coils_number, 1.0)
-                if !symmetric
-                    offset = mirror_bound(oh_height_off[2], -2.0 / rail.coils_number, 2.0 / rail.coils_number)
-                else
-                    offset = 0.0
-                end
-                z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
-                z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
-                for k in 1:rail.coils_number
-                    koptim += 1
-                    koh += 1
-                    optim_coils[koptim].z = z_oh[koh]
-                    optim_coils[koptim].height = height_oh
+                if rail.coils_number > 1
+                    # mirror OH size when it reaches maximum extent of the rail
+                    oh_height_off[1] = mirror_bound(oh_height_off[1], 1.0 - 1.0 / rail.coils_number, 1.0)
+                    if !symmetric
+                        offset = mirror_bound(oh_height_off[2], -2.0 / rail.coils_number, 2.0 / rail.coils_number)
+                    else
+                        offset = 0.0
+                    end
+                    z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
+                    z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
+                    for k in 1:rail.coils_number
+                        koptim += 1
+                        koh += 1
+                        optim_coils[koptim].z = z_oh[koh]
+                        optim_coils[koptim].height = height_oh
+                    end
                 end
             elseif rail.name == "PF"
                 r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r)
