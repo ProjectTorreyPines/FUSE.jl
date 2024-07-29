@@ -173,7 +173,8 @@ makedocs(;
         "Parameters" => ["ini Parameters" => "ini.md", "act Parameters" => "act.md", "Use Cases" => "cases.md", "Initialization" => "inits.md"],
         "Examples" => "examples.md",
         "Development" => "develop.md",
-        "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"]
+        "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
+        "License" => ["License" => "license.md", "Notice" => "notice.md"]
     ]
 )
 
