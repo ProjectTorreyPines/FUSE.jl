@@ -44,10 +44,10 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.impurity = :Ar
 
     ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 10
+    ini.pf_active.n_coils_outside = 8
     ini.pf_active.technology = :copper
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :offset
     ini.tf.n_coils = 18
     ini.tf.technology = :copper
 

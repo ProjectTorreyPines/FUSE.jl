@@ -348,7 +348,7 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
     end
     oh_height_off = Float64[]
     for rail in bd.pf_active.rail
-        if rail.name == "OH" && rail.coils_number > 1
+        if rail.name == "OH"
             push!(oh_height_off, 1.0)
             push!(lbounds, 1.0 - 1.0 / rail.coils_number)
             push!(ubounds, 1.0)
@@ -367,10 +367,7 @@ end
 
 function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::IMAS.build)
     λ_regularize = packed[end]
-
-
-#    @show collect(findall(rail -> rail.name == "OH", bd.pf_active.rail))
-    if any(rail.name == "OH" for rail in bd.pf_active.rail) && bd.pf_active.rail[1].coils_number > 1
+    if any(rail.name == "OH" for rail in bd.pf_active.rail)
         if symmetric
             n_oh_params = 1
         else
@@ -389,22 +386,20 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         koh = 0
         for rail in bd.pf_active.rail
             if rail.name == "OH"
-                if rail.coils_number > 1
-                    # mirror OH size when it reaches maximum extent of the rail
-                    oh_height_off[1] = mirror_bound(oh_height_off[1], 1.0 - 1.0 / rail.coils_number, 1.0)
-                    if !symmetric
-                        offset = mirror_bound(oh_height_off[2], -2.0 / rail.coils_number, 2.0 / rail.coils_number)
-                    else
-                        offset = 0.0
-                    end
-                    z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
-                    z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
-                    for k in 1:rail.coils_number
-                        koptim += 1
-                        koh += 1
-                        optim_coils[koptim].z = z_oh[koh]
-                        optim_coils[koptim].height = height_oh
-                    end
+                # mirror OH size when it reaches maximum extent of the rail
+                oh_height_off[1] = mirror_bound(oh_height_off[1], 0.8, 1.0)
+                # allow ± one coil offset
+                if symmetric
+                    offset = 0.0
+                else
+                    offset = mirror_bound(oh_height_off[2], -1.0, 1.0)
+                end
+                z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], offset)
+                for k in 1:rail.coils_number
+                    koptim += 1
+                    koh += 1
+                    optim_coils[koptim].z = z_oh[koh]
+                    optim_coils[koptim].height = height_oh
                 end
             elseif rail.name == "PF"
                 r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r)
@@ -449,10 +444,8 @@ end
 function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
     Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
 
-    function optimal_area(x; coil, r0, z0, width0, height0)
+    function optimal_area(x; coil, pfcoil, r0, z0, width0, height0)
         area = abs(x[1])
-
-        pfcoil = getfield(coil, :imas)
 
         height = sqrt(area)
         width = area / height
@@ -482,7 +475,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
             z0 = pfcoil.element[1].geometry.rectangle.z
             width0 = pfcoil.element[1].geometry.rectangle.width
             height0 = pfcoil.element[1].geometry.rectangle.height
-            res = Optim.optimize(x -> optimal_area(x; coil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
+            res = Optim.optimize(x -> optimal_area(x; coil, pfcoil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
             push!(areas, abs(res.minimizer[1]))
         end
     end
@@ -534,7 +527,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
             z0 = pfcoil.element[1].geometry.rectangle.z
             width0 = pfcoil.element[1].geometry.rectangle.width
             height0 = pfcoil.element[1].geometry.rectangle.height
-            optimal_area(max(areas[k], min_size * msa); coil, r0, z0, width0, height0)
+            optimal_area(max(areas[k], min_size * msa); coil, pfcoil, r0, z0, width0, height0)
         end
     end
 end
