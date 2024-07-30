@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersAc
     _time::Float64 = NaN
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101)
+    divertor_size::Entry{T} = Entry{T}("-", "Divertor size as fraction of plasma minor radius"; default=0.20)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
@@ -56,7 +57,7 @@ function _step(actor::ActorCXbuild)
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
     wall_outline = IMAS.first_wall(wall)
     if isempty(wall_outline.r) || par.rebuild_wall
-        wall_from_eq!(wall, eqt, bd)
+        wall_from_eq!(wall, eqt, bd; par.divertor_size)
     end
 
     # empty layer outlines and structures
@@ -142,11 +143,11 @@ function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T
 end
 
 """
-    wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; max_divertor_length_fraction_z_plasma::Real=0.15)
+    wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; divertor_size)
 
 Generate first wall and divertors outline starting from an equilibrium and radial build
 """
-function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; max_divertor_length_fraction_z_plasma::Real=0.15)
+function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; divertor_size)
     # Set the radial build thickness of the plasma vacuum chamber
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
     rlcfs, zlcfs = eqt.boundary.outline.r, eqt.boundary.outline.z
@@ -156,7 +157,7 @@ function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::I
     upper_divertor = ismissing(bd.divertors.upper, :installed) ? false : Bool(bd.divertors.upper.installed)
     lower_divertor = ismissing(bd.divertors.lower, :installed) ? false : Bool(bd.divertors.lower.installed)
 
-    return wall_from_eq!(wall, eqt, gap; upper_divertor, lower_divertor, max_divertor_length_fraction_z_plasma)
+    return wall_from_eq!(wall, eqt, gap; upper_divertor, lower_divertor, divertor_size)
 end
 
 function wall_from_eq!(
@@ -165,7 +166,7 @@ function wall_from_eq!(
     gap::Float64;
     upper_divertor::Bool,
     lower_divertor::Bool,
-    max_divertor_length_fraction_z_plasma::Real)
+    divertor_size::Real)
 
     upper_divertor = Int(upper_divertor)
     lower_divertor = Int(lower_divertor)
@@ -193,8 +194,8 @@ function wall_from_eq!(
     wall_poly = xy_polygon(R, Z)
 
     # divertor lengths
-    linear_z_plasma_size = maximum(zlcfs) - minimum(zlcfs)
-    max_divertor_length = linear_z_plasma_size * max_divertor_length_fraction_z_plasma
+    minor_radius = (maximum(rlcfs) - minimum(rlcfs)) / 2.0
+    max_divertor_length = minor_radius * divertor_size
 
     # private flux regions sorted by distance from lcfs
     private, _ = IMAS.flux_surface(eqt, ψb, :open)
@@ -215,7 +216,7 @@ function wall_from_eq!(
         Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
         Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
         d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
-        if d > linear_z_plasma_size / 5
+        if d > minor_radius
             continue
         end
 
@@ -347,7 +348,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
 
     ψb = eqt.profiles_1d.psi[end]
     ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
-    linear_plasma_size = maximum(zlcfs) - minimum(zlcfs)
+    minor_radius = (maximum(rlcfs) - minimum(rlcfs)) / 2.0
 
     empty!(divertors)
 
@@ -368,7 +369,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
         Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
         d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
-        if d > linear_plasma_size / 5
+        if d > minor_radius
             continue
         end
 
