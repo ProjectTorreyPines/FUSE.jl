@@ -442,7 +442,8 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
 end
 
 function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
-    Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
+    Rcenter = eqt.boundary.geometric_axis.r
+    Zcenter = eqt.boundary.geometric_axis.z
 
     function optimal_area(x; coil, pfcoil, r0, z0, width0, height0)
         area = abs(x[1])
@@ -452,7 +453,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
         pfcoil.element[1].geometry.rectangle.r = r0 + sign(r0 - Rcenter) * (width - width0) / 2.0
-        pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0) * (height - height0) / 2.0
+        pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0 - Zcenter) * (height - height0) / 2.0
 
         mat = Material(coil.tech)
         Bext = coil_selfB(pfcoil, coil.current)
