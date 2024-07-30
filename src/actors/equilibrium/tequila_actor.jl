@@ -177,8 +177,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
     rhoi = TEQUILA.ρ.(Ref(shot), eq1d.psi)
     eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), eq1d.psi)
     eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), eq1d.psi)
-    eq1d.f = TEQUILA.Fpol.(Ref(shot), rhoi)
-    eq1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi)
+    eq1d.f = shot.F.(rhoi)
+    eq1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi; shot.invR, shot.invR2)
 
     resize!(eqt.profiles_2d, 2)
 

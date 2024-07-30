@@ -348,6 +348,12 @@ NOTE: supports multiple comma-separated filenames
 function load_ods(ini::ParametersAllInits)
     dd = load_ods(ini.ods.filename)
     dd.global_time = ini.time.simulation_start
+    for field in keys(dd)
+        ids = getproperty(dd,field)
+        if !ismissing(ids, :time) && length(ids.time) == 1
+            IMAS.retime!(ids, dd.global_time)
+        end
+    end
     return dd
 end
 

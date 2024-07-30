@@ -264,7 +264,7 @@ function optimize_outline(
             cost_max_curvature = 0.0
             if use_curvature
                 curvature = abs.(IMAS.curvature(R, Z))
-                cost_max_curvature = 1.0 / (1.0 - maximum(curvature)^2)
+                cost_max_curvature = atan(1.0 / (1.0 - maximum(curvature)^2)) / pi * 2
             end
 
             if verbose
@@ -772,8 +772,9 @@ Buffer polygon defined by x,y arrays by a quantity b
 function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(poly, b)
-    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
-    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    coords = GeoInterface.coordinates(poly_b)[1]
+    x_b = T[v[1] for v in coords]
+    y_b = T[v[2] for v in coords]
     return x_b, y_b
 end
 
@@ -783,8 +784,8 @@ end
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
 """
 function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
-    x_b, y_b = buffer(x, y, (b_lfs + b_hfs) / 2.0)
-    x_offset = (b_lfs .- b_hfs) / 2.0
+    x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
+    x_offset = 0.5 * (b_lfs - b_hfs)
     x_b .+= x_offset
     return x_b, y_b
 end
@@ -798,8 +799,9 @@ function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvatu
     @assert max_curvature > 0.0
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature), max_curvature)
-    x_b = T[v[1] for v in GeoInterface.coordinates(poly_b)[1]]
-    y_b = T[v[2] for v in GeoInterface.coordinates(poly_b)[1]]
+    coords = GeoInterface.coordinates(poly_b)[1]
+    x_b = T[v[1] for v in coords]
+    y_b = T[v[2] for v in coords]
     return x_b, y_b
 end
 
@@ -1133,7 +1135,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         return MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     end
 
-    symmetric = IMAS.is_updown_symmetric(mxh)
+    symmetric = IMAS.is_updown_symmetric(mxh) && !xor(upper_x_point, lower_x_point)
 
     pr, pz = mxh()
     i = argmax(pz)
@@ -1147,7 +1149,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     M = 12
     N = min(M, length(mxh.s))
 
-    # change mxh parameters so that the boundary with x-points has the desired elongation, triangularity, squareness
+    # change mxhb0 parameters so that the boundary  with x-points fit has the desired elongation, triangularity, squareness when fit with mxh0 
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
 
@@ -1157,7 +1159,8 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         L += 1
         mxhb0.mxh.κ = params[L]
         if symmetric
-            mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
+            mxhb0.mxh.c0 = 0.0
+            mxhb0.mxh.s = params[L+1:end]
             mxhb0.mxh.c = mxhb0.mxh.s .* 0.0
         else
             L += 1
@@ -1246,11 +1249,19 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
 
     if debug
         println(res)
+
+        println("mxh")
         println(mxh)
+
+        println("mxh0")
         println(mxh0)
+
+        println("mxhb0.mxh")
         println(mxhb0.mxh)
+
         display(plot(mxh0))
     end
+
     return mxhb0
 end
 
