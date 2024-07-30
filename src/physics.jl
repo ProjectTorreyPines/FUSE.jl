@@ -952,22 +952,14 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 function add_xpoint(
     mr::AbstractVector{T},
     mz::AbstractVector{T},
-    R0::Union{Nothing,T}=nothing,
-    Z0::Union{Nothing,T}=nothing;
+    R0::T,
+    Z0::T;
     upper::Bool,
     α_multiplier::Float64
 ) where {T<:Real}
 
     function cost(pr::Vector{Float64}, pz::Vector{Float64}, i::Integer, R0::T, Z0::T, α::Float64)
         return abs(add_xpoint(pr, pz, i, R0, Z0, α).θX - π / 2)
-    end
-
-    if Z0 === nothing
-        Z0 = sum(mz) / length(mz)
-    end
-
-    if R0 === nothing
-        R0 = sum(mr) / length(mr)
     end
 
     if upper
