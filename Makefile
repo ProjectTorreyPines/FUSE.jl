@@ -423,7 +423,7 @@ manifest_ci_commit:
 	git stash
 	git checkout manifest
 	git merge master
-	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)@/https:\\/\\//g' Manifest.toml > Manifest_CI.toml
+	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)@/https:\/\//g' Manifest.toml > Manifest_CI.toml
 	git add Manifest_CI.toml
 	git commit --allow-empty -m "Manifest $(TODAY)"
 	git push --set-upstream origin manifest
