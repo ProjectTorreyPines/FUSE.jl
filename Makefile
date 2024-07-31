@@ -556,8 +556,9 @@ register_patch: resolve bump_patch register
 # print dependency tree of the packages in dev folder
 dev_deps_tree:
 	@julia -e' ;\
-using AbstractTrees ;\
 using Pkg ;\
+Pkg.add("AbstractTrees") ;\
+using AbstractTrees ;\
 function AbstractTrees.printnode(io::IO, uuid::Base.UUID) ;\
     dep = get(Pkg.dependencies(), uuid, nothing) ;\
     print(io, dep.name) ;\
