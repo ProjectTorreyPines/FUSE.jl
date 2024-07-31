@@ -222,17 +222,20 @@ for file in files_to_convert
     end
 end
 
-# # =============== #
-# # deploy the docs #
-# # =============== #
-# deploydocs(
-#     target = "build",
-#     repo = "github.com:ProjectTorreyPines/FUSE.jl.git",
-#     forcepush = true
-# )
-
-# makedocs(
-#     modules=[FUSE, IMAS],
-#     sitename="FUSE",
-#     format=Documenter.HTML(prettyurls=false)
-# )
+# Deploy docs
+# This function deploys the documentation to the gh-pages branch of the repository.
+# The main documentation that will be hosted on
+# https://projecttorreypines.github.io/FUSE.jl/stable
+# will be built from latest release tagged with a version number.
+# The development documentation that will be hosted on
+# https://projecttorreypines.github.io/FUSE.jl/dev
+# will be built from the latest commit on the chosen devbranch argument below.
+# For testing purposes, the devbranch argument can be set to WIP branch like "docs".
+# While merging with master, the devbranch argument should be set to "master".
+deploydocs(;
+    repo="github.com/ProjectTorreyPines/FUSE.jl.git",
+    target="build",
+    branch="gh-pages",
+    devbranch="master",
+    versions=["stable" => "v^", "v#.#"]
+)
