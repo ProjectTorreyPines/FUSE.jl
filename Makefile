@@ -517,15 +517,21 @@ error_on_previous_commit_is_a_version_bump: error_missing_repo_var
 		exit 1 ;\
 	fi
 
+# Commit Project.toml with the new version
+# we resolve the environment before committing
+# to ensure that the compat versions are all compatible
+commit_project_toml: resolve
+	git -C ../$(repo) add Project.toml ;\
+	git -C ../$(repo) commit -m "v$(new_version)" ;\
+	git -C ../$(repo) push
+
 # bump major version of a repo
 # >> make bump_major repo=IMAS
 bump_major: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
 	@echo $(repo) ;\
 new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
 awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
-git -C ../$(repo) add Project.toml ;\
-git -C ../$(repo) commit -m "v$${new_version}" ;\
-git -C ../$(repo) push
+	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # bump minor version of a repo
 # >> make bump_minor repo=IMAS
@@ -533,9 +539,7 @@ bump_minor: error_missing_repo_var error_if_project_toml_is_dirty error_on_previ
 	@echo $(repo) ;\
 new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
 awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
-git -C ../$(repo) add Project.toml ;\
-git -C ../$(repo) commit -m "v$${new_version}" ;\
-git -C ../$(repo) push
+	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # bump patch version of a repo
 # >> make bump_patch repo=IMAS
@@ -543,15 +547,13 @@ bump_patch: error_missing_repo_var error_if_project_toml_is_dirty error_on_previ
 	@echo $(repo) ;\
 new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
 awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
-git -C ../$(repo) add Project.toml ;\
-git -C ../$(repo) commit -m "v$${new_version}" ;\
-git -C ../$(repo) push
+	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
-register_major: resolve bump_major register
+register_major: bump_major register
 
-register_minor: resolve bump_minor register
+register_minor: bump_minor register
 
-register_patch: resolve bump_patch register
+register_patch: bump_patch register
 
 # print dependency tree of the packages in dev folder
 dev_deps_tree:
