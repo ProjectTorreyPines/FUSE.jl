@@ -238,7 +238,7 @@ uuid = "0b7ba130-8d10-5ba8-a3d6-c5182647fed9"
 version = "1.21.5+0"
 
 [[deps.BoundaryPlasmaModels]]
-deps = ["ADAS", "Formatting", "IMAS", "IMASDD", "MillerExtendedHarmonic", "NumericalIntegration", "SimulationParameters"]
+deps = ["ADAS", "Formatting", "IMAS", "IMASdd", "MillerExtendedHarmonic", "NumericalIntegration", "SimulationParameters"]
 git-tree-sha1 = "4765dea8ffa31883f70904e0b9ca58b379d988b2"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/BoundaryPlasmaModels.jl.git"
@@ -1324,19 +1324,19 @@ uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.23"
 
 [[deps.IMAS]]
-deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "FuseUtils", "IMASDD", "Interpolations", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
+deps = ["Contour", "CoordinateConventions", "DataInterpolations", "Dates", "ExpiringCaches", "FXP", "FuseUtils", "IMASdd", "Interpolations", "Jedis", "LaTeXStrings", "LinearAlgebra", "Measurements", "Measures", "Memoize", "MillerExtendedHarmonic", "Optim", "OrderedCollections", "PeriodicTable", "PhysicalConstants", "PlotUtils", "PolygonOps", "Printf", "Ratios", "RecipesBase", "Roots", "StaticArrays"]
 git-tree-sha1 = "219ba9c57a8e1eeab8f9a478c13ae4062762df51"
 repo-rev = "master"
 repo-url = "git@github.com/ProjectTorreyPines/IMAS.jl.git"
 uuid = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
 version = "0.1.0"
 
-[[deps.IMASDD]]
+[[deps.IMASdd]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "OrderedCollections", "PCHIPInterpolation", "PrecompileTools", "Printf", "StaticArraysCore", "TimerOutputs"]
 git-tree-sha1 = "7df523c9f2ccff439cc200f29a048ae2ed9251ee"
 repo-rev = "master"
-repo-url = "git@github.com/ProjectTorreyPines/IMASDD.jl.git"
-uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
+repo-url = "git@github.com/ProjectTorreyPines/IMASdd.jl.git"
+uuid = "c5a45a97-b3f9-491c-b9a7-aa88c3bc0067"
 version = "0.1.0"
 
 [[deps.IRTools]]

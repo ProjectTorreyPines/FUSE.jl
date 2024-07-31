@@ -21,7 +21,7 @@ A crucial part of our PR process is code review. It is where your peers get to w
 
 ## How to add/modify entries in `dd`
 
-The `dd` data structure is defined under the [IMASDD.jl](https://github.com/ProjectTorreyPines/IMASDD.jl) package. See the documentation there to how add/modify entries in `dd`.
+The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package. See the documentation there to how add/modify entries in `dd`.
 
 ## How to write IMAS physics functions
 
@@ -250,7 +250,7 @@ Let's now investigate where the issue is with the function that we have identifi
   * JET goes deep into functions
   * `JET.@report_opt function()` reports dynamic dispatch
   * `JET.@report_call function()` reports type errors
-  * `JET.@report_call target_modules=(FUSE,IMAS,IMAS.IMASDD, ) FUSE.ActorNeutronics(dd,act);`
+  * `JET.@report_call target_modules=(FUSE,IMAS,IMAS.IMASdd, ) FUSE.ActorNeutronics(dd,act);`
 
 * [Cthulhu](https://github.com/JuliaDebug/Cthulhu.jl): interactive static analyzer
   * `Cthulhu.@descend function()`

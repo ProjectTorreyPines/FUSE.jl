@@ -90,13 +90,13 @@ dd.equilibrium.time_slice[2].boundary
 
 #### Show IMAS stucture
 
-* `dd`, `dd.equilibrium`, ... are instances of Julia `strut`s that are defined in the `IMASDD.jl` package
+* `dd`, `dd.equilibrium`, ... are instances of Julia `strut`s that are defined in the `IMASdd.jl` package
   * `dd = IMAS.dd()`
   * `dd.equilibrium` is of type `IMAS.equilibrium`
   * `dd.equilibrium.time_slice` is of type `IMAS.equilibrium__time_slice`
   * `dd.equilibrium.time_slice[1].boundary` is of type `IMAS.equilibrium__time_slice___boundary`
   
-* The curious reader can take a look at the [IMASDD/src/dd.jl](../../../IMASDD/src/dd.jl) file to see those definitions
+* The curious reader can take a look at the [IMASdd/src/dd.jl](../../../IMASdd/src/dd.jl) file to see those definitions
 
 
 ```@julia
@@ -112,7 +112,7 @@ dd.equilibrium
 
 #### Plot data in `dd`
 
-* There are [Plots.jl recipies](https://docs.juliaplots.org/latest/recipes/) defined for different IMASDD.jl types of structs
+* There are [Plots.jl recipies](https://docs.juliaplots.org/latest/recipes/) defined for different IMASdd.jl types of structs
 * These recipies are defined in [IMAS/src/plot.jl](../../../IMAS/src/plot.jl)
 * Plots can be [customized](https://docs.juliaplots.org/latest/generated/attributes_series)
 * NOTE: use `display()` is used to force the plot to show when `plot` is not called at the end of the cell

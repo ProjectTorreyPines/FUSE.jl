@@ -3,7 +3,7 @@ Pkg.activate(@__DIR__)
 using Documenter
 import FUSE
 import IMAS
-import IMASDD
+import IMASdd
 import SimulationParameters
 import AbstractTrees
 import ProgressMeter
@@ -154,7 +154,7 @@ include("$(@__DIR__)/src/examples.jl")
 # ============== #
 makedocs(;
     root=@__DIR__,
-    modules=[FUSE, IMAS, IMASDD],
+    modules=[FUSE, IMAS, IMASdd],
     sitename="FUSE",
     build=joinpath(@__DIR__,"build"),
     format=Documenter.HTML(;

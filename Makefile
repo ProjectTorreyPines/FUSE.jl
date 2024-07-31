@@ -5,7 +5,7 @@ help: header
 	@echo ' - make update       : git pull FUSE and its TorreyPines dependencies'
 	@echo ' - make update_all   : git pull FUSE and all of its dependencies'
 	@echo ' - make IJulia       : Install IJulia'
-	@echo ' - make dd           : regenerate IMADDD.dd.jl file'
+	@echo ' - make dd           : regenerate IMASdd/src/dd.jl file'
 	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
 	@echo ''
 
@@ -38,7 +38,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FXP IMAS IMASDD MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FXP IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
@@ -96,7 +96,7 @@ registry:
 	julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General");'
 
 # register a package to FuseRegistry
-# >> make register repo=IMASDD
+# >> make register repo=IMASdd
 register: error_missing_repo_var
 	@current_branch=$(shell git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
 	if [ "$$current_branch" != "master" ]; then \
@@ -235,7 +235,7 @@ FUSE:
 IMAS:
 	$(call clone_pull_repo,$@)
 
-IMASDD:
+IMASdd:
 	$(call clone_pull_repo,$@)
 
 CoordinateConventions:
@@ -456,7 +456,7 @@ empty_commit:
 	@git commit --allow-empty -m 'empty commit'
 
 # GitHub merge of `branch` into `master` for a series of repos
-# >> make branch_master branch=my_branch repos='FUSE IMAS IMASDD'
+# >> make branch_master branch=my_branch repos='FUSE IMAS IMASdd'
 branch_master: error_missing_repos_var
 	@$(foreach repo,$(repos), \
 curl -X POST \
@@ -466,35 +466,35 @@ https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
 -d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 # update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
-# The starting information is taken from IMASDD.jl and moved to the target repo
+# The starting information is taken from IMASdd.jl and moved to the target repo
 # >> make apache repo=CHEASE
 # in addition, one must add the DOCUMENTER_KEY to the repo
 # https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
 apache: error_missing_repo_var
 	@echo $(repo)
-	@cp ../IMASDD/LICENSE ../$(repo)/ ;\
+	@cp ../IMASdd/LICENSE ../$(repo)/ ;\
 \
-cp ../IMASDD/NOTICE.md ../$(repo)/ ;\
-sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
+cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
+sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
 \
 mkdir -p ../$(repo)/.github/workflows ;\
-cp ../IMASDD/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
-cp ../IMASDD/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
-cp ../IMASDD/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
-cp ../IMASDD/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
+cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
 \
-cp ../IMASDD/README.md ../$(repo)/ ;\
-sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
+cp ../IMASdd/README.md ../$(repo)/ ;\
+sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
 \
-cp -R ../IMASDD/docs ../$(repo)/ ;\
-sed -i.bak "s/IMASDD/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
+cp -R ../IMASdd/docs ../$(repo)/ ;\
+sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
 echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
 rm ../$(repo)/docs/Manifest.toml ;\
 rm -rf ../$(repo)/docs/build ;\
 \
-cp -R ../IMASDD/.JuliaFormatter.toml ../$(repo)/ ;\
+cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
 \
-cp -R ../IMASDD/.gitignore ../$(repo)/ ;\
+cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
 \
 julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
 
