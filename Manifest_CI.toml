@@ -505,11 +505,11 @@ uuid = "b46f11dc-f210-4604-bfba-323c1ec968cb"
 version = "0.10.2"
 
 [[deps.CoordinateConventions]]
-git-tree-sha1 = "e6d53f466168529a31c447b7038308301c654518"
+git-tree-sha1 = "5fdcfd27da76143b3e2754277d201f9337d94d99"
 repo-rev = "master"
 repo-url = "https://github.com/ProjectTorreyPines/CoordinateConventions.jl.git"
 uuid = "7204ce3a-f536-43d2-be4a-fbed74e90d86"
-version = "1.0.1"
+version = "1.0.2"
 
 [[deps.CpuId]]
 deps = ["Markdown"]
@@ -1340,7 +1340,7 @@ version = "1.2.0"
 
 [[deps.IMASDD]]
 deps = ["AbstractTrees", "DataInterpolations", "HDF5", "InteractiveUtils", "JSON", "OrderedCollections", "PCHIPInterpolation", "PrecompileTools", "Printf", "StaticArraysCore", "TimerOutputs"]
-git-tree-sha1 = "2e83c71cab91213717fd39dd744f092986455b8b"
+git-tree-sha1 = "6fed903a62e6a0c01198730ba8b58f942a881810"
 repo-rev = "master"
 repo-url = "https://github.com/ProjectTorreyPines/IMASDD.jl.git"
 uuid = "06b86afa-9f21-11ec-2ef8-e51b8960cfc5"
@@ -2030,9 +2030,9 @@ version = "1.0.0"
 
 [[deps.Meshes]]
 deps = ["Bessels", "CircularArrays", "Colorfy", "CoordRefSystems", "DelaunayTriangulation", "Distances", "LinearAlgebra", "NearestNeighbors", "Random", "Rotations", "ScopedValues", "SparseArrays", "StaticArrays", "StatsBase", "TransformsBase", "Unitful"]
-git-tree-sha1 = "4936cfe53f1d1cb2e26d2e91b51bce0d23beba4e"
+git-tree-sha1 = "11b24f7c0c526c51e9142126bb4a78ba8f39b924"
 uuid = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
-version = "0.47.5"
+version = "0.47.6"
 
     [deps.Meshes.extensions]
     MeshesMakieExt = "Makie"
@@ -2914,11 +2914,11 @@ version = "1.1.0"
 
 [[deps.SimulationParameters]]
 deps = ["AbstractTrees", "JSON", "OrderedCollections", "RecipesBase", "YAML"]
-git-tree-sha1 = "3496079a58112b462d8be633d4abed18b19d38d3"
+git-tree-sha1 = "df887b47fd39df153a0b2337f3635005dff25990"
 repo-rev = "master"
 repo-url = "https://github.com/ProjectTorreyPines/SimulationParameters.jl.git"
 uuid = "32ab26d3-25d6-405d-a295-367385e16093"
-version = "1.0.0"
+version = "1.0.1"
 
 [[deps.SnoopPrecompile]]
 deps = ["Preferences"]
