@@ -1,7 +1,7 @@
 #= =============== =#
 #  ActorPowerNeeds  #
 #= =============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN

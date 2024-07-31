@@ -3,7 +3,7 @@ import QED
 #= ======== =#
 #  ActorQED  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
