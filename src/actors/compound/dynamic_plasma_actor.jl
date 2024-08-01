@@ -4,7 +4,7 @@ ProgressMeter.ijulia_behavior(:clear)
 #= ================== =#
 #  ActorDynamicPlasma  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
