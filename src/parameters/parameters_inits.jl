@@ -360,27 +360,26 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
 end
 
 """
-    IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
+    MXHboundary(ini::ParametersAllInits)::MXHboundary
 
-return ini.equilibrium boundary expressed in MHX independenty of how the user input it
+return MHXboundary representation of independenty of how it was input in ini.equilibrium
 """
-function IMAS.MXH(ini::ParametersAllInits)
+function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
     if ini.general.init_from == :ods
         dd = load_ods(ini)
     else
         dd = IMAS.dd()
     end
-    return IMAS.MXH(ini, dd)
+    return MXHboundary(ini, dd; kw...)
 end
 
-function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
+function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
     init_from = ini.general.init_from
     if init_from == :ods
         if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
             dd.global_time = ini.time.simulation_start
             eqt = dd.equilibrium.time_slice[]
             IMAS.flux_surfaces(eqt)
-            dd.equilibrium # to avoid GC?
         else
             init_from = :scalars
         end
@@ -424,7 +423,18 @@ function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
         error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
     end
 
-    return mxh
+    if boundary_from == :ods
+        # in case of ODS we have all information to generate MXHboundary
+        RX = [x_point.r for x_point in eqt.boundary.x_point]
+        ZX = [x_point.z for x_point in eqt.boundary.x_point]
+        mxhb = MXHboundary(mxh, RX, ZX, pr, pz)
+    else
+        # all other cases we must reconcile mxh boundary with requested x-points
+        nx = n_xpoints(ini.equilibrium.xpoints)
+        mxhb = fitMXHboundary(mxh, nx; kw...)
+    end
+
+    return mxhb
 end
 
 function n_xpoints(xpoints::Symbol)
@@ -554,10 +564,8 @@ Plots ini time dependent time traces including plasma boundary
         ini.time.simulation_start = time0
 
         # plot equilibrium including x-points
-        nx = n_xpoints(ini.equilibrium.xpoints)
-        mxh = IMAS.MXH(ini)
-        mxhb = fitMXHboundary(mxh, nx)
-        wr = wall_radii(mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
+        mxhb = MXHboundary(ini)
+        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.ϵ * mxhb.mxh.R0, ini.build.plasma_gap)
         @series begin
             label := ""
             seriestype := :vline
@@ -569,7 +577,7 @@ Plots ini time dependent time traces including plasma boundary
             label := ""
             subplot := 1
             aspectratio := :equal
-            xlim := (0, mxh.R0 * 2)
+            xlim := (0, mxhb.mxh.R0 * 2)
             mxhb
         end
 
