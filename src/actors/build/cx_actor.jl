@@ -200,7 +200,7 @@ function wall_from_eq!(
     # private flux regions sorted by distance from lcfs
     private, _ = IMAS.flux_surface(eqt, ψb, :open)
     private = collect(private)
-    sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
+    sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
 
     t = LinRange(0, 2π, 31)
     detected_upper = upper_divertor
@@ -212,7 +212,7 @@ function wall_from_eq!(
         end
 
         # xpoint between lcfs and private region
-        index = IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs; return_index=true)
+        index = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
         Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
         Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
         d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
@@ -358,7 +358,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
 
     private, _ = IMAS.flux_surface(eqt, ψb, :open)
     private = collect(private)
-    sort!(private; by=p -> IMAS.minimum_distance_two_shapes(p..., rlcfs, zlcfs))
+    sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - ZA) != sign(pz[end] - ZA)
             # open flux surface does not encicle the plasma
@@ -366,7 +366,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         end
 
         # xpoint between lcfs and private region
-        index = IMAS.minimum_distance_two_shapes(pr, pz, rlcfs, zlcfs; return_index=true)
+        index = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
         Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
         Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
         d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
@@ -871,7 +871,7 @@ function optimize_layer_outline(
         initial_clerance = max(hfs_thickness, lfs_thickness) * vertical_clearance
         shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
         shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters; use_curvature)
-        layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...; resample=false)
+        layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
     end
 
     IMAS.reorder_flux_surface!(layer.outline.r, layer.outline.z)

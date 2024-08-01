@@ -158,17 +158,7 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         end
     end
 
-    # uniform resampling
-    myfunc = dfunc
-    function resampled_myfunc(args...; resample=true)
-        if resample
-            return IMAS.resample_2d_path(myfunc(args...)...; method=:linear)
-        else
-            return myfunc(args...)
-        end
-    end
-
-    return resampled_myfunc
+    return dfunc
 end
 
 """
@@ -227,16 +217,28 @@ function optimize_outline(
             Rv = view(R, index)
             Zv = view(Z, index)
 
-            # no polygon crossings  O(N)
+            # no polygon crossings
+            index, crossings = IMAS.intersection(R, Z, r_obstruction, z_obstruction)
+            @assert mod(length(crossings), 2) == 0
             cost_inside = 0.0
-            for (r, z) in zip(Rv, Zv)
-                inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
-                cost_inside += inpoly
+            for k in 1:Int(length(crossings) / 2)
+                c1 = crossings[(k-1)*2+1]
+                c2 = crossings[(k-1)*2+2]
+                cost_inside += sqrt((c1[1] - c2[1])^2 + (c1[2] - c2[2])^2)
+            end
+            cost_inside = cost_inside / target_clearance
+
+            # avoid slipping over with z offset
+            if minimum(Z) > minimum(z_obstruction)
+                cost_inside += abs(minimum(Z) - minimum(z_obstruction)) / target_clearance
+            end
+            if maximum(Z) < maximum(z_obstruction)
+                cost_inside += abs(maximum(Z) - maximum(z_obstruction)) / target_clearance
             end
 
-            # target clearance  O(1)
-            minimum_distance, mean_distance = IMAS.min_mean_distance_two_shapes(Rv, Zv, r_obstruction, z_obstruction)
-            cost_mean_distance = (mean_distance - target_clearance) / ((hfs_thickness + lfs_thickness) / 2.0)
+            # target clearance
+            minimum_distance, mean_distance = IMAS.min_mean_distance_polygons(Rv, Zv, r_obstruction, z_obstruction)
+            cost_mean_distance = (mean_distance - target_clearance) / target_clearance
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
@@ -284,7 +286,21 @@ function optimize_outline(
 
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, hbuf, lbuf, target_clearance, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(
+                r_obstruction,
+                z_obstruction,
+                rz_obstruction,
+                hfs_thickness,
+                lfs_thickness,
+                hbuf,
+                lbuf,
+                target_clearance,
+                func,
+                r_start,
+                r_end,
+                shape_parameters;
+                use_curvature
+            ),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=10000, f_tol=1E-4, x_tol=1E-3))
         shape_parameters = Optim.minimizer(res)
         if verbose
