@@ -201,6 +201,9 @@ function optimize_outline(
             rz_obstruction::Vector{Tuple{Float64,Float64}},
             hfs_thickness::Float64,
             lfs_thickness::Float64,
+            hbuf::Float64,
+            lbuf::Float64,
+            target_clearance::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
@@ -210,31 +213,11 @@ function optimize_outline(
 
             #@show r_start, r_end, shape_parameters
 
-            R0, Z0 = func(r_start, r_end, shape_parameters...)
-
-            if hfs_thickness == 0 || lfs_thickness == 0
-                target_clearance = (hfs_thickness + lfs_thickness) / 2.0
-                R, Z = R0, Z0
-                hbuf = 0.0
-                lbuf = 0.0
-            else
-                target_clearance = min(hfs_thickness, lfs_thickness)
-                if hfs_thickness != lfs_thickness
-                    hbuf = hfs_thickness - target_clearance
-                    lbuf = lfs_thickness - target_clearance
-                    R, Z = buffer(R0, Z0, -hbuf, -lbuf)
-                else
-                    R, Z = R0, Z0
-                    hbuf = 0.0
-                    lbuf = 0.0
-                end
-            end
+            R, Z = func(r_start, r_end, shape_parameters...)
 
             # R1, Z1 = buffer(R, Z, -target_clearance)
             # plot()
-            # plot!(R0,Z0,label="R0,Z0")
             # plot!(R,Z;aspect_ratio=:equal,label="R,Z")
-            # vline!([r_start+hbuf, r_end-lbuf];primary=false)
             # plot!(R1, Z1,label="R1,Z1",ls=:dash)
             # plot!()
             # display(plot!(r_obstruction,z_obstruction;color=:black,label="obstruction"))
@@ -281,9 +264,27 @@ function optimize_outline(
             return norm((cost_min_clearance, cost_mean_distance, cost_inside, cost_max_curvature))
         end
 
+        # reduce the problem to be in terms of a single target_distance
+        # even when we want different distances between high and low field sides
+        if hfs_thickness == 0 || lfs_thickness == 0
+            target_clearance = (hfs_thickness + lfs_thickness) / 2.0
+            hbuf = 0.0
+            lbuf = 0.0
+        else
+            target_clearance = min(hfs_thickness, lfs_thickness)
+            if hfs_thickness != lfs_thickness
+                hbuf = hfs_thickness - target_clearance
+                lbuf = lfs_thickness - target_clearance
+                r_obstruction, z_obstruction = buffer(r_obstruction, z_obstruction, hbuf, lbuf)
+            else
+                hbuf = 0.0
+                lbuf = 0.0
+            end
+        end
+
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, hbuf, lbuf, target_clearance, func, r_start, r_end, shape_parameters; use_curvature),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=10000, f_tol=1E-4, x_tol=1E-3))
         shape_parameters = Optim.minimizer(res)
         if verbose
