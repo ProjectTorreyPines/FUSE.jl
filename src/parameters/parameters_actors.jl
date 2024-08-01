@@ -28,43 +28,51 @@ macro insert_constructor_members(T)
     return expr
 end
 
-mutable struct ParametersActorsPlasma{T<:Real} <: ParametersAllActors{T}
+mutable struct ParametersActors{T<:Real} <: ParametersAllActors{T}
     _parent::WeakRef
     _name::Symbol
-    @insert_subtype_members ParametersActorPlasma
+    @insert_subtype_members ParametersActor
 end
 
-function ParametersActorsPlasma{T}() where {T<:Real}
-    act = ParametersActorsPlasma{T}(
+function ParametersActors{T}() where {T<:Real}
+    act = ParametersActors{T}(
         WeakRef(nothing),
         :act,
-        (@insert_constructor_members ParametersActorPlasma)...
-    )
-    setup_parameters!(act)
-    return act
-end
-
-mutable struct ParametersActorsBuild{T<:Real} <: ParametersAllActors{T}
-    _parent::WeakRef
-    _name::Symbol
-    @insert_subtype_members ParametersActorPlasma
-    @insert_subtype_members ParametersActorBuild
-end
-
-function ParametersActorsBuild{T}() where {T<:Real}
-    act = ParametersActorsBuild{T}(
-        WeakRef(nothing),
-        :act,
-        (@insert_constructor_members ParametersActorPlasma)...,
-        (@insert_constructor_members ParametersActorBuild)...
+        (@insert_constructor_members ParametersActor)...
     )
     setup_parameters!(act)
     return act
 end
 
 function ParametersActors()
-    return ParametersActorsBuild{Float64}()
+    return ParametersActors{Float64}()
 end
+
+############
+# 
+############
+
+"""
+    act_common_parameters(; kw...)
+
+Returns commonly used act parameters as a switch or entry, example: act_common_parameters(do_plot=true)
+"""
+function act_common_parameters(; kw...)
+    @assert length(kw) == 1 "act_common_parameters only takes one argument"
+    name = first(keys(kw))
+    default = first(values(kw))
+    if name == :do_plot
+        return Entry{Bool}("-", "Store the output dds of the workflow run"; default)
+    elseif name == :verbose
+        return  Entry{Bool}("-", "Verbose"; default)
+    else
+        error("There is no act_common_parameter for name = $name")
+    end
+end
+
+###############
+# save / load #
+###############
 
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
@@ -104,22 +112,4 @@ Load the FUSE act parameters from a YAML file with given `filename`
 """
 function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
     return SimulationParameters.yaml2par(filename, act)
-end
-
-"""
-    act_common_parameters(; kw...)
-
-Returns commonly used act parameters as a switch or entry, example: act_common_parameters(do_plot=true)
-"""
-function act_common_parameters(; kw...)
-    @assert length(kw) == 1 "act_common_parameters only takes one argument"
-    name = first(keys(kw))
-    default = first(values(kw))
-    if name == :do_plot
-        return Entry{Bool}("-", "Store the output dds of the workflow run"; default)
-    elseif name == :verbose
-        return  Entry{Bool}("-", "Verbose"; default)
-    else
-        error("There is no act_common_parameter for name = $name")
-    end
 end

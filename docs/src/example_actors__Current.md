@@ -64,11 +64,11 @@ actor = FUSE.ActorQED(dd, act)
 
        @ FUSE ~/.julia/dev/FUSE/src/actors/abstract_actors.jl:33
 
-     [5] FUSE.ActorQED(dd::IMASDD.dd{Float64}, act::FUSE.ParametersActors{Float64}; kw::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}})
+     [5] FUSE.ActorQED(dd::IMASdd.dd{Float64}, act::FUSE.ParametersActors{Float64}; kw::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}})
 
        @ FUSE ~/.julia/dev/FUSE/src/actors/current/qed_actor.jl:31
 
-     [6] FUSE.ActorQED(dd::IMASDD.dd{Float64}, act::FUSE.ParametersActors{Float64})
+     [6] FUSE.ActorQED(dd::IMASdd.dd{Float64}, act::FUSE.ParametersActors{Float64})
 
        @ FUSE ~/.julia/dev/FUSE/src/actors/current/qed_actor.jl:29
 

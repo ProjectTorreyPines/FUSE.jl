@@ -215,33 +215,28 @@ end
 """
     encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
 
-Generates VacuumFields.PointCoil around the plasma boundary using some educated guesses for where the pf coils should be
+Generates VacuumFields.ParallelogramCoil around the plasma boundary using some educated guesses for where the PF and OH coils should be
 """
 function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
     rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
     rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
 
     valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis)
+    r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
 
-    # normalized distance between -1 and 1
-    distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
-    distance = (distance .- distance[1])
-    distance = (distance ./ distance[end]) .* 2.0 .- 1.0
+    n_oh = n_coils
+    r_ohcoils = minimum(bnd_r) / 3
+    z_ohcoils, h_oh = size_oh_coils(min(valid_z[1],valid_z[end]), max(valid_z[1],valid_z[end]), 0.0, n_oh)
+    w_oh = minimum(bnd_r) / 3
 
-    coils_distance = range(-1.0, 1.0, n_coils)
-    r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
-    z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
+    w_pf = sum(sqrt.(diff(valid_r) .^ 2.0 .+ diff(valid_z) .^ 2.0)) / n_coils / sqrt(2.0)
 
-    r_ohcoils = minimum(bnd_r) / 3.0
-    n_oh = Int(ceil((maximum(bnd_z) - minimum(bnd_z)) / r_ohcoils * 2))
-    r_ohcoils = 0.01 # this seems to work better
-
-    z_ohcoils = range((minimum(bnd_z) * 2 + minimum(rail_z)) / 3.0, (maximum(bnd_z) * 2 + maximum(rail_z)) / 3.0, n_oh)
-
-    return [
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)]
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
+    coils = [
+        [VacuumFields.ParallelogramCoil(r, z, w_oh, h_oh, 0.0, 90.0) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
+        [VacuumFields.ParallelogramCoil(r, z, w_pf, w_pf, 0.0, 90.0) for (r, z) in zip(r_coils, z_coils)]
     ]
+
+    return coils
 end
 
 """
@@ -286,8 +281,11 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
         coil.temperature = [-1, coil_tech.temperature]
 
         # current limit evaluated at all magnetic fields and temperatures
+        coil_area = IMAS.area(coil)
+        frac_conductor = IMAS.fraction_conductor(coil_tech)
+        turns = coil.element[1].turns_with_sign
         coil.current_limit_max = [
-            abs(mat_pf.critical_current_density(; Bext=b) * IMAS.area(coil) * IMAS.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
+            abs(mat_pf.critical_current_density(; Bext=b) * coil_area * frac_conductor / turns) for
             b in coil.b_field_max,
             t in coil.temperature
         ]
@@ -369,12 +367,12 @@ end
 
 function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::IMAS.build)
     λ_regularize = packed[end]
-    if symmetric
-        n_oh_params = 1
-    else
-        n_oh_params = 2
-    end
     if any(rail.name == "OH" for rail in bd.pf_active.rail)
+        if symmetric
+            n_oh_params = 1
+        else
+            n_oh_params = 2
+        end
         oh_height_off = packed[end-n_oh_params:end-1]
         distances = packed[1:end-n_oh_params]
     else
@@ -389,14 +387,14 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         for rail in bd.pf_active.rail
             if rail.name == "OH"
                 # mirror OH size when it reaches maximum extent of the rail
-                oh_height_off[1] = mirror_bound(oh_height_off[1], 1.0 - 1.0 / rail.coils_number, 1.0)
-                if !symmetric
-                    offset = mirror_bound(oh_height_off[2], -2.0 / rail.coils_number, 2.0 / rail.coils_number)
-                else
+                oh_height_off[1] = mirror_bound(oh_height_off[1], 0.8, 1.0)
+                # allow ± one coil offset
+                if symmetric
                     offset = 0.0
+                else
+                    offset = mirror_bound(oh_height_off[2], -1.0, 1.0)
                 end
-                z_oh, height_oh = size_oh_coils(rail.outline.z, rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
-                z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
+                z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], offset)
                 for k in 1:rail.coils_number
                     koptim += 1
                     koh += 1
@@ -444,19 +442,18 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
 end
 
 function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
-    Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
+    Rcenter = eqt.boundary.geometric_axis.r
+    Zcenter = eqt.boundary.geometric_axis.z
 
-    function optimal_area(x; coil, r0, z0, width0, height0)
+    function optimal_area(x; coil, pfcoil, r0, z0, width0, height0)
         area = abs(x[1])
-
-        pfcoil = getfield(coil, :imas)
 
         height = sqrt(area)
         width = area / height
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
         pfcoil.element[1].geometry.rectangle.r = r0 + sign(r0 - Rcenter) * (width - width0) / 2.0
-        pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0) * (height - height0) / 2.0
+        pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0 - Zcenter) * (height - height0) / 2.0
 
         mat = Material(coil.tech)
         Bext = coil_selfB(pfcoil, coil.current)
@@ -479,7 +476,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
             z0 = pfcoil.element[1].geometry.rectangle.z
             width0 = pfcoil.element[1].geometry.rectangle.width
             height0 = pfcoil.element[1].geometry.rectangle.height
-            res = Optim.optimize(x -> optimal_area(x; coil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
+            res = Optim.optimize(x -> optimal_area(x; coil, pfcoil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
             push!(areas, abs(res.minimizer[1]))
         end
     end
@@ -531,7 +528,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
             z0 = pfcoil.element[1].geometry.rectangle.z
             width0 = pfcoil.element[1].geometry.rectangle.width
             height0 = pfcoil.element[1].geometry.rectangle.height
-            optimal_area(max(areas[k], min_size * msa); coil, r0, z0, width0, height0)
+            optimal_area(max(areas[k], min_size * msa); coil, pfcoil, r0, z0, width0, height0)
         end
     end
 end

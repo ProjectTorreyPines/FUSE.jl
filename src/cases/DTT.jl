@@ -15,13 +15,9 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.equilibrium.B0 = 5.85
     ini.equilibrium.ip = 5.5e6
-
-    act.ActorStabilityLimits.raise_on_breach = false
     ini.equilibrium.pressure_core = 0.9e6
 
-    ini.equilibrium.xpoints = :double
-    act.ActorEquilibrium.symmetrize = true
-
+    ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 2.19
     ini.equilibrium.Z0 = -0.04
@@ -85,8 +81,6 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].beam_energy = 0.5e6
     ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
-
-
 
     set_new_base!(ini)
     set_new_base!(act)

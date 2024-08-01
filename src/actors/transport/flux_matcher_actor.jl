@@ -5,7 +5,7 @@ import TJLF: InputTJLF
 #= ================ =#
 #  ActorFluxMatcher  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -333,7 +333,7 @@ The normalization is calculated as the mean square average of the transport and 
 function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
-    total_fluxes = IMAS.total_fluxes(dd.core_transport, par.rho_transport)
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
     cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
 
@@ -425,7 +425,7 @@ NOTE: flux matching is done in physical units
 function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    total_fluxes = IMAS.total_fluxes(dd.core_transport, par.rho_transport)
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
 
     fluxes = Float64[]
 

@@ -23,8 +23,8 @@ for name in sort!(collect(fieldnames(IMAS.dd)))
             txt,
             """## $basename
             ```@example
-            using IMASDD # hide
-            IMASDD.$name{Float64} # hide
+            using IMASdd # hide
+            IMASdd.$name{Float64} # hide
             ```\n"""
         )
     end

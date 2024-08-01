@@ -3,7 +3,7 @@ import TEQUILA
 #= =========== =#
 #  ActorTEQUILA  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=8)
     number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=4)
     number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=1000)
-    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.3)
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.25)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -91,7 +91,8 @@ function _step(actor::ActorTEQUILA)
     same_boundary = false
     if actor.shot !== nothing
         if length(actor.old_boundary_outline_r) == length(eqt.boundary.outline.r)
-            if (sum(abs.(actor.old_boundary_outline_r .- eqt.boundary.outline.r)) + sum(abs.(actor.old_boundary_outline_z .- eqt.boundary.outline.z)))/length(eqt.boundary.outline.r) < 1E-3
+            if (sum(abs.(actor.old_boundary_outline_r .- eqt.boundary.outline.r)) + sum(abs.(actor.old_boundary_outline_z .- eqt.boundary.outline.z))) /
+               length(eqt.boundary.outline.r) < 1E-3
                 same_boundary = true
             end
         end
@@ -101,10 +102,9 @@ function _step(actor::ActorTEQUILA)
     if actor.shot === nothing || !same_boundary
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
-        n = length(pr)
-        ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz)^2)) / 2.0
-        pr, pz = limit_curvature(pr, pz, ab / 10.0)
-        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * n, method=:linear)
+        ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
+        pr, pz = limit_curvature(pr, pz, ab / 20.0)
+        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * length(pr), method=:linear)
         mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
         actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
         solve_function = TEQUILA.solve
@@ -177,8 +177,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
     rhoi = TEQUILA.ρ.(Ref(shot), eq1d.psi)
     eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), eq1d.psi)
     eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), eq1d.psi)
-    eq1d.f = TEQUILA.Fpol.(Ref(shot), rhoi)
-    eq1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi)
+    eq1d.f = shot.F.(rhoi)
+    eq1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi; shot.invR, shot.invR2)
 
     resize!(eqt.profiles_2d, 2)
 
@@ -223,7 +223,9 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
         # Flux control points
         if !isempty(eqt.boundary.strike_point)
             strike_weight = 0.01
-            strike_cps = VacuumFields.FluxControlPoint{Float64}[VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+            strike_cps = VacuumFields.FluxControlPoint{Float64}[
+                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
+            ]
             append!(flux_cps, strike_cps)
         end
 

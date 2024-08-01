@@ -41,7 +41,7 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.δ = -0.45
     ini.equilibrium.ζ = -0.25
     ini.equilibrium.pressure_core = 2.2E6
-    ini.equilibrium.ip = 9.e6
+    ini.equilibrium.ip = 10.e6
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
@@ -54,14 +54,14 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :Ne
+    ini.core_profiles.impurity = :Kr
     ini.core_profiles.helium_fraction = 0.025
 
     ini.pf_active.n_coils_inside = 6
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :rebco
 
-    ini.tf.shape = :rectangle
+    ini.tf.shape = :racetrack
     ini.tf.n_coils = 18
     ini.tf.technology = :rebco
 
@@ -71,11 +71,14 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.oh.n_coils = 6
     ini.oh.technology = :rebco
 
-    ini.ic_antenna[1].power_launched = 4.0e6
+    ini.ic_antenna[1].power_launched = 40.e6
 
     ini.requirements.power_electric_net = 90e6
     ini.requirements.tritium_breeding_ratio = 1.15
     ini.requirements.flattop_duration = 45.0 * 60.0
+
+    act.ActorPedestal.model = :WPED
+    act.ActorWPED.ped_to_core_fraction = 0.3
 
     set_new_base!(ini)
     set_new_base!(act)

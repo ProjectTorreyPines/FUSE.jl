@@ -1,7 +1,7 @@
 #= ========= =#
 #  ActorWPED  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -145,11 +145,13 @@ end
 
 function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_ped::Real)
     p = cp1d.pressure_thermal
-    rho_bound_idx = argmin(abs.(cp1d.grid.rho_tor_norm .- rho_ped))
-    p_edge = deepcopy(p)
-    p_edge[1:rho_bound_idx] .= p[rho_bound_idx]
-    p_core = p .- p_edge
-    core_value = 3 / 2 .* IMAS.cumtrapz(cp1d.grid.volume, p_core)
-    edge_value = 3 / 2 .* IMAS.cumtrapz(cp1d.grid.volume, p_edge)
-    return core_value[end], edge_value[end]
+    rho_tor_norm = cp1d.grid.rho_tor_norm
+    rho_bound_idx = argmin(abs(rho - rho_ped) for rho in rho_tor_norm)
+    pedge = p[rho_bound_idx]
+    fedge = (k, x) -> (k <= rho_bound_idx) ? pedge : p[k]
+    fcore = (k, x) -> (k <= rho_bound_idx) ? (p[k] - pedge) : 0.0
+    volume = cp1d.grid.volume
+    core_value = 1.5 * trapz(volume, fcore)
+    edge_value = 1.5 * trapz(volume, fedge)
+    return core_value, edge_value
 end
