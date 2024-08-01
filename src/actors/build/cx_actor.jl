@@ -336,14 +336,15 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     IMAS.reorder_flux_surface!(pl_r, pl_z, RA, ZA)
 
     # wall poly (this sets how back the divertor structure goes)
-    wall_poly = xy_polygon(bd.layer[ipl-1])
+    wall_layer = bd.layer[ipl-1]
     for ltype in (_blanket_, _shield_, _wall_)
         iwls = IMAS.get_build_indexes(bd.layer; type=ltype, fs=_hfs_)
         if !isempty(iwls)
-            wall_poly = xy_polygon(bd.layer[iwls[1]])
+            wall_layer = bd.layer[iwls[1]]
             break
         end
     end
+    wall_poly = xy_polygon(wall_layer)
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
     ψb = eqt.profiles_1d.psi[end]
@@ -411,6 +412,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         m = (Zx - ZA) / (Rx - RA)
         xx = [0.0, RA * 2.0]
         yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
+
         domain_r = vcat(xx, reverse(xx), xx[1])
         domain_z = vcat(yy, [Zx * 5.0, Zx * 5.0], yy[1])
         domain_poly = xy_polygon(domain_r, domain_z)
@@ -421,24 +423,39 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         coords = GeoInterface.coordinates(divertor_poly)
         structure = resize!(bd.structure, "type" => Int(_divertor_), "name" => "$ul_name divertor")
         structure.material = "tungsten"
+        structure.toroidal_extent = 2π
+
         try
-            structure.outline.r = [v[1] for v in coords[1]]
-            structure.outline.z = [v[2] for v in coords[1]]
-            structure.toroidal_extent = 2π
+            if typeof(coords[1][1]) <: Vector{Vector{Float64}}
+                # if poly intersection finds multiple domains
+                # pick the domain with the most points
+                coords = coords[argmax(map(length, coords[1]))][1]
+            else
+                # if poly intersection finds single domain
+                coords = coords[1]
+            end
+            structure.outline.r = [v[1] for v in coords]
+            structure.outline.z = [v[2] for v in coords]
         catch e
-            p = plot(wall_poly; alpha=0.3, aspect_ratio=:equal)
+            p = plot(eqt; cx=true)
+            plot!(wall_poly; alpha=0.3)
             plot!(domain_poly; alpha=0.3)
             plot!(plasma_poly; alpha=0.3)
-            display(p)
+            display(p)            
             rethrow(e)
+        end     
+
+        # find divertor plasma facing surfaces starting from divertor structure
+        divertor_r = Float64[]
+        divertor_z = Float64[]
+        for (r,z) in zip(structure.outline.r, structure.outline.z)
+            if any(sqrt.((r.-pl_r).^2 .+ (z.-pl_z).^2) .< 1E-3)
+                push!(divertor_r, r)
+                push!(divertor_z, z)
+            end
         end
 
-        # now find divertor plasma facing surfaces
-        indexes, crossings = IMAS.intersection(xx, yy, pl_r, pl_z)
-        divertor_r = [crossings[1][1]; pl_r[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][1]]
-        divertor_z = [crossings[1][2]; pl_z[indexes[1][2]+1:indexes[2][2]+1]; crossings[2][2]]
-
-        # split inner/outer based on line connecting X-point to magnetic axis
+        # split inner/outer strike plates based on line connecting X-point to magnetic axis
         m = (Zx - ZA) / (Rx - RA)
         xx = [0.0, RA * 2.0]
         yy = line_through_point(m, Rx, Zx, xx)
