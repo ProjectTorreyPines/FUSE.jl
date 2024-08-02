@@ -55,9 +55,10 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     end
 
     # to match the experimental volume and area:
-    mxhb = IMAS.MXHboundary(ini; target_volume=data_row[:VOL], target_area=data_row[:AREA])
     ini.equilibrium.boundary_from = :MXH_params
-    ini.equilibrium.MXH_params = IMAS.flat_coeffs(mxhb.mxh)
+    mxhb = MXHboundary(ini; target_volume=data_row[:VOL], target_area=data_row[:AREA])
+    mxh = IMAS.MXH(mxhb.r_boundary, mxhb.z_boundary, 4)
+    ini.equilibrium.MXH_params = IMAS.flat_coeffs(mxh)
 
     # Core_profiles parameters
     ## This should become ne_line and ne_line matching!
