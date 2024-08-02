@@ -813,6 +813,7 @@ function optimize_layer_outline(
         end
     end
 
+    # handle internal obstructions (in addition to inner layer)
     oR = obstr.outline.r
     oZ = obstr.outline.z
     if obstruction_outline !== nothing
@@ -882,7 +883,6 @@ function optimize_outline(
     use_curvature::Bool=true,
     verbose::Bool=false)
 
-    rz_obstruction = collect(zip(r_obstruction, z_obstruction))
     initial_guess = deepcopy(shape_parameters)
 
     if length(shape_parameters) in (0, 1)
@@ -892,9 +892,6 @@ function optimize_outline(
         function cost_shape(
             r_obstruction::Vector{Float64},
             z_obstruction::Vector{Float64},
-            rz_obstruction::Vector{Tuple{Float64,Float64}},
-            hfs_thickness::Float64,
-            lfs_thickness::Float64,
             hbuf::Float64,
             lbuf::Float64,
             target_clearance::Float64,
@@ -942,7 +939,7 @@ function optimize_outline(
 
             # target clearance
             minimum_distance, mean_distance = IMAS.min_mean_distance_polygons(Rv, Zv, r_obstruction, z_obstruction)
-            cost_mean_distance = (mean_distance - target_clearance) / target_clearance
+            cost_mean_distance = (mean_distance - target_clearance) / (2 * target_clearance + hbuf + lbuf)
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
@@ -972,6 +969,8 @@ function optimize_outline(
 
         # reduce the problem to be in terms of a single target_distance
         # even when we want different distances between high and low field sides
+        r_obstruction0 = r_obstruction
+        z_obstruction0 = z_obstruction
         if hfs_thickness == 0 || lfs_thickness == 0
             target_clearance = (hfs_thickness + lfs_thickness) / 2.0
             hbuf = 0.0
@@ -993,9 +992,6 @@ function optimize_outline(
             shape_parameters -> cost_shape(
                 r_obstruction,
                 z_obstruction,
-                rz_obstruction,
-                hfs_thickness,
-                lfs_thickness,
                 hbuf,
                 lbuf,
                 target_clearance,
@@ -1008,13 +1004,26 @@ function optimize_outline(
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=10000, f_tol=1E-4, x_tol=1E-3))
         shape_parameters = Optim.minimizer(res)
         if verbose
-            cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature, verbose=true)
+            cost_shape(
+                r_obstruction,
+                z_obstruction,
+                hbuf,
+                lbuf,
+                target_clearance,
+                func,
+                r_start,
+                r_end,
+                shape_parameters;
+                use_curvature,
+                verbose=true
+            )
             println(res)
         end
     end
 
-    # R, Z = func(r_start, r_end, shape_parameters...; resample=false)
+    # R, Z = func(r_start, r_end, shape_parameters...)
     # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
+    # plot!(r_obstruction0, z_obstruction0, ; markershape=:x, label="obstruction0")
     # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
     # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
 
