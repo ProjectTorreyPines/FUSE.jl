@@ -1130,14 +1130,16 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     return mxhb
 end
 
-function fitMXHboundary(mxh::IMAS.MXH, nx::Int; n_points::Int=0)
-    return fitMXHboundary(mxh; upper_x_point=nx ∈ (1, 2), lower_x_point=nx ∈ (-1, 2), n_points)
+function fitMXHboundary(mxh::IMAS.MXH, nx::Int; n_points::Int=0, target_area::Float64=0.0, target_volume::Float64=0.0, debug::Bool=false)
+    return fitMXHboundary(mxh; upper_x_point=nx ∈ (1, 2), lower_x_point=nx ∈ (-1, 2), n_points, target_area, target_volume, debug)
 end
 
 """
-    fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
+    fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0, target_area::Float64=0.0, target_volume::Float64=0.0, debug::Bool=false)
 
 Find boundary such that the output MXH parametrization (with x-points) matches the input MXH parametrization (without x-points)
+
+Optimization can be further constrained to target specific plasma cross-sectional area and and volume
 """
 function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Int=0, target_area::Float64=0.0, target_volume::Float64=0.0, debug::Bool=false)
     if ~upper_x_point && ~lower_x_point
@@ -1194,24 +1196,31 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         c = 0.0
         if upper_x_point
             i = argmax(mxhb0.ZX)
-            c += ((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2) / mxhb0.mxh.R0^2
+            c += ((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2)
         else
             i = pz .< mxhb0.mxh.Z0
-            c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / mxhb0.mxh.R0^2 / sum(i)
+            c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / sum(i)
         end
         if lower_x_point
             i = argmin(mxhb0.ZX)
-            c += ((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2) / mxhb0.mxh.R0^2
+            c += ((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2)
         else
             i = pz .> mxhb0.mxh.Z0
-            c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / mxhb0.mxh.R0^2 / sum(i)
+            c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / sum(i)
         end
 
-        # other shape parameters
+        # geometric center
         c += (mxh0.R0 - mxh.R0)^2
         c += (mxh0.Z0 - mxh.Z0)^2
+
+        # normalize by R0
+        c /= mxhb0.mxh.R0^2
+
+        # other (already normalized) shape parameters
+        if target_area == 0 && target_volume == 0
+            c += (mxh0.ϵ - mxh.ϵ)^2
+        end
         c += (mxh0.κ - mxh.κ)^2
-        c += (mxh0.ϵ - mxh.ϵ)^2
         c += (mxh0.c0 - mxh.c0)^2
         c += sum((mxh0.s[1:N] .- mxh.s[1:N]) .^ 2)
         c += sum((mxh0.c[1:N] .- mxh.c[1:N]) .^ 2)
@@ -1219,7 +1228,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         # make MXH match boundary of MHXboundary
         x_point_area = IMAS.area(mxhb0.r_boundary, mxhb0.z_boundary)
         marea0 = IMAS.area(mxh0()...)
-        c += (abs(x_point_area - marea0) / x_point_area)^2 * 1E3
+        c += (abs(x_point_area - marea0) / x_point_area)^2
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
@@ -1228,15 +1237,15 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)
         mareach = IMAS.area(mrch, mzch)
-        c += (abs(mareach - marea) / mareach)^2 * 1E3
+        c += (abs(mareach - marea) / mareach)^2
 
-        # Matching a target area and or volume
+        # Optionally match a given target area and or volume
         if target_area > 0
-            c += ((x_point_area - target_area)^2 * 1E2)
+            c += ((x_point_area - target_area) / target_area)^2
         end
         if target_volume > 0
             x_point_volume = IMAS.revolution_volume(mxhb0.r_boundary, mxhb0.z_boundary)
-            c += ((x_point_volume - target_volume)^2 * 1E1)
+            c += ((x_point_volume - target_volume) / target_volume)^2
         end
 
         return sqrt(c)
