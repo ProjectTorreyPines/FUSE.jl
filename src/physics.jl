@@ -788,11 +788,44 @@ Buffer polygon defined by x,y arrays by a quantity b
 """
 function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
     poly = xy_polygon(x, y)
-    poly_b = LibGEOS.buffer(poly, b)
-    coords = GeoInterface.coordinates(poly_b)[1]
-    x_b = T[v[1] for v in coords]
-    y_b = T[v[2] for v in coords]
+    poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
+
+    # extract the LinearRing struct
+    lr = first(GeoInterface.getgeom(poly_b))
+
+    # preallocate a LibGEOS.Point struct and arrays to store (x,y) coordinates
+    Npts = GeoInterface.ngeom(lr)
+    x_b = zeros(T, Npts)
+    y_b = zeros(T, Npts)
+    pt = LibGEOS.Point(zero(T), zero(T))
+    for k in 1:Npts
+        pt = getPoint!(pt, lr, k)
+        x_b[k] = GeoInterface.x(pt)::T
+        y_b[k] = GeoInterface.y(pt)::T
+    end
     return x_b, y_b
+end
+
+
+# An allocation free version of LibGEOS.getPoint
+function getPoint!(
+    pt::LibGEOS.Point,
+    obj::LibGEOS.LinearRing,
+    n::Integer,
+    context::LibGEOS.GEOSContext = LibGEOS.get_context(obj),
+)
+    if !(0 < n <= LibGEOS.numPoints(obj, context))
+        error(
+            "LibGEOS: n=$n is out of bounds for LineString with numPoints=$(numPoints(obj, context))",
+        )
+    end
+    result = LibGEOS.GEOSGeomGetPointN_r(context, obj, n - 1)
+    if result == LibGEOS.C_NULL
+        error("LibGEOS: Error in GEOSGeomGetPointN")
+    end
+    pt.ptr = result
+    pt.context = context
+    return pt
 end
 
 """
@@ -1158,7 +1191,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     M = 12
     N = min(M, length(mxh.s))
 
-    # change mxhb0 parameters so that the boundary  with x-points fit has the desired elongation, triangularity, squareness when fit with mxh0 
+    # change mxhb0 parameters so that the boundary  with x-points fit has the desired elongation, triangularity, squareness when fit with mxh0
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
 
