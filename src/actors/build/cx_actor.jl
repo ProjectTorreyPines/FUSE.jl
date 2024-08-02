@@ -66,7 +66,7 @@ function _step(actor::ActorCXbuild)
     end
     empty!(bd.structure)
 
-    build_cx!(bd, wall, dd.pf_active; par.n_points)
+    build_cx!(bd, eqt, wall, dd.pf_active; par.n_points)
 
     divertor_regions!(bd, eqt, dd.divertors)
 
@@ -441,15 +441,15 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
             plot!(wall_poly; alpha=0.3)
             plot!(domain_poly; alpha=0.3)
             plot!(plasma_poly; alpha=0.3)
-            display(p)            
+            display(p)
             rethrow(e)
-        end     
+        end
 
         # find divertor plasma facing surfaces starting from divertor structure
         divertor_r = Float64[]
         divertor_z = Float64[]
-        for (r,z) in zip(structure.outline.r, structure.outline.z)
-            if any(sqrt.((r.-pl_r).^2 .+ (z.-pl_z).^2) .< 1E-3)
+        for (r, z) in zip(structure.outline.r, structure.outline.z)
+            if any(sqrt.((r .- pl_r) .^ 2 .+ (z .- pl_z) .^ 2) .< 1E-3)
                 push!(divertor_r, r)
                 push!(divertor_z, z)
             end
@@ -594,7 +594,7 @@ end
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_points::Int)
+function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, pfa::IMAS.pf_active; n_points::Int)
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
 
     wall_outline = IMAS.first_wall(wall)
@@ -618,23 +618,9 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
         is_z_offset = true
     end
 
-    # up-down symmetric plasma
-    is_negative_D = false
-    _, imaxr = findmax(pr)
-    _, iminr = findmin(pr)
-    _, imaxz = findmax(pz)
-    _, iminz = findmin(pz)
-    r_at_max_z, _ = pr[imaxz], pz[imaxz]
-    r_at_min_z, _ = pr[iminz], pz[iminz]
-    _, max_r = pz[imaxr], pr[imaxr]
-    _, min_r = pz[iminr], pr[iminr]
-    a = 0.5 * (max_r - min_r)
-    R = 0.5 * (max_r + min_r)
-    δu = (R - r_at_max_z) / a
-    δl = (R - r_at_min_z) / a
-    if δu + δl < -0.1
-        is_negative_D = true
-    end
+    # negative triangularity plasma
+    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 1)
+    is_negative_D = sin(mxh.s[1]) < 0.0
 
     #plot()
     plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
