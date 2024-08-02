@@ -789,23 +789,25 @@ Buffer polygon defined by x,y arrays by a quantity b
 function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
+    @inline return get_xy(poly_b, T)
+end
 
+function get_xy(poly::LibGEOS.Polygon, T=Float64)
     # extract the LinearRing struct
-    lr = first(GeoInterface.getgeom(poly_b))
+    lr = first(GeoInterface.getgeom(poly))
 
     # preallocate a LibGEOS.Point struct and arrays to store (x,y) coordinates
     Npts = GeoInterface.ngeom(lr)
-    x_b = zeros(T, Npts)
-    y_b = zeros(T, Npts)
+    x = zeros(T, Npts)
+    y = zeros(T, Npts)
     pt = LibGEOS.Point(zero(T), zero(T))
     for k in 1:Npts
         pt = getPoint!(pt, lr, k)
-        x_b[k] = GeoInterface.x(pt)::T
-        y_b[k] = GeoInterface.y(pt)::T
+        x[k] = GeoInterface.x(pt)::T
+        y[k] = GeoInterface.y(pt)::T
     end
-    return x_b, y_b
+    return x, y
 end
-
 
 # An allocation free version of LibGEOS.getPoint
 function getPoint!(
@@ -848,11 +850,8 @@ Limit maximum curvature of a polygon described by x,y arrays
 function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
     @assert max_curvature > 0.0
     poly = xy_polygon(x, y)
-    poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature), max_curvature)
-    coords = GeoInterface.coordinates(poly_b)[1]
-    x_b = T[v[1] for v in coords]
-    y_b = T[v[2] for v in coords]
-    return x_b, y_b
+    poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature)::LibGEOS.Polygon, max_curvature)::LibGEOS.Polygon
+    @inline return get_xy(poly_b, T)
 end
 
 """
