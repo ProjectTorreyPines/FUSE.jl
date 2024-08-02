@@ -122,10 +122,10 @@ function _step(actor::ActorTEQUILA)
     try
         actor.shot = solve_function(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first)
     catch e
-        display(plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:dot, aspect_ratio=:equal))
+        plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:dot, aspect_ratio=:equal)
+        display(plot!(IMAS.MXH(actor.shot.surfaces[:, end])))
         display(plot(rho, eq1d.pressure; marker=:dot, xlabel="ρ", title="Pressure [Pa]"))
         display(plot(rho, eq1d.j_tor; marker=:dot, xlabel="ρ", title="Jtor [A]"))
-
         rethrow(e)
     end
 
