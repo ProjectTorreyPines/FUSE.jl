@@ -229,7 +229,7 @@ function wall_from_eq!(
 
         # distance from points in private flux region to X-point
         Dx = sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0)
-        divertor_length = minimum((Dx[1], Dx[end], max_divertor_length))
+        divertor_length = min(maximum(Dx), max_divertor_length)
 
         # limit extent of private flux regions
         circle_r = divertor_length .* cos.(t) .+ Rx
