@@ -20,11 +20,9 @@ function layer_shape_message(shape_function_index)
              5: double_ellipse     (shape_parameters = [centerpost_height, height])
              6: rectangle_ellipse  (shape_parameters = [height])
              7: tripple-arc        (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-             8: miller             (shape_parameters = [elongation, triangularity])
-             9: square_miller      (shape_parameters = [elongation, triangularity, squareness])
-            10: spline             (shape_parameters = [hfact, rz...)
-            11: racetrack          (shape_parameters = [height, radius_ratio])
-            12: silo               (shape_parameters = [h_start, h_end)
+             8: miller             (shape_parameters = [])
+             9: racetrack          (shape_parameters = [height, radius_ratio])
+            10: silo               (shape_parameters = [h_start, h_end)
            10x: shape + z_offset   (shape_parameters = [..., z_offset])
           100x: negative shape     (shape_parameters = [...])"
 end
@@ -52,7 +50,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_princeton_D_scaled_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_double_ellipse_)
-            r_center = (maximum(r_obstruction) + minimum(r_obstruction)) / 2.0
+            r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [r_center, centerpost_height, height]
         elseif shape_index_mod == Int(_circle_ellipse_)
@@ -63,21 +61,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_racetrack_)
             shape_parameters = [height, 0.25]
         elseif shape_index_mod == Int(_triple_arc_)
-            shape_parameters = [height, 0.5, 0.5, 45, 45]
-        elseif shape_index_mod ∈ (Int(_miller_), Int(_square_miller_))
-            mxh = IMAS.MXH(r_obstruction, z_obstruction, 2)
-            shape_parameters = [mxh.κ, sin(mxh.s[1])]
-            if shape_index_mod == Int(_square_miller_)
-                push!(shape_parameters, -mxh.s[2])
-            end
-        elseif shape_index_mod == Int(_spline_)
-            n = 1
-            R = range(r_start, r_end, 2 + n)[2:end-1]
-            Z = range(height / 2.0, height / 2.0, 2 + n)[2:end-1]
-            shape_parameters = Float64[0.8]
-            for (r, z) in zip(R, Z)
-                append!(shape_parameters, [r, z])
-            end
+            shape_parameters = [height, 0.5, 0.5, Float64(pi/3), Float64(pi/3)]
         elseif shape_index_mod == Int(_silo_)
             shape_parameters = [height, height / 2.0]
         end
@@ -121,12 +105,6 @@ function shape_function(shape_function_index::Int; resolution::Float64)
             func = racetrack
         elseif shape_index_mod == Int(_triple_arc_)
             func = triple_arc
-        elseif shape_index_mod == Int(_miller_)
-            func = miller_Rstart_Rend
-        elseif shape_index_mod == Int(_square_miller_)
-            func = square_miller_Rstart_Rend
-        elseif shape_index_mod == Int(_spline_)
-            func = spline_shape
         elseif shape_index_mod == Int(_silo_)
             func = silo
         end
@@ -275,7 +253,7 @@ double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
     height = abs(height)
-    centerpost_height = mirror_bound(abs(centerpost_height), 0.0, height)
+    centerpost_height = mirror_bound(abs(centerpost_height), 0.5*height, height)
     r_center = mirror_bound(r_center, r_start, r_end)
     return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points, resolution)
 end
@@ -407,7 +385,7 @@ end
         n_points::Integer=100,
         resolution::Float64=1.0) where {T<:Real}
 
-TrippleArc shape. Angles are in degrees.
+TrippleArc shape. Angles are in radians.
 """
 function triple_arc(
     r_start::T,
@@ -425,8 +403,8 @@ function triple_arc(
     height = abs(height) / 2.0
     small_radius = mirror_bound(small_radius, 0.01, 1.0) * height
     mid_radius = mirror_bound(mid_radius, small_radius / height, 1.0) * height
-    small_coverage = mirror_bound(small_coverage, 0.0, 180.0) * pi / 180
-    mid_coverage = mirror_bound(mid_coverage, 0.0, 180.0) * pi / 180
+    small_coverage = mirror_bound(small_coverage, 0.0, Float64(pi))
+    mid_coverage = mirror_bound(mid_coverage, 0.0, Float64(pi))
 
     asum = small_coverage + mid_coverage
 
@@ -461,128 +439,6 @@ function triple_arc(
     R = (R .- minimum(R)) .* factor .+ r_start
 
     return R, Z
-end
-
-"""
-    miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=201, resolution::Float64=1.0) where {T<:Real}
-
-Miller shape
-"""
-function miller(R0::T, rmin_over_R0::T, elongation::T, triangularity::T; n_points::Integer=201, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(floor(n_points * resolution / 2)) * 2 + 1
-
-    θ = range(0, 2π, n_points)
-    triangularity = mirror_bound(triangularity, -1.0, 1.0)
-    δ₀ = asin(triangularity)
-    R = R0 * (1 .+ rmin_over_R0 .* cos.(θ .+ δ₀ * sin.(θ)))
-    Z = R0 * (rmin_over_R0 * elongation * sin.(θ))
-    R[end] = R[1]
-    Z[end] = Z[1]
-    return R, Z
-end
-
-"""
-    miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=201, resolution::Float64=1.0) where {T<:Real}
-
-Miller shape
-"""
-function miller_Rstart_Rend(r_start::T, r_end::T, elongation::T, triangularity::T; n_points::Int=201, resolution::Float64=1.0) where {T<:Real}
-    elongation = mirror_bound(abs(elongation), 1.0, 3.0)
-    triangularity = mirror_bound(triangularity, -1.0, 1.0)
-    return miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity; n_points, resolution)
-end
-
-"""
-    square_miller(
-        R0::T,
-        rmin_over_R0::T,
-        elongation::T,
-        triangularity::T,
-        squareness::T;
-        upper_x_point::Bool=false,
-        lower_x_point::Bool=false,
-        exact::Bool=false,
-        n_points::Integer=201,
-        resolution::Float64=1.0) where {T<:Real}
-
-Miller contour with squareness (via MXH parametrization)
-
-`exact=true` optimizes diverted shape to match desired Miller elongation, triangularity, squareness
-"""
-function square_miller(
-    R0::T,
-    rmin_over_R0::T,
-    elongation::T,
-    triangularity::T,
-    squareness::T;
-    upper_x_point::Bool=false,
-    lower_x_point::Bool=false,
-    exact::Bool=false,
-    n_points::Integer=201,
-    resolution::Float64=1.0) where {T<:Real}
-
-    n_points = Int(floor(n_points * resolution / 2)) * 2 + 1
-
-    mxh = IMAS.MXH(R0, 2)
-    mxh.ϵ = rmin_over_R0
-    mxh.κ = elongation
-    mxh.s[1] = asin(triangularity)
-    mxh.s[2] = -squareness
-
-    if exact
-        func = fitMXHboundary
-    else
-        func = MXHboundary
-    end
-    mxhb = func(mxh; upper_x_point, lower_x_point, n_points)
-
-    return mxhb.r_boundary, mxhb.z_boundary
-end
-
-"""
-    square_miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real, squareness::Real; n_points::Int=401, resolution::Float64=1.0)
-
-Miller with squareness contour
-"""
-function square_miller_Rstart_Rend(r_start::Real, r_end::Real, elongation::Real, triangularity::Real, squareness::Real; n_points::Int=401, resolution::Float64=1.0)
-    elongation = mirror_bound(abs(elongation), 1.0, 3.0)
-    triangularity = mirror_bound(triangularity, -1.0, 1.0)
-    squareness = mirror_bound(abs(squareness), 0.0, 1.0)
-    return square_miller((r_end + r_start) / 2.0, (r_end - r_start) / (r_end + r_start), elongation, triangularity, squareness; n_points, resolution)
-end
-
-function spline_shape(r::Vector{T}, z::Vector{T}; n_points::Int=101, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(round(n_points * resolution))
-
-    r = vcat(r[1], r[1], r, r[end], r[end])
-    z = vcat(0, z[1] / 2, z, z[end] / 2, 0)
-    d = cumsum(sqrt.(vcat(0, diff(r)) .^ 2.0 .+ vcat(0, diff(z)) .^ 2.0))
-
-    itp_r = Interpolations.interpolate(d, r, Interpolations.FritschButlandMonotonicInterpolation())
-    itp_z = Interpolations.interpolate(d, z, Interpolations.FritschButlandMonotonicInterpolation())
-
-    D = range(d[1], d[end], n_points)
-    R, Z = itp_r.(D), itp_z.(D)
-    R[end] = R[1]
-    Z[end] = Z[1]
-    return R, Z
-end
-
-"""
-    spline_shape(r_start::T, r_end::T, hfact::T, rz...; n_points::Integer=101, resolution::Float64=1.0) where {T<:Real}
-
-Spline shape
-"""
-function spline_shape(r_start::T, r_end::T, hfact::T, rz...; n_points::Integer=101, resolution::Float64=1.0) where {T<:Real}
-    rz = collect(rz)
-    R = rz[1:2:end]
-    Z = rz[2:2:end]
-    hfact_max = 0.5 + (minimum(R) - r_start) / (r_end - r_start) / 2.0
-    hfact = min(abs(hfact), hfact_max)
-    h = maximum(Z) * hfact
-    r = vcat(r_start, R, r_end, reverse(R), r_start)
-    z = vcat(h, Z, 0, -reverse(Z), -h)
-    return spline_shape(r, z; n_points, resolution)
 end
 
 """
