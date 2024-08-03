@@ -42,7 +42,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         :hfs_wall => 0.5,
         :plasma => 0.0,
         :lfs_wall => 0.5,
-        :lfs_gap_OH_coils => 2.0,
+        :lfs_gap_OH_coils => 1.8,
         :lfs_TF => 1.1,
         :gap_world => 1.0
     )
@@ -59,7 +59,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     ini.pf_active.n_coils_outside = 0
     ini.pf_active.technology = :copper
 
-    ini.tf.shape = :triple_arc
+    ini.tf.shape = :miller
     ini.tf.n_coils = 24
     ini.tf.technology = :copper
 
