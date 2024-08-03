@@ -643,7 +643,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
                 if layer_shape != IMAS._negative_offset_ || (contains(lowercase(layer.name), "coils") && !isempty(pfa.coil))
                     if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                        verbose && @show "A1", layer.name, layer_shape
+                        verbose && @show "F1", layer.name, layer_shape
                         if !isempty(bd.pf_active, :rail)
                             n_rails += 1
                             obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
@@ -652,7 +652,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                         end
                         vertical_clearance = 1.1
                     else
-                        verbose && @show "A2", layer.name, layer_shape
+                        verbose && @show "F2", layer.name, layer_shape
                         obstruction_outline = nothing
                         vertical_clearance = 1.0
                     end
@@ -679,7 +679,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
             for kk in reverse(neg_off_layers)
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-                verbose && @show "C", layer.name, layer_shape
+                verbose && @show "B", layer.name, layer_shape
                 layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
                     bd,
                     plasma_to_tf[kk+1],
@@ -696,7 +696,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
 
         else
             if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                verbose && @show "B1", layer.name, layer_shape
+                verbose && @show "N1", layer.name, layer_shape
                 if !isempty(bd.pf_active, :rail)
                     n_rails += 1
                     obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
@@ -705,7 +705,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                 end
                 vertical_clearance = 1.0
             else
-                verbose && @show "B2", layer.name, layer_shape
+                verbose && @show "N2", layer.name, layer_shape
                 obstruction_outline = nothing
                 vertical_clearance = 1.0
             end
@@ -828,12 +828,16 @@ function optimize_layer_outline(
     lfs_thickness = l_end - o_end
 
     # handle offset, negative offset, and convex-hull
-    if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
+    if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_), Int(_miller_))
         R, Z = buffer(oR, oZ, hfs_thickness, lfs_thickness)
-        if shape == Int(_convex_hull_)
+        if shape in (Int(_convex_hull_), Int(_miller_))
             hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
+        end
+        if shape == Int(_miller_)
+            R, Z = IMAS.resample_2d_path(R, Z; method=:linear)
+            R, Z = IMAS.MXH(R, Z, 4)()
         end
         layer.outline.r, layer.outline.z = R, Z
         shape_parameters = Float64[]
@@ -853,11 +857,13 @@ function optimize_layer_outline(
         end
 
         oZ = oZ .* vertical_clearance
+        hfs_thickness = abs(hfs_thickness)
+        lfs_thickness = abs(lfs_thickness)
 
         func = shape_function(shape; resolution)
         initial_clerance = max(hfs_thickness, lfs_thickness) * vertical_clearance
-        shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
-        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters; use_curvature)
+        shape_parameters0 = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
+        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters0; use_curvature)
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
     end
 
@@ -892,8 +898,8 @@ function optimize_outline(
         function cost_shape(
             r_obstruction::Vector{Float64},
             z_obstruction::Vector{Float64},
-            hbuf::Float64,
-            lbuf::Float64,
+            r_obstruction_buffered::Vector{Float64},
+            z_obstruction_buffered::Vector{Float64},
             target_clearance::Float64,
             func::Function,
             r_start::Float64,
@@ -914,12 +920,25 @@ function optimize_outline(
             # display(plot!(r_obstruction,z_obstruction;color=:black,label="obstruction"))
 
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            index = (.!)(isapprox.(R, r_start + hbuf + target_clearance) .|| isapprox.(R, r_end - lbuf - target_clearance))
-            Rv = view(R, index)
-            Zv = view(Z, index)
+            if r_start != 0.0
+                index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
+                Rv = view(R, index)
+                Zv = view(Z, index)
+            else
+                Rv = R
+                Zv = Z
+            end
+
+            # target clearance
+            min_distance, mean_distance = IMAS.min_mean_distance_polygons(r_obstruction, z_obstruction, Rv, Zv)
+            cost_mean_distance = (mean_distance - target_clearance) / target_clearance
+            cost_min_clearance = 0.0
+            if min_distance < target_clearance
+                cost_min_clearance = abs(min_distance - target_clearance) / target_clearance
+            end
 
             # no polygon crossings
-            index, crossings = IMAS.intersection(R, Z, r_obstruction, z_obstruction)
+            index, crossings = IMAS.intersection(R, Z, r_obstruction_buffered, z_obstruction_buffered)
             @assert mod(length(crossings), 2) == 0
             cost_inside = 0.0
             for k in 1:Int(length(crossings) / 2)
@@ -929,37 +948,21 @@ function optimize_outline(
             end
             cost_inside = cost_inside / target_clearance
 
-            # avoid slipping over with z offset
-            if minimum(Z) > minimum(z_obstruction)
-                cost_inside += abs(minimum(Z) - minimum(z_obstruction)) / target_clearance
-            end
-            if maximum(Z) < maximum(z_obstruction)
-                cost_inside += abs(maximum(Z) - maximum(z_obstruction)) / target_clearance
-            end
-
-            # target clearance
-            minimum_distance, mean_distance = IMAS.min_mean_distance_polygons(Rv, Zv, r_obstruction, z_obstruction)
-            cost_mean_distance = (mean_distance - target_clearance) / (2 * target_clearance + hbuf + lbuf)
-            if minimum_distance < target_clearance
-                cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
-            else
-                cost_min_clearance = 0.0
-            end
-
             # curvature
             cost_max_curvature = 0.0
             if use_curvature
                 curvature = abs.(IMAS.curvature(R, Z))
-                cost_max_curvature = atan(1.0 / (1.0 - maximum(curvature)^2)) / pi * 2
+                cost_max_curvature = maximum(curvature)^2
             end
 
             if verbose
                 @show target_clearance
-                @show minimum_distance
-                @show cost_min_clearance^2
-                @show cost_mean_distance^2
-                @show cost_inside^2
-                @show cost_max_curvature^2
+                @show min_distance
+                println()
+                @show cost_min_clearance
+                @show cost_mean_distance
+                @show cost_inside
+                @show cost_max_curvature
                 println()
             end
 
@@ -987,13 +990,22 @@ function optimize_outline(
             end
         end
 
-        initial_guess = copy(shape_parameters)
+        # r_obstruction could go bejond the r_start and r_end when an obstruction_outline is present
+        # eg. if there are some internal PF coils
+        # in this case we move the r_obstruction within what the r_start/r_end
+        r_obstruction[r_obstruction.<(r_start+target_clearance)] .= r_start + target_clearance
+        r_obstruction[r_obstruction.>(r_end-target_clearance)] .= r_end - target_clearance
+
+        # buffer the obstruction, this is used for detecting intersections within the clearance space of the obstruction
+        r_obstruction, z_obstruction = IMAS.resample_2d_path(r_obstruction, z_obstruction; method=:linear, n_points=100)
+        r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance * 0.5)
+
         res = Optim.optimize(
             shape_parameters -> cost_shape(
                 r_obstruction,
                 z_obstruction,
-                hbuf,
-                lbuf,
+                r_obstruction_buffered,
+                z_obstruction_buffered,
                 target_clearance,
                 func,
                 r_start,
@@ -1001,14 +1013,14 @@ function optimize_outline(
                 shape_parameters;
                 use_curvature
             ),
-            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=10000, f_tol=1E-4, x_tol=1E-3))
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=1000))
         shape_parameters = Optim.minimizer(res)
         if verbose
             cost_shape(
                 r_obstruction,
                 z_obstruction,
-                hbuf,
-                lbuf,
+                r_obstruction_buffered,
+                z_obstruction_buffered,
                 target_clearance,
                 func,
                 r_start,
@@ -1022,10 +1034,11 @@ function optimize_outline(
     end
 
     # R, Z = func(r_start, r_end, shape_parameters...)
-    # plot(func(r_start, r_end, initial_guess...); markershape=:x, label="initial guess")
-    # plot!(r_obstruction0, z_obstruction0, ; markershape=:x, label="obstruction0")
-    # plot!(r_obstruction, z_obstruction, ; markershape=:x, label="obstruction")
-    # display(plot!(R, Z; markershape=:x, aspect_ratio=:equal, label="final"))
+    # plot(r_obstruction0, z_obstruction0, ; label="obstruction0", lw=2)
+    # plot!(r_obstruction, z_obstruction; label="obstruction")
+    # plot!(buffer(R, Z, -target_clearance)...; label="final-clearance")
+    # plot!(func(r_start, r_end, shape_parameters...); label="final", lw=2)
+    # display(plot!(; aspect_ratio=:equal))
 
     return shape_parameters
 end
@@ -1063,7 +1076,7 @@ function convex_outline(rail::IMAS.build__pf_active__rail{T})::IMAS.pf_active__c
     coil_start = sum([rails[k].coils_number for k in 1:irail-1]) + 1
     coil_end = coil_start + rail.coils_number - 1
     dd = IMAS.top_dd(rail)
-    coils = [dd.pf_active.coil[k] for k in coil_start:coil_end]
+    coils = IMAS.pf_active__coil{T}[dd.pf_active.coil[k] for k in coil_start:coil_end]
     return convex_outline(coils)
 end
 
