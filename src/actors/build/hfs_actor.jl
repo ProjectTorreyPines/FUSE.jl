@@ -1,7 +1,7 @@
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN

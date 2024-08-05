@@ -129,6 +129,12 @@ Plot recipe for ActorPFdesign and ActorPFactive
         end
     end
 
+    # plot pf_active coils
+    @series begin
+        time0 --> actor.eqt_out.time
+        dd.pf_active
+    end
+
     # plot equilibrium
     if equilibrium
         if field_null
@@ -156,12 +162,6 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 actor.dd.equilibrium.time_slice[]
             end
         end
-    end
-
-    # plot pf_active coils
-    @series begin
-        time0 --> actor.eqt_out.time
-        dd.pf_active
     end
 
     # plot optimization rails

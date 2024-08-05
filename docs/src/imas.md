@@ -1,4 +1,4 @@
-# Inner workings of IMASDD.jl and IMAS.jl
+# Inner workings of IMASdd.jl and IMAS.jl
 
 These two packages implement the functionalities of the ITER IMAS infrastructure in native Julia.
 

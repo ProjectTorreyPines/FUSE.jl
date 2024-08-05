@@ -1,7 +1,7 @@
 #= ============= =#
 #  ActorPFdesign  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -109,12 +109,11 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                 if par.verbose
                     println(res)
                 end
+                # size the PF coils based on the currents they are carrying
+                size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=dd.requirements.coil_j_margin, par.symmetric)
             finally
                 actor_logging(dd, old_logging)
             end
-
-            # size the PF coils based on the currents they are carrying
-            size_pf_active(actor.actor_pf.setup_cache.optim_coils, eqt; min_size=1.0, tolerance=dd.requirements.coil_j_margin, par.symmetric)
         end
     end
 

@@ -158,17 +158,7 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         end
     end
 
-    # uniform resampling
-    myfunc = dfunc
-    function resampled_myfunc(args...; resample=true)
-        if resample
-            return IMAS.resample_2d_path(myfunc(args...)...; method=:linear)
-        else
-            return myfunc(args...)
-        end
-    end
-
-    return resampled_myfunc
+    return dfunc
 end
 
 """
@@ -201,6 +191,9 @@ function optimize_outline(
             rz_obstruction::Vector{Tuple{Float64,Float64}},
             hfs_thickness::Float64,
             lfs_thickness::Float64,
+            hbuf::Float64,
+            lbuf::Float64,
+            target_clearance::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
@@ -210,31 +203,11 @@ function optimize_outline(
 
             #@show r_start, r_end, shape_parameters
 
-            R0, Z0 = func(r_start, r_end, shape_parameters...)
-
-            if hfs_thickness == 0 || lfs_thickness == 0
-                target_clearance = (hfs_thickness + lfs_thickness) / 2.0
-                R, Z = R0, Z0
-                hbuf = 0.0
-                lbuf = 0.0
-            else
-                target_clearance = min(hfs_thickness, lfs_thickness)
-                if hfs_thickness != lfs_thickness
-                    hbuf = hfs_thickness - target_clearance
-                    lbuf = lfs_thickness - target_clearance
-                    R, Z = buffer(R0, Z0, -hbuf, -lbuf)
-                else
-                    R, Z = R0, Z0
-                    hbuf = 0.0
-                    lbuf = 0.0
-                end
-            end
+            R, Z = func(r_start, r_end, shape_parameters...)
 
             # R1, Z1 = buffer(R, Z, -target_clearance)
             # plot()
-            # plot!(R0,Z0,label="R0,Z0")
             # plot!(R,Z;aspect_ratio=:equal,label="R,Z")
-            # vline!([r_start+hbuf, r_end-lbuf];primary=false)
             # plot!(R1, Z1,label="R1,Z1",ls=:dash)
             # plot!()
             # display(plot!(r_obstruction,z_obstruction;color=:black,label="obstruction"))
@@ -244,16 +217,28 @@ function optimize_outline(
             Rv = view(R, index)
             Zv = view(Z, index)
 
-            # no polygon crossings  O(N)
+            # no polygon crossings
+            index, crossings = IMAS.intersection(R, Z, r_obstruction, z_obstruction)
+            @assert mod(length(crossings), 2) == 0
             cost_inside = 0.0
-            for (r, z) in zip(Rv, Zv)
-                inpoly = PolygonOps.inpolygon((r, z), rz_obstruction)
-                cost_inside += inpoly
+            for k in 1:Int(length(crossings) / 2)
+                c1 = crossings[(k-1)*2+1]
+                c2 = crossings[(k-1)*2+2]
+                cost_inside += sqrt((c1[1] - c2[1])^2 + (c1[2] - c2[2])^2)
+            end
+            cost_inside = cost_inside / target_clearance
+
+            # avoid slipping over with z offset
+            if minimum(Z) > minimum(z_obstruction)
+                cost_inside += abs(minimum(Z) - minimum(z_obstruction)) / target_clearance
+            end
+            if maximum(Z) < maximum(z_obstruction)
+                cost_inside += abs(maximum(Z) - maximum(z_obstruction)) / target_clearance
             end
 
-            # target clearance  O(1)
-            minimum_distance, mean_distance = IMAS.min_mean_distance_two_shapes(Rv, Zv, r_obstruction, z_obstruction)
-            cost_mean_distance = (mean_distance - target_clearance) / ((hfs_thickness + lfs_thickness) / 2.0)
+            # target clearance
+            minimum_distance, mean_distance = IMAS.min_mean_distance_polygons(Rv, Zv, r_obstruction, z_obstruction)
+            cost_mean_distance = (mean_distance - target_clearance) / target_clearance
             if minimum_distance < target_clearance
                 cost_min_clearance = (minimum_distance - target_clearance) / target_clearance
             else
@@ -281,9 +266,41 @@ function optimize_outline(
             return norm((cost_min_clearance, cost_mean_distance, cost_inside, cost_max_curvature))
         end
 
+        # reduce the problem to be in terms of a single target_distance
+        # even when we want different distances between high and low field sides
+        if hfs_thickness == 0 || lfs_thickness == 0
+            target_clearance = (hfs_thickness + lfs_thickness) / 2.0
+            hbuf = 0.0
+            lbuf = 0.0
+        else
+            target_clearance = min(hfs_thickness, lfs_thickness)
+            if hfs_thickness != lfs_thickness
+                hbuf = hfs_thickness - target_clearance
+                lbuf = lfs_thickness - target_clearance
+                r_obstruction, z_obstruction = buffer(r_obstruction, z_obstruction, hbuf, lbuf)
+            else
+                hbuf = 0.0
+                lbuf = 0.0
+            end
+        end
+
         initial_guess = copy(shape_parameters)
         res = Optim.optimize(
-            shape_parameters -> cost_shape(r_obstruction, z_obstruction, rz_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; use_curvature),
+            shape_parameters -> cost_shape(
+                r_obstruction,
+                z_obstruction,
+                rz_obstruction,
+                hfs_thickness,
+                lfs_thickness,
+                hbuf,
+                lbuf,
+                target_clearance,
+                func,
+                r_start,
+                r_end,
+                shape_parameters;
+                use_curvature
+            ),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=10000, f_tol=1E-4, x_tol=1E-3))
         shape_parameters = Optim.minimizer(res)
         if verbose
@@ -952,22 +969,14 @@ Control of the X-point location can be achieved by modifying R0, Z0.
 function add_xpoint(
     mr::AbstractVector{T},
     mz::AbstractVector{T},
-    R0::Union{Nothing,T}=nothing,
-    Z0::Union{Nothing,T}=nothing;
+    R0::T,
+    Z0::T;
     upper::Bool,
     α_multiplier::Float64
 ) where {T<:Real}
 
     function cost(pr::Vector{Float64}, pz::Vector{Float64}, i::Integer, R0::T, Z0::T, α::Float64)
         return abs(add_xpoint(pr, pz, i, R0, Z0, α).θX - π / 2)
-    end
-
-    if Z0 === nothing
-        Z0 = sum(mz) / length(mz)
-    end
-
-    if R0 === nothing
-        R0 = sum(mr) / length(mr)
     end
 
     if upper
