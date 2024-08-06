@@ -61,7 +61,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_racetrack_)
             shape_parameters = [height, 0.25]
         elseif shape_index_mod == Int(_triple_arc_)
-            shape_parameters = [height, 0.5, 0.5, Float64(pi/3), Float64(pi/3)]
+            shape_parameters = [height, 0.5, 0.5, Float64(pi / 3), Float64(pi / 3)]
         elseif shape_index_mod == Int(_silo_)
             shape_parameters = [height, height / 2.0]
         end
@@ -253,7 +253,7 @@ double ellipse shape
 """
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
     height = abs(height)
-    centerpost_height = mirror_bound(abs(centerpost_height), 0.5*height, height)
+    centerpost_height = mirror_bound(abs(centerpost_height), 0.5 * height, height)
     r_center = mirror_bound(r_center, r_start, r_end)
     return double_ellipse(r_start, r_end, r_center, centerpost_height, 0.0, height; n_points, resolution)
 end
@@ -514,11 +514,11 @@ function getPoint!(
     pt::LibGEOS.Point,
     obj::LibGEOS.LinearRing,
     n::Integer,
-    context::LibGEOS.GEOSContext = LibGEOS.get_context(obj),
+    context::LibGEOS.GEOSContext=LibGEOS.get_context(obj)
 )
     if !(0 < n <= LibGEOS.numPoints(obj, context))
         error(
-            "LibGEOS: n=$n is out of bounds for LineString with numPoints=$(numPoints(obj, context))",
+            "LibGEOS: n=$n is out of bounds for LineString with numPoints=$(numPoints(obj, context))"
         )
     end
     result = LibGEOS.GEOSGeomGetPointN_r(context, obj, n - 1)
