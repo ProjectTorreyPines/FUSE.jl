@@ -641,14 +641,14 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
             for kk in k:length(plasma_to_tf)
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-                if layer_shape != IMAS._negative_offset_ || (contains(lowercase(layer.name), "coils") && !isempty(pfa.coil))
+                if layer_shape != IMAS._negative_offset_
                     if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
                         verbose && @show "F1", layer.name, layer_shape
-                        if !isempty(bd.pf_active, :rail)
+                        if isempty(bd.pf_active, :rail)
+                            obstruction_outline = convex_outline(pfa.coil)
+                        else
                             n_rails += 1
                             obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
-                        else
-                            obstruction_outline = convex_outline(pfa.coil)
                         end
                         vertical_clearance = 1.1
                     else
@@ -697,11 +697,11 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
         else
             if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
                 verbose && @show "N1", layer.name, layer_shape
-                if !isempty(bd.pf_active, :rail)
+                if isempty(bd.pf_active, :rail)
+                    obstruction_outline = convex_outline(pfa.coil)
+                else
                     n_rails += 1
                     obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
-                else
-                    obstruction_outline = convex_outline(pfa.coil)
                 end
                 vertical_clearance = 1.0
             else
@@ -896,54 +896,35 @@ function optimize_outline(
 
     else
         function cost_shape(
-            r_obstruction::Vector{Float64},
-            z_obstruction::Vector{Float64},
-            r_obstruction_buffered::Vector{Float64},
-            z_obstruction_buffered::Vector{Float64},
-            target_clearance::Float64,
+            obstruction_buffered_poly,
+            obstruction_buffered_area::Float64,
             func::Function,
             r_start::Float64,
             r_end::Float64,
             shape_parameters::Vector{Float64};
-            use_curvature::Bool,
             verbose::Bool=false)
 
             R, Z = func(r_start, r_end, shape_parameters...)
 
-            # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            index = (R .> r_start + target_clearance) .&& (R .< r_end - target_clearance)
-            Rv = view(R, index)
-            Zv = view(Z, index)
+            RZ_poly = xy_polygon(R, Z)
 
-            # target clearance
-            min_distance, _ = IMAS.min_mean_distance_polygons(r_obstruction, z_obstruction, Rv, Zv)
-            cost_min_clearance = 0.0
-            if min_distance < target_clearance
-                cost_min_clearance = abs(min_distance - target_clearance) / target_clearance * 100.0
-            end
+            intersection_poly = LibGEOS.intersection(RZ_poly, obstruction_buffered_poly)
+            intersection_area = LibGEOS.area(intersection_poly)
 
-            _, mean_distance = IMAS.min_mean_distance_polygons(r_obstruction_buffered, z_obstruction_buffered, R, Z)
-            cost_mean_distance = mean_distance / target_clearance
+            difference_poly = LibGEOS.difference(RZ_poly, obstruction_buffered_poly)
+            difference_area = LibGEOS.area(difference_poly)
 
-            # curvature
-            cost_max_curvature = 0.0
-            if use_curvature
-                curvature = abs.(IMAS.curvature(R, Z))
-                cost_max_curvature = maximum(curvature)^2
-            end
+            cost_overlap = (intersection_area - obstruction_buffered_area) * 100.0
+            cost_overspill = difference_area
 
             if verbose
-                @show target_clearance
-                @show min_distance
-                println()
-                @show cost_min_clearance
-                @show cost_mean_distance
-                @show cost_max_curvature
+                @show cost_overlap^2
+                @show cost_overspill^2
                 println()
             end
 
             # return cost
-            return norm((cost_min_clearance, cost_mean_distance, cost_max_curvature))
+            return norm((cost_overlap, cost_overspill))
         end
 
         # reduce the problem to be in terms of a single target_distance
@@ -965,44 +946,31 @@ function optimize_outline(
             end
         end
 
-        # r_obstruction could go bejond the r_start and r_end when an obstruction_outline is present
-        # eg. if there are some internal PF coils
-        # in this case we move the r_obstruction within what the r_start/r_end
-        r_obstruction[r_obstruction.<(r_start+target_clearance)] .= r_start + target_clearance
-        r_obstruction[r_obstruction.>(r_end-target_clearance)] .= r_end - target_clearance
-
         # buffer the obstruction, this is used for minimizing mean distance error
-        r_obstruction, z_obstruction = IMAS.resample_2d_path(r_obstruction, z_obstruction; method=:linear, n_points=100)
         r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
+        obstruction_buffered_poly = xy_polygon(r_obstruction_buffered, z_obstruction_buffered)
+        obstruction_buffered_area = LibGEOS.area(obstruction_buffered_poly)
 
         res = Optim.optimize(
             shape_parameters -> cost_shape(
-                r_obstruction,
-                z_obstruction,
-                r_obstruction_buffered,
-                z_obstruction_buffered,
-                target_clearance,
+                obstruction_buffered_poly,
+                obstruction_buffered_area,
                 func,
                 r_start,
                 r_end,
-                shape_parameters;
-                use_curvature
+                shape_parameters
             ),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=1000))
         shape_parameters = Optim.minimizer(res)
 
         if verbose
             cost_shape(
-                r_obstruction,
-                z_obstruction,
-                r_obstruction_buffered,
-                z_obstruction_buffered,
-                target_clearance,
+                obstruction_buffered_poly,
+                obstruction_buffered_area,
                 func,
                 r_start,
                 r_end,
                 shape_parameters;
-                use_curvature,
                 verbose=true
             )
             println(res)
