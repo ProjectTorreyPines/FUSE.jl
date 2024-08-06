@@ -195,10 +195,21 @@ function init_pf_active!(
         pf_coils_size[krail] = min(pf_coils_size[krail], max_pf_inside_coil)
 
         # generate rail between the two layers where coils will be placed and will be able to slide during the `optimization` phase
-        coil_size = pf_coils_size[krail]
-        dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
         inner_layer = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k-1].identifier, fs=_hfs_)
-        rail_r, rail_z = buffer(inner_layer.outline.r, inner_layer.outline.z, dcoil)
+        hull = convex_hull(inner_layer.outline.r, inner_layer.outline.z; closed_polygon=true)
+        rail_r = [r for (r, z) in hull]
+        rail_z = [z for (r, z) in hull]
+        if layer.side == Int(_out_)
+            coil_size = pf_coils_size[krail]
+            dcoil = (coil_size + coils_cleareance[krail]) / 2 * sqrt(2)
+            rail_r, rail_z = buffer(rail_r, rail_z, dcoil)
+        else
+            layer_hfs = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k].identifier, fs=_hfs_)
+            layer_lfs = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k].identifier, fs=_lfs_)
+            dcoil = min(layer_hfs.thickness, layer_lfs.thickness) / 2.0
+            coil_size = dcoil / sqrt(2) * 2 - coils_cleareance[krail]
+            rail_r, rail_z = buffer(rail_r, rail_z, layer_hfs.thickness / 2.0, layer_lfs.thickness / 2.0)
+        end
         rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3.0)
 
         if eqt.boundary.triangularity > 0.0
