@@ -908,45 +908,22 @@ function optimize_outline(
             use_curvature::Bool,
             verbose::Bool=false)
 
-            #@show r_start, r_end, shape_parameters
-
             R, Z = func(r_start, r_end, shape_parameters...)
 
-            # R1, Z1 = buffer(R, Z, -target_clearance)
-            # plot()
-            # plot!(R,Z;aspect_ratio=:equal,label="R,Z")
-            # plot!(R1, Z1,label="R1,Z1",ls=:dash)
-            # plot!()
-            # display(plot!(r_obstruction,z_obstruction;color=:black,label="obstruction"))
-
             # disregard near r_start and r_end where optimizer has no control and shape is allowed to go over obstruction
-            if r_start != 0.0
-                index = (.!)(isapprox.(R, r_start) .|| isapprox.(R, r_end))
-                Rv = view(R, index)
-                Zv = view(Z, index)
-            else
-                Rv = R
-                Zv = Z
-            end
+            index = (R .> r_start + target_clearance) .&& (R .< r_end - target_clearance)
+            Rv = view(R, index)
+            Zv = view(Z, index)
 
             # target clearance
-            min_distance, mean_distance = IMAS.min_mean_distance_polygons(r_obstruction, z_obstruction, Rv, Zv)
-            cost_mean_distance = (mean_distance - target_clearance) / target_clearance
+            min_distance, _ = IMAS.min_mean_distance_polygons(r_obstruction, z_obstruction, Rv, Zv)
             cost_min_clearance = 0.0
             if min_distance < target_clearance
-                cost_min_clearance = abs(min_distance - target_clearance) / target_clearance
+                cost_min_clearance = abs(min_distance - target_clearance) / target_clearance * 100.0
             end
 
-            # no polygon crossings
-            index, crossings = IMAS.intersection(R, Z, r_obstruction_buffered, z_obstruction_buffered)
-            @assert mod(length(crossings), 2) == 0
-            cost_inside = 0.0
-            for k in 1:Int(length(crossings) / 2)
-                c1 = crossings[(k-1)*2+1]
-                c2 = crossings[(k-1)*2+2]
-                cost_inside += sqrt((c1[1] - c2[1])^2 + (c1[2] - c2[2])^2)
-            end
-            cost_inside = cost_inside / target_clearance
+            _, mean_distance = IMAS.min_mean_distance_polygons(r_obstruction_buffered, z_obstruction_buffered, R, Z)
+            cost_mean_distance = mean_distance / target_clearance
 
             # curvature
             cost_max_curvature = 0.0
@@ -961,19 +938,17 @@ function optimize_outline(
                 println()
                 @show cost_min_clearance
                 @show cost_mean_distance
-                @show cost_inside
                 @show cost_max_curvature
                 println()
             end
 
             # return cost
-            return norm((cost_min_clearance, cost_mean_distance, cost_inside, cost_max_curvature))
+            return norm((cost_min_clearance, cost_mean_distance, cost_max_curvature))
         end
 
         # reduce the problem to be in terms of a single target_distance
         # even when we want different distances between high and low field sides
-        r_obstruction0 = r_obstruction
-        z_obstruction0 = z_obstruction
+        r_obstruction0, z_obstruction0 = r_obstruction, z_obstruction
         if hfs_thickness == 0 || lfs_thickness == 0
             target_clearance = (hfs_thickness + lfs_thickness) / 2.0
             hbuf = 0.0
@@ -996,9 +971,9 @@ function optimize_outline(
         r_obstruction[r_obstruction.<(r_start+target_clearance)] .= r_start + target_clearance
         r_obstruction[r_obstruction.>(r_end-target_clearance)] .= r_end - target_clearance
 
-        # buffer the obstruction, this is used for detecting intersections within the clearance space of the obstruction
+        # buffer the obstruction, this is used for minimizing mean distance error
         r_obstruction, z_obstruction = IMAS.resample_2d_path(r_obstruction, z_obstruction; method=:linear, n_points=100)
-        r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance * 0.5)
+        r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
 
         res = Optim.optimize(
             shape_parameters -> cost_shape(
@@ -1015,6 +990,7 @@ function optimize_outline(
             ),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=1000))
         shape_parameters = Optim.minimizer(res)
+
         if verbose
             cost_shape(
                 r_obstruction,
@@ -1036,6 +1012,7 @@ function optimize_outline(
     # R, Z = func(r_start, r_end, shape_parameters...)
     # plot(r_obstruction0, z_obstruction0, ; label="obstruction0", lw=2)
     # plot!(r_obstruction, z_obstruction; label="obstruction")
+    # plot!(r_obstruction_buffered, z_obstruction_buffered; label="obstruction-buffered")
     # plot!(buffer(R, Z, -target_clearance)...; label="final-clearance")
     # plot!(func(r_start, r_end, shape_parameters...); label="final", lw=2)
     # display(plot!(; aspect_ratio=:equal))
