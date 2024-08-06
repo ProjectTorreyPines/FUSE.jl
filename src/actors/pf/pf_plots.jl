@@ -23,7 +23,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
     equilibrium=true,
     build=true,
     coils_flux=false,
-    rails=false,
+    rails=true,
     control_points=true,
     plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
@@ -129,6 +129,15 @@ Plot recipe for ActorPFdesign and ActorPFactive
         end
     end
 
+    # plot optimization rails
+    if rails
+        @series begin
+            label --> (build ? "Coil opt. rail" : "")
+            alpha --> 0.5
+            dd.build.pf_active.rail
+        end
+    end
+
     # plot pf_active coils
     @series begin
         time0 --> actor.eqt_out.time
@@ -161,14 +170,6 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 lw := 1
                 actor.dd.equilibrium.time_slice[]
             end
-        end
-    end
-
-    # plot optimization rails
-    if rails
-        @series begin
-            label --> (build ? "Coil opt. rail" : "")
-            dd.build.pf_active.rail
         end
     end
 
