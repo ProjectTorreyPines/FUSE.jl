@@ -52,7 +52,7 @@ function _step(actor::ActorVerticalStability)
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
     Ip = eqt.global_quantities.ip
-    active_coils = IMAS_pf_active__coils(dd; green_model=:quad)
+    active_coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad)
 
     # Defaults
     actor.stability_margin = NaN

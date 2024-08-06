@@ -2,6 +2,7 @@ import MXHEquilibrium
 import Optim
 using LinearAlgebra
 import VacuumFields
+import VacuumFields: GS_IMAS_pf_active__coil
 
 #= ============= =#
 #  ActorPFactive  #
@@ -128,7 +129,7 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     eqt2d_out = findfirst(:rectangular, eqt_out.profiles_2d)
     if !ismissing(eqt_in.global_quantities, :ip)
         # convert dd.pf_active to coils for VacuumFields calculation
-        coils = IMAS_pf_active__coils(dd; par.green_model, zero_currents=false)
+        coils = VacuumFields.IMAS_pf_active__coils(dd; par.green_model, zero_currents=false)
 
         # convert equilibrium to MXHEquilibrium.jl format, since this is what VacuumFields uses
         EQfixed = IMAS2Equilibrium(eqt_in)
@@ -255,9 +256,9 @@ function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}; zero_currents::Bool
     end
 
     # push!(fixed_coils, popat!(optim_coils,1))
-    # imas(fixed_coils[end]).identifier = "fixed"
+    # VacuumFields.imas(fixed_coils[end]).identifier = "fixed"
     # push!(fixed_coils, popat!(optim_coils,length(optim_coils)))
-    # imas(fixed_coils[end]).identifier = "fixed"
+    # VacuumFields.imas(fixed_coils[end]).identifier = "fixed"
 
     return (fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils)
 end

@@ -237,7 +237,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields
