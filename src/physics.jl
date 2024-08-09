@@ -656,6 +656,14 @@ mutable struct MXHboundary
     z_boundary::Vector{<:Real}
 end
 
+function Base.show(io::IO, mxhb::MXHboundary)
+    mxh = mxhb.mxh
+    print(io, mxh)
+    println(io, "RX: $(mxhb.RX)")
+    println(io, "ZX: $(mxhb.ZX)")
+    return nothing
+end
+
 @recipe function plot_mxhb(mxhb::MXHboundary)
     @series begin
         aspect_ratio --> :equal
@@ -792,6 +800,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         R = R1
         Z = Z1
     end
+
     RXL, ZXL, R2, Z2 = add_xpoint(R, Z, RL, Z0; upper=false, α_multiplier=(lower_x_point ? 1.0 : 2.0))
     if lower_x_point
         R = R2
