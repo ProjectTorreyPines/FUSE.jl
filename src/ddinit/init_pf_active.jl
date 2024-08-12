@@ -21,7 +21,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         end
 
         if init_from == :scalars
-            n_coils = [ini.oh.n_coils]
+            n_coils = Int[ini.oh.n_coils]
             if any([contains(lowercase(layer.name), "coils") for layer in dd.build.layer])
                 push!(n_coils, ini.pf_active.n_coils_inside)
             end
