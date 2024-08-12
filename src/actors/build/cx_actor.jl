@@ -182,7 +182,8 @@ function wall_from_eq!(
     eq_domain = collect(zip(req, zeq))
 
     # lcfs and magnetic axis
-    ((rlcfs, zlcfs),), ψb = IMAS.flux_surface(eqt, eqt.global_quantities.psi_boundary, :closed)
+    ψb = eqt.global_quantities.psi_boundary
+    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed)
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -199,8 +200,7 @@ function wall_from_eq!(
     max_divertor_length = minor_radius * divertor_size
 
     # private flux regions sorted by distance from lcfs
-    private, _ = IMAS.flux_surface(eqt, ψb, :open)
-    private = collect(private)
+    private = IMAS.flux_surface(eqt, ψb, :open_no_wall)
     sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
 
     t = LinRange(0, 2π, 31)
@@ -349,7 +349,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
     ψb = eqt.profiles_1d.psi[end]
-    ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
+    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed)
     minor_radius = (maximum(rlcfs) - minimum(rlcfs)) / 2.0
 
     empty!(divertors)
@@ -357,8 +357,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     detected_upper = bd.divertors.upper.installed
     detected_lower = bd.divertors.lower.installed
 
-    private, _ = IMAS.flux_surface(eqt, ψb, :open)
-    private = collect(private)
+    private = IMAS.flux_surface(eqt, ψb, :open)
     sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - ZA) != sign(pz[end] - ZA)
