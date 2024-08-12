@@ -925,7 +925,7 @@ function optimize_outline(
             difference_poly = LibGEOS.difference(RZ_poly, obstruction_buffered_poly)
             difference_area = LibGEOS.area(difference_poly)
 
-            cost_overlap = (intersection_area - obstruction_buffered_area) * 100.0
+            cost_overlap = (intersection_area - obstruction_buffered_area) * 10.0
             cost_overspill = difference_area
 
             if verbose
