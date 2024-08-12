@@ -58,6 +58,7 @@ function _step(actor::ActorCXbuild)
     wall_outline = IMAS.first_wall(wall)
     if isempty(wall_outline.r) || par.rebuild_wall
         wall_from_eq!(wall, eqt, bd; par.divertor_size)
+        IMAS.flux_surfaces(eqt) # output of flux_surfaces depends on the wall
     end
 
     # empty layer outlines and structures
@@ -413,10 +414,20 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         xx = [0.0, RA * 2.0]
         yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
 
+        α = 5.0
         domain_r = vcat(xx, reverse(xx), xx[1])
-        domain_z = vcat(yy, [Zx * 5.0, Zx * 5.0], yy[1])
+        domain_z = vcat(yy, [Zx * α, Zx * α], yy[1])
         domain_poly = xy_polygon(domain_r, domain_z)
-        wall_domain_poly = LibGEOS.intersection(wall_poly, domain_poly)
+        wall_domain_poly = try
+            LibGEOS.intersection(wall_poly, domain_poly)
+        catch e
+            display(plot(wall_poly;aspect_ratio=:equal))
+            display(plot!(eqt;cx=true))
+            display(scatter!([RA,Rx],[ZA,Zx]))
+            display(plot!(xx,yy))
+            display(plot!(domain_poly;alpha=0.5))
+            rethrow(e)
+        end
         divertor_poly = LibGEOS.difference(wall_domain_poly, plasma_poly)
 
         # Assign to build structure
