@@ -526,26 +526,29 @@ commit_project_toml: resolve
 
 # bump major version of a repo
 # >> make bump_major repo=IMAS
-bump_major: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
-	@echo $(repo) ;\
-new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
-awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+bump_major: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+	@git -C ../$(repo) checkout -- Project.toml ;\
+	new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
+	echo bumping $(repo) to version $${new_version}\\n;\
+	awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[1]++; v[2]=0; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # bump minor version of a repo
 # >> make bump_minor repo=IMAS
-bump_minor: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
-	@echo $(repo) ;\
-new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
-awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+bump_minor: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+	@git -C ../$(repo) checkout -- Project.toml ;\
+	new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
+	echo bumping $(repo) to version $${new_version}\\n;\
+	awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[2]++; v[3]=0; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # bump patch version of a repo
 # >> make bump_patch repo=IMAS
-bump_patch: error_missing_repo_var error_if_project_toml_is_dirty error_on_previous_commit_is_a_version_bump
-	@echo $(repo) ;\
-new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
-awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
+bump_patch: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+	@git -C ../$(repo) checkout -- Project.toml ;\
+	new_version=$$(awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "%d.%d.%d", v[1], v[2], v[3]}' ../$(repo)/Project.toml) ;\
+	echo bumping $(repo) to version $${new_version}\\n;\
+	awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 register_major: bump_major register
@@ -553,6 +556,13 @@ register_major: bump_major register
 register_minor: bump_minor register
 
 register_patch: bump_patch register
+
+versions_used: error_missing_repo_var
+	@echo
+	@echo "Check [compat] statements in the Project.toml of the following repos:"
+	@echo
+	@grep "$$repo = \"" ../*/Project.toml | grep -v -E '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | sed -E 's|../([^/]+)/Project.toml:.*=.*"([^"]+)"|  \1: \2|'
+	@echo
 
 # print dependency tree of the packages in dev folder
 dev_deps_tree:
