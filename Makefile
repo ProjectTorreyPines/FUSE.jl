@@ -1,4 +1,4 @@
-all: header branch
+all: header status
 
 help: header
 	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
@@ -10,14 +10,14 @@ help: header
 	@echo ''
 
 header:
-	@echo ''
-	@echo '  ███████╗██╗   ██╗███████╗███████╗'
-	@echo '  ██╔════╝██║   ██║██╔════╝██╔════╝'
-	@echo '  █████╗  ██║   ██║███████╗█████╗  '
-	@echo '  ██╔══╝  ██║   ██║╚════██║██╔══╝  '
-	@echo '  ██║     ╚██████╔╝███████║███████╗'
-	@echo '  ╚═╝      ╚═════╝ ╚══════╝╚══════╝'
-	@echo ''
+	@printf "\n"
+	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
+	@printf "  \033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m╔════╝\033[0m\n"
+	@printf "  \033[1;31m█████\033[1;30m╗  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m███████\033[1;30m╗\033[1;31m█████\033[1;30m╗  \033[0m\n"
+	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
+	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
+	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
+	@printf "\n"
 
 # =========================
 
@@ -140,18 +140,35 @@ revise:
 	@echo "using Revise" | cat - "$(JULIA_CONF).tmp" > "$(JULIA_CONF)"
 	@rm -f "$(JULIA_CONF).tmp"
 
-# list branches of all the ProjectTorreyPines packages used by FUSE with version and dirty * flag
+# list branches of all the ProjectTorreyPines packages used by FUSE with version, dirty * flag, and commits since the latest tag
 status:
 	@cd $(CURRENTDIR); \
 	packages="FUSE $(FUSE_PACKAGES_MAKEFILE)"; \
 	sorted_packages=`echo $$packages | tr ' ' '\n' | sort | tr '\n' ' '`; \
+	line_count=0; \
+	term_width=`tput cols`; \
 	for package in $$sorted_packages; do \
+		line_count=$$((line_count + 1)); \
+		if [ $$((line_count % 2)) -eq 0 ]; then \
+			color="\033[47m"; \
+		else \
+			color="\033[46m"; \
+		fi; \
+		reset="\033[0m"; \
 		package_dir="../$$package"; \
 		branch=`cd $$package_dir && git rev-parse --abbrev-ref HEAD`; \
-		version=`grep -m1 'version =' $$package_dir/Project.toml | awk -F' = ' '{print $$2}'`; \
-		dirty=`cd $$package_dir && [ -n "$$(git status --porcelain)" ] && echo " (dirty)" || echo ""`; \
-		printf "%25s" "$$package"; \
-		echo ":  $$version @ $$branch$$dirty"; \
+		version=`grep -m1 'version =' $$package_dir/Project.toml | awk -F' = ' '{print $$2}' | tr -d '"'`; \
+		dirty=`cd $$package_dir && [ -n "$$(git status --porcelain)" ] && echo "dirty" || echo "    "`; \
+		latest_tag=`cd $$package_dir && git describe --tags --abbrev=0`; \
+		commits_since_tag=`cd $$package_dir && git log $$latest_tag..HEAD --oneline | wc -l | tr -d ' '`; \
+		commit_info=""; \
+		if [ $$commits_since_tag -gt 0 ]; then \
+			commit_info="($$commits_since_tag commits since latest version tag)"; \
+		fi; \
+		line_text=`printf "%25s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
+		line_length=`echo "$$line_text" | wc -c | tr -d ' '`; \
+		padding=$$((term_width - line_length)); \
+		printf "$$color%s%*s$$reset\n" "$$line_text" $$padding ""; \
 	done
 
 # install (add) FUSE via HTTPS and $PTP_READ_TOKEN
@@ -551,12 +568,16 @@ bump_patch: error_missing_repo_var error_on_previous_commit_is_a_version_bump ve
 	awk '/^version =/ {split($$3, a, "\""); split(a[2], v, "."); v[3]++; printf "version = \"%d.%d.%d\"\n", v[1], v[2], v[3]; next} {print}' ../$(repo)/Project.toml > ../$(repo)/Project.tmp && mv ../$(repo)/Project.tmp ../$(repo)/Project.toml ;\
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
+# bump major version and register
 register_major: bump_major register
 
+# bump minor version and register
 register_minor: bump_minor register
 
+# bump patch version and register
 register_patch: bump_patch register
 
+# search for [compat] statements in upstream packages
 versions_used: error_missing_repo_var
 	@echo
 	@echo "Check [compat] statements in the Project.toml of the following repos:"
