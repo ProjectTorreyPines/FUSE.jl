@@ -85,9 +85,9 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
             actor.λ_regularize = VacuumFields.optimal_λ_regularize(
                 vcat(pinned_coils, optim_coils),
                 fixed_eq,
-                image_eq,
-                vcat(actor.boundary_control_points, actor.flux_control_points),
-                actor.saddle_control_points;
+                image_eq;
+                flux_cps = vcat(actor.boundary_control_points, actor.flux_control_points),
+                saddle_cps = actor.saddle_control_points,
                 ψbound,
                 fixed_coils
             )
@@ -98,9 +98,9 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
     _, actor.cost = VacuumFields.find_coil_currents!(
         vcat(pinned_coils, optim_coils),
         fixed_eq,
-        image_eq,
-        vcat(actor.boundary_control_points, actor.flux_control_points),
-        actor.saddle_control_points;
+        image_eq;
+        flux_cps = vcat(actor.boundary_control_points, actor.flux_control_points),
+        saddle_cps = actor.saddle_control_points,
         ψbound,
         fixed_coils,
         actor.λ_regularize
