@@ -1,13 +1,11 @@
 all: header status
 
 help: header
-	@echo ' - make install      : install FUSE and its dependencies to $(JULIA_PKG_DEVDIR)'
-	@echo ' - make update       : git pull FUSE and its TorreyPines dependencies'
-	@echo ' - make update_all   : git pull FUSE and all of its dependencies'
-	@echo ' - make IJulia       : Install IJulia'
-	@echo ' - make dd           : regenerate IMASdd/src/dd.jl file'
-	@echo ' - make html         : generate documentation (FUSE/docs/build/index.html)'
-	@echo ''
+	@echo "Possible targets: \\n"
+	@make -pRrq -f $(MAKEFILE_LIST) : 2>/dev/null | \
+	awk -v RS= -F: '/^[a-zA-Z0-9_. -]+:/ {print $$1}' | \
+	sort | \
+	grep -v -e '^[^[:alnum:]]' -e '^$@$$'
 
 header:
 	@printf "\n"
