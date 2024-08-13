@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# This script executes the FUSE makefile from wherever FUSE is installed.
+# Copy this script to a directory that is included in your $PATH environment variable.
+#
+# Recommended: Copy the script to the same directory where your Julia executable resides.
+# You can determine this directory with `dirname $(which julia)`.
+
+fuse_dir=$(julia -e 'import Pkg; import Base.UUID; print(Pkg.dependencies()[UUID("e64856f0-3bb8-4376-b4b7-c03396503992")].source)')
+cd "$fuse_dir"
+make "$@"
