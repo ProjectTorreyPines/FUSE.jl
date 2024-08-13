@@ -348,7 +348,7 @@ function limited_to_diverted(
         z_bore .+= z_diverted[index_z_height]
     end
     mxh_bore = IMAS.MXH(r_bore, z_bore, 0)
-    mxhb_bore = FUSE.MXHboundary(mxh_bore; upper_x_point=false, lower_x_point=false)
+    mxhb_bore = MXHboundary(mxh_bore; upper_x_point=false, lower_x_point=false)
     mxhb_bore.RX = deepcopy(mxhb_diverted.RX)
     mxhb_bore.ZX = deepcopy(mxhb_diverted.ZX)
 
@@ -359,7 +359,7 @@ function limited_to_diverted(
     r = [x for (x, y) in hull]
     z = [y for (x, y) in hull]
     mxh_lim2div = IMAS.MXH(r, z, length(mxh_diverted.c))
-    mxhb_lim2div = FUSE.MXHboundary(mxh_lim2div; upper_x_point=false, lower_x_point=false)
+    mxhb_lim2div = MXHboundary(mxh_lim2div; upper_x_point=false, lower_x_point=false)
     mxhb_lim2div.RX = deepcopy(mxhb_diverted.RX)
     mxhb_lim2div.ZX = deepcopy(mxhb_diverted.ZX)
 

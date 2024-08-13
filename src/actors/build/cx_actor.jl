@@ -58,6 +58,7 @@ function _step(actor::ActorCXbuild)
     wall_outline = IMAS.first_wall(wall)
     if isempty(wall_outline.r) || par.rebuild_wall
         wall_from_eq!(wall, eqt, bd; par.divertor_size)
+        IMAS.flux_surfaces(eqt) # output of flux_surfaces depends on the wall
     end
 
     # empty layer outlines and structures
@@ -66,7 +67,7 @@ function _step(actor::ActorCXbuild)
     end
     empty!(bd.structure)
 
-    build_cx!(bd, wall, dd.pf_active; par.n_points)
+    build_cx!(bd, eqt, wall, dd.pf_active; par.n_points)
 
     divertor_regions!(bd, eqt, dd.divertors)
 
@@ -181,7 +182,8 @@ function wall_from_eq!(
     eq_domain = collect(zip(req, zeq))
 
     # lcfs and magnetic axis
-    ((rlcfs, zlcfs),), ψb = IMAS.flux_surface(eqt, eqt.global_quantities.psi_boundary, :closed)
+    ψb = eqt.global_quantities.psi_boundary
+    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed)
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -198,8 +200,7 @@ function wall_from_eq!(
     max_divertor_length = minor_radius * divertor_size
 
     # private flux regions sorted by distance from lcfs
-    private, _ = IMAS.flux_surface(eqt, ψb, :open)
-    private = collect(private)
+    private = IMAS.flux_surface(eqt, ψb, :open_no_wall)
     sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
 
     t = LinRange(0, 2π, 31)
@@ -229,7 +230,7 @@ function wall_from_eq!(
 
         # distance from points in private flux region to X-point
         Dx = sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0)
-        divertor_length = minimum((Dx[1], Dx[end], max_divertor_length))
+        divertor_length = min(maximum(Dx), max_divertor_length)
 
         # limit extent of private flux regions
         circle_r = divertor_length .* cos.(t) .+ Rx
@@ -348,7 +349,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
     ψb = eqt.profiles_1d.psi[end]
-    ((rlcfs, zlcfs),), _ = IMAS.flux_surface(eqt, ψb, :closed)
+    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed)
     minor_radius = (maximum(rlcfs) - minimum(rlcfs)) / 2.0
 
     empty!(divertors)
@@ -356,8 +357,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     detected_upper = bd.divertors.upper.installed
     detected_lower = bd.divertors.lower.installed
 
-    private, _ = IMAS.flux_surface(eqt, ψb, :open)
-    private = collect(private)
+    private = IMAS.flux_surface(eqt, ψb, :open)
     sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - ZA) != sign(pz[end] - ZA)
@@ -413,10 +413,20 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         xx = [0.0, RA * 2.0]
         yy = line_through_point(-1.0 ./ m, Rx, Zx, xx)
 
+        α = 5.0
         domain_r = vcat(xx, reverse(xx), xx[1])
-        domain_z = vcat(yy, [Zx * 5.0, Zx * 5.0], yy[1])
+        domain_z = vcat(yy, [Zx * α, Zx * α], yy[1])
         domain_poly = xy_polygon(domain_r, domain_z)
-        wall_domain_poly = LibGEOS.intersection(wall_poly, domain_poly)
+        wall_domain_poly = try
+            LibGEOS.intersection(wall_poly, domain_poly)
+        catch e
+            display(plot(wall_poly;aspect_ratio=:equal))
+            display(plot!(eqt;cx=true))
+            display(scatter!([RA,Rx],[ZA,Zx]))
+            display(plot!(xx,yy))
+            display(plot!(domain_poly;alpha=0.5))
+            rethrow(e)
+        end
         divertor_poly = LibGEOS.difference(wall_domain_poly, plasma_poly)
 
         # Assign to build structure
@@ -441,15 +451,15 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
             plot!(wall_poly; alpha=0.3)
             plot!(domain_poly; alpha=0.3)
             plot!(plasma_poly; alpha=0.3)
-            display(p)            
+            display(p)
             rethrow(e)
-        end     
+        end
 
         # find divertor plasma facing surfaces starting from divertor structure
         divertor_r = Float64[]
         divertor_z = Float64[]
-        for (r,z) in zip(structure.outline.r, structure.outline.z)
-            if any(sqrt.((r.-pl_r).^2 .+ (z.-pl_z).^2) .< 1E-3)
+        for (r, z) in zip(structure.outline.r, structure.outline.z)
+            if any(sqrt.((r .- pl_r) .^ 2 .+ (z .- pl_z) .^ 2) .< 1E-3)
                 push!(divertor_r, r)
                 push!(divertor_z, z)
             end
@@ -594,7 +604,7 @@ end
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_points::Int)
+function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, pfa::IMAS.pf_active; n_points::Int)
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
 
     wall_outline = IMAS.first_wall(wall)
@@ -618,23 +628,9 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
         is_z_offset = true
     end
 
-    # up-down symmetric plasma
-    is_negative_D = false
-    _, imaxr = findmax(pr)
-    _, iminr = findmin(pr)
-    _, imaxz = findmax(pz)
-    _, iminz = findmin(pz)
-    r_at_max_z, _ = pr[imaxz], pz[imaxz]
-    r_at_min_z, _ = pr[iminz], pz[iminz]
-    _, max_r = pz[imaxr], pr[imaxr]
-    _, min_r = pz[iminr], pr[iminr]
-    a = 0.5 * (max_r - min_r)
-    R = 0.5 * (max_r + min_r)
-    δu = (R - r_at_max_z) / a
-    δl = (R - r_at_min_z) / a
-    if δu + δl < -0.1
-        is_negative_D = true
-    end
+    # negative triangularity plasma
+    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 1)
+    is_negative_D = sin(mxh.s[1]) < 0.0
 
     #plot()
     plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
@@ -655,18 +651,18 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
             for kk in k:length(plasma_to_tf)
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-                if layer_shape != IMAS._negative_offset_ || (contains(lowercase(layer.name), "coils") && !isempty(pfa.coil))
+                if layer_shape != IMAS._negative_offset_
                     if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                        verbose && @show "A1", layer.name, layer_shape
-                        if !isempty(bd.pf_active, :rail)
+                        verbose && @show "F1", layer.name, layer_shape
+                        if isempty(bd.pf_active, :rail)
+                            obstruction_outline = convex_outline(pfa.coil)
+                        else
                             n_rails += 1
                             obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
-                        else
-                            obstruction_outline = convex_outline(pfa.coil)
                         end
                         vertical_clearance = 1.1
                     else
-                        verbose && @show "A2", layer.name, layer_shape
+                        verbose && @show "F2", layer.name, layer_shape
                         obstruction_outline = nothing
                         vertical_clearance = 1.0
                     end
@@ -693,7 +689,7 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
             for kk in reverse(neg_off_layers)
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
-                verbose && @show "C", layer.name, layer_shape
+                verbose && @show "B", layer.name, layer_shape
                 layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
                     bd,
                     plasma_to_tf[kk+1],
@@ -710,16 +706,16 @@ function build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_point
 
         else
             if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                verbose && @show "B1", layer.name, layer_shape
-                if !isempty(bd.pf_active, :rail)
+                verbose && @show "N1", layer.name, layer_shape
+                if isempty(bd.pf_active, :rail)
+                    obstruction_outline = convex_outline(pfa.coil)
+                else
                     n_rails += 1
                     obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
-                else
-                    obstruction_outline = convex_outline(pfa.coil)
                 end
                 vertical_clearance = 1.0
             else
-                verbose && @show "B2", layer.name, layer_shape
+                verbose && @show "N2", layer.name, layer_shape
                 obstruction_outline = nothing
                 vertical_clearance = 1.0
             end
@@ -827,6 +823,7 @@ function optimize_layer_outline(
         end
     end
 
+    # handle internal obstructions (in addition to inner layer)
     oR = obstr.outline.r
     oZ = obstr.outline.z
     if obstruction_outline !== nothing
@@ -841,12 +838,16 @@ function optimize_layer_outline(
     lfs_thickness = l_end - o_end
 
     # handle offset, negative offset, and convex-hull
-    if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
+    if shape in (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_), Int(_miller_))
         R, Z = buffer(oR, oZ, hfs_thickness, lfs_thickness)
-        if shape == Int(_convex_hull_)
+        if shape in (Int(_convex_hull_), Int(_miller_))
             hull = convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
+        end
+        if shape == Int(_miller_)
+            R, Z = IMAS.resample_2d_path(R, Z; method=:linear)
+            R, Z = IMAS.MXH(R, Z, 4)()
         end
         layer.outline.r, layer.outline.z = R, Z
         shape_parameters = Float64[]
@@ -866,17 +867,135 @@ function optimize_layer_outline(
         end
 
         oZ = oZ .* vertical_clearance
+        hfs_thickness = abs(hfs_thickness)
+        lfs_thickness = abs(lfs_thickness)
 
         func = shape_function(shape; resolution)
         initial_clerance = max(hfs_thickness, lfs_thickness) * vertical_clearance
-        shape_parameters = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
-        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters; use_curvature)
+        shape_parameters0 = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
+        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters0; use_curvature)
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
     end
 
     IMAS.reorder_flux_surface!(layer.outline.r, layer.outline.z)
 
     return Int(shape_enum), shape_parameters
+end
+
+"""
+    optimize_outline(r_obstruction, z_obstruction, hfs_thickness, lfs_thickness, func, r_start, r_end, shape_parameters; verbose=false)
+
+Find shape parameters that generate smallest shape and target clearance from an obstruction
+"""
+function optimize_outline(
+    r_obstruction::Vector{Float64},
+    z_obstruction::Vector{Float64},
+    hfs_thickness::Float64,
+    lfs_thickness::Float64,
+    func::Function,
+    r_start::Float64,
+    r_end::Float64,
+    shape_parameters::Vector{Float64};
+    use_curvature::Bool=true,
+    verbose::Bool=false)
+
+    initial_guess = deepcopy(shape_parameters)
+
+    if length(shape_parameters) in (0, 1)
+        func(r_start, r_end, shape_parameters...)
+
+    else
+        function cost_shape(
+            obstruction_buffered_poly,
+            obstruction_buffered_area::Float64,
+            func::Function,
+            r_start::Float64,
+            r_end::Float64,
+            shape_parameters::Vector{Float64};
+            verbose::Bool=false)
+
+            R, Z = func(r_start, r_end, shape_parameters...)
+
+            RZ_poly = xy_polygon(R, Z)
+
+            intersection_poly = LibGEOS.intersection(RZ_poly, obstruction_buffered_poly)
+            intersection_area = LibGEOS.area(intersection_poly)
+
+            difference_poly = LibGEOS.difference(RZ_poly, obstruction_buffered_poly)
+            difference_area = LibGEOS.area(difference_poly)
+
+            cost_overlap = (intersection_area - obstruction_buffered_area) * 10.0
+            cost_overspill = difference_area
+
+            if verbose
+                @show cost_overlap^2
+                @show cost_overspill^2
+                println()
+            end
+
+            # return cost
+            return norm((cost_overlap, cost_overspill))
+        end
+
+        # reduce the problem to be in terms of a single target_distance
+        # even when we want different distances between high and low field sides
+        r_obstruction0, z_obstruction0 = r_obstruction, z_obstruction
+        if hfs_thickness == 0 || lfs_thickness == 0
+            target_clearance = (hfs_thickness + lfs_thickness) / 2.0
+            hbuf = 0.0
+            lbuf = 0.0
+        else
+            target_clearance = min(hfs_thickness, lfs_thickness)
+            if hfs_thickness != lfs_thickness
+                hbuf = hfs_thickness - target_clearance
+                lbuf = lfs_thickness - target_clearance
+                r_obstruction, z_obstruction = buffer(r_obstruction, z_obstruction, hbuf, lbuf)
+            else
+                hbuf = 0.0
+                lbuf = 0.0
+            end
+        end
+
+        # buffer the obstruction, this is used for minimizing mean distance error
+        r_obstruction_buffered, z_obstruction_buffered = buffer(r_obstruction, z_obstruction, target_clearance)
+        obstruction_buffered_poly = xy_polygon(r_obstruction_buffered, z_obstruction_buffered)
+        obstruction_buffered_area = LibGEOS.area(obstruction_buffered_poly)
+
+        res = Optim.optimize(
+            shape_parameters -> cost_shape(
+                obstruction_buffered_poly,
+                obstruction_buffered_area,
+                func,
+                r_start,
+                r_end,
+                shape_parameters
+            ),
+            initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=1000))
+        shape_parameters = Optim.minimizer(res)
+
+        if verbose
+            cost_shape(
+                obstruction_buffered_poly,
+                obstruction_buffered_area,
+                func,
+                r_start,
+                r_end,
+                shape_parameters;
+                verbose=true
+            )
+            println(res)
+        end
+    end
+
+    # R, Z = func(r_start, r_end, shape_parameters...)
+    # plot(r_obstruction0, z_obstruction0, ; label="obstruction0", lw=2)
+    # plot!(r_obstruction, z_obstruction; label="obstruction")
+    # plot!(r_obstruction_buffered, z_obstruction_buffered; label="obstruction-buffered")
+    # plot!(buffer(R, Z, -target_clearance)...; label="final-clearance")
+    # plot!(func(r_start, r_end, shape_parameters...); label="final", lw=2)
+    # display(plot!(; aspect_ratio=:equal))
+
+    return shape_parameters
 end
 
 """
@@ -912,7 +1031,7 @@ function convex_outline(rail::IMAS.build__pf_active__rail{T})::IMAS.pf_active__c
     coil_start = sum([rails[k].coils_number for k in 1:irail-1]) + 1
     coil_end = coil_start + rail.coils_number - 1
     dd = IMAS.top_dd(rail)
-    coils = [dd.pf_active.coil[k] for k in coil_start:coil_end]
+    coils = IMAS.pf_active__coil{T}[dd.pf_active.coil[k] for k in coil_start:coil_end]
     return convex_outline(coils)
 end
 

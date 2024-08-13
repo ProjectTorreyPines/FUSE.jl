@@ -42,7 +42,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         :hfs_wall => 0.5,
         :plasma => 0.0,
         :lfs_wall => 0.5,
-        :lfs_gap_OH_coils => 2.0,
+        :lfs_gap_OH_coils => 1.8,
         :lfs_TF => 1.1,
         :gap_world => 1.0
     )
