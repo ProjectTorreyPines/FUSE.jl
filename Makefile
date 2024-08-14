@@ -590,7 +590,7 @@ rm_manifests:
 # @devs
 dd:
 # update dd from the json files
-	julia -e 'import GenerateDD; GenerateDD.generate_dd()'
+	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
 
 # @devs
 init_expressions:
