@@ -160,42 +160,6 @@ status:
 	done
 
 # @devs
-https_add:
-# Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
-# Looks for same branch name for all repositories otherwise falls back to master
-	julia -e ';\
-	$(feature_or_master_julia);\
-	fuse_packages = $(FUSE_PACKAGES);\
-	using Pkg;\
-	Pkg.activate(".");\
-	dependencies = Pkg.PackageSpec[];\
-	for package in fuse_packages;\
-		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
-		println("$$(package) $$(branch)");\
-		push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
-	end;\
-	Pkg.add(dependencies)'
-
-# @devs
-https_dev:
-# Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
-# All repos are on the master branch (this should be the case for generating documentation)
-	@mkdir -p ~/.julia/dev
-	@ln -sf $(PWD) ~/.julia/dev/FUSE
-	@julia -e ';\
-	fuse_packages = $(FUSE_PACKAGES);\
-	using Pkg;\
-	Pkg.activate(".");\
-	dependencies = Pkg.PackageSpec[];\
-	for package in fuse_packages;\
-		push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
-	end;\
-	Pkg.develop(dependencies);\
-	Pkg.develop(fuse_packages);\
-	Pkg.activate("./docs");\
-	Pkg.develop(["FUSE"; fuse_packages])'
-
-# @devs
 install_no_registry: registry clone_pull_all develop
 # Install FUSE without using the registry
 
@@ -204,8 +168,27 @@ install_via_registry: registry develop
 # Install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
 
 # @devs
-install_ci_add: registry https_add
-# Install used by CI (add packages, do not dev them)
+install_ci_add:
+# install used by CI, adds FUSE via HTTPS and $PTP_READ_TOKEN
+# adds packages which on their repository have branch names that match current FUSE branch
+# all other packages are installed based on general [compat] statements
+	julia -e ';\
+	$(feature_or_master_julia);\
+	fuse_packages = $(FUSE_PACKAGES);\
+	using Pkg;\
+	dependencies = Pkg.PackageSpec[];\
+	for package in fuse_packages;\
+		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
+		if branch == "master";\
+			println(">>> $$(package)");\
+			push!(dependencies, Pkg.PackageSpec(package));\
+		else;\
+			println(">>> $$(package) @ $$(branch)");\
+			push!(dependencies, Pkg.PackageSpec(package; rev=branch));\
+		end;\
+	end;\
+	Pkg.add(dependencies);\
+	Pkg.develop(PackageSpec(path=pwd()))'
 
 # @devs
 install_ci_dev: registry https_dev
