@@ -290,7 +290,6 @@ install_ci_add:
 	$(feature_or_master_julia);\
 	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg;\
-	Pkg.activate(".");\
 	dependencies = Pkg.PackageSpec[];\
 	for package in fuse_packages;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
@@ -302,7 +301,8 @@ install_ci_add:
 			push!(dependencies, Pkg.PackageSpec(package; rev=branch));\
 		end;\
 	end;\
-	Pkg.add(dependencies)'
+	Pkg.add(dependencies);\
+	Pkg.develop(PackageSpec(path=pwd()))'
 
 # @devs
 install: install_no_registry
