@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env julia
 
 # This script executes the FUSE makefile from wherever FUSE is installed.
 # Copy this script to a directory that is included in your $PATH environment variable.
@@ -6,6 +6,30 @@
 # Recommended: Copy the script to the same directory where your Julia executable resides.
 # You can determine this directory with `dirname $(which julia)`.
 
-fuse_dir=$(julia -e 'import Pkg; import Base.UUID; print(Pkg.dependencies()[UUID("e64856f0-3bb8-4376-b4b7-c03396503992")].source)')
-cd "$fuse_dir"
-make "$@"
+using Pkg
+using UUIDs
+
+# UUID of the FUSE package
+FUSE_UUID = UUID("e64856f0-3bb8-4376-b4b7-c03396503992")
+
+# Declare fuse_dir as a global variable
+global fuse_dir
+
+# Find the installation directory of the FUSE package
+for (uuid, details) in Pkg.dependencies()
+    if uuid == FUSE_UUID
+        global fuse_dir = details.source
+        break
+    end
+end
+
+if fuse_dir === nothing
+    println("FUSE package not found.")
+    exit(1)
+end
+
+# Change to the FUSE directory
+cd(fuse_dir)
+
+# Execute the make command with any passed arguments
+run(`make $ARGS`)
