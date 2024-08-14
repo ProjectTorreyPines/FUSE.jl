@@ -282,7 +282,7 @@ install_via_registry: registry develop
 # install FUSE using the registry
 
 # @devs
-install_ci_add: registry
+install_ci_add:
 # install used by CI, adds FUSE via HTTPS and $PTP_READ_TOKEN
 # adds packages which on their repository have branch names that match current FUSE branch
 # all other packages are installed based on general [compat] statements
@@ -295,10 +295,11 @@ install_ci_add: registry
 	for package in fuse_packages;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
 		if branch == "master";\
+			println(">>> $$(package)");\
 			push!(dependencies, Pkg.PackageSpec(package));\
 		else;\
 			println(">>> $$(package) @ $$(branch)");\
-			push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"; rev=branch));\
+			push!(dependencies, Pkg.PackageSpec(package; rev=branch));\
 		end;\
 	end;\
 	Pkg.add(dependencies)'
