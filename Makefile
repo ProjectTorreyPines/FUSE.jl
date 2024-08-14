@@ -1,125 +1,3 @@
-all: header help_info status
-
-user_help: header
-	@awk ' \
-		/^# @user/ {show=1; next} \
-		/^# @devs/ {show=0} \
-		/^[a-zA-Z0-9_.-]+:/ { \
-			if (show) { \
-				if (target != "" && docstring != "") { \
-					printf "\033[1m" target "\033[0m"; \
-					if (dependencies != "") { \
-						printf " : \033[36m" dependencies "\033[0m"; \
-					} \
-					print ""; \
-					print docstring; \
-					print ""; \
-				} \
-				target=$$1; \
-				dependencies=""; \
-				if (NF > 1) { \
-					dependencies=$$2; \
-					for (i=3; i<=NF; i++) { \
-						dependencies = dependencies " " $$i; \
-					} \
-				} \
-				docstring=""; \
-			} \
-			next; \
-		} \
-		/^[ \t]*#/ { \
-			if (show && target != "") { \
-				comment = substr($$0, match($$0, /#/) + 1); \
-				gsub(/^[ \t]+/, "", comment); \
-				if (docstring != "") { \
-					docstring = docstring "\n    " comment; \
-				} else { \
-					docstring = "    " comment; \
-				} \
-			} \
-		} \
-		END { \
-			if (show && target != "" && docstring != "") { \
-				printf "\033[1m" target "\033[0m"; \
-				if (dependencies != "") { \
-					printf " : \033[36m" dependencies "\033[0m"; \
-				} \
-				print ""; \
-				print docstring; \
-				print ""; \
-			} \
-		}' $(MAKEFILE_LIST)
-
-devs_help: header
-	@awk ' \
-		/^# @devs/ {show=1; next} \
-		/^# @user/ {show=0} \
-		/^[a-zA-Z0-9_.-]+:/ { \
-			if (show) { \
-				if (target != "" && docstring != "") { \
-					printf "\033[1m" target "\033[0m"; \
-					if (dependencies != "") { \
-						printf " : \033[36m" dependencies "\033[0m"; \
-					} \
-					print ""; \
-					print docstring; \
-					print ""; \
-				} \
-				target=$$1; \
-				dependencies=""; \
-				if (NF > 1) { \
-					dependencies=$$2; \
-					for (i=3; i<=NF; i++) { \
-						dependencies = dependencies " " $$i; \
-					} \
-				} \
-				docstring=""; \
-			} \
-			next; \
-		} \
-		/^[ \t]*#/ { \
-			if (show && target != "") { \
-				comment = substr($$0, match($$0, /#/) + 1); \
-				gsub(/^[ \t]+/, "", comment); \
-				if (docstring != "") { \
-					docstring = docstring "\n    " comment; \
-				} else { \
-					docstring = "    " comment; \
-				} \
-			} \
-		} \
-		END { \
-			if (show && target != "" && docstring != "") { \
-				printf "\033[1m" target "\033[0m"; \
-				if (dependencies != "") { \
-					printf " : \033[36m" dependencies "\033[0m"; \
-				} \
-				print ""; \
-				print docstring; \
-				print ""; \
-			} \
-		}' $(MAKEFILE_LIST)
-
-
-header:
-	@printf "\n"
-	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m╔════╝\033[0m\n"
-	@printf "  \033[1;31m█████\033[1;30m╗  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m███████\033[1;30m╗\033[1;31m█████\033[1;30m╗  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
-	@printf "\n"
-
-help_info:
-	@printf "\n"
-	@printf ">> Use \`ptp user_help\` to get the users' list of commands\n"
-	@printf ">> Use \`ptp devs_help\` to get the developers' list of commands\n"
-	@printf "\n"
-	@printf "\n"
-
-# =========================
-
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
 JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
@@ -140,7 +18,7 @@ endif
 FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
-DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} \; | cut -d'/' -f 2 | cut -d'.' -f 1 | tr '\n' ' ')
+DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
 
 # use command line interface for git to work nicely with private repos
 export JULIA_PKG_USE_CLI_GIT := true
@@ -154,7 +32,7 @@ endif
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull ; fi
+	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull 2>&1 | sed 's/^/$(1): /'; fi
 endef
 
 define feature_or_master_julia
@@ -245,11 +123,15 @@ revise:
 status:
 # list branches of all the ProjectTorreyPines packages used by FUSE with version, dirty * flag, and commits since the latest tag
 	@cd $(CURRENTDIR); \
-	packages="FUSE $(FUSE_PACKAGES_MAKEFILE)"; \
+	packages="$(DEV_PACKAGES)"; \
 	sorted_packages=`echo $$packages | tr ' ' '\n' | sort | tr '\n' ' '`; \
 	line_count=0; \
 	term_width=`tput cols`; \
 	for package in $$sorted_packages; do \
+		package_dir="../$$package"; \
+		if [ ! -f $$package_dir/Project.toml ]; then \
+			continue; \
+		fi; \
 		line_count=$$((line_count + 1)); \
 		if [ $$((line_count % 2)) -eq 0 ]; then \
 			color="\033[47m"; \
@@ -257,15 +139,19 @@ status:
 			color="\033[46m"; \
 		fi; \
 		reset="\033[0m"; \
-		package_dir="../$$package"; \
 		branch=`cd $$package_dir && git rev-parse --abbrev-ref HEAD`; \
 		version=`grep -m1 'version =' $$package_dir/Project.toml | awk -F' = ' '{print $$2}' | tr -d '"'`; \
 		dirty=`cd $$package_dir && [ -n "$$(git status --porcelain)" ] && echo "dirty" || echo "    "`; \
-		latest_tag=`cd $$package_dir && git describe --tags --abbrev=0`; \
-		commits_since_tag=`cd $$package_dir && git log $$latest_tag..HEAD --oneline | wc -l | tr -d ' '`; \
+		latest_tag=`cd $$package_dir && git describe --tags --abbrev=0 2>/dev/null || echo "(no tag)"`; \
+		commits_since_tag=""; \
+		if [ "$$latest_tag" != "(no tag)" ]; then \
+			commits_since_tag=`cd $$package_dir && git log $$latest_tag..HEAD --oneline | wc -l | tr -d ' '`; \
+		fi; \
 		commit_info=""; \
-		if [ $$commits_since_tag -gt 0 ]; then \
+		if [ -n "$$commits_since_tag" ] && [ $$commits_since_tag -gt 0 ]; then \
 			commit_info="($$commits_since_tag commits since latest version tag)"; \
+		elif [ "$$latest_tag" = "(no tag)" ]; then \
+			commit_info="(no tag)"; \
 		fi; \
 		line_text=`printf "%25s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
 		line_length=`echo "$$line_text" | wc -c | tr -d ' '`; \
@@ -335,7 +221,7 @@ update_all: install
 	@julia -e 'using Pkg; Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
 # @devs
-update: clone_pull_all develop resolve
+update: pull_all develop resolve
 # update, a synonim of clone_pull and develop
 
 # @devs
@@ -344,10 +230,18 @@ resolve:
 	@julia -e 'using Pkg; Pkg.resolve(); Pkg.precompile()'
 
 # @devs
-clone_pull_all: status
+clone_pull_all:
 # clone and update all FUSE packages
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	@make -i $(PARALLELISM) FUSE ServeFUSE GenerateDD $(FUSE_PACKAGES_MAKEFILE)
+
+# @devs
+pull_all:
+# clone and update all ProjectTorreyPines DEV packages
+	@echo $(DEV_PACKAGES)
+	@$(foreach repo,$(DEV_PACKAGES), \
+	(sh -c "cd $(JULIA_PKG_DEVDIR)/$(repo) && git pull 2>&1 | sed 's/^/$(repo): /'") & \
+	)
 
 # @devs
 playground: .PHONY
@@ -834,5 +728,129 @@ cherry_pick_to_master: error_missing_repo_var
 	git push origin master; \
 	git checkout -; \
 	git stash pop
+
+all: header help_info status
+
+# @user
+user_help: header
+# print users makefile commands help
+	@awk ' \
+		/^# @user/ {show=1; next} \
+		/^# @devs/ {show=0} \
+		/^[a-zA-Z0-9_.-]+:/ { \
+			if (show) { \
+				if (target != "" && docstring != "") { \
+					printf "\033[1m" target "\033[0m"; \
+					if (dependencies != "") { \
+						printf " : \033[36m" dependencies "\033[0m"; \
+					} \
+					print ""; \
+					print docstring; \
+					print ""; \
+				} \
+				target=$$1; \
+				dependencies=""; \
+				if (NF > 1) { \
+					dependencies=$$2; \
+					for (i=3; i<=NF; i++) { \
+						dependencies = dependencies " " $$i; \
+					} \
+				} \
+				docstring=""; \
+			} \
+			next; \
+		} \
+		/^[ \t]*#/ { \
+			if (show && target != "") { \
+				comment = substr($$0, match($$0, /#/) + 1); \
+				gsub(/^[ \t]+/, "", comment); \
+				if (docstring != "") { \
+					docstring = docstring "\n    " comment; \
+				} else { \
+					docstring = "    " comment; \
+				} \
+			} \
+		} \
+		END { \
+			if (show && target != "" && docstring != "") { \
+				printf "\033[1m" target "\033[0m"; \
+				if (dependencies != "") { \
+					printf " : \033[36m" dependencies "\033[0m"; \
+				} \
+				print ""; \
+				print docstring; \
+				print ""; \
+			} \
+		}' $(MAKEFILE_LIST)
+
+# @devs
+devs_help: header
+# print developers makefile commands help
+	@awk ' \
+		/^# @devs/ {show=1; next} \
+		/^# @user/ {show=0} \
+		/^[a-zA-Z0-9_.-]+:/ { \
+			if (show) { \
+				if (target != "" && docstring != "") { \
+					printf "\033[1m" target "\033[0m"; \
+					if (dependencies != "") { \
+						printf " : \033[36m" dependencies "\033[0m"; \
+					} \
+					print ""; \
+					print docstring; \
+					print ""; \
+				} \
+				target=$$1; \
+				dependencies=""; \
+				if (NF > 1) { \
+					dependencies=$$2; \
+					for (i=3; i<=NF; i++) { \
+						dependencies = dependencies " " $$i; \
+					} \
+				} \
+				docstring=""; \
+			} \
+			next; \
+		} \
+		/^[ \t]*#/ { \
+			if (show && target != "") { \
+				comment = substr($$0, match($$0, /#/) + 1); \
+				gsub(/^[ \t]+/, "", comment); \
+				if (docstring != "") { \
+					docstring = docstring "\n    " comment; \
+				} else { \
+					docstring = "    " comment; \
+				} \
+			} \
+		} \
+		END { \
+			if (show && target != "" && docstring != "") { \
+				printf "\033[1m" target "\033[0m"; \
+				if (dependencies != "") { \
+					printf " : \033[36m" dependencies "\033[0m"; \
+				} \
+				print ""; \
+				print docstring; \
+				print ""; \
+			} \
+		}' $(MAKEFILE_LIST)
+
+
+header:
+	@printf "\n"
+	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
+	@printf "  \033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m╔════╝\033[0m\n"
+	@printf "  \033[1;31m█████\033[1;30m╗  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m███████\033[1;30m╗\033[1;31m█████\033[1;30m╗  \033[0m\n"
+	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
+	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
+	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
+	@printf "\n"
+
+help_info:
+	@printf "\n"
+	@printf ">> Use \`ptp user_help\` to get the users' list of commands\n"
+	@printf ">> Use \`ptp devs_help\` to get the developers' list of commands\n"
+	@printf "\n"
+	@printf "\n"
 
 .PHONY:
