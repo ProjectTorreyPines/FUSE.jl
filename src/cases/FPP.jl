@@ -50,22 +50,22 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
     ini.build.divertors = :lower
-    ini.build.n_first_wall_conformal_layers = 1
+    ini.build.n_first_wall_conformal_layers = 2
 
-    ini.equilibrium.B0 = 4.7
-    ini.equilibrium.R0 = 4.8
-    ini.equilibrium.ϵ = 0.28
-    ini.equilibrium.κ = 0.8
-    ini.equilibrium.δ = 0.7
-    ini.equilibrium.ζ = 0.1
-    ini.equilibrium.𝚶 = 0.1
-    ini.equilibrium.pressure_core = 1.2e6
+    ini.tf.shape = :triple_arc
+    ini.equilibrium.B0 = 4.713171689711136
+    ini.equilibrium.R0 = 4.824432302041749
+    ini.equilibrium.ϵ = 0.290
+    ini.equilibrium.κ = 2.1
+    ini.equilibrium.δ = 0.626
+    ini.equilibrium.ζ = 0.0769
+    ini.equilibrium.pressure_core = t -> ramp((t - Δt / 8) / Δt, 0.3) * 1.0e6 + 0.2e6
     ini.equilibrium.ip = 8.0e6
-    ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
-
+    ini.equilibrium.xpoints = :lower
+    #ini.core_profiles.greenwald_fraction = 1.0
+    #ini.core_profiles.greenwald_fraction_ped = 0.7
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    ini.core_profiles.ne_value = 0.1
     ini.core_profiles.T_ratio = 0.825
     ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.n_shaping = 2.5
@@ -73,15 +73,15 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.04
+    ini.core_profiles.helium_fraction = 0.05
 
     ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 5
     ini.pf_active.technology = :nb3sn
 
-    ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = :rebco
+    ini.tf.shape = :triple_arc
 
     ini.oh.n_coils = 6
     ini.oh.technology = :rebco
@@ -91,14 +91,20 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.ec_launcher[1].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 36000.0
+    ini.requirements.flattop_duration = 40000.0
     ini.requirements.tritium_breeding_ratio = 1.1
+
+    Δt = 200 # change pulse duration to change rate of change of plasma dynamics
+    ini.time.pulse_shedule_time_basis = range(0.0, Δt; step=Δt / 1000)
+    ini.time.simulation_start = Δt / 2
 
     #### ACT ####
 
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
-    act.ActorEquilibrium.model = :TEQUILA
+    act.ActorEquilibrium.model = :CHEASE
+
+    act.ActorTEQUILA.relax = 0.25
 
     # finalize
     set_new_base!(ini)
