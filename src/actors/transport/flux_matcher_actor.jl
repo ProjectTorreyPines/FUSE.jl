@@ -161,12 +161,12 @@ function _step(actor::ActorFluxMatcher)
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
 
         channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
-        nchannels = Int(size(channels_evolution)[2]/length(par.rho_transport))
-        data = reshape(channels_evolution, (length(err_history),length(par.rho_transport),nchannels))
+        nchannels = Int(size(channels_evolution)[2] / length(par.rho_transport))
+        data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), nchannels))
         p = plot()
         for ch in 1:nchannels
             for kr in 1:length(par.rho_transport)
-                plot!(data[:,kr,ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label="channel $ch")
+                plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label="channel $ch")
             end
         end
         display(p)
@@ -464,9 +464,15 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     return fluxes
 end
 
-
 """
-    flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,err_history::Vector{Float64},ftol::Float64,xtol::Float64, prog::Any)
+    flux_match_simple(
+        actor::ActorFluxMatcher,
+        initial_cp1d::IMAS.core_profiles__profiles_1d,
+        z_scaled_history::Vector,
+        err_history::Vector{Float64},
+        ftol::Float64,
+        xtol::Float64,
+        prog::Any)
 
 Updates zprofiles based on TGYRO simple algorithm
 """
@@ -477,36 +483,29 @@ function flux_match_simple(
     err_history::Vector{Float64},
     ftol::Float64,
     xtol::Float64,
-    prog::Any
-)
+    prog::Any)
+
     dd = actor.dd
     par = actor.par
 
     i = 0
-    ferror = Inf
-    xerror = Inf
-
     zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
     targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
-    fluxes_old = fluxes
+    ferror = Inf
+    xerror = Inf
     zprofiles_old = zprofiles
-    while (any(ferror .> ftol) && any(xerror .> xtol))
+    while (ferror > ftol) || (xerror .> xtol)
         i += 1
-        zprofiles = zprofiles .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
-        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
-
-        tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(zprofiles, zprofiles_old)]
-        xerror = abs.(zprofiles_old - zprofiles) ./ tmp
-        tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(fluxes_old, fluxes)]
-        ferror = abs.(fluxes_old - fluxes) ./ tmp
-
-        fluxes_old = fluxes
-        zprofiles_old = zprofiles
-
-        if (i >= par.max_iterations)
-            @info "Unable to flux-match within $(par.max_iterations) iterations maximum(ferr) = $(maximum(ferror)) (ftol=$ftol) maximum(xerr) = $(maximum(xerror)) (xtol = $xtol)"
+        if (i > par.max_iterations)
+            @info "Unable to flux-match within $(par.max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
             break
         end
+
+        zprofiles = zprofiles .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+        xerror = maximum(abs.(zprofiles .- zprofiles_old)) / par.step_size
+        ferror = norm(errors)
+        zprofiles_old = zprofiles
     end
 
     return (zero=z_scaled_history[argmin(err_history)],)
