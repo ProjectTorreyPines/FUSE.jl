@@ -71,3 +71,4 @@ __NOTES__.jl
 LocalPreferences.toml
 julia-*.out
 examples/Untitled.ipynb
+tmp.gif
