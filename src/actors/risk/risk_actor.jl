@@ -9,6 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorRisk{T<:Real} <: ParametersActor
     _time::Float64 = NaN
     models::Switch{Symbol} = Switch{Symbol}([:engineering, :plasma, :both], "-", "Risk model to run"; default = :both)
     trl_to_risk::Switch{Symbol} = Switch{Symbol}([:exponential, :linear], "-", "Relationship between increasing TRL and decreasing risk"; default = :exponential)
+    fraction_disruptions_mitigated::Entry{Real} = Entry{Real}("-", "Fraction of disruptions that are successfully mitigated"; default = 0.95)
 end
 
 mutable struct ActorRisk{D,P} <: CompoundAbstractActor{D,P}
@@ -34,6 +35,7 @@ end
 
 function _step(actor::ActorRisk)
     dd = actor.dd
+    par = actor.par
     rsk = dd.risk 
     cst = dd.costing 
     bd = dd.build 
@@ -105,9 +107,11 @@ function _step(actor::ActorRisk)
     recovery_time = disruption_recovery_time(dd.risk.plasma.loss[1].severity) # units are years
 
     # here, disruption probability is expected to be in units of disruptions per year 
+
     if !isempty(rsk.plasma.loss)
         for loss in rsk.plasma.loss
-            adjusted_LCoE = cst.levelized_CoE / (1 - fraction_recovery(loss.probability, recovery_time))
+            disrupt_per_year = disruptions_per_year(loss.probability, par.fraction_disruptions_mitigated, dd)
+            adjusted_LCoE = cst.levelized_CoE / (1 - fraction_recovery(disrupt_per_year, recovery_time))
             loss.risk = adjusted_LCoE - cst.levelized_CoE
         end
     end
@@ -142,15 +146,24 @@ end
 ##########
 
 function disruption_probability(x::Real)
-# model the probability of a disruption as slowly increasing for model fraction < 0.8 and quickly increasing for model fraction > 0.8
-    if 0.0 ≤ x < 0.8
-        y = 0.5/tanh(0.8) * tanh(x)
-    elseif 0.8 ≤ x ≤ 1.0
-        b = -(0.5 - (1/exp(0.2)) / (1/exp(0.2)) + 1)
-        a = ((1.0 - b)/ exp(1))    
-        y = a*exp(x) + b 
+# define a tanh function fitted such that:
+#   - at 0% of the stability limit, the probability of disruption is 0% 
+#   - at 95% of the stability limit, the probability of disruption is 50% 
+#   - at 100% of the stability limit, the probability of disruption is 100% 
+    p = [52.43288920416563, 6.29025922319696, -8.619606592129893, 52.435212811655994]
+    if 0.0 ≤ x ≤ 1.0
+        probability = p[1] * tanh.(p[2] * x .+ p[3]) .+ p[4]
+    elseif x > 1.0
+        probability = 1
     end
-    return y 
+    return probability
+end
+
+function disruptions_per_year(probability_per_pulse::Real, fraction_mitigated::Real, dd::IMAS.dd)
+    pulse_length_hours = dd.build.oh.flattop_duration / 3600
+    pulses_per_year = (24 / (1.2 * pulse_length_hours)) * 365 * dd.costing.availability # 1.2 accounts for dwell time between pulses
+    disruptions_per_year = pulses_per_year * probability_per_pulse * (1 - fraction_mitigated)
+    return disruptions_per_year 
 end
 
 function plasma_failure_probability(dd::IMAS.dd)
