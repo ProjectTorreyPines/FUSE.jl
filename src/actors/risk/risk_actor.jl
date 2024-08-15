@@ -154,7 +154,7 @@ function disruption_probability(x::Real)
     if 0.0 ≤ x ≤ 1.0
         probability = p[1] * tanh.(p[2] * x .+ p[3]) .+ p[4]
     elseif x > 1.0
-        probability = 1
+        probability = 1.0
     end
     return probability
 end
