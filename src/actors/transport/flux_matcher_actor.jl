@@ -83,12 +83,9 @@ function _step(actor::ActorFluxMatcher)
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+    initial_cp1d = IMAS.freeze(cp1d)
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
-
-    if par.do_plot
-        cp1d_before = deepcopy(dd.core_profiles.profiles_1d[])
-    end
 
     # normalizations for each of the channels
     # updated with exponential forget for subsequent step() calls
@@ -118,12 +115,6 @@ function _step(actor::ActorFluxMatcher)
 
     prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
-
-    if IMAS.index(cp1d) != 1
-        initial_cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[IMAS.index(cp1d)-1])
-    else
-        initial_cp1d = IMAS.freeze(cp1d)
-    end
 
     if par.optimizer_algorithm == :none
         res = (zero=z_init_scaled,)
@@ -177,7 +168,7 @@ function _step(actor::ActorFluxMatcher)
         titles = ["Electron temperature", "Ion temperature", "Electron density", "Rotation frequency tor sonic"]
         to_plot_after = [(cp1d.electrons, :temperature), (cp1d.ion[1], :temperature), (cp1d.electrons, :density_thermal), (cp1d, :rotation_frequency_tor_sonic)]
         to_plot_before =
-            [(cp1d_before.electrons, :temperature), (cp1d_before.ion[1], :temperature), (cp1d_before.electrons, :density_thermal), (cp1d_before, :rotation_frequency_tor_sonic)]
+            [(initial_cp1d.electrons, :temperature), (initial_cp1d.ion[1], :temperature), (initial_cp1d.electrons, :density_thermal), (initial_cp1d, :rotation_frequency_tor_sonic)]
 
         for sub in 1:N_channels
             plot!(dd.core_transport; only=sub, subplot=2 * sub - 1, aspect=:equal)
@@ -489,11 +480,10 @@ function flux_match_simple(
     par = actor.par
 
     i = 0
-    zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
-    targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+    zprofiles_old = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
+    targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles_old), initial_cp1d; z_scaled_history, err_history, prog)
     ferror = Inf
     xerror = Inf
-    zprofiles_old = zprofiles
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
         if (i > par.max_iterations)
@@ -501,7 +491,7 @@ function flux_match_simple(
             break
         end
 
-        zprofiles = zprofiles .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        zprofiles = zprofiles_old .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         xerror = maximum(abs.(zprofiles .- zprofiles_old)) / par.step_size
         ferror = norm(errors)
@@ -513,14 +503,12 @@ end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     cp1d = dd.core_profiles.profiles_1d[]
-    tmp = [
+    return (
         ("         error", error),
         ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
         ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
-    ]
-    return tuple(tmp...)
+        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20))
 end
 
 function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
