@@ -124,7 +124,7 @@ function _step(actor::ActorFluxMatcher)
         if par.optimizer_algorithm == :newton
             opts = Dict(:method => :newton, :factor => par.step_size)
         elseif par.optimizer_algorithm == :anderson
-            opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size)
+            opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size * 0.5)
         elseif par.optimizer_algorithm == :trust_region
             opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
         end
