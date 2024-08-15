@@ -105,7 +105,7 @@ function _step(actor::ActorFluxMatcher)
     end
 
     z_init = pack_z_profiles(cp1d, par)
-    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping
+    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping using NLsolve
 
     z_scaled_history = Vector{NTuple{length(z_init_scaled),Float64}}()
     err_history = Float64[]
@@ -119,7 +119,7 @@ function _step(actor::ActorFluxMatcher)
     if par.optimizer_algorithm == :none
         res = (zero=z_init_scaled,)
     elseif par.optimizer_algorithm == :simple
-        res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
+        res = flux_match_simple(actor, z_init_scaled, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
     else
         if par.optimizer_algorithm == :newton
             opts = Dict(:method => :newton, :factor => par.step_size)
@@ -266,6 +266,7 @@ function flux_match_errors(
             input_tglf.FIND_WIDTH = false
         end
     end
+
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
@@ -458,6 +459,7 @@ end
 """
     flux_match_simple(
         actor::ActorFluxMatcher,
+        z_init::Vector{<:Real},
         initial_cp1d::IMAS.core_profiles__profiles_1d,
         z_scaled_history::Vector,
         err_history::Vector{Float64},
@@ -469,6 +471,7 @@ Updates zprofiles based on TGYRO simple algorithm
 """
 function flux_match_simple(
     actor::ActorFluxMatcher,
+    z_init_scaled::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     z_scaled_history::Vector,
     err_history::Vector{Float64},
@@ -476,25 +479,25 @@ function flux_match_simple(
     xtol::Float64,
     prog::Any)
 
-    dd = actor.dd
     par = actor.par
 
     i = 0
-    zprofiles_old = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
-    targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles_old), initial_cp1d; z_scaled_history, err_history, prog)
-    ferror = Inf
+    zprofiles_old = unscale_z_profiles(z_init_scaled)
+    targets, fluxes, errors = flux_match_errors(actor, z_init_scaled, initial_cp1d; z_scaled_history, err_history, prog)
+    ferror = norm(errors)
     xerror = Inf
+    step_size = par.step_size
+    max_iterations = par.max_iterations
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
-        if (i > par.max_iterations)
-            @info "Unable to flux-match within $(par.max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+        if (i > max_iterations)
+            @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
             break
         end
 
-        zprofiles = zprofiles_old .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
-        xerror = maximum(abs.(zprofiles .- zprofiles_old)) / par.step_size
-        ferror = norm(errors)
+        xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
         zprofiles_old = zprofiles
     end
 
@@ -538,17 +541,17 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     z_profiles = Float64[]
 
     if par.evolve_Ti == :flux_match
-        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward)[cp_gridpoints]
+        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm[cp_gridpoints], cp1d.t_i_average[cp_gridpoints], :third_order)
         append!(z_profiles, z_Ti)
     end
 
     if par.evolve_Te == :flux_match
-        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward)[cp_gridpoints]
+        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm[cp_gridpoints], cp1d.electrons.temperature[cp_gridpoints], :third_order)
         append!(z_profiles, z_Te)
     end
 
     if par.evolve_rotation == :flux_match
-        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
+        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm[cp_gridpoints], cp1d.rotation_frequency_tor_sonic[cp_gridpoints], :third_order)
         append!(z_profiles, z_rot)
     end
 
@@ -556,12 +559,12 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     if !isempty(evolve_densities)
         check_evolve_densities(cp1d, evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
+            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm[cp_gridpoints], cp1d.electrons.density_thermal[cp_gridpoints], :third_order)
             append!(z_profiles, z_ne)
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :backward)[cp_gridpoints]
+                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm[cp_gridpoints], ion.density_thermal[cp_gridpoints], :third_order)
                 append!(z_profiles, z_ni)
             end
         end
@@ -620,7 +623,7 @@ function unpack_z_profiles(
                 IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
             counter += N
         end
-        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)
+        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
