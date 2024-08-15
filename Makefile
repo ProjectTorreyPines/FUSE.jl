@@ -183,7 +183,7 @@ install_ci_add:
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
 		if branch == "master";\
 			println(">>> $$(package)");\
-			push!(dependencies, Pkg.PackageSpec(package));\
+			push!(dependencies, Pkg.PackageSpec(package; rev=branch));\
 		else;\
 			println(">>> $$(package) @ $$(branch)");\
 			push!(dependencies, Pkg.PackageSpec(package; rev=branch));\
