@@ -17,6 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: Parame
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
+    time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=false)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
@@ -90,7 +91,11 @@ function _step(actor::ActorDynamicPlasma)
     # set Δt of the time-dependent actors
     actor.actor_jt.jt_actor.par.Δt = δt
     if actor.actor_tr.par.model == :FluxMatcher
-        actor.actor_tr.tr_actor.par.Δt = δt
+        if par.time_derivatives_sources
+            actor.actor_tr.tr_actor.par.Δt = δt
+        else
+            actor.actor_tr.tr_actor.par.Δt = Inf
+        end
     end
 
     # setup things for Ip control
