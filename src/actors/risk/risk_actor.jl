@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorRisk{T<:Real} <: ParametersActor
     models::Switch{Symbol} = Switch{Symbol}([:engineering, :plasma, :both], "-", "Risk model to run"; default = :both)
     trl_to_risk::Switch{Symbol} = Switch{Symbol}([:exponential, :linear], "-", "Relationship between increasing TRL and decreasing risk"; default = :exponential)
     fraction_disruptions_mitigated::Entry{Real} = Entry{Real}("-", "Fraction of disruptions that are successfully mitigated"; default = 0.95)
+    dwell_time::Entry{Real} = Entry{Real}("-", "Time between pulses as a fraction of flattop duration"; default = 0.2)
 end
 
 mutable struct ActorRisk{D,P} <: CompoundAbstractActor{D,P}
@@ -110,7 +111,7 @@ function _step(actor::ActorRisk)
 
     if !isempty(rsk.plasma.loss)
         for loss in rsk.plasma.loss
-            disrupt_per_year = disruptions_per_year(loss.probability, par.fraction_disruptions_mitigated, dd)
+            disrupt_per_year = disruptions_per_year(loss.probability, par.fraction_disruptions_mitigated, par.dwell_time, dd)
             adjusted_LCoE = cst.levelized_CoE / (1 - fraction_recovery(disrupt_per_year, recovery_time))
             loss.risk = adjusted_LCoE - cst.levelized_CoE
         end
@@ -159,9 +160,9 @@ function disruption_probability(x::Real)
     return probability
 end
 
-function disruptions_per_year(probability_per_pulse::Real, fraction_mitigated::Real, dd::IMAS.dd)
+function disruptions_per_year(probability_per_pulse::Real, fraction_mitigated::Real, dwell_time::Real, dd::IMAS.dd)
     pulse_length_hours = dd.build.oh.flattop_duration / 3600
-    pulses_per_year = (24 / (1.2 * pulse_length_hours)) * 365 * dd.costing.availability # 1.2 accounts for dwell time between pulses
+    pulses_per_year = (24 / ((1 + dwell_time) * pulse_length_hours)) * 365 * dd.costing.availability # 1.2 accounts for dwell time between pulses
     disruptions_per_year = pulses_per_year * probability_per_pulse * (1 - fraction_mitigated)
     return disruptions_per_year 
 end
