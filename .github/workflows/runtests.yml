@@ -40,12 +40,16 @@ jobs:
     env:
         GKSwstype: 100 # disable Plots.jl interactive output
     steps:
+
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
+
       - name: Set JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}
         run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
+
       - uses: actions/checkout@v2
+
       - name: Check if fuse bot commit
         run: |
           author=$(git log -1 --pretty=format:'%an')
@@ -53,14 +57,17 @@ jobs:
             echo "Skipping action due to commit made by 'fuse bot'."
             exit 78
           fi
+
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
+
       - name: Generate cache key with date
         id: cache-date
         run: echo "::set-output name=date::$(date +%Y-%m-%d)"
+
       - name: Cache Julia artifacts
         uses: actions/cache@v2
         if: github.event.inputs.bypass-cache != 'true'
@@ -70,14 +77,28 @@ jobs:
             ~/.julia/packages
             ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.version }}-${{ steps.cache-date.outputs.date }}
+      
+      - name: Add FuseRegistry
+        run: |
+          rm -rf ~/.julia/registries/FuseRegistry
+          julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
+
+      - name: Replace git@github.com with https in Package.toml files
+        run: |
+          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+  
       - run: make install_ci_add
+
       - name: 'Save Manifest.toml'
         uses: actions/upload-artifact@v4
         with:
             name: Manifest.toml
             path: Manifest.toml
+
       - uses: julia-actions/julia-buildpkg@v1
+
       - uses: julia-actions/julia-runtest@v1
+
       - name: Debug with tmate if failure + manual trigger + debug mode
         if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
         uses: mxschmitt/action-tmate@v3
