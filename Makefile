@@ -189,7 +189,8 @@ install_ci_add:
 			push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
         end;\
 	end;\
-	Pkg.add(dependencies)'
+	Pkg.add(dependencies);\
+	Pkg.status()'
 
 # @devs
 install_ci_dev: registry https_dev
