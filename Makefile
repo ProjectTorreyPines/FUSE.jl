@@ -183,6 +183,7 @@ install_ci_add:
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
         if branch == "master";\
             println(">>> $$(package)");\
+			push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
         else;\
             println(">>> $$(package) @ $$(branch)");\
 			push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
