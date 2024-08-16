@@ -181,10 +181,15 @@ install_ci_add:
 	dependencies = Pkg.PackageSpec[];\
 	for package in fuse_packages;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
-		println("$$(package) $$(branch)");\
-		push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
+        if branch == "master";\
+            println(">>> $$(package)");\
+        else;\
+            println(">>> $$(package) @ $$(branch)");\
+			push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
+        end;\
 	end;\
-	Pkg.add(dependencies)'
+	Pkg.add(dependencies)
+	Pkg.develop(PackageSpec(path=pwd()))'
 
 # @devs
 install_ci_dev: registry https_dev
