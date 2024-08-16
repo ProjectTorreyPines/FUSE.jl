@@ -1,3 +1,5 @@
+help: header help_info
+
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
 JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
@@ -160,7 +162,15 @@ status:
 	done
 
 # @devs
-https_add:
+install_no_registry: registry clone_pull_all develop
+# Install FUSE without using the registry
+
+# @devs
+install_via_registry: registry develop
+# Install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
+
+# @devs
+install_ci_add:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
 	julia -e ';\
@@ -175,37 +185,6 @@ https_add:
 		push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git", rev=branch));\
 	end;\
 	Pkg.add(dependencies)'
-
-# @devs
-https_dev:
-# Install (dev) FUSE via HTTPS and $PTP_READ_TOKEN (needed for documentation)
-# All repos are on the master branch (this should be the case for generating documentation)
-	@mkdir -p ~/.julia/dev
-	@ln -sf $(PWD) ~/.julia/dev/FUSE
-	@julia -e ';\
-	fuse_packages = $(FUSE_PACKAGES);\
-	using Pkg;\
-	Pkg.activate(".");\
-	dependencies = Pkg.PackageSpec[];\
-	for package in fuse_packages;\
-		push!(dependencies, Pkg.PackageSpec(url="https://project-torrey-pines:$(PTP_READ_TOKEN)@github.com/ProjectTorreyPines/"*package*".jl.git"));\
-	end;\
-	Pkg.develop(dependencies);\
-	Pkg.develop(fuse_packages);\
-	Pkg.activate("./docs");\
-	Pkg.develop(["FUSE"; fuse_packages])'
-
-# @devs
-install_no_registry: registry clone_pull_all develop
-# Install FUSE without using the registry
-
-# @devs
-install_via_registry: registry develop
-# Install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
-
-# @devs
-install_ci_add: registry https_add
-# Install used by CI (add packages, do not dev them)
 
 # @devs
 install_ci_dev: registry https_dev
@@ -597,15 +576,15 @@ bump_patch: error_missing_repo_var error_on_previous_commit_is_a_version_bump ve
 
 # @devs
 register_major: bump_major register
-# Bump major version and register
+# Bump major version and register: X.Y.Z --> (X+1).0.0
 
 # @devs
 register_minor: bump_minor register
-# Bump minor version and register
+# Bump minor version and register: X.Y.Z --> X.(Y+1).0
 
 # @devs
 register_patch: bump_patch register
-# Bump patch version and register
+# Bump patch version and register: X.Y.Z --> X.Y.(Z+1)
 
 # @devs
 versions_used: error_missing_repo_var
@@ -725,10 +704,8 @@ cherry_pick_to_master: error_missing_repo_var
 	git checkout -; \
 	git stash pop
 
-all: header help_info status
-
 # @user
-user_help: header
+user_help:
 # Print users makefile commands help
 	@awk ' \
 		/^# @user/ {show=1; next} \
@@ -780,7 +757,7 @@ user_help: header
 		}' $(MAKEFILE_LIST)
 
 # @devs
-devs_help: header
+devs_help:
 # Print developers makefile commands help
 	@awk ' \
 		/^# @devs/ {show=1; next} \
@@ -831,7 +808,6 @@ devs_help: header
 			} \
 		}' $(MAKEFILE_LIST)
 
-
 header:
 	@printf "\n"
 	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
@@ -840,13 +816,12 @@ header:
 	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
 	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
 	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
-	@printf "\n"
+	@printf "   Project  Torrey  Pines  (PTP)\n"
 
 help_info:
 	@printf "\n"
 	@printf ">> Use \`ptp user_help\` to get the users' list of commands\n"
 	@printf ">> Use \`ptp devs_help\` to get the developers' list of commands\n"
-	@printf "\n"
 	@printf "\n"
 
 .PHONY:
