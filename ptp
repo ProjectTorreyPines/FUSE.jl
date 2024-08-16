@@ -28,6 +28,12 @@ if fuse_dir === nothing
     exit(1)
 end
 
+# Handle the --get-dir argument
+if ARGS[1] == "--get-dir"
+    println(fuse_dir)
+    exit(0)
+end
+
 # Change to the FUSE directory
 cd(fuse_dir)
 
