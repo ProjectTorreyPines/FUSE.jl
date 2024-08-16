@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Equilibrium · FUSE</title><meta name="title" content="Equilibrium · FUSE"/><meta property="og:title" content="Equilibrium · FUSE"/><meta property="twitter:title" content="Equilibrium · FUSE"/><meta name="description" content="Documentation for FUSE."/><meta property="og:description" content="Documentation for FUSE."/><meta property="twitter:description" content="Documentation for FUSE."/><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script><link href="assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="index.html"><img class="docs-light-only" src="assets/logo.svg" alt="FUSE logo"/><img class="docs-dark-only" src="assets/logo-dark.svg" alt="FUSE logo"/></a><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Concepts</a></li><li><a class="tocitem" href="dd.html">Data Structure</a></li><li><a class="tocitem" href="actors.html">Actors</a></li><li><span class="tocitem">Parameters</span><ul><li><a class="tocitem" href="ini.html">ini Parameters</a></li><li><a class="tocitem" href="act.html">act Parameters</a></li><li><a class="tocitem" href="cases.html">Use Cases</a></li><li><a class="tocitem" href="inits.html">Initialization</a></li></ul></li><li><a class="tocitem" href="examples.html">Examples</a></li><li><a class="tocitem" href="develop.html">Development</a></li><li><span class="tocitem">Install</span><ul><li><a class="tocitem" href="install.html">Install FUSE</a></li><li><a class="tocitem" href="install_saga.html">on SAGA</a></li><li><a class="tocitem" href="install_omega.html">on OMEGA</a></li></ul></li><li><span class="tocitem">License</span><ul><li><a class="tocitem" href="license.html">License</a></li><li><a class="tocitem" href="notice.html">Notice</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="example_actors__Equilibrium.html">Equilibrium</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="example_actors__Equilibrium.html">Equilibrium</a></li></ul></nav><div class="docs-right"><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Equilibrium"><a class="docs-heading-anchor" href="#Equilibrium">Equilibrium</a><a id="Equilibrium-1"></a><a class="docs-heading-anchor-permalink" href="#Equilibrium" title="Permalink"></a></h1><pre><code class="language- hljs">using Revise
+using FUSE
+using Plots;
+FUSE.logging(Logging.Info);</code></pre><h3 id="Initialize-ITER-case"><a class="docs-heading-anchor" href="#Initialize-ITER-case">Initialize ITER case</a><a id="Initialize-ITER-case-1"></a><a class="docs-heading-anchor-permalink" href="#Initialize-ITER-case" title="Permalink"></a></h3><p><a href="https://fuse.help/cases.html#ITER">ITER case documentation</a></p><h3 id="CHEASE-equilibrium-grid"><a class="docs-heading-anchor" href="#CHEASE-equilibrium-grid">CHEASE equilibrium grid</a><a id="CHEASE-equilibrium-grid-1"></a><a class="docs-heading-anchor-permalink" href="#CHEASE-equilibrium-grid" title="Permalink"></a></h3><p><img src="attachment:d3394a20-b930-4fa7-9685-9a7dd2c78fa4.png" alt="image.png"/></p><h3 id="setting-the-number-of-theta-grid-points-to-80-helps-with-the-x-point!"><a class="docs-heading-anchor" href="#setting-the-number-of-theta-grid-points-to-80-helps-with-the-x-point!">setting the number of theta grid points to 80 helps with the x-point!</a><a id="setting-the-number-of-theta-grid-points-to-80-helps-with-the-x-point!-1"></a><a class="docs-heading-anchor-permalink" href="#setting-the-number-of-theta-grid-points-to-80-helps-with-the-x-point!" title="Permalink"></a></h3><h4 id="OMFIT-CHEASE-sets-it-to-40-(this-is-also-the-default-in-the-CHEASE-source-code)"><a class="docs-heading-anchor" href="#OMFIT-CHEASE-sets-it-to-40-(this-is-also-the-default-in-the-CHEASE-source-code)">OMFIT CHEASE sets it to 40 (this is also the default in the CHEASE source code)</a><a id="OMFIT-CHEASE-sets-it-to-40-(this-is-also-the-default-in-the-CHEASE-source-code)-1"></a><a class="docs-heading-anchor-permalink" href="#OMFIT-CHEASE-sets-it-to-40-(this-is-also-the-default-in-the-CHEASE-source-code)" title="Permalink"></a></h4><h4 id="only-takes-15%-more-time"><a class="docs-heading-anchor" href="#only-takes-15%-more-time">only takes 15% more time</a><a id="only-takes-15%-more-time-1"></a><a class="docs-heading-anchor-permalink" href="#only-takes-15%-more-time" title="Permalink"></a></h4><pre><code class="language- hljs">dd, ini, act = FUSE.init(:ITER, init_from=:ods);
+eq_plot = plot(dd.equilibrium, label=&quot;ITER ods equilibrium&quot;)
+dd, ini, act = FUSE.init(:ITER, init_from=:scalars);
+plot!(eq_plot, dd.equilibrium, label=&quot;ITER scalars SOLOVEV equilibrium&quot;)</code></pre><h3 id="Setting-up-the-equlibrium-actor"><a class="docs-heading-anchor" href="#Setting-up-the-equlibrium-actor">Setting up the equlibrium actor</a><a id="Setting-up-the-equlibrium-actor-1"></a><a class="docs-heading-anchor-permalink" href="#Setting-up-the-equlibrium-actor" title="Permalink"></a></h3><p>The equilibrium actor selects which equilibrium model is used, right now the option are :CHEASE &amp; :Solovev</p><pre><code class="language- hljs">act.ActorEquilibrium.model = :CHEASE;</code></pre><h3 id="Comparing-Solovev-with-CHEASE-equilibrium-to-the-original-ITER-ods-equilibrium"><a class="docs-heading-anchor" href="#Comparing-Solovev-with-CHEASE-equilibrium-to-the-original-ITER-ods-equilibrium">Comparing Solovev with CHEASE equilibrium to the original ITER ods equilibrium</a><a id="Comparing-Solovev-with-CHEASE-equilibrium-to-the-original-ITER-ods-equilibrium-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-Solovev-with-CHEASE-equilibrium-to-the-original-ITER-ods-equilibrium" title="Permalink"></a></h3><pre><code class="language- hljs">### CHEASE
+dd, ini, act = FUSE.init(:ITER, init_from=:ods);
+eq_plot = plot(dd.equilibrium, label=&quot;ITER ods equilibrium&quot;, coordinate=:psi)
+act.ActorEquilibrium.model = :CHEASE
+act.ActorCHEASE.free_boundary = false
+FUSE.ActorEquilibrium(dd, act)
+display(plot!(eq_plot, dd.equilibrium, label=&quot;CHEASE equilibrium&quot;, coordinate=:psi))
+#FUSE.ActorEquilibrium(dd,act)
+#display(plot!(eq_plot,dd.equilibrium, label=&quot;CHEASE equilibrium 3&quot;))
+#FUSE.ActorEquilibrium(dd,act)
+#display(plot!(eq_plot,dd.equilibrium, label=&quot;CHEASE equilibrium 4&quot;))
+
+### Solovev
+#dd, ini, act = FUSE.init(:ITER, init_from=:ods);
+#eq_plot = plot(dd.equilibrium, label=&quot;ITER ods equilibrium&quot;)</code></pre><pre><code class="language- hljs">dd, ini, act = FUSE.init(:D3D);
+FUSE.ActorSteadyStateCurrent(dd, act)
+FUSE.prepare(dd, :ActorCHEASE, act)
+
+
+plot(dd.core_profiles.profiles_1d[], :pressure_thermal, label=&quot;cp&quot;)
+display(plot!(dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm, dd.equilibrium.time_slice[].profiles_1d.pressure))
+plot(dd.core_profiles.profiles_1d[], :j_tor, coordinate=:psi_norm)
+display(plot!(dd.equilibrium.time_slice[].profiles_1d, :j_tor, coordinate=:psi_norm))
+
+
+eq_plot = plot(dd.equilibrium, coordinate=:psi_norm, label=&quot;ITER ods equilibrium&quot;)#,coordinate=:rho_tor_norm)
+act.ActorEquilibrium.model = :CHEASE
+act.ActorCHEASE.free_boundary = false
+
+FUSE.ActorEquilibrium(dd, act)
+display(plot!(eq_plot, dd.equilibrium, coordinate=:psi_norm, label=&quot;CHEASE equilibrium&quot;))
+#FUSE.ActorEquilibrium(dd,act)
+#display(plot!(eq_plot,dd.equilibrium,coordinate=:rho_tor_norm, label=&quot;CHEASE equilibrium 2&quot;))</code></pre><pre><code class="language- hljs">dd, ini, act = FUSE.init(:D3D);
+FUSE.ActorSteadyStateCurrent(dd, act)
+FUSE.prepare(dd, :ActorCHEASE, act)
+
+
+plot(dd.core_profiles.profiles_1d[], :pressure_thermal, label=&quot;cp&quot;)
+display(plot!(dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm, dd.equilibrium.time_slice[].profiles_1d.pressure))
+plot(dd.core_profiles.profiles_1d[], :j_tor, coordinate=:psi_norm)
+display(plot!(dd.equilibrium.time_slice[].profiles_1d, :j_tor, coordinate=:psi_norm))
+
+
+eq_plot = plot(dd.equilibrium, coordinate=:psi_norm, label=&quot;ITER ods equilibrium&quot;)#,coordinate=:rho_tor_norm)
+act.ActorEquilibrium.model = :CHEASE
+act.ActorCHEASE.free_boundary = false
+
+FUSE.ActorEquilibrium(dd, act)
+display(plot!(eq_plot, dd.equilibrium, coordinate=:psi_norm, label=&quot;CHEASE equilibrium&quot;))
+#FUSE.ActorEquilibrium(dd,act)
+#display(plot!(eq_plot,dd.equilibrium,coordinate=:rho_tor_norm, label=&quot;CHEASE equilibrium 2&quot;))</code></pre><pre><code class="language- hljs">### CHEASE
+dd, ini, act = FUSE.init(:D3D);
+#FUSE.ActorSteadyStateCurrent(dd,act)
+#FUSE.prepare(dd, :ActorCHEASE, act)
+
+eq_plot = plot(dd.equilibrium, label=&quot;ITER ods equilibrium&quot;, coordinate=:psi)#,coordinate=:rho_tor_norm)
+act.ActorEquilibrium.model = :CHEASE
+act.ActorCHEASE.free_boundary = false
+
+actor_eq = FUSE.ActorEquilibrium(dd, act)
+display(plot!(eq_plot, dd.equilibrium, coordinate=:psi, label=&quot;CHEASE equilibrium&quot;))</code></pre><pre><code class="language- hljs">import Equilibrium
+
+dd2 = IMAS.json2imas(&quot;/Users/slendebroek/.julia/dev/CHEASE/templates/omas_geq.json&quot;)
+display(plot(dd2.equilibrium))
+IMAS.flux_surfaces(dd2.equilibrium)
+plot!(dd2.equilibrium, coordinate=:rho_tor_norm)
+#FUSE.gEQDSK2IMAS(gfile,dd2.equilibrium)
+#display(plot(dd2.equilibrium))</code></pre><pre><code class="language- hljs">import Equilibrium
+using Plots
+using FUSE
+gfile_pp = Equilibrium.readg(&quot;/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g150219.03200_fix&quot;) # pp
+gfile_np = Equilibrium.readg(&quot;/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g133221.01151_fix&quot;)
+gfile_nn = Equilibrium.readg(&quot;/Users/slendebroek/.julia/dev/VacuumFields/test/equilibria/g153298.04400_fix&quot;)
+
+display(plot(gfile_nn.qpsi))
+display(plot(gfile_nn.psi))
+display(plot(gfile_nn.pres))
+#display(plot(gfile_pp.qpsi))
+
+dd, ini, act = FUSE.init(:D3D);
+resize!(dd.equilibrium.time_slice, 1.0)
+#dd.equilibrium.time_slice.time[1]=1
+
+FUSE.gEQDSK2IMAS(gfile_nn, dd.equilibrium)
+plot(dd.equilibrium, coordinate=:rho_tor_norm)</code></pre><pre><code class="language- hljs">### CHEASE
+dd, ini, act = FUSE.init(:FPP, version=:v1_demount, init_from=:ods);
+eq_plot = plot(dd.equilibrium, label=&quot;FPP ODS eq&quot;)
+act.ActorEquilibrium.model = :CHEASE
+act.ActorCHEASE.free_boundary = false
+
+FUSE.ActorEquilibrium(dd, act)
+display(plot!(eq_plot, dd.equilibrium, label=&quot;CHEASE equilibrium&quot;))
+
+#FUSE.ActorEquilibrium(dd,act)
+#display(plot!(eq_plot,dd.equilibrium, label=&quot;CHEASE equilibrium&quot;))</code></pre><h3 id="Starting-from-scalars-and-running-CHEASE"><a class="docs-heading-anchor" href="#Starting-from-scalars-and-running-CHEASE">Starting from scalars and running CHEASE</a><a id="Starting-from-scalars-and-running-CHEASE-1"></a><a class="docs-heading-anchor-permalink" href="#Starting-from-scalars-and-running-CHEASE" title="Permalink"></a></h3><pre><code class="language- hljs">dd, ini, act = FUSE.init(:FPP, version=:v1_demount, init_from=:ods);
+eq_plot = plot(dd.equilibrium, label=&quot;FPP ODS eq&quot;)
+
+# CHEASE deadstart
+dd = IMAS.dd()
+ini, act = FUSE.case_parameters(:FPP, version=:v1_demount, init_from=:scalars);
+act.ActorEquilibrium.model = :CHEASE
+dd = FUSE.init(dd, ini, act)
+plot!(eq_plot, dd.equilibrium, label=&quot;CHEASE deadstart&quot;, color=:red)
+
+# Solvev from scalars
+ini, act = FUSE.case_parameters(:FPP, version=:v1_demount, init_from=:scalars);
+act.ActorEquilibrium.model = :Solovev
+dd = FUSE.init(dd, ini, act)
+display(plot!(eq_plot, dd.equilibrium, label=&quot;Solvev deadstart&quot;))</code></pre><h3 id="Finding-a-MXH-parameterization-of-the-boundary-for-ITER"><a class="docs-heading-anchor" href="#Finding-a-MXH-parameterization-of-the-boundary-for-ITER">Finding a MXH parameterization of the boundary for ITER</a><a id="Finding-a-MXH-parameterization-of-the-boundary-for-ITER-1"></a><a class="docs-heading-anchor-permalink" href="#Finding-a-MXH-parameterization-of-the-boundary-for-ITER" title="Permalink"></a></h3><pre><code class="language- hljs">import MillerExtendedHarmonic: flat_coeffs
+dd, ini, act = FUSE.init(:ITER, init_from=:ods);
+eqt = dd.equilibrium.time_slice[]
+eqt_bound = eqt.boundary.outline
+psi_close = (eqt.profiles_1d.psi[end-1] + 5 * eqt.profiles_1d.psi[end]) / 6
+r_bound, z_bound = IMAS.flux_surface(eqt, psi_close)
+
+eq_plot = plot(r_bound, z_bound, label=&quot;0.99 of original boundary shape&quot;)
+for order in [6]
+    mxh = IMAS.MXH(r_bound, z_bound, order)
+    @show round.(flat_coeffs(mxh), digits=5)
+    plot!(mxh, label=&quot;MXH $order&quot;, lw=0.3)
+end
+display(plot!(eqt_bound.r, eqt_bound.z, label=&quot;original boundary shape&quot;, color=&quot;black&quot;, marker=&quot;x&quot;, lw=0, markersize=1))</code></pre><h2 id="Comparing-CHEASE-deadstart-from-MXH-parameterization-vs-Miller-parameterization"><a class="docs-heading-anchor" href="#Comparing-CHEASE-deadstart-from-MXH-parameterization-vs-Miller-parameterization">Comparing CHEASE deadstart from MXH parameterization vs Miller parameterization</a><a id="Comparing-CHEASE-deadstart-from-MXH-parameterization-vs-Miller-parameterization-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-CHEASE-deadstart-from-MXH-parameterization-vs-Miller-parameterization" title="Permalink"></a></h2><pre><code class="language- hljs">dd, ini, act = FUSE.init(:ITER, init_from=:ods);
+eq_plot = plot(dd.equilibrium, label=&quot;ITER ODS eq&quot;)
+display(eq_plot)
+
+# CHEASE deadstart MXH
+dd = IMAS.dd()
+ini, act = FUSE.case_parameters(:ITER, init_from=:scalars);
+ini.equilibrium.boundary_from = :MXH_params
+act.ActorEquilibrium.model = :CHEASE
+dd = FUSE.init(dd, ini, act)
+plot!(eq_plot, dd.equilibrium, label=&quot;CHEASE deadstart MXH&quot;)
+
+# CHEASE deadstart MILLER
+dd = IMAS.dd()
+ini, act = FUSE.case_parameters(:ITER, init_from=:scalars);
+ini.equilibrium.boundary_from = :scalars
+act.ActorEquilibrium.model = :CHEASE
+act.ActorCHEASE.free_boundary = false
+dd = FUSE.init(dd, ini, act)
+display(plot!(eq_plot, dd.equilibrium, label=&quot;CHEASE deadstart Miller&quot;))</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Friday 16 August 2024 09:54">Friday 16 August 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
