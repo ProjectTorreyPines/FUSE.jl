@@ -65,7 +65,7 @@ function _step(actor::ActorQED)
     JBni = QED.FE(cp1d.grid.rho_tor_norm, cp1d.j_non_inductive .* B0)
 
     # initialize QED
-    if actor.QO === nothing
+    if actor.QO === nothing || par.Δt == Inf
         actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho = 501)
     else
         actor.QO.JBni = JBni

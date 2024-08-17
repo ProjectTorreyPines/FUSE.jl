@@ -67,7 +67,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
@@ -98,6 +98,14 @@ function _step(actor::ActorStationaryPlasma)
         chease_par = actor.actor_eq.eq_actor.par
         orig_par_chease = deepcopy(chease_par)
         chease_par.rescale_eq_to_ip = true
+    end
+
+    # set Δt of the time-dependent actors
+    if actor.actor_jt.par.model == :QED
+        actor.actor_jt.jt_actor.par.Δt = Inf
+    end
+    if actor.actor_tr.par.model == :FluxMatcher
+        actor.actor_tr.tr_actor.par.Δt = Inf
     end
 
     prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)

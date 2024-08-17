@@ -89,7 +89,9 @@ function _step(actor::ActorDynamicPlasma)
     t1 = t0 + par.Δt
 
     # set Δt of the time-dependent actors
-    actor.actor_jt.jt_actor.par.Δt = δt
+    if actor.actor_jt.par.model == :QED
+        actor.actor_jt.jt_actor.par.Δt = δt
+    end
     if actor.actor_tr.par.model == :FluxMatcher
         if par.time_derivatives_sources
             actor.actor_tr.tr_actor.par.Δt = δt
