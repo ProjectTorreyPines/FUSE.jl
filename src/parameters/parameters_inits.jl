@@ -3,7 +3,8 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_, _triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_,
+    _triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -64,9 +65,10 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     _name::Symbol = :core_profiles
     plasma_mode::Switch{Symbol} = Switch{Symbol}([:H_mode, :L_mode], "-", "Plasma configuration"; default=:H_mode)
     ne_value::Entry{T} = Entry{T}("-", "Value based on setup method"; check=x -> @assert x > 0.0 "must be > 0.0")
-    ne_setting ::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
+    ne_setting::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
     w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
-    ne_sep_to_ped_ratio::Entry{T} = Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
+    ne_sep_to_ped_ratio::Entry{T} =
+        Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
@@ -215,7 +217,8 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     _name::Symbol = :requirements
     power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net; check=x -> @assert x >= 0.0 "must be: power_electric_net >= 0.0")
     flattop_duration::Entry{T} = Entry{T}(IMAS.requirements, :flattop_duration; check=x -> @assert x >= 0.0 "must be: flattop_duration >= 0.0")
-    log10_flattop_duration::Entry{T} = Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
+    log10_flattop_duration::Entry{T} =
+        Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio; check=x -> @assert x >= 0.0 "must be: tritium_breeding_ratio >= 0.0")
     cost::Entry{T} = Entry{T}(IMAS.requirements, :cost; check=x -> @assert x >= 0.0 "must be: cost >= 0.0")
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking; check=x -> @assert x >= 0.0 "must be: ne_peaking >= 0.0")
@@ -311,8 +314,8 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
     return ini
 end
 
-function ParametersInits(;kw...)
-    return ParametersInits{Float64}(;kw...)
+function ParametersInits(; kw...)
+    return ParametersInits{Float64}(; kw...)
 end
 
 ################################
@@ -467,7 +470,7 @@ function load_ods(ini::ParametersAllInits)
     dd = load_ods(ini.ods.filename)
     dd.global_time = ini.time.simulation_start
     for field in keys(dd)
-        ids = getproperty(dd,field)
+        ids = getproperty(dd, field)
         if !ismissing(ids, :time) && length(ids.time) == 1
             IMAS.retime!(ids, dd.global_time)
         end
@@ -581,7 +584,7 @@ Plots ini time dependent time traces including plasma boundary
             label := ""
             subplot := 1
             aspectratio := :equal
-            xlim := (0, mxhb.mxh.R0 * 2)
+            xlim := (wr[1] - (wr[2] - wr[1]) / 10, wr[2] + (wr[2] - wr[1]) / 10)
             mxhb
         end
 
