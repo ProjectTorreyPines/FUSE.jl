@@ -3,8 +3,8 @@
 # This script executes the FUSE makefile from wherever FUSE is installed.
 # Copy this script to a directory that is included in your $PATH environment variable.
 #
-# Recommended: Copy the script to the same directory where your Julia executable resides.
-# You can determine this directory with `dirname $(which julia)`.
+# Recommended: Copy the script to the same directory where your juliaup executable resides.
+# You can determine this directory with `dirname $(which juliaup)`.
 
 using Pkg
 using UUIDs
@@ -29,9 +29,11 @@ if fuse_dir === nothing
 end
 
 # Handle the --get-dir argument
-if ARGS[1] == "--get-dir"
-    println(fuse_dir)
-    exit(0)
+if !isempty(ARGS)
+    if ARGS[1] == "--get-dir"
+        println(fuse_dir)
+        exit(0)
+    end
 end
 
 # Change to the FUSE directory

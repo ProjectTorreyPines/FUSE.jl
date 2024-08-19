@@ -112,7 +112,7 @@ Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 
 # @user
 revise:
-# Load Revise when Julia starts up
+# Setup Revise.jl to automatically be used when Julia starts
 	@echo "Setting Revise.jl to run at startup"
 	@julia -e 'using Pkg; Pkg.add("Revise")'
 	@mkdir -p $(JULIA_DIR)/config
@@ -704,7 +704,6 @@ cherry_pick_to_master: error_missing_repo_var
 	git checkout -; \
 	git stash pop
 
-# @user
 user_help:
 # Print users makefile commands help
 	@awk ' \
@@ -756,7 +755,6 @@ user_help:
 			} \
 		}' $(MAKEFILE_LIST)
 
-# @devs
 devs_help:
 # Print developers makefile commands help
 	@awk ' \
@@ -810,6 +808,7 @@ devs_help:
 
 # @user
 self_update:
+# update the `ptp` executable to the latest version
 	@if cmp -s ptp `which ptp`; then \
 		echo "ptp is already up to date"; \
 	else \

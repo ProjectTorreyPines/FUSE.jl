@@ -28,6 +28,13 @@ Pkg.add("FUSE")
    using FUSE
    ```
 
+1. install the `ptp` utility
+
+   ```julia
+   using FUSE
+   FUSE.install_ptp()
+   ```
+
 1. Run the regression tests (optional, this can take 1h+)
     ```julia
     ] test FUSE
@@ -39,12 +46,11 @@ Pkg.add("FUSE")
 1. Install the `IJulia` package by running:
 
    ```bash
-   cd ~/.julia/dev/FUSE
-   make IJulia
+   ptp IJulia
    ```
 
    !!! note
-       Run `make IJulia` every time a new julia version is installed.
+       Run `ptp IJulia` every time a new julia version is installed.
        This will setup the single- and multi-thread julia kernels in Jupyter.
 
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
@@ -80,12 +86,12 @@ To update Julia and make FUSE work under the new environment do as follows:
 1. Remove all old `Manifest.toml` files in the FUSE and related packages (these files are specific to a given Julia version)
    ```bash
    cd FUSE
-   make rm_manifests
+   ptp rm_manifests
    ```
 
 1. Install all FUSE dependencies and Jupyter
    ```bash
    cd FUSE
-   make install
-   make IJulia
+   ptp install
+   ptp IJulia
    ```
