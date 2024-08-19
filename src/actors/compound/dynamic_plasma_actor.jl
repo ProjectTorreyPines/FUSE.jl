@@ -108,7 +108,7 @@ function _step(actor::ActorDynamicPlasma)
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
         IMAS.pid_controller(ctrl_ip, η_avg * 5.0, η_avg * 0.5, 0.0)
         if IMAS.fxp_request_service(ctrl_ip)
-            @warn("Running ip controller service")
+            @info("Running Ip controller via FXP")
         end
         actor.actor_jt.jt_actor.par.solve_for = :vloop
         actor.actor_jt.jt_actor.par.vloop_from = :controllers__ip
