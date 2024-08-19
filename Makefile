@@ -364,7 +364,7 @@ html: develop_docs
 web_push:
 # Push documentation to the web
 	cd docs/pages; git reset --hard 049da2c703ad7fc552c13bfe0651da677e3c7f58
-	cd docs; cp -rf build/* pages/
+	cd docs; cp -rf build/* pages/dev/
 	cd docs/pages; echo "fuse.help" > CNAME ### this is to set the custom domain name for gh-pages
 	cd docs/pages; touch .nojekyll
 	cd docs/pages; git add -A; git commit --allow-empty -m "documentation"; git push --force
@@ -807,6 +807,15 @@ devs_help:
 				print ""; \
 			} \
 		}' $(MAKEFILE_LIST)
+
+# @user
+self_update:
+	@if cmp -s ptp `which ptp`; then \
+		echo "ptp is already up to date"; \
+	else \
+		cp ptp `which ptp`; \
+		echo "ptp has been updated"; \
+	fi
 
 header:
 	@printf "\n"
