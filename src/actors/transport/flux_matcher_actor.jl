@@ -273,7 +273,7 @@ function flux_match_errors(
     finalize(step(actor.actor_ct))
 
     if !isempty(save_input_tglf_folder)
-        if eltype(actor.actor_ct.actor_turb.input_tglfs) ==  TJLF.InputTJLF{Float64}
+        if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
             input_tglfs = TGLFNN.InputTGLF(dd, par.rho_transport, actor.actor_ct.actor_turb.par.sat_rule, actor.actor_ct.actor_turb.par.electromagnetic, actor.actor_ct.actor_turb.par.lump_ions)
         else
             input_tglfs = actor.actor_ct.actor_turb.input_tglfs
