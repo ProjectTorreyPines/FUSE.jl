@@ -12,6 +12,10 @@ using UUIDs
 # UUID of the FUSE package
 FUSE_UUID = UUID("e64856f0-3bb8-4376-b4b7-c03396503992")
 
+# set some environmental variables for later use in Makefile
+ENV["PTP_ORIGINAL_DIR"] = pwd()
+ENV["PTP"] = @__FILE__
+
 # Declare fuse_dir as a global variable
 global fuse_dir
 

@@ -144,10 +144,10 @@ include("$(@__DIR__)/src/act_docs.jl")
 # =================== #
 include("$(@__DIR__)/src/cases_docs.jl")
 
-# ====================== #
-# generate examples page #
-# ====================== #
-include("$(@__DIR__)/src/examples.jl")
+# # ====================== #
+# # generate examples page #
+# # ====================== #
+# include("$(@__DIR__)/src/examples.jl")
 
 # ============== #
 # build the docs #

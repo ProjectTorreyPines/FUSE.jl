@@ -319,9 +319,14 @@ Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 
 # @devs
-FUSE_examples:
+FUSE_examples_dev:
 # Install FUSE_examples under FUSE/examples
-	if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git examples ; else cd examples && git pull; fi
+	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git examples ; else cd examples && git pull; fi
+
+# @user
+FUSE_examples:
+# Install FUSE_examples in current folder
+	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FUSE_examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git ; else cd FUSE_examples && git pull; fi
 
 # @user
 IJulia:

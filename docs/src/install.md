@@ -6,32 +6,30 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
 * Windows: `winget install julia -s msstore`
 
-Once installed, restart your termninal to pick-up the `julia` executable
+Once installed, restart your termninal to pick-up the `julia` executable.
 
 ## FUSE installation
 
-FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). For installation:
+FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
+For installation start your Julia interpreter by typing `julia` at the terminal, then:
+
+1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 20+ mins):
 
 ```julia
 using Pkg
 Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
-Pkg.Registry.add("General")
 Pkg.add("FUSE")
 ```
 
-## Test FUSE installation
-1. Start your Julia interpreter by typing `julia` at the terminal
-
-1. Try importing the FUSE package
+1. Now you should be able to import the FUSE package:
 
    ```julia
    using FUSE
    ```
 
-1. install the `ptp` utility
+1. Install the `ptp` utility to simplify install/updates later on. Now `ptp` should be a command that you can type anywhere from the terminal.
 
    ```julia
-   using FUSE
    FUSE.install_ptp()
    ```
 
@@ -40,7 +38,13 @@ Pkg.add("FUSE")
     ] test FUSE
     ```
 
-## Install Jupyter-Lab and add Julia kernel to it
+1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FUSE_examples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
+
+   ``bash
+   ptp FUSE_examples
+   ```
+
+## Install Jupyter-Lab and add the Julia kernel to it
 1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system 
 
 1. Install the `IJulia` package by running:
@@ -59,39 +63,4 @@ Pkg.add("FUSE")
    jupyter-lab
    ```
 
-# Update Julia version
-Juliaup will inform you when a new release of Julia is available. For example:
-
-```
-The latest version of Julia in the `release` channel is 1.9.0+0.aarch64.apple.darwin14. You currently have `1.8.5+0.aarch64.apple.darwin14` installed. Run:
-
-juliaup update
-
-to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
-```
-
-To update Julia and make FUSE work under the new environment do as follows:
-
-1. Update Julia
-   ```bash
-   juliaup update
-   ```
-
-1. Start julia and add Revise (this is necessary if Revise is imported in your `~/.julia/config/startup.jl`)
-   ```julia
-   import Pkg
-   Pkg.add("Revise")
-   ```
-
-1. Remove all old `Manifest.toml` files in the FUSE and related packages (these files are specific to a given Julia version)
-   ```bash
-   cd FUSE
-   ptp rm_manifests
-   ```
-
-1. Install all FUSE dependencies and Jupyter
-   ```bash
-   cd FUSE
-   ptp install
-   ptp IJulia
-   ```
+1.  Go insinde the `FUSE_examples` folder that you had cloned and take a tour of the example Jupyter notebooks.
