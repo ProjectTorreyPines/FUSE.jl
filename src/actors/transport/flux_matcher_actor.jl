@@ -42,6 +42,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
     norms::Vector{Float64}
+    error::Float64
 end
 
 """
@@ -71,7 +72,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end]
     )
-    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[])
+    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[], Inf)
 end
 
 """
@@ -146,7 +147,8 @@ function _step(actor::ActorFluxMatcher)
     end
 
     # evaluate profiles at the best-matching gradients
-    flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+    out = flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+    actor.error = norm(out.errors)
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -271,7 +273,13 @@ function flux_match_errors(
     finalize(step(actor.actor_ct))
 
     if !isempty(save_input_tglf_folder)
-        for (idx, input_tglf) in enumerate(actor.actor_ct.actor_turb.input_tglfs)
+        if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
+            input_tglfs = TGLFNN.InputTGLF(dd, par.rho_transport, actor.actor_ct.actor_turb.par.sat_rule, actor.actor_ct.actor_turb.par.electromagnetic, actor.actor_ct.actor_turb.par.lump_ions)
+        else
+            input_tglfs = actor.actor_ct.actor_turb.input_tglfs
+        end
+        for idx in 1:length(par.rho_transport)
+            input_tglf = input_tglfs[idx]
             name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
             TGLFNN.save(input_tglf, name)
         end
