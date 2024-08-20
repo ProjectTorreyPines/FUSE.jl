@@ -42,6 +42,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
     norms::Vector{Float64}
+    error::Float64
 end
 
 """
@@ -71,7 +72,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end]
     )
-    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[])
+    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[], Inf)
 end
 
 """
@@ -304,6 +305,7 @@ function flux_match_errors(
     # update progress meter
     if prog !== nothing
         ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
+        actor.error = norm(errors)
     end
 
     return (targets=targets, fluxes=fluxes, errors=errors)
