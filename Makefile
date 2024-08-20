@@ -318,6 +318,11 @@ Pkg.activate("../ServeFUSE/task_tiller");\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 
+# @devs
+FUSE_examples:
+# Install FUSE_examples under FUSE/examples
+	if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git examples ; else cd examples && git pull; fi
+
 # @user
 IJulia:
 # Install IJulia
@@ -395,7 +400,7 @@ all_examples: clean_examples examples
 # Clean and run all examples
 
 # @devs
-examples: .PHONY
+run_examples: .PHONY
 # Run all examples
 	cd docs; julia notebooks_to_md.jl --execute
 
