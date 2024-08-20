@@ -271,7 +271,13 @@ function flux_match_errors(
     finalize(step(actor.actor_ct))
 
     if !isempty(save_input_tglf_folder)
-        for (idx, input_tglf) in enumerate(actor.actor_ct.actor_turb.input_tglfs)
+        if typeof(actor.actor_ct.actor_turb.input_tglfs[1]) ==  TJLF.InputTJLF{Float64}
+            input_tglfs = TGLFNN.InputTGLF(dd, par.rho_transport, actor.actor_ct.actor_turb.par.sat_rule, actor.actor_ct.actor_turb.par.electromagnetic, actor.actor_ct.actor_turb.par.lump_ions)
+        else
+            input_tglfs = actor.actor_ct.actor_turb.input_tglfs
+        end
+        for idx in 1:length(par.rho_transport)
+            input_tglf = input_tglfs[idx]
             name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
             TGLFNN.save(input_tglf, name)
         end
