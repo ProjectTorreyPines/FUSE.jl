@@ -18,6 +18,7 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    ```julia
    using Pkg
    Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+   Pkg.Registry.add("General")
    Pkg.add("FUSE")
    ```
 
