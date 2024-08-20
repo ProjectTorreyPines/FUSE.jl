@@ -147,7 +147,8 @@ function _step(actor::ActorFluxMatcher)
     end
 
     # evaluate profiles at the best-matching gradients
-    flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+    out = flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+    actor.error = norm(out.errors)
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -305,7 +306,6 @@ function flux_match_errors(
     # update progress meter
     if prog !== nothing
         ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
-        actor.error = norm(errors)
     end
 
     return (targets=targets, fluxes=fluxes, errors=errors)
