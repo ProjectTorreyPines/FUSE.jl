@@ -15,11 +15,11 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 
 1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 20+ mins):
 
-```julia
-using Pkg
-Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
-Pkg.add("FUSE")
-```
+   ```julia
+   using Pkg
+   Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+   Pkg.add("FUSE")
+   ```
 
 1. Now you should be able to import the FUSE package:
 
@@ -34,13 +34,14 @@ Pkg.add("FUSE")
    ```
 
 1. Run the regression tests (optional, this can take 1h+)
+
     ```julia
     ] test FUSE
     ```
 
 1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FUSE_examples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
 
-   ``bash
+   ```bash
    ptp FUSE_examples
    ```
 
@@ -55,7 +56,10 @@ Pkg.add("FUSE")
 
    !!! note
        Run `ptp IJulia` every time a new julia version is installed.
+
        This will setup the single- and multi-thread julia kernels in Jupyter.
+
+       The number of threads of the multi-threaded julia kernels can be set via the `JULIA_NUM_THREADS` environmental variable.
 
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
 
@@ -63,4 +67,4 @@ Pkg.add("FUSE")
    jupyter-lab
    ```
 
-1.  Go insinde the `FUSE_examples` folder that you had cloned and take a tour of the example Jupyter notebooks.
+1.  Now you can browse the examples in the `FUSE_examples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.
