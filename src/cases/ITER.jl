@@ -1,18 +1,20 @@
 """
-    case_parameters(:ITER; init_from::Symbol)
+    case_parameters(
+        :ITER,
+        init_from::Symbol,
+        boundary_from::Symbol=:auto,
+        ne_setting::Symbol=:ne_ped,
+        time_dependent::Bool=false)
 
 ITER
-
-Arguments:
-
-  - `init_from`: `:scalars` or `:ods` (ODS contains equilibrium and wall information)
 """
 function case_parameters(
     ::Type{Val{:ITER}};
     init_from::Symbol,
     boundary_from::Symbol=:auto,
-    ne_setting::Symbol=:greenwald_fraction_ped
-)::Tuple{ParametersAllInits,ParametersAllActors}
+    ne_setting::Symbol=:ne_ped,
+    time_dependent::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+
     ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_lh=1, n_pl=1)
     act = ParametersActors()
 
@@ -25,14 +27,12 @@ function case_parameters(
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
-#        act.ActorStabilityLimits.raise_on_breach = false
+        # act.ActorStabilityLimits.raise_on_breach = false
         if boundary_from == :auto
             boundary_from = :ods
         end
     else
         ini.equilibrium.B0 = -5.3
-        ini.equilibrium.ip = 15e6
-        ini.equilibrium.pressure_core = 0.643e6
         act.ActorCXbuild.rebuild_wall = true
         if boundary_from == :auto
             boundary_from = :MXH_params
@@ -69,14 +69,8 @@ function case_parameters(
         error("invalid boundary_from=:$boundary_from")
     end
 
-    ini.equilibrium.ip = (t -> ramp(t / 100.0) * 10E6 + ramp((t - 100) / 200.0) * 5E6) ↔ (2, (100.0, 300.0), (10E6, 15E6))
-
-    ini.time.pulse_shedule_time_basis = range(0, 300, 1000)
-    ini.time.simulation_start = 300.0
-
-    ini.rampup.side = :lfs
-    ini.rampup.ends_at = 100.0
-    ini.rampup.diverted_at = 80.0
+    ini.equilibrium.pressure_core = 0.643e6
+    ini.equilibrium.ip = 15E6
 
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
@@ -114,43 +108,65 @@ function case_parameters(
     ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
-
     ini.core_profiles.ne_setting = ne_setting
-    if ne_setting == :greenwald_fraction_ped
-        ini.core_profiles.ne_value = 0.75
+    if ne_setting == :ne_ped
+        ini.core_profiles.ne_value = 0.9 * 0.75 * IMAS.greenwald_density(ini.equilibrium.ip, layers[:plasma] / 2.0)
+        act.ActorPedestal.density_match = :ne_ped
+    elseif ne_setting == :greenwald_fraction_ped
+        ini.core_profiles.ne_value = 0.9 * 0.75
+        act.ActorPedestal.density_match = :ne_ped
     elseif ne_setting == :greenwald_fraction
         ini.core_profiles.ne_value = 0.9
+        act.ActorPedestal.density_match = :ne_line
     end
 
     ini.core_profiles.helium_fraction = 0.01
-    ini.core_profiles.T_ratio = 0.9
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
-    ini.core_profiles.zeff = 2.0 #(t -> 2.0) ↔ (2, (100.0, 300.0), (2.0, 4.0), (:match, :float))
+    ini.core_profiles.n_shaping = 1.0
+    ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    ini.nb_unit[1].power_launched = 33.4E6 # (t -> 16.7e6 + ramp((t - 100) / 100.0) * 16.7e6) ↔ (2, (100.0, 300.0), (0.0, 33.4E6), (:match, :float))
+    ini.nb_unit[1].power_launched = 33.4e6
     ini.nb_unit[1].beam_energy = 1e6
 
-    ini.ec_launcher[1].power_launched = 20E6 # (t -> 10e6 + ramp((t - 100) / 100.0) * 10e6) ↔ (2, (100.0, 300.0), (0.0, 20E6), (:match, :float))
-    ini.ec_launcher[1].rho_0 = 0.0 # (t -> 0.5) ↔ (2, (100.0, 300.0), (0.0, 0.8), (:float, :float))
+    ini.ec_launcher[1].power_launched = 20E6
+    ini.ec_launcher[1].rho_0 = 0.0
 
-    ini.ic_antenna[1].power_launched = 24E6 # (t -> 12e6 + ramp((t - 100) / 100.0) * 12e6) ↔ (2, (100.0, 300.0), (0.0, 24E6), (:match, :float))
+    ini.ic_antenna[1].power_launched = 24E6
 
-    ini.lh_antenna[1].power_launched = 10E6 # (t -> 5e6 + ramp((t - 100) / 100.0) * 5e6) ↔ (2, (100.0, 300.0), (0.0, 10E6), (:match, :float))
+    ini.lh_antenna[1].power_launched = 10E6
 
     ini.pellet_launcher[1].shape = :cylindrical
     ini.pellet_launcher[1].species = :T
     ini.pellet_launcher[1].size = Float64[0.003, 0.004] / 2.0
-    ini.pellet_launcher[1].frequency = 0.01 # Hz
+    ini.pellet_launcher[1].frequency = 0.02 # Hz
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
-    act.ActorEPED.ped_factor = 0.8
 
     act.ActorWholeFacility.update_build = false
+
+    if time_dependent
+        ini.time.pulse_shedule_time_basis = range(0, 300; step=1.0)
+        ini.time.simulation_start = 300.0
+        rampup_ends = 10.0
+
+        ini.rampup.side = :lfs
+        ini.rampup.ends_at = rampup_ends
+        ini.rampup.diverted_at = rampup_ends * 0.8
+
+        ini.equilibrium.pressure_core = t -> ramp(t / rampup_ends) .^ 2 * 0.643e6
+        ini.equilibrium.ip = t -> ramp(t / rampup_ends) * 14E6 + ramp((t - 100) / 100) * 1E6
+
+        ini.nb_unit[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 16.7e6
+        ini.ec_launcher[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 10E6
+        ini.ic_antenna[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 12E6
+        ini.lh_antenna[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 5E6
+        ini.pellet_launcher[1].frequency = t -> (1 .+ ramp((t - 100) / 100)) * 0.01 # Hz
+    end
 
     set_new_base!(ini)
     set_new_base!(act)

@@ -50,16 +50,16 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
     ini.build.divertors = :lower
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
 
-    ini.tf.shape = :triple_arc
-    ini.equilibrium.B0 = 4.713171689711136
-    ini.equilibrium.R0 = 4.824432302041749
-    ini.equilibrium.ϵ = 0.290
-    ini.equilibrium.κ = 2.1
-    ini.equilibrium.δ = 0.626
-    ini.equilibrium.ζ = 0.0769
-    ini.equilibrium.pressure_core = t -> ramp((t - Δt / 8) / Δt, 0.3) * 1.0e6 + 0.2e6
+    ini.equilibrium.B0 = 4.7
+    ini.equilibrium.R0 = 4.9
+    ini.equilibrium.ϵ = 0.28
+    ini.equilibrium.κ = 0.8
+    ini.equilibrium.δ = 0.7
+    ini.equilibrium.ζ = 0.1
+    ini.equilibrium.𝚶 = 0.1
+    ini.equilibrium.pressure_core = 1.2e6
     ini.equilibrium.ip = 8.0e6
     ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.xpoints = :lower
@@ -79,6 +79,7 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.pf_active.n_coils_outside = 5
     ini.pf_active.technology = :nb3sn
 
+    ini.tf.shape = :miller
     ini.tf.n_coils = 16
     ini.tf.technology = :rebco
     ini.tf.shape = :triple_arc

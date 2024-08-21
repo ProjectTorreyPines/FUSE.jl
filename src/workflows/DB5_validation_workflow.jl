@@ -132,7 +132,7 @@ function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String
 end
 
 """
-    function plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
+    plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
 
 Plot regression of `\$name` and `\$(name)_fuse` data stored in a given CSV file
 """

@@ -3,7 +3,7 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -55,7 +55,9 @@ function _step(actor::ActorCHEASE)
     # boundary
     pr = eqt.boundary.outline.r
     pz = eqt.boundary.outline.z
-    pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
+    ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
+    pr, pz = limit_curvature(pr, pz, ab / 20.0)
+    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * length(pr), method=:linear)
 
     # scalars
     Ip = eqt.global_quantities.ip
@@ -97,47 +99,39 @@ function _finalize(actor::ActorCHEASE)
 
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
+        eqt = dd.equilibrium.time_slice[]
 
         RA = actor.chease.gfile.rmaxis
         ZA = actor.chease.gfile.zmaxis
 
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
-        psib = 0.0
         ψbound = 0.0
 
-        eqt = dd.equilibrium.time_slice[]
+        # Boundary control points
+        flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, ψbound)
 
-        # constraints for the private flux region
-        pr = eqt.boundary.outline.r
-        pz = eqt.boundary.outline.z
-        n = length(pr)
-        ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz)^2)) / 2.0
-        pr, pz = limit_curvature(pr, pz, ab / 10.0)
-        pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * n, method=:linear)
-
-        # Flux Control Points
-        flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, psib)
+        # Flux control points
         if !isempty(eqt.boundary.strike_point)
-            strike_weight = 1.0
-            strike_cps = [VacuumFields.FluxControlPoint(sp.r, sp.z, psib, strike_weight) for sp in eqt.boundary.strike_point]
+            strike_weight = 0.01
+            strike_cps = VacuumFields.FluxControlPoint{Float64}[
+                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
+            ]
             append!(flux_cps, strike_cps)
         end
 
-        # Saddle Control Points
-        saddle_weight = 1.0
-        saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        # Saddle control points
+        saddle_weight = 0.01
+        saddle_cps = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
         if isempty(dd.pf_active.coil)
-            coils = encircling_coils(pr, pz, RA, ZA, 8)
+            coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
         end
 
-        #display(contour(EQ.r, EQ.z,actor.chease.gfile.psirz';aspect_ratio=:equal,levels=range(-7,15,100)))
-
         # from fixed boundary to free boundary via VacuumFields
-        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound=psib, λ_regularize=-1.0)
+        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         actor.chease.gfile.psirz .= psi_free_rz'
     end
 
@@ -166,7 +160,7 @@ end
 
 Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
-function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
+function gEQDSK2IMAS(g::CHEASE.EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     tc = MXHEquilibrium.transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
 
     eqt = eq.time_slice[]

@@ -525,7 +525,8 @@ function digest(
         plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false)
-        plot!(p, dd.pf_active; time0, subplot=2)
+        plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
+        plot!(p, dd.build.pf_active.rail, subplot=2)
         display(p)
     end
 
@@ -944,4 +945,28 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     end
     ProgressMeter.finish!(p)
     return df
+end
+
+"""
+    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+
+This function installs the `fusebot` executable in a given folder,
+by default in the directory where the juliaup executable is located.
+"""
+function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    fuse_ptp_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
+
+    target_path = joinpath(folder, "fusebot")
+
+    if !isfile(fuse_ptp_path)
+        error("The `fusebot` executable does not exist in the FUSE directory!?")
+    end
+
+    cp(fuse_ptp_path, target_path; force=true)
+
+    if folder == dirname(readchomp(`which juliaup`))
+        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
+    else
+        println("`fusebot` has been successfully installed in folder: $folder")
+    end
 end

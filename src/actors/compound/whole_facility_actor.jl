@@ -1,7 +1,7 @@
 #= ================== =#
 #  ActorWholeFacility  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -91,6 +91,11 @@ function _step(actor::ActorWholeFacility)
     dd = actor.dd
     par = actor.par
     act = actor.act
+
+    if !isempty(dd.build.layer) && par.update_build
+        # we start by optimizing coil location, so that when we go solve the equilibrium we can hold it in place
+        actor.PFdesign = ActorPFdesign(dd, act)
+    end
 
     if par.update_plasma
         actor.StationaryPlasma = ActorStationaryPlasma(dd, act)

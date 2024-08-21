@@ -1,7 +1,7 @@
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -58,7 +58,7 @@ function _step(actor::ActorHFSsizing)
 
     # Relative error with tolerance used for currents and stresses (not flattop)
     # NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
-    # NOTE: we stronlgy penalize going above target, and only gently encourage not going below it (since 
+    # NOTE: we stronlgy penalize going above target, and only gently encourage not going below it (since
     function target_value(value, target, tolerance)
         tmp = (value .* (1.0 .+ tolerance) - target) ./ (abs(target) + 1.0)
         return sign(tmp) * tmp^2
@@ -174,7 +174,9 @@ function _step(actor::ActorHFSsizing)
         bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
         options = Metaheuristics.Options(; seed=1, iterations=50)
         algorithm = Metaheuristics.ECA(; N=50, options)
+        IMAS.refreeze!(dd.core_profiles.profiles_1d[], :conductivity_parallel)
         res = Metaheuristics.optimize(cost, bounds, algorithm)
+        IMAS.empty!(dd.core_profiles.profiles_1d[], :conductivity_parallel)
         assign_PL_OH_TF(Metaheuristics.minimizer(res))
     finally
         actor_logging(dd, old_logging)
@@ -287,7 +289,8 @@ function _step(actor::ActorHFSsizing)
 
     catch e
         print_details()
-        plot(old_build)
+        plot(eqt; cx=true)
+        plot!(old_build)
         display(plot!(dd.build; cx=false))
         dd.build = old_build
         rethrow(e)

@@ -39,7 +39,7 @@
    ```
    `~/.julia` is where the Julia will install itself by default, and this will trick it to install itself in the IR&D folder instead.
 
-   For convenience create also a symbolic link in your `$HOME` that points to the Julia dev folder:
+   For convenience create also a symbolic link in your `$HOME` that points to the Julia `dev` folder:
    ```
    ln -s /fusion/ga/projects/ird/ptp/$USER/julia/dev ~/julia_dev
    ```
@@ -56,10 +56,10 @@
    cd ~/julia_dev/FUSE
 
    export JULIA_NUM_THREADS=10
-   make IJulia
+   fusebot install_IJulia
 
    export JULIA_NUM_THREADS=40
-   make IJulia
+   fusebot install_IJulia
    ```
    OMEGA login nodes are a shared resource. Each login node has 40 cores.
    This will setup a Jupyter Julia kernel with both 10 and 40 threads.
@@ -75,7 +75,7 @@
 1. For larger jobs especially, consider doing what follows on a login node.
    To do this (eg. a whole worker node of 40 cores for 4 days)
 
-    srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l
+    `srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l`
 
    !!! note
        Use the queue, time, cpu, and memory limits that make the most sense for your application

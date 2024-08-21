@@ -1,7 +1,7 @@
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -117,7 +117,10 @@ NOTES:
 * If j_ohmic profile is missing then steady state ohmic profile is assumed
 """
 function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
-    return abs(trapz(cp1d.grid.area, cp1d.j_ohmic ./ cp1d.conductivity_parallel)) * (requirements.flattop_duration) # V*s
+    j_ohmic = cp1d.j_ohmic
+    conductivity_parallel = cp1d.conductivity_parallel
+    f = (k, x) -> j_ohmic[k] / conductivity_parallel[k]
+    return abs(trapz(cp1d.grid.area, f)) * (requirements.flattop_duration) # V*s
 end
 
 """

@@ -5,7 +5,7 @@ import TJLF: InputTJLF
 #= ================ =#
 #  ActorFluxMatcher  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -19,9 +19,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
             default=:fixed
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
-    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal inside the transport solver"; default=false)
-    find_widths::Entry{Bool} = Entry{Bool}("-", "Runs Turbulent transport actor TJLF finding widths after first iteration"; default=true)
-    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=300)
+    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal within the transport solver"; default=true)
+    find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
+    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
     optimizer_algorithm::Switch{Symbol} =
         Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}(
@@ -42,6 +42,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
     norms::Vector{Float64}
+    error::Float64
 end
 
 """
@@ -71,7 +72,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end]
     )
-    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[])
+    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[], Inf)
 end
 
 """
@@ -83,12 +84,9 @@ function _step(actor::ActorFluxMatcher)
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+    initial_cp1d = IMAS.freeze(cp1d)
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
-
-    if par.do_plot
-        cp1d_before = deepcopy(dd.core_profiles.profiles_1d[])
-    end
 
     # normalizations for each of the channels
     # updated with exponential forget for subsequent step() calls
@@ -108,42 +106,35 @@ function _step(actor::ActorFluxMatcher)
     end
 
     z_init = pack_z_profiles(cp1d, par)
-    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping
-
-    if par.optimizer_algorithm == :newton
-        opts = Dict(:method => :newton, :factor => par.step_size)
-    elseif par.optimizer_algorithm == :anderson
-        opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size)
-    elseif par.optimizer_algorithm == :trust_region
-        opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
-    end
+    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping using NLsolve
 
     z_scaled_history = Vector{NTuple{length(z_init_scaled),Float64}}()
     err_history = Float64[]
 
-    ftol = 1E-3 # relative error
-    xtol = 1E-2 # difference in input array
+    ftol = 1E-4 # relative error
+    xtol = 1E-3 # difference in input array
 
     prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
-    if IMAS.index(cp1d) != 1
-        initial_cp1d = IMAS.freeze(dd.core_profiles.profiles_1d[IMAS.index(cp1d)-1])
-    else
-        initial_cp1d = IMAS.freeze(cp1d)
-    end
-
     if par.optimizer_algorithm == :none
         res = (zero=z_init_scaled,)
     elseif par.optimizer_algorithm == :simple
-        res = flux_match_simple(actor, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
+        res = flux_match_simple(actor, z_init_scaled, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
     else
+        if par.optimizer_algorithm == :newton
+            opts = Dict(:method => :newton, :factor => par.step_size)
+        elseif par.optimizer_algorithm == :anderson
+            opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size * 0.5)
+        elseif par.optimizer_algorithm == :trust_region
+            opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
+        end
         res = try
             res = NLsolve.nlsolve(
                 z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog).errors,
                 z_init_scaled;
                 show_trace=false,
-                store_trace=true,
+                store_trace=false,
                 extended_trace=false,
                 iterations=par.max_iterations,
                 ftol,
@@ -156,11 +147,22 @@ function _step(actor::ActorFluxMatcher)
     end
 
     # evaluate profiles at the best-matching gradients
-    flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+    out = flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+    actor.error = norm(out.errors)
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
-        display(plot(transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...)); xlabel="Iterations", label=""))
+
+        channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
+        nchannels = Int(size(channels_evolution)[2] / length(par.rho_transport))
+        data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), nchannels))
+        p = plot()
+        for ch in 1:nchannels
+            for kr in 1:length(par.rho_transport)
+                plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label="channel $ch")
+            end
+        end
+        display(p)
 
         N_channels = Int(floor(length(z_init_scaled) / length(par.rho_transport)))
         p = plot(; layout=(N_channels, 2), size=(1000, 1000))
@@ -168,7 +170,7 @@ function _step(actor::ActorFluxMatcher)
         titles = ["Electron temperature", "Ion temperature", "Electron density", "Rotation frequency tor sonic"]
         to_plot_after = [(cp1d.electrons, :temperature), (cp1d.ion[1], :temperature), (cp1d.electrons, :density_thermal), (cp1d, :rotation_frequency_tor_sonic)]
         to_plot_before =
-            [(cp1d_before.electrons, :temperature), (cp1d_before.ion[1], :temperature), (cp1d_before.electrons, :density_thermal), (cp1d_before, :rotation_frequency_tor_sonic)]
+            [(initial_cp1d.electrons, :temperature), (initial_cp1d.ion[1], :temperature), (initial_cp1d.electrons, :density_thermal), (initial_cp1d, :rotation_frequency_tor_sonic)]
 
         for sub in 1:N_channels
             plot!(dd.core_transport; only=sub, subplot=2 * sub - 1, aspect=:equal)
@@ -183,7 +185,7 @@ function _step(actor::ActorFluxMatcher)
     # Also when the power flowing through the separatrix is below zero we want to punish the profiles (otherwise we generate energy from nothing)
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd)
-    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te ||
+    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te == :flux_match ||
        !(total_sources.electrons.power_inside[end] + total_sources.total_ion_power_inside[end] >= 0)
         @warn "Profiles completely collpased due to insufficient source versus turbulence"
         te = cp1d.electrons.temperature
@@ -220,9 +222,12 @@ end
         initial_cp1d::IMAS.core_profiles__profiles_1d;
         z_scaled_history::Vector=[],
         err_history::Vector{Float64}=Float64[],
-        prog::Any=nothing)
+        prog::Any=nothing,
+        save_input_tglf_folder::String="")
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns named tuple with (targets, fluxes, errors)
+
+NOTE: flux matching is done in physical units
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
@@ -252,41 +257,68 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate sources (ie. target fluxes)
-    IMAS.sources!(dd)
+    IMAS.sources!(dd; bootstrap=false, ohmic=false)
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
-    if !par.find_widths && length(err_history) > 0 && actor.actor_ct.actor_turb.par.model == :TJLF
+    # handle fixed widths in TJLF
+    if actor.actor_ct.actor_turb.par.model == :TJLF && !par.find_widths && !isempty(err_history)
         for input_tglf in actor.actor_ct.actor_turb.input_tglfs
             input_tglf.FIND_WIDTH = false
         end
     end
+
     # evaludate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
     if !isempty(save_input_tglf_folder)
-        for (idx, input_tglf) in enumerate(actor.actor_ct.actor_turb.input_tglfs)
+        if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
+            input_tglfs = TGLFNN.InputTGLF(dd, par.rho_transport, actor.actor_ct.actor_turb.par.sat_rule, actor.actor_ct.actor_turb.par.electromagnetic, actor.actor_ct.actor_turb.par.lump_ions)
+        else
+            input_tglfs = actor.actor_ct.actor_turb.input_tglfs
+        end
+        for idx in 1:length(par.rho_transport)
+            input_tglf = input_tglfs[idx]
             name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
             TGLFNN.save(input_tglf, name)
         end
     end
 
-    # compare fluxes
-    targets, fluxes, errors = flux_match_errors(dd, par, actor.norms, prog)
+    # get transport fluxes and sources
+    fluxes = flux_match_fluxes(dd, par)
+    targets = flux_match_targets(dd, par)
+
+    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    surface = cp1d.grid.surface[cp_gridpoints]
+
+    # Evaluate the flux_matching errors
+    nrho = length(par.rho_transport)
+    errors = similar(fluxes)
+    for (inorm, norm0) in enumerate(actor.norms)
+        index = (inorm-1)*nrho+1:inorm*nrho
+        if sum(abs.(targets[index])) != 0.0
+            norm = sum(abs.(targets[index])) / length(index)
+            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (surface ./ surface[1])
+        else
+            # if targets are all zero then use initial norms and give this channel less weight
+            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 / 10.0
+        end
+    end
 
     # update error history
     push!(err_history, norm(errors))
 
+    # update progress meter
+    if prog !== nothing
+        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
+    end
+
     return (targets=targets, fluxes=fluxes, errors=errors)
 end
 
-function error_transformation(targets::T, fluxes::T, norm::T) where {T}
-    return (targets .- fluxes) ./ norm
-end
-
 function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) where {T<:Real}
-    return sqrt.(sum(norm_source .^ 2 .+ norm_transp .^ 2) / length(norm_source))
+    return (sum(abs.(norm_source)) .+ sum(abs.(norm_transp))) / length(norm_source) / 2.0
 end
 
 """
@@ -301,7 +333,7 @@ The normalization is calculated as the mean square average of the transport and 
 function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
-    total_fluxes = IMAS.total_fluxes(dd.core_transport)
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
     cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
     cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
 
@@ -336,37 +368,13 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 end
 
 """
-    flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
-
-Evaluates the flux_matching errors for the :flux_match species and channels
-
-NOTE: flux matching is done in physical units
-"""
-function flux_match_errors(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
-    nrho = length(par.rho_transport)
-    fluxes = flux_match_fluxes(dd, par, prog)
-    targets = flux_match_targets(dd, par, prog)
-    norms_all = similar(fluxes)
-    for (inorm, norm) in enumerate(norms)
-        norms_all[(inorm-1)*nrho+1:inorm*nrho] .= norm
-    end
-
-    errors = error_transformation(targets, fluxes, norms_all)
-    if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
-    end
-
-    return (targets=targets, fluxes=fluxes, errors=errors)
-end
-
-"""
     flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
 
 Evaluates the flux_matching targets for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
@@ -408,34 +416,33 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, 
 end
 
 """
-    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
 
 Evaluates the flux_matching fluxes for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, prog::Any)
+function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    total_fluxes = IMAS.total_fluxes(dd.core_transport)
-    cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
 
     fluxes = Float64[]
 
     if par.evolve_Ti == :flux_match
-        flux = total_fluxes.total_ion_energy.flux[cf_gridpoints]
+        flux = total_fluxes.total_ion_energy.flux
         check_output_fluxes(flux, "total_ion_energy")
         append!(fluxes, flux)
     end
 
     if par.evolve_Te == :flux_match
-        flux = total_fluxes.electrons.energy.flux[cf_gridpoints]
+        flux = total_fluxes.electrons.energy.flux
         check_output_fluxes(flux, "electrons.energy")
         append!(fluxes, flux)
     end
 
     if par.evolve_rotation == :flux_match
-        flux = total_fluxes.momentum_tor.flux[cf_gridpoints]
+        flux = total_fluxes.momentum_tor.flux
         check_output_fluxes(flux, "momentum_tor")
         append!(fluxes, flux)
     end
@@ -443,7 +450,7 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, p
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            flux = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            flux = total_fluxes.electrons.particles.flux
             check_output_fluxes(flux, "electrons.particles")
             append!(fluxes, flux)
         end
@@ -457,49 +464,49 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, p
     return fluxes
 end
 
-
 """
-    flux_match_simple(actor::ActorFluxMatcher,  z_scaled_history::Vector,err_history::Vector{Float64},ftol::Float64,xtol::Float64, prog::Any)
+    flux_match_simple(
+        actor::ActorFluxMatcher,
+        z_init::Vector{<:Real},
+        initial_cp1d::IMAS.core_profiles__profiles_1d,
+        z_scaled_history::Vector,
+        err_history::Vector{Float64},
+        ftol::Float64,
+        xtol::Float64,
+        prog::Any)
 
 Updates zprofiles based on TGYRO simple algorithm
 """
 function flux_match_simple(
     actor::ActorFluxMatcher,
+    z_init_scaled::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     z_scaled_history::Vector,
     err_history::Vector{Float64},
     ftol::Float64,
     xtol::Float64,
-    prog::Any
-)
-    dd = actor.dd
+    prog::Any)
+
     par = actor.par
 
     i = 0
-    ferror = Inf
+    zprofiles_old = unscale_z_profiles(z_init_scaled)
+    targets, fluxes, errors = flux_match_errors(actor, z_init_scaled, initial_cp1d; z_scaled_history, err_history, prog)
+    ferror = norm(errors)
     xerror = Inf
-
-    zprofiles = pack_z_profiles(dd.core_profiles.profiles_1d[], par)
-    targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
-    fluxes_old = fluxes
-    zprofiles_old = zprofiles
-    while (any(ferror .> ftol) && any(xerror .> xtol))
+    step_size = par.step_size
+    max_iterations = par.max_iterations
+    while (ferror > ftol) || (xerror .> xtol)
         i += 1
-        zprofiles = zprofiles .* (1.0 .+ par.step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
-        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
-
-        tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(zprofiles, zprofiles_old)]
-        xerror = abs.(zprofiles_old - zprofiles) ./ tmp
-        tmp = [max(min.(abs(aa), abs.(bb), 1e-10)) for (aa, bb) in zip(fluxes_old, fluxes)]
-        ferror = abs.(fluxes_old - fluxes) ./ tmp
-
-        fluxes_old = fluxes
-        zprofiles_old = zprofiles
-
-        if (i >= par.max_iterations)
-            @info "Unable to flux-match within $(par.max_iterations) iterations maximum(ferr) = $(maximum(ferror)) (ftol=$ftol) maximum(xerr) = $(maximum(xerror)) (xtol = $xtol)"
+        if (i > max_iterations)
+            @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
             break
         end
+
+        zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+        xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
+        zprofiles_old = zprofiles
     end
 
     return (zero=z_scaled_history[argmin(err_history)],)
@@ -507,14 +514,12 @@ end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     cp1d = dd.core_profiles.profiles_1d[]
-    tmp = [
+    return (
         ("         error", error),
         ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
-        ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
-    ]
-    return tuple(tmp...)
+        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20))
 end
 
 function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
@@ -544,17 +549,17 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     z_profiles = Float64[]
 
     if par.evolve_Ti == :flux_match
-        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature, :backward)[cp_gridpoints]
+        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :third_order)[cp_gridpoints]
         append!(z_profiles, z_Ti)
     end
 
     if par.evolve_Te == :flux_match
-        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward)[cp_gridpoints]
+        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order)[cp_gridpoints]
         append!(z_profiles, z_Te)
     end
 
     if par.evolve_rotation == :flux_match
-        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
+        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :third_order)[cp_gridpoints]
         append!(z_profiles, z_rot)
     end
 
@@ -562,12 +567,12 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     if !isempty(evolve_densities)
         check_evolve_densities(cp1d, evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
+            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)[cp_gridpoints]
             append!(z_profiles, z_ne)
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :backward)[cp_gridpoints]
+                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :third_order)[cp_gridpoints]
                 append!(z_profiles, z_ni)
             end
         end
@@ -591,13 +596,17 @@ function unpack_z_profiles(
     par::FUSEparameters__ActorFluxMatcher,
     z_profiles::AbstractVector{<:Real})
 
+    # bound range of accepted z_profiles to avoid issues during optimization
+    z_max = 5.0
+    z_profiles .= min.(max.(z_profiles, -z_max), z_max)
+
     cp_rho_transport = [cp1d.grid.rho_tor_norm[argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm))] for rho_x in par.rho_transport]
 
     N = length(par.rho_transport)
     counter = 0
 
     if par.evolve_Ti == :flux_match
-        Ti_new = IMAS.profile_from_z_transport(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+        Ti_new = IMAS.profile_from_z_transport(cp1d.t_i_average, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
         counter += N
         for ion in cp1d.ion
             ion.temperature = Ti_new
@@ -622,7 +631,7 @@ function unpack_z_profiles(
                 IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
             counter += N
         end
-        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)
+        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
@@ -639,6 +648,22 @@ function unpack_z_profiles(
         @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken: $(evolve_densities)"
         @assert length(q_specie) == 1 "only one specie can be set as :quasi_neutrality: $(evolve_densities)"
         IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
+    end
+
+    # freeze certain core_profiles quantites
+    z = zero(cp1d.grid.rho_tor_norm)
+    for field in [:density_fast, :density, :pressure_thermal, :pressure]
+        IMAS.refreeze!(cp1d.electrons, field, z)
+    end
+
+    for field in [:density_fast, :density, :pressure_thermal]
+        for ion in cp1d.ion
+            IMAS.refreeze!(ion, field, z)
+        end
+    end
+
+    for field in [:pressure_ion_total, :pressure_thermal]
+        IMAS.refreeze!(cp1d, field, z)
     end
 
     return cp1d
@@ -729,7 +754,7 @@ function evolve_densities_dict_creation(
 end
 
 """
-    function check_output_fluxes(output::Vector{Float64}, what::String)
+    check_output_fluxes(output::Vector{Float64}, what::String)
 
 Checks if there are any NaNs in the output
 """

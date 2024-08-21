@@ -1,14 +1,14 @@
 #= ======== =#
 #  ActorHCD  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :none], "-", "EC source actor to run"; default=:ECsimple)
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :none], "-", "LH source actor to run"; default=:LHsimple)
-    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :none], "-", "NB source actor to run"; default=:NBsimple)
+    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
 end
 
@@ -18,7 +18,7 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     ec_actor::Union{Missing,ActorSimpleEC{D,P}}
     ic_actor::Union{Missing,ActorSimpleIC{D,P}}
     lh_actor::Union{Missing,ActorSimpleLH{D,P}}
-    nb_actor::Union{Missing,ActorSimpleNB{D,P}}
+    nb_actor::Union{Missing,ActorSimpleNB{D,P},ActorRABBIT{D,P}}
     pellet_actor::Union{Missing,ActorSimplePellet{D,P}}
 end
 
@@ -54,6 +54,8 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     end
     if par.nb_model == :NBsimple
         nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
+    elseif par.nb_model == :RABBIT
+        nb_actor = ActorRABBIT(dd, act.ActorRABBIT)
     else
         nb_actor = missing
     end

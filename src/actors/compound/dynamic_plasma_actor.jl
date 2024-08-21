@@ -4,7 +4,7 @@ ProgressMeter.ijulia_behavior(:clear)
 #= ================== =#
 #  ActorDynamicPlasma  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -17,6 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: Parame
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
+    time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=false)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
 end
@@ -57,7 +58,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
             act.ActorPedestal,
             act;
             ip_from=:core_profiles,
-            βn_from=:equilibrium, 
+            βn_from=:equilibrium,
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
@@ -88,18 +89,26 @@ function _step(actor::ActorDynamicPlasma)
     t1 = t0 + par.Δt
 
     # set Δt of the time-dependent actors
-    actor.actor_jt.jt_actor.par.Δt = δt
+    if actor.actor_jt.par.model == :QED
+        actor.actor_jt.jt_actor.par.Δt = δt
+    end
     if actor.actor_tr.par.model == :FluxMatcher
-        actor.actor_tr.tr_actor.par.Δt = δt
+        if par.time_derivatives_sources
+            actor.actor_tr.tr_actor.par.Δt = δt
+        else
+            actor.actor_tr.tr_actor.par.Δt = Inf
+        end
     end
 
     # setup things for Ip control
     if par.ip_controller
-        η_avg = trapz(cp1d.grid.area, 1.0 ./ cp1d.conductivity_parallel) / cp1d.grid.area[end]
+        conductivity_parallel = cp1d.conductivity_parallel
+        f = (k, x) -> 1.0 / conductivity_parallel[k]
+        η_avg = trapz(cp1d.grid.area, f) / cp1d.grid.area[end]
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
         IMAS.pid_controller(ctrl_ip, η_avg * 5.0, η_avg * 0.5, 0.0)
         if IMAS.fxp_request_service(ctrl_ip)
-            @warn("Running ip controller service")
+            @info("Running Ip controller via FXP")
         end
         actor.actor_jt.jt_actor.par.solve_for = :vloop
         actor.actor_jt.jt_actor.par.vloop_from = :controllers__ip
@@ -139,7 +148,7 @@ function _step(actor::ActorDynamicPlasma)
                     finalize(step(actor.actor_jt))
                 end
             else
-                IMAS.IMASDD.retime!(dd.core_profiles, tt)
+                IMAS.retime!(dd.core_profiles, tt)
 
                 # run transport actor
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
@@ -188,7 +197,7 @@ function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractAc
         ("          time", dd.global_time),
         ("         stage", "$(name(actor)) ($phase/2)"),
         ("       Ip [MA]", IMAS.get_from(dd, Val{:ip}, :core_profiles) / 1E6),
-        ("     Ti0 [keV]", cp1d.ion[1].temperature[1] / 1E3),
+        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
     )
@@ -213,9 +222,11 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true)
+function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, kw...)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm)
+    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm, kw...)
+
+    cp1d = dd.core_profiles.profiles_1d[time0]
 
     # Ip and Vloop
     subplot = 1
@@ -232,6 +243,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(
         dd.core_profiles.time,
         dd.core_profiles.global_quantities.ip / 1E6;
+        ylim=extrema(dd.core_profiles.global_quantities.ip / 1E6),
         seriestype=:time,
         color=:blue,
         label="Ip  [MA]",
@@ -241,7 +253,6 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     )
     if IMAS.controller(dd.controllers, "ip") !== nothing
         plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
-        vline!([time0]; label="", subplot)
         time, data = IMAS.vloop_time(dd.controllers)
         plot!(
             twinx(),
@@ -255,6 +266,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
             subplot
         )
     end
+    vline!([time0]; label="", subplot)
 
     # equilibrium, build, and pf_active
     subplot = 2
@@ -262,16 +274,17 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
     plot!(dd.build; legend=false, subplot)
     plot!(dd.pf_active; time0, subplot, colorbar=:none, axis=false)
+    plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
 
     # core_profiles temperatures
     subplot = 3
     plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" initial", subplot, normalization=1E-3)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]")#, ylim=(0.0, 25.0))
+    plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]")#, ylim=(0.0, 25.0))
 
     # core_profiles densities
     subplot = 4
     plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
-    plot!(dd.core_profiles.profiles_1d[time0]; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
+    plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
 
     # q
     subplot = 9
@@ -286,6 +299,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     # core_sources
     subplot = 5
     plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation, weighted=:area, title="Parallel current source", normalization=1E-6, ylabel="[MA]")#, ylim=(0.0, 10.0))
+
     subplot = 6
     plot!(
         dd.core_sources;
@@ -300,6 +314,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         normalization=1E-6,
         ylabel="[MW]"
     )#, ylim=(-40.0, 41.0))
+
     subplot = 7
     plot!(
         dd.core_sources;
@@ -314,6 +329,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         normalization=1E-6,
         ylabel="[MW]"
     )#, ylim=(-40.0, 41.0))
+
     subplot = 8
     plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation, weighted=:volume, title="Electron particle source", ylabel="[s⁻¹]")#, ylim=(0.0, 1.1E20))
 
@@ -326,6 +342,15 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(dd.core_transport; time0, only=2, subplot)#, ylim=(0.0, 2.2E5))
     subplot = 12
     plot!(dd.core_transport; time0, only=3, subplot)#, ylim=(0.0, 6.5E17))
+
+    # # inverse scale lenghts
+    # max_scale = 5
+    # subplot = 14
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order); subplot, ylim=(-max_scale, max_scale), lw=2.0)
+    # subplot = 15
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :third_order); subplot, ylim=(-max_scale, max_scale), lw=2.0)
+    # subplot = 16
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order); subplot, ylim=(-max_scale, max_scale), lw=2.0)
 
     return p
 end

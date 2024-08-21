@@ -16,6 +16,7 @@ test_cases["SPARC"] = ([:SPARC], Dict())
 test_cases["KDEMO"] = ([:KDEMO], Dict())
 test_cases["DTT"] = ([:DTT], Dict())
 test_cases["EXCITE"] = ([:EXCITE], Dict())
+test_cases["MANTA"] = ([:MANTA], Dict())
 
 """
     test(testname::String, dd::IMAS.DD; sol::Bool=false, whole_facility::Bool=false)
@@ -53,11 +54,36 @@ for filename in readdir(joinpath(@__DIR__))
     end
 end
 
-function case_parameters(case::Symbol; kw...)
+"""
+    case_parameters(case::Symbol, args...; kw...)
+
+return `ini` and `act` for a use-case
+
+NOTE: if case starts with `test__` then the regression test cases are loaded
+"""
+function case_parameters(case::Symbol, args...; kw...)
+    case_str = string(case)
+    if startswith(case_str, "test__")
+        tmp, kw = test_cases[split(case_str,"__"; limit=2)[end]]
+        case = tmp[1]
+        if length(tmp) == 1
+            args = []
+        else
+            args = tmp[2:end]
+        end
+    end
+
     if length(methods(case_parameters, (Type{Val{case}},))) == 0
         throw(InexistentParameterException([case]))
     end
-    return case_parameters(Val{case}; kw...)
+
+    ini, act = case_parameters(Val{case}, args...; kw...)
+    
+    if startswith(case_str, "test__")
+        act.ActorStationaryPlasma.max_iter = 1
+    end
+
+    return ini, act
 end
 
 """

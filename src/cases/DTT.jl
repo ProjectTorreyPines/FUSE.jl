@@ -15,13 +15,9 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.equilibrium.B0 = 5.85
     ini.equilibrium.ip = 5.5e6
-
-    act.ActorStabilityLimits.raise_on_breach = false
     ini.equilibrium.pressure_core = 0.9e6
 
-    ini.equilibrium.xpoints = :double
-    act.ActorEquilibrium.symmetrize = true
-
+    ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 2.19
     ini.equilibrium.Z0 = -0.04
@@ -61,7 +57,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.pf_active.technology = :nb3sn_iter
     act.ActorPFdesign.symmetric = true
 
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :miller
     ini.tf.n_coils = 18
     ini.tf.technology = :nb3sn_iter
 
@@ -87,6 +83,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
 
     act.ActorFluxMatcher.evolve_densities = :flux_match
+    act.ActorStabilityLimits.raise_on_breach = false
 
     set_new_base!(ini)
     set_new_base!(act)
