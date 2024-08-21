@@ -73,7 +73,7 @@ nuke_julia:
 	mv $(call realpath,$(JULIA_DIR))/../asddsaasddsa $(JULIA_PKG_DEVDIR)
 
 # @user
-registry:
+install_registry:
 # Add the FuseRegistry to the list of Julia registries
 	julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General");'
 
@@ -100,7 +100,7 @@ LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="Fu
 
 # @devs
 develop:
-# Develop FUSE and FUSE-related packages
+# Develop FUSE and related ProjectTorreyPines packages
 	@julia -e '\
 fuse_packages = $(FUSE_PACKAGES);\
 using Pkg;\
@@ -108,10 +108,10 @@ Pkg.activate();\
 Pkg.develop([["FUSE"] ; fuse_packages]);\
 Pkg.add(["JuliaFormatter", "Test", "Plots"]);\
 '
-	@make revise
+	@make install_revise
 
 # @user
-revise:
+install_revise:
 # Setup Revise.jl to automatically be used when Julia starts
 	@echo "Setting Revise.jl to run at startup"
 	@julia -e 'using Pkg; Pkg.add("Revise")'
@@ -162,12 +162,12 @@ status:
 	done
 
 # @devs
-install_no_registry: registry clone_pull_all develop
+install_no_registry: install_registry clone_pull_all develop
 # Install FUSE without using the registry
 
 # @devs
-install_via_registry: registry develop
-# Install FUSE using the registry (requires registry to be up-to-date, which most likely are not! Don't use!)
+install_via_registry: install_registry develop
+# Install FUSE using the registry
 
 # @devs
 install_ci_add:
@@ -193,26 +193,42 @@ install_ci_add:
 	Pkg.status()'
 
 # @devs
-install_ci_dev: registry https_dev
+install_ci_dev: install_registry https_dev
 # Install used by CI (dev packages, do not add them)
 
 # @devs
 install: install_no_registry
 # Install with default install method (no registry)
 
-# @devs
-update_all: update
-# Update all dev packages and dependencies
-	@julia -e 'using Pkg; Pkg.resolve(); Pkg.update(); Pkg.precompile()'
+# @user
+update:
+# Update FUSE and its dependencies
+	@julia -e 'using Pkg; Pkg.resolve(); Pkg.update("FUSE"; preserve=Pkg.Types.PreserveLevel(2)); Pkg.precompile()'
+	make exec_update
+
+# @user
+update_fusebot:
+# updates the `fusebot` executable to the latest version
+	@if cmp -s fusebot `which fusebot`; then \
+		echo "fusebot is already up to date"; \
+	else \
+		cp fusebot `which fusebot`; \
+		echo "fusebot has been updated"; \
+	fi
 
 # @devs
-update:
+devs_update:
 # Pull changes for all ProjectTorreyPines packages that are in the .julia/dev folder and resolve environment
 	@echo $(DEV_PACKAGES)
 	@$(foreach repo,$(DEV_PACKAGES), \
 	(sh -c "cd $(JULIA_PKG_DEVDIR)/$(repo) && git pull 2>&1 | sed 's/^/$(repo): /'") & \
 	)
 	make resolve
+
+# @devs
+devs_update_all:devs_update
+# Update all dev packages and dependencies
+	@julia -e 'using Pkg; Pkg.resolve(); Pkg.update(); Pkg.precompile()'
 
 # @devs
 resolve:
@@ -226,7 +242,7 @@ clone_pull_all:
 	@make -i $(PARALLELISM) FUSE ServeFUSE GenerateDD $(FUSE_PACKAGES_MAKEFILE)
 
 # @devs
-playground: .PHONY
+install_playground: .PHONY
 # Clone FUSE_playground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
 	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
@@ -325,17 +341,17 @@ Pkg.develop([["FUSE"] ; fuse_packages]);\
 '
 
 # @devs
-FUSE_examples_dev:
+install_examples_dev:
 # Install FUSE_examples under FUSE/examples
 	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git examples ; else cd examples && git pull; fi
 
 # @user
-FUSE_examples:
+install_examples:
 # Install FUSE_examples in current folder
 	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FUSE_examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git ; else cd FUSE_examples && git pull; fi
 
 # @user
-IJulia:
+install_IJulia:
 # Install IJulia
 	julia -e '\
 	using Pkg;\
@@ -351,7 +367,7 @@ IJulia:
 	jupyter labextension list
 
 # @devs
-PyCall:
+install_PyCall:
 # Install PyCall
 	julia -e '\
 	ENV["PYTHON"]="";\
@@ -372,7 +388,7 @@ develop_docs:
 	'
 
 # @devs
-html: develop_docs
+docs: develop_docs
 # Generate documentation
 	cd docs; julia make.jl
 
@@ -407,21 +423,13 @@ clean_examples:
 	cd docs/src; rm -rf example_*.md
 
 # @devs
-all_examples: clean_examples examples
+run_examples: clean_examples
 # Clean and run all examples
-
-# @devs
-run_examples: .PHONY
-# Run all examples
 	cd docs; julia notebooks_to_md.jl --execute
 
 # @devs
-all_blank_examples: clean_examples blank_examples
+blank_examples:clean_examples
 # Clean and convert examples to md without executing
-
-# @devs
-blank_examples:
-# Convert examples to md without executing
 	cd docs; julia notebooks_to_md.jl
 
 # @devs
@@ -502,7 +510,7 @@ https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
 -d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 # @devs
-apache: error_missing_repo_var
+make_apache: error_missing_repo_var
 # Update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
 # The starting information is taken from IMASdd.jl and moved to the target repo
 # >> make apache repo=CHEASE
@@ -707,19 +715,6 @@ ifeq ($(repo),)
 	$(error `repos` variable is not set)
 endif
 
-# @devs
-cherry_pick_to_master: error_missing_repo_var
-# Take latest commit on feature branch and pushes it to master
-	cd ../$(repo) && \
-	git stash; \
-	LATEST_COMMIT=$$(git rev-parse HEAD); \
-	git checkout master; \
-	git pull; \
-	git cherry-pick $$LATEST_COMMIT; \
-	git push origin master; \
-	git checkout -; \
-	git stash pop
-
 user_help:
 # Print users makefile commands help
 	@awk ' \
@@ -822,16 +817,6 @@ devs_help:
 			} \
 		}' $(MAKEFILE_LIST)
 
-# @user
-self_update:
-# update the `ptp` executable to the latest version
-	@if cmp -s ptp `which ptp`; then \
-		echo "ptp is already up to date"; \
-	else \
-		cp ptp `which ptp`; \
-		echo "ptp has been updated"; \
-	fi
-
 header:
 	@printf "\n"
 	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
@@ -844,8 +829,8 @@ header:
 
 help_info:
 	@printf "\n"
-	@printf ">> Use \`ptp user_help\` to get the users' list of commands\n"
-	@printf ">> Use \`ptp devs_help\` to get the developers' list of commands\n"
+	@printf ">> Use \`fusebot user_help\` to get the users' list of commands\n"
+	@printf ">> Use \`fusebot devs_help\` to get the developers' list of commands\n"
 	@printf "\n"
 
 .PHONY:

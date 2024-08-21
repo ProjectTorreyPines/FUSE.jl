@@ -948,25 +948,25 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
 end
 
 """
-    install_ptp(folder::String=dirname(readchomp(`which juliaup`)))
+    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
 
-This function installs the `ptp` executable in a given folder,
+This function installs the `fusebot` executable in a given folder,
 by default in the directory where the juliaup executable is located.
 """
-function install_ptp(folder::String=dirname(readchomp(`which juliaup`)))
-    fuse_ptp_path = joinpath(dirname(dirname(pathof(FUSE))), "ptp")
+function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    fuse_ptp_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
 
-    target_path = joinpath(folder, "ptp")
+    target_path = joinpath(folder, "fusebot")
 
     if !isfile(fuse_ptp_path)
-        error("The `ptp` executable does not exist in the FUSE directory!?")
+        error("The `fusebot` executable does not exist in the FUSE directory!?")
     end
 
     cp(fuse_ptp_path, target_path; force=true)
 
     if folder == dirname(readchomp(`which juliaup`))
-        println("`ptp` has been successfully installed in the Julia executable directory: $folder")
+        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
     else
-        println("`ptp` has been successfully installed in folder: $folder")
+        println("`fusebot` has been successfully installed in folder: $folder")
     end
 end

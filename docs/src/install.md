@@ -28,10 +28,10 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    using FUSE
    ```
 
-1. Install the `ptp` utility to simplify install/updates later on. Now `ptp` should be a command that you can type anywhere from the terminal.
+1. Install the `fusebot` utility to simplify install/updates later on. Now `fusebot` should be a command that you can type anywhere from the terminal.
 
    ```julia
-   FUSE.install_ptp()
+   FUSE.install_fusebot()
    ```
 
 1. Run the regression tests (optional, this can take 1h+)
@@ -43,8 +43,21 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FUSE_examples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
 
    ```bash
-   ptp FUSE_examples
+   fusebot FUSE_examples
    ```
+
+## Keeping FUSE up-to-date
+
+1. Get notified of new FUSE releases by "watching" the [FUSE repo on GitHub](https://github.com/ProjectTorreyPines/FUSE.jl)
+
+1. FUSE is [updated like any other Julia package](https://pkgdocs.julialang.org/v1/managing-packages/#updating):
+
+    ```julia
+    ] up
+    ```
+
+!!! tip
+    Become familiar with how [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/) works.
 
 ## Install Jupyter-Lab and add the Julia kernel to it
 1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system 
@@ -52,11 +65,11 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 1. Install the `IJulia` package by running:
 
    ```bash
-   ptp IJulia
+   fusebot install_IJulia
    ```
 
    !!! note
-       Run `ptp IJulia` every time a new julia version is installed.
+       Run `fusebot install_IJulia` every time a new julia version is installed.
 
        This will setup the single- and multi-thread julia kernels in Jupyter.
 

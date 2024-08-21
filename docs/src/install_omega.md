@@ -56,10 +56,10 @@
    cd ~/julia_dev/FUSE
 
    export JULIA_NUM_THREADS=10
-   ptp IJulia
+   fusebot install_IJulia
 
    export JULIA_NUM_THREADS=40
-   ptp IJulia
+   fusebot install_IJulia
    ```
    OMEGA login nodes are a shared resource. Each login node has 40 cores.
    This will setup a Jupyter Julia kernel with both 10 and 40 threads.
