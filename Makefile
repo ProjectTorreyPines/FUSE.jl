@@ -207,7 +207,7 @@ update:
 	make exec_update
 
 # @user
-update_fusebot:
+self_update:
 # updates the `fusebot` executable to the latest version
 	@if cmp -s fusebot `which fusebot`; then \
 		echo "fusebot is already up to date"; \
