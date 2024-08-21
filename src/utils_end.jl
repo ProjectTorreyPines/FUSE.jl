@@ -954,19 +954,24 @@ This function installs the `fusebot` executable in a given folder,
 by default in the directory where the juliaup executable is located.
 """
 function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
-    fuse_ptp_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
-
+    fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
     target_path = joinpath(folder, "fusebot")
+    ptp_target_path = joinpath(folder, "ptp")
 
-    if !isfile(fuse_ptp_path)
+    if !isfile(fusebot_path)
         error("The `fusebot` executable does not exist in the FUSE directory!?")
     end
 
-    cp(fuse_ptp_path, target_path; force=true)
+    cp(fusebot_path, target_path; force=true)
 
     if folder == dirname(readchomp(`which juliaup`))
         println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
     else
         println("`fusebot` has been successfully installed in folder: $folder")
+    end
+
+    if isfile(ptp_target_path)
+        rm(ptp_target_path)
+        println("Old `ptp` has been successfully removed from folder: $folder")
     end
 end
