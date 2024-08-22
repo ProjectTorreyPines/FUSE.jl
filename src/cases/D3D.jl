@@ -86,6 +86,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         act.ActorHCD.ec_model = :none
         act.ActorHCD.lh_model = :none
         act.ActorHCD.ic_model = :none
+        act.ActorHCD.pellet_model = :none
     else
         empty!(ini.general.dd.core_sources)
         ini.nb_unit[1].power_launched = shot_mappings[scenario][:nbi_power]
