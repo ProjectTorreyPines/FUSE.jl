@@ -114,6 +114,8 @@ function _step(actor::ActorStationaryPlasma)
     cp1d = dd.core_profiles.profiles_1d[]
     try
 
+        logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iter)")
+
         # unless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
 
@@ -150,13 +152,13 @@ function _step(actor::ActorStationaryPlasma)
 
             # evaluate change in current and pressure profiles after the update
             j_tor = cp1d.j_tor
-            dj2 = (k, x) -> (j_tor[k] .- j_tor_before[k]) ^ 2
-            j2  = (k, x) -> j_tor_before[k] ^ 2
+            dj2 = (k, x) -> (j_tor[k] .- j_tor_before[k])^2
+            j2 = (k, x) -> j_tor_before[k]^2
             error_jtor = trapz(cp1d.grid.area, dj2) / trapz(cp1d.grid.area, j2)
 
             pressure = cp1d.pressure
-            dp2 = (k, x) -> (pressure[k] .- pressure_before[k]) ^ 2
-            p2  = (k, x) -> pressure_before[k] ^ 2
+            dp2 = (k, x) -> (pressure[k] .- pressure_before[k])^2
+            p2 = (k, x) -> pressure_before[k]^2
             error_pressure = trapz(cp1d.grid.volume, dp2) / trapz(cp1d.grid.volume, p2)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
@@ -175,6 +177,12 @@ function _step(actor::ActorStationaryPlasma)
                 @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
+
+            logging(
+                Logging.Info,
+                :actors,
+                " "^workflow_depth(actor.dd) * "--------------- $(length(total_error))/$(par.max_iter) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
+            )
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iter)
                 @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(collect(map(x->round(x,digits = 3),total_error))) compared to threshold of $(par.convergence_error)"
