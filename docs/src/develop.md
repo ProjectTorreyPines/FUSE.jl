@@ -2,10 +2,6 @@
 
 The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE and reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository.
 
-## Packages organization
-
-....
-
 ## Managing Pull Requests on GitHub: A Collaborative Approach
 
 ### Use branches and pull requests
@@ -259,6 +255,7 @@ Let's now investigate where the issue is with the function that we have identifi
 
 1. To build the documentation, in the `FUSE/docs` folder, start Julia then:
    ```julia
+   ] activate .
    include("make.jl")
    ```
    !!! tip Interactive documentation build
@@ -280,19 +277,19 @@ Let's now investigate where the issue is with the function that we have identifi
 
 ## Examples
 
-The `FUSE/examples` folder contains jupyter notebook that showcase some possible uses of FUSE.
+The `FUSE_examples` repository contains jupyter notebook that showcase some possible uses of FUSE.
 
 !!! note
-    When pushing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the FUSE repository in check.
+    When pushing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
 
 ## Using Revise.jl
 
 Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
 We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions.
-All this can be done by running in the `FUSE` folder:
+This can be done by running:
 
 ```bash
-make revise
+fusebot install_revise
 ```
 
 ## Development in VScode
@@ -309,7 +306,7 @@ FUSE uses the following VScode settings for formatting the Julia code:
     "editor.tabSize": 4,
     "editor.detectIndentation": false,
     "[julia]": {
-        "editor.defaultFormatter": "singularitti.vscode-julia-formatter"
+        "editor.defaultFormatter": "julialang.language-julia"
     },
     "juliaFormatter.margin": 160,
     "juliaFormatter.alwaysForIn": true,
