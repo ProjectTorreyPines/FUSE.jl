@@ -239,7 +239,7 @@ resolve:
 clone_pull_all:
 # Clone and update all FUSE packages
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
-	@make -i $(PARALLELISM) FUSE ServeFUSE GenerateDD $(FUSE_PACKAGES_MAKEFILE)
+	@make -i $(PARALLELISM) FUSE GenerateDD $(FUSE_PACKAGES_MAKEFILE)
 
 # @devs
 install_playground: .PHONY
