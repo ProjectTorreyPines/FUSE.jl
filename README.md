@@ -37,7 +37,7 @@ FUSE is written completely in Julia, and is structured as follows:
 1. FUSE can interface with the existing GA ecosystem of modeling codes (OMFIT/OMAS) as well as IMAS
 
 These concepts are illustrated in the diagram below:
-![svg](./assets/FUSE.svg)
+![svg](./docs/src/assets/FUSE.svg)
 
 ## Usage example
 Here is an example, illustrating how a simple FUSE simulation can be setup and run in Julia:
