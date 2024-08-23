@@ -329,7 +329,7 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
     return df
 end
 
-function Base.show(io::IO, ::MIME"text/plain", coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
+function Base.show(io::IO, ::MIME"text/plain", coils::IMAS.IDSvector{<:Union{IMAS.pf_active__coil,IMAS.pf_active__supply}})
     old_lines = get(ENV, "LINES", missing)
     old_columns = get(ENV, "COLUMNS", missing)
     df = DataFrames.DataFrame(coils)
@@ -349,4 +349,22 @@ function Base.show(io::IO, ::MIME"text/plain", coils::IMAS.IDSvector{<:IMAS.pf_a
             ENV["COLUMNS"] = old_columns
         end
     end
+end
+
+#= ============================================= =#
+#  Visualization of IMAS.pf_active.supply as table  #
+#= ============================================= =#
+function DataFrames.DataFrame(supplies::IMAS.IDSvector{<:IMAS.pf_active__supply})
+
+    df = DataFrames.DataFrame(;
+        name=String[],
+        voltage_limits=Tuple{Float64,Float64}[],
+        current_limits=Tuple{Float64,Float64}[],
+    )
+
+    for supply in supplies
+        push!(df, [supply.name, (supply.voltage_limit_min, supply.voltage_limit_max), (supply.current_limit_min, supply.current_limit_max)])
+    end
+
+    return df
 end
