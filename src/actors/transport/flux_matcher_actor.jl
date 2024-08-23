@@ -149,6 +149,9 @@ function _step(actor::ActorFluxMatcher)
     # evaluate profiles at the best-matching gradients
     out = flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
     actor.error = norm(out.errors)
+    @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
+    @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
+    dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
