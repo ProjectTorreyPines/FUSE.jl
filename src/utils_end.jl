@@ -517,7 +517,7 @@ function digest(
 
     # pf active
     sec += 1
-    if !isempty(dd.pf_active.coil) && section ∈ (0, sec)
+    if !isempty(dd.pf_active.coil) && !ismissing(dd.equilibrium,:time) && section ∈ (0, sec)
         println('\u200B')
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
@@ -526,7 +526,19 @@ function digest(
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false)
         plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
-        plot!(p, dd.build.pf_active.rail, subplot=2)
+        plot!(p, dd.build.pf_active.rail; subplot=2)
+        display(p)
+    end
+
+    # circuits
+    sec += 1
+    if !isempty(dd.pf_active.circuit) && section ∈ (0, sec)
+        println('\u200B')
+        l = @layout length(dd.pf_active.circuit)
+        p = plot(; layout=l, size=(900, 900))
+        for (k, circuit) in enumerate(dd.pf_active.circuit)
+            plot!(p, circuit; subplot=k)
+        end
         display(p)
     end
 
