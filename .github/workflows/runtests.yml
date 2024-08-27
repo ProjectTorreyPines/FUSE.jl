@@ -26,17 +26,14 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
-    runs-on: ${{ matrix.os }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os-arch.os }} - ${{ matrix.os-arch.arch }}
+    runs-on: ${{ matrix.os-arch.os }}
     strategy:
       fail-fast: false
       matrix:
-        version:
-          - "1.x"
-        os:
-          - ubuntu-latest
-        arch:
-          - x64
+        os-arch:
+          - { os: ubuntu-latest, arch: x64 }
+          - { os: macos-latest, arch: arm64 }
     env:
         GKSwstype: 100 # disable Plots.jl interactive output
     steps:
@@ -61,7 +58,7 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
-          arch: ${{ matrix.arch }}
+          arch: ${{ matrix.os-arch.arch }}
           show-versioninfo: true
 
       - name: Generate cache key with date
