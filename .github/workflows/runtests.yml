@@ -26,14 +26,14 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os-arch.os }} - ${{ matrix.os-arch.arch }}
-    runs-on: ${{ matrix.os-arch.os }}
+    name: Julia ${{ matrix.flavor.version }} - ${{ matrix.flavor.os }} - ${{ matrix.flavor.arch }}
+    runs-on: ${{ matrix.flavor.os }}
     strategy:
       fail-fast: false
       matrix:
-        os-arch:
-          - { os: ubuntu-latest, arch: x64 }
-          - { os: macos-latest, arch: arm64 }
+        flavor:
+          - { os: ubuntu-latest, arch: x64, version: "1.x" }
+          - { os: macos-latest, arch: arm64, version: "1.x" }
     env:
         GKSwstype: 100 # disable Plots.jl interactive output
     steps:
@@ -57,8 +57,8 @@ jobs:
 
       - uses: julia-actions/setup-julia@v1
         with:
-          version: ${{ matrix.version }}
-          arch: ${{ matrix.os-arch.arch }}
+          version: ${{ matrix.flavor.version }}
+          arch: ${{ matrix.flavor.arch }}
           show-versioninfo: true
 
       - name: Generate cache key with date
@@ -73,7 +73,7 @@ jobs:
             ~/.julia/artifacts
             ~/.julia/packages
             ~/.julia/compiled
-          key: ${{ runner.os }}-julia-${{ matrix.version }}-${{ steps.cache-date.outputs.date }}
+          key: ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-${{ steps.cache-date.outputs.date }}
       
       - name: Add FuseRegistry
         run: |
