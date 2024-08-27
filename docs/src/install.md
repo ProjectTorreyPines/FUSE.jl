@@ -43,7 +43,7 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FUSE_examples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
 
    ```bash
-   fusebot FUSE_examples
+   fusebot install_examples
    ```
 
 ## Keeping FUSE up-to-date
