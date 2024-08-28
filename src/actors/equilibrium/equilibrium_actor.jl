@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
-    j_p_from::Switch{Symbol} = Switch([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
+    j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0)
     #== display and debugging parameters ==#
@@ -134,11 +134,13 @@ Prepare `dd.equilibrium` to run equilibrium actors
 """
 function prepare(actor::ActorEquilibrium)
     dd = actor.dd
+    par = actor.par
+
     ps = dd.pulse_schedule
     pc = ps.position_control
 
     # make sure j_tor and pressure on axis come in with zero gradient
-    if par.profiles_from == :core_profiles
+    if par.j_p_from == :core_profiles
         @assert !isempty(dd.core_profiles.time)
         cp1d = dd.core_profiles.profiles_1d[]
         index = cp1d.grid.psi_norm .> 0.05
@@ -149,7 +151,7 @@ function prepare(actor::ActorEquilibrium)
         pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
         j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
         p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
-    else
+    elseif par.j_p_from == :equilibrium
         @assert !isempty(dd.equilibrium.time)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
         psi0 = eqt1d.psi
@@ -159,6 +161,8 @@ function prepare(actor::ActorEquilibrium)
         pressure0 = eqt1d.pressure
         j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
         p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
+    else
+        @assert par.j_p_from in (:core_profiles, :equilibrium)
     end
 
     # get ip and b0 before wiping eqt in case ip_from=:equilibrium
