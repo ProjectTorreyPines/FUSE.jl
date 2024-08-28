@@ -92,7 +92,7 @@ jobs:
       - name: 'Save Manifest.toml'
         uses: actions/upload-artifact@v4
         with:
-            name: Manifest.toml
+            name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
             path: Manifest.toml
 
       - uses: julia-actions/julia-buildpkg@v1
