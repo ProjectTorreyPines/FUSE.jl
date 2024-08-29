@@ -332,7 +332,7 @@ end
 """
     load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
 
-Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
+Read (`dd`, `ini`, `act`) from `dd.json/h5`, `ini.json/yaml`, and `act.json/yaml` files.
 
 Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
@@ -341,22 +341,34 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
         @warn "$savedir simulation errored"
         return missing, missing, missing
     end
-    dd = missing
-    if load_dd
-        if isfile(joinpath(savedir, "dd.h5"))
-            dd = IMAS.hdf2imas(joinpath(savedir, "dd.h5"))
-        elseif isfile(joinpath(savedir, "dd.json"))
-            dd = IMAS.json2imas(joinpath(savedir, "dd.json"))
-        end
+
+    # dd
+    if load_dd && isfile(joinpath(savedir, "dd.h5"))
+        dd = IMAS.hdf2imas(joinpath(savedir, "dd.h5"))
+    elseif load_dd && isfile(joinpath(savedir, "dd.json"))
+        dd = IMAS.json2imas(joinpath(savedir, "dd.json"))
+    else
+        dd = missing
     end
-    ini = missing
+
+    # ini
     if load_ini && isfile(joinpath(savedir, "ini.json"))
         ini = json2ini(joinpath(savedir, "ini.json"))
+    elseif load_ini && isfile(joinpath(savedir, "ini.yaml"))
+        ini = yaml2ini(joinpath(savedir, "ini.yaml"))
+    else
+        ini = missing
     end
-    act = missing
+
+    # act
     if load_act && isfile(joinpath(savedir, "act.json"))
         act = json2act(joinpath(savedir, "act.json"))
+    elseif load_act && isfile(joinpath(savedir, "act.yaml"))
+        act = yaml2act(joinpath(savedir, "act.yaml"))
+    else
+        act = missing
     end
+
     return (dd=dd, ini=ini, act=act)
 end
 
