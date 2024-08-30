@@ -206,8 +206,8 @@ function init_pf_active!(
         else
             layer_hfs = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k].identifier, fs=_hfs_)
             layer_lfs = IMAS.get_build_layer(bd.layer; identifier=bd.layer[k].identifier, fs=_lfs_)
-            dcoil = min(layer_hfs.thickness, layer_lfs.thickness) / 2.0
-            coil_size = dcoil / sqrt(2) * 2 - coils_cleareance[krail]
+            dcoil = (layer_hfs.thickness + layer_lfs.thickness) / 2.0 / 2.0
+            coil_size = dcoil / sqrt(2) * 2
             rail_r, rail_z = buffer(rail_r, rail_z, layer_hfs.thickness / 2.0, layer_lfs.thickness / 2.0)
         end
         rail_r, rail_z = IMAS.resample_2d_path(rail_r, rail_z; step=dr / 3.0)
