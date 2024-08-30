@@ -114,7 +114,7 @@ function _step(actor::ActorFluxMatcher)
     ftol = 1E-4 # relative error
     xtol = 1E-3 # difference in input array
 
-    prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
+    prog = (progressmeter=ProgressMeter.ProgressUnknown(ftol; desc="Calls:", enabled=par.verbose), calls=[0], time=[0.0])
     old_logging = actor_logging(dd, false)
 
     if par.optimizer_algorithm == :none
@@ -152,6 +152,7 @@ function _step(actor::ActorFluxMatcher)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
     dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
+    ProgressMeter.finish!(prog.progressmeter; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
 
     if par.do_plot
         display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
@@ -277,7 +278,13 @@ function flux_match_errors(
 
     if !isempty(save_input_tglf_folder)
         if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
-            input_tglfs = TGLFNN.InputTGLF(dd, par.rho_transport, actor.actor_ct.actor_turb.par.sat_rule, actor.actor_ct.actor_turb.par.electromagnetic, actor.actor_ct.actor_turb.par.lump_ions)
+            input_tglfs = TGLFNN.InputTGLF(
+                dd,
+                par.rho_transport,
+                actor.actor_ct.actor_turb.par.sat_rule,
+                actor.actor_ct.actor_turb.par.electromagnetic,
+                actor.actor_ct.actor_turb.par.lump_ions
+            )
         else
             input_tglfs = actor.actor_ct.actor_turb.input_tglfs
         end
@@ -312,9 +319,15 @@ function flux_match_errors(
     # update error history
     push!(err_history, norm(errors))
 
-    # update progress meter
+    # update progress meter (snow changes no faster than 100 ms)
     if prog !== nothing
-        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
+        prog.calls[1] += 1
+        if prog.time[1] == 0.0 || time() - prog.time[1] > 0.1
+            prog.progressmeter.counter += prog.calls[1] - 1
+            ProgressMeter.next!(prog.progressmeter; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
+            prog.calls[1] = 0
+            prog.time[1] = time()
+        end
     end
 
     return (targets=targets, fluxes=fluxes, errors=errors)
