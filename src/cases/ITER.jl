@@ -43,26 +43,23 @@ function case_parameters(
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = boundary_from
 
-    R0 = 6.2
-    Z0 = 0.4
-    ϵ = 0.32
-    κ = 1.85
-    δ = 0.485
-    ζ = -0.09583
-    𝚶 = 0.15912
     if boundary_from == :scalars
-        ini.equilibrium.R0 = R0
-        ini.equilibrium.Z0 = Z0
-        ini.equilibrium.ϵ = ϵ
-        ini.equilibrium.κ = κ
-        ini.equilibrium.δ = δ
-        ini.equilibrium.ζ = ζ
-        ini.equilibrium.𝚶 = 𝚶
+        ini.equilibrium.R0 = 6.2
+        ini.equilibrium.Z0 = 0.4
+        ini.equilibrium.ϵ = 0.32
+        ini.equilibrium.κ = 1.85
+        ini.equilibrium.δ = 0.485
+        ini.equilibrium.ζ = -0.09583
+        ini.equilibrium.𝚶 = 0.15912
     elseif boundary_from == :MXH_params
-        ini.equilibrium.MXH_params = [
-            R0, Z0, ϵ, κ, 0.00337,
-            0.15912, -0.05842, -0.04573, 0.00694, 0.00614, 0.00183,
-            asin(δ), -ζ, -0.05597, -0.01655, 0.00204, 0.00306]
+        R0 = 6.192066877538616
+        Z0 = 0.35168671862415857
+        ϵ = 0.32360681350046777
+        κ = 1.8457782310407964
+        c0 = 0.013312894232172886
+        c = [0.18097024640622442, -0.06587365660361746]
+        s = [0.4532039691273859, 0.11378936281355961]
+        ini.equilibrium.MXH_params = [R0, Z0, ϵ, κ, c0, c..., s...]
     elseif boundary_from == init_from == :ods
         # pass
     else
