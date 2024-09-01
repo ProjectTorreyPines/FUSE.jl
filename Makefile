@@ -482,8 +482,8 @@ rm_manifests:
 	@find ..  -maxdepth 3 -type f -name "Manifest.toml" -exec rm -f \{\} \;
 
 # @devs
-dd:
-# Update dd from the json files
+generate_dd:
+# Update dd from the json files in IMASdd
 	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
 
 # @devs
