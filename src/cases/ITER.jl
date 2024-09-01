@@ -50,6 +50,7 @@ function case_parameters(
         ini.equilibrium.κ = 1.85
         ini.equilibrium.δ = 0.485
         ini.equilibrium.ζ = -0.09583
+        ini.equilibrium.tilt = 0.01
         ini.equilibrium.𝚶 = 0.15912
     elseif boundary_from == :MXH_params
         R0 = 6.192066877538616

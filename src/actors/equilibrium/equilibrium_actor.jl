@@ -189,6 +189,8 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.elongation = @ddtime(pc.elongation.reference)
     eqt.boundary.triangularity = @ddtime(pc.triangularity.reference)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference)
+    eqt.boundary.tilt = @ddtime(pc.tilt.reference)
+    eqt.boundary.ovality = @ddtime(pc.ovality.reference)
 
     # x-points from position control
     if !isempty(getproperty(pc, :x_point, []))
