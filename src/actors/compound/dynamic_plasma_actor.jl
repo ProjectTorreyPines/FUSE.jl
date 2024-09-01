@@ -102,14 +102,25 @@ function _step(actor::ActorDynamicPlasma)
 
     # setup things for Ip control
     if par.ip_controller
+        # guess PID gains based on resistivity
         conductivity_parallel = cp1d.conductivity_parallel
         f = (k, x) -> 1.0 / conductivity_parallel[k]
         η_avg = trapz(cp1d.grid.area, f) / cp1d.grid.area[end]
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
-        IMAS.pid_controller(ctrl_ip, η_avg * 5.0, η_avg * 0.5, 0.0)
+        P = η_avg * 5.0
+        I = η_avg * 0.5
+        D = 0.0
+        # instantiate PID controller
+        IMAS.pid_controller(ctrl_ip, P, I, D)
         if IMAS.fxp_request_service(ctrl_ip)
             @info("Running Ip controller via FXP")
         end
+        # initial guess for Vloop
+        Vloop0 = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
+        ip_control(ctrl_ip, dd; time0=dd.global_time - δt)
+        ctrl_ip.inputs.data[1, 1] = Vloop0 / I / δt * 1.5
+        ctrl_ip.outputs.data[1, 1] = Vloop0
+        # take vloop from controller
         actor.actor_jt.jt_actor.par.solve_for = :vloop
         actor.actor_jt.jt_actor.par.vloop_from = :controllers__ip
     else
@@ -143,7 +154,7 @@ function _step(actor::ActorDynamicPlasma)
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
                 if par.evolve_current
                     if par.ip_controller
-                        controller(dd, Val{:ip})
+                        ip_control(ctrl_ip, dd)
                     end
                     finalize(step(actor.actor_jt))
                 end
