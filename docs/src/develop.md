@@ -36,28 +36,7 @@ end
 Calculates DT fusion heating with an estimation of the alpha slowing down to the ions and electrons, modifies dd.core_sources
 """
 function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
-    cp1d = cp.profiles_1d[]
-
-    polarized_fuel_fraction = getproperty(cp.global_quantities, :polarized_fuel_fraction, 0.0)
-    α = alpha_heating(cp1d; polarized_fuel_fraction)
-    if sum(α) == 0
-        deleteat!(cs.source, "identifier.index" => 6)
-        return cs
-    end
-    ion_to_electron_fraction = sivukhin_fraction(cp1d, 3.5e6, 4.0)
-
-    source = resize!(cs.source, :fusion; allow_multiple_matches=true)
-    new_source(
-        source,
-        source.identifier.index,
-        "α",
-        cp1d.grid.rho_tor_norm,
-        cp1d.grid.volume,
-        cp1d.grid.area;
-        electrons_energy=α .* (1.0 .- ion_to_electron_fraction),
-        total_ion_energy=α .* ion_to_electron_fraction
-    )
-    return source
+    # // actual implementation here //
 end
 ```
 
