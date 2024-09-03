@@ -78,15 +78,22 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf)
 end
 
-function _step(actor::ActorDynamicPlasma)
+function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
     dd = actor.dd
     par = actor.par
-    cp1d = dd.core_profiles.profiles_1d[]
+
+    Δt = par.Δt
+    Nt = par.Nt
+    δt = Δt / Nt
+
+    if n_steps != 0
+        Nt = n_steps
+        Δt = δt * δt
+    end
 
     # time constants
-    δt = par.Δt / par.Nt
     t0 = dd.global_time
-    t1 = t0 + par.Δt
+    t1 = t0 + Δt
 
     # set Δt of the time-dependent actors
     if actor.actor_jt.par.model == :QED
@@ -111,14 +118,18 @@ function _step(actor::ActorDynamicPlasma)
         actor.actor_jt.jt_actor.par.ip_from = :pulse_schedule
     end
 
-    prog = ProgressMeter.Progress(par.Nt * 9; dt=0.0, showspeed=true, enabled=par.verbose)
+    step_calls_per_2loop = 9
+    prog = ProgressMeter.Progress(Nt * step_calls_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     # this is to fix an issue where having data at the base layer prevents the evaluation of expressions on the lazy copied IDSs
     empty!(dd.core_profiles.profiles_1d[], :j_tor)
 
     try
-        for (kk, tt) in enumerate(range(t0, t1, 2 * par.Nt + 1)[2:end])
+        for (kk, tt) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
+            phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
+            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- $(Int(ceil(kk/2))) $phase/2 @ $tt")
+
             dd.global_time = tt
 
             # prepare time dependent arrays of structures
@@ -130,11 +141,11 @@ function _step(actor::ActorDynamicPlasma)
             IMAS.new_timeslice!(dd.equilibrium, tt)
             IMAS.new_timeslice!(dd.core_sources, tt)
 
-            if mod(kk, 2) == 1
+            if phase == 1
                 IMAS.new_timeslice!(dd.core_profiles, tt)
 
                 # evolve j_ohmic
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, mod(kk, 2) + 1))
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, phase))
                 if par.evolve_current
                     if par.ip_controller
                         ip_control(ctrl_ip, dd)
@@ -145,46 +156,55 @@ function _step(actor::ActorDynamicPlasma)
                 IMAS.retime!(dd.core_profiles, tt)
 
                 # run transport actor
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, mod(kk, 2) + 1))
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, phase))
                 if par.evolve_transport
                     finalize(step(actor.actor_tr))
                 end
 
                 # run pedestal actor
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, mod(kk, 2) + 1))
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, phase))
                 if par.evolve_pedestal
                     finalize(step(actor.actor_ped))
                 end
+
             end
 
             # run equilibrium actor with the updated beta
-            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, mod(kk, 2) + 1))
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, phase))
             if par.evolve_equilibrium
                 finalize(step(actor.actor_eq))
             end
 
             # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, mod(kk, 2) + 1))
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, phase))
             if par.evolve_hcd
                 finalize(step(actor.actor_hc))
             end
 
             # run the pf_active actor to get update coil currents
-            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, mod(kk, 2) + 1))
+            ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, phase))
             if par.evolve_pf_active
                 finalize(step(actor.actor_pf))
             end
+
+            # allow running `FUSE.step(actor; n_steps=1)`
+            if n_steps > 0 && Int(floor(kk / 2)) == n_steps
+                break
+            end
         end
+
     finally
         actor_logging(dd, old_logging)
     end
+
+    logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "---------------")
 
     return actor
 end
 
 function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
     dd = actor.dd
-    cp1d = dd.core_profiles.profiles_1d[]
+    cp1d = dd.core_profiles.profiles_1d[end]
     return (
         ("    start time", t0),
         ("      end time", t1),
