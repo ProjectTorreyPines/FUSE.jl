@@ -187,10 +187,11 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference)
     eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference)
     eqt.boundary.elongation = @ddtime(pc.elongation.reference)
+    eqt.boundary.tilt = @ddtime(pc.tilt.reference)
     eqt.boundary.triangularity = @ddtime(pc.triangularity.reference)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference)
-    eqt.boundary.tilt = @ddtime(pc.tilt.reference)
     eqt.boundary.ovality = @ddtime(pc.ovality.reference)
+    eqt.boundary.twist = @ddtime(pc.twist.reference)
 
     # x-points from position control
     if !isempty(getproperty(pc, :x_point, []))

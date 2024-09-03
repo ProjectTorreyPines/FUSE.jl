@@ -290,6 +290,7 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     IMAS.set_time_array(pc.triangularity, :reference, time0, sin(mxh.s[1]))
     IMAS.set_time_array(pc.squareness, :reference, time0, -mxh.s[2])
     IMAS.set_time_array(pc.ovality, :reference, time0, mxh.c[1])
+    IMAS.set_time_array(pc.twist, :reference, time0, mxh.c[2])
 
     # boundary
     resize!(pc.boundary_outline, length(pr); wipe=false)

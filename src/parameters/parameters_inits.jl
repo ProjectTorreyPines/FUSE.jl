@@ -46,10 +46,11 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     Z0::Entry{T} = Entry{T}("m", "Z offset of the machine midplane"; default=0.0)
     ϵ::Entry{T} = Entry{T}("-", "Plasma inverse aspect ratio (a/R0). NOTE: This also scales the radial build layers."; check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < ϵ < 1.0")
     κ::Entry{T} = Entry{T}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
-    δ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :triangularity)
-    ζ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
-    tilt::Entry{T} = Entry{T}("-", "Tilt of the plasma boundary"; default=0.0)
-    𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary for up-down asymmetric plasmas"; default=0.0)
+    tilt::Entry{T} = Entry{T}("-", "Tilt of the plasma boundary [MXH c0]"; default=0.0)
+    δ::Entry{T} = Entry{T}("-", "Triangularity of the plasma boundary [MXH sin(s1)]"; default=0.0)
+    ζ::Entry{T} = Entry{T}("-", "Squareness of the plasma boundary [MXH -s2]"; default=0.0)
+    𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary [MXH c1]"; default=0.0)
+    twist::Entry{T} = Entry{T}("-", "Twist of the plasma boundary [MXH c2]"; default=0.0)
     pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure"; check=x -> @assert x > 0.0 "must be: P > 0.0")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
@@ -365,7 +366,18 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.δ = sin(mxh.s[1])
     equilibrium.ζ = -mxh.s[2]
     equilibrium.tilt = mxh.c0
-    equilibrium.𝚶 = mxh.c[1]
+    if length(mxh.s) >= 1
+        equilibrium.δ = sin(mxh.s[1])
+    end
+    if length(mxh.s) >= 2
+        equilibrium.ζ = -mxh.s[2]
+    end
+    if length(mxh.c) >= 1
+        equilibrium.𝚶 = mxh.c[1]
+    end
+    if length(mxh.c) >= 2
+        equilibrium.twist = mxh.c[2]
+    end
     return equilibrium
 end
 
