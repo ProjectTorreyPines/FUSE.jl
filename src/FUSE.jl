@@ -133,7 +133,7 @@ include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
 
-include(joinpath("actors", "control", "controller_actor.jl"))
+include(joinpath("actors", "control", "ip_control.jl"))
 
 include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
