@@ -363,8 +363,6 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.R0 = mxh.R0
     equilibrium.Z0 = mxh.Z0
     equilibrium.κ = mxh.κ
-    equilibrium.δ = sin(mxh.s[1])
-    equilibrium.ζ = -mxh.s[2]
     equilibrium.tilt = mxh.c0
     if length(mxh.s) >= 1
         equilibrium.δ = sin(mxh.s[1])
