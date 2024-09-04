@@ -85,6 +85,7 @@ function _step(actor::ActorFluxMatcher)
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
     initial_cp1d = IMAS.freeze(cp1d)
+    initial_summary_ped = IMAS.freeze(dd.summary.local.pedestal)
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
@@ -117,21 +118,22 @@ function _step(actor::ActorFluxMatcher)
     prog = (progressmeter=ProgressMeter.ProgressUnknown(ftol; desc="Calls:", enabled=par.verbose), calls=[0], time=[0.0])
     old_logging = actor_logging(dd, false)
 
-    if par.optimizer_algorithm == :none
-        res = (zero=z_init_scaled,)
-    elseif par.optimizer_algorithm == :simple
-        res = flux_match_simple(actor, z_init_scaled, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
-    else
-        if par.optimizer_algorithm == :newton
-            opts = Dict(:method => :newton, :factor => par.step_size)
-        elseif par.optimizer_algorithm == :anderson
-            opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size * 0.5)
-        elseif par.optimizer_algorithm == :trust_region
-            opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
-        end
-        res = try
+    out = try
+
+        if par.optimizer_algorithm == :none
+            res = (zero=z_init_scaled,)
+        elseif par.optimizer_algorithm == :simple
+            res = flux_match_simple(actor, z_init_scaled, initial_cp1d, initial_summary_ped, z_scaled_history, err_history, ftol, xtol, prog)
+        else
+            if par.optimizer_algorithm == :newton
+                opts = Dict(:method => :newton, :factor => par.step_size)
+            elseif par.optimizer_algorithm == :anderson
+                opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size * 0.5)
+            elseif par.optimizer_algorithm == :trust_region
+                opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
+            end
             res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog).errors,
+                z -> flux_match_errors(actor, z, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog).errors,
                 z_init_scaled;
                 show_trace=false,
                 store_trace=false,
@@ -141,13 +143,16 @@ function _step(actor::ActorFluxMatcher)
                 xtol,
                 opts...
             )
-        finally
-            actor_logging(dd, old_logging)
         end
+
+        out = flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+
+    finally
+
+        actor_logging(dd, old_logging)
     end
 
     # evaluate profiles at the best-matching gradients
-    out = flux_match_errors(actor, collect(res.zero), initial_cp1d; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
     actor.error = norm(out.errors)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
@@ -223,7 +228,8 @@ end
     flux_match_errors(
         actor::ActorFluxMatcher,
         z_profiles_scaled::Vector{<:Real},
-        initial_cp1d::IMAS.core_profiles__profiles_1d;
+        initial_cp1d::IMAS.core_profiles__profiles_1d,
+        initial_summary_ped::IMAS.summary__local__pedestal;
         z_scaled_history::Vector=[],
         err_history::Vector{Float64}=Float64[],
         prog::Any=nothing,
@@ -236,7 +242,8 @@ NOTE: flux matching is done in physical units
 function flux_match_errors(
     actor::ActorFluxMatcher,
     z_profiles_scaled::Vector{<:Real},
-    initial_cp1d::IMAS.core_profiles__profiles_1d;
+    initial_cp1d::IMAS.core_profiles__profiles_1d,
+    initial_summary_ped::IMAS.summary__local__pedestal;
     z_scaled_history::Vector=[],
     err_history::Vector{Float64}=Float64[],
     prog::Any=nothing,
@@ -254,6 +261,7 @@ function flux_match_errors(
     if par.evolve_pedestal
         unpack_z_profiles(cp1d, par, z_profiles)
         actor.actor_ped.par.βn_from = :core_profiles
+        dd.summary.local.pedestal = deepcopy(initial_summary_ped)
         finalize(step(actor.actor_ped))
     end
 
@@ -485,6 +493,7 @@ end
         actor::ActorFluxMatcher,
         z_init::Vector{<:Real},
         initial_cp1d::IMAS.core_profiles__profiles_1d,
+        initial_summary_ped::IMAS.summary__local__pedestal,
         z_scaled_history::Vector,
         err_history::Vector{Float64},
         ftol::Float64,
@@ -497,6 +506,7 @@ function flux_match_simple(
     actor::ActorFluxMatcher,
     z_init_scaled::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
+    initial_summary_ped::IMAS.summary__local__pedestal,
     z_scaled_history::Vector,
     err_history::Vector{Float64},
     ftol::Float64,
@@ -507,7 +517,7 @@ function flux_match_simple(
 
     i = 0
     zprofiles_old = unscale_z_profiles(z_init_scaled)
-    targets, fluxes, errors = flux_match_errors(actor, z_init_scaled, initial_cp1d; z_scaled_history, err_history, prog)
+    targets, fluxes, errors = flux_match_errors(actor, z_init_scaled, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
     ferror = norm(errors)
     xerror = Inf
     step_size = par.step_size
@@ -520,7 +530,7 @@ function flux_match_simple(
         end
 
         zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
-        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
         xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
         zprofiles_old = zprofiles
     end
