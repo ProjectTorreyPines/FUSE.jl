@@ -56,7 +56,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             act.ActorPedestal,
             act;
             ip_from=:core_profiles,
-            βn_from=:equilibrium,
+            βn_from=:core_profiles,
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],

@@ -65,7 +65,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         dd,
         act.ActorPedestal,
         act;
-        ip_from=:equilibrium,
+        ip_from=:core_profiles,
         βn_from=:core_profiles,
         ne_from=:pulse_schedule,
         zeff_ped_from=:pulse_schedule,
