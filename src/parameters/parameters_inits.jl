@@ -399,7 +399,8 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
         if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
             dd.global_time = ini.time.simulation_start
             eqt = dd.equilibrium.time_slice[]
-            IMAS.flux_surfaces(eqt)
+            fw = IMAS.first_wall(dd.wall)
+            IMAS.flux_surfaces(eqt, fw.r, fw.z)
         else
             init_from = :scalars
         end

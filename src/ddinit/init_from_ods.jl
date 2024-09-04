@@ -20,7 +20,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
         # equilibrium
         if !isempty(dd1.equilibrium.time_slice)
             eqt = dd1.equilibrium.time_slice[]
-            IMAS.flux_surfaces(eqt)
+            fw = IMAS.first_wall(dd1.wall)
+            IMAS.flux_surfaces(eqt, fw.r, fw.z)
             if ismissing(ini.equilibrium, :R0) && !ismissing(dd1.equilibrium.vacuum_toroidal_field, :r0)
                 ini.equilibrium.R0 = dd1.equilibrium.vacuum_toroidal_field.r0
             end

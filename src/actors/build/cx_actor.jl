@@ -55,10 +55,11 @@ function _step(actor::ActorCXbuild)
     wall = dd.wall
 
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
-    wall_outline = IMAS.first_wall(wall)
-    if isempty(wall_outline.r) || par.rebuild_wall
+    fw = IMAS.first_wall(wall)
+    if isempty(fw.r) || par.rebuild_wall
         wall_from_eq!(wall, eqt, bd; par.divertor_size)
-        IMAS.flux_surfaces(eqt) # output of flux_surfaces depends on the wall
+        fw = IMAS.first_wall(wall)
+        IMAS.flux_surfaces(eqt, fw.r, fw.z) # output of flux_surfaces depends on the wall
     end
 
     # empty layer outlines and structures
@@ -77,7 +78,8 @@ function _step(actor::ActorCXbuild)
         port_regions!(bd; act.ActorLFSsizing.maintenance, act.ActorLFSsizing.tor_modularity, act.ActorLFSsizing.pol_modularity)
     end
 
-    IMAS.find_strike_points!(eqt, dd.divertors)
+    psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
+    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_first_open, dd.divertors)
 
     return actor
 end
@@ -162,12 +164,12 @@ function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::I
 end
 
 function wall_from_eq!(
-    wall::IMAS.wall,
-    eqt::IMAS.equilibrium__time_slice,
+    wall::IMAS.wall{T},
+    eqt::IMAS.equilibrium__time_slice{T},
     gap::Float64;
     upper_divertor::Bool,
     lower_divertor::Bool,
-    divertor_size::Real)
+    divertor_size::Real) where {T<:Real}
 
     upper_divertor = Int(upper_divertor)
     lower_divertor = Int(lower_divertor)
@@ -183,7 +185,7 @@ function wall_from_eq!(
 
     # lcfs and magnetic axis
     ψb = eqt.global_quantities.psi_boundary
-    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed)
+    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, T[], T[])
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -200,7 +202,7 @@ function wall_from_eq!(
     max_divertor_length = minor_radius * divertor_size
 
     # private flux regions sorted by distance from lcfs
-    private = IMAS.flux_surface(eqt, ψb, :open_no_wall)
+    private = IMAS.flux_surface(eqt, ψb, :open_no_wall, T[], T[])
     sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
 
     t = LinRange(0, 2π, 31)
@@ -349,7 +351,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
 
     ψb = eqt.profiles_1d.psi[end]
-    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed)
+    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, wall_layer.outline.r, wall_layer.outline.z)
     minor_radius = (maximum(rlcfs) - minimum(rlcfs)) / 2.0
 
     empty!(divertors)
@@ -357,7 +359,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     detected_upper = bd.divertors.upper.installed
     detected_lower = bd.divertors.lower.installed
 
-    private = IMAS.flux_surface(eqt, ψb, :open)
+    private = IMAS.flux_surface(eqt, ψb, :open, wall_layer.outline.r, wall_layer.outline.z)
     sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - ZA) != sign(pz[end] - ZA)
@@ -607,9 +609,9 @@ Translates 1D build to 2D cross-sections starting from R and Z coordinates of pl
 function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, pfa::IMAS.pf_active; n_points::Int)
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
 
-    wall_outline = IMAS.first_wall(wall)
-    pr = wall_outline.r
-    pz = wall_outline.z
+    fw = IMAS.first_wall(wall)
+    pr = fw.r
+    pz = fw.z
 
     # _plasma_ outline scaled to match 1D radial build
     start_radius = plasma.start_radius

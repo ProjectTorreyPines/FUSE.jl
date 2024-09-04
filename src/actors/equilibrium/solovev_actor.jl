@@ -192,7 +192,8 @@ function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.Abst
     eqt2d.grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, Int(ceil(ngrid * mxh_eq.S.κ)))
     eqt2d.psi = [mxh_eq(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt2d.grid.dim1, zz in eqt2d.grid.dim2]
 
-    IMAS.flux_surfaces(eqt)
+    fw = IMAS.first_wall(IMAS.top_dd(eqt).wall)
+    IMAS.flux_surfaces(eqt, fw.r, fw.z)
 
     return
 end

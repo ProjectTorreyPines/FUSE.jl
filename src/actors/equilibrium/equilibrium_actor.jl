@@ -98,7 +98,8 @@ function _finalize(actor::ActorEquilibrium)
 
     # add flux surfaces information
     try
-        IMAS.flux_surfaces(eqt)
+        fw = IMAS.first_wall(dd.wall)
+        IMAS.flux_surfaces(eqt, fw.r, fw.z)
     catch e
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
         par.do_plot && display(current())
