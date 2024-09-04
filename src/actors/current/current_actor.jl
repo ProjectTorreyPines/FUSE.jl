@@ -77,8 +77,9 @@ function _finalize(actor::ActorCurrent)
     finalize(actor.jt_actor)
 
     # freeze cp1d j_total and j_tor after johmic update
+    # important to freeze first j_total and then j_tor
     cp1d = dd.core_profiles.profiles_1d[]
-    for field in [:j_total, :j_tor]
+    for field in (:j_total, :j_tor)
         IMAS.refreeze!(cp1d, field)
     end
 
