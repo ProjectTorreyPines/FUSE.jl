@@ -450,32 +450,6 @@ daily_example_ci_commit:
 	git push --set-upstream origin examples_$(TODAY)
 endif
 
-ifdef GITHUB_ACTION
-# @devs
-manifest_ci_commit:
-# Commit manifest (this must only be run by the CI)
-	git config user.email "fuse-bot@fusion.gat.com"
-	git config user.name "fuse bot"
-	git config push.autoSetupRemote true
-	git fetch
-	git stash
-	git checkout manifest
-	git merge master
-	@sed 's/https:\/\/project-torrey-pines:$(PTP_READ_TOKEN)@/https:\/\//g' Manifest.toml > Manifest_CI.toml
-	git add Manifest_CI.toml
-	git commit --allow-empty -m "Manifest $(TODAY)"
-	git push --set-upstream origin manifest
-endif
-
-# @devs
-manifest_ci:
-# Run julia using the Manifest_CI.toml
-	@TEMP_DIR=$$(mktemp -d /var/tmp/manifest_ci.XXXXXX) &&\
-	echo $$TEMP_DIR &&\
-	sed "s/git@/https:\\/\\//g" Manifest_CI.toml > $$TEMP_DIR/Manifest.toml && \
-	cd $$TEMP_DIR &&\
-	julia -i -e 'using Pkg; Pkg.activate("."); Pkg.instantiate()'
-
 # @devs
 rm_manifests:
 # Remove all Manifest.toml files in the .julia/dev folder
