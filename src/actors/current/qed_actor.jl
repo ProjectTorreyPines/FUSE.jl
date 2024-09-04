@@ -154,7 +154,7 @@ it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
 function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Int)
-    R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
+    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
     rho_tor = eqt.profiles_1d.rho_tor
     gm1 = eqt.profiles_1d.gm1

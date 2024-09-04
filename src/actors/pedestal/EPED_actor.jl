@@ -170,11 +170,32 @@ function run_EPED(
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
     Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
-    a = eqt.boundary.minor_radius
-    κ = eqt.boundary.elongation
-    R = eqt.boundary.geometric_axis.r
-    δu = eqt.boundary.triangularity_upper
-    δl = eqt.boundary.triangularity_lower
+
+    #NOTE: EPED results can be very sensitive to δu, δl
+    #
+    #      eqt.boundary can have small changes in κ, δu, δl just due to contouring
+    #      This issue can be mitigated using higher grid resolutions in the equilibrium solver.
+    #
+    #      Here we use the flux surface right inside of the LCFS, and not the LCFS itself.
+    #      Not only this avoids these sensitivity issues, but it's actually more correct,
+    #      since the TOQ equilibrium used by EPED is a fixed boundary equilibrium solver,
+    #      and as such it cuts out psi at 99% or similar.
+    if false
+        R = eqt.boundary.geometric_axis.r
+        a = eqt.boundary.minor_radius
+        κ = eqt.boundary.elongation
+        δu = eqt.boundary.triangularity_upper
+        δl = eqt.boundary.triangularity_lower
+    elseif false
+        pr, pz = IMAS.boundary(dd.pulse_schedule.position_control)
+        R, a, κ, δu, δl, ζou, ζol, ζil, ζiu = IMAS.miller_R_a_κ_δ_ζ(pr, pz)
+    else
+        R = (eqt.profiles_1d.r_outboard[end-1] + eqt.profiles_1d.r_inboard[end-1]) / 2.0
+        a = (eqt.profiles_1d.r_outboard[end-1] - eqt.profiles_1d.r_inboard[end-1]) / 2.0
+        κ = eqt.profiles_1d.elongation[end-1]
+        δu = eqt.profiles_1d.triangularity_upper[end-1]
+        δl = eqt.profiles_1d.triangularity_lower[end-1]
+    end
 
     eped_inputs.a = a
     eped_inputs.betan = βn
