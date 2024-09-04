@@ -6,6 +6,12 @@ Originally developed by General Atomics, FUSE is now openly available under Apac
 ## Documentation
 https://fuse.help
 
+## Publication
+https://tinyurl.com/FUSEpaper
+
+## Presentation
+https://tinyurl.com/FUSEslideDeck
+
 ## FUSE objectives
 
 * Couple physics, engineering, control, costing, and balance of plant
@@ -16,7 +22,7 @@ https://fuse.help
 
 ## Installation
 
-FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). For installation:
+FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). First [install Julia](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#juliaup---julia-version-manager), then:
 
 ```julia
 using Pkg
@@ -41,6 +47,7 @@ These concepts are illustrated in the diagram below:
 
 ## Usage example
 Here is an example, illustrating how a simple FUSE simulation can be setup and run in Julia:
+
 ```julia
 using FUSE
 
