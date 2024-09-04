@@ -122,9 +122,6 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
     prog = ProgressMeter.Progress(Nt * step_calls_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
-    # this is to fix an issue where having data at the base layer prevents the evaluation of expressions on the lazy copied IDSs
-    empty!(dd.core_profiles.profiles_1d[], :j_tor)
-
     try
         for (kk, tt) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
@@ -155,16 +152,16 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
             else
                 IMAS.retime!(dd.core_profiles, tt)
 
-                # run transport actor
-                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, phase))
-                if par.evolve_transport
-                    finalize(step(actor.actor_tr))
-                end
-
                 # run pedestal actor
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, phase))
                 if par.evolve_pedestal
                     finalize(step(actor.actor_ped))
+                end
+
+                # run transport actor
+                ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_tr, phase))
+                if par.evolve_transport
+                    finalize(step(actor.actor_tr))
                 end
 
             end
