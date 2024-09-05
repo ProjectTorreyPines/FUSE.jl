@@ -613,7 +613,26 @@ dev_deps_tree:
 	'
 
 # @devs
-download_project_tomls: error_missing_repo_var
+list_open_compats:
+# List compat patches PR on GitHub
+	@$(foreach repo,$(DEV_PACKAGES), \
+		echo ;\
+		echo $(repo) ;\
+		cd ../$(repo) && \
+		git fetch 2> /dev/null && \
+		pr_numbers_shas_and_titles=$$(gh pr list --state open --json number,headRefOid,title --jq '.[] | select(.title != null and (.title | contains("CompatHelper:"))) | "\(.number)@\(.headRefOid)@\(.title)"') && \
+		IFS=$$'\n'; \
+		for pr_info in $$pr_numbers_shas_and_titles; do \
+			pr_number=$${pr_info%%@*}; \
+			temp=$${pr_info#*@}; \
+			commit_sha=$${temp%%@*}; \
+			title=$${temp#*@}; \
+			echo "$(repo): PR #$$pr_number - $$title"; \
+		done; \
+	)
+
+# @devs
+download_compat_tomls: error_missing_repo_var
 # Apply compat patches and save the resulting Project_PR???.toml files
 	@echo "Downloading Project.toml files from CompatHelper PRs in repository: $(repo)"
 	@cd ../$(repo) && \
@@ -628,7 +647,7 @@ download_project_tomls: error_missing_repo_var
 	echo "Project.toml files downloaded."
 
 # @devs
-combine_project_toml: error_missing_repo_var
+combine_compat_toml: error_missing_repo_var
 # Combine Project_PR???.toml files using Julia
 	@echo "Combining Project.toml files in repository: $(repo)"
 	@cd ../$(repo) && \
@@ -654,7 +673,7 @@ combine_project_toml: error_missing_repo_var
 		println("Combined Project.toml saved as Project_combined.toml");'
 
 # @devs
-compat: error_missing_repo_var download_project_tomls combine_project_toml
+compat: error_missing_repo_var download_compat_tomls combine_compat_toml
 # Apply compat patches, combine them in the original Project.toml, and cleanup
 	@echo ""
 	@echo "To remove temporary Project_PR???.toml files and close CompatHelper PRs, do:"
