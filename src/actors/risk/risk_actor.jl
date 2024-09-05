@@ -121,14 +121,12 @@ function _step(actor::ActorRisk)
     end
 
     recovery_time = disruption_recovery_time(severity, par.d3d_disruption_recovery_time, par.iter_disruption_recovery_time, par.arc_disruption_recovery_time) # units are years
-    @show recovery_time
 
     # here, disruption probability is expected to be in units of disruptions per year 
 
     if !isempty(rsk.plasma.loss)
         for loss in rsk.plasma.loss
             disrupt_per_year = disruptions_per_year(loss.probability, par.fraction_disruptions_mitigated, par.dwell_time, dd)
-            @show loss.description, disrupt_per_year
             adjusted_LCoE = cst.levelized_CoE / (1 - fraction_recovery(disrupt_per_year, recovery_time))
             loss.risk = adjusted_LCoE - cst.levelized_CoE
         end
@@ -179,7 +177,6 @@ end
 function disruptions_per_year(probability_per_pulse::Real, fraction_mitigated::Real, dwell_time::Real, dd::IMAS.dd)
     pulse_length_hours = dd.build.oh.flattop_duration / 3600
     pulses_per_year = (24 / ((1 + dwell_time) * pulse_length_hours)) * 365 * dd.costing.availability
-    @show pulses_per_year
     disruptions_per_year = pulses_per_year * probability_per_pulse * (1 - fraction_mitigated)
     return disruptions_per_year 
 end
