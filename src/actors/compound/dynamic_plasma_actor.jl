@@ -217,8 +217,9 @@ end
 """
     plot_plasma_overview(dd::IMAS.dd, time0::Float64)
 
-Plot layout useful to get an overview of a time dependent plasma simulation.
-This gets typically used this way:
+Plot layout useful to get an overview of a (time dependent) plasma simulation.
+
+Animation in time gets typically done this way:
 
     #a = @animate for k in 1:length(dd.core_profiles.time)
     @manipulate for k in 1:length(dd.core_profiles.time)
@@ -235,7 +236,7 @@ Inclusinon in BEAMER presentation can then be done with:
 """
 function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, kw...)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000), margin = 5 * Plots.Measures.mm, kw...)
+    p = plot(; layout=l, size=(1600, 1000), margin=3 * Plots.Measures.mm, kw...)
 
     cp1d = dd.core_profiles.profiles_1d[time0]
 
@@ -248,7 +249,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         label="Ip reference [MA]",
         lw=2.0,
         ls=:dash,
-        legend_position=:bottomright,
+        legend_position=:left,
+        background_color_legend=Plots.Colors.RGBA(1.0, 1.0, 1.0, 0.6),
+        legend_foreground_color=:transparent,
         subplot
     )
     plot!(
@@ -263,7 +266,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         subplot
     )
     if IMAS.controller(dd.controllers, "ip") !== nothing
-        plot!([NaN], [NaN]; seriestype=:time, color=:red, label="Vloop [mV]", subplot)
+        plot!([NaN], [NaN]; color=:red, label="Vloop [mV]", lw=2.0, subplot)
         time, data = IMAS.vloop_time(dd.controllers)
         plot!(
             twinx(),
@@ -281,26 +284,35 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # equilibrium, build, and pf_active
     subplot = 2
-    #plot!(dd.equilibrium.time_slice[2]; cx=true, color=:gray, subplot)
-    plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
-    plot!(dd.build; legend=false, subplot)
-    plot!(dd.pf_active; time0, subplot, colorbar=:none, axis=false)
+    plot!(dd.build; time0, subplot, axis=false, legend=false)
     plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
+    out = convex_outline(dd.pf_active.coil)
+    plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
 
     # core_profiles temperatures
     subplot = 3
-    plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" initial", subplot, normalization=1E-3)
-    plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]")#, ylim=(0.0, 25.0))
+    #    plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" initial", subplot, normalization=1E-3)
+    plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]", legend_foreground_color=:transparent)#, ylim=(0.0, 23.0))
 
     # core_profiles densities
     subplot = 4
-    plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
-    plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]")#, ylim=(0.0, 1.3E20))
+    #    plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
+    plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]", legend=:left, legend_foreground_color=:transparent)#, ylim=(0.0, 1.3E20))
 
     # q
     subplot = 9
     plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
-    plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="q", subplot)
+    plot!(
+        dd.equilibrium.time_slice[time0].profiles_1d,
+        :q;
+        lw=2.0,
+        coordinate=:rho_tor_norm,
+        label="q",
+        subplot,
+        legend_foreground_color=:transparent,
+        title="Safety factor",
+        legend=:bottomleft
+    )
 
     # # fusion power
     # subplot = 9
@@ -309,7 +321,21 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # core_sources
     subplot = 5
-    plot!(dd.core_sources; time0, only=4, subplot, min_power, aggregate_radiation, weighted=:area, title="Parallel current source", normalization=1E-6, ylabel="[MA]")#, ylim=(0.0, 10.0))
+    plot!(
+        dd.core_sources;
+        time0,
+        only=4,
+        subplot,
+        min_power,
+        aggregate_radiation,
+        weighted=:area,
+        legend=:topleft,
+        legend_foreground_color=:transparent,
+        title="Parallel current source",
+        normalization=1E-6,
+        ylabel="[MA]",
+        #ylim=(0.0, 10.0)
+    )
 
     subplot = 6
     plot!(
@@ -320,11 +346,13 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         min_power,
         aggregate_radiation,
         weighted=:volume,
-        legend=:bottomleft,
+        legend=:topleft,
+        legend_foreground_color=:transparent,
         title="Electron power source",
         normalization=1E-6,
-        ylabel="[MW]"
-    )#, ylim=(-40.0, 41.0))
+        ylabel="[MW]",
+        #ylim=(-20.0, 41.0)
+    )
 
     subplot = 7
     plot!(
@@ -335,24 +363,39 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         min_power,
         aggregate_radiation,
         weighted=:volume,
-        legend=:bottomleft,
+        legend=:topleft,
+        legend_foreground_color=:transparent,
         title="Ion power source",
         normalization=1E-6,
-        ylabel="[MW]"
-    )#, ylim=(-40.0, 41.0))
+        ylabel="[MW]",
+        #ylim=(-20.0, 41.0)
+    )
 
     subplot = 8
-    plot!(dd.core_sources; time0, only=3, subplot, min_power, aggregate_radiation, weighted=:volume, title="Electron particle source", ylabel="[s⁻¹]")#, ylim=(0.0, 1.1E20))
+    plot!(
+        dd.core_sources;
+        time0,
+        only=3,
+        subplot,
+        min_power,
+        aggregate_radiation,
+        weighted=:volume,
+        legend=:topleft,
+        legend_foreground_color=:transparent,
+        title="Electron particle source",
+        ylabel="[s⁻¹]",
+        #ylim=(-0.3E20, 1.1E20)
+    )
 
     # transport
     #subplot=9
     #plot!(dd.core_transport; time0, only=4, subplot)
     subplot = 10
-    plot!(dd.core_transport; time0, only=1, subplot)#, ylim=(0.0, 2.2E5))
+    plot!(dd.core_transport; time0, only=1, subplot, legend=:bottomleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
     subplot = 11
-    plot!(dd.core_transport; time0, only=2, subplot)#, ylim=(0.0, 2.2E5))
+    plot!(dd.core_transport; time0, only=2, subplot, legend=:bottomleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
     subplot = 12
-    plot!(dd.core_transport; time0, only=3, subplot)#, ylim=(0.0, 6.5E17))
+    plot!(dd.core_transport; time0, only=3, subplot, legend=:bottomleft, legend_foreground_color=:transparent)#, ylim=(0.0, 6.5E17))
 
     # # inverse scale lenghts
     # max_scale = 5
