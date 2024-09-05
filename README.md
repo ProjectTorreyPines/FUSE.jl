@@ -3,15 +3,6 @@
 FUSE (**FU**sion **S**ynthesis **E**ngine) is a framework for Fusion Power Plant (FPP) integrated design.
 Originally developed by General Atomics, FUSE is now openly available under Apache 2.0 license.
 
-## Documentation
-https://fuse.help
-
-## Publication
-https://tinyurl.com/FUSEpaper
-
-## Presentation
-https://tinyurl.com/FUSEslideDeck
-
 ## FUSE objectives
 
 * Couple physics, engineering, control, costing, and balance of plant
@@ -20,16 +11,14 @@ https://tinyurl.com/FUSEslideDeck
 * Leverage parallelism and HPC systems for optimization studies
 * Support sensitivity and uncertainty quantification analyses
 
-## Installation
+## Documentation
+https://fuse.help
 
-FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). First [install Julia](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#juliaup---julia-version-manager), then:
+## Publication
+https://tinyurl.com/FUSEpaper
 
-```julia
-using Pkg
-Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
-Pkg.Registry.add("General")
-Pkg.add("FUSE")
-```
+## Presentation
+https://tinyurl.com/FUSEslideDeck
 
 ## Basic concepts
 
@@ -59,4 +48,15 @@ dd = FUSE.init(ini, act; do_plot=true)
 
 # run an actor
 FUSE.ActorStationaryPlasma(dd, act; do_plot=true);
+```
+
+## Installation
+
+FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). First [install Julia](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#juliaup---julia-version-manager), then:
+
+```julia
+using Pkg
+Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+Pkg.Registry.add("General")
+Pkg.add("FUSE")
 ```
