@@ -1,4 +1,5 @@
-using FusionMaterials 
+using FusionMaterials
+using Optim
 
 #= ============ =#
 #  ActorRisk  #
@@ -11,6 +12,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorRisk{T<:Real} <: ParametersActor
     trl_to_risk::Switch{Symbol} = Switch{Symbol}([:exponential, :linear], "-", "Relationship between increasing TRL and decreasing risk"; default = :exponential)
     fraction_disruptions_mitigated::Entry{Real} = Entry{Real}("-", "Fraction of disruptions that are successfully mitigated"; default = 0.95)
     dwell_time::Entry{Real} = Entry{Real}("-", "Time between pulses as a fraction of flattop duration"; default = 0.2)
+    iter_disruption_recovery_time::Entry{Real} = Entry{Real}("yr", "Time spent recovering from one ITER full power disruption"; default = 0.1)
+    d3d_disruption_recovery_time::Entry{Real} = Entry{Real}("yr", "Time spent recovering from one DIII-D full power disruption"; default = (1/24)/365) # default is one hour 
+    arc_disruption_recovery_time::Entry{Real} = Entry{Real}("yr", "Time spent recovering from one ARC full power disruption"; default = 0.2)
+    severity_metric::Switch{Symbol} = Switch{Symbol}([:thermal_quench, :current_quench, :vertical_forces, :average], "-", "Metric used to evaluate disruption severity"; default = :average)
 end
 
 mutable struct ActorRisk{D,P} <: CompoundAbstractActor{D,P}
@@ -67,7 +72,7 @@ function _step(actor::ActorRisk)
         for (i,coil_type) in enumerate(keys(coil_types))
             loss[i].description = "$coil_type failure"
             loss[i].probability = magnet_risk(coil_types[coil_type], :exponential)
-            loss[i].severity = IMAS.select_direct_captial_cost(dd, coil_type)
+            loss[i].severity = IMAS.select_direct_capital_cost(dd, coil_type)
         end
     elseif cst.model == "Sheffield"
         loss[1].description = "Magnet failure"
@@ -87,7 +92,7 @@ function _step(actor::ActorRisk)
         loss[next_idx].description = "Blanket failure"
         loss[next_idx].probability = blanket_risk(dd, :exponential)
         if cst.model == "ARIES"
-            loss[next_idx].severity = IMAS.select_direct_captial_cost(dd, "blanket")
+            loss[next_idx].severity = IMAS.select_direct_capital_cost(dd, "blanket")
         elseif cst.model == "Sheffield"
             da = DollarAdjust(dd)
             blanket_cost = cost_direct_capital_Sheffield(:blanket, true, dd, da)
@@ -105,13 +110,25 @@ function _step(actor::ActorRisk)
     plasma_failure_probability(dd)
     plasma_failure_severity(dd)
 
-    recovery_time = disruption_recovery_time(dd.risk.plasma.loss[1].severity) # units are years
+    if par.severity_metric == :thermal_quench
+        severity = rsk.plasma.severity.thermal_quench
+    elseif par.severity_metric == :current_quench
+        severity = rsk.plasma.severity.current_quench
+    elseif par.severity_metric == :vertical_forces
+        severity = rsk.plasma.severity.vertical_forces
+    elseif par.severity_metric == :average
+        severity = rsk.plasma.severity.average_severity
+    end
+
+    recovery_time = disruption_recovery_time(severity, par.d3d_disruption_recovery_time, par.iter_disruption_recovery_time, par.arc_disruption_recovery_time) # units are years
+    @show recovery_time
 
     # here, disruption probability is expected to be in units of disruptions per year 
 
     if !isempty(rsk.plasma.loss)
         for loss in rsk.plasma.loss
             disrupt_per_year = disruptions_per_year(loss.probability, par.fraction_disruptions_mitigated, par.dwell_time, dd)
+            @show loss.description, disrupt_per_year
             adjusted_LCoE = cst.levelized_CoE / (1 - fraction_recovery(disrupt_per_year, recovery_time))
             loss.risk = adjusted_LCoE - cst.levelized_CoE
         end
@@ -157,19 +174,20 @@ function disruption_probability(x::Real)
     elseif x > 1.0
         probability = 1.0
     end
-    return probability
 end
 
 function disruptions_per_year(probability_per_pulse::Real, fraction_mitigated::Real, dwell_time::Real, dd::IMAS.dd)
     pulse_length_hours = dd.build.oh.flattop_duration / 3600
-    pulses_per_year = (24 / ((1 + dwell_time) * pulse_length_hours)) * 365 * dd.costing.availability # 1.2 accounts for dwell time between pulses
+    pulses_per_year = (24 / ((1 + dwell_time) * pulse_length_hours)) * 365 * dd.costing.availability
+    @show pulses_per_year
     disruptions_per_year = pulses_per_year * probability_per_pulse * (1 - fraction_mitigated)
     return disruptions_per_year 
 end
 
 function plasma_failure_probability(dd::IMAS.dd)
     rsk = dd.risk 
-    if isempty(dd.mhd_linear)
+    kvessel = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)
+    if isempty(kvessel)
         resize!(rsk.plasma.loss, length(dd.stability.model))
     else
         resize!(rsk.plasma.loss, length(dd.stability.model) + 1)
@@ -191,9 +209,12 @@ function plasma_failure_probability(dd::IMAS.dd)
 end
 
 function plasma_failure_severity(dd::IMAS.dd)
-    for loss in dd.risk.plasma.loss
-        loss.severity = disruption_severity(dd)
-    end    
+    sev = dd.risk.plasma.severity
+    severity_vertical_force, severity_current_quench, severity_thermal_quench = disruption_severity(dd)
+    sev.vertical_forces = severity_vertical_force
+    sev.current_quench = severity_current_quench
+    sev.thermal_quench = severity_thermal_quench 
+    sev.average_severity = (severity_vertical_force + severity_current_quench + severity_thermal_quench) / 3
 end
 
 function disruption_severity(dd::IMAS.dd)
@@ -215,14 +236,30 @@ function disruption_severity(dd::IMAS.dd)
     iter_severity_thermal_quench = 1.19
     severity_thermal_quench = sqrt(a) * b0^2 * beta_tor / iter_severity_thermal_quench
 
-    return (severity_vertical_force + severity_current_quench + severity_thermal_quench) / 3
+    return severity_vertical_force, severity_current_quench, severity_thermal_quench
 
 end
 
-function disruption_recovery_time(severity::Real)
-    # normalize relationship between disruption severity and recovery time such that for a disruption 20% more severe than an ITER full power shot, 
-    # recovery time is on the order of a year 
-    recovery_time = (exp.(severity) .- 1).* (1 ./ (exp.(1.2) .- 1))
+function disruption_recovery_time(severity::Real, d3d_disruption_recovery_time::Real, iter_disruption_recovery_time::Real, arc_disruption_recovery_time::Real)
+    x_data = [0.0, 0.034, 1.0, 1.1] # here, 0.034 is the average of the three types of severity (current quench, thermal quench, vertical forces) for the DIII-D case, 1.1 average for ARC case
+    y_data = [0.0, d3d_disruption_recovery_time, iter_disruption_recovery_time, arc_disruption_recovery_time]
+
+    model(x, a, b, c, d) = a * exp.(b * x + c) + d
+    function objective(params)
+        a, b, c, d = params
+        sum((model.(x_data, a, b, c, d) .- y_data).^2)
+    end
+    initial_guess = [1.0, 1.0, 1.0, 1.0]
+    result = optimize(objective, initial_guess)
+    fitted_params = Optim.minimizer(result)
+    a_fit, b_fit, c_fit, d_fit = fitted_params
+
+    recovery_time = model.(severity, a_fit, b_fit, c_fit, d_fit)
+
+    if severity == 0
+        recovery_time = 0 
+    end
+
     return recovery_time
 end
 
