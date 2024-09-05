@@ -52,13 +52,12 @@ function _step(actor::ActorCXbuild)
 
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
-    wall = dd.wall
 
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
-    fw = IMAS.first_wall(wall)
+    fw = IMAS.first_wall(dd.wall)
     if isempty(fw.r) || par.rebuild_wall
-        wall_from_eq!(wall, eqt, bd; par.divertor_size)
-        fw = IMAS.first_wall(wall)
+        wall_from_eq!(dd.wall, eqt, bd; par.divertor_size)
+        fw = IMAS.first_wall(dd.wall)
         IMAS.flux_surfaces(eqt, fw.r, fw.z) # output of flux_surfaces depends on the wall
     end
 
@@ -68,18 +67,21 @@ function _step(actor::ActorCXbuild)
     end
     empty!(bd.structure)
 
-    build_cx!(bd, eqt, wall, dd.pf_active; par.n_points)
+    # layers
+    build_cx!(bd, eqt, dd.wall, dd.pf_active; par.n_points)
 
-    divertor_regions!(bd, eqt, dd.divertors)
+    # divertors + find strike points on divertors
+    divertor_regions!(bd, eqt, dd.divertors, fw.r, fw.z)
+    psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
+    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_first_open, dd.divertors)
 
+    # blankets
     blanket_regions!(bd, eqt)
 
+    # maintenance ports
     if act.ActorLFSsizing.maintenance != :none
         port_regions!(bd; act.ActorLFSsizing.maintenance, act.ActorLFSsizing.tor_modularity, act.ActorLFSsizing.pol_modularity)
     end
-
-    psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_first_open, dd.divertors)
 
     return actor
 end
@@ -325,7 +327,7 @@ function wall_from_eq!(
     return wall
 end
 
-function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, divertors::IMAS.divertors)
+function divertor_regions!(bd::IMAS.build{T}, eqt::IMAS.equilibrium__time_slice{T}, divertors::IMAS.divertors{T}, wall_r::AbstractVector{T}, wall_z::AbstractVector{T}) where {T<:Real}
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -339,19 +341,19 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     IMAS.reorder_flux_surface!(pl_r, pl_z, RA, ZA)
 
     # wall poly (this sets how back the divertor structure goes)
-    wall_layer = bd.layer[ipl-1]
+    backwall_layer = bd.layer[ipl-1]
     for ltype in (_blanket_, _shield_, _wall_)
         iwls = IMAS.get_build_indexes(bd.layer; type=ltype, fs=_hfs_)
         if !isempty(iwls)
-            wall_layer = bd.layer[iwls[1]]
+            backwall_layer = bd.layer[iwls[1]]
             break
         end
     end
-    wall_poly = xy_polygon(wall_layer)
-    wall_rz = [v for v in GeoInterface.coordinates(wall_poly)[1]]
+    backwall_poly = xy_polygon(backwall_layer)
+    backwall_rz = [v for v in GeoInterface.coordinates(backwall_poly)[1]]
 
     ψb = eqt.profiles_1d.psi[end]
-    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, wall_layer.outline.r, wall_layer.outline.z)
+    ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, wall_r, wall_z)
     minor_radius = (maximum(rlcfs) - minimum(rlcfs)) / 2.0
 
     empty!(divertors)
@@ -359,7 +361,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
     detected_upper = bd.divertors.upper.installed
     detected_lower = bd.divertors.lower.installed
 
-    private = IMAS.flux_surface(eqt, ψb, :open, wall_layer.outline.r, wall_layer.outline.z)
+    private = IMAS.flux_surface(eqt, ψb, :open, wall_r, wall_z)
     sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
     for (pr, pz) in private
         if sign(pz[1] - ZA) != sign(pz[end] - ZA)
@@ -384,7 +386,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         end
 
         # private flux region must be in the wall
-        prz = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), wall_rz) == 1]
+        prz = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), backwall_rz) == 1]
         pr = [rr for (rr, zz) in prz]
         pz = [zz for (rr, zz) in prz]
         if length(pr) < 5
@@ -419,17 +421,17 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
         domain_r = vcat(xx, reverse(xx), xx[1])
         domain_z = vcat(yy, [Zx * α, Zx * α], yy[1])
         domain_poly = xy_polygon(domain_r, domain_z)
-        wall_domain_poly = try
-            LibGEOS.intersection(wall_poly, domain_poly)
+        backwall_domain_poly = try
+            LibGEOS.intersection(backwall_poly, domain_poly)
         catch e
-            display(plot(wall_poly;aspect_ratio=:equal))
+            display(plot(backwall_poly;aspect_ratio=:equal))
             display(plot!(eqt;cx=true))
             display(scatter!([RA,Rx],[ZA,Zx]))
             display(plot!(xx,yy))
             display(plot!(domain_poly;alpha=0.5))
             rethrow(e)
         end
-        divertor_poly = LibGEOS.difference(wall_domain_poly, plasma_poly)
+        divertor_poly = LibGEOS.difference(backwall_domain_poly, plasma_poly)
 
         # Assign to build structure
         coords = GeoInterface.coordinates(divertor_poly)
@@ -450,7 +452,7 @@ function divertor_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, di
             structure.outline.z = [v[2] for v in coords]
         catch e
             p = plot(eqt; cx=true)
-            plot!(wall_poly; alpha=0.3)
+            plot!(backwall_poly; alpha=0.3)
             plot!(domain_poly; alpha=0.3)
             plot!(plasma_poly; alpha=0.3)
             display(p)
