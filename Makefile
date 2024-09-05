@@ -334,11 +334,11 @@ GenerateDD:
 ServeFUSE:
 	$(call clone_pull_repo,$@)
 	@julia -e '\
-fuse_packages = $(FUSE_PACKAGES);\
-using Pkg;\
-Pkg.activate("../ServeFUSE/task_tiller");\
-Pkg.develop([["FUSE"] ; fuse_packages]);\
-'
+	fuse_packages = $(FUSE_PACKAGES);\
+	using Pkg;\
+	Pkg.activate("../ServeFUSE/task_tiller");\
+	Pkg.develop([["FUSE"] ; fuse_packages]);\
+	'
 
 # @devs
 install_examples_dev:
@@ -477,11 +477,11 @@ branch_master: error_missing_repos_var
 # GitHub merge of `branch` into `master` for a series of repos
 # >> make branch_master branch=my_branch repos='FUSE IMAS IMASdd'
 	@$(foreach repo,$(repos), \
-curl -X POST \
--H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
--H "Accept: application/vnd.github.v3+json" \
-https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
--d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
+	curl -X POST \
+	-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+	-H "Accept: application/vnd.github.v3+json" \
+	https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
+	-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 # @devs
 make_apache: error_missing_repo_var
@@ -492,30 +492,30 @@ make_apache: error_missing_repo_var
 # https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
 	@echo $(repo)
 	@cp ../IMASdd/LICENSE ../$(repo)/ ;\
-\
-cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
-sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
-\
-mkdir -p ../$(repo)/.github/workflows ;\
-cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
-cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
-cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
-cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
-\
-cp ../IMASdd/README.md ../$(repo)/ ;\
-sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
-\
-cp -R ../IMASdd/docs ../$(repo)/ ;\
-sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
-echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
-rm ../$(repo)/docs/Manifest.toml ;\
-rm -rf ../$(repo)/docs/build ;\
-\
-cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
-\
-cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
-\
-julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
+	\
+	cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
+	\
+	mkdir -p ../$(repo)/.github/workflows ;\
+	cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
+	\
+	cp ../IMASdd/README.md ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
+	\
+	cp -R ../IMASdd/docs ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
+	echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
+	rm ../$(repo)/docs/Manifest.toml ;\
+	rm -rf ../$(repo)/docs/build ;\
+	\
+	cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
+	\
+	cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
+	\
+	julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
 
 # @devs
 error_if_project_toml_is_dirty: error_missing_repo_var
