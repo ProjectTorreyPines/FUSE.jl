@@ -28,7 +28,7 @@ function default_limits(dd::IMAS.dd)
     collection.identifier.name = "Default Limits"
     collection.identifier.description = "Uses the default set of models"
 
-    models = [:beta_troyon_1984, :q95_gt_2, :edge_collisionality, :κ_controllability]
+    models = [:beta_model_105, :q95_gt_2, :edge_collisionality, :κ_controllability]
     return run_stability_models(dd, models)
 end
 
