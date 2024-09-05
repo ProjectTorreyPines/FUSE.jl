@@ -7977,9 +7977,11 @@
 │  │  ├─ <span class="sgr1">strike_point[:]</span>
 │  │  │  ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.strike_point[:].r'>r</a> [m]
 │  │  │  └─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.strike_point[:].z'>z</a> [m]
+│  │  ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.tilt'>tilt</a>
 │  │  ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.triangularity'>triangularity</a>
 │  │  ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.triangularity_lower'>triangularity_lower</a>
 │  │  ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.triangularity_upper'>triangularity_upper</a>
+│  │  ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.twist'>twist</a>
 │  │  ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.type'>type</a>
 │  │  └─ <span class="sgr1">x_point[:]</span>
 │  │     ├─ <a href='dd_details.html#equilibrium.time_slice[:].boundary.x_point[:].r'>r</a> [m]
@@ -13273,6 +13275,8 @@
 │  │     ├─ <a href='dd_details.html#pulse_schedule.position_control.strike_point[:].z.reference'>reference</a> [mixed]
 │  │     ├─ <a href='dd_details.html#pulse_schedule.position_control.strike_point[:].z.reference_name'>reference_name</a>
 │  │     └─ <a href='dd_details.html#pulse_schedule.position_control.strike_point[:].z.reference_type'>reference_type</a>
+│  ├─ <span class="sgr1">tilt</span>
+│  │  └─ <a href='dd_details.html#pulse_schedule.position_control.tilt.reference'>reference</a> [mixed]
 │  ├─ <a href='dd_details.html#pulse_schedule.position_control.time'>time</a> [s]
 │  ├─ <span class="sgr1">triangularity</span>
 │  │  ├─ <a href='dd_details.html#pulse_schedule.position_control.triangularity.envelope_type'>envelope_type</a>
@@ -13304,6 +13308,8 @@
 │  │  ├─ <a href='dd_details.html#pulse_schedule.position_control.triangularity_upper.reference'>reference</a> [mixed]
 │  │  ├─ <a href='dd_details.html#pulse_schedule.position_control.triangularity_upper.reference_name'>reference_name</a>
 │  │  └─ <a href='dd_details.html#pulse_schedule.position_control.triangularity_upper.reference_type'>reference_type</a>
+│  ├─ <span class="sgr1">twist</span>
+│  │  └─ <a href='dd_details.html#pulse_schedule.position_control.twist.reference'>reference</a> [mixed]
 │  ├─ <span class="sgr1">x_point[:]</span>
 │  │  ├─ <span class="sgr1">r</span>
 │  │  │  ├─ <a href='dd_details.html#pulse_schedule.position_control.x_point[:].r.envelope_type'>envelope_type</a>
@@ -20604,4 +20610,4 @@
       │  ├─ <a href='dd_details.html#workflow.time_loop.workflow_cycle[:].component[:].time_interval_elapsed'>time_interval_elapsed</a> [s]
       │  └─ <a href='dd_details.html#workflow.time_loop.workflow_cycle[:].component[:].time_interval_request'>time_interval_request</a> [s]
       └─ <a href='dd_details.html#workflow.time_loop.workflow_cycle[:].time'>time</a> [s]
-</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Concepts</a><a class="docs-footer-nextpage" href="actors.html">Actors »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Thursday 5 September 2024 02:40">Thursday 5 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Concepts</a><a class="docs-footer-nextpage" href="actors.html">Actors »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Thursday 5 September 2024 20:01">Thursday 5 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
