@@ -3,7 +3,7 @@ txt = open(joinpath(@__DIR__, "..", "..", "README.md"), "r") do io
 end
 
 txt = replace(txt,
-    "## Documentation\nhttps://fuse.help" => "",
+    "## Documentation 📚\n\nFind the full documentation here: [https://fuse.help](https://fuse.help)" => "",
     "![svg](./docs/src/assets/FUSE.svg)" => "![svg](./assets/FUSE.svg)")
 
 open(joinpath(@__DIR__, "index.md"), "w") do io
