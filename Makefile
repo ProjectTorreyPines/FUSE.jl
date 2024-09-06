@@ -1,5 +1,3 @@
-help: header help_info
-
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
 JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
@@ -55,6 +53,103 @@ function feature_or_master(package, feature_branch) ;\
 	end ;\
 end
 endef
+
+ADAS:
+	$(call clone_pull_repo,$@)
+
+FUSE:
+	$(call clone_pull_repo,$@)
+
+IMAS:
+	$(call clone_pull_repo,$@)
+
+IMASdd:
+	$(call clone_pull_repo,$@)
+
+CoordinateConventions:
+	$(call clone_pull_repo,$@)
+
+MillerExtendedHarmonic:
+	$(call clone_pull_repo,$@)
+
+FuseUtils:
+	$(call clone_pull_repo,$@)
+
+FusionMaterials:
+	$(call clone_pull_repo,$@)
+
+FuseExchangeProtocol:
+	$(call clone_pull_repo,$@)
+
+VacuumFields:
+	$(call clone_pull_repo,$@)
+
+MXHEquilibrium:
+	$(call clone_pull_repo,$@)
+
+MeshTools:
+	$(call clone_pull_repo,$@)
+
+TGLFNN:
+	$(call clone_pull_repo,$@)
+
+TJLF:
+	$(call clone_pull_repo,$@)
+
+EPEDNN:
+	$(call clone_pull_repo,$@)
+
+QED:
+	$(call clone_pull_repo,$@)
+
+FiniteElementHermite:
+	$(call clone_pull_repo,$@)
+
+Fortran90Namelists:
+	$(call clone_pull_repo,$@)
+
+CHEASE:
+	$(call clone_pull_repo,$@)
+
+TEQUILA:
+	$(call clone_pull_repo,$@)
+
+NNeutronics:
+	$(call clone_pull_repo,$@)
+
+SimulationParameters:
+	$(call clone_pull_repo,$@)
+
+BoundaryPlasmaModels:
+	$(call clone_pull_repo,$@)
+
+NEO:
+	$(call clone_pull_repo,$@)
+
+XSteam:
+	$(call clone_pull_repo,$@)
+
+RABBIT:
+	$(call clone_pull_repo,$@)
+
+ThermalSystemModels:
+	$(call clone_pull_repo,$@)
+
+GenerateDD:
+	$(call clone_pull_repo,$@)
+
+ServeFUSE:
+	$(call clone_pull_repo,$@)
+	@julia -e '\
+	fuse_packages = $(FUSE_PACKAGES);\
+	using Pkg;\
+	Pkg.activate("../ServeFUSE/task_tiller");\
+	Pkg.develop([["FUSE"] ; fuse_packages]);\
+	'
+
+help: header help_info
+
+.PHONY:
 
 # =========================
 
@@ -246,99 +341,6 @@ install_playground: .PHONY
 # Clone FUSE_playground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
 	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
-
-ADAS:
-	$(call clone_pull_repo,$@)
-
-FUSE:
-	$(call clone_pull_repo,$@)
-
-IMAS:
-	$(call clone_pull_repo,$@)
-
-IMASdd:
-	$(call clone_pull_repo,$@)
-
-CoordinateConventions:
-	$(call clone_pull_repo,$@)
-
-MillerExtendedHarmonic:
-	$(call clone_pull_repo,$@)
-
-FuseUtils:
-	$(call clone_pull_repo,$@)
-
-FusionMaterials:
-	$(call clone_pull_repo,$@)
-
-FuseExchangeProtocol:
-	$(call clone_pull_repo,$@)
-
-VacuumFields:
-	$(call clone_pull_repo,$@)
-
-MXHEquilibrium:
-	$(call clone_pull_repo,$@)
-
-MeshTools:
-	$(call clone_pull_repo,$@)
-
-TGLFNN:
-	$(call clone_pull_repo,$@)
-
-TJLF:
-	$(call clone_pull_repo,$@)
-
-EPEDNN:
-	$(call clone_pull_repo,$@)
-
-QED:
-	$(call clone_pull_repo,$@)
-
-FiniteElementHermite:
-	$(call clone_pull_repo,$@)
-
-Fortran90Namelists:
-	$(call clone_pull_repo,$@)
-
-CHEASE:
-	$(call clone_pull_repo,$@)
-
-TEQUILA:
-	$(call clone_pull_repo,$@)
-
-NNeutronics:
-	$(call clone_pull_repo,$@)
-
-SimulationParameters:
-	$(call clone_pull_repo,$@)
-
-BoundaryPlasmaModels:
-	$(call clone_pull_repo,$@)
-
-NEO:
-	$(call clone_pull_repo,$@)
-
-XSteam:
-	$(call clone_pull_repo,$@)
-
-RABBIT:
-	$(call clone_pull_repo,$@)
-
-ThermalSystemModels:
-	$(call clone_pull_repo,$@)
-
-GenerateDD:
-	$(call clone_pull_repo,$@)
-
-ServeFUSE:
-	$(call clone_pull_repo,$@)
-	@julia -e '\
-	fuse_packages = $(FUSE_PACKAGES);\
-	using Pkg;\
-	Pkg.activate("../ServeFUSE/task_tiller");\
-	Pkg.develop([["FUSE"] ; fuse_packages]);\
-	'
 
 # @devs
 install_examples_dev:
@@ -708,11 +710,18 @@ ifeq ($(repo),)
 	$(error `repos` variable is not set)
 endif
 
-user_help:
-# Print users makefile commands help
+# @user
+help_common:
+# Common function for help command, differentiating between @user and @devs and rejecting anything above the marker
 	@awk ' \
-		/^# @user/ {show=1; next} \
-		/^# @devs/ {show=0} \
+		BEGIN { \
+			show = ENVIRON["FILTER"]; \
+			found_marker = 0; \
+		} \
+		/^# =========================/ { found_marker = 1; next } \
+		!found_marker { next } \
+		/^[#] @user/ { show = ("user" == ENVIRON["FILTER"]); next } \
+		/^[#] @devs/ { show = ("devs" == ENVIRON["FILTER"]); next } \
 		/^[a-zA-Z0-9_.-]+:/ { \
 			if (show) { \
 				if (target != "" && docstring != "") { \
@@ -724,15 +733,15 @@ user_help:
 					print docstring; \
 					print ""; \
 				} \
-				target=$$1; \
-				dependencies=""; \
+				target = $$1; \
+				dependencies = ""; \
 				if (NF > 1) { \
-					dependencies=$$2; \
-					for (i=3; i<=NF; i++) { \
+					dependencies = $$2; \
+					for (i = 3; i <= NF; i++) { \
 						dependencies = dependencies " " $$i; \
 					} \
 				} \
-				docstring=""; \
+				docstring = ""; \
 			} \
 			next; \
 		} \
@@ -759,56 +768,22 @@ user_help:
 			} \
 		}' $(MAKEFILE_LIST)
 
-devs_help:
-# Print developers makefile commands help
-	@awk ' \
-		/^# @devs/ {show=1; next} \
-		/^# @user/ {show=0} \
-		/^[a-zA-Z0-9_.-]+:/ { \
-			if (show) { \
-				if (target != "" && docstring != "") { \
-					printf "\033[1m" target "\033[0m"; \
-					if (dependencies != "") { \
-						printf " : \033[36m" dependencies "\033[0m"; \
-					} \
-					print ""; \
-					print docstring; \
-					print ""; \
-				} \
-				target=$$1; \
-				dependencies=""; \
-				if (NF > 1) { \
-					dependencies=$$2; \
-					for (i=3; i<=NF; i++) { \
-						dependencies = dependencies " " $$i; \
-					} \
-				} \
-				docstring=""; \
-			} \
-			next; \
-		} \
-		/^[ \t]*#/ { \
-			if (show && target != "") { \
-				comment = substr($$0, match($$0, /#/) + 1); \
-				gsub(/^[ \t]+/, "", comment); \
-				if (docstring != "") { \
-					docstring = docstring "\n    " comment; \
-				} else { \
-					docstring = "    " comment; \
-				} \
-			} \
-		} \
-		END { \
-			if (show && target != "" && docstring != "") { \
-				printf "\033[1m" target "\033[0m"; \
-				if (dependencies != "") { \
-					printf " : \033[36m" dependencies "\033[0m"; \
-				} \
-				print ""; \
-				print docstring; \
-				print ""; \
-			} \
-		}' $(MAKEFILE_LIST)
+# @devs
+help_devs:
+# Print developer makefile commands help
+	@FILTER="devs" make help_common
+
+# @devs
+help_info:
+	@printf "\n"
+	@printf ">> Use \`fusebot help_user\` to get the users' list of commands\n"
+	@printf ">> Use \`fusebot help_devs\` to get the developers' list of commands\n"
+	@printf "\n"
+
+# @devs
+help_user:
+# Print user makefile commands help
+	@FILTER="user" make help_common
 
 header:
 	@printf "\n"
@@ -819,11 +794,3 @@ header:
 	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
 	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
 	@printf "   Project  Torrey  Pines  (PTP)\n"
-
-help_info:
-	@printf "\n"
-	@printf ">> Use \`fusebot user_help\` to get the users' list of commands\n"
-	@printf ">> Use \`fusebot devs_help\` to get the developers' list of commands\n"
-	@printf "\n"
-
-.PHONY:
