@@ -151,7 +151,7 @@ help: header help_info
 
 .PHONY:
 
-# =========================
+# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #
 
 # @user
 threads:
@@ -718,7 +718,7 @@ help_common:
 			show = ENVIRON["FILTER"]; \
 			found_marker = 0; \
 		} \
-		/^# =========================/ { found_marker = 1; next } \
+		/^# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #/ { found_marker = 1; next } \
 		!found_marker { next } \
 		/^[#] @user/ { show = ("user" == ENVIRON["FILTER"]); next } \
 		/^[#] @devs/ { show = ("devs" == ENVIRON["FILTER"]); next } \
@@ -794,3 +794,17 @@ header:
 	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
 	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
 	@printf "   Project  Torrey  Pines  (PTP)\n"
+
+# Update Makefile targets
+sort_targets:
+	@julia -e 'using DelimitedFiles; \
+		file = "Makefile"; \
+		lines = readlines(file); \
+		header, targets = split(join(lines, "\n"), "# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #"; limit=2); \
+		targets = "# @"*join(sort!(split(strip(targets), "# @")), "# @"); \
+		open(file*"", "w") do f \
+			write(f, strip(header)); \
+			write(f, "\n\n# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #\n\n"); \
+			write(f, targets); \
+		end;\
+	'
