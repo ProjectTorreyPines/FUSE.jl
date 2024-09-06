@@ -158,6 +158,7 @@ makedocs(;
     sitename="FUSE",
     build=joinpath(@__DIR__,"build"),
     format=Documenter.HTML(;
+        repo = "https://github.com/ProjectTorreyPines/FUSE.jl",
         prettyurls=false,
         sidebar_sitename=false,
         assets=["assets/favicon.ico"],
