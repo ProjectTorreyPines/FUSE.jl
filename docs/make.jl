@@ -156,15 +156,16 @@ makedocs(;
     root=@__DIR__,
     modules=[FUSE, IMAS, IMASdd],
     sitename="FUSE",
-    build=joinpath(@__DIR__,"build"),
+    build=joinpath(@__DIR__, "build"),
     format=Documenter.HTML(;
-        repourl = "https://github.com/ProjectTorreyPines/FUSE.jl",
+        repolink="https://github.com/ProjectTorreyPines/FUSE.jl",
         prettyurls=false,
         sidebar_sitename=false,
         assets=["assets/favicon.ico"],
         size_threshold=nothing,
-        size_threshold_warn=nothing),
-    remotes=nothing,
+        size_threshold_warn=nothing,
+    ),
+    repo=Remotes.GitHub("ProjectTorreyPines", "FUSE.jl"),
     warnonly=true,
     pages=[
         "Concepts" => "index.md",
@@ -237,5 +238,5 @@ deploydocs(;
     target="build",
     branch="gh-pages",
     devbranch="master",
-    versions=["stable" => "v^", "v#.#"]
+    versions=["stable" => "v^", "dev", "v#.#.#"]
 )
