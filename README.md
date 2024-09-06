@@ -1,58 +1,72 @@
 # FUSE.jl
 
-FUSE (**FU**sion **S**ynthesis **E**ngine) is a framework for Fusion Power Plant (FPP) integrated design.
-Originally developed by General Atomics, FUSE is now openly available under Apache 2.0 license.
+FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP).
+Originally developed by General Atomics, FUSE is now publicly available under the Apache 2.0 license.
 
-## FUSE objectives
+## Objectives
 
-* Couple physics, engineering, control, costing, and balance of plant
-* Enable both stationary as well as time-dependent simulations
-* Be generic and modular, supporting hierarcy of models
-* Leverage parallelism and HPC systems for optimization studies
-* Support sensitivity and uncertainty quantification analyses
+* Provide a highly efficient, modular framework that tightly coupling models across different domains.
+* Integration of plasma physics, engineering, control, balance of plant, and costing systems.
+* Leverage machine learning to overcome the typical fidelity/speed tradeoff in simulations.
+* Support both stationary and time-dependent simulations.
+* Harness parallelism and high-performance computing (HPC) for large-scale studies.
+* Perform multi-objective constrained optimization to explore design tradeoffs.
+* Enable comprehensive sensitivity analysis and uncertainty quantification.
 
 ## Documentation
-https://fuse.help
+
+Find the full documentation at: [https://fuse.help](https://fuse.help)
 
 ## Publication
-https://tinyurl.com/FUSEpaper
+
+Refer to the related publication: [FUSE Paper](https://tinyurl.com/FUSEpaper)
 
 ## Presentation
-https://tinyurl.com/FUSEslideDeck
 
-## Basic concepts
+Access the project presentation: [FUSE Slide Deck](https://tinyurl.com/FUSEslideDeck)
 
-FUSE is written completely in Julia, and is structured as follows:
-1. Data is stored in the `dd` data structure, which is based on the ITER IMAS onthology
-1. Physics and engineering `actors` are the fundamental building blocks of FUSE simulations
-1. Actors functionality is controlled via `act` parameters
-1. The data structure can be initialized starting from 0D `ini` parameters
-1. FUSE comes with a series of template `use cases` for different machines (FPP, ITER, ARC, ...)
-1. `workflows` perform self-contained studies/optimizations (typically running many FUSE simulations)
-1. FUSE can interface with the existing GA ecosystem of modeling codes (OMFIT/OMAS) as well as IMAS
+## Basic Concepts
 
-These concepts are illustrated in the diagram below:
-![svg](./docs/src/assets/FUSE.svg)
+FUSE is entirely written in Julia and is structured around the following core concepts:
 
-## Usage example
-Here is an example, illustrating how a simple FUSE simulation can be setup and run in Julia:
+1. **Data storage**: All data is stored in the `dd` structure, which follows the ITER IMAS ontology.
+2. **Actors**: The core components of FUSE simulations are physics and engineering actors.
+3. **Control**: Actor functionality is governed by `act` parameters.
+4. **Initialization**: The data structure can be initialized from 0D `ini` parameters.
+5. **Use cases**: FUSE includes templates for various machines (e.g., FPP, ITER, ARC).
+6. **Workflows**: Self-contained studies and optimizations are conducted via workflows, typically involving multiple FUSE simulations.
+7. **Interoperability**: FUSE interfaces with existing modeling tools like OMFIT/OMAS and the IMAS ecosystem.
+
+A diagram illustrating these concepts is provided below:  
+![FUSE Diagram](./docs/src/assets/FUSE.svg)
+
+## Usage Example
+
+Here’s a simple example of setting up and running a FUSE simulation in Julia:
 
 ```julia
 using FUSE
 
-# get `ini` and `act` for a given use-case
+# Obtain `ini` and `act` parameters for a specific use case
 ini, act = FUSE.case_parameters(:FPP)
 
-# initialize `dd` from 0D parameters
-dd = FUSE.init(ini, act; do_plot=true)
+# Initialize the `dd` structure with 0D parameters
+dd = FUSE.init(ini, act)
 
-# run an actor
-FUSE.ActorStationaryPlasma(dd, act; do_plot=true);
+# Run a stationary plasma actor simulation
+FUSE.ActorStationaryPlasma(dd, act)
+
+# Get a overview of the simulation results
+FUSE.digest(dd)
 ```
 
 ## Installation
 
-FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). First [install Julia](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#juliaup---julia-version-manager), then:
+FUSE and its related packages are available through the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). To install:
+
+1. [Install Julia](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#juliaup---julia-version-manager)
+
+2. Add the FuseRegistry and General registries, then install FUSE:
 
 ```julia
 using Pkg
