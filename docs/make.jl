@@ -161,7 +161,6 @@ makedocs(;
         prettyurls=false,
         sidebar_sitename=false,
         assets=["assets/favicon.ico"],
-        disable_git=true,
         size_threshold=nothing,
         size_threshold_warn=nothing),
     remotes=nothing,
