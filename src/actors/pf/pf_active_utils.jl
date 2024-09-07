@@ -329,14 +329,14 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
     return df
 end
 
-function Base.show(io::IO, ::MIME"text/plain", coils::IMAS.IDSvector{<:Union{IMAS.pf_active__coil,IMAS.pf_active__supply}})
+function Base.show(io::IO, mime, ::MIME"text/plain", coils::IMAS.IDSvector{<:Union{IMAS.pf_active__coil,IMAS.pf_active__supply}})
     old_lines = get(ENV, "LINES", missing)
     old_columns = get(ENV, "COLUMNS", missing)
     df = DataFrames.DataFrame(coils)
     try
         ENV["LINES"] = 1000
         ENV["COLUMNS"] = 1000
-        return show(io::IO, df)
+        return show(io, mime, df)
     finally
         if old_lines === missing
             delete!(ENV, "LINES")

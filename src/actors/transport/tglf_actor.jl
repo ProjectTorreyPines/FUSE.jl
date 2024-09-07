@@ -214,8 +214,8 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     return input_tjlf
 end
 
-function Base.show(input::Union{InputTGLF,InputTJLF})
+function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF})
     for field_name in fieldnames(typeof(input))
-        println(" $field_name = $(getfield(input,field_name))")
+        println(io, " $field_name = $(getfield(input,field_name))")
     end
 end

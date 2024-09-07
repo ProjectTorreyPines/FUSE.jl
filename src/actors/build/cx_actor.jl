@@ -1074,14 +1074,14 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
     return df
 end
 
-function Base.show(io::IO, ::MIME"text/plain", layers::IMAS.IDSvector{<:IMAS.build__layer})
+function Base.show(io::IO, mime::MIME"text/plain", layers::IMAS.IDSvector{<:IMAS.build__layer})
     old_lines = get(ENV, "LINES", missing)
     old_columns = get(ENV, "COLUMNS", missing)
     df = DataFrames.DataFrame(layers)
     try
         ENV["LINES"] = 1000
         ENV["COLUMNS"] = 1000
-        return show(io::IO, df)
+        return show(io, mime, df)
     finally
         if old_lines === missing
             delete!(ENV, "LINES")

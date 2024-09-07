@@ -656,7 +656,7 @@ mutable struct MXHboundary
     z_boundary::Vector{<:Real}
 end
 
-function Base.show(io::IO, mxhb::MXHboundary)
+function Base.show(io::IO, ::MIME"text/plain", mxhb::MXHboundary)
     mxh = mxhb.mxh
     print(io, mxh)
     println(io, "RX: $(mxhb.RX)")

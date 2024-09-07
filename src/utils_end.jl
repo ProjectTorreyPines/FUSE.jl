@@ -56,7 +56,7 @@ function Base.getindex(chk::Checkpoint, key::Symbol)
     return deepcopy(chk.history[key])
 end
 
-function Base.show(io::IO, chk::Checkpoint)
+function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     for (k, v) in chk.history
         TPs = map(typeof, v)
         what = String[]
