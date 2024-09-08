@@ -1,7 +1,49 @@
-
+#= ========== =#
+#  test_cases  #
+#= ========== =#
 import OrderedCollections
 
-const test_cases = OrderedCollections.OrderedDict{String,Any}()
+struct TestCases <: AbstractDict{String,Any}
+    data::OrderedCollections.OrderedDict{String,Any}
+end
+
+TestCases() = TestCases(OrderedCollections.OrderedDict{String,Any}())
+
+function Base.getindex(tc::TestCases, key::String)
+    return getindex(tc.data, key)
+end
+
+function Base.setindex!(tc::TestCases, value, key::String)
+    return tc.data[key] = value
+end
+
+Base.length(tc::TestCases) = length(tc.data)
+
+function Base.iterate(tc::TestCases, state=1)
+    return iterate(tc.data, state)
+end
+
+Base.haskey(tc::TestCases, key::String) = haskey(tc.data, key)
+
+Base.keys(tc::TestCases) = keys(tc.data)
+
+Base.get(tc::TestCases, key::String, default) = get(tc.data, key, default)
+
+function Base.delete!(tc::TestCases, key::String)
+    return delete!(tc.data, key)
+end
+
+function Base.show(io::IO, ::MIME"text/plain", test_cases::TestCases)
+    n = maximum(length, keys(test_cases))
+    for testname in sort!(collect(keys(test_cases)))
+        (args, kw) = test_cases[testname]
+        kw_str = join(["$k=$(repr(v))" for (k, v) in kw], ", ")
+        printstyled(io, "$(rpad(testname, n))"; bold=true)
+        println(io, "   ini, act = FUSE.case_parameters($(join(repr.(args), ", "))$(isempty(kw_str) ? "" : "; ")$kw_str)")
+    end
+end
+
+const test_cases = TestCases()
 
 test_cases["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
 test_cases["ITER_scalars"] = ([:ITER], Dict(:init_from => :scalars))
@@ -64,7 +106,7 @@ NOTE: if case starts with `test__` then the regression test cases are loaded
 function case_parameters(case::Symbol, args...; kw...)
     case_str = string(case)
     if startswith(case_str, "test__")
-        tmp, kw = test_cases[split(case_str,"__"; limit=2)[end]]
+        tmp, kw = test_cases[split(case_str, "__"; limit=2)[end]]
         case = tmp[1]
         if length(tmp) == 1
             args = []
@@ -78,7 +120,7 @@ function case_parameters(case::Symbol, args...; kw...)
     end
 
     ini, act = case_parameters(Val{case}, args...; kw...)
-    
+
     if startswith(case_str, "test__")
         act.ActorStationaryPlasma.max_iter = 1
     end
