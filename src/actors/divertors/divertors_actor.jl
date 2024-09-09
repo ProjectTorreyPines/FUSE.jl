@@ -96,7 +96,7 @@ function _step(actor::ActorDivertors)
             boundary_plasma_model()
             if par.verbose
                 println("      == $(uppercase(target.name)) ==")
-                BoundaryPlasmaModels.show_summary(boundary_plasma_model)
+                BoundaryPlasmaModels.summary(boundary_plasma_model)
                 println()
             end
 
