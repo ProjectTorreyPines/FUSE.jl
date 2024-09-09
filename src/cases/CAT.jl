@@ -59,7 +59,6 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFdesign.symmetric = true
 
-    act.ActorCoreTransport.model=:none
     act.ActorStabilityLimits.raise_on_breach = false
 
     set_new_base!(ini)

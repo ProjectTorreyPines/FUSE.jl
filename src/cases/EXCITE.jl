@@ -99,7 +99,7 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     act.ActorEquilibrium.model = :TEQUILA
     act.ActorTEQUILA.relax = 0.25
 
-    act.ActorFluxMatcher.model = :none # No flux matching possible
+    act.ActorCoreTransport.model = :none # No flux matching possible
 
     # finalize
     set_new_base!(ini)
