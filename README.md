@@ -2,7 +2,7 @@
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the Apache 2.0 license. 📝
 
-## Objectives 🎯
+## Objectives
 
 * ⚡ Provide a highly efficient, modular framework that tightly couples models across different domains.
 * 🧩 Integrate plasma physics, engineering, control, balance of plant, and costing systems.
@@ -12,7 +12,7 @@ FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the i
 * 🎯 Perform multi-objective constrained optimization to explore design tradeoffs.
 * 🔍 Enable comprehensive sensitivity analysis and uncertainty quantification.
 
-## Basic Concepts 🧠
+## Basic Concepts
 
 FUSE is entirely written in Julia and is structured around the following core concepts:
 
@@ -27,19 +27,19 @@ FUSE is entirely written in Julia and is structured around the following core co
 A diagram illustrating these concepts is provided below:  
 ![FUSE Diagram](./docs/src/assets/FUSE.svg)
 
-## Documentation 📚
+## Documentation
 
 Find the full documentation here: [https://fuse.help](https://fuse.help)
 
-## Publication 📝
+## Publication
 
 Refer to the related publication: [FUSE Paper](https://tinyurl.com/FUSEpaper)
 
-## Presentation 📊
+## Presentation
 
 Access the project presentation: [FUSE Slide Deck](https://tinyurl.com/FUSEslideDeck)
 
-## Usage Example 🛠️
+## Usage Example
 
 Here’s a simple example of setting up and running a FUSE simulation in Julia:
 
