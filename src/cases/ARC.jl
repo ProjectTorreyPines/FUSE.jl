@@ -80,6 +80,12 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.requirements.coil_j_margin = 0.1
     ini.requirements.coil_stress_margin = 0.1
 
+    #### ACT ####
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
+
     set_new_base!(ini)
     set_new_base!(act)
 

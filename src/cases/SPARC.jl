@@ -63,6 +63,11 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
 
     ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
+    #### ACT ####
+    act.ActorFluxMatcher.model = :FluxMatcher # No flux matching possible
+    act.ActorFluxMatcher.max_iterations = 100
+    act.ActorTGLF.model = :TJLF
+
     act.ActorPFdesign.symmetric = true
 #    act.ActorCXbuild.divertor_size = 0.6
 
