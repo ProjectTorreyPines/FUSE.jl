@@ -13,12 +13,11 @@ FUSE.test_cases
 # Get initial parameters (`ini`) and actions (`act`) for a given use-case
 ini, act = FUSE.case_parameters(:KDEMO);
 
-# Modifying `ini` parameters
+# Modifying [`ini` parameters](https://fuse.help/stable/ini.html).
 ini.equilibrium.B0 = 7.8
 ini.equilibrium.R0 = 6.5
-ini.equilibrium
 
-# Modifying `act` parameters
+# Modifying [`act` parameters](https://fuse.help/stable/act.html).
 act.ActorCoreTransport.model = :FluxMatcher
 
 # Initialize the data dictionary (`dd`) using the 0D parameters

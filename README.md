@@ -59,7 +59,7 @@ FUSE.ActorStationaryPlasma(dd, act)
 FUSE.digest(dd)
 ```
 
-## Installation ⚙️
+## Installation
 
 FUSE and its related packages are available through the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). To install:
 
