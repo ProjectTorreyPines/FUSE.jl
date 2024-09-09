@@ -9,6 +9,7 @@ using Printf
 using InteractiveUtils
 import LinearAlgebra
 using StaticArrays
+import AbstractTrees: print_tree
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -180,7 +181,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging
+export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree
 export step, pulse, ramp, trap, gaus, beta, sequence
 
 end
