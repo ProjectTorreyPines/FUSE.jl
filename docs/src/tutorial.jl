@@ -1,13 +1,12 @@
 # # FUSE Introductory Tutorial
 
 # Import the necessary packages
-using Plots
-using FUSE
+using Plots # for plotting
+using FUSE # this will also import IMAS in the current namespace
 
 # ## Starting from a use-case
-# Here, we start by picking from one of the existing test cases.
-# Note: Some test cases are for non-nuclear experiments.
-# In those cases, certain Actors like Blankets or BalanceOfPlant will not perform any actions.
+# FUSE comes with some predefined [use-cases](https://fuse.help/stable/cases.html), some of which are used for regression testing.
+# Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.
 FUSE.test_cases
 
 # Get initial parameters (`ini`) and actions (`act`) for a given use-case
@@ -35,9 +34,8 @@ chk[:init] = dd, ini, act;
 # Display part of the equilibrium data in `dd`
 dd.equilibrium.time_slice[2].boundary
 
-# Understanding the IMAS structure
-# `dd` and its fields, such as `dd.equilibrium`, are instances of Julia structs defined in the `IMAS.jl` package.
-IMAS.equilibrium__time_slice___boundary
+# this can be done up to a certain depth with `print_tree`
+print_tree(dd.equilibrium.time_slice[2].boundary; maxdepth=1)
 
 # ## Plotting data from `dd`
 # FUSE provides Plots.jl recipes for visualizing data from `dd`, this means different plots are shown by calling the same `plot()` function on different items in the data structure.
@@ -97,7 +95,7 @@ my_b0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
 #
 dd.equilibrium.vacuum_toroidal_field.b0
 
-# ## Expressions and consistency in IMAS data
+# ## Expressions in `dd`
 
 # Some fields in the data dictionary are expressions (ie. Functions), that are dynamically evaluated upon access
 print_tree(dd.core_profiles.profiles_1d[1]; maxdepth=1)
