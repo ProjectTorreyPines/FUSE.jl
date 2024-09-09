@@ -12,6 +12,15 @@ using Literate
 
 # Convert the Literate.jl script to markdown
 Literate.markdown(joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src"), documenter=true)
+lines = join(readlines(joinpath(@__DIR__, "src", "tutorial.md")), "\n")
+open(joinpath(@__DIR__, "src", "tutorial.md"), "w") do f
+    write(f, replace(lines,
+"""
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+""" => ""))
+end
 
 function pretty_units(unit)
     unit = replace(unit, r"\^-3(?![0-9])" => "⁻³")
