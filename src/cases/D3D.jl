@@ -80,6 +80,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     act.ActorPFdesign.symmetric = true
 
     act.ActorWholeFacility.update_build = false
+    act.ActorFluxMatcher.evolve_pedestal = false
 
     if use_ods_sources
         act.ActorHCD.nb_model = :none
