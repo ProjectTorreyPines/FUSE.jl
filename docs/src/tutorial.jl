@@ -1,303 +1,180 @@
-# # FUSE introductory tutorial
+# # FUSE Introductory Tutorial
 
-# Import Plots and FUSE packages in current namespace
+# Import the necessary packages
 using Plots
 using FUSE
 
-# ## Select a use-case
-
-# To start we can pick from one of the exiting test cases
-# NOTE: Some of the test cases are for non-nuclear experiments
-#       For these some of the Actors will not do anything (eg. Blankets, BalanceOfPlant)
+# ## Starting from a use-case
+# Here, we start by picking from one of the existing test cases.
+# Note: Some test cases are for non-nuclear experiments.
+# In those cases, certain Actors like Blankets or BalanceOfPlant will not perform any actions.
 FUSE.test_cases
 
-# Get `ini` and `act` for a given use-case
-ini, act = FUSE.case_parameters(:FPP);
+# Get initial parameters (`ini`) and actions (`act`) for a given use-case
+ini, act = FUSE.case_parameters(:KDEMO);
 
-# ## Initialize `dd` from 0D parameters
+# Modifying `ini` parameters
+ini.equilibrium.B0 = 7.8
+ini.equilibrium.R0 = 6.5
+ini.equilibrium
 
-# 
+# Initialize the data dictionary (`dd`) using the 0D parameters
 dd = FUSE.init(ini, act);
 
-# ## Run our first Actor
-FUSE.ActorEquilibrium(dd, act; ip_from=:equilibrium);
+## Using checkpoints to save and restore states (we'll use this later)
+chk = FUSE.Checkpoint()
+chk[:init] = dd, ini, act;
 
-# ## Playing around with `dd`
-# * FUSE stores data according to the IMAS data schema
-# * The root of the data structure where FUSE stores data is generally referred to as `dd` (which stands for `Data Dictionary`)
-# * See the [`IMAS.dd()` documentation](https://fuse.help/stable/dd.html)
-# 
-# ### Show `dd` content
+# ## Exploring the data dictionary
+# * FUSE stores data following the IMAS data schema.
+# * The root of the data structure is `dd`, which stands for "Data Dictionary".
+# * More details are available in the [documentation](https://fuse.help/stable/dd.html).
 
-# We take a look at only one portion of dd
+# Display part of the equilibrium data in `dd`
 dd.equilibrium.time_slice[2].boundary
 
-# ### Show IMAS stucture
-# 
-# * `dd`, `dd.equilibrium`, ... are instances of Julia `strut`s that are defined in the `IMASDD.jl` package
-#   * `dd = IMAS.dd()`
-#   * `dd.equilibrium` is of type `IMAS.equilibrium`
-#   * `dd.equilibrium.time_slice` is of type `IMAS.equilibrium__time_slice`
-#   * `dd.equilibrium.time_slice[1].boundary` is of type `IMAS.equilibrium__time_slice___boundary`
-#   
-# * The curious reader can take a look at the [IMASdd/src/dd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl/blob/master/src/dd.jl) file to see those definitions
-
-# Whenever things start with `IMAS.`, then this is a Julia type. This will print the IMAS documentation for that type.
-# the convention is that `.` get replaced by a double dash `__` and `[]` get replaced by a triple dash `___`
+# Understanding the IMAS structure
+# `dd` and its fields, such as `dd.equilibrium`, are instances of Julia structs defined in the `IMAS.jl` package.
 IMAS.equilibrium__time_slice___boundary
 
-# ### Plot data in `dd`
-# 
-# * There are [Plots.jl recipies](https://docs.juliaplots.org/latest/recipes/) defined for different IMASdd.jl types of structs
-# * These recipies are defined in [IMAS/src/plot.jl](https://github.com/ProjectTorreyPines/IMASdd.jl/blob/master/src/plot.jl)
-# * Plots can be [customized](https://docs.juliaplots.org/latest/generated/attributes_series)
-# * NOTE: use `display()` is used to force the plot to show when `plot` is not called at the end of the cell
+# ## Plotting data from `dd`
+# FUSE provides Plots.jl recipes for visualizing data from `dd`. These can be customized as needed.
 
+# 
 plot(dd.equilibrium)
 
-#
-
+# 
 plot(dd.core_profiles)
 
 #
-
 plot(dd.core_sources)
 
-# plots can be composed
+# Composing multiple plots:
 plot(dd.equilibrium; color=:gray, cx=true)
 plot!(dd.build; equilibrium=false, pf_active=false)
 plot!(dd.pf_active)
 
-# plot of an array ...
+# Plotting an array...
 plot(dd.core_profiles.profiles_1d[1].pressure_thermal)
 
-# ... is different than plotting of a field in an IDS
+# ...is different from plotting a field from the IDS. See how
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)
 
-# plots can be [customized](https://docs.juliaplots.org/latest/generated/attributes_series):
+# Customizing plot attributes:
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label="", linewidth=2, color=:red, labelfontsize=25)
 
-# ### Working with time series
-# 
-# * The IMAS data structure can accomodate time-dependent data
-#   
-# * Manually handling time in IMAS is tedius and error-prone
-#   
-# * IMAS.jl provides convenient ways to handle time
-#   * `dd.global_time`® sets the "current working time" throughout all of the `dd`
-#   * different IDSs can have time arrays of different lengths
-#   * data returned based on nearest neighbour
+# ## Working with time series
 
-@show dd.global_time
+# The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.
 
-#
+# Each `dd` has a global time defined. Most actors operate at the time defined by the `dd.global_time`
+dd.global_time
 
-@show dd.equilibrium.time;
+# Here we see that equilibrium has mulitiple time_slices
+dd.equilibrium.time
 
-# To access a time-dependent array of structures at time slice use **Integer** index
+# Accessing time-dependent arrays of structures, via integer index
 eqt = dd.equilibrium.time_slice[2]
-@show eqt.time;
+eqt.time
 
-# To access a time-dependent array of structures at `dd.globaltime` use []
-eqt = dd.equilibrium.time_slice[]
-@show eqt.time;
-
-# To access a time-dependent array of structures at a given time use **Float** time
+# At a given time, by passing the time as a floating point number (in seconds)
 eqt = dd.equilibrium.time_slice[0.0]
-@show eqt.time;
+eqt.time
 
-# To access a time-dependent array we use @ddtime macro
-@show dd.equilibrium.vacuum_toroidal_field.b0; # this is a time dependent data array
+# At the global time, leaving the square brackets empty
+eqt = dd.equilibrium.time_slice[]
+eqt.time
 
-# GET data of time-dependent array at `dd.globaltime` (use `IMAS.get_time_array()` to access at other times)
+# Using the `@ddtime` macro to access and modify time-dependent arrays at `dd.global_time`:
+dd.equilibrium.vacuum_toroidal_field.b0
+
+# 
 my_b0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
 
-# SET data of time-dependent array at `dd.globaltime` (use `IMAS.set_time_array()` to access at other times)
-my_b0 = round(my_b0; digits=3)
-@ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = my_b0)
+#
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = my_b0 + 1)
 
-# ### Expressions
-# 
-# * Many fields in the IMAS data structure are related to one another. Given some fields others can be calculated. This leads to an issue of consistency, where if some field is updated, all the fields that relies on that data should be updated too.
-# 
-# * IMAS.jl solves this problem by assigning expressions to certain fields. The value of these expressions are then evaluated on the fly, when the field is requested.
-# 
-# * Expressions are defined in [IMAS/src/expressions/dynamic.jl](../../../IMAS/src/expressions/dynamic.jl) and [IMAS/src/expressions/onetime.jl](../../../IMAS/src/expressions/onetime.jl)
+#
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
 
-dd.core_profiles.profiles_1d[1]
+# ## Expressions and consistency in IMAS data
 
-# accessing the field evaluates the expression
+# Some fields in the IMAS structure are calculated dynamically to ensure consistency.
 dd.core_profiles.profiles_1d[1].electrons.pressure
 
-# `IMAS.freeze()` evaluates all expressions
+# Evaluate all expressions using `IMAS.freeze()`
 IMAS.freeze(dd.core_profiles.profiles_1d[1])
 
-# ### Saving/loading data
-# 
-# IMAS.jl can dump data in JSON format as well as HDF5 hierarchical (`imas2hdf` and `hdf2imas`) or tensorized (`imas2h5i` and `h5i2imas`).
+# ## Running ActorWholeFacility to get a self-consistent stationary whole facility design
 
-# Dump data to JSON
-# * `freeze` says whether we want to evaluate all expressions when saving data to file
-# * `strict` says whether we want the data to adhere strictly to ITER IMAS dd, or FUSE extensions should also be saved
-tutorial_temp_dir = tempdir()
-save_name = "FPP_v1_starting_point.json"
-@show filename = joinpath(tutorial_temp_dir, save_name)
-IMAS.imas2json(dd, filename; freeze=false, strict=false);
+# Restore init checkpoint
+dd, ini, act = chk[:init];
 
-# Check for differences between IDSs
-dd1 = IMAS.json2imas(filename);
-dd1.equilibrium.time_slice[1].time = -100.0 # let's change something
-IMAS.diff(dd.equilibrium, dd1.equilibrium)
+# Run ActorWholeFacility
+FUSE.ActorWholeFacility(dd, act);
 
-# ## Playing around with `ini`
-# * See the [`ParametersInit()` documentation](https://fuse.help/stable/ini.html)
-# * Organized by topical areas
-# * Can have multiple layers of nesting
-# * Most field defaulted to `missing`
+# Checkpoint results
+chk[:awf] = dd, ini, act;
 
-new_ini = FUSE.ParametersInits()
+# ## Running a custom workflow
 
-# access a sub-tree
-new_ini.equilibrium
+# Let's runs a series of actors similar to what ActorWholeFacility does
 
-# access a leaf
-new_ini.equilibrium.Z0
-
-# ### Access detailed descriptions [online](https://fuse.help/stable/ini_details.html#ini.equilibrium.Z0)
-# * Notice **units**, **descriptons**
-# * Some fields only allow a limited set of **options**
-# * Each field stores three things:
-#     * **default**: default value when `ini = ParametersInit()` is first called
-#     * **base**: value when `FUSE.set_new_base!(ini)` is called
-#     * **value**: current value
-
-# Error if trying to access something that is not initialized
-try
-    new_ini.equilibrium.ip
-catch e
-    Base.showerror(stderr, e)
-end
-
-# Some ini fields only allow a limited set of options
-try
-    new_ini.tf.technology.material = "something"
-catch e
-    Base.showerror(stderr, e)
-end
-
-# Making changes highlight things in *red* 
-new_ini.equilibrium.B0 = 6.12
-new_ini.equilibrium.R0 = 5.1
-new_ini.equilibrium
-
-# setting a new `base`  (this is done at the end of use-cases definitions), highlights entries in *blue*
-FUSE.set_new_base!(new_ini)
-new_ini.equilibrium
-
-# Making changes highlight things in *red* 
-new_ini.equilibrium.B0 = 6.123
-new_ini.equilibrium
-
-# ### Usecases return pre-filled `ini` and `act` parameters
-# 
-# See for example:
-# * [FUSE/src/cases/FPP.jl](../../../FUSE/src/cases/FPP.jl)
-# * [FUSE/src/cases/ITER.jl](../../../FUSE/src/cases/ITER.jl)
-# * [FUSE/src/cases/ARC.jl](../../../FUSE/src/cases/ARC.jl)
-
-ini, act = FUSE.case_parameters(:FPP)
-ini.equilibrium
-
-# ## Playing around with `act`
-# * [`FUSE.ParametersActor()` documentation](https://fuse.help/stable/act.html)
-
-# ### Show overall organization
-# * Organized by Actor
-# * Works the same was as `ini` Parameters
-
-act.ActorEquilibrium
-
-# ## Running actors 
-# * [Actors documentation](https://fuse.help/actors.html)
-# * We'll manually step through what **Actor** do:
-#   * **ActorEquilibrium**: equilibrium (Solovev, TEQUILA, CHEASE) 
-#   * **ActorHFSsizing**: Sizes the High Field Side of radial build (plug, OH, TF) superconductors and stresses
-#   * **ActorLFSsizing**: Sizes the Low Field Side of radial build
-#   * **ActorCXbuild**: Generate the 2D cross section of the build
-#   * **ActorPFactive**: Find optimal PF coil locations and currents to match equilibrium boundary shape and a field-null region
-#   * **ActorNeutronics**: Calculate neutron loading on the wall
-#   * **ActorBlanket**: Blanket tritium breeding ration and heating
-#   * **ActorDivertors**: Divertor heat flux
-#   * **ActorBalanceOfPlant**: Calculate the net electrical power output
-#   * **ActorCosting**: Calculate the cost of the fusion power plant
-
-# Start from scratch
-ini, act = FUSE.case_parameters(:FPP);
-ini.pf_active.n_coils_outside = 6;
-ini.core_profiles.zeff = 2.0;
-dd = FUSE.init(ini, act; do_plot=false);
-
-# Checkpoint system allows us to save the state of `dd`, `ini` and `act`
-chk = FUSE.Checkpoint()
-chk[:my_checkpoint_name] = dd, ini, act;
-
+dd, ini, act = chk[:init];
 FUSE.ActorEquilibrium(dd, act; ip_from=:equilibrium, do_plot=true);
 
-# We can use checkpoint system to restore previous conditions to go back and re-run the actor.
-# This is useful when working in a Jupyter notebook. One can store a checkpoint at the end of a cell, and restore it at the beginning of another allowing to experiment with parameters and conditions in the second cell without having to re-run the first cell.
-dd, ini, act = chk[:my_checkpoint_name]
-FUSE.ActorEquilibrium(dd, act; ip_from=:equilibrium);
-
 #
-
 FUSE.ActorHFSsizing(dd, act; do_plot=true);
-display(plot(dd.solid_mechanics.center_stack.stress));
-IMAS.freeze(dd.build.oh)
 
 #
-
 FUSE.ActorLFSsizing(dd, act; do_plot=true);
-IMAS.freeze(dd.build.tf)
 
 #
-
 FUSE.ActorCXbuild(dd, act; do_plot=true);
 
-# weight_currents: make smaller to force currents to fit in the limits
-# update_equilibrium: overwrite the target equilibrium with what the coils can actually generate
+#
 FUSE.ActorPFactive(dd, act; do_plot=true, update_equilibrium=true);
 
-# Let's run the ActorCXbuild to update the first wall shape based on the new equilibrium
-FUSE.ActorCXbuild(dd, act, rebuild_wall=true; do_plot=false);
-plot(dd.build; legend=false)
+# Update wall shape after equilibrium update
+FUSE.ActorCXbuild(dd, act; rebuild_wall=true, do_plot=true);
 
 #
-
 FUSE.ActorNeutronics(dd, act; do_plot=true);
 
 #
-
-FUSE.ActorBlanket(dd, act)#; do_plot=true);
-IMAS.freeze(dd.blanket)
+FUSE.ActorBlanket(dd, act);
 
 #
-
-FUSE.ActorDivertors(dd, act)#; do_plot=true);
-IMAS.freeze(dd.divertors)
+FUSE.ActorDivertors(dd, act);
 
 #
-
-FUSE.ActorBalanceOfPlant(dd, act)#; do_plot=true);
-IMAS.freeze(dd.balance_of_plant)
+FUSE.ActorBalanceOfPlant(dd, act);
 
 #
+FUSE.ActorCosting(dd, act)
+chk[:manual] = dd, ini, act;
 
-FUSE.ActorCosting(dd, act)#; do_plot=true);
-IMAS.freeze(dd.costing)
+# ## Saving and loading data to file
+tutorial_temp_dir = tempdir()
+filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).json")
 
-# Save `dd` to JSON, so we can share our results with others
-@show filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).json")
-IMAS.imas2json(dd, filename; freeze=true, strict=false);
+# When saving data to be shared outside of FUSE, one can set `freeze=true` so that all expressions in the dd are evaluated and saved to file.
+IMAS.imas2json(dd, filename; freeze=false, strict=false)
 
-# NOTE: can be loaded in OMFIT this way
-# OMFIT["FUSE"] = ODS().load(".../fpp_v1_FUSE.json", consistency_check=False)
+# Load from JSON
+dd1 = IMAS.json2imas(filename);
+
+# ## Comparing two IDSs
+dd1.equilibrium.time_slice[1].time = -100.0 # Introducing a change
+IMAS.diff(dd.equilibrium, dd1.equilibrium)
+
+# ## Summary
+# Snapshot of `dd` in 0D quantities (evaluated at `dd.global_time`)
+FUSE.extract(dd)
+
+# Extract + plots
+FUSE.digest(dd)
+
+# Extract + plots saved to PDF
+filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
+FUSE.digest(dd, filename)
