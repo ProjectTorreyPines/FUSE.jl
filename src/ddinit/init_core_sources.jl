@@ -132,16 +132,12 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
     TimerOutputs.reset_timer!("init_core_sources")
     TimerOutputs.@timeit timer "init_core_sources" begin
         init_from = ini.general.init_from
-
         if init_from == :ods
             if IMAS.hasdata(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
                 dd.core_sources = deepcopy(dd1.core_sources)
                 unique_core_sources_names!(dd.core_sources)
                 if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
                     @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `ods.ec_launchers.beam`"
-                end
-                if !isempty(dd.pellets.time_slice) && !isempty(dd.pellets.time_slice[].pellet) && findfirst(:pellet, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.pellet_model == :none "Init using sources from ODS requires `act.ActorHCD.pellet_model = :none` or data in `dd.pellets.time_clice[].pellet`"
                 end
                 if isempty(dd1.ic_antennas.antenna) && findfirst(:ic, dd.core_sources.source) !== missing
                     @assert act.ActorHCD.ic_model == :none "Init using sources from ODS requires `act.ActorHCD.ic_model = :none` or data in `ods.ic_launchers.antenna`"
@@ -151,6 +147,9 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
                 end
                 if isempty(dd1.nbi.unit) && findfirst(:nbi, dd.core_sources.source) !== missing
                     @assert act.ActorHCD.nb_model == :none "Init using sources from ODS requires `act.ActorHCD.nb_model = :none` or data in `ods.nbi.unit`"
+                end
+                if !isempty(dd.pellets.time_slice) && !isempty(dd.pellets.time_slice[].pellet) && findfirst(:pellet, dd.core_sources.source) !== missing
+                    @assert act.ActorHCD.pellet_model == :none "Init using sources from ODS requires `act.ActorHCD.pellet_model = :none` or data in `dd.pellets.time_slice[].pellet`"
                 end
             else
                 init_from = :scalars

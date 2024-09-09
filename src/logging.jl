@@ -23,7 +23,13 @@ function logging(level::Logging.LogLevel, topic::Symbol, text::AbstractString)
         error("Valid FUSE logging topics are: $(Symbol[topic for topic in keys(log_topics)])")
     end
     if log_topics[topic] <= level
-        Logging.@logmsg level text
+        # flux stdout and later stderr to make sure information shows in terminal at the right place
+        flush(stdout)
+        printstyled(stderr, topic; bold=true, color=:cyan)
+        printstyled(stderr, ": "; bold=true)
+        printstyled(stderr, text)
+        printstyled(stderr, "\n")
+        flush(stderr)
     end
     return log_topics
 end

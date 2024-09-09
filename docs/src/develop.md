@@ -1,10 +1,6 @@
 # Development
 
-The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE and reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository.
-
-## Packages organization
-
-....
+The FUSE project is built upon multiple Julia packages, many of which reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) organization on GitHub.
 
 ## Managing Pull Requests on GitHub: A Collaborative Approach
 
@@ -40,28 +36,7 @@ end
 Calculates DT fusion heating with an estimation of the alpha slowing down to the ions and electrons, modifies dd.core_sources
 """
 function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
-    cp1d = cp.profiles_1d[]
-
-    polarized_fuel_fraction = getproperty(cp.global_quantities, :polarized_fuel_fraction, 0.0)
-    α = alpha_heating(cp1d; polarized_fuel_fraction)
-    if sum(α) == 0
-        deleteat!(cs.source, "identifier.index" => 6)
-        return cs
-    end
-    ion_to_electron_fraction = sivukhin_fraction(cp1d, 3.5e6, 4.0)
-
-    source = resize!(cs.source, :fusion; allow_multiple_matches=true)
-    new_source(
-        source,
-        source.identifier.index,
-        "α",
-        cp1d.grid.rho_tor_norm,
-        cp1d.grid.volume,
-        cp1d.grid.area;
-        electrons_energy=α .* (1.0 .- ion_to_electron_fraction),
-        total_ion_energy=α .* ion_to_electron_fraction
-    )
-    return source
+    # // actual implementation here //
 end
 ```
 
@@ -259,6 +234,7 @@ Let's now investigate where the issue is with the function that we have identifi
 
 1. To build the documentation, in the `FUSE/docs` folder, start Julia then:
    ```julia
+   ] activate .
    include("make.jl")
    ```
    !!! tip Interactive documentation build
@@ -266,10 +242,7 @@ Let's now investigate where the issue is with the function that we have identifi
 
 1. Check page by opening `FUSE/docs/build/index.html` page in web-browser.
 
-1. To publish online, run in the `FUSE` folder:
-   ```bash
-   make web
-   ```
+1. The online documentation is built after each commit to `master` via GitHub actions.
 
 !!! note
     Documentation files (PDF, DOC, XLS, PPT, ...) can be committed and pushed to the [FUSE\_extra\_files](https://github.com/ProjectTorreyPines/FUSE_extra_files) repository, and then linked directly from within the FUSE documentation, like this:
@@ -280,19 +253,18 @@ Let's now investigate where the issue is with the function that we have identifi
 
 ## Examples
 
-The `FUSE/examples` folder contains jupyter notebook that showcase some possible uses of FUSE.
+The [FUSE_examples repository](https://github.com/ProjectTorreyPines/FUSE_examples) contains jupyter notebook that showcase some possible uses of FUSE.
 
 !!! note
-    When pushing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the FUSE repository in check.
+    When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
 
 ## Using Revise.jl
 
 Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
-We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions.
-All this can be done by running in the `FUSE` folder:
+We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions. This can be done by running:
 
 ```bash
-make revise
+fusebot install_revise
 ```
 
 ## Development in VScode
@@ -309,7 +281,7 @@ FUSE uses the following VScode settings for formatting the Julia code:
     "editor.tabSize": 4,
     "editor.detectIndentation": false,
     "[julia]": {
-        "editor.defaultFormatter": "singularitti.vscode-julia-formatter"
+        "editor.defaultFormatter": "julialang.language-julia"
     },
     "juliaFormatter.margin": 160,
     "juliaFormatter.alwaysForIn": true,

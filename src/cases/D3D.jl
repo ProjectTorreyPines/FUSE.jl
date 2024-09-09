@@ -42,7 +42,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         :hfs_wall => 0.5,
         :plasma => 0.0,
         :lfs_wall => 0.5,
-        :lfs_gap_OH_coils => 2.0,
+        :lfs_gap_OH_coils => 1.8,
         :lfs_TF => 1.1,
         :gap_world => 1.0
     )
@@ -86,6 +86,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         act.ActorHCD.ec_model = :none
         act.ActorHCD.lh_model = :none
         act.ActorHCD.ic_model = :none
+        act.ActorHCD.pellet_model = :none
     else
         empty!(ini.general.dd.core_sources)
         ini.nb_unit[1].power_launched = shot_mappings[scenario][:nbi_power]

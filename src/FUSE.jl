@@ -9,6 +9,7 @@ using Printf
 using InteractiveUtils
 import LinearAlgebra
 using StaticArrays
+import AbstractTrees: print_tree
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -135,7 +136,7 @@ include(joinpath("actors", "costing", "costing_actor.jl"))
 
 include(joinpath("actors", "risk", "risk_actor.jl"))
 
-include(joinpath("actors", "control", "controller_actor.jl"))
+include(joinpath("actors", "control", "ip_control.jl"))
 
 include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
@@ -182,7 +183,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging
-export step, pulse, ramp, trap, gaus, beta
+export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree
+export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

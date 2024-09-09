@@ -12,8 +12,8 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 1.85
     ini.equilibrium.ϵ = 0.308 #a/R0
-    ini.equilibrium.κ = 1.97 #kappa_a = 1.75 (kappa_lower-single-null = 1.65), kappa_sep = 1.97
-    ini.equilibrium.δ = 0.54 #delta_sep
+    ini.equilibrium.κ = 1.97
+    ini.equilibrium.δ = 0.45
     ini.equilibrium.B0 = -12.2
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
@@ -36,11 +36,11 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.build.layers = layers
 
     ini.oh.n_coils = 6
-    ini.pf_active.n_coils_inside = 6
+    ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 8
     ini.pf_active.technology = :rebco
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :miller
     ini.tf.n_coils = 18 #estimate (from ARC)
     ini.tf.technology = :rebco
     ini.oh.technology = :rebco
@@ -64,7 +64,7 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     act.ActorPFdesign.symmetric = true
-    act.ActorEquilibrium.symmetrize = true
+#    act.ActorCXbuild.divertor_size = 0.6
 
     set_new_base!(ini)
     set_new_base!(act)
