@@ -56,7 +56,7 @@ function Base.getindex(chk::Checkpoint, key::Symbol)
     return deepcopy(chk.history[key])
 end
 
-function Base.show(io::IO, chk::Checkpoint)
+function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     for (k, v) in chk.history
         TPs = map(typeof, v)
         what = String[]
@@ -332,7 +332,7 @@ end
 """
     load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
 
-Read (dd, ini, act) to dd.json/h5, ini.json, and act.json files.
+Read (`dd`, `ini`, `act`) from `dd.json/h5`, `ini.json/yaml`, and `act.json/yaml` files.
 
 Returns `missing` for files are not there or if `error.txt` file exists in the folder.
 """
@@ -341,22 +341,34 @@ function load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, 
         @warn "$savedir simulation errored"
         return missing, missing, missing
     end
-    dd = missing
-    if load_dd
-        if isfile(joinpath(savedir, "dd.h5"))
-            dd = IMAS.hdf2imas(joinpath(savedir, "dd.h5"))
-        elseif isfile(joinpath(savedir, "dd.json"))
-            dd = IMAS.json2imas(joinpath(savedir, "dd.json"))
-        end
+
+    # dd
+    if load_dd && isfile(joinpath(savedir, "dd.h5"))
+        dd = IMAS.hdf2imas(joinpath(savedir, "dd.h5"))
+    elseif load_dd && isfile(joinpath(savedir, "dd.json"))
+        dd = IMAS.json2imas(joinpath(savedir, "dd.json"))
+    else
+        dd = missing
     end
-    ini = missing
+
+    # ini
     if load_ini && isfile(joinpath(savedir, "ini.json"))
         ini = json2ini(joinpath(savedir, "ini.json"))
+    elseif load_ini && isfile(joinpath(savedir, "ini.yaml"))
+        ini = yaml2ini(joinpath(savedir, "ini.yaml"))
+    else
+        ini = missing
     end
-    act = missing
+
+    # act
     if load_act && isfile(joinpath(savedir, "act.json"))
         act = json2act(joinpath(savedir, "act.json"))
+    elseif load_act && isfile(joinpath(savedir, "act.yaml"))
+        act = yaml2act(joinpath(savedir, "act.yaml"))
+    else
+        act = missing
     end
+
     return (dd=dd, ini=ini, act=act)
 end
 
@@ -517,16 +529,28 @@ function digest(
 
     # pf active
     sec += 1
-    if !isempty(dd.pf_active.coil) && section ∈ (0, sec)
+    if !isempty(dd.pf_active.coil) && !ismissing(dd.equilibrium,:time) && section ∈ (0, sec)
         println('\u200B')
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
         p = plot(; layout=l, size=(900, 400))
         plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
-        plot!(p, dd.build; subplot=2, legend=false)
+        plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
         plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
-        plot!(p, dd.build.pf_active.rail, subplot=2)
+        plot!(p, dd.build.pf_active.rail; subplot=2)
+        display(p)
+    end
+
+    # circuits
+    sec += 1
+    if !isempty(dd.pf_active.circuit) && section ∈ (0, sec)
+        println('\u200B')
+        l = @layout length(dd.pf_active.circuit)
+        p = plot(; layout=l, size=(900, 900))
+        for (k, circuit) in enumerate(dd.pf_active.circuit)
+            plot!(p, circuit; subplot=k)
+        end
         display(p)
     end
 
@@ -945,4 +969,33 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     end
     ProgressMeter.finish!(p)
     return df
+end
+
+"""
+    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+
+This function installs the `fusebot` executable in a given folder,
+by default in the directory where the juliaup executable is located.
+"""
+function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
+    target_path = joinpath(folder, "fusebot")
+    ptp_target_path = joinpath(folder, "ptp")
+
+    if !isfile(fusebot_path)
+        error("The `fusebot` executable does not exist in the FUSE directory!?")
+    end
+
+    cp(fusebot_path, target_path; force=true)
+
+    if folder == dirname(readchomp(`which juliaup`))
+        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
+    else
+        println("`fusebot` has been successfully installed in folder: $folder")
+    end
+
+    if isfile(ptp_target_path)
+        rm(ptp_target_path)
+        println("Old `ptp` has been successfully removed from folder: $folder")
+    end
 end

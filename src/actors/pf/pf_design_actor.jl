@@ -55,7 +55,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
     elseif par.model in [:uniform, :optimal]
         # reset pf coil rails
-        n_coils = [rail.coils_number for rail in dd.build.pf_active.rail]
+        n_coils = Int[rail.coils_number for rail in dd.build.pf_active.rail]
         init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
 
         # optimize coil placement
@@ -79,7 +79,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                             if k1 < k2
                                 d = sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
                                 s = sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2)
-                                if !(IMAS.is_ohmic_coil(imas(c1)) && IMAS.is_ohmic_coil(imas(c2)))
+                                if !(IMAS.is_ohmic_coil(VacuumFields.imas(c1)) && IMAS.is_ohmic_coil(VacuumFields.imas(c2)))
                                     cost_spacing = max(cost_spacing, (s - d) / d)
                                 end
                             end

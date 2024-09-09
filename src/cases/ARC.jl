@@ -75,7 +75,6 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
     ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled
 
     act.ActorPFdesign.symmetric = true
-    act.ActorEquilibrium.symmetrize = true
     act.ActorCXbuild.rebuild_wall = true
 
     ini.requirements.coil_j_margin = 0.1

@@ -58,7 +58,6 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].toroidal_angle = 0.0
 
     act.ActorPFdesign.symmetric = true
-    act.ActorEquilibrium.symmetrize = true
 
     act.ActorCoreTransport.model=:none
     act.ActorStabilityLimits.raise_on_breach = false

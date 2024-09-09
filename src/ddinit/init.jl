@@ -1,10 +1,20 @@
 """
-    init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; do_plot::Bool=false, initialize_hardware::Bool=true, restore_expressions::Bool=true)
+    init(
+        dd::IMAS.dd,
+        ini::ParametersAllInits,
+        act::ParametersAllActors;
+        do_plot::Bool=false,
+        initialize_hardware::Bool=true,
+        initialize_pulse_schedule::Bool=true,
+        restore_expressions::Bool=true,
+        verbose::Bool=false)
 
 Initialize `dd` starting from `ini` and `act` parameters
 
 FUSE provides this high-level `init` function to populate `dd` starting from the `ini` parameters.
+
 This function essentially calls all other `FUSE.init...` functions in FUSE.
+
 For most studies, calling this high level function is sufficient.
 """
 function init(
@@ -13,9 +23,10 @@ function init(
     act::ParametersAllActors;
     do_plot::Bool=false,
     initialize_hardware::Bool=true,
+    initialize_pulse_schedule::Bool=true,
     restore_expressions::Bool=true,
-    verbose::Bool=false
-)
+    verbose::Bool=false)
+
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
 
@@ -24,6 +35,11 @@ function init(
         empty!(dd.core_profiles)
         empty!(dd.core_sources)
         empty!(dd.summary)
+
+        # optionally re-initialize pulse_schedule
+        if initialize_pulse_schedule
+            empty!(dd.pulse_schedule)
+        end
 
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
@@ -108,7 +124,7 @@ function init(
             init_build!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
-                plot!(dd.build)
+                plot!(dd.build; equilibrium=false, pf_active=false)
                 display(plot!(dd.build; cx=false))
                 display(dd.build.layer)
             end
@@ -120,7 +136,7 @@ function init(
             init_pf_active!(dd, ini, act, dd1)
             if do_plot
                 plot(dd.equilibrium; cx=true, color=:gray)
-                plot!(dd.build)
+                plot!(dd.build; equilibrium=false, pf_active=false)
                 plot!(dd.build.pf_active.rail)
                 display(plot!(dd.pf_active))
             end
@@ -140,7 +156,11 @@ function init(
 
         # add strike point information to pulse_schedule
         if ps_was_set
-            Rxx, Zxx, _ = IMAS.find_strike_points(dd.equilibrium.time_slice[], dd.divertors; private_flux_regions=true)
+
+            eqt = dd.equilibrium.time_slice[]
+            fw = IMAS.first_wall(dd.wall)
+            psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
+            Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open, dd.divertors; private_flux_regions=true)
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, 4)
             for k in 1:4

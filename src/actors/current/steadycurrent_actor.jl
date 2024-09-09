@@ -23,12 +23,11 @@ end
 """
     ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-* evolves the ohmic current to steady state using the conductivity from `dd.core_profiles` and total current form `dd.equilibrium`.
-* sets the ohmic, bootstrap, and non-inductive current profiles in `dd.core_profiles`
-* updates bootstrap and ohmic in `dd.core_sources`
+Evolves the ohmic current to steady state using the conductivity from `dd.core_profiles`
 
-!!! note 
-    Stores data in `dd.core_sources` and `dd.core_profiles`
+!!! note
+
+    Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
@@ -42,7 +41,6 @@ function _step(actor::ActorSteadyStateCurrent)
     par = actor.par
 
     eqt = dd.equilibrium.time_slice[]
-    cpg = dd.core_profiles.global_quantities
     cp1d = dd.core_profiles.profiles_1d[]
 
     ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)

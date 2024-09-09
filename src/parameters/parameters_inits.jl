@@ -3,7 +3,8 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_, _triple_arc_, _miller_, _square_miller_, _spline_, _silo_, _racetrack_, _undefined_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_,
+    _triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -45,9 +46,11 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     Z0::Entry{T} = Entry{T}("m", "Z offset of the machine midplane"; default=0.0)
     ϵ::Entry{T} = Entry{T}("-", "Plasma inverse aspect ratio (a/R0). NOTE: This also scales the radial build layers."; check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < ϵ < 1.0")
     κ::Entry{T} = Entry{T}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
-    δ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :triangularity)
-    ζ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
-    𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary for up-down asymmetric plasmas"; default=0.0)
+    tilt::Entry{T} = Entry{T}("-", "Tilt of the plasma boundary [MXH c0]"; default=0.0)
+    δ::Entry{T} = Entry{T}("-", "Triangularity of the plasma boundary [MXH sin(s1)]"; default=0.0)
+    ζ::Entry{T} = Entry{T}("-", "Squareness of the plasma boundary [MXH -s2]"; default=0.0)
+    𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary [MXH c1]"; default=0.0)
+    twist::Entry{T} = Entry{T}("-", "Twist of the plasma boundary [MXH c2]"; default=0.0)
     pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure"; check=x -> @assert x > 0.0 "must be: P > 0.0")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
@@ -64,9 +67,10 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     _name::Symbol = :core_profiles
     plasma_mode::Switch{Symbol} = Switch{Symbol}([:H_mode, :L_mode], "-", "Plasma configuration"; default=:H_mode)
     ne_value::Entry{T} = Entry{T}("-", "Value based on setup method"; check=x -> @assert x > 0.0 "must be > 0.0")
-    ne_setting ::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
+    ne_setting::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
     w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
-    ne_sep_to_ped_ratio::Entry{T} = Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
+    ne_sep_to_ped_ratio::Entry{T} =
+        Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
@@ -215,7 +219,8 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     _name::Symbol = :requirements
     power_electric_net::Entry{T} = Entry{T}(IMAS.requirements, :power_electric_net; check=x -> @assert x >= 0.0 "must be: power_electric_net >= 0.0")
     flattop_duration::Entry{T} = Entry{T}(IMAS.requirements, :flattop_duration; check=x -> @assert x >= 0.0 "must be: flattop_duration >= 0.0")
-    log10_flattop_duration::Entry{T} = Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
+    log10_flattop_duration::Entry{T} =
+        Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio; check=x -> @assert x >= 0.0 "must be: tritium_breeding_ratio >= 0.0")
     cost::Entry{T} = Entry{T}(IMAS.requirements, :cost; check=x -> @assert x >= 0.0 "must be: cost >= 0.0")
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking; check=x -> @assert x >= 0.0 "must be: ne_peaking >= 0.0")
@@ -259,7 +264,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0) where {T<:Real}
+function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -281,6 +286,10 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         FUSEparameters__oh{T}(),
         FUSEparameters__balance_of_plant{T}(),
         FUSEparameters__requirements{T}())
+
+    for k in 1:n_layers
+        push!(ini.build.layers, FUSEparameters__build_layer{T}())
+    end
 
     for k in 1:n_nb
         push!(ini.nb_unit, FUSEparameters__nb_unit{T}())
@@ -307,8 +316,8 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
     return ini
 end
 
-function ParametersInits(;kw...)
-    return ParametersInits{Float64}(;kw...)
+function ParametersInits(; kw...)
+    return ParametersInits{Float64}(; kw...)
 end
 
 ################################
@@ -354,33 +363,44 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.R0 = mxh.R0
     equilibrium.Z0 = mxh.Z0
     equilibrium.κ = mxh.κ
-    equilibrium.δ = sin(mxh.s[1])
-    equilibrium.ζ = -mxh.s[2]
-    return equilibrium.𝚶 = mxh.c[1]
+    equilibrium.tilt = mxh.c0
+    if length(mxh.s) >= 1
+        equilibrium.δ = sin(mxh.s[1])
+    end
+    if length(mxh.s) >= 2
+        equilibrium.ζ = -mxh.s[2]
+    end
+    if length(mxh.c) >= 1
+        equilibrium.𝚶 = mxh.c[1]
+    end
+    if length(mxh.c) >= 2
+        equilibrium.twist = mxh.c[2]
+    end
+    return equilibrium
 end
 
 """
-    IMAS.MXH(equilibrium::FUSEparameters__equilibrium)
+    MXHboundary(ini::ParametersAllInits)::MXHboundary
 
-return ini.equilibrium boundary expressed in MHX independenty of how the user input it
+return MHXboundary representation of independenty of how it was input in ini.equilibrium
 """
-function IMAS.MXH(ini::ParametersAllInits)
+function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
     if ini.general.init_from == :ods
         dd = load_ods(ini)
     else
         dd = IMAS.dd()
     end
-    return IMAS.MXH(ini, dd)
+    return MXHboundary(ini, dd; kw...)
 end
 
-function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
+function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
     init_from = ini.general.init_from
     if init_from == :ods
         if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
             dd.global_time = ini.time.simulation_start
             eqt = dd.equilibrium.time_slice[]
-            IMAS.flux_surfaces(eqt)
-            dd.equilibrium # to avoid GC?
+            fw = IMAS.first_wall(dd.wall)
+            IMAS.flux_surfaces(eqt, fw.r, fw.z)
         else
             init_from = :scalars
         end
@@ -417,14 +437,25 @@ function IMAS.MXH(ini::ParametersAllInits, dd::IMAS.dd)
             ini.equilibrium.Z0,
             ini.equilibrium.ϵ,
             ini_equilibrium_elongation_true(ini.equilibrium),
-            0.0,
+            ini.equilibrium.tilt,
             [ini.equilibrium.𝚶, 0.0],
             [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
     else
         error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
     end
 
-    return mxh
+    if boundary_from == :ods
+        # in case of ODS we have all information to generate MXHboundary
+        RX = [x_point.r for x_point in eqt.boundary.x_point]
+        ZX = [x_point.z for x_point in eqt.boundary.x_point]
+        mxhb = MXHboundary(mxh, RX, ZX, pr, pz)
+    else
+        # all other cases we must reconcile mxh boundary with requested x-points
+        nx = n_xpoints(ini.equilibrium.xpoints)
+        mxhb = fitMXHboundary(mxh, nx; kw...)
+    end
+
+    return mxhb
 end
 
 function n_xpoints(xpoints::Symbol)
@@ -453,7 +484,7 @@ function load_ods(ini::ParametersAllInits)
     dd = load_ods(ini.ods.filename)
     dd.global_time = ini.time.simulation_start
     for field in keys(dd)
-        ids = getproperty(dd,field)
+        ids = getproperty(dd, field)
         if !ismissing(ids, :time) && length(ids.time) == 1
             IMAS.retime!(ids, dd.global_time)
         end
@@ -554,10 +585,8 @@ Plots ini time dependent time traces including plasma boundary
         ini.time.simulation_start = time0
 
         # plot equilibrium including x-points
-        nx = n_xpoints(ini.equilibrium.xpoints)
-        mxh = IMAS.MXH(ini)
-        mxhb = fitMXHboundary(mxh, nx)
-        wr = wall_radii(mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
+        mxhb = MXHboundary(ini)
+        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.ϵ * mxhb.mxh.R0, ini.build.plasma_gap)
         @series begin
             label := ""
             seriestype := :vline
@@ -569,7 +598,7 @@ Plots ini time dependent time traces including plasma boundary
             label := ""
             subplot := 1
             aspectratio := :equal
-            xlim := (0, mxh.R0 * 2)
+            xlim := (wr[1] - (wr[2] - wr[1]) / 10, wr[2] + (wr[2] - wr[1]) / 10)
             mxhb
         end
 

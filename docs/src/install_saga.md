@@ -31,7 +31,7 @@
    ```
    `~/.julia` is where the Julia will install itself by default, and this will trick it to install itself in the IR&D folder instead.
 
-   For convenience create also a symbolic link in your `$HOME` that points to the Julia dev folder:
+   For convenience create also a symbolic link in your `$HOME` that points to the Julia `dev` folder:
    ```
    ln -s /mnt/beegfs/users/$USER/julia/dev ~/julia_dev
    ```
