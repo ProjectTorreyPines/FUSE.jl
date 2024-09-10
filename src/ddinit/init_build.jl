@@ -310,7 +310,11 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         elseif layer.type == Int(_blanket_)
             layer.material = "lithium_lead"
         elseif layer.type == Int(_wall_)
-            layer.material = "tungsten"
+            if bd.layer[k-1].type == Int(_plasma_) || bd.layer[k+1].type == Int(_plasma_)
+                layer.material = "tungsten"
+            else
+                layer.material = "steel"
+            end
         elseif layer.type == Int(_vessel_)
             layer.material = "water"
         elseif layer.type == Int(_cryostat_)
