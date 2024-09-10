@@ -824,5 +824,3 @@ threads:
 update:
 # Update FUSE and its dependencies
 	@julia -e 'using Pkg; Pkg.resolve(); Pkg.update("FUSE"; preserve=Pkg.Types.PreserveLevel(2)); Pkg.precompile()'
-	make exec_update
-
