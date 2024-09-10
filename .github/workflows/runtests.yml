@@ -35,8 +35,17 @@ jobs:
           - { os: macos-latest, arch: arm64, version: "1.x" }
           - { os: windows-latest, arch: x86, version: "1.x" }
     env:
-        GKSwstype: 100 # disable Plots.jl interactive output
+      GKSwstype: 100 # disable Plots.jl interactive output
+
     steps:
+      - name: Set up WSL on Windows
+        if: matrix.flavor.os == 'windows-latest'
+        run: |
+          wsl --install
+          wsl --set-default-version 2
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+        shell: bash
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
@@ -44,27 +53,18 @@ jobs:
 
       - name: Set JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}
         run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
+        shell: bash
 
       - uses: actions/checkout@v2
 
-      - name: Check if fuse bot commit on macOS/Linux
-        if: matrix.flavor.os != 'windows-latest'
+      - name: Check if fuse bot commit
         run: |
           author=$(git log -1 --pretty=format:'%an')
           if [ "$author" = "fuse bot" ]; then
             echo "Skipping action due to commit made by 'fuse bot'."
             exit 78
           fi
-
-      - name: Check if fuse bot commit on Windows
-        if: matrix.flavor.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          $author = git log -1 --pretty=format:'%an'
-          if ($author -eq 'fuse bot') {
-            Write-Host "Skipping action due to commit made by 'fuse bot'."
-            exit 78
-          }
+        shell: bash
 
       - uses: julia-actions/setup-julia@v1
         with:
@@ -75,6 +75,7 @@ jobs:
       - name: Generate cache key with date
         id: cache-date
         run: echo "::set-output name=date::$(date +%Y-%m-%d)"
+        shell: bash
 
       - name: Cache Julia artifacts
         uses: actions/cache@v2
@@ -86,42 +87,31 @@ jobs:
             ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-${{ steps.cache-date.outputs.date }}
 
-      - name: Remove FuseRegistry and Add Registry on macOS
-        if: matrix.flavor.os == 'macos-latest'
+      - name: Remove FuseRegistry and Add Registry
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
           julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
-          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i '' 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i '' 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+          else
+            find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+          fi
+        shell: bash
 
-      - name: Remove FuseRegistry and Add Registry on Linux
-        if: matrix.flavor.os == 'ubuntu-latest'
+      - name: Run Makefile Command (Linux/WSL)
         run: |
-          rm -rf ~/.julia/registries/FuseRegistry
-          julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
-          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
-
-      - name: Remove FuseRegistry and Add Registry on Windows
-        if: matrix.flavor.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          if (Test-Path "$env:USERPROFILE\.julia\registries\FuseRegistry") {
-            Write-Host "Removing FuseRegistry directory..."
-            Remove-Item -Recurse -Force "$env:USERPROFILE\.julia\registries\FuseRegistry"
-          } else {
-            Write-Host "Directory does not exist, skipping removal."
-          }
-          julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
-          Get-ChildItem -Path "$env:USERPROFILE\.julia\registries\FuseRegistry" -Recurse -Filter 'Package.toml' | ForEach-Object {
-            (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
-          }
-
-      - run: make install_ci_add
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            wsl make install_ci_add
+          else
+            make install_ci_add
+          fi
+        shell: bash
 
       - name: 'Save Manifest.toml'
         uses: actions/upload-artifact@v4
         with:
-            name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
-            path: Manifest.toml
+          name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
+          path: Manifest.toml
 
       - uses: julia-actions/julia-buildpkg@v1
 
