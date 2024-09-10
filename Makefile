@@ -36,21 +36,23 @@ define clone_pull_repo
 endef
 
 define feature_or_master_julia
-function feature_or_master(package, feature_branch) ;\
-	token = "$(PTP_READ_TOKEN)" ;\
-	url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
-	;\
-	curl_cmd = `curl -s -o /dev/null -w "%{http_code}" -L -H "Authorization: Bearer $$token" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" $$url` ;\
-	;\
-	http_status = chomp(read(`$$curl_cmd`, String)) ;\
-	;\
-	if http_status == "200" ;\
-		return feature_branch ;\
-	elseif http_status == "404" ;\
-		return "master" ;\
-	else ;\
-		error("GitHub API returned status code: $$http_status") ;\
-	end ;\
+using Pkg
+Pkg.add("HTTP")
+
+using HTTP
+
+function feature_or_master(package, feature_branch)
+    token = "$(PTP_READ_TOKEN)"
+    url = "https://api.github.com/repos/ProjectTorreyPines/$package.jl/branches/$feature_branch"
+    headers = ["Authorization" => "Bearer $token", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"]
+    response = HTTP.get(url, headers)
+    if response.status == 200
+        return feature_branch
+    elseif response.status == 404
+        return "master"
+    else
+        error("GitHub API returned status code: $(response.status)")
+    end
 end
 endef
 
