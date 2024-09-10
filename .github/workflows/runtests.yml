@@ -33,7 +33,7 @@ jobs:
         flavor:
           - { os: ubuntu-latest, arch: x64, version: "1.x" }
           - { os: macos-latest, arch: arm64, version: "1.x" }
-          - { os: windows-latest, arch: x86, version: "1.x" }  # Added Windows x86 configuration
+          - { os: windows-latest, arch: x86, version: "1.x" }
     env:
         GKSwstype: 100 # disable Plots.jl interactive output
     steps:
@@ -47,13 +47,24 @@ jobs:
 
       - uses: actions/checkout@v2
 
-      - name: Check if fuse bot commit
+      - name: Check if fuse bot commit on macOS/Linux
+        if: matrix.flavor.os != 'windows-latest'
         run: |
           author=$(git log -1 --pretty=format:'%an')
           if [ "$author" = "fuse bot" ]; then
             echo "Skipping action due to commit made by 'fuse bot'."
             exit 78
           fi
+
+      - name: Check if fuse bot commit on Windows
+        if: matrix.flavor.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $author = git log -1 --pretty=format:'%an'
+          if ($author -eq 'fuse bot') {
+            Write-Host "Skipping action due to commit made by 'fuse bot'."
+            exit 78
+          }
 
       - uses: julia-actions/setup-julia@v1
         with:
