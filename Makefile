@@ -36,16 +36,19 @@ define clone_pull_repo
 endef
 
 define feature_or_master_julia
-using Pkg ;\
-Pkg.add("HTTP") ;\
- ;\
-using HTTP ;\
- ;\
+try ;\
+	using HTTP ;\
+catch ;\
+	using Pkg ;\
+	Pkg.add("HTTP") ;\
+	using HTTP ;\
+end ;\
+;\
 function feature_or_master(package, feature_branch) ;\
     token = "$(PTP_READ_TOKEN)" ;\
     url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
-    headers = ["Authorization" => "Bearer $$token", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"] ;\
-    response = HTTP.get(url, headers) ;\
+    headers = ["Authorization" => "Bearer $$(token)", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"] ;\
+    response = HTTP.get(url, headers; status_exception=false) ;\
     if response.status == 200 ;\
         return feature_branch ;\
     elseif response.status == 404 ;\
@@ -404,6 +407,21 @@ error_on_previous_commit_is_a_version_bump: error_missing_repo_var
 		echo "Error: The previous commit was a version bump." ;\
 		exit 1 ;\
 	fi
+
+# @devs
+feature_or_master:
+# checks if on the packages remote GitHub repos there is a branch with the same name of the local FUSE branch
+	julia -e ';\
+	$(feature_or_master_julia);\
+	fuse_packages = $(FUSE_PACKAGES);\
+	for package in fuse_packages;\
+		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
+        if branch == "master";\
+            println(">>> $$(package)");\
+        else;\
+            println(">>> $$(package) @ $$(branch)");\
+        end;\
+	end'
 
 # @devs
 generate_dd:
