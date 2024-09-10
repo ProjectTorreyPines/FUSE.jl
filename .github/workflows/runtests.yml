@@ -38,15 +38,6 @@ jobs:
       GKSwstype: 100 # disable Plots.jl interactive output
 
     steps:
-      - name: Set up WSL on Windows
-        if: matrix.flavor.os == 'windows-latest'
-        run: |
-          wsl --install
-          wsl --set-default-version 2
-          sudo apt-get update
-          sudo apt-get install -y build-essential
-        shell: bash
-
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
