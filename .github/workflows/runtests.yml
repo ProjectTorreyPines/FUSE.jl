@@ -86,28 +86,30 @@ jobs:
             ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-${{ steps.cache-date.outputs.date }}
 
-      - name: Remove FuseRegistry on macOS/Linux
-        if: matrix.flavor.os != 'windows-latest'
-        run: rm -rf ~/.julia/registries/FuseRegistry
+      - name: Remove FuseRegistry and Replace git@github.com with https on macOS
+        if: matrix.flavor.os == 'macos-latest'
+        run: |
+          rm -rf ~/.julia/registries/FuseRegistry
+          echo "Replacing git@github.com with https in Package.toml files..."
+          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i '' 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
 
-      - name: Remove FuseRegistry on Windows
+      - name: Remove FuseRegistry and Replace git@github.com with https on Linux
+        if: matrix.flavor.os == 'ubuntu-latest'
+        run: |
+          rm -rf ~/.julia/registries/FuseRegistry
+          echo "Replacing git@github.com with https in Package.toml files..."
+          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+
+      - name: Remove FuseRegistry and Replace git@github.com with https on Windows
         if: matrix.flavor.os == 'windows-latest'
         shell: pwsh
-        run: Remove-Item -Recurse -Force "$env:USERPROFILE\.julia\registries\FuseRegistry"
-
-      - name: Replace git@github.com with https in Package.toml files on macOS
-        if: matrix.flavor.os == 'macos-latest'
-        run: find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i '' 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
-
-      - name: Replace git@github.com with https in Package.toml files on Linux
-        if: matrix.flavor.os == 'ubuntu-latest'
-        run: find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
-
-      - name: Replace git@github.com with https in Package.toml files on Windows
-        if: matrix.flavor.os == 'windows-latest'
         run: |
-          powershell -command "Get-ChildItem -Path ~/.julia/registries/FuseRegistry -Recurse -Filter 'Package.toml' | ForEach-Object { (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName }"
-  
+          Remove-Item -Recurse -Force "$env:USERPROFILE\.julia\registries\FuseRegistry"
+          Write-Host "Replacing git@github.com with https in Package.toml files..."
+          Get-ChildItem -Path "$env:USERPROFILE\.julia\registries\FuseRegistry" -Recurse -Filter 'Package.toml' | ForEach-Object {
+            (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
+          }
+
       - run: make install_ci_add
 
       - name: 'Save Manifest.toml'
