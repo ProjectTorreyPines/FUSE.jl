@@ -186,15 +186,9 @@ end
 """
     init(case::Symbol; do_plot::Bool=false, kw...)
 
-Convenience function to initialize `dd`, `ini`, `act` based on a given use-case.
+Initialize `dd`, `ini`, `act` based on a given use-case.
+    
 Returns a tuple with `dd`, `ini`, `act`.
-This function is handy if no customization of `ini` or `act` is needed (eg. for regression testing),
-otherwise it is recommended to do this in steps:
-
-```julia
-ini, act = case_parameters(case::Symbol; kw...)
-dd = IMAS.dd()
-init(dd, ini, act; do_plot::Bool)
 ```
 """
 function init(case::Symbol; do_plot::Bool=false, kw...)

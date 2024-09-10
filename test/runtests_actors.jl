@@ -2,7 +2,9 @@ using FUSE
 using Test
 
 @testset "fluxmatcher" begin
-    dd, ini, act = FUSE.init(:ITER; init_from=:scalars)
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
     act.ActorFluxMatcher.max_iterations = 2
     act.ActorFluxMatcher.evolve_pedestal = true
     act.ActorFluxMatcher.evolve_densities = :flux_match
