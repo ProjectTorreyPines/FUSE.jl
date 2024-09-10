@@ -39,6 +39,19 @@
    This will setup a Jupyter Julia kernel with both 10 and 40 threads.
    Use 10 threads on login nodes and 40 threads on worker nodes.
 
+## Distributed.jl on OMEGA
+
+We have found issues when trying to run parallel jobs using `Distributed.jl` on OMEGA.
+The fix for this is simple: don't use the `Main` environment, rather activate a separate environment.
+
+This can be easily by doing the following in the first cell of your Jupyter notebook:
+
+    ```julia
+    using Pkg
+    Pkg.activate("$HOME/julia_runs/my_run") # this is key, to avoid using the Main FUSE environment
+    Pkg.add(("Plots", "FUSE"))
+    ```
+
 ## Jupyter on OMEGA cluster
 
 1. Connect to `omega` and launch `screen`
