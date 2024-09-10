@@ -70,6 +70,7 @@ end
 
 """ 
     cxr(x::Vector{Float64})
+
 This function calculates the charge exchange rate for hydrogen atoms interacting with protons in units of cm**3/s.
 x is in units of keV for 1.0e-3 .le. x .le. 100, the the formula is taken from the paper by r.l. freeman and e.m. jones
 clm-r 137 culham laboratory 1974 for x.lt.1.0e-3, a rate coefficient derived from an analytic average
