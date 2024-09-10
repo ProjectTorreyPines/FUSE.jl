@@ -110,7 +110,6 @@ function _step(actor::ActorWholeFacility)
             actor.HFSsizing = ActorHFSsizing(dd, act)
             actor.LFSsizing = ActorLFSsizing(dd, act)
             actor.CXbuild = ActorCXbuild(dd, act)
-            actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
             actor.PFdesign = ActorPFdesign(dd, act)
             if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
@@ -122,6 +121,8 @@ function _step(actor::ActorWholeFacility)
             actor.Stresses = ActorStresses(dd, act)
             actor.PFactive = ActorPFactive(dd, act)
         end
+
+        actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
         actor.VerticalStability = ActorVerticalStability(dd, act)
 
