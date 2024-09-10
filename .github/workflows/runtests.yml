@@ -104,7 +104,12 @@ jobs:
         if: matrix.flavor.os == 'windows-latest'
         shell: pwsh
         run: |
-          Remove-Item -Recurse -Force "$env:USERPROFILE\.julia\registries\FuseRegistry"
+          if (Test-Path "$env:USERPROFILE\.julia\registries\FuseRegistry") {
+            Write-Host "Removing FuseRegistry directory..."
+            Remove-Item -Recurse -Force "$env:USERPROFILE\.julia\registries\FuseRegistry"
+          } else {
+            Write-Host "Directory does not exist, skipping removal."
+          }
           Write-Host "Replacing git@github.com with https in Package.toml files..."
           Get-ChildItem -Path "$env:USERPROFILE\.julia\registries\FuseRegistry" -Recurse -Filter 'Package.toml' | ForEach-Object {
             (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
