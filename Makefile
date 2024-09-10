@@ -43,15 +43,15 @@ using HTTP ;\
  ;\
 function feature_or_master(package, feature_branch) ;\
     token = "$(PTP_READ_TOKEN)" ;\
-    url = "https://api.github.com/repos/ProjectTorreyPines/$package.jl/branches/$feature_branch" ;\
-    headers = ["Authorization" => "Bearer $token", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"] ;\
+    url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
+    headers = ["Authorization" => "Bearer $$token", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"] ;\
     response = HTTP.get(url, headers) ;\
     if response.status == 200 ;\
         return feature_branch ;\
     elseif response.status == 404 ;\
         return "master" ;\
     else ;\
-        error("GitHub API returned status code: $(response.status)") ;\
+        error("GitHub API returned status code: $$(response.status)") ;\
     end ;\
 end
 endef
