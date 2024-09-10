@@ -33,6 +33,7 @@ jobs:
         flavor:
           - { os: ubuntu-latest, arch: x64, version: "1.x" }
           - { os: macos-latest, arch: arm64, version: "1.x" }
+          - { os: windows-latest, arch: x86, version: "1.x" }  # Added Windows x86 configuration
     env:
         GKSwstype: 100 # disable Plots.jl interactive output
     steps:
@@ -73,7 +74,7 @@ jobs:
             ~/.julia/packages
             ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-${{ steps.cache-date.outputs.date }}
-      
+
       - name: Add FuseRegistry
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
@@ -86,6 +87,11 @@ jobs:
       - name: Replace git@github.com with https in Package.toml files on Linux
         if: matrix.flavor.os == 'ubuntu-latest'
         run: find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+
+      - name: Replace git@github.com with https in Package.toml files on Windows
+        if: matrix.flavor.os == 'windows-latest'
+        run: |
+          powershell -command "Get-ChildItem -Path ~/.julia/registries/FuseRegistry -Recurse -Filter 'Package.toml' | ForEach-Object { (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName }"
   
       - run: make install_ci_add
 
