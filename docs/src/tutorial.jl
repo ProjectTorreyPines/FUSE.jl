@@ -4,6 +4,8 @@
 using Plots # for plotting
 using FUSE # this will also import IMAS in the current namespace
 
+
+
 # ## Starting from a use-case
 # FUSE comes with some predefined [use-cases](https://fuse.help/stable/cases.html), some of which are used for regression testing.
 # Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.
@@ -26,6 +28,8 @@ dd = FUSE.init(ini, act);
 chk = FUSE.Checkpoint()
 chk[:init] = dd, ini, act;
 
+
+
 # ## Exploring the data dictionary
 # * FUSE stores data following the IMAS data schema.
 # * The root of the data structure is `dd`, which stands for "Data Dictionary".
@@ -36,6 +40,8 @@ dd.equilibrium.time_slice[2].boundary
 
 # this can be done up to a certain depth with `print_tree`
 print_tree(dd.equilibrium.time_slice[2].boundary; maxdepth=1)
+
+
 
 # ## Plotting data from `dd`
 # FUSE provides Plots.jl recipes for visualizing data from `dd`, this means different plots are shown by calling the same `plot()` function on different items in the data structure.
@@ -60,6 +66,8 @@ plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)
 
 # Customizing plot attributes:
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label="", linewidth=2, color=:red, labelfontsize=25)
+
+
 
 # ## Working with time series
 
@@ -95,6 +103,8 @@ my_b0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
 #
 dd.equilibrium.vacuum_toroidal_field.b0
 
+
+
 # ## Expressions in `dd`
 
 # Some fields in the data dictionary are expressions (ie. Functions).
@@ -106,6 +116,8 @@ dd.core_profiles.profiles_1d[1].electrons.pressure
 
 # In addition to evaluating expressions by accessing them, expressions in the tree can be evaluated using `IMAS.freeze()`
 print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)
+
+
 
 # ## Whole facility design
 
@@ -121,6 +133,8 @@ FUSE.ActorWholeFacility(dd, act);
 # Like before we can checkpoint results for later use
 chk[:awf] = dd, ini, act;
 
+
+
 # ## Running a custom workflow
 
 # Let's now run a series of actors similar to what `ActorWholeFacility` does
@@ -128,6 +142,10 @@ chk[:awf] = dd, ini, act;
 
 # Let's start again from after the initialization stage
 dd, ini, act = chk[:init];
+
+# Let's start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape.
+# This will be important to ensure the stability of the `ActorStationaryPlasma` that we are going to run next.
+actor = FUSE.ActorPFdesign(dd, act);
 
 # The `ActorStationaryPlasma` iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution
 peq = plot(dd.equilibrium; label="before")
@@ -166,13 +184,17 @@ dd.build.layer
 FUSE.ActorCXbuild(dd, act);
 plot(dd.build)
 
-# We can then position the PF coils to best match the desired plasma shape
-actor = FUSE.ActorPFdesign(dd, act; update_equilibrium=true);
+# Generate passive structures information (for now the vacuum vessel)
+ActorPassiveStructures(dd, act)
+plot(dd.pf_passive)
+
+# We can now give the PF coils their final position given the new build
+actor = FUSE.ActorPFdesign(dd, act);
 plot(actor)
 
-# We need to update the wall shape, since the equilibrium may have changed based on the new PF coils locations
-FUSE.ActorCXbuild(dd, act; rebuild_wall=true);
-plot!(dd.build)
+# With information about both pf_active and pf_passive we can now evaluate vertical stability
+ActorVerticalStability(dd, act)
+IMAS.freeze(dd.mhd_linear)
 
 # The `ActorNeutronics` calculates the heat flux on the first wall
 FUSE.ActorNeutronics(dd, act);
@@ -210,10 +232,14 @@ IMAS.imas2json(dd, filename; freeze=false, strict=false);
 # Load from JSON
 dd1 = IMAS.json2imas(filename);
 
+
+
 # ## Comparing two IDSs
 # We can introduce a change in the `dd1` and spot it with the `diff` function
 dd1.equilibrium.time_slice[1].time = -100.0
 IMAS.diff(dd.equilibrium, dd1.equilibrium)
+
+
 
 # ## Summary
 # Snapshot of `dd` in 0D quantities (evaluated at `dd.global_time`)
