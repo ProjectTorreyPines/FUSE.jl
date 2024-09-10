@@ -94,7 +94,6 @@ impact in units of cm**3/s.  x is in units of keV
 the formula is taken from the paper by r.l. freeman and e.m. jones
 clm-r 137 culham laboratory 1974
 """
-
 function eir(x::Vector{Float64})
     ta = log.(x) .+ 6.9077553
     ta = (-0.3173850e2 .+
