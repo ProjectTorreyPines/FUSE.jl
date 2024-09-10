@@ -38,6 +38,11 @@ jobs:
       GKSwstype: 100 # disable Plots.jl interactive output
 
     steps:
+      - name: Install Ubuntu in WSL on Windows
+        if: matrix.flavor.os == 'windows-latest'
+        run: |
+          wsl --install -d Ubuntu
+
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
