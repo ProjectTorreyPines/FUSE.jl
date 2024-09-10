@@ -86,10 +86,14 @@ jobs:
             ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-${{ steps.cache-date.outputs.date }}
 
-      - name: Add FuseRegistry
-        run: |
-          rm -rf ~/.julia/registries/FuseRegistry
-          julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
+      - name: Remove FuseRegistry on macOS/Linux
+        if: matrix.flavor.os != 'windows-latest'
+        run: rm -rf ~/.julia/registries/FuseRegistry
+
+      - name: Remove FuseRegistry on Windows
+        if: matrix.flavor.os == 'windows-latest'
+        shell: pwsh
+        run: Remove-Item -Recurse -Force "$env:USERPROFILE\.julia\registries\FuseRegistry"
 
       - name: Replace git@github.com with https in Package.toml files on macOS
         if: matrix.flavor.os == 'macos-latest'
