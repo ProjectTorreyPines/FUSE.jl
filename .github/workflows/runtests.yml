@@ -38,11 +38,14 @@ jobs:
       GKSwstype: 100 # disable Plots.jl interactive output
 
     steps:
-      - name: Install Ubuntu in WSL on Windows
+      - name: Set up WSL on Windows with Debian
         if: matrix.flavor.os == 'windows-latest'
-        run: |
-          wsl --set-default-version 2
-          wsl --install -d Ubuntu
+        uses: Vampire/setup-wsl@v3
+        with:
+          distribution: Debian
+          set-as-default: true
+          update: true
+          additional-packages: build-essential
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
