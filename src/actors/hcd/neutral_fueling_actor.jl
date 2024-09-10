@@ -76,7 +76,6 @@ clm-r 137 culham laboratory 1974 for x.lt.1.0e-3, a rate coefficient derived fro
 over the approximate cross section, sigma=0.6937e-14*(1.0-0.155*LOG10 (e/1ev))**2 is used.  this cross section is
 an approximation to that given by Riviere, Nuclear Fusion 11,363(1971).
 """
-
 function cxr(x::Vector{Float64})
     tc = log.(x) .+ 6.9077553
     dum = 0.2530205e-4 .- tc .* 0.8230751e-6
