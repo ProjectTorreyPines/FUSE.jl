@@ -109,7 +109,6 @@ end
 This function solves the 1 species integral equation with the
 Gauss-Seidel iteration technique.      
 """
-
 function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
 
     nxmax = 300
