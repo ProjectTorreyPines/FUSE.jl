@@ -102,6 +102,8 @@ include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "nb_simple_actor.jl"))
 include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
+include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
+
 include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "nbi_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
