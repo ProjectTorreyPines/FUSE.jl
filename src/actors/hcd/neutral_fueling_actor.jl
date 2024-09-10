@@ -203,7 +203,7 @@ end
 """
     neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
-    This function calculates K matrix of equation 9 in Burrel 1977
+This function calculates K matrix of equation 9 in Burrel 1977
 """
 function get_K_matrix(atrr01::Matrix{Float64},
                       vth::Vector{Float64},
