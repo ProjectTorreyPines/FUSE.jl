@@ -334,7 +334,6 @@ develop_docs:
 	using Pkg;\
 	Pkg.activate("./docs");\
 	Pkg.develop([["FUSE"] ; fuse_packages]);\
-	Pkg.add(["Documenter", "Pkg", "ProgressMeter", "InteractiveUtils"]);\
 	'
 
 # @devs
