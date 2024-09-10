@@ -65,7 +65,7 @@ plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label="", linewidth=2, 
 
 # The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.
 
-# Each `dd` has a global time defined. Most actors operate at the time defined by the `dd.global_time`
+# Each `dd` has a `global_time` attribute, and actors operate at such time
 dd.global_time
 
 # Here we see that equilibrium has mulitiple time_slices
@@ -97,44 +97,53 @@ dd.equilibrium.vacuum_toroidal_field.b0
 
 # ## Expressions in `dd`
 
-# Some fields in the data dictionary are expressions (ie. Functions), that are dynamically evaluated upon access
+# Some fields in the data dictionary are expressions (ie. Functions).
+# For example `dd.core_profiles.profiles_1d[].pressure` is dynamically calculated as the product of thermal densities and temperature with addition of fast ions contributions
 print_tree(dd.core_profiles.profiles_1d[1]; maxdepth=1)
 
-# for example, pressure is dynamically calculated as the product of thermal densities and temperature with addition of fast ions contributions
+# accessing a dynamic expression, automatically evaluates it (in the `pressure` example, we get an array with data)
 dd.core_profiles.profiles_1d[1].electrons.pressure
 
-# Expressions in the tree can be evaluated using `IMAS.freeze()`
+# In addition to evaluating expressions by accessing them, expressions in the tree can be evaluated using `IMAS.freeze()`
 print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)
 
 # ## Whole facility design
 
-# Restore init checkpoint
+# Here we restore the `:init` checkpoint that we had previously stored. Resetting any changes to `dd`, `ini`, and `act` that we did in the meantime.
 dd, ini, act = chk[:init];
 
-# Run ActorWholeFacility to get a self-consistent stationary whole facility design
+# Actors in FUSE can be executed by passing two arguments to them: `dd` and `act`.
+# Internally, actors can call other actors, creating workflows.
+# For example, the `ActorWholeFacility` can be used to to get a self-consistent stationary whole facility design.
+# The `actors:` print statements with their nested output tell us what actors are calling other actors.
 FUSE.ActorWholeFacility(dd, act);
 
-# Checkpoint results
+# Like before we can checkpoint results for later use
 chk[:awf] = dd, ini, act;
 
 # ## Running a custom workflow
 
-# Let's runs a series of actors similar to what ActorWholeFacility does
+# Let's now run a series of actors similar to what `ActorWholeFacility` does
+# and play around with plotting to get a sense of what each individual actor does.
 
+# Let's start again from after the initialization stage
 dd, ini, act = chk[:init];
-plot(dd.equilibrium; label="before")
-FUSE.ActorEquilibrium(dd, act; ip_from=:equilibrium);
-plot!(dd.equilibrium; label="after")
 
-# The stationary plasma actor iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution
-plot(dd.core_profiles; color=:gray)
+# The `ActorStationaryPlasma` iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution
+peq = plot(dd.equilibrium; label="before")
+pcp = plot(dd.core_profiles; color=:gray, label="before")
 FUSE.ActorStationaryPlasma(dd, act);
-plot!(dd.core_profiles)
 
-#
+# we can compare equilibrium before and after the self-consistency loop
+plot!(peq, dd.equilibrium; label="after")
+
+# we can compare core_profiles before and after the self-consistency loop
+plot!(pcp, dd.core_profiles; label="after")
+
+# here are the sources
 plot(dd.core_sources)
 
-#
+# and the flux-matched transport
 plot(dd.core_transport)
 
 # HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints
@@ -142,7 +151,7 @@ plot(dd.build)
 FUSE.ActorHFSsizing(dd, act);
 plot!(dd.build; cx=false)
 
-#
+# The stresses on the center stack are stored in the `solid_mechanics` IDS
 plot(dd.solid_mechanics.center_stack.stress)
 
 # LFS sizing actors change location of the outer TF leg to meet ripple requirements
@@ -150,10 +159,10 @@ plot(dd.build)
 FUSE.ActorLFSsizing(dd, act);
 plot!(dd.build; cx=false)
 
-# ActorHFSsizing and ActorLFSsizing change the layer's thicknesses
+# A custom `show()` method is defined to print the summary of `dd.build.layer`
 dd.build.layer
 
-# We then need to trigger a build of the 2D cross-sections
+# ActorHFSsizing and ActorLFSsizing only change the layer's thicknesses, so we then need to trigger a build of the 2D cross-sections after them:
 FUSE.ActorCXbuild(dd, act);
 plot(dd.build)
 
@@ -165,30 +174,30 @@ plot(actor)
 FUSE.ActorCXbuild(dd, act; rebuild_wall=true);
 plot!(dd.build)
 
-# The Neutronics actor calculates the heat flux on the first wall
+# The `ActorNeutronics` calculates the heat flux on the first wall
 FUSE.ActorNeutronics(dd, act);
 p = plot(; layout=2, size=(900, 350))
 plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
 plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
 plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
 
-# The BlanketActor will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR
+# The `ActorBlanket` will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR
 FUSE.ActorBlanket(dd, act);
 print_tree(IMAS.freeze(dd.blanket); maxdepth=5)
 
-# The Divertors actor calculates the divertors heat flux
+# The `ActorDivertors` actor calculates the divertors heat flux
 FUSE.ActorDivertors(dd, act);
 print_tree(IMAS.freeze(dd.divertors); maxdepth=4)
 
-# Here we calculate the optimal cooling flowrates for the specific sources of heat and electricity conversion cycle
+# The `ActorBalanceOfPlant` calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle
 actor = FUSE.ActorBalanceOfPlant(dd, act);
 plot(actor)
 
-# Capital and operational cost breakdown
+# `ActorCosting` will break down the capital and operational costs
 FUSE.ActorCosting(dd, act)
 plot(dd.costing)
 
-# Checkpoint results
+# Let's checkpoint our results
 chk[:manual] = dd, ini, act;
 
 # ## Saving and loading data
