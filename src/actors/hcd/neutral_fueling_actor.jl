@@ -272,11 +272,9 @@ end
 """
     neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
-    This model calculates neutral density source fueling based on the neucg 
-    
-    model. K. Burrell,  Journal of Computational Physics 27.1 (1978): 88-102.
+This model calculates neutral density source fueling based on the neucg 
+model. K. Burrell,  Journal of Computational Physics 27.1 (1978): 88-102.
 """
-
 function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
     taupin = par.taupin
