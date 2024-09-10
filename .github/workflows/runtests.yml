@@ -86,21 +86,21 @@ jobs:
             ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-${{ steps.cache-date.outputs.date }}
 
-      - name: Remove FuseRegistry and Replace git@github.com with https on macOS
+      - name: Remove FuseRegistry and Add Registry on macOS
         if: matrix.flavor.os == 'macos-latest'
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
-          echo "Replacing git@github.com with https in Package.toml files..."
+          julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
           find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i '' 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
 
-      - name: Remove FuseRegistry and Replace git@github.com with https on Linux
+      - name: Remove FuseRegistry and Add Registry on Linux
         if: matrix.flavor.os == 'ubuntu-latest'
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
-          echo "Replacing git@github.com with https in Package.toml files..."
+          julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
           find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
 
-      - name: Remove FuseRegistry and Replace git@github.com with https on Windows
+      - name: Remove FuseRegistry and Add Registry on Windows
         if: matrix.flavor.os == 'windows-latest'
         shell: pwsh
         run: |
@@ -110,7 +110,7 @@ jobs:
           } else {
             Write-Host "Directory does not exist, skipping removal."
           }
-          Write-Host "Replacing git@github.com with https in Package.toml files..."
+          julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
           Get-ChildItem -Path "$env:USERPROFILE\.julia\registries\FuseRegistry" -Recurse -Filter 'Package.toml' | ForEach-Object {
             (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
           }
