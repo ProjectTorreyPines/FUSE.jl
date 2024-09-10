@@ -1,135 +1,12 @@
 """
-    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=:scalars)
+    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
 
 UKAEA STEP design
 """
-function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=:scalars)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini, act = case_parameters(:STEP_scalars)
+function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)::Tuple{ParametersAllInits,ParametersAllActors}
+    @assert init_from in (:scalars, :ods)
+    @assert pf_from in (:scalars, :ods)
 
-    dd = IMAS.dd()
-    if init_from == :ods
-        # Fix the core profiles
-        dd = load_ods(ini)
-        cp1d = dd.core_profiles.profiles_1d[]
-
-        rho = cp1d.grid.rho_tor_norm
-        cp1d.electrons.density_thermal = ((1.0 .- rho .^ 4) .* 1.6 .+ 0.4) .* 1E20
-
-        cp1d.zeff = fill(ini.core_profiles.zeff, length(rho))
-        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
-
-        # Set ions:
-        bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
-        # 1. DT
-        IMAS.ion_element!(bulk_ion, ini.core_profiles.bulk)
-        @assert bulk_ion.element[1].z_n == 1.0 "Bulk ion `$(ini.core_profiles.bulk)` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
-        # 2. Impurity
-        IMAS.ion_element!(imp_ion, ini.core_profiles.impurity)
-        # 3. He
-        IMAS.ion_element!(he_ion, :He4)
-
-        # pedestal
-        summary = dd.summary
-        @ddtime summary.local.pedestal.n_e.value = cp1d.electrons.density_thermal[argmin(abs.(rho .- (1 - ini.core_profiles.w_ped)))]
-        @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - ini.core_profiles.w_ped
-        @ddtime summary.local.pedestal.zeff.value = ini.core_profiles.zeff
-
-        # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
-        niFraction = zeros(3)
-        # DT == 1
-        # Imp == 2
-        # He == 3
-        zimp = imp_ion.element[1].z_n
-        niFraction[3] = ini.core_profiles.helium_fraction
-        niFraction[1] = (zimp - ini.core_profiles.zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
-        niFraction[2] = (ini.core_profiles.zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
-        @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$(ini.core_profiles.helium_fraction))] and zeff [$(ini.core_profiles.zeff)]"
-        ni_core = 0.0
-        for i in 1:length(cp1d.ion)
-            cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
-            cp1d.ion[i].temperature = cp1d.ion[1].temperature
-            ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
-        end
-
-        act.ActorCoreTransport.model = :none
-        ini.equilibrium.pressure_core = 1.175e6
-
-        # -----------------
-        ini.general.dd = dd
-        ini.general.init_from = :ods
-    end
-
-    # pf_active
-    if pf_from == :ods
-        coils = dd.pf_active.coil
-        pf_rz = [
-            (2.0429184549356223, 8.6986301369863),
-            (4.017167381974248, 9.623287671232877),
-            (6.815450643776823, 9.623287671232877),
-            (6.832618025751072, 6.386986301369863),
-            (8.309012875536478, 2.1061643835616444),
-            (8.309012875536478, -2.1061643835616444),
-            (6.832618025751072, -6.386986301369863),
-            (6.815450643776823, -9.623287671232877),
-            (4.017167381974248, -9.623287671232877),
-            (2.0429184549356223, -8.6986301369863)]
-
-        oh_zh = [
-            (-6.471803481967896, 0.9543053940181108),
-            (-5.000022627813203, 0.9677463150606198),
-            (0.0, 4.9731407857281855),
-            (5.000022627813203, 0.9677463150606198),
-            (6.471803481967896, 0.9543053940181108)]
-
-        r_oh = ini.build.layers[1].thickness + ini.build.layers[2].thickness / 2.0
-        b = ini.equilibrium.ϵ * ini.equilibrium.R0 * ini.equilibrium.κ
-        z_oh = (ini.equilibrium.Z0 - b, ini.equilibrium.Z0 + b)
-        z_ohcoils, h_oh = size_oh_coils(z_oh[1], z_oh[2], 0.1, ini.oh.n_coils, 1.0, 0.0)
-        oh_zh = [(z, h_oh) for z in z_ohcoils]
-
-        empty!(coils)
-        resize!(coils, length(oh_zh) .+ length(pf_rz))
-
-        for (idx, (z, h)) in enumerate(oh_zh)
-            resize!(coils[idx].element, 1)
-            pf_geo = coils[idx].element[1].geometry
-            pf_geo.geometry_type = 2
-            pf_geo.rectangle.r = r_oh
-            pf_geo.rectangle.z = z
-            pf_geo.rectangle.height = h
-            pf_geo.rectangle.width = ini.build.layers[2].thickness
-        end
-
-        for (idx, (r, z)) in enumerate(pf_rz)
-            idx += length(oh_zh)
-            resize!(coils[idx].element, 1)
-            pf_geo = coils[idx].element[1].geometry
-            pf_geo.geometry_type = 2
-            pf_geo.rectangle.r = r
-            pf_geo.rectangle.z = z
-            pf_geo.rectangle.height = 0.61
-            pf_geo.rectangle.width = 0.53
-        end
-
-        IMAS.set_coils_function(coils)
-
-        # -----------------
-        ini.general.dd = dd
-        ini.general.init_from = :ods
-    end
-
-    return ini, act
-end
-
-
-"""
-    case_parameters(:STEP)
-
-STEP
-
-Arguments:
-"""
-function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ec=1)
     act = ParametersActors()
     #### INI ####
@@ -217,10 +94,125 @@ function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,P
 
     act.ActorStabilityLimits.models = Symbol[]
 
+    # High-beta ST equilibrium is tricky to converge
     act.ActorTEQUILA.relax = 0.01
 
     set_new_base!(ini)
     set_new_base!(act)
+
+    dd = IMAS.dd()
+    # if init_from==:ods we need to sanitize the ODS that was given to us
+    if init_from == :ods
+        # Fix the core profiles
+        dd = load_ods(ini)
+        cp1d = dd.core_profiles.profiles_1d[]
+
+        rho = cp1d.grid.rho_tor_norm
+        cp1d.electrons.density_thermal = ((1.0 .- rho .^ 4) .* 1.6 .+ 0.4) .* 1E20
+
+        cp1d.zeff = fill(ini.core_profiles.zeff, length(rho))
+        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
+
+        # Set ions:
+        bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
+        # 1. DT
+        IMAS.ion_element!(bulk_ion, ini.core_profiles.bulk)
+        @assert bulk_ion.element[1].z_n == 1.0 "Bulk ion `$(ini.core_profiles.bulk)` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
+        # 2. Impurity
+        IMAS.ion_element!(imp_ion, ini.core_profiles.impurity)
+        # 3. He
+        IMAS.ion_element!(he_ion, :He4)
+
+        # pedestal
+        summary = dd.summary
+        @ddtime summary.local.pedestal.n_e.value = cp1d.electrons.density_thermal[argmin(abs.(rho .- (1 - ini.core_profiles.w_ped)))]
+        @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - ini.core_profiles.w_ped
+        @ddtime summary.local.pedestal.zeff.value = ini.core_profiles.zeff
+
+        # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
+        niFraction = zeros(3)
+        # DT == 1
+        # Imp == 2
+        # He == 3
+        zimp = imp_ion.element[1].z_n
+        niFraction[3] = ini.core_profiles.helium_fraction
+        niFraction[1] = (zimp - ini.core_profiles.zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
+        niFraction[2] = (ini.core_profiles.zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
+        @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$(ini.core_profiles.helium_fraction))] and zeff [$(ini.core_profiles.zeff)]"
+        ni_core = 0.0
+        for i in 1:length(cp1d.ion)
+            cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
+            cp1d.ion[i].temperature = cp1d.ion[1].temperature
+            ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
+        end
+
+        act.ActorCoreTransport.model = :none
+        ini.equilibrium.pressure_core = 1.175e6
+
+        # -----------------
+        ini.general.dd = dd
+        ini.general.init_from = :ods
+    end
+
+    # pf_active
+    # if pf_from=:ods we take the pf_coils that were given to us
+    if pf_from == :ods
+        coils = dd.pf_active.coil
+        pf_rz = [
+            (2.0429184549356223, 8.6986301369863),
+            (4.017167381974248, 9.623287671232877),
+            (6.815450643776823, 9.623287671232877),
+            (6.832618025751072, 6.386986301369863),
+            (8.309012875536478, 2.1061643835616444),
+            (8.309012875536478, -2.1061643835616444),
+            (6.832618025751072, -6.386986301369863),
+            (6.815450643776823, -9.623287671232877),
+            (4.017167381974248, -9.623287671232877),
+            (2.0429184549356223, -8.6986301369863)]
+
+        oh_zh = [
+            (-6.471803481967896, 0.9543053940181108),
+            (-5.000022627813203, 0.9677463150606198),
+            (0.0, 4.9731407857281855),
+            (5.000022627813203, 0.9677463150606198),
+            (6.471803481967896, 0.9543053940181108)]
+
+        r_oh = ini.build.layers[1].thickness + ini.build.layers[2].thickness / 2.0
+        b = ini.equilibrium.ϵ * ini.equilibrium.R0 * ini.equilibrium.κ
+        z_oh = (ini.equilibrium.Z0 - b, ini.equilibrium.Z0 + b)
+        z_ohcoils, h_oh = size_oh_coils(z_oh[1], z_oh[2], 0.1, ini.oh.n_coils, 1.0, 0.0)
+        oh_zh = [(z, h_oh) for z in z_ohcoils]
+
+        empty!(coils)
+        resize!(coils, length(oh_zh) .+ length(pf_rz))
+
+        for (idx, (z, h)) in enumerate(oh_zh)
+            resize!(coils[idx].element, 1)
+            pf_geo = coils[idx].element[1].geometry
+            pf_geo.geometry_type = 2
+            pf_geo.rectangle.r = r_oh
+            pf_geo.rectangle.z = z
+            pf_geo.rectangle.height = h
+            pf_geo.rectangle.width = ini.build.layers[2].thickness
+        end
+
+        for (idx, (r, z)) in enumerate(pf_rz)
+            idx += length(oh_zh)
+            resize!(coils[idx].element, 1)
+            pf_geo = coils[idx].element[1].geometry
+            pf_geo.geometry_type = 2
+            pf_geo.rectangle.r = r
+            pf_geo.rectangle.z = z
+            pf_geo.rectangle.height = 0.61
+            pf_geo.rectangle.width = 0.53
+        end
+
+        IMAS.set_coils_function(coils)
+
+        # -----------------
+        ini.general.dd = dd
+        ini.general.init_from = :ods
+    end
 
     return ini, act
 end

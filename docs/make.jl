@@ -12,6 +12,15 @@ using Literate
 
 # Convert the Literate.jl script to markdown
 Literate.markdown(joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src"), documenter=true)
+lines = join(readlines(joinpath(@__DIR__, "src", "tutorial.md")), "\n")
+open(joinpath(@__DIR__, "src", "tutorial.md"), "w") do f
+    write(f, replace(lines,
+"""
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+""" => ""))
+end
 
 function pretty_units(unit)
     unit = replace(unit, r"\^-3(?![0-9])" => "⁻³")
@@ -173,11 +182,11 @@ makedocs(;
     warnonly=true,
     pages=[
         "Concepts" => "index.md",
+        "Lean" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
+        "Use Cases" => "cases.md",
+        "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
+        "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"], 
         "Data Structure" => "dd.md",
-        "Actors" => "actors.md",
-        "Parameters" => ["ini Parameters" => "ini.md", "act Parameters" => "act.md", "Use Cases" => "cases.md", "Initialization" => "inits.md"],
-        "Examples" => "examples.md",
-        "Tutorial" => "tutorial.md",
         "Development" => "develop.md",
         "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
         "License" => ["License" => "license.md", "Notice" => "notice.md"]
