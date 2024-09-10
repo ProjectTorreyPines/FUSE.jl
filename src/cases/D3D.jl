@@ -9,6 +9,8 @@ Arguments:
 """
 function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=false)::Tuple{ParametersAllInits,ParametersAllActors}
 
+    @assert scenario in (:default, :H_mode, :L_mode)
+
     ini = use_ods_sources ? ParametersInits() : ParametersInits(; n_nb=1)
     act = ParametersActors()
 
