@@ -26,7 +26,6 @@ end
 
     Interpolation of G function (Equation 12 in Burrel et al.) pulled from onetwo. Used where QuadGK calculation is slow
 """
-
 function g0(x::Float64)::Float64
     g0f1(x) = (9.9995058e-1 + x*(7.7628443e+2 + x*(-4.3649686e+3 + x*6.1480022e+4))) /
               (1.0 + x*7.8621464e+2)
