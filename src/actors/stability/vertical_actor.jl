@@ -8,9 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: Pa
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=0.1)
-    min_n_segments::Entry{Int} = Entry{Int}("-", "Minimum number of quadralaterals"; default=15)
-    default_passive_material::Entry{Symbol} = Entry{Symbol}("-", "Default material to use for poorly defined vacuum vessel"; default=:steel)
+    #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
@@ -63,39 +61,19 @@ function _step(actor::ActorVerticalStability)
         return actor
     end
 
-    # The vacuum vessel can have multiple layers
-    # Find all the bounding ones and turn the area in between into quads
-    kvessel = IMAS.get_build_indexes(bd.layer; type=_vessel_, fs=_lfs_)
-    if isempty(kvessel)
-        @warn "No vessel found. Can't compute vertical stability metrics"
-        return actor
-    end
-    kout = kvessel[end]
-    kin = kvessel[1] - 1
-    quads = layer_quads(bd.layer[kin], bd.layer[kout], par.wall_precision, par.min_n_segments)
-
-    # convert quads to VacuumFields.QuadCoil
-    actor.passive_coils = VacuumFields.QuadCoil[VacuumFields.QuadCoil(R, Z) for (R, Z) in quads]
-
-    # Compute resistance based on material resistivity & geometry of coil
-    # N.B.: this just takes the material from the outermost build layer;
-    #       does not account for toroidal breaks, heterogeneous materials,
-    #       or builds with "water" vacuum vessels
-    mat_vv = Material(bd.layer[kout].material)
-    if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
-        mat_vv = Material(par.default_passive_material)
-    end
-    eta = 1.0 / mat_vv.electrical_conductivity(; temperature=0.0)
-    if !ismissing(eta)
-        for coil in actor.passive_coils
-            coil.resistance = VacuumFields.resistance(coil, eta)
+    # load passive structures from pf_passive
+    actor.passive_coils = VacuumFields.QuadCoil[]
+    for loop in dd.pf_passive.loop
+        for element in loop.element
+            @assert length(element.geometry.outline.r) == 4 "For the time being passive structures must be composed of quadrilateral elements"
+            passive_coil = VacuumFields.QuadCoil(element.geometry.outline.r, element.geometry.outline.z)
+            passive_coil.resistance = VacuumFields.resistance(passive_coil, loop.resistivity)
+            push!(actor.passive_coils, passive_coil)
         end
     end
 
     image = VacuumFields.Image(eqt)
-
     coils = vcat(active_coils, actor.passive_coils)
-
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
 
     for (k, coil) in enumerate(active_coils)
