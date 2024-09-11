@@ -181,7 +181,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree
+export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

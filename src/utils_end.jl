@@ -35,6 +35,29 @@ Sample usage in a Jupyter notebook:
 
     dd = chk[:something_else].dd # restore only dd
     ...something_else_more...
+
+also works with @checkin and @checkout macros
+
+    chk = FUSE.Checkpoint()
+    ...init...
+    @checkin chk :init dd ini act # store dd, ini, act
+
+    --------
+
+    @checkout chk :init dd ini act # restore dd, ini, act
+    ...something...
+    @checkin chk :something dd act # store dd, act
+
+    --------
+
+    @checkout chk :something dd # restore only dd
+    ...something_else...
+    @checkin chk :something_else dd # store only dd
+
+    --------
+
+    @checkout chk :something_else dd # restore only dd
+    ...something_else_more...
 """
 Base.@kwdef struct Checkpoint
     history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
@@ -78,6 +101,47 @@ end
 for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
     @eval function Base.$func(chk::Checkpoint, args...; kw...)
         return $func(chk.history, args...; kw...)
+    end
+end
+
+"""
+    @checkin chk :key a b c
+
+Macro to save variables into a Checkpoint under a specific key
+"""
+macro checkin(checkpoint, key, vars...)
+    key = esc(key)
+    checkpoint = esc(checkpoint)
+
+    # Save all the variables in the `vars` list under the provided key using their names
+    return quote
+        d = getfield($checkpoint, :history)
+        dict = Dict{Symbol, Any}()
+        $(Expr(:block, [:(dict[Symbol($(string(v)))] = $(esc(v))) for v in vars]...))
+        d[$key] = NamedTuple{Tuple(keys(dict))}(values(dict))  # Convert the dictionary to a NamedTuple
+        nothing
+    end
+end
+
+"""
+    @checkout chk :key a c
+
+Macro to load variables from a Checkpoint
+"""
+macro checkout(checkpoint, key, vars...)
+    key = esc(key)
+    checkpoint = esc(checkpoint)
+
+    # Restore variables from the checkpoint
+    return quote
+        d = getfield($checkpoint, :history)
+        if haskey(d, $key)
+            saved_vars = d[$key]
+            $(Expr(:block, [:( $(esc(v)) = getfield(saved_vars, Symbol($(string(v)))) ) for v in vars]...))
+        else
+            throw(KeyError($key))
+        end
+        nothing  # Explicitly return nothing
     end
 end
 
