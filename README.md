@@ -33,7 +33,7 @@ Find the full documentation here: [https://fuse.help](https://fuse.help)
 
 ## Publication
 
-Refer to the related publication: [FUSE Paper](https://tinyurl.com/FUSEpaper)
+Refer to the related publication: [FUSE Paper](https://arxiv.org/abs/2409.05894)
 
 ## Presentation
 
