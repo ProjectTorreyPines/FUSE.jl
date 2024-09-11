@@ -46,26 +46,50 @@ The fix for this is simple: don't use the `Main` environment, rather activate a 
 
 This can be easily by doing the following in the first cell of your Jupyter notebook:
 
-    ```julia
-    using Pkg
-    Pkg.activate("$HOME/julia_runs/my_run") # this is key, to avoid using the Main FUSE environment
-    Pkg.add(("Plots", "FUSE"))
-    ```
+```julia
+using Pkg
+Pkg.activate("$HOME/julia_runs/my_run") # this is key, to avoid using the Main FUSE environment
+Pkg.add(("Plots", "FUSE"))
+```
 
-## Jupyter on OMEGA cluster
+## Three ways to run parallel jobs
+
+Keep in mind that each worker node on OMEGA has 128 CPUs
+
+1. Screen + Jupyter on the login node, workers on the worker nodes
+
+   OK when the master process will not be doing a lot of work, and we need multiple nodes
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+1. Screen on the login node, Jupyter and workers on one worker node
+
+   OK when the master process will be doing a lot of work, and we don't need more than one node
+
+   Here we will use the `FUSE.parallel_environment("localhost", ...)` call.
+
+1. Screen on the login node, Jupyter on a worker node, workers on different worker nodes
+
+   OK when the master process will be doing a lot of work, and we need multiple nodes
+
+   This is more complex, and finicky. Avoid if possible.
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+
+## FUSE on OMEGA cluster
 
 1. Connect to `omega` and launch `screen`
 
    !!! note
        You can re-connect to an existing `screen` session with `screen -r`
 
-1. For larger jobs especially, consider doing what follows on a login node.
-   To do this (eg. a whole worker node of 40 cores for 4 days)
+1. **If (and only if) you want to run Jupyter on a worker node** do as follows:
 
     `srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l`
 
    !!! note
-       Use the queue, time, cpu, and memory limits that make the most sense for your application
+       Use the queue, time, CPU, and memory limits that make the most sense for your application
        see these [instructions](https://fusionga.sharepoint.com/sites/Computing/SitePages/Omega.aspx#using-slurm-to-run-interactive-tasks%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B) for help
 
 1. Then start the Jupyter lab server from the `screen` session (`screen` will keep `jupyter` running even when you log out)
