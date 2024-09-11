@@ -1,9 +1,9 @@
 cff-version: 1.2.0
 title: >-
-  FUSE (Fusion Synthesis Engine): A Next Generation
-  Framework for Integrated Design of Fusion Pilot Plants
+  FUSE (Fusion Synthesis Engine):
+  A Next Generation Framework for Integrated Design of Fusion Pilot Plants
 message: 'Please cite this work as follows:'
-type: software
+type: article
 authors:
   - family-names: Meneghini
     given-names: O.
@@ -44,8 +44,7 @@ authors:
 identifiers:
   - type: doi
     value: 10.48550/arXiv.2409.05894
-repository-code: 'https://github.com/ProjectTorreyPines/FUSE.jl'
-url: 'https://fuse.help'
+url: 'https://arxiv.org/abs/2409.05894'
 abstract: >-
   The Fusion Synthesis Engine (FUSE) is a state-of-the-art
   software suite designed to revolutionize fusion power
