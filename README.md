@@ -1,6 +1,6 @@
 # FUSE.jl
 
-FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the Apache 2.0 license. 📝
+FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
 
 ## Objectives
 
@@ -72,4 +72,20 @@ using Pkg
 Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
 Pkg.Registry.add("General")
 Pkg.add("FUSE")
+```
+
+## Citation
+
+Please cite this work as follows:
+
+```
+@article{meneghini2024fuse,
+title = {FUSE (Fusion Synthesis Engine): A Next Generation Framework for Integrated Design of Fusion Pilot Plants},
+author = {Meneghini, O. and Slendebroek, T. and Lyons, B.C. and McLaughlin, K. and McClenaghan, J. and Stagner, L. and Harvey, J. and Neiser, T.F. and Ghiozzi, A. and Dose, G. and Guterl, J. and Zalzali, A. and Cote, T. and Shi, N. and Weisberg, D. and Smith, S.P. and Grierson, B.A. and Candy, J.},
+journal = {arXiv preprint arXiv:2409.05894},
+year = {2024},
+url = {https://arxiv.org/abs/2409.05894},
+note = {arXiv:2409.05894 [physics.plasm-ph]},
+doi = {10.48550/arXiv.2409.05894}
+}
 ```
