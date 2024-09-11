@@ -1,0 +1,78 @@
+cff-version: 1.2.0
+title: >-
+  FUSE (Fusion Synthesis Engine): A Next Generation
+  Framework for Integrated Design of Fusion Pilot Plants
+message: 'Please cite this work as follows:'
+type: software
+authors:
+  - family-names: Meneghini
+    given-names: O.
+  - family-names: Slendebroek
+    given-names: T.
+  - family-names: Lyons
+    given-names: B.C.
+  - family-names: McLaughlin
+    given-names: K.
+  - family-names: McClenaghan
+    given-names: J.
+  - family-names: Stagner
+    given-names: L.
+  - family-names: Harvey
+    given-names: J.
+  - family-names: Neiser
+    given-names: T.F.
+  - family-names: Ghiozzi
+    given-names: A.
+  - family-names: Dose
+    given-names: G.
+  - family-names: Guterl
+    given-names: J.
+  - family-names: Zalzali
+    given-names: A.
+  - family-names: Cote
+    given-names: T.
+  - family-names: Shi
+    given-names: N.
+  - family-names: Weisberg
+    given-names: D.
+  - family-names: Smith
+    given-names: S.P.
+  - family-names: Grierson
+    given-names: B.A.
+  - family-names: Candy
+    given-names: J.
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2409.05894
+repository-code: 'https://github.com/ProjectTorreyPines/FUSE.jl'
+url: 'https://fuse.help'
+abstract: >-
+  The Fusion Synthesis Engine (FUSE) is a state-of-the-art
+  software suite designed to revolutionize fusion power
+  plant design. FUSE integrates first-principle models,
+  machine learning, and reduced models into a unified
+  framework, enabling comprehensive simulations that go
+  beyond traditional 0D systems studies. FUSE's modular
+  structure supports a hierarchy of model fidelities, from
+  steady-state to time-dependent simulations, allowing for
+  both pre-conceptual design and operational scenario
+  development. This framework accelerates the design process
+  by enabling self-consistent solutions across physics,
+  engineering, and control systems, minimizing the need for
+  iterative expert evaluations. Leveraging modern software
+  practices and parallel computing, FUSE also provides
+  multi-objective optimization, balancing cost, efficiency,
+  and operational constraints. Developed in Julia, FUSE is
+  fully open-source under the Apache 2.0 license, promoting
+  transparency and collaboration within the fusion research
+  community.
+keywords:
+  - Fusion
+  - Integrated Modeling
+  - Plasma
+  - ITER
+  - FPP
+  - General Atomics
+license: Apache-2.0
+version: v1
+date-released: '2024-09-02'
