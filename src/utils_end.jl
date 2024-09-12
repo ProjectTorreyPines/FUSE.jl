@@ -81,20 +81,10 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     for (k, v) in chk.history
-        TPs = map(typeof, v)
-        what = String[]
-        if any(tp <: IMAS.dd for tp in TPs)
-            push!(what, "dd")
-        end
-        if any(tp <: ParametersAllInits for tp in TPs)
-            push!(what, "ini")
-        end
-        if any(tp <: ParametersAllActors for tp in TPs)
-            push!(what, "act")
-        end
+        what = Tuple{Symbol,Type}[(k,typeof(v)) for (k, v) in pairs(v)]
         println(io, "$(repr(k)) => $(join(what,", "))")
     end
-    return
+    return nothing
 end
 
 # Generate the delegated methods (NOTE: these methods do not require deepcopy)
@@ -116,8 +106,12 @@ macro checkin(checkpoint, key, vars...)
     # Save all the variables in the `vars` list under the provided key using their names
     return quote
         d = getfield($checkpoint, :history)
-        dict = Dict{Symbol, Any}()
-        $(Expr(:block, [:(dict[Symbol($(string(v)))] = $(esc(v))) for v in vars]...))
+        if $key in keys(d)
+            dict = Dict(k => v for (k, v) in pairs(d[$key]))
+        else
+            dict = Dict{Symbol, Any}()
+        end
+        $(Expr(:block, [:(dict[Symbol($(string(v)))] = deepcopy($(esc(v)))) for v in vars]...))
         d[$key] = NamedTuple{Tuple(keys(dict))}(values(dict))  # Convert the dictionary to a NamedTuple
         nothing
     end
@@ -137,11 +131,11 @@ macro checkout(checkpoint, key, vars...)
         d = getfield($checkpoint, :history)
         if haskey(d, $key)
             saved_vars = d[$key]
-            $(Expr(:block, [:( $(esc(v)) = getfield(saved_vars, Symbol($(string(v)))) ) for v in vars]...))
+            $(Expr(:block, [:( $(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v))))) ) for v in vars]...))
         else
             throw(KeyError($key))
         end
-        nothing  # Explicitly return nothing
+        nothing
     end
 end
 
