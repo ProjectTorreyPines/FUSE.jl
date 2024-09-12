@@ -382,10 +382,19 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
-    if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
-        norm_source = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        norm_transp = total_fluxes.electrons.particles.flux[cf_gridpoints]
-        push!(norms, norm_transformation(norm_source, norm_transp))
+    if !isempty(evolve_densities)
+        if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
+            norm_source = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+            norm_transp = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            push!(norms, norm_transformation(norm_source, norm_transp))
+        end
+        for (k,ion) in enumerate(cp1d.ion)
+            if evolve_densities[Symbol(ion.label)] == :flux_match
+                norm_source = total_sources.ion[k].particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+                norm_transp = total_fluxes.ion[k].particles.flux[cf_gridpoints]
+                push!(norms, norm_transformation(norm_source, norm_transp))
+            end
+        end
     end
 
     return norms
@@ -427,10 +436,9 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
             target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
             append!(targets, target)
         end
-        for ion in cp1d.ion
+        for (k,ion) in enumerate(cp1d.ion)
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                index = findfirst(sion -> sion.label == ion.label, total_sources.ion)
-                target = total_sources.ion[index].particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+                target = total_sources.ion[k].particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
                 append!(targets, target)
             end
         end
@@ -478,9 +486,11 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
             check_output_fluxes(flux, "electrons.particles")
             append!(fluxes, flux)
         end
-        for ion in cp1d.ion
+        for (k,ion) in enumerate(cp1d.ion)
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                error("This is currently not working will fix later")
+                flux = total_fluxes.ion[k].particles.flux
+                check_output_fluxes(flux, "ion[$k].particles")
+                append!(fluxes, flux)
             end
         end
     end
@@ -553,7 +563,10 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
         return setup_density_evolution_fixed(cp1d)
     elseif par.evolve_densities == :flux_match
         return setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d)
-    elseif typeof(par.evolve_densities) <: AbstractDict
+    elseif typeof(par.evolve_densities) <: AbstractDict{Symbol, Symbol}
+        for (k,v) in par.evolve_densities
+            @assert v in (:quasi_neutrality, :match_ne_scale, :fixed, :flux_match) "evolve_density `:$(k) => :$(v)` is not allowed. Choose one of [:quasi_neutrality, :match_ne_scale, :fixed, :flux_match]"
+        end
         return par.evolve_densities
     else
         error(
