@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
-    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0)
+    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0; default=:pulse_schedule)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
