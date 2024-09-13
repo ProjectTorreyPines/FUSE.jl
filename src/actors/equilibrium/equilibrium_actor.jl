@@ -77,6 +77,7 @@ function _step(actor::ActorEquilibrium)
         eqt = dd.equilibrium.time_slice[]
         idxeqt = IMAS.index(eqt)
         if idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
+            eqt1d = eqt.profiles_1d
             eqt1d__1 = dd.equilibrium.time_slice[idxeqt-1].profiles_1d
             psi__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.psi).(eqt1d.psi_norm)
             R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm8).(eqt1d.psi_norm)
@@ -156,7 +157,7 @@ Prepare `dd.equilibrium` to run equilibrium actors
   - Clear equilibrium__time_slice
   - Set Ip, Bt from core_profiles, equilibrium, or pulse_schedule
   - Use position control from pulse_schedule
-  - Use j_tor,pressure from core_profiles or equilibrium
+  - Use j_tor,pressure from core_profiles (for self-consistent iterations) or equilibrium (to re-solve equilibrium with different solver)
 """
 function prepare(actor::ActorEquilibrium)
     dd = actor.dd
@@ -172,21 +173,21 @@ function prepare(actor::ActorEquilibrium)
         index = cp1d.grid.psi_norm .> 0.05
         psi0 = cp1d.grid.psi
         rho_tor_norm0 = cp1d.grid.rho_tor_norm
-        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+        rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
         j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
         pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-        j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
     elseif par.j_p_from == :equilibrium
         @assert !isempty(dd.equilibrium.time)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
         psi0 = eqt1d.psi
         rho_tor_norm0 = eqt1d.rho_tor_norm
-        rho_pol_norm0 = sqrt.(eqt1d.psi_norm)
+        rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
-        j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
     else
         @assert par.j_p_from in (:core_profiles, :equilibrium)
     end
