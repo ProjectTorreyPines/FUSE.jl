@@ -18,8 +18,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
     #== IMAS psi grid settings ==#
-    nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R")
-    nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z")
+    nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
+    nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
 end
 
 mutable struct ActorFRESCO{D,P} <: SingleAbstractActor{D,P}
@@ -55,35 +55,32 @@ function _step(actor::ActorFRESCO)
     dd = actor.dd
     par = actor.par
     eqt = dd.equilibrium.time_slice[]
-    eq1d = eqt.profiles_1d
+    eqt1d = eqt.profiles_1d
 
     # Ip_target = eqt.global_quantities.ip
     #
     # if par.fixed_grid === :poloidal
-    #     rho = sqrt.(eq1d.psi_norm)
+    #     rho = sqrt.(eqt1d.psi_norm)
     #     rho[1] = 0.0
-    #     P = (FRESCO.FE(rho, eq1d.pressure), :poloidal)
+    #     P = (FRESCO.FE(rho, eqt1d.pressure), :poloidal)
     #     # don't allow current to change sign
-    #     Jt = (FRESCO.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]), :poloidal)
-    #     Pbnd = eq1d.pressure[end]
+    #     Jt = (FRESCO.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eqt1d.j_tor]), :poloidal)
+    #     Pbnd = eqt1d.pressure[end]
     # elseif par.fixed_grid === :toroidal
-    #     rho = eq1d.rho_tor_norm
-    #     P = (FRESCO.FE(rho, eq1d.pressure), :toroidal)
+    #     rho = eqt1d.rho_tor_norm
+    #     P = (FRESCO.FE(rho, eqt1d.pressure), :toroidal)
     #     # don't allow current to change sign
-    #     Jt = (FRESCO.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]), :toroidal)
-    #     Pbnd = eq1d.pressure[end]
+    #     Jt = (FRESCO.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eqt1d.j_tor]), :toroidal)
+    #     Pbnd = eqt1d.pressure[end]
     # end
 
-    psi_norm = eq1d.psi_norm
-    gpp = IMAS.interp1d(psi_norm, eq1d.dpressure_dpsi, :cubic)
-    pprime  = x -> gpp(x)
-    gffp =  IMAS.interp1d(psi_norm, eq1d.f_df_dpsi, :cubic)
-    ffprime = x -> gffp(x)
-    profile = FRESCO.PprimeFFprime(pprime, ffprime)
+    gpp = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi, :cubic)
+    gffp = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi, :cubic)
+    profile = FRESCO.PprimeFFprime(x -> gpp(x), x -> gffp(x))
 
-    actor.canvas = FRESCO.Canvas(dd, par.nR, par.nZ);
+    actor.canvas = FRESCO.Canvas(dd, par.nR, par.nZ)
 
-    FRESCO.solve!(actor.canvas, profile, 100, 3; relax=par.relax, par.debug, par.control) # forward mode
+    FRESCO.solve!(actor.canvas, profile, 100, 3; relax=par.relax, par.debug, par.control)
 
     # using Plots
     # p1 = Plots.heatmap(Rs, Zs, psi', aspect_ratio=:equal, xrange=(0,12.5), yrange=(-9,9), size=(400,500))
@@ -100,13 +97,13 @@ function _finalize(actor::ActorFRESCO)
     dd = actor.dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
-    eq1d = eqt.profiles_1d
+    eqt1d = eqt.profiles_1d
     eq2d = resize!(eqt.profiles_2d, 1)[1]
 
     Raxis, Zaxis, _ = FRESCO.find_axis(canvas)
     eqt.global_quantities.magnetic_axis.r = Raxis
     eqt.global_quantities.magnetic_axis.z = Zaxis
-    eq1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, length(eq1d.psi))
+    eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, length(eqt1d.psi))
     # p, p', f, ff' don't change
 
     eq2d.grid_type.index = 1

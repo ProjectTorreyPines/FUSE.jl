@@ -70,6 +70,31 @@ function _step(actor::ActorEquilibrium)
     # initialize eqt for equilibrium actors
     prepare(actor)
 
+    # FRESCO needs p' and f'' to run
+    # We can estimate of p' and ff' based on equilibrium at previous time-slice
+    # if that's not available, we run TEQUILA first
+    if par.model == :FRESCO
+        eqt = dd.equilibrium.time_slice[]
+        idxeqt = IMAS.index(eqt)
+        if idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
+            eqt1d__1 = dd.equilibrium.time_slice[idxeqt-1].profiles_1d
+            psi__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.psi).(eqt1d.psi_norm)
+            R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm8).(eqt1d.psi_norm)
+            one_R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm9).(eqt1d.psi_norm)
+            one_R2__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm1).(eqt1d.psi_norm)
+            b0 = eqt.global_quantities.vacuum_toroidal_field.b0
+            r0 = eqt.global_quantities.vacuum_toroidal_field.r0
+            dpressure_dpsi, f_df_dpsi, f = IMAS.calc_pprime_ffprim_f(psi__1, R__1, one_R__1, one_R2__1, r0, b0; eqt1d.pressure, eqt1d.j_tor)
+            eqt1d.dpressure_dpsi = dpressure_dpsi
+            eqt1d.f_df_dpsi = f_df_dpsi
+            eqt1d.f = f
+        else
+            ActorTEQUILA(dd, actor.act; par.ip_from)
+            fw = IMAS.first_wall(dd.wall)
+            IMAS.flux_surfaces(eqt, fw.r, fw.z)
+        end
+    end
+
     # step selected equilibrium actor
     step(actor.eq_actor)
 
@@ -173,7 +198,7 @@ function prepare(actor::ActorEquilibrium)
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
     resize!(eqt.profiles_2d, 1)
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
+    eqt1d = dd.equilibrium.time_slice[].profiles_1d
 
     # scalar quantities
     eqt.global_quantities.ip = ip
@@ -225,11 +250,11 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # set j_tor and pressure, forcing zero derivative on axis
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    eq1d.psi = psi0
-    eq1d.rho_tor_norm = rho_tor_norm0
-    eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
-    eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
+    eqt1d = dd.equilibrium.time_slice[].profiles_1d
+    eqt1d.psi = psi0
+    eqt1d.rho_tor_norm = rho_tor_norm0
+    eqt1d.j_tor = j_itp.(sqrt.(eqt1d.psi_norm))
+    eqt1d.pressure = p_itp.(sqrt.(eqt1d.psi_norm))
 
     return dd
 end
