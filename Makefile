@@ -15,7 +15,7 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FRESCO FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
@@ -113,6 +113,9 @@ FiniteElementHermite:
 Fortran90Namelists:
 	$(call clone_pull_repo,$@)
 
+FRESCO:
+	$(call clone_pull_repo,$@)
+
 CHEASE:
 	$(call clone_pull_repo,$@)
 
@@ -158,13 +161,6 @@ help: header help_info
 
 # =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #
 
-# @# @")), "# @"); \
-		open(file*"", "w") do f \
-			write(f, strip(header)); \
-			write(f, "\n\n# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #\n\n"); \
-			write(f, targets); \
-		end;\
-	'# @"*join(sort!(split(strip(targets), "# @devs
 blank_examples:clean_examples
 # Clean and convert examples to md without executing
 	cd docs; julia notebooks_to_md.jl
@@ -454,13 +450,6 @@ header:
 	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
 	@printf "   Project  Torrey  Pines  (PTP)\n"
 
-# Update Makefile targets
-sort_targets:
-	@julia -e 'using DelimitedFiles; \
-		file = "Makefile"; \
-		lines = readlines(file); \
-		header, targets = split(join(lines, "\n"), "# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #"; limit=2); \
-		targets = "# @devs
 init_expressions:
 # Generates init_expressions.json file, which lists entries that are
 # always expected to be expressions when coming out of init()
@@ -546,7 +535,7 @@ list_open_compats:
 	)
 
 # @devs
-make_apache: error_missing_repo_var
+apache: error_missing_repo_var
 # Update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
 # The starting information is taken from IMASdd.jl and moved to the target repo
 # >> make apache repo=CHEASE

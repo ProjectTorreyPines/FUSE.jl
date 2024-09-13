@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
+    model::Switch{Symbol} = Switch{Symbol}([:FRESCO, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
@@ -20,7 +20,7 @@ mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
-    eq_actor::Union{Nothing,ActorSolovev{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
+    eq_actor::Union{Nothing,ActorFRESCO{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
 end
 
 """
@@ -38,14 +38,14 @@ end
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
-    if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev; par.ip_from)
+    if par.model == :FRESCO
+        eq_actor = ActorFRESCO(dd, act.ActorFRESCO; par.ip_from)
     elseif par.model == :CHEASE
         eq_actor = ActorCHEASE(dd, act.ActorCHEASE; par.ip_from)
     elseif par.model == :TEQUILA
         eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
     else
-        error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
+        error("ActorEquilibrium: model = `$(par.model)` can only be `:TEQUILA`, `:FRESCO`, `:CHEASE`")
     end
     return ActorEquilibrium(dd, par, act, eq_actor)
 end
