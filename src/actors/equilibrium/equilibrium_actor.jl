@@ -39,11 +39,11 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :FRESCO
-        eq_actor = ActorFRESCO(dd, act.ActorFRESCO; par.ip_from)
+        eq_actor = ActorFRESCO(dd, act.ActorFRESCO)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; par.ip_from)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA)
     else
         error("ActorEquilibrium: model = `$(par.model)` can only be `:TEQUILA`, `:FRESCO`, `:CHEASE`")
     end

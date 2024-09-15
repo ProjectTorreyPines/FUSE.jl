@@ -16,7 +16,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.25)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     #== data flow parameters ==#
-    ip_from::Switch{Symbol} = switch_get_from(:ip)
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -69,7 +68,6 @@ function _step(actor::ActorTEQUILA)
     actor.ψbound = 0.0
 
     Ip_target = eqt.global_quantities.ip
-
     if par.fixed_grid === :poloidal
         rho = sqrt.(eqt1d.psi_norm)
         rho[1] = 0.0

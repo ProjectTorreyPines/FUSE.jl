@@ -11,8 +11,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersAct
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
     rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
-    #== data flow parameters ==#
-    ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
 mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}

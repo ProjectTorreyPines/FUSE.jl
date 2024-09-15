@@ -12,7 +12,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
     #tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     #== data flow parameters ==#
-    ip_from::Switch{Symbol} = switch_get_from(:ip)
     # fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
