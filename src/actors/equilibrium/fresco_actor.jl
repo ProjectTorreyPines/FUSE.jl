@@ -9,13 +9,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     _time::Float64 = NaN
     #== actor parameters ==#
     control::Switch{Symbol} = Switch{Symbol}([:vertical, :shape], "-", ""; default=:shape)
+    number_of_iterations::Entry{Tuple{Int,Int}} = Entry{Tuple{Int,Int}}("-", "Number of outer and inner iterations"; default=(100, 3))
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
-    #tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
+    tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     #== data flow parameters ==#
-    # fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
+    fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
-    debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
+    debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=true)
     #== IMAS psi grid settings ==#
     nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
     nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
@@ -57,7 +58,6 @@ function _step(actor::ActorFRESCO)
     eqt1d = eqt.profiles_1d
 
     # Ip_target = eqt.global_quantities.ip
-    #
     # if par.fixed_grid === :poloidal
     #     rho = sqrt.(eqt1d.psi_norm)
     #     rho[1] = 0.0
@@ -79,7 +79,7 @@ function _step(actor::ActorFRESCO)
 
     actor.canvas = FRESCO.Canvas(dd, par.nR, par.nZ)
 
-    FRESCO.solve!(actor.canvas, profile, 100, 3; relax=par.relax, par.debug, par.control)
+    FRESCO.solve!(actor.canvas, profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
     # using Plots
     # p1 = Plots.heatmap(Rs, Zs, psi', aspect_ratio=:equal, xrange=(0,12.5), yrange=(-9,9), size=(400,500))
@@ -102,6 +102,8 @@ function _finalize(actor::ActorFRESCO)
     Raxis, Zaxis, _ = FRESCO.find_axis(canvas)
     eqt.global_quantities.magnetic_axis.r = Raxis
     eqt.global_quantities.magnetic_axis.z = Zaxis
+    eqt.global_quantities.psi_boundary = canvas.Ψbnd
+    eqt.global_quantities.psi_axis = canvas.Ψaxis
     eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, length(eqt1d.psi))
     # p, p', f, ff' don't change
 

@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    model::Switch{Symbol} = Switch{Symbol}([:FRESCO, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
+    model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :CHEASE], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
@@ -76,7 +76,7 @@ function _step(actor::ActorEquilibrium)
     if par.model == :FRESCO
         eqt = dd.equilibrium.time_slice[]
         idxeqt = IMAS.index(eqt)
-        if idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
+        if false && idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
             eqt1d = eqt.profiles_1d
             eqt1d__1 = dd.equilibrium.time_slice[idxeqt-1].profiles_1d
             psi__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.psi).(eqt1d.psi_norm)
@@ -90,7 +90,9 @@ function _step(actor::ActorEquilibrium)
             eqt1d.f_df_dpsi = f_df_dpsi
             eqt1d.f = f
         else
-            ActorTEQUILA(dd, actor.act; par.ip_from)
+            # NOTE: using free_boundary=true will also update pf_active
+            #       which is then used as initial guess by FRESCO
+            ActorTEQUILA(dd, actor.act; free_boundary=true)
             fw = IMAS.first_wall(dd.wall)
             IMAS.flux_surfaces(eqt, fw.r, fw.z)
         end
