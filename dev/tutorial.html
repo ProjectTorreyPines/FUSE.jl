@@ -15,11 +15,7 @@ using FUSE # this will also import IMAS in the current namespace</code></pre><h2
 <span class="sgr1">MANTA       </span>   ini, act = FUSE.case_parameters(:MANTA)
 <span class="sgr1">SPARC       </span>   ini, act = FUSE.case_parameters(:SPARC)
 </code></pre><p>Get initial parameters (<code>ini</code>) and actions (<code>act</code>) for a given use-case</p><pre><code class="language-julia hljs">ini, act = FUSE.case_parameters(:KDEMO);</code></pre><p>Modifying <a href="https://fuse.help/stable/ini.html"><code>ini</code> parameters</a>.</p><pre><code class="language-julia hljs">ini.equilibrium.B0 = 7.8
-ini.equilibrium.R0 = 6.5</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">6.5</code></pre><p>Modifying <a href="https://fuse.help/stable/act.html"><code>act</code> parameters</a>.</p><pre><code class="language-julia hljs">act.ActorCoreTransport.model = :FluxMatcher</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">:FluxMatcher</code></pre><p>Initialize the data dictionary (<code>dd</code>) using the 0D parameters</p><pre><code class="language-julia hljs">dd = FUSE.init(ini, act);
-
-# Using checkpoints to save and restore states (we&#39;ll use this later)
-chk = FUSE.Checkpoint()
-chk[:init] = dd, ini, act;</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Equilibrium
+ini.equilibrium.R0 = 6.5</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">6.5</code></pre><p>Modifying <a href="https://fuse.help/stable/act.html"><code>act</code> parameters</a>.</p><pre><code class="language-julia hljs">act.ActorCoreTransport.model = :FluxMatcher</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">:FluxMatcher</code></pre><p>Initialize the data dictionary (<code>dd</code>) using the 0D parameters</p><pre><code class="language-julia hljs">dd = FUSE.init(ini, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Equilibrium
 actors:  TEQUILA
 actors: HCD
 actors:  SimpleEC
@@ -29,7 +25,8 @@ actors:  SimpleNB
 actors:  SimplePellet
 actors: Current
 actors:  SteadyStateCurrent
-actors: CXbuild</code></pre><h2 id="Exploring-the-data-dictionary"><a class="docs-heading-anchor" href="#Exploring-the-data-dictionary">Exploring the data dictionary</a><a id="Exploring-the-data-dictionary-1"></a><a class="docs-heading-anchor-permalink" href="#Exploring-the-data-dictionary" title="Permalink"></a></h2><ul><li>FUSE stores data following the IMAS data schema.</li><li>The root of the data structure is <code>dd</code>, which stands for &quot;Data Dictionary&quot;.</li><li>More details are available in the <a href="https://fuse.help/stable/dd.html">documentation</a>.</li></ul><p>Display part of the equilibrium data in <code>dd</code></p><pre><code class="language-julia hljs">dd.equilibrium.time_slice[2].boundary</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">boundary</span>
+actors: CXbuild</code></pre><p>Using checkpoints to save and restore states (we&#39;ll use this later)</p><pre><code class="language-julia hljs">chk = FUSE.Checkpoint()
+@checkin chk :init dd ini act</code></pre><h2 id="Exploring-the-data-dictionary"><a class="docs-heading-anchor" href="#Exploring-the-data-dictionary">Exploring the data dictionary</a><a id="Exploring-the-data-dictionary-1"></a><a class="docs-heading-anchor-permalink" href="#Exploring-the-data-dictionary" title="Permalink"></a></h2><ul><li>FUSE stores data following the IMAS data schema.</li><li>The root of the data structure is <code>dd</code>, which stands for &quot;Data Dictionary&quot;.</li><li>More details are available in the <a href="https://fuse.help/stable/dd.html">documentation</a>.</li></ul><p>Display part of the equilibrium data in <code>dd</code></p><pre><code class="language-julia hljs">dd.equilibrium.time_slice[2].boundary</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">boundary</span>
 ├─ elongation<span class="sgr31"> ➡ 1.85224</span>
 ├─ elongation_lower<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
 ├─ elongation_upper<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
@@ -88,16 +85,18 @@ actors: CXbuild</code></pre><h2 id="Exploring-the-data-dictionary"><a class="doc
 ├─ triangularity_upper ➡ Function
 ├─ twist ➡ -0.0101106
 └─ x_point
-   ⋮</code></pre><h2 id="Plotting-data-from-dd"><a class="docs-heading-anchor" href="#Plotting-data-from-dd">Plotting data from <code>dd</code></a><a id="Plotting-data-from-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-data-from-dd" title="Permalink"></a></h2><p>FUSE provides Plots.jl recipes for visualizing data from <code>dd</code>, this means different plots are shown by calling the same <code>plot()</code> function on different items in the data structure. Learn more about Plots.jl <a href="https://docs.juliaplots.org">here</a></p><p>For example plotting the equilibrium...</p><pre><code class="language-julia hljs">plot(dd.equilibrium)</code></pre><img src="tutorial-0bc0af22.svg" alt="Example block output"/><p>...or the core profiles</p><pre><code class="language-julia hljs">plot(dd.core_profiles)</code></pre><img src="tutorial-dcdfb16c.svg" alt="Example block output"/><p>These plots can be composed by calling <code>plot!()</code> instead of <code>plot()</code></p><pre><code class="language-julia hljs">plot(dd.equilibrium; color=:gray, cx=true)
+   ⋮</code></pre><h2 id="Plotting-data-from-dd"><a class="docs-heading-anchor" href="#Plotting-data-from-dd">Plotting data from <code>dd</code></a><a id="Plotting-data-from-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-data-from-dd" title="Permalink"></a></h2><p>FUSE provides Plots.jl recipes for visualizing data from <code>dd</code>, this means different plots are shown by calling the same <code>plot()</code> function on different items in the data structure. Learn more about Plots.jl <a href="https://docs.juliaplots.org">here</a></p><p>For example plotting the equilibrium...</p><pre><code class="language-julia hljs">plot(dd.equilibrium)</code></pre><img src="tutorial-c02b39b4.svg" alt="Example block output"/><p>...or the core profiles</p><pre><code class="language-julia hljs">plot(dd.core_profiles)</code></pre><img src="tutorial-39f98351.svg" alt="Example block output"/><p>These plots can be composed by calling <code>plot!()</code> instead of <code>plot()</code></p><pre><code class="language-julia hljs">plot(dd.equilibrium; color=:gray, cx=true)
 plot!(dd.build; equilibrium=false, pf_active=false)
-plot!(dd.pf_active)</code></pre><img src="tutorial-44e1c358.svg" alt="Example block output"/><p>Plotting an array...</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1].pressure_thermal)</code></pre><img src="tutorial-692ef1d2.svg" alt="Example block output"/><p>...is different from plotting a field from the IDS</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)</code></pre><img src="tutorial-10d5649f.svg" alt="Example block output"/><p>Customizing plot attributes:</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label=&quot;&quot;, linewidth=2, color=:red, labelfontsize=25)</code></pre><img src="tutorial-99fa91d1.svg" alt="Example block output"/><h2 id="Working-with-time-series"><a class="docs-heading-anchor" href="#Working-with-time-series">Working with time series</a><a id="Working-with-time-series-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-time-series" title="Permalink"></a></h2><p>The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.</p><p>Each <code>dd</code> has a <code>global_time</code> attribute, and actors operate at such time</p><pre><code class="language-julia hljs">dd.global_time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>Here we see that equilibrium has mulitiple time_slices</p><pre><code class="language-julia hljs">dd.equilibrium.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
+plot!(dd.pf_active)</code></pre><img src="tutorial-e84ede4a.svg" alt="Example block output"/><p>Plotting an array...</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1].pressure_thermal)</code></pre><img src="tutorial-c612b89d.svg" alt="Example block output"/><p>...is different from plotting a field from the IDS</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)</code></pre><img src="tutorial-6a1f4e10.svg" alt="Example block output"/><p>Customizing plot attributes:</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label=&quot;&quot;, linewidth=2, color=:red, labelfontsize=25)</code></pre><img src="tutorial-158298d1.svg" alt="Example block output"/><h2 id="Working-with-time-series"><a class="docs-heading-anchor" href="#Working-with-time-series">Working with time series</a><a id="Working-with-time-series-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-time-series" title="Permalink"></a></h2><p>The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.</p><p>Each <code>dd</code> has a <code>global_time</code> attribute, and actors operate at such time</p><pre><code class="language-julia hljs">dd.global_time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>Here we see that equilibrium has mulitiple time_slices</p><pre><code class="language-julia hljs">dd.equilibrium.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
  -Inf
    0.0</code></pre><p>Accessing time-dependent arrays of structures, via integer index</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[2]
 eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>At a given time, by passing the time as a floating point number (in seconds)</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[0.0]
 eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>At the global time, leaving the square brackets empty</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[]
 eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>Using the <code>@ddtime</code> macro to access and modify time-dependent arrays at <code>dd.global_time</code>:</p><pre><code class="language-julia hljs">dd.equilibrium.vacuum_toroidal_field.b0</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
  7.800247146670339
- 7.800247146670339</code></pre><p>Accessing data at <code>dd.global_time</code></p><pre><code class="language-julia hljs">my_b0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">7.800247146670339</code></pre><p>Writin data at <code>dd.global_time</code></p><pre><code class="language-julia hljs">@ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = my_b0 + 1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">8.800247146670339</code></pre><pre><code class="language-julia hljs">dd.equilibrium.vacuum_toroidal_field.b0</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
+ 7.800247146670339</code></pre><p>Accessing data at <code>dd.global_time</code></p><pre><code class="language-julia hljs">my_b0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">7.800247146670339</code></pre><p>Writin data at <code>dd.global_time</code></p><pre><code class="language-julia hljs">@ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = my_b0 + 1)
+
+dd.equilibrium.vacuum_toroidal_field.b0</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
  7.800247146670339
  8.800247146670339</code></pre><h2 id="Expressions-in-dd"><a class="docs-heading-anchor" href="#Expressions-in-dd">Expressions in <code>dd</code></a><a id="Expressions-in-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Expressions-in-dd" title="Permalink"></a></h2><p>Some fields in the data dictionary are expressions (ie. Functions). For example <code>dd.core_profiles.profiles_1d[].pressure</code> is dynamically calculated as the product of thermal densities and temperature with addition of fast ions contributions</p><pre><code class="language-julia hljs">print_tree(dd.core_profiles.profiles_1d[1]; maxdepth=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1
 ├─ conductivity_parallel ➡ Function [ohm^-1.m^-1]
@@ -167,7 +166,7 @@ eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighl
 ├─ rotation_frequency_tor_sonic ➡ 101-element Vector{Float64} [s^-1] (all 0.0)
 ├─ t_i_average ➡ 101-element Vector{Float64} [eV]
 ├─ time ➡ 0 [s]
-└─ zeff ➡ 101-element Vector{Float64} (all 2.0)</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">dd, ini, act = chk[:init];</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>. Internally, actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design. The <code>actors:</code> print statements with their nested output tell us what actors are calling other actors.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
+└─ zeff ➡ 101-element Vector{Float64} (all 2.0)</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout chk :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>. Internally, actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design. The <code>actors:</code> print statements with their nested output tell us what actors are calling other actors.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
 actors:  PFdesign
 actors:  StationaryPlasma
 actors:   --------------- 1/5
@@ -259,7 +258,9 @@ actors:  BalanceOfPlant
 actors:   ThermalPlant
 actors:   PowerNeeds
 actors:  Costing
-actors:   CostingARIES</code></pre><p>Like before we can checkpoint results for later use</p><pre><code class="language-julia hljs">chk[:awf] = dd, ini, act;</code></pre><h2 id="Running-a-custom-workflow"><a class="docs-heading-anchor" href="#Running-a-custom-workflow">Running a custom workflow</a><a id="Running-a-custom-workflow-1"></a><a class="docs-heading-anchor-permalink" href="#Running-a-custom-workflow" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors similar to what <code>ActorWholeFacility</code> does and play around with plotting to get a sense of what each individual actor does.</p><p>Let&#39;s start again from after the initialization stage</p><pre><code class="language-julia hljs">dd, ini, act = chk[:init];</code></pre><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
+actors:   CostingARIES</code></pre><p>Like before we can checkpoint results for later use</p><pre><code class="language-julia hljs">@checkin chk :awf dd ini act</code></pre><h2 id="Running-a-custom-workflow"><a class="docs-heading-anchor" href="#Running-a-custom-workflow">Running a custom workflow</a><a id="Running-a-custom-workflow-1"></a><a class="docs-heading-anchor-permalink" href="#Running-a-custom-workflow" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors similar to what <code>ActorWholeFacility</code> does and play around with plotting to get a sense of what each individual actor does.</p><p>Let&#39;s start again from after the initialization stage</p><pre><code class="language-julia hljs">@checkout chk :init dd ini act
+
+actor = FUSE.ActorPFdesign(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
 pcp = plot(dd.core_profiles; color=:gray, label=&quot;before&quot;)
 FUSE.ActorStationaryPlasma(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: StationaryPlasma
 actors:  --------------- 1/5
@@ -333,11 +334,11 @@ actors:  Current
 actors:   QED
 actors:  Equilibrium
 actors:   TEQUILA
-actors:  --------------- 4/5 @ 64.39%</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-d70774cd.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-e2ad01d6.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-3b8ab7ea.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-813b7449.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
+actors:  --------------- 4/5 @ 64.39%</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-4f41fc1d.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-de6f5b84.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-3f1ead16.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-b8174b4f.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorHFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-ca029730.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-e34972d8.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-9f9a391c.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-a76dd3bf.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorLFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-221692ad.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-e7922a18.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame
  Row │ group   details                            type      ΔR        R_start   R_end     material      area        volume     shape
      │<span class="sgr90"> String  String                             String    Float64   Float64   Float64   String        Float64     Float64    String
 ─────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -364,14 +365,14 @@ plot!(dd.build; cx=false)</code></pre><img src="tutorial-221692ad.svg" alt="Exam
   21 │ lfs                                        tf        0.294003  11.3463   11.6403   nb3sn_kdemo    17.5398     309.852   convex hull
   22 │ out                                                  2.16943   11.6403   13.8097   vacuum        124.075     6312.91
   23 │ out                                        cryostat  0.32353   13.8097   14.1333   steel          10.6442     717.759   silo</span></span></code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
-plot(dd.build)</code></pre><img src="tutorial-cb3e52b7.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language- hljs">ActorPassiveStructures(dd, act)
+plot(dd.build)</code></pre><img src="tutorial-3926c27f.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language- hljs">ActorPassiveStructures(dd, act)
 plot(dd.pf_passive)</code></pre><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
-plot(actor)</code></pre><img src="tutorial-77ca78cd.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language- hljs">ActorVerticalStability(dd, act)
+plot(actor)</code></pre><img src="tutorial-ed587c18.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language- hljs">ActorVerticalStability(dd, act)
 IMAS.freeze(dd.mhd_linear)</code></pre><p>The <code>ActorNeutronics</code> calculates the heat flux on the first wall</p><pre><code class="language-julia hljs">FUSE.ActorNeutronics(dd, act);
 p = plot(; layout=2, size=(900, 350))
 plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
 plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
-plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-18ee2527.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
+plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-ee09ce7a.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
 print_tree(IMAS.freeze(dd.blanket); maxdepth=5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Blanket
 actors:  CXbuild
 blanket
@@ -429,7 +430,7 @@ divertors
 │
 └─ time ➡ [0] [s]</code></pre><p>The <code>ActorBalanceOfPlant</code> calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle</p><pre><code class="language- hljs">actor = FUSE.ActorBalanceOfPlant(dd, act);
 plot(actor)</code></pre><p><code>ActorCosting</code> will break down the capital and operational costs</p><pre><code class="language-julia hljs">FUSE.ActorCosting(dd, act)
-plot(dd.costing)</code></pre><img src="tutorial-0bc479fb.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">chk[:manual] = dd, ini, act;</code></pre><h2 id="Saving-and-loading-data"><a class="docs-heading-anchor" href="#Saving-and-loading-data">Saving and loading data</a><a id="Saving-and-loading-data-1"></a><a class="docs-heading-anchor-permalink" href="#Saving-and-loading-data" title="Permalink"></a></h2><pre><code class="language-julia hljs">tutorial_temp_dir = tempdir()
+plot(dd.costing)</code></pre><img src="tutorial-078db9ce.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin chk :manual dd ini act</code></pre><h2 id="Saving-and-loading-data"><a class="docs-heading-anchor" href="#Saving-and-loading-data">Saving and loading data</a><a id="Saving-and-loading-data-1"></a><a class="docs-heading-anchor-permalink" href="#Saving-and-loading-data" title="Permalink"></a></h2><pre><code class="language-julia hljs">tutorial_temp_dir = tempdir()
 filename = joinpath(tutorial_temp_dir, &quot;$(ini.general.casename).json&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/tmp/K-DEMO.json&quot;</code></pre><p>When saving data to be shared outside of FUSE, one can set <code>freeze=true</code> so that all expressions in the dd are evaluated and saved to file.</p><pre><code class="language-julia hljs">IMAS.imas2json(dd, filename; freeze=false, strict=false);</code></pre><p>Load from JSON</p><pre><code class="language-julia hljs">dd1 = IMAS.json2imas(filename);</code></pre><h2 id="Comparing-two-IDSs"><a class="docs-heading-anchor" href="#Comparing-two-IDSs">Comparing two IDSs</a><a id="Comparing-two-IDSs-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-two-IDSs" title="Permalink"></a></h2><p>We can introduce a change in the <code>dd1</code> and spot it with the <code>diff</code> function</p><pre><code class="language-julia hljs">dd1.equilibrium.time_slice[1].time = -100.0
 IMAS.diff(dd.equilibrium, dd1.equilibrium)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dict{String, String} with 1 entry:
   &quot;time_slice[1].time&quot; =&gt; &quot;value:  -Inf --  -100.0&quot;</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><p>Snapshot of <code>dd</code> in 0D quantities (evaluated at <code>dd.global_time</code>)</p><pre><code class="language-julia hljs">FUSE.extract(dd)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">GEOMETRY                                 EQUILIBRIUM                              TEMPERATURES                             </span>
@@ -495,10 +496,87 @@ IMAS.diff(dd.equilibrium, dd1.equilibrium)</code></pre><pre class="documenter-ex
 <span class="sgr34"><span class="sgr1">min_lh_power_threshold</span></span> → <span class="sgr31">NaN</span>             
                                          
 </code></pre><p>Extract + plots saved to PDF (or printed to screen it <code>filename</code> is omitted)</p><pre><code class="language-julia hljs">filename = joinpath(tutorial_temp_dir, &quot;$(ini.general.casename).pdf&quot;)
-FUSE.digest(dd, filename)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GKS: could not find font middle.ttf
-┌ Warning: ERROR: ProcessFailedException occurred, including output in Weaved document
-└ @ Weave /home/runner/.julia/packages/Weave/f7Ly3/src/run.jl:224
-┌ Warning: Error converting document to pdf. Try running latex manually
-└ @ Weave /home/runner/.julia/packages/Weave/f7Ly3/src/writer/latex.jl:12
-Generation of K-DEMO.pdf failed. See directory: /tmp/jl_vDy6QG
-Base.IOError(&quot;could not spawn `xelatex digest.tex`: no such file or directory (ENOENT)&quot;, -2)</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Concepts</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Monday 16 September 2024 02:44">Monday 16 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+FUSE.digest(dd)#, filename)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GEOMETRY                                 EQUILIBRIUM                              TEMPERATURES
+─────────────────────────────────────    ─────────────────────────────────────    ─────────────────────────────────────
+R0 → 6.5 [m]                             B0 → 7.8 [T]                             Te0 → 19.9 [keV]
+a → 2.01 [m]                             ip → 12.1 [MA]                           Ti0 → 19.2 [keV]
+1/ϵ → 3.24                               q95 → 6.06                               &lt;Te&gt; → 9.19 [keV]
+κ → 1.85                                 &lt;Bpol&gt; → 0.808 [T]                       &lt;Ti&gt; → 8.2 [keV]
+δ → 0.481                                βpol_MHD → 0.831                         Te0/&lt;Te&gt; → 2.17
+ζ → -0.0185                              βtor_MHD → 0.00865                       Ti0/&lt;Ti&gt; → 2.34
+Volume → 918 [m³]                        βn_MHD → 1.13
+Surface → 744 [m²]
+
+DENSITIES                                PRESSURES                                TRANSPORT
+─────────────────────────────────────    ─────────────────────────────────────    ─────────────────────────────────────
+ne0 → 8.74e+19 [m⁻³]                     P0 → 0.602 [MPa]                         τe → 1.85 [s]
+ne_ped → 6.4e+19 [m⁻³]                   &lt;P&gt; → 0.212 [MPa]                        H98y2 → 0.868
+&lt;ne&gt; → 7.2e+19 [m⁻³]                     P0/&lt;P&gt; → 2.84                            Hds03 → 0.658
+ne0/&lt;ne&gt; → 1.21                          βn → 1.14                                τα_thermalization → 0.887 [s]
+fGW → 0.822                              βn_th → 1.09                             τα_slowing_down → 1.13 [s]
+zeff_ped → 2
+&lt;zeff&gt; → 2
+impurities → DT Ne20 He4
+
+SOURCES                                  EXHAUST                                  CURRENTS
+─────────────────────────────────────    ─────────────────────────────────────    ─────────────────────────────────────
+Pec → 50 [MW]                            Psol → 117 [MW]                          ip_bs_aux_ohm → 12.3 [MA]
+rho0_ec → 0.5 [MW]                       PLH → 63.7 [MW]                          ip_ni → 7.11 [MA]
+Pnbi → NaN [MW]                          Bpol_omp → 1.15 [T]                      ip_bs → 3.3 [MA]
+Enbi1 → NaN [MeV]                        λq → 0.958 [mm]                          ip_aux → 3.81 [MA]
+Pic → 50 [MW]                            qpol → 2.29e+03 [MW/m²]                  ip_ohm → 5.19 [MA]
+Plh → NaN [MW]                           qpar → 1.21e+04 [MW/m²]                  ejima → 0.4
+Paux_tot → 100 [MW]                      P/R0 → 18.1 [MW/m]                       flattop → 0.5 [Hours]
+Pα → 51.1 [MW]                           PB/R0 → 141 [MW T/m]
+Pohm → 0.0327 [MW]                       PBp/R0 → 14.6 [MW T/m]
+Pheat → 151 [MW]                         PBϵ/R0q95 → 7.17 [MW T/m]
+Prad_tot → -33.8 [MW]                    neutrons_peak → 0.344 [MW/m²]
+
+BOP                                      BUILD                                    COSTING
+─────────────────────────────────────    ─────────────────────────────────────    ─────────────────────────────────────
+Pfusion → 256 [MW]                       PF_material → nb3sn                      levelized_CoE → Inf [$/kWh]
+Qfusion → 2.56                           TF_material → nb3sn_kdemo                TF_of_total → 4.4 [%]
+thermal_cycle_type → rankine             OH_material → nb3sn                      BOP_of_total → 4.91 [%]
+thermal_efficiency_plant → 0.349 [MW]    TF_max_b → 18.1 [T]                      blanket_of_total → 21.8 [%]
+thermal_efficiency_cycle → 0.394 [MW]    OH_max_b → 4.22 [T]                      cryostat_of_total → 6.99 [%]
+power_electric_generated → 103 [MW]      TF_j_margin → 1.4                        capital_cost → 4.66 [$B]
+Pelectric_net → -41.6 [MW]               OH_j_margin → 26.2
+Qplant → 0.713                           TF_stress_margin → 2.12
+TBR → 1.19                               OH_stress_margin → 1.56
+
+CONSTRAINT
+─────────────────────────────────────
+min_required_power_electric_net → 1.1
+required_power_electric_net → 0.904
+min_q95 → NaN
+max_tf_j → 0
+max_oh_j → 0
+max_pl_stress → 0
+max_tf_stress → 0
+max_oh_stress → 0
+max_βn → NaN
+max_Psol_R → NaN
+min_lh_power_threshold → NaN
+
+@ time = 0.0 [s]
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+GKS: could not find font middle.ttf
+​
+​
+​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Concepts</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Monday 16 September 2024 19:31">Monday 16 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
