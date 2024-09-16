@@ -87,7 +87,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     ini.requirements.power_electric_net = 236e6 # from PyTok
 
     act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
     act.ActorFluxMatcher.evolve_densities = :fixed
     act.ActorFluxMatcher.rho_transport = 0.3:0.05:0.8
     act.ActorTGLF.user_specified_model = "sat0_em_d3d"

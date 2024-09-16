@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: Parame
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :none], "-", "Transport actor to run"; default=:none)
+    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :none], "-", "Transport actor to run"; default=:FluxMatcher)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 

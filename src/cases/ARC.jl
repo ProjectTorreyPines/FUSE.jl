@@ -3,7 +3,7 @@
 
 CFS/MIT ARC design
 """
-function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ARC}};tjlf_transport=false)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
     ini.general.casename = "ARC"
@@ -79,6 +79,16 @@ function case_parameters(::Type{Val{:ARC}})::Tuple{ParametersAllInits,Parameters
 
     ini.requirements.coil_j_margin = 0.1
     ini.requirements.coil_stress_margin = 0.1
+
+    #### ACT ####
+    if tjlf_transport
+        act.ActorFluxMatcher.max_iterations = 50
+        act.ActorTGLF.electromagnetic = false
+        act.ActorTGLF.sat_rule = :sat0
+        act.ActorTGLF.model = :TJLF
+    else
+        act.ActorCoreTransport.model = :none
+    end
 
     set_new_base!(ini)
     set_new_base!(act)

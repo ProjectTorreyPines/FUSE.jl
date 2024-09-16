@@ -19,7 +19,7 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorTGLF.warn_nn_train_bounds = false
     act.ActorFluxMatcher.evolve_rotation = :fixed
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
 
     # finalize 
     set_new_base!(sty)

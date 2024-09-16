@@ -80,6 +80,9 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     act.ActorPedestal.model = :WPED
     act.ActorWPED.ped_to_core_fraction = 0.3
 
+    #### ACT ####
+    act.ActorCoreTransport.model = :none # No flux matching possible
+
     set_new_base!(ini)
     set_new_base!(act)
 

@@ -98,6 +98,8 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
+    act.ActorCoreTransport.model=:none
+
     act.ActorEquilibrium.model = :TEQUILA
 
     # finalize
