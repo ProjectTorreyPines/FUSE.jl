@@ -509,8 +509,8 @@ install_ci_dev: install_registry https_dev
 
 # @devs
 install_examples_dev:
-# Install FUSE_examples under FUSE/examples
-	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git examples ; else cd examples && git pull; fi
+# Install FuseExamples under FUSE/examples
+	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FuseExamples.git examples ; else cd examples && git pull; fi
 
 # @devs
 install_no_registry: install_registry clone_pull_all develop
@@ -518,9 +518,9 @@ install_no_registry: install_registry clone_pull_all develop
 
 # @devs
 install_playground: .PHONY
-# Clone FUSE_playground repository under FUSE/playground folder
+# Clone FusePlayground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
-	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 # @devs
 install_via_registry: install_registry develop
@@ -785,8 +785,8 @@ install_IJulia:
 
 # @user
 install_examples:
-# Install FUSE_examples in current folder
-	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FUSE_examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git ; else cd FUSE_examples && git pull; fi
+# Install FuseExamples in current folder
+	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FuseExamples" ]; then git clone git@github.com:ProjectTorreyPines/FuseExamples.git ; else cd FuseExamples && git pull; fi
 
 # @user
 install_registry:
