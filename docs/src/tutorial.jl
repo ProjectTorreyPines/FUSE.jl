@@ -18,11 +18,11 @@ ini, act = FUSE.case_parameters(:KDEMO);
 # Modifying [`ini` parameters](https://fuse.help/stable/ini.html).
 
 ini.equilibrium.B0 = 7.8
-ini.equilibrium.R0 = 6.5
+ini.equilibrium.R0 = 6.5;
 
 # Modifying [`act` parameters](https://fuse.help/stable/act.html).
 
-act.ActorCoreTransport.model = :FluxMatcher
+act.ActorCoreTransport.model = :FluxMatcher;
 
 # Initialize the data dictionary (`dd`) using the 0D parameters
 
@@ -158,6 +158,9 @@ FUSE.ActorWholeFacility(dd, act);
 
 @checkout chk :init dd ini act
 
+# Let's start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape.
+# This will be important to ensure the stability of the `ActorStationaryPlasma` that we are going to run next.
+
 actor = FUSE.ActorPFdesign(dd, act);
 
 # The `ActorStationaryPlasma` iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution
@@ -209,7 +212,7 @@ plot(dd.build)
 
 # Generate passive structures information (for now the vacuum vessel)
 
-ActorPassiveStructures(dd, act)
+FUSE.ActorPassiveStructures(dd, act)
 plot(dd.pf_passive)
 
 # We can now give the PF coils their final position given the new build
