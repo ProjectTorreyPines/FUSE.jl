@@ -1,9 +1,9 @@
 """
-    case_parameters(:SPARC)
+    case_parameters(:SPARC; flux_matcher::Bool=false)
 
 CFS/MIT SPARC design
 """
-function case_parameters(::Type{Val{:SPARC}}; tjlf_transport=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:SPARC}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
     ini.general.casename = "SPARC"
@@ -64,17 +64,15 @@ function case_parameters(::Type{Val{:SPARC}}; tjlf_transport=false)::Tuple{Param
     ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     #### ACT ####
+    act.ActorPFdesign.symmetric = true
+
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
     act.ActorTGLF.model = :TJLF
-    if tjlf_transport
-        act.ActorFluxMatcher.max_iterations = 100
-        act.ActorTGLF.electromagnetic = false
-        act.ActorTGLF.sat_rule = :sat0
-        act.ActorTGLF.model = :TJLF
-    else
+    if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
-    act.ActorPFdesign.symmetric = true
-#    act.ActorCXbuild.divertor_size = 0.6
 
     set_new_base!(ini)
     set_new_base!(act)

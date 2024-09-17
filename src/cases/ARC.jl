@@ -1,9 +1,9 @@
 """
-    case_parameters(:ARC)
+    case_parameters(:ARC; flux_matcher::Bool=false)
 
 CFS/MIT ARC design
 """
-function case_parameters(::Type{Val{:ARC}};tjlf_transport=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
     ini.general.casename = "ARC"
@@ -74,19 +74,18 @@ function case_parameters(::Type{Val{:ARC}};tjlf_transport=false)::Tuple{Paramete
 
     ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled
 
-    act.ActorPFdesign.symmetric = true
-    act.ActorCXbuild.rebuild_wall = true
-
     ini.requirements.coil_j_margin = 0.1
     ini.requirements.coil_stress_margin = 0.1
 
     #### ACT ####
-    if tjlf_transport
-        act.ActorFluxMatcher.max_iterations = 50
-        act.ActorTGLF.electromagnetic = false
-        act.ActorTGLF.sat_rule = :sat0
-        act.ActorTGLF.model = :TJLF
-    else
+    act.ActorPFdesign.symmetric = true
+    act.ActorCXbuild.rebuild_wall = true
+
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
+    if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
 
