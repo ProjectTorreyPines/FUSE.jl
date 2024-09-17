@@ -7,7 +7,7 @@ https://arxiv.org/abs/2405.20243
 
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
-function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:MANTA}}; tjlf_transport=false)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
 
@@ -81,7 +81,16 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     act.ActorWPED.ped_to_core_fraction = 0.3
 
     #### ACT ####
-    act.ActorCoreTransport.model = :none # No flux matching possible
+    if tjlf_transport
+        act.ActorFluxMatcher.max_iterations = 50
+        act.ActorTGLF.electromagnetic = false
+        act.ActorTGLF.sat_rule = :sat0
+        act.ActorTGLF.model = :TJLF
+    else
+        act.ActorCoreTransport.model = :none
+    end
+
+    act.ActorPedestal.model = :WPED
 
     set_new_base!(ini)
     set_new_base!(act)
