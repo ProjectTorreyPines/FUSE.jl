@@ -18,7 +18,7 @@ endif
 FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
-DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
+DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
 
 # use command line interface for git to work nicely with private repos
 export JULIA_PKG_USE_CLI_GIT := true
@@ -158,13 +158,47 @@ help: header help_info
 
 # =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #
 
-# @# @")), "# @"); \
-		open(file*"", "w") do f \
-			write(f, strip(header)); \
-			write(f, "\n\n# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #\n\n"); \
-			write(f, targets); \
-		end;\
-	'# @"*join(sort!(split(strip(targets), "# @devs
+# @devs
+apache: error_missing_repo_var
+# Update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
+# The starting information is taken from IMASdd.jl and moved to the target repo
+# >> make apache repo=CHEASE
+# in addition, one must add the DOCUMENTER_KEY to the repo
+# https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
+	@echo $(repo)
+	@cp ../IMASdd/LICENSE ../$(repo)/ ;\
+	\
+	cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
+	# \
+	# mkdir -p ../$(repo)/.github/workflows ;\
+	# cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+	# cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
+	# cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
+	# cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
+	# \
+	# cp ../IMASdd/README.md ../$(repo)/ ;\
+	# sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
+	# \
+	# cp -R ../IMASdd/docs ../$(repo)/ ;\
+	# sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
+	# echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
+	# rm ../$(repo)/docs/Manifest.toml ;\
+	# rm -rf ../$(repo)/docs/build ;\
+	# \
+	# cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
+	# \
+	# cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
+	# \
+	# julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
+
+# @devs
+apache_all:
+# runs make apache for all dev repos
+	@$(foreach repo,$(FUSE_PACKAGES_MAKEFILE), \
+	make apache repo=$(repo); \
+	)
+
 blank_examples:clean_examples
 # Clean and convert examples to md without executing
 	cd docs; julia notebooks_to_md.jl
@@ -339,8 +373,8 @@ develop_docs:
 # @devs
 devs_update:
 # Pull changes for all ProjectTorreyPines packages that are in the .julia/dev folder and resolve environment
-	@echo $(DEV_PACKAGES)
-	@$(foreach repo,$(DEV_PACKAGES), \
+	@echo $(DEV_PACKAGES_MAKEFILE)
+	@$(foreach repo,$(DEV_PACKAGES_MAKEFILE), \
 	(sh -c "cd $(JULIA_PKG_DEVDIR)/$(repo) && git pull 2>&1 | sed 's/^/$(repo): /'") & \
 	)
 	make resolve
@@ -529,7 +563,7 @@ install_via_registry: install_registry develop
 # @devs
 list_open_compats:
 # List compat patches PR on GitHub
-	@$(foreach repo,$(DEV_PACKAGES), \
+	@$(foreach repo,$(DEV_PACKAGES_MAKEFILE), \
 		echo ;\
 		echo $(repo) ;\
 		cd ../$(repo) && \
@@ -544,40 +578,6 @@ list_open_compats:
 			echo "$(repo): PR #$$pr_number - $$title"; \
 		done; \
 	)
-
-# @devs
-make_apache: error_missing_repo_var
-# Update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
-# The starting information is taken from IMASdd.jl and moved to the target repo
-# >> make apache repo=CHEASE
-# in addition, one must add the DOCUMENTER_KEY to the repo
-# https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
-	@echo $(repo)
-	@cp ../IMASdd/LICENSE ../$(repo)/ ;\
-	\
-	cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
-	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
-	\
-	mkdir -p ../$(repo)/.github/workflows ;\
-	cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
-	cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
-	cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
-	cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
-	\
-	cp ../IMASdd/README.md ../$(repo)/ ;\
-	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
-	\
-	cp -R ../IMASdd/docs ../$(repo)/ ;\
-	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
-	echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
-	rm ../$(repo)/docs/Manifest.toml ;\
-	rm -rf ../$(repo)/docs/build ;\
-	\
-	cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
-	\
-	cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
-	\
-	julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
 
 # @devs
 nuke_julia:
@@ -639,7 +639,7 @@ run_examples: clean_examples
 status:
 # List branches of all the ProjectTorreyPines packages used by FUSE with version, dirty * flag, and commits since the latest tag
 	@cd $(CURRENTDIR); \
-	packages="$(DEV_PACKAGES)"; \
+	packages="$(DEV_PACKAGES_MAKEFILE)"; \
 	sorted_packages=`echo $$packages | tr ' ' '\n' | sort | tr '\n' ' '`; \
 	line_count=0; \
 	term_width=`tput cols`; \
