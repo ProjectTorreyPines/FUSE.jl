@@ -59,7 +59,7 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.δ = 0.7
     ini.equilibrium.ζ = 0.1
     ini.equilibrium.𝚶 = 0.1
-    ini.equilibrium.pressure_core = 1.2e6
+    ini.equilibrium.pressure_core = 1.2e5
     ini.equilibrium.ip = 8.0e6
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
