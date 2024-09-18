@@ -164,9 +164,8 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             init_pl(dd, ini, act, dd1)
         end
 
-        ActorHCD(dd, act)
+        ActorHCD(dd, act; ini.hcd.power_scaling_cost_function)
 
-        IMAS.sources!(dd)
 
         return dd
     end

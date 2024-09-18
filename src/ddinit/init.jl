@@ -156,7 +156,6 @@ function init(
 
         # add strike point information to pulse_schedule
         if ps_was_set
-
             eqt = dd.equilibrium.time_slice[]
             fw = IMAS.first_wall(dd.wall)
             psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open

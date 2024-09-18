@@ -241,6 +241,12 @@ Base.@kwdef mutable struct FUSEparameters__balance_of_plant{T} <: ParametersInit
     cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton], "-", "Thermal cycle type"; default=:rankine)
 end
 
+Base.@kwdef mutable struct FUSEparameters__hcd{T} <: ParametersInit{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :balance_of_plant
+    power_scaling_cost_function::Entry{Function} = Entry{Function}("-", "EC, IC, LH, NB power optimization cost function, takes dd as input. Eg. dd -> (1.0 - IMAS.tau_e_thermal(dd) / IMAS.tau_e_h98(dd))")
+end
+
 mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
     _name::Symbol
@@ -256,6 +262,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
     ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
+    hcd::FUSEparameters__hcd{T}
     build::FUSEparameters__build{T}
     center_stack::FUSEparameters__center_stack{T} #
     tf::FUSEparameters__tf{T}
@@ -280,6 +287,7 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         ParametersVector{FUSEparameters__pellet_launcher{T}}(),
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
+        FUSEparameters__hcd{T}(),
         FUSEparameters__build{T}(),
         FUSEparameters__center_stack{T}(),
         FUSEparameters__tf{T}(),
