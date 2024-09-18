@@ -10,7 +10,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
-    power_scaling_cost_function::Entry{Function} = Entry{Function}("-", "EC, IC, LH, NB power optimization cost function, takes dd as input. Eg. dd -> (1.0 - IMAS.tau_e_thermal(dd) / IMAS.tau_e_h98(dd))")
 end
 
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
@@ -75,51 +74,10 @@ Runs through the selected HCD actor's step
 """
 function _step(actor::ActorHCD)
     dd = actor.dd
-    par = actor.par
 
     # Call IMAS.sources!(dd) since the most would expect sources to be consistent when coming out of this actor
     IMAS.sources!(dd)
 
-    if ismissing(par, :power_scaling_cost_function)
-        _step_all_hcd(actor)
-
-    else
-        ps0 = deepcopy(dd.pulse_schedule)
-        function scale_power_tau_cost(scale; dd, ps0, power_scaling_cost_function)
-            scale_powers(dd.pulse_schedule, ps0, scale)
-            _finalize(_step_all_hcd(actor))
-            return power_scaling_cost_function(dd)^2
-        end
-        old_logging = actor_logging(dd, false)
-        try
-            res = Optim.optimize(scale -> scale_power_tau_cost(scale; dd, ps0, par.power_scaling_cost_function), 0.01, 100, Optim.GoldenSection(); rel_tol=1E-3)
-            actor_logging(dd, old_logging)
-            scale_power_tau_cost(res.minimizer; dd, ps0, par.power_scaling_cost_function)
-        catch e
-            actor_logging(dd, old_logging)
-            rethrow(e)
-        end
-    end
-
-    return actor
-end
-
-function scale_powers(ps, ps0, scale)
-    for (beam, beam0) in zip(ps.ec.beam, ps0.ec.beam)
-        beam.power_launched.reference .= beam0.power_launched.reference .* scale
-    end
-    for (antenna, antenna0) in zip(ps.ic.antenna, ps0.ic.antenna)
-        antenna.power.reference .= antenna0.power.reference .* scale
-    end
-    for (antenna, antenna0) in zip(ps.lh.antenna, ps0.lh.antenna)
-        antenna.power.reference .= antenna0.power.reference .* scale
-    end
-    for (unit, unit0) in zip(ps.nbi.unit, ps0.nbi.unit)
-        unit.power.reference .= unit0.power.reference .* scale
-    end
-end
-
-function _step_all_hcd(actor::ActorHCD)
     if actor.ec_actor !== missing
         step(actor.ec_actor)
     end

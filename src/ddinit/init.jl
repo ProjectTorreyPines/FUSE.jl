@@ -107,6 +107,10 @@ function init(
         if !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
            !isempty(dd1.core_sources)
             verbose && @info "INIT: init_core_sources"
+            if !ismissing(ini.hcd, :power_scaling_cost_function)
+                # get an estimate for Ohmic heating before scaling HCD powers
+                init_currents!(dd, ini, act, dd1)
+            end
             init_core_sources!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_sources; legend=:topright))

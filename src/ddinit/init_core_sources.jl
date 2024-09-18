@@ -163,11 +163,43 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             init_nb(dd, ini, act, dd1)
             init_pl(dd, ini, act, dd1)
         end
-
-        ActorHCD(dd, act; ini.hcd.power_scaling_cost_function)
-
+        
+        if ismissing(ini.hcd, :power_scaling_cost_function)
+            ActorHCD(dd, act)
+    
+        else
+            ps0 = deepcopy(dd.pulse_schedule)
+            function scale_power_tau_cost(scale; dd, ps0, power_scaling_cost_function)
+                scale_powers(dd.pulse_schedule, ps0, scale)
+                ActorHCD(dd, act)
+                return power_scaling_cost_function(dd)^2
+            end
+            old_logging = actor_logging(dd, false)
+            try
+                res = Optim.optimize(scale -> scale_power_tau_cost(scale; dd, ps0, ini.hcd.power_scaling_cost_function), 0.01, 100, Optim.GoldenSection(); rel_tol=1E-3)
+                actor_logging(dd, old_logging)
+                scale_power_tau_cost(res.minimizer; dd, ps0, ini.hcd.power_scaling_cost_function)
+            catch e
+                actor_logging(dd, old_logging)
+                rethrow(e)
+            end
+        end
 
         return dd
     end
 end
 
+function scale_powers(ps, ps0, scale)
+    for (beam, beam0) in zip(ps.ec.beam, ps0.ec.beam)
+        beam.power_launched.reference .= beam0.power_launched.reference .* scale
+    end
+    for (antenna, antenna0) in zip(ps.ic.antenna, ps0.ic.antenna)
+        antenna.power.reference .= antenna0.power.reference .* scale
+    end
+    for (antenna, antenna0) in zip(ps.lh.antenna, ps0.lh.antenna)
+        antenna.power.reference .= antenna0.power.reference .* scale
+    end
+    for (unit, unit0) in zip(ps.nbi.unit, ps0.nbi.unit)
+        unit.power.reference .= unit0.power.reference .* scale
+    end
+end
