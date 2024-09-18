@@ -112,7 +112,7 @@ function _finalize(actor::ActorEquilibrium)
         try
             display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
         catch e
-            if e isa BoundsError
+            if isa(e, BoundsError)
                 display(plot(dd.equilibrium; label="after ActorEquilibrium"))
             else
                 rethrow(e)

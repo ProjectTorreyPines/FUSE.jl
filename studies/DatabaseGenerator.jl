@@ -130,6 +130,9 @@ function run_case(study::AbstractStudy, item::String)
 
         return create_data_frame_row_DatabaseGenerator(dd)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         open("$(sty.save_folder)/error_$(item).txt", "w") do file
             return showerror(file, e, catch_backtrace())
         end
