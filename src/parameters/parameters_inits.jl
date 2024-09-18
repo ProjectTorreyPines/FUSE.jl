@@ -473,44 +473,51 @@ function n_xpoints(xpoints::Symbol)
 end
 
 """
-    load_ods(ini::ParametersAllInits)
+    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
 
-Load ODSs as specified in `ini.ods.filename`
-and sets `dd.global_time` equal to `ini.time.simulation_start`
+Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
 """
-function load_ods(ini::ParametersAllInits)
-    dd = load_ods(ini.ods.filename)
+function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
+
+    # handle time
     dd.global_time = ini.time.simulation_start
     for field in keys(dd)
         ids = getproperty(dd, field)
+        # handle cases where someone forgot to fill the ids.time
+        if !isempty(ids) && ismissing(ids, :time)
+            ids.time = [dd.global_time]
+        end
+        # if IDS has a single time_slice we can retime it
         if !ismissing(ids, :time) && length(ids.time) == 1
             IMAS.retime!(ids, dd.global_time)
         end
     end
+
     return dd
 end
 
 """
-    load_ods(filenames::String)
+    load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
 
 Load multiple comma-separated filenames into a single dd
 """
-function load_ods(filenames::String)
-    return load_ods(strip.(split(filenames, ",")))
+function load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
+    return load_ods(strip.(split(filenames, ",")); error_on_missing_coordinates)
 end
 
 """
-    load_ods(filenames::Vector{String})
+    load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
 
 Load multiple ODSs into a single `dd`
 """
-function load_ods(filenames::Vector{<:AbstractString})
+function load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
     dd = IMAS.dd()
     for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
-        dd1 = IMAS.json2imas(filename)
+        dd1 = IMAS.json2imas(filename; error_on_missing_coordinates)
         merge!(dd, dd1)
     end
     IMAS.last_global_time(dd)
