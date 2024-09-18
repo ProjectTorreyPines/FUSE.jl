@@ -236,7 +236,7 @@ Inclusinon in BEAMER presentation can then be done with:
 """
 function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, kw...)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000), margin=3 * Plots.Measures.mm, kw...)
+    p = plot(; layout=l, size=(1600, 1000), left_margin=1 * Plots.Measures.mm, kw...)
 
     cp1d = dd.core_profiles.profiles_1d[time0]
 
@@ -301,7 +301,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # q
     subplot = 9
-    plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
+#    plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
     plot!(
         dd.equilibrium.time_slice[time0].profiles_1d,
         :q;
@@ -331,7 +331,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         weighted=:area,
         legend=:topleft,
         legend_foreground_color=:transparent,
-        title="Parallel current source",
+        title="Parallel current",
         normalization=1E-6,
         ylabel="[MA]",
         #ylim=(0.0, 10.0)
@@ -382,7 +382,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
         weighted=:volume,
         legend=:topleft,
         legend_foreground_color=:transparent,
-        title="Electron particle source",
+        title="Particle source",
         ylabel="[s⁻¹]",
         #ylim=(-0.3E20, 1.1E20)
     )
