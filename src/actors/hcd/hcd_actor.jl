@@ -93,6 +93,7 @@ function _step(actor::ActorHCD)
     if actor.pellet_actor !== missing
         step(actor.pellet_actor)
     end
+
     return actor
 end
 

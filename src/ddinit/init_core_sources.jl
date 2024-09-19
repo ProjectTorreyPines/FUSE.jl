@@ -172,11 +172,11 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
             function scale_power_tau_cost(scale; dd, ps0, power_scaling_cost_function)
                 scale_powers(dd.pulse_schedule, ps0, scale)
                 ActorHCD(dd, act)
-                return power_scaling_cost_function(dd)^2
+                return abs(power_scaling_cost_function(dd))
             end
             old_logging = actor_logging(dd, false)
             try
-                res = Optim.optimize(scale -> scale_power_tau_cost(scale; dd, ps0, ini.hcd.power_scaling_cost_function), 0.01, 100, Optim.GoldenSection(); rel_tol=1E-3)
+                res = Optim.optimize(scale -> scale_power_tau_cost(scale; dd, ps0, ini.hcd.power_scaling_cost_function), 0.01, 100, Optim.GoldenSection(); abs_tol=1E-3)
                 actor_logging(dd, old_logging)
                 scale_power_tau_cost(res.minimizer; dd, ps0, ini.hcd.power_scaling_cost_function)
             catch e
