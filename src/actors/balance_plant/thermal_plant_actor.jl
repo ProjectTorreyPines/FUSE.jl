@@ -91,6 +91,7 @@ function _step(actor::ActorThermalPlant)
         breeder_heat_load = par.data_flow_external[1]
         divertor_heat_load = par.data_flow_external[2]
         wall_heat_load = par.data_flow_external[3]
+        actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
     else
         blankets = IMAS.get_build_layers(dd.build.layer; type=_blanket_)
         if isempty(blankets) # don't calculate anything in absence of a blanket
