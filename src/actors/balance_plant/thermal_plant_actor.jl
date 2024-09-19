@@ -17,6 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: Paramet
     fixed_cycle_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_cycle_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
+    data_flow_external::Entry{Vector{T}} = Entry{Vector{T}}("-", "Vector of [breeder_heat_load, divertor_heat_load, wall_heat_load] uses this instead of dd (for surogate model training for example)",default=Vector{T}())
 end
 
 mutable struct ActorThermalPlant{D,P} <: SingleAbstractActor{D,P}
@@ -85,13 +86,11 @@ function _step(actor::ActorThermalPlant)
 
     bop = dd.balance_of_plant
 
-    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
-    use_actor_u = false
-
-    if use_actor_u
-        breeder_heat_load = actor.u[1]
-        divertor_heat_load = actor.u[2]
-        wall_heat_load = actor.u[3]
+    # if data_flow_external is true then the actor will use the loading values in Actor.u instead of from dd
+    if !isempty(par.data_flow_external)
+        breeder_heat_load = par.data_flow_external[1]
+        divertor_heat_load = par.data_flow_external[2]
+        wall_heat_load = par.data_flow_external[3]
     else
         blankets = IMAS.get_build_layers(dd.build.layer; type=_blanket_)
         if isempty(blankets) # don't calculate anything in absence of a blanket
