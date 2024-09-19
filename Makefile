@@ -59,6 +59,8 @@ function feature_or_master(package, feature_branch) ;\
 end
 endef
 
+help: header help_info
+
 ADAS:
 	$(call clone_pull_repo,$@)
 
@@ -151,8 +153,6 @@ ServeFUSE:
 	Pkg.activate("../ServeFUSE/task_tiller");\
 	Pkg.develop([["FUSE"] ; fuse_packages]);\
 	'
-
-help: header help_info
 
 .PHONY:
 
