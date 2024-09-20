@@ -53,6 +53,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [r_center, centerpost_height, height]
+        elseif shape_index_mod == Int(_rectangle_ellipse_)
+            shape_parameters = [height]
         elseif shape_index_mod == Int(_circle_ellipse_)
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [centerpost_height, height]
@@ -98,6 +100,8 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         elseif shape_index_mod == Int(_circle_ellipse_)
             func = circle_ellipse
         elseif shape_index_mod == Int(_double_ellipse_)
+            func = double_ellipse
+        elseif shape_index_mod == Int(_rectangle_ellipse_)
             func = double_ellipse
         elseif shape_index_mod == Int(_rectangle_)
             func = rectangle_shape
@@ -259,7 +263,7 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 end
 
 function double_ellipse(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    return double_ellipse(r_start, r_end, (r_start + r_end) / 2, height, 0.0, height; n_points, resolution)
+    return double_ellipse(r_start, r_end, r_start+(r_end-r_start)*0.4, height, 0.0, height; n_points, resolution)
 end
 
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
