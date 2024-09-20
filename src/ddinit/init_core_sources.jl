@@ -157,13 +157,14 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         end
 
         if init_from == :scalars
+            empty!(dd.core_sources) # needed for power_scaling_cost_function
             init_ec(dd, ini, act, dd1)
             init_ic(dd, ini, act, dd1)
             init_lh(dd, ini, act, dd1)
             init_nb(dd, ini, act, dd1)
             init_pl(dd, ini, act, dd1)
         end
-        
+
         ActorHCD(dd, act)
 
         return dd

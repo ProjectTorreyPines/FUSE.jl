@@ -123,8 +123,9 @@ function init(
                     error = abs(power_scaling_cost_function(dd))
                     return error
                 end
-                old_logging = actor_logging(dd, false)
+
                 try
+                    old_logging = actor_logging(dd, false)
                     res =
                         Optim.optimize(
                             scale -> scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, ini.hcd.power_scaling_cost_function),
