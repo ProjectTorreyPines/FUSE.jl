@@ -67,6 +67,7 @@ function case_parameters(::Type{Val{:SPARC}}; flux_matcher::Bool=false)::Tuple{P
     act.ActorPFdesign.symmetric = true
 
     act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
     act.ActorTGLF.electromagnetic = false
     act.ActorTGLF.sat_rule = :sat0
     act.ActorTGLF.model = :TJLF

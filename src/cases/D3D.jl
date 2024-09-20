@@ -94,6 +94,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario::Union{Symbol,AbstractStrin
 
     act.ActorWholeFacility.update_build = false
     act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorFluxMatcher.verbose = true
     act.ActorStabilityLimits.raise_on_breach = false
 
     if use_scenario_sources

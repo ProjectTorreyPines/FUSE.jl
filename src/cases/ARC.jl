@@ -82,6 +82,7 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     act.ActorCXbuild.rebuild_wall = true
 
     act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
     act.ActorTGLF.electromagnetic = false
     act.ActorTGLF.sat_rule = :sat0
     act.ActorTGLF.model = :TJLF
