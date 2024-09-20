@@ -85,25 +85,15 @@ function _step(actor::ActorThermalPlant)
 
     bop = dd.balance_of_plant
 
-    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
-    use_actor_u = false
+    breeder_heat_load = bop.power_plant.breeder_heat_load
+    divertor_heat_load = bop.power_plant.divertor_heat_load
+    wall_heat_load = bop.power_plant.wall_heat_load
 
-    if use_actor_u
-        breeder_heat_load = actor.u[1]
-        divertor_heat_load = actor.u[2]
-        wall_heat_load = actor.u[3]
-    else
-        blankets = IMAS.get_build_layers(dd.build.layer; type=_blanket_)
-        if isempty(blankets) # don't calculate anything in absence of a blanket
-            empty!(dd.balance_of_plant)
-            bop.power_plant.power_cycle_type = string(actor.power_cycle_type)
-            @warn "No blanket present for ActorThermalPlant to do anything"
-            return actor
-        end
-        breeder_heat_load = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
-        divertor_heat_load = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
-        wall_heat_load = abs(IMAS.radiation_losses(dd.core_sources))
-        actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
+    if isempty(breeder_heat_load == 0) # don't calculate anything in absence of a blanket
+        empty!(dd.balance_of_plant)
+        bop.power_plant.power_cycle_type = string(actor.power_cycle_type)
+        @warn "No blanket present for ActorThermalPlant to do anything"
+        return actor
     end
 
     # fixed cycle efficiency
@@ -115,6 +105,7 @@ function _step(actor::ActorThermalPlant)
     end
 
     # Buidling the TSM System
+    actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
     if !actor.buildstatus
         @debug "Rebuilding ActorThermalPlant"
 
