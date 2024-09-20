@@ -224,7 +224,7 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     centerpost_maxz = 2 * pi * r0 * k * SpecialFunctions.besseli(1, k) / 2 # Gralnick Eq. 28
     coil_maxz = pi * r0 * k * (SpecialFunctions.besseli(1, k) + struveL(1, k) + 2 / pi) / 2  # Gralnick Eq. 34
 
-    centerpost_height = height - (coil_maxz - centerpost_maxz) * 2
+    centerpost_height = height
 
     inboard_curve_dz = coil_maxz - centerpost_maxz
     centerpost_maxz = centerpost_height / 2
@@ -263,7 +263,7 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 end
 
 function double_ellipse(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    return double_ellipse(r_start, r_end, r_start+(r_end-r_start)*0.4, height, 0.0, height; n_points, resolution)
+    return double_ellipse(r_start, r_end, r_start+(r_end-r_start)*0.5, height, 0.0, height; n_points, resolution)
 end
 
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
