@@ -38,6 +38,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     @ddtime(dd.balance_of_plant.time = dd.global_time)
 
     # set the heat sources
+    bop = dd.balance_of_plant
     breeder_heat_load = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
     @ddtime(bop.power_plant.breeder_heat_load = breeder_heat_load)
     divertor_heat_load = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
