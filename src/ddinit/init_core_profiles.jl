@@ -41,16 +41,6 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         end
 
         if init_from == :scalars
-
-            # if ini.equilibrium.pressure_core is not set, then estimate from ini.requirements.power_electric_net
-            if ismissing(ini.equilibrium, :pressure_core) && !ismissing(ini.requirements, :power_electric_net)
-                Pfusion_estimate = ini.requirements.power_electric_net * 2.0
-                res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), 1e1, 1e7, Optim.GoldenSection())
-                ini.equilibrium.pressure_core = res.minimizer[1]
-                ActorCurrent(dd, act; ip_from=:pulse_schedule)
-                ActorEquilibrium(dd, act; ip_from=:core_profiles)
-            end
-
             init_core_profiles!(
                 dd.core_profiles,
                 dd.equilibrium,
