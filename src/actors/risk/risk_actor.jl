@@ -72,7 +72,7 @@ function _step(actor::ActorRisk)
         for (i,coil_type) in enumerate(keys(coil_types))
             loss[i].description = "$coil_type failure"
             loss[i].probability = magnet_risk(coil_types[coil_type], :exponential)
-            loss[i].severity = IMAS.select_direct_capital_cost(dd, coil_type) / cst.cost_direct_capital.cost
+            loss[i].severity = IMAS.select_direct_capital_cost(dd, coil_type)
         end
     elseif cst.model == "Sheffield"
         loss[1].description = "Magnet failure"
@@ -83,7 +83,7 @@ function _step(actor::ActorRisk)
         tokamak_idx = findfirst(x->x.name == "tokamak", cst.cost_direct_capital.system)
         pc_idx = findfirst(x->x.name == "primary coils", cst.cost_direct_capital.system[tokamak_idx].subsystem)
         pc_cost = cst.cost_direct_capital.system[tokamak_idx].subsystem[pc_idx].cost 
-        loss[1].severity = pc_cost / cst.cost_direct_capital.cost
+        loss[1].severity = pc_cost
     end
 
     # Blanket 
@@ -92,11 +92,11 @@ function _step(actor::ActorRisk)
         loss[next_idx].description = "Blanket failure"
         loss[next_idx].probability = blanket_risk(dd, :exponential)
         if cst.model == "ARIES"
-            loss[next_idx].severity = IMAS.select_direct_capital_cost(dd, "blanket") / cst.cost_direct_capital.cost
+            loss[next_idx].severity = IMAS.select_direct_capital_cost(dd, "blanket")
         elseif cst.model == "Sheffield"
             da = DollarAdjust(dd)
             blanket_cost = cost_direct_capital_Sheffield(:blanket, true, dd, da)
-            loss[next_idx].severity = blanket_cost / cst.cost_direct_capital.cost
+            loss[next_idx].severity = blanket_cost
         end
     end
 
