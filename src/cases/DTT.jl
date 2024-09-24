@@ -79,6 +79,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.nb_unit[1].power_launched = 10e6
     ini.nb_unit[1].beam_energy = 0.5e6
+    ini.nb_unit[1].toroidal_angle = 40.0 * deg
     ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
 

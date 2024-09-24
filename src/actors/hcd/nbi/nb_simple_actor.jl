@@ -62,7 +62,7 @@ function _step(actor::ActorSimpleNB)
 
         electrons_particles = power_launched / (beam_energy * constants.e)
         momentum_tor =
-            sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+            power_launched * sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
