@@ -9,11 +9,11 @@ end
 
 TestCases() = TestCases(OrderedCollections.OrderedDict{String,Any}())
 
-function Base.getindex(tc::TestCases, key::String)
+function Base.getindex(tc::TestCases, key::AbstractString)
     return getindex(tc.data, key)
 end
 
-function Base.setindex!(tc::TestCases, value, key::String)
+function Base.setindex!(tc::TestCases, value, key::AbstractString)
     return tc.data[key] = value
 end
 
@@ -23,13 +23,13 @@ function Base.iterate(tc::TestCases, state=1)
     return iterate(tc.data, state)
 end
 
-Base.haskey(tc::TestCases, key::String) = haskey(tc.data, key)
+Base.haskey(tc::TestCases, key::AbstractString) = haskey(tc.data, key)
 
 Base.keys(tc::TestCases) = keys(tc.data)
 
-Base.get(tc::TestCases, key::String, default) = get(tc.data, key, default)
+Base.get(tc::TestCases, key::AbstractString, default) = get(tc.data, key, default)
 
-function Base.delete!(tc::TestCases, key::String)
+function Base.delete!(tc::TestCases, key::AbstractString)
     return delete!(tc.data, key)
 end
 
