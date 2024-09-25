@@ -64,7 +64,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     else
         pellet_actor = missing
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor,pellet_actor)
+    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
 end
 
 """
@@ -73,6 +73,11 @@ end
 Runs through the selected HCD actor's step
 """
 function _step(actor::ActorHCD)
+    dd = actor.dd
+
+    # Call IMAS.sources!(dd) since the most would expect sources to be consistent when coming out of this actor
+    IMAS.sources!(dd)
+
     if actor.ec_actor !== missing
         step(actor.ec_actor)
     end
@@ -88,6 +93,7 @@ function _step(actor::ActorHCD)
     if actor.pellet_actor !== missing
         step(actor.pellet_actor)
     end
+
     return actor
 end
 

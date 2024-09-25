@@ -104,10 +104,45 @@ function init(
         end
 
         # initialize core sources
-        if !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
-           !isempty(dd1.core_sources)
+        if (
+            !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
+            !isempty(dd1.core_sources)
+        )
             verbose && @info "INIT: init_core_sources"
-            init_core_sources!(dd, ini, act, dd1)
+            if ismissing(ini.hcd, :power_scaling_cost_function)
+                init_core_sources!(dd, ini, act, dd1)
+            else
+                # get an estimate for Ohmic heating before scaling HCD powers
+                ini0 = deepcopy(ini)
+                ps = dd.pulse_schedule
+                ps0 = deepcopy(ps)
+                function scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, power_scaling_cost_function)
+                    scale_powers!(ps, ini, ps0, ini0, scale)
+                    init_core_sources!(dd, ini, act, dd1)
+                    init_currents!(dd, ini, act, dd1) # to pick up ohmic power
+                    error = abs(power_scaling_cost_function(dd))
+                    return error
+                end
+
+                try
+                    old_logging = actor_logging(dd, false)
+                    res =
+                        Optim.optimize(
+                            scale -> scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, ini.hcd.power_scaling_cost_function),
+                            0.0,
+                            100,
+                            Optim.GoldenSection();
+                            abs_tol=1E-3
+                        )
+                    actor_logging(dd, old_logging)
+                    scale_power_tau_cost(res.minimizer; dd, ps, ini, ps0, ini0, ini.hcd.power_scaling_cost_function)
+                catch e
+                    actor_logging(dd, old_logging)
+                    rethrow(e)
+                end
+
+            end
+
             if do_plot
                 display(plot(dd.core_sources; legend=:topright))
                 display(plot(dd.core_sources; legend=:bottomright, integrated=true))
@@ -156,7 +191,6 @@ function init(
 
         # add strike point information to pulse_schedule
         if ps_was_set
-
             eqt = dd.equilibrium.time_slice[]
             fw = IMAS.first_wall(dd.wall)
             psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
@@ -178,6 +212,36 @@ function init(
     end
 end
 
+function scale_powers!(ps::IMAS.pulse_schedule, ini::ParametersAllInits, ps0::IMAS.pulse_schedule, ini0::ParametersAllInits, scale::Float64)
+    # pulse_shedule
+    for (beam, beam0) in zip(ps.ec.beam, ps0.ec.beam)
+        beam.power_launched.reference .= beam0.power_launched.reference .* scale
+    end
+    for (antenna, antenna0) in zip(ps.ic.antenna, ps0.ic.antenna)
+        antenna.power.reference .= antenna0.power.reference .* scale
+    end
+    for (antenna, antenna0) in zip(ps.lh.antenna, ps0.lh.antenna)
+        antenna.power.reference .= antenna0.power.reference .* scale
+    end
+    for (unit, unit0) in zip(ps.nbi.unit, ps0.nbi.unit)
+        unit.power.reference .= unit0.power.reference .* scale
+    end
+
+    #ini
+    for (launcher, launcher0) in zip(ini.ec_launcher, ini0.ec_launcher)
+        launcher.power_launched = launcher0.power_launched .* scale
+    end
+    for (antenna, antenna0) in zip(ini.ic_antenna, ini0.ic_antenna)
+        antenna.power_launched = antenna0.power_launched .* scale
+    end
+    for (antenna, antenna0) in zip(ini.lh_antenna, ini0.lh_antenna)
+        antenna.power_launched = antenna0.power_launched .* scale
+    end
+    for (unit, unit0) in zip(ini.nb_unit, ini0.nb_unit)
+        unit.power_launched = unit0.power_launched .* scale
+    end
+end
+
 function init(ini::ParametersAllInits, act::ParametersAllActors; do_plot=false)
     dd = IMAS.dd()
     return init(dd, ini, act; do_plot)
@@ -187,9 +251,8 @@ end
     init(case::Symbol; do_plot::Bool=false, kw...)
 
 Initialize `dd`, `ini`, `act` based on a given use-case.
-    
+
 Returns a tuple with `dd`, `ini`, `act`.
-```
 """
 function init(case::Symbol; do_plot::Bool=false, kw...)
     ini, act = case_parameters(case; kw...)

@@ -142,7 +142,6 @@ function case_parameters(
     ini.pellet_launcher[1].size = Float64[0.003, 0.004] / 2.0
     ini.pellet_launcher[1].frequency = 0.02 # Hz
 
-    act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
 
     act.ActorWholeFacility.update_build = false

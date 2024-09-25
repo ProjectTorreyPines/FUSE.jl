@@ -241,6 +241,12 @@ Base.@kwdef mutable struct FUSEparameters__balance_of_plant{T} <: ParametersInit
     cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton], "-", "Thermal cycle type"; default=:rankine)
 end
 
+Base.@kwdef mutable struct FUSEparameters__hcd{T} <: ParametersInit{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :balance_of_plant
+    power_scaling_cost_function::Entry{Function} = Entry{Function}("-", "EC, IC, LH, NB power optimization cost function, takes dd as input. Eg. dd -> (1.0 - IMAS.tau_e_thermal(dd) / IMAS.tau_e_h98(dd))")
+end
+
 mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
     _name::Symbol
@@ -256,6 +262,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
     ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
+    hcd::FUSEparameters__hcd{T}
     build::FUSEparameters__build{T}
     center_stack::FUSEparameters__center_stack{T} #
     tf::FUSEparameters__tf{T}
@@ -280,6 +287,7 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         ParametersVector{FUSEparameters__pellet_launcher{T}}(),
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
+        FUSEparameters__hcd{T}(),
         FUSEparameters__build{T}(),
         FUSEparameters__center_stack{T}(),
         FUSEparameters__tf{T}(),
@@ -473,44 +481,51 @@ function n_xpoints(xpoints::Symbol)
 end
 
 """
-    load_ods(ini::ParametersAllInits)
+    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
 
-Load ODSs as specified in `ini.ods.filename`
-and sets `dd.global_time` equal to `ini.time.simulation_start`
+Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
 """
-function load_ods(ini::ParametersAllInits)
-    dd = load_ods(ini.ods.filename)
+function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
+
+    # handle time
     dd.global_time = ini.time.simulation_start
     for field in keys(dd)
         ids = getproperty(dd, field)
+        # handle cases where someone forgot to fill the ids.time
+        if !isempty(ids) && ismissing(ids, :time)
+            ids.time = [dd.global_time]
+        end
+        # if IDS has a single time_slice we can retime it
         if !ismissing(ids, :time) && length(ids.time) == 1
             IMAS.retime!(ids, dd.global_time)
         end
     end
+
     return dd
 end
 
 """
-    load_ods(filenames::String)
+    load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
 
 Load multiple comma-separated filenames into a single dd
 """
-function load_ods(filenames::String)
-    return load_ods(strip.(split(filenames, ",")))
+function load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
+    return load_ods(strip.(split(filenames, ",")); error_on_missing_coordinates)
 end
 
 """
-    load_ods(filenames::Vector{String})
+    load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
 
 Load multiple ODSs into a single `dd`
 """
-function load_ods(filenames::Vector{<:AbstractString})
+function load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
     dd = IMAS.dd()
     for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
-        dd1 = IMAS.json2imas(filename)
+        dd1 = IMAS.json2imas(filename; error_on_missing_coordinates)
         merge!(dd, dd1)
     end
     IMAS.last_global_time(dd)

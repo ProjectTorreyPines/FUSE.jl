@@ -6,10 +6,10 @@ Initialize `dd.nbi` starting from `ini` and `act` parameters
 function init_nb(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.nbi.unit)
     resize!(dd.nbi.unit, length(ini.nb_unit))
-    for (idx, (nbu, ini_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit))
+    for (idx, (nbu, ini_nbu, ps_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit, dd.pulse_schedule.nbi.unit))
         nbu.name = length(ini.nb_unit) > 1 ? "nbi_$idx" : "nbi"
         @ddtime(nbu.energy.data = ini_nbu.beam_energy)
-        nbu.available_launch_power = ini_nbu.power_launched
+        nbu.available_launch_power = maximum(ps_nbu.power.reference)
         nbu.species.a = ini_nbu.beam_mass
         # 1 beamlet
         beamlet = resize!(nbu.beamlets_group, 1)[1]
@@ -29,9 +29,9 @@ Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 function init_ec(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.ec_launchers.beam)
     resize!(dd.ec_launchers.beam, length(ini.ec_launcher))
-    for (idx, (ecb, ini_ecb)) in enumerate(zip(dd.ec_launchers.beam, ini.ec_launcher))
+    for (idx, (ecb, ini_ecb, ps_ecb)) in enumerate(zip(dd.ec_launchers.beam, ini.ec_launcher, dd.pulse_schedule.ec.beam))
         ecb.name = length(ini.ec_launcher) > 1 ? "ec_$idx" : "ec"
-        ecb.available_launch_power = ini_ecb.power_launched
+        ecb.available_launch_power = maximum(ps_ecb.power_launched.reference)
         # Efficiencies
         ecb.efficiency.conversion = ini_ecb.efficiency_conversion
         ecb.efficiency.transmission = ini_ecb.efficiency_transmission
@@ -66,9 +66,9 @@ Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 function init_ic(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.ic_antennas.antenna)
     resize!(dd.ic_antennas.antenna, length(ini.ic_antenna))
-    for (idx, (ica, ini_ica)) in enumerate(zip(dd.ic_antennas.antenna, ini.ic_antenna))
+    for (idx, (ica, ini_ica, ps_ica)) in enumerate(zip(dd.ic_antennas.antenna, ini.ic_antenna, dd.pulse_schedule.ic.antenna))
         ica.name = length(ini.ic_antenna) > 1 ? "ic_$idx" : "ic"
-        ica.available_launch_power = ini_ica.power_launched
+        ica.available_launch_power = maximum(ps_ica.power.reference)
         # Efficiencies
         ica.efficiency.coupling = ini_ica.efficiency_coupling
         ica.efficiency.conversion = ini_ica.efficiency_conversion
@@ -85,9 +85,9 @@ Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 function init_lh(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     empty!(dd.lh_antennas.antenna)
     resize!(dd.lh_antennas.antenna, length(ini.lh_antenna))
-    for (idx, (lha, ini_lha)) in enumerate(zip(dd.lh_antennas.antenna, ini.lh_antenna))
+    for (idx, (lha, ini_lha, ps_lha)) in enumerate(zip(dd.lh_antennas.antenna, ini.lh_antenna, dd.pulse_schedule.lh.antenna))
         lha.name = length(ini.lh_antenna) > 1 ? "lh_$idx" : "lh"
-        lha.available_launch_power = ini_lha.power_launched
+        lha.available_launch_power = maximum(ps_lha.power.reference)
         # Efficiencies
         lha.efficiency.coupling = ini_lha.efficiency_coupling
         lha.efficiency.conversion = ini_lha.efficiency_conversion
@@ -157,6 +157,7 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         end
 
         if init_from == :scalars
+            empty!(dd.core_sources) # needed for power_scaling_cost_function
             init_ec(dd, ini, act, dd1)
             init_ic(dd, ini, act, dd1)
             init_lh(dd, ini, act, dd1)
@@ -165,8 +166,6 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         end
 
         ActorHCD(dd, act)
-
-        IMAS.sources!(dd)
 
         return dd
     end

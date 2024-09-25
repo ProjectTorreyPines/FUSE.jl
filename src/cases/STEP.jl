@@ -49,6 +49,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     ini.equilibrium.ip = 21.1e6 # from PyTok
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
+    ini.equilibrium.pressure_core = 776466.0
 
     ini.core_profiles.zeff = 2.5 # from PyTok
     ini.core_profiles.rot_core = 0.0
@@ -84,10 +85,10 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.power_electric_net = 236e6 # from PyTok
+    ini.requirements.power_electric_net = 250e6
 
     act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
     act.ActorFluxMatcher.evolve_densities = :fixed
     act.ActorFluxMatcher.rho_transport = 0.3:0.05:0.8
     act.ActorTGLF.user_specified_model = "sat0_em_d3d"

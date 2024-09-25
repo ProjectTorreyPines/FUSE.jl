@@ -41,16 +41,6 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         end
 
         if init_from == :scalars
-
-            # if ini.equilibrium.pressure_core is not set, then estimate from ini.requirements.power_electric_net
-            if ismissing(ini.equilibrium, :pressure_core) && !ismissing(ini.requirements, :power_electric_net)
-                Pfusion_estimate = ini.requirements.power_electric_net * 2.0
-                res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), 1e1, 1e7, Optim.GoldenSection())
-                ini.equilibrium.pressure_core = res.minimizer[1]
-                ActorCurrent(dd, act; ip_from=:pulse_schedule)
-                ActorEquilibrium(dd, act; ip_from=:core_profiles)
-            end
-
             init_core_profiles!(
                 dd.core_profiles,
                 dd.equilibrium,
@@ -183,7 +173,7 @@ function init_core_profiles!(
     end
 
     # Set temperatures
-    Te_core = minimum([pressure_core / (ni_core + ne_core) / IMAS.constants.e, 20e3])
+    Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
     if plasma_mode == :H_mode
         Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
         cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)

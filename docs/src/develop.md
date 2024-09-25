@@ -253,7 +253,7 @@ Let's now investigate where the issue is with the function that we have identifi
 
 ## Examples
 
-The [FUSE_examples repository](https://github.com/ProjectTorreyPines/FUSE_examples) contains jupyter notebook that showcase some possible uses of FUSE.
+The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
 
 !!! note
     When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.

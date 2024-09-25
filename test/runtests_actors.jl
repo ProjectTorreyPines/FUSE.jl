@@ -7,7 +7,7 @@ using Test
     FUSE.init(dd, ini, act)
     act.ActorFluxMatcher.max_iterations = 2
     act.ActorFluxMatcher.evolve_pedestal = true
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
     act.ActorFluxMatcher.optimizer_algorithm = :simple
     act.ActorTGLF.model = :TJLF
     FUSE.ActorFluxMatcher(dd, act)
