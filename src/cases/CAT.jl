@@ -55,7 +55,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].power_launched = 20E6
     ini.nb_unit[1].beam_energy = 200e3
     ini.nb_unit[1].beam_mass = 2.0
-    ini.nb_unit[1].toroidal_angle = 20.0
+    ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
     act.ActorPFdesign.symmetric = true
 
