@@ -6,12 +6,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    model::Switch{Symbol} = Switch{Symbol}([:Solovev, :CHEASE, :TEQUILA], "-", "Equilibrium actor to run"; default=:TEQUILA)
+    model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :CHEASE], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
-    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0)
+    vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0; default=:pulse_schedule)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -20,7 +20,7 @@ mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
-    eq_actor::Union{Nothing,ActorSolovev{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
+    eq_actor::Union{Nothing,ActorFRESCO{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
 end
 
 """
@@ -38,14 +38,14 @@ end
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
-    if par.model == :Solovev
-        eq_actor = ActorSolovev(dd, act.ActorSolovev; par.ip_from)
+    if par.model == :FRESCO
+        eq_actor = ActorFRESCO(dd, act.ActorFRESCO)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; par.ip_from)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA)
     else
-        error("ActorEquilibrium: model = `$(par.model)` can only be `:Solovev` or `:CHEASE`")
+        error("ActorEquilibrium: model = `$(par.model)` can only be `:TEQUILA`, `:FRESCO`, `:CHEASE`")
     end
     return ActorEquilibrium(dd, par, act, eq_actor)
 end
@@ -69,6 +69,34 @@ function _step(actor::ActorEquilibrium)
 
     # initialize eqt for equilibrium actors
     prepare(actor)
+
+    # FRESCO needs p' and f'' to run
+    # We can estimate of p' and ff' based on equilibrium at previous time-slice
+    # if that's not available, we run TEQUILA first
+    if par.model == :FRESCO
+        eqt = dd.equilibrium.time_slice[]
+        idxeqt = IMAS.index(eqt)
+        if false && idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
+            eqt1d = eqt.profiles_1d
+            eqt1d__1 = dd.equilibrium.time_slice[idxeqt-1].profiles_1d
+            psi__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.psi).(eqt1d.psi_norm)
+            R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm8).(eqt1d.psi_norm)
+            one_R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm9).(eqt1d.psi_norm)
+            one_R2__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm1).(eqt1d.psi_norm)
+            b0 = eqt.global_quantities.vacuum_toroidal_field.b0
+            r0 = eqt.global_quantities.vacuum_toroidal_field.r0
+            dpressure_dpsi, f_df_dpsi, f = IMAS.calc_pprime_ffprim_f(psi__1, R__1, one_R__1, one_R2__1, r0, b0; eqt1d.pressure, eqt1d.j_tor)
+            eqt1d.dpressure_dpsi = dpressure_dpsi
+            eqt1d.f_df_dpsi = f_df_dpsi
+            eqt1d.f = f
+        else
+            # NOTE: using free_boundary=true will also update pf_active
+            #       which is then used as initial guess by FRESCO
+            ActorTEQUILA(dd, actor.act; free_boundary=true)
+            fw = IMAS.first_wall(dd.wall)
+            IMAS.flux_surfaces(eqt, fw.r, fw.z)
+        end
+    end
 
     # step selected equilibrium actor
     step(actor.eq_actor)
@@ -131,7 +159,7 @@ Prepare `dd.equilibrium` to run equilibrium actors
   - Clear equilibrium__time_slice
   - Set Ip, Bt from core_profiles, equilibrium, or pulse_schedule
   - Use position control from pulse_schedule
-  - Use j_tor,pressure from core_profiles or equilibrium
+  - Use j_tor,pressure from core_profiles (for self-consistent iterations) or equilibrium (to re-solve equilibrium with different solver)
 """
 function prepare(actor::ActorEquilibrium)
     dd = actor.dd
@@ -147,21 +175,21 @@ function prepare(actor::ActorEquilibrium)
         index = cp1d.grid.psi_norm .> 0.05
         psi0 = cp1d.grid.psi
         rho_tor_norm0 = cp1d.grid.rho_tor_norm
-        rho_pol_norm0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
+        rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
         j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
         pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-        j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
     elseif par.j_p_from == :equilibrium
         @assert !isempty(dd.equilibrium.time)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
         psi0 = eqt1d.psi
         rho_tor_norm0 = eqt1d.rho_tor_norm
-        rho_pol_norm0 = sqrt.(eqt1d.psi_norm)
+        rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
-        j_itp = IMAS.interp1d(rho_pol_norm0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
     else
         @assert par.j_p_from in (:core_profiles, :equilibrium)
     end
@@ -173,7 +201,7 @@ function prepare(actor::ActorEquilibrium)
     # add/clear time-slice
     eqt = resize!(dd.equilibrium.time_slice)
     resize!(eqt.profiles_2d, 1)
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
+    eqt1d = dd.equilibrium.time_slice[].profiles_1d
 
     # scalar quantities
     eqt.global_quantities.ip = ip
@@ -225,11 +253,11 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # set j_tor and pressure, forcing zero derivative on axis
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    eq1d.psi = psi0
-    eq1d.rho_tor_norm = rho_tor_norm0
-    eq1d.j_tor = j_itp.(sqrt.(eq1d.psi_norm))
-    eq1d.pressure = p_itp.(sqrt.(eq1d.psi_norm))
+    eqt1d = dd.equilibrium.time_slice[].profiles_1d
+    eqt1d.psi = psi0
+    eqt1d.rho_tor_norm = rho_tor_norm0
+    eqt1d.j_tor = j_itp.(sqrt.(eqt1d.psi_norm))
+    eqt1d.pressure = p_itp.(sqrt.(eqt1d.psi_norm))
 
     return dd
 end
