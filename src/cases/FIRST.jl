@@ -47,7 +47,7 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.pf_active.n_coils_outside = 8
     ini.pf_active.technology = :copper
 
-    ini.tf.shape = :offset
+    ini.tf.shape = :convex_hull
     ini.tf.n_coils = 18
     ini.tf.technology = :copper
 

@@ -112,8 +112,8 @@ function _finalize(actor::ActorQLGYRO)
     return actor
 end
 
-function Base.show(input::InputQLGYRO)
+function Base.show(io::IO, ::MIME"text/plain", input::InputQLGYRO)
     for field_name in fieldnames(typeof(input))
-        println(" $field_name = $(getfield(input,field_name))")
+        println(io, " $field_name = $(getfield(input,field_name))")
     end
 end

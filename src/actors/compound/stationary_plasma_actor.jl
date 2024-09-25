@@ -56,7 +56,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             act.ActorPedestal,
             act;
             ip_from=:core_profiles,
-            βn_from=:equilibrium,
+            βn_from=:core_profiles,
             ne_from=:pulse_schedule,
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
@@ -134,13 +134,13 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
-            # run transport actor
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
-            finalize(step(actor.actor_tr))
-
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
+
+            # run transport actor
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
+            finalize(step(actor.actor_tr))
 
             # evolve j_ohmic (because transport and pedestal have updated my bootstrap)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))

@@ -1,12 +1,54 @@
-
+#= ========== =#
+#  test_cases  #
+#= ========== =#
 import OrderedCollections
 
-const test_cases = OrderedCollections.OrderedDict{String,Any}()
+struct TestCases <: AbstractDict{String,Any}
+    data::OrderedCollections.OrderedDict{String,Any}
+end
+
+TestCases() = TestCases(OrderedCollections.OrderedDict{String,Any}())
+
+function Base.getindex(tc::TestCases, key::AbstractString)
+    return getindex(tc.data, key)
+end
+
+function Base.setindex!(tc::TestCases, value, key::AbstractString)
+    return tc.data[key] = value
+end
+
+Base.length(tc::TestCases) = length(tc.data)
+
+function Base.iterate(tc::TestCases, state=1)
+    return iterate(tc.data, state)
+end
+
+Base.haskey(tc::TestCases, key::AbstractString) = haskey(tc.data, key)
+
+Base.keys(tc::TestCases) = keys(tc.data)
+
+Base.get(tc::TestCases, key::AbstractString, default) = get(tc.data, key, default)
+
+function Base.delete!(tc::TestCases, key::AbstractString)
+    return delete!(tc.data, key)
+end
+
+function Base.show(io::IO, ::MIME"text/plain", test_cases::TestCases)
+    n = maximum(length, keys(test_cases))
+    for testname in sort!(collect(keys(test_cases)))
+        (args, kw) = test_cases[testname]
+        kw_str = join(["$k=$(repr(v))" for (k, v) in kw], ", ")
+        printstyled(io, "$(rpad(testname, n))"; bold=true)
+        println(io, "   ini, act = FUSE.case_parameters($(join(repr.(args), ", "))$(isempty(kw_str) ? "" : "; ")$kw_str)")
+    end
+end
+
+const test_cases = TestCases()
 
 test_cases["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
 test_cases["ITER_scalars"] = ([:ITER], Dict(:init_from => :scalars))
-test_cases["D3D_Hmode"] = ([:D3D], Dict(:scenario => :H_mode, :use_ods_sources => true))
-test_cases["D3D_Lmode"] = ([:D3D], Dict(:scenario => :L_mode, :use_ods_sources => false))
+test_cases["D3D_Hmode"] = ([:D3D], Dict(:scenario => :H_mode, :use_scenario_sources => true))
+test_cases["D3D_Lmode"] = ([:D3D], Dict(:scenario => :L_mode, :use_scenario_sources => false))
 test_cases["D3D"] = ([:D3D], Dict(:scenario => :default))
 test_cases["FPP"] = ([:FPP], Dict())
 test_cases["CAT"] = ([:CAT], Dict())
@@ -64,7 +106,7 @@ NOTE: if case starts with `test__` then the regression test cases are loaded
 function case_parameters(case::Symbol, args...; kw...)
     case_str = string(case)
     if startswith(case_str, "test__")
-        tmp, kw = test_cases[split(case_str,"__"; limit=2)[end]]
+        tmp, kw = test_cases[split(case_str, "__"; limit=2)[end]]
         case = tmp[1]
         if length(tmp) == 1
             args = []
@@ -78,7 +120,7 @@ function case_parameters(case::Symbol, args...; kw...)
     end
 
     ini, act = case_parameters(Val{case}, args...; kw...)
-    
+
     if startswith(case_str, "test__")
         act.ActorStationaryPlasma.max_iter = 1
     end

@@ -98,7 +98,8 @@ function _finalize(actor::ActorEquilibrium)
 
     # add flux surfaces information
     try
-        IMAS.flux_surfaces(eqt)
+        fw = IMAS.first_wall(dd.wall)
+        IMAS.flux_surfaces(eqt, fw.r, fw.z)
     catch e
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
         par.do_plot && display(current())
@@ -111,7 +112,7 @@ function _finalize(actor::ActorEquilibrium)
         try
             display(plot!(dd.equilibrium; label="after ActorEquilibrium"))
         catch e
-            if e isa BoundsError
+            if isa(e, BoundsError)
                 display(plot(dd.equilibrium; label="after ActorEquilibrium"))
             else
                 rethrow(e)
@@ -187,8 +188,11 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.geometric_axis.r = @ddtime(pc.geometric_axis.r.reference)
     eqt.boundary.geometric_axis.z = @ddtime(pc.geometric_axis.z.reference)
     eqt.boundary.elongation = @ddtime(pc.elongation.reference)
+    eqt.boundary.tilt = @ddtime(pc.tilt.reference)
     eqt.boundary.triangularity = @ddtime(pc.triangularity.reference)
     eqt.boundary.squareness = @ddtime(pc.squareness.reference)
+    eqt.boundary.ovality = @ddtime(pc.ovality.reference)
+    eqt.boundary.twist = @ddtime(pc.twist.reference)
 
     # x-points from position control
     if !isempty(getproperty(pc, :x_point, []))

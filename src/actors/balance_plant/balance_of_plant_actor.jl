@@ -37,9 +37,18 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     # set the time
     @ddtime(dd.balance_of_plant.time = dd.global_time)
 
-    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant)
+    # set the heat sources
+    bop = dd.balance_of_plant
+    breeder_heat_load = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
+    @ddtime(bop.power_plant.heat_load.breeder = breeder_heat_load)
+    divertor_heat_load = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
+    @ddtime(bop.power_plant.heat_load.divertor = divertor_heat_load)
+    wall_heat_load = abs(IMAS.radiation_losses(dd.core_sources))
+    @ddtime(bop.power_plant.heat_load.wall = wall_heat_load)
+    
+    # setup actors
+    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant; par.do_plot)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
-
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
 end
 

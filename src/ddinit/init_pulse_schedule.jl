@@ -46,7 +46,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.tf.r0 = R0
 
             # position_control
-            time, _ = get_time_dependent(ini.equilibrium, [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶, :xpoints, :MXH_params, :rz_points]; simplify_time_traces)
+            time, _ = get_time_dependent(ini.equilibrium, [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :tilt, :𝚶, :xpoints, :MXH_params, :rz_points]; simplify_time_traces)
             if !ismissing(ini.rampup, :ends_at)
                 time = filter(t -> t > ini.rampup.ends_at, time)
                 pushfirst!(time, ini.rampup.ends_at)
@@ -286,9 +286,11 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     IMAS.set_time_array(pc.geometric_axis.r, :reference, time0, mxh.R0)
     IMAS.set_time_array(pc.geometric_axis.z, :reference, time0, mxh.Z0)
     IMAS.set_time_array(pc.elongation, :reference, time0, mxh.κ)
+    IMAS.set_time_array(pc.tilt, :reference, time0, mxh.c0)
     IMAS.set_time_array(pc.triangularity, :reference, time0, sin(mxh.s[1]))
     IMAS.set_time_array(pc.squareness, :reference, time0, -mxh.s[2])
     IMAS.set_time_array(pc.ovality, :reference, time0, mxh.c[1])
+    IMAS.set_time_array(pc.twist, :reference, time0, mxh.c[2])
 
     # boundary
     resize!(pc.boundary_outline, length(pr); wipe=false)

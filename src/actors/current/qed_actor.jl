@@ -37,7 +37,7 @@ Evolves the plasma current using the QED current diffusion solver.
 
 !!! note
 
-    Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`
+    Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
 """
 function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorQED(dd, act.ActorQED; kw...)
@@ -127,31 +127,17 @@ end
 
 function _finalize(actor::ActorQED)
     dd = actor.dd
-    par = actor.par
 
-    # set the total toroidal current in both equilibrium as well as core_profiles IDSs
-    # NOTE: Here really we only care about core_profiles, since when the equilibrium actor is run,
-    # then the new equilibrium time slice will be prepared based on the core_profiles current
     eqt = dd.equilibrium.time_slice[]
-    ρ = eqt.profiles_1d.rho_tor_norm
-    eqt.profiles_1d.q = 1.0 ./ actor.QO.ι.(ρ)
-    eqt.profiles_1d.j_tor = actor.QO.JtoR.(ρ) ./ eqt.profiles_1d.gm9
-    _, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
-    if true # we prefer using an expression to ensure consistency
-        empty!(eqt.profiles_1d, :j_parallel) # restore expression
-    else
-        # more accurate
-        eqt.profiles_1d.j_parallel = QED.JB(actor.QO; ρ) ./ B0
-    end
+    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
-    # update dd.core_profiles
     cp1d = dd.core_profiles.profiles_1d[]
-    cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+    j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
 
     if ismissing(cp1d, :j_non_inductive)
-        cp1d.j_ohmic = cp1d.j_total
+        cp1d.j_ohmic = j_total
     else
-        cp1d.j_ohmic = cp1d.j_total .- cp1d.j_non_inductive
+        cp1d.j_ohmic = j_total .- cp1d.j_non_inductive
     end
 
     return actor
@@ -168,7 +154,7 @@ it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
 function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Int)
-    R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
+    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
     rho_tor = eqt.profiles_1d.rho_tor
     gm1 = eqt.profiles_1d.gm1

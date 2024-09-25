@@ -8,6 +8,25 @@ import SimulationParameters
 import AbstractTrees
 import ProgressMeter
 import Dates
+using Literate
+
+include("notebook_to_jl.jl")
+
+# Convert the Jupyter Notebook to Literate script
+if isfile(joinpath(@__DIR__, "..", "examples", "tutorial.ipynb"))
+    convert_notebook_to_litterate(joinpath(@__DIR__, "..", "examples", "tutorial.ipynb"), joinpath(@__DIR__, "src", "tutorial.jl"))
+end
+# Convert the Literate script to markdown
+Literate.markdown(joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src"); documenter=true)
+lines = join(readlines(joinpath(@__DIR__, "src", "tutorial.md")), "\n")
+open(joinpath(@__DIR__, "src", "tutorial.md"), "w") do f
+    return write(f, replace(lines,
+        """
+        ---
+
+        *This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+        """ => ""))
+end
 
 function pretty_units(unit)
     unit = replace(unit, r"\^-3(?![0-9])" => "⁻³")
@@ -156,22 +175,24 @@ makedocs(;
     root=@__DIR__,
     modules=[FUSE, IMAS, IMASdd],
     sitename="FUSE",
-    build=joinpath(@__DIR__,"build"),
+    build=joinpath(@__DIR__, "build"),
     format=Documenter.HTML(;
+        repolink="https://github.com/ProjectTorreyPines/FUSE.jl",
         prettyurls=false,
         sidebar_sitename=false,
         assets=["assets/favicon.ico"],
-        disable_git=true,
         size_threshold=nothing,
-        size_threshold_warn=nothing),
-    remotes=nothing,
+        size_threshold_warn=nothing
+    ),
+    repo=Remotes.GitHub("ProjectTorreyPines", "FUSE.jl"),
     warnonly=true,
     pages=[
         "Concepts" => "index.md",
+        "Lean" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
+        "Use Cases" => "cases.md",
+        "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
+        "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"],
         "Data Structure" => "dd.md",
-        "Actors" => "actors.md",
-        "Parameters" => ["ini Parameters" => "ini.md", "act Parameters" => "act.md", "Use Cases" => "cases.md", "Initialization" => "inits.md"],
-        "Examples" => "examples.md",
         "Development" => "develop.md",
         "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
         "License" => ["License" => "license.md", "Notice" => "notice.md"]
@@ -237,5 +258,5 @@ deploydocs(;
     target="build",
     branch="gh-pages",
     devbranch="master",
-    versions=["stable" => "v^", "v#.#"]
+    versions=["stable" => "v^", "dev", "v#.#.#"]
 )

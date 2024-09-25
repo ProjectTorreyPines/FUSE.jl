@@ -46,9 +46,11 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     Z0::Entry{T} = Entry{T}("m", "Z offset of the machine midplane"; default=0.0)
     ϵ::Entry{T} = Entry{T}("-", "Plasma inverse aspect ratio (a/R0). NOTE: This also scales the radial build layers."; check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < ϵ < 1.0")
     κ::Entry{T} = Entry{T}("-", "Plasma elongation. NOTE: If < 1.0 it defines the fraction of maximum controllable elongation estimate.")
-    δ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :triangularity)
-    ζ::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___boundary, :squareness; default=0.0)
-    𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary for up-down asymmetric plasmas"; default=0.0)
+    tilt::Entry{T} = Entry{T}("-", "Tilt of the plasma boundary [MXH c0]"; default=0.0)
+    δ::Entry{T} = Entry{T}("-", "Triangularity of the plasma boundary [MXH sin(s1)]"; default=0.0)
+    ζ::Entry{T} = Entry{T}("-", "Squareness of the plasma boundary [MXH -s2]"; default=0.0)
+    𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary [MXH c1]"; default=0.0)
+    twist::Entry{T} = Entry{T}("-", "Twist of the plasma boundary [MXH c2]"; default=0.0)
     pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure"; check=x -> @assert x > 0.0 "must be: P > 0.0")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
@@ -98,7 +100,7 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.3, check=x -> @assert x > 0.0 "must be: width > 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
-    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; default=0.0)
+    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection", check=x -> @assert (-pi/2 <= x <= pi/2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
@@ -239,6 +241,12 @@ Base.@kwdef mutable struct FUSEparameters__balance_of_plant{T} <: ParametersInit
     cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton], "-", "Thermal cycle type"; default=:rankine)
 end
 
+Base.@kwdef mutable struct FUSEparameters__hcd{T} <: ParametersInit{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :balance_of_plant
+    power_scaling_cost_function::Entry{Function} = Entry{Function}("-", "EC, IC, LH, NB power optimization cost function, takes dd as input. Eg. dd -> (1.0 - IMAS.tau_e_thermal(dd) / IMAS.tau_e_h98(dd))")
+end
+
 mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
     _name::Symbol
@@ -254,6 +262,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
     ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
+    hcd::FUSEparameters__hcd{T}
     build::FUSEparameters__build{T}
     center_stack::FUSEparameters__center_stack{T} #
     tf::FUSEparameters__tf{T}
@@ -278,6 +287,7 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         ParametersVector{FUSEparameters__pellet_launcher{T}}(),
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
+        FUSEparameters__hcd{T}(),
         FUSEparameters__build{T}(),
         FUSEparameters__center_stack{T}(),
         FUSEparameters__tf{T}(),
@@ -361,9 +371,20 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.R0 = mxh.R0
     equilibrium.Z0 = mxh.Z0
     equilibrium.κ = mxh.κ
-    equilibrium.δ = sin(mxh.s[1])
-    equilibrium.ζ = -mxh.s[2]
-    return equilibrium.𝚶 = mxh.c[1]
+    equilibrium.tilt = mxh.c0
+    if length(mxh.s) >= 1
+        equilibrium.δ = sin(mxh.s[1])
+    end
+    if length(mxh.s) >= 2
+        equilibrium.ζ = -mxh.s[2]
+    end
+    if length(mxh.c) >= 1
+        equilibrium.𝚶 = mxh.c[1]
+    end
+    if length(mxh.c) >= 2
+        equilibrium.twist = mxh.c[2]
+    end
+    return equilibrium
 end
 
 """
@@ -386,7 +407,8 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
         if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
             dd.global_time = ini.time.simulation_start
             eqt = dd.equilibrium.time_slice[]
-            IMAS.flux_surfaces(eqt)
+            fw = IMAS.first_wall(dd.wall)
+            IMAS.flux_surfaces(eqt, fw.r, fw.z)
         else
             init_from = :scalars
         end
@@ -423,7 +445,7 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
             ini.equilibrium.Z0,
             ini.equilibrium.ϵ,
             ini_equilibrium_elongation_true(ini.equilibrium),
-            0.0,
+            ini.equilibrium.tilt,
             [ini.equilibrium.𝚶, 0.0],
             [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
     else
@@ -459,44 +481,51 @@ function n_xpoints(xpoints::Symbol)
 end
 
 """
-    load_ods(ini::ParametersAllInits)
+    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
 
-Load ODSs as specified in `ini.ods.filename`
-and sets `dd.global_time` equal to `ini.time.simulation_start`
+Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
 """
-function load_ods(ini::ParametersAllInits)
-    dd = load_ods(ini.ods.filename)
+function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
+
+    # handle time
     dd.global_time = ini.time.simulation_start
     for field in keys(dd)
         ids = getproperty(dd, field)
+        # handle cases where someone forgot to fill the ids.time
+        if !isempty(ids) && ismissing(ids, :time)
+            ids.time = [dd.global_time]
+        end
+        # if IDS has a single time_slice we can retime it
         if !ismissing(ids, :time) && length(ids.time) == 1
             IMAS.retime!(ids, dd.global_time)
         end
     end
+
     return dd
 end
 
 """
-    load_ods(filenames::String)
+    load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
 
 Load multiple comma-separated filenames into a single dd
 """
-function load_ods(filenames::String)
-    return load_ods(strip.(split(filenames, ",")))
+function load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
+    return load_ods(strip.(split(filenames, ",")); error_on_missing_coordinates)
 end
 
 """
-    load_ods(filenames::Vector{String})
+    load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
 
 Load multiple ODSs into a single `dd`
 """
-function load_ods(filenames::Vector{<:AbstractString})
+function load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
     dd = IMAS.dd()
     for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
-        dd1 = IMAS.json2imas(filename)
+        dd1 = IMAS.json2imas(filename; error_on_missing_coordinates)
         merge!(dd, dd1)
     end
     IMAS.last_global_time(dd)

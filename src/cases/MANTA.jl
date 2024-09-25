@@ -1,5 +1,5 @@
 """
-    case_parameters(:MANTA)
+    case_parameters(:MANTA; flux_matcher::Bool=false)
 
 MANTA (Modular Adjustable Negative-Triangularity ARC)
 
@@ -7,7 +7,7 @@ https://arxiv.org/abs/2405.20243
 
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
-function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
 
@@ -77,8 +77,18 @@ function case_parameters(::Type{Val{:MANTA}})::Tuple{ParametersAllInits,Paramete
     ini.requirements.tritium_breeding_ratio = 1.15
     ini.requirements.flattop_duration = 45.0 * 60.0
 
+    #### ACT ####
     act.ActorPedestal.model = :WPED
     act.ActorWPED.ped_to_core_fraction = 0.3
+
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
+    if !flux_matcher
+        act.ActorCoreTransport.model = :none
+    end
 
     set_new_base!(ini)
     set_new_base!(act)

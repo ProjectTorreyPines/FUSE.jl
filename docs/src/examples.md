@@ -1,6 +1,6 @@
 # Worked examples
 
-[FUSE Jupyter examples](https://github.com/ProjectTorreyPines/FUSE_examples) are available and can be cloned to the current working directory with:
+[FUSE Jupyter examples](https://github.com/ProjectTorreyPines/FuseExamples) are available and can be cloned to the current working directory with:
 
 ```bash
 fusebot install_examples

@@ -25,10 +25,11 @@ function oh_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityOH if critical_j==0
         return abs(critical_j - currentDensityOH * (1.0 + coil_j_margin))
     end
-    res = Optim.optimize(max_J_OH, 0.0, 1E9, Optim.GoldenSection(); rel_tol=1E-3)
+    rel_tol = 1e-7
+    res = Optim.optimize(max_J_OH, 0.0, 1E9, Optim.GoldenSection(); rel_tol)
 
     # solenoid maximum current and field
-    bd.oh.max_j = abs(res.minimizer[1])
+    bd.oh.max_j = abs(res.minimizer[1]) * (1 - rel_tol)
     bd.oh.max_b_field = bd.oh.max_j / 1E6 * (0.4 * π * outerSolenoidRadius * (1.0 - innerSolenoidRadius / outerSolenoidRadius))
     bd.oh.critical_j = mat_oh.critical_current_density(;Bext=bd.oh.max_b_field)
     bd.oh.critical_b_field = mat_oh.critical_magnetic_field(Bext=bd.oh.max_b_field)
