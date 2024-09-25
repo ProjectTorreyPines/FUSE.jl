@@ -10,7 +10,7 @@ TSMD = ThermalSystemModels.Dynamics
 MTK.@independent_variables t
 
 # Surogate
-using BalanceOfPlantSurogate
+using BalanceOfPlantSurrogate
 
 Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
@@ -106,9 +106,9 @@ function _step(actor::ActorThermalPlant)
         @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * par.fixed_plant_efficiency)
         return actor
     elseif par.model == :surogate
-        bop_sur = BalanceOfPlantSurogate.BOPSurogate(Symbol(bop.power_plant.power_cycle_type))
+        bop_sur = BalanceOfPlantSurrogate.BOPSurogate(Symbol(bop.power_plant.power_cycle_type))
         total_heat_load =  breeder_heat_load + divertor_heat_load + wall_heat_load
-        plant_efficiency = BalanceOfPlantSurogate.predict_thermal_efficiency(bop_sur, total_heat_load, breeder_heat_load/total_heat_load, divertor_heat_load / (total_heat_load - breeder_heat_load))
+        plant_efficiency = BalanceOfPlantSurrogate.predict_thermal_efficiency(bop_sur, total_heat_load, breeder_heat_load/total_heat_load, divertor_heat_load / (total_heat_load - breeder_heat_load))
         @ddtime(bop.thermal_efficiency_plant = plant_efficiency)
         @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
         @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * plant_efficiency)
