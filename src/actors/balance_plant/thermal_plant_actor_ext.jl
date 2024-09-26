@@ -9,8 +9,9 @@ import Optim
 import Printf: @sprintf
 import ThermalSystemModels: Dynamics as TSMD
 import ThermalSystemModels.Dynamics: DifferentialEquations, ModelingToolkit as MTK
+import ThermalSystemModels.Dynamics.ModelingToolkit: @parameters
 
-MTK.@variables t
+MTK.@independent_variables t
 
 mutable struct ActorThermalPlant{D,P} <: AbstractActorThermalPlant{D,P}
     dd::IMAS.dd{D}
@@ -258,7 +259,7 @@ function _step(actor::ActorThermalPlant)
                 :breeder_heat₊Tout]
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
-            ode_sol = DifferentialEquations.solve(actor.prob,DifferentialEquations.Rosenbrock23() )
+            ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23())
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
@@ -433,7 +434,7 @@ function _step(actor::ActorThermalPlant)
     # TSMD.updateGraphSoln(actor.gplot, soln)
 
     # write to dd
-    initddbop(actor; soln)
+    initddbop(actor, soln)
 
     if par.do_plot
         sysnamedict = Dict([
@@ -593,7 +594,7 @@ Ouput:
 
   - soln.(yvars)
 """
-function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
+function plant_wrapper(x, u, yvars::Vector, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
     # new parameters dict
     pwrapped = var2val
 
@@ -610,6 +611,24 @@ function plant_wrapper(x, u, yvars, simple_sys, keypara, var2val, sym2var; tspan
     node_sol = DifferentialEquations.solve(node_prob, solver)
     soln(v) = node_sol[v][end]
     return soln.(yvars)
+end
+
+function plant_wrapper(x, u, yvar, simple_sys, keypara, var2val, sym2var; tspan=(0, 10), solver=DifferentialEquations.Rosenbrock23())
+    # new parameters dict
+    pwrapped = var2val
+
+    pwrapped[sym2var[:Qbreeder]] = u[1]
+    pwrapped[sym2var[:Qdivertor]] = u[2]
+    pwrapped[sym2var[:Qwall]] = u[3]
+
+    # x are parameters
+    for (i, xi) in enumerate(keypara)
+        pwrapped[sym2var[xi]] = x[i]
+    end
+
+    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped)
+    node_sol = DifferentialEquations.solve(node_prob, solver)
+    return node_sol[yvar][end]
 end
 
 """
@@ -653,13 +672,17 @@ function plant_wrapper(act::ActorThermalPlant, yvars, yfunc)
 end
 
 """
-    initddbop(act::ActorThermalPlant; soln = nothing)
+    initddbop(act::ActorThermalPlant, soln::Nothing)
 
 Maps data stored in the TSM objects and metagraph to dd. By default the function will use
 the internal solution value in the actor, which is updated during every step call and plant_wrapper call.
 If you want to write to dd based off a different solution object, it can be passed in the kwargs
 """
-function initddbop(act::ActorThermalPlant; soln=nothing)
+function initddbop(act::ActorThermalPlant, soln::Nothing)
+    return initddbop(act, act.gplot.gprops[:soln])
+end
+
+function initddbop(act::ActorThermalPlant, soln)
     gcopy = act.gplot
     dd = act.dd
 
@@ -680,7 +703,6 @@ function initddbop(act::ActorThermalPlant; soln=nothing)
     gp = gcopy.gprops
     np = gcopy.vprops
     nv_g = maximum(collect(keys(np)))
-    soln = (isnothing(soln) ? gp[:soln] : soln)
 
     # names of the internal subgraph objects
     syslabs = [titlecase(replace(lowercase(string(sl)), compnamesubs...)) for sl in gp[:system_labels]]
@@ -829,16 +851,16 @@ function gen_optfunc(x, x0, x0_idx, lb, ub, yvars, yfunc, opt_actor)
     xrep = deepcopy(x0)
     xrep[x0_idx] .= x
     xrep = xcons!(xrep, lb, ub)
-    opt_actor = setxATP!(xrep, opt_actor)
-    return plant_wrapper(opt_actor, yvars, yfunc)
+    opt_actor = FUSE.setxATP!(xrep, opt_actor)
+    return FUSE.plant_wrapper(opt_actor, yvars, yfunc)
 end
 
 function eval_optfunc(x, x0, x0_idx, lb, ub, yvars, opt_actor)
     xrep = deepcopy(x0)
     xrep[x0_idx] .= x
     xrep = xcons!(xrep, lb, ub)
-    opt_actor = setxATP!(xrep, opt_actor)
-    return plant_wrapper(opt_actor, yvars)
+    opt_actor = FUSE.setxATP!(xrep, opt_actor)
+    return FUSE.plant_wrapper(opt_actor, yvars)
 end
 
 function optimize_thermal_plant(opt_actor)
@@ -860,51 +882,33 @@ function optimize_thermal_plant(opt_actor)
 
     #      cycle ṁ,  loop ṁ,   loopTmin,    wTmin,   wTmax,     divTmin, divTmax,      brdrTmin,   brdrTmax
     #! format: off
-    x0 =   [250.0,   300.0,    350.00,      350.00,  950.00,    350.00,  1000.0,      674.7,      1136.0];
+    x0 =   @MVector[250.0,   300.0,    350.00,      350.00,  950.00,    350.00,  1000.0,      674.7,      1136.0];
     #! format: on
 
     # upper and lower bounds
     #      [  flow rates  ]  [loop Temp]   [   wall temp    ]   [ divertor temp  ]    [ breeder temp     ]
     #! format: off
-    lb = [10.0, 10.0, 350.00, 350.00, 601.00, 350.00, 601.00, 500.00, 901.00]
-    ub = [500.0, 500.0, 600.00, 600.00, 950.00, 600.00, 1000.00, 900.00, 1300.00]
+    lb = @SVector[10.0, 10.0, 350.00, 350.00, 601.00, 350.00, 601.00, 500.00, 901.00]
+    ub = @SVector[500.0, 500.0, 600.00, 600.00, 950.00, 600.00, 1000.00, 900.00, 1300.00]
     #! format: on
 
     # Relevant, System output variable required for the objective function,
     # this is a simple case where we will just optimize the total electric power produced
-    yvars = [opt_actor.odedict[:Electric].Ẇ, opt_actor.plant.η_bop, opt_actor.plant.η_cycle]
+    yvar = opt_actor.odedict[:Electric].Ẇ
 
     # anonymous object function which will act on the sol(yvars)
-    yfunc(y) = -(y[1]) / 100e6
+    yfunc = y -> -y / 100e6
 
     # index of mass flow variables in x0
-    mflow_opt_idx = [1, 2, 3, 5, 7, 9]
+    mflow_opt_idx = @SVector[1, 2, 3, 5, 7, 9]
     x0_opt = x0[mflow_opt_idx]
 
     # anonymous optimization function
-    mflow_opt_func(x) = gen_optfunc(x, x0, mflow_opt_idx, lb, ub, yvars, yfunc, opt_actor)
-
-    r2(x) = round(x; digits=2)
-
-    # print initial
-    @debug "x0 = $(r2.(x0))"
-    y0 = eval_optfunc(x0_opt, x0, mflow_opt_idx, lb, ub, yvars, opt_actor)
-    for i in eachindex(yvars)
-        @debug @sprintf("%-16s = %+-8.4g", string(yvars[i]), y0[i])
-    end
-    @debug ""
+    mflow_opt_func = x -> gen_optfunc(x, x0, mflow_opt_idx, lb, ub, yvar, yfunc, opt_actor)
 
     # optimize
     res = Optim.optimize(mflow_opt_func, x0_opt, Optim.NelderMead(), Optim.Options(; optp...))
     @debug string(res)
-    xf = Optim.minimizer(res)
-    yf = eval_optfunc(xf, x0, mflow_opt_idx, lb, ub, yvars, opt_actor)
-
-    # print after optimization
-    @debug "xf = $(r2.(opt_actor.x))"
-    for i in eachindex(yvars)
-        @debug @sprintf("%-16s = %+-8.4g", string(yvars[i]), yf[i])
-    end
 
     return plant_wrapper(
         opt_actor.x,
