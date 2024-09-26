@@ -6,6 +6,7 @@
     "core_profiles.global_quantities.beta_tor_norm",
     "core_profiles.global_quantities.current_bootstrap",
     "core_profiles.global_quantities.current_non_inductive",
+    "core_profiles.global_quantities.current_ohmic",
     "core_profiles.global_quantities.ip",
     "core_profiles.global_quantities.v_loop",
     "core_profiles.profiles_1d[:].conductivity_parallel",
