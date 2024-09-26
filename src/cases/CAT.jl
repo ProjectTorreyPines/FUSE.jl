@@ -14,7 +14,15 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.ods.filename = joinpath("__FUSE__", "sample", "CAT_eq_ods.json")
     ini.time.simulation_start = 0.006
 
-    ini.build.layers = layers_meters_from_fractions(; blanket=1.0, shield=0.5, vessel=0.25, pf_inside_tf=false, pf_outside_tf=true, thin_vessel_walls=true)
+    ini.build.layers = layers_meters_from_fractions(;
+        lfs_multiplier=1.0,
+        wall=0.1,
+        blanket=1.0,
+        shield=0.5,
+        vessel=0.25,
+        pf_inside_tf=false,
+        pf_outside_tf=true,
+        thin_vessel_walls=true)
     ini.build.n_first_wall_conformal_layers = 1
 
     ini.oh.n_coils = 6
@@ -31,7 +39,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     ini.oh.technology = :nb3sn_iter
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    ini.core_profiles.ne_value =  0.8 * 0.75
+    ini.core_profiles.ne_value = 0.8 * 0.75
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
@@ -47,10 +55,9 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].power_launched = 20E6
     ini.nb_unit[1].beam_energy = 200e3
     ini.nb_unit[1].beam_mass = 2.0
-    ini.nb_unit[1].toroidal_angle = 0.0
+    ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
     act.ActorPFdesign.symmetric = true
-    act.ActorEquilibrium.symmetrize = true
 
     act.ActorStabilityLimits.raise_on_breach = false
 

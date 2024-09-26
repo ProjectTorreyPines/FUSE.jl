@@ -1,14 +1,14 @@
 #= ======== =#
 #  ActorHCD  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :none], "-", "EC source actor to run"; default=:ECsimple)
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :none], "-", "LH source actor to run"; default=:LHsimple)
-    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :none], "-", "NB source actor to run"; default=:NBsimple)
+    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
 end
 
@@ -18,7 +18,7 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     ec_actor::Union{Missing,ActorSimpleEC{D,P}}
     ic_actor::Union{Missing,ActorSimpleIC{D,P}}
     lh_actor::Union{Missing,ActorSimpleLH{D,P}}
-    nb_actor::Union{Missing,ActorSimpleNB{D,P}}
+    nb_actor::Union{Missing,ActorSimpleNB{D,P},ActorRABBIT{D,P}}
     pellet_actor::Union{Missing,ActorSimplePellet{D,P}}
 end
 
@@ -54,6 +54,8 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     end
     if par.nb_model == :NBsimple
         nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
+    elseif par.nb_model == :RABBIT
+        nb_actor = ActorRABBIT(dd, act.ActorRABBIT)
     else
         nb_actor = missing
     end
@@ -62,7 +64,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     else
         pellet_actor = missing
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor,pellet_actor)
+    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
 end
 
 """
@@ -71,6 +73,11 @@ end
 Runs through the selected HCD actor's step
 """
 function _step(actor::ActorHCD)
+    dd = actor.dd
+
+    # Call IMAS.sources!(dd) since the most would expect sources to be consistent when coming out of this actor
+    IMAS.sources!(dd)
+
     if actor.ec_actor !== missing
         step(actor.ec_actor)
     end
@@ -86,6 +93,7 @@ function _step(actor::ActorHCD)
     if actor.pellet_actor !== missing
         step(actor.pellet_actor)
     end
+
     return actor
 end
 

@@ -1,42 +1,29 @@
 # Development
 
-## Overview
+The FUSE project is built upon multiple Julia packages, many of which reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) organization on GitHub.
 
-All FUSE-related development occurs under the [GitHub ProjectTorreyPines organization](https://github.com/ProjectTorreyPines), which lives under the GeneralAtomics GitHub enterprise account.
+## Managing Pull Requests on GitHub: A Collaborative Approach
 
-### Tracking progress
+### Use branches and pull requests
 
-We use a GitHub to [track progress with FUSE developments](https://github.com/orgs/ProjectTorreyPines/projects/2/views/1) and have a birds-eye view across the different repositories used by the FUSE project.
+The `master` branch of ProjectTorreyPines repositories is write-protected. This means that even with write permissions to the repository, you'll not be able to push to `master` directly. Instead, we handle updates – be it new features or bug fixes – through branches and Pull Requests (PRs).
 
-### Managing Pull Requests on GitHub: A Collaborative Approach
+!!! note
+    When working on a new feature that involves changes to FUSE and other ProjectTorreyPines repositories, you'll want to use the same branch name across these repositories. For example, if you're working on a branch named `my_new_feature` in both FUSE and IMAS, regression testing will be performed using the `my_new_feature` branches for FUSE and IMAS, along with the `master` branch of the other `ProjectTorreyPines` repositories.
 
-We handle updates to our main master branch – be it new features or bug fixes – through Pull Requests (PRs). You can check out all the ongoing and past PRs over at our GitHub page, [FUSE PRs](https://github.com/ProjectTorreyPines/FUSE.jl/pulls) pull requests. When you submit a PR, don't forget to add relevant labels like enhancement for new features or bug for bug fixes. This helps in categorizing the updates and makes things clearer for everyone.
+### Code review
 
-Also, a crucial part of our PR process is code review. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
-
-!!! note 
-    If you're working on a new feature that involves changes in several repositories, like in FUSE and IMAS, you'll want to use the same branch name across these repositories. For example, if you're working on a branch named `my_new_feature` in both FUSE and IMAS, that's great because for the feature to function correctly in FUSE, regression testing will be performed using the 'my_new_feature' branches in both of these repositories, along with the master branches in all other repositories. Just remember, this approach only works if the branch names in your different repositories are exactly the same, like `IMAS/my_new_feature` and `FUSE/my_new_feature`.
-
-### Packages organization
-
-The FUSE project is built upon different Julia packages. Several of these are managed by GA-MFE, and they all reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) repository.
+A crucial part of our PR process is code review. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
 
 ## How to add/modify entries in `dd`
 
-1. add/edit Json files in the `FUSE/generate_dd/data_structures_extra` folder
-2. run `FUSE/generate_dd/generate_dd.jl`
-
-!!! note
-    The `dd` data structure is defined as a Julia `struct`. Like all `struct` re-definitions, changes to the `dd` data structure will requires your Julia interpreters to be restarted to pick-up the updates.
+The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package. See the documentation there to how add/modify entries in `dd`.
 
 ## How to write IMAS physics functions
 
-IMAS physics functions are structured in IMAS.jl under IMAS/src/physics
-All of these functions use and or modify the datastructure (dd) in some way and are used to calculate certain quantities or fill the data structure.
+IMAS physics and engineering functions are structured in [IMAS.jl](https://github.com/ProjectTorreyPines/IMAS.jl) under `IMAS/src/physics`. These functions use or modify the datastructure (dd) in some way and are used to calculate certain quantities or fill the data structure.
 
-Let's say we want to create a function that calculates the DT fusion and then fill in the core_sources dd with the alpha heating from that source. 
-
-Here is an example of writing it in a good way:
+Let's say we want to create a function that calculates the DT fusion and then fill `core_sources` with the alpha heating from that source. Here is an example of writing it in a good way:
 
 ```julia
 function DT_fusion_source!(dd::IMAS.dd)
@@ -49,34 +36,12 @@ end
 Calculates DT fusion heating with an estimation of the alpha slowing down to the ions and electrons, modifies dd.core_sources
 """
 function DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)
-    cp1d = cp.profiles_1d[]
-
-    polarized_fuel_fraction = getproperty(cp.global_quantities, :polarized_fuel_fraction, 0.0)
-    α = alpha_heating(cp1d; polarized_fuel_fraction)
-    if sum(α) == 0
-        deleteat!(cs.source, "identifier.index" => 6)
-        return cs
-    end
-    ion_to_electron_fraction = sivukhin_fraction(cp1d, 3.5e6, 4.0)
-
-    source = resize!(cs.source, :fusion; allow_multiple_matches=true)
-    new_source(
-        source,
-        source.identifier.index,
-        "α",
-        cp1d.grid.rho_tor_norm,
-        cp1d.grid.volume,
-        cp1d.grid.area;
-        electrons_energy=α .* (1.0 .- ion_to_electron_fraction),
-        total_ion_energy=α .* ion_to_electron_fraction
-    )
-    return source
+    # // actual implementation here //
 end
 ```
 
 !!! convention
     The documentation string is added to the specialized function `DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)` and the dispatch function `DT_fusion_source!(dd::IMAS.dd)` is added on top of the function
-
 
 ## How to add/modify entries in `ini` and `act`
 
@@ -157,11 +122,12 @@ function _finalize(actor::ActorNAME)
     return actor # _finalize() should always return the actor
 end
 ```
+
 ## How to add a new material 
 
-Material properties for supported fusion-relevant materials are stored in the FusionMaterials package, specifically in `FusionMaterials/src/materials.jl`. Properties of each material can be accessed by calling the `Material` function with the material name as a symbol passed as the function argument. 
+Material properties for supported fusion-relevant materials are stored in the [FusionMaterials.jl](https://github.com/ProjectTorreyPines/FusionMaterials.jl) package, specifically in `FusionMaterials/src/materials.jl`. Properties of each material can be accessed by calling the `Material` function with the material name as a symbol passed as the function argument. 
 
-To add a new material whose properties can be accessed in FUSE, first add a function to `materials.jl` called Material with the function argument being your material's name. In the body of the function, assign the material's name (as a string, all lowercase, and with any spaces filled by underscores), type (as a list containing each possible IMAS BuildLayerType the material could be assigned to), density (in kg/m^3) and unit cost (in US dollars per kilogram). Include a comment providing a link to the source from which the unit cost was taken. 
+To add a new material whose properties can be accessed in FUSE, first add a function to `materials.jl` called Material with the function argument being your material's name. In the body of the function, assign the material's name (as a string, all lowercase, and with any spaces filled by underscores), type (as a list containing each possible IMAS BuildLayerType the material could be assigned to), density (in `kg/m^3`) and unit cost (in US dollars per kilogram). Include a comment providing a link to the source from which the unit cost was taken. 
 
 Below is an example of a complete Material function for a non-superconductor material (more about superconductor materials below): 
 
@@ -198,6 +164,7 @@ function Material(::Type{Val{:rebco}}; coil_tech::Union{Missing, IMAS.build__pf_
 	return mat
 end
 ```
+
 The function `ReBCO_Jcrit` is the critical current density function for this material. 
 
 You can then access the parameters of your material by calling the function you've created. For example, access the material's density anywhere in FUSE by calling: 
@@ -258,7 +225,7 @@ Let's now investigate where the issue is with the function that we have identifi
   * JET goes deep into functions
   * `JET.@report_opt function()` reports dynamic dispatch
   * `JET.@report_call function()` reports type errors
-  * `JET.@report_call target_modules=(FUSE,IMAS,IMAS.IMASDD, ) FUSE.ActorNeutronics(dd,act);`
+  * `JET.@report_call target_modules=(FUSE,IMAS,IMAS.IMASdd, ) FUSE.ActorNeutronics(dd,act);`
 
 * [Cthulhu](https://github.com/JuliaDebug/Cthulhu.jl): interactive static analyzer
   * `Cthulhu.@descend function()`
@@ -267,6 +234,7 @@ Let's now investigate where the issue is with the function that we have identifi
 
 1. To build the documentation, in the `FUSE/docs` folder, start Julia then:
    ```julia
+   ] activate .
    include("make.jl")
    ```
    !!! tip Interactive documentation build
@@ -274,10 +242,7 @@ Let's now investigate where the issue is with the function that we have identifi
 
 1. Check page by opening `FUSE/docs/build/index.html` page in web-browser.
 
-1. To publish online, run in the `FUSE` folder:
-   ```bash
-   make web
-   ```
+1. The online documentation is built after each commit to `master` via GitHub actions.
 
 !!! note
     Documentation files (PDF, DOC, XLS, PPT, ...) can be committed and pushed to the [FUSE\_extra\_files](https://github.com/ProjectTorreyPines/FUSE_extra_files) repository, and then linked directly from within the FUSE documentation, like this:
@@ -288,20 +253,18 @@ Let's now investigate where the issue is with the function that we have identifi
 
 ## Examples
 
-The `FUSE/examples` folder contains jupyter notebook that showcase some possible uses of FUSE.
+The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
 
 !!! note
-    When pushing changes to in a jupyter notebook, make sure that all the output cells are cleared 
-
+    When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
 
 ## Using Revise.jl
 
 Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
-We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions.
-All this can be done by running in the `FUSE` folder:
+We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions. This can be done by running:
 
 ```bash
-make revise
+fusebot install_revise
 ```
 
 ## Development in VScode
@@ -318,7 +281,7 @@ FUSE uses the following VScode settings for formatting the Julia code:
     "editor.tabSize": 4,
     "editor.detectIndentation": false,
     "[julia]": {
-        "editor.defaultFormatter": "singularitti.vscode-julia-formatter"
+        "editor.defaultFormatter": "julialang.language-julia"
     },
     "juliaFormatter.margin": 160,
     "juliaFormatter.alwaysForIn": true,

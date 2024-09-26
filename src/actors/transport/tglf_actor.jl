@@ -6,14 +6,19 @@ import TJLF: InputTJLF
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
-    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
+    user_specified_model::Entry{String} = Entry{String}(
+        "-",
+        "Use a user specified TGLF-NN model stored in TGLFNN/models";
+        default="",
+        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.user_specified_model must be one of $(TGLFNN.available_models())"
+    )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
@@ -59,23 +64,13 @@ function _step(actor::ActorTGLF)
     par = actor.par
     dd = actor.dd
 
-    cp1d = dd.core_profiles.profiles_1d[]
-    ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
-
-    # eqt = dd.equilibrium.time_slice[]
-    # ϵ_st40 = 1.0 / 1.9
-    # ϵ_D3D = 0.67 / 1.67
-    # ϵ = eqt.boundary.minor_radius / eqt.boundary.geometric_axis.r
-    # theta_0 = (0.7 - 0.2) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.2
-    # theta_1 = (0.7 - 0.8) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.8
-    # theta_trapped = range(theta_0, theta_1, length(cp1d.grid.rho_tor_norm))
-
-    for (k, gridpoint_cp) in enumerate(ix_cp)
-        input_tglf = InputTGLF(dd, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
+    input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions)
+    for k in eachindex(par.rho_transport)
+        input_tglf = input_tglfs[k]
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
         elseif par.model == :TJLF
-            if !isassigned(actor.input_tglfs, k)
+            if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
                 nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
                 actor.input_tglfs[k].WIDTH_SPECTRUM .= 1.65
@@ -84,11 +79,7 @@ function _step(actor::ActorTGLF)
             update_input_tjlf!(actor.input_tglfs[k], input_tglf)
         end
 
-        # if ϵ > ϵ_D3D
-        #     actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
-        # end
-
-        # Setting up the TJLF / TGLF run with the custom parameter mask (this overwrites all the above)
+        # Overwrite TGLF / TJLF parameters with the custom parameters mask
         if !ismissing(par, :custom_input_files)
             for field_name in fieldnames(typeof(actor.input_tglfs[k]))
                 if !ismissing(getproperty(par.custom_input_files[k], field_name))
@@ -129,7 +120,7 @@ function _finalize(actor::ActorTGLF)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux, :momentum_flux], actor.flux_solutions, m1d, eqt, cp1d)
+    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end
@@ -228,8 +219,8 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     return input_tjlf
 end
 
-function Base.show(input::Union{InputTGLF,InputTJLF})
+function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF})
     for field_name in fieldnames(typeof(input))
-        println(" $field_name = $(getfield(input,field_name))")
+        println(io, " $field_name = $(getfield(input,field_name))")
     end
 end

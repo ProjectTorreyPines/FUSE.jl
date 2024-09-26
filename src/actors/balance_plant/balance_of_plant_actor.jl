@@ -1,7 +1,7 @@
 #= =================== =#
 #  ActorBalanceOfPlant  #
 #= =================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -36,14 +36,22 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     logging_actor_init(ActorBalanceOfPlant)
     par = par(kw...)
 
-
     # set the time
     @ddtime(dd.balance_of_plant.time = dd.global_time)
 
+    # set the heat sources
+    bop = dd.balance_of_plant
+    breeder_heat_load = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
+    @ddtime(bop.power_plant.heat_load.breeder = breeder_heat_load)
+    divertor_heat_load = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
+    @ddtime(bop.power_plant.heat_load.divertor = divertor_heat_load)
+    wall_heat_load = abs(IMAS.radiation_losses(dd.core_sources))
+    @ddtime(bop.power_plant.heat_load.wall = wall_heat_load)
+    
+    # setup actors
     ext = Base.get_extension(@__MODULE__, :ThermalSystemModelsExt)
     thermal_plant_actor = isnothing(ext) ? ActorNoOperation(dd, act.ActorNoOperation) : ext.ActorThermalPlant(dd, act.ActorThermalPlant)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
-
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
 end
 

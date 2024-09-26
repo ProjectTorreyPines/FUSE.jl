@@ -1,10 +1,14 @@
 #= ========== =#
 #  PF passive  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    #== actor parameters ==#
+    wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=0.1)
+    min_n_segments::Entry{Int} = Entry{Int}("-", "Minimum number of quadralaterals"; default=15)
+    #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
@@ -35,96 +39,63 @@ end
 
 function _step(actor::ActorPassiveStructures)
     dd = actor.dd
+    par = actor.par
 
     empty!(dd.pf_passive)
 
-    # all LFS layers that do not intersect with structures
-    ilayers = IMAS.get_build_indexes(dd.build.layer; fs=IMAS._lfs_)
-    ilayers = vcat(ilayers[1] - 1, ilayers)
-    for k in ilayers
-        l = dd.build.layer[k]
-        l1 = dd.build.layer[k+1]
-        if l1.material == "vacuum"
-            continue
-        end
-        if all(l1.type != structure.type for structure in dd.build.structure)
-            poly = IMAS.join_outlines(l.outline.r, l.outline.z, l1.outline.r, l1.outline.z)
-            add_pf_passive_loop(dd.pf_passive, l1, poly[1], poly[2])
-        end
+    # The vacuum vessel can have multiple layers
+    # Find all the bounding ones and turn the area in between into quads
+    kvessel = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)
+    if isempty(kvessel)
+        @warn "No vessel found. Can't compute vertical stability metrics"
+        return actor
     end
+    kout = kvessel[end]
+    kin = kvessel[1] - 1
 
-    # then all structures
-    for structure in dd.build.structure
-        add_pf_passive_loop(dd.pf_passive, structure)
+    # resistivity just takes the material from the outermost build layer;
+    # It does not account for toroidal breaks, heterogeneous materials,
+    # or builds with "water" vacuum vessels
+    mat_vv = Material(dd.build.layer[kout].material)
+    if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
+        mat_vv = Material(:steel)
     end
+    resistivity = 1.0 / mat_vv.electrical_conductivity(; temperature=273.15)
 
-    # OH and plug
-    add_pf_passive_loop(dd.pf_passive, dd.build.layer[2])
-    if dd.build.layer[1].material != "vacuum"
-        add_pf_passive_loop(dd.pf_passive, dd.build.layer[1])
-    end
-
-    # cryostat
-    layer = dd.build.layer[end]
-    if layer.type == Int(IMAS._cryostat_)
-        i = argmin(abs.(layer.outline.r))
-        r = vcat(layer.outline.r[i+1:end-1], layer.outline.r[1:i])
-        z = vcat(layer.outline.z[i+1:end-1], layer.outline.z[1:i])
-        layer = dd.build.layer[end-1]
-        i = argmin(abs.(layer.outline.r))
-        r = vcat(layer.outline.r[i+1:end-1], layer.outline.r[1:i], reverse(r), layer.outline.r[i+1:i+1])
-        z = vcat(layer.outline.z[i+1:end-1], layer.outline.z[1:i], reverse(z), layer.outline.z[i+1:i+1])
-        add_pf_passive_loop(dd.pf_passive, dd.build.layer[end], r, z)
+    quads = layer_quads(dd.build.layer[kin], dd.build.layer[kout], par.wall_precision, par.min_n_segments)
+    for (k,quad) in enumerate(quads)
+        add_pf_passive_loop(dd.pf_passive, dd.build.layer[kout].name, "VV $k", quad[1], quad[2]; resistivity)
     end
 
     return actor
 end
 
-function add_pf_passive_loop(pf_passive::IMAS.pf_passive, layer::IMAS.build__layer)
-    return add_pf_passive_loop(pf_passive, layer, layer.outline.r, layer.outline.z)
-end
-
-function add_pf_passive_loop(pf_passive::IMAS.pf_passive, layer::IMAS.build__layer, r::Vector{T}, z::Vector{T}) where {T<:Real}
-    return add_pf_passive_loop(pf_passive, layer.name, "layer $(IMAS.index(layer))", r, z)
-end
-
-function add_pf_passive_loop(pf_passive::IMAS.pf_passive, structure::IMAS.build__structure)
-    return add_pf_passive_loop(pf_passive, structure.name, "structure $(IMAS.index(structure))", structure.outline.r, structure.outline.z)
-end
-
-function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, identifier::AbstractString, r::AbstractVector{T}, z::AbstractVector{T}) where {T<:Real}
+function add_pf_passive_loop(pf_passive::IMAS.pf_passive, name::AbstractString, identifier::AbstractString, r::AbstractVector{T}, z::AbstractVector{T}; resistivity::T) where {T<:Real}
     resize!(resize!(pf_passive.loop, length(pf_passive.loop) + 1)[end].element, 1)
-    pf_passive.loop[end].name = replace(name, r"[lh]fs " => "")
-    pf_passive.loop[end].element[end].geometry.outline.r = r
-    pf_passive.loop[end].element[end].geometry.outline.z = z
+    loop = pf_passive.loop[end]
+    loop.name = replace(name, r"[lh]fs " => "")
+    loop.element[end].geometry.outline.r = r
+    loop.element[end].geometry.outline.z = z
+    loop.element[end].geometry.geometry_type = IMAS.name_2_index(loop.element[end].geometry)[:outline]
     if !isempty(identifier)
-        pf_passive.loop[end].element[end].identifier = identifier
+        loop.element[end].identifier = identifier
     end
-    return pf_passive.loop[end]
+    loop.resistivity = resistivity
+    return loop
 end
 
 """
-    wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-
-Build quads between first wall and the next layer
-"""
-function wall_quads(bd::IMAS.build, precision::Float64, max_seg_length::Float64)
-    plasma_index = IMAS.get_build_index(bd.layer; type=_plasma_)
-    return layer_quads(bd.layer[plasma_index], bd.layer[plasma_index+1], precision, max_seg_length)
-end
-
-"""
-    layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+    layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, min_n_segments::Int)
 
 Build quads between two layers
 """
-function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, max_seg_length::Float64)
+function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__layer, precision::Float64, min_n_segments::Int)
     inner_outline = IMAS.closed_polygon(inner_layer.outline.r, inner_layer.outline.z)
     outer_outline = IMAS.closed_polygon(outer_layer.outline.r, outer_layer.outline.z)
 
     # reorder surface so that it starts on the hfs
-    pr = outer_outline.r
-    pz = outer_outline.z
+    pr = inner_outline.r
+    pz = inner_outline.z
     R0 = (maximum(pr) + minimum(pr)) * 0.5
     Z0 = (maximum(pz) + minimum(pz)) * 0.5
     indexes, crossings = IMAS.intersection(pr, pz, [0.0, R0], [Z0, Z0])
@@ -139,6 +110,8 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     @views Z1 = Z1[2:end]
 
     # split long segments
+    L_inner = sum(sqrt.(diff(inner_layer.outline.r).^2 .+ diff(inner_layer.outline.z).^2))
+    max_seg_length = L_inner / min_n_segments
     R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
 
     # radiate lines from polygon vertices

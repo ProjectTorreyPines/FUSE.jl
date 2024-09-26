@@ -19,7 +19,7 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorTGLF.warn_nn_train_bounds = false
     act.ActorFluxMatcher.evolve_rotation = :fixed
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
 
     # finalize 
     set_new_base!(sty)
@@ -130,6 +130,9 @@ function run_case(study::AbstractStudy, item::String)
 
         return create_data_frame_row_DatabaseGenerator(dd)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         open("$(sty.save_folder)/error_$(item).txt", "w") do file
             return showerror(file, e, catch_backtrace())
         end
@@ -151,6 +154,6 @@ end
 
 function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
     cp1d = dd.core_profiles.profiles_1d[]
-    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1], zeff=cp1d.zeff[1])
+    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.t_i_average[1], zeff=cp1d.zeff[1])
 end
 

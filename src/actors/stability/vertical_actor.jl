@@ -3,15 +3,13 @@ import VacuumFields
 #= ====================== =#
 #  ActorVerticalStability  #
 #= ====================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=0.1)
-    wall_max_seg_length::Entry{Float64} = Entry{Float64}("-", "Maximum segment length for making wall quadralaterals"; default=0.5)
-    default_passive_material::Entry{Symbol} = Entry{Symbol}("-", "Default material to use for poorly defined vacuum vessel"; default=:steel)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    #== display and debugging parameters ==#
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorVerticalStability{D,P} <: SingleAbstractActor{D,P}
@@ -19,6 +17,7 @@ mutable struct ActorVerticalStability{D,P} <: SingleAbstractActor{D,P}
     par::FUSEparameters__ActorVerticalStability{P}
     stability_margin::D
     normalized_growth_rate::D
+    passive_coils::Vector{VacuumFields.QuadCoil}
     function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorVerticalStability)
         par = par(kw...)
@@ -51,7 +50,7 @@ function _step(actor::ActorVerticalStability)
     bd = dd.build
     eqt = dd.equilibrium.time_slice[]
     Ip = eqt.global_quantities.ip
-    active_coils = IMAS_pf_active__coils(dd; green_model=:quad)
+    active_coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad)
 
     # Defaults
     actor.stability_margin = NaN
@@ -62,38 +61,19 @@ function _step(actor::ActorVerticalStability)
         return actor
     end
 
-    # The vacuum vessel can have multiple layers
-    # Find all the bounding ones and turn the area in between into quads
-    kvessel = IMAS.get_build_indexes(bd.layer; type=_vessel_, fs=_lfs_)
-    if isempty(kvessel)
-        @warn "No vessel found. Can't compute vertical stability metrics"
-        return actor
-    end
-    kout = kvessel[end]
-    kin = kvessel[1] - 1
-    quads = layer_quads(bd.layer[kin], bd.layer[kout], par.wall_precision, par.wall_max_seg_length)
-
-    passive_coils =  [VacuumFields.QuadCoil(R, Z) for (R, Z) in quads]
-
-    # Compute resistance based on material resistivity & geometry of coil
-    # N.B.: this just takes the material from the outermost build layer;
-    #       does not account for toroidal breaks, heterogeneous materials,
-    #       or builds with "water" vacuum vessels
-    mat_vv = Material(bd.layer[kout].material)
-    if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
-        mat_vv = Material(par.default_passive_material)
-    end
-    eta = 1.0 / mat_vv.electrical_conductivity(temperature=0.0)
-    if !ismissing(eta)
-        for coil in passive_coils
-            coil.resistance = VacuumFields.resistance(coil, eta)
+    # load passive structures from pf_passive
+    actor.passive_coils = VacuumFields.QuadCoil[]
+    for loop in dd.pf_passive.loop
+        for element in loop.element
+            @assert length(element.geometry.outline.r) == 4 "For the time being passive structures must be composed of quadrilateral elements"
+            passive_coil = VacuumFields.QuadCoil(element.geometry.outline.r, element.geometry.outline.z)
+            passive_coil.resistance = VacuumFields.resistance(passive_coil, loop.resistivity)
+            push!(actor.passive_coils, passive_coil)
         end
     end
 
     image = VacuumFields.Image(eqt)
-
-    coils = vcat(active_coils, passive_coils)
-
+    coils = vcat(active_coils, actor.passive_coils)
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
 
     for (k, coil) in enumerate(active_coils)
@@ -102,7 +82,7 @@ function _step(actor::ActorVerticalStability)
             return actor
         end
     end
-    for (k, coil) in enumerate(passive_coils)
+    for (k, coil) in enumerate(actor.passive_coils)
         if coil.resistance <= 0.0
             @warn "Passive coil #$(k) has invalid resistance: $(coil.resistance). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
             return actor
@@ -121,6 +101,8 @@ Store vertical stability metrics
 """
 function _finalize(actor::ActorVerticalStability)
     dd = actor.dd
+    par = actor.par
+
     mhd = resize!(dd.mhd_linear.time_slice)
     resize!(mhd.toroidal_mode, 2)
 
@@ -137,6 +119,16 @@ function _finalize(actor::ActorVerticalStability)
     mode.perturbation_type.name = "γτ"
     mode.n_tor = 0
     mode.growthrate = actor.normalized_growth_rate # not in Hz
+
+    # plot
+    if par.do_plot
+        plot(dd.build; wireframe=true, title="Passive structures considered for vertical stability")
+        colors = distinguishable_colors(length(actor.passive_coils))
+        for (k, coil) in enumerate(actor.passive_coils)
+            plot!(coil; color=colors[k], alpha=0.5)
+        end
+        display(plot!(; aspect_ratio=:equal))
+    end
 
     return actor
 end

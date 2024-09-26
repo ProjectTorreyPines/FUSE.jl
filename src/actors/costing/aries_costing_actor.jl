@@ -2,7 +2,7 @@
 #  ActorCostingARIES  #
 #= ================= =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -125,7 +125,7 @@ function _step(actor::ActorCostingARIES)
     for item in (:blanket_replacement,)
         sub = resize!(sys.subsystem, "name" => string(item))
         if item == :blanket_replacement
-            blanket_cost = sum([item.cost for item in tokamak.subsystem if item.name == "blanket"])
+            blanket_cost = findfirst(item -> item.name == "blanket", tokamak.subsystem)
             sub.yearly_cost = cost_operations_ARIES(:blanket_replacement, blanket_cost, par.blanket_lifetime, da)
         else
             sub.yearly_cost = cost_operations_ARIES(item, da)
@@ -437,9 +437,13 @@ end
 
 Yearly cost for blanket replacement [\$M/year]
 """
-function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
-    da.year_assessed = Dates.year(Dates.now()) # Assume that the user will give you the cost of the blanket in the dollars of their current year 
-    cost = cost_blanket / blanket_lifetime
+function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
+    if cost_blanket === nothing
+        cost = 0.0
+    else
+        da.year_assessed = Dates.year(Dates.now()) # Assume that the user will give you the cost of the blanket in the dollars of their current year 
+        cost = cost_blanket / blanket_lifetime
+    end
     return future_dollars(cost, da)
 end
 

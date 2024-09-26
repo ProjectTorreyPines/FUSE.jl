@@ -84,6 +84,10 @@ function optimization_engine(
         return ff, gg, hh
 
     catch error
+        if isa(error, InterruptException)
+            rethrow(error)
+        end
+
         # save empty dd and error to directory
         save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
 

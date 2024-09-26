@@ -1,247 +1,36 @@
 import VacuumFields
 import DataFrames
 
-options_green_model = [
+const options_green_model = [
     :point => "One filament per coil",
     :quad => "Quadrilateral coil with quadrature integration"
 ]
 
-#= ==================================== =#
-#  IMAS.pf_active__coil to VacuumFields  #
-#= ==================================== =#
-mutable struct GS_IMAS_pf_active__coil{T1<:Real,T2<:Real,T3<:Real,T4<:Real} <: VacuumFields.AbstractCoil{T1,T2,T3,T4}
-    imas::IMAS.pf_active__coil{T1}
-    tech::IMAS.build__pf_active__technology{T1}
-    time0::Float64
-    green_model::Symbol
-end
-
-function GS_IMAS_pf_active__coil(
-    pfcoil::IMAS.pf_active__coil{T},
-    oh_pf_coil_tech::Union{IMAS.build__oh__technology{T},IMAS.build__pf_active__technology{T}},
-    green_model::Symbol,
-    default_resistance::Float64=1e-6) where {T<:Real}
-
-    # convert everything to build__pf_active__technology so that the `coil_tech`
-    # type in GS_IMAS_pf_active__coil is defined at compile time
-    coil_tech = IMAS.build__pf_active__technology{T}()
-    for field in keys(oh_pf_coil_tech)
-        setproperty!(coil_tech, field, getproperty(oh_pf_coil_tech, field))
-    end
-
-    coil = GS_IMAS_pf_active__coil{T,T,T,T}(
-        pfcoil,
-        coil_tech,
-        global_time(pfcoil),
-        green_model)
-
-    mat_pf = Material(coil_tech)
-    sigma = mat_pf.electrical_conductivity
-    if ismissing(mat_pf) || ismissing(sigma)
-        coil.resistance = default_resistance
-    else
-        coil.resistance = VacuumFields.resistance(coil.imas, 1.0 / sigma(; temperature=0.0), :parallel)
-    end
-
-    return coil
-end
-
-function IMAS_pf_active__coils(dd::IMAS.dd{D}; green_model::Symbol=:quad, zero_currents::Bool=false) where {D<:Real}
-    coils = GS_IMAS_pf_active__coil{D,D}[]
-    for coil in dd.pf_active.coil
-        if zero_currents
-            @ddtime(coil.current.data = 0.0)   # zero currents for all coils
-        end
-        if :shaping ∉ (IMAS.index_2_name(coil.function)[f.index] for f in coil.function)
-            continue
-        end
-        if IMAS.is_ohmic_coil(coil)
-            coil_tech = dd.build.oh.technology
-        else
-            coil_tech = dd.build.pf_active.technology
-        end
-        imas_pf_active__coil = GS_IMAS_pf_active__coil(coil, coil_tech, green_model)
-        push!(coils, imas_pf_active__coil)
-    end
-    return coils
-end
-
-function imas(coil::GS_IMAS_pf_active__coil)
-    return getfield(coil, :imas)
-end
-
-function Base.getproperty(coil::GS_IMAS_pf_active__coil{T}, field::Symbol) where {T<:Real}
-    pfcoil = getfield(coil, :imas)
-    if field ∈ (:r, :z, :width, :height)
-        value = getfield(pfcoil.element[1].geometry.rectangle, field)
-    elseif field == :current
-        # IMAS uses current per turn, GS_IMAS_pf_active__coil uses total current
-        value = IMAS.get_time_array(pfcoil.current, :data, getfield(coil, :time0)) .* getproperty(pfcoil.element[1], :turns_with_sign, 1.0)
-    elseif field == :resistance
-        value = getfield(pfcoil, field)
-    elseif field == :turns
-        value = abs(getproperty(pfcoil.element[1], :turns_with_sign, 1.0))
-    else
-        value = getfield(coil, field)
-    end
-    return value
-end
-
-function Base.setproperty!(coil::GS_IMAS_pf_active__coil, field::Symbol, value::Real)
-    pfcoil = getfield(coil, :imas)
-    if field == :current
-        # IMAS uses current per turn, GS_IMAS_pf_active__coil uses total current
-        value = value ./ getproperty(pfcoil.element[1], :turns_with_sign, 1.0)
-        return IMAS.set_time_array(pfcoil.current, :data, getfield(coil, :time0), value)
-    elseif field ∈ (:r, :z, :width, :height)
-        return setfield!(pfcoil.element[1].geometry.rectangle, field, value)
-    elseif field == :resistance
-        setfield!(pfcoil, field, value)
-    elseif field == :turns
-        val = abs(value) * sign(getproperty(pfcoil.element[1], :turns_with_sign, 1.0))
-        setfield!(pfcoil.element[1], :turns_with_sign, val)
-    else
-        setfield!(coil, field, value)
-    end
-    return value
-end
-
-"""
-    VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real)
-
-Calculates coil green function at given R and Z coordinate
-"""
-function VacuumFields.Green(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
-    return _gfunc(VacuumFields.Green, coil, R, Z)
-end
-
-function VacuumFields.dG_dR(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
-    return _gfunc(VacuumFields.dG_dR, coil, R, Z)
-end
-
-function VacuumFields.dG_dZ(coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; kwargs...)
-    return _gfunc(VacuumFields.dG_dZ, coil, R, Z)
-end
-
-function _gfunc(Gfunc::Function, coil::GS_IMAS_pf_active__coil, R::Real, Z::Real, scale_factor::Real=1.0; xorder::Int=3, yorder::Int=3)
-    green_model = getfield(coil, :green_model)
-
-    if green_model == :point # low-fidelity
-        oute = IMAS.outline(coil.imas.element[1])
-        rc0, zc0 = IMAS.centroid(oute.r, oute.z)
-        return Gfunc(rc0, zc0, R, Z)
-
-    elseif green_model == :quad # high-fidelity
-        return Gfunc(coil.imas, R, Z)
-
-    else
-        error("$(typeof(coil)) green_model is `$(green_model)` but it can only be `:point` or `:quad`")
-
-    end
-end
-
-
-# Mutual inductance
-
-function VacuumFields.mutual(C1::GS_IMAS_pf_active__coil, C2::GS_IMAS_pf_active__coil; xorder::Int=3, yorder::Int=3)
-
-    gm1 = getfield(C1, :green_model)
-    gm2 = getfield(C2, :green_model)
-    @assert gm1 in (:point, :quad)
-    @assert gm2 in (:point, :quad)
-
-    if gm1 === :quad && gm2 === :quad
-        VacuumFields.mutual(C1.imas, C2.imas; xorder, yorder)
-    else
-        fac = -2π * VacuumFields.μ₀ * C1.turns * C2.turns
-        if gm1 === :point && gm2 === :point
-            return fac * Green(C1.r, C1.z, C2.r, C2.z)
-        elseif gm1 === :point
-            return fac * Green(C2.imas, C1.r, C1.r)
-        else
-            return fac * Green(C1.imas, C2.r, C2.r)
-        end
-    end
-end
-
-function VacuumFields.mutual(C1::GS_IMAS_pf_active__coil, C2::VacuumFields.AbstractCoil; xorder::Int=3, yorder::Int=3)
-
-    green_model = getfield(C1, :green_model)
-    if green_model == :point # fastest
-        fac = -2π * VacuumFields.μ₀ * VacuumFields.turns(C2) * C1.turns
-        return fac * Green(C2, C1.r, C1.z)
-
-    elseif green_model == :quad # high-fidelity
-        return VacuumFields.mutual(C1.imas, C2; xorder, yorder)
-
-    else
-        error("$(typeof(C2)) green_model can only be (in order of accuracy) :quad and :point")
-    end
-end
-
-function VacuumFields.mutual(C1::VacuumFields.AbstractCoil, C2::GS_IMAS_pf_active__coil; xorder::Int=3, yorder::Int=3)
-
-    green_model = getfield(C2, :green_model)
-    if green_model == :point # fastest
-        fac = -2π * VacuumFields.μ₀ * VacuumFields.turns(C1) * C2.turns
-        return fac * Green(C1, C2.r, C2.z)
-
-    elseif green_model == :quad # high-fidelity
-        return VacuumFields.mutual(C1, C2.imas; xorder, yorder)
-
-    else
-        error("$(typeof(C2)) green_model can only be (in order of accuracy) :quad and :point")
-    end
-end
-
-
-function VacuumFields._pfunc(Pfunc, image::VacuumFields.Image, C::GS_IMAS_pf_active__coil, δZ;
-    COCOS::MXHEquilibrium.COCOS=MXHEquilibrium.cocos(11), xorder::Int=3, yorder::Int=3)
-
-    green_model = getfield(C, :green_model)
-    if green_model == :point # fastest
-        PC = VacuumFields.PointCoil(C.r, C.z; C.turns)
-        return VacuumFields._pfunc(Pfunc, image, PC, δZ; COCOS)
-
-    elseif green_model == :quad # high-fidelity
-        return VacuumFields._pfunc(Pfunc, image, C.imas, δZ; COCOS, xorder, yorder)
-
-    else
-        error("$(typeof(C)) green_model can only be (in order of accuracy) :quad and :point")
-    end
-end
-
-
 """
     encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
 
-Generates VacuumFields.PointCoil around the plasma boundary using some educated guesses for where the pf coils should be
+Generates VacuumFields.ParallelogramCoil around the plasma boundary using some educated guesses for where the PF and OH coils should be
 """
 function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
     rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
     rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
 
     valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis)
+    r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
 
-    # normalized distance between -1 and 1
-    distance = cumsum(sqrt.(IMAS.gradient(valid_r) .^ 2 .+ IMAS.gradient(valid_z) .^ 2))
-    distance = (distance .- distance[1])
-    distance = (distance ./ distance[end]) .* 2.0 .- 1.0
+    n_oh = n_coils
+    r_ohcoils = minimum(bnd_r) / 3
+    z_ohcoils, h_oh = size_oh_coils(min(valid_z[1],valid_z[end]), max(valid_z[1],valid_z[end]), 0.0, n_oh)
+    w_oh = minimum(bnd_r) / 3
 
-    coils_distance = range(-1.0, 1.0, n_coils)
-    r_coils = IMAS.interp1d(distance, valid_r).(coils_distance)
-    z_coils = IMAS.interp1d(distance, valid_z).(coils_distance)
+    w_pf = sum(sqrt.(diff(valid_r) .^ 2.0 .+ diff(valid_z) .^ 2.0)) / n_coils / sqrt(2.0)
 
-    r_ohcoils = minimum(bnd_r) / 3.0
-    n_oh = Int(ceil((maximum(bnd_z) - minimum(bnd_z)) / r_ohcoils * 2))
-    r_ohcoils = 0.01 # this seems to work better
-
-    z_ohcoils = range((minimum(bnd_z) * 2 + minimum(rail_z)) / 3.0, (maximum(bnd_z) * 2 + maximum(rail_z)) / 3.0, n_oh)
-
-    return [
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)]
-        [VacuumFields.PointCoil(r, z) for (r, z) in zip(r_coils, z_coils)]
+    coils = [
+        [VacuumFields.ParallelogramCoil(r, z, w_oh, h_oh, 0.0, 90.0) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
+        [VacuumFields.ParallelogramCoil(r, z, w_pf, w_pf, 0.0, 90.0) for (r, z) in zip(r_coils, z_coils)]
     ]
+
+    return coils
 end
 
 """
@@ -286,8 +75,11 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
         coil.temperature = [-1, coil_tech.temperature]
 
         # current limit evaluated at all magnetic fields and temperatures
+        coil_area = IMAS.area(coil)
+        frac_conductor = IMAS.fraction_conductor(coil_tech)
+        turns = coil.element[1].turns_with_sign
         coil.current_limit_max = [
-            abs(mat_pf.critical_current_density(; Bext=b) * IMAS.area(coil) * IMAS.fraction_conductor(coil_tech) / coil.element[1].turns_with_sign) for
+            abs(mat_pf.critical_current_density(; Bext=b) * coil_area * frac_conductor / turns) for
             b in coil.b_field_max,
             t in coil.temperature
         ]
@@ -300,25 +92,6 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
             end
         else
             coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] .* coil.element[1].turns_with_sign) for time_index in eachindex(coil.current.time)]
-        end
-    end
-end
-
-@recipe function plot_coil(coil::GS_IMAS_pf_active__coil)
-    @series begin
-        seriestype := :scatter
-        marker --> :circle
-        label --> ""
-        [coil.r], [coil.z]
-    end
-end
-
-@recipe function plot_coil(coils::AbstractVector{<:GS_IMAS_pf_active__coil})
-    for (k, coil) in enumerate(coils)
-        @series begin
-            primary := (k == 1)
-            aspect_ratio := :equal
-            coil
         end
     end
 end
@@ -369,12 +142,12 @@ end
 
 function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::IMAS.build)
     λ_regularize = packed[end]
-    if symmetric
-        n_oh_params = 1
-    else
-        n_oh_params = 2
-    end
     if any(rail.name == "OH" for rail in bd.pf_active.rail)
+        if symmetric
+            n_oh_params = 1
+        else
+            n_oh_params = 2
+        end
         oh_height_off = packed[end-n_oh_params:end-1]
         distances = packed[1:end-n_oh_params]
     else
@@ -389,14 +162,14 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
         for rail in bd.pf_active.rail
             if rail.name == "OH"
                 # mirror OH size when it reaches maximum extent of the rail
-                oh_height_off[1] = mirror_bound(oh_height_off[1], 1.0 - 1.0 / rail.coils_number, 1.0)
-                if !symmetric
-                    offset = mirror_bound(oh_height_off[2], -2.0 / rail.coils_number, 2.0 / rail.coils_number)
-                else
+                oh_height_off[1] = mirror_bound(oh_height_off[1], 0.8, 1.0)
+                # allow ± one coil offset
+                if symmetric
                     offset = 0.0
+                else
+                    offset = mirror_bound(oh_height_off[2], -1.0, 1.0)
                 end
-                z_oh, height_oh = size_oh_coils(rail.outline.z, rail.coils_cleareance, rail.coils_number, oh_height_off[1], 0.0)
-                z_oh = z_oh .+ offset # allow offset to move the whole CS stack independently of the CS rail
+                z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], offset)
                 for k in 1:rail.coils_number
                     koptim += 1
                     koh += 1
@@ -443,20 +216,19 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
-    Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
+function size_pf_active(coils::AbstractVector{<:VacuumFields.GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
+    Rcenter = eqt.boundary.geometric_axis.r
+    Zcenter = eqt.boundary.geometric_axis.z
 
-    function optimal_area(x; coil, r0, z0, width0, height0)
+    function optimal_area(x; coil, pfcoil, r0, z0, width0, height0)
         area = abs(x[1])
-
-        pfcoil = getfield(coil, :imas)
 
         height = sqrt(area)
         width = area / height
         pfcoil.element[1].geometry.rectangle.height = height
         pfcoil.element[1].geometry.rectangle.width = width
         pfcoil.element[1].geometry.rectangle.r = r0 + sign(r0 - Rcenter) * (width - width0) / 2.0
-        pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0) * (height - height0) / 2.0
+        pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0 - Zcenter) * (height - height0) / 2.0
 
         mat = Material(coil.tech)
         Bext = coil_selfB(pfcoil, coil.current)
@@ -479,7 +251,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
             z0 = pfcoil.element[1].geometry.rectangle.z
             width0 = pfcoil.element[1].geometry.rectangle.width
             height0 = pfcoil.element[1].geometry.rectangle.height
-            res = Optim.optimize(x -> optimal_area(x; coil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
+            res = Optim.optimize(x -> optimal_area(x; coil, pfcoil, r0, z0, width0, height0), [0.1], Optim.NelderMead())
             push!(areas, abs(res.minimizer[1]))
         end
     end
@@ -531,7 +303,7 @@ function size_pf_active(coils::AbstractVector{<:GS_IMAS_pf_active__coil}, eqt::I
             z0 = pfcoil.element[1].geometry.rectangle.z
             width0 = pfcoil.element[1].geometry.rectangle.width
             height0 = pfcoil.element[1].geometry.rectangle.height
-            optimal_area(max(areas[k], min_size * msa); coil, r0, z0, width0, height0)
+            optimal_area(max(areas[k], min_size * msa); coil, pfcoil, r0, z0, width0, height0)
         end
     end
 end
@@ -557,14 +329,14 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
     return df
 end
 
-function Base.show(io::IO, ::MIME"text/plain", coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
+function Base.show(io::IO, mime, ::MIME"text/plain", coils::IMAS.IDSvector{<:Union{IMAS.pf_active__coil,IMAS.pf_active__supply}})
     old_lines = get(ENV, "LINES", missing)
     old_columns = get(ENV, "COLUMNS", missing)
     df = DataFrames.DataFrame(coils)
     try
         ENV["LINES"] = 1000
         ENV["COLUMNS"] = 1000
-        return show(io::IO, df)
+        return show(io, mime, df)
     finally
         if old_lines === missing
             delete!(ENV, "LINES")
@@ -577,4 +349,22 @@ function Base.show(io::IO, ::MIME"text/plain", coils::IMAS.IDSvector{<:IMAS.pf_a
             ENV["COLUMNS"] = old_columns
         end
     end
+end
+
+#= ============================================= =#
+#  Visualization of IMAS.pf_active.supply as table  #
+#= ============================================= =#
+function DataFrames.DataFrame(supplies::IMAS.IDSvector{<:IMAS.pf_active__supply})
+
+    df = DataFrames.DataFrame(;
+        name=String[],
+        voltage_limits=Tuple{Float64,Float64}[],
+        current_limits=Tuple{Float64,Float64}[],
+    )
+
+    for supply in supplies
+        push!(df, [supply.name, (supply.voltage_limit_min, supply.voltage_limit_max), (supply.current_limit_min, supply.current_limit_max)])
+    end
+
+    return df
 end

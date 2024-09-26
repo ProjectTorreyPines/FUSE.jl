@@ -3,7 +3,7 @@ import EPEDNN
 #= ========= =#
 #  ActorEPED  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -58,7 +58,6 @@ end
 Runs pedestal actor to evaluate pedestal width and height
 """
 function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
-
     dd = actor.dd
     par = actor.par
 
@@ -80,7 +79,7 @@ end
 """
     _finalize(actor::ActorEPED)
 
-Writes results to dd.summary.local.pedestal and possibly updates core_profiles
+Writes results to dd.summary.local.pedestal and updates core_profiles
 """
 function _finalize(actor::ActorEPED)
     dd = actor.dd
@@ -95,20 +94,26 @@ function _finalize(actor::ActorEPED)
     tped = (actor.pped * 1e6) / nsum / constants.e
 
     if par.T_ratio_pedestal == 0.0
-        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))
+        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))
     elseif par.T_ratio_pedestal <= 0.0
-        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.ion[1].temperature ./ cp1d.electrons.temperature)(par.T_ratio_pedestal)
+        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.T_ratio_pedestal)
     else
         T_ratio_pedestal = par.T_ratio_pedestal
     end
 
-    dd_ped = dd.summary.local.pedestal
-    @ddtime dd_ped.n_e.value = actor.inputs.neped * 1e19
-    @ddtime dd_ped.t_e.value = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
-    @ddtime dd_ped.t_i_average.value = @ddtime(dd_ped.t_e.value) * T_ratio_pedestal
-    @ddtime dd_ped.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
+    n_e = actor.inputs.neped * 1e19
+    t_e = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
+    t_i_average = t_e * T_ratio_pedestal
+    position = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
 
-    IMAS.blend_core_edge_Hmode(cp1d, dd_ped, par.rho_nml, par.rho_ped)
+    summary_ped = dd.summary.local.pedestal
+    @ddtime summary_ped.n_e.value = n_e
+    @ddtime summary_ped.t_e.value = t_e
+    @ddtime summary_ped.t_i_average.value = t_i_average
+    @ddtime summary_ped.position.rho_tor_norm = position
+
+    # this function takes information about the H-mode pedestal from summary IDS and blends it with core_profiles core
+    IMAS.blend_core_edge(:H_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped)
 
     return actor
 end
@@ -160,24 +165,47 @@ function run_EPED(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    :pulse_schedule
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from)
-
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from)
+    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing)
+    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from, nothing)
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
+    Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
-    Bt = abs(@ddtime(eqt.global_quantities.vacuum_toroidal_field.b0)) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
+    #NOTE: EPED results can be very sensitive to δu, δl
+    #
+    #      eqt.boundary can have small changes in κ, δu, δl just due to contouring
+    #      This issue can be mitigated using higher grid resolutions in the equilibrium solver.
+    #
+    #      Here we use the flux surface right inside of the LCFS, and not the LCFS itself.
+    #      Not only this avoids these sensitivity issues, but it's actually more correct,
+    #      since the TOQ equilibrium used by EPED is a fixed boundary equilibrium solver,
+    #      and as such it cuts out psi at 99% or similar.
+    if false
+        R = eqt.boundary.geometric_axis.r
+        a = eqt.boundary.minor_radius
+        κ = eqt.boundary.elongation
+        δu = eqt.boundary.triangularity_upper
+        δl = eqt.boundary.triangularity_lower
+    elseif false
+        pr, pz = IMAS.boundary(dd.pulse_schedule.position_control)
+        R, a, κ, δu, δl, ζou, ζol, ζil, ζiu = IMAS.miller_R_a_κ_δ_ζ(pr, pz)
+    else
+        R = (eqt.profiles_1d.r_outboard[end-1] + eqt.profiles_1d.r_inboard[end-1]) / 2.0
+        a = (eqt.profiles_1d.r_outboard[end-1] - eqt.profiles_1d.r_inboard[end-1]) / 2.0
+        κ = eqt.profiles_1d.elongation[end-1]
+        δu = eqt.profiles_1d.triangularity_upper[end-1]
+        δl = eqt.profiles_1d.triangularity_lower[end-1]
+    end
 
-    eped_inputs.a = eqt.boundary.minor_radius
+    eped_inputs.a = a
     eped_inputs.betan = βn
     eped_inputs.bt = Bt
-    eped_inputs.delta = EPEDNN.effective_triangularity(eqt.boundary.triangularity_lower, eqt.boundary.triangularity_upper)
+    eped_inputs.delta = EPEDNN.effective_triangularity(δu, δl)
     eped_inputs.ip = abs(ip) / 1e6
-    eped_inputs.kappa = eqt.boundary.elongation
+    eped_inputs.kappa = κ
     eped_inputs.m = m
     eped_inputs.neped = neped / 1e19
-    eped_inputs.r = eqt.boundary.geometric_axis.r
+    eped_inputs.r = R
     eped_inputs.zeffped = zeffped
 
     return epedmod(eped_inputs; only_powerlaw, warn_nn_train_bounds)

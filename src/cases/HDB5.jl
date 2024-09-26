@@ -43,30 +43,22 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     if data_row[:CONFIG] == "SN"
         # upper single null
         ini.equilibrium.xpoints = :upper
-        upper_x_point = true
-        lower_x_point = false
     elseif data_row[:CONFIG] == "SN(L)"
         # lower single null
         ini.equilibrium.xpoints = :lower
-        upper_x_point = false
-        lower_x_point = true
     elseif data_row[:CONFIG] == "DN"
         # double null
-        upper_x_point = true
-        lower_x_point = true
         ini.equilibrium.xpoints = :double
     else
         # no x-points
         ini.equilibrium.xpoints = :none
-        upper_x_point = false
-        lower_x_point = false
     end
 
     # to match the experimental volume and area:
-    mxh = IMAS.MXH(ini, IMAS.dd())
-    mxh_volume = fitMXHboundary(mxh; upper_x_point, lower_x_point, target_volume=data_row[:VOL], target_area=data_row[:AREA])
+    mxhb = MXHboundary(ini; target_volume=data_row[:VOL], target_area=data_row[:AREA])
+    mxh = IMAS.MXH(mxhb.r_boundary, mxhb.z_boundary, 4)
+    ini.equilibrium.MXH_params = IMAS.flat_coeffs(mxh)
     ini.equilibrium.boundary_from = :MXH_params
-    ini.equilibrium.MXH_params = IMAS.flat_coeffs(IMAS.MXH(mxh_volume.r_boundary, mxh_volume.z_boundary))
 
     # Core_profiles parameters
     ## This should become ne_line and ne_line matching!
@@ -91,7 +83,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
             ini.nb_unit[1].beam_energy = 100e3
         end
         ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 18.0 / 360.0 * 2pi # 18 degrees assumed like DIII-D
+        ini.nb_unit[1].toroidal_angle = 18.0 * deg # 18 degrees assumed like DIII-D
     end
 
     if n_ec > 0

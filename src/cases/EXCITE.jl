@@ -43,13 +43,13 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.equilibrium.B0 = 6.0
     ini.equilibrium.R0 = 1.5
     ini.equilibrium.ϵ = 0.5 / 1.5
-    ini.equilibrium.κ = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.3826 + 0.5
-    ini.equilibrium.δ = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.7
-    ini.equilibrium.ζ = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.05
-    ini.equilibrium.𝚶 = t -> ramp((t - Δt / 8) / Δt, 0.1) * 0.2
-    ini.equilibrium.pressure_core = t -> ramp((t - Δt / 8) / Δt, 0.3) * 1.5e6 + 0.2e6
-    ini.equilibrium.ip = t -> ramp(t / Δt, 0.05) * 5.0e6 + ramp((t - Δt / 2) / (Δt / 2), 0.125) * 1.0E6
-    ini.equilibrium.xpoints = t -> step((t - Δt / 7) / (Δt / 2)) < 0.5 ? :none : :double
+    ini.equilibrium.κ = 0.85
+    ini.equilibrium.δ = 0.7
+    ini.equilibrium.ζ = 0.05
+    ini.equilibrium.𝚶 = 0.0
+    ini.equilibrium.pressure_core = 1.7e6
+    ini.equilibrium.ip = 6.0e6
+    ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
@@ -64,7 +64,7 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.core_profiles.helium_fraction = 0.00
 
     ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 8
+    ini.pf_active.n_coils_outside = 6
     ini.pf_active.technology = :nb3sn
 
     ini.tf.n_coils = 16
@@ -83,14 +83,12 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.ec_launcher[2].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 0.0e0
-    ini.requirements.flattop_duration = 3600.0
+    ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 0.0
     ini.requirements.coil_j_margin = 0.1
     ini.requirements.coil_stress_margin = 0.1
 
-    Δt = 200
-    ini.time.pulse_shedule_time_basis = range(0.0, Δt; step=Δt / 1000)
-    ini.time.simulation_start = Δt / 2
+    ini.time.simulation_start = 0.0
 
     #### ACT ####
 
@@ -100,6 +98,8 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     act.ActorEquilibrium.model = :TEQUILA
     act.ActorTEQUILA.relax = 0.25
+
+    act.ActorCoreTransport.model = :none # No flux matching possible
 
     # finalize
     set_new_base!(ini)

@@ -9,6 +9,7 @@ using Printf
 using InteractiveUtils
 import LinearAlgebra
 using StaticArrays
+import AbstractTrees: print_tree
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -22,6 +23,7 @@ function __init__()
 end
 
 const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+const deg = pi / 180 # convert degrees to radians
 
 #= ===== =#
 #  UTILS  #
@@ -100,8 +102,10 @@ include(joinpath("actors", "hcd", "simple_common.jl"))
 include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
-include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
+include(joinpath("actors", "hcd", "nbi", "nb_simple_actor.jl"))
 include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
+include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
+include(joinpath("actors", "hcd", "nbi", "nbi_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
@@ -131,7 +135,7 @@ include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
 
-include(joinpath("actors", "control", "controller_actor.jl"))
+include(joinpath("actors", "control", "ip_control.jl"))
 
 include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
@@ -178,7 +182,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging
-export step, pulse, ramp, trap, gaus, beta
+export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, @checkin, @checkout
+export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

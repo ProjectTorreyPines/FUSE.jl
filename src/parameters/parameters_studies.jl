@@ -38,7 +38,7 @@ for filename in readdir(joinpath(@__DIR__, "..", "..", "studies"))
 end
 
 """
-    function name(study::AbstractStudy)
+    name(study::AbstractStudy)
 
 Returns the name of the study as a string
 """

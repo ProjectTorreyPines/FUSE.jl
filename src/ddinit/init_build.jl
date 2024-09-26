@@ -67,10 +67,6 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
             dd.build.layer[k].shape = Int(_negative_offset_)
         end
 
-        # set TF shape (shape is set by inner)
-        dd.build.layer[plama_to_tf[end-1]].shape = Int(ini.tf.shape)
-        dd.build.layer[plama_to_tf[end]].shape = Int(_convex_hull_)
-
         # Allow first few layers to have shapes conformal with the first wall
         for k in 1:ini.build.n_first_wall_conformal_layers
             dd.build.layer[plama_to_tf[k]].shape = Int(_convex_hull_)
@@ -78,9 +74,14 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
 
         # first wall is of type offset instead of convex hull, to allow for concave shape
         k = plama_to_tf[1]
-        if (dd.build.layer[k].type == Int(_wall_)) && ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)) || (dd.build.layer[k+1].type == Int(_wall_)))
+        if (dd.build.layer[k].type == Int(_wall_)) &&
+           ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)) || (dd.build.layer[k+1].type == Int(_wall_)))
             dd.build.layer[k].shape = Int(_offset_)
         end
+
+        # set TF shape (shape is set by inner layer)
+        dd.build.layer[plama_to_tf[end-1]].shape = Int(ini.tf.shape)
+        dd.build.layer[plama_to_tf[end]].shape = Int(_convex_hull_)
 
         # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
@@ -309,7 +310,11 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         elseif layer.type == Int(_blanket_)
             layer.material = "lithium_lead"
         elseif layer.type == Int(_wall_)
-            layer.material = "tungsten"
+            if bd.layer[k-1].type == Int(_plasma_) || bd.layer[k+1].type == Int(_plasma_)
+                layer.material = "tungsten"
+            else
+                layer.material = "steel"
+            end
         elseif layer.type == Int(_vessel_)
             layer.material = "water"
         elseif layer.type == Int(_cryostat_)
@@ -337,24 +342,44 @@ function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
 end
 
 """
-    layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
+    layers_meters_from_fractions(;
+        lfs_multiplier::Float64=0.0,
+        wall::Float64=0.1,
+        blanket::Float64,
+        shield::Float64,
+        vessel::Float64,
+        pf_inside_tf::Bool,
+        pf_outside_tf::Bool,
+        thin_vessel_walls::Bool=false
+    )
 
 Handy function for initializing layers based on few scalars
 """
-function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vessel::Float64, pf_inside_tf::Bool, pf_outside_tf::Bool, thin_vessel_walls::Bool=false)
+function layers_meters_from_fractions(;
+    lfs_multiplier::Float64,
+    wall::Float64,
+    blanket::Float64,
+    shield::Float64,
+    vessel::Float64,
+    pf_inside_tf::Bool,
+    pf_outside_tf::Bool,
+    thin_vessel_walls::Bool=false
+)
+
+    lfs_asymmetry(x) = x * lfs_multiplier
+
     # express layer thicknesses as fractions
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 2.0
     layers[:OH] = 1.0
     layers[:hfs_TF] = 1.0
-    if vessel > 0.0
-        if thin_vessel_walls
-            layers[:hfs_vacuum_vessel_wall_outer] = 0.1
-            layers[:hfs_vacuum_vessel] = vessel
-            layers[:hfs_vacuum_vessel_wall_inner] = 0.1
-        else
-            layers[:hfs_vacuum_vessel] = vessel
-        end
+    @assert vessel >= 0.0
+    if thin_vessel_walls
+        layers[:hfs_vacuum_vessel_wall_outer] = 0.1 * vessel
+        layers[:hfs_vacuum_vessel] = 0.8 * vessel
+        layers[:hfs_vacuum_vessel_wall_inner] = 0.1 * vessel
+    else
+        layers[:hfs_vacuum_vessel] = vessel
     end
     if pf_inside_tf
         layers[:gap_hfs_coils] = 0.0
@@ -365,25 +390,25 @@ function layers_meters_from_fractions(; blanket::Float64, shield::Float64, vesse
     if blanket > 0.0
         layers[:hfs_blanket] = blanket
     end
-    layers[:hfs_wall] = 0.1
+    layers[:hfs_wall] = wall
     layers[:plasma] = 0.0 # this number does not matter
-    layers[:lfs_wall] = 0.1
+    layers[:lfs_wall] = lfs_asymmetry(wall)
     if blanket > 0.0
-        layers[:lfs_blanket] = blanket * 2.0
+        layers[:lfs_blanket] = lfs_asymmetry(blanket * 2.0)
     end
     if shield > 0.0
-        layers[:lfs_shield] = shield
+        layers[:lfs_shield] = lfs_asymmetry(shield)
     end
     if pf_inside_tf
-        layers[:gap_lfs_coils] = 2.25
+        layers[:gap_lfs_coils] = lfs_asymmetry(2.25)
     end
     if vessel > 0.0
         if thin_vessel_walls
-            layers[:lfs_vacuum_vessel_wall_inner] = 0.1
-            layers[:lfs_vacuum_vessel] = vessel
-            layers[:lfs_vacuum_vessel_wall_outer] = 0.1
+            layers[:lfs_vacuum_vessel_wall_inner] = lfs_asymmetry(0.1 * vessel)
+            layers[:lfs_vacuum_vessel] = lfs_asymmetry(0.8 * vessel)
+            layers[:lfs_vacuum_vessel_wall_outer] = lfs_asymmetry(0.1 * vessel)
         else
-            layers[:lfs_vacuum_vessel] = vessel
+            layers[:lfs_vacuum_vessel] = lfs_asymmetry(vessel)
         end
     end
     layers[:lfs_TF] = 1.0
