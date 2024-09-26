@@ -69,6 +69,7 @@ function _step(actor::ActorQEDcoupled)
     actor.build = qed_build_from_imas(dd)
 
     # current diffusion
+    time0 = dd.global_time + 0.5 * par.Δt
     actor.QO = QED.evolve(actor.QO, η_imas(dd.core_profiles.profiles_1d[time0]), actor.build, par.Δt, par.Nt)
 
     return actor
@@ -162,7 +163,7 @@ end
 function qed_build_from_imas(dd::IMAS.dd{D}) where {D <: Real}
 
     active_coils = VacuumFields.MultiCoils(dd);
-    passive_coils = [loopelement2coil(loop, element) for loop in dd.pf_passive.loop for element in loop.element]
+    passive_coils = [loop2multi(loop) for loop in dd.pf_passive.loop]
     coils = vcat(active_coils, passive_coils)
 
     # Coil-only quantities
@@ -196,6 +197,9 @@ function qed_build_from_imas(dd::IMAS.dd{D}) where {D <: Real}
     Ini = dd.core_profiles.global_quantities.current_non_inductive[]
     Iohm = Ip - Ini
     Rp = Pohm / (Ip * Iohm)
+
+    # non-inductive voltage
+    Vni = Rp * Ini
 
     # Waveforms
     # These should come from pulse_schedule
