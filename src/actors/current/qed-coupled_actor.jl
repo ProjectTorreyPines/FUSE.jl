@@ -1,9 +1,9 @@
 import QED
 
 #= ======== =#
-#  ActorPlasmaBuild  #
+#  ActorQEDcoupled  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPlasmaBuild{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct FUSEparameters__ActorQEDcoupled{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -11,15 +11,15 @@ Base.@kwdef mutable struct FUSEparameters__ActorPlasmaBuild{T<:Real} <: Paramete
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
 end
 
-mutable struct ActorPlasmaBuild{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorQEDcoupled{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPlasmaBuild{P}
+    par::FUSEparameters__ActorQEDcoupled{P}
     QO::Union{Nothing,QED.QED_state}
     build::Union{Nothing,QED.QED_build}
 end
 
 """
-    ActorPlasmaBuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorQEDcoupled(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Evolves the plasma and coil/vessel currents using the QED current diffusion solver.
 
@@ -29,26 +29,26 @@ Evolves the plasma and coil/vessel currents using the QED current diffusion solv
 
         IMAS.new_timeslice!(dd, dd.global_time + Δt)
         dd.global_time += Δt
-        ActorPlasmaBuild(dd, act)
+        ActorQEDcoupled(dd, act)
 
 !!! note
 
     Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
 """
-function ActorPlasmaBuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorPlasmaBuild(dd, act.ActorPlasmaBuild; kw...)
+function ActorQEDcoupled(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorQEDcoupled(dd, act.ActorQEDcoupled; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorPlasmaBuild(dd::IMAS.dd, par::FUSEparameters__ActorPlasmaBuild; kw...)
-    logging_actor_init(ActorPlasmaBuild)
+function ActorQEDcoupled(dd::IMAS.dd, par::FUSEparameters__ActorQEDcoupled; kw...)
+    logging_actor_init(ActorQEDcoupled)
     par = par(kw...)
-    return ActorPlasmaBuild(dd, par, nothing, nothing)
+    return ActorQEDcoupled(dd, par, nothing, nothing)
 end
 
-function _step(actor::ActorPlasmaBuild)
+function _step(actor::ActorQEDcoupled)
     dd = actor.dd
     par = actor.par
 
@@ -74,7 +74,7 @@ function _step(actor::ActorPlasmaBuild)
     return actor
 end
 
-function _finalize(actor::ActorPlasmaBuild)
+function _finalize(actor::ActorQEDcoupled)
     dd = actor.dd
 
     eqt = dd.equilibrium.time_slice[]
@@ -178,7 +178,7 @@ function qed_build_from_imas(dd::IMAS.dd{D}) where {D <: Real}
     # plasma-coil mutuals
     image = VacuumFields.Image(eqt)
     Mpc = [VacuumFields.mutual(image, coil, Ip) for coil in coils]
-    @warn "ActorPlasmaBuild doesn't contain dMpc_dt yet"
+    @warn "ActorQEDcoupled doesn't contain dMpc_dt yet"
     dMpc_dt = zero(Mpc) # How Mpc changes in time (like shape)... to test later
 
     # self inductance
