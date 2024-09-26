@@ -49,8 +49,8 @@ function _step(actor::ActorSteadyStateCurrent)
     IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
 
     # allow floating plasma current
-    current_non_inductive = trapz(cp1d.grid.area, cp1d.j_non_inductive)
-    if abs(ip_target) < abs(current_non_inductive) && par.allow_floating_plasma_current
+    ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
+    if abs(ip_target) < abs(ip_non_inductive) && par.allow_floating_plasma_current
         cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
     end
 
