@@ -100,7 +100,7 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.3, check=x -> @assert x > 0.0 "must be: width > 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
-    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; default=0.0)
+    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection", check=x -> @assert (-pi/2 <= x <= pi/2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end

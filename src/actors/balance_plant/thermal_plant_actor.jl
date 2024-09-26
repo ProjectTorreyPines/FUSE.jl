@@ -85,9 +85,9 @@ function _step(actor::ActorThermalPlant)
 
     bop = dd.balance_of_plant
 
-    breeder_heat_load = @ddtime(bop.power_plant.breeder_heat_load)
-    divertor_heat_load = @ddtime(bop.power_plant.divertor_heat_load)
-    wall_heat_load = @ddtime(bop.power_plant.wall_heat_load)
+    breeder_heat_load = @ddtime(bop.power_plant.heat_load.breeder)
+    divertor_heat_load = @ddtime(bop.power_plant.heat_load.divertor)
+    wall_heat_load = @ddtime(bop.power_plant.heat_load.wall)
 
     if isempty(breeder_heat_load == 0) # don't calculate anything in absence of a blanket
         empty!(dd.balance_of_plant)

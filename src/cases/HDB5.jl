@@ -83,7 +83,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
             ini.nb_unit[1].beam_energy = 100e3
         end
         ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 18.0 / 360.0 * 2pi # 18 degrees assumed like DIII-D
+        ini.nb_unit[1].toroidal_angle = 18.0 * deg # 18 degrees assumed like DIII-D
     end
 
     if n_ec > 0

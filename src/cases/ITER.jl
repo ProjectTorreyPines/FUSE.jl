@@ -129,6 +129,7 @@ function case_parameters(
 
     ini.nb_unit[1].power_launched = 33.4e6
     ini.nb_unit[1].beam_energy = 1e6
+    ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
     ini.ec_launcher[1].power_launched = 20E6
     ini.ec_launcher[1].rho_0 = 0.0

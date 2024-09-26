@@ -62,7 +62,7 @@ function _step(actor::ActorSimpleNB)
 
         electrons_particles = power_launched / (beam_energy * constants.e)
         momentum_tor =
-            sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+            power_launched * sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
@@ -89,7 +89,7 @@ function _step(actor::ActorSimpleNB)
 
         # add nbi fast ion particles source
         ion = resize!(source.profiles_1d[].ion, 1)[1]
-        IMAS.ion_element!(ion, "H$(Int(floor(nbu.species.a)))"; fast=true)
+        IMAS.ion_element!(ion, "H$(nbu.species.a)"; fast=true)
         ion.particles = source.profiles_1d[].electrons.particles
         ion.particles_inside = source.profiles_1d[].electrons.particles_inside
         ion.fast_particles_energy = beam_energy

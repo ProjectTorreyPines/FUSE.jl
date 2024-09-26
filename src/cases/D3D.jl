@@ -107,7 +107,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario::Union{Symbol,AbstractStrin
         ini.nb_unit[1].power_launched = shot_mappings[scenario][:nbi_power]
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 20.0 / 180 * pi
+        ini.nb_unit[1].toroidal_angle = 18.0 * deg
     end
 
     set_new_base!(ini)

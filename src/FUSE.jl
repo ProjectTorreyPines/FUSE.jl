@@ -23,6 +23,7 @@ function __init__()
 end
 
 const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+const deg = pi / 180 # convert degrees to radians
 
 #= ===== =#
 #  UTILS  #
