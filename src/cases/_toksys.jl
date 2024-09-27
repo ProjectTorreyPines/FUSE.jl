@@ -55,9 +55,6 @@ function from_TokSys(dd::IMAS.dd, mat::Dict)
         eqt.global_quantities.magnetic_axis.r = rmaxis[k]
         eqt.global_quantities.magnetic_axis.z = zmaxis[k]
 
-        #eqt.boundary.geometric_axis.r = g.rcentr
-        #eqt.boundary.geometric_axis.z = g.zmid
-
         eqt.global_quantities.ip = ip[k]
 
         eq1d.psi = range(psimag[k], psibry[k], length(psi_norm))

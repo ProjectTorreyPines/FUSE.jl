@@ -121,6 +121,18 @@ function init_core_profiles!(
         ne_ped = ne_value
     elseif ne_setting == :greenwald_fraction_ped
         ne_ped = ne_value * IMAS.greenwald_density(eqt)
+    elseif ne_setting == :ne_line
+        function cost_line(ne_ped, line_wanted)
+            if plasma_mode == :H_mode
+                cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, core_to_ped_ratio * ne_ped, ngrid, n_shaping, n_shaping, w_ped)
+            else
+                cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, core_to_ped_ratio * ne_ped, ngrid, n_shaping, 1.0, w_ped)
+            end
+            return (IMAS.geometric_midplane_line_averaged_density(eqt, cp1d) - line_wanted)^2
+        end
+        ne_ped = ne_value / ((1.0 + core_to_ped_ratio) / 2.0) # initial guess
+        res = Optim.optimize(x -> cost_line(x, ne_value), ne_ped / 10, ne_ped * 10, Optim.GoldenSection(); rel_tol=1E-3)
+        ne_ped = res.minimizer
     elseif ne_setting == :greenwald_fraction
         function cost_greenwald_fraction(ne_ped, greenwald_fraction_wanted)
             if plasma_mode == :H_mode
@@ -130,10 +142,11 @@ function init_core_profiles!(
             end
             return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction_wanted)^2
         end
-        ne_ped = IMAS.greenwald_density(eqt) * ne_value / ((1.0 + core_to_ped_ratio) / 2.0)
+        ne_ped = IMAS.greenwald_density(eqt) * ne_value / ((1.0 + core_to_ped_ratio) / 2.0) # initial guess
         res = Optim.optimize(x -> cost_greenwald_fraction(x, ne_value), ne_ped / 10, ne_ped * 10, Optim.GoldenSection(); rel_tol=1E-3)
         ne_ped = res.minimizer
     end
+
     if plasma_mode == :H_mode
         cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, core_to_ped_ratio * ne_ped, ngrid, n_shaping, n_shaping, w_ped)
     else
