@@ -117,11 +117,10 @@ function case_parameters(
         ini.core_profiles.ne_value = 0.9
         act.ActorPedestal.density_match = :ne_line
     end
-
+    ini.core_profiles.ne_shaping = 1.0
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 1.0
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
