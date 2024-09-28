@@ -2299,6 +2299,7 @@
 │  ├─ <a href='dd_details.html#core_profiles.global_quantities.beta_tor_norm'>beta_tor_norm</a>
 │  ├─ <a href='dd_details.html#core_profiles.global_quantities.current_bootstrap'>current_bootstrap</a> [A]
 │  ├─ <a href='dd_details.html#core_profiles.global_quantities.current_non_inductive'>current_non_inductive</a> [A]
+│  ├─ <a href='dd_details.html#core_profiles.global_quantities.current_ohmic'>current_ohmic</a> [A]
 │  ├─ <a href='dd_details.html#core_profiles.global_quantities.ejima'>ejima</a>
 │  ├─ <a href='dd_details.html#core_profiles.global_quantities.energy_diamagnetic'>energy_diamagnetic</a> [J]
 │  ├─ <span class="sgr1">ion[:]</span>
@@ -11895,6 +11896,7 @@
 │  ├─ <a href='dd_details.html#operational_instrumentation.ids_properties.creation_date'>creation_date</a>
 │  ├─ <a href='dd_details.html#operational_instrumentation.ids_properties.homogeneous_time'>homogeneous_time</a>
 │  ├─ <a href='dd_details.html#operational_instrumentation.ids_properties.name'>name</a>
+│  ├─ <a href='dd_details.html#operational_instrumentation.ids_properties.occurrence'>occurrence</a>
 │  ├─ <span class="sgr1">occurrence_type</span>
 │  │  ├─ <a href='dd_details.html#operational_instrumentation.ids_properties.occurrence_type.description'>description</a>
 │  │  ├─ <a href='dd_details.html#operational_instrumentation.ids_properties.occurrence_type.index'>index</a>
@@ -13136,11 +13138,13 @@
 │  │  │  └─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].current.reference_type'>reference_type</a>
 │  │  ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].identifier'>identifier</a>
 │  │  ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].name'>name</a>
-│  │  └─ <span class="sgr1">resistance_additional</span>
-│  │     ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.envelope_type'>envelope_type</a>
-│  │     ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.reference'>reference</a> [mixed]
-│  │     ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.reference_name'>reference_name</a>
-│  │     └─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.reference_type'>reference_type</a>
+│  │  ├─ <span class="sgr1">resistance_additional</span>
+│  │  │  ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.envelope_type'>envelope_type</a>
+│  │  │  ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.reference'>reference</a> [mixed]
+│  │  │  ├─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.reference_name'>reference_name</a>
+│  │  │  └─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].resistance_additional.reference_type'>reference_type</a>
+│  │  └─ <span class="sgr1">voltage</span>
+│  │     └─ <a href='dd_details.html#pulse_schedule.pf_active.coil[:].voltage.reference'>reference</a> [mixed]
 │  ├─ <a href='dd_details.html#pulse_schedule.pf_active.mode'>mode</a>
 │  ├─ <span class="sgr1">supply[:]</span>
 │  │  ├─ <span class="sgr1">current</span>
@@ -13335,6 +13339,13 @@
 │     ├─ <a href='dd_details.html#pulse_schedule.position_control.z_r_min.reference'>reference</a> [mixed]
 │     ├─ <a href='dd_details.html#pulse_schedule.position_control.z_r_min.reference_name'>reference_name</a>
 │     └─ <a href='dd_details.html#pulse_schedule.position_control.z_r_min.reference_type'>reference_type</a>
+├─ <span class="sgr1">profiles_control</span>
+│  ├─ <span class="sgr1">dpressure_dpsi</span>
+│  │  └─ <a href='dd_details.html#pulse_schedule.profiles_control.dpressure_dpsi.reference'>reference</a> [Pa.Wb⁻¹]
+│  ├─ <span class="sgr1">f_df_dpsi</span>
+│  │  └─ <a href='dd_details.html#pulse_schedule.profiles_control.f_df_dpsi.reference'>reference</a> [mixed]
+│  ├─ <a href='dd_details.html#pulse_schedule.profiles_control.psi_norm'>psi_norm</a>
+│  └─ <a href='dd_details.html#pulse_schedule.profiles_control.time'>time</a> [s]
 ├─ <span class="sgr1">tf</span>
 │  ├─ <span class="sgr1">b_field_tor_vacuum</span>
 │  │  └─ <a href='dd_details.html#pulse_schedule.tf.b_field_tor_vacuum.reference'>reference</a> [T]
@@ -20614,4 +20625,4 @@
       │  ├─ <a href='dd_details.html#workflow.time_loop.workflow_cycle[:].component[:].time_interval_elapsed'>time_interval_elapsed</a> [s]
       │  └─ <a href='dd_details.html#workflow.time_loop.workflow_cycle[:].component[:].time_interval_request'>time_interval_request</a> [s]
       └─ <a href='dd_details.html#workflow.time_loop.workflow_cycle[:].time'>time</a> [s]
-</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="ini.html">« ini parameters</a><a class="docs-footer-nextpage" href="develop.html">Development »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Friday 27 September 2024 02:47">Friday 27 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="ini.html">« ini parameters</a><a class="docs-footer-nextpage" href="develop.html">Development »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Saturday 28 September 2024 02:46">Saturday 28 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
