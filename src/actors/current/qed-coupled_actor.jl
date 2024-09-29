@@ -9,6 +9,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorQEDcoupled{T<:Real} <: Parameter
     _time::Float64 = NaN
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
+    #== display and debugging parameters ==#
+    debug::Entry{Bool} = Entry{Bool}("-", "Turn on QED debugging/plotting"; default=false)
 end
 
 mutable struct ActorQEDcoupled{D,P} <: SingleAbstractActor{D,P}
@@ -61,16 +63,16 @@ function _step(actor::ActorQEDcoupled)
 
     # initialize QED
     if actor.QO === nothing
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho = 501)
+        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho = 33)
     else
         actor.QO.JBni = JBni
     end
 
-    actor.build = qed_build_from_imas(dd)
+    actor.build = qed_build_from_imas(dd, dd.global_time - par.Δt)
 
     # current diffusion
-    time0 = dd.global_time + 0.5 * par.Δt
-    actor.QO = QED.evolve(actor.QO, η_imas(dd.core_profiles.profiles_1d[time0]), actor.build, par.Δt, par.Nt)
+    time0 = dd.global_time - 0.5 * par.Δt
+    actor.QO = QED.evolve(actor.QO, η_imas(dd.core_profiles.profiles_1d[time0]), actor.build, par.Δt, par.Nt; par.debug)
 
     return actor
 end
@@ -129,42 +131,10 @@ Setup QED build from data in IMAS `dd`
 # end
 
 # elements(), turns(), QuadCoil(), and loop2multi() should all wind up in VacuumFields
-elements(loop) = Iterators.filter(!isempty, loop.element)
-turns(element::IMAS.pf_passive__loop___element) = isempty(element) ? 0.0 : (ismissing(element, :turns_with_sign) ? 1.0 : abs(element.turns_with_sign))
 
-function VacuumFields.QuadCoil(elm::IMAS.pf_passive__loop___element, current_per_turn::Real = 0.0, resistance_per_turn::Real = 0.0)
-    R, Z = IMAS.outline(elm)
-    @assert length(R) == length(Z) == 4
-    Nt = turns(elm)
-    return VacuumFields.QuadCoil(R, Z, current_per_turn * Nt, resistance_per_turn * Nt, Nt)
-end
+function qed_build_from_imas(dd::IMAS.dd{D}, time0::D) where {D <: Real}
 
-function loop2multi(loop)
-    total_turns = sum(abs(ismissing(element, :turns_with_sign) ? 1.0 : element.turns_with_sign) for element in elements(loop))
-    if !ismissing(loop, :resistance)
-        resistance_per_turn = loop.resistance / total_turns
-    else
-        resistance_per_turn = 0.0
-    end
-
-    # I'm assuming that pf_passive is like pf_passive and loop.current is current/turn like coil.current is
-    current_per_turn = ismissing(loop, :current) ? 0.0 : loop.current
-
-    coils = [VacuumFields.QuadCoil(elm, current_per_turn, resistance_per_turn) for elm in elements(loop)]
-    if resistance_per_turn == 0.0 && !ismissing(loop, :resistivity)
-        for coil in coils
-            coil.resistance = VacuumFields.resistance(coil, loop.resistivity)
-        end
-    end
-
-    return VacuumFields.MultiCoil(coils)
-end
-
-function qed_build_from_imas(dd::IMAS.dd{D}) where {D <: Real}
-
-    active_coils = VacuumFields.MultiCoils(dd);
-    passive_coils = [loop2multi(loop) for loop in dd.pf_passive.loop]
-    coils = vcat(active_coils, passive_coils)
+    coils = VacuumFields.MultiCoils(dd; load_pf_active=true, load_pf_passive=true);
 
     # Coil-only quantities
     Mcc = [VacuumFields.mutual(c1, c2) for c1 in coils, c2 in coils]
@@ -172,8 +142,8 @@ function qed_build_from_imas(dd::IMAS.dd{D}) where {D <: Real}
     Rc = [VacuumFields.resistance(c) for c in coils];
     Vc = zero(Ic);
 
-    eqt = dd.equilibrium.time_slice[]
-    cp1d = dd.core_profiles.profiles_1d[]
+    eqt = dd.equilibrium.time_slice[time0]
+    cp1d = dd.core_profiles.profiles_1d[time0]
     Ip = eqt.global_quantities.ip
 
     # plasma-coil mutuals
@@ -194,7 +164,7 @@ function qed_build_from_imas(dd::IMAS.dd{D}) where {D <: Real}
     # plasma resistance
     # BCL 9/25/24: from Pohm, which may be wrong
     Pohm = dd.core_sources.source[:ohmic].profiles_1d[].electrons.power_inside[end]
-    Ini = dd.core_profiles.global_quantities.current_non_inductive[]
+    Ini = IMAS.get_time_array(dd.core_profiles.global_quantities, :current_non_inductive, time0, :linear)
     Iohm = Ip - Ini
     Rp = Pohm / (Ip * Iohm)
 
@@ -203,9 +173,58 @@ function qed_build_from_imas(dd::IMAS.dd{D}) where {D <: Real}
 
     # Waveforms
     # These should come from pulse_schedule
-    W0 = QED.Waveform{Float64}(t -> 0.0)
-    V_waveforms = fill(W0, length(coils));
+    #V_waveforms = fill(W0, length(coils));
+    #W = QED.Waveform{D}(t -> dd.pulse_schedule.voltage[1](t))
 
+    Nc = length(coils)
+    V_waveforms = Vector{QED.Waveform{D}}(undef, length(coils))
+    Vactive = Vwaveforms_from_pulse_schedule(dd, time0)
+    @assert length(Vactive) == length(dd.pf_active.coil)
+    Nactive = length(Vactive)
+    V_waveforms[1:Nactive] .= Vactive
+    V_waveforms[Nactive+1:end] .= fill(QED.Waveform{D}(t -> 0.0), Nc - Nactive)
     return QED.QED_build(Ic, Vc, Rc, Mcc, Vni, Rp, Lp, Mpc, dMpc_dt, V_waveforms)
 end
 
+function Vwaveforms_from_pulse_schedule(dd::IMAS.dd{D}, t_start::D=IMAS.global_time(dd)) where {D<:Real}
+    Nc = length(dd.pf_active.coil)
+    time = dd.pulse_schedule.pf_active.time .- t_start
+    WFs = Vector{QED.Waveform{D}}(undef, Nc)
+    for (k, supply) in enumerate(dd.pulse_schedule.pf_active.supply)
+        if k in (1, 2)
+            WFs[k] = QED.Waveform(time, supply.voltage.reference)
+        elseif k == 3
+            Cu = VacuumFields.MultiCoil(dd.pf_active.coil[3])
+            Cl = VacuumFields.MultiCoil(dd.pf_active.coil[4])
+            Lu = VacuumFields.mutual(Cu, Cu)
+            Ll = VacuumFields.mutual(Cl, Cl)
+            M  = VacuumFields.mutual(Cu, Cl)
+            Lt = (Lu + 2M + Ll)
+
+            facu = (Lu + M) / Lt
+            WFs[3] = QED.Waveform(time , facu .* supply.voltage.reference)
+
+            facl = (Ll + M) / Lt
+            WFs[4] = QED.Waveform(time , facl .* supply.voltage.reference)
+        elseif k < 12
+            coil = dd.pf_active.coil[k+1]
+            WFs[k+1] = QED.Waveform(time, supply.voltage.reference)
+        else
+            Cu = VacuumFields.MultiCoil(dd.pf_active.coil[13])
+            Cl = VacuumFields.MultiCoil(dd.pf_active.coil[14])
+            Lu = VacuumFields.mutual(Cu, Cu)
+            Ll = VacuumFields.mutual(Cl, Cl)
+            M  = -VacuumFields.mutual(Cu, Cl) # oppositely connected
+            Lt = (Lu + 2M + Ll)
+
+            # positive voltage gives negative current in VS3U
+            facu = -(Lu + M) / Lt
+            WFs[13] = QED.Waveform(time , facu .* supply.voltage.reference)
+
+            # positive voltage gives positive current in VS3U
+            facl = (Ll + M) / Lt
+            WFs[14] = QED.Waveform(time , facl .* supply.voltage.reference)
+        end
+    end
+    return WFs
+end
