@@ -26,6 +26,7 @@ mutable struct ActorFRESCO{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFRESCO{P}
     canvas::Union{Nothing,FRESCO.Canvas}
+    profile::Union{Nothing,FRESCO.CurrentProfile}
 end
 
 """
@@ -43,7 +44,7 @@ end
 function ActorFRESCO(dd::IMAS.dd{D}, par::FUSEparameters__ActorFRESCO{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFRESCO)
     par = par(kw...)
-    return ActorFRESCO(dd, par, nothing)
+    return ActorFRESCO(dd, par, nothing, nothing)
 end
 
 """
@@ -75,11 +76,11 @@ function _step(actor::ActorFRESCO)
 
     gpp = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi, :cubic)
     gffp = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi, :cubic)
-    profile = FRESCO.PprimeFFprime(x -> gpp(x), x -> gffp(x))
+    actor.profile = FRESCO.PprimeFFprime(x -> gpp(x), x -> gffp(x))
 
-    actor.canvas = FRESCO.Canvas(dd, par.nR, par.nZ)
+    actor.canvas = FRESCO.Canvas(dd, par.nR, par.nZ; load_pf_active=true, load_pf_passive=true)
 
-    FRESCO.solve!(actor.canvas, profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
+    FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
     # using Plots
     # p1 = Plots.heatmap(Rs, Zs, psi', aspect_ratio=:equal, xrange=(0,12.5), yrange=(-9,9), size=(400,500))
@@ -93,6 +94,7 @@ end
 # finalize by converting FRESCO canvas to dd.equilibrium
 function _finalize(actor::ActorFRESCO)
     canvas = actor.canvas
+    profile = actor.profile
     dd = actor.dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -105,7 +107,17 @@ function _finalize(actor::ActorFRESCO)
     eqt.global_quantities.psi_boundary = canvas.Ψbnd
     eqt.global_quantities.psi_axis = canvas.Ψaxis
     eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, length(eqt1d.psi))
-    # p, p', f, ff' don't change
+    # p' doesn't change
+    eqt1d.f_df_dpsi .*= profile.ffp_scale
+
+    fend = dd.equilibrium.vacuum_toroidal_field.b0[] * dd.equilibrium.vacuum_toroidal_field.r0[]
+    f2 = 2 * IMAS.cumtrapz(eqt1d.psi, eqt1d.f_df_dpsi)
+    f2 .= f2 .- f2[end] .+ fend ^ 2
+    eqt1d.f = sign(fend) .* sqrt.(f2)
+
+    pend = eqt1d.pressure[end]
+    eqt1d.pressure = IMAS.cumtrapz(eqt1d.psi, eqt1d.dpressure_dpsi)
+    eqt1d.pressure .+= pend .- eqt1d.pressure[end]
 
     eq2d.grid_type.index = 1
     eq2d.grid.dim1 = canvas.Rs
