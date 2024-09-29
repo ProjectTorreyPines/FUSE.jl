@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :CHEASE], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
-    j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
+    j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles, :pulse_schedule_pp_ffp], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vacuum_r0_b0_from::Switch{Symbol} = switch_get_from(:vacuum_r0_b0; default=:pulse_schedule)
     #== display and debugging parameters ==#
@@ -76,26 +76,29 @@ function _step(actor::ActorEquilibrium)
     if par.model == :FRESCO
         eqt = dd.equilibrium.time_slice[]
         idxeqt = IMAS.index(eqt)
-        if false && idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
-            eqt1d = eqt.profiles_1d
-            eqt1d__1 = dd.equilibrium.time_slice[idxeqt-1].profiles_1d
-            psi__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.psi).(eqt1d.psi_norm)
-            R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm8).(eqt1d.psi_norm)
-            one_R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm9).(eqt1d.psi_norm)
-            one_R2__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm1).(eqt1d.psi_norm)
-            b0 = eqt.global_quantities.vacuum_toroidal_field.b0
-            r0 = eqt.global_quantities.vacuum_toroidal_field.r0
-            dpressure_dpsi, f_df_dpsi, f = IMAS.calc_pprime_ffprim_f(psi__1, R__1, one_R__1, one_R2__1, r0, b0; eqt1d.pressure, eqt1d.j_tor)
-            eqt1d.dpressure_dpsi = dpressure_dpsi
-            eqt1d.f_df_dpsi = f_df_dpsi
-            eqt1d.f = f
-        else
-            # NOTE: using free_boundary=true will also update pf_active
-            #       which is then used as initial guess by FRESCO
-            ActorTEQUILA(dd, actor.act; free_boundary=true)
-            fw = IMAS.first_wall(dd.wall)
-            IMAS.flux_surfaces(eqt, fw.r, fw.z)
+        if false
+            if false && idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
+                eqt1d = eqt.profiles_1d
+                eqt1d__1 = dd.equilibrium.time_slice[idxeqt-1].profiles_1d
+                psi__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.psi).(eqt1d.psi_norm)
+                R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm8).(eqt1d.psi_norm)
+                one_R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm9).(eqt1d.psi_norm)
+                one_R2__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm1).(eqt1d.psi_norm)
+                b0 = eqt.global_quantities.vacuum_toroidal_field.b0
+                r0 = eqt.global_quantities.vacuum_toroidal_field.r0
+                dpressure_dpsi, f_df_dpsi, f = IMAS.calc_pprime_ffprim_f(psi__1, R__1, one_R__1, one_R2__1, r0, b0; eqt1d.pressure, eqt1d.j_tor)
+                eqt1d.dpressure_dpsi = dpressure_dpsi
+                eqt1d.f_df_dpsi = f_df_dpsi
+                eqt1d.f = f
+            else
+                # NOTE: using free_boundary=true will also update pf_active
+                #       which is then used as initial guess by FRESCO
+                ActorTEQUILA(dd, actor.act; free_boundary=true)
+                fw = IMAS.first_wall(dd.wall)
+                IMAS.flux_surfaces(eqt, fw.r, fw.z)
+            end
         end
+
     end
 
     # step selected equilibrium actor
@@ -190,8 +193,15 @@ function prepare(actor::ActorEquilibrium)
         pressure0 = eqt1d.pressure
         j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
         p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
+    elseif par.j_p_from == :pulse_schedule_pp_ffp
+        @assert !isempty(dd.equilibrium.time)
+        eqt1d = dd.equilibrium.time_slice[].profiles_1d
+        psi0 = eqt1d.psi
+        rho_tor_norm0 = eqt1d.rho_tor_norm
+        rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
+        pend = eqt1d.pressure[end]
     else
-        @assert par.j_p_from in (:core_profiles, :equilibrium)
+        @assert par.j_p_from in (:core_profiles, :equilibrium, :pulse_schedule_pp_ffp)
     end
 
     # get ip and b0 before wiping eqt in case ip_from=:equilibrium
@@ -252,12 +262,28 @@ function prepare(actor::ActorEquilibrium)
         end
     end
 
-    # set j_tor and pressure, forcing zero derivative on axis
     eqt1d = dd.equilibrium.time_slice[].profiles_1d
     eqt1d.psi = psi0
     eqt1d.rho_tor_norm = rho_tor_norm0
-    eqt1d.j_tor = j_itp.(sqrt.(eqt1d.psi_norm))
-    eqt1d.pressure = p_itp.(sqrt.(eqt1d.psi_norm))
+    if par.j_p_from === :pulse_schedule_pp_ffp
+        time0 = dd.global_time
+        profcon = dd.pulse_schedule.profiles_control
+        psin_ps = profcon.psi_norm
+
+        pprime  = IMAS.interp1d(psin_ps, IMAS.get_time_array(profcon.dpressure_dpsi, :reference, [time0])[:,1], :cubic)
+        ffprime = IMAS.interp1d(psin_ps, IMAS.get_time_array(profcon.f_df_dpsi, :reference, [time0])[:,1], :cubic)
+        #fpol = IMAS.interp1d(psin_ps, IMAS.get_time_array(profcon.f, :reference, [time0])[:,1], :cubic)
+
+        psin_eq = eqt1d.psi_norm
+        eqt1d.dpressure_dpsi = pprime.(psin_eq)
+        eqt1d.pressure = IMAS.cumtrapz(eqt1d.psi, eqt1d.dpressure_dpsi)
+        eqt1d.pressure .+= pend .- eqt1d.pressure[end]
+        eqt1d.f_df_dpsi = ffprime.(psin_eq)
+    else
+        # set j_tor and pressure, forcing zero derivative on axis
+        eqt1d.j_tor = j_itp.(sqrt.(eqt1d.psi_norm))
+        eqt1d.pressure = p_itp.(sqrt.(eqt1d.psi_norm))
+    end
 
     return dd
 end
