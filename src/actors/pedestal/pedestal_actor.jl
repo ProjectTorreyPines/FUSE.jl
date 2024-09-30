@@ -87,23 +87,13 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.ped_actor))
 
     elseif par.ne_from == :pulse_schedule && par.density_match == :ne_line
-        actor.ped_actor.par.ne_ped_from = :core_profiles
-        finalize(step(actor.ped_actor))
-
-        summary_ped = dd.summary.local.pedestal
-        ne_initial = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, nothing)
+        # scale density to match desired line average
+        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
         ne_line_wanted = IMAS.n_e_line(dd.pulse_schedule)
-        function cost_ne_ped_from_nel(density_scale, ne_line_wanted)
-            @ddtime summary_ped.n_e.value = ne_initial * density_scale
+        cp1d.electrons.density = cp1d.electrons.density * ne_line_wanted / ne_line
 
-            IMAS.blend_core_edge(mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
-
-            ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-            return ((ne_line - ne_line_wanted) / ne_line_wanted)^2
-        end
-        res = Optim.optimize(x -> cost_ne_ped_from_nel(x, ne_line_wanted), 0.01, 100, Optim.GoldenSection(); rel_tol=1E-3)
-        cost_ne_ped_from_nel(res.minimizer, ne_line_wanted)
-
+        # run pedestal model on scaled density
+        actor.ped_actor.par.ne_ped_from = :core_profiles
         finalize(step(actor.ped_actor))
         actor.ped_actor.par.ne_ped_from = :pulse_schedule
     end

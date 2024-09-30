@@ -43,7 +43,7 @@ function _step(actor::ActorEPEDprofiles)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
 
-    sol = run_EPED(dd; ne_from=:pulse_schedule, zeff_ped_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule, only_powerlaw=false, warn_nn_train_bounds=false)
+    sol = run_EPED(dd; ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule, only_powerlaw=false, warn_nn_train_bounds=false)
     pped = sol.pressure.GH.H
     wped = sol.width.GH.H
 
