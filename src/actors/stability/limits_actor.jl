@@ -46,9 +46,8 @@ function _step(actor::ActorStabilityLimits)
     if !isempty(par.models) && par.raise_on_breach
         failed = String[]
         desc = String[]
-        time_index = findfirst(dd.stability.time .== @ddtime(dd.stability.time))
         for model in dd.stability.model
-            if !Bool(model.cleared[time_index])
+            if !Bool(@ddtime model.cleared)
                 model_name = IMAS.index_2_name__stability__model[model.identifier.index]
                 push!(failed, "$(model_name)")
                 push!(desc, "$(model_name) ($(@ddtime(model.fraction)) of limit): $(model.identifier.description)")
