@@ -45,12 +45,12 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
-    ini.core_profiles.ne_setting = :ne_ped
-    ini.core_profiles.ne_value = 1.45e20
-    ini.core_profiles.ne_sep_to_ped_ratio = 0.66
-    ini.core_profiles.T_ratio = 1.01
+    ini.core_profiles.plasma_mode = :L_mode
+    ini.core_profiles.ne_setting = :greenwald_fraction
+    ini.core_profiles.ne_value = 0.9
+    ini.core_profiles.ne_shaping = 0.9
+    ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT

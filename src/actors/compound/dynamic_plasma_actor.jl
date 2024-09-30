@@ -125,7 +125,7 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
     try
         for (kk, tt) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
-            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- $(Int(ceil(kk/2))) $phase/2 @ $tt")
+            # logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- $(Int(ceil(kk/2))) $phase/2 @ $tt")
 
             dd.global_time = tt
 
@@ -194,7 +194,7 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
         actor_logging(dd, old_logging)
     end
 
-    logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "---------------")
+    # logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "---------------")
 
     return actor
 end

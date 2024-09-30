@@ -278,11 +278,7 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
         act.ActorEPEDprofiles.T_shaping = ini.core_profiles.T_shaping
     end
 
-    if !ismissing(ini.core_profiles, :n_shaping)
-        act.ActorEPEDprofiles.n_shaping = ini.core_profiles.n_shaping
-    end
-
-    if !ismissing(ini.equilibrium, :xpoints)
-        act.ActorPFdesign.symmetric = ini.equilibrium.xpoints in [:none, :double]
+    if !ismissing(ini.core_profiles, :ne_shaping)
+        act.ActorEPEDprofiles.ne_shaping = ini.core_profiles.ne_shaping
     end
 end
