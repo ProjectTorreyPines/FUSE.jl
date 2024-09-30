@@ -1,115 +1,131 @@
-function from_TokSys(dd::IMAS.dd, mat::Dict)
+function from_TokSys(dd::IMAS.dd, mat::Dict; what...)
+    # ================
+    # parse TokSys mat
+    # ================
+    begin
+        # equilibrium
+        eqs = mat["eqs"]
 
-    # ==========
+        eq_time = Float64.(eqs["time"][1, :])
+        ip = Float64.(eqs["cpasma"][1, :])
+        psimag = Float64.(eqs["psimag"][1, :])
+        psibry = Float64.(eqs["psibry"][1, :])
 
-    eqs = mat["eqs"]
+        b0 = Float64.(eqs["bzero"][1, :])
+        r0 = Float64.(eqs["rzero"][1, :][1])
 
-    nr = Int(eqs["nr"][1,1])
-    nz = Int(eqs["nz"][1,1])
+        rmaxis = Float64.(eqs["rmaxis"][1, :])
+        zmaxis = Float64.(eqs["zmaxis"][1, :])
 
-    time = Float64.(eqs["time"][1,:])
-    ip = Float64.(eqs["cpasma"][1,:])
-    psimag = Float64.(eqs["psimag"][1,:])
-    psibry = Float64.(eqs["psibry"][1,:])
+        ffprim = Float64.(vcat(eqs["ffprim"][1, :]...)')
+        pprime = Float64.(vcat(eqs["pprime"][1, :]...)')
+        pres = Float64.(vcat(eqs["pres"][1, :]...)')
+        fpol = Float64.(vcat(eqs["fpol"][1, :]...)')
+        q = Float64.(vcat(eqs["q"][1, :]...)')
+        psi_norm = range(0.0, 1.1, length(ffprim[:, 1]))
 
-    b0 = Float64.(eqs["bzero"][1,:])
-    r0 = Float64.(eqs["rzero"][1,:][1])
+        rbbbs = Float64.(hcat(eqs["rbbbs"][1, :]...))
+        zbbbs = Float64.(hcat(eqs["zbbbs"][1, :]...))
 
-    rmaxis = Float64.(eqs["rmaxis"][1,:])
-    zmaxis = Float64.(eqs["zmaxis"][1,:])
+        rlim = Float64.(hcat(eqs["Rlim"][1, :]...)[:, 1])
+        zlim = Float64.(hcat(eqs["Zlim"][1, :]...)[:, 1])
 
-    ffprim = Float64.(vcat(eqs["ffprim"][1, :]...)')
-    pprime = Float64.(vcat(eqs["pprime"][1, :]...)')
-    pres = Float64.(vcat(eqs["pres"][1, :]...)')
-    fpol = Float64.(vcat(eqs["fpol"][1, :]...)')
-    q = Float64.(vcat(eqs["q"][1, :]...)')
-    psi_norm = range(0.0, 1.1, length(ffprim[:,1]))
+        rg = Float64.(eqs["rg"][1, :][1][1, :])
+        zg = Float64.(eqs["zg"][1, :][1][:, 1])
+        psirz = [Float64.(x) for x in eqs["psizr"][1, :]]
 
-    rbbbs = Float64.(hcat(eqs["rbbbs"][1, :]...))
-    zbbbs = Float64.(hcat(eqs["zbbbs"][1, :]...))
+        # PF
+        pf_time = Float64.(mat["Vct"])[:, 1]
+        pf_voltages = Float64.(mat["Vcd"])
+        pf_names = mat["Tokamak"]["c"]["ccnames"]
 
-    rlim = Float64.(hcat(eqs["Rlim"][1, :]...)[:,1])
-    zlim = Float64.(hcat(eqs["Zlim"][1, :]...)[:,1])
-    rg = Float64.(eqs["rg"][1, :][1][1,:])
-    zg = Float64.(eqs["zg"][1, :][1][:,1])
-
-    psirz = [Float64.(x) for x in eqs["psizr"][1, :]]
-
-    # ===========
-
-    pf_time = Float64.(mat["Vct"])[:,1]
-    pf_voltages = Float64.(mat["Vcd"])
-    pf_names = mat["Tokamak"]["c"]["ccnames"]
-
-    iy_ic = dropdims(Int.(mat["Tokamak"]["c"]["iy"]["ic"]); dims=1)
-    pf_currents = Float64.(mat["yd"][:, iy_ic])
-
-    # ===========
-
-    dd.equilibrium.time = time
-    dd.equilibrium.vacuum_toroidal_field.r0 = r0
-    dd.equilibrium.vacuum_toroidal_field.b0 = b0
-    for k in eachindex(dd.equilibrium.time_slice)
-        IMAS.retime!(dd.equilibrium.time_slice[k], time[k])
-    end
-    resize!(dd.equilibrium.time_slice, length(time))
-    for (k,eqt) in enumerate(dd.equilibrium.time_slice)
-        eq1d = eqt.profiles_1d
-        eq2d = resize!(eqt.profiles_2d, 1)[1]
-        eq2d.grid_type.index = 1
-
-        eqt.global_quantities.magnetic_axis.r = rmaxis[k]
-        eqt.global_quantities.magnetic_axis.z = zmaxis[k]
-
-        eqt.global_quantities.ip = ip[k]
-
-
-        # N.B. psi is poloidal flux, but pprime and ffprim are wrt poloidal flux per radian
-        eq1d.psi = range(psimag[k], psibry[k], length(psi_norm))
-
-        eq1d.q = q[:,k]
-        eq1d.pressure = pres[:,k] .+ 5e-4 .* pres[1,k]
-        eq1d.dpressure_dpsi = pprime[:,k] ./ 2π # make psi consistent
-        eq1d.f = fpol[:,k]
-        eq1d.f_df_dpsi = ffprim[:,k] ./ 2π # make psi consistent
-
-        eq2d.grid.dim1 = rg
-        eq2d.grid.dim2 = zg
-        eq2d.psi = collect(psirz[k]')
+        iy_ic = dropdims(Int.(mat["Tokamak"]["c"]["iy"]["ic"]); dims=1)
+        pf_currents = Float64.(mat["yd"][:, iy_ic])
     end
 
-    resize!(dd.wall.description_2d, 1)
-    resize!(dd.wall.description_2d[1].limiter.unit, 1)
-    dd.wall.description_2d[1].limiter.unit[1].outline.r = rlim
-    dd.wall.description_2d[1].limiter.unit[1].outline.z = zlim
+    # ===============
+    # copy data to dd
+    # ===============
 
-    dd.pulse_schedule.profiles_control.time = time
-    dd.pulse_schedule.profiles_control.psi_norm = psi_norm
-    dd.pulse_schedule.profiles_control.dpressure_dpsi.reference = pprime ./ 2π
-    dd.pulse_schedule.profiles_control.f_df_dpsi.reference = ffprim ./ 2π
+    copy_ids(name) = isempty(what) || (name in keys(what) && what[name])
 
-    dd.pulse_schedule.flux_control.time = time
-    dd.pulse_schedule.flux_control.i_plasma.reference = ip
-
-    dd.pulse_schedule.position_control.time = time
-    dd.pulse_schedule.position_control.magnetic_axis.r.reference = rmaxis
-    dd.pulse_schedule.position_control.magnetic_axis.z.reference = zmaxis
-    resize!(dd.pulse_schedule.position_control.boundary_outline, size(rbbbs)[1])
-    for k in 1:size(rbbbs)[1]
-        dd.pulse_schedule.position_control.boundary_outline[k].r.reference = rbbbs[k,:]
-        dd.pulse_schedule.position_control.boundary_outline[k].z.reference = zbbbs[k,:]
+    # wall
+    if copy_ids(:wall)
+        resize!(dd.wall.description_2d, 1)
+        resize!(dd.wall.description_2d[1].limiter.unit, 1)
+        dd.wall.description_2d[1].limiter.unit[1].outline.r = rlim
+        dd.wall.description_2d[1].limiter.unit[1].outline.z = zlim
     end
 
-    dd.pulse_schedule.pf_active.time = pf_time
-    resize!(dd.pulse_schedule.pf_active.supply, size(pf_voltages)[2])
-    # TokSys plasma current was the wrong sign, so coils are all the wrong sign. Flip voltage and current
-    for (k,voltage) in enumerate(eachcol(pf_voltages))
-        dd.pulse_schedule.pf_active.supply[k].identifier = "S$k"
-        dd.pulse_schedule.pf_active.supply[k].voltage.reference = -voltage
-        dd.pulse_schedule.pf_active.supply[k].current.reference = -pf_currents[:,k]
+    if copy_ids(:equilibrium)
+        dd.equilibrium.time = eq_time
+        dd.equilibrium.vacuum_toroidal_field.r0 = r0
+        dd.equilibrium.vacuum_toroidal_field.b0 = b0
+        for k in eachindex(dd.equilibrium.time_slice)
+            IMAS.retime!(dd.equilibrium.time_slice[k], eq_time[k])
+        end
+        resize!(dd.equilibrium.time_slice, length(eq_time))
+        for (k, eqt) in enumerate(dd.equilibrium.time_slice)
+            eq1d = eqt.profiles_1d
+            eq2d = resize!(eqt.profiles_2d, 1)[1]
+            eq2d.grid_type.index = 1
+
+            eqt.global_quantities.magnetic_axis.r = rmaxis[k]
+            eqt.global_quantities.magnetic_axis.z = zmaxis[k]
+
+            eqt.global_quantities.ip = -ip[k]
+
+            # N.B. psi is poloidal flux, but pprime and ffprim are wrt poloidal flux per radian
+            eq1d.psi = range(psimag[k], psibry[k], length(psi_norm))
+
+            eq1d.q = q[:, k]
+            eq1d.pressure = pres[:, k] .+ 5e-4 .* pres[1, k]
+            eq1d.dpressure_dpsi = pprime[:, k] ./ 2π # make psi consistent
+            eq1d.f = fpol[:, k]
+            eq1d.f_df_dpsi = ffprim[:, k] ./ 2π # make psi consistent
+
+            eq2d.grid.dim1 = rg
+            eq2d.grid.dim2 = zg
+            eq2d.psi = collect(psirz[k]')
+        end
+
+        IMAS.flux_surfaces(dd.equilibrium, IMAS.first_wall(dd.wall)...)
     end
 
-    IMAS.flux_surfaces(dd.equilibrium, IMAS.first_wall(dd.wall)...)
+    # pulse_schedule
+    if copy_ids(:pulse_schedule)
+        # ps profiles_control
+        dd.pulse_schedule.profiles_control.time = eq_time
+        dd.pulse_schedule.profiles_control.psi_norm = psi_norm
+        dd.pulse_schedule.profiles_control.dpressure_dpsi.reference = pprime ./ 2π
+        dd.pulse_schedule.profiles_control.f_df_dpsi.reference = ffprim ./ 2π
+
+        # ps flux_control
+        dd.pulse_schedule.flux_control.time = eq_time
+        dd.pulse_schedule.flux_control.i_plasma.reference = -ip
+
+        # ps position_control
+        dd.pulse_schedule.position_control.time = eq_time
+        dd.pulse_schedule.position_control.magnetic_axis.r.reference = rmaxis
+        dd.pulse_schedule.position_control.magnetic_axis.z.reference = zmaxis
+        resize!(dd.pulse_schedule.position_control.boundary_outline, size(rbbbs)[1])
+        for k in 1:size(rbbbs)[1]
+            dd.pulse_schedule.position_control.boundary_outline[k].r.reference = rbbbs[k, :]
+            dd.pulse_schedule.position_control.boundary_outline[k].z.reference = zbbbs[k, :]
+        end
+
+        # ps pf_active
+        dd.pulse_schedule.pf_active.time = pf_time
+        resize!(dd.pulse_schedule.pf_active.supply, size(pf_voltages)[2])
+        # TokSys plasma current was the wrong sign, so coils are all the wrong sign. Flip voltage and current
+        for (k, voltage) in enumerate(eachcol(pf_voltages))
+            dd.pulse_schedule.pf_active.supply[k].identifier = "S$k"
+            dd.pulse_schedule.pf_active.supply[k].voltage.reference = -voltage
+            dd.pulse_schedule.pf_active.supply[k].current.reference = -pf_currents[:, k]
+        end
+    end
+
+    return dd
 end
 
 """
