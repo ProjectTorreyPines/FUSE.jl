@@ -91,6 +91,8 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         ini.ic_antenna[1].power_launched = data_row[:PICRH]
     end
 
+    act.ActorPedestal.density_match = :ne_line
+
     set_new_base!(ini)
     set_new_base!(act)
 
