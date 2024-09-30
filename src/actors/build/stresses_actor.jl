@@ -220,7 +220,7 @@ function solve_1D_solid_mechanics!(
     embar_pl = em_pl / (1 - gam_pl^2)
 
     # determine whether to model tf_nose 
-    if tf_nose thickness > 0.0
+    if tf_nose_thickness > 0.0
         tf_nose = true
     else
         tf_nose = false
