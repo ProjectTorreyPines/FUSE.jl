@@ -144,6 +144,10 @@ function pareto_front(solutions::Vector{Vector{T}}) where {T}
     return pareto
 end
 
+function pareto_front(solution1::Vector{T}, solution2::Vector{T}) where {T}
+    return pareto_front([[s1,s2] for (s1,s2) in zip(solution1, solution2)])
+end
+
 """
     save_optimization(
         filename::AbstractString,
