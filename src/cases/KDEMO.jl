@@ -50,9 +50,9 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.675
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT

@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
-    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width scaled by sqrt of this factor)"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)

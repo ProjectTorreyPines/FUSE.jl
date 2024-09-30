@@ -67,9 +67,10 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
 
     ini.core_profiles.ne_setting = :greenwald_fraction
     ini.core_profiles.ne_value = 0.9
+    ini.core_profiles.ne_shaping = 2.5
     ini.core_profiles.T_ratio = 0.825
     ini.core_profiles.T_shaping = 2.5
-    ini.core_profiles.n_shaping = 2.5
+    ini.core_profiles.Te_sep = 250.0
     ini.core_profiles.zeff = 1.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
