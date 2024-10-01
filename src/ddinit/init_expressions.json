@@ -27,7 +27,6 @@
     "core_sources.source[:].profiles_1d[:].grid.psi",
     "core_sources.source[:].profiles_1d[:].grid.psi_norm",
     "core_sources.source[:].profiles_1d[:].grid.surface",
-    "core_sources.source[:].profiles_1d[:].ion[:].particles_inside",
     "costing.cost_decommissioning.cost",
     "costing.cost_direct_capital.cost",
     "costing.cost_operations.yearly_cost",

@@ -92,6 +92,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     end
 
     act.ActorPedestal.density_match = :ne_line
+    act.ActorFluxMatcher.evolve_pedestal = false
 
     set_new_base!(ini)
     set_new_base!(act)

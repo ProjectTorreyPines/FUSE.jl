@@ -89,7 +89,7 @@ function _step(actor::ActorSimpleNB)
 
         # add nbi fast ion particles source
         ion = resize!(source.profiles_1d[].ion, 1)[1]
-        IMAS.ion_element!(ion, "H$(nbu.species.a)"; fast=true)
+        IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
         ion.particles = source.profiles_1d[].electrons.particles
         ion.particles_inside = source.profiles_1d[].electrons.particles_inside
         ion.fast_particles_energy = beam_energy

@@ -120,7 +120,6 @@ function _step(actor::ActorFluxMatcher)
     old_logging = actor_logging(dd, false)
 
     out = try
-
         if par.optimizer_algorithm == :none
             res = (zero=z_init_scaled,)
         elseif par.optimizer_algorithm == :simple
@@ -142,8 +141,7 @@ function _step(actor::ActorFluxMatcher)
                 iterations=par.max_iterations,
                 ftol,
                 xtol,
-                opts...
-            )
+                opts...)
         end
 
         out = flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
