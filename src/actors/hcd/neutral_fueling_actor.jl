@@ -5,8 +5,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutralFueling{T<:Real} <: Param
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+<<<<<<< HEAD
     τp::Entry{Float64} = Entry{Float64}("-", "Particle confinement time"; default=1.0)
     T_wall::Entry{Float64} = Entry{Float64}("-", "Wall temperature (eV)"; default=10.0)
+=======
+    taupin::Entry{Float64} = Entry{Float64}("s", "Particle confinement time"; default=1.0)
+    twall::Entry{Float64} = Entry{Float64}("eV", "Wall temperature"; default=10.0)
+    vwall::Entry{Float64} = Entry{Float64}("m/s", "Wall particle velocity"; default=100.0)
+>>>>>>> f522eb57e359eedaf8e72187cce5885c0146cd3b
     model::Switch{Symbol} = Switch{Symbol}([:neucg, :none], "-", "Neutral gas fueling model"; default=:neucg)
 end
 
@@ -25,7 +31,6 @@ end
 
     Interpolation of G function (Equation 12 in Burrel et al.) pulled from onetwo. Used where QuadGK calculation is slow
 """
-
 function g0(x::Float64)::Float64
     g0f1(x) = (9.9995058e-1 + x*(7.7628443e+2 + x*(-4.3649686e+3 + x*6.1480022e+4))) /
               (1.0 + x*7.8621464e+2)
@@ -70,13 +75,13 @@ end
 
 """ 
     cxr(x::Vector{Float64})
+
 This function calculates the charge exchange rate for hydrogen atoms interacting with protons in units of cm**3/s.
 x is in units of keV for 1.0e-3 .le. x .le. 100, the the formula is taken from the paper by r.l. freeman and e.m. jones
 clm-r 137 culham laboratory 1974 for x.lt.1.0e-3, a rate coefficient derived from an analytic average
 over the approximate cross section, sigma=0.6937e-14*(1.0-0.155*LOG10 (e/1ev))**2 is used.  this cross section is
 an approximation to that given by Riviere, Nuclear Fusion 11,363(1971).
 """
-
 function cxr(x::Vector{Float64})
     tc = log.(x) .+ 6.9077553
     dum = 0.2530205e-4 .- tc .* 0.8230751e-6
@@ -94,7 +99,6 @@ impact in units of cm**3/s.  x is in units of keV
 the formula is taken from the paper by r.l. freeman and e.m. jones
 clm-r 137 culham laboratory 1974
 """
-
 function eir(x::Vector{Float64})
     ta = log.(x) .+ 6.9077553
     ta = (-0.3173850e2 .+
@@ -109,7 +113,6 @@ end
 This function solves the 1 species integral equation with the
 Gauss-Seidel iteration technique.      
 """
-
 function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
 
     nxmax = 300
@@ -205,7 +208,7 @@ end
 """
     neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
-    This function calculates K matrix of equation 9 in Burrel 1977
+This function calculates K matrix of equation 9 in Burrel 1977
 """
 function get_K_matrix(atrr01::Matrix{Float64},
                       vth::Vector{Float64},
@@ -274,11 +277,9 @@ end
 """
     neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
-    This model calculates neutral density source fueling based on the neucg 
-    
-    model. K. Burrell,  Journal of Computational Physics 27.1 (1978): 88-102.
+This model calculates neutral density source fueling based on the neucg 
+model. K. Burrell,  Journal of Computational Physics 27.1 (1978): 88-102.
 """
-
 function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
     τp = par.τp
