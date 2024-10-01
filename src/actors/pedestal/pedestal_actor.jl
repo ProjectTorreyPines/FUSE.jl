@@ -90,7 +90,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         # scale density to match desired line average
         ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
         ne_line_wanted = IMAS.n_e_line(dd.pulse_schedule)
-        cp1d.electrons.density = cp1d.electrons.density * ne_line_wanted / ne_line
+        cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * ne_line_wanted / ne_line
 
         # run pedestal model on scaled density
         actor.ped_actor.par.ne_ped_from = :core_profiles
