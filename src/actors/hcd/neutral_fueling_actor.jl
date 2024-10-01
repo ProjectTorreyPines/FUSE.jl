@@ -5,9 +5,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutralFueling{T<:Real} <: Param
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    taupin::Entry{Float64} = Entry{Float64}("-", "Particle confinement time"; default=1.0)
-    twall::Entry{Float64} = Entry{Float64}("-", "Wall temperature (eV)"; default=10.0)
-    vwall::Entry{Float64} = Entry{Float64}("-", "Wall particle velocity (m/s)"; default=100.0)
+    τp::Entry{Float64} = Entry{Float64}("-", "Particle confinement time"; default=1.0)
+    T_wall::Entry{Float64} = Entry{Float64}("-", "Wall temperature (eV)"; default=10.0)
     model::Switch{Symbol} = Switch{Symbol}([:neucg, :none], "-", "Neutral gas fueling model"; default=:neucg)
 end
 
@@ -282,8 +281,8 @@ end
 
 function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
-    taupin = par.taupin
-    twall = par.twall
+    τp = par.τp
+    T_wall = par.T_wall
     
     surface = dd.core_profiles.profiles_1d[].grid.surface
     volume = dd.core_profiles.profiles_1d[].grid.volume
@@ -310,9 +309,9 @@ function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
  
     a1 = ne .* eionr .+ ni .* cxr(Te/mi)
     b1 = ni .* cxr(Te/mi) 
-    vwall  = par.vwall .* sqrt.(2.0*1.6e-19*twall ./ (mi*1.67e-27))
+    vwall  = 100.0 * sqrt.(2.0*1.6e-19*T_wall ./ (mi*1.67e-27))
     
-    flux1 = IMAS.trapz(surface, ni)/taupin
+    flux1 = IMAS.trapz(surface, ni)/τp
     swall = 2.0*flux1/vwall
 
     theta = collect(0:0.05*(pi/2):pi/2)
@@ -378,7 +377,7 @@ function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
     fn11 = pn11 * cm3_to_m3
     sione = fn11.*eirate
 
-    correction = (trapz(volume,ni)/taupin)/trapz(volume,sione/cm3_to_m3)
+    correction = (trapz(volume,ni)/τp)/trapz(volume,sione/cm3_to_m3)
  
     return sione*correction,fn11*correction
     
@@ -403,6 +402,8 @@ function _step(actor::ActorNeutralFueling)
 
     if par.model == :neucg
         Sneut, nneut = neucg(dd, par)
+    else
+        return actor
     end
 
     cp1d = dd.core_profiles.profiles_1d[]
