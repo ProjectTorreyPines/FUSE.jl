@@ -1,19 +1,13 @@
 # Development
 
-The FUSE project is built upon multiple Julia packages, many of which reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) organization on GitHub.
-
-## Managing Pull Requests on GitHub: A Collaborative Approach
-
-### Use branches and pull requests
+FUSE is a collaborative project that welcomes contributions.
 
 The `master` branch of ProjectTorreyPines repositories is write-protected. This means that even with write permissions to the repository, you'll not be able to push to `master` directly. Instead, we handle updates – be it new features or bug fixes – through branches and Pull Requests (PRs).
 
+A crucial part of our PR process is code review. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
+
 !!! note
     When working on a new feature that involves changes to FUSE and other ProjectTorreyPines repositories, you'll want to use the same branch name across these repositories. For example, if you're working on a branch named `my_new_feature` in both FUSE and IMAS, regression testing will be performed using the `my_new_feature` branches for FUSE and IMAS, along with the `master` branch of the other `ProjectTorreyPines` repositories.
-
-### Code review
-
-A crucial part of our PR process is code review. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
 
 ## How to add/modify entries in `dd`
 

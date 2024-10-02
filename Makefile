@@ -353,6 +353,64 @@ dev_deps_tree:
 	'
 
 # @devs
+dev_deps_dag:
+# Generate a DOT file representing the dependency DAG of the FUSE package
+	@julia -e' ;\
+	using Pkg ;\
+	Pkg.add("AbstractTrees") ;\
+	using Random ;\
+	using AbstractTrees ;\
+	using Printf ;\
+	edges = Set{Tuple{String, String}}() ;\
+	function random_color() ;\
+		r = rand(0:255) ;\
+		g = rand(0:255) ;\
+		b = rand(0:255) ;\
+		return @sprintf("#%02x%02x%02x", r, g, b) ;\
+	end ;\
+	function AbstractTrees.printnode(io::IO, uuid::Base.UUID) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		print(io, dep.name) ;\
+	end ;\
+	function AbstractTrees.children(uuid::Base.UUID) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		dev_deps = Dict([(key, value) for (key, value) in dep.dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+		return sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
+	end ;\
+	function collect_edges(uuid::Base.UUID, edges::Set{Tuple{String, String}}) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		if dep !== nothing ;\
+			for subdep in AbstractTrees.children(uuid) ;\
+				subdep_info = get(Pkg.dependencies(), subdep, nothing) ;\
+				if subdep_info !== nothing ;\
+					push!(edges, (dep.name, subdep_info.name)) ;\
+					collect_edges(subdep, edges) ;\
+				end ;\
+			end ;\
+		end ;\
+	end ;\
+	project_dep = Pkg.project().dependencies["FUSE"] ;\
+	if project_dep !== nothing ;\
+		collect_edges(project_dep, edges) ;\
+	end ;\
+	open("docs/src/deps.dot", "w") do io ;\
+		write(io, "digraph G {\n") ;\
+		write(io, "rankdir=LR;\n");\
+		write(io, "ranksep=0.4;\n");\
+		write(io, "nodesep=0.1;\n");\
+		write(io, "splines=true;\n");\
+		write(io, "node [shape=ellipse, fontname=\"Helvetica\", fontsize=12, penwidth=3];\n");\
+		write(io, "edge [penwidth=2];\n");\
+		for (src, dst) in edges ;\
+			color = random_color() ;\
+			@printf(io, "\"%s\" -> \"%s\" [color=\"%s\"];\n", src, dst, color) ;\
+		end ;\
+		write(io, "}\n") ;\
+	end ;\
+	'
+	dot -Tsvg docs/src/deps.dot -o docs/src/assets/deps.svg
+
+# @devs
 develop:
 # Develop FUSE and related ProjectTorreyPines packages
 	@julia -e '\

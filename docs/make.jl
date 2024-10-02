@@ -163,6 +163,11 @@ include("$(@__DIR__)/src/act_docs.jl")
 # =================== #
 include("$(@__DIR__)/src/cases_docs.jl")
 
+# ========================== #
+# generate dependencies page #
+# ========================== #
+include("$(@__DIR__)/src/deps.jl")
+
 # # ====================== #
 # # generate examples page #
 # # ====================== #
@@ -193,7 +198,7 @@ makedocs(;
         "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
         "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"],
         "Data Structure" => "dd.md",
-        "Development" => "develop.md",
+        "Ecosystem" => ["deps.md", "develop.md"],
         "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
         "License" => ["License" => "license.md", "Notice" => "notice.md"]
     ]
