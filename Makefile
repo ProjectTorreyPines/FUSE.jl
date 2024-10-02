@@ -353,13 +353,16 @@ deps_tree:
 	AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
 	'
 
+# @devs
 deps_dag:
 # Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
 	@julia -e' ;\
 	fuse_packages = $(FUSE_PACKAGES);\
-	using Pkg, Random, GraphViz, Printf ;\
+	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
+	using Random ;\
 	using AbstractTrees ;\
+	using Printf ;\
 	edges = Set{Tuple{String, String}}() ;\
 	function random_color() ;\
 		r = rand(0:255) ;\
@@ -392,27 +395,22 @@ deps_dag:
 	if project_dep !== nothing ;\
 		collect_edges(project_dep, edges) ;\
 	end ;\
-	txt = String[];\
-	push!(txt, "digraph G {") ;\
-	push!(txt, "rankdir=LR;");\
-	push!(txt, "ranksep=0.4;");\
-	push!(txt, "nodesep=0.1;");\
-	push!(txt, "ratio=expand;");\
-	push!(txt, "splines=true;");\
-	push!(txt, "node [shape=ellipse, fontname=\"Helvetica\", fontsize=12, penwidth=3];");\
-	push!(txt, "edge [penwidth=2];");\
-	for (src, dst) in edges ;\
-		color = random_color() ;\
-		push!(txt, @sprintf("\"%s\" -> \"%s\" [color=\"%s\"];", src, dst, color)) ;\
-	end ;\
-	push!(txt, "}") ;\
-	txt = join(txt, "\n");\
-	println(txt) ;\
-	open("docs/src/assets/deps.svg", "w") do io ;\
-		show(io, MIME"image/svg+xml"(), GraphViz.Graph(txt)) ;\
+	open("docs/src/deps.dot", "w") do io ;\
+		write(io, "digraph G {\n") ;\
+		write(io, "rankdir=LR;\n");\
+		write(io, "ranksep=0.4;\n");\
+		write(io, "nodesep=0.1;\n");\
+		write(io, "splines=true;\n");\
+		write(io, "node [shape=ellipse, fontname=\"Helvetica\", fontsize=12, penwidth=3];\n");\
+		write(io, "edge [penwidth=2];\n");\
+		for (src, dst) in edges ;\
+			color = random_color() ;\
+			@printf(io, "\"%s\" -> \"%s\" [color=\"%s\"];\n", src, dst, color) ;\
+		end ;\
+		write(io, "}\n") ;\
 	end ;\
 	'
-	@echo "See DAG at: $(PWD)/docs/src/assets/deps.svg"
+	dot -Tsvg docs/src/deps.dot -o docs/src/assets/deps.svg
 
 # @devs
 develop:
