@@ -16,7 +16,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields ThermalSystemModels # XSteam Fortran90Namelists
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
@@ -334,9 +334,10 @@ daily_example_ci_commit:
 endif
 
 # @devs
-dev_deps_tree:
-# Print dependency tree of the packages in dev folder
+deps_tree:
+# Print FUSE dependency tree of project-torrey-pines packages
 	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using AbstractTrees ;\
@@ -346,16 +347,17 @@ dev_deps_tree:
 	end ;\
 	function AbstractTrees.children(uuid::Base.UUID) ;\
 		dep = get(Pkg.dependencies(), uuid, nothing) ;\
-		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
 		tmp= sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
 	end ;\
 	AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
 	'
 
 # @devs
-dev_deps_dag:
-# Generate a DOT file representing the dependency DAG of the FUSE package
+deps_dag:
+# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
 	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using Random ;\
@@ -374,7 +376,7 @@ dev_deps_dag:
 	end ;\
 	function AbstractTrees.children(uuid::Base.UUID) ;\
 		dep = get(Pkg.dependencies(), uuid, nothing) ;\
-		dev_deps = Dict([(key, value) for (key, value) in dep.dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+		dev_deps = Dict([(key, value) for (key, value) in dep.dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
 		return sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
 	end ;\
 	function collect_edges(uuid::Base.UUID, edges::Set{Tuple{String, String}}) ;\
