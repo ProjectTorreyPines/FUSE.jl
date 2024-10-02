@@ -5,6 +5,7 @@ version = "0.1.21"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+BalanceOfPlantSurrogate = "001e48cb-5a1e-4e3c-a5d4-cdc3aa14f3de"
 BoundaryPlasmaModels = "2da5b0d0-c5e5-4f14-9caf-62d0020df410"
 CHEASE = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
