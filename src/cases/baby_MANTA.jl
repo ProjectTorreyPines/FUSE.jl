@@ -1,20 +1,11 @@
-"""
-    case_parameters(:MANTA; flux_matcher::Bool=false)
+function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+    ini = FUSE.ParametersInits(; n_ic=1)
+    act = FUSE.ParametersActors()
 
-MANTA (Modular Adjustable Negative-Triangularity ARC)
-
-https://arxiv.org/abs/2405.20243
-
-https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
-"""
-function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ic=1)
-    act = ParametersActors()
-
-    ini.general.casename = "MANTA"
+    ini.general.casename = "BABY MANTA"
     ini.general.init_from = :scalars
 
-    ini.build.layers = OrderedCollections.OrderedDict(
+    ini.build.layers = FUSE.OrderedCollections.OrderedDict(
         :gap_OH => 1.3,
         :OH => 0.33,
         :hfs_TF => 0.7,
@@ -48,13 +39,14 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.core_profiles.plasma_mode = :L_mode
     ini.core_profiles.ne_setting = :greenwald_fraction
     ini.core_profiles.ne_value = 0.9
-    ini.core_profiles.ne_shaping = 0.9
+    ini.core_profiles.ne_shaping = 3.0
     ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.T_shaping = 3.0
+    ini.core_profiles.Te_sep = 200.0
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :Kr
+    ini.core_profiles.impurity = :Ar
     ini.core_profiles.helium_fraction = 0.025
 
     ini.pf_active.n_coils_inside = 6
@@ -94,11 +86,4 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     set_new_base!(act)
 
     return ini, act
-end
-
-function TraceCAD(::Type{Val{:MANTA}})
-    x_length = 8.3
-    x_offset = -0.4
-    y_offset = -0.5
-    return TraceCAD(:MANTA, x_length, x_offset, y_offset)
 end

@@ -48,7 +48,7 @@ end
 
 function study_parameters(study::Symbol; kw...)
     if length(methods(study_parameters, (Type{Val{study}},))) == 0
-        throw(InexistentParameterException([study]))
+        error("study `$study` does not exist.\nPossible options are:\n\n$(join(["$method" for method in methods(study_parameters)],"\n"))")
     end
     return study_parameters(Val{study}; kw...)
 end

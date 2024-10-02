@@ -510,57 +510,19 @@ function digest(
     end
 
     # core sources
-    # electron heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=1))
-    end
-    # ion heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=2))
-    end
-    # electron particle
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=3))
-    end
-    # parallel current
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=4))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources))
+        if !isempty(dd.core_sources.source) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_sources; only=k))
+        end
     end
 
-    # Electron energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=1))
-    end
-
-    # Ion energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=2))
-    end
-
-    # Electron particle flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=3))
-    end
-
-    # Momentum flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=4))
+    # core sources
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport))
+        if !isempty(dd.core_transport) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_transport; only=k))
+        end
     end
 
     # neutron wall loading

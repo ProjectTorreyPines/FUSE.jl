@@ -1,6 +1,9 @@
 #= ========== =#
 #  test_cases  #
 #= ========== =#
+
+include("_toksys.jl")
+
 import OrderedCollections
 
 struct TestCases <: AbstractDict{String,Any}
@@ -116,7 +119,7 @@ function case_parameters(case::Symbol, args...; kw...)
     end
 
     if length(methods(case_parameters, (Type{Val{case}},))) == 0
-        throw(InexistentParameterException([case]))
+        error("case `$case` does not exist.\nPossible options are:\n\n$(join(["$method" for method in methods(case_parameters)],"\n"))")
     end
 
     ini, act = case_parameters(Val{case}, args...; kw...)

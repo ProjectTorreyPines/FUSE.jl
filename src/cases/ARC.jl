@@ -63,10 +63,10 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.49 * 0.75
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.helium_fraction = 0.10 #estimate
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 1.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT

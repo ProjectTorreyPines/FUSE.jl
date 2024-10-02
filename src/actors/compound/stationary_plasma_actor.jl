@@ -114,7 +114,9 @@ function _step(actor::ActorStationaryPlasma)
     cp1d = dd.core_profiles.profiles_1d[]
     try
 
-        logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iter)")
+        if !(par.verbose && !par.do_plot)
+            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iter)")
+        end
 
         # unless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
@@ -178,11 +180,13 @@ function _step(actor::ActorStationaryPlasma)
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
-            logging(
-                Logging.Info,
-                :actors,
-                " "^workflow_depth(actor.dd) * "--------------- $(length(total_error))/$(par.max_iter) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
-            )
+            if !(par.verbose && !par.do_plot)
+                logging(
+                    Logging.Info,
+                    :actors,
+                    " "^workflow_depth(actor.dd) * "--------------- $(length(total_error))/$(par.max_iter) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
+                )
+            end
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iter)
                 @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of $(collect(map(x->round(x,digits = 3),total_error))) compared to threshold of $(par.convergence_error)"

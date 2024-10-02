@@ -15,7 +15,8 @@ else
   FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels BalanceOfPlantSurrogate
+GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
@@ -218,7 +219,7 @@ branch_master: error_missing_repos_var
 	-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
 
 # @devs
-bump_major: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
 # Bump major version of a repo
 # >> make bump_major repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -228,7 +229,7 @@ bump_major: error_missing_repo_var error_on_previous_commit_is_a_version_bump ve
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_minor: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
 # Bump minor version of a repo
 # >> make bump_minor repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -238,7 +239,7 @@ bump_minor: error_missing_repo_var error_on_previous_commit_is_a_version_bump ve
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_patch: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+bump_patch: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
 # Bump patch version of a repo
 # >> make bump_patch repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -436,11 +437,29 @@ ifeq ($(repo),)
 endif
 
 # @devs
-error_on_previous_commit_is_a_version_bump: error_missing_repo_var
-# Utility to error if previous commit was a version bump
-	@previous_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
-	if echo "$$previous_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
-		echo "Error: The previous commit was a version bump." ;\
+error_on_last_commit_is_a_version_bump: error_missing_repo_var
+# Utility to error if last commit was a version bump
+	@last_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
+	if echo "$$last_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
+		echo "Error: The last commit was a version bump." ;\
+		exit 1 ;\
+	fi
+
+# @devs
+error_on_last_commit_is_not_a_version_bump: error_missing_repo_var
+# Utility to error if last commit was not a version bump
+	@last_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
+	if ! echo "$$last_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
+		echo "Error: The last commit was not a version bump." ;\
+		exit 1 ;\
+	fi
+
+# @devs
+error_not_on_master_branch: error_missing_repo_var
+# Utility to error if the current branch is not master
+	@current_branch=$$(git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
+	if [ "$$current_branch" != "master" ]; then \
+		echo "Error: $(repo) is not on the master branch (current branch: $$current_branch)." ;\
 		exit 1 ;\
 	fi
 
@@ -591,14 +610,20 @@ nuke_julia:
 	mv $(call realpath,$(JULIA_DIR))/../asddsaasddsa $(JULIA_PKG_DEVDIR)
 
 # @devs
-register: error_missing_repo_var
+register_general: error_missing_repo_var error_not_on_master_branch error_on_last_commit_is_not_a_version_bump
+# Register a package to General registry
+	@if echo "$(GENERAL_REGISTRY_PACKAGES)" | grep -wq "$(repo)" ; then \
+		gh api repos/ProjectTorreyPines/$(repo).jl/commits/master --jq '.sha' | \
+		xargs -I{} gh api repos/ProjectTorreyPines/$(repo).jl/commits/{}/comments -f body='@JuliaRegistrator register' ;\
+		echo "Registered $(repo) to General registry." ;\
+	else \
+		echo "$(repo) is not in the list of allowed repositories $(GENERAL_REGISTRY_PACKAGES)." ;\
+	fi
+
+# @devs
+register: error_missing_repo_var error_not_on_master_branch
 # Register a package to FuseRegistry
 # >> make register repo=IMASdd
-	@current_branch=$(shell git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
-	if [ "$$current_branch" != "master" ]; then \
-		echo "Error: $(repo) is not on the master branch" ;\
-		exit 1 ;\
-	fi
 	sed -i.bak "s/https:\/\/github.com\//git@github.com:/g" $(JULIA_DIR)/registries/FuseRegistry/.git/config && rm $(JULIA_DIR)/registries/FuseRegistry/.git/config.bak
 	julia -e '\
 using Pkg;\
@@ -612,15 +637,15 @@ LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="Fu
 	gh release create v$${version} --generate-notes --repo ProjectTorreyPines/$(repo).jl
 
 # @devs
-register_major: bump_major register
+register_major: bump_major register register_general
 # Bump major version and register: X.Y.Z --> (X+1).0.0
 
 # @devs
-register_minor: bump_minor register
+register_minor: bump_minor register register_general
 # Bump minor version and register: X.Y.Z --> X.(Y+1).0
 
 # @devs
-register_patch: bump_patch register
+register_patch: bump_patch register register_general
 # Bump patch version and register: X.Y.Z --> X.Y.(Z+1)
 
 # @devs

@@ -80,9 +80,9 @@ function case_parameters(::Type{Val{:D3D}}; scenario::Union{Symbol,AbstractStrin
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.75 * 0.75
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 5E3
     ini.core_profiles.bulk = :D
