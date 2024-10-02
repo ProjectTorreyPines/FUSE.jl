@@ -19,7 +19,7 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorTGLF.warn_nn_train_bounds = false
     act.ActorFluxMatcher.evolve_rotation = :fixed
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
 
     # finalize 
     set_new_base!(sty)
@@ -130,6 +130,9 @@ function run_case(study::AbstractStudy, item::String)
 
         return create_data_frame_row_DatabaseGenerator(dd)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         open("$(sty.save_folder)/error_$(item).txt", "w") do file
             return showerror(file, e, catch_backtrace())
         end

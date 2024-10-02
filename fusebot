@@ -17,18 +17,26 @@ ENV["PTP_ORIGINAL_DIR"] = pwd()
 ENV["PTP"] = @__FILE__
 
 # Declare fuse_dir as a global variable
-global fuse_dir
+global fuse_dir = nothing
 
 # Find the installation directory of the FUSE package
-for (uuid, details) in Pkg.dependencies()
-    if uuid == FUSE_UUID
-        global fuse_dir = details.source
+for env in [:Main, :Local]
+    if env == :Local
+        Pkg.activate(".")
+    end
+    for (uuid, details) in Pkg.dependencies()
+        if uuid == FUSE_UUID
+            global fuse_dir = details.source
+            break
+        end
+    end
+    if fuse_dir !== nothing
         break
     end
 end
 
 if fuse_dir === nothing
-    println("FUSE package not found.")
+    println("FUSE package not found in Main or $(pwd()) environments")
     exit(1)
 end
 

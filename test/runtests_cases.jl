@@ -29,39 +29,23 @@ using Test
                 @testset "ini_yaml" begin
                     ini.general.dd = missing
                     ini_str = FUSE.SimulationParameters.par2ystr(ini; skip_defaults=true, show_info=false)
-                    ini2 = try
-                        FUSE.SimulationParameters.ystr2par(ini_str, FUSE.ParametersInits())
-                    catch e
-                        rethrow(e)
-                    end
+                    ini2 = FUSE.SimulationParameters.ystr2par(ini_str, FUSE.ParametersInits())
                 end
 
                 @testset "act_yaml" begin
                     act_str = FUSE.SimulationParameters.par2ystr(act; skip_defaults=true, show_info=false)
-                    act2 = try
-                        FUSE.SimulationParameters.ystr2par(act_str, FUSE.ParametersActors())
-                    catch e
-                        rethrow(e)
-                    end
+                    act2 = FUSE.SimulationParameters.ystr2par(act_str, FUSE.ParametersActors())
                 end
 
                 @testset "ini_json" begin
                     ini.general.dd = missing
                     ini_str = FUSE.SimulationParameters.par2jstr(ini)
-                    ini2 = try
-                        FUSE.SimulationParameters.jstr2par(ini_str, FUSE.ParametersInits())
-                    catch e
-                        rethrow(e)
-                    end
+                    ini2 = FUSE.SimulationParameters.jstr2par(ini_str, FUSE.ParametersInits())
                 end
 
                 @testset "act_json" begin
                     act_str = FUSE.SimulationParameters.par2jstr(act)
-                    act2 = try
-                        FUSE.SimulationParameters.jstr2par(act_str, FUSE.ParametersActors())
-                    catch e
-                        rethrow(e)
-                    end
+                    act2 = FUSE.SimulationParameters.jstr2par(act_str, FUSE.ParametersActors())
                 end
             end
         end

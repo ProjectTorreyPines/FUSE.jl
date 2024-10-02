@@ -117,11 +117,10 @@ function case_parameters(
         ini.core_profiles.ne_value = 0.9
         act.ActorPedestal.density_match = :ne_line
     end
-
+    ini.core_profiles.ne_shaping = 1.0
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 1.0
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
@@ -129,6 +128,7 @@ function case_parameters(
 
     ini.nb_unit[1].power_launched = 33.4e6
     ini.nb_unit[1].beam_energy = 1e6
+    ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
     ini.ec_launcher[1].power_launched = 20E6
     ini.ec_launcher[1].rho_0 = 0.0
@@ -142,7 +142,6 @@ function case_parameters(
     ini.pellet_launcher[1].size = Float64[0.003, 0.004] / 2.0
     ini.pellet_launcher[1].frequency = 0.02 # Hz
 
-    act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
 
     act.ActorWholeFacility.update_build = false

@@ -1,12 +1,107 @@
 """
-    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=:scalars)
+    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
 
 UKAEA STEP design
 """
-function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=:scalars)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini, act = case_parameters(:STEP_scalars)
+function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)::Tuple{ParametersAllInits,ParametersAllActors}
+    @assert init_from in (:scalars, :ods)
+    @assert pf_from in (:scalars, :ods)
+
+    ini = ParametersInits(; n_ec=1)
+    act = ParametersActors()
+    #### INI ####
+
+    ini.general.casename = "STEP"
+    ini.general.init_from = :scalars
+    ini.ods.filename = joinpath("__FUSE__", "sample", "STEP_starting_point.json")
+
+    ini.build.layers = OrderedCollections.OrderedDict(
+        :gap_OH => 0.233,
+        :OH => 0.133,
+        :gap_TF_OH => 0.016847172081829065,
+        :hfs_TF => 0.4043321299638989,
+        :hfs_gap_coils => 0.0,
+        :hfs_thermal_shield => 0.03369434416365813,
+        :hfs_vacuum_vessel => 0.5559566787003614,
+        :hfs_blanket => 0.030541516245487195,
+        :hfs_first_wall => 0.02,
+        :plasma => 4.380264741275571,
+        :lfs_first_wall => 0.02,
+        :lfs_blanket => 0.6538868832731644,
+        :lfs_vacuum_vessel => 0.6064981949458499,
+        :lfs_thermal_shield => 0.13477737665463252 + 0.06738868832731626,
+        :lfs_gap_coils => 0.25,
+        :lfs_TF => 0.4043321299638989,
+        :gap_cryostat => 1.5,
+        :cryostat => 0.2
+    )
+    ini.build.layers[:cryostat].shape = :rectangle
+    ini.build.plasma_gap = 0.125
+    ini.build.symmetric = true
+    ini.build.divertors = :double
+    ini.build.n_first_wall_conformal_layers = 1
+
+    ini.equilibrium.B0 = 3.2
+    ini.equilibrium.R0 = 3.6
+    ini.equilibrium.ϵ = 2.0 / ini.equilibrium.R0
+    ini.equilibrium.κ = 2.93
+    ini.equilibrium.δ = 0.59
+    ini.equilibrium.ip = 21.1e6 # from PyTok
+    ini.equilibrium.xpoints = :double
+    ini.equilibrium.boundary_from = :scalars
+    ini.equilibrium.pressure_core = 776466.0
+
+    ini.core_profiles.ne_setting = :greenwald_fraction_ped
+    ini.core_profiles.ne_value = 0.85
+    ini.core_profiles.ne_shaping = 1.2
+    ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
+    ini.core_profiles.bulk = :DT
+    ini.core_profiles.zeff = 2.5 # from PyTok
+    ini.core_profiles.impurity = :Ne #Barium :Ba
+    ini.core_profiles.T_ratio = 1.0
+    ini.core_profiles.T_shaping = 2.5
+    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.ejima = 0.1
+
+    ini.oh.n_coils = 8
+    ini.oh.technology = :rebco
+
+    ini.pf_active.n_coils_inside = 6
+    ini.pf_active.n_coils_outside = 0
+    ini.pf_active.technology = :nb3sn_iter
+
+    ini.tf.shape = :rectangle
+    ini.tf.n_coils = 12
+    ini.tf.technology = :rebco
+    ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
+
+    act.ActorPFdesign.symmetric = true
+    
+    ini.ec_launcher[1].power_launched = 150.e6
+    ini.ec_launcher[1].width = 0.25
+    ini.ec_launcher[1].rho_0 = 0.0
+    act.ActorSimpleEC.ηcd_scale = 0.5
+
+    ini.requirements.flattop_duration = 1000.0
+    ini.requirements.tritium_breeding_ratio = 1.1
+    ini.requirements.power_electric_net = 250e6
+
+    act.ActorCoreTransport.model = :FluxMatcher
+
+    act.ActorFluxMatcher.evolve_densities = :fixed
+    act.ActorFluxMatcher.rho_transport = 0.3:0.05:0.8
+    act.ActorTGLF.user_specified_model = "sat0_em_d3d"
+
+    act.ActorStabilityLimits.models = Symbol[]
+
+    # High-beta ST equilibrium is tricky to converge
+    act.ActorTEQUILA.relax = 0.01
+
+    set_new_base!(ini)
+    set_new_base!(act)
 
     dd = IMAS.dd()
+    # if init_from==:ods we need to sanitize the ODS that was given to us
     if init_from == :ods
         # Fix the core profiles
         dd = load_ods(ini)
@@ -60,6 +155,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     end
 
     # pf_active
+    # if pf_from=:ods we take the pf_coils that were given to us
     if pf_from == :ods
         coils = dd.pf_active.coil
         pf_rz = [
@@ -117,110 +213,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         ini.general.dd = dd
         ini.general.init_from = :ods
     end
-
-    return ini, act
-end
-
-
-"""
-    case_parameters(:STEP)
-
-STEP
-
-Arguments:
-"""
-function case_parameters(::Type{Val{:STEP_scalars}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=1)
-    act = ParametersActors()
-    #### INI ####
-
-    ini.general.casename = "STEP"
-    ini.general.init_from = :scalars
-    ini.ods.filename = joinpath("__FUSE__", "sample", "STEP_starting_point.json")
-
-    ini.build.layers = OrderedCollections.OrderedDict(
-        :gap_OH => 0.233,
-        :OH => 0.133,
-        :gap_TF_OH => 0.016847172081829065,
-        :hfs_TF => 0.4043321299638989,
-        :hfs_gap_coils => 0.0,
-        :hfs_thermal_shield => 0.03369434416365813,
-        :hfs_vacuum_vessel => 0.5559566787003614,
-        :hfs_blanket => 0.030541516245487195,
-        :hfs_first_wall => 0.02,
-        :plasma => 4.380264741275571,
-        :lfs_first_wall => 0.02,
-        :lfs_blanket => 0.6538868832731644,
-        :lfs_vacuum_vessel => 0.6064981949458499,
-        :lfs_thermal_shield => 0.13477737665463252 + 0.06738868832731626,
-        :lfs_gap_coils => 0.25,
-        :lfs_TF => 0.4043321299638989,
-        :gap_cryostat => 1.5,
-        :cryostat => 0.2
-    )
-    ini.build.layers[:cryostat].shape = :rectangle
-    ini.build.plasma_gap = 0.125
-    ini.build.symmetric = true
-    ini.build.divertors = :double
-    ini.build.n_first_wall_conformal_layers = 1
-
-    ini.equilibrium.B0 = 3.2
-    ini.equilibrium.R0 = 3.6
-    ini.equilibrium.ϵ = 2.0 / ini.equilibrium.R0
-    ini.equilibrium.κ = 2.93
-    ini.equilibrium.δ = 0.59
-    ini.equilibrium.ip = 21.1e6 # from PyTok
-    ini.equilibrium.xpoints = :double
-    ini.equilibrium.boundary_from = :scalars
-
-    ini.core_profiles.zeff = 2.5 # from PyTok
-    ini.core_profiles.rot_core = 0.0
-    ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :Ne #Barium :Ba
-    ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
-
-    ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    ini.core_profiles.ne_value = 0.85
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 2.5
-    ini.core_profiles.n_shaping = 1.2
-    ini.core_profiles.ejima = 0.1
-
-    ini.oh.n_coils = 8
-    ini.oh.technology = :rebco
-
-    ini.pf_active.n_coils_inside = 6
-    ini.pf_active.n_coils_outside = 0
-    ini.pf_active.technology = :nb3sn_iter
-
-    ini.tf.shape = :rectangle
-    ini.tf.n_coils = 12
-    ini.tf.technology = :rebco
-    ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
-
-    act.ActorPFdesign.symmetric = true
-    
-    ini.ec_launcher[1].power_launched = 150.e6
-    ini.ec_launcher[1].width = 0.25
-    ini.ec_launcher[1].rho_0 = 0.0
-    act.ActorSimpleEC.ηcd_scale = 0.5
-
-    ini.requirements.flattop_duration = 1000.0
-    ini.requirements.tritium_breeding_ratio = 1.1
-    ini.requirements.power_electric_net = 236e6 # from PyTok
-
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_densities = :flux_match
-    act.ActorFluxMatcher.evolve_densities = :fixed
-    act.ActorFluxMatcher.rho_transport = 0.3:0.05:0.8
-    act.ActorTGLF.user_specified_model = "sat0_em_d3d"
-
-    act.ActorStabilityLimits.models = Symbol[]
-
-    act.ActorTEQUILA.relax = 0.01
-
-    set_new_base!(ini)
-    set_new_base!(act)
 
     return ini, act
 end

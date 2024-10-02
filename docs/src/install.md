@@ -40,7 +40,7 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
     ] test FUSE
     ```
 
-1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FUSE_examples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
+1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FuseExamples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
 
    ```bash
    fusebot install_examples
@@ -81,4 +81,4 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    jupyter-lab
    ```
 
-1.  Now you can browse the examples in the `FUSE_examples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.
+1.  Now you can browse the examples in the `FuseExamples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.

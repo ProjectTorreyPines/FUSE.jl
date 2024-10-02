@@ -40,10 +40,10 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.oh.technology = :nb3sn_iter
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.8 * 0.75
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
@@ -55,7 +55,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].power_launched = 20E6
     ini.nb_unit[1].beam_energy = 200e3
     ini.nb_unit[1].beam_mass = 2.0
-    ini.nb_unit[1].toroidal_angle = 0.0
+    ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
     act.ActorPFdesign.symmetric = true
 

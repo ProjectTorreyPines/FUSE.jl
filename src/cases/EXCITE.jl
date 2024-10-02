@@ -54,9 +54,9 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.25
+    ini.core_profiles.ne_shaping = 1.5
     ini.core_profiles.T_ratio = 0.825
     ini.core_profiles.T_shaping = 2.5
-    ini.core_profiles.n_shaping = 1.5
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :D
@@ -98,6 +98,8 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     act.ActorEquilibrium.model = :TEQUILA
     act.ActorTEQUILA.relax = 0.25
+
+    act.ActorCoreTransport.model = :none # No flux matching possible
 
     # finalize
     set_new_base!(ini)

@@ -9,12 +9,15 @@ import ThermalSystemModels
 TSMD = ThermalSystemModels.Dynamics
 MTK.@independent_variables t
 
+# Surogate
+using BalanceOfPlantSurrogate
+
 Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:fixed_cycle_efficiency, :network], "-", "Power plant heat cycle efficiency"; default=:network)
-    fixed_cycle_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_cycle_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
+    model::Switch{Symbol} = Switch{Symbol}([:fixed_plant_efficiency, :network, :surogate], "-", "Power plant heat cycle efficiency"; default=:surogate)
+    fixed_plant_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_plant_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -85,36 +88,34 @@ function _step(actor::ActorThermalPlant)
 
     bop = dd.balance_of_plant
 
-    # if use_actor_u is true then the actor will use the loading values in Actor.u instead of from dd
-    use_actor_u = false
+    breeder_heat_load = @ddtime(bop.power_plant.heat_load.breeder)
+    divertor_heat_load = @ddtime(bop.power_plant.heat_load.divertor)
+    wall_heat_load = @ddtime(bop.power_plant.heat_load.wall)
 
-    if use_actor_u
-        breeder_heat_load = actor.u[1]
-        divertor_heat_load = actor.u[2]
-        wall_heat_load = actor.u[3]
-    else
-        blankets = IMAS.get_build_layers(dd.build.layer; type=_blanket_)
-        if isempty(blankets) # don't calculate anything in absence of a blanket
-            empty!(dd.balance_of_plant)
-            bop.power_plant.power_cycle_type = string(actor.power_cycle_type)
-            @warn "No blanket present for ActorThermalPlant to do anything"
-            return actor
-        end
-        breeder_heat_load = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
-        divertor_heat_load = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
-        wall_heat_load = abs(IMAS.radiation_losses(dd.core_sources))
-        actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
+    if isempty(breeder_heat_load == 0) # don't calculate anything in absence of a blanket
+        empty!(dd.balance_of_plant)
+        bop.power_plant.power_cycle_type = string(actor.power_cycle_type)
+        @warn "No blanket present for ActorThermalPlant to do anything"
+        return actor
     end
 
     # fixed cycle efficiency
-    if par.model == :fixed_cycle_efficiency
-        @ddtime(bop.thermal_efficiency_cycle = par.fixed_cycle_efficiency)
+    if par.model == :fixed_plant_efficiency
+        @ddtime(bop.thermal_efficiency_plant = par.fixed_plant_efficiency)
         @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
-        @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * par.fixed_cycle_efficiency)
+        @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * par.fixed_plant_efficiency)
+        return actor
+    elseif par.model == :surogate
+        BOP = BalanceOfPlantSurrogate.BOPSurogate(Symbol(bop.power_plant.power_cycle_type))
+        plant_efficiency = BOP(breeder_heat_load, divertor_heat_load, wall_heat_load)
+        @ddtime(bop.thermal_efficiency_plant = plant_efficiency)
+        @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
+        @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * plant_efficiency)
         return actor
     end
 
     # Buidling the TSM System
+    actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
     if !actor.buildstatus
         @debug "Rebuilding ActorThermalPlant"
 
@@ -435,7 +436,7 @@ function _step(actor::ActorThermalPlant)
 
         else
             error(
-                "ActorThermalPlant model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_cycle_efficiency\"]"
+                "ActorThermalPlant model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_plant_efficiency\"]"
             )
         end
         actor.x = [getval(a, actor) for a in actor.optpar]

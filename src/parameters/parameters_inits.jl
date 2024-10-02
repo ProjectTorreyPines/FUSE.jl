@@ -66,14 +66,22 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
     plasma_mode::Switch{Symbol} = Switch{Symbol}([:H_mode, :L_mode], "-", "Plasma configuration"; default=:H_mode)
+    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
     ne_value::Entry{T} = Entry{T}("-", "Value based on setup method"; check=x -> @assert x > 0.0 "must be > 0.0")
     ne_setting::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
-    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
     ne_sep_to_ped_ratio::Entry{T} =
-        Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
+        Entry{T}(
+            "-",
+            "Ratio used to set the sepeartrix density based on the pedestal density";
+            default=0.25,
+            check=x -> @assert 1.0 > x > 0.0 "must be: 1.0 > ne_sep_to_ped_ratio > 0.0"
+        )
+    ne_core_to_ped_ratio::Entry{T} =
+        Entry{T}("-", "Ratio used to set the core density based on the pedestal density"; default=1.4, check=x -> @assert x > 0.0 "must be: ne_core_to_ped_ratio > 0.0")
+    ne_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
-    n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
+    Te_sep::Entry{T} = Entry{T}("eV", "Separatrix temperature"; default=80.0, check=x -> @assert x > 0.0 "must be: Te_sep > 0.0")
     zeff::Entry{T} = Entry{T}("-", "Effective ion charge"; check=x -> @assert x >= 1.0 "must be: zeff > 1.0")
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
@@ -100,7 +108,7 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.3, check=x -> @assert x > 0.0 "must be: width > 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
-    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; default=0.0)
+    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; check=x -> @assert (-pi / 2 <= x <= pi / 2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
@@ -241,6 +249,13 @@ Base.@kwdef mutable struct FUSEparameters__balance_of_plant{T} <: ParametersInit
     cycle_type::Switch{Symbol} = Switch{Symbol}([:rankine, :brayton], "-", "Thermal cycle type"; default=:rankine)
 end
 
+Base.@kwdef mutable struct FUSEparameters__hcd{T} <: ParametersInit{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :balance_of_plant
+    power_scaling_cost_function::Entry{Function} =
+        Entry{Function}("-", "EC, IC, LH, NB power optimization cost function, takes dd as input. Eg. dd -> (1.0 - IMAS.tau_e_thermal(dd) / IMAS.tau_e_h98(dd))")
+end
+
 mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     _parent::WeakRef
     _name::Symbol
@@ -256,6 +271,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     pellet_launcher::ParametersVector{FUSEparameters__pellet_launcher{T}}
     ic_antenna::ParametersVector{FUSEparameters__ic_antenna{T}}
     lh_antenna::ParametersVector{FUSEparameters__lh_antenna{T}}
+    hcd::FUSEparameters__hcd{T}
     build::FUSEparameters__build{T}
     center_stack::FUSEparameters__center_stack{T} #
     tf::FUSEparameters__tf{T}
@@ -280,6 +296,7 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         ParametersVector{FUSEparameters__pellet_launcher{T}}(),
         ParametersVector{FUSEparameters__ic_antenna{T}}(),
         ParametersVector{FUSEparameters__lh_antenna{T}}(),
+        FUSEparameters__hcd{T}(),
         FUSEparameters__build{T}(),
         FUSEparameters__center_stack{T}(),
         FUSEparameters__tf{T}(),
@@ -473,44 +490,51 @@ function n_xpoints(xpoints::Symbol)
 end
 
 """
-    load_ods(ini::ParametersAllInits)
+    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
 
-Load ODSs as specified in `ini.ods.filename`
-and sets `dd.global_time` equal to `ini.time.simulation_start`
+Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
 """
-function load_ods(ini::ParametersAllInits)
-    dd = load_ods(ini.ods.filename)
+function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
+
+    # handle time
     dd.global_time = ini.time.simulation_start
     for field in keys(dd)
         ids = getproperty(dd, field)
+        # handle cases where someone forgot to fill the ids.time
+        if !isempty(ids) && ismissing(ids, :time)
+            ids.time = [dd.global_time]
+        end
+        # if IDS has a single time_slice we can retime it
         if !ismissing(ids, :time) && length(ids.time) == 1
             IMAS.retime!(ids, dd.global_time)
         end
     end
+
     return dd
 end
 
 """
-    load_ods(filenames::String)
+    load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
 
 Load multiple comma-separated filenames into a single dd
 """
-function load_ods(filenames::String)
-    return load_ods(strip.(split(filenames, ",")))
+function load_ods(filenames::String; error_on_missing_coordinates::Bool=true)
+    return load_ods(strip.(split(filenames, ",")); error_on_missing_coordinates)
 end
 
 """
-    load_ods(filenames::Vector{String})
+    load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
 
 Load multiple ODSs into a single `dd`
 """
-function load_ods(filenames::Vector{<:AbstractString})
+function load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordinates::Bool=true)
     dd = IMAS.dd()
     for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
-        dd1 = IMAS.json2imas(filename)
+        dd1 = IMAS.json2imas(filename; error_on_missing_coordinates)
         merge!(dd, dd1)
     end
     IMAS.last_global_time(dd)

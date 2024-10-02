@@ -67,9 +67,9 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.366
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 0.6
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :D
@@ -79,11 +79,9 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.nb_unit[1].power_launched = 10e6
     ini.nb_unit[1].beam_energy = 0.5e6
+    ini.nb_unit[1].toroidal_angle = 40.0 * deg
     ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
-
-    act.ActorFluxMatcher.evolve_densities = :flux_match
-    act.ActorStabilityLimits.raise_on_breach = false
 
     set_new_base!(ini)
     set_new_base!(act)

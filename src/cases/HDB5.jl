@@ -18,7 +18,6 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
 end
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
-
     n_nb = (data_row[:PNBI] > 0) ? 1 : 0
     n_ec = (data_row[:PECRH] > 0) ? 1 : 0
     n_ic = (data_row[:PICRH] > 0) ? 1 : 0
@@ -61,13 +60,11 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.equilibrium.boundary_from = :MXH_params
 
     # Core_profiles parameters
-    ## This should become ne_line and ne_line matching!
-    ini.core_profiles.ne_setting = :ne_ped
-    ini.core_profiles.ne_value = data_row[:NEL] / 1.4
-    ##
+    ini.core_profiles.ne_setting = :ne_line
+    ini.core_profiles.ne_value = data_row[:NEL]
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = data_row[:ZEFF]
     ini.core_profiles.rot_core = 10e3
     ini.core_profiles.ngrid = 201
@@ -83,7 +80,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
             ini.nb_unit[1].beam_energy = 100e3
         end
         ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 18.0 / 360.0 * 2pi # 18 degrees assumed like DIII-D
+        ini.nb_unit[1].toroidal_angle = 18.0 * deg # 18 degrees assumed like DIII-D
     end
 
     if n_ec > 0
@@ -93,6 +90,9 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     if n_ic > 0
         ini.ic_antenna[1].power_launched = data_row[:PICRH]
     end
+
+    act.ActorPedestal.density_match = :ne_line
+    act.ActorFluxMatcher.evolve_pedestal = false
 
     set_new_base!(ini)
     set_new_base!(act)

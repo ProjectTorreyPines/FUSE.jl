@@ -35,6 +35,29 @@ Sample usage in a Jupyter notebook:
 
     dd = chk[:something_else].dd # restore only dd
     ...something_else_more...
+
+also works with @checkin and @checkout macros
+
+    chk = FUSE.Checkpoint()
+    ...init...
+    @checkin chk :init dd ini act # store dd, ini, act
+
+    --------
+
+    @checkout chk :init dd ini act # restore dd, ini, act
+    ...something...
+    @checkin chk :something dd act # store dd, act
+
+    --------
+
+    @checkout chk :something dd # restore only dd
+    ...something_else...
+    @checkin chk :something_else dd # store only dd
+
+    --------
+
+    @checkout chk :something_else dd # restore only dd
+    ...something_else_more...
 """
 Base.@kwdef struct Checkpoint
     history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
@@ -58,26 +81,61 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     for (k, v) in chk.history
-        TPs = map(typeof, v)
-        what = String[]
-        if any(tp <: IMAS.dd for tp in TPs)
-            push!(what, "dd")
-        end
-        if any(tp <: ParametersAllInits for tp in TPs)
-            push!(what, "ini")
-        end
-        if any(tp <: ParametersAllActors for tp in TPs)
-            push!(what, "act")
-        end
+        what = Tuple{Symbol,Type}[(k, typeof(v)) for (k, v) in pairs(v)]
         println(io, "$(repr(k)) => $(join(what,", "))")
     end
-    return
+    return nothing
 end
 
 # Generate the delegated methods (NOTE: these methods do not require deepcopy)
 for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
     @eval function Base.$func(chk::Checkpoint, args...; kw...)
         return $func(chk.history, args...; kw...)
+    end
+end
+
+"""
+    @checkin chk :key a b c
+
+Macro to save variables into a Checkpoint under a specific key
+"""
+macro checkin(checkpoint, key, vars...)
+    key = esc(key)
+    checkpoint = esc(checkpoint)
+
+    # Save all the variables in the `vars` list under the provided key using their names
+    return quote
+        d = getfield($checkpoint, :history)
+        if $key in keys(d)
+            dict = Dict(k => v for (k, v) in pairs(d[$key]))
+        else
+            dict = Dict{Symbol,Any}()
+        end
+        $(Expr(:block, [:(dict[Symbol($(string(v)))] = deepcopy($(esc(v)))) for v in vars]...))
+        d[$key] = NamedTuple{Tuple(keys(dict))}(values(dict))  # Convert the dictionary to a NamedTuple
+        nothing
+    end
+end
+
+"""
+    @checkout chk :key a c
+
+Macro to load variables from a Checkpoint
+"""
+macro checkout(checkpoint, key, vars...)
+    key = esc(key)
+    checkpoint = esc(checkpoint)
+
+    # Restore variables from the checkpoint
+    return quote
+        d = getfield($checkpoint, :history)
+        if haskey(d, $key)
+            saved_vars = d[$key]
+            $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
+        else
+            throw(KeyError($key))
+        end
+        nothing
     end
 end
 
@@ -121,12 +179,12 @@ function IMAS.extract(
     read_cache::Bool=true,
     write_cache::Bool=true)::DataFrames.DataFrame
 
-    function identifier(DD::Vector{<:AbstractString}, k::Int)
-        return abspath(DD[k])
+    function identifier(DD::AbstractVector{<:AbstractString}, k::Int)
+        return abspath(DD[k]), abspath(DD[k])
     end
 
-    function identifier(DD::Vector{IMAS.dd}, k::Int)
-        return k
+    function identifier(DD::AbstractVector{<:IMAS.dd}, k::Int)
+        return "$k", DD[k]
     end
 
     # test filter_invalid
@@ -138,6 +196,7 @@ function IMAS.extract(
 
     # load in cache
     cached_dirs = []
+    df_cache = DataFrames.DataFrame()
     if length(cache) > 0 && read_cache && isfile(cache)
         df_cache = DataFrames.DataFrame(CSV.File(cache))
         cached_dirs = df_cache[:, :dir]
@@ -145,7 +204,7 @@ function IMAS.extract(
     end
 
     if DD === nothing
-        df = DataFrames.DataFrame()
+        df = df_cache
 
     else
         # allocate memory
@@ -164,7 +223,7 @@ function IMAS.extract(
             tmp = Dict(extract(DD[1], xtract))
         end
 
-        tmp[:dir] = identifier(DD, 1)
+        tmp[:dir] = ""
         df = DataFrames.DataFrame(tmp)
         for k in 2:length(DD)
             push!(df, df[1, :])
@@ -173,17 +232,25 @@ function IMAS.extract(
         # load the data
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
-            aDDk = identifier(DD, k)
+            aDDk, aDD = identifier(DD, k)
             try
                 if aDDk in cached_dirs
                     k_cache = findfirst(dir -> dir == aDDk, cached_dirs)
                     df[k, :] = df_cache[k_cache, :]
                 else
-                    tmp = Dict(extract(aDDk, xtract))
-                    tmp[:dir] = aDDk
-                    df[k, :] = tmp
+                    tmp1 = Dict(extract(aDD, xtract))
+                    for key in keys(tmp1)
+                        if typeof(tmp1[key]) <: Float64 && typeof(tmp[key]) <: String
+                            tmp1[key] = ""
+                        end
+                    end
+                    tmp1[:dir] = aDDk
+                    df[k, :] = tmp1
                 end
-            catch
+            catch e
+                if isa(e, InterruptException)
+                    rethrow(e)
+                end
                 continue
             end
             ProgressMeter.next!(p)
@@ -443,57 +510,19 @@ function digest(
     end
 
     # core sources
-    # electron heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=1))
-    end
-    # ion heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=2))
-    end
-    # electron particle
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=3))
-    end
-    # parallel current
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=4))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources))
+        if !isempty(dd.core_sources.source) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_sources; only=k))
+        end
     end
 
-    # Electron energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=1))
-    end
-
-    # Ion energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=2))
-    end
-
-    # Electron particle flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=3))
-    end
-
-    # Momentum flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=4))
+    # core sources
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport))
+        if !isempty(dd.core_transport) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_transport; only=k))
+        end
     end
 
     # neutron wall loading
@@ -529,7 +558,7 @@ function digest(
 
     # pf active
     sec += 1
-    if !isempty(dd.pf_active.coil) && !ismissing(dd.equilibrium,:time) && section ∈ (0, sec)
+    if !isempty(dd.pf_active.coil) && !ismissing(dd.equilibrium, :time) && section ∈ (0, sec)
         println('\u200B')
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
@@ -627,6 +656,9 @@ function digest(dd::IMAS.dd,
         cp(filename, outfilename; force=true)
         return outfilename
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir\n$e")
     else
         rm(tmpdir; recursive=true, force=true)
@@ -939,6 +971,9 @@ function malloc_trim_if_glibc()
                 #println("Not using glibc.")
             end
         catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             #println("Error reading /proc/version: ", e)
         end
     else
@@ -962,7 +997,10 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
         try
             tmp = Dict(extract(dds[k], xtract))
             df[k, :] = tmp
-        catch
+        catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             continue
         end
         ProgressMeter.next!(p)

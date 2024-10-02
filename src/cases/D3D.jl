@@ -1,23 +1,36 @@
 """
-    case_parameters(:D3D)
+    case_parameters(:D3D;
+        scenario::Union{Symbol,AbstractString}=:default,
+        use_scenario_sources::Bool=typeof(scenario)
 
 DIII-D
 
-Arguments:
+`Scenario` keyword can be:
 
-  - scenario: `:default` (loads an experimental d3d case), `:H_mode` (updates core_profiles and core_sources), `:L_mode` (updates core_profiles and core_sources)
+  - `:default` 133221
+  - `:H_mode` a prototypical H_mode
+  - `:L_mode` a prototypical L_mode
+  - a user defined string pointing to a ODS on file saved in JSON format
+
+`use_scenario_sources` keywods says whether core_sources will be taken from scenario or not
 """
-function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:D3D}}; scenario::Union{Symbol,AbstractString}=:default, use_scenario_sources::Bool=typeof(scenario) <: AbstractString ? true : false)::Tuple{ParametersAllInits,ParametersAllActors}
 
-    ini = use_ods_sources ? ParametersInits() : ParametersInits(; n_nb=1)
+    @assert scenario in (:default, :H_mode, :L_mode) || isfile(scenario)
+
+    ini = use_scenario_sources ? ParametersInits() : ParametersInits(; n_nb=1)
     act = ParametersActors()
 
-    ini.general.casename = "D3D $scenario scenario"
+    ini.general.casename = "D3D $scenario"
     ini.general.init_from = :ods
     ini.equilibrium.boundary_from = :ods
 
     machine_description = joinpath("__FUSE__", "sample", "D3D_machine.json")
     shot_mappings = Dict(
+        scenario => Dict(
+            :nbi_power => 0.0,
+            :filename => "$(machine_description),$(scenario)"
+        ),
         :H_mode => Dict(
             :nbi_power => 4.56e6,
             :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))"
@@ -28,12 +41,12 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         ),
         :default => Dict(
             :nbi_power => 5.0e6,
-            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))"),
     )
 
     ini.time.simulation_start = 0.0
     ini.ods.filename = shot_mappings[scenario][:filename]
-    ini.general.dd = load_ods(ini)
+    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false)
 
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_plug => 1.2,
@@ -67,9 +80,9 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.75 * 0.75
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 5E3
     ini.core_profiles.bulk = :D
@@ -78,10 +91,12 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
     ini.requirements.flattop_duration = 5.0
 
     act.ActorPFdesign.symmetric = true
-    act.ActorFluxMatcher.evolve_densities = :flux_match
-    act.ActorWholeFacility.update_build = false
 
-    if use_ods_sources
+    act.ActorWholeFacility.update_build = false
+    act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorStabilityLimits.raise_on_breach = false
+
+    if use_scenario_sources
         act.ActorHCD.nb_model = :none
         act.ActorHCD.ec_model = :none
         act.ActorHCD.lh_model = :none
@@ -92,7 +107,7 @@ function case_parameters(::Type{Val{:D3D}}; scenario=:default, use_ods_sources=f
         ini.nb_unit[1].power_launched = shot_mappings[scenario][:nbi_power]
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 20.0 / 180 * pi
+        ini.nb_unit[1].toroidal_angle = 18.0 * deg
     end
 
     set_new_base!(ini)

@@ -23,6 +23,7 @@ function __init__()
 end
 
 const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+const deg = pi / 180 # convert degrees to radians
 
 #= ===== =#
 #  UTILS  #
@@ -183,7 +184,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree
+export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

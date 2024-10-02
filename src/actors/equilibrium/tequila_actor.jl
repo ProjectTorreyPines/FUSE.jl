@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=8)
     number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=4)
     number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=1000)
-    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.25)
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.25, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)

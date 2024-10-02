@@ -34,6 +34,8 @@ docs/src/act.md
 docs/src/act_details.md
 docs/src/dd_details.md
 docs/src/tutorial.md
+docs/src/deps.md
+docs/src/deps.dot
 
 # Ignore all juptyer notebooks (you can still force them in with git add -f)
 *.ipynb

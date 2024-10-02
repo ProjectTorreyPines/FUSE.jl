@@ -1,23 +1,16 @@
 ## Getting started on the OMEGA cluster
 
-1. Get a OMEGA account and ask to be added to the `ptp` UNIX group
-
-1. Create a directory with your username under `/fusion/ga/projects/ird/ptp`
-   ```
-   mkdir /fusion/ga/projects/ird/ptp/$USER
-   ```
-
 1. Install miniconda
    ```
-   cd /fusion/ga/projects/ird/ptp/$USER
+   cd # in your home folder
    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
    sh Miniconda3-latest-Linux-x86_64.sh
    ```
-   read and accept the license, and install under `/fusion/ga/projects/ird/ptp/$USER/miniconda3`, answer questions, and restart your shell
+   read and accept the license, and install under `$HOME/miniconda3`, answer questions, and restart your shell
 
 1. install `mamba` for faster package management
    ```
-   /fusion/ga/projects/ird/ptp/$USER/miniconda3/bin/conda install -c conda-forge mamba
+   $HOME/miniconda3/bin/conda install -c conda-forge mamba
    ```
    !!! note
        We use the full `conda` path to avoid picking up the system `conda` install. There is no system-wide `mamba` executable, so that's not necessary when running `mamba`.
@@ -25,23 +18,6 @@
 1. install `jupyterlab`
    ```
    mamba install -c conda-forge jupyterlab
-   ```
-
-1. Setup your environment to run CHEASE (optional)
-   ```
-   export PATH=$PATH:/fusion/ga/projects/ird/ptp/chease/src-f90
-   ```
-
-1. Create a symbolic link from `/fusion/ga/projects/ird/ptp/$USER/julia/` to `~/.julia`
-   ```
-   mkdir -p /fusion/ga/projects/ird/ptp/$USER/julia/dev
-   ln -s /fusion/ga/projects/ird/ptp/$USER/julia ~/.julia
-   ```
-   `~/.julia` is where the Julia will install itself by default, and this will trick it to install itself in the IR&D folder instead.
-
-   For convenience create also a symbolic link in your `$HOME` that points to the Julia `dev` folder:
-   ```
-   ln -s /fusion/ga/projects/ird/ptp/$USER/julia/dev ~/julia_dev
    ```
 
 1. Remove `module load defaults` from your `~/.bashrc`
@@ -53,8 +29,6 @@
 
 1. Setup a multi-threaded Jupyter Julia kernel that does not take the whole login node
    ```
-   cd ~/julia_dev/FUSE
-
    export JULIA_NUM_THREADS=10
    fusebot install_IJulia
 
@@ -65,20 +39,57 @@
    This will setup a Jupyter Julia kernel with both 10 and 40 threads.
    Use 10 threads on login nodes and 40 threads on worker nodes.
 
-## Jupyter on OMEGA cluster
+## Distributed.jl on OMEGA
+
+We have found issues when trying to run parallel jobs using `Distributed.jl` on OMEGA.
+The fix for this is simple: don't use the `Main` environment, rather activate a separate environment.
+
+This can be easily by doing the following in the first cell of your Jupyter notebook:
+
+```julia
+using Pkg
+Pkg.activate("$HOME/julia_runs/my_run") # this is key, to avoid using the Main FUSE environment
+Pkg.add(("Plots", "FUSE"))
+```
+
+## Three ways to run parallel jobs
+
+Keep in mind that each worker node on OMEGA has 128 CPUs
+
+1. Screen + Jupyter on the login node, workers on the worker nodes
+
+   OK when the master process will not be doing a lot of work, and we need multiple nodes
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+1. Screen on the login node, Jupyter and workers on one worker node
+
+   OK when the master process will be doing a lot of work, and we don't need more than one node
+
+   Here we will use the `FUSE.parallel_environment("localhost", ...)` call.
+
+1. Screen on the login node, Jupyter on a worker node, workers on different worker nodes
+
+   OK when the master process will be doing a lot of work, and we need multiple nodes
+
+   This is more complex, and finicky. Avoid if possible.
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+
+## FUSE on OMEGA cluster
 
 1. Connect to `omega` and launch `screen`
 
    !!! note
        You can re-connect to an existing `screen` session with `screen -r`
 
-1. For larger jobs especially, consider doing what follows on a login node.
-   To do this (eg. a whole worker node of 40 cores for 4 days)
+1. **If (and only if) you want to run Jupyter on a worker node** do as follows:
 
     `srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l`
 
    !!! note
-       Use the queue, time, cpu, and memory limits that make the most sense for your application
+       Use the queue, time, CPU, and memory limits that make the most sense for your application
        see these [instructions](https://fusionga.sharepoint.com/sites/Computing/SitePages/Omega.aspx#using-slurm-to-run-interactive-tasks%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B) for help
 
 1. Then start the Jupyter lab server from the `screen` session (`screen` will keep `jupyter` running even when you log out)

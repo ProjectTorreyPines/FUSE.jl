@@ -186,6 +186,9 @@ function run_case(filename, study, item)
 
         return create_data_frame_row(dd, exp_values)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         open("$output_case/error.txt", "w") do file
             return showerror(file, e, catch_backtrace())
         end

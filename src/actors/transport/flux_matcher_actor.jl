@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
         Entry{Union{AbstractDict,Symbol}}(
             "-",
             "Densities `:fixed`, or electron flux-match and rest match ne scale `:flux_match`, or Dict to specify which species are `:flux_match`, kept `:fixed`, used to enforce `:quasi_neutrality`, or scaled to `:match_ne_scale`";
-            default=:fixed
+            default=:flux_match
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal within the transport solver"; default=true)
@@ -32,6 +32,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     )
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     save_input_tglf_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder at the last iteration"; default="")
+    relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -119,7 +120,6 @@ function _step(actor::ActorFluxMatcher)
     old_logging = actor_logging(dd, false)
 
     out = try
-
         if par.optimizer_algorithm == :none
             res = (zero=z_init_scaled,)
         elseif par.optimizer_algorithm == :simple
@@ -141,8 +141,7 @@ function _step(actor::ActorFluxMatcher)
                 iterations=par.max_iterations,
                 ftol,
                 xtol,
-                opts...
-            )
+                opts...)
         end
 
         out = flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
@@ -190,6 +189,30 @@ function _step(actor::ActorFluxMatcher)
         display(p)
     end
 
+    # final relaxation of profiles
+    if par.relax < 1.0
+        paths = []
+        push!(paths, (:electrons, :temperature))
+        push!(paths, (:electrons, :density_thermal))
+        for k in eachindex(cp1d.ion)
+            push!(paths, (:ion, k, :temperature))
+            push!(paths, (:ion, k, :density_thermal))
+        end
+        push!(paths, (:momentum_tor,))
+        for path in paths
+            field = path[end]
+            ids1 = IMAS.goto(cp1d, path[1:end-1])
+            ids2 = IMAS.goto(initial_cp1d, path[1:end-1])
+            if !ismissing(ids1, field) && !ismissing(ids2, field)
+                value1 = getproperty(ids1, field)
+                value2 = getproperty(ids2, field)
+                value = par.relax * value1 + (1.0 - par.relax) * value2
+                setproperty!(ids1, field, value)
+            end
+        end
+        IMAS.sources!(dd)
+    end
+
     # for completely collapsed cases we don't want it to crash in the optimizer
     # Also when the power flowing through the separatrix is below zero we want to punish the profiles (otherwise we generate energy from nothing)
     cp1d = dd.core_profiles.profiles_1d[]
@@ -206,6 +229,7 @@ function _step(actor::ActorFluxMatcher)
                 ion.temperature = lowest_profile
             end
         end
+        IMAS.sources!(dd)
     end
 
     return actor
@@ -382,10 +406,19 @@ function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     end
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
-    if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
-        norm_source = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        norm_transp = total_fluxes.electrons.particles.flux[cf_gridpoints]
-        push!(norms, norm_transformation(norm_source, norm_transp))
+    if !isempty(evolve_densities)
+        if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
+            norm_source = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+            norm_transp = total_fluxes.electrons.particles.flux[cf_gridpoints]
+            push!(norms, norm_transformation(norm_source, norm_transp))
+        end
+        for (k, ion) in enumerate(cp1d.ion)
+            if evolve_densities[Symbol(ion.label)] == :flux_match
+                norm_source = total_sources.ion[k].particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+                norm_transp = total_fluxes.ion[k].particles.flux[cf_gridpoints]
+                push!(norms, norm_transformation(norm_source, norm_transp))
+            end
+        end
     end
 
     return norms
@@ -427,10 +460,9 @@ function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
             target = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
             append!(targets, target)
         end
-        for ion in cp1d.ion
+        for (k, ion) in enumerate(cp1d.ion)
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                index = findfirst(sion -> sion.label == ion.label, total_sources.ion)
-                target = total_sources.ion[index].particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
+                target = total_sources.ion[k].particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
                 append!(targets, target)
             end
         end
@@ -478,9 +510,11 @@ function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
             check_output_fluxes(flux, "electrons.particles")
             append!(fluxes, flux)
         end
-        for ion in cp1d.ion
+        for (k, ion) in enumerate(cp1d.ion)
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                error("This is currently not working will fix later")
+                flux = total_fluxes.ion[k].particles.flux
+                check_output_fluxes(flux, "ion[$k].particles")
+                append!(fluxes, flux)
             end
         end
     end
@@ -553,7 +587,10 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
         return setup_density_evolution_fixed(cp1d)
     elseif par.evolve_densities == :flux_match
         return setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d)
-    elseif typeof(par.evolve_densities) <: AbstractDict
+    elseif typeof(par.evolve_densities) <: AbstractDict{Symbol,Symbol}
+        for (k, v) in par.evolve_densities
+            @assert v in (:quasi_neutrality, :match_ne_scale, :fixed, :flux_match) "evolve_density `:$(k) => :$(v)` is not allowed. Choose one of [:quasi_neutrality, :match_ne_scale, :fixed, :flux_match]"
+        end
         return par.evolve_densities
     else
         error(
