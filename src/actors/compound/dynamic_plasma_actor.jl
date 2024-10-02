@@ -242,18 +242,20 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # Ip and Vloop
     subplot = 1
-    plot!(dd.pulse_schedule.flux_control.time,
-        dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
-        seriestype=:time,
-        color=:gray,
-        label="Ip reference [MA]",
-        lw=2.0,
-        ls=:dash,
-        legend_position=:left,
-        background_color_legend=Plots.Colors.RGBA(1.0, 1.0, 1.0, 0.6),
-        legend_foreground_color=:transparent,
-        subplot
-    )
+    if !ismissing(dd.pulse_schedule.flux_control, :time)
+        plot!(dd.pulse_schedule.flux_control.time,
+            dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
+            seriestype=:time,
+            color=:gray,
+            label="Ip reference [MA]",
+            lw=2.0,
+            ls=:dash,
+            legend_position=:left,
+            background_color_legend=Plots.Colors.RGBA(1.0, 1.0, 1.0, 0.6),
+            legend_foreground_color=:transparent,
+            subplot
+        )
+    end
     plot!(
         dd.core_profiles.time,
         dd.core_profiles.global_quantities.ip / 1E6;
@@ -284,10 +286,16 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # equilibrium, build, and pf_active
     subplot = 2
-    plot!(dd.build; time0, subplot, axis=false, legend=false)
+    if !isempty(dd.build.layer)
+        plot!(dd.build; time0, subplot, axis=false, legend=false)
+    else
+        plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
+    end
     plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
     out = convex_outline(dd.pf_active.coil)
-    plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
+    if !isempty(out.r)
+        plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
+    end
 
     # core_profiles temperatures
     subplot = 3
