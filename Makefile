@@ -411,6 +411,7 @@ deps_dag:
 	end ;\
 	'
 	dot -Tsvg docs/src/deps.dot -o docs/src/assets/deps.svg
+	@echo "See DAG at: $(PWD)/docs/src/assets/deps.svg"
 
 # @devs
 develop:
