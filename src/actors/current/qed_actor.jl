@@ -62,6 +62,9 @@ function _step(actor::ActorQED)
     # non_inductive contribution
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
     JBni = QED.FE(cp1d.grid.rho_tor_norm, cp1d.j_non_inductive .* B0)
+    if par.solve_for == :ip && par.allow_floating_plasma_current
+        ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
+    end
 
     # initialize QED
     if actor.QO === nothing || par.Δt == Inf
@@ -94,7 +97,7 @@ function _step(actor::ActorQED)
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
                 Ip_non_inductive = dd.core_profiles.global_quantities.current_non_inductive[time0]
                 Vedge = nothing
-                if par.allow_floating_plasma_current && abs(Ip) < abs(Ip_non_inductive)
+                if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
                     Ip = nothing
                     Vedge = 0.0
                 end
@@ -111,7 +114,7 @@ function _step(actor::ActorQED)
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
             Ip_non_inductive = dd.core_profiles.global_quantities.current_non_inductive[]
             Vedge = nothing
-            if par.allow_floating_plasma_current && abs(Ip) < abs(Ip_non_inductive)
+            if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
                 Ip = nothing
                 Vedge = 0.0
             end

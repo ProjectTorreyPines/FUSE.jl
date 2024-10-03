@@ -9,12 +9,15 @@ import ThermalSystemModels
 TSMD = ThermalSystemModels.Dynamics
 MTK.@independent_variables t
 
+# Surogate
+using BalanceOfPlantSurrogate
+
 Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:fixed_cycle_efficiency, :network], "-", "Power plant heat cycle efficiency"; default=:network)
-    fixed_cycle_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_cycle_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
+    model::Switch{Symbol} = Switch{Symbol}([:fixed_plant_efficiency, :network, :surogate], "-", "Power plant heat cycle efficiency"; default=:surogate)
+    fixed_plant_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_plant_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -97,10 +100,17 @@ function _step(actor::ActorThermalPlant)
     end
 
     # fixed cycle efficiency
-    if par.model == :fixed_cycle_efficiency
-        @ddtime(bop.thermal_efficiency_cycle = par.fixed_cycle_efficiency)
+    if par.model == :fixed_plant_efficiency
+        @ddtime(bop.thermal_efficiency_plant = par.fixed_plant_efficiency)
         @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
-        @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * par.fixed_cycle_efficiency)
+        @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * par.fixed_plant_efficiency)
+        return actor
+    elseif par.model == :surogate
+        BOP = BalanceOfPlantSurrogate.BOPSurogate(Symbol(bop.power_plant.power_cycle_type))
+        plant_efficiency = BOP(breeder_heat_load, divertor_heat_load, wall_heat_load)
+        @ddtime(bop.thermal_efficiency_plant = plant_efficiency)
+        @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
+        @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * plant_efficiency)
         return actor
     end
 
@@ -426,7 +436,7 @@ function _step(actor::ActorThermalPlant)
 
         else
             error(
-                "ActorThermalPlant model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_cycle_efficiency\"]"
+                "ActorThermalPlant model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_plant_efficiency\"]"
             )
         end
         actor.x = [getval(a, actor) for a in actor.optpar]

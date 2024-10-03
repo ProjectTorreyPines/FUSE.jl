@@ -1,3 +1,8 @@
+"""
+    case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)
+
+
+"""
 function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = FUSE.ParametersInits(; n_ic=1)
     act = FUSE.ParametersActors()

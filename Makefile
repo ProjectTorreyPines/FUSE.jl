@@ -16,7 +16,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FRESCO FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields ThermalSystemModels # XSteam Fortran90Namelists
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
@@ -124,6 +124,9 @@ CHEASE:
 
 TEQUILA:
 	$(call clone_pull_repo,$@)
+
+BalanceOfPlantSurrogate:
+	$(call clone_pull_repo$@)
 
 NNeutronics:
 	$(call clone_pull_repo,$@)
@@ -334,9 +337,10 @@ daily_example_ci_commit:
 endif
 
 # @devs
-dev_deps_tree:
-# Print dependency tree of the packages in dev folder
+deps_tree:
+# Print FUSE dependency tree of project-torrey-pines packages
 	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using AbstractTrees ;\
@@ -346,11 +350,71 @@ dev_deps_tree:
 	end ;\
 	function AbstractTrees.children(uuid::Base.UUID) ;\
 		dep = get(Pkg.dependencies(), uuid, nothing) ;\
-		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
 		tmp= sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
 	end ;\
 	AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
 	'
+
+# @devs
+deps_dag:
+# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
+	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES);\
+	using Pkg ;\
+	Pkg.add("AbstractTrees") ;\
+	using Random ;\
+	using AbstractTrees ;\
+	using Printf ;\
+	edges = Set{Tuple{String, String}}() ;\
+	function random_color() ;\
+		r = rand(0:255) ;\
+		g = rand(0:255) ;\
+		b = rand(0:255) ;\
+		return @sprintf("#%02x%02x%02x", r, g, b) ;\
+	end ;\
+	function AbstractTrees.printnode(io::IO, uuid::Base.UUID) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		print(io, dep.name) ;\
+	end ;\
+	function AbstractTrees.children(uuid::Base.UUID) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		dev_deps = Dict([(key, value) for (key, value) in dep.dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
+		return sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
+	end ;\
+	function collect_edges(uuid::Base.UUID, edges::Set{Tuple{String, String}}) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		if dep !== nothing ;\
+			for subdep in AbstractTrees.children(uuid) ;\
+				subdep_info = get(Pkg.dependencies(), subdep, nothing) ;\
+				if subdep_info !== nothing ;\
+					push!(edges, (dep.name, subdep_info.name)) ;\
+					collect_edges(subdep, edges) ;\
+				end ;\
+			end ;\
+		end ;\
+	end ;\
+	project_dep = Pkg.project().dependencies["FUSE"] ;\
+	if project_dep !== nothing ;\
+		collect_edges(project_dep, edges) ;\
+	end ;\
+	open("docs/src/deps.dot", "w") do io ;\
+		write(io, "digraph G {\n") ;\
+		write(io, "rankdir=LR;\n");\
+		write(io, "ranksep=0.4;\n");\
+		write(io, "nodesep=0.1;\n");\
+		write(io, "splines=true;\n");\
+		write(io, "node [shape=ellipse, fontname=\"Helvetica\", fontsize=12, penwidth=3];\n");\
+		write(io, "edge [penwidth=2];\n");\
+		for (src, dst) in edges ;\
+			color = random_color() ;\
+			@printf(io, "\"%s\" -> \"%s\" [color=\"%s\"];\n", src, dst, color) ;\
+		end ;\
+		write(io, "}\n") ;\
+	end ;\
+	'
+	dot -Tsvg docs/src/deps.dot -o docs/src/assets/deps.svg
+	@echo "See DAG at: $(PWD)/docs/src/assets/deps.svg"
 
 # @devs
 develop:

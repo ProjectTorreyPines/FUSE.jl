@@ -1,5 +1,7 @@
 # # FUSE Introductory Tutorial
 
+# Download this tutorial from the [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/tutorial.ipynb)
+
 # Import the necessary packages
 
 using Plots # for plotting
