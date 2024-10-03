@@ -422,7 +422,7 @@ function plot_summary(dd::IMAS.DD; kw...)
 end
 
 function plot_summary(summary::IMAS.summary; kw...)
-    for leaf in IMASdd.AbstractTrees.Leaves(summary)
+    for leaf in AbstractTrees.Leaves(summary)
         if typeof(leaf.value) <: Vector
             display(plot(leaf.ids, leaf.field; title=IMAS.location(leaf.ids,leaf.field), kw...))
         end
