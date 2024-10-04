@@ -2,14 +2,23 @@
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
 
+## 📢 Upcoming 2024 Code Camp 📢
+
+Join the FUSE community and help shape the future of Fusion Power Plant design:
+
+* **Date:** Dec 9th - 13th
+* **Location:** In person @ General Atomics
+* **Seats:** Limited to 40 participants - **[🔥 REGISTER TODAY!](https://docs.google.com/forms/d/e/1FAIpQLSc948qTy9HmlAwj9x-kzYYTStrLvgDT4UCEkM3HwTZnovBjsw/viewform)**
+
 ## Resources
 
 Here are some key resources for getting started with FUSE:
 
-* 📚 **Documentation**: Find the [online documentation](https://fuse.help)
-* 📊 **Presentation**: Access the [FUSE slides](https://tinyurl.com/FUSEslideDeck)
-* 📜 **Publication**: Refer to the [FUSE paper](https://arxiv.org/abs/2409.05894)
-* 🆘 **Community**: Receive support on the [Discord server](https://discord.gg/CbjpZH9SKM)
+* 📚 **[Online documentation](https://fuse.help)**
+* 📊 **[Summary presentation](https://tinyurl.com/FUSEslideDeck)**
+* 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
+* 📦 **[Package ecosystem](https://fuse.help/dev/deps.html)**
+* 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
 
 ## Objectives
 
@@ -27,7 +36,7 @@ FUSE aims to achieve the following objectives:
 
 FUSE is entirely written in Julia and is structured around the following core concepts:
 
-1. **📦 Data storage**: All data is stored in the `dd` structure, which follows the ITER IMAS ontology.
+1. **📂 Data storage**: All data is stored in the `dd` structure, which follows the ITER IMAS ontology.
 2. **🧠 Actors**: The core components of FUSE simulations are physics and engineering actors.
 3. **🕹️ Control**: Actor functionality is governed by `act` parameters.
 4. **🚀 Initialization**: The data structure can be initialized from 0D `ini` parameters.
