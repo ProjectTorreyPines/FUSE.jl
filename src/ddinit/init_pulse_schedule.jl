@@ -56,19 +56,20 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 pushfirst!(time, 0.0)
                 pushfirst!(time, -Inf)
             end
-            time_backup = ini.time.simulation_start
+            ini_time_simulation_start = ini.time.simulation_start
+            dd1_time_backup = dd1.global_time
             for (k, time0) in enumerate(time)
-                if time0 < time_backup
+                if time0 < ini_time_simulation_start
                     # This is necessary because equilibrium quantities may not be defined at < simulation_start as it happens for example when starting from ODS
-                    ini.time.simulation_start = time_backup
+                    ini.time.simulation_start = ini_time_simulation_start
+                    dd1.global_time = ini_time_simulation_start
                 else
                     ini.time.simulation_start = time0
+                    dd1.global_time = time0
                 end
 
                 # get MXHboundary representation
                 mxhb = MXHboundary(ini, dd1)
-                # # update ini.equilibrium scalars accordingly
-                # ini.equilibrium(mxhb.mxh)
 
                 if ismissing(ini.rampup, :ends_at)
                     init_pulse_schedule_postion_control(pc, mxhb, time0)
@@ -88,7 +89,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                     break
                 end
             end
-            ini.time.simulation_start = time_backup
+            ini.time.simulation_start = ini_time_simulation_start
+            dd1.global_time = dd1_time_backup
 
             # density & zeff
             time, data = get_time_dependent(ini.core_profiles, [:zeff, :ne_value]; simplify_time_traces)

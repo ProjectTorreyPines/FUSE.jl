@@ -380,19 +380,11 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.R0 = mxh.R0
     equilibrium.Z0 = mxh.Z0
     equilibrium.κ = mxh.κ
-    equilibrium.tilt = mxh.c0
-    if length(mxh.s) >= 1
-        equilibrium.δ = sin(mxh.s[1])
-    end
-    if length(mxh.s) >= 2
-        equilibrium.ζ = -mxh.s[2]
-    end
-    if length(mxh.c) >= 1
-        equilibrium.𝚶 = mxh.c[1]
-    end
-    if length(mxh.c) >= 2
-        equilibrium.twist = mxh.c[2]
-    end
+    equilibrium.tilt = mxh.tilt
+    equilibrium.δ = mxh.δ
+    equilibrium.ζ = mxh.ζ
+    equilibrium.𝚶 = mxh.𝚶
+    equilibrium.twist = mxh.twist
     return equilibrium
 end
 
@@ -411,16 +403,8 @@ function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
 end
 
 function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
-    init_from = ini.general.init_from
-    if init_from == :ods
-        if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
-            dd.global_time = ini.time.simulation_start
-            eqt = dd.equilibrium.time_slice[]
-            fw = IMAS.first_wall(dd.wall)
-            IMAS.flux_surfaces(eqt, fw.r, fw.z)
-        else
-            init_from = :scalars
-        end
+    if ini.general.init_from == :ods
+        eqt = dd.equilibrium.time_slice[]
     end
 
     boundary_from = ini.equilibrium.boundary_from
@@ -495,8 +479,14 @@ end
 Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
+
+NOTE: ini.general.dd takes priority over ini.general.ods
 """
 function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    if !ismissing(ini.general, :dd)
+        return ini.general.dd
+    end
+
     dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
 
     # handle time
