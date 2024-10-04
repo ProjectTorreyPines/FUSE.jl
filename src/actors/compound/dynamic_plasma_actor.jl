@@ -332,7 +332,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(
         dd.core_sources;
         time0,
-        only=4,
+        only=5,
         subplot,
         min_power,
         aggregate_radiation,
