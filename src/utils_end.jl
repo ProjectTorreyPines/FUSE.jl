@@ -490,23 +490,11 @@ function digest(
     end
 
     # core profiles
-    # temperatures
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=1))
-    end
-    # densities
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=2))
-    end
-    # rotation
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=3))
+    for k in 1:3
+        if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_profiles; only=k))
+        end
     end
 
     # core sources
@@ -517,7 +505,7 @@ function digest(
         end
     end
 
-    # core sources
+    # core transport
     for k in 1:4+length(IMAS.list_ions(dd.core_transport))
         if !isempty(dd.core_transport) && section ∈ (0, sec)
             println('\u200B')
