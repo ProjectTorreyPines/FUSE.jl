@@ -144,8 +144,8 @@ function pareto_front(solutions::Vector{Vector{T}}) where {T}
     return pareto
 end
 
-function pareto_front(solution1::Vector{T}, solution2::Vector{T}) where {T}
-    return pareto_front([[s1,s2] for (s1,s2) in zip(solution1, solution2)])
+function pareto_front(objectives::Tuple{Vararg{Vector{T}}}) where {T}
+    return pareto_front([collect(point) for point in zip(objectives...)])
 end
 
 """
