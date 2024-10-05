@@ -913,7 +913,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         if symmetric
             mxhb0.mxh.c0 = 0.0
             mxhb0.mxh.s = params[L+1:end]
-            mxhb0.mxh.c = mxhb0.mxh.s .* 0.0
+            mxhb0.mxh.c = zero(mxhb0.mxh.s)
         else
             L += 1
             mxhb0.mxh.c0 = params[L]

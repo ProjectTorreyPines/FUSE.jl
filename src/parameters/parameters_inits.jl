@@ -600,7 +600,7 @@ Plots ini time dependent time traces including plasma boundary
 
         # plot equilibrium including x-points
         mxhb = MXHboundary(ini)
-        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.ϵ * mxhb.mxh.R0, ini.build.plasma_gap)
+        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.minor_radius, ini.build.plasma_gap)
         @series begin
             label := ""
             seriestype := :vline
