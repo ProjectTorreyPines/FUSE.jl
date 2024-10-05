@@ -46,20 +46,23 @@ clip rails (rail_r, rail_z) so that they start/end along the intersection with t
 the magnetic axis (RA,ZA) and the point of maximum curvature along the equilibrium boundary (pr,pz)
 """
 function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
-    IMAS.reorder_flux_surface!(rail_r, rail_z)
+    IMAS.reorder_flux_surface!(rail_r, rail_z, RA, ZA)
 
     index = argmin(rail_r)
     rail_z = circshift(rail_z[1:end-1], index)
     rail_r = circshift(rail_r[1:end-1], index)
 
-    curve = abs.(IMAS.curvature(pr, pz))
+    theta = atan.(pz .- ZA, pr .- RA)
+    weight = sin.(theta) .^ 2
+    curve = abs.(IMAS.curvature(pr, pz)) .* weight
+
     index = Int[]
     index = pz .> ZA
-    RU = pr[index][argmax(curve[index])]
-    ZU = pz[index][argmax(curve[index])]
+    RU = @views pr[index][argmax(curve[index])]
+    ZU = @views pz[index][argmax(curve[index])]
     index = pz .< ZA
-    RL = pr[index][argmax(curve[index])]
-    ZL = pz[index][argmax(curve[index])]
+    RL = @views pr[index][argmax(curve[index])]
+    ZL = @views pz[index][argmax(curve[index])]
 
     α = 10.0
 
@@ -75,8 +78,8 @@ function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vec
     idx_l2 = intsc.indexes[1][1]
     crx_l2 = intsc.crossings[1]
 
-    rail_r = [crx_u1[1]; rail_r[idx_u1+1:idx_l2]; crx_l2[1]]
-    rail_z = [crx_u1[2]; rail_z[idx_u1+1:idx_l2]; crx_l2[2]]
+    rail_r = [crx_u1[1]; @views rail_r[idx_u1+1:idx_l2]; crx_l2[1]]
+    rail_z = [crx_u1[2]; @views rail_z[idx_u1+1:idx_l2]; crx_l2[2]]
 
     return rail_r, rail_z
 end
