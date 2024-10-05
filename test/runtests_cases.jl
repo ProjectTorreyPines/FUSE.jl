@@ -13,6 +13,8 @@ using Test
 
                 # speedup the tests
                 act.ActorStationaryPlasma.max_iter = 1
+                # use full model for ActorThermalPlant
+                act.ActorThermalPlant.model = :network
 
                 @testset "init" begin
                     FUSE.init(dd, ini, act)
