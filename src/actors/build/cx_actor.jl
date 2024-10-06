@@ -262,7 +262,7 @@ function wall_from_eq!(
 
         # remove private flux region from wall (necessary because of Z expansion)
         pr1m = [pr1; pr1[1]; pr1[end]]
-        pz1m = [pz1; sign(pz1[1]) * 100; sign(pz1[end]) * 100]
+        pz1m = [pz1; pz1 .+ sign(pz1[1] - ZA) * 100; pz1 .+ sign(pz1[end] - ZA) * 100]
         pm_poly = xy_polygon(convex_hull(pr1m, pz1m; closed_polygon=true))
         wall_poly = LibGEOS.difference(wall_poly, pm_poly)
 
@@ -424,7 +424,7 @@ function divertor_regions!(
 
         α = 5.0
         domain_r = vcat(xx, reverse(xx), xx[1])
-        domain_z = vcat(yy, [Zx * α, Zx * α], yy[1])
+        domain_z = vcat(yy, [(Zx - ZA) * α + ZA, (Zx - ZA) * α + ZA], yy[1])
         domain_poly = xy_polygon(domain_r, domain_z)
         backwall_domain_poly = try
             LibGEOS.intersection(backwall_poly, domain_poly)
@@ -699,7 +699,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
                 verbose && @show "B", layer.name, layer_shape
-                layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                layer.shape, layer.shape_parameters = optimize_layer_outline(
                     bd,
                     plasma_to_tf[kk+1],
                     plasma_to_tf[kk],
