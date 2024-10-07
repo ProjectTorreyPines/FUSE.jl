@@ -1,7 +1,7 @@
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -23,12 +23,11 @@ end
 """
     ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-* evolves the ohmic current to steady state using the conductivity from `dd.core_profiles` and total current form `dd.equilibrium`.
-* sets the ohmic, bootstrap, and non-inductive current profiles in `dd.core_profiles`
-* updates bootstrap and ohmic in `dd.core_sources`
+Evolves the ohmic current to steady state using the conductivity from `dd.core_profiles`
 
-!!! note 
-    Stores data in `dd.core_sources` and `dd.core_profiles`
+!!! note
+
+    Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
@@ -42,7 +41,6 @@ function _step(actor::ActorSteadyStateCurrent)
     par = actor.par
 
     eqt = dd.equilibrium.time_slice[]
-    cpg = dd.core_profiles.global_quantities
     cp1d = dd.core_profiles.profiles_1d[]
 
     ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)
@@ -51,8 +49,8 @@ function _step(actor::ActorSteadyStateCurrent)
     IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
 
     # allow floating plasma current
-    current_non_inductive = trapz(cp1d.grid.area, cp1d.j_non_inductive)
-    if abs(ip_target) < abs(current_non_inductive) && par.allow_floating_plasma_current
+    ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
+    if abs(ip_target) < abs(ip_non_inductive) && par.allow_floating_plasma_current
         cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
     end
 

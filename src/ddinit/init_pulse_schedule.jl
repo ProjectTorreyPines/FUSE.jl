@@ -35,8 +35,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             elseif typeof(getfield(ini.equilibrium, :R0).value) <: Function
                 error("`ini.equilibrium.R0` should not be time dependent")
             else
-                mxh = IMAS.MXH(ini, dd1)
-                R0 = mxh.R0
+                mxhb = MXHboundary(ini, dd1)
+                R0 = mxhb.mxh.R0
             end
 
             # B0
@@ -46,7 +46,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.tf.r0 = R0
 
             # position_control
-            time, _ = get_time_dependent(ini.equilibrium, [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :𝚶, :xpoints, :MXH_params, :rz_points]; simplify_time_traces)
+            time, _ = get_time_dependent(ini.equilibrium, [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :tilt, :𝚶, :xpoints, :MXH_params, :rz_points]; simplify_time_traces)
             if !ismissing(ini.rampup, :ends_at)
                 time = filter(t -> t > ini.rampup.ends_at, time)
                 pushfirst!(time, ini.rampup.ends_at)
@@ -56,22 +56,25 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 pushfirst!(time, 0.0)
                 pushfirst!(time, -Inf)
             end
-            time_backup = ini.time.simulation_start
+            ini_time_simulation_start = ini.time.simulation_start
+            dd1_time_backup = dd1.global_time
             for (k, time0) in enumerate(time)
-                if time0 < time_backup
+                if time0 < ini_time_simulation_start
                     # This is necessary because equilibrium quantities may not be defined at < simulation_start as it happens for example when starting from ODS
-                    ini.time.simulation_start = time_backup
+                    ini.time.simulation_start = ini_time_simulation_start
+                    dd1.global_time = ini_time_simulation_start
                 else
                     ini.time.simulation_start = time0
+                    dd1.global_time = time0
                 end
-                nx = n_xpoints(ini.equilibrium.xpoints)
-                mxh = IMAS.MXH(ini, dd1)
-                ini.equilibrium(mxh)
-                mxhb = fitMXHboundary(mxh, nx)
+
+                # get MXHboundary representation
+                mxhb = MXHboundary(ini, dd1)
+
                 if ismissing(ini.rampup, :ends_at)
                     init_pulse_schedule_postion_control(pc, mxhb, time0)
                 else
-                    wr = wall_radii(mxh.R0, mxh.ϵ * mxh.R0, ini.build.plasma_gap)
+                    wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.minor_radius, ini.build.plasma_gap)
                     mxh_bore, mxh_lim2div = limited_to_diverted(0.75, mxhb, wr.r_hfs, wr.r_lfs, ini.rampup.side)
                     if time0 <= 0.0
                         init_pulse_schedule_postion_control(pc, mxh_bore, time0)
@@ -86,7 +89,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                     break
                 end
             end
-            ini.time.simulation_start = time_backup
+            ini.time.simulation_start = ini_time_simulation_start
+            dd1.global_time = dd1_time_backup
 
             # density & zeff
             time, data = get_time_dependent(ini.core_profiles, [:zeff, :ne_value]; simplify_time_traces)
@@ -280,13 +284,15 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
 
     # scalars
-    IMAS.set_time_array(pc.minor_radius, :reference, time0, mxh.ϵ * mxh.R0)
+    IMAS.set_time_array(pc.minor_radius, :reference, time0, mxh.minor_radius)
     IMAS.set_time_array(pc.geometric_axis.r, :reference, time0, mxh.R0)
     IMAS.set_time_array(pc.geometric_axis.z, :reference, time0, mxh.Z0)
-    IMAS.set_time_array(pc.elongation, :reference, time0, mxh.κ)
-    IMAS.set_time_array(pc.triangularity, :reference, time0, sin(mxh.s[1]))
-    IMAS.set_time_array(pc.squareness, :reference, time0, -mxh.s[2])
-    IMAS.set_time_array(pc.ovality, :reference, time0, mxh.c[1])
+    IMAS.set_time_array(pc.elongation, :reference, time0, mxh.elongation)
+    IMAS.set_time_array(pc.tilt, :reference, time0, mxh.tilt)
+    IMAS.set_time_array(pc.triangularity, :reference, time0, mxh.triangularity)
+    IMAS.set_time_array(pc.squareness, :reference, time0, mxh.squareness)
+    IMAS.set_time_array(pc.ovality, :reference, time0, mxh.ovality)
+    IMAS.set_time_array(pc.twist, :reference, time0, mxh.twist)
 
     # boundary
     resize!(pc.boundary_outline, length(pr); wipe=false)
@@ -346,7 +352,7 @@ function limited_to_diverted(
         z_bore .+= z_diverted[index_z_height]
     end
     mxh_bore = IMAS.MXH(r_bore, z_bore, 0)
-    mxhb_bore = FUSE.MXHboundary(mxh_bore; upper_x_point=false, lower_x_point=false)
+    mxhb_bore = MXHboundary(mxh_bore; upper_x_point=false, lower_x_point=false)
     mxhb_bore.RX = deepcopy(mxhb_diverted.RX)
     mxhb_bore.ZX = deepcopy(mxhb_diverted.ZX)
 
@@ -357,7 +363,7 @@ function limited_to_diverted(
     r = [x for (x, y) in hull]
     z = [y for (x, y) in hull]
     mxh_lim2div = IMAS.MXH(r, z, length(mxh_diverted.c))
-    mxhb_lim2div = FUSE.MXHboundary(mxh_lim2div; upper_x_point=false, lower_x_point=false)
+    mxhb_lim2div = MXHboundary(mxh_lim2div; upper_x_point=false, lower_x_point=false)
     mxhb_lim2div.RX = deepcopy(mxhb_diverted.RX)
     mxhb_lim2div.ZX = deepcopy(mxhb_diverted.ZX)
 

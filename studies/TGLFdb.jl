@@ -186,6 +186,9 @@ function run_case(filename, study, item)
 
         return create_data_frame_row(dd, exp_values)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         open("$output_case/error.txt", "w") do file
             return showerror(file, e, catch_backtrace())
         end
@@ -216,7 +219,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     rho_transport = dd.core_transport.model[1].profiles_1d[].grid_flux.rho_tor_norm
 
     ct1d_tglf = dd.core_transport.model[1].profiles_1d[]
-    ct1d_target = IMAS.total_fluxes(dd.core_transport, rho_transport)
+    ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport)
 
     qybro_bohms = [IMAS.gyrobohm_energy_flux(cp1d, eqt), IMAS.gyrobohm_particle_flux(cp1d, eqt), IMAS.gyrobohm_momentum_flux(cp1d, eqt)]
     rho_cp = cp1d.grid.rho_tor_norm

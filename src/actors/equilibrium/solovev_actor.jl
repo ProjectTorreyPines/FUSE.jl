@@ -1,11 +1,10 @@
 import MXHEquilibrium
-import EFIT
 import Optim
 
 #= ============ =#
 #  ActorSolovev  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -16,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolovev{T<:Real} <: ParametersAc
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     #== display and debugging parameters ==#
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorSolovev{D,P} <: SingleAbstractActor{D,P}
@@ -100,7 +99,7 @@ function _step(actor::ActorSolovev)
         ip_cost = (MXHEquilibrium.plasma_current(S) - target_ip) / target_ip
         return sqrt(pressure_cost^2 + 100.0 * ip_cost^2)
     end
-    res = Optim.optimize(cost, [S0.alpha, S0.qstar], Optim.NelderMead(), Optim.Options(g_tol=1E-3))
+    res = Optim.optimize(cost, [S0.alpha, S0.qstar], Optim.NelderMead(), Optim.Options(; g_tol=1E-3))
     if par.verbose
         println(res)
     end
@@ -128,7 +127,7 @@ function _finalize(actor::ActorSolovev)
     target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
     target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
 
-    MXHEquilibrium_to_dd!(dd.equilibrium, mxh_eq, par.ngrid, cocos_in=3)
+    MXHEquilibrium_to_dd!(dd.equilibrium, mxh_eq, par.ngrid; cocos_in=3)
 
     # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
     eqt2d = findfirst(:rectangular, eqt.profiles_2d)
@@ -184,7 +183,8 @@ function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.Abst
     eqt.profiles_1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(mxh_eq, orig_psi) ./ (tc["PSI"] * sign_Ip)
 
     eqt.profiles_1d.f = MXHEquilibrium.poloidal_current.(mxh_eq, orig_psi) .* (tc["F"] * sign_Bt)
-    eqt.profiles_1d.f_df_dpsi = MXHEquilibrium.poloidal_current.(mxh_eq, orig_psi) .* MXHEquilibrium.poloidal_current_gradient.(mxh_eq, orig_psi) .* (tc["F_FPRIME"] * sign_Bt * sign_Ip)
+    eqt.profiles_1d.f_df_dpsi =
+        MXHEquilibrium.poloidal_current.(mxh_eq, orig_psi) .* MXHEquilibrium.poloidal_current_gradient.(mxh_eq, orig_psi) .* (tc["F_FPRIME"] * sign_Bt * sign_Ip)
 
     eqt2d = resize!(eqt.profiles_2d, 1)[1]
     eqt2d.grid_type.index = 1
@@ -192,7 +192,8 @@ function MXHEquilibrium_to_dd!(eq::IMAS.equilibrium, mxh_eq::MXHEquilibrium.Abst
     eqt2d.grid.dim2 = range(zlims[1] + Z0, zlims[2] + Z0, Int(ceil(ngrid * mxh_eq.S.κ)))
     eqt2d.psi = [mxh_eq(rr, flip_z * (zz - Z0)) * (tc["PSI"] * sign_Ip) for rr in eqt2d.grid.dim1, zz in eqt2d.grid.dim2]
 
-    IMAS.flux_surfaces(eqt)
+    fw = IMAS.first_wall(IMAS.top_dd(eqt).wall)
+    IMAS.flux_surfaces(eqt, fw.r, fw.z)
 
     return
 end

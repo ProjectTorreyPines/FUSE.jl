@@ -6,14 +6,19 @@ import TJLF: InputTJLF
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
-    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
+    user_specified_model::Entry{String} = Entry{String}(
+        "-",
+        "Use a user specified TGLF-NN model stored in TGLFNN/models";
+        default="",
+        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.user_specified_model must be one of $(TGLFNN.available_models())"
+    )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
@@ -115,7 +120,7 @@ function _finalize(actor::ActorTGLF)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux, :momentum_flux], actor.flux_solutions, m1d, eqt, cp1d)
+    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end
@@ -214,8 +219,8 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     return input_tjlf
 end
 
-function Base.show(input::Union{InputTGLF,InputTJLF})
+function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF})
     for field_name in fieldnames(typeof(input))
-        println(" $field_name = $(getfield(input,field_name))")
+        println(io, " $field_name = $(getfield(input,field_name))")
     end
 end

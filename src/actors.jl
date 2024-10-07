@@ -190,7 +190,7 @@ end
 #= ==== =#
 #  show  #
 #= ==== =#
-function Base.show(io::IO, actor::AbstractActor)
+function Base.show(io::IO, ::MIME"text/plain", actor::AbstractActor)
     actorname = replace(string(typeof(actor)), "{Float64, Float64}" => "", r"^FUSE." => "")
     fields = join([fieldname for fieldname in fieldnames(typeof(actor))], ", ")
     return print(io, "$actorname($fields)")

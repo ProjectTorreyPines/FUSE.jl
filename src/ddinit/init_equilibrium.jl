@@ -15,6 +15,8 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
             if IMAS.hasdata(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
                 dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
+                fw = IMAS.first_wall(dd.wall)
+                IMAS.flux_surfaces(eqt, fw.r, fw.z)
             else
                 init_from = :scalars
             end
@@ -37,12 +39,20 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 cp1d.grid.rho_tor_norm = rhon
                 cp1d.grid.psi = psin
                 cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference)
-                if !ismissing(ini.requirements, :power_electric_net) &&  ismissing(ini.equilibrium, :pressure_core)
-                    pressure_core = 1e4 # low pressure that will be overwritten in init_core_profiles based on expected net electric
+                if !ismissing(ini.requirements, :power_electric_net) && ismissing(ini.equilibrium, :pressure_core)
+                    Pfusion_estimate = ini.requirements.power_electric_net * 2.0
+                    dd0 = deepcopy(dd)
+                    dd0.core_profiles.profiles_1d[].pressure = 1E4 .* (1.0 .- psin)
+                    act_copy = deepcopy(act)
+                    act_copy.ActorTEQUILA.free_boundary = false
+                    ActorEquilibrium(dd0, act_copy; model=:TEQUILA, ip_from=:pulse_schedule)
+                    res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd0, ini), 1e1, 1e7, Optim.GoldenSection())
+                    ini.equilibrium.pressure_core = pressure_core = res.minimizer[1]
+                    @warn "Guessing `ini.equilibrium.pressure_core=$pressure_core` based on ini.requirements.power_electric_net=$(ini.requirements.power_electric_net)"
                 elseif !ismissing(getproperty(ini.equilibrium, :pressure_core))
                     pressure_core = ini.equilibrium.pressure_core
                 else
-                    error("Specify ini.equilibrium.pressure_core for this case")
+                    error("Specify `ini.equilibrium.pressure_core` for this case")
                 end
 
                 cp1d.pressure = pressure_core .* (1.0 .- psin)

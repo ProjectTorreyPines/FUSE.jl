@@ -1,9 +1,9 @@
 """
-    case_parameters(:SPARC)
+    case_parameters(:SPARC; flux_matcher::Bool=false)
 
 CFS/MIT SPARC design
 """
-function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:SPARC}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
     ini = ParametersInits(; n_ic=1)
     act = ParametersActors()
     ini.general.casename = "SPARC"
@@ -12,8 +12,8 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.boundary_from = :scalars
     ini.equilibrium.R0 = 1.85
     ini.equilibrium.ϵ = 0.308 #a/R0
-    ini.equilibrium.κ = 1.97 #kappa_a = 1.75 (kappa_lower-single-null = 1.65), kappa_sep = 1.97
-    ini.equilibrium.δ = 0.54 #delta_sep
+    ini.equilibrium.κ = 1.97
+    ini.equilibrium.δ = 0.45
     ini.equilibrium.B0 = -12.2
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
@@ -36,11 +36,11 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.build.layers = layers
 
     ini.oh.n_coils = 6
-    ini.pf_active.n_coils_inside = 6
+    ini.pf_active.n_coils_inside = 0
     ini.pf_active.n_coils_outside = 8
     ini.pf_active.technology = :rebco
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :miller
     ini.tf.n_coils = 18 #estimate (from ARC)
     ini.tf.technology = :rebco
     ini.oh.technology = :rebco
@@ -53,9 +53,9 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.37
     ini.core_profiles.helium_fraction = 0.1 #estimate
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 1.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
@@ -63,8 +63,17 @@ function case_parameters(::Type{Val{:SPARC}})::Tuple{ParametersAllInits,Paramete
 
     ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
+    #### ACT ####
     act.ActorPFdesign.symmetric = true
-    act.ActorEquilibrium.symmetrize = true
+
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
+    if !flux_matcher
+        act.ActorCoreTransport.model = :none
+    end
 
     set_new_base!(ini)
     set_new_base!(act)

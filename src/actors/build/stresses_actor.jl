@@ -1,7 +1,7 @@
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStresses{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorStresses{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -24,7 +24,7 @@ end
 
 Estimates mechanical stresses on the center stack
 
-!!! note 
+!!! note
     Stores data in `dd.solid_mechanics`
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -51,19 +51,19 @@ function _step(actor::ActorStresses)
 
     R_tf_in = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_).start_radius
     R_tf_out = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_).end_radius
-    
+
     Bz_oh = bd.oh.max_b_field
-    
+
     R_oh_in = IMAS.get_build_layer(bd.layer, type=_oh_).start_radius
     R_oh_out = IMAS.get_build_layer(bd.layer, type=_oh_).end_radius
-    
+
     f_struct_tf = bd.tf.technology.fraction_steel
     f_struct_oh = bd.oh.technology.fraction_steel
 
     bucked = sm.center_stack.bucked == 1
     noslip = sm.center_stack.noslip == 1
     plug = sm.center_stack.plug == 1
-    
+
     for oh_on in (true, false)
         solve_1D_solid_mechanics!(
             sm.center_stack,
@@ -209,7 +209,7 @@ function solve_1D_solid_mechanics!(
     C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
     C_oh = -1.0 / embar_oh * Bz_oh^2 / (constants.μ_0 * (R_oh_out - R_oh_in)^2)
 
-    # calculate centerlines, check radial build inputs for consistency 
+    # calculate centerlines, check radial build inputs for consistency
     cl_tf = 0.5 * (R_tf_out + R_tf_in)
     cl_oh = 0.5 * (R_oh_out + R_oh_in)
 
@@ -222,7 +222,7 @@ function solve_1D_solid_mechanics!(
         end
     end
 
-    # check radial build inputs for consistency 
+    # check radial build inputs for consistency
     if R_tf_out < R_tf_in
         error("R_tf_out ($R_tf_out) < R_tf_in ($R_tf_in)")
     end
@@ -322,7 +322,7 @@ function solve_1D_solid_mechanics!(
         ## bucked plug, OH, and TF
         # order is "OH-TF"
         # radial stress = 0 at R_tf_out
-        # radial stresses and displacements are equal at plug-OH interface R_pl ( == R_oh_in) 
+        # radial stresses and displacements are equal at plug-OH interface R_pl ( == R_oh_in)
         #  and OH-TF interface R_int ( == R_oh_out = R_tf_in )
         if verbose
             println("* OH bucked against TF and plug")
@@ -491,26 +491,32 @@ function solve_1D_solid_mechanics!(
     end
 
     # keep the worse case based on the Von Mises stresses
-    if ismissing(smcs.stress.vonmises, :tf) || maximum(abs, smcs.stress.vonmises.tf) < maximum(abs, vonmises_stress_tf)
-        smcs.stress.vonmises.tf = vonmises_stress_tf
-        smcs.stress.axial.tf = axial_stress_tf_avg
-        smcs.stress.radial.tf = radial_stress_tf
-        smcs.stress.hoop.tf = hoop_stress_tf
-        smcs.displacement.tf = displacement_tf
+    stress = smcs.stress
+    stress_vonmises = stress.vonmises
+    stress_axial = stress.axial
+    stress_radial = stress.radial
+    stress_hoop = stress.hoop
+    displacement = smcs.displacement
+    if ismissing(stress_vonmises, :tf) || maximum(abs, stress_vonmises.tf) < maximum(abs, vonmises_stress_tf)
+        stress_vonmises.tf = vonmises_stress_tf
+        stress_axial.tf = axial_stress_tf_avg
+        stress_radial.tf = radial_stress_tf
+        stress_hoop.tf = hoop_stress_tf
+        displacement.tf = displacement_tf
     end
-    if ismissing(smcs.stress.vonmises, :oh) || maximum(abs, smcs.stress.vonmises.oh) < maximum(abs, vonmises_stress_oh)
-        smcs.stress.vonmises.oh = vonmises_stress_oh
-        smcs.stress.axial.oh = axial_stress_oh_avg
-        smcs.stress.radial.oh = radial_stress_oh
-        smcs.stress.hoop.oh = hoop_stress_oh
-        smcs.displacement.oh = displacement_oh
+    if ismissing(stress_vonmises, :oh) || maximum(abs, stress_vonmises.oh) < maximum(abs, vonmises_stress_oh)
+        stress_vonmises.oh = vonmises_stress_oh
+        stress_axial.oh = axial_stress_oh_avg
+        stress_radial.oh = radial_stress_oh
+        stress_hoop.oh = hoop_stress_oh
+        displacement.oh = displacement_oh
     end
-    if plug && (ismissing(smcs.stress.vonmises, :pl) || maximum(abs, smcs.stress.vonmises.pl) < maximum(abs, vonmises_stress_pl))
-        smcs.stress.vonmises.pl = vonmises_stress_pl
-        smcs.stress.axial.pl = axial_stress_pl_avg
-        smcs.stress.radial.pl = radial_stress_pl
-        smcs.stress.hoop.pl = hoop_stress_pl
-        smcs.displacement.pl = displacement_pl
+    if plug && (ismissing(stress_vonmises, :pl) || maximum(abs, stress_vonmises.pl) < maximum(abs, vonmises_stress_pl))
+        stress_vonmises.pl = vonmises_stress_pl
+        stress_axial.pl = axial_stress_pl_avg
+        stress_radial.pl = radial_stress_pl
+        stress_hoop.pl = hoop_stress_pl
+        displacement.pl = displacement_pl
     end
 
     return smcs

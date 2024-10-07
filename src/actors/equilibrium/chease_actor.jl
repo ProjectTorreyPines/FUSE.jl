@@ -3,7 +3,7 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -55,7 +55,9 @@ function _step(actor::ActorCHEASE)
     # boundary
     pr = eqt.boundary.outline.r
     pz = eqt.boundary.outline.z
-    pr, pz = limit_curvature(pr, pz, (maximum(pr) - minimum(pr)) / 20.0)
+    ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
+    pr, pz = limit_curvature(pr, pz, ab / 20.0)
+    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * length(pr), method=:linear)
 
     # scalars
     Ip = eqt.global_quantities.ip
@@ -111,7 +113,9 @@ function _finalize(actor::ActorCHEASE)
         # Flux control points
         if !isempty(eqt.boundary.strike_point)
             strike_weight = 0.01
-            strike_cps = VacuumFields.FluxControlPoint{Float64}[VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+            strike_cps = VacuumFields.FluxControlPoint{Float64}[
+                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
+            ]
             append!(flux_cps, strike_cps)
         end
 
@@ -123,7 +127,7 @@ function _finalize(actor::ActorCHEASE)
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields
@@ -156,7 +160,7 @@ end
 
 Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 """
-function gEQDSK2IMAS(g::EFIT.GEQDSKFile, eq::IMAS.equilibrium)
+function gEQDSK2IMAS(g::CHEASE.EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     tc = MXHEquilibrium.transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
 
     eqt = eq.time_slice[]
