@@ -687,6 +687,7 @@ register: error_missing_repo_var error_not_on_master_branch
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
 Pkg.activate();\
+Pkg.add("LocalRegistry");\
 using LocalRegistry;\
 LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
 	version=$$(grep '^version' ../$(repo)/Project.toml | sed -E 's/version = "(.*)"/\1/') ;\
