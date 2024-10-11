@@ -1,4 +1,4 @@
-deps = "ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels"
+deps = "ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels"
 
 txt = String["""
 # Dependencies
@@ -9,7 +9,7 @@ The FUSE project is built upon multiple Julia packages, many of which reside in 
 
 """]
 for dep in sort!(split(deps))
-    if dep in ("Fortran90Namelists", "XSteam", "BoundaryPlasmaModels")
+    if dep in ("XSteam", "BoundaryPlasmaModels")
         continue
         push!(txt, "* $dep [[repo](https://github.com/ProjectTorreyPines/$dep.jl)]")
     elseif dep in ("ThermalSystemModels",)
