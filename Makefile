@@ -660,6 +660,22 @@ list_open_compats:
 	)
 
 # @devs
+FortranNamelistParser:
+# Replaces Fortran90Namelists with FortranNamelistParser in the Manifest.toml
+ifeq ($(PTP_ORIGINAL_DIR),)
+	@echo "PTP_ORIGINAL_DIR is not set. Searching for Manifest.toml in parent directories..."
+	find .. -maxdepth 3 -type f -name "Manifest.toml" -exec sed -i 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
+else
+	if [ -f "$(PTP_ORIGINAL_DIR)/Manifest.toml" ]; then \
+		echo "PTP_ORIGINAL_DIR is set to $(PTP_ORIGINAL_DIR). Updating Manifest.toml in specified directory..."; \
+		sed -i 's/Fortran90Namelists/FortranNamelistParser/g' $(PTP_ORIGINAL_DIR)/Manifest.toml; \
+	else \
+		echo "Error: $(PTP_ORIGINAL_DIR)/Manifest.toml does not exist."; \
+		exit 1; \
+	fi
+endif
+
+# @devs
 nuke_julia:
 # Remove everything under $HOME/.julia besides $HOME/.julia/dev
 	mv $(JULIA_PKG_DEVDIR) $(call realpath,$(JULIA_DIR))/../asddsaasddsa
