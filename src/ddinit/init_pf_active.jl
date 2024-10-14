@@ -14,7 +14,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         if init_from == :ods
             if length(dd1.pf_active.coil) > 0
                 dd.pf_active = deepcopy(dd1.pf_active)
-                IMAS.set_coils_function(dd.pf_active.coil)
+                IMAS.set_coils_function(dd.pf_active.coil, ini.equilibrium.R0)
             else
                 init_from = :scalars
             end
@@ -313,7 +313,7 @@ function init_pf_active!(
         end
     end
 
-    IMAS.set_coils_function(pf_active.coil)
+    IMAS.set_coils_function(pf_active.coil, eqt.global_quantities.vacuum_toroidal_field.r0)
 
     return pf_active
 end

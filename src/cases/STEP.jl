@@ -207,7 +207,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
             pf_geo.rectangle.width = 0.53
         end
 
-        IMAS.set_coils_function(coils)
+        IMAS.set_coils_function(coils, ini.equilibrium.R0)
 
         # -----------------
         ini.general.dd = dd
