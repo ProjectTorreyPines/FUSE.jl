@@ -403,12 +403,9 @@ function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
 end
 
 function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
-    if ini.general.init_from == :ods
-        eqt = dd.equilibrium.time_slice[]
-    end
-
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
+        eqt = dd.equilibrium.time_slice[]
         pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
