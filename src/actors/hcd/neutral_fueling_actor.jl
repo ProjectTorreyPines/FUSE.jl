@@ -5,14 +5,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutralFueling{T<:Real} <: Param
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-<<<<<<< HEAD
     τp::Entry{Float64} = Entry{Float64}("-", "Particle confinement time"; default=1.0)
     T_wall::Entry{Float64} = Entry{Float64}("-", "Wall temperature (eV)"; default=10.0)
-=======
-    taupin::Entry{Float64} = Entry{Float64}("s", "Particle confinement time"; default=1.0)
-    twall::Entry{Float64} = Entry{Float64}("eV", "Wall temperature"; default=10.0)
-    vwall::Entry{Float64} = Entry{Float64}("m/s", "Wall particle velocity"; default=100.0)
->>>>>>> f522eb57e359eedaf8e72187cce5885c0146cd3b
     model::Switch{Symbol} = Switch{Symbol}([:neucg, :none], "-", "Neutral gas fueling model"; default=:neucg)
 end
 
