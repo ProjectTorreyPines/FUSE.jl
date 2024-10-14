@@ -192,7 +192,7 @@ makedocs(;
     repo=Remotes.GitHub("ProjectTorreyPines", "FUSE.jl"),
     warnonly=true,
     pages=[
-        "Concepts" => "index.md",
+        "Main" => "index.md",
         "Lean" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
         "Use Cases" => "cases.md",
         "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],

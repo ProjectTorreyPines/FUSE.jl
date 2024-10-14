@@ -15,6 +15,8 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
             if IMAS.hasdata(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
                 dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
+                fw = IMAS.first_wall(dd.wall)
+                IMAS.flux_surfaces(eqt, fw.r, fw.z)
             else
                 init_from = :scalars
             end

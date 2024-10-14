@@ -16,7 +16,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields ThermalSystemModels # XSteam Fortran90Namelists
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields ThermalSystemModels # XSteam
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
@@ -111,9 +111,6 @@ QED:
 	$(call clone_pull_repo,$@)
 
 FiniteElementHermite:
-	$(call clone_pull_repo,$@)
-
-Fortran90Namelists:
 	$(call clone_pull_repo,$@)
 
 FRESCO:
@@ -543,6 +540,19 @@ feature_or_master:
 	end'
 
 # @devs
+fix_environment:fix_FortranNamelistParser
+# Applies fixes
+	@echo "* Fixes applied"
+
+# @devs
+fix_FortranNamelistParser:
+# Replaces Fortran90Namelists with FortranNamelistParser in the Manifest.toml
+	@echo "* Sanitizing Manifest.toml files of Fortran90Namelists --> FortranNamelistParser"
+	@find $(JULIA_DIR)/environments -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
+	@find .. -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
+	@find $(PTP_ORIGINAL_DIR) -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
+
+# @devs
 generate_dd:
 # Update dd from the json files in IMASdd
 	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
@@ -693,6 +703,7 @@ register: error_missing_repo_var error_not_on_master_branch
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
 Pkg.activate();\
+Pkg.add("LocalRegistry");\
 using LocalRegistry;\
 LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
 	version=$$(grep '^version' ../$(repo)/Project.toml | sed -E 's/version = "(.*)"/\1/') ;\

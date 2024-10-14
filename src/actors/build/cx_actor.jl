@@ -104,12 +104,11 @@ function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T
 
         # automatic symmetry detection
         if symmetric === nothing
-            symmetric = sum(abs.(mxh.c)) / length(mxh.c) < 1E-3
+            symmetric = (abs(mxh.c0) .+ sum(abs.(mxh.c))) / (length(mxh.c) + 1) < 1E-3
         end
 
         # negative δ
-        δ = sin(mxh.s[1])
-        if δ < 0.0
+        if mxh.δ < 0.0
             Θ = LinRange(π / 4, 2 * π - π / 4, 100) # overshoot
         else
             Θ = LinRange(-π * 3 / 4, π * 3 / 4, 100) # overshoot
@@ -121,7 +120,7 @@ function segmented_wall(eq_r::AbstractVector{T}, eq_z::AbstractVector{T}, gap::T
         Z = (Z .- mxh.Z0) .* 1.1 .+ mxh.Z0
 
         # correct hfs to have a flat center stack wall
-        if δ < 0.0
+        if mxh.δ < 0.0
             R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [maximum(eq_r) - R[1], 0.0, 0.0, maximum(eq_r) - R[end]]).(Θ)
         else
             R += IMAS.interp1d([Θ[1], Θ[argmax(Z)], Θ[argmin(Z)], Θ[end]], [minimum(eq_r) - R[1], 0.0, 0.0, minimum(eq_r) - R[end]]).(Θ)
@@ -263,7 +262,7 @@ function wall_from_eq!(
 
         # remove private flux region from wall (necessary because of Z expansion)
         pr1m = [pr1; pr1[1]; pr1[end]]
-        pz1m = [pz1; sign(pz1[1]) * 100; sign(pz1[end]) * 100]
+        pz1m = [pz1; pz1 .+ sign(pz1[1] - ZA) * 100; pz1 .+ sign(pz1[end] - ZA) * 100]
         pm_poly = xy_polygon(convex_hull(pr1m, pz1m; closed_polygon=true))
         wall_poly = LibGEOS.difference(wall_poly, pm_poly)
 
@@ -327,7 +326,13 @@ function wall_from_eq!(
     return wall
 end
 
-function divertor_regions!(bd::IMAS.build{T}, eqt::IMAS.equilibrium__time_slice{T}, divertors::IMAS.divertors{T}, wall_r::AbstractVector{T}, wall_z::AbstractVector{T}) where {T<:Real}
+function divertor_regions!(
+    bd::IMAS.build{T},
+    eqt::IMAS.equilibrium__time_slice{T},
+    divertors::IMAS.divertors{T},
+    wall_r::AbstractVector{T},
+    wall_z::AbstractVector{T}
+) where {T<:Real}
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -419,16 +424,16 @@ function divertor_regions!(bd::IMAS.build{T}, eqt::IMAS.equilibrium__time_slice{
 
         α = 5.0
         domain_r = vcat(xx, reverse(xx), xx[1])
-        domain_z = vcat(yy, [Zx * α, Zx * α], yy[1])
+        domain_z = vcat(yy, [(Zx - ZA) * α + ZA, (Zx - ZA) * α + ZA], yy[1])
         domain_poly = xy_polygon(domain_r, domain_z)
         backwall_domain_poly = try
             LibGEOS.intersection(backwall_poly, domain_poly)
         catch e
-            display(plot(backwall_poly;aspect_ratio=:equal))
-            display(plot!(eqt;cx=true))
-            display(scatter!([RA,Rx],[ZA,Zx]))
-            display(plot!(xx,yy))
-            display(plot!(domain_poly;alpha=0.5))
+            display(plot(backwall_poly; aspect_ratio=:equal))
+            display(plot!(eqt; cx=true))
+            display(scatter!([RA, Rx], [ZA, Zx]))
+            display(plot!(xx, yy))
+            display(plot!(domain_poly; alpha=0.5))
             rethrow(e)
         end
         divertor_poly = LibGEOS.difference(backwall_domain_poly, plasma_poly)
@@ -634,7 +639,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
 
     # negative triangularity plasma
     mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 1)
-    is_negative_D = sin(mxh.s[1]) < 0.0
+    is_negative_D = mxh.δ < 0.0
 
     #plot()
     plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
@@ -694,7 +699,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                 layer = bd.layer[plasma_to_tf[kk]]
                 layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
                 verbose && @show "B", layer.name, layer_shape
-                layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                layer.shape, layer.shape_parameters = optimize_layer_outline(
                     bd,
                     plasma_to_tf[kk+1],
                     plasma_to_tf[kk],
