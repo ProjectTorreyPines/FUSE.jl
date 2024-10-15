@@ -337,6 +337,127 @@ function ParametersInits(; kw...)
     return ParametersInits{Float64}(; kw...)
 end
 
+###############################
+# custom dispatches for build #
+###############################
+"""
+    setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+
+Allows users to initialize layers from a dictionary
+"""
+function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+    @assert field == :layers
+    for (k, (name, thickness)) in enumerate(layers)
+        layer = FUSEparameters__build_layer{T}()
+        push!(parameters_build.layers, layer)
+
+        # name
+        layer.name = replace(string(name), "_" => " ")
+
+        # thickness
+        layer.thickness = thickness
+
+        # type
+        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name))
+            layer.type = :oh
+        elseif occursin("gap ", lowercase(layer.name))
+            layer.type = :gap
+        elseif lowercase(layer.name) == "plasma"
+            layer.type = :plasma
+        elseif occursin("OH", uppercase(layer.name))
+            layer.type = :oh
+        elseif occursin("TF", uppercase(layer.name))
+            layer.type = :tf
+        elseif occursin("shield", lowercase(layer.name))
+            layer.type = :shield
+        elseif occursin("blanket", lowercase(layer.name))
+            layer.type = :blanket
+        elseif occursin("wall", lowercase(layer.name))
+            layer.type = :wall
+        elseif occursin("vessel", lowercase(layer.name))
+            layer.type = :vessel
+        elseif occursin("cryostat", lowercase(layer.name))
+            layer.type = :cryostat
+            layer.shape = :silo
+        end
+
+        # side
+        if occursin("hfs", lowercase(layer.name))
+            layer.side = :hfs
+        elseif occursin("lfs", lowercase(layer.name))
+            layer.side = :lfs
+        else
+            if layer.type == _plasma_
+                layer.side = :lhfs
+            elseif k < length(layers) / 2
+                layer.side = :in
+            elseif k > length(layers) / 2
+                layer.side = :out
+            end
+        end
+    end
+end
+
+function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
+    par = getfield(parameters_layer, field)
+
+    if field == :material
+        layer_type = parameters_layer.type
+
+        pretty_layer_type = replace("$layer_type", "_" => "")
+        allowed_materials = FusionMaterials.supported_material_list(layer_type)
+
+        if val ∉ allowed_materials
+            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+        end
+    end
+
+    return setproperty!(par, :value, val)
+end
+
+"""
+    to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+
+Allows accesing parameters layers by their Symbol
+"""
+function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+    tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
+    if tmp === nothing
+        error("Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")
+    end
+    return tmp
+end
+
+"""
+    dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+
+Custom reading from file of FUSEparameters__build_layer
+"""
+function SimulationParameters.dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+    return parent(par).layers = dct
+end
+
+"""
+    par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String})
+
+Custom writing to file for FUSEparameters__build_layer
+"""
+function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String}; show_info::Bool=true, skip_defaults::Bool=false)
+    for parameter in par
+        p = SimulationParameters.path(parameter)
+        sp = SimulationParameters.spath(p)
+        depth = (count(".", sp) + count("[", sp) - 1) * 2
+        pre = " "^depth
+        push!(txt, string(pre, replace(getproperty(parameter, :name, "_each_layer_name_and_thickness_"), " " => "_"), ": ", repr(getproperty(parameter, :thickness, 0.0))))
+    end
+    return txt
+end
+
+###############################
+# custom dispatches for coils #
+###############################
+
+
 ################################
 # functions for populating ini #
 ################################
