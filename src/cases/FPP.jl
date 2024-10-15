@@ -81,7 +81,7 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.pf_active.n_coils_outside = 5
     ini.pf_active.technology = :nb3sn
 
-    ini.tf.shape = :miller
+    ini.tf.shape = :rectangle_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = :rebco
 

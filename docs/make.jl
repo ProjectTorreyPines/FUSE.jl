@@ -193,7 +193,7 @@ makedocs(;
     warnonly=true,
     pages=[
         "Main" => "index.md",
-        "Lean" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
+        "Learn" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
         "Use Cases" => "cases.md",
         "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
         "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"],

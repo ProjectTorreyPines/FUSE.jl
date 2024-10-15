@@ -789,7 +789,16 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
 end
 
 """
-    optimize_layer_outline(bd::IMAS.build, obstr_index::Int, layer_index::Int, shape_enum::BuildLayerShape; vertical_clearance::Float64=1.0, resolution::Float64=1.0, obstruction_outline=nothing)
+    optimize_layer_outline(
+        bd::IMAS.build,
+        obstr_index::Int,
+        layer_index::Int,
+        shape_enum::BuildLayerShape;
+        vertical_clearance::Float64=1.0,
+        resolution::Float64=1.0,
+        obstruction_outline=nothing,
+        is_z_offset::Bool=false,
+        is_negative_D::Bool=false)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
@@ -802,8 +811,8 @@ function optimize_layer_outline(
     resolution::Float64=1.0,
     obstruction_outline=nothing,
     is_z_offset::Bool=false,
-    is_negative_D::Bool=false
-)
+    is_negative_D::Bool=false)
+
     shape = Int(shape_enum)
 
     layer = bd.layer[layer_index]
