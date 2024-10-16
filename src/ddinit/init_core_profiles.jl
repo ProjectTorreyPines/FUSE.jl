@@ -224,20 +224,24 @@ function cost_Pfusion_p0(pressure_core::Real, target_pfus::Real, dd::IMAS.dd, in
         dd.equilibrium,
         dd.summary;
         ini.core_profiles.plasma_mode,
-        ne_setting=ini.core_profiles.ne_setting,
-        ne_value=ini.core_profiles.ne_value,
+        ini.core_profiles.ne_setting,
+        ini.core_profiles.ne_value,
+        ini.core_profiles.ne_sep_to_ped_ratio,
+        ini.core_profiles.ne_core_to_ped_ratio,
+        ini.core_profiles.ne_shaping,
         pressure_core,
         ini.core_profiles.helium_fraction,
-        ini.core_profiles.T_ratio,
-        ini.core_profiles.T_shaping,
-        ini.core_profiles.ne_shaping,
         ini.core_profiles.w_ped,
         ini.core_profiles.zeff,
-        ini.core_profiles.rot_core,
-        ini.core_profiles.ngrid,
         ini.core_profiles.bulk,
         ini.core_profiles.impurity,
+        ini.core_profiles.rot_core,
         ejima=getproperty(ini.core_profiles, :ejima, missing),
-        ini.core_profiles.polarized_fuel_fraction)
+        ini.core_profiles.polarized_fuel_fraction,
+        ini.core_profiles.T_ratio,
+        ini.core_profiles.T_shaping,
+        ini.core_profiles.Te_sep,
+        ini.core_profiles.ngrid)
     return abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
 end
+
