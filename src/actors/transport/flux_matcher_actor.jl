@@ -184,6 +184,9 @@ function _step(actor::ActorFluxMatcher)
             plot!(dd.core_transport; only=sub, subplot=2 * sub - 1, aspect=:equal)
             plot!(to_plot_before[sub][1], to_plot_before[sub][2]; subplot=2 * sub, label="before", linestyle=:dash, color=:black)
             plot!(to_plot_after[sub][1], to_plot_after[sub][2]; subplot=2 * sub, label="after", title=titles[sub], aspect=:equal)
+            if sub != length(titles)
+                plot!(; subplot=2 * sub, ylim=[0, Inf])
+            end
         end
 
         display(p)
