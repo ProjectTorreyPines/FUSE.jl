@@ -433,6 +433,14 @@ develop_docs:
 	'
 
 # @devs
+develop_no_registry: install_registry clone_pull_all develop
+# Develop FUSE and associated packages without using the registry
+
+# @devs
+develop_via_registry: install_registry develop
+# Develop FUSE and associated packages using the registry
+
+# @devs
 devs_update:
 # Pull changes for all ProjectTorreyPines packages that are in the .julia/dev folder and resolve environment
 	@echo $(DEV_PACKAGES_MAKEFILE)
@@ -594,10 +602,6 @@ init_expressions:
 	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
 
 # @devs
-install: install_no_registry
-# Install with default install method (no registry)
-
-# @devs
 install_PyCall:
 # Install PyCall
 	julia -e '\
@@ -640,18 +644,10 @@ install_examples_dev:
 	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FuseExamples.git examples ; else cd examples && git pull; fi
 
 # @devs
-install_no_registry: install_registry clone_pull_all develop
-# Install FUSE without using the registry
-
-# @devs
 install_playground: .PHONY
 # Clone FusePlayground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
 	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
-
-# @devs
-install_via_registry: install_registry develop
-# Install FUSE using the registry
 
 # @devs
 list_open_compats:
