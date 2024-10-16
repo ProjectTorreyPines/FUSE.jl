@@ -19,6 +19,7 @@ Here are some key resources for getting started with FUSE:
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
 * 📦 **[Package ecosystem](https://fuse.help/dev/deps.html)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
+* 🎥 **[Juliacon overview talk](https://youtu.be/RKGDov3ETyE)**
 
 ## Objectives
 
