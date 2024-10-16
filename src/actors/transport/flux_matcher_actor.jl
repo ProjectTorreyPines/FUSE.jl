@@ -708,28 +708,32 @@ function unpack_z_profiles(
         end
     end
 
-    # Ensure Quasi neutrality if you are evolving densities
-    if !IMAS.is_quasi_neutral(cp1d) && !isempty(evolve_densities) && any((evo != :fixed for evo in values(evolve_densities)))
-        q_specie = Symbol[i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]
-        @assert q_specie != Symbol[] "no quasi neutrality specie while quasi neutrality is broken: $(evolve_densities)"
-        @assert length(q_specie) == 1 "only one specie can be set as :quasi_neutrality: $(evolve_densities)"
-        IMAS.enforce_quasi_neutrality!(cp1d, q_specie[1])
-    end
-
-    # freeze certain core_profiles quantites
-    z = zero(cp1d.grid.rho_tor_norm)
-    for field in [:density_fast, :density, :pressure_thermal, :pressure]
-        IMAS.refreeze!(cp1d.electrons, field, z)
-    end
-
-    for field in [:density_fast, :density, :pressure_thermal]
+    # re-freeze densities expressions
+    zero_value = zero(cp1d.grid.rho_tor_norm)
+    for field in [:density_fast, :density]
+        IMAS.refreeze!(cp1d.electrons, field, zero_value)
         for ion in cp1d.ion
-            IMAS.refreeze!(ion, field, z)
+            IMAS.refreeze!(ion, field, zero_value)
         end
     end
 
-    for field in [:pressure_ion_total, :pressure_thermal]
-        IMAS.refreeze!(cp1d, field, z)
+    # Ensure quasi neutrality if densities are evolved
+    # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs 
+    for (species, evolve) in evolve_densities
+        if evolve == :quasi_neutrality
+            IMAS.enforce_quasi_neutrality!(cp1d, species)
+            break
+        end
+    end
+
+    # re-freeze pressures expressions
+    IMAS.refreeze!(cp1d.electrons, :pressure_thermal, zero_value)
+    for ion in cp1d.ion
+        IMAS.refreeze!(ion, :pressure_thermal, zero_value)
+    end
+    IMAS.refreeze!(cp1d.electrons, :pressure, zero_value)
+    for field in [:pressure_ion_total, :pressure_thermal, :pressure]
+        IMAS.refreeze!(cp1d, field, zero_value)
     end
 
     return cp1d
@@ -741,14 +745,11 @@ end
 Checks if the evolve_densities dictionary makes sense and return sensible errors if this is not the case
 """
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
-    dd_species = vcat([Symbol(ion.label) for ion in cp1d.ion], :electrons)
-    dd_species = vcat(dd_species, [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0])
+    dd_species = [[Symbol(ion.label) for ion in cp1d.ion]; :electrons; [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0]]
     # Check if evolve_densities contains all of dd species
     @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Not all species are accounted for in the evolve_densities dict : $(sort([i for (i,j) in evolve_densities])) , dd_species : $(sort(dd_species)) ,"
     # Check if there is 1 quasi_neutrality specie
     @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]) < 2 "Only one specie can be used for quasi neutality matching (or 0 when everything matches ne_scale)"
-    # Check if there is a source for the flux_match specie(s)
-    # isnt' there yet 
 end
 
 """
