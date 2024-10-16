@@ -66,6 +66,7 @@ YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
 [compat]
 AbstractTrees = "0.4"
+BalanceOfPlantSurrogate = "2"
 BoundaryPlasmaModels = "1"
 CHEASE = "1"
 CSV = "0.10"
