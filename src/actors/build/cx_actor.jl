@@ -1016,34 +1016,48 @@ function optimize_outline(
     return shape_parameters
 end
 
+function convex_outline(coil::Union{IMAS.pf_active__coil{T},IMAS.pf_passive__loop{T}}) where {T<:Real}
+    r = T[]
+    z = T[]
+
+    for element in coil.element
+        oute = IMAS.outline(element)
+        append!(r, oute.r)
+        append!(z, oute.z)
+    end
+
+    points = convex_hull(r, z; closed_polygon=true)
+    r = [p[1] for p in points]
+    z = [p[2] for p in points]
+
+    return (r=r, z=z)
+end
+
 """
-    convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
+    convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}}) where {T<:Real}
 
 returns convex-hull outline of all the pf coils elements in the input array
 """
-function convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
-    out = IMAS.pf_active__coil___element___geometry__outline()
-    out.r = T[]
-    out.z = T[]
+function convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}}) where {T<:Real}
+    r = T[]
+    z = T[]
 
     for coil in coils
         for element in coil.element
             oute = IMAS.outline(element)
-            append!(out.r, oute.r)
-            append!(out.z, oute.z)
+            append!(r, oute.r)
+            append!(z, oute.z)
         end
     end
 
-    points = convex_hull(out.r, out.z; closed_polygon=true)
-    empty!(out.z)
-    empty!(out.r)
-    out.r = [p[1] for p in points]
-    out.z = [p[2] for p in points]
+    points = convex_hull(r, z; closed_polygon=true)
+    r = [p[1] for p in points]
+    z = [p[2] for p in points]
 
-    return out
+    return (r=r, z=z)
 end
 
-function convex_outline(rail::IMAS.build__pf_active__rail{T})::IMAS.pf_active__coil___element___geometry__outline{T} where {T<:Real}
+function convex_outline(rail::IMAS.build__pf_active__rail{T}) where {T<:Real}
     rails = parent(rail)
     irail = IMAS.index(rail)
     coil_start = sum([rails[k].coils_number for k in 1:irail-1]) + 1
