@@ -244,4 +244,3 @@ function cost_Pfusion_p0(pressure_core::Real, target_pfus::Real, dd::IMAS.dd, in
         ini.core_profiles.ngrid)
     return abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
 end
-
