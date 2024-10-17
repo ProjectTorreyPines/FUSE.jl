@@ -4,8 +4,6 @@ import CSV
 import Dates
 import Distributed
 import Distributed: pmap
-import ProgressMeter
-ProgressMeter.ijulia_behavior(:clear)
 
 """
     workflow_HDB5_validation(;

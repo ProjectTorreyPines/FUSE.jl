@@ -108,6 +108,7 @@ function _step(actor::ActorStationaryPlasma)
         actor.actor_tr.tr_actor.par.Δt = Inf
     end
 
+    ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
     old_logging = actor_logging(dd, !(par.verbose && !par.do_plot))
     total_error = Float64[]
