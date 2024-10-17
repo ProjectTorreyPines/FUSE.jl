@@ -93,7 +93,7 @@ function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParame
     for leafRepr in AbstractTrees.Leaves(pars)
         leaf = leafRepr.value
         if typeof(leaf) <: SimulationParameters.ParametersVector
-            error("$(SimulationParameters.path(leaf)) has zero length, which prevents generation of documentation.")
+            error("$(SimulationParameters.spath(leaf)) has zero length, which prevents generation of documentation.")
         end
         if typeof(leaf) <: SimulationParameters.AbstractParameters
             continue
@@ -198,7 +198,8 @@ makedocs(;
         "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
         "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"],
         "Data Structure" => "dd.md",
-        "Ecosystem" => ["deps.md", "develop.md"],
+        "Development" => ["deps.md", "develop.md"],
+        "Publications" => "pubs.md",
         "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
         "License" => ["License" => "license.md", "Notice" => "notice.md"]
     ]
