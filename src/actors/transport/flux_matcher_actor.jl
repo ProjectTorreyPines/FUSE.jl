@@ -116,6 +116,7 @@ function _step(actor::ActorFluxMatcher)
     ftol = 1E-4 # relative error
     xtol = 1E-3 # difference in input array
 
+    ProgressMeter.ijulia_behavior(:clear)
     prog = (progressmeter=ProgressMeter.ProgressUnknown(ftol; desc="Calls:", enabled=par.verbose), calls=[0], time=[0.0])
     old_logging = actor_logging(dd, false)
 

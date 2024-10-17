@@ -100,6 +100,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
 
             old_logging = actor_logging(dd, false)
+            ProgressMeter.ijulia_behavior(:clear)
             prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
             try
                 packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)

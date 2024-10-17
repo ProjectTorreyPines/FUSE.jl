@@ -3,7 +3,6 @@ using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
 import DataFrames
-import ProgressMeter
 
 # ========== #
 # Checkpoint #
@@ -230,6 +229,7 @@ function IMAS.extract(
         end
 
         # load the data
+        ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
@@ -980,6 +980,7 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     for k in 2:length(dds)
         push!(df, df[1, :])
     end
+    ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(length(dds); showspeed=true)
     Threads.@threads for k in eachindex(dds)
         try

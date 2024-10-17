@@ -1,6 +1,3 @@
-using ProgressMeter: ProgressMeter
-ProgressMeter.ijulia_behavior(:clear)
-
 #= ================== =#
 #  ActorDynamicPlasma  #
 #= ================== =#
@@ -119,6 +116,7 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
     end
 
     step_calls_per_2loop = 9
+    ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * step_calls_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
