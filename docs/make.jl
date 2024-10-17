@@ -193,13 +193,12 @@ makedocs(;
     warnonly=true,
     pages=[
         "Main" => "index.md",
-        "Learn" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
+        "Learn" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md", "Publications" => "pubs.md"],
         "Use Cases" => "cases.md",
         "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
         "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"],
         "Data Structure" => "dd.md",
         "Development" => ["deps.md", "develop.md"],
-        "Publications" => "pubs.md",
         "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
         "License" => ["License" => "license.md", "Notice" => "notice.md"]
     ]
