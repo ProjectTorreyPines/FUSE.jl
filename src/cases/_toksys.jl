@@ -61,11 +61,8 @@ function from_TokSys(dd::IMAS.dd, mat::Dict; what...)
         dd.equilibrium.time = eq_time
         dd.equilibrium.vacuum_toroidal_field.r0 = r0
         dd.equilibrium.vacuum_toroidal_field.b0 = b0
-        for k in eachindex(dd.equilibrium.time_slice)
-            IMAS.retime!(dd.equilibrium.time_slice[k], eq_time[k])
-        end
-        resize!(dd.equilibrium.time_slice, length(eq_time))
-        for (k, eqt) in enumerate(dd.equilibrium.time_slice)
+        for (k, time) in enumerate(collect(eq_time))
+            eqt = resize!(dd.equilibrium.time_slice, time)
             eq1d = eqt.profiles_1d
             eq2d = resize!(eqt.profiles_2d, 1)[1]
             eq2d.grid_type.index = 1
