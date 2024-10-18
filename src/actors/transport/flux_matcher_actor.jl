@@ -33,6 +33,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     save_input_tglf_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder at the last iteration"; default="")
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
+    norms::Entry{Vector{Float64}} = Entry{Vector{Float64}}("-", "Relative normalization of different channels")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -91,12 +92,15 @@ function _step(actor::ActorFluxMatcher)
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
     # normalizations for each of the channels
-    # updated with exponential forget for subsequent step() calls
+    if !ismissing(par, :norms)
+        actor.norms = par.norms
+    end
     if isempty(actor.norms)
         # calculate fluxes from initial profiles
         finalize(step(actor.actor_ct))
         actor.norms = flux_match_norms(dd, par)
     else
+        # updated with exponential forget for subsequent step() calls
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
     end
 
@@ -109,9 +113,11 @@ function _step(actor::ActorFluxMatcher)
 
     z_init = pack_z_profiles(cp1d, par)
     z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping using NLsolve
+    N_radii = length(par.rho_transport)
+    N_channels = Int(floor(length(z_init_scaled) / N_radii))
 
     z_scaled_history = Vector{NTuple{length(z_init_scaled),Float64}}()
-    err_history = Float64[]
+    err_history = Vector{Vector{Float64}}()
 
     ftol = 1E-4 # relative error
     xtol = 1E-3 # difference in input array
@@ -160,20 +166,29 @@ function _step(actor::ActorFluxMatcher)
     ProgressMeter.finish!(prog.progressmeter; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
 
     if par.do_plot
-        display(plot(err_history; yscale=:log10, ylabel="Log₁₀ of convergence errror", xlabel="Iterations", label=@sprintf("Minimum error =  %.3e ", (minimum(err_history)))))
+        plot()
+        for ch in 1:N_channels
+            plot!(vcat(map(x -> errors_by_channel(x, N_radii, N_channels), err_history)...)[:,ch]; label="channel $ch")
+        end
+        display(
+            plot!(vcat(map(norm, err_history)...);
+            color=:black,
+            yscale=:log10,
+            ylabel="Log₁₀ of convergence errror",
+            xlabel="Iterations",
+            label=@sprintf("Minimum error =  %.3e ", (minimum(map(norm, err_history)))))
+        )
 
         channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
-        nchannels = Int(size(channels_evolution)[2] / length(par.rho_transport))
-        data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), nchannels))
+        data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), N_channels))
         p = plot()
-        for ch in 1:nchannels
+        for ch in 1:N_channels
             for kr in 1:length(par.rho_transport)
                 plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label="channel $ch")
             end
         end
         display(p)
 
-        N_channels = Int(floor(length(z_init_scaled) / length(par.rho_transport)))
         p = plot(; layout=(N_channels, 2), size=(1000, 1000))
 
         titles = ["Electron temperature", "Ion temperature", "Electron density", "Rotation frequency tor sonic"]
@@ -239,6 +254,10 @@ function _step(actor::ActorFluxMatcher)
     return actor
 end
 
+function errors_by_channel(errors::Vector{Float64}, N_radii::Int, N_channels::Int)
+    return mapslices(norm, reshape(errors, (N_radii, N_channels)); dims=1)
+end
+
 """
     scale_z_profiles(z_profiles)
 
@@ -259,7 +278,7 @@ end
         initial_cp1d::IMAS.core_profiles__profiles_1d,
         initial_summary_ped::IMAS.summary__local__pedestal;
         z_scaled_history::Vector=[],
-        err_history::Vector{Float64}=Float64[],
+        err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
         prog::Any=nothing,
         save_input_tglf_folder::String="")
 
@@ -273,7 +292,7 @@ function flux_match_errors(
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     initial_summary_ped::IMAS.summary__local__pedestal;
     z_scaled_history::Vector=[],
-    err_history::Vector{Float64}=Float64[],
+    err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
     prog::Any=nothing,
     save_input_tglf_folder::String="")
 
@@ -353,7 +372,7 @@ function flux_match_errors(
     end
 
     # update error history
-    push!(err_history, norm(errors))
+    push!(err_history, errors)
 
     # update progress meter (snow changes no faster than 100 ms)
     if prog !== nothing
@@ -533,7 +552,7 @@ end
         initial_cp1d::IMAS.core_profiles__profiles_1d,
         initial_summary_ped::IMAS.summary__local__pedestal,
         z_scaled_history::Vector,
-        err_history::Vector{Float64},
+        err_history::Vector{Vector{Float64}},
         ftol::Float64,
         xtol::Float64,
         prog::Any)
@@ -546,7 +565,7 @@ function flux_match_simple(
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     initial_summary_ped::IMAS.summary__local__pedestal,
     z_scaled_history::Vector,
-    err_history::Vector{Float64},
+    err_history::Vector{Vector{Float64}},
     ftol::Float64,
     xtol::Float64,
     prog::Any)
@@ -573,7 +592,7 @@ function flux_match_simple(
         zprofiles_old = zprofiles
     end
 
-    return (zero=z_scaled_history[argmin(err_history)],)
+    return (zero=z_scaled_history[argmin(map(norm, err_history))],)
 end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
