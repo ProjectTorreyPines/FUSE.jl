@@ -184,6 +184,7 @@ makedocs(;
     format=Documenter.HTML(;
         repolink="https://github.com/ProjectTorreyPines/FUSE.jl",
         prettyurls=false,
+        analytics="G-65D8V8C8VQ",
         sidebar_sitename=false,
         assets=["assets/favicon.ico"],
         size_threshold=nothing,
