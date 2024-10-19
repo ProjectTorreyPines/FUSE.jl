@@ -91,18 +91,15 @@ function _step(actor::ActorFluxMatcher)
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
-    # normalizations for each of the channels
-    if !ismissing(par, :norms)
-        actor.norms = par.norms
-    end
-    if isempty(actor.norms)
-        # calculate fluxes from initial profiles
-        finalize(step(actor.actor_ct))
-        actor.norms = flux_match_norms(dd, par)
-    else
-        # updated with exponential forget for subsequent step() calls
-        actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
-    end
+    z_init, profiles_paths, fluxes_paths = pack_z_profiles(cp1d, par)
+    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping using NLsolve
+    N_radii = length(par.rho_transport)
+    N_channels = Int(floor(length(z_init) / N_radii))
+
+    z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
+    err_history = Vector{Vector{Float64}}()
+
+    actor.norms = fill(NaN, N_channels)
 
     # make sure no zeros are in norms
     for i in 1:length(actor.norms)
@@ -110,14 +107,6 @@ function _step(actor::ActorFluxMatcher)
             actor.norms[i] = 1.0
         end
     end
-
-    z_init, profiles_paths, fluxes_paths = pack_z_profiles(cp1d, par)
-    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping using NLsolve
-    N_radii = length(par.rho_transport)
-    N_channels = Int(floor(length(z_init_scaled) / N_radii))
-
-    z_scaled_history = Vector{NTuple{length(z_init_scaled),Float64}}()
-    err_history = Vector{Vector{Float64}}()
 
     ftol = 1E-4 # relative error
     xtol = 1E-3 # difference in input array
@@ -174,6 +163,7 @@ function _step(actor::ActorFluxMatcher)
         display(
             plot!(vcat(map(norm, err_history)...);
                 color=:black,
+                lw=0.5,
                 yscale=:log10,
                 ylabel="Log₁₀ of convergence errror",
                 xlabel="Iterations",
@@ -197,7 +187,16 @@ function _step(actor::ActorFluxMatcher)
         model_type = IMAS.name_2_index(dd.core_transport.model)
         for (ch, (profiles_path, fluxes_path)) in enumerate(zip(profiles_paths, fluxes_paths))
             title = IMAS.p2i(collect(map(string, fluxes_path)))
-            plot!(IMAS.goto(tot_sources, fluxes_path[1:end-1]), Val(fluxes_path[end]); flux=true, subplot=2 * ch - 1, name="total sources", color=:blue, linewidth=2, show_zeros=true)
+            plot!(
+                IMAS.goto(tot_sources, fluxes_path[1:end-1]),
+                Val(fluxes_path[end]);
+                flux=true,
+                subplot=2 * ch - 1,
+                name="total sources",
+                color=:blue,
+                linewidth=2,
+                show_zeros=true
+            )
             for model in dd.core_transport.model
                 if model.identifier.index == model_type[:anomalous]
                     plot_opts = Dict(:markershape => :diamond, :markerstrokewidth => 0.5, :linewidth => 0, :color => :orange)
@@ -376,20 +375,23 @@ function flux_match_errors(
     targets = flux_match_targets(dd, par)
 
     cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
-    surface = cp1d.grid.surface[cp_gridpoints]
+    surface0 = cp1d.grid.surface[cp_gridpoints] ./ cp1d.grid.surface[end]
 
     # Evaluate the flux_matching errors
     nrho = length(par.rho_transport)
     errors = similar(fluxes)
     for (inorm, norm0) in enumerate(actor.norms)
         index = (inorm-1)*nrho+1:inorm*nrho
-        if sum(abs.(targets[index])) != 0.0
-            norm = sum(abs.(targets[index])) / length(index)
-            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm .* (surface ./ surface[1])
-        else
-            # if targets are all zero then use initial norms and give this channel less weight
-            errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 / 10.0
+        if norm0 === NaN
+            # this sets the norm to be the based on the initial error
+            # actor.norm is only used if the targets are zero
+            actor.norms[inorm] = norm0 = norm(fluxes[index] .* surface0)
         end
+        if sum(abs.(targets[index])) != 0.0
+            # if the channel has non-zero targets, then the error is relative to the targets
+            norm0 = norm(targets[index] .* surface0)
+        end
+        errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 .* surface0
     end
 
     # update error history
