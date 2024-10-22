@@ -218,11 +218,13 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
 
     if free_boundary
         # Boundary control points
-        flux_cps = VacuumFields.boundary_control_points(shot, 0.999, psib)
+        iso_cps = VacuumFields.boundary_control_points(shot, 0.999)
 
         # Flux control points
+        imid = argmax(eqt.boundary.outline.r)
+        flux_cps =  VacuumFields.FluxControlPoint[VacuumFields.FluxControlPoint(r,z, ψbound, 1.0) for (r,z) in zip(eqt.boundary.outline.r[imid:imid], eqt.boundary.outline.z[imid:imid])]
         if !isempty(eqt.boundary.strike_point)
-            strike_weight = 0.01
+            strike_weight = 1.0
             strike_cps = VacuumFields.FluxControlPoint{Float64}[
                 VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
             ]
@@ -230,7 +232,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
         end
 
         # Saddle control points
-        saddle_weight = 0.01
+        saddle_weight = 1.0
         saddle_cps = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
@@ -241,7 +243,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__Acto
         end
 
         # from fixed boundary to free boundary via VacuumFields
-        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
+        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         eq2d.psi .= psi_free_rz'
 
         pf_current_limits(dd.pf_active, dd.build)

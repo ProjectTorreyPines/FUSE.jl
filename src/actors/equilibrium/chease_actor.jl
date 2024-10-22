@@ -108,11 +108,13 @@ function _finalize(actor::ActorCHEASE)
         ψbound = 0.0
 
         # Boundary control points
-        flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, ψbound)
+        iso_cps = VacuumFields.boundary_control_points(EQ, 0.999)
 
         # Flux control points
+        imid = argmax(eqt.boundary.outline.r)
+        flux_cps =  VacuumFields.FluxControlPoint[VacuumFields.FluxControlPoint(r,z, ψbound, 1.0) for (r,z) in zip(eqt.boundary.outline.r[imid:imid], eqt.boundary.outline.z[imid:imid])]
         if !isempty(eqt.boundary.strike_point)
-            strike_weight = 0.01
+            strike_weight = 1.0
             strike_cps = VacuumFields.FluxControlPoint{Float64}[
                 VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
             ]
@@ -120,7 +122,7 @@ function _finalize(actor::ActorCHEASE)
         end
 
         # Saddle control points
-        saddle_weight = 0.01
+        saddle_weight = 1.0
         saddle_cps = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
@@ -131,7 +133,7 @@ function _finalize(actor::ActorCHEASE)
         end
 
         # from fixed boundary to free boundary via VacuumFields
-        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
+        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         actor.chease.gfile.psirz .= psi_free_rz'
     end
 
