@@ -112,18 +112,14 @@ function _finalize(actor::ActorCHEASE)
 
         # Flux control points
         imid = argmax(eqt.boundary.outline.r)
-        flux_cps =  VacuumFields.FluxControlPoint[VacuumFields.FluxControlPoint(r,z, ψbound, 1.0) for (r,z) in zip(eqt.boundary.outline.r[imid:imid], eqt.boundary.outline.z[imid:imid])]
-        if !isempty(eqt.boundary.strike_point)
-            strike_weight = 1.0
-            strike_cps = VacuumFields.FluxControlPoint{Float64}[
-                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
-            ]
-            append!(flux_cps, strike_cps)
-        end
+        flux_cps = [VacuumFields.FluxControlPoint(r, z, ψbound, 1.0) for (r, z) in zip(eqt.boundary.outline.r[imid:imid], eqt.boundary.outline.z[imid:imid])]
+        strike_weight = 1.0
+        strike_cps = [VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+        append!(flux_cps, strike_cps)
 
         # Saddle control points
         saddle_weight = 1.0
-        saddle_cps = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
         if isempty(dd.pf_active.coil)
