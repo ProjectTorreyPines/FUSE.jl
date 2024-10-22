@@ -187,6 +187,7 @@ function wall_from_eq!(
     # lcfs and magnetic axis
     ψb = eqt.global_quantities.psi_boundary
     ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, T[], T[])
+    rlcfs, zlcfs = IMAS.resample_2d_path(rlcfs, zlcfs; n_points=101)
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
