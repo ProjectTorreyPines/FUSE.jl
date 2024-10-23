@@ -101,7 +101,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
             old_logging = actor_logging(dd, false)
             ProgressMeter.ijulia_behavior(:clear)
-            prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
+            prog = ProgressMeter.ProgressUnknown(;dt=0.1, desc="Calls:", enabled=par.verbose)
             try
                 packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
                 res = Optim.optimize(x -> placement_cost(x; prog), packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))
