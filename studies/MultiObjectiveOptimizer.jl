@@ -218,7 +218,6 @@ function extract_optimization_results(study)
         serialize(checkpoint_file, processed_files_set)
     end
 
-
     final_df = DataFrame()
     for batch_idx in 1:length(file_batches)
         for i in 1:num_threads
@@ -238,10 +237,7 @@ end
 
 
 #### Analysis
-
-
 function copy_and_return_dds(df, pareto_list, laptop_dir)
-
     dds = IMAS.dd[]
     for par in pareto_list
         path_omega = df.dir[par]
@@ -338,14 +334,14 @@ function plot_population_traces(outputs, var_name, plot_name; constraint=false, 
         yname = "thermal_cycle_type"
         Y = LinRange(0, 3.00001, Y_points)
         println(" legend ->  0 :: brayton, 2 :: rankine")
-        p = histogram2d(y; bins=(X, Y), ylabel=yname, xlabel="Individuals",)
+        p = histogram2d(y; bins=(X, Y), ylabel=yname, xlabel="Individuals")
 
     elseif var_name == "fbs"
         y = outputs[:, "ip_bs"] ./ outputs[:, "ip"]
         yname = "bootstrap fraction"
         Y = LinRange(0, 1.0, Y_points)
         println(" legend ->  0 :: brayton, 2 :: rankine")
-        p = histogram2d(y; bins=(X, Y), ylabel=yname, xlabel="Individuals",)
+        p = histogram2d(y; bins=(X, Y), ylabel=yname, xlabel="Individuals")
     elseif var_name == "gen" || var_name == "generation"
         p = false
     else
@@ -375,7 +371,7 @@ function plot_population_traces(outputs, var_name, plot_name; constraint=false, 
 end
 
 function plot_pareto_front(
-    outputs,
+    outputs::DataFrame,
     x_name::String,
     y_name::String,
     color_axis_name::String;
@@ -388,40 +384,60 @@ function plot_pareto_front(
     return_scatter_only=false,
     ticksizes=15,
     labfontsize=13,
-    dis=true,
+    show=true,
     kwargs...
 )
     special_handeling_dict = Dict(
-        "PsolR"=>(outputs[:, "Psol"] ./ outputs[:, "R0"]),
-        "magnet_materials"=>((outputs[:, "TF_material"] .== "rebco") .+ (outputs[:, "OH_material"] .== "rebco")) .* 2.0,
-        "B0R0" => (outputs[:, "R0"] .* outputs[:, "B0"]),
-        "Psol-PLH" => (outputs[:, "Psol"] .- outputs[:, "PLH"]))
+        "PsolR" => () -> (outputs[:, "Psol"] ./ outputs[:, "R0"]),
+        "magnet_materials" => () -> ((outputs[:, "TF_material"] .== "rebco") .+ (outputs[:, "OH_material"] .== "rebco")) .* 2.0,
+        "B0R0" => () -> (outputs[:, "R0"] .* outputs[:, "B0"]),
+        "Psol-PLH" => () -> (outputs[:, "Psol"] .- outputs[:, "PLH"])
+    )
 
-    pretty_names_dict = Dict("capital_cost"=>L"\textnormal{Capital \, cost}",
-        "zeff_ped"=>L"\textbf{\textnormal{Z_{eff}}}",
-        "B0R0" => L"B_{0} R_{0} [Tm]", "q95"=>L"\textbf{\textnormal{q_{95}}}")        
-    x = outputs[:, x_name]
-    y = outputs[:, y_name]
+    pretty_names_dict = Dict("capital_cost" => L"\textnormal{Capital \, cost}",
+        "zeff_ped" => L"\textbf{\textnormal{Z_{eff}}}",
+        "B0R0" => L"B_{0} R_{0} [Tm]", "q95" => L"\textbf{\textnormal{q_{95}}}")
 
-    if haskey(special_handeling_dict, color_axis_name)
-        c = special_handeling_dict[color_axis_name]
-    else
-        c = outputs[:, color_axis_name]
+    x = nothing
+    y = nothing
+    c = nothing
+    er = [x_name]
+
+    try
+        x = outputs[:, x_name]
+        push!(er, y_name)
+        y = outputs[:, y_name]
+
+        if haskey(special_handeling_dict, color_axis_name)
+            c = special_handeling_dict[color_axis_name]()
+        else
+            c = outputs[:, color_axis_name]
+        end
+        push!(er, color_axis_name)
+    catch e
+        if isa(e, ArgumentError) && occursin("not found in the data frame", e.msg)
+            available_fields = names(outputs)
+            append!(available_fields, String.(keys(special_handeling_dict)))
+            println("Error: The field '$(er[end]) was not found in the DataFrame.")
+            println("Available fields are: $(join(available_fields, ", "))")
+            rethrow(e)
+        else
+            rethrow(e)
+        end
     end
+
 
     if !isempty(color_axis_name_label)
         cname = color_axis_name_label
-    elseif haskey(pretty_names_dict,color_axis_name)
+    elseif haskey(pretty_names_dict, color_axis_name)
         cname = pretty_names_dict[color_axis_name]
     else
         cname = color_axis_name
     end
 
- 
+
     # plotting
     index = 1:length(outputs[:, x_name])
-    annot = map(x -> (x, :center, 3, "courier"), index)
-
     xlab = haskey(pretty_names_dict, x_name) ? pretty_names_dict[x_name] : x_name
     ylab = haskey(pretty_names_dict, y_name) ? pretty_names_dict[y_name] : y_name
 
@@ -429,7 +445,7 @@ function plot_pareto_front(
         colorbar_titlefontsize=14, xlabel=xlab, ylabel=ylab, colorbar_title=cname,
         marker=:circle, markersize=10, markerstrokewidth=0,
         alpha=0.5, labelfontsize=labfontsize, xtickfontsize=ticksizes,
-        ytickfontsize=ticksizes, right_margin=6Plots.mm,label="", kwargs...)
+        ytickfontsize=ticksizes, right_margin=6Plots.mm, label="", kwargs...)
 
     if return_scatter_only
         return P
@@ -450,7 +466,7 @@ function plot_pareto_front(
     if isa(plt, Plots.Plot)
         return plot!(plt, x[pindex], y[pindex]; series_annotations=pannot, color=pareto_color, label="pareto front $(pareto_name)", lw=2)
     elseif !pareto_only
-        if dis
+        if show
             display(plot!(P, x[pindex], y[pindex]; series_annotations=pannot, color=pareto_color, label="pareto front $(pareto_name)", lw=2, legend=:bottomright))
         else
             plot!(P, x[pindex], y[pindex]; series_annotations=pannot, color=pareto_color, label="pareto front $(pareto_name)", lw=2, legend=:bottomright)
@@ -461,24 +477,14 @@ function plot_pareto_front(
     end
 end
 
-function make_gif(quant, quant_name, quant_range)
-    #    q95_selections = reverse(collect(3.5:0.5:15))
+function make_gif(x_name::String, y_name::String, color_axis_name::String, color_axis_name_range; save_file::String="tmp.gif", fps::Int=30, kwargs...)
     plots = []
-    for q in quant_range
+    for q in color_axis_name_range
         println("$q")
-        outputs_filtered2 = outputs_filtered[filter(i -> outputs_filtered[i, quant] < q, 1:length(outputs_filtered.gen)), :]
-        #        @show outputs_filtered2.gen
-        push!(plots, plot_pareto_front(outputs_filtered2, "gen", "Generation"; xxlim=(2.0, 10.0), yylim=(0.0, 22.0), pareto_numbers=false, clim=(1, 100), ticksizes=13);)
+        outputs_filtered2 = outputs_filtered[filter(i -> outputs_filtered[i, color_axis_name] < q, 1:length(outputs_filtered.color_axis_name)), :]
+        push!(plots, plot_pareto_front(outputs_filtered2, x_name, y_name, color_axis_name; pareto_numbers=false, kwargs...))
     end
+    s = animate(plots, save_file, fps)  # Save the GIF
 
-    return plots
+    return s
 end
-
-
-
-
-pretty_names_dict = Dict("capital_cost"=>L"\textnormal{Capital \, cost}",
-    "zeff_ped"=>L"\textbf{\textnormal{Z_{eff}}}",
-    "B0R0" => L"B_{0} R_{0} [Tm]", "q95"=>L"\textbf{\textnormal{q_{95}}}",
-    
-    )
