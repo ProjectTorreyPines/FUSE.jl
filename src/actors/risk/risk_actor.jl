@@ -56,6 +56,10 @@ function _step(actor::ActorRisk)
         n_engineering += 1
     end
 
+    if !isempty(dd.divertors)
+        n_engineering += 1
+    end
+
     if cst.model == "ARIES"
         n_engineering += 3 # each magnet system costed individually in ARIES
     elseif cst.model == "Sheffield"
@@ -100,6 +104,21 @@ function _step(actor::ActorRisk)
         end
     end
 
+    # Divertor 
+    if !isempty(dd.divertors)
+        next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
+        loss[next_idx].description = "Divertor failure"
+        loss[next_idx].probability = divertor_risk(dd)
+        if cst.model == "ARIES"
+            divertor_cost = 10.0 # placeholder value since ARIES does not have divertor costing # units are $M
+            loss[next_idx].severity = divertor_cost
+        elseif cst.model == "Sheffield"
+            da = DollarAdjust(dd)
+            divertor_cost = cost_direct_capital_Sheffield(:divertor, true, dd, da)
+            loss[next_idx].severity = divertor_cost
+        end
+    end
+
     ##########
     # Plasma #
     ##########
@@ -140,22 +159,6 @@ function _finalize(actor::ActorRisk)
     sort!(actor.dd.risk.plasma.loss; by=x -> x.risk, rev=true)
     return actor 
 end 
-
-function magnet_risk(coil_tech::Union{Missing,FusionMaterials.IMAS_build_coil_techs}, function_type::Symbol)
-    conductor_trl = Dict("copper" => 9, "nbti" => 8, "rebco" => 3, "nb3sn" => 7, "nb3sn_iter" => 7, "nb3sn_kdemo" => 3)
-    return trl_to_risk(function_type, conductor_trl[coil_tech.material]) 
-end
-
-function blanket_risk(dd::IMAS.dd, function_type::Symbol)
-    bd = dd.build
-    blanket_trl = Dict("lithium_lead" => 4, "flibe" => 3)
-
-    if !isempty(dd.blanket)
-        blanket_layer = IMAS.get_build_layer(bd.layer; type=IMAS._blanket_, fs=IMAS._hfs_)
-    end
-
-    return trl_to_risk(function_type, blanket_trl[blanket_layer.material])
-end
 
 ##########
 # Plasma #
@@ -291,4 +294,32 @@ function trl_to_risk(function_type::Symbol, trl::Real)
     return risk 
 end
 
+function magnet_risk(coil_tech::Union{Missing,FusionMaterials.IMAS_build_coil_techs}, function_type::Symbol)
+    conductor_trl = Dict("copper" => 9, "nbti" => 8, "rebco" => 3, "nb3sn" => 7, "nb3sn_iter" => 7, "nb3sn_kdemo" => 3)
+    return trl_to_risk(function_type, conductor_trl[coil_tech.material]) 
+end
 
+function blanket_risk(dd::IMAS.dd, function_type::Symbol)
+    bd = dd.build
+    blanket_trl = Dict("lithium_lead" => 4, "flibe" => 3)
+
+    if !isempty(dd.blanket)
+        blanket_layer = IMAS.get_build_layer(bd.layer; type=IMAS._blanket_, fs=IMAS._hfs_)
+    end
+
+    return trl_to_risk(function_type, blanket_trl[blanket_layer.material])
+end
+
+function divertor_risk(dd::IMAS.dd)
+    Psol = IMAS.power_sol(dd) / 1e6
+    R = dd.equilibrium.time_slice[].boundary.geometric_axis.r 
+    
+    max_Psol_over_R = 20.0
+    divertor_risk = (Psol / R) / max_Psol_over_R
+    if divertor_risk > 1.0 
+        risk = 1.0
+    else 
+        risk = divertor_risk
+    end
+    return risk 
+end
