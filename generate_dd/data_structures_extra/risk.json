@@ -1,0 +1,78 @@
+{
+ "risk": {
+  "documentation": "Risk quantification of plasma and engineering components"
+ },
+ "risk.engineering.loss": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of engineering-related losses",
+  "type": "static"
+ },
+ "risk.engineering.loss[:].description": {
+  "data_type": "FLT_0D",
+  "documentation": "Description of loss channel",
+  "type": "static"
+ },
+ "risk.engineering.loss[:].probability": {
+  "data_type": "FLT_0D",
+  "documentation": "Probability of failure",
+  "type": "static"
+ },
+ "risk.engineering.loss[:].risk": {
+  "data_type": "FLT_0D",
+  "documentation": "Product of loss probability and severity",
+  "type": "static"
+ },
+ "risk.engineering.loss[:].severity": {
+  "data_type": "FLT_0D",
+  "documentation": "Severity of failure",
+  "type": "static"
+ },
+ "risk.plasma.loss": {
+  "coordinates": [
+   "1...N"
+  ],
+  "data_type": "STRUCT_ARRAY",
+  "documentation": "List of plasma-related losses",
+  "type": "static"
+ },
+ "risk.plasma.loss[:].description": {
+  "data_type": "FLT_0D",
+  "documentation": "Description of loss channel",
+  "type": "static"
+ },
+ "risk.plasma.loss[:].probability": {
+  "data_type": "FLT_0D",
+  "documentation": "Probability of failure",
+  "type": "static"
+ },
+ "risk.plasma.loss[:].risk": {
+  "data_type": "FLT_0D",
+  "documentation": "Product of loss probability and severity",
+  "type": "static"
+ },
+ "risk.plasma.loss[:].severity": {
+  "data_type": "FLT_0D",
+  "documentation": "Severity of failure",
+  "type": "static"
+ },
+ "risk.total_risk": {
+  "data_type": "FLT_0D",
+  "documentation": "Sum of risks",
+  "type": "static"
+ },
+ "risk.time": {
+  "units": "s",
+  "coordinates": [
+   "1...N"
+  ],
+  "lifecycle_status": "active",
+  "data_type": "FLT_1D_TYPE",
+  "full_path": "risk/time(:)",
+  "timebasepath": "time",
+  "documentation": "Generic time",
+  "type": "dynamic"
+ }
+}
