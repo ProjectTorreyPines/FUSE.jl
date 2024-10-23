@@ -112,7 +112,7 @@ function _step(actor::ActorFluxMatcher)
     xtol = 1E-3 # difference in input array
 
     ProgressMeter.ijulia_behavior(:clear)
-    prog = (progressmeter=ProgressMeter.ProgressUnknown(ftol; desc="Calls:", enabled=par.verbose), calls=[0], time=[0.0])
+    prog = ProgressMeter.ProgressUnknown(;dt=0.1, desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     out = try
@@ -152,7 +152,7 @@ function _step(actor::ActorFluxMatcher)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
     dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
-    ProgressMeter.finish!(prog.progressmeter; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
+    ProgressMeter.finish!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
 
     if par.do_plot
         plot()
@@ -397,15 +397,9 @@ function flux_match_errors(
     # update error history
     push!(err_history, errors)
 
-    # update progress meter (snow changes no faster than 100 ms)
+    # update progress meter
     if prog !== nothing
-        prog.calls[1] += 1
-        if prog.time[1] == 0.0 || time() - prog.time[1] > 0.1
-            prog.progressmeter.counter += prog.calls[1] - 1
-            ProgressMeter.next!(prog.progressmeter; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
-            prog.calls[1] = 0
-            prog.time[1] = time()
-        end
+        ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
     end
 
     return (targets=targets, fluxes=fluxes, errors=errors)
