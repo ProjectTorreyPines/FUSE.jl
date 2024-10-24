@@ -12,7 +12,7 @@ using Test
                 dd = IMAS.dd()
 
                 # speedup the tests
-                act.ActorStationaryPlasma.max_iter = 1
+                act.ActorStationaryPlasma.max_iter = 2
                 # use full model for ActorThermalPlant
                 act.ActorThermalPlant.model = :network
 
