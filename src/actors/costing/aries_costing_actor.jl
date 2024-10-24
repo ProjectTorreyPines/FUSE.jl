@@ -1,18 +1,17 @@
 #= ================= =#
 #  ActorCostingARIES  #
 #= ================= =#
-
 Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    land_space::Entry{T} = Entry{T}("acres", "Plant site space required"; default=1000.0)
-    building_volume::Entry{T} = Entry{T}("m^3", "Volume of the tokmak building"; default=140.0e3)
-    interest_rate::Entry{T} = Entry{T}("-", "Annual interest rate fraction of direct capital cost"; default=0.05)
-    indirect_cost_rate::Entry{T} =
-        Entry{T}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4)
-    escalation_fraction::Entry{T} = Entry{T}("-", "Yearly escalation fraction based on risk assessment"; default=0.05)
-    blanket_lifetime::Entry{T} = Entry{T}("year", "Lifetime of the blanket"; default=6.8)
+    land_space::Entry{Real} = Entry{Real}("acres", "Plant site space required"; default=1000.0 ± 100.0)
+    building_volume::Entry{Real} = Entry{Real}("m^3", "Volume of the tokmak building"; default=140e3 ± 14e3)
+    interest_rate::Entry{Real} = Entry{Real}("-", "Annual interest rate fraction of direct capital cost"; default=0.05 ± 0.01)
+    indirect_cost_rate::Entry{Real} =
+        Entry{Real}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4 ± 0.01)
+    escalation_fraction::Entry{Real} = Entry{Real}("-", "Yearly escalation fraction based on risk assessment"; default=0.05 ± 0.01)
+    blanket_lifetime::Entry{Real} = Entry{Real}("year", "Lifetime of the blanket"; default=7.0 ± 1.0)
 end
 
 mutable struct ActorCostingARIES{D,P} <: SingleAbstractActor{D,P}
@@ -136,13 +135,13 @@ function _step(actor::ActorCostingARIES)
     sys = resize!(cost_decom.system, "name" => "decommissioning")
     sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, cst.plant_lifetime, da)
 
-    ###### Levelized Cost Of Electricity 
+    ###### Total cost over lifetime ######
     capital_cost_rate = par.interest_rate / (1.0 - (1.0 + par.interest_rate)^(-1.0 * cst.plant_lifetime))
-    cst.cost_lifetime = 0.0
-    for year in 1:cst.plant_lifetime
-        yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / cst.plant_lifetime)
-        cst.cost_lifetime += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
-    end
+    yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / cst.plant_lifetime)
+    annual_growth_rate = (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate)
+    cst.cost_lifetime = annual_growth_rate * yearly_cost * cst.plant_lifetime
+
+    ###### Levelized Cost Of Electricity ######
     cst.levelized_CoE = (cst.cost_lifetime * 1E6) / (cst.plant_lifetime * 24 * 365 * power_electric_net / 1e3 * cst.availability)
 
     return actor
@@ -154,7 +153,6 @@ function _finalize(actor::ActorCostingARIES)
     for sys in actor.dd.costing.cost_direct_capital.system
         sort!(sys.subsystem; by=x -> x.cost, rev=true)
     end
-
     return actor
 end
 
@@ -246,11 +244,13 @@ function cost_direct_capital_ARIES(nbu::IMAS.nbi__unit, da::DollarAdjust)
 end
 
 """
-    cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, cst::IMAS.costing)
+    cost_direct_capital_ARIES(pf_active::IMAS.pf_active{T}, da::DollarAdjust, cst::IMAS.costing) where {T<:Real}
+
+Capital cost for pf_active coils
 """
-function cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, cst::IMAS.costing)
+function cost_direct_capital_ARIES(pf_active::IMAS.pf_active{T}, da::DollarAdjust, cst::IMAS.costing) where {T<:Real}
     dd = IMAS.top_dd(pf_active)
-    c = Dict("OH" => 0.0, "PF" => 0.0)
+    c = Dict{String,T}("OH" => 0.0, "PF" => 0.0)
     for coil in pf_active.coil
         if IMAS.is_ohmic_coil(coil)
             c["OH"] += cost_direct_capital_ARIES(coil, dd.build.oh.technology, da, cst)
@@ -261,15 +261,12 @@ function cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, 
     return c
 end
 
-"""
-    cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, da::DollarAdjust, cst::IMAS.costing)
-"""
 function cost_direct_capital_ARIES(
     coil::IMAS.pf_active__coil,
     technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology},
     da::DollarAdjust,
-    cst::IMAS.costing
-)
+    cst::IMAS.costing)
+
     da.year_assessed = 2016
     cost = IMAS.volume(coil) * unit_cost(technology, cst)
     return future_dollars(cost, da)
@@ -303,8 +300,8 @@ function cost_direct_capital_ARIES(
     power_electric_generated::Real,
     power_thermal::Real,
     power_electric_net::Real,
-    da::DollarAdjust
-)
+    da::DollarAdjust)
+
     da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
     power_thermal = power_thermal / 1E6
@@ -324,7 +321,7 @@ function cost_direct_capital_ARIES(
     cost += 2.0 # site service
     cost += 2.09 # cyrogenic and inert gas storage
     cost += 0.71 # security
-    cost += 4.15  # ventilation stack
+    cost += 4.15 # ventilation stack
     return future_dollars(cost, da)
 end
 

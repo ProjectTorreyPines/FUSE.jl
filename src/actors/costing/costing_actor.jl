@@ -9,19 +9,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersAc
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
-    construction_start_year::Entry{Int} = Entry{Int}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()))
-    future_inflation_rate::Entry{T} = Entry{T}("-", "Predicted average rate of future inflation"; default=0.025)
-    plant_lifetime::Entry{Int} = Entry{Int}("year", "Lifetime of the plant"; default=40)
-    availability::Entry{T} = Entry{T}("-", "Availability fraction of the plant"; default=0.8)
-    production_increase::Entry{T} = Entry{T}("-", "Factor by which production of ReBCO multiplies"; default=1.0)
-    learning_rate::Entry{T} = Entry{T}("-", "Learning rate for ReBCO technology production"; default=0.85)
+    construction_start_year::Entry{Real} = Entry{Real}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()) + 10.0 ± 5.0)
+    future_inflation_rate::Entry{Real} = Entry{Real}("-", "Predicted average rate of future inflation"; default=0.025 ± 0.0125)
+    plant_lifetime::Entry{Real} = Entry{Real}("year", "Lifetime of the plant"; default=35.0 ± 5.0)
+    availability::Entry{Real} = Entry{Real}("-", "Availability fraction of the plant"; default=0.8 ± 0.1)
+    production_increase::Entry{Real} = Entry{Real}("-", "Factor by which production of ReBCO multiplies per year"; default=1.0 ± 0.5)
+    learning_rate::Entry{Real} = Entry{Real}("-", "Learning rate for ReBCO technology production"; default=0.85 ± 0.1)
 end
 
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
     act::ParametersAllActors
-    cst_actor::Union{ActorCostingSheffield{D,P},ActorCostingARIES{D,P}}
+    cst_actor::Union{ActorCostingSheffield{Real,P},ActorCostingARIES{Real,P}}
 end
 
 """
@@ -45,17 +45,20 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
     empty!(dd.costing)
 
-    dd.costing.construction_start_year = act.ActorCosting.construction_start_year
-    dd.costing.future.inflation_rate = act.ActorCosting.future_inflation_rate
-    dd.costing.plant_lifetime = act.ActorCosting.plant_lifetime
-    dd.costing.availability = act.ActorCosting.availability
-    dd.costing.future.learning.hts.production_increase = act.ActorCosting.production_increase
-    dd.costing.future.learning.hts.learning_rate = act.ActorCosting.learning_rate
+    ddR = IMAS.dd{Real}()
+    IMAS.get_timeslice!(dd, ddR)
+
+    ddR.costing.construction_start_year = act.ActorCosting.construction_start_year
+    ddR.costing.future.inflation_rate = act.ActorCosting.future_inflation_rate
+    ddR.costing.plant_lifetime = act.ActorCosting.plant_lifetime
+    ddR.costing.availability = act.ActorCosting.availability
+    ddR.costing.future.learning.hts.production_increase = act.ActorCosting.production_increase
+    ddR.costing.future.learning.hts.learning_rate = act.ActorCosting.learning_rate
 
     if par.model == :Sheffield
-        cst_actor = ActorCostingSheffield(dd, act.ActorCostingSheffield)
+        cst_actor = ActorCostingSheffield(ddR, act.ActorCostingSheffield)
     elseif par.model == :ARIES
-        cst_actor = ActorCostingARIES(dd, act.ActorCostingARIES)
+        cst_actor = ActorCostingARIES(ddR, act.ActorCostingARIES)
     end
 
     return ActorCosting(dd, par, act, cst_actor)
@@ -68,5 +71,11 @@ end
 
 function _finalize(actor::ActorCosting)
     finalize(actor.cst_actor)
+
+    cst = actor.cst_actor.dd.costing
+    display(cst)
+
+    fill!(actor.dd.costing, cst)
+
     return actor
 end
