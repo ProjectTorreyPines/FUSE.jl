@@ -49,7 +49,7 @@ end
 #= ==================== =#
 mutable struct DollarAdjust
     future_inflation_rate::Real
-    construction_start_year::Int
+    construction_start_year::Real
     year_assessed::Union{Missing,Int}
     year::Union{Missing,Int}
 end
