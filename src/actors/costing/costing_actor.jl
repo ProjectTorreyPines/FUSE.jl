@@ -13,8 +13,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersAc
     future_inflation_rate::Entry{Real} = Entry{Real}("-", "Predicted average rate of future inflation"; default=0.025 ± 0.0125)
     plant_lifetime::Entry{Real} = Entry{Real}("year", "Lifetime of the plant"; default=35.0 ± 5.0)
     availability::Entry{Real} = Entry{Real}("-", "Availability fraction of the plant"; default=0.8 ± 0.1)
-    production_increase::Entry{Real} = Entry{Real}("-", "Factor by which production of ReBCO multiplies per year"; default=1.0 ± 0.5)
-    learning_rate::Entry{Real} = Entry{Real}("-", "Learning rate for ReBCO technology production"; default=0.85 ± 0.1)
+    production_increase::Entry{Real} = Entry{Real}("-", "Factor by which production of ReBCO multiplies per year"; default=1.0 ± 0.5, check=x->@assert x>=0 "production_increase must be >= 0.0")
+    learning_rate::Entry{Real} = Entry{Real}("-", "Learning rate for ReBCO technology production"; default=0.85 ± 0.1, check=x->@assert 1.0>=x>=0.0 "learning_rate must be between 0.0 and 1.0")
 end
 
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
@@ -73,8 +73,6 @@ function _finalize(actor::ActorCosting)
     finalize(actor.cst_actor)
 
     cst = actor.cst_actor.dd.costing
-    display(cst)
-
     fill!(actor.dd.costing, cst)
 
     return actor
