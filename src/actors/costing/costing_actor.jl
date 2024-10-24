@@ -21,7 +21,7 @@ mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
     act::ParametersAllActors
-    cst_actor::Union{ActorCostingSheffield{Real,P},ActorCostingARIES{Real,P}}
+    cst_actor::Union{ActorCostingSheffield{IMAS.Measurements.Measurement{Float64},P},ActorCostingARIES{IMAS.Measurements.Measurement{Float64},P}}
 end
 
 """
@@ -45,7 +45,7 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
     empty!(dd.costing)
 
-    ddR = IMAS.dd{Real}()
+    ddR = IMAS.dd{IMAS.Measurements.Measurement{Float64}}()
     IMAS.get_timeslice!(dd, ddR)
 
     ddR.costing.construction_start_year = act.ActorCosting.construction_start_year
