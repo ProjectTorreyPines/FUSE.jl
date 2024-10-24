@@ -95,6 +95,7 @@ function _step(actor::ActorQED)
         for time0 in range(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
+                Ip_non_inductive = dd.core_profiles.global_quantities.current_non_inductive[time0]
                 Vedge = nothing
                 if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
                     Ip = nothing
@@ -111,6 +112,7 @@ function _step(actor::ActorQED)
         # steady state solution
         if par.solve_for == :ip
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+            Ip_non_inductive = dd.core_profiles.global_quantities.current_non_inductive[]
             Vedge = nothing
             if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
                 Ip = nothing
