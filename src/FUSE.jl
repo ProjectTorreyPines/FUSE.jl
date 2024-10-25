@@ -11,6 +11,7 @@ import LinearAlgebra
 using StaticArrays
 import AbstractTrees: print_tree
 import ProgressMeter
+import Measurements:Measurement
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads

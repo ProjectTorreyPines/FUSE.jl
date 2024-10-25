@@ -9,19 +9,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersAc
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
-    construction_start_year::Entry{Real} = Entry{Real}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()) + 10.0 ± 5.0)
-    future_inflation_rate::Entry{Real} = Entry{Real}("-", "Predicted average rate of future inflation"; default=0.025 ± 0.0125)
-    plant_lifetime::Entry{Real} = Entry{Real}("year", "Lifetime of the plant"; default=35.0 ± 5.0)
-    availability::Entry{Real} = Entry{Real}("-", "Availability fraction of the plant"; default=0.8 ± 0.1)
-    production_increase::Entry{Real} = Entry{Real}("-", "Factor by which production of ReBCO multiplies per year"; default=1.0 ± 0.5, check=x->@assert x>=0 "production_increase must be >= 0.0")
-    learning_rate::Entry{Real} = Entry{Real}("-", "Learning rate for ReBCO technology production"; default=0.85 ± 0.1, check=x->@assert 1.0>=x>=0.0 "learning_rate must be between 0.0 and 1.0")
+    construction_start_year::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()) + 10.0 ± 5.0)
+    future_inflation_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Predicted average rate of future inflation"; default=0.025 ± 0.0125)
+    plant_lifetime::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Lifetime of the plant"; default=35.0 ± 5.0)
+    availability::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Availability fraction of the plant"; default=0.8 ± 0.1)
+    production_increase::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Factor by which production of ReBCO multiplies per year"; default=1.0 ± 0.5, check=x->@assert x>=0 "production_increase must be >= 0.0")
+    learning_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Learning rate for ReBCO technology production"; default=0.85 ± 0.1, check=x->@assert 1.0>=x>=0.0 "learning_rate must be between 0.0 and 1.0")
 end
 
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
     act::ParametersAllActors
-    cst_actor::Union{ActorCostingSheffield{IMAS.Measurements.Measurement{Float64},P},ActorCostingARIES{IMAS.Measurements.Measurement{Float64},P}}
+    cst_actor::Union{ActorCostingSheffield{Measurement{Float64},P},ActorCostingARIES{Measurement{Float64},P}}
 end
 
 """
@@ -45,7 +45,7 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
     empty!(dd.costing)
 
-    ddR = IMAS.dd{IMAS.Measurements.Measurement{Float64}}()
+    ddR = IMAS.dd{Measurement{Float64}}()
     IMAS.get_timeslice!(dd, ddR)
 
     ddR.costing.construction_start_year = act.ActorCosting.construction_start_year

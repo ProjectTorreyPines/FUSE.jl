@@ -6,12 +6,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorCostingSheffield{T<:Real} <: Par
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    construction_lead_time::Entry{Real} = Entry{Real}("year", "Duration of construction"; default=10.0 ± 2.0)
-    fixed_charge_rate::Entry{Real} = Entry{Real}("-", "Constant dollar fixed charge rate"; default=0.078)
+    construction_lead_time::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Duration of construction"; default=10.0 ± 2.0)
+    fixed_charge_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Constant dollar fixed charge rate"; default=0.08 ± 0.01)
     capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=false)
     capitalize_divertor::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st divertor in direct captial cost"; default=false)
-    divertor_fluence_lifetime::Entry{Real} = Entry{Real}("MW*yr/m²", "Divertor fluence over its lifetime"; default=10.0 ± 2.0)
-    blanket_fluence_lifetime::Entry{Real} = Entry{Real}("MW*yr/m²", "Blanket fluence over its lifetime"; default=15.0 ± 2.0)
+    divertor_fluence_lifetime::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("MW*yr/m²", "Divertor fluence over its lifetime"; default=10.0 ± 2.0)
+    blanket_fluence_lifetime::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("MW*yr/m²", "Blanket fluence over its lifetime"; default=15.0 ± 2.0)
 end
 
 mutable struct ActorCostingSheffield{D,P} <: SingleAbstractActor{D,P}

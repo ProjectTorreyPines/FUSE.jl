@@ -5,13 +5,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: Paramet
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    land_space::Entry{Real} = Entry{Real}("acres", "Plant site space required"; default=1000.0 ± 100.0)
-    building_volume::Entry{Real} = Entry{Real}("m^3", "Volume of the tokmak building"; default=140e3 ± 14e3)
-    interest_rate::Entry{Real} = Entry{Real}("-", "Annual interest rate fraction of direct capital cost"; default=0.05 ± 0.01)
-    indirect_cost_rate::Entry{Real} =
-        Entry{Real}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4 ± 0.01)
-    escalation_fraction::Entry{Real} = Entry{Real}("-", "Yearly escalation fraction based on risk assessment"; default=0.05 ± 0.01)
-    blanket_lifetime::Entry{Real} = Entry{Real}("year", "Lifetime of the blanket"; default=7.0 ± 1.0)
+    land_space::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("acres", "Plant site space required"; default=1000.0 ± 100.0)
+    building_volume::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("m^3", "Volume of the tokmak building"; default=140e3 ± 14e3)
+    interest_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Annual interest rate fraction of direct capital cost"; default=0.05 ± 0.01)
+    indirect_cost_rate::Entry{Measurement{Float64}} =
+        Entry{Measurement{Float64}}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4 ± 0.01)
+    escalation_fraction::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Yearly escalation fraction based on risk assessment"; default=0.05 ± 0.01)
+    blanket_lifetime::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Lifetime of the blanket"; default=7.0 ± 1.0)
 end
 
 mutable struct ActorCostingARIES{D,P} <: SingleAbstractActor{D,P}
