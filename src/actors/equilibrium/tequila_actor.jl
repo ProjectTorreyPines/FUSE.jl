@@ -50,7 +50,7 @@ end
 function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    return ActorTEQUILA(dd, par, nothing, 0.0, D[], D[])
+    return ActorTEQUILA(dd, par, nothing, D(0.0), D[], D[])
 end
 
 """
@@ -60,28 +60,29 @@ Runs TEQUILA on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
 function _step(actor::ActorTEQUILA)
     dd = actor.dd
+    D = eltype(dd)
     par = actor.par
     eqt = dd.equilibrium.time_slice[]
     eq1d = eqt.profiles_1d
 
     # BCL 5/30/23: ψbound should be set time dependently, related to the flux swing of the OH coils
     #              For now setting to zero as initial eq1d.psi profile from prepare() can be nonsense
-    actor.ψbound = 0.0
+    actor.ψbound = D(0.0)
 
     Ip_target = eqt.global_quantities.ip
 
     if par.fixed_grid === :poloidal
         rho = sqrt.(eq1d.psi_norm)
-        rho[1] = 0.0
+        rho[1] = D(0.0)
         P = (TEQUILA.FE(rho, eq1d.pressure), :poloidal)
         # don't allow current to change sign
-        Jt = (TEQUILA.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]), :poloidal)
+        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eq1d.j_tor]), :poloidal)
         Pbnd = eq1d.pressure[end]
     elseif par.fixed_grid === :toroidal
         rho = eq1d.rho_tor_norm
         P = (TEQUILA.FE(rho, eq1d.pressure), :toroidal)
         # don't allow current to change sign
-        Jt = (TEQUILA.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eq1d.j_tor]), :toroidal)
+        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eq1d.j_tor]), :toroidal)
         Pbnd = eq1d.pressure[end]
     end
 
@@ -144,7 +145,7 @@ function _finalize(actor::ActorTEQUILA)
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd, par::FUSEparameters__ActorTEQUILA; ψbound::Real=0.0)
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA; ψbound::D=0.0) where {D<:Real}
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
