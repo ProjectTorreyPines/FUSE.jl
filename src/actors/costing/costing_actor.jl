@@ -45,8 +45,7 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
 
     empty!(dd.costing)
 
-    ddR = IMAS.dd{Measurement{Float64}}()
-    IMAS.get_timeslice!(dd, ddR)
+    ddR = IMAS.get_timeslice(Measurement{Float64}, dd)
 
     ddR.costing.construction_start_year = act.ActorCosting.construction_start_year
     ddR.costing.future.inflation_rate = act.ActorCosting.future_inflation_rate
