@@ -126,11 +126,15 @@ function _finalize(actor::ActorTGLF)
 end
 
 function model_filename(par::FUSEparameters__ActorTGLF)
-    if !isempty(par.user_specified_model)
-        filename = par.user_specified_model
+    if par.model == :TGLFNN
+        if !isempty(par.user_specified_model)
+            filename = par.user_specified_model
+        else
+            filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+            filename *= "_d3d" # will be changed to FPP soon
+        end
     else
         filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
-        filename *= "_d3d" # will be changed to FPP soon
     end
     return filename
 end
