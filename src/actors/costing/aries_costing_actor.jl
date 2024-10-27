@@ -78,12 +78,41 @@ function _step(actor::ActorCostingARIES)
     end
 
     # Heating and current drive
-    for hcd in vcat(dd.ec_launchers.beam, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
-        c = cost_direct_capital_ARIES(hcd, da)
-        if c > 0.0
-            sub = resize!(tokamak.subsystem, "name" => uppercase(hcd.name))
-            sub.cost = c
-        end
+    # EC
+    c = 0.0
+    for hcd in dd.ec_launchers.beam
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "ECH")
+        sub.cost = c
+    end
+    # IC
+    c = 0.0
+    for hcd in dd.ic_antennas.antenna
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "ICRF")
+        sub.cost = c
+    end
+    # LH
+    c = 0.0
+    for hcd in dd.ic_antennas.antenna
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "LHCD")
+        sub.cost = c
+    end
+    # NBI
+    c = 0.0
+    for hcd in dd.nbi.unit
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "NBI")
+        sub.cost = c
     end
 
     ### Facility
@@ -167,7 +196,7 @@ Capital cost for each layer in the build
 function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, da::DollarAdjust)
     da.year_assessed = 2016
     if layer.type == Int(_oh_)
-        return 0.0
+        return 0.0 # oh is part of the pf_active calculation
     elseif layer.type == Int(_tf_)
         build = IMAS.parent(IMAS.parent(layer))
         cost = layer.volume * unit_cost(build.tf.technology, cst)
