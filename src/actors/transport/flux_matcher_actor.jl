@@ -72,8 +72,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         ne_from=:pulse_schedule,
         zeff_ped_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
-        rho_ped=par.rho_transport[end]
-    )
+        rho_ped=par.rho_transport[end])
     return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[], Inf)
 end
 
@@ -229,14 +228,16 @@ function _step(actor::ActorFluxMatcher)
                 setproperty!(ids1, field, value)
             end
         end
-    end
 
-    # transfer t_i_average to individual ions temperature and restore t_i_average as expression
-    for (k, ion) in enumerate(cp1d.ion)
-        ion.temperature = cp1d.t_i_average
+        # transfer t_i_average to individual ions temperature and restore t_i_average as expression
+        for ion in cp1d.ion
+            ion.temperature = cp1d.t_i_average
+        end
+        empty!(cp1d, :t_i_average)
+
+        # refresh sources with relatex profiles
+        IMAS.sources!(dd)
     end
-    empty!(cp1d, :t_i_average)
-    IMAS.sources!(dd)
 
     # free total densities expressions
     IMAS.empty!(cp1d.electrons, :density)
