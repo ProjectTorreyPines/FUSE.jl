@@ -229,8 +229,14 @@ function _step(actor::ActorFluxMatcher)
                 setproperty!(ids1, field, value)
             end
         end
-        IMAS.sources!(dd)
     end
+
+    # transfer t_i_average to individual ions temperature and restore t_i_average as expression
+    for (k, ion) in enumerate(cp1d.ion)
+        ion.temperature = cp1d.t_i_average
+    end
+    empty!(cp1d, :t_i_average)
+    IMAS.sources!(dd)
 
     # free total densities expressions
     IMAS.empty!(cp1d.electrons, :density)
