@@ -45,6 +45,7 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     ini.core_profiles.ne_setting = :greenwald_fraction
     ini.core_profiles.ne_value = 0.9
     ini.core_profiles.ne_shaping = 3.0
+    act.ActorPedestal.density_match = :ne_line
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 3.0
     ini.core_profiles.Te_sep = 200.0
@@ -86,6 +87,7 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
+    act.ActorFluxMatcher.evolve_pedestal = false
 
     set_new_base!(ini)
     set_new_base!(act)
