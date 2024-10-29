@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas]")
+    ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas, missing keeps original ratio]")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the edge region starts")
     #== data flow parameters ==#
     ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
@@ -70,15 +70,22 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
         qq = plot(cp1d, :t_i_average; label="Ti before WPED blending", xlabel="rho")
     end
 
+    if ismissing(par, :ped_to_core_fraction)
+        core, edge = core_and_edge_energy(cp1d, 0.9)
+        ped_to_core_fraction = edge / core
+    else
+        ped_to_core_fraction = par.ped_to_core_fraction
+    end
+
     Ti_over_Te = cp1d.t_i_average[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
     res_value_bound = Optim.optimize(
-        value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, par.ped_to_core_fraction, par.rho_ped, Ti_over_Te),
+        value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
         1.0,
         cp1d.electrons.temperature[1],
         Optim.GoldenSection();
         rel_tol=1E-3)
 
-    cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, par.ped_to_core_fraction, par.rho_ped, Ti_over_Te)
+    cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, ped_to_core_fraction, par.rho_ped, Ti_over_Te)
 
     @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(par.rho_ped)
     @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(par.rho_ped)
