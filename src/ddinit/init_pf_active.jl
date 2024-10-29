@@ -39,6 +39,16 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
     end
 end
 
+function clip_rails(rail_r::AbstractVector{T1}, rail_z::AbstractVector{T1}, pr::AbstractVector{T2}, pz::AbstractVector{T2}, RA::T3, ZA::T3) where {T1<:Real,T2<:Real,T3<:Real}
+    rail_r = convert(Vector{Float64},rail_r)
+    rail_z = convert(Vector{Float64},rail_z)
+    pr = convert(Vector{Float64},pr)
+    pz = convert(Vector{Float64},pz)
+    RA = convert(Float64,RA)
+    ZA = convert(Float64,ZA)
+    return clip_rails(rail_r, rail_z, pr, pz, RA, ZA)
+end
+
 """
     clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
 

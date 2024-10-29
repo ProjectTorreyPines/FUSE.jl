@@ -143,6 +143,7 @@ function case_parameters(
     ini.pellet_launcher[1].frequency = 0.02 # Hz
 
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
+    act.ActorFluxMatcher.step_size = 0.5
 
     act.ActorWholeFacility.update_build = false
 

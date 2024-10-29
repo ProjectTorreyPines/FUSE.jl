@@ -77,7 +77,7 @@ end
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
-Save the FUSE act parameters to a JSON file with given `filename`
+Save the ACT act parameters to a JSON file with given `filename`
 
 `kw` arguments are passed to the JSON.print function
 """
@@ -88,7 +88,7 @@ end
 """
     json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
 
-Load the FUSE act parameters from a JSON file with given `filename`
+Load the ACT act parameters from a JSON file with given `filename`
 """
 function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
     return SimulationParameters.json2par(filename, act)
@@ -97,7 +97,7 @@ end
 """
     act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a YAML file with given `filename`
+Save the ACT parameters to a YAML file with given `filename`
 
 `kw` arguments are passed to the YAML.print function
 """
@@ -108,8 +108,26 @@ end
 """
     yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
 
-Load the FUSE act parameters from a YAML file with given `filename`
+Load the ACT act parameters from a YAML file with given `filename`
 """
 function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
     return SimulationParameters.yaml2par(filename, act)
+end
+
+"""
+    act2dict(act::ParametersAllInits; kw...)
+
+Convert the ACT parameters to a dictionary form
+"""
+function act2dict(act::ParametersAllActors; kw...)
+    return SimulationParameters.par2dict(act; kw...)
+end
+
+"""
+    dict2act(dict::AbstractDict, act::ParametersAllInits=ParametersActors())
+
+Convert dict to ACT parameters
+"""
+function dict2act(dict::AbstractDict, act::ParametersAllActors=ParametersActors())
+    return SimulationParameters.dict2par!(dict, act)
 end

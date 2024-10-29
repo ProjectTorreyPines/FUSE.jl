@@ -1,19 +1,19 @@
-# Development
+# Contributing
 
-FUSE is a collaborative project that welcomes contributions.
+FUSE is a collaborative project that welcomes community contributions!
 
 The `master` branch of ProjectTorreyPines repositories is write-protected. This means that even with write permissions to the repository, you'll not be able to push to `master` directly. Instead, we handle updates – be it new features or bug fixes – through branches and Pull Requests (PRs).
 
-A crucial part of our PR process is code review. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
+A crucial part of our PR process is **code review**. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
 
 !!! note
     When working on a new feature that involves changes to FUSE and other ProjectTorreyPines repositories, you'll want to use the same branch name across these repositories. For example, if you're working on a branch named `my_new_feature` in both FUSE and IMAS, regression testing will be performed using the `my_new_feature` branches for FUSE and IMAS, along with the `master` branch of the other `ProjectTorreyPines` repositories.
 
-## How to add/modify entries in `dd`
+## Add/modify entries in `dd`
 
 The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package. See the documentation there to how add/modify entries in `dd`.
 
-## How to write IMAS physics functions
+## Write IMAS physics functions
 
 IMAS physics and engineering functions are structured in [IMAS.jl](https://github.com/ProjectTorreyPines/IMAS.jl) under `IMAS/src/physics`. These functions use or modify the datastructure (dd) in some way and are used to calculate certain quantities or fill the data structure.
 
@@ -37,14 +37,14 @@ end
 !!! convention
     The documentation string is added to the specialized function `DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)` and the dispatch function `DT_fusion_source!(dd::IMAS.dd)` is added on top of the function
 
-## How to add/modify entries in `ini` and `act`
+## Add/modify entries in `ini` and `act`
 
 The functinoality of the `ini` and `act` parameters is implemented in the [SimulationParameters.jl](https://github.com/ProjectTorreyPines/SimulationParameters.jl) package.
 
 * The `ini` parameters are all defined in the `FUSE/src/parameters_init.jl` file. Add/edit entries there.
 * The `act` parameters of each actor are defined where that actor is defined. Add/edit entries there.
 
-## How to write a new actor
+## Write a new actor
 
 Actors are grouped into two main abstract types:
 
@@ -117,7 +117,7 @@ function _finalize(actor::ActorNAME)
 end
 ```
 
-## How to add a new material 
+## Add a new material 
 
 Material properties for supported fusion-relevant materials are stored in the [FusionMaterials.jl](https://github.com/ProjectTorreyPines/FusionMaterials.jl) package, specifically in `FusionMaterials/src/materials.jl`. Properties of each material can be accessed by calling the `Material` function with the material name as a symbol passed as the function argument. 
 
@@ -224,7 +224,7 @@ Let's now investigate where the issue is with the function that we have identifi
 * [Cthulhu](https://github.com/JuliaDebug/Cthulhu.jl): interactive static analyzer
   * `Cthulhu.@descend function()`
 
-## How to build the documentation
+## Build the documentation
 
 1. To build the documentation, in the `FUSE/docs` folder, start Julia then:
    ```julia
@@ -245,14 +245,14 @@ Let's now investigate where the issue is with the function that we have identifi
     [video recording of the first FUSE tutorial](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/FUSE_tutorial_1_6Jul22.mp4)
     ```
 
-## Examples
+## Add/modify examples
 
 The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
 
 !!! note
     When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
 
-## Using Revise.jl
+## Use Revise.jl
 
 Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
 We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions. This can be done by running:
@@ -261,7 +261,7 @@ We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to auto
 fusebot install_revise
 ```
 
-## Development in VScode
+## Develop in VScode
 
 [VScode](https://code.visualstudio.com) is an excellent development environment for Julia.
 
@@ -292,7 +292,7 @@ FUSE uses the following VScode settings for formatting the Julia code:
 !!! note
     To format Julia you will need to install `Julia Language Support` under the extensions tab (`<Command> + <shift> + x`)
 
-## Tracking Julia precompilation
+## Track Julia precompilation
 
 To see what is precompiled at runtime, you can add a Julia kernel with the `trace-compile` option to Jupyter
 
@@ -307,7 +307,7 @@ Then select the `Julia tracecompile` in jupyter-lab
 !!! note
     If you want to remove jupyter kernels you don't use anymore you can list them first with ```jupyter kernelspec list``` and remove via ```jupyter kernelspec remove <your kernel>```
 
-## Running Julia within a Python environment
+## Run Julia within a Python environment
 
 This can be particularly useful for benchmarking FUSE physics against existing Python routines (eg. in OMFIT)
 

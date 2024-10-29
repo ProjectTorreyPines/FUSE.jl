@@ -90,16 +90,43 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     if par.density_match == :ne_ped
         finalize(step(actor.ped_actor))
 
-    elseif par.ne_from == :pulse_schedule && par.density_match == :ne_line
-        # scale density to match desired line average
-        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-        ne_line_wanted = IMAS.n_e_line(dd.pulse_schedule)
-        cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * ne_line_wanted / ne_line
+    elseif par.density_match == :ne_line
+        # NOTE: All pedestal actors take ne_ped as input
+        # Here we convert the desirred pulse_schedule ne_line to ne_ped
+        @assert par.ne_from == :pulse_schedule
+
+        # freeze pressures since they are input to the pedestal models
+        IMAS.refreeze!(cp1d, :pressure_thermal)
+        IMAS.refreeze!(cp1d, :pressure)
 
         # run pedestal model on scaled density
-        actor.ped_actor.par.ne_ped_from = :core_profiles
+        if par.model != :none
+            actor.ped_actor.par.ne_ped_from = :core_profiles
+        end
+
+        # first run the pedestal model on the density as is
+        _finalize(_step(actor.ped_actor))
+
+        # scale thermal densities to match desired line average
+        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+        ne_line_wanted = IMAS.n_e_line(dd.pulse_schedule)
+        factor = ne_line_wanted / ne_line
+        cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
+        for ion in cp1d.ion
+            ion.density_thermal = ion.density_thermal * factor
+        end
+
         finalize(step(actor.ped_actor))
-        actor.ped_actor.par.ne_ped_from = :pulse_schedule
+        if par.model != :none
+            actor.ped_actor.par.ne_ped_from = :pulse_schedule
+        end
+
+        # turn pressures back into expressions
+        IMAS.empty!(cp1d, :pressure_thermal)
+        IMAS.empty!(cp1d, :pressure)
+
+    else
+        error("act.ActorPedestal.density_match can be either one of [:ne_ped, :ne_line]")
     end
 
     return actor

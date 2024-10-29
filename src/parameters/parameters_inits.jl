@@ -3,8 +3,7 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_,
-    _rectangle_ellipse_, _triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_, _mirror_princeton_D_, _princeton_D_scaled_, _mirror_princeton_D_scaled_, _rectangle_, _double_ellipse_, _mirror_double_ellipse_, _rectangle_ellipse_, _mirror_rectangle_ellipse_, _circle_ellipse_, _mirror_circle_ellipse_, _triple_arc_, _mirror_triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -666,7 +665,7 @@ end
 """
     json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a JSON file with given `filename`
+Load the INI parameters from a JSON file with given `filename`
 """
 function json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.json2par(filename, ini)
@@ -675,7 +674,7 @@ end
 """
     ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a YAML file with given `filename`
+Save the INI parameters to a YAML file with given `filename`
 
 `kw` arguments are passed to the YAML.print function
 """
@@ -686,10 +685,28 @@ end
 """
     yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a YAML file with given `filename`
+Load the INI parameters from a YAML file with given `filename`
 """
 function yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.yaml2par(filename, ini)
+end
+
+"""
+    ini2dict(ini::ParametersAllInits; kw...)
+
+Convert the INI parameters to a dictionary form
+"""
+function ini2dict(ini::ParametersAllInits; kw...)
+    return SimulationParameters.par2dict(ini; kw...)
+end
+
+"""
+    dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+
+Convert dict to INI parameters
+"""
+function dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+    return SimulationParameters.dict2par!(dict, ini)
 end
 
 ########

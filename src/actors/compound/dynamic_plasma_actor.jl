@@ -1,6 +1,3 @@
-using ProgressMeter: ProgressMeter
-ProgressMeter.ijulia_behavior(:clear)
-
 #= ================== =#
 #  ActorDynamicPlasma  #
 #= ================== =#
@@ -119,6 +116,7 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
     end
 
     step_calls_per_2loop = 9
+    ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * step_calls_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
@@ -137,10 +135,13 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
             #       at the 1/2 steps which is then retimed at the 2/2 steps.
             IMAS.new_timeslice!(dd.equilibrium, tt)
             IMAS.new_timeslice!(dd.core_sources, tt)
-
             if phase == 1
                 IMAS.new_timeslice!(dd.core_profiles, tt)
+            else
+                IMAS.retime!(dd.core_profiles, tt)
+            end
 
+            if phase == 1
                 # evolve j_ohmic
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, phase))
                 if par.evolve_current
@@ -150,8 +151,6 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
                     finalize(step(actor.actor_jt))
                 end
             else
-                IMAS.retime!(dd.core_profiles, tt)
-
                 # run pedestal actor
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, phase))
                 if par.evolve_pedestal
@@ -163,7 +162,6 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
                 if par.evolve_transport
                     finalize(step(actor.actor_tr))
                 end
-
             end
 
             # run equilibrium actor with the updated beta

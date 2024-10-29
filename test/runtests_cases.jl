@@ -12,7 +12,7 @@ using Test
                 dd = IMAS.dd()
 
                 # speedup the tests
-                act.ActorStationaryPlasma.max_iter = 1
+                act.ActorStationaryPlasma.max_iter = 2
                 # use full model for ActorThermalPlant
                 act.ActorThermalPlant.model = :network
 
@@ -28,8 +28,16 @@ using Test
                     FUSE.ActorWholeFacility(dd, act)
                 end
 
+                @testset "ini_dict" begin
+                    FUSE.dict2ini(FUSE.ini2dict(ini))
+                end
+
+                @testset "act_dict" begin
+                    FUSE.dict2act(FUSE.act2dict(act))
+                end
+
                 @testset "ini_yaml" begin
-                    ini.general.dd = missing
+                    ini.general.dd = missing # general.dd cannot be serialized
                     ini_str = FUSE.SimulationParameters.par2ystr(ini; skip_defaults=true, show_info=false)
                     ini2 = FUSE.SimulationParameters.ystr2par(ini_str, FUSE.ParametersInits())
                 end
@@ -40,7 +48,7 @@ using Test
                 end
 
                 @testset "ini_json" begin
-                    ini.general.dd = missing
+                    ini.general.dd = missing # general.dd cannot be serialized
                     ini_str = FUSE.SimulationParameters.par2jstr(ini)
                     ini2 = FUSE.SimulationParameters.jstr2par(ini_str, FUSE.ParametersInits())
                 end

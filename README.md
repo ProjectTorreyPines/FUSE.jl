@@ -15,10 +15,9 @@ Join the FUSE community and help shape the future of Fusion Power Plant design:
 Here are some key resources for getting started with FUSE:
 
 * 📚 **[Online documentation](https://fuse.help)**
-* 📊 **[Summary presentation](https://tinyurl.com/FUSEslideDeck)**
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
-* 📦 **[Package ecosystem](https://fuse.help/dev/deps.html)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
+* 🗒️ **[Weekly devs meeting minutes](https://github.com/ProjectTorreyPines/FUSE.jl/discussions)**
 
 ## Objectives
 

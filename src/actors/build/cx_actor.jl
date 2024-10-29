@@ -187,6 +187,7 @@ function wall_from_eq!(
     # lcfs and magnetic axis
     ψb = eqt.global_quantities.psi_boundary
     ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, T[], T[])
+    rlcfs, zlcfs = IMAS.resample_2d_path(rlcfs, zlcfs; n_points=201)
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -637,10 +638,6 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
         is_z_offset = true
     end
 
-    # negative triangularity plasma
-    mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 1)
-    is_negative_D = mxh.δ < 0.0
-
     #plot()
     plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
     pushfirst!(plasma_to_tf, plasma_to_tf[1] + 1)
@@ -653,13 +650,13 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
     n_rails = 1
     while k <= length(plasma_to_tf)
         layer = bd.layer[plasma_to_tf[k]]
-        layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
+        layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
         if layer_shape == IMAS._negative_offset_
             # go forward until find a normal layer
             neg_off_layers = []
             for kk in k:length(plasma_to_tf)
                 layer = bd.layer[plasma_to_tf[kk]]
-                layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
+                layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
                 if layer_shape != IMAS._negative_offset_
                     if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
                         verbose && @show "F1", layer.name, layer_shape
@@ -683,7 +680,6 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                         vertical_clearance,
                         resolution=n_points / 201.0,
                         obstruction_outline,
-                        is_negative_D,
                         is_z_offset
                     )
                     k = kk
@@ -697,7 +693,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
             # go back with negative offset layers
             for kk in reverse(neg_off_layers)
                 layer = bd.layer[plasma_to_tf[kk]]
-                layer_shape = IMAS.BuildLayerShape(mod(mod(layer.shape, 1000), 100))
+                layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
                 verbose && @show "B", layer.name, layer_shape
                 layer.shape, layer.shape_parameters = optimize_layer_outline(
                     bd,
@@ -707,7 +703,6 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                     vertical_clearance=1.0,
                     resolution=n_points / 201.0,
                     obstruction_outline=nothing,
-                    is_negative_D,
                     is_z_offset
                 )
                 # display(plot!(bd.layer[plasma_to_tf[kk]]))
@@ -736,7 +731,6 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
                 vertical_clearance,
                 resolution=n_points / 201.0,
                 obstruction_outline,
-                is_negative_D,
                 is_z_offset
             )
             # display(plot!(bd.layer[plasma_to_tf[k]]))
@@ -762,7 +756,7 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
         # if !isempty(pfa.coil)
         #     obstruction_outline = convex_outline(pfa.coil)
         # end
-        optimize_layer_outline(bd, olfs, iout[end], BuildLayerShape(mod(mod(bd.layer[iout[end]].shape, 1000), 100)); vertical_clearance=1.3)
+        optimize_layer_outline(bd, olfs, iout[end], BuildLayerShape(mod(bd.layer[iout[end]].shape, 100)); vertical_clearance=1.3)
         for k in reverse(iout[2:end])
             optimize_layer_outline(bd, k, k - 1, _negative_offset_)
         end
@@ -797,8 +791,7 @@ end
         vertical_clearance::Float64=1.0,
         resolution::Float64=1.0,
         obstruction_outline=nothing,
-        is_z_offset::Bool=false,
-        is_negative_D::Bool=false)
+        is_z_offset::Bool=false)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
@@ -810,8 +803,7 @@ function optimize_layer_outline(
     vertical_clearance::Float64=1.0,
     resolution::Float64=1.0,
     obstruction_outline=nothing,
-    is_z_offset::Bool=false,
-    is_negative_D::Bool=false)
+    is_z_offset::Bool=false)
 
     shape = Int(shape_enum)
 
@@ -876,10 +868,7 @@ function optimize_layer_outline(
             use_curvature = false
         end
 
-        shape = mod(mod(shape, 1000), 100)
-        if is_negative_D
-            shape = shape + 1000
-        end
+        shape = mod(shape, 100)
         if is_z_offset
             shape = shape + 100
         end
@@ -1094,7 +1083,7 @@ function DataFrames.DataFrame(layers::IMAS.IDSvector{<:IMAS.build__layer})
         material = replace(material, "Vacuum" => "")
         area = getproperty(layer, :area, NaN)
         volume = getproperty(layer, :volume, NaN)
-        shape = string(IMAS.BuildLayerShape(mod(mod(getproperty(layer, :shape, Int(IMAS._undefined_)), 1000), 100)))
+        shape = string(IMAS.BuildLayerShape(mod(getproperty(layer, :shape, Int(IMAS._undefined_)), 100)))
         shape = replace(shape, "_undefined_" => "", r"^_" => "", r"_$" => "", "_" => " ")
         push!(df, [group, details, type, layer.thickness, layer.start_radius, layer.end_radius, material, area, volume, shape])
     end
