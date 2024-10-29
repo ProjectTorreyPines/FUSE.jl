@@ -91,11 +91,18 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.ped_actor))
 
     elseif par.density_match == :ne_line
+        # NOTE: All pedestal actors take ne_ped as input
+        # Here we convert the desirred pulse_schedule ne_line to ne_ped
         @assert par.ne_from == :pulse_schedule
 
         # freeze pressures since they are input to the pedestal models
         IMAS.refreeze!(cp1d, :pressure_thermal)
         IMAS.refreeze!(cp1d, :pressure)
+
+        # run pedestal model on scaled density
+        if par.model != :none
+            actor.ped_actor.par.ne_ped_from = :core_profiles
+        end
 
         # first run the pedestal model on the density as is
         _finalize(_step(actor.ped_actor))
@@ -109,10 +116,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             ion.density_thermal = ion.density_thermal * factor
         end
 
-        # run pedestal model on scaled density
-        if par.model != :none
-            actor.ped_actor.par.ne_ped_from = :core_profiles
-        end
         finalize(step(actor.ped_actor))
         if par.model != :none
             actor.ped_actor.par.ne_ped_from = :pulse_schedule
