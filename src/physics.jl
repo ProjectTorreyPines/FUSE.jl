@@ -453,6 +453,8 @@ end
 Returns LibGEOS.Polygon from x and y arrays
 """
 function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
+    x = convert(Vector{Float64}, x)
+    y = convert(Vector{Float64}, y)
     if (x[1] ≈ x[end]) && (y[1] ≈ y[end])
         coords = [[[x[i], y[i]] for i in 1:length(x)]]
         coords[1][end] .= coords[1][1]
@@ -492,10 +494,10 @@ end
 
 Buffer polygon defined by x,y arrays by a quantity b
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
-    @inline return get_xy(poly_b, T)
+    @inline return get_xy(poly_b, Float64)
 end
 
 function get_xy(poly::LibGEOS.Polygon, T=Float64)
@@ -549,15 +551,18 @@ function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T):
 end
 
 """
-    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
 
 Limit maximum curvature of a polygon described by x,y arrays
 """
-function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
     @assert max_curvature > 0.0
+    x = convert(Vector{Float64}, x)
+    y = convert(Vector{Float64}, y)
+    max_curvature = convert(Float64, max_curvature)
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature)::LibGEOS.Polygon, max_curvature)::LibGEOS.Polygon
-    @inline return get_xy(poly_b, T)
+    @inline return get_xy(poly_b, Float64)
 end
 
 """

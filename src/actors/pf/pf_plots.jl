@@ -181,7 +181,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 linestyle := :dash
                 linewidth := 1.5
                 label := "Iso-flux constraints"
-                [cpt.R for cpt in actor.iso_control_points], [cpt.Z for cpt in actor.iso_control_points]
+                [cpt.R1 for cpt in actor.iso_control_points], [cpt.Z1 for cpt in actor.iso_control_points]
             end
         end
         if !isempty(actor.flux_control_points)

@@ -58,13 +58,6 @@ function unwrap(v, inplace=false)
     return unwrapped
 end
 
-function IMAS.force_float(x::ForwardDiff.Dual)
-    ## we purposly do not do it recursively since generally
-    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
-    # return force_float(x.value)
-    return x.value
-end
-
 """
     same_length_vectors(args...)
 

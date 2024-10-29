@@ -72,8 +72,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         ne_from=:pulse_schedule,
         zeff_ped_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
-        rho_ped=par.rho_transport[end]
-    )
+        rho_ped=par.rho_transport[end])
     return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[], Inf)
 end
 
@@ -167,8 +166,7 @@ function _step(actor::ActorFluxMatcher)
                 yscale=:log10,
                 ylabel="Log₁₀ of convergence errror",
                 xlabel="Iterations",
-                label=@sprintf("total [error = %.3e]", (minimum(map(norm, err_history)))))
-        )
+                label=@sprintf("total [error = %.3e]", (minimum(map(norm, err_history))))))
 
         channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
         data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), N_channels))
@@ -230,26 +228,32 @@ function _step(actor::ActorFluxMatcher)
                 setproperty!(ids1, field, value)
             end
         end
+
+        # transfer t_i_average to individual ions temperature and restore t_i_average as expression
+        for ion in cp1d.ion
+            ion.temperature = cp1d.t_i_average
+        end
+        empty!(cp1d, :t_i_average)
+
+        # refresh sources with relatex profiles
         IMAS.sources!(dd)
     end
 
-    # for completely collapsed cases we don't want it to crash in the optimizer
-    # Also when the power flowing through the separatrix is below zero we want to punish the profiles (otherwise we generate energy from nothing)
-    cp1d = dd.core_profiles.profiles_1d[]
-    total_sources = IMAS.total_sources(dd)
-    if cp1d.electrons.temperature[1] < cp1d.electrons.temperature[end] && par.evolve_Te == :flux_match ||
-       !(total_sources.electrons.power_inside[end] + total_sources.total_ion_power_inside[end] >= 0)
-        @warn "Profiles completely collpased due to insufficient source versus turbulence"
-        te = cp1d.electrons.temperature
-        teped = @ddtime(dd.summary.local.pedestal.t_e.value)
-        lowest_profile = IMAS.Hmode_profiles(te[end], teped, teped * 1.5, length(te), 1.1, 1.1, 2 * (1 - @ddtime(dd.summary.local.pedestal.position.rho_tor_norm)))
-        cp1d.electrons.temperature = lowest_profile
-        if par.evolve_Ti == :flux_match
-            for ion in cp1d.ion
-                ion.temperature = lowest_profile
-            end
-        end
-        IMAS.sources!(dd)
+    # free total densities expressions
+    IMAS.empty!(cp1d.electrons, :density)
+    for ion in cp1d.ion
+        IMAS.empty!(ion, :density)
+    end
+
+    # free pressures expressions
+    IMAS.empty!(cp1d.electrons, :pressure_thermal)
+    IMAS.empty!(cp1d.electrons, :pressure)
+    for ion in cp1d.ion
+        IMAS.empty!(ion, :pressure_thermal)
+        IMAS.empty!(ion, :pressure)
+    end
+    for field in [:pressure_ion_total, :pressure_thermal, :pressure]
+        IMAS.empty!(cp1d, field)
     end
 
     return actor
@@ -715,7 +719,8 @@ function unpack_z_profiles(
     z_max = 5.0
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
-    cp_rho_transport = [cp1d.grid.rho_tor_norm[argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm))] for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)
     counter = 0
@@ -746,13 +751,13 @@ function unpack_z_profiles(
                 IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
             counter += N
         end
-        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)
+        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)[cp_gridpoints]
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
-                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp1d.grid.rho_tor_norm, z_ne)
+                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
             end
         end
     end
@@ -777,10 +782,11 @@ function unpack_z_profiles(
 
     # re-freeze pressures expressions
     IMAS.refreeze!(cp1d.electrons, :pressure_thermal, zero_value)
+    IMAS.refreeze!(cp1d.electrons, :pressure, zero_value)
     for ion in cp1d.ion
         IMAS.refreeze!(ion, :pressure_thermal, zero_value)
+        IMAS.refreeze!(ion, :pressure, zero_value)
     end
-    IMAS.refreeze!(cp1d.electrons, :pressure, zero_value)
     for field in [:pressure_ion_total, :pressure_thermal, :pressure]
         IMAS.refreeze!(cp1d, field, zero_value)
     end
@@ -860,8 +866,8 @@ function evolve_densities_dict_creation(
     flux_match_species::Vector;
     fixed_species::Vector{Symbol}=Symbol[],
     match_ne_scale_species::Vector{Symbol}=Symbol[],
-    quasi_neutrality_specie::Union{Symbol,Bool}=false
-)
+    quasi_neutrality_specie::Union{Symbol,Bool}=false)
+
     parse_list = vcat([[sym, :flux_match] for sym in flux_match_species], [[sym, :match_ne_scale] for sym in match_ne_scale_species], [[sym, :fixed] for sym in fixed_species])
     if isa(quasi_neutrality_specie, Symbol)
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])

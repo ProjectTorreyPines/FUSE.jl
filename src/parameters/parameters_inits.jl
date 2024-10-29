@@ -665,7 +665,7 @@ end
 """
     json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a JSON file with given `filename`
+Load the INI parameters from a JSON file with given `filename`
 """
 function json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.json2par(filename, ini)
@@ -674,7 +674,7 @@ end
 """
     ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a YAML file with given `filename`
+Save the INI parameters to a YAML file with given `filename`
 
 `kw` arguments are passed to the YAML.print function
 """
@@ -685,10 +685,28 @@ end
 """
     yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a YAML file with given `filename`
+Load the INI parameters from a YAML file with given `filename`
 """
 function yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.yaml2par(filename, ini)
+end
+
+"""
+    ini2dict(ini::ParametersAllInits; kw...)
+
+Convert the INI parameters to a dictionary form
+"""
+function ini2dict(ini::ParametersAllInits; kw...)
+    return SimulationParameters.par2dict(ini; kw...)
+end
+
+"""
+    dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+
+Convert dict to INI parameters
+"""
+function dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+    return SimulationParameters.dict2par!(dict, ini)
 end
 
 ########

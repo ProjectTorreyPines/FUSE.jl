@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :CHEASE], "-", "Equilibrium actor to run"; default=:TEQUILA)
+    model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :CHEASE, :none], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles, :pulse_schedule_pp_ffp], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
@@ -20,7 +20,7 @@ mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors
-    eq_actor::Union{Nothing,ActorFRESCO{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P}}
+    eq_actor::Union{Nothing,ActorFRESCO{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -43,9 +43,11 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
     elseif par.model == :CHEASE
         eq_actor = ActorCHEASE(dd, act.ActorCHEASE)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA)
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
+    elseif par.model == :none
+        eq_actor = ActorNoOperation(dd, act.ActorNoOperation)
     else
-        error("ActorEquilibrium: model = `$(par.model)` can only be `:TEQUILA`, `:FRESCO`, `:CHEASE`")
+        error("ActorEquilibrium: model = `$(par.model)` can only be one of [:TEQUILA, :FRESCO, :CHEASE, :none]")
     end
     return ActorEquilibrium(dd, par, act, eq_actor)
 end
@@ -67,8 +69,10 @@ function _step(actor::ActorEquilibrium)
         end
     end
 
-    # initialize eqt for equilibrium actors
-    prepare(actor)
+    if par.model !== :none
+        # initialize eqt for equilibrium actors
+        prepare(actor)
+    end
 
     # FRESCO needs p' and f'' to run
     # We can estimate of p' and ff' based on equilibrium at previous time-slice
@@ -119,24 +123,26 @@ function _finalize(actor::ActorEquilibrium)
     # finalize selected equilibrium actor
     finalize(actor.eq_actor)
 
-    eqt = dd.equilibrium.time_slice[]
+    if par.model !== :none
+        eqt = dd.equilibrium.time_slice[]
 
-    # symmetrize equilibrium if requested and number of X-points is even
-    x_points = IMAS.x_points(dd.pulse_schedule.position_control.x_point)
-    if par.symmetrize && mod(length(x_points), 2) != 1
-        IMAS.symmetrize_equilibrium!(eqt)
-    end
+        # symmetrize equilibrium if requested and number of X-points is even
+        x_points = IMAS.x_points(dd.pulse_schedule.position_control.x_point)
+        if par.symmetrize && mod(length(x_points), 2) != 1
+            IMAS.symmetrize_equilibrium!(eqt)
+        end
 
-    # add flux surfaces information
-    try
-        fw = IMAS.first_wall(dd.wall)
-        IMAS.flux_surfaces(eqt, fw.r, fw.z)
-    catch e
-        eqt2d = findfirst(:rectangular, eqt.profiles_2d)
-        par.do_plot && display(current())
-        contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
-        display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
-        rethrow(e)
+        # add flux surfaces information
+        try
+            fw = IMAS.first_wall(dd.wall)
+            IMAS.flux_surfaces(eqt, fw.r, fw.z)
+        catch e
+            eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+            par.do_plot && display(current())
+            contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
+            display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
+            rethrow(e)
+        end
     end
 
     if par.do_plot
