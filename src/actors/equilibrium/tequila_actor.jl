@@ -217,7 +217,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
 
     if free_boundary
         # Boundary control points
-        iso_cps = VacuumFields.boundary_control_points(shot, 0.999)
+        iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
         # Flux control points
         imid = argmax(eqt.boundary.outline.r)

@@ -164,7 +164,7 @@ function default_control_points(eqt::IMAS.equilibrium__time_slice, pc::IMAS.puls
         iso_control_points = VacuumFields.FluxControlPoints(rb, zb, psib)
     else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
-        iso_control_points = VacuumFields.boundary_control_points(fixed_eq, 0.999)
+        iso_control_points = VacuumFields.boundary_iso_control_points(fixed_eq, 0.999)
     end
 
     saddle_control_points = VacuumFields.SaddleControlPoint{Float64}[]

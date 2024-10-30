@@ -106,7 +106,7 @@ function _finalize(actor::ActorCHEASE)
         ψbound = 0.0
 
         # Boundary control points
-        iso_cps = VacuumFields.boundary_control_points(EQ, 0.999)
+        iso_cps = VacuumFields.boundary_iso_control_points(EQ, 0.999)
 
         # Flux control points
         imid = argmax(eqt.boundary.outline.r)
