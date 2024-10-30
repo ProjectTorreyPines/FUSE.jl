@@ -74,7 +74,7 @@ include("actors.jl")
 
 include(joinpath("actors", "noop_actor.jl"))
 
-include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
+include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
 include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
@@ -97,6 +97,7 @@ include(joinpath("actors", "nuclear", "blanket_actor.jl"))
 include(joinpath("actors", "nuclear", "neutronics_actor.jl"))
 
 include(joinpath("actors", "current", "qed_actor.jl"))
+include(joinpath("actors", "current", "qed-coupled_actor.jl"))
 include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 include(joinpath("actors", "current", "current_actor.jl"))
 

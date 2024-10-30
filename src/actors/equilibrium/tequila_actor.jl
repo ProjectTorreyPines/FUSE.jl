@@ -16,7 +16,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.25, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     #== data flow parameters ==#
-    ip_from::Switch{Symbol} = switch_get_from(:ip)
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -63,27 +62,26 @@ function _step(actor::ActorTEQUILA)
     D = eltype(dd)
     par = actor.par
     eqt = dd.equilibrium.time_slice[]
-    eq1d = eqt.profiles_1d
+    eqt1d = eqt.profiles_1d
 
     # BCL 5/30/23: ψbound should be set time dependently, related to the flux swing of the OH coils
-    #              For now setting to zero as initial eq1d.psi profile from prepare() can be nonsense
+    #              For now setting to zero as initial eqt1d.psi profile from prepare() can be nonsense
     actor.ψbound = D(0.0)
 
     Ip_target = eqt.global_quantities.ip
-
     if par.fixed_grid === :poloidal
-        rho = sqrt.(eq1d.psi_norm)
+        rho = sqrt.(eqt1d.psi_norm)
         rho[1] = D(0.0)
-        P = (TEQUILA.FE(rho, eq1d.pressure), :poloidal)
+        P = (TEQUILA.FE(rho, eqt1d.pressure), :poloidal)
         # don't allow current to change sign
-        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eq1d.j_tor]), :poloidal)
-        Pbnd = eq1d.pressure[end]
+        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eqt1d.j_tor]), :poloidal)
+        Pbnd = eqt1d.pressure[end]
     elseif par.fixed_grid === :toroidal
-        rho = eq1d.rho_tor_norm
-        P = (TEQUILA.FE(rho, eq1d.pressure), :toroidal)
+        rho = eqt1d.rho_tor_norm
+        P = (TEQUILA.FE(rho, eqt1d.pressure), :toroidal)
         # don't allow current to change sign
-        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eq1d.j_tor]), :toroidal)
-        Pbnd = eq1d.pressure[end]
+        Jt = (TEQUILA.FE(rho, D[sign(j) == sign(Ip_target) ? j : D(0.0) for j in eqt1d.j_tor]), :toroidal)
+        Pbnd = eqt1d.pressure[end]
     end
 
     Fbnd = eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0
@@ -125,8 +123,8 @@ function _step(actor::ActorTEQUILA)
     catch e
         plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:dot, aspect_ratio=:equal)
         display(plot!(IMAS.MXH(actor.shot.surfaces[:, end])))
-        display(plot(rho, eq1d.pressure; marker=:dot, xlabel="ρ", title="Pressure [Pa]"))
-        display(plot(rho, eq1d.j_tor; marker=:dot, xlabel="ρ", title="Jtor [A]"))
+        display(plot(rho, eqt1d.pressure; marker=:dot, xlabel="ρ", title="Pressure [Pa]"))
+        display(plot(rho, eqt1d.j_tor; marker=:dot, xlabel="ρ", title="Jtor [A]"))
         rethrow(e)
     end
 
@@ -149,7 +147,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
-    eq1d = eqt.profiles_1d
+    eqt1d = eqt.profiles_1d
 
     R0 = shot.R0fe(1.0)
     Z0 = shot.Z0fe(1.0)
@@ -174,12 +172,12 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     psit = shot.C[2:2:end, 1]
     psia = psit[1]
     psib = psit[end]
-    eq1d.psi = range(psia, psib, nψ_grid)
-    rhoi = TEQUILA.ρ.(Ref(shot), eq1d.psi)
-    eq1d.pressure = MXHEquilibrium.pressure.(Ref(shot), eq1d.psi)
-    eq1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), eq1d.psi)
-    eq1d.f = shot.F.(rhoi)
-    eq1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi; shot.invR, shot.invR2)
+    eqt1d.psi = range(psia, psib, nψ_grid)
+    rhoi = TEQUILA.ρ.(Ref(shot), eqt1d.psi)
+    eqt1d.pressure = MXHEquilibrium.pressure.(Ref(shot), eqt1d.psi)
+    eqt1d.dpressure_dpsi = MXHEquilibrium.pressure_gradient.(Ref(shot), eqt1d.psi)
+    eqt1d.f = shot.F.(rhoi)
+    eqt1d.f_df_dpsi = TEQUILA.Fpol_dFpol_dψ.(Ref(shot), rhoi; shot.invR, shot.invR2)
 
     resize!(eqt.profiles_2d, 2)
 
@@ -253,7 +251,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
                 eq2d.psi[i, j] = shot(r, z; extrapolate=true) + ψbound
             end
         end
-        eq1d.psi .+= ψbound
+        eqt1d.psi .+= ψbound
     end
 
 end

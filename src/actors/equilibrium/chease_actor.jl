@@ -11,8 +11,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersAct
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
     rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
-    #== data flow parameters ==#
-    ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
 mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
@@ -50,7 +48,7 @@ function _step(actor::ActorCHEASE)
 
     # initialize eqt from pulse_schedule and core_profiles
     eqt = dd.equilibrium.time_slice[]
-    eq1d = eqt.profiles_1d
+    eqt1d = eqt.profiles_1d
 
     # boundary
     pr = eqt.boundary.outline.r
@@ -69,9 +67,9 @@ function _step(actor::ActorCHEASE)
     ϵ = eqt.boundary.minor_radius / r_geo
 
     # pressure and j_tor
-    psin = eq1d.psi_norm
-    j_tor = [sign(j) == sign(Ip) ? j : 0.0 for j in eq1d.j_tor]
-    pressure = eq1d.pressure
+    psin = eqt1d.psi_norm
+    j_tor = [sign(j) == sign(Ip) ? j : 0.0 for j in eqt1d.j_tor]
+    pressure = eqt1d.pressure
     rho_pol = sqrt.(psin)
     pressure_sep = pressure[end]
 
@@ -162,8 +160,8 @@ function gEQDSK2IMAS(g::CHEASE.EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     tc = MXHEquilibrium.transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
 
     eqt = eq.time_slice[]
-    eq1d = eqt.profiles_1d
-    eq2d = resize!(eqt.profiles_2d, 1)[1]
+    eqt1d = eqt.profiles_1d
+    eqt2d = resize!(eqt.profiles_2d, 1)[1]
 
     @ddtime(eq.vacuum_toroidal_field.b0 = g.bcentr)
     eq.vacuum_toroidal_field.r0 = g.rcentr
@@ -174,17 +172,17 @@ function gEQDSK2IMAS(g::CHEASE.EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     eqt.global_quantities.magnetic_axis.z = g.zmaxis
     eqt.global_quantities.ip = g.current
 
-    eq1d.psi = g.psi .* tc["PSI"]
-    eq1d.q = g.qpsi
-    eq1d.pressure = g.pres
-    eq1d.dpressure_dpsi = g.pprime .* tc["PPRIME"]
-    eq1d.f = g.fpol .* tc["F"]
-    eq1d.f_df_dpsi = g.ffprim .* tc["F_FPRIME"]
+    eqt1d.psi = g.psi .* tc["PSI"]
+    eqt1d.q = g.qpsi
+    eqt1d.pressure = g.pres
+    eqt1d.dpressure_dpsi = g.pprime .* tc["PPRIME"]
+    eqt1d.f = g.fpol .* tc["F"]
+    eqt1d.f_df_dpsi = g.ffprim .* tc["F_FPRIME"]
 
-    eq2d.grid_type.index = 1
-    eq2d.grid.dim1 = g.r
-    eq2d.grid.dim2 = g.z
-    eq2d.psi = g.psirz .* tc["PSI"]
+    eqt2d.grid_type.index = 1
+    eqt2d.grid.dim1 = g.r
+    eqt2d.grid.dim2 = g.z
+    eqt2d.psi = g.psirz .* tc["PSI"]
 
     return nothing
 end
