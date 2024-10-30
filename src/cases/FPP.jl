@@ -57,8 +57,8 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.R0 = 4.9
     ini.equilibrium.ϵ = 0.28
     ini.equilibrium.κ = 0.8
-    ini.equilibrium.δ = 0.7
-    ini.equilibrium.ζ = 0.1
+    ini.equilibrium.δ = 0.6
+    ini.equilibrium.ζ = 0.05
     ini.equilibrium.𝚶 = 0.1
     ini.equilibrium.pressure_core = 1.e6
     ini.equilibrium.ip = 8.0e6
@@ -66,6 +66,7 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.boundary_from = :scalars
 
     ini.core_profiles.ne_setting = :greenwald_fraction
+    act.ActorPedestal.density_match = :ne_line
     ini.core_profiles.ne_value = 0.9
     ini.core_profiles.ne_shaping = 2.5
     ini.core_profiles.T_ratio = 0.825
@@ -81,7 +82,7 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.pf_active.n_coils_outside = 5
     ini.pf_active.technology = :nb3sn
 
-    ini.tf.shape = :miller
+    ini.tf.shape = :rectangle_ellipse
     ini.tf.n_coils = 16
     ini.tf.technology = :rebco
 

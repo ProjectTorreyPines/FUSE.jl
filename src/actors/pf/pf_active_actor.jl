@@ -20,7 +20,7 @@ mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFactive{P}
     eqt_out::IMAS.equilibrium__time_slice{D}
-    boundary_control_points::Vector{VacuumFields.FluxControlPoint{Float64}}
+    iso_control_points::Vector{VacuumFields.IsoControlPoint{Float64}}
     flux_control_points::Vector{VacuumFields.FluxControlPoint{Float64}}
     saddle_control_points::Vector{VacuumFields.SaddleControlPoint{Float64}}
     λ_regularize::Float64
@@ -47,19 +47,18 @@ function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
     par = par(kw...)
 
-    boundary_control_points, flux_control_points, saddle_control_points = default_control_points(dd.equilibrium.time_slice[], dd.pulse_schedule.position_control)
+    iso_control_points, flux_control_points, saddle_control_points = default_control_points(dd.equilibrium.time_slice[], dd.pulse_schedule.position_control)
 
     return ActorPFactive(
         dd,
         par,
         dd.equilibrium.time_slice[],
-        boundary_control_points,
+        iso_control_points,
         flux_control_points,
         saddle_control_points,
         -1.0,
         NaN,
-        nothing
-    )
+        nothing)
 end
 
 """
@@ -86,11 +85,11 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
                 vcat(pinned_coils, optim_coils),
                 fixed_eq,
                 image_eq;
-                flux_cps = vcat(actor.boundary_control_points, actor.flux_control_points),
+                iso_cps = actor.iso_control_points,
+                flux_cps = actor.flux_control_points,
                 saddle_cps = actor.saddle_control_points,
                 ψbound,
-                fixed_coils
-            )
+                fixed_coils)
         end
     end
 
@@ -99,12 +98,12 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
         vcat(pinned_coils, optim_coils),
         fixed_eq,
         image_eq;
-        flux_cps = vcat(actor.boundary_control_points, actor.flux_control_points),
+        iso_cps = actor.iso_control_points,
+        flux_cps = actor.flux_control_points,
         saddle_cps = actor.saddle_control_points,
         ψbound,
         fixed_coils,
-        actor.λ_regularize
-    )
+        actor.λ_regularize)
 
     return actor
 end
@@ -162,10 +161,10 @@ function default_control_points(eqt::IMAS.equilibrium__time_slice, pc::IMAS.puls
     if ismissing(eqt.global_quantities, :ip) # field nulls
         fixed_eq = nothing
         rb, zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        boundary_control_points = VacuumFields.FluxControlPoints(rb, zb, psib)
+        iso_control_points = VacuumFields.FluxControlPoints(rb, zb, psib)
     else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
-        boundary_control_points = VacuumFields.boundary_control_points(fixed_eq, 0.999)
+        iso_control_points = VacuumFields.boundary_iso_control_points(fixed_eq, 0.999)
     end
 
     saddle_control_points = VacuumFields.SaddleControlPoint{Float64}[]
@@ -208,7 +207,7 @@ function default_control_points(eqt::IMAS.equilibrium__time_slice, pc::IMAS.puls
         end
     end
 
-    return boundary_control_points, flux_control_points, saddle_control_points
+    return iso_control_points, flux_control_points, saddle_control_points
 end
 
 function setup(actor::ActorPFactive, eqt::IMAS.equilibrium__time_slice)

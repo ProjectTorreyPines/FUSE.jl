@@ -16,7 +16,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields ThermalSystemModels # XSteam
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
@@ -111,9 +111,6 @@ QED:
 	$(call clone_pull_repo,$@)
 
 FiniteElementHermite:
-	$(call clone_pull_repo,$@)
-
-Fortran90Namelists:
 	$(call clone_pull_repo,$@)
 
 CHEASE:
@@ -334,9 +331,10 @@ daily_example_ci_commit:
 endif
 
 # @devs
-dev_deps_tree:
-# Print dependency tree of the packages in dev folder
+deps_tree:
+# Print FUSE dependency tree of project-torrey-pines packages
 	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using AbstractTrees ;\
@@ -346,16 +344,17 @@ dev_deps_tree:
 	end ;\
 	function AbstractTrees.children(uuid::Base.UUID) ;\
 		dep = get(Pkg.dependencies(), uuid, nothing) ;\
-		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
 		tmp= sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
 	end ;\
 	AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
 	'
 
 # @devs
-dev_deps_dag:
-# Generate a DOT file representing the dependency DAG of the FUSE package
+deps_dag:
+# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
 	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using Random ;\
@@ -374,7 +373,7 @@ dev_deps_dag:
 	end ;\
 	function AbstractTrees.children(uuid::Base.UUID) ;\
 		dep = get(Pkg.dependencies(), uuid, nothing) ;\
-		dev_deps = Dict([(key, value) for (key, value) in dep.dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+		dev_deps = Dict([(key, value) for (key, value) in dep.dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
 		return sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
 	end ;\
 	function collect_edges(uuid::Base.UUID, edges::Set{Tuple{String, String}}) ;\
@@ -409,6 +408,7 @@ dev_deps_dag:
 	end ;\
 	'
 	dot -Tsvg docs/src/deps.dot -o docs/src/assets/deps.svg
+	@echo "See DAG at: $(PWD)/docs/src/assets/deps.svg"
 
 # @devs
 develop:
@@ -431,6 +431,14 @@ develop_docs:
 	Pkg.activate("./docs");\
 	Pkg.develop([["FUSE"] ; fuse_packages]);\
 	'
+
+# @devs
+develop_no_registry: install_registry clone_pull_all develop
+# Develop FUSE and associated packages without using the registry
+
+# @devs
+develop_via_registry: install_registry develop
+# Develop FUSE and associated packages using the registry
 
 # @devs
 devs_update:
@@ -537,6 +545,19 @@ feature_or_master:
 	end'
 
 # @devs
+fix_environment:fix_FortranNamelistParser
+# Applies fixes
+	@echo "* Fixes applied"
+
+# @devs
+fix_FortranNamelistParser:
+# Replaces Fortran90Namelists with FortranNamelistParser in the Manifest.toml
+	@echo "* Sanitizing Manifest.toml files of Fortran90Namelists --> FortranNamelistParser"
+	@find $(JULIA_DIR)/environments -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
+	@find .. -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
+	@find $(PTP_ORIGINAL_DIR) -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
+
+# @devs
 generate_dd:
 # Update dd from the json files in IMASdd
 	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
@@ -581,10 +602,6 @@ init_expressions:
 	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
 
 # @devs
-install: install_no_registry
-# Install with default install method (no registry)
-
-# @devs
 install_PyCall:
 # Install PyCall
 	julia -e '\
@@ -627,18 +644,10 @@ install_examples_dev:
 	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FuseExamples.git examples ; else cd examples && git pull; fi
 
 # @devs
-install_no_registry: install_registry clone_pull_all develop
-# Install FUSE without using the registry
-
-# @devs
 install_playground: .PHONY
 # Clone FusePlayground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
 	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
-
-# @devs
-install_via_registry: install_registry develop
-# Install FUSE using the registry
 
 # @devs
 list_open_compats:
@@ -675,7 +684,7 @@ register_general: error_missing_repo_var error_not_on_master_branch error_on_las
 		xargs -I{} gh api repos/ProjectTorreyPines/$(repo).jl/commits/{}/comments -f body='@JuliaRegistrator register' ;\
 		echo "Registered $(repo) to General registry." ;\
 	else \
-		echo "$(repo) is not in the list of allowed repositories $(GENERAL_REGISTRY_PACKAGES)." ;\
+		echo "$(repo) is listed as part of the General registry." ;\
 	fi
 
 # @devs
@@ -687,6 +696,7 @@ register: error_missing_repo_var error_not_on_master_branch
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
 Pkg.activate();\
+Pkg.add("LocalRegistry");\
 using LocalRegistry;\
 LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
 	version=$$(grep '^version' ../$(repo)/Project.toml | sed -E 's/version = "(.*)"/\1/') ;\

@@ -1,5 +1,6 @@
 import VacuumFields
 import DataFrames
+import FuseUtils: mirror_bound
 
 const options_green_model = [
     :point => "One filament per coil",
@@ -11,7 +12,7 @@ const options_green_model = [
 
 Generates VacuumFields.ParallelogramCoil around the plasma boundary using some educated guesses for where the PF and OH coils should be
 """
-function encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
+function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, r_axis::T2, z_axis::T2, n_coils::Integer) where {T1<:Real,T2<:Real}
     rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
     rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
 
@@ -329,7 +330,7 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil})
     return df
 end
 
-function Base.show(io::IO, mime, ::MIME"text/plain", coils::IMAS.IDSvector{<:Union{IMAS.pf_active__coil,IMAS.pf_active__supply}})
+function Base.show(io::IO, mime::MIME"text/plain", coils::IMAS.IDSvector{<:Union{IMAS.pf_active__coil,IMAS.pf_active__supply}})
     old_lines = get(ENV, "LINES", missing)
     old_columns = get(ENV, "COLUMNS", missing)
     df = DataFrames.DataFrame(coils)

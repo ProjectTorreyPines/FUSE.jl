@@ -14,7 +14,7 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
         if init_from == :ods
             if length(dd1.pf_active.coil) > 0
                 dd.pf_active = deepcopy(dd1.pf_active)
-                IMAS.set_coils_function(dd.pf_active.coil)
+                IMAS.set_coils_function(dd.pf_active.coil, ini.equilibrium.R0)
             else
                 init_from = :scalars
             end
@@ -39,6 +39,16 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
     end
 end
 
+function clip_rails(rail_r::AbstractVector{T1}, rail_z::AbstractVector{T1}, pr::AbstractVector{T2}, pz::AbstractVector{T2}, RA::T3, ZA::T3) where {T1<:Real,T2<:Real,T3<:Real}
+    rail_r = convert(Vector{Float64},rail_r)
+    rail_z = convert(Vector{Float64},rail_z)
+    pr = convert(Vector{Float64},pr)
+    pz = convert(Vector{Float64},pz)
+    RA = convert(Float64,RA)
+    ZA = convert(Float64,ZA)
+    return clip_rails(rail_r, rail_z, pr, pz, RA, ZA)
+end
+
 """
     clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
 
@@ -46,20 +56,23 @@ clip rails (rail_r, rail_z) so that they start/end along the intersection with t
 the magnetic axis (RA,ZA) and the point of maximum curvature along the equilibrium boundary (pr,pz)
 """
 function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vector{T}, RA::T, ZA::T) where {T<:Float64}
-    IMAS.reorder_flux_surface!(rail_r, rail_z)
+    IMAS.reorder_flux_surface!(rail_r, rail_z, RA, ZA)
 
     index = argmin(rail_r)
     rail_z = circshift(rail_z[1:end-1], index)
     rail_r = circshift(rail_r[1:end-1], index)
 
-    curve = abs.(IMAS.curvature(pr, pz))
+    theta = atan.(pz .- ZA, pr .- RA)
+    weight = sin.(theta) .^ 2
+    curve = abs.(IMAS.curvature(pr, pz)) .* weight
+
     index = Int[]
     index = pz .> ZA
-    RU = pr[index][argmax(curve[index])]
-    ZU = pz[index][argmax(curve[index])]
+    RU = @views pr[index][argmax(curve[index])]
+    ZU = @views pz[index][argmax(curve[index])]
     index = pz .< ZA
-    RL = pr[index][argmax(curve[index])]
-    ZL = pz[index][argmax(curve[index])]
+    RL = @views pr[index][argmax(curve[index])]
+    ZL = @views pz[index][argmax(curve[index])]
 
     α = 10.0
 
@@ -75,8 +88,8 @@ function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vec
     idx_l2 = intsc.indexes[1][1]
     crx_l2 = intsc.crossings[1]
 
-    rail_r = [crx_u1[1]; rail_r[idx_u1+1:idx_l2]; crx_l2[1]]
-    rail_z = [crx_u1[2]; rail_z[idx_u1+1:idx_l2]; crx_l2[2]]
+    rail_r = [crx_u1[1]; @views rail_r[idx_u1+1:idx_l2]; crx_l2[1]]
+    rail_z = [crx_u1[2]; @views rail_z[idx_u1+1:idx_l2]; crx_l2[2]]
 
     return rail_r, rail_z
 end
@@ -310,7 +323,7 @@ function init_pf_active!(
         end
     end
 
-    IMAS.set_coils_function(pf_active.coil)
+    IMAS.set_coils_function(pf_active.coil, eqt.global_quantities.vacuum_toroidal_field.r0)
 
     return pf_active
 end

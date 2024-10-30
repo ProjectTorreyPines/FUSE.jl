@@ -11,6 +11,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         if init_from == :ods
             if IMAS.hasdata(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
                 dd.core_profiles = deepcopy(dd1.core_profiles)
+
                 # also set the pedestal in summary IDS
                 if any([ismissing(getproperty(dd1.summary.local.pedestal, field), :value) for field in (:n_e, :zeff, :t_e)])
                     pe_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.pressure, dd.core_profiles.profiles_1d[].grid.psi_norm)
@@ -38,6 +39,12 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             if ismissing(dd.core_profiles.global_quantities, :ejima) && !ismissing(ini.core_profiles, :ejima)
                 @ddtime(dd.core_profiles.global_quantities.ejima = ini.core_profiles.ejima)
             end
+        end
+
+        if ini.core_profiles.ne_setting in (:ne_ped, :greenwald_fraction_ped)
+            @assert  act.ActorPedestal.density_match == :ne_ped "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_ped" 
+        else
+            @assert  act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line" 
         end
 
         if init_from == :scalars
@@ -114,40 +121,21 @@ function init_core_profiles!(
     cp1d.grid.rho_tor_norm = range(0, 1, ngrid)
 
     # Density
+    if plasma_mode == :H_mode
+        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped)
+    else
+        cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, 1.0, w_ped)
+    end
     if ne_setting == :ne_ped
         ne_ped = ne_value
     elseif ne_setting == :greenwald_fraction_ped
         ne_ped = ne_value * IMAS.greenwald_density(eqt)
     elseif ne_setting == :ne_line
-        function cost_line(ne_ped, line_wanted)
-            if plasma_mode == :H_mode
-                cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core_to_ped_ratio * ne_ped, ngrid, ne_shaping, ne_shaping, w_ped)
-            else
-                cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core_to_ped_ratio * ne_ped, ngrid, ne_shaping, 1.0, w_ped)
-            end
-            return (IMAS.geometric_midplane_line_averaged_density(eqt, cp1d) - line_wanted)^2
-        end
-        ne_ped = ne_value / ((1.0 + ne_core_to_ped_ratio) / 2.0) # initial guess
-        res = Optim.optimize(x -> cost_line(x, ne_value), ne_ped / 10, ne_ped * 10, Optim.GoldenSection(); rel_tol=1E-3)
-        ne_ped = res.minimizer
+        ne_ped = ne_value / IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
     elseif ne_setting == :greenwald_fraction
-        function cost_greenwald_fraction(ne_ped, greenwald_fraction_wanted)
-            if plasma_mode == :H_mode
-                cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core_to_ped_ratio * ne_ped, ngrid, ne_shaping, ne_shaping, w_ped)
-            else
-                cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core_to_ped_ratio * ne_ped, ngrid, ne_shaping, 1.0, w_ped)
-            end
-            return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction_wanted)^2
-        end
-        ne_ped = IMAS.greenwald_density(eqt) * ne_value / ((1.0 + ne_core_to_ped_ratio) / 2.0) # initial guess
-        res = Optim.optimize(x -> cost_greenwald_fraction(x, ne_value), ne_ped / 10, ne_ped * 10, Optim.GoldenSection(); rel_tol=1E-3)
-        ne_ped = res.minimizer
+        ne_ped = ne_value / IMAS.greenwald_fraction(eqt, cp1d)
     end
-    if plasma_mode == :H_mode
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core_to_ped_ratio * ne_ped, ngrid, ne_shaping, ne_shaping, w_ped)
-    else
-        cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio * ne_ped, ne_ped, ne_core_to_ped_ratio * ne_ped, ngrid, ne_shaping, 1.0, w_ped)
-    end
+    cp1d.electrons.density_thermal .*= ne_ped
     ne_core = cp1d.electrons.density_thermal[1]
 
     # Set ions:

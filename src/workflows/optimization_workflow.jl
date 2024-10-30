@@ -106,6 +106,7 @@ function workflow_multiobjective_optimization(
     end
 
     flush(stdout)
+    ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
     @time state =
         Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p), bounds, algorithm)

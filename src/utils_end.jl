@@ -3,7 +3,6 @@ using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
 import DataFrames
-import ProgressMeter
 
 # ========== #
 # Checkpoint #
@@ -230,6 +229,7 @@ function IMAS.extract(
         end
 
         # load the data
+        ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
@@ -490,35 +490,23 @@ function digest(
     end
 
     # core profiles
-    # temperatures
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=1))
-    end
-    # densities
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=2))
-    end
-    # rotation
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=3))
+    for k in 1:3
+        if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_profiles; only=k))
+        end
     end
 
     # core sources
-    for k in 1:5+length(IMAS.list_ions(dd.core_sources))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles.profiles_1d[]))
         if !isempty(dd.core_sources.source) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_sources; only=k))
         end
     end
 
-    # core sources
-    for k in 1:4+length(IMAS.list_ions(dd.core_transport))
+    # core transport
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles.profiles_1d[]))
         if !isempty(dd.core_transport) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_transport; only=k))
@@ -566,7 +554,7 @@ function digest(
         plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
-        plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
+        plot!(p, dd.pf_active; time0, subplot=2, coil_identifiers=true)
         plot!(p, dd.build.pf_active.rail; subplot=2)
         display(p)
     end
@@ -992,6 +980,7 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     for k in 2:length(dds)
         push!(df, df[1, :])
     end
+    ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(length(dds); showspeed=true)
     Threads.@threads for k in eachindex(dds)
         try

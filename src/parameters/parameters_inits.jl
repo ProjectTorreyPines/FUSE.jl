@@ -3,8 +3,7 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_,
-    _triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_, _mirror_princeton_D_, _princeton_D_scaled_, _mirror_princeton_D_scaled_, _rectangle_, _double_ellipse_, _mirror_double_ellipse_, _rectangle_ellipse_, _mirror_rectangle_ellipse_, _circle_ellipse_, _mirror_circle_ellipse_, _triple_arc_, _mirror_triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -337,6 +336,127 @@ function ParametersInits(; kw...)
     return ParametersInits{Float64}(; kw...)
 end
 
+###############################
+# custom dispatches for build #
+###############################
+"""
+    setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+
+Allows users to initialize layers from a dictionary
+"""
+function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+    @assert field == :layers
+    for (k, (name, thickness)) in enumerate(layers)
+        layer = FUSEparameters__build_layer{T}()
+        push!(parameters_build.layers, layer)
+
+        # name
+        layer.name = replace(string(name), "_" => " ")
+
+        # thickness
+        layer.thickness = thickness
+
+        # type
+        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name))
+            layer.type = :oh
+        elseif occursin("gap ", lowercase(layer.name))
+            layer.type = :gap
+        elseif lowercase(layer.name) == "plasma"
+            layer.type = :plasma
+        elseif occursin("OH", uppercase(layer.name))
+            layer.type = :oh
+        elseif occursin("TF", uppercase(layer.name))
+            layer.type = :tf
+        elseif occursin("shield", lowercase(layer.name))
+            layer.type = :shield
+        elseif occursin("blanket", lowercase(layer.name))
+            layer.type = :blanket
+        elseif occursin("wall", lowercase(layer.name))
+            layer.type = :wall
+        elseif occursin("vessel", lowercase(layer.name))
+            layer.type = :vessel
+        elseif occursin("cryostat", lowercase(layer.name))
+            layer.type = :cryostat
+            layer.shape = :silo
+        end
+
+        # side
+        if occursin("hfs", lowercase(layer.name))
+            layer.side = :hfs
+        elseif occursin("lfs", lowercase(layer.name))
+            layer.side = :lfs
+        else
+            if layer.type == _plasma_
+                layer.side = :lhfs
+            elseif k < length(layers) / 2
+                layer.side = :in
+            elseif k > length(layers) / 2
+                layer.side = :out
+            end
+        end
+    end
+end
+
+function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
+    par = getfield(parameters_layer, field)
+
+    if field == :material
+        layer_type = parameters_layer.type
+
+        pretty_layer_type = replace("$layer_type", "_" => "")
+        allowed_materials = FusionMaterials.supported_material_list(layer_type)
+
+        if val ∉ allowed_materials
+            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+        end
+    end
+
+    return setproperty!(par, :value, val)
+end
+
+"""
+    to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+
+Allows accesing parameters layers by their Symbol
+"""
+function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+    tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
+    if tmp === nothing
+        error("Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")
+    end
+    return tmp
+end
+
+"""
+    dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+
+Custom reading from file of FUSEparameters__build_layer
+"""
+function SimulationParameters.dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+    return parent(par).layers = dct
+end
+
+"""
+    par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String})
+
+Custom writing to file for FUSEparameters__build_layer
+"""
+function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String}; show_info::Bool=true, skip_defaults::Bool=false)
+    for parameter in par
+        p = SimulationParameters.path(parameter)
+        sp = SimulationParameters.spath(p)
+        depth = (count(".", sp) + count("[", sp) - 1) * 2
+        pre = " "^depth
+        push!(txt, string(pre, replace(getproperty(parameter, :name, "_each_layer_name_and_thickness_"), " " => "_"), ": ", repr(getproperty(parameter, :thickness, 0.0))))
+    end
+    return txt
+end
+
+###############################
+# custom dispatches for coils #
+###############################
+
+
 ################################
 # functions for populating ini #
 ################################
@@ -380,19 +500,11 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.R0 = mxh.R0
     equilibrium.Z0 = mxh.Z0
     equilibrium.κ = mxh.κ
-    equilibrium.tilt = mxh.c0
-    if length(mxh.s) >= 1
-        equilibrium.δ = sin(mxh.s[1])
-    end
-    if length(mxh.s) >= 2
-        equilibrium.ζ = -mxh.s[2]
-    end
-    if length(mxh.c) >= 1
-        equilibrium.𝚶 = mxh.c[1]
-    end
-    if length(mxh.c) >= 2
-        equilibrium.twist = mxh.c[2]
-    end
+    equilibrium.tilt = mxh.tilt
+    equilibrium.δ = mxh.δ
+    equilibrium.ζ = mxh.ζ
+    equilibrium.𝚶 = mxh.𝚶
+    equilibrium.twist = mxh.twist
     return equilibrium
 end
 
@@ -411,20 +523,9 @@ function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
 end
 
 function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
-    init_from = ini.general.init_from
-    if init_from == :ods
-        if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
-            dd.global_time = ini.time.simulation_start
-            eqt = dd.equilibrium.time_slice[]
-            fw = IMAS.first_wall(dd.wall)
-            IMAS.flux_surfaces(eqt, fw.r, fw.z)
-        else
-            init_from = :scalars
-        end
-    end
-
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
+        eqt = dd.equilibrium.time_slice[]
         pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
@@ -495,8 +596,14 @@ end
 Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
+
+NOTE: ini.general.dd takes priority over ini.general.ods
 """
 function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    if !ismissing(ini.general, :dd)
+        return ini.general.dd
+    end
+
     dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
 
     # handle time
@@ -558,7 +665,7 @@ end
 """
     json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a JSON file with given `filename`
+Load the INI parameters from a JSON file with given `filename`
 """
 function json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.json2par(filename, ini)
@@ -567,7 +674,7 @@ end
 """
     ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a YAML file with given `filename`
+Save the INI parameters to a YAML file with given `filename`
 
 `kw` arguments are passed to the YAML.print function
 """
@@ -578,10 +685,28 @@ end
 """
     yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a YAML file with given `filename`
+Load the INI parameters from a YAML file with given `filename`
 """
 function yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.yaml2par(filename, ini)
+end
+
+"""
+    ini2dict(ini::ParametersAllInits; kw...)
+
+Convert the INI parameters to a dictionary form
+"""
+function ini2dict(ini::ParametersAllInits; kw...)
+    return SimulationParameters.par2dict(ini; kw...)
+end
+
+"""
+    dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+
+Convert dict to INI parameters
+"""
+function dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+    return SimulationParameters.dict2par!(dict, ini)
 end
 
 ########
@@ -610,7 +735,7 @@ Plots ini time dependent time traces including plasma boundary
 
         # plot equilibrium including x-points
         mxhb = MXHboundary(ini)
-        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.ϵ * mxhb.mxh.R0, ini.build.plasma_gap)
+        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.minor_radius, ini.build.plasma_gap)
         @series begin
             label := ""
             seriestype := :vline

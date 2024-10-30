@@ -1,7 +1,9 @@
 # # FUSE Introductory Tutorial
 
 # Download this tutorial from the [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/tutorial.ipynb)
-
+# 
+# -----------
+# 
 # Import the necessary packages
 
 using Plots # for plotting
@@ -26,7 +28,9 @@ ini.equilibrium.R0 = 6.5;
 
 act.ActorCoreTransport.model = :FluxMatcher;
 
-# Initialize the data dictionary (`dd`) using the 0D parameters
+# Initialize the data dictionary (`dd`) using the 0D parameters.
+# 
+# **NOTE:** `init()` does not return a self-consistent solution, just a plausible starting point to initialize our simulations!
 
 dd = FUSE.init(ini, act);
 
@@ -60,6 +64,10 @@ plot(dd.equilibrium)
 
 plot(dd.core_profiles)
 
+# Whant to know what arguments can be passed? use `help_plot()` function
+
+help_plot(dd.equilibrium; core_profiles_overlay=true, psi_levels_in=21, psi_levels_out=5, show_secondary_separatrix=true, coordinate=:psi_norm)
+
 # These plots can be composed by calling `plot!()` instead of `plot()`
 
 plot(dd.equilibrium; color=:gray, cx=true)
@@ -70,7 +78,7 @@ plot!(dd.pf_active)
 
 plot(dd.core_profiles.profiles_1d[1].pressure_thermal)
 
-# ...is different from plotting a field from the IDS
+# ...is different from plotting a field from the IDS (which plots the quantity against its coordinate and with units)
 
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)
 
