@@ -4,6 +4,7 @@ import Interpolations
 import PolygonOps
 import LibGEOS
 import GeoInterface
+import FuseUtils: mirror_bound
 
 #= =============== =#
 #  Shape functions  #
