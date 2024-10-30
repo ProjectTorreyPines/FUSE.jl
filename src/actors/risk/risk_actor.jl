@@ -16,6 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorRisk{T<:Real} <: ParametersActor
     d3d_disruption_recovery_time::Entry{Real} = Entry{Real}("yr", "Time spent recovering from one DIII-D full power disruption"; default = (1/24)/365) # default is one hour 
     arc_disruption_recovery_time::Entry{Real} = Entry{Real}("yr", "Time spent recovering from one ARC full power disruption"; default = 0.2)
     severity_metric::Switch{Symbol} = Switch{Symbol}([:thermal_quench, :current_quench, :vertical_forces, :average], "-", "Metric used to evaluate disruption severity"; default = :average)
+    max_Psol_over_R::Entry{Real} = Entry{Real}("MW/m", "Maximum allowable scrape off layer power normalized to major radius"; default = 20.0)
 end
 
 mutable struct ActorRisk{D,P} <: CompoundAbstractActor{D,P}
@@ -108,7 +109,7 @@ function _step(actor::ActorRisk)
     if !isempty(dd.divertors)
         next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
         loss[next_idx].description = "Divertor failure"
-        loss[next_idx].probability = divertor_risk(dd)
+        loss[next_idx].probability = divertor_risk(dd, par.max_Psol_over_R)
         if cst.model == "ARIES"
             divertor_cost = 10.0 # placeholder value since ARIES does not have divertor costing # units are $M
             loss[next_idx].severity = divertor_cost
@@ -310,11 +311,10 @@ function blanket_risk(dd::IMAS.dd, function_type::Symbol)
     return trl_to_risk(function_type, blanket_trl[blanket_layer.material])
 end
 
-function divertor_risk(dd::IMAS.dd)
+function divertor_risk(dd::IMAS.dd, max_Psol_over_R::Real)
     Psol = IMAS.power_sol(dd) / 1e6
     R = dd.equilibrium.time_slice[].boundary.geometric_axis.r 
     
-    max_Psol_over_R = 20.0
     divertor_risk = (Psol / R) / max_Psol_over_R
     if divertor_risk > 1.0 
         risk = 1.0
