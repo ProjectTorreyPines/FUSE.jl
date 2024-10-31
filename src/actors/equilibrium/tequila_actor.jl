@@ -29,6 +29,7 @@ end
 mutable struct ActorTEQUILA{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTEQUILA{P}
+    act::ParametersAllActors{P}
     shot::Union{Nothing,TEQUILA.Shot}
     ψbound::D
     old_boundary_outline_r::Vector{D}
@@ -41,16 +42,16 @@ end
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
 function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorTEQUILA(dd, act.ActorTEQUILA; kw...)
+    actor = ActorTEQUILA(dd, act.ActorTEQUILA, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real,P<:Real}
+function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    return ActorTEQUILA(dd, par, nothing, D(0.0), D[], D[])
+    return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])
 end
 
 """
@@ -236,7 +237,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields

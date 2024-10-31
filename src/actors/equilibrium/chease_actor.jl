@@ -18,6 +18,7 @@ end
 mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
+    act::ParametersAllActors{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 
@@ -27,16 +28,16 @@ end
 Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorCHEASE(dd, act.ActorCHEASE; kw...)
+    actor = ActorCHEASE(dd, act.ActorCHEASE, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
+function ActorCHEASE(dd::IMAS.dd{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
-    return ActorCHEASE(dd, par, nothing)
+    return ActorCHEASE(dd, par, act, nothing)
 end
 
 """
@@ -125,7 +126,7 @@ function _finalize(actor::ActorCHEASE)
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields
