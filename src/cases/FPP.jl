@@ -78,16 +78,15 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.core_profiles.impurity = :Kr
     ini.core_profiles.helium_fraction = 0.01
 
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 5
+    ini.build.layers[:OH].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 5
+
+    ini.oh.technology = :rebco
     ini.pf_active.technology = :nb3sn
+    ini.tf.technology = :rebco
 
     ini.tf.shape = :rectangle_ellipse
     ini.tf.n_coils = 16
-    ini.tf.technology = :rebco
-
-    ini.oh.n_coils = 6
-    ini.oh.technology = :rebco
 
     total_ec_power = 90E6
     x = range(0.1, 0.8, n_ec)

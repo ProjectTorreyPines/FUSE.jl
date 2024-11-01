@@ -13,7 +13,8 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.R0 = 3.45
     ini.equilibrium.ϵ = 0.27
     ini.equilibrium.κ = 2.00
-    ini.equilibrium.δ = 0.35
+    ini.equilibrium.δ = 0.4
+    ini.equilibrium.ζ = -0.1
     ini.equilibrium.B0 = -11.5
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
@@ -44,15 +45,16 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
 
     ini.equilibrium.xpoints = :double
 
-    ini.oh.n_coils = 4
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 4
+    ini.build.layers[:OH].coils_inside = 4
+    ini.build.layers[:gap_cryostat].coils_inside = 6
+    act.ActorPFdesign.symmetric = true
+
+    ini.oh.technology = :rebco
     ini.pf_active.technology = :rebco
+    ini.tf.technology = :rebco
 
     ini.tf.shape = :princeton_D_scaled
     ini.tf.n_coils = 18
-    ini.tf.technology = :rebco
-    ini.oh.technology = :rebco
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
@@ -78,7 +80,7 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     ini.requirements.coil_stress_margin = 0.1
 
     #### ACT ####
-    act.ActorPFdesign.symmetric = true
+
     act.ActorCXbuild.rebuild_wall = true
 
     act.ActorFluxMatcher.max_iterations = 50

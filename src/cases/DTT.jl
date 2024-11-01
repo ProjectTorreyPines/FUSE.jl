@@ -51,17 +51,16 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     # ==============
     ini.build.n_first_wall_conformal_layers = 1
 
-    ini.oh.n_coils = 6
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :nb3sn_iter
+    ini.build.layers[:OH].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 6
     act.ActorPFdesign.symmetric = true
+
+    ini.oh.technology = :nb3sn_iter
+    ini.pf_active.technology = :nb3sn_iter
+    ini.tf.technology = :nb3sn_iter
 
     ini.tf.shape = :miller
     ini.tf.n_coils = 18
-    ini.tf.technology = :nb3sn_iter
-
-    ini.oh.technology = :nb3sn_iter
 
     ini.requirements.flattop_duration = 70.0
 

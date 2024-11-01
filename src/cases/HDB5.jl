@@ -1,5 +1,5 @@
-import DataFrames
-import CSV
+using DataFrames: DataFrames
+using CSV: CSV
 
 """
     case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
