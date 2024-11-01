@@ -137,7 +137,7 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound)
+        tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound, actor.act.ActorPFactive.green_model)
     catch e
         display(plot(actor.shot))
         display(contour())
@@ -146,7 +146,7 @@ function _finalize(actor::ActorTEQUILA)
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA; ψbound::D=0.0) where {D<:Real}
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA; ψbound::D=0.0, green_model::Symbol) where {D<:Real}
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -237,7 +237,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields

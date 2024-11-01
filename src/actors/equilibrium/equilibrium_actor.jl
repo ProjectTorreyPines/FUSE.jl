@@ -41,9 +41,9 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
     if par.model == :Solovev
         eq_actor = ActorSolovev(dd, act.ActorSolovev; par.ip_from)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE; par.ip_from)
+        eq_actor = ActorCHEASE(dd, act.ActorCHEASE, act; par.ip_from)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA; par.ip_from)
+        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA, act; par.ip_from)
     elseif par.model == :none
         eq_actor = ActorNoOperation(dd, act.ActorNoOperation)
     else
