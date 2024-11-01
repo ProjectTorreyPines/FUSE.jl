@@ -223,8 +223,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
         # Flux control points
-        imid = argmax(eqt.boundary.outline.r)
-        flux_cps = [VacuumFields.FluxControlPoint(r, z, ψbound, 1.0) for (r, z) in zip(eqt.boundary.outline.r[imid:imid], eqt.boundary.outline.z[imid:imid])]
+        mag = VacuumFields.FluxControlPoint(eqt.global_quantities.magnetic_axis.r,eqt.global_quantities.magnetic_axis.z, psia, 1.0)
+        flux_cps = VacuumFields.FluxControlPoint[mag]
         strike_weight = 1.0
         strike_cps = [VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)
