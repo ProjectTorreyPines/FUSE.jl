@@ -15,14 +15,10 @@ end
 mutable struct ActorVerticalStability{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorVerticalStability{P}
+    act::ParametersAllActors{P}
     stability_margin::D
     normalized_growth_rate::D
     passive_coils::Vector{VacuumFields.QuadCoil}
-    function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorVerticalStability)
-        par = par(kw...)
-        return new{D,P}(dd, par)
-    end
 end
 
 """
@@ -31,11 +27,17 @@ end
 Compute vertical stability metrics
 """
 function ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorVerticalStability(kw...) # this makes a local copy of `act.ActorVerticalStability` and overrides it with keywords that the user may have passed
-    actor = ActorVerticalStability(dd, par) # instantiate the actor (see function below)
-    step(actor)                # run the actor
-    finalize(actor)            # finalize
+    par = act.ActorVerticalStability(kw...)
+    actor = ActorVerticalStability(dd, par, act)
+    step(actor)
+    finalize(actor)
     return actor
+end
+
+function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    logging_actor_init(ActorVerticalStability)
+    par = par(kw...)
+    return ActorVerticalStability(dd, par, act, D(NaN), D(NaN), VacuumFields.QuadCoil[])
 end
 
 """
@@ -44,13 +46,10 @@ end
 Compute vertical stability metrics
 """
 function _step(actor::ActorVerticalStability)
-    par = actor.par
     dd = actor.dd
+    par = actor.par
 
-    bd = dd.build
-    eqt = dd.equilibrium.time_slice[]
-    Ip = eqt.global_quantities.ip
-    active_coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad)
+    active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
 
     # Defaults
     actor.stability_margin = NaN
@@ -72,6 +71,8 @@ function _step(actor::ActorVerticalStability)
         end
     end
 
+    eqt = dd.equilibrium.time_slice[]
+    Ip = eqt.global_quantities.ip
     image = VacuumFields.Image(eqt)
     coils = vcat(active_coils, actor.passive_coils)
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
