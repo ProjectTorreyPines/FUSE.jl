@@ -2,13 +2,12 @@
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
 
-## 📢 Upcoming 2024 Code Camp 📢
-
-Join the FUSE community and help shape the future of Fusion Power Plant design:
+## 📢 2024 Code Camp 📢
 
 * **Date:** Dec 9th - 13th
 * **Location:** In person @ General Atomics
-* **Seats:** Limited to 40 participants - **[🔥 REGISTER TODAY!](https://docs.google.com/forms/d/e/1FAIpQLSc948qTy9HmlAwj9x-kzYYTStrLvgDT4UCEkM3HwTZnovBjsw/viewform)**
+* **Agenda:** [here](https://docs.google.com/document/d/1OwJPx4G3HP7wx9FuGLMqxjaKewrhOY7Kd7nTZkmVdw4/edit?usp=sharing)
+* **Seats:** All out! Join us on [Discord](https://discord.gg/CbjpZH9SKM) to know of upcoming events!
 
 ## Resources
 
@@ -65,6 +64,8 @@ FUSE.ActorStationaryPlasma(dd, act)
 # Get an overview of the simulation results
 FUSE.digest(dd)
 ```
+
+Make sure to take a look at the [introductory tutorial](https://fuse.help/dev/tutorial.html) and [examples](https://github.com/ProjectTorreyPines/FuseExamples).
 
 ## Installation
 
