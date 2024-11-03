@@ -59,6 +59,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
     act.ActorStabilityLimits.raise_on_breach = false
+    act.ActorFluxMatcher.optimizer_algorithm = :simple
 
     set_new_base!(ini)
     set_new_base!(act)
