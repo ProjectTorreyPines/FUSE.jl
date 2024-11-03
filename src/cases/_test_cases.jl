@@ -82,7 +82,7 @@ end
 function test(dd::IMAS.DD, args...; kw...)
     ini, act = FUSE.case_parameters(args...; kw...)
 
-    test_ini_act_customizations!(ini, act)
+    ini_act_tests_customizations!(ini, act)
 
     Test.@testset "init" begin
         FUSE.init(dd, ini, act)
@@ -129,7 +129,7 @@ function test(dd::IMAS.DD, args...; kw...)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_ini_act_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
+function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
     # speedup the tests
     act.ActorStationaryPlasma.max_iter = 2
     # use full model for ActorThermalPlant

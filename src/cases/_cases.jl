@@ -34,7 +34,7 @@ function case_parameters(case::Symbol, args...; kw...)
     ini, act = case_parameters(Val{case}, args...; kw...)
 
     if startswith(case_str, "test__")
-        test_ini_act_customizations!(ini, act)
+        ini_act_tests_customizations!(ini, act)
     end
 
     return ini, act
