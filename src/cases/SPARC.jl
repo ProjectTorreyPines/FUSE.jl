@@ -12,8 +12,10 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     if init_from == :ods
         machine_ods = joinpath("__FUSE__", "sample", "OS_SPARC_Device_Description.json")
         ini.ods.filename = "$(machine_ods)"
+        act.ActorWholeFacility.update_build = false
         act.ActorCXbuild.rebuild_wall = false
         act.ActorPFactive.green_model = :point
+        act.ActorVerticalStability.model = false # throws an error
     end
 
     ini.equilibrium.boundary_from = :scalars

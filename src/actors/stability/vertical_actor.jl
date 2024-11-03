@@ -8,6 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: Pa
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
+    model::Entry{Bool} = Entry{Bool}("-", "Tunr on/off model of vertical stability"; default=true)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -49,16 +50,20 @@ function _step(actor::ActorVerticalStability)
     dd = actor.dd
     par = actor.par
 
-    active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
-
     # Defaults
     actor.stability_margin = NaN
     actor.normalized_growth_rate = NaN
+
+    if !par.model
+        return actor
+    end
 
     if all(coil.current == 0.0 for coil in active_coils)
         @warn "Active coils have no current. Can't compute vertical stability metrics"
         return actor
     end
+
+    active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
 
     # load passive structures from pf_passive
     actor.passive_coils = VacuumFields.QuadCoil[]
