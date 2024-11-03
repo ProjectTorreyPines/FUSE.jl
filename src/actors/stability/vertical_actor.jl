@@ -58,12 +58,12 @@ function _step(actor::ActorVerticalStability)
         return actor
     end
 
+    active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
+
     if all(coil.current == 0.0 for coil in active_coils)
         @warn "Active coils have no current. Can't compute vertical stability metrics"
         return actor
     end
-
-    active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
 
     # load passive structures from pf_passive
     actor.passive_coils = VacuumFields.QuadCoil[]
