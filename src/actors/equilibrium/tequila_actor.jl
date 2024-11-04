@@ -26,7 +26,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     Z::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi Z axis")
 end
 
-mutable struct ActorTEQUILA{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTEQUILA{P}
     act::ParametersAllActors{P}

@@ -13,7 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: Pa
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
-mutable struct ActorVerticalStability{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorVerticalStability{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorVerticalStability{P}
     act::ParametersAllActors{P}
