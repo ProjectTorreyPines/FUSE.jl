@@ -63,16 +63,15 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.core_profiles.impurity = :Kr
     ini.core_profiles.helium_fraction = 0.00
 
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 6
+    ini.build.layers[:OH].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 6
+
+    ini.tf.technology = :rebco
+    ini.oh.technology = :rebco
     ini.pf_active.technology = :nb3sn
 
     ini.tf.n_coils = 16
-    ini.tf.technology = :rebco
     ini.tf.shape = :double_ellipse
-
-    ini.oh.n_coils = 6
-    ini.oh.technology = :rebco
 
     ini.ec_launcher[1].power_launched = 25.0e6
     ini.ec_launcher[1].efficiency_conversion = 0.45

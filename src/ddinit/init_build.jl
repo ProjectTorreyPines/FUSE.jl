@@ -114,6 +114,8 @@ Initialize dd.build.layers from ini.build.layers
 function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__build_layer})
     empty!(bd.layer)
 
+    layers_coils_inside!(layers)
+
     k = 0
     for ini_layer in layers
         @assert ini_layer.thickness >= 0.0
@@ -130,9 +132,29 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
         if !ismissing(ini_layer, :shape)
             layer.shape = Int(ini_layer.shape)
         end
+        if !ismissing(ini_layer, :coils_inside)
+            layer.coils_inside = ini_layer.coils_inside
+        end
     end
 
     return bd
+end
+
+"""
+    layers_coils_inside!(layers::ParametersVector{<:FUSEparameters__build_layer})
+
+Converts ini.build.layers[:].coils_inside to vector of Int
+"""
+function layers_coils_inside!(layers::ParametersVector{<:FUSEparameters__build_layer})
+    ncoils = 0
+    for ini_layer in layers
+        if !ismissing(ini_layer, :coils_inside)
+            if typeof(ini_layer.coils_inside) <: Int
+                ini_layer.coils_inside = ncoils .+ collect(1:ini_layer.coils_inside)
+            end
+            ncoils += length(ini_layer.coils_inside)
+        end
+    end
 end
 
 """

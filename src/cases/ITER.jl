@@ -1,10 +1,10 @@
 """
     case_parameters(
-        :ITER,
-        init_from::Symbol,
-        boundary_from::Symbol=:auto,
-        ne_setting::Symbol=:ne_ped,
-        time_dependent::Bool=false)
+    	:ITER,
+    	init_from::Symbol,
+    	boundary_from::Symbol=:auto,
+    	ne_setting::Symbol=:ne_ped,
+    	time_dependent::Bool=false)
 
 ITER
 """
@@ -72,10 +72,10 @@ function case_parameters(
 
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
-    layers[:gap_OH] = 1.329
-    layers[:OH] = 0.734
-    layers[:gap_OH_TF] = 0.112
-    layers[:hfs_TF] = 0.909
+    layers[:gap_OH] = 1.356
+    layers[:OH] = 0.8
+    layers[:gap_OH_TF] = 0.1
+    layers[:hfs_TF] = 0.882
     layers[:hfs_gap_TF_shield] = 0.016 + 0.1 + 0.032
     layers[:hfs_vacuum_vessel] = 0.338
     layers[:hfs_gap_vacuum_vessel_blanket] = 0.01
@@ -88,22 +88,22 @@ function case_parameters(
     layers[:lfs_vacuum_vessel] = 0.758
     layers[:lfs_gap_shield_TF] = 0.25 + 0.2 + 0.037
     layers[:lfs_TF] = 0.882
-    layers[:gap_tf_cryostat] = 3.343
+    layers[:gap_cryostat] = 3.343
     layers[:cryostat] = 0.05
     ini.build.layers = layers
     ini.build.n_first_wall_conformal_layers = 4
 
-    ini.oh.n_coils = 6
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :nbti
+    ini.build.layers[:OH].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 6
     act.ActorPFdesign.symmetric = false
+
+    ini.oh.technology = :nb3sn_iter
+    ini.pf_active.technology = :nbti
+    ini.tf.technology = :nb3sn_iter
 
     ini.tf.shape = :circle_ellipse
     ini.tf.n_coils = 18
-    ini.tf.technology = :nb3sn_iter
 
-    ini.oh.technology = :nb3sn_iter
     ini.requirements.flattop_duration = 500.0 # 500 s for Q=10 scenario
 
     ini.core_profiles.ne_setting = ne_setting

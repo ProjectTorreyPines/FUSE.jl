@@ -3,7 +3,9 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_, _mirror_princeton_D_, _princeton_D_scaled_, _mirror_princeton_D_scaled_, _rectangle_, _double_ellipse_, _mirror_double_ellipse_, _rectangle_ellipse_, _mirror_rectangle_ellipse_, _circle_ellipse_, _mirror_circle_ellipse_, _triple_arc_, _mirror_triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_, _mirror_princeton_D_, _princeton_D_scaled_, _mirror_princeton_D_scaled_, _rectangle_,
+    _double_ellipse_, _mirror_double_ellipse_, _rectangle_ellipse_, _mirror_rectangle_ellipse_, _circle_ellipse_, _mirror_circle_ellipse_, _triple_arc_, _mirror_triple_arc_,
+    _miller_, _silo_, _racetrack_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -94,8 +96,6 @@ end
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
-    n_coils_inside::Entry{Int} = Entry{Int}("-", "Number of PF coils inside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_inside >= 0")
-    n_coils_outside::Entry{Int} = Entry{Int}("-", "Number of PF coils outside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_outside >= 0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "PF coils technology")
 end
 
@@ -181,7 +181,6 @@ end
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :oh
-    n_coils::Entry{Int} = Entry{Int}("-", "Number of OH coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "OH coils technology")
 end
 
@@ -199,11 +198,8 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     name::Entry{String} = Entry{String}("-", "Name of the layer")
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
-    material::Switch{Symbol} = Switch{Symbol}(
-        FusionMaterials.all_materials(),
-        "-",
-        "Material of the layer"
-    )
+    material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.all_materials(), "-", "Material of the layer")
+    coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}("-", "List of coils within this layer"; check=x -> @assert (typeof(x) <: Int && x > 0) || (length(x) > 0 && minimum(x) > 0) "coils_inside must be > 0")
     shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the layer")
     type::Switch{BuildLayerType} = Switch{BuildLayerType}(layer_type_options, "-", "Type of the layer")
     side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")
@@ -422,7 +418,7 @@ Allows accesing parameters layers by their Symbol
 function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
     tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
     if tmp === nothing
-        error("Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")
+        error("Layer `:$name` not found. Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")
     end
     return tmp
 end

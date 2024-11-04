@@ -63,20 +63,19 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.ejima = 0.1
 
-    ini.oh.n_coils = 8
-    ini.oh.technology = :rebco
+    ini.build.layers[:OH].coils_inside = 5
+    ini.build.layers[:lfs_vacuum_vessel].coils_inside = [9,12]
+    ini.build.layers[:lfs_gap_coils].coils_inside = [6,7, 8, 10, 11, 13, 14, 15]
+    act.ActorPFdesign.symmetric = true
 
-    ini.pf_active.n_coils_inside = 6
-    ini.pf_active.n_coils_outside = 0
+    ini.oh.technology = :rebco
     ini.pf_active.technology = :nb3sn_iter
+    ini.tf.technology = :rebco
 
     ini.tf.shape = :rectangle
     ini.tf.n_coils = 12
-    ini.tf.technology = :rebco
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
-    act.ActorPFdesign.symmetric = true
-    
     ini.ec_launcher[1].power_launched = 150.e6
     ini.ec_launcher[1].width = 0.25
     ini.ec_launcher[1].rho_0 = 0.0
@@ -180,7 +179,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         r_oh = ini.build.layers[1].thickness + ini.build.layers[2].thickness / 2.0
         b = ini.equilibrium.ϵ * ini.equilibrium.R0 * ini.equilibrium.κ
         z_oh = (ini.equilibrium.Z0 - b, ini.equilibrium.Z0 + b)
-        z_ohcoils, h_oh = size_oh_coils(z_oh[1], z_oh[2], 0.1, ini.oh.n_coils, 1.0, 0.0)
+        z_ohcoils, h_oh = size_oh_coils(z_oh[1], z_oh[2], 0.1, length(oh_zh), 1.0, 0.0)
         oh_zh = [(z, h_oh) for z in z_ohcoils]
 
         empty!(coils)
