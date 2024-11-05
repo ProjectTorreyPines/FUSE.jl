@@ -76,6 +76,7 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     ini.requirements.flattop_duration = 45.0 * 60.0
 
     #### ACT ####
+
     act.ActorPedestal.model = :WPED
     act.ActorWPED.ped_to_core_fraction = 0.3
 

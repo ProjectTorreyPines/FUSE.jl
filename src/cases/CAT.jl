@@ -23,11 +23,11 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
         pf_inside_tf=false,
         pf_outside_tf=true,
         thin_vessel_walls=true)
+
     ini.build.n_first_wall_conformal_layers = 1
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 6
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :nb3sn_iter
     ini.pf_active.technology = :nb3sn_iter
@@ -59,8 +59,14 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
     #### ACT ####
+
+    act.ActorPFdesign.symmetric = true
+
     act.ActorStabilityLimits.raise_on_breach = false
+
     act.ActorFluxMatcher.optimizer_algorithm = :simple
+
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
 end

@@ -100,5 +100,7 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     act.ActorCoreTransport.model = :none # No flux matching possible
 
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+
     return ini, act
 end

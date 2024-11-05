@@ -13,7 +13,6 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
         machine_ods = joinpath("__FUSE__", "sample", "OS_SPARC_Device_Description.json")
         ini.ods.filename = "$(machine_ods)"
         act.ActorWholeFacility.update_build = false
-        act.ActorCXbuild.rebuild_wall = false
         act.ActorPFactive.green_model = :point
         act.ActorVerticalStability.model = false # throws an error
     end
@@ -54,7 +53,6 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.build.layers[:lfs_inner_wall].coils_inside = collect(17:20)
     ini.build.layers[:lfs_gap_outer_wall_TF].coils_inside = collect(21:22)
     ini.build.layers[:gap_cryostat].coils_inside = collect(9:16)
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :rebco
     ini.pf_active.technology = :rebco
@@ -82,14 +80,18 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     #### ACT ####
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
+    act.ActorPFdesign.symmetric = true
+
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
+
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
 
     return ini, act
 end

@@ -80,7 +80,10 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.requirements.tritium_breeding_ratio = 1.1
     ini.requirements.power_electric_net = 400e6 # as example
 
-    act.ActorTGLF.user_specified_model = "sat1_em_iter"
+    #### ACT ####
+
+    act.ActorTGLF.tglfnn_model = "sat1_em_iter"
+
     act.ActorStabilityLimits.raise_on_breach = false
 
     return ini, act

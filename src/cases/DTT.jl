@@ -53,7 +53,6 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 6
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :nb3sn_iter
     ini.pf_active.technology = :nb3sn_iter
@@ -81,6 +80,11 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].toroidal_angle = 40.0 * deg
     ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
+
+    #### ACT ####
+    act.ActorPFdesign.symmetric = true
+
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
 end

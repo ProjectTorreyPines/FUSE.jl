@@ -71,13 +71,12 @@ function case_parameters(::Type{Val{:D3D}};
     )
     ini.build.layers[:hfs_wall].material = :graphite
     ini.build.n_first_wall_conformal_layers = 1
-    act.ActorCXbuild.rebuild_wall = false
     ini.build.divertors = :double
 
     ini.build.layers[:hfs_gap_OH_coils].coils_inside = 6
     ini.build.layers[:hfs_gap_coils].coils_inside = [7:10; 16:19]
     ini.build.layers[:lfs_gap_coils].coils_inside = [11:15; 20:24]
-    act.ActorPFdesign.symmetric = true
+
 
     ini.oh.technology = :copper
     ini.pf_active.technology = :copper
@@ -114,9 +113,17 @@ function case_parameters(::Type{Val{:D3D}};
         act.ActorHCD.pellet_model = :none
     end
 
+    #### ACT ####
+
+    act.ActorPFdesign.symmetric = true
+
     act.ActorWholeFacility.update_build = false
+
     act.ActorFluxMatcher.evolve_pedestal = false
+
     act.ActorStabilityLimits.raise_on_breach = false
+
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
 end

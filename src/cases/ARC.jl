@@ -38,7 +38,6 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119
     layers[:cryostat] = 0.186
-    act.ActorCXbuild.rebuild_wall = false
     ini.build.layers = layers
     ini.build.layers[:hfs_blanket].material = :flibe
     ini.build.layers[:lfs_blanket].material = :flibe
@@ -47,7 +46,6 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
 
     ini.build.layers[:OH].coils_inside = 4
     ini.build.layers[:gap_cryostat].coils_inside = 6
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :rebco
     ini.pf_active.technology = :rebco
@@ -81,16 +79,18 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
 
     #### ACT ####
 
-    act.ActorCXbuild.rebuild_wall = true
+    act.ActorPFdesign.symmetric = true
 
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
+
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
 
     return ini, act
 end

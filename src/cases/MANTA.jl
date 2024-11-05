@@ -79,17 +79,21 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.requirements.flattop_duration = 45.0 * 60.0
 
     #### ACT ####
+
     act.ActorPedestal.model = :WPED
+
     act.ActorWPED.ped_to_core_fraction = 0.3
 
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
+
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
 
     return ini, act
 end

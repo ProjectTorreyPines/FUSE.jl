@@ -105,14 +105,16 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
 
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
-    act.ActorFluxMatcher.max_iterations = 500
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = true
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
+
+    act.ActorFluxMatcher.max_iterations = 500
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = true
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
 
     return ini, act
 end

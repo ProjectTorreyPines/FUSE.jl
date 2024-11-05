@@ -142,11 +142,6 @@ function case_parameters(
     ini.pellet_launcher[1].size = Float64[0.003, 0.004] / 2.0
     ini.pellet_launcher[1].frequency = 0.02 # Hz
 
-    act.ActorTGLF.user_specified_model = "sat1_em_iter"
-    act.ActorFluxMatcher.step_size = 0.5
-
-    act.ActorWholeFacility.update_build = false
-
     if time_dependent
         ini.time.pulse_shedule_time_basis = range(0, 300; step=1.0)
         ini.time.simulation_start = 300.0
@@ -165,6 +160,14 @@ function case_parameters(
         ini.lh_antenna[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 5E6
         ini.pellet_launcher[1].frequency = t -> (1 .+ ramp((t - 100) / 100)) * 0.01 # Hz
     end
+
+    #### ACT ####
+
+    act.ActorTGLF.tglfnn_model = "sat1_em_iter"
+
+    act.ActorFluxMatcher.step_size = 0.5
+
+    act.ActorWholeFacility.update_build = false
 
     return ini, act
 end
