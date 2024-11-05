@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersAct
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorCHEASE{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
     act::ParametersAllActors{P}
