@@ -58,11 +58,9 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.nb_unit[1].beam_mass = 2.0
     ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
+    #### ACT ####
     act.ActorStabilityLimits.raise_on_breach = false
     act.ActorFluxMatcher.optimizer_algorithm = :simple
-
-    set_new_base!(ini)
-    set_new_base!(act)
 
     return ini, act
 end

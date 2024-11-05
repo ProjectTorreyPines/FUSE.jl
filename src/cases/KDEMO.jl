@@ -83,8 +83,5 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
     act.ActorStabilityLimits.raise_on_breach = false
 
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end

@@ -92,9 +92,6 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
         act.ActorCoreTransport.model = :none
     end
 
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end
 

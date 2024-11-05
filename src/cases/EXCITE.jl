@@ -100,9 +100,5 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     act.ActorCoreTransport.model = :none # No flux matching possible
 
-    # finalize
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end

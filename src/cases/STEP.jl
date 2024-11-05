@@ -95,10 +95,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     # High-beta ST equilibrium is tricky to converge
     act.ActorTEQUILA.relax = 0.01
-
-    set_new_base!(ini)
-    set_new_base!(act)
-
     dd = IMAS.dd()
     # if init_from==:ods we need to sanitize the ODS that was given to us
     if init_from == :ods

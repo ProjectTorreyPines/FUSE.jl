@@ -118,9 +118,6 @@ function case_parameters(::Type{Val{:D3D}};
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorStabilityLimits.raise_on_breach = false
 
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end
 

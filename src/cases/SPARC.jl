@@ -91,9 +91,6 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
         act.ActorCoreTransport.model = :none
     end
 
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end
 

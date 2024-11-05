@@ -166,9 +166,6 @@ function case_parameters(
         ini.pellet_launcher[1].frequency = t -> (1 .+ ramp((t - 100) / 100)) * 0.01 # Hz
     end
 
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end
 

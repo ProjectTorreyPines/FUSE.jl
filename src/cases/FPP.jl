@@ -114,9 +114,5 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
         act.ActorCoreTransport.model = :none
     end
 
-    # finalize
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end

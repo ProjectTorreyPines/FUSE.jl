@@ -56,8 +56,5 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
 
     ini.requirements.flattop_duration = 2.0
 
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end

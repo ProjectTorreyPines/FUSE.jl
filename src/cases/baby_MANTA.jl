@@ -89,8 +89,5 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     end
     act.ActorFluxMatcher.evolve_pedestal = false
 
-    set_new_base!(ini)
-    set_new_base!(act)
-
     return ini, act
 end
