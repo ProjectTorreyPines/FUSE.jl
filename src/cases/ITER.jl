@@ -15,7 +15,7 @@ function case_parameters(
     ne_setting::Symbol=:ne_ped,
     time_dependent::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
 
-    ini = ParametersInits(; n_nb=1, n_ec=1, n_ic=1, n_lh=1, n_pl=1)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "ITER_$(init_from)"
@@ -126,17 +126,22 @@ function case_parameters(
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
+    resize!(ini.nb_unit, 1)
     ini.nb_unit[1].power_launched = 33.4e6
     ini.nb_unit[1].beam_energy = 1e6
     ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
+    resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6
     ini.ec_launcher[1].rho_0 = 0.0
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 24E6
 
+    resize!(ini.lh_antenna, 1)
     ini.lh_antenna[1].power_launched = 10E6
 
+    resize!(ini.pellet_launcher, 1)
     ini.pellet_launcher[1].shape = :cylindrical
     ini.pellet_launcher[1].species = :T
     ini.pellet_launcher[1].size = Float64[0.003, 0.004] / 2.0

@@ -2,7 +2,7 @@
     case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)
 """
 function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = FUSE.ParametersInits(; n_ic=1)
+    ini = FUSE.ParametersInits()
     act = FUSE.ParametersActors()
 
     ini.general.casename = "BABY MANTA"
@@ -70,6 +70,7 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 25.e6
 
     ini.requirements.power_electric_net = 90e6

@@ -4,7 +4,7 @@
 CFS/MIT SPARC design
 """
 function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ic=1)
+    ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "SPARC"
     ini.general.init_from = init_from
@@ -77,6 +77,7 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     #### ACT ####

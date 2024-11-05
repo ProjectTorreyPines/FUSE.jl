@@ -2,7 +2,7 @@
     case_parameters(:KDEMO)
 """
 function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=1, n_ic=1)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "K-DEMO"
@@ -73,7 +73,10 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
+    resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 5.0e7
+
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 5.0e7
 
     ini.requirements.flattop_duration = 1800.0

@@ -4,7 +4,7 @@
 GA EXCITE design
 """
 function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=2)
+    ini = ParametersInits()
     act = ParametersActors()
 
     #### INI ####
@@ -73,10 +73,10 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.tf.n_coils = 16
     ini.tf.shape = :double_ellipse
 
+    resize!(ini.ec_launcher, 2)
     ini.ec_launcher[1].power_launched = 25.0e6
     ini.ec_launcher[1].efficiency_conversion = 0.45
     ini.ec_launcher[1].efficiency_transmission = 0.8
-
     ini.ec_launcher[2].power_launched = 25.0e6
     ini.ec_launcher[2].efficiency_conversion = 0.45
     ini.ec_launcher[2].efficiency_transmission = 0.8

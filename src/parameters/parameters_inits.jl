@@ -275,7 +275,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
+function ParametersInits{T}() where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -298,30 +298,6 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         FUSEparameters__oh{T}(),
         FUSEparameters__balance_of_plant{T}(),
         FUSEparameters__requirements{T}())
-
-    for k in 1:n_layers
-        push!(ini.build.layers, FUSEparameters__build_layer{T}())
-    end
-
-    for k in 1:n_nb
-        push!(ini.nb_unit, FUSEparameters__nb_unit{T}())
-    end
-
-    for k in 1:n_ec
-        push!(ini.ec_launcher, FUSEparameters__ec_launcher{T}())
-    end
-
-    for k in 1:n_pl
-        push!(ini.pellet_launcher, FUSEparameters__pellet_launcher{T}())
-    end
-
-    for k in 1:n_ic
-        push!(ini.ic_antenna, FUSEparameters__ic_antenna{T}())
-    end
-
-    for k in 1:n_lh
-        push!(ini.lh_antenna, FUSEparameters__lh_antenna{T}())
-    end
 
     setup_parameters!(ini)
 

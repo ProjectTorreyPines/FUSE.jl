@@ -4,8 +4,7 @@
 GA's FPP design
 """
 function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    n_ec = 6
-    ini = ParametersInits(; n_ec)
+    ini = ParametersInits()
     act = ParametersActors()
 
     #### INI ####
@@ -89,7 +88,8 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.tf.n_coils = 16
 
     total_ec_power = 90E6
-    x = range(0.1, 0.8, n_ec)
+    resize!(ini.ec_launcher, 6)
+    x = range(0.1, 0.8, length(ini.ec_launcher))
     for (k, rho_0) in enumerate(x)
         ini.ec_launcher[k].power_launched = total_ec_power * rho_0^2 / sum(x)
         ini.ec_launcher[k].efficiency_conversion = 0.45

@@ -4,7 +4,7 @@
 GA Compact Advanced Tokamak design
 """
 function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_nb=1)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "CAT"
@@ -53,6 +53,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
 
+    resize!(ini.nb_unit, 1)
     ini.nb_unit[1].power_launched = 20E6
     ini.nb_unit[1].beam_energy = 200e3
     ini.nb_unit[1].beam_mass = 2.0

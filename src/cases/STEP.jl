@@ -7,7 +7,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     @assert init_from in (:scalars, :ods)
     @assert pf_from in (:scalars, :ods)
 
-    ini = ParametersInits(; n_ec=1)
+    ini = ParametersInits()
     act = ParametersActors()
     #### INI ####
 
@@ -75,6 +75,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     ini.tf.n_coils = 12
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
+    resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 150.e6
     ini.ec_launcher[1].width = 0.25
     ini.ec_launcher[1].rho_0 = 0.0

@@ -4,7 +4,7 @@
 CFS/MIT ARC design
 """
 function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ic=1)
+    ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "ARC"
     ini.general.init_from = :scalars
@@ -72,6 +72,7 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled
 
     ini.requirements.coil_j_margin = 0.1

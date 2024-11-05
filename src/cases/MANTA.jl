@@ -8,7 +8,7 @@ https://arxiv.org/abs/2405.20243
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
 function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ic=1)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "MANTA"
@@ -72,6 +72,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 40.e6
 
     ini.requirements.power_electric_net = 90e6
