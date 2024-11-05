@@ -29,27 +29,28 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     ini.build.symmetric = false
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
-
-    ini.equilibrium.B0 = 11.0
-    ini.equilibrium.R0 = 4.55
-    ini.equilibrium.ϵ = 0.2637362637
-    ini.equilibrium.κ = 1.4
-    ini.equilibrium.δ = -0.45
+    
+    minor_radius = 0.72
+    ini.equilibrium.B0 = 11.325
+    ini.equilibrium.R0 = 2.0
+    ini.equilibrium.ϵ = minor_radius / ini.equilibrium.R0
+    ini.equilibrium.κ = 1.5
+    ini.equilibrium.δ = -0.5
     ini.equilibrium.ζ = -0.25
-    ini.equilibrium.pressure_core = 1.0E6
-    ini.equilibrium.ip = 10.e6
+    ini.equilibrium.pressure_core = 1.5E6
+    ini.equilibrium.ip = 10.03e6
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
     ini.core_profiles.plasma_mode = :L_mode
     ini.core_profiles.ne_setting = :greenwald_fraction
     act.ActorPedestal.density_match = :ne_line
-    ini.core_profiles.ne_value = 0.5
+    ini.core_profiles.ne_value = 0.4
     ini.core_profiles.ne_shaping = 4.0
-    ini.core_profiles.T_ratio = 1.0
+    ini.core_profiles.T_ratio = 0.99
     ini.core_profiles.T_shaping = 2.0
     ini.core_profiles.Te_sep = 200.0
-    ini.core_profiles.zeff = 1.1
+    ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ar
@@ -69,7 +70,7 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
-    ini.ic_antenna[1].power_launched = 40.e6
+    ini.ic_antenna[1].power_launched = 25.e6
 
     ini.requirements.power_electric_net = 90e6
     ini.requirements.tritium_breeding_ratio = 1.15
@@ -77,7 +78,7 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
 
     #### ACT ####
     act.ActorPedestal.model = :WPED
-    act.ActorWPED.ped_to_core_fraction = 0.3
+    act.ActorWPED.ped_to_core_fraction = 0.5
 
     act.ActorFluxMatcher.max_iterations = 50
     act.ActorFluxMatcher.verbose = true
