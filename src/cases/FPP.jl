@@ -1,10 +1,11 @@
 """
-    case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,ParametersAllActors}
+    case_parameters(:FPP; flux_matcher::Bool=false)
 
 GA's FPP design
 """
-function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=1)
+function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+    n_ec = 6
+    ini = ParametersInits(; n_ec)
     act = ParametersActors()
 
     #### INI ####
@@ -56,39 +57,45 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
     ini.equilibrium.R0 = 4.9
     ini.equilibrium.ϵ = 0.28
     ini.equilibrium.κ = 0.8
-    ini.equilibrium.δ = 0.7
-    ini.equilibrium.ζ = 0.1
+    ini.equilibrium.δ = 0.6
+    ini.equilibrium.ζ = 0.05
     ini.equilibrium.𝚶 = 0.1
-    ini.equilibrium.pressure_core = 1.2e5
+    ini.equilibrium.pressure_core = 1.e6
     ini.equilibrium.ip = 8.0e6
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
 
-    ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    ini.core_profiles.ne_value = 0.1
+    ini.core_profiles.ne_setting = :greenwald_fraction
+    act.ActorPedestal.density_match = :ne_line
+    ini.core_profiles.ne_value = 0.9
+    ini.core_profiles.ne_shaping = 2.5
     ini.core_profiles.T_ratio = 0.825
     ini.core_profiles.T_shaping = 2.5
-    ini.core_profiles.n_shaping = 2.5
-    ini.core_profiles.zeff = 2.0
+    ini.core_profiles.Te_sep = 250.0
+    ini.core_profiles.zeff = 1.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.04
+    ini.core_profiles.helium_fraction = 0.01
 
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 5
+    ini.build.layers[:OH].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 5
+
+    ini.oh.technology = :rebco
     ini.pf_active.technology = :nb3sn
-
-    ini.tf.shape = :miller
-    ini.tf.n_coils = 16
     ini.tf.technology = :rebco
 
-    ini.oh.n_coils = 6
-    ini.oh.technology = :rebco
+    ini.tf.shape = :rectangle_ellipse
+    ini.tf.n_coils = 16
 
-    ini.ec_launcher[1].power_launched = 2.5e7
-    ini.ec_launcher[1].efficiency_conversion = 0.45
-    ini.ec_launcher[1].efficiency_transmission = 0.8
+    total_ec_power = 90E6
+    x = range(0.1, 0.8, n_ec)
+    for (k, rho_0) in enumerate(x)
+        ini.ec_launcher[k].power_launched = total_ec_power * rho_0^2 / sum(x)
+        ini.ec_launcher[k].efficiency_conversion = 0.45
+        ini.ec_launcher[k].efficiency_transmission = 0.8
+        ini.ec_launcher[k].rho_0 = rho_0
+    end
 
     ini.requirements.power_electric_net = 2.0e8
     ini.requirements.flattop_duration = 36000.0
@@ -98,9 +105,14 @@ function case_parameters(::Type{Val{:FPP}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
-    act.ActorCoreTransport.model=:none
-
-    act.ActorEquilibrium.model = :TEQUILA
+    act.ActorFluxMatcher.max_iterations = 500
+    act.ActorFluxMatcher.verbose = true
+    act.ActorTGLF.electromagnetic = true
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
+    if !flux_matcher
+        act.ActorCoreTransport.model = :none
+    end
 
     # finalize
     set_new_base!(ini)

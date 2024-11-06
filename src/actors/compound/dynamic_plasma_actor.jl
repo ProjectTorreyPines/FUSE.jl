@@ -1,6 +1,3 @@
-using ProgressMeter: ProgressMeter
-ProgressMeter.ijulia_behavior(:clear)
-
 #= ================== =#
 #  ActorDynamicPlasma  #
 #= ================== =#
@@ -119,13 +116,14 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
     end
 
     step_calls_per_2loop = 9
+    ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * step_calls_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     try
         for (kk, tt) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
-            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- $(Int(ceil(kk/2))) $phase/2 @ $tt")
+            # logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- $(Int(ceil(kk/2))) $phase/2 @ $tt")
 
             dd.global_time = tt
 
@@ -137,10 +135,13 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
             #       at the 1/2 steps which is then retimed at the 2/2 steps.
             IMAS.new_timeslice!(dd.equilibrium, tt)
             IMAS.new_timeslice!(dd.core_sources, tt)
-
             if phase == 1
                 IMAS.new_timeslice!(dd.core_profiles, tt)
+            else
+                IMAS.retime!(dd.core_profiles, tt)
+            end
 
+            if phase == 1
                 # evolve j_ohmic
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_jt, phase))
                 if par.evolve_current
@@ -150,8 +151,6 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
                     finalize(step(actor.actor_jt))
                 end
             else
-                IMAS.retime!(dd.core_profiles, tt)
-
                 # run pedestal actor
                 ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_ped, phase))
                 if par.evolve_pedestal
@@ -163,7 +162,6 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
                 if par.evolve_transport
                     finalize(step(actor.actor_tr))
                 end
-
             end
 
             # run equilibrium actor with the updated beta
@@ -194,7 +192,7 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
         actor_logging(dd, old_logging)
     end
 
-    logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "---------------")
+    # logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "---------------")
 
     return actor
 end
@@ -242,18 +240,20 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # Ip and Vloop
     subplot = 1
-    plot!(dd.pulse_schedule.flux_control.time,
-        dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
-        seriestype=:time,
-        color=:gray,
-        label="Ip reference [MA]",
-        lw=2.0,
-        ls=:dash,
-        legend_position=:left,
-        background_color_legend=Plots.Colors.RGBA(1.0, 1.0, 1.0, 0.6),
-        legend_foreground_color=:transparent,
-        subplot
-    )
+    if !ismissing(dd.pulse_schedule.flux_control, :time)
+        plot!(dd.pulse_schedule.flux_control.time,
+            dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
+            seriestype=:time,
+            color=:gray,
+            label="Ip reference [MA]",
+            lw=2.0,
+            ls=:dash,
+            legend_position=:left,
+            background_color_legend=Plots.Colors.RGBA(1.0, 1.0, 1.0, 0.6),
+            legend_foreground_color=:transparent,
+            subplot
+        )
+    end
     plot!(
         dd.core_profiles.time,
         dd.core_profiles.global_quantities.ip / 1E6;
@@ -284,10 +284,16 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # equilibrium, build, and pf_active
     subplot = 2
-    plot!(dd.build; time0, subplot, axis=false, legend=false)
+    if !isempty(dd.build.layer)
+        plot!(dd.build; time0, subplot, axis=false, legend=false)
+    else
+        plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
+    end
     plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
     out = convex_outline(dd.pf_active.coil)
-    plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
+    if !isempty(out.r)
+        plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
+    end
 
     # core_profiles temperatures
     subplot = 3
@@ -324,7 +330,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     plot!(
         dd.core_sources;
         time0,
-        only=4,
+        only=5,
         subplot,
         min_power,
         aggregate_radiation,
@@ -407,4 +413,16 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order); subplot, ylim=(-max_scale, max_scale), lw=2.0)
 
     return p
+end
+
+function plot_summary(dd::IMAS.DD; kw...)
+    plot_summary(dd.summary; kw...)
+end
+
+function plot_summary(summary::IMAS.summary; kw...)
+    for leaf in AbstractTrees.Leaves(summary)
+        if typeof(leaf.value) <: Vector
+            display(plot(leaf.ids, leaf.field; title=IMAS.location(leaf.ids,leaf.field), kw...))
+        end
+    end
 end

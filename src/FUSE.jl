@@ -10,6 +10,8 @@ using InteractiveUtils
 import LinearAlgebra
 using StaticArrays
 import AbstractTrees: print_tree
+import ProgressMeter
+import Measurements:Measurement
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -23,6 +25,7 @@ function __init__()
 end
 
 const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+const deg = pi / 180 # convert degrees to radians
 
 #= ===== =#
 #  UTILS  #
@@ -37,6 +40,8 @@ include("parameters.jl")
 #= ===== =#
 #  CASES  #
 #= ===== =#
+include(joinpath("cases", "_toksys.jl"))
+include(joinpath("cases", "_test_cases.jl"))
 include(joinpath("cases", "_cases.jl"))
 
 #= ======= =#
@@ -181,7 +186,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, @checkin, @checkout
+export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, @checkin, @checkout, help_plot
 export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

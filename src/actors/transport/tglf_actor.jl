@@ -13,7 +13,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
-    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
+    user_specified_model::Entry{String} = Entry{String}(
+        "-",
+        "Use a user specified TGLF-NN model stored in TGLFNN/models";
+        default="",
+        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.user_specified_model must be one of:\n  \"$(join(TGLFNN.available_models(),"\"\n  \""))\""
+    )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
@@ -115,17 +120,21 @@ function _finalize(actor::ActorTGLF)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end
 
 function model_filename(par::FUSEparameters__ActorTGLF)
-    if !isempty(par.user_specified_model)
-        filename = par.user_specified_model
+    if par.model == :TGLFNN
+        if !isempty(par.user_specified_model)
+            filename = par.user_specified_model
+        else
+            filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
+            filename *= "_d3d" # will be changed to FPP soon
+        end
     else
         filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
-        filename *= "_d3d" # will be changed to FPP soon
     end
     return filename
 end
@@ -194,22 +203,8 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     # for now settings
     input_tjlf.ALPHA_ZF = -1  # smooth   
 
-    TJLF.checkInput(input_tjlf)
     # check converison
-    field_names = fieldnames(InputTJLF)
-    for field_name in field_names
-        field_value = getfield(input_tjlf, field_name)
-
-        if typeof(field_value) <: Missing || typeof(field_value) <: Real
-            @assert !ismissing(field_value) || !isnan(field_value) "Did not properly populate input_tjlf for $field_name"
-        end
-
-        if typeof(field_value) <: Vector && field_name != :KY_SPECTRUM && field_name != :EIGEN_SPECTRUM && field_name != :EIGEN_SPECTRUM2
-            for val in field_value
-                @assert !isnan(val) "Did not properly populate input_tjlf for array $field_name"
-            end
-        end
-    end
+    TJLF.checkInput(input_tjlf)
 
     return input_tjlf
 end

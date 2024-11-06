@@ -4,70 +4,62 @@ import Interpolations
 import PolygonOps
 import LibGEOS
 import GeoInterface
+import FuseUtils: mirror_bound
 
 #= =============== =#
 #  Shape functions  #
 #= =============== =#
-
 function layer_shape_message(shape_function_index)
-    return "layer.shape=$(shape_function_index) is invalid. Valid options are:
-            -2: Offset & convex-hull
-            -1: Offset
-             1: Princeton D exact  (shape_parameters = [])
-             2: Princeton D approx (shape_parameters = [])
-             3: Princeton D scaled (shape_parameters = [height])
-             4: rectangle          (shape_parameters = [height])
-             5: double_ellipse     (shape_parameters = [centerpost_height, height])
-             6: rectangle_ellipse  (shape_parameters = [height])
-             7: tripple-arc        (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-             8: miller             (shape_parameters = [])
-             9: racetrack          (shape_parameters = [height, radius_ratio])
-            10: silo               (shape_parameters = [h_start, h_end)
-           10x: shape + z_offset   (shape_parameters = [..., z_offset])
-          100x: negative shape     (shape_parameters = [...])"
+    buf = IOBuffer()
+    show(buf, MIME("text/plain"), IMAS.BuildLayerShape)
+    valid_shapes = String(take!(buf))
+    return """
+        layer.shape=$(shape_function_index) is invalid. Valid options are:
+
+        $(valid_shapes)
+
+        shape + z_offset = +100"""
 end
 
 function initialize_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, clearance)
-    height = maximum(z_obstruction) - minimum(z_obstruction) + clearance * 2.0
-    z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
     shape_parameters = nothing
     if shape_function_index ∈ (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         return nothing
     else
+        height = maximum(z_obstruction) - minimum(z_obstruction) + clearance * 2.0
+        z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
+        r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
+
         shape_index_mod = shape_function_index
-        is_negative_D = false
-        if shape_index_mod > 1000
-            shape_index_mod = mod(shape_function_index, 1000)
-            is_negative_D = true
-        end
         is_z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
             is_z_offset = true
         end
-        if shape_index_mod == Int(_princeton_D_)
+        if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             shape_parameters = Float64[]
-        elseif shape_index_mod == Int(_princeton_D_scaled_)
+        elseif shape_index_mod in (Int(_princeton_D_scaled_), Int(_mirror_princeton_D_scaled_))
             shape_parameters = [height]
-        elseif shape_index_mod == Int(_double_ellipse_)
-            r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
+        elseif shape_index_mod in (Int(_double_ellipse_), Int(_mirror_double_ellipse_))
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [r_center, centerpost_height, height]
-        elseif shape_index_mod == Int(_circle_ellipse_)
+        elseif shape_index_mod in (Int(_circle_ellipse_), Int(_mirror_circle_ellipse_))
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [centerpost_height, height]
+        elseif shape_index_mod in (Int(_rectangle_ellipse_), Int(_mirror_rectangle_ellipse_))
+            shape_parameters = [r_center, height]
+        elseif shape_index_mod in (Int(_triple_arc_), Int(_mirror_triple_arc_))
+            shape_parameters = [height, 0.5, 0.5, Float64(pi / 3), Float64(pi / 3)]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_racetrack_)
             shape_parameters = [height, 0.25]
-        elseif shape_index_mod == Int(_triple_arc_)
-            shape_parameters = [height, 0.5, 0.5, Float64(pi / 3), Float64(pi / 3)]
         elseif shape_index_mod == Int(_silo_)
             shape_parameters = [height, height / 2.0]
         end
     end
     if shape_parameters === nothing
-        error(shape_function_index)
+        error(layer_shape_message(shape_function_index))
     end
     if is_z_offset
         push!(shape_parameters, z_offset)
@@ -81,36 +73,33 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         return nothing
     else
         shape_index_mod = shape_function_index
-        is_negative_D = false
-        if shape_index_mod > 1000
-            shape_index_mod = mod(shape_function_index, 1000)
-            is_negative_D = true
-        end
         is_z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
             is_z_offset = true
         end
-        if shape_index_mod == Int(_princeton_D_)
+        if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             func = princeton_D_approx
-        elseif shape_index_mod == Int(_princeton_D_scaled_)
+        elseif shape_index_mod in (Int(_princeton_D_scaled_), Int(_mirror_princeton_D_scaled_))
             func = princeton_D_scaled
-        elseif shape_index_mod == Int(_circle_ellipse_)
-            func = circle_ellipse
-        elseif shape_index_mod == Int(_double_ellipse_)
+        elseif shape_index_mod in (Int(_double_ellipse_), Int(_mirror_double_ellipse_))
             func = double_ellipse
+        elseif shape_index_mod in (Int(_circle_ellipse_), Int(_mirror_circle_ellipse_))
+            func = circle_ellipse
+        elseif shape_index_mod in (Int(_rectangle_ellipse_), Int(_mirror_rectangle_ellipse_))
+            func = rectangle_ellipse
+        elseif shape_index_mod in (Int(_triple_arc_), Int(_mirror_triple_arc_))
+            func = triple_arc
         elseif shape_index_mod == Int(_rectangle_)
             func = rectangle_shape
         elseif shape_index_mod == Int(_racetrack_)
             func = racetrack
-        elseif shape_index_mod == Int(_triple_arc_)
-            func = triple_arc
         elseif shape_index_mod == Int(_silo_)
             func = silo
         end
     end
     if func === nothing
-        error(layer_shape_message(shape_index_mod))
+        error(layer_shape_message(shape_function_index))
     end
 
     # resolution
@@ -128,7 +117,14 @@ function shape_function(shape_function_index::Int; resolution::Float64)
 
     # neg-D
     dfunc = zfunc
-    if is_negative_D
+    if shape_index_mod in (
+        Int(_mirror_princeton_D_),
+        Int(_mirror_princeton_D_scaled_),
+        Int(_mirror_double_ellipse_),
+        Int(_mirror_circle_ellipse_),
+        Int(_mirror_rectangle_ellipse_),
+        Int(_mirror_triple_arc_)
+    )
         dfunc(args...) = begin
             R, Z = zfunc(args...)
             R = -(R .- args[1]) .+ args[2]
@@ -171,8 +167,6 @@ An pproximate version of the "Princeton-D" constant tension shape for a TF coil 
 References: Gralnick, S. L.; Tenney, F. H. Analytic Solutions for Constant‐tension Coil Shapes. J. Appl. Phys. 1976, 47, 7
 """
 function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(round(n_points * resolution))
-
     r1 = r_start
     r2 = r_end
     k = 0.5 * log(r2 / r1)
@@ -206,12 +200,10 @@ end
     princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
 
 This routine calculates a "shortened" TF coil shape that foregoes the equal-tension "Princeton-Dee" for
-a squater, more space-efficient shape. It replicates the inboard curve of the equal-tension arc, but
+a squarer, more space-efficient shape. It replicates the inboard curve of the equal-tension arc, but
 decreases the height of the coil to match a given value.
 """
 function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(round(n_points * resolution))
-
     r1 = r_start
     r2 = r_end
     k = 0.5 * log(r2 / r1)
@@ -220,10 +212,8 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     centerpost_maxz = 2 * pi * r0 * k * SpecialFunctions.besseli(1, k) / 2 # Gralnick Eq. 28
     coil_maxz = pi * r0 * k * (SpecialFunctions.besseli(1, k) + struveL(1, k) + 2 / pi) / 2  # Gralnick Eq. 34
 
-    centerpost_height = height - (coil_maxz - centerpost_maxz) * 2
-
     inboard_curve_dz = coil_maxz - centerpost_maxz
-    centerpost_maxz = centerpost_height / 2
+    centerpost_maxz = height / 2
     coil_maxz = centerpost_maxz + inboard_curve_dz
 
     # number of points
@@ -307,11 +297,28 @@ function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n
 end
 
 """
+    rectangle_ellipse(r_start::T, r_end::T, r_center::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+
+Rectangle ellipse shape
+
+The inner part of the TF is actually a rectangle
+"""
+function rectangle_ellipse(r_start::T, r_end::T, r_center::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+    height = abs(height)
+    r_center = mirror_bound(r_center, r_start, r_end)
+    n_points = Int(round(n_points * resolution))
+    r2, z2 = ellipse(r_end - r_center, height / 2.0, float(π / 2), float(0.0), r_center, 0.0; n_points)
+    R = [r_start; r_start; r2[1:end-1]; r2[end:-1:1]; r_start]
+    Z = [-z2[1]; z2[1]; z2[1:end-1]; -z2[end:-1:1]; -z2[1]]
+    return R, Z
+end
+
+"""
     rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
 
 Asymmetric rectangular shape
 
-NOTE: by default resolution=0, which returns 5 points
+NOTE: by default resolution=0.0, which returns 5 points
 """
 function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
     if resolution == 0.0
@@ -447,6 +454,8 @@ end
 Returns LibGEOS.Polygon from x and y arrays
 """
 function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
+    x = convert(Vector{Float64}, x)
+    y = convert(Vector{Float64}, y)
     if (x[1] ≈ x[end]) && (y[1] ≈ y[end])
         coords = [[[x[i], y[i]] for i in 1:length(x)]]
         coords[1][end] .= coords[1][1]
@@ -486,10 +495,10 @@ end
 
 Buffer polygon defined by x,y arrays by a quantity b
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
-    @inline return get_xy(poly_b, T)
+    @inline return get_xy(poly_b, Float64)
 end
 
 function get_xy(poly::LibGEOS.Polygon, T=Float64)
@@ -543,15 +552,18 @@ function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T):
 end
 
 """
-    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
 
 Limit maximum curvature of a polygon described by x,y arrays
 """
-function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
     @assert max_curvature > 0.0
+    x = convert(Vector{Float64}, x)
+    y = convert(Vector{Float64}, y)
+    max_curvature = convert(Float64, max_curvature)
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature)::LibGEOS.Polygon, max_curvature)::LibGEOS.Polygon
-    @inline return get_xy(poly_b, T)
+    @inline return get_xy(poly_b, Float64)
 end
 
 """
@@ -692,11 +704,10 @@ end
     add_xpoint(
         mr::AbstractVector{T},
         mz::AbstractVector{T},
-        R0::Union{Nothing,T}=nothing,
-        Z0::Union{Nothing,T}=nothing;
+        R0::T,
+        Z0::T;
         upper::Bool,
-        α_multiplier::Float64
-    ) where {T<:Real}
+        α_multiplier::Float64) where {T<:Real}
 
 Add a X-point to a boundary that does not have one.
 
@@ -712,8 +723,7 @@ function add_xpoint(
     R0::T,
     Z0::T;
     upper::Bool,
-    α_multiplier::Float64
-) where {T<:Real}
+    α_multiplier::Float64) where {T<:Real}
 
     function cost(pr::Vector{Float64}, pz::Vector{Float64}, i::Integer, R0::T, Z0::T, α::Float64)
         return abs(add_xpoint(pr, pz, i, R0, Z0, α).θX - π / 2)
@@ -913,7 +923,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         if symmetric
             mxhb0.mxh.c0 = 0.0
             mxhb0.mxh.s = params[L+1:end]
-            mxhb0.mxh.c = mxhb0.mxh.s .* 0.0
+            mxhb0.mxh.c = zero(mxhb0.mxh.s)
         else
             L += 1
             mxhb0.mxh.c0 = params[L]

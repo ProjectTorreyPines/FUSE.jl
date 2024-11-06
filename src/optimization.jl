@@ -1,8 +1,6 @@
 import Metaheuristics
-import ProgressMeter
 import Distributed
 import Dates
-ProgressMeter.ijulia_behavior(:clear)
 
 # =================== #
 # Optimization engine #

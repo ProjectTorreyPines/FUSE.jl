@@ -3,8 +3,9 @@ import SimulationParameters: SwitchOption
 
 import IMAS: BuildLayerType, _plasma_, _gap_, _oh_, _tf_, _shield_, _blanket_, _wall_, _vessel_, _cryostat_, _divertor_, _port_
 import IMAS: BuildLayerSide, _lfs_, _lhfs_, _hfs_, _in_, _out_
-import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_exact_, _princeton_D_, _princeton_D_scaled_, _rectangle_, _double_ellipse_, _circle_ellipse_,
-    _triple_arc_, _miller_, _silo_, _racetrack_, _undefined_
+import IMAS: BuildLayerShape, _offset_, _negative_offset_, _convex_hull_, _princeton_D_, _mirror_princeton_D_, _princeton_D_scaled_, _mirror_princeton_D_scaled_, _rectangle_,
+    _double_ellipse_, _mirror_double_ellipse_, _rectangle_ellipse_, _mirror_rectangle_ellipse_, _circle_ellipse_, _mirror_circle_ellipse_, _triple_arc_, _mirror_triple_arc_,
+    _miller_, _silo_, _racetrack_, _undefined_
 
 const layer_shape_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerShape))
 const layer_type_options = Dict(Symbol(string(e)[2:end-1]) => SwitchOption(e, string(e)[2:end-1]) for e in instances(IMAS.BuildLayerType))
@@ -66,14 +67,22 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
     plasma_mode::Switch{Symbol} = Switch{Symbol}([:H_mode, :L_mode], "-", "Plasma configuration"; default=:H_mode)
+    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
     ne_value::Entry{T} = Entry{T}("-", "Value based on setup method"; check=x -> @assert x > 0.0 "must be > 0.0")
     ne_setting::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
-    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
     ne_sep_to_ped_ratio::Entry{T} =
-        Entry{T}("-", "Ratio used to set the sepeartrix density based on the pedestal density"; default=0.25, check=x -> @assert x > 0.0 "must be: ne_sep_to_ped_ratio > 0.0")
+        Entry{T}(
+            "-",
+            "Ratio used to set the sepeartrix density based on the pedestal density";
+            default=0.25,
+            check=x -> @assert 1.0 > x > 0.0 "must be: 1.0 > ne_sep_to_ped_ratio > 0.0"
+        )
+    ne_core_to_ped_ratio::Entry{T} =
+        Entry{T}("-", "Ratio used to set the core density based on the pedestal density"; default=1.4, check=x -> @assert x > 0.0 "must be: ne_core_to_ped_ratio > 0.0")
+    ne_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
     T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
     T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
-    n_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
+    Te_sep::Entry{T} = Entry{T}("eV", "Separatrix temperature"; default=80.0, check=x -> @assert x > 0.0 "must be: Te_sep > 0.0")
     zeff::Entry{T} = Entry{T}("-", "Effective ion charge"; check=x -> @assert x >= 1.0 "must be: zeff > 1.0")
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
@@ -87,8 +96,6 @@ end
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
-    n_coils_inside::Entry{Int} = Entry{Int}("-", "Number of PF coils inside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_inside >= 0")
-    n_coils_outside::Entry{Int} = Entry{Int}("-", "Number of PF coils outside of the TF"; check=x -> @assert x >= 0 "must be: n_coils_outside >= 0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "PF coils technology")
 end
 
@@ -100,7 +107,7 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.3, check=x -> @assert x > 0.0 "must be: width > 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
-    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; default=0.0)
+    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; check=x -> @assert (-pi / 2 <= x <= pi / 2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
@@ -175,7 +182,6 @@ end
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :oh
-    n_coils::Entry{Int} = Entry{Int}("-", "Number of OH coils"; check=x -> @assert x >= 0 "must be: n_coils >= 0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "OH coils technology")
 end
 
@@ -193,11 +199,8 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     name::Entry{String} = Entry{String}("-", "Name of the layer")
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
-    material::Switch{Symbol} = Switch{Symbol}(
-        FusionMaterials.all_materials(),
-        "-",
-        "Material of the layer"
-    )
+    material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.all_materials(), "-", "Material of the layer")
+    coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}("-", "List of coils within this layer"; check=x -> @assert (typeof(x) <: Int && x > 0) || (length(x) > 0 && minimum(x) > 0) "coils_inside must be > 0")
     shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the layer")
     type::Switch{BuildLayerType} = Switch{BuildLayerType}(layer_type_options, "-", "Type of the layer")
     side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")
@@ -245,7 +248,8 @@ end
 Base.@kwdef mutable struct FUSEparameters__hcd{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :balance_of_plant
-    power_scaling_cost_function::Entry{Function} = Entry{Function}("-", "EC, IC, LH, NB power optimization cost function, takes dd as input. Eg. dd -> (1.0 - IMAS.tau_e_thermal(dd) / IMAS.tau_e_h98(dd))")
+    power_scaling_cost_function::Entry{Function} =
+        Entry{Function}("-", "EC, IC, LH, NB power optimization cost function, takes dd as input. Eg. dd -> (1.0 - IMAS.tau_e_thermal(dd) / IMAS.tau_e_h98(dd))")
 end
 
 mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
@@ -329,6 +333,127 @@ function ParametersInits(; kw...)
     return ParametersInits{Float64}(; kw...)
 end
 
+###############################
+# custom dispatches for build #
+###############################
+"""
+    setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+
+Allows users to initialize layers from a dictionary
+"""
+function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
+    @assert field == :layers
+    for (k, (name, thickness)) in enumerate(layers)
+        layer = FUSEparameters__build_layer{T}()
+        push!(parameters_build.layers, layer)
+
+        # name
+        layer.name = replace(string(name), "_" => " ")
+
+        # thickness
+        layer.thickness = thickness
+
+        # type
+        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name))
+            layer.type = :oh
+        elseif occursin("gap ", lowercase(layer.name))
+            layer.type = :gap
+        elseif lowercase(layer.name) == "plasma"
+            layer.type = :plasma
+        elseif occursin("OH", uppercase(layer.name))
+            layer.type = :oh
+        elseif occursin("TF", uppercase(layer.name))
+            layer.type = :tf
+        elseif occursin("shield", lowercase(layer.name))
+            layer.type = :shield
+        elseif occursin("blanket", lowercase(layer.name))
+            layer.type = :blanket
+        elseif occursin("wall", lowercase(layer.name))
+            layer.type = :wall
+        elseif occursin("vessel", lowercase(layer.name))
+            layer.type = :vessel
+        elseif occursin("cryostat", lowercase(layer.name))
+            layer.type = :cryostat
+            layer.shape = :silo
+        end
+
+        # side
+        if occursin("hfs", lowercase(layer.name))
+            layer.side = :hfs
+        elseif occursin("lfs", lowercase(layer.name))
+            layer.side = :lfs
+        else
+            if layer.type == _plasma_
+                layer.side = :lhfs
+            elseif k < length(layers) / 2
+                layer.side = :in
+            elseif k > length(layers) / 2
+                layer.side = :out
+            end
+        end
+    end
+end
+
+function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
+    par = getfield(parameters_layer, field)
+
+    if field == :material
+        layer_type = parameters_layer.type
+
+        pretty_layer_type = replace("$layer_type", "_" => "")
+        allowed_materials = FusionMaterials.supported_material_list(layer_type)
+
+        if val ∉ allowed_materials
+            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+        end
+    end
+
+    return setproperty!(par, :value, val)
+end
+
+"""
+    to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+
+Allows accesing parameters layers by their Symbol
+"""
+function Base.to_index(layers::Vector{FUSEparameters__build_layer{T}}, name::Symbol) where {T<:Real}
+    tmp = findfirst(x -> x.name == replace(string(name), "_" => " "), layers)
+    if tmp === nothing
+        error("Layer `:$name` not found. Valid ini.build.layers are: $([Symbol(replace(layer.name," " => "_")) for layer in layers])")
+    end
+    return tmp
+end
+
+"""
+    dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+
+Custom reading from file of FUSEparameters__build_layer
+"""
+function SimulationParameters.dict2par!(dct::AbstractDict, par::ParametersVector{<:FUSEparameters__build_layer})
+    return parent(par).layers = dct
+end
+
+"""
+    par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String})
+
+Custom writing to file for FUSEparameters__build_layer
+"""
+function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__build_layer}, txt::Vector{String}; show_info::Bool=true, skip_defaults::Bool=false)
+    for parameter in par
+        p = SimulationParameters.path(parameter)
+        sp = SimulationParameters.spath(p)
+        depth = (count(".", sp) + count("[", sp) - 1) * 2
+        pre = " "^depth
+        push!(txt, string(pre, replace(getproperty(parameter, :name, "_each_layer_name_and_thickness_"), " " => "_"), ": ", repr(getproperty(parameter, :thickness, 0.0))))
+    end
+    return txt
+end
+
+###############################
+# custom dispatches for coils #
+###############################
+
+
 ################################
 # functions for populating ini #
 ################################
@@ -372,19 +497,11 @@ function (equilibrium::FUSEparameters__equilibrium)(mxh::IMAS.MXH)
     equilibrium.R0 = mxh.R0
     equilibrium.Z0 = mxh.Z0
     equilibrium.κ = mxh.κ
-    equilibrium.tilt = mxh.c0
-    if length(mxh.s) >= 1
-        equilibrium.δ = sin(mxh.s[1])
-    end
-    if length(mxh.s) >= 2
-        equilibrium.ζ = -mxh.s[2]
-    end
-    if length(mxh.c) >= 1
-        equilibrium.𝚶 = mxh.c[1]
-    end
-    if length(mxh.c) >= 2
-        equilibrium.twist = mxh.c[2]
-    end
+    equilibrium.tilt = mxh.tilt
+    equilibrium.δ = mxh.δ
+    equilibrium.ζ = mxh.ζ
+    equilibrium.𝚶 = mxh.𝚶
+    equilibrium.twist = mxh.twist
     return equilibrium
 end
 
@@ -403,20 +520,9 @@ function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
 end
 
 function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
-    init_from = ini.general.init_from
-    if init_from == :ods
-        if !ismissing(dd.equilibrium, :time) && length(dd.equilibrium.time) > 0
-            dd.global_time = ini.time.simulation_start
-            eqt = dd.equilibrium.time_slice[]
-            fw = IMAS.first_wall(dd.wall)
-            IMAS.flux_surfaces(eqt, fw.r, fw.z)
-        else
-            init_from = :scalars
-        end
-    end
-
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
+        eqt = dd.equilibrium.time_slice[]
         pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
@@ -487,8 +593,14 @@ end
 Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
 
 NOTE: supports multiple comma-separated filenames
+
+NOTE: ini.general.dd takes priority over ini.general.ods
 """
 function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    if !ismissing(ini.general, :dd)
+        return ini.general.dd
+    end
+
     dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
 
     # handle time
@@ -550,7 +662,7 @@ end
 """
     json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a JSON file with given `filename`
+Load the INI parameters from a JSON file with given `filename`
 """
 function json2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.json2par(filename, ini)
@@ -559,7 +671,7 @@ end
 """
     ini2yaml(ini::ParametersAllInits, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a YAML file with given `filename`
+Save the INI parameters to a YAML file with given `filename`
 
 `kw` arguments are passed to the YAML.print function
 """
@@ -570,10 +682,28 @@ end
 """
     yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
 
-Load the FUSE parameters from a YAML file with given `filename`
+Load the INI parameters from a YAML file with given `filename`
 """
 function yaml2ini(filename::AbstractString, ini::ParametersAllInits=ParametersInits())
     return SimulationParameters.yaml2par(filename, ini)
+end
+
+"""
+    ini2dict(ini::ParametersAllInits; kw...)
+
+Convert the INI parameters to a dictionary form
+"""
+function ini2dict(ini::ParametersAllInits; kw...)
+    return SimulationParameters.par2dict(ini; kw...)
+end
+
+"""
+    dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+
+Convert dict to INI parameters
+"""
+function dict2ini(dict::AbstractDict, ini::ParametersAllInits=ParametersInits())
+    return SimulationParameters.dict2par!(dict, ini)
 end
 
 ########
@@ -602,7 +732,7 @@ Plots ini time dependent time traces including plasma boundary
 
         # plot equilibrium including x-points
         mxhb = MXHboundary(ini)
-        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.ϵ * mxhb.mxh.R0, ini.build.plasma_gap)
+        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.minor_radius, ini.build.plasma_gap)
         @series begin
             label := ""
             seriestype := :vline

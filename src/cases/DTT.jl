@@ -51,25 +51,24 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     # ==============
     ini.build.n_first_wall_conformal_layers = 1
 
-    ini.oh.n_coils = 6
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 6
-    ini.pf_active.technology = :nb3sn_iter
+    ini.build.layers[:OH].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 6
     act.ActorPFdesign.symmetric = true
+
+    ini.oh.technology = :nb3sn_iter
+    ini.pf_active.technology = :nb3sn_iter
+    ini.tf.technology = :nb3sn_iter
 
     ini.tf.shape = :miller
     ini.tf.n_coils = 18
-    ini.tf.technology = :nb3sn_iter
-
-    ini.oh.technology = :nb3sn_iter
 
     ini.requirements.flattop_duration = 70.0
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.366
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 0.6
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :D
@@ -79,6 +78,7 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.nb_unit[1].power_launched = 10e6
     ini.nb_unit[1].beam_energy = 0.5e6
+    ini.nb_unit[1].toroidal_angle = 40.0 * deg
     ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed
 
