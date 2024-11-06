@@ -48,7 +48,7 @@ function tf_required_J_B!(bd::IMAS.build, eq::IMAS.equilibrium)
 
     # current in the TF coils
     current_TF = B0 * R0 * 2π / constants.μ_0 / bd.tf.coils_n
-    conductor_start_radius = hfsTF.start_radius + bd.tf.nose_thickness*(hfsTF.end_radius-hfsTF.start_radius)
+    conductor_start_radius = hfsTF.start_radius + bd.tf.nose_thickness*hfsTF.thickness
     TF_cx_area = π * (hfsTF.end_radius^2 - conductor_start_radius^2) / bd.tf.coils_n
 
     bd.tf.max_b_field = B0 * R0 / hfsTF.end_radius
