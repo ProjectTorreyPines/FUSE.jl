@@ -75,7 +75,7 @@ function _step(actor::ActorStresses)
             oh_on ? Bz_oh : 0.0,
             R_oh_in,
             R_oh_out;
-            tf_nose_thickness=tf_nose_thickness,
+            tf_nose_thickness,
             bucked=bucked,
             noslip=noslip,
             plug=plug,
