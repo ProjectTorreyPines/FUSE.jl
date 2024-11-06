@@ -10,7 +10,7 @@ NOTE: This function is here but it's not really used for machine desing, since g
 """
 function tf_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
     hfsTF = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_)
-    conductor_start_radius = hfsTF.start_radius + bd.tf.nose_thickness*(hfsTF.end_radius-hfsTF.start_radius)
+    conductor_start_radius = hfsTF.start_radius + bd.tf.nose_thickness*hfsTF.thickness
     TF_cx_area = π * (hfsTF.end_radius^2 - conductor_start_radius^2) / bd.tf.coils_n
     mat_tf = Material(bd.tf.technology)
 
