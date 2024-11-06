@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorStresses{T<:Real} <: ParametersA
     _name::Symbol = :not_set
     _time::Float64 = NaN
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
-    n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=5)
+    n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=101)
 end
 
 mutable struct ActorStresses{D,P} <: SingleAbstractActor{D,P}

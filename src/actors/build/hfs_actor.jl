@@ -56,6 +56,10 @@ function _step(actor::ActorHFSsizing)
     cs = dd.solid_mechanics.center_stack
     eqt = dd.equilibrium.time_slice[]
 
+    # run optimization on a lower resolution grid
+    original_n_points = actor.stresses_actor.par.n_points
+    actor.stresses_actor.par.n_points = 5
+
     # Relative error with tolerance used for currents and stresses (not flattop)
     # NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
     # NOTE: we stronlgy penalize going above target, and only gently encourage not going below it (since
@@ -189,7 +193,10 @@ function _step(actor::ActorHFSsizing)
     finally
         actor_logging(dd, old_logging)
     end
+
+    # final value (and stresses_actor on higher fidelity grid)
     finalize(step(actor.fluxswing_actor))
+    actor.stresses_actor.par.n_points = original_n_points
     finalize(step(actor.stresses_actor))
 
     function print_details()
