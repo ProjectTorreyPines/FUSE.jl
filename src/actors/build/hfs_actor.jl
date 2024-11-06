@@ -7,8 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: Parameters
     _time::Float64 = NaN
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
     error_on_performance::Entry{Bool} = Entry{Bool}("-", "Error if requested Bt and flattop duration are not met"; default=true)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
@@ -76,7 +76,7 @@ function _step(actor::ActorHFSsizing)
         PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
         dd.build.oh.technology.fraction_steel = x0[3]
         dd.build.tf.technology.fraction_steel = x0[4]
-        dd.build.tf.nose_thickness = x0[5]
+        dd.build.tf.nose_hfs_fraction = x0[5]
 
         # want smallest possible TF and OH
         # keeping them of similar size is a hint for the optimizer to achieve convergence
@@ -178,7 +178,7 @@ function _step(actor::ActorHFSsizing)
     res = nothing
     try
         bounds = (
-            [0.1, 0.1, 0.1, 0.1, 0.0], 
+            [0.1, 0.1, 0.1, 0.1, 0.0],
             [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1, 0.9])
         options = Metaheuristics.Options(; seed=1, iterations=50)
         algorithm = Metaheuristics.ECA(; N=50, options)
@@ -213,7 +213,7 @@ function _step(actor::ActorHFSsizing)
         @show [PL.thickness]
         @show [OH.thickness, dd.build.oh.technology.fraction_steel]
         @show [TFhfs.thickness, dd.build.tf.technology.fraction_steel]
-        @show [dd.build.tf.nose_thickness]
+        @show [dd.build.tf.nose_hfs_fraction]
         println()
         @show target_B0
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0

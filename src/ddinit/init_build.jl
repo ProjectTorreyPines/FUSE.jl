@@ -88,7 +88,7 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         # target TF ripple
         dd.build.tf.ripple = ini.tf.ripple
         # TF nose thickness
-        dd.build.tf.nose_thickness = ini.tf.nose_thickness
+        dd.build.tf.nose_hfs_fraction = ini.tf.nose_hfs_fraction
 
         # 2D build cross-section
         ActorCXbuild(dd, act)

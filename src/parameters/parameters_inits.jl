@@ -176,7 +176,7 @@ Base.@kwdef mutable struct FUSEparameters__tf{T} <: ParametersInit{T}
     ripple::Entry{T} =
         Entry{T}("-", "Fraction of toroidal field ripple evaluated at the outermost radius of the plasma chamber"; default=0.01, check=x -> @assert x > 0.0 "must be: ripple > 0.0")
     technology::Switch{Symbol} = Switch{Symbol}(FusionMaterials.supported_coil_techs(), "-", "TF coils technology")
-    nose_thickness::Entry{Float64} = Entry{Float64}("-", "Relative thickness of the TF nose, as a fraction of total TF radial build"; default=0.0)
+    nose_hfs_fraction::Entry{Float64} = Entry{Float64}("-", "Relative thickness of the TF nose, as a fraction of total TF radial build"; default=0.0)
 end
 
 Base.@kwdef mutable struct FUSEparameters__oh{T} <: ParametersInit{T}
