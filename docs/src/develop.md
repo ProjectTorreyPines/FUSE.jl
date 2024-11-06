@@ -46,6 +46,8 @@ The functinoality of the `ini` and `act` parameters is implemented in the [Simul
 
 ## Write a new actor
 
+A detailed tutorial is available in the FuseExamples repository (https://https://github.com/ProjectTorreyPines/FuseExamples/blob/master/new_actor.ipynb), and the key points are summarized below. 
+
 Actors are grouped into two main abstract types:
 
 ```julia
