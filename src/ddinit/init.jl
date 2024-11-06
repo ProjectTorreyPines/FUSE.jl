@@ -76,13 +76,6 @@ function init(
             end
         end
 
-        # pf_passive
-        if ini.general.init_from == :ods
-            if !isempty(dd1.pf_passive.loop)
-                dd.pf_passive = deepcopy(dd1.pf_passive)
-            end
-        end
-
         # initialize equilibrium
         if !initialize_hardware || !ismissing(ini.equilibrium, :B0) || !isempty(dd1.equilibrium)
             if ini.general.init_from == :ods && !isempty(dd1.pf_active.coil)
@@ -182,6 +175,15 @@ function init(
                 plot!(dd.build; equilibrium=false, pf_active=false)
                 plot!(dd.build.pf_active.rail)
                 display(plot!(dd.pf_active))
+            end
+        end
+
+        # pf_passive
+        if ini.general.init_from == :ods
+            if !isempty(dd1.pf_passive.loop)
+                dd.pf_passive = deepcopy(dd1.pf_passive)
+            else
+                FUSE.ActorPassiveStructures(dd, act)
             end
         end
 
