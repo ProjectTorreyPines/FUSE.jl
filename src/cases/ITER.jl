@@ -24,8 +24,9 @@ function case_parameters(
     if init_from == :ods
         wall_ods = joinpath("__FUSE__", "sample", "ITER_wall_ods.json")
         pf_active_ods = joinpath("__FUSE__", "sample", "ITER_pf_active_ods.json")
+        pf_passive_ods = joinpath("__FUSE__", "sample", "ITER_pf_passive_ods.json")
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
-        ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(equilibrium_ods)"
+        ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(pf_passive_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
         # act.ActorStabilityLimits.raise_on_breach = false
         if boundary_from == :auto
