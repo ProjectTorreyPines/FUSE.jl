@@ -47,11 +47,12 @@ mutable struct StudyDatabaseGenerator <: AbstractStudy
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{String},Missing}
+    workflow::Union{Function,Missing}
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = sty(kw...)
-    study = StudyDatabaseGenerator(sty, ini, act, missing, missing)
+    study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
     return setup(study)
 end
 
@@ -131,7 +132,8 @@ function run_case(study::AbstractStudy, item::String)
         ini = rand(study.ini)
 
         dd = IMAS.dd()
-        workflow_DatabaseGenerator(dd, ini, act)
+        @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
+        study.workflow(dd, ini, act)
 
         if sty.save_dd
             IMAS.imas2json(dd, joinpath(sty.save_folder, "result_dd_$(item).json"))
@@ -150,30 +152,6 @@ function run_case(study::AbstractStudy, item::String)
         end
     end
 end
-
-"""
-    workflow_DatabaseGenerator(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-
-Workflow of initalization and actors run on every dd to generate the database (feel free to change or write your own)
-"""
-function workflow_DatabaseGenerator(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    # initialize
-    init(dd, ini, act)
-
-    # Actors to run on the input dd
-    actor_statplasma = ActorStationaryPlasma(dd, act)
-
-    # whatever other actors you want to run can go here
-
-    return actor_statplasma
-end
-
-"""
-    create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
-
-Example code of what to extract from the dd and store in the aggregate dataframe, FUSE.extract(dd) could be useful here as well.
-All the dds will be stored in save_folder to run your own datagathering on
-"""
 
 function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
     cp1d = dd.core_profiles.profiles_1d[]

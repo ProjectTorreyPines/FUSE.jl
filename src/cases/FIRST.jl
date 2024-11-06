@@ -43,16 +43,16 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Ar
 
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 8
+    ini.build.layers[:OH].coils_inside = 1
+    ini.build.layers[:hfs_vacuum_vessel].coils_inside = 2
+    ini.build.layers[:gap_world].coils_inside = 8
+
+    ini.oh.technology = :copper
     ini.pf_active.technology = :copper
+    ini.tf.technology = :copper
 
     ini.tf.shape = :convex_hull
     ini.tf.n_coils = 18
-    ini.tf.technology = :copper
-
-    ini.oh.n_coils = 1
-    ini.oh.technology = :copper
 
     ini.requirements.flattop_duration = 2.0
 

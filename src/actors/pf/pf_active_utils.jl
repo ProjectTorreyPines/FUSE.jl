@@ -16,7 +16,7 @@ function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, 
     rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
     rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
 
-    valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis)
+    valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis, _lfs_)
     r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
 
     n_oh = n_coils

@@ -26,9 +26,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     Z::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi Z axis")
 end
 
-mutable struct ActorTEQUILA{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTEQUILA{P}
+    act::ParametersAllActors{P}
     shot::Union{Nothing,TEQUILA.Shot}
     ψbound::D
     old_boundary_outline_r::Vector{D}
@@ -41,16 +42,16 @@ end
 Runs the Fixed boundary equilibrium solver TEQUILA
 """
 function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorTEQUILA(dd, act.ActorTEQUILA; kw...)
+    actor = ActorTEQUILA(dd, act.ActorTEQUILA, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}; kw...) where {D<:Real,P<:Real}
+function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = par(kw...)
-    return ActorTEQUILA(dd, par, nothing, D(0.0), D[], D[])
+    return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])
 end
 
 """
@@ -136,7 +137,7 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound)
+        tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound, actor.act.ActorPFactive.green_model)
     catch e
         display(plot(actor.shot))
         display(contour())
@@ -145,7 +146,7 @@ function _finalize(actor::ActorTEQUILA)
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA; ψbound::D=0.0) where {D<:Real}
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA; ψbound::D=0.0, green_model::Symbol) where {D<:Real}
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -222,8 +223,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
         # Flux control points
-        imid = argmax(eqt.boundary.outline.r)
-        flux_cps = [VacuumFields.FluxControlPoint(r, z, ψbound, 1.0) for (r, z) in zip(eqt.boundary.outline.r[imid:imid], eqt.boundary.outline.z[imid:imid])]
+        mag = VacuumFields.FluxControlPoint(eqt.global_quantities.magnetic_axis.r,eqt.global_quantities.magnetic_axis.z, psia, 1.0)
+        flux_cps = VacuumFields.FluxControlPoint[mag]
         strike_weight = 1.0
         strike_cps = [VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)
@@ -236,7 +237,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields

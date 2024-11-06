@@ -59,29 +59,26 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.impurity = :Ne
     ini.core_profiles.helium_fraction = 0.01
 
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 6
+    ini.build.layers[:OH].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 6
+
+    ini.oh.technology = :nb3sn
     ini.pf_active.technology = :nb3sn
+    # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
+    ini.tf.technology = :nb3sn_kdemo
 
     ini.tf.shape = :double_ellipse
     ini.tf.n_coils = 18
-    # Table 2, NF 55 (2015) 053027 - KDEMO TF made of high-Jc Nb3Sn, all other coils from ITER-type Nb3Sn
-    ini.tf.technology = :nb3sn_kdemo
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
-    ini.oh.n_coils = 6
-    ini.oh.technology = :nb3sn
-
     ini.ec_launcher[1].power_launched = 5.0e7
-
     ini.ic_antenna[1].power_launched = 5.0e7
 
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 1.1
     ini.requirements.power_electric_net = 400e6 # as example
-
 
     act.ActorTGLF.user_specified_model = "sat1_em_iter"
     act.ActorStabilityLimits.raise_on_breach = false

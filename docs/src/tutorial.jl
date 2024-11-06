@@ -4,6 +4,10 @@
 # 
 # -----------
 # 
+# **NOTE**: Julia is a Just In Time (JIT) programming language. The first time something is executed it will take longer because of the compilation process. Subsequent calls the the same code will be blazingly fast.
+# 
+# -----------
+# 
 # Import the necessary packages
 
 using Plots # for plotting
