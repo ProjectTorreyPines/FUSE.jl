@@ -115,7 +115,7 @@ end
         R_oh_out::T;                           # : (float) major radius of outboard edge of OH coil, meters
         axial_stress_tf_avg::T=NaN,            # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
         axial_stress_oh_avg::T=NaN,            # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
-        tf_nose_hfs_fraction::T,               # : (float), thickness of solid nose section of TF coil, normalized to TF coil thickness
+        nose_hfs_fraction::T,                  # : (float), thickness of solid nose section of TF coil, normalized to TF coil thickness
         bucked::Bool,                          # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
         noslip::Bool,                          # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
         plug::Bool,                            # : (bool), flag for center plug
@@ -165,7 +165,7 @@ function solve_1D_solid_mechanics!(
     R_oh_out::T;                           # : (float) major radius of outboard edge of OH coil, meters
     axial_stress_tf_avg::T=NaN,            # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
     axial_stress_oh_avg::T=NaN,            # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
-    tf_nose_hfs_fraction::T,              # : (float), thickness of solid nose section of TF coil, normalized to TF coil thickness
+    nose_hfs_fraction::T,                  # : (float), thickness of solid nose section of TF coil, normalized to TF coil thickness
     bucked::Bool,                          # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
     noslip::Bool,                          # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
     plug::Bool,                            # : (bool), flag for center plug
@@ -220,7 +220,7 @@ function solve_1D_solid_mechanics!(
     embar_pl = em_pl / (1 - gam_pl^2)
 
     # determine whether to model tf_nose 
-    if tf_nose_hfs_fraction > 0.0
+    if nose_hfs_fraction > 0.0
         tf_nose = true
     else
         tf_nose = false
@@ -231,7 +231,7 @@ function solve_1D_solid_mechanics!(
         gam_tn = gam_tf
         em_tn = em_tf
         embar_tn = embar_tf
-        R_tn_int = R_tf_in + tf_nose_hfs_fraction * (R_tf_out - R_tf_in)
+        R_tn_int = R_tf_in + nose_hfs_fraction * (R_tf_out - R_tf_in)
     end
 
     # define forcing constraints on TF and OH coil
@@ -524,7 +524,7 @@ function solve_1D_solid_mechanics!(
     end
 
     if tf_nose
-        r_tn = LinRange(R_tf_in, R_tf_in + tf_nose_hfs_fraction * (R_tf_out - R_tf_in), n_points)
+        r_tn = LinRange(R_tf_in, R_tf_in + nose_hfs_fraction * (R_tf_out - R_tf_in), n_points)
         displacement_tn = u_tn.(r_tn)
         ddiplacementdr_tn = dudr_tn.(r_tn)
         radial_stress_tn = sr.(r_tn, em_tn, gam_tn, displacement_tn, ddiplacementdr_tn)
