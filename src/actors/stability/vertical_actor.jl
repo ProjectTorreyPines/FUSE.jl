@@ -69,8 +69,7 @@ function _step(actor::ActorVerticalStability)
     actor.passive_coils = VacuumFields.QuadCoil[]
     for loop in dd.pf_passive.loop
         for element in loop.element
-            @assert length(element.geometry.outline.r) == 4 "For the time being passive structures must be composed of quadrilateral elements"
-            passive_coil = VacuumFields.QuadCoil(element.geometry.outline.r, element.geometry.outline.z)
+            passive_coil = VacuumFields.QuadCoil(element)
             passive_coil.resistance = VacuumFields.resistance(passive_coil, loop.resistivity)
             push!(actor.passive_coils, passive_coil)
         end
