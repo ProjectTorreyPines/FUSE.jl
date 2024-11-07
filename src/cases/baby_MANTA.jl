@@ -26,19 +26,19 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
         :cryostat => 0.2
     )
     ini.build.plasma_gap = 0.1
-    ini.build.symmetric = false
+    ini.build.symmetric = true
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
     
     minor_radius = 0.72
-    ini.equilibrium.B0 = 11.325
+    ini.equilibrium.B0 = -11.325
     ini.equilibrium.R0 = 2.0
     ini.equilibrium.ϵ = minor_radius / ini.equilibrium.R0
-    ini.equilibrium.κ = 1.5
-    ini.equilibrium.δ = -0.5
-    ini.equilibrium.ζ = -0.25
-    ini.equilibrium.pressure_core = 1.5E6
-    ini.equilibrium.ip = 10.03e6
+    ini.equilibrium.κ = 1.6
+    ini.equilibrium.δ = -0.4
+    ini.equilibrium.ζ = -0.1
+    ini.equilibrium.pressure_core = 3.2E6
+    ini.equilibrium.ip = -10.03e6
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
 
@@ -57,7 +57,6 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     ini.core_profiles.helium_fraction = 0.01
 
     ini.build.layers[:OH].coils_inside = 6
-    ini.build.layers[:hfs_gap_coils].coils_inside = 4
     ini.build.layers[:lfs_gap_coils].coils_inside = 4
 
     ini.oh.technology = :rebco
@@ -80,17 +79,22 @@ function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)::Tu
     #### ACT ####
 
     act.ActorPedestal.model = :WPED
+
     act.ActorWPED.ped_to_core_fraction = 0.5
 
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
+
     act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
+
+    act.ActorPFdesign.symmetric = true
 
     return ini, act
 end

@@ -30,7 +30,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
         :cryostat => 0.2
     )
     ini.build.plasma_gap = 0.1
-    ini.build.symmetric = false
+    ini.build.symmetric = true
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
 
@@ -89,12 +89,15 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
         act.ActorCoreTransport.model = :none
     end
 
+    act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorFluxMatcher.max_iterations = 50
     act.ActorFluxMatcher.verbose = true
 
     act.ActorTGLF.electromagnetic = false
     act.ActorTGLF.sat_rule = :sat0
     act.ActorTGLF.model = :TJLF
+
+    act.ActorPFdesign.symmetric = true
 
     return ini, act
 end
