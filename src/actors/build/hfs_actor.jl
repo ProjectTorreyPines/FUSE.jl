@@ -7,8 +7,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: Parameters
     _time::Float64 = NaN
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
     error_on_performance::Entry{Bool} = Entry{Bool}("-", "Error if requested Bt and flattop duration are not met"; default=true)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
@@ -56,6 +56,10 @@ function _step(actor::ActorHFSsizing)
     cs = dd.solid_mechanics.center_stack
     eqt = dd.equilibrium.time_slice[]
 
+    # run optimization on a lower resolution grid
+    original_n_points = actor.stresses_actor.par.n_points
+    actor.stresses_actor.par.n_points = 5
+
     # Relative error with tolerance used for currents and stresses (not flattop)
     # NOTE: we divide by (abs(target) + 1.0) because critical currents can drop to 0.0!
     # NOTE: we stronlgy penalize going above target, and only gently encourage not going below it (since
@@ -66,11 +70,17 @@ function _step(actor::ActorHFSsizing)
 
     function assign_PL_OH_TF(x0)
         # assign optimization arguments
+        # x0[1]: normalized TF coil thickness
+        # x0[2]: normalized OH coil thickness
+        # x0[3]: OH steel fraction
+        # x0[4]: TF steel fraction
+        # x0[5]: TF nose thickness
         TFhfs.thickness = TFlfs.thickness = x0[1] * CPradius
         OH.thickness = x0[2] * (CPradius - TFhfs.thickness - OHTFgap)
         PL.thickness = CPradius - TFhfs.thickness - OH.thickness - OHTFgap
         dd.build.oh.technology.fraction_steel = x0[3]
         dd.build.tf.technology.fraction_steel = x0[4]
+        dd.build.tf.nose_hfs_fraction = x0[5]
 
         # want smallest possible TF and OH
         # keeping them of similar size is a hint for the optimizer to achieve convergence
@@ -78,8 +88,8 @@ function _step(actor::ActorHFSsizing)
         return 1E-3 * (
             ((OH.thickness + TFhfs.thickness) / CPradius)^2 + # favor small OH and TF thicknesses
             0.1 * ((OH.thickness - TFhfs.thickness) / CPradius)^2 + # favor OH and TF similiar thickness
-            0.1 * (1.0 - dd.build.tf.technology.fraction_steel)^2 + # favor steel over superconductor
-            0.1 * (1.0 - dd.build.tf.technology.fraction_steel)^2)  # favor steel over superconductor
+            0.1 * (1.0 - dd.build.oh.technology.fraction_steel)^2 + # favor steel over superconductor in OH coil
+            0.1 * (1.0 - dd.build.tf.technology.fraction_steel)^2)  # favor steel over superconductor in TF coil
     end
 
     function cost(x0)
@@ -171,7 +181,9 @@ function _step(actor::ActorHFSsizing)
     old_logging = actor_logging(dd, false)
     res = nothing
     try
-        bounds = ([0.1, 0.1, 0.1, 0.1], [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
+        bounds = (
+            [0.1, 0.1, 0.1, 0.1, 0.0],
+            [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1, 0.9])
         options = Metaheuristics.Options(; seed=1, iterations=50)
         algorithm = Metaheuristics.ECA(; N=50, options)
         IMAS.refreeze!(dd.core_profiles.profiles_1d[], :conductivity_parallel)
@@ -181,7 +193,10 @@ function _step(actor::ActorHFSsizing)
     finally
         actor_logging(dd, old_logging)
     end
+
+    # final value (and stresses_actor on higher fidelity grid)
     finalize(step(actor.fluxswing_actor))
+    actor.stresses_actor.par.n_points = original_n_points
     finalize(step(actor.stresses_actor))
 
     function print_details()
@@ -205,6 +220,7 @@ function _step(actor::ActorHFSsizing)
         @show [PL.thickness]
         @show [OH.thickness, dd.build.oh.technology.fraction_steel]
         @show [TFhfs.thickness, dd.build.tf.technology.fraction_steel]
+        @show [dd.build.tf.nose_hfs_fraction]
         println()
         @show target_B0
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
