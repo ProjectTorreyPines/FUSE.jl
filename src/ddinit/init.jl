@@ -179,12 +179,10 @@ function init(
         end
 
         # pf_passive
-        if ini.general.init_from == :ods
-            if !isempty(dd1.pf_passive.loop)
-                dd.pf_passive = deepcopy(dd1.pf_passive)
-            else
-                FUSE.ActorPassiveStructures(dd, act)
-            end
+        if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
+            dd.pf_passive = deepcopy(dd1.pf_passive)
+        else
+            FUSE.ActorPassiveStructures(dd, act)
         end
 
         # initialize balance of plant
