@@ -119,6 +119,8 @@ function case_parameters(::Type{Val{:D3D}};
 
     act.ActorWholeFacility.update_build = false
 
+    act.ActorCXbuild.rebuild_wall = false
+
     act.ActorFluxMatcher.evolve_pedestal = false
 
     act.ActorStabilityLimits.raise_on_breach = false
