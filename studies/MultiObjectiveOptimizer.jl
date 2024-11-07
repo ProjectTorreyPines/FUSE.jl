@@ -1,6 +1,6 @@
 using Serialization
 using LaTeXStrings
-
+using Statistics
 #= ============================ =#
 #  StudyMultiObjectiveOptimizer  #
 #= ============================ =#
@@ -250,16 +250,37 @@ function copy_and_return_dds(df, pareto_list, laptop_dir)
 end
 
 
-function plot_all_traces(outputs; save=false, verbose=false)
+function plot_all_traces(outputs; save=false, verbose=false,  )
 
-    #    outputs = opt_run.output
-    #    println("Traces for $(opt_run.name)")
-    #     println("============== CONSTRAINTS ==============")
+    objective_traces = [("capital_cost","capital cost [\$B]"),("q95","q95"),("zeff_ped", "zeff")]
 
-    #     for q in [(s g xtring(a),string(a)) for a in runs[1].constraint_symbols]
-    #         plot_population_traces(outputs,q[1],q[2];constraint=true,save)
-    #     end
-
+    actuator_traces = [("R0","R0 [m]"),("ne_ped", "ne ped [1/m^3]"),
+        ("<zeff>","<zeff>"),
+        ("δ","δ []"),("κ", "κ []"),
+        ("B0", "B0 [T]"),("ip","ip [MA]"),
+        ("Pec","Pec [MW]"),("Paux_tot","total auxilary power [MW]"),
+        ("rho0_ec", "rho0_ec"),("Enbi1", "NBI energy [MeV]"),
+        ("R0B0","R0")]
+    
+    other_traces = [  ("Pelectric_net","Pelectric_net [MW]"), ("thermal_efficiency_plant","thermal efficiency plant"),
+        ("flattop", "flattop [hrs]"),
+        ("TBR","TBR"),
+        ("P/R0","Psol / R0 [MW/m]"), 
+        ("βpol_MHD","βpol_MHD"),
+        ("Qplant","Qplant eng"),
+        ("levelized_CoE","levelized_CoE"),
+        ("fGW", "fGW"),
+        ("Ti0","Ti0 [keV]"), ("Te0","Te0 [keV]")]
+    
+    forfun_traces = [("H98y2","H98y2"),("Hds03","Hds03")]
+    
+    
+    plot_quantities = [("generation","generation"),("Pfusion","Pfusion [MW]"),("R0","R0 [m]"),("δ","δ []"),
+        ("B0","B0 [T]"),("ip","ip [MA]"),("<zeff>","<zeff>"),("Pelectric_net","Pelectric_net [MW]"),("Pec","Pec [MW]")
+    ,("q95","q95"),("HTS","HTS"),("βpol_MHD","βpol_MHD")]
+    
+    
+    all_traces = [objective_traces..., actuator_traces..., other_traces...]
 
     println("============== OBJECTIVES ==============")
 
@@ -296,11 +317,12 @@ function plot_population_traces(outputs, var_name, plot_name; constraint=false, 
         @show var_name, plot_name
     end
 
-
+    y = outputs[:,var_name]
     if var_name == "R0B0" || var_name == "B0R0"
         return
+    elseif isempty(y) || !isa(y, Vector{Float64}) || all(x -> isnan(x),y)
+        return
     end
-
     N = length(outputs[:, "Pelectric_net"])
     N_blocks = 21
     #    N_blocks = 20
@@ -308,10 +330,8 @@ function plot_population_traces(outputs, var_name, plot_name; constraint=false, 
     X = LinRange(0, N, N_blocks)
     xx = [string(Int(round(i / X[end] * maximum(outputs.gen)))) for i in X]
     ar = collect(1:length(xx))
-    @show length(xx)
     deleteat!(ar, collect(1:4:length(xx)))
     xx[ar] .= ""
-    @show xx
     xticks = (X, xx)
 
     function y_auto_range(y; σ=5, N=Y_points)
@@ -348,7 +368,6 @@ function plot_population_traces(outputs, var_name, plot_name; constraint=false, 
         y = outputs[:, var_name]
         yname = plot_name
         Y = y_auto_range(y)
-        @show Y
 
         p = histogram2d(y; bins=(X, Y), ylabel=yname, xlabel="Generation", xticks=xticks,
             labelfontsize=labfontsize, xtickfontsize=ticksizes, ytickfontsize=ticksizes, colorbar_tickfontsize=ticksizes, colorbar_title="\n Population density",
