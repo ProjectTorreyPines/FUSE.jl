@@ -61,6 +61,11 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
             rho_ped=actor_tr.tr_actor.par.rho_transport[end])
+    elseif act.ActorCoreTransport.model == :EPEDProfiles
+        actor_ped = ActorPedestal(
+            dd,
+            act.ActorPedestal,
+            act)
     else
         actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
     end
