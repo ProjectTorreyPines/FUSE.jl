@@ -199,7 +199,7 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, 
         return 0.0 # oh is part of the pf_active calculation
     elseif layer.type == Int(_tf_)
         build = IMAS.parent(IMAS.parent(layer))
-        cost = layer.volume * unit_cost(build.tf.technology, cst)
+        cost = layer.volume * (unit_cost(build.tf.technology, cst) * (1.0 - build.tf.nose_hfs_fraction) .+ unit_cost(Material(:steel), cst) * build.tf.nose_hfs_fraction)
         return future_dollars(cost, da)
     elseif layer.type == Int(_shield_)
         cost = layer.volume * 0.29  # $M/m^3
