@@ -128,7 +128,7 @@ function _step(actor::ActorHFSsizing)
 
         # flattop
         if actor.fluxswing_actor.par.operate_oh_at_j_crit
-            c_flt = target_value(dd.requirements.flattop_duration, dd.build.oh.flattop_duration, dd.requirements.coil_j_margin)
+            c_flt = -target_value(dd.build.oh.flattop_duration, dd.requirements.flattop_duration, dd.requirements.coil_j_margin)
         else
             c_flt = 0.0
         end
