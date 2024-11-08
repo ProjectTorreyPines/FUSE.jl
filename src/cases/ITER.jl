@@ -71,6 +71,8 @@ function case_parameters(
     ini.equilibrium.pressure_core = 0.643e6
     ini.equilibrium.ip = 15E6
 
+    vv_wall_thickness = 0.1
+
     # explicitly set thickness of radial build layers
     ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 1.356
@@ -78,21 +80,23 @@ function case_parameters(
     layers[:gap_OH_TF] = 0.1
     layers[:hfs_TF] = 0.882
     layers[:hfs_gap_TF_shield] = 0.016 + 0.1 + 0.032
-    layers[:hfs_vacuum_vessel] = 0.338
-    layers[:hfs_gap_vacuum_vessel_blanket] = 0.01
+    layers[:hfs_vacuum_vessel_outer] = vv_wall_thickness
+    layers[:hfs_gap_water] = 0.348 - 2 * vv_wall_thickness
+    layers[:hfs_vacuum_vessel_inner] = vv_wall_thickness
     layers[:hfs_shield] = 0.465
     layers[:hfs_wall] = 0.06
     layers[:plasma] = 0.095 + 4.0 + 0.194
     layers[:lfs_wall] = 0.06
     layers[:lfs_shield] = 0.491
-    layers[:lfs_gap_blanket_vacuum_vessel] = 0.01
-    layers[:lfs_vacuum_vessel] = 0.758
+    layers[:lfs_vacuum_vessel_inner] = vv_wall_thickness
+    layers[:lfs_gap_water] = 0.768 - 2 * vv_wall_thickness
+    layers[:lfs_vacuum_vessel_outer] = vv_wall_thickness
     layers[:lfs_gap_shield_TF] = 0.25 + 0.2 + 0.037
     layers[:lfs_TF] = 0.882
     layers[:gap_cryostat] = 3.343
     layers[:cryostat] = 0.05
     ini.build.layers = layers
-    ini.build.n_first_wall_conformal_layers = 4
+    ini.build.n_first_wall_conformal_layers = 5
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 6

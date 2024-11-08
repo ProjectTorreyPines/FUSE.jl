@@ -59,18 +59,21 @@ function case_parameters(::Type{Val{:D3D}};
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_plug => 1.2,
         :hfs_TF => 1.9,
-        :hfs_gap_OH_coils => 0.7,
-        :hfs_gap_coils => 0.8,
-        :hfs_wall => 0.5,
+        :hfs_gap_OH_coils => 1.0,
+        :hfs_gap_coils => 0.5,
+        :hfs_vessel => 0.2,
+        :hfs_wall => 0.3,
         :plasma => 0.0,
         :lfs_wall => 0.5,
-        :lfs_gap_coils => 1.8,
+        :lfs_vessel => 0.2,
+        :lfs_gap_coils => 1.6,
         :lfs_gap_OH_coils => 0.0,
         :lfs_TF => 1.1,
         :gap_world => 1.0
     )
     ini.build.layers[:hfs_wall].material = :graphite
-    ini.build.n_first_wall_conformal_layers = 1
+    ini.build.n_first_wall_conformal_layers = 2
+
     ini.build.divertors = :double
 
     ini.build.layers[:hfs_gap_OH_coils].coils_inside = 6

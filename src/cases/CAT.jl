@@ -19,7 +19,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
         wall=0.1,
         blanket=1.0,
         shield=0.5,
-        vessel=0.25,
+        vessel=0.5,
         pf_inside_tf=false,
         pf_outside_tf=true,
         thin_vessel_walls=true)
