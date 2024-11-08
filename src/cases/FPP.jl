@@ -98,6 +98,8 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
 
     #### ACT ####
 
+    act.ActorLFSsizing.maintenance = :vertical
+
     act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
 
     if !flux_matcher
