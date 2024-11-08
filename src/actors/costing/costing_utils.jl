@@ -16,7 +16,7 @@ end
 #  materials cost  #
 #= ============== =#
 function unit_cost(material::Material, cst::IMAS.costing)
-    cost_per_unit_volume = material.cost_m3
+    cost_per_unit_volume = material.cost_m3 * material.manufacturing_multiplier / 1e6 # costs in $M/m^3
 
     if material.name == "rebco"
         production_increase = cst.future.learning.hts.production_increase
@@ -24,7 +24,7 @@ function unit_cost(material::Material, cst::IMAS.costing)
         cost_per_unit_volume = cost_per_unit_volume * cost_multiplier(production_increase, learning_rate)
     end
 
-    return cost_per_unit_volume / 1e6 # costs in $M/m^3
+    return cost_per_unit_volume
 end
 
 #= ====================== =#
