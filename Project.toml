@@ -65,10 +65,14 @@ VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
+[weakdeps]
+BoundaryValueDiffEq = "764a87c0-6b3e-53db-9096-fe964310641d"
+
 [compat]
 AbstractTrees = "0.4"
 BalanceOfPlantSurrogate = "2"
 BoundaryPlasmaModels = "1"
+BoundaryValueDiffEq = "5.0 - 5.10, 5.11.1 - 5"
 CHEASE = "1"
 CSV = "0.10"
 ClusterManagers = "0.4"
