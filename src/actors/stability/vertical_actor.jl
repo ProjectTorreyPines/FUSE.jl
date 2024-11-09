@@ -65,7 +65,7 @@ function _step(actor::ActorVerticalStability)
     end
 
     # load passive structures from pf_passive
-    VacuumFields.MultiCoils(dd.pf_passive)
+    actor.passive_coils = VacuumFields.MultiCoils(dd.pf_passive)
 
     eqt = dd.equilibrium.time_slice[]
     Ip = eqt.global_quantities.ip
