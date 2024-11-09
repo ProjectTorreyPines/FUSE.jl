@@ -425,11 +425,6 @@ function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__b
     return txt
 end
 
-###############################
-# custom dispatches for coils #
-###############################
-
-
 ################################
 # functions for populating ini #
 ################################
