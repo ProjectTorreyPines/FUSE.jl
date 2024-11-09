@@ -39,6 +39,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     finalize(actor)
     if actor.par.do_plot
         display(plot!(p, dd.build; cx=false))
+        display(plot(dd.solid_mechanics.center_stack.stress))
     end
     return actor
 end
@@ -142,7 +143,11 @@ function _step(actor::ActorHFSsizing)
         if !ismissing(cs.stress.vonmises, :pl)
             push!(margins, cs.properties.yield_strength.pl / maximum(cs.stress.vonmises.pl) - 1.0 - dd.requirements.coil_stress_margin)
         end
-        c_mgn = norm(margins .- 1.0)
+        if actor.fluxswing_actor.par.operate_oh_at_j_crit
+            push!(margins, dd.build.oh.flattop_duration / dd.requirements.flattop_duration - 1.0 - dd.requirements.coil_j_margin)
+        end
+
+        c_mgn = norm(margins)
         c_Δmn = norm(abs.(margins[2:end] .- margins[1])) .* length(margins)
 
         # want smallest possible TF and OH
@@ -232,22 +237,21 @@ function _step(actor::ActorHFSsizing)
 
     function print_details()
         if res !== nothing
-            println(cost(Metaheuristics.minimizer(res)))
             print(res)
         end
 
         if par.verbose
-            p = plot(; yscale=:log10, legend=:topright)
-            plot!(p, C_GEO ./ (C_GEO .> 0.0); label="minimize TF & OH size", alpha=0.75)
-            plot!(p, C_SCS ./ (C_SCS .> 0.0); label="minimize superconducting strain", alpha=0.75)
-            plot!(p, C_MGN ./ (C_MGN .> 0.0); label="match margins", alpha=0.75)
-            plot!(p, C_ΔMG ./ (C_ΔMG .> 0.0); label="equal margins", alpha=0.75)
-            scatter!(p, C_JOH ./ (C_JOH .> 0.0); label="Jcrit OH constraint", alpha=0.5)
-            scatter!(p, C_JTF ./ (C_JTF .> 0.0); label="Jcrit TF constraint", alpha=0.5)
-            scatter!(p, C_SPL ./ (C_SPL .> 0.0); label="stress PL constraint", alpha=0.5)
-            scatter!(p, C_SOH ./ (C_SOH .> 0.0); label="stress OH constraint", alpha=0.5)
-            scatter!(p, C_STF ./ (C_STF .> 0.0); label="stress TF constraint", alpha=0.5)
-            scatter!(p, C_FLT ./ (C_FLT .> 0.0); label="flattop constraint", alpha=0.5)
+            p = plot(; yscale=:log10, legend=:bottomleft)
+            plot!(p, C_GEO ./ (C_GEO .> 0.0); label="minimize TF & OH size", alpha=0.9)
+            plot!(p, C_SCS ./ (C_SCS .> 0.0); label="minimize superconducting strain", alpha=0.9)
+            plot!(p, C_MGN ./ (C_MGN .> 0.0); label="match margins", alpha=0.9)
+            plot!(p, C_ΔMG ./ (C_ΔMG .> 0.0); label="equal margins", alpha=0.9)
+            # scatter!(p, C_JOH ./ (C_JOH .> 0.0); label="Jcrit OH constraint", alpha=0.25)
+            # scatter!(p, C_JTF ./ (C_JTF .> 0.0); label="Jcrit TF constraint", alpha=0.25)
+            # scatter!(p, C_SPL ./ (C_SPL .> 0.0); label="stress PL constraint", alpha=0.25)
+            # scatter!(p, C_SOH ./ (C_SOH .> 0.0); label="stress OH constraint", alpha=0.25)
+            # scatter!(p, C_STF ./ (C_STF .> 0.0); label="stress TF constraint", alpha=0.25)
+            # scatter!(p, C_FLT ./ (C_FLT .> 0.0); label="flattop constraint", alpha=0.25)
             display(p)
         end
 
@@ -288,50 +292,48 @@ function _step(actor::ActorHFSsizing)
 
     try
         success = true
-        strictness = 0.9
         # technology checks
         success = assert_conditions(
-            dd.build.tf.max_j .* (1.0 .+ dd.requirements.coil_j_margin * strictness) < dd.build.tf.critical_j,
-            "TF exceeds critical current: $(dd.build.tf.max_j .* (1.0 .+ dd.requirements.coil_j_margin) / dd.build.tf.critical_j * 100)%",
+            dd.build.tf.max_j < dd.build.tf.critical_j,
+            "TF exceeds critical current: $(dd.build.tf.max_j / dd.build.tf.critical_j * 100)%",
             par.error_on_technology,
-            success
-        )
+            success)
         success = assert_conditions(
-            dd.build.oh.max_j .* (1.0 .+ dd.requirements.coil_j_margin * strictness) < dd.build.oh.critical_j,
-            "OH exceeds critical current: $(dd.build.oh.max_j .* (1.0 .+ dd.requirements.coil_j_margin) / dd.build.oh.critical_j * 100)%",
+            dd.build.oh.max_j < dd.build.oh.critical_j,
+            "OH exceeds critical current: $(dd.build.oh.max_j / dd.build.oh.critical_j * 100)%",
             par.error_on_technology,
-            success
-        )
+            success)
         if !ismissing(cs.stress.vonmises, :pl)
             success = assert_conditions(
-                maximum(cs.stress.vonmises.pl) .* (1.0 .+ dd.requirements.coil_stress_margin * strictness) < cs.properties.yield_strength.pl,
-                "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) .* (1.0 .+ dd.requirements.coil_stress_margin) / cs.properties.yield_strength.pl * 100)%",
+                maximum(cs.stress.vonmises.pl) < cs.properties.yield_strength.pl,
+                "PL stresses are too high: $(maximum(cs.stress.vonmises.pl) / cs.properties.yield_strength.pl * 100)%",
                 par.error_on_technology,
-                success
-            )
+                success)
         end
         success = assert_conditions(
-            maximum(cs.stress.vonmises.oh) .* (1.0 .+ dd.requirements.coil_stress_margin * strictness) < cs.properties.yield_strength.oh,
-            "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) .* (1.0 .+ dd.requirements.coil_stress_margin) / cs.properties.yield_strength.oh * 100)%",
+            maximum(cs.stress.vonmises.oh) < cs.properties.yield_strength.oh,
+            "OH stresses are too high: $(maximum(cs.stress.vonmises.oh) / cs.properties.yield_strength.oh * 100)%",
             par.error_on_technology,
-            success
-        )
+            success)
         success = assert_conditions(
-            maximum(cs.stress.vonmises.tf) .* (1.0 .+ dd.requirements.coil_stress_margin * strictness) < cs.properties.yield_strength.tf,
-            "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) .* (1.0 .+ dd.requirements.coil_stress_margin) / cs.properties.yield_strength.tf * 100)%",
+            maximum(cs.stress.vonmises.tf) < cs.properties.yield_strength.tf,
+            "TF stresses are too high: $(maximum(cs.stress.vonmises.tf) / cs.properties.yield_strength.tf * 100)%",
             par.error_on_technology,
-            success
-        )
+            success)
 
         # performance checks
         max_B0 = dd.build.tf.max_b_field / TFhfs.end_radius * R0
-        success = assert_conditions(target_B0 < max_B0, "TF cannot achieve requested B0 ($target_B0 [T] instead of $max_B0 [T])", par.error_on_performance, success)
-        success = assert_conditions(
-            dd.build.oh.flattop_duration > dd.requirements.flattop_duration * strictness,
-            "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) [s] insted of $(dd.requirements.flattop_duration) [s])",
+        success = assert_conditions(target_B0 < max_B0,
+            "TF cannot achieve requested B0 ($target_B0 [T] instead of $max_B0 [T])",
             par.error_on_performance,
-            success
-        )
+            success)
+        if actor.fluxswing_actor.par.operate_oh_at_j_crit
+            success = assert_conditions(
+                dd.build.oh.flattop_duration > dd.requirements.flattop_duration,
+                "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) [s] insted of $(dd.requirements.flattop_duration) [s])",
+                par.error_on_performance,
+                success)
+        end
 
         @assert success "HFS sizing cannot be done within constraints"
 
