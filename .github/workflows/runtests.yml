@@ -58,7 +58,7 @@ jobs:
       # Cache key generation
       - name: Generate cache key with date
         id: cache-date
-        run: echo "::set-output name=date::$(date +%Y-%m-%d)"
+        run: echo "{date}=$(date +%Y-%m-%d)" >> $GITHUB_STATE
 
       # Cache Julia artifacts
       - name: Cache Julia artifacts
