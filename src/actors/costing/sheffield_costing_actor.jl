@@ -90,10 +90,14 @@ function _step(actor::ActorCostingSheffield)
         end
     end
 
-    wall_loading = dd.neutronics.time_slice[].wall_loading
-    flux_r = wall_loading.flux_r
-    flux_z = wall_loading.flux_z
-    neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
+    if !isempty(dd.neutronics.time_slice)
+        wall_loading = dd.neutronics.time_slice[].wall_loading
+        flux_r = wall_loading.flux_r
+        flux_z = wall_loading.flux_z
+        neutron_flux = sum(sqrt.(flux_r .^ 2 .+ flux_z .^ 2) / 1e6) / length(flux_r)
+    else
+        neutron_flux = 0.0
+    end
 
     power_thermal, power_electric_generated, power_electric_net = bop_powers(dd.balance_of_plant)
 
@@ -107,9 +111,9 @@ function _step(actor::ActorCostingSheffield)
     sub.cost = cost_direct_capital_Sheffield(:main_heat_transfer_system, power_thermal, da)
     total_direct_capital_cost += sub.cost
 
-    # primary coils 
-    sub = resize!(sys_fi.subsystem, "name" => "primary coils")
-    sub.cost = cost_direct_capital_Sheffield(:primary_coils, cst, bd, da)
+    # tf coils
+    sub = resize!(sys_fi.subsystem, "name" => "tf coils")
+    sub.cost = cost_direct_capital_Sheffield(:tf_coils, cst, bd, da)
     total_direct_capital_cost += sub.cost
 
     # shields 
@@ -234,10 +238,10 @@ function cost_direct_capital_Sheffield(::Type{Val{:main_heat_transfer_system}}, 
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Type{Val{:primary_coils}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Type{Val{:tf_coils}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016   # Year the materials costs were assessed 
-    primary_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
-    cost = 1.5 * primary_coils_hfs.volume * unit_cost(bd.tf.technology, cst)
+    tf_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
+    cost = 1.5 * tf_coils_hfs.volume * (unit_cost(bd.tf.technology, cst) * (1.0 - bd.tf.nose_hfs_fraction) .+ unit_cost(Material(:steel), cst) * bd.tf.nose_hfs_fraction)
     return future_dollars(cost, da)
 end
 
@@ -257,8 +261,8 @@ end
 
 function cost_direct_capital_Sheffield(::Type{Val{:structure}}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
     da.year_assessed = 2016
-    primary_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
-    cost = 0.75 * primary_coils_hfs.volume * unit_cost(Material(:steel), cst)
+    tf_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
+    cost = 0.75 * tf_coils_hfs.volume * unit_cost(Material(:steel), cst)
     return future_dollars(cost, da)
 end
 

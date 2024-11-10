@@ -4,7 +4,7 @@
 CFS/MIT ARC design
 """
 function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ic=1)
+    ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "ARC"
     ini.general.init_from = :scalars
@@ -38,7 +38,6 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119
     layers[:cryostat] = 0.186
-    act.ActorCXbuild.rebuild_wall = false
     ini.build.layers = layers
     ini.build.layers[:hfs_blanket].material = :flibe
     ini.build.layers[:lfs_blanket].material = :flibe
@@ -47,7 +46,6 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
 
     ini.build.layers[:OH].coils_inside = 4
     ini.build.layers[:gap_cryostat].coils_inside = 6
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :rebco
     ini.pf_active.technology = :rebco
@@ -74,6 +72,7 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne #estimate (from ITER)
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled
 
     ini.requirements.coil_j_margin = 0.1
@@ -81,19 +80,18 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
 
     #### ACT ####
 
-    act.ActorCXbuild.rebuild_wall = true
+    act.ActorPFdesign.symmetric = true
 
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
 
-    set_new_base!(ini)
-    set_new_base!(act)
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
 
     return ini, act
 end

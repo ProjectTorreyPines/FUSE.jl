@@ -4,7 +4,7 @@
 CFS/MIT SPARC design
 """
 function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ic=1)
+    ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "SPARC"
     ini.general.init_from = init_from
@@ -12,8 +12,8 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     if init_from == :ods
         machine_ods = joinpath("__FUSE__", "sample", "OS_SPARC_Device_Description.json")
         ini.ods.filename = "$(machine_ods)"
-        act.ActorWholeFacility.update_build = false
         act.ActorCXbuild.rebuild_wall = false
+        act.ActorWholeFacility.update_build = false
         act.ActorPFactive.green_model = :point
         act.ActorVerticalStability.model = false # throws an error
     end
@@ -31,19 +31,21 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.equilibrium.xpoints = :double
 
     # explicitly set thickness of 
-    ini.build.n_first_wall_conformal_layers = 3
+    ini.build.n_first_wall_conformal_layers = 4
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.38
     layers[:OH] = 0.30
     layers[:hfs_TF] = 0.36
     layers[:hfs_gap_outer_wall_TF] = 0.01
-    layers[:hfs_outer_wall] = 0.03
-    layers[:hfs_vacuum_vessel] = 0.06
-    layers[:hfs_inner_wall] = 0.04
+    layers[:hfs_vacuum_vessel_outer] = 0.03
+    layers[:hfs_gap_water] = 0.04
+    layers[:hfs_vacuum_vessel_inner] = 0.03
+    layers[:hfs_first_wall] = 0.3
     layers[:plasma] = 1.35
-    layers[:lfs_inner_wall] = 0.25
-    layers[:lfs_vacuum_vessel] = 0.12
-    layers[:lfs_outer_wall] = 0.03
+    layers[:lfs_first_wall] = 0.3
+    layers[:lfs_vacuum_vessel_inner] = 0.03
+    layers[:lfs_gap_water] = 0.12
+    layers[:lfs_vacuum_vessel_outer] = 0.03
     layers[:lfs_gap_outer_wall_TF] = 0.4
     layers[:lfs_TF] = 0.40
     layers[:gap_cryostat] = 0.7
@@ -51,10 +53,9 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.build.layers = layers
 
     ini.build.layers[:OH].coils_inside = 8
-    ini.build.layers[:lfs_inner_wall].coils_inside = collect(17:20)
+    ini.build.layers[:lfs_first_wall].coils_inside = collect(17:20)
     ini.build.layers[:lfs_gap_outer_wall_TF].coils_inside = collect(21:22)
     ini.build.layers[:gap_cryostat].coils_inside = collect(9:16)
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :rebco
     ini.pf_active.technology = :rebco
@@ -79,20 +80,22 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 11.1 * 1e6 #25 MW maximum available, P_threshold = 21 MW
 
     #### ACT ####
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
+    act.ActorPFdesign.symmetric = true
+
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
 
-    set_new_base!(ini)
-    set_new_base!(act)
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
 
     return ini, act
 end

@@ -565,7 +565,7 @@ end
 Defines maintenance port structures
 """
 function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
-    vessel = IMAS.get_build_layer(bd.layer; type=_vessel_, fs=_lfs_)
+    vessel = IMAS.get_build_layers(bd.layer; type=_vessel_, fs=_lfs_)[1]
     cryostat = IMAS.get_build_layer(bd.layer; type=_cryostat_)
 
     # calculate radial port locations

@@ -55,7 +55,7 @@ using FUSE
 # Obtain `ini` and `act` parameters for a specific use case
 ini, act = FUSE.case_parameters(:FPP)
 
-# Initialize the `dd` structure with 0D parameters
+# Initialize the `dd` structure from 0D `ini` parameters
 dd = FUSE.init(ini, act)
 
 # Run a stationary plasma actor simulation

@@ -123,7 +123,7 @@ function _step(actor::ActorFluxMatcher)
             if par.optimizer_algorithm == :newton
                 opts = Dict(:method => :newton, :factor => par.step_size)
             elseif par.optimizer_algorithm == :anderson
-                opts = Dict(:method => :anderson, :m => 5, :beta => -par.step_size * 0.5)
+                opts = Dict(:method => :anderson, :m => 3, :beta => -par.step_size * 0.5)
             elseif par.optimizer_algorithm == :trust_region
                 opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
             end
@@ -697,6 +697,10 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
         end
     end
 
+    # note: we update the local actor.par.evolve_densities
+    #       to make it easier to show what's going on
+    par.evolve_densities = evolve_densities
+
     return (z_profiles=z_profiles, profiles_paths=profiles_paths, fluxes_paths=fluxes_paths)
 end
 
@@ -800,11 +804,21 @@ end
 Checks if the evolve_densities dictionary makes sense and return sensible errors if this is not the case
 """
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
-    dd_species = [[Symbol(ion.label) for ion in cp1d.ion]; :electrons; [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0]]
-    # Check if evolve_densities contains all of dd species
-    @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Not all species are accounted for in the evolve_densities dict : $(sort([i for (i,j) in evolve_densities])) , dd_species : $(sort(dd_species)) ,"
-    # Check if there is 1 quasi_neutrality specie
-    @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]) < 2 "Only one specie can be used for quasi neutality matching (or 0 when everything matches ne_scale)"
+    dd_species = [:electrons; [Symbol(ion.label) for ion in cp1d.ion]; [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0]]
+
+    # Check if evolve_densities contains all of dd thermal species
+    @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Not all species $(sort(dd_species)) are accounted for in the evolve_densities : $(sort([i for (i,j) in evolve_densities]))"
+
+    # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
+    if all(evolve == :fixed for (i, evolve) in evolve_densities if evolve != :quasi_neutrality)
+        txt = "No more than one species can be set to :quasi_neutrality"
+        @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
+    elseif any(evolve == :flux_match for (i, evolve) in evolve_densities)
+        txt = "When flux_matching densities, one an only one species must be set to :quasi_neutrality"
+        @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]) == 1 txt
+    else
+        error("Invalid evolve_densities = $(evolve_densities)")
+    end
 end
 
 """
@@ -815,7 +829,6 @@ Sets up the evolve_density dict to evolve only ne and keep the rest matching the
 function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.core_profiles__profiles_1d)
     dd_thermal = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
     dd_fast = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
-
     quasi_neutrality_specie = :D
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
