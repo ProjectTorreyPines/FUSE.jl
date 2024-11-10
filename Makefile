@@ -225,7 +225,7 @@ merge_remote: error_missing_repo_var error_missing_branch_var
 	fi
 
 # @devs
-bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
+bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump major version of a repo
 # >> make bump_major repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -235,7 +235,7 @@ bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump versio
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
+bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump minor version of a repo
 # >> make bump_minor repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -245,7 +245,7 @@ bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump versio
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_patch: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
+bump_patch: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump patch version of a repo
 # >> make bump_patch repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
