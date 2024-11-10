@@ -27,7 +27,7 @@ jobs:
 
       - uses: julia-actions/setup-julia@latest
 
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v4
 
       - name: Add FuseRegistry
         run: |

@@ -62,7 +62,7 @@ jobs:
 
       # Cache Julia artifacts
       - name: Cache Julia artifacts
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         if: github.event.inputs.bypass-cache != 'true'
         with:
           path: |
