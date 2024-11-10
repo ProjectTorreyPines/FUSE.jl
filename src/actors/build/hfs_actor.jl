@@ -148,7 +148,7 @@ function _step(actor::ActorHFSsizing)
         end
 
         c_mgn = norm(margins)
-        c_Δmn = norm(abs.(margins[2:end] .- margins[1])) .* length(margins)
+        c_Δmn = norm(margins[2:end] .- margins[1]) ./ (length(margins) - 1)
 
         # want smallest possible TF and OH
         c_geo = (OH.thickness + TFhfs.thickness) / CPradius
@@ -171,7 +171,6 @@ function _step(actor::ActorHFSsizing)
         end
 
         # total cost and constraints
-        # cost: minimize size and maximize constraints equally
         return norm([c_geo, c_scs, c_mgn, c_Δmn]), [c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl], [0.0]
     end
 
@@ -243,7 +242,7 @@ function _step(actor::ActorHFSsizing)
         if par.verbose
             p = plot(; yscale=:log10, legend=:bottomleft)
             plot!(p, C_GEO ./ (C_GEO .> 0.0); label="minimize TF & OH size", alpha=0.9)
-            plot!(p, C_SCS ./ (C_SCS .> 0.0); label="minimize superconducting strain", alpha=0.9)
+            plot!(p, C_SCS ./ (C_SCS .> 0.0); label="minimize superconductor", alpha=0.9)
             plot!(p, C_MGN ./ (C_MGN .> 0.0); label="match margins", alpha=0.9)
             plot!(p, C_ΔMG ./ (C_ΔMG .> 0.0); label="equal margins", alpha=0.9)
             # scatter!(p, C_JOH ./ (C_JOH .> 0.0); label="Jcrit OH constraint", alpha=0.25)
@@ -259,6 +258,9 @@ function _step(actor::ActorHFSsizing)
         @show [OH.thickness, dd.build.oh.technology.fraction_steel]
         @show [TFhfs.thickness, dd.build.tf.technology.fraction_steel]
         @show [dd.build.tf.nose_hfs_fraction]
+        println()
+        @show dd.requirements.coil_stress_margin
+        @show dd.requirements.coil_j_margin
         println()
         @show target_B0
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
