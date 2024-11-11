@@ -48,7 +48,7 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - uses: julia-actions/cache@v4
+      - uses: julia-actions/cache@v2
       - run: make install_ci_add
       - run: julia -e 'import Pkg; Pkg.add("Revise")'
       - uses: julia-actions/julia-buildpkg@v1
