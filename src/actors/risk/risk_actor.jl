@@ -61,35 +61,34 @@ function _step(actor::ActorRisk)
         n_engineering += 1
     end
 
-    if cst.model == "ARIES"
-        n_engineering += 3 # each magnet system costed individually in ARIES
-    elseif cst.model == "Sheffield"
-        n_engineering += 1 # magnets costed as a single system in Sheffield
-    end
-    
-    loss = resize!(rsk.engineering.loss, n_engineering)
+    loss = resize!(rsk.engineering.loss, n_engineering + 3) # add 3 fields for coils as costed in ARIES
 
     # Coils
-
-    coil_types = Dict("TF" => bd.tf.technology, "OH" => bd.oh.technology, "PF" => bd.pf_active.technology)
-    if cst.model == "ARIES"
-        
-        for (i,coil_type) in enumerate(keys(coil_types))
-            loss[i].description = "$coil_type failure"
-            loss[i].probability = magnet_risk(coil_types[coil_type], :exponential)
-            loss[i].severity = IMAS.select_direct_capital_cost(dd, coil_type)
-        end
-    elseif cst.model == "Sheffield"
-        loss[1].description = "Magnet failure"
-        loss[1].probability = 0.0
-        for coil_type in keys(coil_types)
-            loss[1].probability += 1/3 * magnet_risk(coil_types[coil_type], :exponential)
-        end
-        tokamak_idx = findfirst(x->x.name == "tokamak", cst.cost_direct_capital.system)
-        pc_idx = findfirst(x->x.name == "primary coils", cst.cost_direct_capital.system[tokamak_idx].subsystem)
-        pc_cost = cst.cost_direct_capital.system[tokamak_idx].subsystem[pc_idx].cost 
-        loss[1].severity = pc_cost
+    if dd.costing.model == "Sheffield" 
+        @warn "Sheffield costing model provides grouped magnet system cost. Using ARIES costing model to calculate individual magnet system costs."
     end
+
+    tf_layer = IMAS.get_build_layer(dd.build.layer; type=IMAS._tf_, fs=IMAS._hfs_)
+    da = DollarAdjust(dd)
+    tf_cost = cost_direct_capital_ARIES(tf_layer, dd.costing, da)
+
+    pf_active_costs = cost_direct_capital_ARIES(dd.pf_active, da, dd.costing)
+    pf_cost = pf_active_costs["PF"]
+    oh_cost = pf_active_costs["OH"]
+
+    coil_types = Dict(
+    "TF" => (technology = dd.build.tf.technology, cost = tf_cost),
+    "OH" => (technology = dd.build.oh.technology, cost = oh_cost),
+    "PF" => (technology = dd.build.pf_active.technology, cost = pf_cost)
+)
+
+    for (key, values) in coil_types
+        next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
+        loss[next_idx].description = "$key failure"
+        loss[next_idx].probability = magnet_risk(values.technology, :exponential)
+        loss[next_idx].severity = values.cost
+    end
+
 
     # Blanket 
     if !isempty(dd.blanket)
@@ -100,7 +99,7 @@ function _step(actor::ActorRisk)
             loss[next_idx].severity = IMAS.select_direct_capital_cost(dd, "blanket")
         elseif cst.model == "Sheffield"
             da = DollarAdjust(dd)
-            blanket_cost = cost_direct_capital_Sheffield(:blanket, true, dd, da)
+            blanket_cost = cost_direct_capital_Sheffield(:blanket, true, dd, da) # Calculate blanket cost in case blanket was not capitalized
             loss[next_idx].severity = blanket_cost
         end
     end
