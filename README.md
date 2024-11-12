@@ -14,6 +14,7 @@ FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the i
 Here are some key resources for getting started with FUSE:
 
 * 📚 **[Online documentation](https://fuse.help)**
+* 🎤 **[Overview presentation](https://tinyurl.com/FUSEslideDeck)**
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
 * 🗒️ **[Weekly devs meeting minutes](https://github.com/ProjectTorreyPines/FUSE.jl/discussions)**
