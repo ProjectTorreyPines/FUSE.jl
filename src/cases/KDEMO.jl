@@ -44,7 +44,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.ϵ = 0.3088235294117647
     ini.equilibrium.κ = 1.85
     ini.equilibrium.δ = 0.485
-    ini.equilibrium.pressure_core = 964500.0
+    ini.equilibrium.pressure_core = missing # forces cost_Pfusion_p0 option
     ini.equilibrium.ip = 1.2e7
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
