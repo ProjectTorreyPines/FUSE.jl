@@ -1,8 +1,47 @@
 # Contributing
 
-FUSE is a collaborative project that welcomes community contributions!
+FUSE is a collaborative project, and we welcome contributions from the community!
 
-The `master` branch of ProjectTorreyPines repositories is write-protected. This means that even with write permissions to the repository, you'll not be able to push to `master` directly. Instead, we handle updates – be it new features or bug fixes – through branches and Pull Requests (PRs).
+## Setting up a developer environment
+
+Follow these steps to set up your development environment for contributing to the FUSE codebase (or any other Julia package).
+
+1. Install and configure Revise.jl
+
+   Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and see changes without restarting Julia. We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically load Revise in all Julia sessions. Run the following command:
+
+   ```bash
+   fusebot install_revise
+   ```
+
+   Restart your Julia sessions and Jupyter kernels to apply this change.
+
+2. By default, development packages are located in `~/.julia/dev`. Since accessing hidden folders like `~/.julia` can be cumbersome, you may find it helpful to create a symbolic link to this dev folder (you can name the link `~/julia_dev` or something more convenient):
+
+   ```bash
+   ln -s ~/.julia/dev ~/julia_dev
+   ```
+
+3. Instead of manually cloning repositories, we recommend using Julia's `Pkg` system. Here’s a quick guide:
+
+   ```julia
+   ] dev FUSE # clones the `master` branch of FUSE
+   ] dev FUSE\#feature_branch # clones a specific feature branch
+   ] dev FUSE@v1.2.3 # checks out a specific release version
+   ] free FUSE # stops development mode, reverting to standard usage
+   ] status # shows the status of all packages in use and development
+   ] up # upgrades all packages (note: manage `dev` packages manually)
+   ```
+
+   These commands work not only for FUSE but for any Julia package, including [packages that FUSE depends on](https://fuse.help/dev/deps.html).
+
+    Familiarize yourself with [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/), as this will be helpful when contributing to FUSE or other Julia projects.
+
+3. Once set up, you can open `~/julia_dev` in VS Code, make changes to the code, and immediately see the effects of your changes live in your Julia sessions and Jupyter notebooks (thanks to `Revise.jl`).
+
+## Git branches
+
+The `master` and `dev` branches of ProjectTorreyPines repositories are write-protected. This means that even with write permissions to the repository, you'll not be able to push to them directly. Instead, we handle updates – be it new features or bug fixes – through branches and Pull Requests (PRs).
 
 A crucial part of our PR process is **code review**. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
 
@@ -11,7 +50,19 @@ A crucial part of our PR process is **code review**. It is where your peers get 
 
 ## Add/modify entries in `dd`
 
-The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package. See the documentation there to how add/modify entries in `dd`.
+The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package.
+See the documentation there to how add/modify entries in `dd`.
+
+## Write a new actor
+
+See the Jupyter [new actor tutorial](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/new_actor.ipynb)
+
+## Add/modify examples
+
+The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
+
+!!! note
+    When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
 
 ## Write IMAS physics functions
 
@@ -43,10 +94,6 @@ The functinoality of the `ini` and `act` parameters is implemented in the [Simul
 
 * The `ini` parameters are all defined in the `FUSE/src/parameters_init.jl` file. Add/edit entries there.
 * The `act` parameters of each actor are defined where that actor is defined. Add/edit entries there.
-
-## Write a new actor
-
-See the Jupyter [new actor tutorial](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/new_actor.ipynb)
 
 ## Profiling and writing fast Julia code
 
@@ -125,22 +172,6 @@ Let's now investigate where the issue is with the function that we have identifi
     ```markdown
     [video recording of the first FUSE tutorial](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/FUSE_tutorial_1_6Jul22.mp4)
     ```
-
-## Add/modify examples
-
-The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
-
-!!! note
-    When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
-
-## Use Revise.jl
-
-Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
-We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions. This can be done by running:
-
-```bash
-fusebot install_revise
-```
 
 ## Develop in VScode
 
