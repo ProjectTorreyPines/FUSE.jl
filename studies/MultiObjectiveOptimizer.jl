@@ -1,4 +1,4 @@
-using Serialization
+import Serialization
 #= ============================ =#
 #  StudyMultiObjectiveOptimizer  #
 #= ============================ =#
@@ -9,7 +9,6 @@ using Serialization
 Generates a database of dds from ini and act based on ranges specified in ini
 """
 function study_parameters(::Type{Val{:MultiObjectiveOptimizer}})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
-
     sty = FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
     act = ParametersActors()
 
@@ -101,11 +100,10 @@ function _run(study::StudyMultiObjectiveOptimizer)
 end
 
 function _analyze(study::StudyMultiObjectiveOptimizer)
-    println("analyzing study with n_threads = $(Base.Threads.nthreads())")
+    println("Analyzing study with n_threads = $(Base.Threads.nthreads())")
     extract_optimization_results(study)
     return study
 end
-
 
 function extract_optimization_results(study)
     function get_dataframe(file_path)
@@ -137,10 +135,9 @@ function extract_optimization_results(study)
 
     # Load list of already processed files if exists
     processed_files_set = Set{String}()
-
     checkpoint_file = joinpath(checkpoint_dir, "processed_files.jls")
     if isfile(checkpoint_file)
-        processed_files_set = deserialize(checkpoint_file)
+        processed_files_set = Serialization.deserialize(checkpoint_file)
     end
 
     # Filter out processed files
@@ -149,13 +146,13 @@ function extract_optimization_results(study)
     df_filler = get_dataframe(json_files[1])
     column_names = names(df_filler)
     column_types = map(col -> eltype(df_filler[!, col]), names(df_filler))
+
     # Number of threads
     num_threads = Base.Threads.nthreads()
 
     # Define batch size
     batch_size = length(json_files) > 1000 ? 1000 : Int(ceil(length(json_files) / num_threads))  # Adjust based on memory constraints
     println("analyzing $(total_files) in batches of $(batch_size) with nthreads = $(num_threads)")
-
 
     # Split files into batches
     file_batches = [json_files[i:min(i + batch_size - 1, end)] for i in 1:batch_size:length(json_files)]
@@ -195,7 +192,7 @@ function extract_optimization_results(study)
                 CSV.write(df_file, local_df)
                 # Save list of processed files
                 pf_file = joinpath(checkpoint_dir, "pf_batch$(batch_idx)_thread$(i).jls")
-                serialize(pf_file, local_processed_files)
+                Serialization.serialize(pf_file, local_processed_files)
                 # Store DataFrame reference
                 thread_data_frames[i] = local_df
             end
@@ -206,14 +203,14 @@ function extract_optimization_results(study)
             # Load processed files from each thread
             pf_file = joinpath(checkpoint_dir, "pf_batch$(batch_idx)_thread$(i).jls")
             if isfile(pf_file)
-                local_processed_files = deserialize(pf_file)
+                local_processed_files = Serialization.deserialize(pf_file)
                 union!(processed_files_set, local_processed_files)
                 rm(pf_file)  # Clean up if not needed anymore
             end
         end
 
         # Save updated processed files set
-        serialize(checkpoint_file, processed_files_set)
+        Serialization.serialize(checkpoint_file, processed_files_set)
     end
 
     final_df = DataFrame()
@@ -231,17 +228,4 @@ function extract_optimization_results(study)
     # Export the final DataFrame
     CSV.write(joinpath(study.sty.save_folder, "output.csv"), final_df)
     return study.dataframe = final_df
-end
-
-#### Analysis
-function copy_and_return_dds(df, pareto_list, laptop_dir)
-    dds = IMAS.dd[]
-    for par in pareto_list
-        path_omega = df.dir[par]
-        run(`scp -r omegae:$path_omega $latop_dir`)
-        p = joinpath(latop_dir, split(df.dir[par], "/")[end])
-        dd, ini, act = FUSE.load(p)
-        push!(dds, dd)
-    end
-    return dds
 end
