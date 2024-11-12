@@ -43,9 +43,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                     Pfusion_estimate = ini.requirements.power_electric_net * 2.0
                     dd0 = deepcopy(dd)
                     dd0.core_profiles.profiles_1d[].pressure = 1E4 .* (1.0 .- psin).^2
-                    act_copy = deepcopy(act)
-                    act_copy.ActorTEQUILA.free_boundary = true
-                    ActorEquilibrium(dd0, act_copy; model=:TEQUILA, ip_from=:pulse_schedule)
+                    ActorEquilibrium(dd0, act; ip_from=:pulse_schedule)
                     res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd0, ini), 1e1, 1e7, Optim.GoldenSection())
                     ini.equilibrium.pressure_core = pressure_core = res.minimizer[1]
                     @warn "Guessing `ini.equilibrium.pressure_core=$pressure_core` based on ini.requirements.power_electric_net=$(ini.requirements.power_electric_net)"
