@@ -662,6 +662,8 @@ end
 
 mutable struct MXHboundary
     mxh::IMAS.MXH
+    upper_x_point::Bool
+    lower_x_point::Bool
     RX::Vector{<:Real}
     ZX::Vector{<:Real}
     r_boundary::Vector{<:Real}
@@ -780,14 +782,14 @@ Return MXHboundary structure of boundary with x-points based on input MXH bounda
 """
 function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
     mr, mz = mxh()
-    mxhb = MXHboundary(deepcopy(mxh), Float64[], Float64[], mr, mz)
-    return MXHboundary!(mxhb; upper_x_point, lower_x_point, n_points)
+    mxhb = MXHboundary(deepcopy(mxh), upper_x_point, lower_x_point, Float64[], Float64[], mr, mz)
+    return MXHboundary!(mxhb; n_points)
 end
 
-function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0, RU::Real=0.0, RL::Real=0.0)
+function MXHboundary!(mxhb::MXHboundary; n_points::Integer=0, RU::Real=0.0, RL::Real=0.0)
     mr, mz = mxhb.mxh()
 
-    if ~upper_x_point && ~lower_x_point && n_points === 0
+    if ~mxhb.upper_x_point && ~mxhb.lower_x_point && n_points === 0
         empty!(mxhb.RX)
         empty!(mxhb.ZX)
         mxhb.r_boundary = mr
@@ -805,32 +807,32 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     end
 
     R, Z = mr, mz
-    RXU, ZXU, R1, Z1, _ = add_xpoint(R, Z, RU, Z0; upper=true, α_multiplier=(upper_x_point ? 1.0 : 2.0))
-    if upper_x_point
+    RXU, ZXU, R1, Z1, _ = add_xpoint(R, Z, RU, Z0; upper=true, α_multiplier=(mxhb.upper_x_point ? 1.0 : 2.0))
+    if mxhb.upper_x_point
         R = R1
         Z = Z1
     end
 
-    RXL, ZXL, R2, Z2 = add_xpoint(R, Z, RL, Z0; upper=false, α_multiplier=(lower_x_point ? 1.0 : 2.0))
-    if lower_x_point
+    RXL, ZXL, R2, Z2 = add_xpoint(R, Z, RL, Z0; upper=false, α_multiplier=(mxhb.lower_x_point ? 1.0 : 2.0))
+    if mxhb.lower_x_point
         R = R2
         Z = Z2
     end
 
     RX = Float64[]
     ZX = Float64[]
-    if upper_x_point
+    if mxhb.upper_x_point
         push!(RX, RXU)
         push!(ZX, ZXU)
     end
-    if lower_x_point
+    if mxhb.lower_x_point
         push!(RX, RXL)
         push!(ZX, ZXL)
     end
 
     # resample boundary after convex_hull in such a way to preserve x-points and add proper curvature in the x-point region
-    if upper_x_point + lower_x_point == 1
-        if upper_x_point
+    if mxhb.upper_x_point + mxhb.lower_x_point == 1
+        if mxhb.upper_x_point
             R, Z = IMAS.reorder_flux_surface!(R, Z, argmax(Z))
         else
             R, Z = IMAS.reorder_flux_surface!(R, Z, argmin(Z))
@@ -838,7 +840,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RR = @views [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
         ZZ = @views [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
         RR, ZZ = IMAS.resample_plasma_boundary(RR, ZZ; n_points=length(R) * 2, method=:cubic)
-        if upper_x_point
+        if mxhb.upper_x_point
             I = ZZ .< Z[1]
         else
             I = ZZ .> Z[1]
@@ -915,7 +917,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
 
-    function mxhb_from_params!(mxhb0::MXHboundary, params::AbstractVector{<:Real}; upper_x_point::Bool, lower_x_point::Bool, n_points::Int)
+    function mxhb_from_params!(mxhb0::MXHboundary, params::AbstractVector{<:Real}; n_points::Int)
         L = 1
         mxhb0.mxh.Z0 = params[L]
         L += 1
@@ -930,29 +932,29 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
             mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
             mxhb0.mxh.c = params[L+Integer((end - L) / 2)+1:end]
         end
-        return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
+        return MXHboundary!(mxhb0; n_points)
     end
 
-    function cost(params::AbstractVector{<:Real}; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area::Float64, target_volume::Float64)
+    function cost(params::AbstractVector{<:Real}; mxhb0, mxh0, n_points, target_area::Float64, target_volume::Float64)
         # mxhb0: contains the boundary with the x-point
         # mxhb0.mxh: is the MXH parametrization that leads to mxhb0 once x-points are set
         # mxh0: is the MHX fit to the mxhb0 boundary
 
-        mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
+        mxhb_from_params!(mxhb0, params; n_points)
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
         pr0, pz0 = IMAS.resample_plasma_boundary(mxhb0.r_boundary, mxhb0.z_boundary; n_points=length(pr))
 
         # X-points and non X-points halves
         c = 0.0
-        if upper_x_point
+        if mxhb0.upper_x_point
             i = argmax(mxhb0.ZX)
             c += ((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2)
         else
             i = pz .< mxhb0.mxh.Z0
             c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / sum(i)
         end
-        if lower_x_point
+        if mxhb0.lower_x_point
             i = argmin(mxhb0.ZX)
             c += ((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2)
         else
@@ -1008,12 +1010,12 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         params = vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c)
     end
     res = Optim.optimize(
-        x -> cost(x; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area, target_volume),
+        x -> cost(x; mxhb0, mxh0, n_points, target_area, target_volume),
         params,
         Optim.NelderMead(),
         Optim.Options(; iterations=1000, g_tol=1E-5)
     )
-    mxhb_from_params!(mxhb0, res.minimizer; upper_x_point, lower_x_point, n_points)
+    mxhb_from_params!(mxhb0, res.minimizer; n_points)
     IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
     if debug
