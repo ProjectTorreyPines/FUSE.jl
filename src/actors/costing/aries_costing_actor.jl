@@ -46,7 +46,7 @@ function _step(actor::ActorCostingARIES)
     par = actor.par
     cst = dd.costing
 
-    dd.costing.model = "ARIES"
+    dd.costing.code.name = "ARIES"
 
     cost_direct = cst.cost_direct_capital
     cost_ops = cst.cost_operations

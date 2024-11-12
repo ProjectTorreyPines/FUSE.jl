@@ -64,7 +64,7 @@ function _step(actor::ActorRisk)
     loss = resize!(rsk.engineering.loss, n_engineering + 3) # add 3 fields for coils as costed in ARIES
 
     # Coils
-    if dd.costing.model == "Sheffield" 
+    if dd.costing.code.name == "Sheffield" 
         @warn "Sheffield costing model provides grouped magnet system cost. Using ARIES costing model to calculate individual magnet system costs."
     end
 
@@ -95,9 +95,9 @@ function _step(actor::ActorRisk)
         next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
         loss[next_idx].description = "Blanket failure"
         loss[next_idx].probability = blanket_risk(dd, :exponential)
-        if cst.model == "ARIES"
+        if cst.code.name == "ARIES"
             loss[next_idx].severity = IMAS.select_direct_capital_cost(dd, "blanket")
-        elseif cst.model == "Sheffield"
+        elseif cst.code.name == "Sheffield"
             da = DollarAdjust(dd)
             blanket_cost = cost_direct_capital_Sheffield(:blanket, true, dd, da) # Calculate blanket cost in case blanket was not capitalized
             loss[next_idx].severity = blanket_cost
@@ -109,10 +109,10 @@ function _step(actor::ActorRisk)
         next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
         loss[next_idx].description = "Divertor failure"
         loss[next_idx].probability = divertor_risk(dd, par.max_Psol_over_R)
-        if cst.model == "ARIES"
+        if cst.code.name == "ARIES"
             divertor_cost = 10.0 # placeholder value since ARIES does not have divertor costing # units are $M
             loss[next_idx].severity = divertor_cost
-        elseif cst.model == "Sheffield"
+        elseif cst.code.name == "Sheffield"
             da = DollarAdjust(dd)
             divertor_cost = cost_direct_capital_Sheffield(:divertor, true, dd, da)
             loss[next_idx].severity = divertor_cost
