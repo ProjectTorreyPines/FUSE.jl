@@ -7,7 +7,8 @@ import JSON
 """
     study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
-Generates a database of dds from ini and act based on ranges specified in ini
+Generates a database of dds from ini and act based on ranges specified in ini (i.e. ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0])
+There is a example notebook in FUSE_examples/study_database_generator.ipynb that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
@@ -49,10 +50,6 @@ mutable struct StudyDatabaseGenerator <: AbstractStudy
     workflow::Union{Function,Missing}
 end
 
-function StudyDatabaseGenerator_summary_dataframe()
-    return DataFrame(; ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
-end
-
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = sty(kw...)
     study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
@@ -69,6 +66,11 @@ function _setup(study::StudyDatabaseGenerator)
     return study
 end
 
+"""
+    _run(study::StudyDatabaseGenerator)
+
+Runs the DatabaseGenerator with sty settings in parallel on designated cluster
+"""
 function _run(study::StudyDatabaseGenerator)
     sty = study.sty
 
@@ -104,6 +106,11 @@ function _run(study::StudyDatabaseGenerator)
     return study
 end
 
+"""
+    _analyze(study::StudyDatabaseGenerator)
+
+Example of analyze plots to display after the run feel free to change this method for your needs
+"""
 function _analyze(study::StudyDatabaseGenerator)
     display(histogram(study.dataframes_dict["outputs_summary"].Te0; xlabel="Te0 [eV]", legend=false))
     display(histogram(study.dataframes_dict["outputs_summary"].Ti0; xlabel="Ti0 [eV]", legend=false))
@@ -111,6 +118,11 @@ function _analyze(study::StudyDatabaseGenerator)
     return study
 end
 
+"""
+    run_case(study::AbstractStudy, item::String)
+
+Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
+"""
 function run_case(study::AbstractStudy, item::String)
     act = study.act
     sty = study.sty
@@ -146,3 +158,6 @@ function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
     return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.t_i_average[1], zeff=cp1d.zeff[1])
 end
 
+function StudyDatabaseGenerator_summary_dataframe()
+    return DataFrame(; ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
+end

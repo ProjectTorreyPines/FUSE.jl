@@ -396,8 +396,8 @@ function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, pow
         cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
     elseif contains(lowercase(bop.power_plant.power_cycle_type), "brayton")
         cost = 360.0 * (power_thermal / 2000.0)^0.8
-        if !isnan(bop.thermal_efficiency_cycle[1])
-            cost *= bop.thermal_efficiency_cycle[1] / 0.6
+        if !isnan(bop.thermal_efficiency_plant[1])
+            cost *= bop.thermal_efficiency_plant[1] / 0.6
         end
     end
     cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
