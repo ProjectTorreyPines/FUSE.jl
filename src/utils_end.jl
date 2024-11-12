@@ -10,53 +10,31 @@ import DataFrames
 """
 Provides handy checkpoint capabilities of `dd`, `ini`, `act`
 
-It essentially behaves like a ordered dictionary, with the difference that it does deepcopy on getindex and setindex!
+@checkin and @checkout macros use FUSE.checkpoint = Checkpoint()
 
-Sample usage in a Jupyter notebook:
-
-    chk = FUSE.Checkpoint()
     ...init...
-    chk[:init] = dd, ini, act; # store
+    @checkin :init dd ini act # store dd, ini, act
 
     --------
 
-    dd, ini, act = chk[:init] # restore
+    @checkout :init dd ini act # restore dd, ini, act
     ...something...
-    chk[:something] = dd, ini, act; # store
+    @checkin :something dd act # store dd, act
 
     --------
 
-    dd = chk[:something].dd # restore only dd
+    @checkout :something dd # restore only dd
     ...something_else...
-    chk[:something_else] = dd # store only dd
+    @checkin :something_else dd # store only dd
 
     --------
 
-    dd = chk[:something_else].dd # restore only dd
+    @checkout :something_else dd # restore only dd
     ...something_else_more...
 
-also works with @checkin and @checkout macros
+    ========
 
-    chk = FUSE.Checkpoint()
-    ...init...
-    @checkin chk :init dd ini act # store dd, ini, act
-
-    --------
-
-    @checkout chk :init dd ini act # restore dd, ini, act
-    ...something...
-    @checkin chk :something dd act # store dd, act
-
-    --------
-
-    @checkout chk :something dd # restore only dd
-    ...something_else...
-    @checkin chk :something_else dd # store only dd
-
-    --------
-
-    @checkout chk :something_else dd # restore only dd
-    ...something_else_more...
+    empty!(FUSE.checkpoint) # to start over
 """
 Base.@kwdef struct Checkpoint
     history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
@@ -86,6 +64,10 @@ function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     return nothing
 end
 
+function Base.iterate(chk::Checkpoint, state=1)
+    return iterate(chk.history, state)
+end
+
 # Generate the delegated methods (NOTE: these methods do not require deepcopy)
 for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
     @eval function Base.$func(chk::Checkpoint, args...; kw...)
@@ -94,17 +76,17 @@ for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
 end
 
 """
-    @checkin chk :key a b c
+    @checkin :key a b c
 
 Macro to save variables into a Checkpoint under a specific key
 """
-macro checkin(checkpoint, key, vars...)
+macro checkin(key, vars...)
     key = esc(key)
-    checkpoint = esc(checkpoint)
 
     # Save all the variables in the `vars` list under the provided key using their names
     return quote
-        d = getfield($checkpoint, :history)
+        @assert typeof($key) <: Symbol "`@checkin chk :what var1 var2` was deprecated in favor of `@checkin :what var1 var2`"
+        d = getfield(checkpoint, :history)
         if $key in keys(d)
             dict = Dict(k => v for (k, v) in pairs(d[$key]))
         else
@@ -117,17 +99,17 @@ macro checkin(checkpoint, key, vars...)
 end
 
 """
-    @checkout chk :key a c
+    @checkout :key a c
 
 Macro to load variables from a Checkpoint
 """
-macro checkout(checkpoint, key, vars...)
+macro checkout(key, vars...)
     key = esc(key)
-    checkpoint = esc(checkpoint)
 
     # Restore variables from the checkpoint
     return quote
-        d = getfield($checkpoint, :history)
+        @assert typeof($key) <: Symbol "`@checkout chk :what var1 var2` was deprecated in favor of `@checkout :what var1 var2`"
+        d = getfield(checkpoint, :history)
         if haskey(d, $key)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
@@ -137,6 +119,8 @@ macro checkout(checkpoint, key, vars...)
         nothing
     end
 end
+
+const checkpoint = Checkpoint()
 
 # ===================================== #
 # extract data from FUSE save folder(s) #

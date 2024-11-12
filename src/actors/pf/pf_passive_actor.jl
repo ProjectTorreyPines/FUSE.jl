@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T<:Real} <: Pa
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=0.1)
+    wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=1.0)
     min_n_segments::Entry{Int} = Entry{Int}("-", "Minimum number of quadralaterals"; default=15)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
@@ -44,27 +44,30 @@ function _step(actor::ActorPassiveStructures)
     empty!(dd.pf_passive)
 
     # The vacuum vessel can have multiple layers
-    # Find all the bounding ones and turn the area in between into quads
-    kvessel = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)
-    if isempty(kvessel)
+    kvessels = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)
+    if isempty(kvessels)
         @warn "No vessel found. Can't compute vertical stability metrics"
         return actor
     end
-    kout = kvessel[end]
-    kin = kvessel[1] - 1
+    for kvessel in kvessels
+        kout = kvessel
+        kin = kvessel - 1
 
-    # resistivity just takes the material from the outermost build layer;
-    # It does not account for toroidal breaks, heterogeneous materials,
-    # or builds with "water" vacuum vessels
-    mat_vv = Material(dd.build.layer[kout].material)
-    if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
-        mat_vv = Material(:steel)
-    end
-    resistivity = 1.0 / mat_vv.electrical_conductivity(; temperature=273.15)
+        # resistivity just takes the material from the outermost build layer;
+        # It does not account for toroidal breaks, heterogeneous materials,
+        # or builds with "water" vacuum vessels
+        mat_vv = Material(dd.build.layer[kout].material)
+        if ismissing(mat_vv) || ismissing(mat_vv.electrical_conductivity)
+            mat_vv = Material(:steel)
+        end
+        resistivity = 1.0 / mat_vv.electrical_conductivity(; temperature=273.15)
 
-    quads = layer_quads(dd.build.layer[kin], dd.build.layer[kout], par.wall_precision, par.min_n_segments)
-    for (k,quad) in enumerate(quads)
-        add_pf_passive_loop(dd.pf_passive, dd.build.layer[kout].name, "VV $k", quad[1], quad[2]; resistivity)
+        thickness_to_radius = dd.build.layer[kin].thickness / (2π * (dd.build.layer[kin].start_radius - IMAS.opposite_side_layer(dd.build.layer[kin]).end_radius) / 2)
+
+        quads = layer_quads(dd.build.layer[kin], dd.build.layer[kout], par.wall_precision * thickness_to_radius, par.min_n_segments)
+        for (k,quad) in enumerate(quads)
+            add_pf_passive_loop(dd.pf_passive, dd.build.layer[kout].name, "VV $k", quad[1], quad[2]; resistivity)
+        end
     end
 
     return actor

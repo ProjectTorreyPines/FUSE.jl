@@ -87,6 +87,8 @@ function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllAct
         dd.build.tf.coils_n = ini.tf.n_coils
         # target TF ripple
         dd.build.tf.ripple = ini.tf.ripple
+        # TF nose thickness
+        dd.build.tf.nose_hfs_fraction = ini.tf.nose_hfs_fraction
 
         # 2D build cross-section
         ActorCXbuild(dd, act)
@@ -114,6 +116,8 @@ Initialize dd.build.layers from ini.build.layers
 function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__build_layer})
     empty!(bd.layer)
 
+    layers_coils_inside!(layers)
+
     k = 0
     for ini_layer in layers
         @assert ini_layer.thickness >= 0.0
@@ -130,9 +134,29 @@ function init_build!(bd::IMAS.build, layers::ParametersVector{<:FUSEparameters__
         if !ismissing(ini_layer, :shape)
             layer.shape = Int(ini_layer.shape)
         end
+        if !ismissing(ini_layer, :coils_inside)
+            layer.coils_inside = ini_layer.coils_inside
+        end
     end
 
     return bd
+end
+
+"""
+    layers_coils_inside!(layers::ParametersVector{<:FUSEparameters__build_layer})
+
+Converts ini.build.layers[:].coils_inside to vector of Int
+"""
+function layers_coils_inside!(layers::ParametersVector{<:FUSEparameters__build_layer})
+    ncoils = 0
+    for ini_layer in layers
+        if !ismissing(ini_layer, :coils_inside)
+            if typeof(ini_layer.coils_inside) <: Int
+                ini_layer.coils_inside = ncoils .+ collect(1:ini_layer.coils_inside)
+            end
+            ncoils += length(ini_layer.coils_inside)
+        end
+    end
 end
 
 """
@@ -180,7 +204,9 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
         if !ismissing(layer, :material)
             continue
         end
-        if k == 1 && ini.center_stack.plug
+        if contains(layer.name, "water")
+            layer.material = "water"
+        elseif k == 1 && ini.center_stack.plug
             layer.material = "steel"
         elseif layer.type == Int(_plasma_)
             layer.material = "plasma"
@@ -201,7 +227,7 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
                 layer.material = "steel"
             end
         elseif layer.type == Int(_vessel_)
-            layer.material = "water"
+            layer.material = "steel"
         elseif layer.type == Int(_cryostat_)
             layer.material = "steel"
         end
@@ -260,9 +286,9 @@ function layers_meters_from_fractions(;
     layers[:hfs_TF] = 1.0
     @assert vessel >= 0.0
     if thin_vessel_walls
-        layers[:hfs_vacuum_vessel_wall_outer] = 0.1 * vessel
-        layers[:hfs_vacuum_vessel] = 0.8 * vessel
-        layers[:hfs_vacuum_vessel_wall_inner] = 0.1 * vessel
+        layers[:hfs_vacuum_vessel_outer] = 0.1 * vessel
+        layers[:hfs_gap_water] = 0.8 * vessel
+        layers[:hfs_vacuum_vessel_inner] = 0.1 * vessel
     else
         layers[:hfs_vacuum_vessel] = vessel
     end
@@ -289,9 +315,9 @@ function layers_meters_from_fractions(;
     end
     if vessel > 0.0
         if thin_vessel_walls
-            layers[:lfs_vacuum_vessel_wall_inner] = lfs_asymmetry(0.1 * vessel)
-            layers[:lfs_vacuum_vessel] = lfs_asymmetry(0.8 * vessel)
-            layers[:lfs_vacuum_vessel_wall_outer] = lfs_asymmetry(0.1 * vessel)
+            layers[:lfs_vacuum_vessel_inner] = lfs_asymmetry(0.1 * vessel)
+            layers[:lfs_gap_water] = lfs_asymmetry(0.8 * vessel)
+            layers[:lfs_vacuum_vessel_outer] = lfs_asymmetry(0.1 * vessel)
         else
             layers[:lfs_vacuum_vessel] = lfs_asymmetry(vessel)
         end

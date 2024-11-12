@@ -14,6 +14,7 @@ on:
   push:
     branches:
       - master
+      - dev
   pull_request:
 
 env:
@@ -39,13 +40,13 @@ jobs:
 
     steps:
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: Set JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}
         run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # Julia setup
       - uses: julia-actions/setup-julia@v1
@@ -57,11 +58,11 @@ jobs:
       # Cache key generation
       - name: Generate cache key with date
         id: cache-date
-        run: echo "::set-output name=date::$(date +%Y-%m-%d)"
+        run: echo "{date}=$(date +%Y-%m-%d)" >> $GITHUB_STATE
 
       # Cache Julia artifacts
       - name: Cache Julia artifacts
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         if: github.event.inputs.bypass-cache != 'true'
         with:
           path: |

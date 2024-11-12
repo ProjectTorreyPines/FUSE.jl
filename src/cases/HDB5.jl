@@ -1,5 +1,5 @@
-import DataFrames
-import CSV
+using DataFrames: DataFrames
+using CSV: CSV
 
 """
     case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
@@ -18,11 +18,7 @@ function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any,
 end
 
 function case_parameters(data_row::DataFrames.DataFrameRow)
-    n_nb = (data_row[:PNBI] > 0) ? 1 : 0
-    n_ec = (data_row[:PECRH] > 0) ? 1 : 0
-    n_ic = (data_row[:PICRH] > 0) ? 1 : 0
-
-    ini = ParametersInits(; n_nb, n_ec, n_ic)
+    ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     ini.general.init_from = :scalars
@@ -71,8 +67,9 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
 
-    # nbi
-    if n_nb > 0
+    # hcd
+    if data_row[:PNBI] > 0
+        resize!(ini.nb_unit, 1)
         ini.nb_unit[1].power_launched = data_row[:PNBI]
         if data_row[:ENBI] > 0
             ini.nb_unit[1].beam_energy = data_row[:ENBI]
@@ -82,20 +79,21 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         ini.nb_unit[1].beam_mass = 2.0
         ini.nb_unit[1].toroidal_angle = 18.0 * deg # 18 degrees assumed like DIII-D
     end
-
-    if n_ec > 0
+    if data_row[:PECRH] > 0
+        resize!(ini.ec_launcher, 1)
         ini.ec_launcher[1].power_launched = data_row[:PECRH]
     end
-
-    if n_ic > 0
+    if data_row[:PICRH] > 0
+        resize!(ini.ic_antenna, 1)
         ini.ic_antenna[1].power_launched = data_row[:PICRH]
     end
+
+    #### ACT ####
 
     act.ActorPedestal.density_match = :ne_line
     act.ActorFluxMatcher.evolve_pedestal = false
 
-    set_new_base!(ini)
-    set_new_base!(act)
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
 end
@@ -120,17 +118,22 @@ function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::F
         "CONFIG"
     ]
     signal_names = vcat(signal_names, extra_signal_names)
+
     # subselect on the signals of interest
     run_df = run_df[:, signal_names]
+
     # only retain cases for which all signals have data
     run_df = run_df[DataFrames.completecases(run_df), :]
+
     # some basic filters
     run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(run_df.DELTA.<0.79).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
+
     # Filter cases where the ohmic power is dominating
     run_df[:, "Paux"] = run_df[:, "PNBI"] .+ run_df[:, "PECRH"] .+ run_df[:, "PICRH"] .+ run_df[:, "POHM"]
     run_df = run_df[run_df[:, "POHM"].<maximum_ohmic_fraction.*(run_df[:, "Paux"].-run_df[:, "POHM"]), :]
     if Symbol(tokamak) ∉ (:all, :any)
         run_df = run_df[run_df.TOK.==String(tokamak), :]
     end
+
     return run_df
 end

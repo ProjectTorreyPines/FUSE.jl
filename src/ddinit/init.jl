@@ -166,7 +166,8 @@ function init(
         end
 
         # initialize oh and pf coils
-        if initialize_hardware && (!ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active.coil))
+        n_coils = [length(layer.coils_inside) for layer in dd.build.layer if !ismissing(layer, :coils_inside)]
+        if initialize_hardware && !isempty(n_coils)
             verbose && @info "INIT: init_pf_active"
             init_pf_active!(dd, ini, act, dd1)
             if do_plot
@@ -175,6 +176,13 @@ function init(
                 plot!(dd.build.pf_active.rail)
                 display(plot!(dd.pf_active))
             end
+        end
+
+        # pf_passive
+        if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
+            dd.pf_passive = deepcopy(dd1.pf_passive)
+        else
+            FUSE.ActorPassiveStructures(dd, act)
         end
 
         # initialize balance of plant

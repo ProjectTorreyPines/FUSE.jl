@@ -205,18 +205,27 @@ blank_examples:clean_examples
 	cd docs; julia notebooks_to_md.jl
 
 # @devs
-branch_master: error_missing_repos_var
-# GitHub merge of `branch` into `master` for a series of repos
-# >> make branch_master branch=my_branch repos='FUSE IMAS IMASdd'
-	@$(foreach repo,$(repos), \
-	curl -X POST \
-	-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
-	-H "Accept: application/vnd.github.v3+json" \
-	https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
-	-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
+merge_remote: error_missing_repo_var error_missing_branch_var
+# GitHub merge of `branch` into master for a given `repo`
+# >> make merge_remote branch=my_branch repo=FUSE
+	@merge_response=$$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+		-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+		-H "Accept: application/vnd.github.v3+json" \
+		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
+		-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}'); \
+	echo "Merge response code: $$merge_response"; \
+	if [ "$$merge_response" -eq 201 ]; then \
+		echo "Merge successful. Deleting branch $(branch) from remote..."; \
+		curl -X DELETE \
+		-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+		-H "Accept: application/vnd.github.v3+json" \
+		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/git/refs/heads/$(branch); \
+	else \
+		echo "Merge failed with status code $$merge_response. Branch $(branch) was not deleted."; \
+	fi
 
 # @devs
-bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
+bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump major version of a repo
 # >> make bump_major repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -226,7 +235,7 @@ bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump versio
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
+bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump minor version of a repo
 # >> make bump_minor repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -236,7 +245,7 @@ bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump versio
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_patch: error_missing_repo_var error_on_last_commit_is_a_version_bump versions_used
+bump_patch: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump patch version of a repo
 # >> make bump_patch repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -496,10 +505,10 @@ ifeq ($(repo),)
 endif
 
 # @devs
-error_missing_repos_var:
-# Throw an error if environment variable `repos` is not set
-ifeq ($(repo),)
-	$(error `repos` variable is not set)
+error_missing_branch_var:
+# Throw an error if environment variable `branch` is not set
+ifeq ($(branch),)
+	$(error `branch` variable is not set)
 endif
 
 # @devs

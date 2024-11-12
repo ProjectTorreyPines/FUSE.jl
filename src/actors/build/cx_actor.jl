@@ -68,7 +68,7 @@ function _step(actor::ActorCXbuild)
     empty!(bd.structure)
 
     # layers
-    build_cx!(bd, eqt, dd.wall, dd.pf_active; par.n_points)
+    build_cx!(bd, dd.wall, dd.pf_active; par.n_points)
 
     # divertors + find strike points on divertors
     divertor_regions!(bd, eqt, dd.divertors, fw.r, fw.z)
@@ -187,7 +187,7 @@ function wall_from_eq!(
     # lcfs and magnetic axis
     ψb = eqt.global_quantities.psi_boundary
     ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, T[], T[])
-    rlcfs, zlcfs = IMAS.resample_2d_path(rlcfs, zlcfs; n_points=201)
+    rlcfs, zlcfs = IMAS.resample_2d_path(rlcfs, zlcfs; n_points=201, method=:linear)
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -332,8 +332,8 @@ function divertor_regions!(
     eqt::IMAS.equilibrium__time_slice{T},
     divertors::IMAS.divertors{T},
     wall_r::AbstractVector{T},
-    wall_z::AbstractVector{T}
-) where {T<:Real}
+    wall_z::AbstractVector{T}) where {T<:Real}
+
     RA = eqt.global_quantities.magnetic_axis.r
     ZA = eqt.global_quantities.magnetic_axis.z
 
@@ -351,7 +351,7 @@ function divertor_regions!(
     for ltype in (_blanket_, _shield_, _wall_)
         iwls = IMAS.get_build_indexes(bd.layer; type=ltype, fs=_hfs_)
         if !isempty(iwls)
-            backwall_layer = bd.layer[iwls[1]]
+            backwall_layer = bd.layer[iwls[end]]
             break
         end
     end
@@ -482,29 +482,31 @@ function divertor_regions!(
         indexes, crossings = IMAS.intersection(xx, yy, divertor_r, divertor_z)
 
         # add target info
-        divertor = resize!(divertors.divertor, length(divertors.divertor) + 1)[end]
-        for io_name in ("inner", "outer")
-            target = resize!(divertor.target, "name" => "$ul_name $io_name target")
-            tile = resize!(target.tile, "name" => "$ul_name $io_name tile")
-            if ul_name == "upper"
-                if io_name == "outer"
-                    divertor_pfs_r = divertor_r[indexes[1][2]:end]
-                    divertor_pfs_z = divertor_z[indexes[1][2]:end]
+        if !isempty(indexes)
+            divertor = resize!(divertors.divertor, length(divertors.divertor) + 1)[end]
+            for io_name in ("inner", "outer")
+                target = resize!(divertor.target, "name" => "$ul_name $io_name target")
+                tile = resize!(target.tile, "name" => "$ul_name $io_name tile")
+                if ul_name == "upper"
+                    if io_name == "outer"
+                        divertor_pfs_r = divertor_r[indexes[1][2]:end]
+                        divertor_pfs_z = divertor_z[indexes[1][2]:end]
+                    else
+                        divertor_pfs_r = divertor_r[1:indexes[1][2]]
+                        divertor_pfs_z = divertor_z[1:indexes[1][2]]
+                    end
                 else
-                    divertor_pfs_r = divertor_r[1:indexes[1][2]]
-                    divertor_pfs_z = divertor_z[1:indexes[1][2]]
+                    if io_name == "outer"
+                        divertor_pfs_r = divertor_r[1:indexes[1][2]]
+                        divertor_pfs_z = divertor_z[1:indexes[1][2]]
+                    else
+                        divertor_pfs_r = divertor_r[indexes[1][2]:end]
+                        divertor_pfs_z = divertor_z[indexes[1][2]:end]
+                    end
                 end
-            else
-                if io_name == "outer"
-                    divertor_pfs_r = divertor_r[1:indexes[1][2]]
-                    divertor_pfs_z = divertor_z[1:indexes[1][2]]
-                else
-                    divertor_pfs_r = divertor_r[indexes[1][2]:end]
-                    divertor_pfs_z = divertor_z[indexes[1][2]:end]
-                end
+                tile.surface_outline.r = divertor_pfs_r
+                tile.surface_outline.z = divertor_pfs_z
             end
-            tile.surface_outline.r = divertor_pfs_r
-            tile.surface_outline.z = divertor_pfs_z
         end
     end
 
@@ -563,7 +565,7 @@ end
 Defines maintenance port structures
 """
 function port_regions!(bd::IMAS.build; maintenance::Symbol=:none, tor_modularity::Int=2, pol_modularity::Int=1)
-    vessel = IMAS.get_build_layer(bd.layer; type=_vessel_, fs=_lfs_)
+    vessel = IMAS.get_build_layers(bd.layer; type=_vessel_, fs=_lfs_)[1]
     cryostat = IMAS.get_build_layer(bd.layer; type=_cryostat_)
 
     # calculate radial port locations
@@ -609,12 +611,35 @@ function IMAS.resample_2d_path(layer::IMAS.build__layer; method::Symbol=:linear,
     return layer
 end
 
+function obstructing_coils!(
+    ocoils::Vector{Vector{IMAS.pf_active__coil{T}}},
+    coils::IMAS.IDSvector{IMAS.pf_active__coil{T}},
+    layer::IMAS.build__layer{T},
+    direction::Int) where {T<:Real}
+
+    if !isempty(coils)
+        opposite_layer = IMAS.opposite_side_layer(layer)
+        for clayer in (layer, opposite_layer)
+            if !ismissing(clayer, :coils_inside)
+                if direction > 0
+                    push!(ocoils, coils[clayer.coils_inside])
+                else
+                    pop!(ocoils)
+                end
+            end
+        end
+    end
+    ocoils = IMAS.pf_active__coil{T}[coil for coil in vcat(ocoils...)]
+    obstruction_outline = convex_outline(ocoils)
+    return obstruction_outline
+end
+
 """
-    build_cx!(bd::IMAS.build, wall::IMAS.wall, pfa::IMAS.pf_active; n_points::Int)
+    build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}; n_points::Int, verbose::Bool=false) where {T<:Real}
 
 Translates 1D build to 2D cross-sections starting from R and Z coordinates of plasma first wall
 """
-function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, pfa::IMAS.pf_active; n_points::Int)
+function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}; n_points::Int, verbose::Bool=false) where {T<:Real}
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
 
     fw = IMAS.first_wall(wall)
@@ -645,98 +670,84 @@ function build_cx!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice, wall::IMAS
     # @show plasma_to_tf
     # plot(bd.layer[plasma_to_tf[1]])
 
-    verbose = false
-    k = 2
-    n_rails = 1
-    while k <= length(plasma_to_tf)
-        layer = bd.layer[plasma_to_tf[k]]
+    vertical_clearance = 1.0
+    kl = 2
+    ocoils = Vector{Vector{IMAS.pf_active__coil{T}}}()
+    obstruction_outline = nothing
+    while kl <= length(plasma_to_tf)
+        layer = bd.layer[plasma_to_tf[kl]]
         layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
-        if layer_shape == IMAS._negative_offset_
+
+        if layer_shape !== IMAS._negative_offset_
+            verbose && @show "N", IMAS.index(layer), layer.name, layer_shape
+            obstruction_outline = obstructing_coils!(ocoils, pfa.coil, layer, +1)
+            layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                bd,
+                plasma_to_tf[kl-1],
+                plasma_to_tf[kl],
+                layer_shape;
+                vertical_clearance,
+                resolution=n_points / 201.0,
+                obstruction_outline,
+                is_z_offset)
+            if verbose
+                plot(ocoils)
+                display(plot!(bd.layer[plasma_to_tf[kl]]))
+            end
+
+        else
             # go forward until find a normal layer
             neg_off_layers = []
-            for kk in k:length(plasma_to_tf)
+            for kk in kl:length(plasma_to_tf)
                 layer = bd.layer[plasma_to_tf[kk]]
+                obstruction_outline = obstructing_coils!(ocoils, pfa.coil, layer, +1)
                 layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
                 if layer_shape != IMAS._negative_offset_
-                    if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                        verbose && @show "F1", layer.name, layer_shape
-                        if isempty(bd.pf_active, :rail)
-                            obstruction_outline = convex_outline(pfa.coil)
-                        else
-                            n_rails += 1
-                            obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
-                        end
-                        vertical_clearance = 1.1
-                    else
-                        verbose && @show "F2", layer.name, layer_shape
-                        obstruction_outline = nothing
-                        vertical_clearance = 1.0
-                    end
+                    verbose && @show "F", IMAS.index(layer), layer.name, layer_shape
                     layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
                         bd,
-                        plasma_to_tf[k-1],
+                        plasma_to_tf[kl-1],
                         plasma_to_tf[kk],
                         layer_shape;
                         vertical_clearance,
                         resolution=n_points / 201.0,
                         obstruction_outline,
-                        is_z_offset
-                    )
-                    k = kk
-                    #display(plot!(bd.layer[plasma_to_tf[k]]))
+                        is_z_offset)
+                    kl = kk
+                    if verbose
+                        #plot(ocoils)
+                        display(plot!(bd.layer[plasma_to_tf[kl]]))
+                    end
                     break
                 else
                     # deal with negative offsets later
                     push!(neg_off_layers, kk)
                 end
             end
+
             # go back with negative offset layers
             for kk in reverse(neg_off_layers)
                 layer = bd.layer[plasma_to_tf[kk]]
+                obstruction_outline = obstructing_coils!(ocoils, pfa.coil, layer, -1)
                 layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
-                verbose && @show "B", layer.name, layer_shape
+                verbose && @show "B", IMAS.index(layer), layer.name, layer_shape
                 layer.shape, layer.shape_parameters = optimize_layer_outline(
                     bd,
                     plasma_to_tf[kk+1],
                     plasma_to_tf[kk],
                     layer_shape;
-                    vertical_clearance=1.0,
+                    vertical_clearance,
                     resolution=n_points / 201.0,
                     obstruction_outline=nothing,
-                    is_z_offset
-                )
-                # display(plot!(bd.layer[plasma_to_tf[kk]]))
-            end
-
-        else
-            if contains(lowercase(layer.name), "coils") && !isempty(pfa.coil)
-                verbose && @show "N1", layer.name, layer_shape
-                if isempty(bd.pf_active, :rail)
-                    obstruction_outline = convex_outline(pfa.coil)
-                else
-                    n_rails += 1
-                    obstruction_outline = convex_outline(bd.pf_active.rail[n_rails])
+                    is_z_offset)
+                if verbose
+                    plot(ocoils)
+                    display(plot!(bd.layer[plasma_to_tf[kk]]))
                 end
-                vertical_clearance = 1.0
-            else
-                verbose && @show "N2", layer.name, layer_shape
-                obstruction_outline = nothing
-                vertical_clearance = 1.0
             end
-            layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
-                bd,
-                plasma_to_tf[k-1],
-                plasma_to_tf[k],
-                layer_shape;
-                vertical_clearance,
-                resolution=n_points / 201.0,
-                obstruction_outline,
-                is_z_offset
-            )
-            # display(plot!(bd.layer[plasma_to_tf[k]]))
         end
 
-        k += 1
+        kl += 1
     end
 
     # _in_
@@ -863,24 +874,19 @@ function optimize_layer_outline(
         shape_parameters = Float64[]
 
     else # handle shapes
-        use_curvature = true
-        if layer.side == Int(_out_) || shape_enum ∈ (IMAS._rectangle_, IMAS._silo_)
-            use_curvature = false
-        end
-
         shape = mod(shape, 100)
         if is_z_offset
             shape = shape + 100
         end
 
-        oZ = oZ .* vertical_clearance
         hfs_thickness = abs(hfs_thickness)
         lfs_thickness = abs(lfs_thickness)
+        oZ = oZ .* vertical_clearance
 
         func = shape_function(shape; resolution)
         initial_clerance = max(hfs_thickness, lfs_thickness) * vertical_clearance
         shape_parameters0 = initialize_shape_parameters(shape, oR, oZ, l_start, l_end, initial_clerance)
-        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters0; use_curvature)
+        shape_parameters = optimize_outline(oR, oZ, hfs_thickness, lfs_thickness, func, l_start, l_end, shape_parameters0)
         layer.outline.r, layer.outline.z = func(l_start, l_end, shape_parameters...)
     end
 
@@ -903,7 +909,6 @@ function optimize_outline(
     r_start::Float64,
     r_end::Float64,
     shape_parameters::Vector{Float64};
-    use_curvature::Bool=true,
     verbose::Bool=false)
 
     initial_guess = deepcopy(shape_parameters)
@@ -1052,7 +1057,7 @@ function convex_outline(rail::IMAS.build__pf_active__rail{T}) where {T<:Real}
     coil_start = sum([rails[k].coils_number for k in 1:irail-1]) + 1
     coil_end = coil_start + rail.coils_number - 1
     dd = IMAS.top_dd(rail)
-    coils = IMAS.pf_active__coil{T}[dd.pf_active.coil[k] for k in coil_start:coil_end]
+    coils = IMAS.pf_active__coil{T}[dd.pf_active.coil[k] for k in coil_start:coil_end if :shaping ∈ dd.pf_active.coil[k].function && :flux ∉ dd.pf_active.coil[k].function]
     return convex_outline(coils)
 end
 

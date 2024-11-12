@@ -65,7 +65,7 @@ function _step(actor::ActorLFSsizing)
 
         if par.tor_modularity == 1
             # if tor_modularity is 1, then lfs vessel end_radius must coincide with rVP_lfs_ob
-            vessel_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_vessel_, fs=_lfs_)
+            vessel_lfs_layer = IMAS.get_build_layers(dd.build.layer; type=_vessel_, fs=_lfs_)[1]
             @assert TF_lfs_layer.start_radius > vessel_lfs_layer.end_radius
             maintenance_TF_radius = rVP_lfs_ob + (TF_lfs_layer.start_radius - vessel_lfs_layer.end_radius)
         else
@@ -89,7 +89,7 @@ function _step(actor::ActorLFSsizing)
         println("old_TF_radius = $old_TF_radius [m], new_TF_radius = $new_TF_radius [m]")
     end
 
-    ivessel = IMAS.get_build_index(dd.build.layer; type=_vessel_, fs=_lfs_) - 1
+    ivessel = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)[1] - 1
     iplasma = IMAS.get_build_index(dd.build.layer; type=_plasma_) + 1
 
     # resize first vacuum gap between VV and plasma

@@ -119,13 +119,13 @@ function _step(actor::ActorWholeFacility)
                 actor.CXbuild = ActorCXbuild(dd, act)
                 actor.PFactive = ActorPFactive(dd, act; update_equilibrium=false)
             end
+
+            actor.PassiveStructures = ActorPassiveStructures(dd, act)
         else
             actor.FluxSwing = ActorFluxSwing(dd, act)
             actor.Stresses = ActorStresses(dd, act)
             actor.PFactive = ActorPFactive(dd, act)
         end
-
-        actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
         actor.VerticalStability = ActorVerticalStability(dd, act)
 
