@@ -63,6 +63,16 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     rz_points::Entry{Vector{Vector{T}}} = Entry{Vector{Vector{T}}}("m", "R_Z boundary as Vector{Vector{$T}}} : r = rz_points[1], z = rz_points[2]")
 end
 
+Base.@kwdef mutable struct FUSEparameters__ITB{T} <: ParametersInit{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :pf_active
+    radius::Entry{T} = Entry{T}("-", "Radius at which the ITB starts in rho")
+    ne_width::Entry{T} = Entry{T}("-", "Width of the ITB in ITB_radius")
+    ne_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron density ITB expressed as the ratio of the density without ITB, evaluated on axis")
+    Te_width::Entry{T} = Entry{T}("-", "Width of the ITB in ITB_radius")
+    Te_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron temperature ITB expressed as the ratio of the temperature without ITB, evaluated on axis")
+end
+
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
@@ -91,6 +101,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
     polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < polarized_fuel_fraction < 1.0")
+    ITB::FUSEparameters__ITB{T} = FUSEparameters__ITB{T}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
@@ -200,7 +211,11 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
     material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.all_materials(), "-", "Material of the layer")
-    coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}("-", "List of coils within this layer"; check=x -> @assert (typeof(x) <: Int && x > 0) || (length(x) > 0 && minimum(x) > 0) "coils_inside must be > 0")
+    coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}(
+        "-",
+        "List of coils within this layer";
+        check=x -> @assert (typeof(x) <: Int && x > 0) || (length(x) > 0 && minimum(x) > 0) "coils_inside must be > 0"
+    )
     shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the layer")
     type::Switch{BuildLayerType} = Switch{BuildLayerType}(layer_type_options, "-", "Type of the layer")
     side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")
@@ -534,7 +549,7 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
         # in case of ODS we have all information to generate MXHboundary
         RX = [x_point.r for x_point in eqt.boundary.x_point]
         ZX = [x_point.z for x_point in eqt.boundary.x_point]
-        mxhb = MXHboundary(mxh, RX, ZX, pr, pz)
+        mxhb = MXHboundary(mxh, ini.equilibrium.xpoints in (:upper, :double), ini.equilibrium.xpoints in (:lower, :double), RX, ZX, pr, pz)
     else
         # all other cases we must reconcile mxh boundary with requested x-points
         nx = n_xpoints(ini.equilibrium.xpoints)

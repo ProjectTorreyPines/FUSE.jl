@@ -42,9 +42,9 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         end
 
         if ini.core_profiles.ne_setting in (:ne_ped, :greenwald_fraction_ped)
-            @assert  act.ActorPedestal.density_match == :ne_ped "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_ped" 
+            @assert act.ActorPedestal.density_match == :ne_ped "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_ped"
         else
-            @assert  act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line" 
+            @assert act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line"
         end
 
         if init_from == :scalars
@@ -70,9 +70,18 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.T_ratio,
                 ini.core_profiles.T_shaping,
                 ini.core_profiles.Te_sep,
-                ini.core_profiles.ngrid)
+                ini.core_profiles.ngrid,
+                ITB_radius=getproperty(ini.core_profiles.ITB, :radius, missing),
+                ITB_ne_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
+                ITB_ne_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing),
+                ITB_Te_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
+                ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing)
+            )
         end
-
+        ini.core_profiles.ITB.radius = 0.5
+        ini.core_profiles.ITB.Te_width = ini.core_profiles.ITB.ne_width = 0.1
+        ini.core_profiles.ITB.Te_height_ratio = 0.5
+        ini.core_profiles.ITB.ne_height_ratio = 0.5
         return dd
     end
 end
@@ -104,7 +113,12 @@ function init_core_profiles!(
     T_ratio::Real,
     T_shaping::Real,
     Te_sep::Real,
-    ngrid::Int)
+    ngrid::Int,
+    ITB_radius::Union{Real,Missing},
+    ITB_ne_width::Union{Real,Missing},
+    ITB_ne_height_ratio::Union{Real,Missing},
+    ITB_Te_width::Union{Real,Missing},
+    ITB_Te_height_ratio::Union{Real,Missing})
 
     @assert 0.0 < ne_sep_to_ped_ratio < 1.0
     @assert ne_core_to_ped_ratio > 1.0
@@ -137,6 +151,9 @@ function init_core_profiles!(
         ne_ped = ne_value / IMAS.greenwald_fraction(eqt, cp1d)
     end
     cp1d.electrons.density_thermal .*= ne_ped
+    if ITB_radius !== missing
+        cp1d.electrons.density_thermal = IMAS.ITB_profile(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, ITB_radius, ITB_ne_width, ITB_ne_height_ratio)
+    end
     ne_core = cp1d.electrons.density_thermal[1]
 
     # Set ions:
@@ -178,6 +195,9 @@ function init_core_profiles!(
     else
         Te_ped = Te_core / ne_core_to_ped_ratio
         cp1d.electrons.temperature = IMAS.Lmode_profiles(Te_sep, Te_ped, Te_core, ngrid, T_shaping, 1.0, w_ped)
+    end
+    if ITB_radius !== missing
+        cp1d.electrons.temperature = IMAS.ITB_profile(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, ITB_radius, ITB_Te_width, ITB_Te_height_ratio)
     end
     for i in eachindex(cp1d.ion)
         cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
@@ -229,6 +249,14 @@ function cost_Pfusion_p0(pressure_core::Real, target_pfus::Real, dd::IMAS.dd, in
         ini.core_profiles.T_ratio,
         ini.core_profiles.T_shaping,
         ini.core_profiles.Te_sep,
-        ini.core_profiles.ngrid)
-    return abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
+        ini.core_profiles.ngrid,
+        ITB_radius=getproperty(ini.core_profiles.ITB, :radius, missing),
+        ITB_ne_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
+        ITB_ne_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing),
+        ITB_Te_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
+        ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing))
+
+    cost = abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
+
+    return cost
 end
