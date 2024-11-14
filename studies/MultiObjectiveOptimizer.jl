@@ -70,6 +70,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
     @assert iseven(sty.number_of_generations) "Population size must be even"
+    @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
     optimization_parameters = Dict(
         :N => sty.population_size,
@@ -119,6 +120,9 @@ function extract_optimization_results(simulations_path::String)
         return df
     end
 
+    df_filler = get_dataframe(json_files[1])
+    column_names = names(df_filler)
+    column_types = map(col -> eltype(df_filler[!, col]), names(df_filler))
     function initialize_empty_df()
         return DataFrame([name => Vector{type}() for (name, type) in zip(column_names, column_types)])
     end
