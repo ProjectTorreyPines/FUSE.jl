@@ -72,10 +72,10 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.Te_sep,
                 ini.core_profiles.ngrid,
                 ITB_radius=getproperty(ini.core_profiles.ITB, :radius, missing),
-                ITB_ne_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
+                ITB_ne_width=getproperty(ini.core_profiles.ITB, :ne_width, missing),
                 ITB_ne_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing),
                 ITB_Te_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
-                ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing)
+                ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :Te_height_ratio, missing)
             )
         end
         ini.core_profiles.ITB.radius = 0.5
@@ -251,10 +251,10 @@ function cost_Pfusion_p0(pressure_core::Real, target_pfus::Real, dd::IMAS.dd, in
         ini.core_profiles.Te_sep,
         ini.core_profiles.ngrid,
         ITB_radius=getproperty(ini.core_profiles.ITB, :radius, missing),
-        ITB_ne_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
+        ITB_ne_width=getproperty(ini.core_profiles.ITB, :ne_width, missing),
         ITB_ne_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing),
         ITB_Te_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
-        ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing))
+        ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :Te_height_ratio, missing))
 
     cost = abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
 
