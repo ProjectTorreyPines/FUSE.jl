@@ -233,7 +233,7 @@ function extract_optimization_results(simulations_path::String)
     # Export the final DataFrame
     CSV.write(joinpath(simulations_path, "output.csv"), final_df)
     return final_df
-
+end
 
 function extract_optimization_results(study)
     study.dataframe = extract_optimization_results(study.sty.save_folder)
