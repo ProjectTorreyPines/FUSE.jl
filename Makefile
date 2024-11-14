@@ -649,14 +649,14 @@ install_ci_dev: install_registry https_dev
 
 # @devs
 install_examples_dev:
-# Install FuseExamples under FUSE/examples
+# Install FuseExamples under FUSE/examples using ssh
 	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FuseExamples.git examples ; else cd examples && git pull; fi
 
 # @devs
 install_playground: .PHONY
 # Clone FusePlayground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
-	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+	if [ ! -d "playground" ]; then git clone https://github.com/ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 # @devs
 list_open_compats:
@@ -890,8 +890,8 @@ install_IJulia:
 
 # @user
 install_examples:
-# Install FuseExamples in current folder
-	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FuseExamples" ]; then git clone git@github.com:ProjectTorreyPines/FuseExamples.git ; else cd FuseExamples && git pull; fi
+# Install FuseExamples in current folder using https
+	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FuseExamples" ]; then git clone https://github.com/ProjectTorreyPines/FuseExamples.git ; else cd FuseExamples && git pull; fi
 
 # @user
 install_registry:
