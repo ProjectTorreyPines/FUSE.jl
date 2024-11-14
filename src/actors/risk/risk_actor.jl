@@ -46,6 +46,7 @@ function _step(actor::ActorRisk)
     rsk = dd.risk 
     cst = dd.costing 
     bd = dd.build 
+    cs = dd.solid_mechanics.center_stack
 
     empty!(rsk)
 
@@ -63,7 +64,7 @@ function _step(actor::ActorRisk)
 
     loss = resize!(rsk.engineering.loss, n_engineering + 3) # add 3 fields for coils as costed in ARIES
 
-    # Coils
+    # Coils - technology failure
     if dd.costing.code.name == "Sheffield" 
         @warn "Sheffield costing model provides grouped magnet system cost. Using ARIES costing model to calculate individual magnet system costs."
     end
@@ -84,17 +85,52 @@ function _step(actor::ActorRisk)
 
     for (key, values) in coil_types
         next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
-        loss[next_idx].description = "$key failure"
-        loss[next_idx].probability = magnet_risk(values.technology, :exponential)
+        failure_mode = resize!(loss[next_idx].failure_mode, 1)
+        loss[next_idx].description = "$key"
         loss[next_idx].severity = values.cost
+
+        failure_mode[1].probability = magnet_risk(values.technology, :exponential)
+        failure_mode[1].description = "Technology failure"
     end
 
+
+    # OH - stress and current failure
+    oh_loss_idx = findfirst(x -> occursin("OH", x.description), rsk.engineering.loss)
+    failure_mode = resize!(rsk.engineering.loss[oh_loss_idx].failure_mode, 3)
+    next_idx = findfirst(isempty(failure_mode) for failure_mode in rsk.engineering.loss[oh_loss_idx].failure_mode)
+    failure_mode[next_idx].description = "Stress failure"
+    failure_mode[next_idx].probability = exceed_margins_risk(maximum(cs.stress.vonmises.oh), cs.properties.yield_strength.oh, dd.requirements.coil_stress_margin)
+
+    next_idx = findfirst(isempty(failure_mode) for failure_mode in rsk.engineering.loss[oh_loss_idx].failure_mode)
+    failure_mode[next_idx].description = "Critical current failure"
+    failure_mode[next_idx].probability = exceed_margins_risk(bd.oh.max_j, bd.oh.critical_j, dd.requirements.coil_j_margin)
+
+    for fm in failure_mode
+        fm.weight = 1/length(failure_mode)
+    end
+
+    # TF - stress and current failure 
+    tf_loss_idx = findfirst(x -> occursin("TF", x.description), rsk.engineering.loss)
+    failure_mode = resize!(rsk.engineering.loss[tf_loss_idx].failure_mode, 3)
+    next_idx = findfirst(isempty(failure_mode) for failure_mode in rsk.engineering.loss[tf_loss_idx].failure_mode)
+    failure_mode[next_idx].description = "Stress failure"
+    failure_mode[next_idx].probability = exceed_margins_risk(maximum(cs.stress.vonmises.tf), cs.properties.yield_strength.tf, dd.requirements.coil_stress_margin)
+
+    next_idx = findfirst(isempty(failure_mode) for failure_mode in rsk.engineering.loss[tf_loss_idx].failure_mode)
+    failure_mode[next_idx].description = "Critical current failure"
+    failure_mode[next_idx].probability = exceed_margins_risk(bd.tf.max_j, bd.tf.critical_j, dd.requirements.coil_j_margin)
+    
+    for fm in failure_mode
+        fm.weight = 1/length(failure_mode)
+    end
+
+    pf_loss_idx = findfirst(x -> occursin("PF", x.description), rsk.engineering.loss)
+    rsk.engineering.loss[pf_loss_idx].failure_mode[1].weight = 1.0
 
     # Blanket 
     if !isempty(dd.blanket)
         next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
-        loss[next_idx].description = "Blanket failure"
-        loss[next_idx].probability = blanket_risk(dd, :exponential)
+        loss[next_idx].description = "Blanket"
         if cst.code.name == "ARIES"
             loss[next_idx].severity = IMAS.select_direct_capital_cost(dd, "blanket")
         elseif cst.code.name == "Sheffield"
@@ -102,13 +138,16 @@ function _step(actor::ActorRisk)
             blanket_cost = cost_direct_capital_Sheffield(:blanket, true, dd, da) # Calculate blanket cost in case blanket was not capitalized
             loss[next_idx].severity = blanket_cost
         end
+        failure_mode = resize!(loss[next_idx].failure_mode, 1)
+        failure_mode[1].description = "Technology failure"
+        failure_mode[1].probability = blanket_risk(dd, :exponential)
+        failure_mode[1].weight = 1.0
     end
 
     # Divertor 
     if !isempty(dd.divertors)
         next_idx = findfirst(isempty(loss) for loss in dd.risk.engineering.loss)
-        loss[next_idx].description = "Divertor failure"
-        loss[next_idx].probability = divertor_risk(dd, par.max_Psol_over_R)
+        loss[next_idx].description = "Divertor"
         if cst.code.name == "ARIES"
             divertor_cost = 10.0 # placeholder value since ARIES does not have divertor costing # units are $M
             loss[next_idx].severity = divertor_cost
@@ -117,6 +156,10 @@ function _step(actor::ActorRisk)
             divertor_cost = cost_direct_capital_Sheffield(:divertor, true, dd, da)
             loss[next_idx].severity = divertor_cost
         end
+        failure_mode = resize!(loss[next_idx].failure_mode, 1)
+        failure_mode[1].description = "Technology failure"
+        failure_mode[1].probability = divertor_risk(dd, par.max_Psol_over_R)
+        failure_mode[1].weight = 1.0
     end
 
     ##########
@@ -319,6 +362,19 @@ function divertor_risk(dd::IMAS.dd, max_Psol_over_R::Real)
         risk = 1.0
     else 
         risk = divertor_risk
+    end
+    return risk 
+end
+
+function exceed_margins_risk(value::Real, limit::Real, tolerance::Real)
+# assumes a linear relationship between the degree to which the stress and current tolerances are exceeded and the risk
+    ratio = value / limit 
+    if ratio > 1.0
+        risk = 1.0
+    elseif ratio > (1.0 - tolerance) && ratio < 1.0
+        risk = (ratio / (1.0 - tolerance)) - 1.0 # this expresses how severely you've exceeded the tolerance 
+    else 
+        risk = 0.0
     end
     return risk 
 end
