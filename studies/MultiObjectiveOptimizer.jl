@@ -105,7 +105,13 @@ function _analyze(study::StudyMultiObjectiveOptimizer)
     return study
 end
 
-function extract_optimization_results(study)
+"""
+    extract_optimization_results(simulations_path::String)
+
+Extracts informatation from all the simulation results in simulations_path and returns them inside a dataframe (This is done safely in parallel and with checkpoints) 
+Note : If you want to speed up this process incrase the number of threads
+"""
+function extract_optimization_results(simulations_path::String)
     function get_dataframe(file_path)
         dd = IMAS.json2imas(file_path)
         df = DataFrame(IMAS.extract(dd, :all))
@@ -118,7 +124,6 @@ function extract_optimization_results(study)
     end
 
     # Directory paths
-    simulations_path = study.sty.save_folder
     checkpoint_dir = joinpath(simulations_path, "checkpoints")
 
     # Ensure the checkpoint directory exists
@@ -226,6 +231,10 @@ function extract_optimization_results(study)
     end
 
     # Export the final DataFrame
-    CSV.write(joinpath(study.sty.save_folder, "output.csv"), final_df)
-    return study.dataframe = final_df
+    CSV.write(joinpath(simulations_path, "output.csv"), final_df)
+    return final_df
+
+
+function extract_optimization_results(study)
+    study.dataframe = extract_optimization_results(study.sty.save_folder)
 end
