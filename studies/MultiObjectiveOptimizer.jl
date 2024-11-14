@@ -116,7 +116,7 @@ function extract_optimization_results(simulations_path::String)
         dd = IMAS.json2imas(file_path)
         df = DataFrame(IMAS.extract(dd, :all))
         df.dir = [file_path]
-        df.gen = [parse(Int,split(file_path,"/")[end-1])]
+        df.gen = [parse(Int,split(split(file_path,"/")[end-1],"__")[1])]
         return df
     end
 
@@ -150,7 +150,7 @@ function extract_optimization_results(simulations_path::String)
     function initialize_empty_df()
         return DataFrame([name => Vector{type}() for (name, type) in zip(column_names, column_types)])
     end
-    
+
     # Number of threads
     num_threads = Base.Threads.nthreads()
 
