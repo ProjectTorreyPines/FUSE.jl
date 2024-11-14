@@ -31,7 +31,6 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     # Optimization related parameters
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
     number_of_generations::Entry{Int} = Entry{Int}("-", "Number generations")
-    #    worfklow:: = Entry{}("", default=ActorWholeFacility)
 end
 
 mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
@@ -116,6 +115,7 @@ function extract_optimization_results(simulations_path::String)
         dd = IMAS.json2imas(file_path)
         df = DataFrame(IMAS.extract(dd, :all))
         df.dir = [file_path]
+        df.gen = [parse(Int,split(file_path,"/")[end-1])]
         return df
     end
 
@@ -148,10 +148,6 @@ function extract_optimization_results(simulations_path::String)
     # Filter out processed files
     json_files = [file for file in all_files if !(file in processed_files_set) && endswith(file, ".json")]
 
-    df_filler = get_dataframe(json_files[1])
-    column_names = names(df_filler)
-    column_types = map(col -> eltype(df_filler[!, col]), names(df_filler))
-
     # Number of threads
     num_threads = Base.Threads.nthreads()
 
@@ -161,9 +157,6 @@ function extract_optimization_results(simulations_path::String)
 
     # Split files into batches
     file_batches = [json_files[i:min(i + batch_size - 1, end)] for i in 1:batch_size:length(json_files)]
-
-    # Prepare a vector to hold the DataFrames
-    data_frames = Vector{DataFrame}()
 
     # Process batches
     for (batch_idx, batch_files) in enumerate(file_batches)
@@ -235,6 +228,19 @@ function extract_optimization_results(simulations_path::String)
     return final_df
 end
 
-function extract_optimization_results(study)
+function extract_optimization_results(study::StudyMultiObjectiveOptimizer)
     study.dataframe = extract_optimization_results(study.sty.save_folder)
+end
+
+"""
+    filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
+
+Filters the dataframe to the constraints you pass.
+Common usage will be df_filtered = FUSE.filter_outputs(df, constraint_list)
+"""
+function filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
+    n = length(outputs.Pelectric_net)
+    constraint_values = [ outputs[i,key] for key in constraint_symbols, i in 1:n]
+    all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:,i]),1:n)
+    return outputs[all_constraint_idxs,:]
 end
