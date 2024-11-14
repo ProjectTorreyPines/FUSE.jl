@@ -17,6 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorRisk{T<:Real} <: ParametersActor
     arc_disruption_recovery_time::Entry{Real} = Entry{Real}("yr", "Time spent recovering from one ARC full power disruption"; default = 0.2)
     severity_metric::Switch{Symbol} = Switch{Symbol}([:thermal_quench, :current_quench, :vertical_forces, :average], "-", "Metric used to evaluate disruption severity"; default = :average)
     max_Psol_over_R::Entry{Real} = Entry{Real}("MW/m", "Maximum allowable scrape off layer power normalized to major radius"; default = 20.0)
+    coil_failure_mode_weights::Entry{AbstractVector{<:Real}} = Entry{AbstractVector{<:Real}}("-", "Weight associated to technology, stress, and critical current failure, respectively"; default = [1/3,1/3,1/3], check=x->@assert isapprox(sum(x), 1.0, rtol=0.01) && length(x)==3 "Sum of weights must be 1 and vector length must be 3")
 end
 
 mutable struct ActorRisk{D,P} <: CompoundAbstractActor{D,P}
@@ -105,8 +106,8 @@ function _step(actor::ActorRisk)
     failure_mode[next_idx].description = "Critical current failure"
     failure_mode[next_idx].probability = exceed_margins_risk(bd.oh.max_j, bd.oh.critical_j, dd.requirements.coil_j_margin)
 
-    for fm in failure_mode
-        fm.weight = 1/length(failure_mode)
+    for fm in 1:length(failure_mode)
+        failure_mode[fm].weight = par.coil_failure_mode_weights[fm]  
     end
 
     # TF - stress and current failure 
@@ -120,8 +121,8 @@ function _step(actor::ActorRisk)
     failure_mode[next_idx].description = "Critical current failure"
     failure_mode[next_idx].probability = exceed_margins_risk(bd.tf.max_j, bd.tf.critical_j, dd.requirements.coil_j_margin)
     
-    for fm in failure_mode
-        fm.weight = 1/length(failure_mode)
+    for fm in 1:length(failure_mode)
+        failure_mode[fm].weight = par.coil_failure_mode_weights[fm]
     end
 
     pf_loss_idx = findfirst(x -> occursin("PF", x.description), rsk.engineering.loss)
