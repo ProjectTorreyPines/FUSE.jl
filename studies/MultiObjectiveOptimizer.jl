@@ -120,13 +120,6 @@ function extract_optimization_results(simulations_path::String)
         return df
     end
 
-    df_filler = get_dataframe(json_files[1])
-    column_names = names(df_filler)
-    column_types = map(col -> eltype(df_filler[!, col]), names(df_filler))
-    function initialize_empty_df()
-        return DataFrame([name => Vector{type}() for (name, type) in zip(column_names, column_types)])
-    end
-
     # Directory paths
     checkpoint_dir = joinpath(simulations_path, "checkpoints")
 
@@ -151,7 +144,13 @@ function extract_optimization_results(simulations_path::String)
 
     # Filter out processed files
     json_files = [file for file in all_files if !(file in processed_files_set) && endswith(file, ".json")]
-
+    df_filler = get_dataframe(json_files[1])
+    column_names = names(df_filler)
+    column_types = map(col -> eltype(df_filler[!, col]), names(df_filler))
+    function initialize_empty_df()
+        return DataFrame([name => Vector{type}() for (name, type) in zip(column_names, column_types)])
+    end
+    
     # Number of threads
     num_threads = Base.Threads.nthreads()
 
