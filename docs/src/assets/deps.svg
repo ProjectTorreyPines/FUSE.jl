@@ -177,15 +177,15 @@
 <path fill="none" stroke="#5e9723" stroke-width="2" d="M39.08,-317.61C48.3,-336.38 65.21,-364.59 88.96,-379 170.14,-428.26 286.19,-429.69 346.33,-426.42"/>
 <polygon fill="#5e9723" stroke="#5e9723" stroke-width="2" points="346.2,-429.93 355.96,-425.81 345.76,-422.95 346.2,-429.93"/>
 </g>
-<!-- FuseUtils -->
+<!-- IMASutils -->
 <g id="node9" class="node">
-<title>FuseUtils</title>
+<title>IMASutils</title>
 <ellipse fill="none" stroke="black" stroke-width="3" cx="779.57" cy="-611" rx="40.99" ry="18"/>
-<text text-anchor="middle" x="779.57" y="-605.98" font-family="Helvetica,sans-Serif" font-size="12.00">FuseUtils</text>
+<text text-anchor="middle" x="779.57" y="-605.98" font-family="Helvetica,sans-Serif" font-size="12.00">IMASutils</text>
 </g>
-<!-- FUSE&#45;&gt;FuseUtils -->
+<!-- FUSE&#45;&gt;IMASutils -->
 <g id="edge24" class="edge">
-<title>FUSE&#45;&gt;FuseUtils</title>
+<title>FUSE&#45;&gt;IMASutils</title>
 <path fill="none" stroke="#b203b9" stroke-width="2" d="M32.29,-318.25C36.55,-374.84 51.93,-538.99 88.96,-575 267.45,-748.54 610.1,-664.24 733.16,-626.2"/>
 <polygon fill="#b203b9" stroke="#b203b9" stroke-width="2" points="734.01,-629.6 742.5,-623.26 731.91,-622.93 734.01,-629.6"/>
 </g>
@@ -315,9 +315,9 @@
 <path fill="none" stroke="#bdc1ef" stroke-width="2" d="M415.13,-192C433.67,-192.69 459.4,-193.63 484.93,-194.57"/>
 <polygon fill="#bdc1ef" stroke="#bdc1ef" stroke-width="2" points="484.67,-198.06 494.8,-194.93 484.93,-191.07 484.67,-198.06"/>
 </g>
-<!-- IMAS&#45;&gt;FuseUtils -->
+<!-- IMAS&#45;&gt;IMASutils -->
 <g id="edge7" class="edge">
-<title>IMAS&#45;&gt;FuseUtils</title>
+<title>IMAS&#45;&gt;IMASutils</title>
 <path fill="none" stroke="#628fe7" stroke-width="2" d="M596.33,-438.38C630.27,-470.53 709.04,-545.14 751.04,-584.93"/>
 <polygon fill="#628fe7" stroke="#628fe7" stroke-width="2" points="748.52,-587.36 758.19,-591.7 753.34,-582.28 748.52,-587.36"/>
 </g>
@@ -387,9 +387,9 @@
 <path fill="none" stroke="#db56c5" stroke-width="2" d="M270.6,-558.03C341.5,-560.74 435.12,-560.82 469.17,-545 511.23,-525.46 543.95,-481.2 562.14,-451.71"/>
 <polygon fill="#db56c5" stroke="#db56c5" stroke-width="2" points="564.95,-453.83 567.05,-443.44 558.93,-450.25 564.95,-453.83"/>
 </g>
-<!-- BoundaryPlasmaModels&#45;&gt;FuseUtils -->
+<!-- BoundaryPlasmaModels&#45;&gt;IMASutils -->
 <g id="edge33" class="edge">
-<title>BoundaryPlasmaModels&#45;&gt;FuseUtils</title>
+<title>BoundaryPlasmaModels&#45;&gt;IMASutils</title>
 <path fill="none" stroke="#7b5b47" stroke-width="2" d="M217.21,-571.02C240.95,-582.6 273.8,-596.63 304.58,-603 383.22,-619.26 617.41,-615.38 724.29,-612.62"/>
 <polygon fill="#7b5b47" stroke="#7b5b47" stroke-width="2" points="724.36,-616.11 734.26,-612.35 724.17,-609.12 724.36,-616.11"/>
 </g>

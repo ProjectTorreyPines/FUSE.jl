@@ -16,7 +16,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields ThermalSystemModels # XSteam
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite IMASutils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields ThermalSystemModels # XSteam
 FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
@@ -78,6 +78,9 @@ CoordinateConventions:
 	$(call clone_pull_repo,$@)
 
 MillerExtendedHarmonic:
+	$(call clone_pull_repo,$@)
+
+IMASutils:
 	$(call clone_pull_repo,$@)
 
 FuseUtils:
@@ -171,27 +174,27 @@ apache: error_missing_repo_var
 	\
 	cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
 	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
-	# \
-	# mkdir -p ../$(repo)/.github/workflows ;\
-	# cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
-	# cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
-	# cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
-	# cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
-	# \
-	# cp ../IMASdd/README.md ../$(repo)/ ;\
-	# sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
-	# \
-	# cp -R ../IMASdd/docs ../$(repo)/ ;\
-	# sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
-	# echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
-	# rm ../$(repo)/docs/Manifest.toml ;\
-	# rm -rf ../$(repo)/docs/build ;\
-	# \
-	# cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
-	# \
-	# cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
-	# \
-	# julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
+	\
+	mkdir -p ../$(repo)/.github/workflows ;\
+	cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
+	\
+	cp ../IMASdd/README.md ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
+	\
+	cp -R ../IMASdd/docs ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
+	echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
+	rm ../$(repo)/docs/Manifest.toml ;\
+	rm -rf ../$(repo)/docs/build ;\
+	\
+	cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
+	\
+	cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
+	\
+	julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
 
 # @devs
 apache_all:

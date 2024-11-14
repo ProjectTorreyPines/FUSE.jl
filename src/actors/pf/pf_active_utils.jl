@@ -1,6 +1,6 @@
 import VacuumFields
 import DataFrames
-import FuseUtils: mirror_bound
+import IMASutils: mirror_bound
 
 const options_green_model = [
     :point => "One filament per coil",
