@@ -40,8 +40,8 @@ dd = FUSE.init(ini, act);
 
 # Using checkpoints to save and restore states (we'll use this later)
 
-chk = FUSE.Checkpoint()
-@checkin chk :init dd ini act
+empty!(FUSE.checkpoint)
+@checkin :init dd ini act
 
 # ## Exploring the data dictionary
 # * FUSE stores data following the IMAS data schema.
@@ -150,7 +150,7 @@ print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)
 
 # Here we restore the `:init` checkpoint that we had previously stored. Resetting any changes to `dd`, `ini`, and `act` that we did in the meantime.
 
-@checkout chk :init dd ini act
+@checkout :init dd ini act
 
 # Actors in FUSE can be executed by passing two arguments to them: `dd` and `act`.
 # Internally, actors can call other actors, creating workflows.
@@ -161,7 +161,7 @@ FUSE.ActorWholeFacility(dd, act);
 
 # Like before we can checkpoint results for later use
 
-@checkin chk :awf dd ini act
+@checkin :awf dd ini act
 
 # ## Running a custom workflow
 
@@ -170,7 +170,7 @@ FUSE.ActorWholeFacility(dd, act);
 
 # Let's start again from after the initialization stage
 
-@checkout chk :init dd ini act
+@checkout :init dd ini act
 
 # Let's start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape.
 # This will be important to ensure the stability of the `ActorStationaryPlasma` that we are going to run next.
@@ -236,7 +236,7 @@ plot(actor)
 
 # With information about both pf_active and pf_passive we can now evaluate vertical stability
 
-ActorVerticalStability(dd, act)
+FUSE.ActorVerticalStability(dd, act)
 IMAS.freeze(dd.mhd_linear)
 
 # The `ActorNeutronics` calculates the heat flux on the first wall
@@ -260,7 +260,7 @@ print_tree(IMAS.freeze(dd.divertors); maxdepth=4)
 # The `ActorBalanceOfPlant` calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle
 
 actor = FUSE.ActorBalanceOfPlant(dd, act);
-plot(actor)
+# plot(actor)
 
 # `ActorCosting` will break down the capital and operational costs
 
@@ -269,7 +269,7 @@ plot(dd.costing)
 
 # Let's checkpoint our results
 
-@checkin chk :manual dd ini act
+@checkin :manual dd ini act
 
 # ## Saving and loading data
 
@@ -299,5 +299,4 @@ FUSE.extract(dd)
 
 filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
 FUSE.digest(dd)#, filename)
-
 
