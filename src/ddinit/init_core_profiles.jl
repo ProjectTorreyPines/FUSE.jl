@@ -140,7 +140,6 @@ function init_core_profiles!(
     else
         cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, 1.0, w_ped)
     end
-
     if ne_setting == :ne_ped
         ne_ped = ne_value
     elseif ne_setting == :greenwald_fraction_ped
@@ -193,7 +192,7 @@ function init_core_profiles!(
         Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
         cp1d.electrons.temperature = IMAS.Hmode_profiles(Te_sep, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     else
-        Te_ped = Te_core / ne_core_to_ped_ratio
+        Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
         cp1d.electrons.temperature = IMAS.Lmode_profiles(Te_sep, Te_ped, Te_core, ngrid, T_shaping, 1.0, w_ped)
     end
     if ITB_radius !== missing
