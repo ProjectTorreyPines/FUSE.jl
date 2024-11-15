@@ -14,7 +14,9 @@ using Plots # for plotting
 using FUSE # this will also import IMAS in the current namespace
 
 # ## Starting from a use-case
+# 
 # FUSE comes with some predefined [use-cases](https://fuse.help/stable/cases.html), some of which are used for regression testing.
+# 
 # Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.
 
 FUSE.test_cases
@@ -38,9 +40,10 @@ act.ActorCoreTransport.model = :FluxMatcher;
 
 dd = FUSE.init(ini, act);
 
-# Using checkpoints to save and restore states (we'll use this later)
+# We can `@checkin` and `@checkout` variables with an associated tag.
+# 
+# This is handy to save and restore our progress (we'll use this later).
 
-empty!(FUSE.checkpoint)
 @checkin :init dd ini act
 
 # ## Exploring the data dictionary
@@ -57,7 +60,10 @@ dd.equilibrium.time_slice[2].boundary
 print_tree(dd.equilibrium.time_slice[2].boundary; maxdepth=1)
 
 # ## Plotting data from `dd`
-# FUSE provides Plots.jl recipes for visualizing data from `dd`, this means different plots are shown by calling the same `plot()` function on different items in the data structure.
+# FUSE uses `Plots.jl` recipes for visualizing data from `dd`.
+# 
+# This allows different plots to be shown when calling `plot()` on different items in the data structure.
+# 
 # Learn more about Plots.jl [here](https://docs.juliaplots.org)
 
 # For example plotting the equilibrium...
@@ -259,8 +265,7 @@ print_tree(IMAS.freeze(dd.divertors); maxdepth=4)
 
 # The `ActorBalanceOfPlant` calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle
 
-actor = FUSE.ActorBalanceOfPlant(dd, act);
-# plot(actor)
+FUSE.ActorBalanceOfPlant(dd, act; do_plot=true);
 
 # `ActorCosting` will break down the capital and operational costs
 
