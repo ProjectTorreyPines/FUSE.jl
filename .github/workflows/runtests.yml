@@ -52,6 +52,7 @@ jobs:
             echo "IN_DEPTH=true" >> $GITHUB_ENV
           else
             echo "IN_DEPTH=false" >> $GITHUB_ENV
+          fi
 
       - name: Display Run Type
         run: echo "Is this a IN_DEPTH run? ${{ env.IN_DEPTH }}"
