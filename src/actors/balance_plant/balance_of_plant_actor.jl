@@ -47,7 +47,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     @ddtime(bop.power_plant.heat_load.wall = wall_heat_load)
     
     # setup actors
-    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant; par.do_plot)
+    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant, act; par.do_plot)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
 end
