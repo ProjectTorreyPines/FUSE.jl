@@ -31,7 +31,6 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     # Optimization related parameters
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
     number_of_generations::Entry{Int} = Entry{Int}("-", "Number generations")
-    #    worfklow:: = Entry{}("", default=ActorWholeFacility)
 end
 
 mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
@@ -71,6 +70,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
     @assert iseven(sty.number_of_generations) "Population size must be even"
+    @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
     optimization_parameters = Dict(
         :N => sty.population_size,
@@ -105,20 +105,22 @@ function _analyze(study::StudyMultiObjectiveOptimizer)
     return study
 end
 
-function extract_optimization_results(study)
+"""
+    extract_optimization_results(simulations_path::String)
+
+Extracts informatation from all the simulation results in simulations_path and returns them inside a dataframe (This is done safely in parallel and with checkpoints) 
+Note : If you want to speed up this process incrase the number of threads
+"""
+function extract_optimization_results(simulations_path::String)
     function get_dataframe(file_path)
         dd = IMAS.json2imas(file_path)
         df = DataFrame(IMAS.extract(dd, :all))
         df.dir = [file_path]
+        df.gen = [parse(Int,split(split(file_path,"/")[end-1],"__")[1])]
         return df
     end
 
-    function initialize_empty_df()
-        return DataFrame([name => Vector{type}() for (name, type) in zip(column_names, column_types)])
-    end
-
     # Directory paths
-    simulations_path = study.sty.save_folder
     checkpoint_dir = joinpath(simulations_path, "checkpoints")
 
     # Ensure the checkpoint directory exists
@@ -142,10 +144,12 @@ function extract_optimization_results(study)
 
     # Filter out processed files
     json_files = [file for file in all_files if !(file in processed_files_set) && endswith(file, ".json")]
-
     df_filler = get_dataframe(json_files[1])
     column_names = names(df_filler)
     column_types = map(col -> eltype(df_filler[!, col]), names(df_filler))
+    function initialize_empty_df()
+        return DataFrame([name => Vector{type}() for (name, type) in zip(column_names, column_types)])
+    end
 
     # Number of threads
     num_threads = Base.Threads.nthreads()
@@ -156,9 +160,6 @@ function extract_optimization_results(study)
 
     # Split files into batches
     file_batches = [json_files[i:min(i + batch_size - 1, end)] for i in 1:batch_size:length(json_files)]
-
-    # Prepare a vector to hold the DataFrames
-    data_frames = Vector{DataFrame}()
 
     # Process batches
     for (batch_idx, batch_files) in enumerate(file_batches)
@@ -226,6 +227,23 @@ function extract_optimization_results(study)
     end
 
     # Export the final DataFrame
-    CSV.write(joinpath(study.sty.save_folder, "output.csv"), final_df)
-    return study.dataframe = final_df
+    CSV.write(joinpath(simulations_path, "output.csv"), final_df)
+    return final_df
+end
+
+function extract_optimization_results(study::StudyMultiObjectiveOptimizer)
+    study.dataframe = extract_optimization_results(study.sty.save_folder)
+end
+
+"""
+    filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
+
+Filters the dataframe to the constraints you pass.
+Common usage will be df_filtered = FUSE.filter_outputs(df, constraint_list)
+"""
+function filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
+    n = length(outputs.Pelectric_net)
+    constraint_values = [ outputs[i,key] for key in constraint_symbols, i in 1:n]
+    all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:,i]),1:n)
+    return outputs[all_constraint_idxs,:]
 end
