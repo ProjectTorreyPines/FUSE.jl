@@ -1,4 +1,6 @@
-using ThermalSystemModels
+if ENV["FUSE_WITH_EXTENSIONS"] == "true"
+    using ThermalSystemModels
+end
 using FUSE
 using Test
 

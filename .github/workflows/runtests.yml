@@ -11,7 +11,7 @@ on:
         type: boolean
         required: false
         default: false
-      run_in_depth:
+      run_fuse_with_extensions:
         type: boolean
         required: false
         default: false
@@ -48,14 +48,14 @@ jobs:
       - name: Check if Scheduled Run
         id: is-scheduled
         run: |
-          if [ "${{ github.event_name }}" == "schedule" ] || [ "${{ github.event.inputs.run_in_depth }}" == "true" ]; then
-            echo "IN_DEPTH=true" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" == "schedule" ] || [ "${{ github.event.inputs.run_fuse_with_extensions }}" == "true" ]; then
+            echo "FUSE_WITH_EXTENSIONS=true" >> $GITHUB_ENV
           else
-            echo "IN_DEPTH=false" >> $GITHUB_ENV
+            echo "FUSE_WITH_EXTENSIONS=false" >> $GITHUB_ENV
           fi
 
       - name: Display Run Type
-        run: echo "Is this a IN_DEPTH run? ${{ env.IN_DEPTH }}"
+        run: echo "Is this a FUSE_WITH_EXTENSIONS run? ${{ env.FUSE_WITH_EXTENSIONS }}"
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
@@ -122,11 +122,11 @@ jobs:
           }
 
       - name: 'Install (without extensions)'
-        if: env.IN_DEPTH == 'false'
+        if: env.FUSE_WITH_EXTENSIONS == 'false'
         run: make install_ci_add NO_FUSE_EXTENSION=true
 
       - name: 'Install (with extensions)'
-        if: env.IN_DEPTH == 'true'
+        if: env.FUSE_WITH_EXTENSIONS == 'true'
         run: make install_ci_add
 
       # Save Manifest.toml
