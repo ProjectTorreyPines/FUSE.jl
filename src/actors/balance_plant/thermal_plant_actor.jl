@@ -3,12 +3,22 @@
 #= ================= =#
 using BalanceOfPlantSurrogate
 
+abstract type AbstractActorThermalPlant{D,P} <: SingleAbstractActor{D,P} end
+
+Base.@kwdef mutable struct FUSEparameters__ActorThermalSystemModels{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(Nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
+end
+
 Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:fixed_plant_efficiency, :network, :surogate], "-", "Power plant heat cycle efficiency"; default=:surogate)
-#    fixed_plant_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_plant_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
+    fixed_plant_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_plant_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -17,7 +27,7 @@ mutable struct ActorThermalPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorThermalPlant{P}
     act::ParametersAllActors{P}
-    plant_actor::Union{ActorNoOperation{D,P}, ActorThermalSystemModels{D,P}}
+    plant_actor::Union{ActorNoOperation{D,P}, AbstractActorThermalPlant{D,P}}
 end
 
 function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
@@ -71,7 +81,11 @@ function _step(actor::ActorThermalPlant)
         @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
         @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * plant_efficiency)
     else
-        actor.plant_actor = ActorThermalSystemModels(dd, act.ActorThermalSystemModels; par.verbose, par.do_plot)
+        ext = Base.get_extension(@__MODULE__, :ThermalSystemModelsExt)
+        if ext === nothing
+            throw(MissingExtensionError("ActorThermalSystemModels", "ThermalSystemModels"))
+        end
+        actor.plant_actor = ext.ActorThermalSystemModels(dd, act.ActorThermalSystemModels; par.verbose, par.do_plot)
         step(actor.plant_actor)
     end
 

@@ -1,22 +1,20 @@
 #= ======================== =#
 #  ActorThermalSystemModels  #
 #= ======================== =#
-import ModelingToolkit as MTK
-import ModelingToolkit: @parameters
-import DifferentialEquations
-import ThermalSystemModels
-TSMD = ThermalSystemModels.Dynamics
+# ACTOR FOR THE INTERMEDIATE HEAT TRANSFER SYSTEM
+
+using IMAS
+using StaticArrays
+import IMAS: _blanket_
+import Optim
+import Printf: @sprintf
+import ThermalSystemModels: Dynamics as TSMD
+import ThermalSystemModels.Dynamics: DifferentialEquations, ModelingToolkit as MTK
+import ThermalSystemModels.Dynamics.ModelingToolkit: @parameters
+
 MTK.@independent_variables t
 
-Base.@kwdef mutable struct FUSEparameters__ActorThermalSystemModels{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(Nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
-end
-
-mutable struct ActorThermalSystemModels{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorThermalSystemModels{D,P} <: AbstractActorThermalPlant{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorThermalSystemModels{P}   # Actors must carry with them the parameters they are run with
     power_cycle_type::Symbol
@@ -64,15 +62,13 @@ end
 """
     ActorThermalSystemModels(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor for the intermediate heat transfer system
-
 !!! note
 
     Stores data in `dd.balance_of_plant`
 """
 function ActorThermalSystemModels(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorThermalSystemModels(dd, act.ActorThermalSystemModels; kw...)
-    actor = step(actor)
+    step(actor)
     finalize(actor)
     return actor
 end
@@ -102,7 +98,7 @@ function _step(actor::ActorThermalSystemModels)
             breeder_heat_load = 500e6
             divertor_heat_load = 100e6
             wall_heat_load = 100e6
-            @warn "Invalid initial thermal loading is [Qbreeder, Qdivertor, Qwall] = $(actor.u)\n Setting load to default for construction step, resetting to [$breeder_heat_load,$divertor_heat_load,$wall_heat_load])\nRerun FUSE.step(act.ActorThermalSystemModels) to update loading to the correct value."
+            @warn "Invalid initial thermal loading is [Qbreeder, Qdivertor, Qwall] = $(actor.u)\n Setting load to default for construction step, reset  ting to [$breeder_heat_load,$divertor_heat_load,$wall_heat_load])\nRerun FUSE.step(act.ActorThermalSystemModels) to update loading to the correct value."
         end
 
         # default parameters
@@ -248,7 +244,7 @@ function _step(actor::ActorThermalSystemModels)
                 :breeder_heat₊Tout]
 
             actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
-            ode_sol = DifferentialEquations.solve(actor.prob,DifferentialEquations.Rosenbrock23() )
+            ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23())
             soln(v) = ode_sol[v][end]
 
             utility_vector = [:HotUtility, :ColdUtility, :Electric]
@@ -409,7 +405,7 @@ function _step(actor::ActorThermalSystemModels)
 
         else
             error(
-                "ActorThermalSystemModels model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_plant_efficiency\"]"
+                "ActorThermalSystemModels model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_cycle_efficiency\"]"
             )
         end
         actor.x = [getval(a, actor) for a in actor.optpar]
@@ -661,7 +657,7 @@ function plant_wrapper(act::ActorThermalSystemModels, yvars, yfunc)
 end
 
 """
-    initddbop(act::ActorThermalSystemModels; soln = nothing)
+    initddbop(act::ActorThermalSystemModels, soln::Nothing)
 
 Maps data stored in the TSM objects and metagraph to dd. By default the function will use
 the internal solution value in the actor, which is updated during every step call and plant_wrapper call.
@@ -840,16 +836,16 @@ function gen_optfunc(x, x0, x0_idx, lb, ub, yvars, yfunc, opt_actor)
     xrep = deepcopy(x0)
     xrep[x0_idx] .= x
     xrep = xcons!(xrep, lb, ub)
-    opt_actor = FUSE.setxATP!(xrep, opt_actor)
-    return FUSE.plant_wrapper(opt_actor, yvars, yfunc)
+    opt_actor = setxATP!(xrep, opt_actor)
+    return plant_wrapper(opt_actor, yvars, yfunc)
 end
 
 function eval_optfunc(x, x0, x0_idx, lb, ub, yvars, opt_actor)
     xrep = deepcopy(x0)
     xrep[x0_idx] .= x
     xrep = xcons!(xrep, lb, ub)
-    opt_actor = FUSE.setxATP!(xrep, opt_actor)
-    return FUSE.plant_wrapper(opt_actor, yvars)
+    opt_actor = setxATP!(xrep, opt_actor)
+    return plant_wrapper(opt_actor, yvars)
 end
 
 function optimize_thermal_plant(opt_actor)
@@ -886,7 +882,7 @@ function optimize_thermal_plant(opt_actor)
     yvar = opt_actor.odedict[:Electric].Ẇ
 
     # anonymous object function which will act on the sol(yvars)
-    yfunc = y -> - y / 100e6
+    yfunc = y -> -y / 100e6
 
     # index of mass flow variables in x0
     mflow_opt_idx = @SVector[1, 2, 3, 5, 7, 9]

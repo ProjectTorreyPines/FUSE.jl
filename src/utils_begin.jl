@@ -294,3 +294,13 @@ function localhost_memory()
     end
     return mem_size
 end
+
+# ====== #
+# errors #
+# ====== #
+struct MissingExtensionError <: Exception
+    actor_name::String
+    package_name::String
+end
+
+Base.showerror(io::IO, e::MissingExtensionError) = print(io, "The FUSE actor $(e.actor_name) cannot be run because the Julia package $(e.package_name).jl is not loaded. Please load it to enable this feature.")
