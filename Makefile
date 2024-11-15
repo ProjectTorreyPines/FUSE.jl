@@ -196,13 +196,6 @@ apache: error_missing_repo_var
 	\
 	julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
 
-# @devs
-apache_all:
-# runs make apache for all dev repos
-	@$(foreach repo,$(FUSE_PACKAGES_MAKEFILE), \
-	make apache repo=$(repo); \
-	)
-
 blank_examples:clean_examples
 # Clean and convert examples to md without executing
 	cd docs; julia notebooks_to_md.jl
@@ -727,6 +720,13 @@ register_minor: bump_minor register register_general
 # @devs
 register_patch: bump_patch register register_general
 # Bump patch version and register: X.Y.Z --> X.Y.(Z+1)
+
+# @devs
+register_patch_all:
+# runs `make register_patch` for all FUSE packages
+	@$(foreach repo,$(FUSE_PACKAGES_MAKEFILE), \
+	make register_patch repo=$(repo); \
+	)
 
 # @devs
 resolve:
