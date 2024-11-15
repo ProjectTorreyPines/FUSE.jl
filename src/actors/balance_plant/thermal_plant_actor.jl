@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: Paramet
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:fixed_plant_efficiency, :network, :surogate], "-", "Power plant heat cycle efficiency"; default=:surogate)
+    model::Switch{Symbol} = Switch{Symbol}([:fixed_plant_efficiency, :network, :surrogate], "-", "Power plant heat cycle efficiency"; default=:surrogate)
     fixed_plant_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_plant_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= rho_0 >= 0.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
@@ -64,7 +64,6 @@ function _step(actor::ActorThermalPlant)
     # Nothing to do in absence of a blanket
     if breeder_heat_load == 0.0
         empty!(dd.balance_of_plant)
-        bop.power_plant.power_cycle_type = string(actor.power_cycle_type)
         @warn "No blanket present for ActorThermalPlant to do anything"
         return actor
     end
@@ -74,8 +73,8 @@ function _step(actor::ActorThermalPlant)
         @ddtime(bop.thermal_efficiency_plant = par.fixed_plant_efficiency)
         @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
         @ddtime(bop.power_plant.power_electric_generated = @ddtime(bop.power_plant.total_heat_supplied) * par.fixed_plant_efficiency)
-    elseif par.model == :surogate
-        BOP = BalanceOfPlantSurrogate.BOPSurogate(Symbol(bop.power_plant.power_cycle_type))
+    elseif par.model == :surrogate
+        BOP = BalanceOfPlantSurrogate.BOPsurrogate(Symbol(bop.power_plant.power_cycle_type))
         plant_efficiency = BOP(breeder_heat_load, divertor_heat_load, wall_heat_load)
         @ddtime(bop.thermal_efficiency_plant = plant_efficiency)
         @ddtime(bop.power_plant.total_heat_supplied = breeder_heat_load + divertor_heat_load + wall_heat_load)
@@ -97,7 +96,7 @@ function _finalize(actor::ActorThermalPlant)
 
     if par.model == :fixed_plant_efficiency
         #pass
-    elseif par.model == :surogate
+    elseif par.model == :surrogate
         #pass
     else
         finalize(actor.plant_actor)

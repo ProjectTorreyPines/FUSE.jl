@@ -17,7 +17,6 @@ MTK.@independent_variables t
 mutable struct ActorThermalSystemModels{D,P} <: AbstractActorThermalPlant{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorThermalSystemModels{P}   # Actors must carry with them the parameters they are run with
-    power_cycle_type::Symbol
     components::Vector{MTK.ODESystem}           # Vector of type ODESystem
     connections::Vector{MTK.Equation}           # Connection equations
     odeparams::Vector{MTK.Num}                  # Circuit Parameters
@@ -41,7 +40,6 @@ function ActorThermalSystemModels(dd::IMAS.dd{D}, par::FUSEparameters__ActorTher
     return ActorThermalSystemModels(
         dd,
         par,
-        Symbol(dd.balance_of_plant.power_plant.power_cycle_type),
         MTK.ODESystem[],
         MTK.Equation[],
         MTK.Num[],
@@ -79,6 +77,8 @@ function _step(actor::ActorThermalSystemModels)
 
     bop = dd.balance_of_plant
 
+    power_cycle_type = Symbol(bop.power_plant.power_cycle_type)
+
     breeder_heat_load = @ddtime(bop.power_plant.heat_load.breeder)
     divertor_heat_load = @ddtime(bop.power_plant.heat_load.divertor)
     wall_heat_load = @ddtime(bop.power_plant.heat_load.wall)
@@ -107,8 +107,8 @@ function _step(actor::ActorThermalSystemModels)
         Tmin_wall = 350     # Minimum cooling temperature for first wall
         Tmax_div = 1000    # Maximum cooling temperature for Divertor
         Tmin_div = 350     # Minimum cooling temperature for Divertor
-        Tmax_breeder = actor.power_cycle_type == :rankine ? 1136 : 1300 # Maximum cooling temperature for Breeder blanket
-        Tmin_breeder = actor.power_cycle_type == :rankine ? 674.7 : 900 # Minimum cooling temperature for Breeder blanket
+        Tmax_breeder = power_cycle_type == :rankine ? 1136 : 1300 # Maximum cooling temperature for Breeder blanket
+        Tmin_breeder = power_cycle_type == :rankine ? 674.7 : 900 # Minimum cooling temperature for Breeder blanket
         Nhx = 4                  # Nhx = the number of heat exchangers to add to the loop, 4: 3 to connect to cooling loops, 1 to connect to primary power cycle
         flowrate = 300                # mass flow rate of the intermediate loop (kg/s)
         Tmin_interloop = 350 # minimum temperature for inter loop (Kelvin)
@@ -128,7 +128,7 @@ function _step(actor::ActorThermalSystemModels)
         # intermediate loop
         inter_loop_sys, inter_loop_connections, iparams, idict = TSMD.intermediate_loop(; Nhx=Nhx, flowrate=flowrate, Tmin=Tmin_interloop)
 
-        if actor.power_cycle_type == :rankine
+        if power_cycle_type == :rankine
             cycle_flowrate = 250      # kg/s
             ηpump = 0.7      # isentropic effeciency of the pump
             ηturbine = 0.95    # Isentropic effeciency of the turbine
@@ -273,7 +273,7 @@ function _step(actor::ActorThermalSystemModels)
             TSMD.set_plot_props!(gcopy)
             actor.gplot = gcopy
 
-        elseif actor.power_cycle_type == :brayton
+        elseif power_cycle_type == :brayton
             cyclesys, cconnections, cparams, cdict = TSMD.brayton_cycle(; flowrate=300)
             energy_con = vcat(
                 TSMD.work_connect(
@@ -405,7 +405,7 @@ function _step(actor::ActorThermalSystemModels)
 
         else
             error(
-                "ActorThermalSystemModels model `:$(actor.power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_cycle_efficiency\"]"
+                "ActorThermalSystemModels model `:$(power_cycle_type)` is not recognized. Set `dd.balance_of_plant.power_plant.power_cycle_type` to one of [\"rankine\", \"brayton\", \"fixed_cycle_efficiency\"]"
             )
         end
         actor.x = [getval(a, actor) for a in actor.optpar]
@@ -468,7 +468,7 @@ function _step(actor::ActorThermalSystemModels)
                 xlim=[-15, 75],
                 ylim=[-21, 21],
                 xticks=[0, 1, 2, 3, 4, 5, 6, 7],
-                plot_title="Balance Of Plant Circuit: $(titlecase(string(actor.power_cycle_type)))",
+                plot_title="Balance Of Plant Circuit: $(titlecase(string(power_cycle_type)))",
                 plot_titlefonthalign=:hcenter,
                 plot_titlefontvalign=:bottom,
                 dpi=200,
