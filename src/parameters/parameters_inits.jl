@@ -66,11 +66,11 @@ end
 Base.@kwdef mutable struct FUSEparameters__ITB{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
-    radius::Entry{T} = Entry{T}("-", "Radius at which the ITB starts in rho")
-    ne_width::Entry{T} = Entry{T}("-", "Width of the ITB in ITB_radius")
-    ne_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron density ITB expressed as the ratio of the density without ITB, evaluated on axis")
-    Te_width::Entry{T} = Entry{T}("-", "Width of the ITB in ITB_radius")
-    Te_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron temperature ITB expressed as the ratio of the temperature without ITB, evaluated on axis")
+    radius::Entry{T} = Entry{T}("-", "Rho at which the ITB starts")
+    ne_width::Entry{T} = Entry{T}("-", "Width of the electron density ITB")
+    ne_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron density ITB, expressed as the ratio of the density without ITB evaluated on axis")
+    Te_width::Entry{T} = Entry{T}("-", "Width of the electron temperature ITB")
+    Te_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron temperature ITB, expressed as the ratio of the temperature without ITB evaluated on axis")
 end
 
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
