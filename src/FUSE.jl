@@ -130,6 +130,7 @@ include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))
 include(joinpath("actors", "stability", "vertical_actor.jl"))
 
+include(joinpath("actors", "balance_plant", "thermal_system_models.jl"))
 include(joinpath("actors", "balance_plant", "thermal_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
 include(joinpath("actors", "balance_plant", "balance_of_plant_actor.jl"))
