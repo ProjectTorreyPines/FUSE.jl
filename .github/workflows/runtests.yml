@@ -11,11 +11,17 @@ on:
         type: boolean
         required: false
         default: false
+      run_in_depth:
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - master
       - dev
   pull_request:
+  schedule:
+    - cron: '7 0 * * *' # midnight PT
 
 env:
   PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
@@ -39,6 +45,17 @@ jobs:
       GKSwstype: 100 # disable Plots.jl interactive output
 
     steps:
+      - name: Check if Scheduled Run
+        id: is-scheduled
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ] || [ "${{ github.event.inputs.run_in_depth }}" == "true" ]; then
+            echo "IN_DEPTH=true" >> $GITHUB_ENV
+          else
+            echo "IN_DEPTH=false" >> $GITHUB_ENV
+
+      - name: Display Run Type
+        run: echo "Is this a IN_DEPTH run? ${{ env.IN_DEPTH }}"
+
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
@@ -103,8 +120,13 @@ jobs:
             (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
           }
 
-      # Run make command
-      - run: make install_ci_add
+      - name: 'Install (without extensions)'
+        if: env.IN_DEPTH == 'false'
+        run: make install_ci_add NO_FUSE_EXTENSION=true
+
+      - name: 'Install (with extensions)'
+        if: env.IN_DEPTH == 'true'
+        run: make install_ci_add
 
       # Save Manifest.toml
       - name: 'Save Manifest.toml'
@@ -113,13 +135,8 @@ jobs:
           name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
           path: Manifest.toml
 
-      # Build and test Julia package
+      # Build
       - uses: julia-actions/julia-buildpkg@v1
 
+      # Run tests
       - uses: julia-actions/julia-runtest@v1
-
-      # Debug if failure
-      - name: Debug with tmate if failure + manual trigger + debug mode
-        if: ${{ failure() && github.event_name == 'workflow_dispatch' && inputs.debug }}
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 120
