@@ -641,7 +641,7 @@ install_ci_add:
         end;\
 	end;\
 	Pkg.add(dependencies);\
-	Pkg.add("Test")
+	Pkg.add("Test");\
 	Pkg.status()'
 
 # @devs
