@@ -1,3 +1,4 @@
+using ThermalSystemModels
 using FUSE
 using Test
 
