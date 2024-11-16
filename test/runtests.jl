@@ -1,4 +1,6 @@
-if ENV["FUSE_WITH_EXTENSIONS"] == "true"
+if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+    using Pkg
+    Pkg.activate() # run in the Main environment, where ThermalSystemModels will be available if the CI was run with FUSE_WITH_EXTENSIONS = "true"
     using ThermalSystemModels
 end
 using FUSE

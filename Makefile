@@ -641,11 +641,8 @@ install_ci_add:
         end;\
 	end;\
 	Pkg.add(dependencies);\
+	Pkg.add("Test")
 	Pkg.status()'
-
-# @devs
-install_ci_dev: install_registry https_dev
-# Install used by CI (dev packages, do not add them)
 
 # @devs
 install_examples_dev:
