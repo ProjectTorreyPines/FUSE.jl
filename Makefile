@@ -624,11 +624,10 @@ install_PyCall:
 install_ci_add:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
-	julia -e ';\
+	julia --project=@. -e ';\
 	$(feature_or_master_julia);\
 	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg;\
-	Pkg.activate(".");\
 	dependencies = Pkg.PackageSpec[];\
 	for package in fuse_packages;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
