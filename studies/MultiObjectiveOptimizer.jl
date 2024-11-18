@@ -27,6 +27,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     file_save_mode::Switch{Symbol} = study_common_parameters(; file_save_mode=:safe_write)
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
+    run_in_safe_mode :: Entry{Bool} = Entry{Bool}("-", "Runs the optimization in a loop restarting the workers every 5 generations"; default=false)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     # Optimization related parameters
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
@@ -72,36 +73,71 @@ function _run(study::StudyMultiObjectiveOptimizer)
     sty = study.sty
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
-    @assert iseven(sty.number_of_generations) "Population size must be even"
-    @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
+    @assert iseven(sty.population_size) "Population size must be even"
 
-    optimization_parameters = Dict(
-        :N => sty.population_size,
-        :iterations => sty.number_of_generations,
-        :continue_state => study.state,
-        :save_folder => sty.save_folder)
-    state = workflow_multiobjective_optimization(
-        study.ini, study.act, ActorWholeFacility, study.objective_functions,
-        study.constraint_functions; optimization_parameters..., generation_offset=study.generation)
-    study.state = state
-    study.generation = study.state.iteration
+    if sty.run_in_safe_mode
+        max_gens_per_iteration = 2
+        steps = Int(ceil(sty.number_of_generations / max_gens_per_iteration )) # 5 max
+        for i in 1:steps
+            try
+                println("Running $max_gens_per_iteration generations ($i / $steps)")
+                gens = max_gens_per_iteration
+                if i == steps && mod(sty.number_of_generations,max_gens_per_iteration) != 0
+                    gens = mod(gen,max_gens_per_iteration)
+                end
+                sty.number_of_generations = gens
+                sty.run_in_safe_mode = false
+                sty.release_workers_after_run = false
+                sty.file_save_mode = :append
 
-    save_optimization(
-        joinpath(sty.save_folder, "optimization_state.bson"),
-        state,
-        study.ini,
-        study.act,
-        study.objective_functions,
-        study.constraint_functions)
-
-    analyze(study)
-    # Release workers after run
-    if sty.release_workers_after_run
+                if !isnothing(study.state)
+                    study.state = load_optimization(joinpath(sty.save_folder,"results.jls")).state
+                    study.generation += study.state.iteration
+                end
+                setup(study)
+                run(study)
+            catch e
+                if isa(e, InterruptException)
+                    rethrow(e)
+                end
+                @warn "error occured in step $i \n $(string(e))"
+                   
+            end
+        end
         Distributed.rmprocs(Distributed.workers())
         @info "released workers"
-    end
+        sty.run_in_safe_mode = true
+        sty.file_save_mode = :safe_write
+    else
+        optimization_parameters = Dict(
+            :N => sty.population_size,
+            :iterations => sty.number_of_generations,
+            :continue_state => study.state,
+            :save_folder => sty.save_folder)
+        
+        @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
+        state = workflow_multiobjective_optimization(
+            study.ini, study.act, ActorWholeFacility, study.objective_functions,
+            study.constraint_functions; optimization_parameters..., generation_offset=study.generation)
+        study.state = state
 
-    return study
+        save_optimization(
+            joinpath(sty.save_folder, "optimization_state.bson"),
+            state,
+            study.ini,
+            study.act,
+            study.objective_functions,
+            study.constraint_functions)
+
+        analyze(study)
+        # Release workers after run
+        if sty.release_workers_after_run
+            Distributed.rmprocs(Distributed.workers())
+            @info "released workers"
+        end
+
+        return study
+    end
 end
 
 function _analyze(study::StudyMultiObjectiveOptimizer)
