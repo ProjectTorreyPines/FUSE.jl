@@ -16,7 +16,7 @@ function study_common_parameters(; kw...)
     elseif name == :n_workers
         return Entry{Int}("-", "Number of workers to run with"; default)
     elseif name == :file_save_mode
-        return Switch{Symbol}([:safe_write, :overwrite], "-", "Saving file policy, `safe_write` only writes when the folder is empty"; default)
+        return Switch{Symbol}([:safe_write, :overwrite, :append], "-", "Saving file policy, `safe_write` only writes when the folder is empty"; default)
     elseif name == :release_workers_after_run
         return Entry{Bool}("-", "Releases the workers after running the study"; default)
     elseif name == :save_dd
@@ -89,7 +89,10 @@ function check_and_create_file_save_mode(sty)
             @assert !isfile(sty.save_folder) "$(sty.save_folder) can't be a file"
             mkdir(sty.save_folder)
         end
-    elseif sty.file_save_mode == :overwrite && !isdir(sty.save_folder)
+    elseif sty.file_save_mode == :overwrite
+        rm(sty.save_folder)
         mkdir(sty.save_folder)
+    elseif sty.file_save_mode == :append
+       # this is fine
     end
 end

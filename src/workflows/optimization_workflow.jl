@@ -45,19 +45,21 @@ function workflow_multiobjective_optimization(
 
     # itentify optimization variables in ini
     opt_ini = opt_parameters(ini)
-    println("== Actuators ==")
-    for optpar in opt_ini
-        println(optpar)
-    end
-    println()
-    println("== Objectives ==")
-    for objf in objective_functions
-        println(objf)
-    end
-    println()
-    println("== Constraints ==")
-    for cnst in constraint_functions
-        println(cnst)
+    if generation_offset == 0
+        println("== Actuators ==")
+        for optpar in opt_ini
+            println(optpar)
+        end
+        println()
+        println("== Objectives ==")
+        for objf in objective_functions
+            println(objf)
+        end
+        println()
+        println("== Constraints ==")
+        for cnst in constraint_functions
+            println(cnst)
+        end
     end
 
     # optimization floating point boundaries
@@ -111,7 +113,9 @@ function workflow_multiobjective_optimization(
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
     @time state =
         Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p, generation_offset), bounds, algorithm)
-    display(state)
+    if generation_offset == 0
+        display(state)
+    end
 
     if !isempty(save_folder)
         save_optimization(joinpath(save_folder, "results.jls"), state, ini, act, objective_functions, constraint_functions)
