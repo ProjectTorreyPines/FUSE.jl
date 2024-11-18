@@ -1,3 +1,3 @@
 [deps]
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"

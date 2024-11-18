@@ -1,4 +1,8 @@
-using ThermalSystemModels
+if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+    using Pkg
+    Pkg.add("ThermalSystemModels")
+    using ThermalSystemModels
+end
 using FUSE
 using Test
 
