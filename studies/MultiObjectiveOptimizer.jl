@@ -39,7 +39,10 @@ mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
     act::ParametersAllActors
     constraint_functions::Vector{IMAS.ConstraintFunction}
     objective_functions::Vector{IMAS.ObjectiveFunction}
+    state::Union{Nothing,Metaheuristics.State}
     dataframe::Union{DataFrame,Missing}
+    datafame_filtered::Union{DataFrame,Missing}
+    generation::Int
 end
 
 function StudyMultiObjectiveOptimizer(
@@ -51,7 +54,7 @@ function StudyMultiObjectiveOptimizer(
     kw...
 )
     sty = sty(kw...)
-    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, missing)
+    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions,nothing, missing, missing, 0)
     return setup(study)
 end
 
@@ -75,11 +78,13 @@ function _run(study::StudyMultiObjectiveOptimizer)
     optimization_parameters = Dict(
         :N => sty.population_size,
         :iterations => sty.number_of_generations,
-        :continue_state => nothing,
+        :continue_state => study.state,
         :save_folder => sty.save_folder)
     state = workflow_multiobjective_optimization(
         study.ini, study.act, ActorWholeFacility, study.objective_functions,
-        study.constraint_functions; optimization_parameters...)
+        study.constraint_functions; optimization_parameters..., generation_offset=study.generation)
+    study.state = state
+    study.generation = study.state.iteration
 
     save_optimization(
         joinpath(sty.save_folder, "optimization_state.bson"),
@@ -100,8 +105,10 @@ function _run(study::StudyMultiObjectiveOptimizer)
 end
 
 function _analyze(study::StudyMultiObjectiveOptimizer)
-    println("Analyzing study with n_threads = $(Base.Threads.nthreads())")
     extract_optimization_results(study)
+    if !isempty(study.dataframe)
+        study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions]) 
+    end
     return study
 end
 
@@ -144,6 +151,9 @@ function extract_optimization_results(simulations_path::String)
 
     # Filter out processed files
     json_files = [file for file in all_files if !(file in processed_files_set) && endswith(file, ".json")]
+    if isempty(json_files)
+        return DataFrames.DataFrame()
+    end
     df_filler = get_dataframe(json_files[1])
     column_names = names(df_filler)
     column_types = map(col -> eltype(df_filler[!, col]), names(df_filler))

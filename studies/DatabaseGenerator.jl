@@ -126,13 +126,13 @@ Run a single case based by setting up a dd from ini and act and then executing t
 function run_case(study::AbstractStudy, item::String)
     act = study.act
     sty = study.sty
+    @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
 
     try
         # generate new ini
         ini = rand(study.ini)
 
         dd = IMAS.dd()
-        @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
         study.workflow(dd, ini, act)
 
         if sty.save_dd

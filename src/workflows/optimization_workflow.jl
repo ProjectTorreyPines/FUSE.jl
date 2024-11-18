@@ -28,7 +28,8 @@ function workflow_multiobjective_optimization(
     iterations::Int=N,
     continue_state::Union{Nothing,Metaheuristics.State}=nothing,
     save_folder::AbstractString="optimization_runs",
-    save_dd::Bool=true)
+    save_dd::Bool=true,
+    generation_offset::Int=0)
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
@@ -109,7 +110,7 @@ function workflow_multiobjective_optimization(
     ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
     @time state =
-        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p), bounds, algorithm)
+        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p, generation_offset), bounds, algorithm)
     display(state)
 
     if !isempty(save_folder)
