@@ -1,4 +1,4 @@
-import FuseUtils: trapz
+import IMASutils: trapz
 
 #= ========= =#
 #  functions  #

@@ -219,8 +219,12 @@ function solve_1D_solid_mechanics!(
     embar_oh = em_oh / (1 - gam_oh^2)
     embar_pl = em_pl / (1 - gam_pl^2)
 
+    if bucked
+        @assert nose_hfs_fraction == 0.0
+    end
+
     # determine whether to model tf_nose 
-    if !bucked && (nose_hfs_fraction > 0.0)
+    if nose_hfs_fraction > 0.0
         tf_nose = true
     else
         tf_nose = false

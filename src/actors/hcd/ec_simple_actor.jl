@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimpleEC{T<:Real} <: ParametersA
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    ηcd_scale::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
 end
 
 mutable struct ActorSimpleEC{D,P} <: SingleAbstractActor{D,P}
@@ -49,7 +49,7 @@ function _step(actor::ActorSimpleEC)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    for (ps, ecl) in zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam)
+    for (k, (ps, ecl)) in enumerate(zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam))
         power_launched = @ddtime(ps.power_launched.reference)
         rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
         width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
@@ -62,7 +62,13 @@ function _step(actor::ActorSimpleEC)
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
         zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0)
 
-        eta = par.ηcd_scale * TekeV * 0.09 / (5.0 + zeff)
+        if typeof(par.ηcd_scale) <: Vector
+            ηcd_scale = par.ηcd_scale[k]
+        else
+            ηcd_scale = par.ηcd_scale
+        end
+
+        eta = ηcd_scale * TekeV * 0.09 / (5.0 + zeff)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 

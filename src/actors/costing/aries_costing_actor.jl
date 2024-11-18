@@ -199,7 +199,7 @@ function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, 
         return 0.0 # oh is part of the pf_active calculation
     elseif layer.type == Int(_tf_)
         build = IMAS.parent(IMAS.parent(layer))
-        cost = layer.volume * unit_cost(build.tf.technology, cst)
+        cost = layer.volume * (unit_cost(build.tf.technology, cst) * (1.0 - build.tf.nose_hfs_fraction) .+ unit_cost(Material(:steel), cst) * build.tf.nose_hfs_fraction)
         return future_dollars(cost, da)
     elseif layer.type == Int(_shield_)
         cost = layer.volume * 0.29  # $M/m^3
@@ -392,18 +392,24 @@ function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, pow
     power_electric_generated = power_electric_generated / 1E6
     bop = dd.balance_of_plant
 
-    if contains(lowercase(bop.power_plant.power_cycle_type), "rankine")
-        cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
-    elseif contains(lowercase(bop.power_plant.power_cycle_type), "brayton")
-        cost = 360.0 * (power_thermal / 2000.0)^0.8
-        if !isnan(bop.thermal_efficiency_cycle[1])
-            cost *= bop.thermal_efficiency_cycle[1] / 0.6
+    if power_thermal <= 0.0
+        return 0.0
+    else
+        if contains(lowercase(bop.power_plant.power_cycle_type), "rankine")
+            cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
+        elseif contains(lowercase(bop.power_plant.power_cycle_type), "brayton")
+            cost = 360.0 * (power_thermal / 2000.0)^0.8
+            if !isnan(@ddtime(bop.thermal_efficiency_plant))
+                cost *= @ddtime(bop.thermal_efficiency_plant) / 0.6
+            end
+        else
+            error("ARIES has no costing model for power cycle $power_cycle_type")
         end
+        cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
+        cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
+        cost += 88.89 * (power_electric_generated / 1200.0)^0.6 # Miscellaneous equipment
+        return future_dollars(cost, da)
     end
-    cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
-    cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
-    cost += 88.89 * (power_electric_generated / 1200.0)^0.6 # Miscellaneous equipment
-    return future_dollars(cost, da)
 end
 
 """

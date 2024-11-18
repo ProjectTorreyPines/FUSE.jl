@@ -4,7 +4,7 @@
 Formosa Integrated Research Spherical Tokamak
 """
 function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=0)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "FIRST"
@@ -55,9 +55,6 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.tf.n_coils = 18
 
     ini.requirements.flattop_duration = 2.0
-
-    set_new_base!(ini)
-    set_new_base!(act)
 
     return ini, act
 end

@@ -7,7 +7,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     @assert init_from in (:scalars, :ods)
     @assert pf_from in (:scalars, :ods)
 
-    ini = ParametersInits(; n_ec=1)
+    ini = ParametersInits()
     act = ParametersActors()
     #### INI ####
 
@@ -66,7 +66,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     ini.build.layers[:OH].coils_inside = 5
     ini.build.layers[:lfs_vacuum_vessel].coils_inside = [9,12]
     ini.build.layers[:lfs_gap_coils].coils_inside = [6,7, 8, 10, 11, 13, 14, 15]
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :rebco
     ini.pf_active.technology = :nb3sn_iter
@@ -76,28 +75,14 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     ini.tf.n_coils = 12
     ini.tf.ripple = 0.005 # this is to avoid the TF coming in too close
 
+    resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 150.e6
     ini.ec_launcher[1].width = 0.25
     ini.ec_launcher[1].rho_0 = 0.0
-    act.ActorSimpleEC.ηcd_scale = 0.5
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
     ini.requirements.power_electric_net = 250e6
-
-    act.ActorCoreTransport.model = :FluxMatcher
-
-    act.ActorFluxMatcher.evolve_densities = :fixed
-    act.ActorFluxMatcher.rho_transport = 0.3:0.05:0.8
-    act.ActorTGLF.user_specified_model = "sat0_em_d3d"
-
-    act.ActorStabilityLimits.models = Symbol[]
-
-    # High-beta ST equilibrium is tricky to converge
-    act.ActorTEQUILA.relax = 0.01
-
-    set_new_base!(ini)
-    set_new_base!(act)
 
     dd = IMAS.dd()
     # if init_from==:ods we need to sanitize the ODS that was given to us
@@ -145,7 +130,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
             ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
         end
 
-        act.ActorCoreTransport.model = :none
         ini.equilibrium.pressure_core = 1.175e6
 
         # -----------------
@@ -212,6 +196,24 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         ini.general.dd = dd
         ini.general.init_from = :ods
     end
+
+    #### ACT ####
+
+    act.ActorPFdesign.symmetric = true
+
+    act.ActorSimpleEC.ηcd_scale = 0.5
+
+    act.ActorCoreTransport.model = :FluxMatcher
+
+    act.ActorFluxMatcher.evolve_densities = :fixed
+    act.ActorFluxMatcher.rho_transport = 0.3:0.05:0.8
+
+    act.ActorTGLF.tglfnn_model = "sat0_em_d3d"
+
+    act.ActorStabilityLimits.models = Symbol[]
+
+    # High-beta ST equilibrium is tricky to converge
+    act.ActorTEQUILA.relax = 0.01
 
     return ini, act
 end

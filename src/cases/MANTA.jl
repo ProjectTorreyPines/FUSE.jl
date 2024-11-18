@@ -8,7 +8,7 @@ https://arxiv.org/abs/2405.20243
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
 function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ic=1)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "MANTA"
@@ -30,7 +30,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
         :cryostat => 0.2
     )
     ini.build.plasma_gap = 0.1
-    ini.build.symmetric = false
+    ini.build.symmetric = true
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
 
@@ -72,6 +72,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
 
+    resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 40.e6
 
     ini.requirements.power_electric_net = 90e6
@@ -79,20 +80,24 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.requirements.flattop_duration = 45.0 * 60.0
 
     #### ACT ####
+
     act.ActorPedestal.model = :WPED
+
     act.ActorWPED.ped_to_core_fraction = 0.3
 
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end
 
-    set_new_base!(ini)
-    set_new_base!(act)
+    act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorFluxMatcher.max_iterations = 50
+    act.ActorFluxMatcher.verbose = true
+
+    act.ActorTGLF.electromagnetic = false
+    act.ActorTGLF.sat_rule = :sat0
+    act.ActorTGLF.model = :TJLF
+
+    act.ActorPFdesign.symmetric = true
 
     return ini, act
 end
