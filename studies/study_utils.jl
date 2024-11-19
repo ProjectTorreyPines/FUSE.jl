@@ -127,6 +127,16 @@ function extract_results(simulations_path::String)
     return final_df
 end
 
-function extract_results(study::AbstractStudy)
-    study.dataframe = extract_results(study.sty.save_folder)
+function extract_results(study::AbstractStudy; re_extract::Bool=false)
+    csv_loc = joinpath(study.sty.save_folder,"output.csv")
+    if isfile(csv_loc) && !re_extract
+        study.dataframe = CSV.read(csv_loc, DataFrame)
+    elseif re_extract && isfile(csv_loc)
+        rm(csv_loc)
+        rm(joinpath(study.sty.save_folder,"checkpoints"), force=true, recursive=true)
+        study.dataframe = extract_results(study.sty.save_folder)
+    else
+        @show "asdf"
+        study.dataframe = extract_results(study.sty.save_folder)
+    end
 end

@@ -104,12 +104,12 @@ end
 
 Example of analyze plots to display after the run feel free to change this method for your needs
 """
-function _analyze(study::StudyDatabaseGenerator)
-    extract_results(study)
+function _analyze(study::StudyDatabaseGenerator; re_extract::Bool=false)
+    extract_results(study; re_extract)
     df = study.dataframe
-    display(histogram(df.Te0; xlabel="Te0 [eV]", legend=false))
-    display(histogram(df.Ti0; xlabel="Ti0 [eV]", legend=false))
-    display(histogram(df.ne0; xlabel="ne0 [m⁻³]]", legend=false))
+    display(histogram(df.Te0; xlabel="Te0 [keV]", ylabel="Number of simulations per bin", legend=false))
+    display(histogram(df.Ti0; xlabel="Ti0 [keV]", ylabel="Number of simulations per bin", legend=false))
+    display(histogram(df.ne0; xlabel="ne0 [m⁻³]]", ylabel="Number of simulations per bin", legend=false))
     return study
 end
 

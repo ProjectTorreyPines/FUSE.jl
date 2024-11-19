@@ -57,9 +57,9 @@ function setup(study::AbstractStudy)
     return _setup(study)
 end
 
-function analyze(study::AbstractStudy)
+function analyze(study::AbstractStudy; kw...)
     # here you can add timing info and more
-    return _analyze(study)
+    return _analyze(study; kw...)
 end
 
 function run(study::T, args...; kw...) where {T<:AbstractStudy}
@@ -90,7 +90,7 @@ function check_and_create_file_save_mode(sty)
             mkdir(sty.save_folder)
         end
     elseif sty.file_save_mode == :overwrite
-        rm(sty.save_folder)
+        rm(sty.save_folder, force=true, recursive=true)
         mkdir(sty.save_folder)
     elseif sty.file_save_mode == :append
        # this is fine
