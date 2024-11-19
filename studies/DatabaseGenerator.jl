@@ -1,5 +1,3 @@
-import JSON
-
 #= ====================== =#
 #  StudyDatabaseGenerator  #
 #= ====================== =#
@@ -20,7 +18,6 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorTGLF.warn_nn_train_bounds = false
     act.ActorFluxMatcher.evolve_rotation = :fixed
-
 
     # finalize 
     set_new_base!(sty)
@@ -45,7 +42,7 @@ mutable struct StudyDatabaseGenerator <: AbstractStudy
     sty::FUSEparameters__ParametersStudyDatabaseGenerator
     ini::ParametersAllInits
     act::ParametersAllActors
-    dataframes_dict::Union{Dict{String,DataFrame},Missing}
+    dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{String},Missing}
     workflow::Union{Function,Missing}
 end
@@ -78,7 +75,6 @@ function _run(study::StudyDatabaseGenerator)
 
     iterator = map(string, 1:sty.n_simulations)
     study.iterator = iterator
-    study.dataframes_dict = Dict("outputs_summary" => StudyDatabaseGenerator_summary_dataframe() for name in study.iterator)
 
     # paraller run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
@@ -91,11 +87,7 @@ function _run(study::StudyDatabaseGenerator)
         end
     end
 
-    # Save JSON to a file
-    json_data = JSON.json(study.dataframes_dict["outputs_summary"])
-    open("$(sty.save_folder)/data_frame_outputs_summary.json", "w") do f
-        return write(f, json_data)
-    end
+    analyze(study)
 
     # Release workers after run
     if sty.release_workers_after_run
@@ -112,9 +104,11 @@ end
 Example of analyze plots to display after the run feel free to change this method for your needs
 """
 function _analyze(study::StudyDatabaseGenerator)
-    display(histogram(study.dataframes_dict["outputs_summary"].Te0; xlabel="Te0 [eV]", legend=false))
-    display(histogram(study.dataframes_dict["outputs_summary"].Ti0; xlabel="Ti0 [eV]", legend=false))
-    display(histogram(study.dataframes_dict["outputs_summary"].ne0; xlabel="ne0 [m⁻³]]", legend=false))
+    extract_results(study)
+    df = study.dataframe
+    display(histogram(df.Te0; xlabel="Te0 [eV]", legend=false))
+    display(histogram(df.Ti0; xlabel="Ti0 [eV]", legend=false))
+    display(histogram(df.ne0; xlabel="ne0 [m⁻³]]", legend=false))
     return study
 end
 
@@ -128,36 +122,41 @@ function run_case(study::AbstractStudy, item::String)
     sty = study.sty
     @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
 
-    try
-        # generate new ini
-        ini = rand(study.ini)
+    original_dir = pwd()
+    savedir = abspath(joinpath(sty.save_folder, "$(item)__$(Dates.now())__$(getpid())"))
+    mkdir(savedir)
+    cd(savedir)
 
-        dd = IMAS.dd()
+    # Redirect stdout and stderr to the file
+    original_stdout = stdout  # Save the original stdout
+    original_stderr = stderr  # Save the original stderr
+    file_log = open("log.txt", "w")
+
+    # deepcopy ini/act to avoid changes
+    ini = rand(study.ini)
+    dd = IMAS.dd()
+    
+    try
+        redirect_stdout(file_log)
+        redirect_stderr(file_log)
+
         study.workflow(dd, ini, act)
 
-        if sty.save_dd
-            IMAS.imas2json(dd, joinpath(sty.save_folder, "result_dd_$(item).json"))
-            if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
-                save(FUSE.memtrace, joinpath(sty.save_folder, "memtrace_$(item).txt"))
-            end
+        # save simulation data to directory
+        save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
+
+        return nothing
+    catch error
+        if isa(error, InterruptException)
+            rethrow(error)
         end
 
-        return create_data_frame_row_DatabaseGenerator(dd)
-    catch e
-        if isa(e, InterruptException)
-            rethrow(e)
-        end
-        open("$(sty.save_folder)/error_$(item).txt", "w") do file
-            return showerror(file, e, catch_backtrace())
-        end
+        # save empty dd and error to directory
+        save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
+    finally
+        redirect_stdout(original_stdout)
+        redirect_stderr(original_stderr)
+        cd(original_dir)
+        close(file_log)
     end
-end
-
-function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
-    cp1d = dd.core_profiles.profiles_1d[]
-    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.t_i_average[1], zeff=cp1d.zeff[1])
-end
-
-function StudyDatabaseGenerator_summary_dataframe()
-    return DataFrame(; ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
 end
