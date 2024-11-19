@@ -249,7 +249,7 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 end
 
 function double_ellipse(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    return double_ellipse(r_start, r_end, (r_start + r_end) / 2, height, 0.0, height; n_points, resolution)
+    return double_ellipse(r_start, r_end, r_start + (r_end - r_start) / 2, height, 0.0, height; n_points, resolution)
 end
 
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
