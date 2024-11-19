@@ -1,3 +1,4 @@
+using ProgressMeter
 #= ====================== =#
 #  StudyDatabaseGenerator  #
 #= ====================== =#
@@ -78,7 +79,7 @@ function _run(study::StudyDatabaseGenerator)
 
     # paraller run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
-    results = pmap(item -> run_case(study, item), iterator)
+    results = @showprogress pmap(item -> run_case(study, item), iterator)
 
     # populate DataFrame
     for row in results
