@@ -961,7 +961,7 @@ function optimize_outline(
             if hfs_thickness != lfs_thickness
                 hbuf = hfs_thickness - target_clearance
                 lbuf = lfs_thickness - target_clearance
-                r_obstruction, z_obstruction = buffer(r_obstruction, z_obstruction, hbuf, lbuf)
+                r_obstruction, z_obstruction = buffer(r_obstruction, z_obstruction, hbuf, hbuf)
             else
                 hbuf = 0.0
                 lbuf = 0.0
