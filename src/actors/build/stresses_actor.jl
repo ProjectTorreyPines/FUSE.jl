@@ -240,11 +240,11 @@ function solve_1D_solid_mechanics!(
 
     # define forcing constraints on TF and OH coil
     if tf_nose
-        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tn_int^2)^2)
+        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (IMAS.mks.μ_0 * (R_tf_out^2 - R_tn_int^2)^2)
     else
-        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
+        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (IMAS.mks.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
     end
-    C_oh = -1.0 / embar_oh * Bz_oh^2 / (constants.μ_0 * (R_oh_out - R_oh_in)^2)
+    C_oh = -1.0 / embar_oh * Bz_oh^2 / (IMAS.mks.μ_0 * (R_oh_out - R_oh_in)^2)
 
     # calculate centerlines, check radial build inputs for consistency
     cl_tf = 0.5 * (R_tf_out + R_tf_in)

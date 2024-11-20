@@ -677,7 +677,7 @@ function categorize_errors(
 
     # go through directories
     for dir in dirs
-        filename = joinpath([dir, "error.txt"])
+        filename = joinpath(dir, "error.txt")
         if !isfile(filename)
             continue
         end

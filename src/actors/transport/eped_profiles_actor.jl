@@ -57,7 +57,7 @@ function _step(actor::ActorEPEDprofiles)
     nival = ne_ped * (zeff_ped - 1) / (zi^2 - zi)
     nval = ne_ped - zi * nival
     nsum = ne_ped + nval + nival
-    tped = (pped * 1e6) / nsum / constants.e
+    tped = (pped * 1e6) / nsum / IMAS.mks.e
 
     # update electron temperature profile using
     # * new pedestal height & width
