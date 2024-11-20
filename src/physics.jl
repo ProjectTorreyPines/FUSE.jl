@@ -47,7 +47,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [centerpost_height, height]
         elseif shape_index_mod in (Int(_rectangle_ellipse_), Int(_mirror_rectangle_ellipse_))
-            shape_parameters = [r_center, height]
+            shape_parameters = [height]
         elseif shape_index_mod in (Int(_triple_arc_), Int(_mirror_triple_arc_))
             shape_parameters = [height, 0.5, 0.5, Float64(pi / 3), Float64(pi / 3)]
         elseif shape_index_mod == Int(_rectangle_)
@@ -249,7 +249,7 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 end
 
 function double_ellipse(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    return double_ellipse(r_start, r_end, (r_start + r_end) / 2, height, 0.0, height; n_points, resolution)
+    return double_ellipse(r_start, r_end, r_start + (r_end - r_start) / 2, height, 0.0, height; n_points, resolution)
 end
 
 function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T, outerpost_height::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
@@ -303,9 +303,9 @@ Rectangle ellipse shape
 
 The inner part of the TF is actually a rectangle
 """
-function rectangle_ellipse(r_start::T, r_end::T, r_center::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+function rectangle_ellipse(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
     height = abs(height)
-    r_center = mirror_bound(r_center, r_start, r_end)
+    r_center = (r_start + r_end) / 2
     n_points = Int(round(n_points * resolution))
     r2, z2 = ellipse(r_end - r_center, height / 2.0, float(π / 2), float(0.0), r_center, 0.0; n_points)
     R = [r_start; r_start; r2[1:end-1]; r2[end:-1:1]; r_start]
