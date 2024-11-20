@@ -47,10 +47,16 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             @assert act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line"
         end
 
+        if !isempty(dd.equilibrium.time_slice)
+            equil = dd.equilibrium.time_slice[]
+        else
+            equil = ini.equilibrium
+        end
+
         if init_from == :scalars
             init_core_profiles!(
                 dd.core_profiles,
-                dd.equilibrium,
+                equil,
                 dd.summary;
                 ini.core_profiles.plasma_mode,
                 ini.core_profiles.ne_setting,
@@ -58,7 +64,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.ne_sep_to_ped_ratio,
                 ini.core_profiles.ne_core_to_ped_ratio,
                 ini.core_profiles.ne_shaping,
-                ini.equilibrium.pressure_core,
+                pressure_core=getproperty(ini.equilibrium, :pressure_core, missing),
                 helium_fraction=ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
                 ini.core_profiles.w_ped,
                 ini.core_profiles.zeff,
@@ -70,6 +76,8 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.T_ratio,
                 ini.core_profiles.T_shaping,
                 ini.core_profiles.Te_sep,
+                Te_ped=getproperty(ini.core_profiles, :Te_ped, missing),
+                Te_core=getproperty(ini.core_profiles, :Te_core, missing),
                 ini.core_profiles.ngrid,
                 ITB_radius=getproperty(ini.core_profiles.ITB, :radius, missing),
                 ITB_ne_width=getproperty(ini.core_profiles.ITB, :ne_width, missing),
@@ -78,10 +86,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :Te_height_ratio, missing)
             )
         end
-        ini.core_profiles.ITB.radius = 0.5
-        ini.core_profiles.ITB.Te_width = ini.core_profiles.ITB.ne_width = 0.1
-        ini.core_profiles.ITB.Te_height_ratio = 0.5
-        ini.core_profiles.ITB.ne_height_ratio = 0.5
+
         return dd
     end
 end
@@ -93,7 +98,7 @@ end
 
 function init_core_profiles!(
     cp::IMAS.core_profiles,
-    eq::IMAS.equilibrium,
+    equil::Union{IMAS.equilibrium__time_slice,FUSEparameters__equilibrium},
     summary::IMAS.summary;
     plasma_mode::Symbol,
     ne_setting::Symbol,
@@ -101,7 +106,7 @@ function init_core_profiles!(
     ne_sep_to_ped_ratio::Real,
     ne_core_to_ped_ratio::Real,
     ne_shaping::Real,
-    pressure_core::Real,
+    pressure_core::Union{Real,Missing},
     helium_fraction::Real,
     w_ped::Real,
     zeff::Real,
@@ -113,6 +118,8 @@ function init_core_profiles!(
     T_ratio::Real,
     T_shaping::Real,
     Te_sep::Real,
+    Te_ped::Union{Real,Missing},
+    Te_core::Union{Real,Missing},
     ngrid::Int,
     ITB_radius::Union{Real,Missing},
     ITB_ne_width::Union{Real,Missing},
@@ -129,7 +136,6 @@ function init_core_profiles!(
     end
 
     cp1d = resize!(cp.profiles_1d)
-    eqt = eq.time_slice[]
 
     # grid
     cp1d.grid.rho_tor_norm = range(0, 1, ngrid)
@@ -143,11 +149,23 @@ function init_core_profiles!(
     if ne_setting == :ne_ped
         ne_ped = ne_value
     elseif ne_setting == :greenwald_fraction_ped
-        ne_ped = ne_value * IMAS.greenwald_density(eqt)
+        if typeof(equil) <: IMAS.equilibrium__time_slice
+            ne_ped = ne_value * IMAS.greenwald_density(equil)
+        else
+            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0)
+        end
     elseif ne_setting == :ne_line
-        ne_ped = ne_value / IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+        if typeof(equil) <: IMAS.equilibrium__time_slice
+            ne_ped = ne_value / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+        else
+            ne_ped = ne_value / trapz(range(0.0, 1.0, ngrid), cp1d.electrons.density_thermal)
+        end
     elseif ne_setting == :greenwald_fraction
-        ne_ped = ne_value / IMAS.greenwald_fraction(eqt, cp1d)
+        if typeof(equil) <: IMAS.equilibrium__time_slice
+            ne_ped = ne_value * IMAS.greenwald_density(equil) / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+        else
+            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0) / trapz(range(0.0, 1.0, ngrid), cp1d.electrons.density_thermal)
+        end
     end
     cp1d.electrons.density_thermal .*= ne_ped
     if ITB_radius !== missing
@@ -187,12 +205,15 @@ function init_core_profiles!(
     end
 
     # temperatures
-    Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
+    if Te_core === missing
+        Te_core = pressure_core / (T_ratio * ni_core + ne_core) / IMAS.mks.e
+    end
+    if Te_ped === missing
+        Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
+    end
     if plasma_mode == :H_mode
-        Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
         cp1d.electrons.temperature = IMAS.Hmode_profiles(Te_sep, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
     else
-        Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
         cp1d.electrons.temperature = IMAS.Lmode_profiles(Te_sep, Te_ped, Te_core, ngrid, T_shaping, 1.0, w_ped)
     end
     if ITB_radius !== missing
@@ -223,39 +244,4 @@ function init_core_profiles!(
     # set spin polarization
     cp.global_quantities.polarized_fuel_fraction = polarized_fuel_fraction
     return cp
-end
-
-function cost_Pfusion_p0(pressure_core::Real, target_pfus::Real, dd::IMAS.dd, ini::ParametersAllInits)
-    init_core_profiles!(
-        dd.core_profiles,
-        dd.equilibrium,
-        dd.summary;
-        ini.core_profiles.plasma_mode,
-        ini.core_profiles.ne_setting,
-        ini.core_profiles.ne_value,
-        ini.core_profiles.ne_sep_to_ped_ratio,
-        ini.core_profiles.ne_core_to_ped_ratio,
-        ini.core_profiles.ne_shaping,
-        pressure_core,
-        ini.core_profiles.helium_fraction,
-        ini.core_profiles.w_ped,
-        ini.core_profiles.zeff,
-        ini.core_profiles.bulk,
-        ini.core_profiles.impurity,
-        ini.core_profiles.rot_core,
-        ejima=getproperty(ini.core_profiles, :ejima, missing),
-        ini.core_profiles.polarized_fuel_fraction,
-        ini.core_profiles.T_ratio,
-        ini.core_profiles.T_shaping,
-        ini.core_profiles.Te_sep,
-        ini.core_profiles.ngrid,
-        ITB_radius=getproperty(ini.core_profiles.ITB, :radius, missing),
-        ITB_ne_width=getproperty(ini.core_profiles.ITB, :ne_width, missing),
-        ITB_ne_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing),
-        ITB_Te_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
-        ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :Te_height_ratio, missing))
-
-    cost = abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
-
-    return cost
 end
