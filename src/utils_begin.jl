@@ -249,6 +249,33 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             error("Not running on saga cluster")
         end
 
+    elseif cluster == "feynman"
+        if occursin("feynman", gethostname())
+            gigamem_per_node = 800
+            cpus_per_node = 30
+            if nworkers > 0
+                nodes = 1 
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
+            end
+            np = nworkers + 1
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            ENV["JULIA_WORKER_TIMEOUT"] = "360"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="LocalQ",
+                    topology=:master_worker,
+                    time="99:99:99",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
+                )
+            end
+        else
+            error("Not running on feynman cluster")
+        end
+
     elseif cluster == "localhost"
         mem_size = Int(ceil(localhost_memory() * memory_usage_fraction))
 

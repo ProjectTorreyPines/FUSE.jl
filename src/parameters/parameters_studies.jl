@@ -12,7 +12,7 @@ function study_common_parameters(; kw...)
     name = first(keys(kw))
     default = first(values(kw))
     if name == :server
-        return Switch{String}(["localhost", "omega", "saga"], "-", "Where to run"; default)
+        return Switch{String}(["localhost", "omega", "saga", "feynman"], "-", "Where to run"; default)
     elseif name == :n_workers
         return Entry{Int}("-", "Number of workers to run with"; default)
     elseif name == :file_save_mode
