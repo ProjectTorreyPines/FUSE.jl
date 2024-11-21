@@ -227,6 +227,7 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
     layers::ParametersVector{FUSEparameters__build_layer{T}} = ParametersVector{FUSEparameters__build_layer{T}}()
+    scale_layers_to_R0::Entry{Bool} = Entry{Bool}("-", "Scale layers thicknesses to center plasma equilibrium (R0) in vacuum vessel"; default=true)
     plasma_gap::Entry{T} =
         Entry{T}("-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1, check=x -> @assert x > 0.0 "must be: plasma_gap > 0.0")
     symmetric::Entry{Bool} = Entry{Bool}("-", "Is the build up-down symmetric")

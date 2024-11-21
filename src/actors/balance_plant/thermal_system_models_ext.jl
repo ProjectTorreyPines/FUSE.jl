@@ -83,7 +83,7 @@ function _step(actor::ActorThermalSystemModels)
     divertor_heat_load = @ddtime(bop.power_plant.heat_load.divertor)
     wall_heat_load = @ddtime(bop.power_plant.heat_load.wall)
 
-    # Buidling the TSM System
+    # Building the TSM System
     actor.u = [breeder_heat_load, divertor_heat_load, wall_heat_load]
     if !actor.buildstatus
         @debug "Rebuilding ActorThermalSystemModels"

@@ -490,17 +490,6 @@ function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
     return xy_polygon(layer.outline.r, layer.outline.z)
 end
 
-"""
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
-
-Buffer polygon defined by x,y arrays by a quantity b
-"""
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
-    poly = xy_polygon(x, y)
-    poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
-    @inline return get_xy(poly_b, Float64)
-end
-
 function get_xy(poly::LibGEOS.Polygon, T=Float64)
     # extract the LinearRing struct
     lr = first(GeoInterface.getgeom(poly))
@@ -540,6 +529,17 @@ function getPoint!(
 end
 
 """
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+    poly = xy_polygon(x, y)
+    poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
+    @inline return get_xy(poly_b, Float64)
+end
+
+"""
     buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
@@ -548,6 +548,21 @@ function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T):
     x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
     x_offset = 0.5 * (b_lfs - b_hfs)
     x_b .+= x_offset
+    return x_b, y_b
+end
+
+"""
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T, b_updown::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    b_radius = 0.5 * (b_lfs + b_hfs)
+    x_offset = 0.5 * (b_lfs - b_hfs)
+    y_max = maximum(y)
+    y_min = minimum(y)
+    y_scaled = (y .- y_min) ./ (y_max - y_min) .* (y_max + b_updown - b_radius - (y_min - b_updown + b_radius)) .+ (y_min - b_updown + b_radius)
+    x_b, y_b = buffer(x .+ x_offset, y_scaled, b_radius)
     return x_b, y_b
 end
 

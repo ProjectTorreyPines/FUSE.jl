@@ -140,7 +140,7 @@ Based on derivations in Engineering Physics Note "EPNjal17dec17_gasc_pt5_tf_oh_p
 Returns radial, hoop, axial, and Von Mises stresses for TF, OH, and plug (Pascals)
 (optional) radial profiles of radial, hoop, axial, and Von Mises stresses for TF, OH, and plug (Pascals)
 
-The tokamak radial buid is :
+The tokamak radial build is :
 
 || plug or void (0 < r < R1) || coil 1 (R1 < r < R2) || coil 2 (R3 < r < R4) || ----> plasma center (r = R0)
 
