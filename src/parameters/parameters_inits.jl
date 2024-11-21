@@ -90,8 +90,8 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     ne_core_to_ped_ratio::Entry{T} =
         Entry{T}("-", "Ratio used to set the core density based on the pedestal density"; default=1.4, check=x -> @assert x > 0.0 "must be: ne_core_to_ped_ratio > 0.0")
     ne_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
-    T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
-    T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
+    Ti_Te_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: Ti_Te_ratio > 0.0")
+    Te_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     Te_sep::Entry{T} = Entry{T}("eV", "Separatrix temperature"; default=80.0, check=x -> @assert x > 0.0 "must be: Te_sep > 0.0")
     Te_ped::Entry{T} = Entry{T}("eV", "Pedestal temperature"; check=x -> @assert x > 0.0 "must be: Te_ped > 0.0")
     Te_core::Entry{T} = Entry{T}("eV", "Core temperature (NOTE: `Te_core` can be calculated from `ini.equilibrium.presssure_core`)"; check=x -> @assert x > 0.0 "must be: Te_core > 0.0")

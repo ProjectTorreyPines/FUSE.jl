@@ -119,8 +119,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.core_profiles, :zeff)
                     ini.core_profiles.zeff = zeff_ped
                 end
-                if ismissing(ini.core_profiles, :T_ratio)
-                    ini.core_profiles.T_ratio = ti_ped / te_ped
+                if ismissing(ini.core_profiles, :Ti_Te_ratio)
+                    ini.core_profiles.Ti_Te_ratio = ti_ped / te_ped
                 end
             end
         end

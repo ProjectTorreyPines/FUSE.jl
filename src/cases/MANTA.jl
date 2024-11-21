@@ -49,14 +49,14 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     act.ActorPedestal.density_match = :ne_line
     ini.core_profiles.ne_value = 0.5
     ini.core_profiles.ne_shaping = 4.0
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 2.0
     ini.core_profiles.Te_core = 20E3
+    ini.core_profiles.Te_shaping = 2.0
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.0
+    ini.core_profiles.helium_fraction = 0.025
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.025
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:hfs_blanket].coils_inside = 4

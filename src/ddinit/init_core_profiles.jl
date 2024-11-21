@@ -73,8 +73,8 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.rot_core,
                 ejima=getproperty(ini.core_profiles, :ejima, missing),
                 ini.core_profiles.polarized_fuel_fraction,
-                ini.core_profiles.T_ratio,
-                ini.core_profiles.T_shaping,
+                ini.core_profiles.Ti_Te_ratio,
+                ini.core_profiles.Te_shaping,
                 ini.core_profiles.Te_sep,
                 Te_ped=getproperty(ini.core_profiles, :Te_ped, missing),
                 Te_core=getproperty(ini.core_profiles, :Te_core, missing),
@@ -115,8 +115,8 @@ function init_core_profiles!(
     rot_core::Real,
     ejima::Union{Real,Missing},
     polarized_fuel_fraction::Real,
-    T_ratio::Real,
-    T_shaping::Real,
+    Ti_Te_ratio::Real,
+    Te_shaping::Real,
     Te_sep::Real,
     Te_ped::Union{Real,Missing},
     Te_core::Union{Real,Missing},
@@ -206,21 +206,21 @@ function init_core_profiles!(
 
     # temperatures
     if Te_core === missing
-        Te_core = pressure_core / (T_ratio * ni_core + ne_core) / IMAS.mks.e
+        Te_core = pressure_core / (Ti_Te_ratio * ni_core + ne_core) / IMAS.mks.e
     end
     if Te_ped === missing
         Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
     end
     if plasma_mode == :H_mode
-        cp1d.electrons.temperature = IMAS.Hmode_profiles(Te_sep, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
+        cp1d.electrons.temperature = IMAS.Hmode_profiles(Te_sep, Te_ped, Te_core, ngrid, Te_shaping, Te_shaping, w_ped)
     else
-        cp1d.electrons.temperature = IMAS.Lmode_profiles(Te_sep, Te_ped, Te_core, ngrid, T_shaping, 1.0, w_ped)
+        cp1d.electrons.temperature = IMAS.Lmode_profiles(Te_sep, Te_ped, Te_core, ngrid, Te_shaping, 1.0, w_ped)
     end
     if ITB_radius !== missing
         cp1d.electrons.temperature = IMAS.ITB_profile(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, ITB_radius, ITB_Te_width, ITB_Te_height_ratio)
     end
     for i in eachindex(cp1d.ion)
-        cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
+        cp1d.ion[i].temperature = cp1d.electrons.temperature .* Ti_Te_ratio
     end
 
     # pedestal
@@ -231,9 +231,9 @@ function init_core_profiles!(
 
     # rotation
     if plasma_mode == :H_mode
-        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), T_shaping, 1.0, w_ped)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
     else
-        cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), T_shaping, 1.0, w_ped)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
     end
 
     # ejima
