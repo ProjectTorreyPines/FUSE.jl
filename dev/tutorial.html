@@ -41,9 +41,9 @@ actors: PassiveStructures</code></pre><p>We can <code>@checkin</code> and <code>
 ├─ minor_radius<span class="sgr31"> ➡ 2.00728<span class="sgr1"> [m]</span></span>
 ├─ <span class="sgr1">outline</span>
 │  ├─ r<span class="sgr31"> ➡ </span><span class="sgr32">241-element Vector{Float64}<span class="sgr1"> [m]</span></span>
-│  │      <span class="sgr32"><span class="sgr1">min:</span></span>4.51   <span class="sgr32"><span class="sgr1">avg:</span></span>6.28   <span class="sgr32"><span class="sgr1">max:</span></span>8.52 
+│  │      <span class="sgr32"><span class="sgr1">min:</span></span>4.51   <span class="sgr32"><span class="sgr1">avg:</span></span>6.27   <span class="sgr32"><span class="sgr1">max:</span></span>8.52 
 │  └─ z<span class="sgr31"> ➡ </span><span class="sgr32">241-element Vector{Float64}<span class="sgr1"> [m]</span></span>
-│         <span class="sgr32"><span class="sgr1">min:</span></span>-4.08   <span class="sgr32"><span class="sgr1">avg:</span></span>-0.03   <span class="sgr32"><span class="sgr1">max:</span></span>3.93 
+│         <span class="sgr32"><span class="sgr1">min:</span></span>-4.04   <span class="sgr32"><span class="sgr1">avg:</span></span>-0.0295   <span class="sgr32"><span class="sgr1">max:</span></span>3.89 
 ├─ ovality<span class="sgr31"> ➡ 0.00308297</span>
 ├─ squareness<span class="sgr31"> ➡ -0.00753311</span>
 ├─ squareness_lower_inner<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
@@ -52,11 +52,11 @@ actors: PassiveStructures</code></pre><p>We can <code>@checkin</code> and <code>
 ├─ squareness_upper_outer<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
 ├─ <span class="sgr1">strike_point</span>
 │  ├─ <span class="sgr1">1</span>
-│  │  ├─ r<span class="sgr31"> ➡ 5.44008<span class="sgr1"> [m]</span></span>
-│  │  └─ z<span class="sgr31"> ➡ -5.01853<span class="sgr1"> [m]</span></span>
+│  │  ├─ r<span class="sgr31"> ➡ 5.50924<span class="sgr1"> [m]</span></span>
+│  │  └─ z<span class="sgr31"> ➡ -4.91359<span class="sgr1"> [m]</span></span>
 │  └─ <span class="sgr1">2</span>
-│     ├─ r<span class="sgr31"> ➡ 4.24377<span class="sgr1"> [m]</span></span>
-│     └─ z<span class="sgr31"> ➡ -4.48402<span class="sgr1"> [m]</span></span>
+│     ├─ r<span class="sgr31"> ➡ 4.30003<span class="sgr1"> [m]</span></span>
+│     └─ z<span class="sgr31"> ➡ -4.59874<span class="sgr1"> [m]</span></span>
 ├─ tilt<span class="sgr31"> ➡ -0.00645963</span>
 ├─ triangularity<span class="sgr31"> ➡ 0.585259</span>
 ├─ triangularity_lower<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
@@ -64,11 +64,11 @@ actors: PassiveStructures</code></pre><p>We can <code>@checkin</code> and <code>
 ├─ twist<span class="sgr31"> ➡ 0.00262375</span>
 └─ <span class="sgr1">x_point</span>
    ├─ <span class="sgr1">1</span>
-   │  ├─ r<span class="sgr31"> ➡ 5.10505<span class="sgr1"> [m]</span></span>
-   │  └─ z<span class="sgr31"> ➡ -4.08783<span class="sgr1"> [m]</span></span>
+   │  ├─ r<span class="sgr31"> ➡ 5.13542<span class="sgr1"> [m]</span></span>
+   │  └─ z<span class="sgr31"> ➡ -4.05302<span class="sgr1"> [m]</span></span>
    └─ <span class="sgr1">2</span>
-      ├─ r<span class="sgr31"> ➡ 4.88353<span class="sgr1"> [m]</span></span>
-      └─ z<span class="sgr31"> ➡ 4.34169<span class="sgr1"> [m]</span></span>
+      ├─ r<span class="sgr31"> ➡ 4.90576<span class="sgr1"> [m]</span></span>
+      └─ z<span class="sgr31"> ➡ 4.30741<span class="sgr1"> [m]</span></span>
 </code></pre><p>this can be done up to a certain depth with <code>print_tree</code></p><pre><code class="language-julia hljs">print_tree(dd.equilibrium.time_slice[2].boundary; maxdepth=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">boundary
 ├─ elongation ➡ 1.99926
 ├─ elongation_lower ➡ Function
@@ -95,9 +95,9 @@ actors: PassiveStructures</code></pre><p>We can <code>@checkin</code> and <code>
 ├─ triangularity_upper ➡ Function
 ├─ twist ➡ 0.00262375
 └─ x_point
-   ⋮</code></pre><h2 id="Plotting-data-from-dd"><a class="docs-heading-anchor" href="#Plotting-data-from-dd">Plotting data from <code>dd</code></a><a id="Plotting-data-from-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-data-from-dd" title="Permalink"></a></h2><p>FUSE uses <code>Plots.jl</code> recipes for visualizing data from <code>dd</code>.</p><p>This allows different plots to be shown when calling <code>plot()</code> on different items in the data structure.</p><p>Learn more about Plots.jl <a href="https://docs.juliaplots.org">here</a></p><p>For example plotting the equilibrium...</p><pre><code class="language-julia hljs">plot(dd.equilibrium)</code></pre><img src="tutorial-e0c7534d.svg" alt="Example block output"/><p>...or the core profiles</p><pre><code class="language-julia hljs">plot(dd.core_profiles)</code></pre><img src="tutorial-4299ef0c.svg" alt="Example block output"/><p>Whant to know what arguments can be passed? use <code>help_plot()</code> function</p><pre><code class="language-julia hljs">help_plot(dd.equilibrium; core_profiles_overlay=true, psi_levels_in=21, psi_levels_out=5, show_secondary_separatrix=true, coordinate=:psi_norm)</code></pre><img src="tutorial-d6c6e211.svg" alt="Example block output"/><p>These plots can be composed by calling <code>plot!()</code> instead of <code>plot()</code></p><pre><code class="language-julia hljs">plot(dd.equilibrium; color=:gray, cx=true)
+   ⋮</code></pre><h2 id="Plotting-data-from-dd"><a class="docs-heading-anchor" href="#Plotting-data-from-dd">Plotting data from <code>dd</code></a><a id="Plotting-data-from-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-data-from-dd" title="Permalink"></a></h2><p>FUSE uses <code>Plots.jl</code> recipes for visualizing data from <code>dd</code>.</p><p>This allows different plots to be shown when calling <code>plot()</code> on different items in the data structure.</p><p>Learn more about Plots.jl <a href="https://docs.juliaplots.org">here</a></p><p>For example plotting the equilibrium...</p><pre><code class="language-julia hljs">plot(dd.equilibrium)</code></pre><img src="tutorial-64dce0c9.svg" alt="Example block output"/><p>...or the core profiles</p><pre><code class="language-julia hljs">plot(dd.core_profiles)</code></pre><img src="tutorial-64aa2394.svg" alt="Example block output"/><p>Whant to know what arguments can be passed? use <code>help_plot()</code> function</p><pre><code class="language-julia hljs">help_plot(dd.equilibrium; core_profiles_overlay=true, psi_levels_in=21, psi_levels_out=5, show_secondary_separatrix=true, coordinate=:psi_norm)</code></pre><img src="tutorial-1da14aec.svg" alt="Example block output"/><p>These plots can be composed by calling <code>plot!()</code> instead of <code>plot()</code></p><pre><code class="language-julia hljs">plot(dd.equilibrium; color=:gray, cx=true)
 plot!(dd.build; equilibrium=false, pf_active=false)
-plot!(dd.pf_active)</code></pre><img src="tutorial-e6ec47e4.svg" alt="Example block output"/><p>Plotting an array...</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1].pressure_thermal)</code></pre><img src="tutorial-93968e7e.svg" alt="Example block output"/><p>...is different from plotting a field from the IDS (which plots the quantity against its coordinate and with units)</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)</code></pre><img src="tutorial-0055e964.svg" alt="Example block output"/><p>Customizing plot attributes:</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label=&quot;&quot;, linewidth=2, color=:red, labelfontsize=25)</code></pre><img src="tutorial-b87a8573.svg" alt="Example block output"/><h2 id="Working-with-time-series"><a class="docs-heading-anchor" href="#Working-with-time-series">Working with time series</a><a id="Working-with-time-series-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-time-series" title="Permalink"></a></h2><p>The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.</p><p>Each <code>dd</code> has a <code>global_time</code> attribute, and actors operate at such time</p><pre><code class="language-julia hljs">dd.global_time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>Here we see that equilibrium has mulitiple time_slices</p><pre><code class="language-julia hljs">dd.equilibrium.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
+plot!(dd.pf_active)</code></pre><img src="tutorial-cc77c28d.svg" alt="Example block output"/><p>Plotting an array...</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1].pressure_thermal)</code></pre><img src="tutorial-28d78717.svg" alt="Example block output"/><p>...is different from plotting a field from the IDS (which plots the quantity against its coordinate and with units)</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)</code></pre><img src="tutorial-909eea65.svg" alt="Example block output"/><p>Customizing plot attributes:</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label=&quot;&quot;, linewidth=2, color=:red, labelfontsize=25)</code></pre><img src="tutorial-c4715a50.svg" alt="Example block output"/><h2 id="Working-with-time-series"><a class="docs-heading-anchor" href="#Working-with-time-series">Working with time series</a><a id="Working-with-time-series-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-time-series" title="Permalink"></a></h2><p>The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.</p><p>Each <code>dd</code> has a <code>global_time</code> attribute, and actors operate at such time</p><pre><code class="language-julia hljs">dd.global_time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>Here we see that equilibrium has mulitiple time_slices</p><pre><code class="language-julia hljs">dd.equilibrium.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
  -Inf
    0.0</code></pre><p>Accessing time-dependent arrays of structures, via integer index</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[2]
 eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>At a given time, by passing the time as a floating point number (in seconds)</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[0.0]
@@ -120,15 +120,15 @@ dd.equilibrium.vacuum_toroidal_field.b0</code></pre><pre class="documenter-examp
 │  ⋮
 │
 ├─ j_bootstrap ➡ 101-element Vector{Float64} [A/m^2]
-│                min:8.02e+03   avg:1.71e+05   max:4.68e+05
+│                min:3.3e+03   avg:1.56e+05   max:1.95e+05
 ├─ j_non_inductive ➡ 101-element Vector{Float64} [A/m^2]
-│                    min:8.02e+03   avg:8.9e+05   max:5.23e+06
+│                    min:3.3e+03   avg:8.39e+05   max:4.98e+06
 ├─ j_ohmic ➡ 101-element Vector{Float64} [A/m^2]
-│            min:378   avg:3.59e+05   max:1.15e+06
+│            min:535   avg:4.54e+05   max:1.53e+06
 ├─ j_tor ➡ 101-element Vector{Float64} [A/m^2]
-│          min:7e+03   avg:1.27e+06   max:6.52e+06
+│          min:3.23e+03   avg:1.31e+06   max:6.65e+06
 ├─ j_total ➡ 101-element Vector{Float64} [A/m^2]
-│            min:8.4e+03   avg:1.25e+06   max:6.35e+06
+│            min:3.84e+03   avg:1.29e+06   max:6.48e+06
 ├─ pressure ➡ Function [Pa]
 ├─ pressure_ion_total ➡ Function [Pa]
 ├─ pressure_parallel ➡ Function [Pa]
@@ -140,28 +140,28 @@ dd.equilibrium.vacuum_toroidal_field.b0</code></pre><pre class="documenter-examp
 ├─ time ➡ 0 [s]
 └─ zeff ➡ 101-element Vector{Float64}
           all:2</code></pre><p>accessing a dynamic expression, automatically evaluates it (in the <code>pressure</code> example, we get an array with data)</p><pre><code class="language-julia hljs">dd.core_profiles.profiles_1d[1].electrons.pressure</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">101-element Vector{Float64}:
- 404069.7674418606
- 402676.39614741056
- 401188.69386268617
- 399538.217176196
- 397724.14560254384
- 395750.4731921339
- 393622.078210206
- 391343.9022614207
- 388920.7411999893
- 386357.19999876065
+ 382161.41109300684
+ 380830.63957078604
+ 379391.591101457
+ 377782.55757196713
+ 376004.2172426514
+ 374061.3354757094
+ 371959.28457999736
+ 369703.3617717455
+ 367298.6384800007
+ 364749.9444273129
       ⋮
-  42719.87665551564
-  40586.07330511076
-  37459.269373948504
-  32406.321396106454
-  24688.808073507695
-  14967.908148062737
-   6626.039795948137
-   1990.951110677052
-    218.31440777766358</code></pre><p>In addition to evaluating expressions by accessing them, expressions in the tree can be evaluated using <code>IMAS.freeze()</code></p><pre><code class="language-julia hljs">print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">profiles_1d
+  19912.277704598586
+  18499.461216714055
+  16815.06186436015
+  14478.45803169503
+  11093.81383850173
+   6816.64842006658
+   3120.9952290519527
+   1038.1040174980417
+    218.37794919600034</code></pre><p>In addition to evaluating expressions by accessing them, expressions in the tree can be evaluated using <code>IMAS.freeze()</code></p><pre><code class="language-julia hljs">print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">profiles_1d
 ├─ conductivity_parallel ➡ 101-element Vector{Float64} [ohm^-1.m^-1]
-│                          min:2.88e+06   avg:4.1e+09   max:1.36e+10
+│                          min:2.87e+06   avg:3.62e+09   max:1.25e+10
 ├─ electrons
 │  ⋮
 │
@@ -172,70 +172,70 @@ dd.equilibrium.vacuum_toroidal_field.b0</code></pre><pre class="documenter-examp
 │  ⋮
 │
 ├─ j_bootstrap ➡ 101-element Vector{Float64} [A/m^2]
-│                min:8.02e+03   avg:1.71e+05   max:4.68e+05
+│                min:3.3e+03   avg:1.56e+05   max:1.95e+05
 ├─ j_non_inductive ➡ 101-element Vector{Float64} [A/m^2]
-│                    min:8.02e+03   avg:8.9e+05   max:5.23e+06
+│                    min:3.3e+03   avg:8.39e+05   max:4.98e+06
 ├─ j_ohmic ➡ 101-element Vector{Float64} [A/m^2]
-│            min:378   avg:3.59e+05   max:1.15e+06
+│            min:535   avg:4.54e+05   max:1.53e+06
 ├─ j_tor ➡ 101-element Vector{Float64} [A/m^2]
-│          min:7e+03   avg:1.27e+06   max:6.52e+06
+│          min:3.23e+03   avg:1.31e+06   max:6.65e+06
 ├─ j_total ➡ 101-element Vector{Float64} [A/m^2]
-│            min:8.4e+03   avg:1.25e+06   max:6.35e+06
+│            min:3.84e+03   avg:1.29e+06   max:6.48e+06
 ├─ pressure ➡ 101-element Vector{Float64} [Pa]
-│             min:413   avg:4.6e+05   max:9.45e+05
+│             min:413   avg:4.09e+05   max:8.84e+05
 ├─ pressure_ion_total ➡ 101-element Vector{Float64} [Pa]
-│                       min:195   avg:1.86e+05   max:3.6e+05
+│                       min:195   avg:1.67e+05   max:3.41e+05
 ├─ pressure_parallel ➡ 101-element Vector{Float64} [Pa]
-│                      min:138   avg:1.53e+05   max:3.15e+05
+│                      min:138   avg:1.36e+05   max:2.95e+05
 ├─ pressure_perpendicular ➡ 101-element Vector{Float64} [Pa]
-│                           min:138   avg:1.53e+05   max:3.15e+05
+│                           min:138   avg:1.36e+05   max:2.95e+05
 ├─ pressure_thermal ➡ 101-element Vector{Float64} [Pa]
-│                     min:413   avg:3.95e+05   max:7.65e+05
+│                     min:413   avg:3.55e+05   max:7.23e+05
 ├─ rotation_frequency_tor_sonic ➡ 101-element Vector{Float64} [s^-1]
 │                                 all:0
 ├─ t_i_average ➡ 101-element Vector{Float64} [eV]
-│                min:80   avg:1.48e+04   max:2.64e+04
+│                min:80   avg:1.32e+04   max:2.5e+04
 ├─ time ➡ 0 [s]
 └─ zeff ➡ 101-element Vector{Float64}
           all:2</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>. Internally, actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design. The <code>actors:</code> print statements with their nested output tell us what actors are calling other actors.</p><pre><code class="language- hljs">FUSE.ActorWholeFacility(dd, act);
 nothing #hide</code></pre><p>Like before we can checkpoint results for later use</p><pre><code class="language-julia hljs">@checkin :awf dd ini act</code></pre><h2 id="Running-a-custom-workflow"><a class="docs-heading-anchor" href="#Running-a-custom-workflow">Running a custom workflow</a><a id="Running-a-custom-workflow-1"></a><a class="docs-heading-anchor-permalink" href="#Running-a-custom-workflow" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors similar to what <code>ActorWholeFacility</code> does and play around with plotting to get a sense of what each individual actor does.</p><p>Let&#39;s start again from after the initialization stage</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language- hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
 pcp = plot(dd.core_profiles; color=:gray, label=&quot;before&quot;)
 FUSE.ActorStationaryPlasma(dd, act);
-nothing #hide</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-f0d5081c.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-22948263.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-567c1b61.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-d9e1be42.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language- hljs">plot(dd.build)
+nothing #hide</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-326aa504.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-33cc5e84.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-b066e35a.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-0b4ce9bc.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language- hljs">plot(dd.build)
 FUSE.ActorHFSsizing(dd, act);
 plot!(dd.build; cx=false)</code></pre><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language- hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorLFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-ffbdf458.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">24×10 DataFrame
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-a7641c35.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">24×10 DataFrame
  Row │ group   details                            type      ΔR          R_start   R_end     material      area        volume     shape
      │<span class="sgr90"> String  String                             String    Float64     Float64   Float64   String        Float64     Float64    String
 ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   1 │ in                                                   1.68288      0.0       1.68288  steel          22.2098     107.051
-   2 │ in                                         oh        1.02879      1.68288   2.71167  nb3sn           7.70459     87.1544
-   3 │ hfs                                        tf        0.511494     2.71167   3.22317  nb3sn_kdemo    45.381      919.044   convex hull
-   4 │ hfs     gap tf vacuum vessel                         0.0960705    3.22317   3.31924  vacuum         14.6305     779.057   double ellipse
-   5 │ hfs     vacuum  outer                      vessel    0.0960705    3.31924   3.41531  steel           3.13352    127.129   negative offset
-   6 │ hfs     gap water                                    0.144106     3.41531   3.55941  water           4.59152    186.415   negative offset
-   7 │ hfs     vacuum  inner                      vessel    0.0960705    3.55941   3.65548  steel           2.9885     121.424   negative offset
-   8 │ hfs     gap high temp shield vacuum vess…            0.00960705   3.65548   3.66509  vacuum          0.295659    12.0169  negative offset
-   9 │ hfs     high temp                          shield    0.192141     3.66509   3.85723  steel           5.79137    235.545   negative offset
-  10 │ hfs                                        blanket   0.365068     3.85723   4.2223   lithium_lead   22.6154    1015.17    negative offset
-  11 │ hfs     first                              wall      0.0192141    4.2223    4.24151  tungsten        0.81387     29.4331  offset
-  12 │ lhfs                                       plasma    4.55071      4.24151   8.79222  plasma         34.7526    1360.62
-  13 │ lfs     first                              wall      0.0192141    8.79222   8.81144  tungsten        0.812886    29.402   offset
-  14 │ lfs                                        blanket   1.15285      8.81144   9.96429  lithium_lead   22.6164    1015.2     negative offset
-  15 │ lfs     high temp                          shield    0.192141     9.96429  10.1564   steel           5.79137    235.545   negative offset
-  16 │ lfs     gap high temp shield vacuum vess…            0.111204    10.1564   10.2676   vacuum          0.295659    12.0169  negative offset
-  17 │ lfs     vacuum  inner                      vessel    0.0960705   10.2676   10.3637   steel           2.9885     121.424   negative offset
-  18 │ lfs     gap water                                    0.144106    10.3637   10.5078   water           4.59152    186.415   negative offset
-  19 │ lfs     vacuum  outer                      vessel    0.0960705   10.5078   10.6039   steel           3.13352    127.129   negative offset
-  20 │ lfs     gap tf vacuum vessel                         0.757997    10.6039   11.3619   vacuum         14.6305     779.057   double ellipse
-  21 │ lfs                                        tf        0.511494    11.3619   11.8734   nb3sn_kdemo    45.381      919.044   convex hull
-  22 │ out                                                  1.92141     11.8734   13.7948   vacuum        114.339     6591.64
-  23 │ out                                        cryostat  0.0960705   13.7948   13.8908   steel           4.64448    294.895   silo
-  24 │ out                                                  0.960705    13.8908   14.8516   vacuum         48.4753    3201.35</span></span></code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
-plot(dd.build)</code></pre><img src="tutorial-6309214b.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
-plot(dd.pf_passive)</code></pre><img src="tutorial-c745cfce.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
-plot(actor)</code></pre><img src="tutorial-ed0eea17.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
+   1 │ in                                                   1.68288      0.0       1.68288  steel          20.0229      96.5099
+   2 │ in                                         oh        1.02879      1.68288   2.71167  nb3sn           6.94595     78.5726
+   3 │ hfs                                        tf        0.511494     2.71167   3.22317  nb3sn_kdemo    43.1969     874.813   convex hull
+   4 │ hfs     gap tf vacuum vessel                         0.0960705    3.22317   3.31924  vacuum          9.72933    568.692   double ellipse
+   5 │ hfs     vacuum  outer                      vessel    0.0960705    3.31924   3.41531  steel           3.06312    125.967   negative offset
+   6 │ hfs     gap water                                    0.144106     3.41531   3.55941  water           4.48592    184.595   negative offset
+   7 │ hfs     vacuum  inner                      vessel    0.0960705    3.55941   3.65548  steel           2.9181     120.159   negative offset
+   8 │ hfs     gap high temp shield vacuum vess…            0.00960705   3.65548   3.66509  vacuum          0.288619    11.8881  negative offset
+   9 │ hfs     high temp                          shield    0.192141     3.66509   3.85723  steel           5.65021    232.874   negative offset
+  10 │ hfs                                        blanket   0.365068     3.85723   4.2223   lithium_lead   21.0811     978.388   negative offset
+  11 │ hfs     first                              wall      0.0192141    4.2223    4.24151  tungsten        0.819713    30.1598  offset
+  12 │ lhfs                                       plasma    4.55014      4.24151   8.79165  plasma         34.4099    1347.12
+  13 │ lfs     first                              wall      0.0192141    8.79165   8.81086  tungsten        0.819202    30.1434  offset
+  14 │ lfs                                        blanket   1.15285      8.81086   9.96371  lithium_lead   21.0816     978.404   negative offset
+  15 │ lfs     high temp                          shield    0.192141     9.96371  10.1559   steel           5.65021    232.874   negative offset
+  16 │ lfs     gap high temp shield vacuum vess…            0.111037    10.1559   10.2669   vacuum          0.288619    11.8881  negative offset
+  17 │ lfs     vacuum  inner                      vessel    0.0960705   10.2669   10.363    steel           2.9181     120.159   negative offset
+  18 │ lfs     gap water                                    0.144106    10.363    10.5071   water           4.48592    184.595   negative offset
+  19 │ lfs     vacuum  outer                      vessel    0.0960705   10.5071   10.6031   steel           3.06312    125.967   negative offset
+  20 │ lfs     gap tf vacuum vessel                         0.757997    10.6031   11.3611   vacuum          9.72933    568.692   double ellipse
+  21 │ lfs                                        tf        0.511494    11.3611   11.8726   nb3sn_kdemo    43.1969     874.813   convex hull
+  22 │ out                                                  1.92141     11.8726   13.794    vacuum        106.188     6023.93
+  23 │ out                                        cryostat  0.0960705   13.794    13.8901   steel           4.50743    282.5     silo
+  24 │ out                                                  0.960705    13.8901   14.8508   vacuum         47.1048    3072.85</span></span></code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
+plot(dd.build)</code></pre><img src="tutorial-4fe0c5f0.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
+plot(dd.pf_passive)</code></pre><img src="tutorial-e5272506.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
+plot(actor)</code></pre><img src="tutorial-ee291024.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
 IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">mhd_linear</span>
 ├─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
 └─ <span class="sgr1">time_slice</span>
@@ -243,13 +243,13 @@ IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><c
       ├─ time<span class="sgr31"> ➡ 0<span class="sgr1"> [s]</span></span>
       └─ <span class="sgr1">toroidal_mode</span>
          ├─ <span class="sgr1">1</span>
-         │  ├─ growthrate<span class="sgr31"> ➡ 0.11825<span class="sgr1"> [Hz]</span></span>
+         │  ├─ growthrate<span class="sgr31"> ➡ 0.190541<span class="sgr1"> [Hz]</span></span>
          │  ├─ n_tor<span class="sgr31"> ➡ </span><span class="sgr33">0</span>
          │  └─ <span class="sgr1">perturbation_type</span>
          │     ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Vertical stability margin, &gt; 0.15 for stability (N.B., not in Hz)&quot;</span>
          │     └─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;m_s&quot;</span>
          └─ <span class="sgr1">2</span>
-            ├─ growthrate<span class="sgr31"> ➡ 10.444<span class="sgr1"> [Hz]</span></span>
+            ├─ growthrate<span class="sgr31"> ➡ 6.04028<span class="sgr1"> [Hz]</span></span>
             ├─ n_tor<span class="sgr31"> ➡ </span><span class="sgr33">0</span>
             └─ <span class="sgr1">perturbation_type</span>
                ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Normalized vertical growth rate, &lt; 10 for stability (N.B., not in Hz)&quot;</span>
@@ -258,7 +258,7 @@ IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><c
 p = plot(; layout=2, size=(900, 350))
 plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
 plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
-plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-c5c3543c.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
+plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-6381b02d.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
 print_tree(IMAS.freeze(dd.blanket); maxdepth=5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Blanket
 actors:  CXbuild
 blanket
@@ -267,7 +267,7 @@ blanket
 │     ├─ layer
 │     │  ├─ 1
 │     │  │  ├─ material ➡ &quot;tungsten&quot;
-│     │  │  ├─ midplane_thickness ➡ 0.195005 [m]
+│     │  │  ├─ midplane_thickness ➡ 0.0725814 [m]
 │     │  │  └─ name ➡ &quot;lfs first wall&quot;
 │     │  ├─ 2
 │     │  │  ├─ material ➡ &quot;lithium-lead: Li6/7=100.000&quot;
@@ -275,37 +275,37 @@ blanket
 │     │  │  └─ name ➡ &quot;lfs blanket&quot;
 │     │  └─ 3
 │     │     ├─ material ➡ &quot;steel&quot;
-│     │     ├─ midplane_thickness ➡ 1.49218 [m]
+│     │     ├─ midplane_thickness ➡ 1.41747 [m]
 │     │     └─ name ➡ &quot;lfs high temp shield&quot;
 │     ├─ name ➡ &quot;blanket&quot;
 │     └─ time_slice
 │        └─ 1
-│           ├─ peak_escape_flux ➡ 952109 [W/m^2]
-│           ├─ peak_wall_flux ➡ 2.56731e+06 [W/m^2]
-│           ├─ power_incident_neutrons ➡ 2.76935e+08 [W]
+│           ├─ peak_escape_flux ➡ 1.02817e+06 [W/m^2]
+│           ├─ peak_wall_flux ➡ 2.83617e+06 [W/m^2]
+│           ├─ power_incident_neutrons ➡ 3.05206e+08 [W]
 │           ├─ power_incident_radiated ➡ 0 [W]
-│           ├─ power_thermal_extracted ➡ 3.32322e+08 [W]
-│           ├─ power_thermal_neutrons ➡ 3.32322e+08 [W]
+│           ├─ power_thermal_extracted ➡ 3.66247e+08 [W]
+│           ├─ power_thermal_neutrons ➡ 3.66247e+08 [W]
 │           ├─ power_thermal_radiated ➡ 0 [W]
 │           ├─ time ➡ 0 [s]
-│           └─ tritium_breeding_ratio ➡ 1.19785
+│           └─ tritium_breeding_ratio ➡ 1.21349
 ├─ time ➡ [0] [s]
-└─ tritium_breeding_ratio ➡ [1.14117]</code></pre><p>The <code>ActorDivertors</code> actor calculates the divertors heat flux</p><pre><code class="language-julia hljs">FUSE.ActorDivertors(dd, act);
+└─ tritium_breeding_ratio ➡ [1.15432]</code></pre><p>The <code>ActorDivertors</code> actor calculates the divertors heat flux</p><pre><code class="language-julia hljs">FUSE.ActorDivertors(dd, act);
 print_tree(IMAS.freeze(dd.divertors); maxdepth=4)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Divertors
 divertors
 ├─ divertor
 │  └─ 1
 │     ├─ power_conducted
-│     │  ├─ data ➡ [1.27961e+08] [W]
+│     │  ├─ data ➡ [1.32206e+08] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_convected
 │     │  ├─ data ➡ [0] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_incident
-│     │  ├─ data ➡ [2.1999e+07] [W]
+│     │  ├─ data ➡ [2.24472e+07] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_thermal_extracted
-│     │  ├─ data ➡ [2.1999e+07] [W]
+│     │  ├─ data ➡ [2.24472e+07] [W]
 │     │  └─ time ➡ [0] [s]
 │     └─ target
 │        ├─ 1
@@ -317,107 +317,107 @@ divertors
 └─ time ➡ [0] [s]</code></pre><p>The <code>ActorBalanceOfPlant</code> calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle</p><pre><code class="language-julia hljs">FUSE.ActorBalanceOfPlant(dd, act; do_plot=true);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: BalanceOfPlant
 actors:  ThermalPlant
 actors:  PowerNeeds</code></pre><p><code>ActorCosting</code> will break down the capital and operational costs</p><pre><code class="language-julia hljs">FUSE.ActorCosting(dd, act)
-plot(dd.costing)</code></pre><img src="tutorial-326c7a7e.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Saving-and-loading-data"><a class="docs-heading-anchor" href="#Saving-and-loading-data">Saving and loading data</a><a id="Saving-and-loading-data-1"></a><a class="docs-heading-anchor-permalink" href="#Saving-and-loading-data" title="Permalink"></a></h2><pre><code class="language-julia hljs">tutorial_temp_dir = tempdir()
+plot(dd.costing)</code></pre><img src="tutorial-84227d3f.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Saving-and-loading-data"><a class="docs-heading-anchor" href="#Saving-and-loading-data">Saving and loading data</a><a id="Saving-and-loading-data-1"></a><a class="docs-heading-anchor-permalink" href="#Saving-and-loading-data" title="Permalink"></a></h2><pre><code class="language-julia hljs">tutorial_temp_dir = tempdir()
 filename = joinpath(tutorial_temp_dir, &quot;$(ini.general.casename).json&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/tmp/K-DEMO.json&quot;</code></pre><p>When saving data to be shared outside of FUSE, one can set <code>freeze=true</code> so that all expressions in the dd are evaluated and saved to file.</p><pre><code class="language-julia hljs">IMAS.imas2json(dd, filename; freeze=false, strict=false);</code></pre><p>Load from JSON</p><pre><code class="language-julia hljs">dd1 = IMAS.json2imas(filename);</code></pre><h2 id="Comparing-two-IDSs"><a class="docs-heading-anchor" href="#Comparing-two-IDSs">Comparing two IDSs</a><a id="Comparing-two-IDSs-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-two-IDSs" title="Permalink"></a></h2><p>We can introduce a change in the <code>dd1</code> and spot it with the <code>diff</code> function</p><pre><code class="language-julia hljs">dd1.equilibrium.time_slice[1].time = -100.0
 IMAS.diff(dd.equilibrium, dd1.equilibrium)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dict{String, String} with 1 entry:
   &quot;time_slice[1].time&quot; =&gt; &quot;value:  -Inf --  -100.0&quot;</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><p>Snapshot of <code>dd</code> in 0D quantities (evaluated at <code>dd.global_time</code>)</p><pre><code class="language-julia hljs">FUSE.extract(dd)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">GEOMETRY                               EQUILIBRIUM                            TEMPERATURES                           </span>
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
-<span class="sgr34"><span class="sgr1">R0</span></span> → 6.5 [m]                           <span class="sgr34"><span class="sgr1">B0</span></span> → 7.8 [T]                           <span class="sgr34"><span class="sgr1">Te0</span></span> → 17.6 [keV]                       
-<span class="sgr34"><span class="sgr1">a</span></span> → 2.01 [m]                           <span class="sgr34"><span class="sgr1">ip</span></span> → 13.1 [MA]                         <span class="sgr34"><span class="sgr1">Ti0</span></span> → 17.1 [keV]                       
-<span class="sgr34"><span class="sgr1">1/ϵ</span></span> → 3.24                             <span class="sgr34"><span class="sgr1">q95</span></span> → 7.29                             <span class="sgr34"><span class="sgr1">&lt;Te&gt;</span></span> → 9.85 [keV]                      
-<span class="sgr34"><span class="sgr1">κ</span></span> → 2                                  <span class="sgr34"><span class="sgr1">&lt;Bpol&gt;</span></span> → 0.827 [T]                     <span class="sgr34"><span class="sgr1">&lt;Ti&gt;</span></span> → 8.85 [keV]                      
-<span class="sgr34"><span class="sgr1">δ</span></span> → 0.585                              <span class="sgr34"><span class="sgr1">βpol_MHD</span></span> → 0.943                       <span class="sgr34"><span class="sgr1">Te0/&lt;Te&gt;</span></span> → 1.79                        
-<span class="sgr34"><span class="sgr1">ζ</span></span> → -0.00753                           <span class="sgr34"><span class="sgr1">βtor_MHD</span></span> → 0.0102                      <span class="sgr34"><span class="sgr1">Ti0/&lt;Ti&gt;</span></span> → 1.93                        
-<span class="sgr34"><span class="sgr1">Volume</span></span> → 969 [m³]                      <span class="sgr34"><span class="sgr1">βn_MHD</span></span> → 1.23                                                                 
-<span class="sgr34"><span class="sgr1">Surface</span></span> → 780 [m²]                                                                                                   
+<span class="sgr34"><span class="sgr1">R0</span></span> → 6.5 [m]                           <span class="sgr34"><span class="sgr1">B0</span></span> → 7.8 [T]                           <span class="sgr34"><span class="sgr1">Te0</span></span> → 18.7 [keV]                       
+<span class="sgr34"><span class="sgr1">a</span></span> → 2.01 [m]                           <span class="sgr34"><span class="sgr1">ip</span></span> → 13.2 [MA]                         <span class="sgr34"><span class="sgr1">Ti0</span></span> → 17.6 [keV]                       
+<span class="sgr34"><span class="sgr1">1/ϵ</span></span> → 3.24                             <span class="sgr34"><span class="sgr1">q95</span></span> → 7.35                             <span class="sgr34"><span class="sgr1">&lt;Te&gt;</span></span> → 10.1 [keV]                      
+<span class="sgr34"><span class="sgr1">κ</span></span> → 2                                  <span class="sgr34"><span class="sgr1">&lt;Bpol&gt;</span></span> → 0.831 [T]                     <span class="sgr34"><span class="sgr1">&lt;Ti&gt;</span></span> → 9.06 [keV]                      
+<span class="sgr34"><span class="sgr1">δ</span></span> → 0.585                              <span class="sgr34"><span class="sgr1">βpol_MHD</span></span> → 0.985                       <span class="sgr34"><span class="sgr1">Te0/&lt;Te&gt;</span></span> → 1.85                        
+<span class="sgr34"><span class="sgr1">ζ</span></span> → -0.00753                           <span class="sgr34"><span class="sgr1">βtor_MHD</span></span> → 0.0106                      <span class="sgr34"><span class="sgr1">Ti0/&lt;Ti&gt;</span></span> → 1.95                        
+<span class="sgr34"><span class="sgr1">Volume</span></span> → 979 [m³]                      <span class="sgr34"><span class="sgr1">βn_MHD</span></span> → 1.28                                                                 
+<span class="sgr34"><span class="sgr1">Surface</span></span> → 786 [m²]                                                                                                   
                                                                                                                      
 <span class="sgr1">DENSITIES                              PRESSURES                              TRANSPORT                              </span>
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
-<span class="sgr34"><span class="sgr1">ne0</span></span> → 8.53e+19 [m⁻³]                   <span class="sgr34"><span class="sgr1">P0</span></span> → 0.51 [MPa]                        <span class="sgr34"><span class="sgr1">τe</span></span> → 2.04 [s]                          
-<span class="sgr34"><span class="sgr1">ne_ped</span></span> → 6.93e+19 [m⁻³]                <span class="sgr34"><span class="sgr1">&lt;P&gt;</span></span> → 0.25 [MPa]                       <span class="sgr34"><span class="sgr1">τe_exp</span></span> → 2.71 [s]                      
-<span class="sgr34"><span class="sgr1">ne_line</span></span> → 8.43e+19 [m⁻³]               <span class="sgr34"><span class="sgr1">P0/&lt;P&gt;</span></span> → 2.03                          <span class="sgr34"><span class="sgr1">H98y2</span></span> → 0.91                           
-<span class="sgr34"><span class="sgr1">&lt;ne&gt;</span></span> → 8.07e+19 [m⁻³]                  <span class="sgr34"><span class="sgr1">βn</span></span> → 1.21                              <span class="sgr34"><span class="sgr1">H98y2_exp</span></span> → 0.994                      
-<span class="sgr34"><span class="sgr1">ne0/&lt;ne&gt;</span></span> → 1.06                        <span class="sgr34"><span class="sgr1">βn_th</span></span> → 1.15                           <span class="sgr34"><span class="sgr1">Hds03</span></span> → 0.64                           
-<span class="sgr34"><span class="sgr1">fGW</span></span> → 0.813                                                                   <span class="sgr34"><span class="sgr1">Hds03_exp</span></span> → 0.728                      
-<span class="sgr34"><span class="sgr1">zeff_ped</span></span> → 2                                                                  <span class="sgr34"><span class="sgr1">τα_thermalization</span></span> → 0.816 [s]          
-<span class="sgr34"><span class="sgr1">&lt;zeff&gt;</span></span> → 2                                                                    <span class="sgr34"><span class="sgr1">τα_slowing_down</span></span> → 0.973 [s]            
+<span class="sgr34"><span class="sgr1">ne0</span></span> → 8.68e+19 [m⁻³]                   <span class="sgr34"><span class="sgr1">P0</span></span> → 0.547 [MPa]                       <span class="sgr34"><span class="sgr1">τe</span></span> → 2.07 [s]                          
+<span class="sgr34"><span class="sgr1">ne_ped</span></span> → 6.93e+19 [m⁻³]                <span class="sgr34"><span class="sgr1">&lt;P&gt;</span></span> → 0.261 [MPa]                      <span class="sgr34"><span class="sgr1">τe_exp</span></span> → 2.75 [s]                      
+<span class="sgr34"><span class="sgr1">ne_line</span></span> → 8.55e+19 [m⁻³]               <span class="sgr34"><span class="sgr1">P0/&lt;P&gt;</span></span> → 2.1                           <span class="sgr34"><span class="sgr1">H98y2</span></span> → 0.929                          
+<span class="sgr34"><span class="sgr1">&lt;ne&gt;</span></span> → 8.16e+19 [m⁻³]                  <span class="sgr34"><span class="sgr1">βn</span></span> → 1.23                              <span class="sgr34"><span class="sgr1">H98y2_exp</span></span> → 1.02                       
+<span class="sgr34"><span class="sgr1">ne0/&lt;ne&gt;</span></span> → 1.06                        <span class="sgr34"><span class="sgr1">βn_th</span></span> → 1.17                           <span class="sgr34"><span class="sgr1">Hds03</span></span> → 0.654                          
+<span class="sgr34"><span class="sgr1">fGW</span></span> → 0.821                                                                   <span class="sgr34"><span class="sgr1">Hds03_exp</span></span> → 0.744                      
+<span class="sgr34"><span class="sgr1">zeff_ped</span></span> → 2                                                                  <span class="sgr34"><span class="sgr1">τα_thermalization</span></span> → 0.844 [s]          
+<span class="sgr34"><span class="sgr1">&lt;zeff&gt;</span></span> → 2                                                                    <span class="sgr34"><span class="sgr1">τα_slowing_down</span></span> → 1.04 [s]             
 <span class="sgr34"><span class="sgr1">impurities</span></span> → DT Ne20 He4                                                                                             
                                                                                                                      
 <span class="sgr1">SOURCES                                EXHAUST                                CURRENTS                               </span>
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
-<span class="sgr34"><span class="sgr1">Pec</span></span> → 50 [MW]                          <span class="sgr34"><span class="sgr1">Psol</span></span> → 128 [MW]                        <span class="sgr34"><span class="sgr1">ip_bs_aux_ohm</span></span> → 13.3 [MA]              
-<span class="sgr34"><span class="sgr1">rho0_ec</span></span> → 0.5 [MW]                     <span class="sgr34"><span class="sgr1">PLH</span></span> → 72.3 [MW]                        <span class="sgr34"><span class="sgr1">ip_ni</span></span> → 7.63 [MA]                      
-<span class="sgr34"><span class="sgr1">Pnbi</span></span> → <span class="sgr31">NaN</span> [MW]                        <span class="sgr34"><span class="sgr1">Bpol_omp</span></span> → 1.52 [T]                    <span class="sgr34"><span class="sgr1">ip_bs</span></span> → 3.15 [MA]                      
-<span class="sgr34"><span class="sgr1">Enbi1</span></span> → <span class="sgr31">NaN</span> [MeV]                      <span class="sgr34"><span class="sgr1">λq</span></span> → 0.737 [mm]                        <span class="sgr34"><span class="sgr1">ip_aux</span></span> → 4.48 [MA]                     
-<span class="sgr34"><span class="sgr1">Pic</span></span> → 50 [MW]                          <span class="sgr34"><span class="sgr1">qpol</span></span> → 3.24e+03 [MW/m²]                <span class="sgr34"><span class="sgr1">ip_ohm</span></span> → 5.64 [MA]                     
-<span class="sgr34"><span class="sgr1">Plh</span></span> → <span class="sgr31">NaN</span> [MW]                         <span class="sgr34"><span class="sgr1">qpar</span></span> → 1.31e+04 [MW/m²]                <span class="sgr34"><span class="sgr1">ejima</span></span> → 0.4                            
-<span class="sgr34"><span class="sgr1">Paux_tot</span></span> → 100 [MW]                    <span class="sgr34"><span class="sgr1">P/R0</span></span> → 19.7 [MW/m]                     <span class="sgr34"><span class="sgr1">flattop</span></span> → <span class="sgr31">NaN</span> [Hours]                  
-<span class="sgr34"><span class="sgr1">Pα</span></span> → 72.7 [MW]                         <span class="sgr34"><span class="sgr1">PB/R0</span></span> → 154 [MW T/m]                                                          
-<span class="sgr34"><span class="sgr1">Pohm</span></span> → <span class="sgr31">NaN</span> [MW]                        <span class="sgr34"><span class="sgr1">PBp/R0</span></span> → 16.3 [MW T/m]                                                        
-<span class="sgr34"><span class="sgr1">Pheat</span></span> → <span class="sgr31">NaN</span> [MW]                       <span class="sgr34"><span class="sgr1">PBϵ/R0q95</span></span> → 6.51 [MW T/m]                                                     
-<span class="sgr34"><span class="sgr1">Prad_tot</span></span> → -42.5 [MW]                  <span class="sgr34"><span class="sgr1">neutrons_peak</span></span> → 0.466 [MW/m²]                                                 
+<span class="sgr34"><span class="sgr1">Pec</span></span> → 50 [MW]                          <span class="sgr34"><span class="sgr1">Psol</span></span> → 132 [MW]                        <span class="sgr34"><span class="sgr1">ip_bs_aux_ohm</span></span> → 13.6 [MA]              
+<span class="sgr34"><span class="sgr1">rho0_ec</span></span> → 0.5 [MW]                     <span class="sgr34"><span class="sgr1">PLH</span></span> → 73.3 [MW]                        <span class="sgr34"><span class="sgr1">ip_ni</span></span> → 7.69 [MA]                      
+<span class="sgr34"><span class="sgr1">Pnbi</span></span> → <span class="sgr31">NaN</span> [MW]                        <span class="sgr34"><span class="sgr1">Bpol_omp</span></span> → 1.54 [T]                    <span class="sgr34"><span class="sgr1">ip_bs</span></span> → 3.44 [MA]                      
+<span class="sgr34"><span class="sgr1">Enbi1</span></span> → <span class="sgr31">NaN</span> [MeV]                      <span class="sgr34"><span class="sgr1">λq</span></span> → 0.728 [mm]                        <span class="sgr34"><span class="sgr1">ip_aux</span></span> → 4.24 [MA]                     
+<span class="sgr34"><span class="sgr1">Pic</span></span> → 50 [MW]                          <span class="sgr34"><span class="sgr1">qpol</span></span> → 3.39e+03 [MW/m²]                <span class="sgr34"><span class="sgr1">ip_ohm</span></span> → 5.88 [MA]                     
+<span class="sgr34"><span class="sgr1">Plh</span></span> → <span class="sgr31">NaN</span> [MW]                         <span class="sgr34"><span class="sgr1">qpar</span></span> → 1.35e+04 [MW/m²]                <span class="sgr34"><span class="sgr1">ejima</span></span> → 0.4                            
+<span class="sgr34"><span class="sgr1">Paux_tot</span></span> → 100 [MW]                    <span class="sgr34"><span class="sgr1">P/R0</span></span> → 20.3 [MW/m]                     <span class="sgr34"><span class="sgr1">flattop</span></span> → <span class="sgr31">NaN</span> [Hours]                  
+<span class="sgr34"><span class="sgr1">Pα</span></span> → 80.2 [MW]                         <span class="sgr34"><span class="sgr1">PB/R0</span></span> → 159 [MW T/m]                                                          
+<span class="sgr34"><span class="sgr1">Pohm</span></span> → <span class="sgr31">NaN</span> [MW]                        <span class="sgr34"><span class="sgr1">PBp/R0</span></span> → 16.9 [MW T/m]                                                        
+<span class="sgr34"><span class="sgr1">Pheat</span></span> → <span class="sgr31">NaN</span> [MW]                       <span class="sgr34"><span class="sgr1">PBϵ/R0q95</span></span> → 6.67 [MW T/m]                                                     
+<span class="sgr34"><span class="sgr1">Prad_tot</span></span> → -44 [MW]                    <span class="sgr34"><span class="sgr1">neutrons_peak</span></span> → 0.514 [MW/m²]                                                 
                                                                                                                      
 <span class="sgr1">BOP                                    BUILD                                  COSTING                                </span>
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
-<span class="sgr34"><span class="sgr1">Pfusion</span></span> → 363 [MW]                     <span class="sgr34"><span class="sgr1">PF_material</span></span> → nb3sn                    <span class="sgr34"><span class="sgr1">capital_cost</span></span> → 6.48 [$B]               
-<span class="sgr34"><span class="sgr1">Qfusion</span></span> → 3.63                         <span class="sgr34"><span class="sgr1">TF_material</span></span> → nb3sn_kdemo              <span class="sgr34"><span class="sgr1">levelized_CoE</span></span> → Inf [$/kWh]            
+<span class="sgr34"><span class="sgr1">Pfusion</span></span> → 401 [MW]                     <span class="sgr34"><span class="sgr1">PF_material</span></span> → nb3sn                    <span class="sgr34"><span class="sgr1">capital_cost</span></span> → 6.09 [$B]               
+<span class="sgr34"><span class="sgr1">Qfusion</span></span> → 4.01                         <span class="sgr34"><span class="sgr1">TF_material</span></span> → nb3sn_kdemo              <span class="sgr34"><span class="sgr1">levelized_CoE</span></span> → 8.83 [$/kWh]           
 <span class="sgr34"><span class="sgr1">thermal_cycle_type</span></span> → rankine           <span class="sgr34"><span class="sgr1">OH_material</span></span> → nb3sn                    <span class="sgr34"><span class="sgr1">TF_of_total</span></span> → 12.8 [%]                 
-<span class="sgr34"><span class="sgr1">thermal_efficiency_plant</span></span> → 36.5 [%]    <span class="sgr34"><span class="sgr1">TF_max_b</span></span> → <span class="sgr31">NaN</span> [T]                     <span class="sgr34"><span class="sgr1">BOP_of_total</span></span> → 5.5 [%]                 
-<span class="sgr34"><span class="sgr1">thermal_efficiency_cycle</span></span> → <span class="sgr31">NaN</span> [%]     <span class="sgr34"><span class="sgr1">OH_max_b</span></span> → <span class="sgr31">NaN</span> [T]                     <span class="sgr34"><span class="sgr1">blanket_of_total</span></span> → 19.8 [%]            
-<span class="sgr34"><span class="sgr1">power_electric_generated</span></span> → 145 [MW]    <span class="sgr34"><span class="sgr1">TF_j_margin</span></span> → <span class="sgr31">NaN</span>                      <span class="sgr34"><span class="sgr1">cryostat_of_total</span></span> → 2.5 [%]            
-<span class="sgr34"><span class="sgr1">Pelectric_net</span></span> → -0.337 [MW]            <span class="sgr34"><span class="sgr1">OH_j_margin</span></span> → <span class="sgr31">NaN</span>                                                             
-<span class="sgr34"><span class="sgr1">Qplant</span></span> → 0.998                         <span class="sgr34"><span class="sgr1">TF_stress_margin</span></span> → <span class="sgr31">NaN</span>                                                        
-<span class="sgr34"><span class="sgr1">TBR</span></span> → 1.14                             <span class="sgr34"><span class="sgr1">OH_stress_margin</span></span> → <span class="sgr31">NaN</span>                                                        
+<span class="sgr34"><span class="sgr1">thermal_efficiency_plant</span></span> → 35.9 [%]    <span class="sgr34"><span class="sgr1">TF_max_b</span></span> → <span class="sgr31">NaN</span> [T]                     <span class="sgr34"><span class="sgr1">BOP_of_total</span></span> → 6.17 [%]                
+<span class="sgr34"><span class="sgr1">thermal_efficiency_cycle</span></span> → <span class="sgr31">NaN</span> [%]     <span class="sgr34"><span class="sgr1">OH_max_b</span></span> → <span class="sgr31">NaN</span> [T]                     <span class="sgr34"><span class="sgr1">blanket_of_total</span></span> → 19.2 [%]            
+<span class="sgr34"><span class="sgr1">power_electric_generated</span></span> → 155 [MW]    <span class="sgr34"><span class="sgr1">TF_j_margin</span></span> → <span class="sgr31">NaN</span>                      <span class="sgr34"><span class="sgr1">cryostat_of_total</span></span> → 2.55 [%]           
+<span class="sgr34"><span class="sgr1">Pelectric_net</span></span> → 10.3 [MW]              <span class="sgr34"><span class="sgr1">OH_j_margin</span></span> → <span class="sgr31">NaN</span>                                                             
+<span class="sgr34"><span class="sgr1">Qplant</span></span> → 1.07                          <span class="sgr34"><span class="sgr1">TF_stress_margin</span></span> → <span class="sgr31">NaN</span>                                                        
+<span class="sgr34"><span class="sgr1">TBR</span></span> → 1.15                             <span class="sgr34"><span class="sgr1">OH_stress_margin</span></span> → <span class="sgr31">NaN</span>                                                        
                                                                                                                      
 </code></pre><p>Extract + plots saved to PDF (or printed to screen it <code>filename</code> is omitted)</p><pre><code class="language-julia hljs">filename = joinpath(tutorial_temp_dir, &quot;$(ini.general.casename).pdf&quot;)
 FUSE.digest(dd)#, filename)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GEOMETRY                               EQUILIBRIUM                            TEMPERATURES
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────
-R0 → 6.5 [m]                           B0 → 7.8 [T]                           Te0 → 17.6 [keV]
-a → 2.01 [m]                           ip → 13.1 [MA]                         Ti0 → 17.1 [keV]
-1/ϵ → 3.24                             q95 → 7.29                             &lt;Te&gt; → 9.85 [keV]
-κ → 2                                  &lt;Bpol&gt; → 0.827 [T]                     &lt;Ti&gt; → 8.85 [keV]
-δ → 0.585                              βpol_MHD → 0.943                       Te0/&lt;Te&gt; → 1.79
-ζ → -0.00753                           βtor_MHD → 0.0102                      Ti0/&lt;Ti&gt; → 1.93
-Volume → 969 [m³]                      βn_MHD → 1.23
-Surface → 780 [m²]
+R0 → 6.5 [m]                           B0 → 7.8 [T]                           Te0 → 18.7 [keV]
+a → 2.01 [m]                           ip → 13.2 [MA]                         Ti0 → 17.6 [keV]
+1/ϵ → 3.24                             q95 → 7.35                             &lt;Te&gt; → 10.1 [keV]
+κ → 2                                  &lt;Bpol&gt; → 0.831 [T]                     &lt;Ti&gt; → 9.06 [keV]
+δ → 0.585                              βpol_MHD → 0.985                       Te0/&lt;Te&gt; → 1.85
+ζ → -0.00753                           βtor_MHD → 0.0106                      Ti0/&lt;Ti&gt; → 1.95
+Volume → 979 [m³]                      βn_MHD → 1.28
+Surface → 786 [m²]
 
 DENSITIES                              PRESSURES                              TRANSPORT
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────
-ne0 → 8.53e+19 [m⁻³]                   P0 → 0.51 [MPa]                        τe → 2.04 [s]
-ne_ped → 6.93e+19 [m⁻³]                &lt;P&gt; → 0.25 [MPa]                       τe_exp → 2.71 [s]
-ne_line → 8.43e+19 [m⁻³]               P0/&lt;P&gt; → 2.03                          H98y2 → 0.91
-&lt;ne&gt; → 8.07e+19 [m⁻³]                  βn → 1.21                              H98y2_exp → 0.994
-ne0/&lt;ne&gt; → 1.06                        βn_th → 1.15                           Hds03 → 0.64
-fGW → 0.813                                                                   Hds03_exp → 0.728
-zeff_ped → 2                                                                  τα_thermalization → 0.816 [s]
-&lt;zeff&gt; → 2                                                                    τα_slowing_down → 0.973 [s]
+ne0 → 8.68e+19 [m⁻³]                   P0 → 0.547 [MPa]                       τe → 2.07 [s]
+ne_ped → 6.93e+19 [m⁻³]                &lt;P&gt; → 0.261 [MPa]                      τe_exp → 2.75 [s]
+ne_line → 8.55e+19 [m⁻³]               P0/&lt;P&gt; → 2.1                           H98y2 → 0.929
+&lt;ne&gt; → 8.16e+19 [m⁻³]                  βn → 1.23                              H98y2_exp → 1.02
+ne0/&lt;ne&gt; → 1.06                        βn_th → 1.17                           Hds03 → 0.654
+fGW → 0.821                                                                   Hds03_exp → 0.744
+zeff_ped → 2                                                                  τα_thermalization → 0.844 [s]
+&lt;zeff&gt; → 2                                                                    τα_slowing_down → 1.04 [s]
 impurities → DT Ne20 He4
 
 SOURCES                                EXHAUST                                CURRENTS
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────
-Pec → 50 [MW]                          Psol → 128 [MW]                        ip_bs_aux_ohm → 13.3 [MA]
-rho0_ec → 0.5 [MW]                     PLH → 72.3 [MW]                        ip_ni → 7.63 [MA]
-Pnbi → NaN [MW]                        Bpol_omp → 1.52 [T]                    ip_bs → 3.15 [MA]
-Enbi1 → NaN [MeV]                      λq → 0.737 [mm]                        ip_aux → 4.48 [MA]
-Pic → 50 [MW]                          qpol → 3.24e+03 [MW/m²]                ip_ohm → 5.64 [MA]
-Plh → NaN [MW]                         qpar → 1.31e+04 [MW/m²]                ejima → 0.4
-Paux_tot → 100 [MW]                    P/R0 → 19.7 [MW/m]                     flattop → NaN [Hours]
-Pα → 72.7 [MW]                         PB/R0 → 154 [MW T/m]
-Pohm → NaN [MW]                        PBp/R0 → 16.3 [MW T/m]
-Pheat → NaN [MW]                       PBϵ/R0q95 → 6.51 [MW T/m]
-Prad_tot → -42.5 [MW]                  neutrons_peak → 0.466 [MW/m²]
+Pec → 50 [MW]                          Psol → 132 [MW]                        ip_bs_aux_ohm → 13.6 [MA]
+rho0_ec → 0.5 [MW]                     PLH → 73.3 [MW]                        ip_ni → 7.69 [MA]
+Pnbi → NaN [MW]                        Bpol_omp → 1.54 [T]                    ip_bs → 3.44 [MA]
+Enbi1 → NaN [MeV]                      λq → 0.728 [mm]                        ip_aux → 4.24 [MA]
+Pic → 50 [MW]                          qpol → 3.39e+03 [MW/m²]                ip_ohm → 5.88 [MA]
+Plh → NaN [MW]                         qpar → 1.35e+04 [MW/m²]                ejima → 0.4
+Paux_tot → 100 [MW]                    P/R0 → 20.3 [MW/m]                     flattop → NaN [Hours]
+Pα → 80.2 [MW]                         PB/R0 → 159 [MW T/m]
+Pohm → NaN [MW]                        PBp/R0 → 16.9 [MW T/m]
+Pheat → NaN [MW]                       PBϵ/R0q95 → 6.67 [MW T/m]
+Prad_tot → -44 [MW]                    neutrons_peak → 0.514 [MW/m²]
 
 BOP                                    BUILD                                  COSTING
 ───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────
-Pfusion → 363 [MW]                     PF_material → nb3sn                    capital_cost → 6.48 [$B]
-Qfusion → 3.63                         TF_material → nb3sn_kdemo              levelized_CoE → Inf [$/kWh]
+Pfusion → 401 [MW]                     PF_material → nb3sn                    capital_cost → 6.09 [$B]
+Qfusion → 4.01                         TF_material → nb3sn_kdemo              levelized_CoE → 8.83 [$/kWh]
 thermal_cycle_type → rankine           OH_material → nb3sn                    TF_of_total → 12.8 [%]
-thermal_efficiency_plant → 36.5 [%]    TF_max_b → NaN [T]                     BOP_of_total → 5.5 [%]
-thermal_efficiency_cycle → NaN [%]     OH_max_b → NaN [T]                     blanket_of_total → 19.8 [%]
-power_electric_generated → 145 [MW]    TF_j_margin → NaN                      cryostat_of_total → 2.5 [%]
-Pelectric_net → -0.337 [MW]            OH_j_margin → NaN
-Qplant → 0.998                         TF_stress_margin → NaN
-TBR → 1.14                             OH_stress_margin → NaN
+thermal_efficiency_plant → 35.9 [%]    TF_max_b → NaN [T]                     BOP_of_total → 6.17 [%]
+thermal_efficiency_cycle → NaN [%]     OH_max_b → NaN [T]                     blanket_of_total → 19.2 [%]
+power_electric_generated → 155 [MW]    TF_j_margin → NaN                      cryostat_of_total → 2.55 [%]
+Pelectric_net → 10.3 [MW]              OH_j_margin → NaN
+Qplant → 1.07                          TF_stress_margin → NaN
+TBR → 1.15                             OH_stress_margin → NaN
 
 @ time = 0.0 [s]
 ​
@@ -447,4 +447,4 @@ TBR → 1.14                             OH_stress_margin → NaN
 GKS: could not find font middle.ttf
 ​
 ​
-​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Main</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Thursday 21 November 2024 02:48">Thursday 21 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Main</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Friday 22 November 2024 01:21">Friday 22 November 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
