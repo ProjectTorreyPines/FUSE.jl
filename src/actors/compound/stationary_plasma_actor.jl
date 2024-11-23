@@ -61,13 +61,13 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             zeff_ped_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
             rho_ped=actor_tr.tr_actor.par.rho_transport[end])
-    elseif act.ActorCoreTransport.model == :EPEDProfiles
+    else #if act.ActorCoreTransport.model == :EPEDProfiles
         actor_ped = ActorPedestal(
             dd,
             act.ActorPedestal,
             act)
-    else
-        actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
+    #else
+    #    actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
     end
 
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
@@ -86,13 +86,14 @@ function _step(actor::ActorStationaryPlasma)
     if par.do_plot
         pe = plot(dd.equilibrium; color=:gray, label=" (before)", coordinate=:rho_tor_norm)
         pp = plot(dd.core_profiles; color=:gray, label=" (before)")
-        ps = plot(dd.core_sources; color=:gray, label=" (before)")
+        #ps = plot(dd.core_sources; color=:gray, label=" (before)")
 
         println("initial")
         @printf("Jtor0  = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[], :j_tor, [0.0])[1] / 1e6)
         @printf("P0     = %.2f kPa\n", getproperty(dd.core_profiles.profiles_1d[], :pressure, [0.0])[1] / 1e3)
         @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
         @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+        @printf("ne_0 = %.2e m⁻³\n", @ddtime(dd.summary.local.magnetic_axis.n_e.value))
         @printf("ne_ped = %.2e m⁻³\n", @ddtime(dd.summary.local.pedestal.n_e.value))
         @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
         @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
@@ -173,13 +174,14 @@ function _step(actor::ActorStationaryPlasma)
             if par.do_plot
                 plot!(pe, dd.equilibrium; coordinate=:rho_tor_norm, label="i=$(length(total_error))")
                 plot!(pp, dd.core_profiles; label="i=$(length(total_error))")
-                plot!(ps, dd.core_sources; label="i=$(length(total_error))")
+                #plot!(ps, dd.core_sources; label="i=$(length(total_error))")
 
                 @printf("\n")
                 @printf(" Jtor0 = %.2f MA m²\n", cp1d.j_tor[1] / 1e6)
                 @printf("    P0 = %.2f kPa\n", cp1d.pressure[1] / 1e3)
                 @printf("βn_MHD = %.2f\n", dd.equilibrium.time_slice[].global_quantities.beta_normal)
                 @printf("βn_tot = %.2f\n", @ddtime(dd.summary.global_quantities.beta_tor_norm.value))
+                @printf("ne_0 = %.2e m⁻³\n", @ddtime(dd.summary.local.magnetic_axis.n_e.value))
                 @printf("ne_ped = %.2e m⁻³\n", @ddtime(dd.summary.local.pedestal.n_e.value))
                 @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
                 @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
@@ -213,7 +215,7 @@ function _step(actor::ActorStationaryPlasma)
     if par.do_plot
         display(pe)
         display(pp)
-        display(ps)
+        #display(ps)
     end
 
     return actor
