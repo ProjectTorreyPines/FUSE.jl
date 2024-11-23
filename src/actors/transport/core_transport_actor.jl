@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: Parame
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :none], "-", "Transport actor to run"; default=:FluxMatcher)
+    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :BetaMatch, :EPEDProfiles, :none], "-", "Transport actor to run"; default=:FluxMatcher)
     do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
 end
 
@@ -34,6 +34,8 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
         tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
     elseif par.model == :EPEDProfiles
         tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
+    elseif par.model == :BetaMatch
+        tr_actor = ActorBetaMatch(dd, act.ActorBetaMatch, act)
     elseif par.model == :none
         tr_actor = ActorNoOperation(dd, act.ActorNoOperation)
     end
