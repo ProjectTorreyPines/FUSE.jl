@@ -5,7 +5,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: Param
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
@@ -47,7 +46,7 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     @ddtime(bop.power_plant.heat_load.wall = wall_heat_load)
     
     # setup actors
-    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant, act; par.do_plot)
+    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant, act)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
 end
