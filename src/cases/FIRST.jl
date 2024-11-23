@@ -28,7 +28,6 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.equilibrium.ϵ = 0.32 / ini.equilibrium.R0
     ini.equilibrium.κ = 2.4
     ini.equilibrium.δ = 0.5
-    ini.equilibrium.pressure_core = 1E5
     ini.equilibrium.ip = 1.8E6
 
     ini.equilibrium.xpoints = :double
@@ -36,12 +35,13 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.675
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_core = 3e3
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Ar
+    ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 1
     ini.build.layers[:hfs_vacuum_vessel].coils_inside = 2

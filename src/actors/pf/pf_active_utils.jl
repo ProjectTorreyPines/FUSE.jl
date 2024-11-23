@@ -45,7 +45,7 @@ function coil_selfB(coil::IMAS.pf_active__coil{T}, total_current::T) where {T<:R
         b = IMAS.top_dd(coil).build.oh.max_b_field
     else
         r = sqrt(IMAS.area(coil)) / π
-        b = abs.(constants.μ_0 * total_current / (2π * r))
+        b = abs.(IMAS.mks.μ_0 * total_current / (2π * r))
     end
     if b < 0.1
         return 0.1

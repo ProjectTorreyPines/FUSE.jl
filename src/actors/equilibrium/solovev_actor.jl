@@ -121,26 +121,32 @@ function _finalize(actor::ActorSolovev)
     mxh_eq = actor.S
 
     eqt = dd.equilibrium.time_slice[]
+    eqt1d = eqt.profiles_1d
 
     target_ip = eqt.global_quantities.ip
-    target_psi_norm = getproperty(eqt.profiles_1d, :psi_norm, missing)
-    target_pressure = getproperty(eqt.profiles_1d, :pressure, missing)
-    target_j_tor = getproperty(eqt.profiles_1d, :j_tor, missing)
+    target_psi_norm = getproperty(eqt1d, :psi_norm, missing)
+    target_pressure = getproperty(eqt1d, :pressure, missing)
+    target_j_tor = getproperty(eqt1d, :j_tor, missing)
 
     MXHEquilibrium_to_dd!(dd.equilibrium, mxh_eq, par.ngrid; cocos_in=3)
 
     # force total plasma current to target_ip to avoid drifting after multiple calls of SolovevActor
     eqt2d = findfirst(:rectangular, eqt.profiles_2d)
-    eqt2d.psi = (eqt2d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
-    eqt.profiles_1d.psi = (eqt.profiles_1d.psi .- eqt.profiles_1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt.profiles_1d.psi[end]
+    eqt2d.psi = (eqt2d.psi .- eqt1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt1d.psi[end]
+    eqt1d.psi = (eqt1d.psi .- eqt1d.psi[end]) .* (target_ip / eqt.global_quantities.ip) .+ eqt1d.psi[end]
     # match entry target_pressure and target_j_tor as if Solovev could do this
     if !ismissing(target_pressure)
-        eqt.profiles_1d.pressure = IMAS.interp1d(target_psi_norm, target_pressure).(eqt.profiles_1d.psi_norm)
+        eqt1d.pressure = IMAS.interp1d(target_psi_norm, target_pressure).(eqt1d.psi_norm)
     end
     if !ismissing(target_j_tor)
-        eqt.profiles_1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt.profiles_1d.psi_norm)
+        eqt1d.j_tor = IMAS.interp1d(target_psi_norm, target_j_tor, :cubic).(eqt1d.psi_norm)
     end
-    IMAS.p_jtor_2_pprime_ffprim_f!(eqt.profiles_1d, mxh_eq.S.R0, mxh_eq.B0)
+
+    # pprime, ffprim, f from  p and j_tor
+    dpressure_dpsi, f_df_dpsi, f = IMAS.p_jtor_2_pprime_ffprim_f(eqt1d, mxh_eq.S.R0, mxh_eq.B0)
+    eqt1.dpressure_dpsi = dpressure_dpsi
+    eqt1.f_df_dpsi = f_df_dpsi
+    eqt1.f = f
 
     # record optimized values of qstar and alpha in `act` for subsequent calls to the same actor
     actor.par.qstar = actor.S.qstar
