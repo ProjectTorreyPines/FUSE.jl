@@ -223,7 +223,7 @@ function _step(actor::ActorThermalSystemModels)
             end
 
             # Simplify using MTK's model reduction methods
-            simple_sys = MTK.structural_simplify(sys)
+            simple_sys = MTK.structural_simplify(sys; warn_initialize_determined=false)
 
             actor.components = plant_systems
             actor.connections = plant_connections
@@ -243,7 +243,7 @@ function _step(actor::ActorThermalSystemModels)
                 :breeder_supply₊T,
                 :breeder_heat₊Tout]
 
-            actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
+            actor.prob = MTK.ODEProblem(simple_sys, [], tspan; warn_initialize_determined=false)
             ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23())
             soln(v) = ode_sol[v][end]
 
@@ -353,7 +353,7 @@ function _step(actor::ActorThermalSystemModels)
             end
 
             # Simplify using MTK's model reduction methods
-            simple_sys = MTK.structural_simplify(sys)
+            simple_sys = MTK.structural_simplify(sys; warn_initialize_determined=false)
 
             actor.components = plant_systems
             actor.connections = plant_connections
@@ -373,7 +373,7 @@ function _step(actor::ActorThermalSystemModels)
                 :breeder_supply₊T,
                 :breeder_heat₊Tout]
 
-            actor.prob = MTK.ODEProblem(simple_sys, [], tspan)
+            actor.prob = MTK.ODEProblem(simple_sys, [], tspan; warn_initialize_determined=false)
 
             ode_sol = DifferentialEquations.solve(actor.prob, DifferentialEquations.Rosenbrock23())
             sol(v) = ode_sol[v][end]
@@ -560,7 +560,7 @@ function plant_wrapper(x, u, simple_sys, keypara, var2val, sym2var; tspan=(0, 10
         pwrapped[sym2var[xi]] = x[i]
     end
 
-    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped)
+    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped; warn_initialize_determined=false)
     node_sol = DifferentialEquations.solve(node_prob, solver)
     soln(v) = node_sol[v][end]
     return soln
@@ -592,7 +592,7 @@ function plant_wrapper(x, u, yvars::Vector, simple_sys, keypara, var2val, sym2va
         pwrapped[sym2var[xi]] = x[i]
     end
 
-    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped)
+    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped; warn_initialize_determined=false)
     node_sol = DifferentialEquations.solve(node_prob, solver)
     soln(v) = node_sol[v][end]
     return soln.(yvars)
@@ -611,7 +611,7 @@ function plant_wrapper(x, u, yvar, simple_sys, keypara, var2val, sym2var; tspan=
         pwrapped[sym2var[xi]] = x[i]
     end
 
-    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped)
+    node_prob = MTK.ODEProblem(simple_sys, [], tspan, pwrapped; warn_initialize_determined=false)
     node_sol = DifferentialEquations.solve(node_prob, solver)
     return node_sol[yvar][end]
 end
