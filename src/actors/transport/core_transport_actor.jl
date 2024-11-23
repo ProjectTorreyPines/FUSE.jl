@@ -12,7 +12,7 @@ end
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCoreTransport{P}
-    tr_actor::Union{ActorFluxMatcher{D,P},ActorEPEDprofiles{D,P},ActorNoOperation{D,P}}
+    tr_actor::Union{ActorFluxMatcher{D,P},ActorBetaMatch{D,P},ActorEPEDprofiles{D,P},ActorNoOperation{D,P}}
 end
 
 """
