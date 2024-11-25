@@ -7,6 +7,7 @@ using ProgressMeter
     study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
 Generates a database of dds from ini and act based on ranges specified in ini (i.e. ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0])
+It's also possible to run the database generator on Vector of inis
 There is a example notebook in FUSE_examples/study_database_generator.ipynb that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
@@ -41,16 +42,22 @@ end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
     sty::FUSEparameters__ParametersStudyDatabaseGenerator
-    ini::ParametersAllInits
+    ini::Union{ParametersAllInits, Vector{ParametersAllInits}}
     act::ParametersAllActors
     dataframe::Union{DataFrame,Missing}
-    iterator::Union{Vector{String},Missing}
+    iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = sty(kw...)
     study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
+    return setup(study)
+end
+
+function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{ParametersAllInits}, act::ParametersAllActors; kw...)
+    sty = sty(kw...)
+    study = StudyDatabaseGenerator(sty, inis, act, missing, missing, missing)
     return setup(study)
 end
 
@@ -74,7 +81,12 @@ function _run(study::StudyDatabaseGenerator)
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
-    iterator = map(string, 1:sty.n_simulations)
+    if typeof(study.ini) <: ParametersAllInits
+        iterator = collect(1:sty.n_simulations)
+    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+        iterator = collect(1:length(study.ini))
+    end
+
     study.iterator = iterator
 
     # paraller run
@@ -111,7 +123,7 @@ end
 
 Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
 """
-function run_case(study::AbstractStudy, item::String)
+function run_case(study::AbstractStudy, item::Int)
     act = study.act
     sty = study.sty
     @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
@@ -127,7 +139,12 @@ function run_case(study::AbstractStudy, item::String)
     file_log = open("log.txt", "w")
 
     # deepcopy ini/act to avoid changes
-    ini = rand(study.ini)
+    if typeof(study.ini) <: ParametersAllInits
+        ini = rand(study.ini)
+    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+        ini = study.ini[item]
+    end
+    
     dd = IMAS.dd()
     
     try
