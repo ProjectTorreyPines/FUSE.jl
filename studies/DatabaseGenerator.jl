@@ -81,13 +81,6 @@ function _run(study::StudyDatabaseGenerator)
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
     results = @showprogress pmap(item -> run_case(study, item), iterator)
 
-    # populate DataFrame
-    for row in results
-        if !isnothing(row)
-            push!(study.dataframes_dict["outputs_summary"], row)
-        end
-    end
-
     analyze(study)
 
     # Release workers after run

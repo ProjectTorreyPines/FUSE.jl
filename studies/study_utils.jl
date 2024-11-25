@@ -136,7 +136,6 @@ function extract_results(study::AbstractStudy; re_extract::Bool=false)
         rm(joinpath(study.sty.save_folder,"checkpoints"), force=true, recursive=true)
         study.dataframe = extract_results(study.sty.save_folder)
     else
-        @show "asdf"
         study.dataframe = extract_results(study.sty.save_folder)
     end
 end
