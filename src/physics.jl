@@ -1000,7 +1000,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
-        hull = convex_hull(mr, mz; closed_polygon=true)
+        hull = IMAS.convex_hull(mr, mz; closed_polygon=true)
         mrch = [r for (r, z) in hull]
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)

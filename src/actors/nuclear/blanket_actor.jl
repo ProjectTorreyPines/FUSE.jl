@@ -128,7 +128,7 @@ function _step(actor::ActorBlanket)
         end
 
         # identify first wall portion of the blanket module
-        tmp = convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
+        tmp = IMAS.convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
         index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(wall_r, wall_z)])
         istart = argmin(abs.(wall_z[index]))
         if IMAS.getindex_circular(wall_z[index], istart + 1) > wall_z[index][istart]

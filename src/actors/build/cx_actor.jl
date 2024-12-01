@@ -264,7 +264,7 @@ function wall_from_eq!(
         # remove private flux region from wall (necessary because of Z expansion)
         pr1m = [pr1; pr1[1]; pr1[end]]
         pz1m = [pz1; pz1 .+ sign(pz1[1] - ZA) * 100; pz1 .+ sign(pz1[end] - ZA) * 100]
-        pm_poly = xy_polygon(convex_hull(pr1m, pz1m; closed_polygon=true))
+        pm_poly = xy_polygon(IMAS.convex_hull(pr1m, pz1m; closed_polygon=true))
         wall_poly = LibGEOS.difference(wall_poly, pm_poly)
 
         # add the divertor slots
@@ -272,8 +272,8 @@ function wall_from_eq!(
         pr2 = vcat(pr1, RA * α + Rx * (1 - α))
         pz2 = vcat(pz1, ZA * α + Zx * (1 - α))
 
-        slot_convhull = xy_polygon(convex_hull(pr2, pz2; closed_polygon=true))
-        inner_slot_poly = xy_polygon(convex_hull(pr, pz; closed_polygon=true))
+        slot_convhull = xy_polygon(IMAS.convex_hull(pr2, pz2; closed_polygon=true))
+        inner_slot_poly = xy_polygon(IMAS.convex_hull(pr, pz; closed_polygon=true))
         slot = LibGEOS.difference(slot_convhull, inner_slot_poly)
         slot = LibGEOS.buffer(slot, div_gap)
 
@@ -834,7 +834,7 @@ function optimize_layer_outline(
     oR = obstr.outline.r
     oZ = obstr.outline.z
     if obstruction_outline !== nothing
-        hull = convex_hull(vcat(oR, obstruction_outline.r), vcat(oZ, obstruction_outline.z); closed_polygon=true)
+        hull = IMAS.convex_hull(vcat(oR, obstruction_outline.r), vcat(oZ, obstruction_outline.z); closed_polygon=true)
         oR = [r for (r, z) in hull]
         oZ = [z for (r, z) in hull]
         o_start = minimum(oR)
@@ -859,7 +859,7 @@ function optimize_layer_outline(
         R, Z = buffer(oR, oZ, hfs_thickness, lfs_thickness, vert_thickness)
 
         if shape in (Int(_convex_hull_), Int(_miller_))
-            hull = convex_hull(R, Z; closed_polygon=true)
+            hull = IMAS.convex_hull(R, Z; closed_polygon=true)
             R = [r for (r, z) in hull]
             Z = [z for (r, z) in hull]
         end
@@ -1012,7 +1012,7 @@ function convex_outline(coil::Union{IMAS.pf_active__coil{T},IMAS.pf_passive__loo
         append!(z, oute.z)
     end
 
-    points = convex_hull(r, z; closed_polygon=true)
+    points = IMAS.convex_hull(r, z; closed_polygon=true)
     r = [p[1] for p in points]
     z = [p[2] for p in points]
 
@@ -1036,7 +1036,7 @@ function convex_outline(coils::AbstractVector{IMAS.pf_active__coil{T}}) where {T
         end
     end
 
-    points = convex_hull(r, z; closed_polygon=true)
+    points = IMAS.convex_hull(r, z; closed_polygon=true)
     r = [p[1] for p in points]
     z = [p[2] for p in points]
 
