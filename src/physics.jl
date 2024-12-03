@@ -55,7 +55,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_racetrack_)
             shape_parameters = [height, 0.25]
         elseif shape_index_mod == Int(_silo_)
-            shape_parameters = [height, height / 2.0]
+            shape_parameters = [height, 0.2]
         end
     end
     if shape_parameters === nothing
@@ -490,17 +490,6 @@ function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
     return xy_polygon(layer.outline.r, layer.outline.z)
 end
 
-"""
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
-
-Buffer polygon defined by x,y arrays by a quantity b
-"""
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
-    poly = xy_polygon(x, y)
-    poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
-    @inline return get_xy(poly_b, Float64)
-end
-
 function get_xy(poly::LibGEOS.Polygon, T=Float64)
     # extract the LinearRing struct
     lr = first(GeoInterface.getgeom(poly))
@@ -540,6 +529,17 @@ function getPoint!(
 end
 
 """
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+    poly = xy_polygon(x, y)
+    poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
+    @inline return get_xy(poly_b, Float64)
+end
+
+"""
     buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
@@ -548,6 +548,21 @@ function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T):
     x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
     x_offset = 0.5 * (b_lfs - b_hfs)
     x_b .+= x_offset
+    return x_b, y_b
+end
+
+"""
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T, b_updown::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    b_radius = 0.5 * (b_lfs + b_hfs)
+    x_offset = 0.5 * (b_lfs - b_hfs)
+    y_max = maximum(y)
+    y_min = minimum(y)
+    y_scaled = (y .- y_min) ./ (y_max - y_min) .* (y_max + b_updown - b_radius - (y_min - b_updown + b_radius)) .+ (y_min - b_updown + b_radius)
+    x_b, y_b = buffer(x .+ x_offset, y_scaled, b_radius)
     return x_b, y_b
 end
 
@@ -640,13 +655,13 @@ function approximate_surface_area(a::Real, R::Real, κ::Real, δ::Real)
 end
 
 """
-    silo(r_start, r_end, height_start, height_end; n_points::Int=100, resolution::Float64=1.0)
+    silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
 """
-function silo(r_start::Real, r_end::Real, height_start::Real, height_end::Real; n_points::Int=100, resolution::Float64=1.0)
+function silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
     n_points = Int(round(n_points * resolution))
     height_start = abs(height_start)
-    height_end = abs(height_end)
-    height_end = min(max(height_end, height_start * 0.0), height_start * 0.9)
+    curved_fraction = mirror_bound(curved_fraction, 0.1, 0.9)
+    height_end = height_start * (1 - curved_fraction)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0.0, pi / 2, r_start, height_end; n_points)
     return vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end
@@ -985,7 +1000,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
-        hull = convex_hull(mr, mz; closed_polygon=true)
+        hull = IMAS.convex_hull(mr, mz; closed_polygon=true)
         mrch = [r for (r, z) in hull]
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)

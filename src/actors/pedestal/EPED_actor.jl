@@ -91,7 +91,7 @@ function _finalize(actor::ActorEPED)
     nival = actor.inputs.neped * 1e19 * (actor.inputs.zeffped - 1) / (zi^2 - zi)
     nval = actor.inputs.neped * 1e19 - zi * nival
     nsum = actor.inputs.neped * 1e19 + nval + nival
-    tped = (actor.pped * 1e6) / nsum / constants.e
+    tped = (actor.pped * 1e6) / nsum / IMAS.mks.e
 
     if par.T_ratio_pedestal == 0.0
         T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))

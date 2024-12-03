@@ -85,11 +85,6 @@ function same_length_vectors(args...)
     return args = map(x -> vcat([x for k in 1:n]...)[1:n], args)
 end
 
-# =========== #
-# Convex Hull #
-# =========== #
-import VacuumFields: convex_hull!, convex_hull
-
 # ======== #
 # TraceCAD #
 # ======== #

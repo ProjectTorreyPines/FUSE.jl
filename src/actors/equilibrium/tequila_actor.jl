@@ -187,7 +187,8 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     # MXH flux surface parametrization
     eq2d = eqt.profiles_2d[1]
     eq2d.grid.dim1 = shot.ρ
-    eq2d.grid.dim2 = vcat([0.0, 0.0, 0.0, 0.0, 0.0], fill(1.0, (shot.M,)), fill(-1.0, (shot.M,)))
+    MXH_modes = (size(shot.surfaces, 1) - 5) ÷ 2
+    eq2d.grid.dim2 = vcat(@SVector[0.0, 0.0, 0.0, 0.0, 0.0], range(1,MXH_modes), .-range(1,MXH_modes))
     eq2d.grid_type.index = 57 # inverse_rhotor_mxh : Flux surface type with radial label sqrt[Phi/pi/B0] (dim1), Phi being toroidal flux, and MXH coefficients R0, Z0, ϵ, κ, c0, c[...], s[...] (dim2)
     eq2d.psi = collect(shot.surfaces')
 

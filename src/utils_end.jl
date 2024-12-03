@@ -677,7 +677,7 @@ function categorize_errors(
 
     # go through directories
     for dir in dirs
-        filename = joinpath([dir, "error.txt"])
+        filename = joinpath(dir, "error.txt")
         if !isfile(filename)
             continue
         end
@@ -1008,5 +1008,65 @@ function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
     if isfile(ptp_target_path)
         rm(ptp_target_path)
         println("Old `ptp` has been successfully removed from folder: $folder")
+    end
+end
+
+"""
+    compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
+
+This function activates the `Manifest.toml` files for the provided directories and compares their dependencies. It identifies:
+
+  - **Added dependencies**: Packages present in the env2 environment but not in the working environment.
+  - **Removed dependencies**: Packages present in the working environment but not in the env2 environment.
+  - **Modified dependencies**: Packages that exist in both environments but differ in version.
+"""
+function compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
+    # Save the current active environment
+    original_env = Base.current_project()
+
+    try
+        # Activate the env2 environment and retrieve its dependencies
+        Pkg.activate(env2_dir)
+        env_env2 = Pkg.dependencies()
+
+        # Activate the working environment and retrieve its dependencies
+        Pkg.activate(env1_dir)
+        env_env1 = Pkg.dependencies()
+
+        # Compare dependencies
+        added = setdiff(keys(env_env2), keys(env_env1))
+        removed = setdiff(keys(env_env1), keys(env_env2))
+        modified = [uuid for uuid in intersect(keys(env_env1), keys(env_env2)) if env_env1[uuid] != env_env2[uuid]]
+
+        println("Added dependencies: ")
+        for uuid in added
+            package_pkg = env_env2[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Removed dependencies:")
+        for uuid in removed
+            package_pkg = env_env1[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Modified dependencies:")
+        for uuid in modified
+            env2_pkg = env_env2[uuid]
+            env1_pkg = env_env1[uuid]
+            env2_name = env2_pkg.name
+            env2_version = env2_pkg.version
+            env1_version = env1_pkg.version
+            println("    $env2_name: env2=$env2_version, env1=$env1_version")
+        end
+
+        return (added=added, removed=removed, modified=modified)
+    finally
+        # Restore the original environment
+        Pkg.activate(original_env)
     end
 end

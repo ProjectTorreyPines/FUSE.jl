@@ -13,6 +13,9 @@ end
 TestCases() = TestCases(OrderedCollections.OrderedDict{String,Any}())
 
 function Base.getindex(tc::TestCases, key::AbstractString)
+    if key ∉ keys(tc.data)
+        error("Test case \"$(key)\" not found. Valid test cases are: $(sort!(collect(keys(tc.data))))")
+    end
     return getindex(tc.data, key)
 end
 
