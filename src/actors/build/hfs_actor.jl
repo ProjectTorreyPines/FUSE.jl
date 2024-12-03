@@ -129,7 +129,7 @@ function _step(actor::ActorHFSsizing)
 
         # flattop
         if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
-            c_flt = -target_value(dd.build.oh.flattop_duration, dd.requirements.flattop_duration, dd.requirements.coil_j_margin)
+            c_flt = -target_value(dd.build.oh.flattop_duration, dd.requirements.flattop_duration, 0.0)
         else
             c_flt = 0.0
         end
@@ -144,7 +144,7 @@ function _step(actor::ActorHFSsizing)
             push!(margins, cs.properties.yield_strength.pl / maximum(cs.stress.vonmises.pl) - 1.0 - dd.requirements.coil_stress_margin)
         end
         if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
-            push!(margins, dd.build.oh.flattop_duration / dd.requirements.flattop_duration - 1.0 - dd.requirements.coil_j_margin)
+            push!(margins, dd.build.oh.flattop_duration / dd.requirements.flattop_duration - 1.0)
         end
 
         c_mgn = norm(margins)
