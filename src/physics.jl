@@ -55,7 +55,7 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         elseif shape_index_mod == Int(_racetrack_)
             shape_parameters = [height, 0.25]
         elseif shape_index_mod == Int(_silo_)
-            shape_parameters = [height, height / 2.0]
+            shape_parameters = [height, 0.2]
         end
     end
     if shape_parameters === nothing
@@ -655,13 +655,13 @@ function approximate_surface_area(a::Real, R::Real, κ::Real, δ::Real)
 end
 
 """
-    silo(r_start, r_end, height_start, height_end; n_points::Int=100, resolution::Float64=1.0)
+    silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
 """
-function silo(r_start::Real, r_end::Real, height_start::Real, height_end::Real; n_points::Int=100, resolution::Float64=1.0)
+function silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
     n_points = Int(round(n_points * resolution))
     height_start = abs(height_start)
-    height_end = abs(height_end)
-    height_end = min(max(height_end, height_start * 0.0), height_start * 0.9)
+    curved_fraction = mirror_bound(curved_fraction, 0.1, 0.9)
+    height_end = height_start * (1 - curved_fraction)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0.0, pi / 2, r_start, height_end; n_points)
     return vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end
@@ -1000,7 +1000,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
-        hull = convex_hull(mr, mz; closed_polygon=true)
+        hull = IMAS.convex_hull(mr, mz; closed_polygon=true)
         mrch = [r for (r, z) in hull]
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)

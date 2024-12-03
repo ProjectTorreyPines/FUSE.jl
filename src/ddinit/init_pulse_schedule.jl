@@ -359,7 +359,7 @@ function limited_to_diverted(
     # diverted to limited shape
     r = [r_bore; r_diverted]
     z = [z_bore; z_diverted]
-    hull = convex_hull(r, z; closed_polygon=true)
+    hull = IMAS.convex_hull(r, z; closed_polygon=true)
     r = [x for (x, y) in hull]
     z = [y for (x, y) in hull]
     mxh_lim2div = IMAS.MXH(r, z, length(mxh_diverted.c))

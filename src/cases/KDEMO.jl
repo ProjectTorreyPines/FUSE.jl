@@ -13,7 +13,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
         :gap_OH => 1.597,
         :OH => 0.554,
         :hfs_TF => 1.204,
-        :hfs_gap_TF_vacuum_vessel => gaps_thickness,
+        :hfs_gap_TF_vacuum_vessel => 0.0,
         :hfs_vacuum_vessel_outer => 0.1,
         :hfs_gap_water => 0.15,
         :hfs_vacuum_vessel_inner => 0.1,
@@ -32,8 +32,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
         :lfs_gap_TF_vacuum_vessel => 0.789,
         :lfs_TF => 1.204,
         :gap_cryostat => 2.0,
-        :cryostat => 0.1,
-        :gap_world => 1.0,
+        :cryostat => 0.1
     )
 
     ini.build.plasma_gap = 0.125
