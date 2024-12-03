@@ -175,13 +175,13 @@ Plot recipe for ActorPFdesign and ActorPFactive
 
     # plot control points
     if control_points
-        if !isempty(actor.boundary_control_points)
+        if !isempty(actor.iso_control_points)
             @series begin
                 color := :blue
                 linestyle := :dash
                 linewidth := 1.5
-                label := "Boundary constraints"
-                [cpt.R for cpt in actor.boundary_control_points], [cpt.Z for cpt in actor.boundary_control_points]
+                label := "Iso-flux constraints"
+                [cpt.R1 for cpt in actor.iso_control_points], [cpt.Z1 for cpt in actor.iso_control_points]
             end
         end
         if !isempty(actor.flux_control_points)

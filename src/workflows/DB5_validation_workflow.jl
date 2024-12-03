@@ -4,8 +4,6 @@ import CSV
 import Dates
 import Distributed
 import Distributed: pmap
-import ProgressMeter
-ProgressMeter.ijulia_behavior(:clear)
 
 """
     workflow_HDB5_validation(;
@@ -101,7 +99,6 @@ end
 Plot regression of `\$name` and `\$(name)_fuse` data stored in a given dataframe
 """
 function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
-
     x_name = name
     y_name = "$(name)_fuse"
     if x_name == "TAUTH"

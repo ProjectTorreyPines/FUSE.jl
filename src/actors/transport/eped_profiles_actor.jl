@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPEDprofiles{T<:Real} <: Paramet
     _name::Symbol = :not_set
     _time::Float64 = NaN
     T_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile"; default=1.8)
-    n_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
+    ne_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core"; default=1.0)
 end
@@ -43,7 +43,7 @@ function _step(actor::ActorEPEDprofiles)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]
 
-    sol = run_EPED(dd; ne_from=:pulse_schedule, zeff_ped_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule, only_powerlaw=false, warn_nn_train_bounds=false)
+    sol = run_EPED(dd; ne_ped_from=:pulse_schedule, zeff_ped_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule, only_powerlaw=false, warn_nn_train_bounds=false)
     pped = sol.pressure.GH.H
     wped = sol.width.GH.H
 
@@ -67,7 +67,7 @@ function _step(actor::ActorEPEDprofiles)
     tval = IMAS.Hmode_profiles(Te[end], Te_ped, Te[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
     cp1d.electrons.temperature = tval
     if any(tval .< 0)
-        throw("Te profile is negative for T0=$(Te[1]) eV and Tped=$(Te_ped) eV")
+        error("Te profile is negative for T0=$(Te[1]) eV and Tped=$(Te_ped) eV")
     end
 
     # update ion temperature profiles using:
@@ -82,7 +82,7 @@ function _step(actor::ActorEPEDprofiles)
         par.T_shaping,
         wped)
     if any(tval_ions .< 0)
-        throw("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) eV and Tped=$(Te_ped*par.T_ratio_pedestal) eV")
+        error("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) eV and Tped=$(Te_ped*par.T_ratio_pedestal) eV")
     end
     for ion in cp1d.ion
         ion.temperature = tval_ions
@@ -90,17 +90,17 @@ function _step(actor::ActorEPEDprofiles)
 
     # update electron density profile using
     # * new pedestal height & width
-    # * existing ne0 & n_shaping 
+    # * existing ne0 & ne_shaping 
     ne = cp1d.electrons.density_thermal
     # first store ratios of electron density to ion densities
     ion_fractions = zeros(Float64, length(cp1d.ion), length(ne))
     for (ii, ion) in enumerate(cp1d.ion)
         ion_fractions[ii, :] = ion.density_thermal ./ ne
     end
-    nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.n_shaping, par.n_shaping, wped)
+    nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.ne_shaping, par.ne_shaping, wped)
     cp1d.electrons.density_thermal = nval
     if any(nval .< 0)
-        throw("ne profile is negative for n0=$(ne[1]) /m^3 and Tped=$(ne_ped) /m^3")
+        error("ne profile is negative for n0=$(ne[1]) /m^3 and Tped=$(ne_ped) /m^3")
     end
 
     # update ion density profiles using

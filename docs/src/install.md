@@ -46,7 +46,32 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    fusebot install_examples
    ```
 
-## Keeping FUSE up-to-date
+## Install Jupyter-Lab with Julia support
+
+1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system 
+
+1. Install the `IJulia` package by running:
+
+   ```bash
+   fusebot install_IJulia
+   ```
+
+   !!! note
+       This will setup the single- and multi-thread julia kernels in Jupyter.
+
+       The number of threads of the multi-threaded julia kernels can be set via the `JULIA_NUM_THREADS` environmental variable.
+
+       This needs to be done every time a new version of Julia is installed.
+
+1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
+
+   ```bash
+   jupyter-lab
+   ```
+
+1.  Now you can browse the examples in the `FuseExamples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.
+
+## Updating FUSE
 
 1. Get notified of new FUSE releases by "watching" the [FUSE repo on GitHub](https://github.com/ProjectTorreyPines/FUSE.jl)
 
@@ -59,26 +84,15 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 !!! tip
     Become familiar with how [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/) works.
 
-## Install Jupyter-Lab and add the Julia kernel to it
-1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system 
+## Updating Julia
 
-1. Install the `IJulia` package by running:
+1. Use `juliaup update` to install the latest version of Julia
 
-   ```bash
-   fusebot install_IJulia
+1. Install FUSE to the new version of Julia
+
+   ```julia
+   using Pkg
+   Pkg.add("FUSE")
    ```
 
-   !!! note
-       Run `fusebot install_IJulia` every time a new julia version is installed.
-
-       This will setup the single- and multi-thread julia kernels in Jupyter.
-
-       The number of threads of the multi-threaded julia kernels can be set via the `JULIA_NUM_THREADS` environmental variable.
-
-1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
-
-   ```bash
-   jupyter-lab
-   ```
-
-1.  Now you can browse the examples in the `FuseExamples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.
+1. Run `fusebot install_IJulia` to install the Kernel for the latest version of Julia in Jupyter-Lab

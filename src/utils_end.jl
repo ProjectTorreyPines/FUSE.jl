@@ -3,7 +3,6 @@ using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
 import DataFrames
-import ProgressMeter
 
 # ========== #
 # Checkpoint #
@@ -11,53 +10,31 @@ import ProgressMeter
 """
 Provides handy checkpoint capabilities of `dd`, `ini`, `act`
 
-It essentially behaves like a ordered dictionary, with the difference that it does deepcopy on getindex and setindex!
+@checkin and @checkout macros use FUSE.checkpoint = Checkpoint()
 
-Sample usage in a Jupyter notebook:
-
-    chk = FUSE.Checkpoint()
     ...init...
-    chk[:init] = dd, ini, act; # store
+    @checkin :init dd ini act # store dd, ini, act
 
     --------
 
-    dd, ini, act = chk[:init] # restore
+    @checkout :init dd ini act # restore dd, ini, act
     ...something...
-    chk[:something] = dd, ini, act; # store
+    @checkin :something dd act # store dd, act
 
     --------
 
-    dd = chk[:something].dd # restore only dd
+    @checkout :something dd # restore only dd
     ...something_else...
-    chk[:something_else] = dd # store only dd
+    @checkin :something_else dd # store only dd
 
     --------
 
-    dd = chk[:something_else].dd # restore only dd
+    @checkout :something_else dd # restore only dd
     ...something_else_more...
 
-also works with @checkin and @checkout macros
+    ========
 
-    chk = FUSE.Checkpoint()
-    ...init...
-    @checkin chk :init dd ini act # store dd, ini, act
-
-    --------
-
-    @checkout chk :init dd ini act # restore dd, ini, act
-    ...something...
-    @checkin chk :something dd act # store dd, act
-
-    --------
-
-    @checkout chk :something dd # restore only dd
-    ...something_else...
-    @checkin chk :something_else dd # store only dd
-
-    --------
-
-    @checkout chk :something_else dd # restore only dd
-    ...something_else_more...
+    empty!(FUSE.checkpoint) # to start over
 """
 Base.@kwdef struct Checkpoint
     history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
@@ -87,6 +64,10 @@ function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     return nothing
 end
 
+function Base.iterate(chk::Checkpoint, state=1)
+    return iterate(chk.history, state)
+end
+
 # Generate the delegated methods (NOTE: these methods do not require deepcopy)
 for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
     @eval function Base.$func(chk::Checkpoint, args...; kw...)
@@ -95,17 +76,17 @@ for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
 end
 
 """
-    @checkin chk :key a b c
+    @checkin :key a b c
 
 Macro to save variables into a Checkpoint under a specific key
 """
-macro checkin(checkpoint, key, vars...)
+macro checkin(key, vars...)
     key = esc(key)
-    checkpoint = esc(checkpoint)
 
     # Save all the variables in the `vars` list under the provided key using their names
     return quote
-        d = getfield($checkpoint, :history)
+        @assert typeof($key) <: Symbol "`@checkin chk :what var1 var2` was deprecated in favor of `@checkin :what var1 var2`"
+        d = getfield(checkpoint, :history)
         if $key in keys(d)
             dict = Dict(k => v for (k, v) in pairs(d[$key]))
         else
@@ -118,17 +99,17 @@ macro checkin(checkpoint, key, vars...)
 end
 
 """
-    @checkout chk :key a c
+    @checkout :key a c
 
 Macro to load variables from a Checkpoint
 """
-macro checkout(checkpoint, key, vars...)
+macro checkout(key, vars...)
     key = esc(key)
-    checkpoint = esc(checkpoint)
 
     # Restore variables from the checkpoint
     return quote
-        d = getfield($checkpoint, :history)
+        @assert typeof($key) <: Symbol "`@checkout chk :what var1 var2` was deprecated in favor of `@checkout :what var1 var2`"
+        d = getfield(checkpoint, :history)
         if haskey(d, $key)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
@@ -138,6 +119,8 @@ macro checkout(checkpoint, key, vars...)
         nothing
     end
 end
+
+const checkpoint = Checkpoint()
 
 # ===================================== #
 # extract data from FUSE save folder(s) #
@@ -230,6 +213,7 @@ function IMAS.extract(
         end
 
         # load the data
+        ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
@@ -490,77 +474,27 @@ function digest(
     end
 
     # core profiles
-    # temperatures
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=1))
-    end
-    # densities
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=2))
-    end
-    # rotation
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=3))
+    for k in 1:3
+        if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_profiles; only=k))
+        end
     end
 
     # core sources
-    # electron heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=1))
-    end
-    # ion heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=2))
-    end
-    # electron particle
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=3))
-    end
-    # parallel current
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=4))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles.profiles_1d[]))
+        if !isempty(dd.core_sources.source) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_sources; only=k))
+        end
     end
 
-    # Electron energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=1))
-    end
-
-    # Ion energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=2))
-    end
-
-    # Electron particle flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=3))
-    end
-
-    # Momentum flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=4))
+    # core transport
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles.profiles_1d[]))
+        if !isempty(dd.core_transport) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_transport; only=k))
+        end
     end
 
     # neutron wall loading
@@ -604,7 +538,7 @@ function digest(
         plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
-        plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
+        plot!(p, dd.pf_active; time0, subplot=2, coil_identifiers=true)
         plot!(p, dd.build.pf_active.rail; subplot=2)
         display(p)
     end
@@ -1030,6 +964,7 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     for k in 2:length(dds)
         push!(df, df[1, :])
     end
+    ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(length(dds); showspeed=true)
     Threads.@threads for k in eachindex(dds)
         try

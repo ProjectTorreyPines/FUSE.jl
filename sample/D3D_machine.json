@@ -3893,7 +3893,7 @@
 }
 ],
 "name": "VS0",
-"resistivity": 0.0019209
+"resistance": 0.0019209
 },
 {
 "element": [
@@ -3913,7 +3913,7 @@
 }
 ],
 "name": "VS1",
-"resistivity": 0.0019209
+"resistance": 0.0019209
 },
 {
 "element": [
@@ -3933,7 +3933,7 @@
 }
 ],
 "name": "VS2",
-"resistivity": 0.0019209
+"resistance": 0.0019209
 },
 {
 "element": [
@@ -3961,7 +3961,7 @@
 }
 ],
 "name": "VS3",
-"resistivity": 0.0036784
+"resistance": 0.0036784
 },
 {
 "element": [
@@ -3981,7 +3981,7 @@
 }
 ],
 "name": "VS4",
-"resistivity": 0.0037424
+"resistance": 0.0037424
 },
 {
 "element": [
@@ -4001,7 +4001,7 @@
 }
 ],
 "name": "VS5",
-"resistivity": 0.0046093
+"resistance": 0.0046093
 },
 {
 "element": [
@@ -4029,7 +4029,7 @@
 }
 ],
 "name": "VS6",
-"resistivity": 0.0048872
+"resistance": 0.0048872
 },
 {
 "element": [
@@ -4057,7 +4057,7 @@
 }
 ],
 "name": "VS7",
-"resistivity": 0.0055595
+"resistance": 0.0055595
 },
 {
 "element": [
@@ -4085,7 +4085,7 @@
 }
 ],
 "name": "VS8",
-"resistivity": 0.0058032
+"resistance": 0.0058032
 },
 {
 "element": [
@@ -4113,7 +4113,7 @@
 }
 ],
 "name": "VS9",
-"resistivity": 0.0061324
+"resistance": 0.0061324
 },
 {
 "element": [
@@ -4133,7 +4133,7 @@
 }
 ],
 "name": "VS10",
-"resistivity": 0.0055482
+"resistance": 0.0055482
 },
 {
 "element": [
@@ -4153,7 +4153,7 @@
 }
 ],
 "name": "VS11",
-"resistivity": 0.00503212
+"resistance": 0.00503212
 },
 {
 "element": [
@@ -4173,7 +4173,7 @@
 }
 ],
 "name": "VS12",
-"resistivity": 0.0019209
+"resistance": 0.0019209
 },
 {
 "element": [
@@ -4193,7 +4193,7 @@
 }
 ],
 "name": "VS13",
-"resistivity": 0.0019209
+"resistance": 0.0019209
 },
 {
 "element": [
@@ -4213,7 +4213,7 @@
 }
 ],
 "name": "VS14",
-"resistivity": 0.0019209
+"resistance": 0.0019209
 },
 {
 "element": [
@@ -4241,7 +4241,7 @@
 }
 ],
 "name": "VS15",
-"resistivity": 0.0036784
+"resistance": 0.0036784
 },
 {
 "element": [
@@ -4261,7 +4261,7 @@
 }
 ],
 "name": "VS16",
-"resistivity": 0.0030229
+"resistance": 0.0030229
 },
 {
 "element": [
@@ -4281,7 +4281,7 @@
 }
 ],
 "name": "VS17",
-"resistivity": 0.0038912
+"resistance": 0.0038912
 },
 {
 "element": [
@@ -4309,7 +4309,7 @@
 }
 ],
 "name": "VS18",
-"resistivity": 0.0063351
+"resistance": 0.0063351
 },
 {
 "element": [
@@ -4337,7 +4337,7 @@
 }
 ],
 "name": "VS19",
-"resistivity": 0.0068921
+"resistance": 0.0068921
 },
 {
 "element": [
@@ -4365,7 +4365,7 @@
 }
 ],
 "name": "VS20",
-"resistivity": 0.0058032
+"resistance": 0.0058032
 },
 {
 "element": [
@@ -4393,7 +4393,7 @@
 }
 ],
 "name": "VS21",
-"resistivity": 0.0061324
+"resistance": 0.0061324
 },
 {
 "element": [
@@ -4413,7 +4413,7 @@
 }
 ],
 "name": "VS22",
-"resistivity": 0.0055482
+"resistance": 0.0055482
 },
 {
 "element": [
@@ -4433,7 +4433,7 @@
 }
 ],
 "name": "VS23",
-"resistivity": 0.00503212
+"resistance": 0.00503212
 }
 ]
 },

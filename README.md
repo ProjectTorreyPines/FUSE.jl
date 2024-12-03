@@ -2,7 +2,26 @@
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
 
+## 📢 2024 Code Camp 📢
+
+* **Date:** Dec 9th - 13th
+* **Location:** In person @ General Atomics
+* **Agenda:** [here](https://docs.google.com/document/d/1OwJPx4G3HP7wx9FuGLMqxjaKewrhOY7Kd7nTZkmVdw4/edit?usp=sharing)
+* **Seats:** All out! Join us on [Discord](https://discord.gg/CbjpZH9SKM) to know of upcoming events!
+
+## Resources
+
+Here are some key resources for getting started with FUSE:
+
+* 📚 **[Online documentation](https://fuse.help)**
+* 🎤 **[Overview presentation](https://tinyurl.com/FUSEslideDeck)**
+* 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
+* 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
+* 🗒️ **[Weekly devs meeting minutes](https://github.com/ProjectTorreyPines/FUSE.jl/discussions)**
+
 ## Objectives
+
+FUSE aims to achieve the following objectives:
 
 * ⚡ Provide a highly efficient, modular framework that tightly couples models across different domains.
 * 🧩 Integrate plasma physics, engineering, control, balance of plant, and costing systems.
@@ -16,7 +35,7 @@ FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the i
 
 FUSE is entirely written in Julia and is structured around the following core concepts:
 
-1. **📦 Data storage**: All data is stored in the `dd` structure, which follows the ITER IMAS ontology.
+1. **📂 Data storage**: All data is stored in the `dd` structure, which follows the ITER IMAS ontology.
 2. **🧠 Actors**: The core components of FUSE simulations are physics and engineering actors.
 3. **🕹️ Control**: Actor functionality is governed by `act` parameters.
 4. **🚀 Initialization**: The data structure can be initialized from 0D `ini` parameters.
@@ -26,18 +45,6 @@ FUSE is entirely written in Julia and is structured around the following core co
 
 A diagram illustrating these concepts is provided below:  
 ![FUSE Diagram](./docs/src/assets/FUSE.svg)
-
-## Documentation
-
-Find the full documentation here: [https://fuse.help](https://fuse.help)
-
-## Publication
-
-Refer to the related publication: [FUSE Paper](https://arxiv.org/abs/2409.05894)
-
-## Presentation
-
-Access the project presentation: [FUSE Slide Deck](https://tinyurl.com/FUSEslideDeck)
 
 ## Usage Example
 
@@ -49,7 +56,7 @@ using FUSE
 # Obtain `ini` and `act` parameters for a specific use case
 ini, act = FUSE.case_parameters(:FPP)
 
-# Initialize the `dd` structure with 0D parameters
+# Initialize the `dd` structure from 0D `ini` parameters
 dd = FUSE.init(ini, act)
 
 # Run a stationary plasma actor simulation
@@ -58,6 +65,8 @@ FUSE.ActorStationaryPlasma(dd, act)
 # Get an overview of the simulation results
 FUSE.digest(dd)
 ```
+
+Make sure to take a look at the [introductory tutorial](https://fuse.help/dev/tutorial.html) and [examples](https://github.com/ProjectTorreyPines/FuseExamples).
 
 ## Installation
 

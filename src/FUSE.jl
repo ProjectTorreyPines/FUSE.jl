@@ -10,6 +10,8 @@ using InteractiveUtils
 import LinearAlgebra
 using StaticArrays
 import AbstractTrees: print_tree
+import ProgressMeter
+import Measurements:Measurement
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -38,6 +40,8 @@ include("parameters.jl")
 #= ===== =#
 #  CASES  #
 #= ===== =#
+include(joinpath("cases", "_toksys.jl"))
+include(joinpath("cases", "_test_cases.jl"))
 include(joinpath("cases", "_cases.jl"))
 
 #= ======= =#
@@ -184,7 +188,8 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, @checkin, @checkout
+export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, help_plot, @findall
+export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

@@ -55,8 +55,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
     elseif par.model in [:uniform, :optimal]
         # reset pf coil rails
-        n_coils = Int[rail.coils_number for rail in dd.build.pf_active.rail]
-        init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
+        init_pf_active!(dd.pf_active, dd.build, eqt)
 
         # optimize coil placement
         if par.model == :optimal
@@ -100,7 +99,8 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
 
             old_logging = actor_logging(dd, false)
-            prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
+            ProgressMeter.ijulia_behavior(:clear)
+            prog = ProgressMeter.ProgressUnknown(;dt=0.1, desc="Calls:", enabled=par.verbose)
             try
                 packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
                 res = Optim.optimize(x -> placement_cost(x; prog), packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))

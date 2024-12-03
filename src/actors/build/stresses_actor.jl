@@ -5,8 +5,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorStresses{T<:Real} <: ParametersA
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
-    n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=5)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=101)
 end
 
 mutable struct ActorStresses{D,P} <: SingleAbstractActor{D,P}
@@ -25,6 +25,7 @@ end
 Estimates mechanical stresses on the center stack
 
 !!! note
+
     Stores data in `dd.solid_mechanics`
 """
 function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -45,24 +46,24 @@ function _step(actor::ActorStresses)
     bd = dd.build
     sm = dd.solid_mechanics
 
-    plasma = IMAS.get_build_layer(bd.layer, type=_plasma_)
+    plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
     R0 = (plasma.end_radius + plasma.start_radius) / 2.0
     B0 = maximum(abs, eq.vacuum_toroidal_field.b0)
 
-    R_tf_in = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_).start_radius
-    R_tf_out = IMAS.get_build_layer(bd.layer, type=_tf_, fs=_hfs_).end_radius
+    R_tf_in = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_).start_radius
+    R_tf_out = IMAS.get_build_layer(bd.layer; type=_tf_, fs=_hfs_).end_radius
 
     Bz_oh = bd.oh.max_b_field
 
-    R_oh_in = IMAS.get_build_layer(bd.layer, type=_oh_).start_radius
-    R_oh_out = IMAS.get_build_layer(bd.layer, type=_oh_).end_radius
+    R_oh_in = IMAS.get_build_layer(bd.layer; type=_oh_).start_radius
+    R_oh_out = IMAS.get_build_layer(bd.layer; type=_oh_).end_radius
 
     f_struct_tf = bd.tf.technology.fraction_steel
     f_struct_oh = bd.oh.technology.fraction_steel
 
-    bucked = sm.center_stack.bucked == 1
-    noslip = sm.center_stack.noslip == 1
-    plug = sm.center_stack.plug == 1
+    bucked = Bool(sm.center_stack.bucked)
+    noslip = Bool(sm.center_stack.noslip)
+    plug = Bool(sm.center_stack.plug)
 
     for oh_on in (true, false)
         solve_1D_solid_mechanics!(
@@ -74,11 +75,12 @@ function _step(actor::ActorStresses)
             oh_on ? Bz_oh : 0.0,
             R_oh_in,
             R_oh_out;
-            bucked=bucked,
-            noslip=noslip,
-            plug=plug,
-            f_struct_tf=f_struct_tf,
-            f_struct_oh=f_struct_oh,
+            bd.tf.nose_hfs_fraction,
+            bucked,
+            noslip,
+            plug,
+            f_struct_tf,
+            f_struct_oh,
             f_struct_pl=1.0,
             em_tf=sm.center_stack.properties.young_modulus.tf,
             gam_tf=sm.center_stack.properties.poisson_ratio.tf,
@@ -86,7 +88,7 @@ function _step(actor::ActorStresses)
             gam_oh=sm.center_stack.properties.poisson_ratio.oh,
             em_pl=getproperty(sm.center_stack.properties.young_modulus, :pl, NaN),
             gam_pl=getproperty(sm.center_stack.properties.poisson_ratio, :pl, NaN),
-            n_points=par.n_points,
+            par.n_points,
             empty_smcs=oh_on,
             verbose=false
         )
@@ -113,6 +115,7 @@ end
         R_oh_out::T;                           # : (float) major radius of outboard edge of OH coil, meters
         axial_stress_tf_avg::T=NaN,            # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
         axial_stress_oh_avg::T=NaN,            # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
+        nose_hfs_fraction::T,                  # : (float), thickness of solid nose section of TF coil, normalized to TF coil thickness
         bucked::Bool,                          # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
         noslip::Bool,                          # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
         plug::Bool,                            # : (bool), flag for center plug
@@ -129,7 +132,7 @@ end
         f_oh_sash::T=0.37337,                  # : (float), conversion factor from hoop stress to axial stress for OH coil
         n_points::Int=21,                      # : (int), number of radial points
         empty_smcs::Bool=true,                 # : (bool), flag to empty the smcs structure (useful to identify worst case in a series of scenarios)
-        verbose::Bool=false) where (T<:Real)   # : (bool), flag for verbose output to terminal
+        verbose::Bool=false) where {(T <: Real)}   # : (bool), flag for verbose output to terminal
 
 Uses Leuer 1D solid mechanics equations to solve for radial and hoop stresses in TF coil, OH coil, and center plug.
 Based on derivations in Engineering Physics Note "EPNjal17dec17_gasc_pt5_tf_oh_plug_buck" by Jim Leuer (Dec. 17, 2017)
@@ -140,6 +143,16 @@ Returns radial, hoop, axial, and Von Mises stresses for TF, OH, and plug (Pascal
 The tokamak radial buid is :
 
 || plug or void (0 < r < R1) || coil 1 (R1 < r < R2) || coil 2 (R3 < r < R4) || ----> plasma center (r = R0)
+
+The possible coil configuration options are:
+
+1. Free standing OH and TF (no plug)
+2. Bucked OH-TF (no plug)
+3. Bucked plug-OH-TF
+4. Bucked plug-TF, OH freestanding
+
+The TF coil can also be modeled with a steel "nose" that does not carry current, but does provide the same bucked support as a plug.
+Note that a plug by definition has its inner radius at the tokamak center axiz (r=0).
 """
 function solve_1D_solid_mechanics!(
     smcs::IMAS.solid_mechanics__center_stack,
@@ -152,6 +165,7 @@ function solve_1D_solid_mechanics!(
     R_oh_out::T;                           # : (float) major radius of outboard edge of OH coil, meters
     axial_stress_tf_avg::T=NaN,            # : (float) average axial stress in TF coil core legs, Pa (if nothing, use constant fraction of hoop stress)
     axial_stress_oh_avg::T=NaN,            # : (float) average axial stress in OH coil, Pa (if nothing, use constant fraction of hoop stress)
+    nose_hfs_fraction::T,                  # : (float), thickness of solid nose section of TF coil, normalized to TF coil thickness
     bucked::Bool,                          # : (bool), flag for bucked boundary conditions between TF and OH (and center plug, if present)
     noslip::Bool,                          # : (bool), flag for no slip conditions between TF and OH (and center plug, if present)
     plug::Bool,                            # : (bool), flag for center plug
@@ -168,7 +182,7 @@ function solve_1D_solid_mechanics!(
     f_oh_sash::T=0.37337,                  # : (float), conversion factor from hoop stress to axial stress for OH coil
     n_points::Int=21,                      # : (int), number of radial points
     empty_smcs::Bool=true,                 # : (bool), flag to empty the smcs structure (useful to identify worst case in a series of scenarios)
-    verbose::Bool=false) where (T<:Real)   # : (bool), flag for verbose output to terminal
+    verbose::Bool=false) where {(T <: Real)}   # : (bool), flag for verbose output to terminal
 
     if empty_smcs
         # empty smcs but always retain the materials' properties
@@ -205,8 +219,31 @@ function solve_1D_solid_mechanics!(
     embar_oh = em_oh / (1 - gam_oh^2)
     embar_pl = em_pl / (1 - gam_pl^2)
 
-    # define forcing constraints on TF and OH coils
-    C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
+    if bucked
+        @assert nose_hfs_fraction == 0.0
+    end
+
+    # determine whether to model tf_nose 
+    if nose_hfs_fraction > 0.0
+        tf_nose = true
+    else
+        tf_nose = false
+    end
+
+    # tf_nose structural constants are the same as tf
+    if tf_nose
+        gam_tn = gam_tf
+        em_tn = em_tf
+        embar_tn = embar_tf
+        R_tn_int = R_tf_in + nose_hfs_fraction * (R_tf_out - R_tf_in)
+    end
+
+    # define forcing constraints on TF and OH coil
+    if tf_nose
+        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tn_int^2)^2)
+    else
+        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
+    end
     C_oh = -1.0 / embar_oh * Bz_oh^2 / (constants.μ_0 * (R_oh_out - R_oh_in)^2)
 
     # calculate centerlines, check radial build inputs for consistency
@@ -249,7 +286,11 @@ function solve_1D_solid_mechanics!(
         if !isfinite(logr)
             logr = -100.0
         end
-        return 1.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr - 0.5)
+        if tf_nose
+            return 1.0 / 8.0 * r^2 - R_tn_int^2 / 2.0 * (logr - 0.5)
+        else
+            return 1.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr - 0.5)
+        end
     end
 
     function g_tf(r)
@@ -257,7 +298,11 @@ function solve_1D_solid_mechanics!(
         if !isfinite(logr)
             logr = -100.0
         end
-        return 3.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr + 0.5)
+        if tf_nose
+            return 3.0 / 8.0 * r^2 - R_tn_int^2 / 2.0 * (logr + 0.5)
+        else
+            return 3.0 / 8.0 * r^2 - R_tf_in^2 / 2.0 * (logr + 0.5)
+        end
     end
 
     function f_oh(r)
@@ -280,19 +325,39 @@ function solve_1D_solid_mechanics!(
             println("* Free standing coils")
         end
 
-        M = zeros(tp, 4, 4)
-        M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_in^2, 0.0, 0.0]
-        M[2, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0]
-        M[3, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_in^2]
-        M[4, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_out^2]
-        Y = [
-            -C_tf * (g_tf(R_tf_in) + gam_tf * f_tf(R_tf_in)),
-            -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
-            -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
-            -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out)),
-        ]
-        A_tf, B_tf, A_oh, B_oh = M \ Y
-        A_pl = 0.0
+        if tf_nose
+            M = zeros(tp, 6, 6)
+            M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0, 0.0, 0.0]
+            M[2, :] = [0.0, 0.0, 1 + gam_tn, (gam_tn - 1) / R_tf_in^2, 0.0, 0.0]
+            M[3, :] = [1.0, 1.0 / R_tn_int^2, -1.0, -1.0 / R_tn_int^2, 0.0, 0.0]
+            M[4, :] = [embar_tf * (1 + gam_tf), embar_tf * (gam_tf - 1) / R_tn_int^2, -embar_tn * (1 + gam_tn), -embar_tn * (gam_tn - 1) / R_tn_int^2, 0.0, 0.0]
+            M[5, :] = [0.0, 0.0, 0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_in^2]
+            M[6, :] = [0.0, 0.0, 0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_out^2]
+            Y = [
+                -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
+                0.0,
+                -C_tf * f_tf(R_tn_int),
+                -embar_tf * C_tf * (g_tf(R_tn_int) + gam_tf * f_tf(R_tn_int)),
+                -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
+                -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out))
+            ]
+            A_tf, B_tf, A_tn, B_tn, A_oh, B_oh = M \ Y
+
+        else
+            M = zeros(tp, 4, 4)
+            M[1, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_in^2, 0.0, 0.0]
+            M[2, :] = [1 + gam_tf, (gam_tf - 1) / R_tf_out^2, 0.0, 0.0]
+            M[3, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_in^2]
+            M[4, :] = [0.0, 0.0, 1 + gam_oh, (gam_oh - 1) / R_oh_out^2]
+            Y = [
+                -C_tf * (g_tf(R_tf_in) + gam_tf * f_tf(R_tf_in)),
+                -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
+                -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
+                -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out))
+            ]
+            A_tf, B_tf, A_oh, B_oh = M \ Y
+            A_pl = 0.0
+        end
 
     elseif !plug && (cl_oh < cl_tf)
         ## bucked OH and TF only (no plug)
@@ -313,7 +378,7 @@ function solve_1D_solid_mechanics!(
             -C_tf * (g_tf(R_tf_out) + gam_tf * f_tf(R_tf_out)),
             -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
             C_oh * f_oh(R_int) - C_tf * f_tf(R_int),
-            embar_oh * C_oh * (g_oh(R_int) + gam_oh * f_oh(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
+            embar_oh * C_oh * (g_oh(R_int) + gam_oh * f_oh(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int))
         ]
         A_tf, B_tf, A_oh, B_oh = M \ Y
         A_pl = 0.0
@@ -340,7 +405,7 @@ function solve_1D_solid_mechanics!(
             C_oh * f_oh(R_int) - C_tf * f_tf(R_int),
             embar_oh * C_oh * (g_oh(R_int) + gam_oh * f_oh(R_int)) - embar_tf * C_tf * (g_tf(R_int) + gam_tf * f_tf(R_int)),
             -C_oh * f_oh(R_pl),
-            -embar_oh * C_oh * (g_oh(R_pl) + gam_oh * f_oh(R_pl)),
+            -embar_oh * C_oh * (g_oh(R_pl) + gam_oh * f_oh(R_pl))
         ]
         A_tf, B_tf, A_oh, B_oh, A_pl = M \ Y
 
@@ -365,7 +430,7 @@ function solve_1D_solid_mechanics!(
             -C_oh * (g_oh(R_oh_in) + gam_oh * f_oh(R_oh_in)),
             -C_oh * (g_oh(R_oh_out) + gam_oh * f_oh(R_oh_out)),
             -C_tf * f_tf(R_pl),
-            -embar_tf * C_tf * (g_tf(R_pl) + gam_tf * f_tf(R_pl)),
+            -embar_tf * C_tf * (g_tf(R_pl) + gam_tf * f_tf(R_pl))
         ]
         A_tf, B_tf, A_oh, B_oh, A_pl = M \ Y
 
@@ -389,6 +454,14 @@ function solve_1D_solid_mechanics!(
 
     function dudr_oh(r)
         return C_oh * g_oh(r) + A_oh - B_oh / r^2
+    end
+
+    function u_tn(r)
+        return r * A_tn + B_tn / r
+    end
+
+    function dudr_tn(r)
+        return A_tn - B_tn / r^2
     end
 
     function u_pl(r)
@@ -415,7 +488,11 @@ function solve_1D_solid_mechanics!(
     # also estimate axial stresses if not given & modify due to noslip condition
     # default axial scalings taken from Bending free formula & GASC
     r_oh = LinRange(R_oh_in, R_oh_out, n_points)
-    r_tf = LinRange(R_tf_in, R_tf_out, n_points)
+    if tf_nose
+        r_tf = LinRange(R_tn_int, R_tf_out, n_points)
+    else
+        r_tf = LinRange(R_tf_in, R_tf_out, n_points)
+    end
 
     displacement_oh = u_oh.(r_oh)
     displacement_tf = u_tf.(r_tf)
@@ -448,6 +525,16 @@ function solve_1D_solid_mechanics!(
         axial_stress_comb = axial_stress_tf_comb + axial_stress_oh_comb
         axial_stress_tf_avg = axial_stress_comb
         axial_stress_oh_avg = axial_stress_comb
+    end
+
+    if tf_nose
+        r_tn = LinRange(R_tf_in, R_tf_in + nose_hfs_fraction * (R_tf_out - R_tf_in), n_points)
+        displacement_tn = u_tn.(r_tn)
+        ddiplacementdr_tn = dudr_tn.(r_tn)
+        radial_stress_tn = sr.(r_tn, em_tn, gam_tn, displacement_tn, ddiplacementdr_tn)
+        hoop_stress_tn = sh.(r_tn, em_tn, gam_tn, displacement_tn, ddiplacementdr_tn)
+        axial_stress_tn_avg = axial_stress_tf_avg
+        vonmises_stress_tn = svm.(radial_stress_tn, hoop_stress_tn, axial_stress_tn_avg)
     end
 
     if plug
@@ -483,6 +570,15 @@ function solve_1D_solid_mechanics!(
     smcs.bucked = Int(bucked)
     smcs.noslip = Int(noslip)
     smcs.plug = Int(plug)
+
+    # combine tf_nose and tf into single radial grid
+    if tf_nose
+        r_tf = [r_tn[1:end-1]; r_tf]
+        radial_stress_tf = [radial_stress_tn[1:end-1]; radial_stress_tf]
+        hoop_stress_tf = [hoop_stress_tn[1:end-1]; hoop_stress_tf]
+        vonmises_stress_tf = [vonmises_stress_tn[1:end-1]; vonmises_stress_tf]
+        displacement_tf = [displacement_tn[1:end-1]; displacement_tf]
+    end
 
     smcs.grid.r_tf = r_tf
     smcs.grid.r_oh = r_oh

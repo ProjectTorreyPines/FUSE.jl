@@ -4,7 +4,7 @@
 Formosa Integrated Research Spherical Tokamak
 """
 function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=0)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "FIRST"
@@ -35,29 +35,26 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.675
+    ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.T_ratio = 1.0
     ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Ar
 
-    ini.pf_active.n_coils_inside = 0
-    ini.pf_active.n_coils_outside = 8
+    ini.build.layers[:OH].coils_inside = 1
+    ini.build.layers[:hfs_vacuum_vessel].coils_inside = 2
+    ini.build.layers[:gap_world].coils_inside = 8
+
+    ini.oh.technology = :copper
     ini.pf_active.technology = :copper
+    ini.tf.technology = :copper
 
     ini.tf.shape = :convex_hull
     ini.tf.n_coils = 18
-    ini.tf.technology = :copper
-
-    ini.oh.n_coils = 1
-    ini.oh.technology = :copper
 
     ini.requirements.flattop_duration = 2.0
-
-    set_new_base!(ini)
-    set_new_base!(act)
 
     return ini, act
 end
