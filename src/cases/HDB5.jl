@@ -59,8 +59,8 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.core_profiles.ne_setting = :ne_line
     ini.core_profiles.ne_value = data_row[:NEL]
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = data_row[:ZEFF]
     ini.core_profiles.rot_core = 10e3
     ini.core_profiles.ngrid = 201

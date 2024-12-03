@@ -60,9 +60,9 @@ function _step(actor::ActorSimpleNB)
 
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
-        electrons_particles = power_launched / (beam_energy * constants.e)
+        electrons_particles = power_launched / (beam_energy * IMAS.mks.e)
         momentum_tor =
-            power_launched * sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+            power_launched * sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * IMAS.mks.e / beam_mass / IMAS.mks.m_u) * beam_mass * IMAS.mks.m_u
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3

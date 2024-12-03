@@ -46,7 +46,7 @@ function _step(actor::ActorSteadyStateCurrent)
     ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)
 
     # update j_ohmic
-    IMAS.j_ohmic_steady_state!(eqt, dd.core_profiles.profiles_1d[], ip_target)
+    cp1d.j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target)
 
     # allow floating plasma current
     ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)

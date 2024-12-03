@@ -128,7 +128,7 @@ function _step(actor::ActorHFSsizing)
         end
 
         # flattop
-        if actor.fluxswing_actor.par.operate_oh_at_j_crit
+        if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
             c_flt = -target_value(dd.build.oh.flattop_duration, dd.requirements.flattop_duration, dd.requirements.coil_j_margin)
         else
             c_flt = 0.0
@@ -143,7 +143,7 @@ function _step(actor::ActorHFSsizing)
         if !ismissing(cs.stress.vonmises, :pl)
             push!(margins, cs.properties.yield_strength.pl / maximum(cs.stress.vonmises.pl) - 1.0 - dd.requirements.coil_stress_margin)
         end
-        if actor.fluxswing_actor.par.operate_oh_at_j_crit
+        if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
             push!(margins, dd.build.oh.flattop_duration / dd.requirements.flattop_duration - 1.0 - dd.requirements.coil_j_margin)
         end
 
@@ -151,11 +151,15 @@ function _step(actor::ActorHFSsizing)
         c_Δmn = norm(margins[2:end] .- margins[1]) ./ (length(margins) - 1)
 
         # want smallest possible TF and OH
-        c_geo = (OH.thickness + TFhfs.thickness) / CPradius
+        c_geo = (OH.thickness + TFhfs.thickness) / CPradius / 2.0
 
         # favor steel over superconductor
         # for all things being equal, maximizing steel is good to keep the cost of the magnets down
-        c_scs = sqrt((1.0 - dd.build.oh.technology.fraction_steel)^2 + (1.0 - dd.build.tf.technology.fraction_steel)^2 + (1.0 - dd.build.tf.nose_hfs_fraction)^2)
+        if nose
+            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel), (1.0 - dd.build.tf.nose_hfs_fraction))) / 3.0
+        else
+            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel))) / 2.0
+        end
 
         if par.verbose
             push!(C_JOH, c_joh)
@@ -171,7 +175,7 @@ function _step(actor::ActorHFSsizing)
         end
 
         # total cost and constraints
-        return norm([c_geo, c_scs, c_mgn, c_Δmn]), [c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl], [0.0]
+        return norm([c_geo, c_scs, c_mgn * 10, c_Δmn]), [c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl], [0.0]
     end
 
     # initialize

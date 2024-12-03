@@ -1,7 +1,6 @@
 #= ===================== =#
 #  ActorCoreRadHeatFlux  #
 #= ===================== =#
-
 Base.@kwdef mutable struct FUSEparameters__ActorCoreRadHeatFlux{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -40,7 +39,7 @@ function ActorCoreRadHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function _step(actor::ActorCoreRadHeatFlux)
+function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
@@ -50,7 +49,7 @@ function _step(actor::ActorCoreRadHeatFlux)
     # Compute wall mesh 
     # (Rwall, Zwall)        wall mesh (with intersections of SOL) -  m
     # s                     curvilinear abscissa computed from (Rwall, Zwall), clockwise starting at OMP - m
-    Rwall, Zwall, _, _, s, _, _, _ = IMAS.mesher_HF(dd; par.r, par.q, par.merge_wall, par.levels, par.step)
+    Rwall, Zwall, _, _, s, _, _, _ = IMAS.mesher_heat_flux(dd; par.r, par.q, par.merge_wall, par.levels, par.step)
 
     # Parameters for heat flux due to core radiarion
     total_rad_source1d = IMAS.total_radiation_sources(dd.core_sources, cp1d)
@@ -59,9 +58,9 @@ function _step(actor::ActorCoreRadHeatFlux)
     Prad_core = -total_rad_source1d.electrons.power_inside[end]
 
     # Compute the heat flux due to the core radiation - q_core_rad - W/m2
-    q_core_rad = IMAS.core_radiation_HF(eqt, psi, source_1d, par.N, Rwall, Zwall, Prad_core)
+    q_core_rad = IMAS.core_radiation_heat_flux(eqt, psi, source_1d, par.N, Rwall, Zwall, Prad_core)
 
-    HF = IMAS.WallHeatFlux(; r=Rwall, z=Zwall, q_core_rad, s)
+    HF = IMAS.WallHeatFlux{D}(; r=Rwall, z=Zwall, q_core_rad, s)
     actor.wall_heat_flux = HF
 
     #plot
