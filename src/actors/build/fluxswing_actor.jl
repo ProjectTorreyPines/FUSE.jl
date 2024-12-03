@@ -117,7 +117,7 @@ function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core
     j_ohmic = cp1d.j_ohmic
     conductivity_parallel = cp1d.conductivity_parallel
     f = (k, x) -> j_ohmic[k] / conductivity_parallel[k]
-    return abs(trapz(cp1d.grid.area, f)) * requirements.flattop_duration# * (1.0 + coil_j_margin) # V*s
+    return abs(trapz(cp1d.grid.area, f)) * requirements.flattop_duration # V*s
 end
 
 """
