@@ -135,7 +135,8 @@ jobs:
           mkdir manifest-folder
           cp Project.toml manifest-folder/
           cp Manifest.toml manifest-folder/
-          julia --project=manifest-folder -e 'using Pkg; Pkg.develop(path=".."); Pkg.instantiate()'
+          cd manifest-folder
+          julia --project=. -e 'using Pkg; Pkg.develop(path=".."); Pkg.instantiate()'
 
       - name: 'Upload Manifest.toml artifact'
         uses: actions/upload-artifact@v4
