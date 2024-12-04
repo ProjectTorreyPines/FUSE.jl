@@ -64,7 +64,7 @@ function _step(actor::ActorFluxSwing)
     bd.flux_swing.rampup = rampup_flux_estimates(eqt, cp)
     bd.flux_swing.pf = pf_flux_estimates(eqt)
     if !ismissing(requirements, :flattop_duration) && !par.operate_oh_at_j_crit
-        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d; requirements.coil_j_margin) # flattop flux based on requirements duration
+        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
         oh_required_J_B!(bd)
     else
         oh_maximum_J_B!(bd; requirements.coil_j_margin)
@@ -109,7 +109,7 @@ function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_
 end
 
 """
-    flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d; coil_j_margin::Float64)
+    flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
 
 Estimate OH flux requirement during flattop
 """
