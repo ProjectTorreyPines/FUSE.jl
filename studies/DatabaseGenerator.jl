@@ -1,4 +1,5 @@
 import JSON
+using ProgressMeter
 
 #= ====================== =#
 #  StudyDatabaseGenerator  #
@@ -8,19 +9,13 @@ import JSON
     study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
 Generates a database of dds from ini and act based on ranges specified in ini (i.e. ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0])
+It's also possible to run the database generator on Vector of inis
 There is a example notebook in FUSE_examples/study_database_generator.ipynb that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
     sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
     act = ParametersActors()
-
-    # Change act for the default DatabaseGenerator run
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorTGLF.warn_nn_train_bounds = false
-    act.ActorFluxMatcher.evolve_rotation = :fixed
-
 
     # finalize 
     set_new_base!(sty)
@@ -43,16 +38,22 @@ end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
     sty::FUSEparameters__ParametersStudyDatabaseGenerator
-    ini::ParametersAllInits
+    ini::Union{ParametersAllInits, Vector{ParametersAllInits}}
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
-    iterator::Union{Vector{String},Missing}
+    iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = sty(kw...)
     study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
+    return setup(study)
+end
+
+function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{ParametersAllInits}, act::ParametersAllActors; kw...)
+    sty = sty(kw...)
+    study = StudyDatabaseGenerator(sty, inis, act, missing, missing, missing)
     return setup(study)
 end
 
@@ -76,8 +77,14 @@ function _run(study::StudyDatabaseGenerator)
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
-    iterator = map(string, 1:sty.n_simulations)
+    if typeof(study.ini) <: ParametersAllInits
+        iterator = collect(1:sty.n_simulations)
+    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+        iterator = collect(1:length(study.ini))
+    end
+    
     study.iterator = iterator
+
     study.dataframes_dict = Dict("outputs_summary" => StudyDatabaseGenerator_summary_dataframe() for name in study.iterator)
 
     # paraller run
@@ -123,33 +130,52 @@ end
 
 Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
 """
-function run_case(study::AbstractStudy, item::String)
+function run_case(study::AbstractStudy, item::Int)
     act = study.act
     sty = study.sty
+    @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
+
+    original_dir = pwd()
+    savedir = abspath(joinpath(sty.save_folder, "$(item)__$(Dates.now())__$(getpid())"))
+    mkdir(savedir)
+    cd(savedir)
+
+    # Redirect stdout and stderr to the file
+    original_stdout = stdout  # Save the original stdout
+    original_stderr = stderr  # Save the original stderr
+    file_log = open("log.txt", "w")
+
+    # deepcopy ini/act to avoid changes
+    if typeof(study.ini) <: ParametersAllInits
+        ini = rand(study.ini)
+    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+        ini = study.ini[item]
+    end
+    
+    dd = IMAS.dd()
 
     try
-        # generate new ini
-        ini = rand(study.ini)
+        redirect_stdout(file_log)
+        redirect_stderr(file_log)
 
-        dd = IMAS.dd()
-        @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
         study.workflow(dd, ini, act)
 
-        if sty.save_dd
-            IMAS.imas2json(dd, joinpath(sty.save_folder, "result_dd_$(item).json"))
-            if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
-                save(FUSE.memtrace, joinpath(sty.save_folder, "memtrace_$(item).txt"))
-            end
-        end
+        # save simulation data to directory
+        save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
 
         return create_data_frame_row_DatabaseGenerator(dd)
-    catch e
-        if isa(e, InterruptException)
-            rethrow(e)
+    catch error
+        if isa(error, InterruptException)
+            rethrow(error)
         end
-        open("$(sty.save_folder)/error_$(item).txt", "w") do file
-            return showerror(file, e, catch_backtrace())
-        end
+
+        # save empty dd and error to directory
+        save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
+    finally
+        redirect_stdout(original_stdout)
+        redirect_stderr(original_stderr)
+        cd(original_dir)
+        close(file_log)
     end
 end
 
