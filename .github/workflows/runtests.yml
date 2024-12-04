@@ -129,12 +129,19 @@ jobs:
         if: env.FUSE_WITH_EXTENSIONS == 'true'
         run: make install_ci_add
 
-      # Save Manifest.toml
-      - name: 'Save Manifest.toml'
+      # Add FUSE dependency to the Manifest.toml and upload to artifacts
+      - name: 'Manifest.toml for artifacts'
+        run: |
+          mkdir manifest-folder
+          cp Project.toml manifest-folder/
+          cp Manifest.toml manifest-folder/
+          julia --project=manifest-folder -e 'using Pkg; Pkg.develop(path=".."); Pkg.instantiate()'
+
+      - name: 'Upload Manifest.toml artifact'
         uses: actions/upload-artifact@v4
         with:
           name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
-          path: Manifest.toml
+          path: manifest-folder/Manifest.toml
 
       # Build
       - uses: julia-actions/julia-buildpkg@v1
