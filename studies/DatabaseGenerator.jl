@@ -1,5 +1,6 @@
-import JSON
+using JSON
 using ProgressMeter
+using CSV
 
 #= ====================== =#
 #  StudyDatabaseGenerator  #
@@ -94,9 +95,12 @@ function _run(study::StudyDatabaseGenerator)
     # populate DataFrame
     for row in results
         if !isnothing(row)
-            push!(study.dataframes_dict["outputs_summary"], row)
+            push!(study.dataframes_dict["outputs_summary"], row, promote=true)
         end
     end
+
+    # Save outputs_summary DataFrame to CSV
+    CSV.write("$(sty.save_folder)/scan_output.csv", study.dataframes_dict["outputs_summary"])
 
     # Save JSON to a file
     json_data = JSON.json(study.dataframes_dict["outputs_summary"])
@@ -163,7 +167,16 @@ function run_case(study::AbstractStudy, item::Int)
         # save simulation data to directory
         save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
 
-        return create_data_frame_row_DatabaseGenerator(dd)
+        # make list of extracted parameters
+        out = extract(dd)
+        list = Vector{}()
+        # first list element is the runID
+        push!(list, item)
+        for key in out.keys
+            push!(list, out[key].value)
+        end     
+        return list
+        
     catch error
         if isa(error, InterruptException)
             rethrow(error)
@@ -179,11 +192,12 @@ function run_case(study::AbstractStudy, item::Int)
     end
 end
 
-function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
-    cp1d = dd.core_profiles.profiles_1d[]
-    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.t_i_average[1], zeff=cp1d.zeff[1])
-end
-
 function StudyDatabaseGenerator_summary_dataframe()
-    return DataFrame(; ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
+    scan_outputs = DataFrame()
+    tmp = extract(IMAS.dd());
+    scan_outputs[!,"run_id"] = Int[]
+    for key in tmp.keys
+        scan_outputs[!,key] = Float64[]
+    end
+    return scan_outputs
 end
