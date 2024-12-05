@@ -1,0 +1,55 @@
+#!/usr/bin/env julia
+
+# This script executes the FUSE makefile from wherever FUSE is installed.
+# Copy this script to a directory that is included in your $PATH environment variable.
+#
+# Recommended: Copy the script to the same directory where your juliaup executable resides.
+# You can determine this directory with `dirname $(which juliaup)`.
+
+using Pkg
+using UUIDs
+
+# UUID of the FUSE package
+FUSE_UUID = UUID("e64856f0-3bb8-4376-b4b7-c03396503992")
+
+# set some environmental variables for later use in Makefile
+ENV["PTP_ORIGINAL_DIR"] = pwd()
+ENV["PTP"] = @__FILE__
+
+# Declare fuse_dir as a global variable
+global fuse_dir = nothing
+
+# Find the installation directory of the FUSE package
+for env in [:Main, :Local]
+    if env == :Local
+        Pkg.activate(".")
+    end
+    for (uuid, details) in Pkg.dependencies()
+        if uuid == FUSE_UUID
+            global fuse_dir = details.source
+            break
+        end
+    end
+    if fuse_dir !== nothing
+        break
+    end
+end
+
+if fuse_dir === nothing
+    println("FUSE package not found in Main or $(pwd()) environments")
+    exit(1)
+end
+
+# Handle the --get-dir argument
+if !isempty(ARGS)
+    if ARGS[1] == "--get-dir"
+        println(fuse_dir)
+        exit(0)
+    end
+end
+
+# Change to the FUSE directory
+cd(fuse_dir)
+
+# Execute the make command with any passed arguments
+run(`make $ARGS`)

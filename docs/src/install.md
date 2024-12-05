@@ -1,64 +1,67 @@
 # Setup the FUSE environment
 
 ## Julia installation
+
 We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) manager to install Julia
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
-* Windows: `winget install julia -s msstore`
+* Windows: `winget install julia -s msstore --accept-source-agreements --accept-package-agreements`
 
-Once installed, restart your termninal to pick-up the `julia` executable
+Once installed, restart your termninal to pick-up the `julia` executable.
 
 ## FUSE installation
-1. Clone the FUSE repository under the `~/.julia/dev` folder ():
 
-   ```bash
-   mkdir -p ~/.julia/dev
-   cd ~/.julia/dev
-   git clone git@github.com:ProjectTorreyPines/FUSE.jl.git FUSE
+FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
+For installation start your Julia interpreter by typing `julia` at the terminal, then:
+
+1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 20+ mins):
+
+   ```julia
+   using Pkg
+   Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+   Pkg.Registry.add("General")
+   Pkg.add("FUSE")
    ```
 
-   !!! note
-       Julia repositories end with `.jl` but their install folders do not
-
-   !!! note
-       To clone the FUSE repository you will need to [setup your public key on git GitHub](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account)
-
-1. Add FUSE and its dependencies to the julia environment (this may take a few minutes):
-
-   ```bash
-   cd ~/.julia/dev/FUSE
-   make install
-   ```
-
-   !!! note
-       To pull latest changes for FUSE and all of its dependencies:
-
-       ```bash
-       cd ~/.julia/dev/FUSE
-       make update
-       ```
-
-## Test FUSE installation
-1. Start your Julia interpreter by typing `julia` at the terminal
-
-1. Try importing the FUSE package
+1. Now you should be able to import the FUSE package:
 
    ```julia
    using FUSE
    ```
 
-## Install Jupyter and add Julia kernel to it
+1. Install the `fusebot` utility to simplify install/updates later on. Now `fusebot` should be a command that you can type anywhere from the terminal.
+
+   ```julia
+   FUSE.install_fusebot()
+   ```
+
+1. Run the regression tests (optional, this can take 1h+)
+
+    ```julia
+    ] test FUSE
+    ```
+
+1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FuseExamples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
+
+   ```bash
+   fusebot install_examples
+   ```
+
+## Install Jupyter-Lab with Julia support
+
 1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system 
 
 1. Install the `IJulia` package by running:
 
    ```bash
-   cd ~/.julia/dev/FUSE
-   make IJulia
+   fusebot install_IJulia
    ```
 
    !!! note
-       Run `make IJulia` every time a new julia version is installed.
        This will setup the single- and multi-thread julia kernels in Jupyter.
+
+       The number of threads of the multi-threaded julia kernels can be set via the `JULIA_NUM_THREADS` environmental variable.
+
+       This needs to be done every time a new version of Julia is installed.
 
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
 
@@ -66,110 +69,30 @@ Once installed, restart your termninal to pick-up the `julia` executable
    jupyter-lab
    ```
 
-# Update Julia version
-Juliaup will inform you when a new release of Julia is available. For example:
+1.  Now you can browse the examples in the `FuseExamples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.
 
-```
-The latest version of Julia in the `release` channel is 1.9.0+0.aarch64.apple.darwin14. You currently have `1.8.5+0.aarch64.apple.darwin14` installed. Run:
+## Updating FUSE
 
-juliaup update
+1. Get notified of new FUSE releases by "watching" the [FUSE repo on GitHub](https://github.com/ProjectTorreyPines/FUSE.jl)
 
-to install Julia 1.9.0+0.aarch64.apple.darwin14 and update the `release` channel to that version.
-```
+1. FUSE is [updated like any other Julia package](https://pkgdocs.julialang.org/v1/managing-packages/#updating):
 
-To update Julia and make FUSE work under the new environment do as follows:
+    ```julia
+    ] up
+    ```
 
-1. Update Julia
-   ```bash
-   juliaup update
-   ```
+!!! tip
+    Become familiar with how [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/) works.
 
-1. Start julia and add Revise (this is necessary if Revise is imported in your `~/.julia/config/startup.jl`)
+## Updating Julia
+
+1. Use `juliaup update` to install the latest version of Julia
+
+1. Install FUSE to the new version of Julia
+
    ```julia
-   import Pkg
-   Pkg.add("Revise")
+   using Pkg
+   Pkg.add("FUSE")
    ```
 
-1. Remove all old `Manifest.toml` files in the FUSE and related packages (these files are specific to a given Julia version)
-   ```bash
-   cd FUSE
-   make rm_manifests
-   ```
-
-1. Install all FUSE dependencies and Jupyter
-   ```bash
-   cd FUSE
-   make install
-   make IJulia
-   ```
-
-# Install CHEASE
-```
-mamba install -c conda-forge gfortran
-git clone https://gitlab.epfl.ch/spc/chease.git
-cd chease/src-f90
-make chease
-```
-
-# Install GACODE
-1. Download and Install Xquartz: https://www.xquartz.org
-
-1. Download and Install Xcode version 14.3.1 or below: https://xcodereleases.com
-
-   This will have git: check with `git --version`.
-   Typing this will prompt installation of Xcode command line tools.
-
-1. Download and Install Macports: https://www.macports.org/install.php
-
-   !!! note
-       You will need to be on a secure wifi network for the macports installation to succeed
-
-1. Install `Emacs`, `gcc`, `mpich`, `fftw`, `netcdf`:
-   ```bash
-   sudo port install emacs +x11
-   sudo port install gcc12
-   sudo port select --set gcc mp-gcc12
-   sudo port install mpich-gcc12
-   sudo port select --set mpi mpich-gcc12-fortran
-   sudo port install openmpi-gcc12
-   sudo port install fftw-3
-   sudo port install fftw-3-long
-   sudo port install fftw-3-single
-   sudo port install netcdf
-   sudo port install netcdf-fortran
-   ```
-
-1. Clone gacode:
-   ```bash
-   git clone git@github.com:gafusion/gacode.git
-   ```
-
-1. Set-up gacode settings in `$HOME/.zshrc`:
-   ```bash
-   export GACODE_PLATFORM=OSX_MONTEREY
-   export GACODE_ROOT=$HOME/gacode
-   . ${GACODE_ROOT}/shared/bin/gacode_setup
-   ```
-
-   !!! note
-       You may need to replace `mpif90-openmpi-mp` with `mpif90-openmpi-gcc12` in `$GACODE_ROOT/platform/build/make.inc.OSX_MONTEREY`, and `mpirun-openmpi-mp` with `mpirun-openmpi-gcc12` in `$GACODE_ROOT/platform/exec/exec.OSX_MONTEREY`
-
-1. For Mac with Apple Silicon:
-   ```bash
-   conda install -c conda-forge micromamba
-   micromamba  install -c smithsp -c conda-forge gacode
-   ```
-
-1. Compile:
-   ```bash
-   cd $GACODE_ROOT
-   cd make
-   ```
-
-1. To test that the build is successful, you can run regression tests:
-   ```bash
-   neo -r
-   tglf -r
-   cgyro -g reg01
-   cgyro -e ./reg01
-   ```
+1. Run `fusebot install_IJulia` to install the Kernel for the latest version of Julia in Jupyter-Lab

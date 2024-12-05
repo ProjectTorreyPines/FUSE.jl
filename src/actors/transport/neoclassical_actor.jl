@@ -3,7 +3,7 @@ import NEO
 #= ================= =#
 #  ActorNeoclassical  #
 #= ================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -87,15 +87,15 @@ function _finalize(actor::ActorNeoclassical)
 
     if par.model == :changhinton
         model.identifier.name = "Chang-Hinton"
-        IMAS.flux_gacode_to_fuse([:ion_energy_flux], actor.flux_solutions, m1d, eqt, cp1d)
+        IMAS.flux_gacode_to_fuse((:ion_energy_flux,), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :neo
         model.identifier.name = "NEO"
-        IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux], actor.flux_solutions, m1d, eqt, cp1d)
+        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :hirshmansigmar
         model.identifier.name = "Hirshman-Sigmar"
-        IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux], actor.flux_solutions, m1d, eqt, cp1d)
+        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
     end
 
     return actor

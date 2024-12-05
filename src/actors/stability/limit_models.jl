@@ -21,12 +21,6 @@ function run_stability_models(dd::IMAS.dd, model_names::Vector{Symbol})
     end
 end
 
-##### SPECIAL CASES #####
-
-function force_fail(dd::IMAS.dd, model::IMAS.stability__model)
-    return error(raw"¯\_(ツ)_/¯") #I'll change this eventually
-end
-
 ##### MODEL COLLECTIONS #####
 
 function default_limits(dd::IMAS.dd)
@@ -160,8 +154,8 @@ Model formulation: `βn / li < C_{beta}`
 
 Citation:
 """
-function model_105(dd::IMAS.dd)
-    model = resize!(dd.stability.model, :model_105)
+function beta_model_105(dd::IMAS.dd)
+    model = resize!(dd.stability.model, :beta_model_105)
     model.identifier.name = "BetaLi::Troyon"
     model.identifier.description = "βn / Li < 4.0"
 
@@ -258,10 +252,3 @@ function κ_controllability(dd::IMAS.dd)
 
     @ddtime(model.fraction = model_value / target_value)
 end
-
-##### QUESTIONS #####
-# 2) Add actual links to references in the docstring?
-#    > How to do this? 
-#    > Can we clone the docstring to the id.description?
-# 4) Best way to handle inputs to keep compatability with function Dict?
-#    > new mutable struct? function params? 

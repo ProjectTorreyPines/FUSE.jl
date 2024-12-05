@@ -9,6 +9,9 @@ using Printf
 using InteractiveUtils
 import LinearAlgebra
 using StaticArrays
+import AbstractTrees: print_tree
+import ProgressMeter
+import Measurements: ±, Measurement
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -22,6 +25,7 @@ function __init__()
 end
 
 const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
+const deg = pi / 180 # convert degrees to radians
 
 #= ===== =#
 #  UTILS  #
@@ -36,6 +40,8 @@ include("parameters.jl")
 #= ===== =#
 #  CASES  #
 #= ===== =#
+include(joinpath("cases", "_toksys.jl"))
+include(joinpath("cases", "_test_cases.jl"))
 include(joinpath("cases", "_cases.jl"))
 
 #= ======= =#
@@ -54,6 +60,7 @@ include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
+include(joinpath("ddinit", "init_balance_of_plant.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
@@ -99,19 +106,24 @@ include(joinpath("actors", "hcd", "simple_common.jl"))
 include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
-include(joinpath("actors", "hcd", "nb_simple_actor.jl"))
+include(joinpath("actors", "hcd", "nbi", "nb_simple_actor.jl"))
 include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
+include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
+include(joinpath("actors", "hcd", "nbi", "nbi_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
+include(joinpath("actors", "pedestal", "EPED_actor.jl"))
+include(joinpath("actors", "pedestal", "WPED_actor.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
+include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
-include(joinpath("actors", "transport", "fixed_profiles_actor.jl"))
+include(joinpath("actors", "transport", "eped_profiles_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
@@ -127,7 +139,10 @@ include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
 
-include(joinpath("actors", "control", "controller_actor.jl"))
+include(joinpath("actors", "control", "ip_control.jl"))
+
+include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
+include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
 
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))
@@ -171,7 +186,8 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging
-export step, pulse, ramp, trap, gaus, beta
+export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, @findall
+export @checkin, @checkout
+export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

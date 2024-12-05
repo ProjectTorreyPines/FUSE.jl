@@ -1,4 +1,24 @@
-txt = [
+txt = []
+for method in methods(FUSE.case_parameters)
+    name = try
+        method.sig.types[2].parameters[1].parameters[1]
+    catch
+        continue
+    end
+    push!(txt,
+        """## $name
+
+        ```@docs
+        case_parameters(::Type{Val{:$name}})
+        ```
+        """
+    )
+end
+
+sort!(txt)
+
+pushfirst!(
+    txt,
     """# Use cases
 
 ```@meta
@@ -16,22 +36,8 @@ A handy way of generating the ini code from `your_ini` that you created in a not
     Click on the `Source` button of each use case to see how each is setup
 
 """
-]
-for method in methods(FUSE.case_parameters)
-    name = try
-        method.sig.types[2].parameters[1].parameters[1]
-    catch
-        continue
-    end
-    push!(txt,
-        """## $name
+)
 
-        ```@docs
-        case_parameters(::Type{Val{:$name}})
-        ```
-        """
-    )
-end
 open("$(@__DIR__)/cases.md", "w") do io
     return write(io, join(txt, "\n"))
 end

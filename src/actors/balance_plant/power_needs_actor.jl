@@ -1,7 +1,7 @@
 #= =============== =#
 #  ActorPowerNeeds  #
 #= =============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorPowerNeeds{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -33,7 +33,7 @@ Power needs actor that calculates the needed power to operate the plant
 Stores data in `dd.balance_of_plant.power_electric_plant_operation`
 """
 function ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act; kw...)
+    actor = ActorPowerNeeds(dd, act.ActorPowerNeeds; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -46,6 +46,9 @@ function _step(actor::ActorPowerNeeds)
     bop = dd.balance_of_plant
     bop_electric = bop.power_electric_plant_operation
     empty!(bop_electric)
+    if ismissing(bop, :time)
+        bop.time = [dd.global_time]
+    end
 
     ## heating and current drive systems
     system = :HCD

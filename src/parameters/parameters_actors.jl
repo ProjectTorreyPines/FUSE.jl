@@ -28,83 +28,29 @@ macro insert_constructor_members(T)
     return expr
 end
 
-mutable struct ParametersActorsPlasma{T<:Real} <: ParametersAllActors{T}
+mutable struct ParametersActors{T<:Real} <: ParametersAllActors{T}
     _parent::WeakRef
     _name::Symbol
-    @insert_subtype_members ParametersActorPlasma
+    @insert_subtype_members ParametersActor
 end
 
-function ParametersActorsPlasma{T}() where {T<:Real}
-    act = ParametersActorsPlasma{T}(
+function ParametersActors{T}() where {T<:Real}
+    act = ParametersActors{T}(
         WeakRef(nothing),
         :act,
-        (@insert_constructor_members ParametersActorPlasma)...
-    )
-    setup_parameters!(act)
-    return act
-end
-
-mutable struct ParametersActorsBuild{T<:Real} <: ParametersAllActors{T}
-    _parent::WeakRef
-    _name::Symbol
-    @insert_subtype_members ParametersActorPlasma
-    @insert_subtype_members ParametersActorBuild
-end
-
-function ParametersActorsBuild{T}() where {T<:Real}
-    act = ParametersActorsBuild{T}(
-        WeakRef(nothing),
-        :act,
-        (@insert_constructor_members ParametersActorPlasma)...,
-        (@insert_constructor_members ParametersActorBuild)...
+        (@insert_constructor_members ParametersActor)...
     )
     setup_parameters!(act)
     return act
 end
 
 function ParametersActors()
-    return ParametersActorsBuild{Float64}()
+    return ParametersActors{Float64}()
 end
 
-"""
-    act2json(act::ParametersAllActors, filename::AbstractString; kw...)
-
-Save the FUSE act parameters to a JSON file with given `filename`
-
-`kw` arguments are passed to the JSON.print function
-"""
-function act2json(act::ParametersAllActors, filename::AbstractString; kw...)
-    return SimulationParameters.par2json(act, filename; kw...)
-end
-
-"""
-    json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-
-Load the FUSE act parameters from a JSON file with given `filename`
-"""
-function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.json2par(filename, act)
-end
-
-"""
-    act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
-
-Save the FUSE parameters to a YAML file with given `filename`
-
-`kw` arguments are passed to the YAML.print function
-"""
-function act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
-    return SimulationParameters.par2yaml(act, filename; kw...)
-end
-
-"""
-    yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-
-Load the FUSE act parameters from a YAML file with given `filename`
-"""
-function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.yaml2par(filename, act)
-end
+############
+# act_common_parameters
+############
 
 """
     act_common_parameters(; kw...)
@@ -122,4 +68,66 @@ function act_common_parameters(; kw...)
     else
         error("There is no act_common_parameter for name = $name")
     end
+end
+
+###############
+# save / load #
+###############
+
+"""
+    act2json(act::ParametersAllActors, filename::AbstractString; kw...)
+
+Save the ACT act parameters to a JSON file with given `filename`
+
+`kw` arguments are passed to the JSON.print function
+"""
+function act2json(act::ParametersAllActors, filename::AbstractString; kw...)
+    return SimulationParameters.par2json(act, filename; kw...)
+end
+
+"""
+    json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+
+Load the ACT act parameters from a JSON file with given `filename`
+"""
+function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+    return SimulationParameters.json2par(filename, act)
+end
+
+"""
+    act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
+
+Save the ACT parameters to a YAML file with given `filename`
+
+`kw` arguments are passed to the YAML.print function
+"""
+function act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
+    return SimulationParameters.par2yaml(act, filename; kw...)
+end
+
+"""
+    yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+
+Load the ACT act parameters from a YAML file with given `filename`
+"""
+function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+    return SimulationParameters.yaml2par(filename, act)
+end
+
+"""
+    act2dict(act::ParametersAllInits; kw...)
+
+Convert the ACT parameters to a dictionary form
+"""
+function act2dict(act::ParametersAllActors; kw...)
+    return SimulationParameters.par2dict(act; kw...)
+end
+
+"""
+    dict2act(dict::AbstractDict, act::ParametersAllInits=ParametersActors())
+
+Convert dict to ACT parameters
+"""
+function dict2act(dict::AbstractDict, act::ParametersAllActors=ParametersActors())
+    return SimulationParameters.dict2par!(dict, act)
 end

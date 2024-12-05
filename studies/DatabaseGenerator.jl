@@ -7,7 +7,8 @@ import JSON
 """
     study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
-Generates a database of dds from ini and act based on ranges specified in ini
+Generates a database of dds from ini and act based on ranges specified in ini (i.e. ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0])
+There is a example notebook in FUSE_examples/study_database_generator.ipynb that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
@@ -19,7 +20,7 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorTGLF.warn_nn_train_bounds = false
     act.ActorFluxMatcher.evolve_rotation = :fixed
-    act.ActorFluxMatcher.evolve_densities = :flux_match
+
 
     # finalize 
     set_new_base!(sty)
@@ -46,15 +47,12 @@ mutable struct StudyDatabaseGenerator <: AbstractStudy
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{String},Missing}
-end
-
-function StudyDatabaseGenerator_summary_dataframe()
-    return DataFrame(; ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
+    workflow::Union{Function,Missing}
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = sty(kw...)
-    study = StudyDatabaseGenerator(sty, ini, act, missing, missing)
+    study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
     return setup(study)
 end
 
@@ -68,6 +66,11 @@ function _setup(study::StudyDatabaseGenerator)
     return study
 end
 
+"""
+    _run(study::StudyDatabaseGenerator)
+
+Runs the DatabaseGenerator with sty settings in parallel on designated cluster
+"""
 function _run(study::StudyDatabaseGenerator)
     sty = study.sty
 
@@ -103,6 +106,11 @@ function _run(study::StudyDatabaseGenerator)
     return study
 end
 
+"""
+    _analyze(study::StudyDatabaseGenerator)
+
+Example of analyze plots to display after the run feel free to change this method for your needs
+"""
 function _analyze(study::StudyDatabaseGenerator)
     display(histogram(study.dataframes_dict["outputs_summary"].Te0; xlabel="Te0 [eV]", legend=false))
     display(histogram(study.dataframes_dict["outputs_summary"].Ti0; xlabel="Ti0 [eV]", legend=false))
@@ -110,6 +118,11 @@ function _analyze(study::StudyDatabaseGenerator)
     return study
 end
 
+"""
+    run_case(study::AbstractStudy, item::String)
+
+Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
+"""
 function run_case(study::AbstractStudy, item::String)
     act = study.act
     sty = study.sty
@@ -119,7 +132,8 @@ function run_case(study::AbstractStudy, item::String)
         ini = rand(study.ini)
 
         dd = IMAS.dd()
-        workflow_DatabaseGenerator(dd, ini, act)
+        @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
+        study.workflow(dd, ini, act)
 
         if sty.save_dd
             IMAS.imas2json(dd, joinpath(sty.save_folder, "result_dd_$(item).json"))
@@ -130,27 +144,20 @@ function run_case(study::AbstractStudy, item::String)
 
         return create_data_frame_row_DatabaseGenerator(dd)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         open("$(sty.save_folder)/error_$(item).txt", "w") do file
             return showerror(file, e, catch_backtrace())
         end
     end
 end
 
-
-function workflow_DatabaseGenerator(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors)
-    # initialize
-    init(dd, ini, act)
-
-    # Actors to run on the input dd
-    actor_statplasma = ActorStationaryPlasma(dd, act)
-
-    # whatever other actors you want to run can go here
-
-    return actor_statplasma
-end
-
 function create_data_frame_row_DatabaseGenerator(dd::IMAS.dd)
     cp1d = dd.core_profiles.profiles_1d[]
-    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.ion[1].temperature[1], zeff=cp1d.zeff[1])
+    return (ne0=cp1d.electrons.density_thermal[1], Te0=cp1d.electrons.temperature[1], Ti0=cp1d.t_i_average[1], zeff=cp1d.zeff[1])
 end
 
+function StudyDatabaseGenerator_summary_dataframe()
+    return DataFrame(; ne0=Float64[], Te0=Float64[], Ti0=Float64[], zeff=Float64[])
+end

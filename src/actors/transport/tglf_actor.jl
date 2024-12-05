@@ -6,14 +6,18 @@ import TJLF: InputTJLF
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
-    user_specified_model::Entry{String} = Entry{String}("-", "Use a user specified TGLF-NN model stored in TGLFNN/models"; default="")
+    tglfnn_model::Entry{String} = Entry{String}(
+        "-",
+        "Use a user specified TGLF-NN model stored in TGLFNN/models";
+        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(TGLFNN.available_models(),"\"\n  \""))\""
+    )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
@@ -59,44 +63,22 @@ function _step(actor::ActorTGLF)
     par = actor.par
     dd = actor.dd
 
-    eq1d = dd.equilibrium.time_slice[].profiles_1d
-    cp1d = dd.core_profiles.profiles_1d[]
-    ix_eq = [argmin(abs.(eq1d.rho_tor_norm .- rho)) for rho in par.rho_transport]
-    ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
-
-
-    ϵ_st40 = 1 / 1.9
-    ϵ_D3D = 0.67 / 1.67
-
-    ϵ = dd.equilibrium.time_slice[].boundary.minor_radius / dd.equilibrium.time_slice[].boundary.geometric_axis.r
-    theta_0 = (0.7 - 0.2) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.2
-    theta_1 = (0.7 - 0.8) / (ϵ_D3D - ϵ_st40) * (ϵ - ϵ_st40) + 0.8
-    theta_trapped = range(theta_0, theta_1, length(cp1d.grid.rho_tor_norm))
-
-    for (k, gridpoint_cp) in enumerate(ix_cp)
-        input_tglf = InputTGLF(dd, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
+    input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions)
+    for k in eachindex(par.rho_transport)
+        input_tglf = input_tglfs[k]
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
-            if par.model == :TGLFNN
-                # TGLF-NN has some difficulty with the sign of rotation / shear
-                actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
-                actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
-            end
         elseif par.model == :TJLF
-            if !isassigned(actor.input_tglfs, k)
+            if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
                 nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
-                actor.input_tglfs[k].WIDTH_SPECTRUM .= 0.0
+                actor.input_tglfs[k].WIDTH_SPECTRUM .= 1.65
                 actor.input_tglfs[k].FIND_WIDTH = true # first case should find the widths
             end
             update_input_tjlf!(actor.input_tglfs[k], input_tglf)
         end
 
-        if ϵ > ϵ_D3D
-            actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
-        end
-
-        # Setting up the TJLF / TGLF run with the custom parameter mask (this overwrites all the above)
+        # Overwrite TGLF / TJLF parameters with the custom parameters mask
         if !ismissing(par, :custom_input_files)
             for field_name in fieldnames(typeof(actor.input_tglfs[k]))
                 if !ismissing(getproperty(par.custom_input_files[k], field_name))
@@ -108,11 +90,14 @@ function _step(actor::ActorTGLF)
 
     if par.model == :TGLFNN
         actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
+
     elseif par.model == :TGLF
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
+
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
-        actor.flux_solutions = [IMAS.flux_solution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
+        actor.flux_solutions =
+            [IMAS.flux_solution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
     end
 
     return actor
@@ -134,21 +119,19 @@ function _finalize(actor::ActorTGLF)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse([:ion_energy_flux, :electron_energy_flux, :electron_particle_flux, :momentum_flux], actor.flux_solutions, m1d, eqt, cp1d)
+    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end
 
 function model_filename(par::FUSEparameters__ActorTGLF)
-    if !isempty(par.user_specified_model)
-        filename = par.user_specified_model
+    if par.model == :TGLFNN
+        filename = par.tglfnn_model
     else
         filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
-        filename *= "_d3d" # will be changed to FPP soon
     end
     return filename
 end
-
 
 """
     update_input_tjlf!(input_tglf::InputTGLF)
@@ -214,29 +197,14 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     # for now settings
     input_tjlf.ALPHA_ZF = -1  # smooth   
 
-    TJLF.checkInput(input_tjlf)
     # check converison
-    field_names = fieldnames(InputTJLF)
-    for field_name in field_names
-        field_value = getfield(input_tjlf, field_name)
-
-        if typeof(field_value) <: Missing || typeof(field_value) <: Real
-            @assert !ismissing(field_value) || !isnan(field_value) "Did not properly populate input_tjlf for $field_name"
-        end
-
-        if typeof(field_value) <: Vector && field_name != :KY_SPECTRUM && field_name != :EIGEN_SPECTRUM && field_name != :EIGEN_SPECTRUM2
-            for val in field_value
-                @assert !isnan(val) "Did not properly populate input_tjlf for array $field_name"
-            end
-        end
-    end
+    TJLF.checkInput(input_tjlf)
 
     return input_tjlf
 end
 
-
-function Base.show(input::Union{InputTGLF,InputTJLF})
+function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF})
     for field_name in fieldnames(typeof(input))
-        println(" $field_name = $(getfield(input,field_name))")
+        println(io, " $field_name = $(getfield(input,field_name))")
     end
 end

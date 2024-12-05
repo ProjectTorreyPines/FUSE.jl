@@ -16,7 +16,7 @@ end
 #  materials cost  #
 #= ============== =#
 function unit_cost(material::Material, cst::IMAS.costing)
-    cost_per_unit_volume = material.cost_m3
+    cost_per_unit_volume = material.cost_m3 * material.manufacturing_multiplier / 1e6 # costs in $M/m^3
 
     if material.name == "rebco"
         production_increase = cst.future.learning.hts.production_increase
@@ -24,7 +24,7 @@ function unit_cost(material::Material, cst::IMAS.costing)
         cost_per_unit_volume = cost_per_unit_volume * cost_multiplier(production_increase, learning_rate)
     end
 
-    return cost_per_unit_volume / 1e6 # costs in $M/m^3
+    return cost_per_unit_volume
 end
 
 #= ====================== =#
@@ -37,10 +37,11 @@ function unit_cost(coil_tech::Union{IMAS.build__tf__technology,IMAS.build__oh__t
         fraction_cable = 1.0 - coil_tech.fraction_steel - coil_tech.fraction_void
         fraction_SC = fraction_cable * coil_tech.ratio_SC_to_copper / (1 + coil_tech.ratio_SC_to_copper)
         fraction_copper = fraction_cable - fraction_SC
-        return (
-            coil_tech.fraction_steel * unit_cost(Material(:steel), cst) + fraction_copper * unit_cost(Material(:copper), cst) +
+        cost =
+            coil_tech.fraction_steel * unit_cost(Material(:steel), cst) +
+            fraction_copper * unit_cost(Material(:copper), cst) +
             fraction_SC * unit_cost(Material(coil_tech.material), cst)
-        )
+        return cost
     end
 end
 
@@ -49,7 +50,7 @@ end
 #= ==================== =#
 mutable struct DollarAdjust
     future_inflation_rate::Real
-    construction_start_year::Int
+    construction_start_year::Real
     year_assessed::Union{Missing,Int}
     year::Union{Missing,Int}
 end
@@ -95,6 +96,11 @@ end
 Adjusts costs assessed in a previous year to current or future dollar amount
 """
 function future_dollars(dollars::Real, da::DollarAdjust)
+
+    if dollars == 0.0
+        return 0.0
+    end
+
     CPI = load_inflation_rate()
 
     # from old dollars to current dollars
@@ -193,5 +199,5 @@ function bop_powers(bop::IMAS.balance_of_plant)
         power_electric_net = max(0.0, maximum(x -> isnan(x) ? -Inf : x, bop.power_electric_net))
     end
 
-    return total_useful_heat_power, power_electric_generated, power_electric_net
+    return (total_useful_heat_power=total_useful_heat_power, power_electric_generated=power_electric_generated, power_electric_net=power_electric_net)
 end

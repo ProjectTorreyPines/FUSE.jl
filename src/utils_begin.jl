@@ -58,13 +58,6 @@ function unwrap(v, inplace=false)
     return unwrapped
 end
 
-function IMAS.force_float(x::ForwardDiff.Dual)
-    ## we purposly do not do it recursively since generally
-    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
-    # return force_float(x.value)
-    return x.value
-end
-
 """
     same_length_vectors(args...)
 
@@ -91,31 +84,6 @@ function same_length_vectors(args...)
     args = collect(map(x -> isa(x, Vector) ? x : [x], args))
     return args = map(x -> vcat([x for k in 1:n]...)[1:n], args)
 end
-
-"""
-    mirror_bound(x::T, l::T, u::T) where {T<:Real}
-
-Return tuple with value of x bounded between l and u
-The bounding is done by mirroring the value at the bound limits.
-"""
-function mirror_bound(x::T, l::T, u::T) where {T<:Real}
-    d = (u - l) / 2.0
-    c = (u + l) / 2.0
-    x0 = (x .- c) / d
-    while abs(x0) > 1.0
-        if x0 < 1.0
-            x0 = -2.0 - x0
-        else
-            x0 = 2.0 - x0
-        end
-    end
-    return x0 * d + c
-end
-
-# =========== #
-# Convex Hull #
-# =========== #
-import VacuumFields: convex_hull!, convex_hull
 
 # ======== #
 # TraceCAD #
@@ -183,7 +151,7 @@ end
 # parallel #
 # ======== #
 """
-    function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
+    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
 
 Start multiprocessing environment
 
@@ -204,7 +172,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                 nworkers = min(nworkers, nprocs_max)
             end
             np = nworkers + 1
-            gigamem_per_cpu = Int(round(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
@@ -222,6 +190,34 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             error("Not running on omega cluster")
         end
 
+    elseif cluster == "stellar"
+        if occursin("stellar", gethostname())
+            gigamem_per_node = 192
+            cpus_per_node = 96
+            if nworkers > 0
+                nodes = 4
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
+            end
+            np = nworkers + 1
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            ENV["JULIA_WORKER_TIMEOUT"] = "360"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="pppl-medium",
+                    exclusive="",
+                    topology=:master_worker,
+                    time="00:48:00",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
+                )
+            end
+        else
+            error("Not running on stellar cluster")
+        end
+
     elseif cluster == "saga"
         if occursin("saga", gethostname())
             gigamem_per_node = 192
@@ -232,7 +228,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                 nworkers = min(nworkers, nprocs_max)
             end
             np = nworkers + 1
-            gigamem_per_cpu = Int(round(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
@@ -293,3 +289,13 @@ function localhost_memory()
     end
     return mem_size
 end
+
+# ====== #
+# errors #
+# ====== #
+struct MissingExtensionError <: Exception
+    actor_name::String
+    package_name::String
+end
+
+Base.showerror(io::IO, e::MissingExtensionError) = print(io, "The FUSE actor $(e.actor_name) cannot be run because the Julia package $(e.package_name).jl is not loaded. Please load it to enable this feature.")

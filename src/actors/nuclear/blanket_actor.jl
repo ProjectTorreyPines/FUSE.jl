@@ -3,7 +3,7 @@ import NNeutronics
 #= ============ =#
 #  ActorBlanket  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -44,7 +44,8 @@ end
 function _step(actor::ActorBlanket)
     dd = actor.dd
     empty!(dd.blanket)
-    blankets = IMAS.get_build_layers(dd.build.layer, type=_blanket_, fs=_hfs_)
+    
+    blankets = IMAS.get_build_layers(dd.build.layer, type=_blanket_)
     if isempty(blankets)
         @warn "No blanket present for ActorBlanket to do anything"
         return actor
@@ -127,7 +128,7 @@ function _step(actor::ActorBlanket)
         end
 
         # identify first wall portion of the blanket module
-        tmp = convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
+        tmp = IMAS.convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
         index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(wall_r, wall_z)])
         istart = argmin(abs.(wall_z[index]))
         if IMAS.getindex_circular(wall_z[index], istart + 1) > wall_z[index][istart]

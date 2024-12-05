@@ -11,17 +11,20 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         if init_from == :ods
             if IMAS.hasdata(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
                 dd.core_profiles = deepcopy(dd1.core_profiles)
+
                 # also set the pedestal in summary IDS
-                if any([ismissing(getproperty(dd1.summary.local.pedestal, field), :value) for field  in (:n_e, :zeff, :t_e)])
+                if any([ismissing(getproperty(dd1.summary.local.pedestal, field), :value) for field in (:n_e, :zeff, :t_e)])
                     pe_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.pressure, dd.core_profiles.profiles_1d[].grid.psi_norm)
                     ped_summ = dd.summary.local.pedestal
                     cp1d = dd.core_profiles.profiles_1d[]
                     @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
                     if ismissing(getproperty(dd1.summary.local.pedestal.n_e, :value, missing))
-                        @ddtime ped_summ.n_e.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.density_thermal).(1 - w_ped)
+                        @ddtime ped_summ.n_e.value =
+                            IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.density_thermal).(1 - w_ped)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_e, :value, missing))
-                        @ddtime ped_summ.t_e.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.temperature).(1 - w_ped)
+                        @ddtime ped_summ.t_e.value =
+                            IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.temperature).(1 - w_ped)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_i_average, :value, missing))
                         @ddtime ped_summ.t_i_average.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].t_i_average).(1 - w_ped)
@@ -38,53 +41,72 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             end
         end
 
+        if ini.core_profiles.ne_setting in (:ne_ped, :greenwald_fraction_ped)
+            @assert act.ActorPedestal.density_match == :ne_ped "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_ped"
+        else
+            @assert act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line"
+        end
+
+        if !isempty(dd.equilibrium.time_slice)
+            equil = dd.equilibrium.time_slice[]
+        else
+            equil = ini.equilibrium
+        end
+
         if init_from == :scalars
-
-            # if ini.equilibrium.pressure_core is not set, then estimate from ini.requirements.power_electric_net
-            if ismissing(ini.equilibrium, :pressure_core) && !ismissing(ini.requirements, :power_electric_net)
-                Pfusion_estimate = ini.requirements.power_electric_net * 2.0
-                res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd, ini), 1e1, 1e7, Optim.GoldenSection())
-                ini.equilibrium.pressure_core = pressure_core = res.minimizer[1]
-                ActorCurrent(dd, act; ip_from=:pulse_schedule)
-                ActorEquilibrium(dd, act; ip_from=:core_profiles)
-            else
-                pressure_core = ini.equilibrium.pressure_core
-            end
-
             init_core_profiles!(
                 dd.core_profiles,
-                dd.equilibrium,
+                equil,
                 dd.summary;
-                greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
-                greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
-                ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
-                pressure_core,
-                helium_fraction = ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
-                ini.core_profiles.T_ratio,
-                ini.core_profiles.T_shaping,
-                ini.core_profiles.n_shaping,
+                ini.core_profiles.plasma_mode,
+                ini.core_profiles.ne_setting,
+                ini.core_profiles.ne_value,
+                ini.core_profiles.ne_sep_to_ped_ratio,
+                ini.core_profiles.ne_core_to_ped_ratio,
+                ini.core_profiles.ne_shaping,
+                pressure_core=getproperty(ini.equilibrium, :pressure_core, missing),
+                helium_fraction=ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
                 ini.core_profiles.w_ped,
                 ini.core_profiles.zeff,
-                ini.core_profiles.rot_core,
-                ini.core_profiles.ngrid,
                 ini.core_profiles.bulk,
                 ini.core_profiles.impurity,
+                ini.core_profiles.rot_core,
                 ejima=getproperty(ini.core_profiles, :ejima, missing),
-                ini.core_profiles.polarized_fuel_fraction)
+                ini.core_profiles.polarized_fuel_fraction,
+                ini.core_profiles.Ti_Te_ratio,
+                ini.core_profiles.Te_shaping,
+                ini.core_profiles.Te_sep,
+                Te_ped=getproperty(ini.core_profiles, :Te_ped, missing),
+                Te_core=getproperty(ini.core_profiles, :Te_core, missing),
+                ini.core_profiles.ngrid,
+                ITB_radius=getproperty(ini.core_profiles.ITB, :radius, missing),
+                ITB_ne_width=getproperty(ini.core_profiles.ITB, :ne_width, missing),
+                ITB_ne_height_ratio=getproperty(ini.core_profiles.ITB, :ne_height_ratio, missing),
+                ITB_Te_width=getproperty(ini.core_profiles.ITB, :Te_width, missing),
+                ITB_Te_height_ratio=getproperty(ini.core_profiles.ITB, :Te_height_ratio, missing)
+            )
         end
 
         return dd
     end
 end
 
+function cost_WPED_α(rho::AbstractVector{<:Real}, profile0::AbstractVector{<:Real}, α::Real, value::Real, rho_ped::Real)
+    profile = deepcopy(profile0)
+    return cost_WPED_α!(rho, profile, α, value, rho_ped)
+end
+
 function init_core_profiles!(
     cp::IMAS.core_profiles,
-    eq::IMAS.equilibrium,
+    equil::Union{IMAS.equilibrium__time_slice,FUSEparameters__equilibrium},
     summary::IMAS.summary;
-    greenwald_fraction::Union{Real,Missing},
-    greenwald_fraction_ped::Union{Real,Missing},
-    ne_ped::Union{Real,Missing},
-    pressure_core::Real,
+    plasma_mode::Symbol,
+    ne_setting::Symbol,
+    ne_value::Real,
+    ne_sep_to_ped_ratio::Real,
+    ne_core_to_ped_ratio::Real,
+    ne_shaping::Real,
+    pressure_core::Union{Real,Missing},
     helium_fraction::Real,
     w_ped::Real,
     zeff::Real,
@@ -93,32 +115,66 @@ function init_core_profiles!(
     rot_core::Real,
     ejima::Union{Real,Missing},
     polarized_fuel_fraction::Real,
-    T_ratio::Real=1.0,
-    T_shaping::Real=1.8,
-    n_shaping::Real=0.9,
-    ngrid::Int=101)
+    Ti_Te_ratio::Real,
+    Te_shaping::Real,
+    Te_sep::Real,
+    Te_ped::Union{Real,Missing},
+    Te_core::Union{Real,Missing},
+    ngrid::Int,
+    ITB_radius::Union{Real,Missing},
+    ITB_ne_width::Union{Real,Missing},
+    ITB_ne_height_ratio::Union{Real,Missing},
+    ITB_Te_width::Union{Real,Missing},
+    ITB_Te_height_ratio::Union{Real,Missing})
+
+    @assert 0.0 < ne_sep_to_ped_ratio < 1.0
+    @assert ne_core_to_ped_ratio > 1.0
+    @assert plasma_mode in (:H_mode, :L_mode)
+
+    if plasma_mode == :L_mode
+        ne_core_to_ped_ratio = 1.0 + 1.0 / w_ped * (1.0 - w_ped)
+    end
 
     cp1d = resize!(cp.profiles_1d)
-    eqt = eq.time_slice[]
 
+    # grid
     cp1d.grid.rho_tor_norm = range(0, 1, ngrid)
-    cp1d.zeff = ones(ngrid) .* zeff
-    cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8, rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
 
-    # Density handling
-    @assert !ismissing(ne_ped) || !ismissing(greenwald_fraction) || !ismissing(greenwald_fraction_ped) "At least one of ini.core_profiles ne_ped / greenwald_fraction_ped / greenwald_fraction must be set"
-    @assert !ismissing(ne_ped) ⊻ !ismissing(greenwald_fraction_ped) "One and only one of ini.core_profiles.ne_ped or ini.core_profiles.greenwald_fraction_ped must be set"
-    if ismissing(ne_ped)
-        ne_ped = greenwald_fraction_ped * IMAS.greenwald_density(eqt)
+    # Density
+    if plasma_mode == :H_mode
+        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped)
+    else
+        cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, 1.0, w_ped)
     end
-    if ismissing(greenwald_fraction)
-        # guess greewald fraction from ne_ped
-        ne0_guess = ne_ped * 1.4
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0_guess, ngrid, n_shaping, n_shaping, w_ped)
-        greenwald_fraction = IMAS.greenwald_fraction(eqt, cp1d)
+    if ne_setting == :ne_ped
+        ne_ped = ne_value
+    elseif ne_setting == :greenwald_fraction_ped
+        if typeof(equil) <: IMAS.equilibrium__time_slice
+            ne_ped = ne_value * IMAS.greenwald_density(equil)
+        else
+            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0)
+        end
+    elseif ne_setting == :ne_line
+        if typeof(equil) <: IMAS.equilibrium__time_slice
+            ne_ped = ne_value / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+        else
+            ne_ped = ne_value / trapz(range(0.0, 1.0, ngrid), cp1d.electrons.density_thermal)
+        end
+    elseif ne_setting == :greenwald_fraction
+        if typeof(equil) <: IMAS.equilibrium__time_slice
+            ne_ped = ne_value * IMAS.greenwald_density(equil) / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+        else
+            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0) / trapz(range(0.0, 1.0, ngrid), cp1d.electrons.density_thermal)
+        end
     end
+    cp1d.electrons.density_thermal .*= ne_ped
+    if ITB_radius !== missing
+        cp1d.electrons.density_thermal = IMAS.ITB_profile(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, ITB_radius, ITB_ne_width, ITB_ne_height_ratio)
+    end
+    ne_core = cp1d.electrons.density_thermal[1]
 
     # Set ions:
+    cp1d.zeff = ones(ngrid) .* zeff
     bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
     # 1. DT
     IMAS.ion_element!(bulk_ion, bulk)
@@ -128,24 +184,6 @@ function init_core_profiles!(
     # 3. He
     IMAS.ion_element!(he_ion, :He4)
 
-    # pedestal
-    @ddtime summary.local.pedestal.n_e.value = ne_ped
-    @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - w_ped
-    @ddtime summary.local.pedestal.zeff.value = zeff
-
-    # Set densities
-    function cost_greenwald_fraction(ne0)
-        ne0 = ne0[1]
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne0, ngrid, n_shaping, n_shaping, w_ped)
-        return (IMAS.greenwald_fraction(eqt, cp1d) - greenwald_fraction)^2
-    end
-    ne0_guess = ne_ped * 1.4
-    res = Optim.optimize(cost_greenwald_fraction, [ne0_guess], Optim.NelderMead(), Optim.Options(; g_tol=1E-4))
-    ne_core = res.minimizer[1]
-    if ne_core < ne_ped
-        @warn "The core density is lower than the pedestal density, lower the pedestal density (ini.core_profiles.ne_ped)"
-    end
-    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(0.5 * ne_ped, ne_ped, ne_core, ngrid, n_shaping, n_shaping, w_ped)
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
     niFraction = zeros(3)
     # DT == 1
@@ -157,24 +195,45 @@ function init_core_profiles!(
     niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
     @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
     ni_core = 0.0
-    for i in 1:length(cp1d.ion)
+    for i in eachindex(cp1d.ion)
         cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
         ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
     end
-
-    # Set temperatures
-    Te_core = pressure_core / (ni_core + ne_core) / IMAS.constants.e
-    Te_ped = sqrt(Te_core / 1000.0 / 3.0) * 1000.0
-    @ddtime summary.local.pedestal.t_e.value = Te_ped
-
-    cp1d.electrons.temperature = IMAS.Hmode_profiles(80.0, Te_ped, Te_core, ngrid, T_shaping, T_shaping, w_ped)
-    for i in 1:length(cp1d.ion)
-        cp1d.ion[i].temperature = cp1d.electrons.temperature .* T_ratio
-    end
-
     # remove He if not present
     if sum(niFraction[3]) == 0.0
         deleteat!(cp1d.ion, 3)
+    end
+
+    # temperatures
+    if Te_core === missing
+        Te_core = pressure_core / (Ti_Te_ratio * ni_core + ne_core) / IMAS.mks.e
+    end
+    if Te_ped === missing
+        Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
+    end
+    if plasma_mode == :H_mode
+        cp1d.electrons.temperature = IMAS.Hmode_profiles(Te_sep, Te_ped, Te_core, ngrid, Te_shaping, Te_shaping, w_ped)
+    else
+        cp1d.electrons.temperature = IMAS.Lmode_profiles(Te_sep, Te_ped, Te_core, ngrid, Te_shaping, 1.0, w_ped)
+    end
+    if ITB_radius !== missing
+        cp1d.electrons.temperature = IMAS.ITB_profile(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, ITB_radius, ITB_Te_width, ITB_Te_height_ratio)
+    end
+    for i in eachindex(cp1d.ion)
+        cp1d.ion[i].temperature = cp1d.electrons.temperature .* Ti_Te_ratio
+    end
+
+    # pedestal
+    @ddtime summary.local.pedestal.n_e.value = ne_ped
+    @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - w_ped
+    @ddtime summary.local.pedestal.zeff.value = zeff
+    @ddtime summary.local.pedestal.t_e.value = Te_ped
+
+    # rotation
+    if plasma_mode == :H_mode
+        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
+    else
+        cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
     end
 
     # ejima
@@ -185,29 +244,4 @@ function init_core_profiles!(
     # set spin polarization
     cp.global_quantities.polarized_fuel_fraction = polarized_fuel_fraction
     return cp
-end
-
-
-function cost_Pfusion_p0(p::Real, target_pfus::Real, dd::IMAS.dd, ini::ParametersAllInits)
-    init_core_profiles!(
-        dd.core_profiles,
-        dd.equilibrium,
-        dd.summary;
-        greenwald_fraction=getproperty(ini.core_profiles, :greenwald_fraction, missing),
-        greenwald_fraction_ped=getproperty(ini.core_profiles, :greenwald_fraction_ped, missing),
-        ne_ped=getproperty(ini.core_profiles, :ne_ped, missing),
-        pressure_core=p,
-        helium_fraction=ini.core_profiles.helium_fraction,
-        T_ratio=ini.core_profiles.T_ratio,
-        T_shaping=ini.core_profiles.T_shaping,
-        n_shaping=ini.core_profiles.n_shaping,
-        w_ped=ini.core_profiles.w_ped,
-        zeff=ini.core_profiles.zeff,
-        rot_core=ini.core_profiles.rot_core,
-        ngrid=ini.core_profiles.ngrid,
-        bulk=ini.core_profiles.bulk,
-        impurity=ini.core_profiles.impurity,
-        ejima=getproperty(ini.core_profiles, :ejima, missing),
-        polarized_fuel_fraction=ini.core_profiles.polarized_fuel_fraction)
-    return abs(IMAS.fusion_power(dd.core_profiles.profiles_1d[]) - target_pfus)
 end

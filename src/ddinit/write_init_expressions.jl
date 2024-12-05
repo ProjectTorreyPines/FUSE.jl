@@ -1,3 +1,5 @@
+import JSON
+
 """
     init_expressions(; save::Bool=false)
 
@@ -5,7 +7,7 @@ Returns the set of ulocations that always have expressions after running init, f
 """
 function init_expressions(; save::Bool=false)
     all_expr_fields = Vector{OrderedCollections.OrderedSet{String}}()
-    for (testname, (args, kw)) in FUSE.test_cases
+    for (testname, (args, kw)) in test_cases
         @info ("init primary quantities of $testname")
         ini, act = case_parameters(args...; kw...)
         dd = IMAS.dd()
@@ -16,7 +18,7 @@ function init_expressions(; save::Bool=false)
         push!(all_expr_fields, expr_fields)
     end
     if save
-        json_str = IMAS.IMASDD.JSON.json(sort!(intersect(all_expr_fields...)), 4)
+        json_str = JSON.json(sort!(intersect(all_expr_fields...)), 4)
         open(joinpath(__FUSE__, "src", "ddinit", "init_expressions.json"), "w") do file
             return write(file, json_str)
         end
@@ -31,7 +33,7 @@ Returns the intersection of initializing for all cases as a OrderedSet
 """
 function load_init_expressions()
     json_str = read(joinpath(__FUSE__, "src", "ddinit", "init_expressions.json"), String)
-    return OrderedCollections.OrderedSet(IMAS.IMASDD.JSON.parse(json_str))
+    return OrderedCollections.OrderedSet(JSON.parse(json_str))
 end
 
 """
@@ -42,7 +44,7 @@ Turn into expressions Make fields that FUSE expects to be expressions after init
 function restore_init_expressions!(dd::IMAS.dd; verbose::Bool)
     restored_expressions = Set()
     for ulocation in load_init_expressions()
-        restored = IMAS.IMASDD.selective_delete!(dd, IMAS.i2p(ulocation))
+        restored = IMAS.selective_delete!(dd, IMAS.i2p(ulocation))
         if restored
             push!(restored_expressions, ulocation)
         end

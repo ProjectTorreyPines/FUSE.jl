@@ -1,12 +1,10 @@
 #= =================== =#
 #  ActorBalanceOfPlant  #
 #= =================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: ParametersActorBuild{T}
+Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    generator_conversion_efficiency::Entry{T} = Entry{T}("-", "Efficiency of the generator"; default=0.95) #  Appl. Therm. Eng. 76 (2015) 123–133, https://doi.org/10.1016/j.applthermaleng.2014.10.093
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
@@ -38,21 +36,24 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     # set the time
     @ddtime(dd.balance_of_plant.time = dd.global_time)
 
-    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant)
+    # set the heat sources
+    bop = dd.balance_of_plant
+    breeder_heat_load = isempty(dd.blanket.module) ? 0.0 : sum(bmod.time_slice[].power_thermal_extracted for bmod in dd.blanket.module)
+    @ddtime(bop.power_plant.heat_load.breeder = breeder_heat_load)
+    divertor_heat_load = isempty(dd.divertors.divertor) ? 0.0 : sum((@ddtime(div.power_incident.data)) for div in dd.divertors.divertor)
+    @ddtime(bop.power_plant.heat_load.divertor = divertor_heat_load)
+    wall_heat_load = abs(IMAS.radiation_losses(dd.core_sources))
+    @ddtime(bop.power_plant.heat_load.wall = wall_heat_load)
+    
+    # setup actors
+    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant, act)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
 end
 
 function _step(actor::ActorBalanceOfPlant)
-    dd = actor.dd
-    par = actor.par
-    bop = dd.balance_of_plant
-
-    bop_thermal = bop.power_plant
-    @ddtime(bop_thermal.generator_conversion_efficiency = par.generator_conversion_efficiency)
-
     finalize(step(actor.thermal_plant_actor))
     finalize(step(actor.power_needs_actor))
-
     return actor
 end
+

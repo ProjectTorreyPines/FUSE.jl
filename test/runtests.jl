@@ -1,7 +1,13 @@
+if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+    using Pkg
+    Pkg.add("ThermalSystemModels")
+    using ThermalSystemModels
+end
 using FUSE
 using Test
 
 @testset "warmup" begin
+    println("== warmup ==")
     for round in (1, 2)
         dd = IMAS.dd()
         FUSE.warmup(dd)

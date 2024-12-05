@@ -1,7 +1,7 @@
 #= ====== =#
 #  PELLET  #
 #= ====== =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T<:Real} <: ParametersActorPlasma{T}
+Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -93,5 +93,5 @@ end
 function pellet_density(species::String)
     material_density = Dict("DT" => 0.257, "D" => 0.2, "T" => 0.318, "C" => 3.3, "Ne" => 1.44)
     atomic_weigth = Dict("DT" => 2.515, "D" => 2.014, "T" => 3.016, "C" => 12.011, "Ne" => 20.183)
-    return material_density[species] * constants.avog / atomic_weigth[species] * 1E6
+    return material_density[species] * IMAS.mks.avog / atomic_weigth[species] * 1E6
 end
