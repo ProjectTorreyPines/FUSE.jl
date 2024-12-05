@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
+    neutral_model::Switch{Symbol} = Switch{Symbol}([:neucg, :none], "-", "Pellet source actor to run"; default=:neucg)
 end
 
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
@@ -20,6 +21,7 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     lh_actor::Union{Missing,ActorSimpleLH{D,P}}
     nb_actor::Union{Missing,ActorSimpleNB{D,P},ActorRABBIT{D,P}}
     pellet_actor::Union{Missing,ActorSimplePellet{D,P}}
+    neutral_actor::Union{Missing,ActorNeutralFueling{D,P}}
 end
 
 """
@@ -64,7 +66,12 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     else
         pellet_actor = missing
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
+    if par.neutral_model == :neucg
+        neutral_actor = ActorNeutralFueling(dd, act.ActorNeutralFueling)
+    else
+        neutral_actor = missing
+    end
+    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor,neutral_actor)
 end
 
 """
@@ -93,6 +100,9 @@ function _step(actor::ActorHCD)
     if actor.pellet_actor !== missing
         step(actor.pellet_actor)
     end
+    if actor.neutral_actor !== missing
+        step(actor.neutral_actor)
+    end
 
     return actor
 end
@@ -117,6 +127,9 @@ function _finalize(actor::ActorHCD)
     end
     if actor.pellet_actor !== missing
         finalize(actor.pellet_actor)
+    end
+    if actor.neutral_actor !== missing
+        finalize(actor.neutral_actor)
     end
     return actor
 end
