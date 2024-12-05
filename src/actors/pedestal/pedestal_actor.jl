@@ -109,7 +109,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
         # scale thermal densities to match desired line average
         ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-        ne_line_wanted = IMAS.n_e_line(dd.pulse_schedule)
+        ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
         factor = ne_line_wanted / ne_line
         cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
         for ion in cp1d.ion

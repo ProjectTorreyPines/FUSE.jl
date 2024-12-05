@@ -140,7 +140,7 @@ Based on derivations in Engineering Physics Note "EPNjal17dec17_gasc_pt5_tf_oh_p
 Returns radial, hoop, axial, and Von Mises stresses for TF, OH, and plug (Pascals)
 (optional) radial profiles of radial, hoop, axial, and Von Mises stresses for TF, OH, and plug (Pascals)
 
-The tokamak radial buid is :
+The tokamak radial build is :
 
 || plug or void (0 < r < R1) || coil 1 (R1 < r < R2) || coil 2 (R3 < r < R4) || ----> plasma center (r = R0)
 
@@ -240,11 +240,11 @@ function solve_1D_solid_mechanics!(
 
     # define forcing constraints on TF and OH coil
     if tf_nose
-        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tn_int^2)^2)
+        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (IMAS.mks.μ_0 * (R_tf_out^2 - R_tn_int^2)^2)
     else
-        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (constants.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
+        C_tf = 1.0 / embar_tf * 2 * (B0 * R0)^2 / (IMAS.mks.μ_0 * (R_tf_out^2 - R_tf_in^2)^2)
     end
-    C_oh = -1.0 / embar_oh * Bz_oh^2 / (constants.μ_0 * (R_oh_out - R_oh_in)^2)
+    C_oh = -1.0 / embar_oh * Bz_oh^2 / (IMAS.mks.μ_0 * (R_oh_out - R_oh_in)^2)
 
     # calculate centerlines, check radial build inputs for consistency
     cl_tf = 0.5 * (R_tf_out + R_tf_in)

@@ -93,12 +93,12 @@ function case_parameters(::Type{Val{:D3D}};
         ini.core_profiles.ne_setting = :greenwald_fraction_ped
         ini.core_profiles.ne_value = 0.75 * 0.75
         ini.core_profiles.ne_shaping = 0.9
-        ini.core_profiles.T_ratio = 1.0
-        ini.core_profiles.T_shaping = 1.8
+        ini.core_profiles.Te_shaping = 1.8
+        ini.core_profiles.Ti_Te_ratio = 1.0
         ini.core_profiles.zeff = 2.0
-        ini.core_profiles.rot_core = 5E3
         ini.core_profiles.bulk = :D
         ini.core_profiles.impurity = :C
+        ini.core_profiles.rot_core = 5E3
     end
 
     if isempty(ini.general.dd.core_profiles) || !scenario_sources

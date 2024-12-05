@@ -27,27 +27,26 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.equilibrium.B0 = -12.2
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 8.7e6
-    ini.equilibrium.pressure_core = 2.22e6
     ini.equilibrium.xpoints = :double
 
     # explicitly set thickness of 
     ini.build.n_first_wall_conformal_layers = 4
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
-    layers[:gap_OH] = 0.38
-    layers[:OH] = 0.30
+    layers[:gap_OH] = 0.43
+    layers[:OH] = 0.27
     layers[:hfs_TF] = 0.36
     layers[:hfs_gap_outer_wall_TF] = 0.01
     layers[:hfs_vacuum_vessel_outer] = 0.03
     layers[:hfs_gap_water] = 0.04
     layers[:hfs_vacuum_vessel_inner] = 0.03
-    layers[:hfs_first_wall] = 0.3
-    layers[:plasma] = 1.35
-    layers[:lfs_first_wall] = 0.3
+    layers[:hfs_first_wall] = 0.1
+    layers[:plasma] = 1.16
+    layers[:lfs_first_wall] = 0.2
     layers[:lfs_vacuum_vessel_inner] = 0.03
-    layers[:lfs_gap_water] = 0.12
+    layers[:lfs_gap_water] = 0.044
     layers[:lfs_vacuum_vessel_outer] = 0.03
-    layers[:lfs_gap_outer_wall_TF] = 0.4
-    layers[:lfs_TF] = 0.40
+    layers[:lfs_gap_outer_wall_TF] = 0.35
+    layers[:lfs_TF] = 0.68
     layers[:gap_cryostat] = 0.7
     layers[:cryostat] = 0.1
     ini.build.layers = layers
@@ -71,11 +70,12 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.37
-    ini.core_profiles.helium_fraction = 0.1
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_core = 20e3
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 1.5
+    ini.core_profiles.helium_fraction = 0.1
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne

@@ -199,7 +199,7 @@ function init_pf_active!(
             else
                 inner_layer = bd.layer[kl+1]
             end
-            hull = convex_hull(inner_layer.outline.r, inner_layer.outline.z; closed_polygon=true)
+            hull = IMAS.convex_hull(inner_layer.outline.r, inner_layer.outline.z; closed_polygon=true)
             rail0_r = [r for (r, z) in hull]
             rail0_z = [z for (r, z) in hull]
             if layer.side == Int(_out_)

@@ -677,7 +677,7 @@ function categorize_errors(
 
     # go through directories
     for dir in dirs
-        filename = joinpath([dir, "error.txt"])
+        filename = joinpath(dir, "error.txt")
         if !isfile(filename)
             continue
         end
@@ -983,30 +983,92 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
 end
 
 """
-    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    install_fusebot()
 
-This function installs the `fusebot` executable in a given folder,
-by default in the directory where the juliaup executable is located.
+Installs the `fusebot` executable in the directory where the `juliaup` executable is located
 """
-function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+function install_fusebot()
+    try
+        if Sys.iswindows()
+            folder = dirname(readchomp(`where juliaup`))
+        else
+            folder = dirname(readchomp(`which juliaup`))
+        end
+        return install_fusebot(folder)
+    catch e
+        error("error locating `juliaup` executable: $(string(e))\nPlease use `FUSE.install_fusebot(folder)` specifying a folder in your \$PATH")
+    end
+end
+
+"""
+    install_fusebot(folder::String)
+
+Installs the `fusebot` executable in a specified folder
+"""
+function install_fusebot(folder::String)
     fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
     target_path = joinpath(folder, "fusebot")
-    ptp_target_path = joinpath(folder, "ptp")
-
-    if !isfile(fusebot_path)
-        error("The `fusebot` executable does not exist in the FUSE directory!?")
-    end
-
+    @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
+    println("`fusebot` has been successfully installed: $target_path")
+end
 
-    if folder == dirname(readchomp(`which juliaup`))
-        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
-    else
-        println("`fusebot` has been successfully installed in folder: $folder")
-    end
+"""
+    compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
 
-    if isfile(ptp_target_path)
-        rm(ptp_target_path)
-        println("Old `ptp` has been successfully removed from folder: $folder")
+This function activates the `Manifest.toml` files for the provided directories and compares their dependencies. It identifies:
+
+  - **Added dependencies**: Packages present in the env2 environment but not in the working environment.
+  - **Removed dependencies**: Packages present in the working environment but not in the env2 environment.
+  - **Modified dependencies**: Packages that exist in both environments but differ in version.
+"""
+function compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
+    # Save the current active environment
+    original_env = Base.current_project()
+
+    try
+        # Activate the env2 environment and retrieve its dependencies
+        Pkg.activate(env2_dir)
+        env_env2 = Pkg.dependencies()
+
+        # Activate the working environment and retrieve its dependencies
+        Pkg.activate(env1_dir)
+        env_env1 = Pkg.dependencies()
+
+        # Compare dependencies
+        added = setdiff(keys(env_env2), keys(env_env1))
+        removed = setdiff(keys(env_env1), keys(env_env2))
+        modified = [uuid for uuid in intersect(keys(env_env1), keys(env_env2)) if env_env1[uuid] != env_env2[uuid]]
+
+        println("Added dependencies: ")
+        for uuid in added
+            package_pkg = env_env2[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Removed dependencies:")
+        for uuid in removed
+            package_pkg = env_env1[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Modified dependencies:")
+        for uuid in modified
+            env2_pkg = env_env2[uuid]
+            env1_pkg = env_env1[uuid]
+            env2_name = env2_pkg.name
+            env2_version = env2_pkg.version
+            env1_version = env1_pkg.version
+            println("    $env2_name: env2=$env2_version, env1=$env1_version")
+        end
+
+        return (added=added, removed=removed, modified=modified)
+    finally
+        # Restore the original environment
+        Pkg.activate(original_env)
     end
 end

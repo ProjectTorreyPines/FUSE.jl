@@ -55,13 +55,14 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.25
     ini.core_profiles.ne_shaping = 1.5
-    ini.core_profiles.T_ratio = 0.825
-    ini.core_profiles.T_shaping = 2.5
+    ini.core_profiles.Te_shaping = 2.5
+    ini.core_profiles.Te_sep = 100.0
+    ini.core_profiles.Ti_Te_ratio = 0.825
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.00
+    ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 6

@@ -52,7 +52,7 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     ζ::Entry{T} = Entry{T}("-", "Squareness of the plasma boundary [MXH -s2]"; default=0.0)
     𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary [MXH c1]"; default=0.0)
     twist::Entry{T} = Entry{T}("-", "Twist of the plasma boundary [MXH c2]"; default=0.0)
-    pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure"; check=x -> @assert x > 0.0 "must be: P > 0.0")
+    pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure (NOTE: `pressure_core` can be calculated from `ini.core_profiles.Te_core`)"; check=x -> @assert x > 0.0 "must be: P > 0.0")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the equilibrium grid"; default=129)
@@ -90,9 +90,11 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     ne_core_to_ped_ratio::Entry{T} =
         Entry{T}("-", "Ratio used to set the core density based on the pedestal density"; default=1.4, check=x -> @assert x > 0.0 "must be: ne_core_to_ped_ratio > 0.0")
     ne_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
-    T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
-    T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
+    Ti_Te_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: Ti_Te_ratio > 0.0")
+    Te_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     Te_sep::Entry{T} = Entry{T}("eV", "Separatrix temperature"; default=80.0, check=x -> @assert x > 0.0 "must be: Te_sep > 0.0")
+    Te_ped::Entry{T} = Entry{T}("eV", "Pedestal temperature"; check=x -> @assert x > 0.0 "must be: Te_ped > 0.0")
+    Te_core::Entry{T} = Entry{T}("eV", "Core temperature (NOTE: `Te_core` can be calculated from `ini.equilibrium.presssure_core`)"; check=x -> @assert x > 0.0 "must be: Te_core > 0.0")
     zeff::Entry{T} = Entry{T}("-", "Effective ion charge"; check=x -> @assert x >= 1.0 "must be: zeff > 1.0")
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
@@ -225,6 +227,7 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
     layers::ParametersVector{FUSEparameters__build_layer{T}} = ParametersVector{FUSEparameters__build_layer{T}}()
+    scale_layers_to_R0::Entry{Bool} = Entry{Bool}("-", "Scale layers thicknesses to center plasma equilibrium (R0) in vacuum vessel"; default=true)
     plasma_gap::Entry{T} =
         Entry{T}("-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1, check=x -> @assert x > 0.0 "must be: plasma_gap > 0.0")
     symmetric::Entry{Bool} = Entry{Bool}("-", "Is the build up-down symmetric")
