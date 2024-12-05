@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :auto], "-", "Pedestal model to use"; default=:EPED)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :auto, :none], "-", "Pedestal model to use"; default=:EPED)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
@@ -24,7 +24,8 @@ end
 mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPedestal{P}
-    ped_actor::Union{Nothing,ActorEPED{D,P},ActorWPED{D,P}}
+    ped_actor::Union{ActorNoOperation{D,P},ActorEPED{D,P},ActorWPED{D,P}}
+    none_actor::ActorNoOperation{D,P}
     eped_actor::ActorEPED{D,P}
     wped_actor::ActorWPED{D,P}
 end
@@ -46,13 +47,14 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     par = par(kw...)
     eped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.rho_nml, par.rho_ped)
     wped_actor = ActorWPED(dd, act.ActorWPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.rho_ped, par.do_plot)
-    return ActorPedestal(dd, par, nothing, eped_actor, wped_actor)
+    none_actor = ActorNoOperation(dd, act.ActorNoOperation)
+    return ActorPedestal(dd, par, none_actor, none_actor, eped_actor, wped_actor)
 end
 
 """
     _step(actor::ActorPedestal)
 
-Runs pedestal actor to evaluate pedestal width and height
+Runs actors to evaluate profiles at the edge of the plasma
 """
 function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
@@ -62,7 +64,9 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    if par.model == :EPED
+    if par.model == :none
+        actor.ped_actor = actor.none_actor
+    elseif par.model == :EPED
         actor.ped_actor = actor.eped_actor
         mode = :H_mode
     elseif par.model == :WPED
@@ -86,26 +90,43 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     if par.density_match == :ne_ped
         finalize(step(actor.ped_actor))
 
-    elseif par.ne_from == :pulse_schedule && par.density_match == :ne_line
-        actor.ped_actor.par.ne_ped_from = :core_profiles
-        finalize(step(actor.ped_actor))
+    elseif par.density_match == :ne_line
+        # NOTE: All pedestal actors take ne_ped as input
+        # Here we convert the desirred pulse_schedule ne_line to ne_ped
+        @assert par.ne_from == :pulse_schedule
 
-        summary_ped = dd.summary.local.pedestal
-        ne_initial = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, nothing)
-        ne_line_wanted = IMAS.n_e_line(dd.pulse_schedule)
-        function cost_ne_ped_from_nel(density_scale, ne_line_wanted)
-            @ddtime summary_ped.n_e.value = ne_initial * density_scale
+        # freeze pressures since they are input to the pedestal models
+        IMAS.refreeze!(cp1d, :pressure_thermal)
+        IMAS.refreeze!(cp1d, :pressure)
 
-            IMAS.blend_core_edge(mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
-
-            ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-            return ((ne_line - ne_line_wanted) / ne_line_wanted)^2
+        # run pedestal model on scaled density
+        if par.model != :none
+            actor.ped_actor.par.ne_ped_from = :core_profiles
         end
-        res = Optim.optimize(x -> cost_ne_ped_from_nel(x, ne_line_wanted), 0.01, 100, Optim.GoldenSection(); rel_tol=1E-3)
-        cost_ne_ped_from_nel(res.minimizer, ne_line_wanted)
+
+        # first run the pedestal model on the density as is
+        _finalize(_step(actor.ped_actor))
+
+        # scale thermal densities to match desired line average
+        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+        ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
+        factor = ne_line_wanted / ne_line
+        cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
+        for ion in cp1d.ion
+            ion.density_thermal = ion.density_thermal * factor
+        end
 
         finalize(step(actor.ped_actor))
-        actor.ped_actor.par.ne_ped_from = :pulse_schedule
+        if par.model != :none
+            actor.ped_actor.par.ne_ped_from = :pulse_schedule
+        end
+
+        # turn pressures back into expressions
+        IMAS.empty!(cp1d, :pressure_thermal)
+        IMAS.empty!(cp1d, :pressure)
+
+    else
+        error("act.ActorPedestal.density_match can be either one of [:ne_ped, :ne_line]")
     end
 
     return actor

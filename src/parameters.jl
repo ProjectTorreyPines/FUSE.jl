@@ -43,3 +43,7 @@ end
 function SimulationParameters.global_time(parameters::ParametersAllInits, time0::Float64)
     return parameters.time.simulation_start = time0
 end
+
+function Base.show(io::IO, ::MIME"text/plain", x::Tuple{Vararg{AbstractParameters}})
+    println(io, join(map(SimulationParameters.spath,x),", "))
+end

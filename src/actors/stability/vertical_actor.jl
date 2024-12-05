@@ -8,21 +8,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: Pa
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
+    model::Entry{Bool} = Entry{Bool}("-", "Tunr on/off model of vertical stability"; default=true)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
-mutable struct ActorVerticalStability{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorVerticalStability{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorVerticalStability{P}
+    act::ParametersAllActors{P}
     stability_margin::D
     normalized_growth_rate::D
-    passive_coils::Vector{VacuumFields.QuadCoil}
-    function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorVerticalStability)
-        par = par(kw...)
-        return new{D,P}(dd, par)
-    end
+    passive_coils::Vector{VacuumFields.MultiCoil}
 end
 
 """
@@ -31,11 +28,17 @@ end
 Compute vertical stability metrics
 """
 function ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorVerticalStability(kw...) # this makes a local copy of `act.ActorVerticalStability` and overrides it with keywords that the user may have passed
-    actor = ActorVerticalStability(dd, par) # instantiate the actor (see function below)
-    step(actor)                # run the actor
-    finalize(actor)            # finalize
+    par = act.ActorVerticalStability(kw...)
+    actor = ActorVerticalStability(dd, par, act)
+    step(actor)
+    finalize(actor)
     return actor
+end
+
+function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    logging_actor_init(ActorVerticalStability)
+    par = par(kw...)
+    return ActorVerticalStability(dd, par, act, D(NaN), D(NaN), VacuumFields.MultiCoil[])
 end
 
 """
@@ -44,47 +47,41 @@ end
 Compute vertical stability metrics
 """
 function _step(actor::ActorVerticalStability)
-    par = actor.par
     dd = actor.dd
-
-    bd = dd.build
-    eqt = dd.equilibrium.time_slice[]
-    Ip = eqt.global_quantities.ip
-    active_coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad)
+    par = actor.par
 
     # Defaults
     actor.stability_margin = NaN
     actor.normalized_growth_rate = NaN
 
-    if all(coil.current == 0.0 for coil in active_coils)
+    if !par.model
+        return actor
+    end
+
+    active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
+    if all(VacuumFields.current(coil) == 0.0 for coil in active_coils)
         @warn "Active coils have no current. Can't compute vertical stability metrics"
         return actor
     end
 
     # load passive structures from pf_passive
-    actor.passive_coils = VacuumFields.QuadCoil[]
-    for loop in dd.pf_passive.loop
-        for element in loop.element
-            @assert length(element.geometry.outline.r) == 4 "For the time being passive structures must be composed of quadrilateral elements"
-            passive_coil = VacuumFields.QuadCoil(element.geometry.outline.r, element.geometry.outline.z)
-            passive_coil.resistance = VacuumFields.resistance(passive_coil, loop.resistivity)
-            push!(actor.passive_coils, passive_coil)
-        end
-    end
+    actor.passive_coils = VacuumFields.MultiCoils(dd.pf_passive)
 
+    eqt = dd.equilibrium.time_slice[]
+    Ip = eqt.global_quantities.ip
     image = VacuumFields.Image(eqt)
     coils = vcat(active_coils, actor.passive_coils)
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
 
     for (k, coil) in enumerate(active_coils)
-        if coil.resistance <= 0.0
-            @warn "Active coil #$(k) has invalid resistance: $(coil.resistance). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
+        if VacuumFields.resistance(coil) <= 0.0
+            @warn "Active coil #$(k) has invalid resistance: $(VacuumFields.resistance(coil)). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
             return actor
         end
     end
     for (k, coil) in enumerate(actor.passive_coils)
-        if coil.resistance <= 0.0
-            @warn "Passive coil #$(k) has invalid resistance: $(coil.resistance). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
+        if VacuumFields.resistance(coil) <= 0.0
+            @warn "Passive coil #$(k) has invalid resistance: $(VacuumFields.resistance(coil)). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
             return actor
         end
     end

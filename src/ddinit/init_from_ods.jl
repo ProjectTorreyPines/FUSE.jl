@@ -10,34 +10,68 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
         dd1 = IMAS.dd()
 
     else
-        # ini.general.dd takes priority
-        if !ismissing(ini.general, :dd)
-            dd1 = ini.general.dd
-        else
-            dd1 = load_ods(ini)
-        end
+        # note that ini.general.dd takes priority over ini.general.ods
+        dd1 = load_ods(ini)
 
         # equilibrium
         eqt = nothing
         if !isempty(dd1.equilibrium.time_slice)
             eqt = dd1.equilibrium.time_slice[]
-            fw = IMAS.first_wall(dd1.wall)
-            IMAS.flux_surfaces(eqt, fw.r, fw.z)
-            if ismissing(ini.equilibrium, :R0) && !ismissing(dd1.equilibrium.vacuum_toroidal_field, :r0)
-                ini.equilibrium.R0 = dd1.equilibrium.vacuum_toroidal_field.r0
+            if !ismissing(dd1.equilibrium.time_slice[].boundary.outline, :r)
+                mxh = IMAS.MXH(dd1.equilibrium.time_slice[].boundary.outline.r, dd1.equilibrium.time_slice[].boundary.outline.z)
+            else
+                mxh = nothing
             end
             if ismissing(ini.equilibrium, :B0) && !ismissing(dd1.equilibrium.vacuum_toroidal_field, :b0)
                 ini.equilibrium.B0 = @ddtime dd1.equilibrium.vacuum_toroidal_field.b0
             end
-            if ismissing(ini.equilibrium, :ϵ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :minor_radius)
-                ini.equilibrium.ϵ = dd1.equilibrium.time_slice[].boundary.minor_radius / ini.equilibrium.R0
+            if ismissing(ini.equilibrium, :R0)
+                if mxh !== nothing
+                    ini.equilibrium.R0 = mxh.R0
+                elseif !ismissing(dd1.equilibrium.vacuum_toroidal_field, :r0)
+                    ini.equilibrium.R0 = dd1.equilibrium.vacuum_toroidal_field.r0
+                end
             end
-            if ismissing(ini.equilibrium, :κ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :elongation)
-                ini.equilibrium.κ = dd1.equilibrium.time_slice[].boundary.elongation
+            if ismissing(ini.equilibrium, :ϵ)
+                if mxh !== nothing
+                    ini.equilibrium.ϵ = mxh.ϵ
+                elseif !ismissing(dd1.equilibrium.time_slice[].boundary, :minor_radius)
+                    ini.equilibrium.ϵ = dd1.equilibrium.time_slice[].boundary.minor_radius / ini.equilibrium.R0
+                end
             end
-            if ismissing(ini.equilibrium, :δ) && !ismissing(dd1.equilibrium.time_slice[].boundary, :triangularity)
+            if ismissing(ini.equilibrium, :κ)
+                if mxh !== nothing
+                    ini.equilibrium.κ = mxh.κ
+                elseif !ismissing(dd1.equilibrium.time_slice[].boundary, :elongation)
+                    ini.equilibrium.κ = dd1.equilibrium.time_slice[].boundary.elongation
+                end
+            end
+            if mxh !== nothing
+                ini.equilibrium.tilt = mxh.tilt
+            elseif !ismissing(dd1.equilibrium.time_slice[].boundary, :tilt)
+                ini.equilibrium.tilt = dd1.equilibrium.time_slice[].boundary.tilt
+            end
+            if mxh !== nothing
+                ini.equilibrium.δ = mxh.δ
+            elseif !ismissing(dd1.equilibrium.time_slice[].boundary, :triangularity)
                 ini.equilibrium.δ = dd1.equilibrium.time_slice[].boundary.triangularity
             end
+            if mxh !== nothing
+                ini.equilibrium.ζ = mxh.ζ
+            elseif !ismissing(dd1.equilibrium.time_slice[].boundary, :squareness)
+                ini.equilibrium.ζ = dd1.equilibrium.time_slice[].boundary.squareness
+            end
+            if mxh !== nothing
+                ini.equilibrium.𝚶 = mxh.𝚶
+            elseif !ismissing(dd1.equilibrium.time_slice[].boundary, :ovality)
+                ini.equilibrium.𝚶 = dd1.equilibrium.time_slice[].boundary.ovality
+            end
+            if mxh !== nothing
+                ini.equilibrium.twist = mxh.twist
+            elseif !ismissing(dd1.equilibrium.time_slice[].boundary, :twist)
+                ini.equilibrium.twist = dd1.equilibrium.time_slice[].boundary.twist
+            end
+
             if ismissing(ini.equilibrium, :pressure_core) && !ismissing(eqt.profiles_1d, :pressure)
                 ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
             end
@@ -85,8 +119,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.core_profiles, :zeff)
                     ini.core_profiles.zeff = zeff_ped
                 end
-                if ismissing(ini.core_profiles, :T_ratio)
-                    ini.core_profiles.T_ratio = ti_ped / te_ped
+                if ismissing(ini.core_profiles, :Ti_Te_ratio)
+                    ini.core_profiles.Ti_Te_ratio = ti_ped / te_ped
                 end
             end
         end

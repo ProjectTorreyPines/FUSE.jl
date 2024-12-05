@@ -1,4 +1,4 @@
-import FuseUtils: trapz
+import IMASutils: trapz
 
 #= ========= =#
 #  functions  #
@@ -40,5 +40,6 @@ function shaped_source(
     if j_parallel !== missing
         j_parallel = gaussian_area .* j_parallel
     end
+
     return IMAS.new_source(source, index, name, rho_cp, volume_cp, area_cp; electrons_energy, total_ion_energy, electrons_particles, j_parallel, momentum_tor)
 end

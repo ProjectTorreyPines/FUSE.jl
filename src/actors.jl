@@ -112,7 +112,7 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
             enter_workflow(actor)
             try
                 s_actor = _step(actor, args...; kw...)
-                @assert s_actor === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
+                @assert s_actor === actor "`$(T)._step(actor)` should return the same actor that is input to the function"
             finally
                 exit_workflow(actor)
             end
@@ -145,7 +145,7 @@ function finalize(actor::T)::T where {T<:AbstractActor}
             memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
             f_actor = _finalize_and_freeze_onetime_expressions(actor)
-            @assert f_actor === actor "`$(typeof(T))._finalize(actor)` should return the same actor that is input to the function"
+            @assert f_actor === actor "`$(T)._finalize(actor)` should return the same actor that is input to the function"
             memory_time_tag(actor, "finalize OUT")
         end
     end

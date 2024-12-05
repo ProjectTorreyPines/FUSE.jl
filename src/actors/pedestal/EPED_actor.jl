@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
-    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width scaled by sqrt of this factor)"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -62,7 +62,7 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    sol = run_EPED(dd, actor.inputs, actor.epedmod; ne_from=par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+    sol = run_EPED(dd, actor.inputs, actor.epedmod; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
     if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
@@ -91,7 +91,7 @@ function _finalize(actor::ActorEPED)
     nival = actor.inputs.neped * 1e19 * (actor.inputs.zeffped - 1) / (zi^2 - zi)
     nval = actor.inputs.neped * 1e19 - zi * nival
     nsum = actor.inputs.neped * 1e19 + nval + nival
-    tped = (actor.pped * 1e6) / nsum / constants.e
+    tped = (actor.pped * 1e6) / nsum / IMAS.mks.e
 
     if par.T_ratio_pedestal == 0.0
         T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))
@@ -120,7 +120,7 @@ end
 
 function run_EPED(
     dd::IMAS.dd;
-    ne_from::Symbol,
+    ne_ped_from::Symbol,
     zeff_ped_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
@@ -129,7 +129,7 @@ function run_EPED(
 
     inputs = EPEDNN.InputEPED()
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return run_EPED(dd, inputs, epedmod; ne_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
+    return run_EPED(dd, inputs, epedmod; ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
 end
 
 """
@@ -150,7 +150,7 @@ function run_EPED(
     dd::IMAS.dd,
     eped_inputs::EPEDNN.InputEPED,
     epedmod::EPEDNN.EPED1NNmodel;
-    ne_from::Symbol,
+    ne_ped_from::Symbol,
     zeff_ped_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
@@ -165,7 +165,7 @@ function run_EPED(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing)
+    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_ped_from, nothing)
     zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from, nothing)
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)

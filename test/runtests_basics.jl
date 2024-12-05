@@ -30,34 +30,38 @@ end
     dd_old = dd = IMAS.dd()
     ini_old = ini = FUSE.ParametersInits()
 
-    # create checkpoint
-    chk = FUSE.Checkpoint()
+    # checkpoint empty
+    empty!(FUSE.checkpoint)
 
     # checkin
-    @checkin chk :test1 a b dd
+    @checkin :test1 a b dd
 
     a[1] = 100
 
-    @assert a[1] == 100
-    @assert a === a_old
-    @assert b[1] == 2
-    @assert b === b_old
-    @assert dd === dd_old
+    @test a[1] == 100
+    @test a === a_old
+    @test b[1] == 2
+    @test b === b_old
+    @test dd === dd_old
 
     # add to the same checking
-    @checkin chk :test1 ini
+    @checkin :test1 ini
 
     # partial checkout
-    @checkout chk :test1 a b
+    @checkout :test1 a b
 
-    @assert a[1] == 1
-    @assert a !== a_old
-    @assert b[1] == 2
-    @assert b !== b_old
+    @test a[1] == 1
+    @test a !== a_old
+    @test b[1] == 2
+    @test b !== b_old
 
     # partial checkout
-    @checkout chk :test1 dd ini
+    @checkout :test1 dd ini
 
-    @assert dd !== dd_old
-    @assert ini !== ini_old
+    @test dd !== dd_old
+    @test ini !== ini_old
+
+    # checkpoint empty
+    empty!(FUSE.checkpoint)
+    @assert isempty(FUSE.checkpoint)
 end

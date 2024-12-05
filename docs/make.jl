@@ -93,7 +93,7 @@ function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParame
     for leafRepr in AbstractTrees.Leaves(pars)
         leaf = leafRepr.value
         if typeof(leaf) <: SimulationParameters.ParametersVector
-            error("$(SimulationParameters.path(leaf)) has zero length, which prevents generation of documentation.")
+            error("$(SimulationParameters.spath(leaf)) has zero length, which prevents generation of documentation.")
         end
         if typeof(leaf) <: SimulationParameters.AbstractParameters
             continue
@@ -163,6 +163,11 @@ include("$(@__DIR__)/src/act_docs.jl")
 # =================== #
 include("$(@__DIR__)/src/cases_docs.jl")
 
+# ========================== #
+# generate dependencies page #
+# ========================== #
+include("$(@__DIR__)/src/deps.jl")
+
 # # ====================== #
 # # generate examples page #
 # # ====================== #
@@ -179,6 +184,7 @@ makedocs(;
     format=Documenter.HTML(;
         repolink="https://github.com/ProjectTorreyPines/FUSE.jl",
         prettyurls=false,
+        analytics="G-65D8V8C8VQ",
         sidebar_sitename=false,
         assets=["assets/favicon.ico"],
         size_threshold=nothing,
@@ -187,13 +193,13 @@ makedocs(;
     repo=Remotes.GitHub("ProjectTorreyPines", "FUSE.jl"),
     warnonly=true,
     pages=[
-        "Concepts" => "index.md",
-        "Lean" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
+        "Main" => "index.md",
+        "Learn" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md", "Publications" => "pubs.md"],
         "Use Cases" => "cases.md",
         "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
         "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"],
         "Data Structure" => "dd.md",
-        "Development" => "develop.md",
+        "Development" => ["deps.md", "develop.md"],
         "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
         "License" => ["License" => "license.md", "Notice" => "notice.md"]
     ]

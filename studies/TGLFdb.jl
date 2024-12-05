@@ -107,7 +107,7 @@ function _run(study::StudyTGLFdb)
         if !ismissing(getproperty(sty, :sat_rules, missing))
             act.ActorTGLF.sat_rule = item
         else
-            act.ActorTGLF.user_specified_model = item
+            act.ActorTGLF.tglfnn_model = item
         end
         act.ActorTGLF.lump_ions = sty.lump_ions
 

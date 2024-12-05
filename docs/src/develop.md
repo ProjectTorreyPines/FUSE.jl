@@ -1,25 +1,70 @@
-# Development
+# Contributing
 
-The FUSE project is built upon multiple Julia packages, many of which reside in the [https://github.com/ProjectTorreyPines](https://github.com/ProjectTorreyPines) organization on GitHub.
+FUSE is a collaborative project, and we welcome contributions from the community!
 
-## Managing Pull Requests on GitHub: A Collaborative Approach
+## Setting up a developer environment
 
-### Use branches and pull requests
+Follow these steps to set up your development environment for contributing to the FUSE codebase (or any other Julia package).
 
-The `master` branch of ProjectTorreyPines repositories is write-protected. This means that even with write permissions to the repository, you'll not be able to push to `master` directly. Instead, we handle updates – be it new features or bug fixes – through branches and Pull Requests (PRs).
+1. Install and configure Revise.jl
+
+   Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and see changes without restarting Julia. We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically load Revise in all Julia sessions. Run the following command:
+
+   ```bash
+   fusebot install_revise
+   ```
+
+   Restart your Julia sessions and Jupyter kernels to apply this change.
+
+2. By default, development packages are located in `~/.julia/dev`. Since accessing hidden folders like `~/.julia` can be cumbersome, you may find it helpful to create a symbolic link to this dev folder (you can name the link `~/julia_dev` or something more convenient):
+
+   ```bash
+   ln -s ~/.julia/dev ~/julia_dev
+   ```
+
+3. Instead of manually cloning repositories, we recommend using Julia's `Pkg` system. Here’s a quick guide:
+
+   ```julia
+   ] dev FUSE # clones the `master` branch of FUSE
+   ] dev FUSE\#feature_branch # clones a specific feature branch
+   ] dev FUSE@v1.2.3 # checks out a specific release version
+   ] free FUSE # stops development mode, reverting to standard usage
+   ] status # shows the status of all packages in use and development
+   ] up # upgrades all packages (note: manage `dev` packages manually)
+   ```
+
+   These commands work not only for FUSE but for any Julia package, including [packages that FUSE depends on](https://fuse.help/dev/deps.html).
+
+    Familiarize yourself with [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/), as this will be helpful when contributing to FUSE or other Julia projects.
+
+3. Once set up, you can open `~/julia_dev` in VS Code, make changes to the code, and immediately see the effects of your changes live in your Julia sessions and Jupyter notebooks (thanks to `Revise.jl`).
+
+## Git branches
+
+The `master` and `dev` branches of ProjectTorreyPines repositories are write-protected. This means that even with write permissions to the repository, you'll not be able to push to them directly. Instead, we handle updates – be it new features or bug fixes – through branches and Pull Requests (PRs).
+
+A crucial part of our PR process is **code review**. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
 
 !!! note
     When working on a new feature that involves changes to FUSE and other ProjectTorreyPines repositories, you'll want to use the same branch name across these repositories. For example, if you're working on a branch named `my_new_feature` in both FUSE and IMAS, regression testing will be performed using the `my_new_feature` branches for FUSE and IMAS, along with the `master` branch of the other `ProjectTorreyPines` repositories.
 
-### Code review
+## Add/modify entries in `dd`
 
-A crucial part of our PR process is code review. It is where your peers get to weigh in and ensure everything is up to standard before merging. When you create a PR, think about who on the team has the right expertise for the code you're working on, and assign them as reviewers. Their insights will not only help in maintaining code quality but also in catching any potential issues early. It is all about teamwork and making sure our code is the best it can be!
+The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package.
+See the documentation there to how add/modify entries in `dd`.
 
-## How to add/modify entries in `dd`
+## Write a new actor
 
-The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package. See the documentation there to how add/modify entries in `dd`.
+See the Jupyter [new actor tutorial](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/new_actor.ipynb)
 
-## How to write IMAS physics functions
+## Add/modify examples
+
+The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
+
+!!! note
+    When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
+
+## Write IMAS physics functions
 
 IMAS physics and engineering functions are structured in [IMAS.jl](https://github.com/ProjectTorreyPines/IMAS.jl) under `IMAS/src/physics`. These functions use or modify the datastructure (dd) in some way and are used to calculate certain quantities or fill the data structure.
 
@@ -41,137 +86,14 @@ end
 ```
 
 !!! convention
-    The documentation string is added to the specialized function `DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)` and the dispatch function `DT_fusion_source!(dd::IMAS.dd)` is added on top of the function
+    The documentation string is added to the specialized function `DT_fusion_source!(cs::IMAS.core_sources, cp::IMAS.core_profiles)` and the dispatch function `DT_fusion_source!(dd::IMAS.dd)` is added on above
 
-## How to add/modify entries in `ini` and `act`
+## Add/modify entries in `ini` and `act`
 
 The functinoality of the `ini` and `act` parameters is implemented in the [SimulationParameters.jl](https://github.com/ProjectTorreyPines/SimulationParameters.jl) package.
 
 * The `ini` parameters are all defined in the `FUSE/src/parameters_init.jl` file. Add/edit entries there.
 * The `act` parameters of each actor are defined where that actor is defined. Add/edit entries there.
-
-## How to write a new actor
-
-Actors are grouped into two main abstract types:
-
-```julia
-abstract type CompoundAbstractActor{D,P} <: AbstractActor{D,P} end
-abstract type SingleAbstractActor{D,P} <: AbstractActor{D,P} end
-```
-
-CompoundAbstractActors are for actors that compound multiple actors underneath and are initalized with ```ActorNAME(dd, par, act)``` while SingleAbstractActors are single actors initalized with ```ActorNAME(dd, par)```
-
-The definition of each FUSE actor follows a well defined pattern.
-**DO NOT** deviate from this pattern. This is important to ensure modularity and compostability of the actors.
-
-```julia
-# Definition of the `act` parameters relevant to the actor
-Base.@kwdef mutable struct FUSEparameters__ActorNAME{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    length::Entry{T} = Entry(T, "m", "Some decription") # it's ok not to have a default, it forces users to think about what a parameter should be
-    verbose::Entry{Bool} = Entry(Bool, "", "Some other decription"; default=true)
-    switch::Switch{Symbol} = Switch(Symbol, [:option_a, :option_b], "", "user can only select one of these"; default=:option_a)
-end
-
-# Defintion of the actor structure
-# NOTE: To be valid all actors must have `dd::IMAS.dd` and `par::FUSEparameters__ActorNAME`
-mutable struct ActorNAME <: ???AbstractActor
-    dd::IMAS.dd
-    par::FUSEparameters__ActorNAME  # Actors must carry with them the parameters they are run with
-    something_else::??? # Some actors may want to carry something else with them
-    # Inner constructor for the actor starting from `dd` and `par` (we generally refer to `par` as `act.ActorNAME`)
-    # NOTE: Computation should not happen here since in workflows it is normal to instantiate
-    #       an actor once `ActorNAME(dd, act.ActorNAME)` and then call `finalize(step(actor))` several times as needed.
-    function ActorNAME(dd::IMAS.dd, par::FUSEparameters__ActorNAME; kw...)
-        logging_actor_init(ActorNAME)
-        par = par(kw...)
-        return new(dd, par, something_else)
-    end
-end
-
-# Constructor with with `dd` and `act` as arguments will actually run the actor!
-# That's how users will mostly run this actor.
-# This does not change, and it's always the same for all actors
-"""
-    ActorNAME(dd::IMAS.dd, act::ParametersAllActors; kw...)
-
-What does this actor do...
-"""
-function ActorNAME(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorNAME(kw...) # this makes a local copy of `act.ActorNAME` and overrides it with keywords that the user may have passed
-    actor = ActorNAME(dd, par) # instantiate the actor (see function below)
-    step(actor)                # run the actor
-    finalize(actor)            # finalize
-    return actor
-end
-
-# define `_step` function for this actor (this is where most of the action occurs)
-# note the leading underscore (use the `_step()` and not `step()` for the FUSE logging system to work with your actor)
-# `_step()` should not take any argument besides the actor itself
-function _step(actor::ActorNAME)
-    ...
-    return actor # _step() should always return the actor
-end
-
-# define `_finalize` function for this actor (this is where typically data gets written in `dd` if that does happen already at the `step`)
-# note the leading underscore (use the `_finalize()` and not `finalize()` for the FUSE logging system to work with your actor)
-# `_finalize()` should not take any argument besides the actor itself
-function _finalize(actor::ActorNAME)
-    ...
-    return actor # _finalize() should always return the actor
-end
-```
-
-## How to add a new material 
-
-Material properties for supported fusion-relevant materials are stored in the [FusionMaterials.jl](https://github.com/ProjectTorreyPines/FusionMaterials.jl) package, specifically in `FusionMaterials/src/materials.jl`. Properties of each material can be accessed by calling the `Material` function with the material name as a symbol passed as the function argument. 
-
-To add a new material whose properties can be accessed in FUSE, first add a function to `materials.jl` called Material with the function argument being your material's name. In the body of the function, assign the material's name (as a string, all lowercase, and with any spaces filled by underscores), type (as a list containing each possible IMAS BuildLayerType the material could be assigned to), density (in `kg/m^3`) and unit cost (in US dollars per kilogram). Include a comment providing a link to the source from which the unit cost was taken. 
-
-Below is an example of a complete Material function for a non-superconductor material (more about superconductor materials below): 
-
-```julia 
-function Material(::Type{Val{:graphite}};)
-	mat = Material()
-	mat.name = "graphite" # string with no spaces
-	mat.type = [IMAS._wall_] # list of allowable layer types for this material
-	mat.density = 1.7e3 # in kg/m^3
-	mat.unit_cost = 1.3 # in US$/kg, include source as a comment # source: https://businessanalytiq.com/procurementanalytics/index/graphite-price-index/
-	return mat
-end
-```
-
-If the material is a superconductor that is meant to be assigned to magnet-type layers, additional characteristics need to be defined. First, add the relevant critical current density scaling for the chosen superconductor material as a function in `FusionMaterials/src/jcrit.jl`. Then, assign the technology parameters for the material (temperature, steel fraction, void fraction, and ratio of superconductor to copper) to their respective fields in coil_tech within the coil_technology function in `FUSE/src/technology.jl`. Finally, call the critical current density scaling function within the newly written Material function in `materials.jl` and assign the output critical current density and critical magnetic field to the material object. The coil_tech object should be passed as an argument to the Material function, along with the external B field, and used to calculate the critical current density and critical magnetic field. 
-
-Below is an example of a complete superconductor Material function: 
-
-```julia 
-function Material(::Type{Val{:rebco}}; coil_tech::Union{Missing, IMAS.build__pf_active__technology, IMAS.build__oh__technology, IMAS.build__tf__technology} = missing, Bext::Union{Real, Missing} = missing)
-	mat = Material()
-	mat.name = "rebco"
-	mat.type = [IMAS._tf_, IMAS._oh_]
-	mat.density = 6.3
-	mat.unit_cost = 7000
-
-	if !ismissing(coil_tech)
-		Jcrit_SC, Bext_Bcrit_ratio = ReBCO_Jcrit(Bext, coil_tech.thermal_strain + coil_tech.JxB_strain, coil_tech.temperature) # A/m^2
-		fc = fraction_conductor(coil_tech)
-		mat.critical_current_density = Jcrit_SC * fc
-		mat.critical_magnetic_field = Bext / Bext_Bcrit_ratio
-	end
-
-	return mat
-end
-```
-
-The function `ReBCO_Jcrit` is the critical current density function for this material. 
-
-You can then access the parameters of your material by calling the function you've created. For example, access the material's density anywhere in FUSE by calling: 
-
-```julia
-my_mat_density = Material(:my_mat).density
-```
 
 ## Profiling and writing fast Julia code
 
@@ -230,7 +152,7 @@ Let's now investigate where the issue is with the function that we have identifi
 * [Cthulhu](https://github.com/JuliaDebug/Cthulhu.jl): interactive static analyzer
   * `Cthulhu.@descend function()`
 
-## How to build the documentation
+## Build the documentation
 
 1. To build the documentation, in the `FUSE/docs` folder, start Julia then:
    ```julia
@@ -251,23 +173,7 @@ Let's now investigate where the issue is with the function that we have identifi
     [video recording of the first FUSE tutorial](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/FUSE_tutorial_1_6Jul22.mp4)
     ```
 
-## Examples
-
-The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
-
-!!! note
-    When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
-
-## Using Revise.jl
-
-Install [Revise.jl](https://github.com/timholy/Revise.jl) to modify code and use the changes without restarting Julia.
-We recommend adding `import Revise` to your `~/.julia/config/startup.jl` to automatically import Revise at the beginning of all Julia sessions. This can be done by running:
-
-```bash
-fusebot install_revise
-```
-
-## Development in VScode
+## Develop in VScode
 
 [VScode](https://code.visualstudio.com) is an excellent development environment for Julia.
 
@@ -298,7 +204,7 @@ FUSE uses the following VScode settings for formatting the Julia code:
 !!! note
     To format Julia you will need to install `Julia Language Support` under the extensions tab (`<Command> + <shift> + x`)
 
-## Tracking Julia precompilation
+## Track Julia precompilation
 
 To see what is precompiled at runtime, you can add a Julia kernel with the `trace-compile` option to Jupyter
 
@@ -313,7 +219,7 @@ Then select the `Julia tracecompile` in jupyter-lab
 !!! note
     If you want to remove jupyter kernels you don't use anymore you can list them first with ```jupyter kernelspec list``` and remove via ```jupyter kernelspec remove <your kernel>```
 
-## Running Julia within a Python environment
+## Run Julia within a Python environment
 
 This can be particularly useful for benchmarking FUSE physics against existing Python routines (eg. in OMFIT)
 

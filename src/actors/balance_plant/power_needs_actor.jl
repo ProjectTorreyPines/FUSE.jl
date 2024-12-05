@@ -33,7 +33,7 @@ Power needs actor that calculates the needed power to operate the plant
 Stores data in `dd.balance_of_plant.power_electric_plant_operation`
 """
 function ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorPowerNeeds(dd, act.ActorPowerNeeds, act; kw...)
+    actor = ActorPowerNeeds(dd, act.ActorPowerNeeds; kw...)
     step(actor)
     finalize(actor)
     return actor

@@ -1,12 +1,22 @@
 # # FUSE Introductory Tutorial
 
+# Download this tutorial from the [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/tutorial.ipynb)
+# 
+# -----------
+# 
+# **NOTE**: Julia is a Just In Time (JIT) programming language. The first time something is executed it will take longer because of the compilation process. Subsequent calls the the same code will be blazingly fast.
+# 
+# -----------
+# 
 # Import the necessary packages
 
 using Plots # for plotting
 using FUSE # this will also import IMAS in the current namespace
 
 # ## Starting from a use-case
+# 
 # FUSE comes with some predefined [use-cases](https://fuse.help/stable/cases.html), some of which are used for regression testing.
+# 
 # Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.
 
 FUSE.test_cases
@@ -24,14 +34,18 @@ ini.equilibrium.R0 = 6.5;
 
 act.ActorCoreTransport.model = :FluxMatcher;
 
-# Initialize the data dictionary (`dd`) using the 0D parameters
+# Initialize the data dictionary (`dd`) using the 0D parameters.
+# 
+# **NOTE:** `init()` does not return a self-consistent solution, just a plausible starting point to initialize our simulations!
 
-dd = FUSE.init(ini, act);
+dd = IMAS.dd() # an empty dd
+FUSE.init(dd, ini, act);
 
-# Using checkpoints to save and restore states (we'll use this later)
+# We can `@checkin` and `@checkout` variables with an associated tag.
+# 
+# This is handy to save and restore our progress (we'll use this later).
 
-chk = FUSE.Checkpoint()
-@checkin chk :init dd ini act
+@checkin :init dd ini act
 
 # ## Exploring the data dictionary
 # * FUSE stores data following the IMAS data schema.
@@ -47,7 +61,10 @@ dd.equilibrium.time_slice[2].boundary
 print_tree(dd.equilibrium.time_slice[2].boundary; maxdepth=1)
 
 # ## Plotting data from `dd`
-# FUSE provides Plots.jl recipes for visualizing data from `dd`, this means different plots are shown by calling the same `plot()` function on different items in the data structure.
+# FUSE uses `Plots.jl` recipes for visualizing data from `dd`.
+# 
+# This allows different plots to be shown when calling `plot()` on different items in the data structure.
+# 
 # Learn more about Plots.jl [here](https://docs.juliaplots.org)
 
 # For example plotting the equilibrium...
@@ -57,6 +74,10 @@ plot(dd.equilibrium)
 # ...or the core profiles
 
 plot(dd.core_profiles)
+
+# Whant to know what arguments can be passed? use `help_plot()` function
+
+help_plot(dd.equilibrium; core_profiles_overlay=true, psi_levels_in=21, psi_levels_out=5, show_secondary_separatrix=true, coordinate=:psi_norm)
 
 # These plots can be composed by calling `plot!()` instead of `plot()`
 
@@ -68,13 +89,21 @@ plot!(dd.pf_active)
 
 plot(dd.core_profiles.profiles_1d[1].pressure_thermal)
 
-# ...is different from plotting a field from the IDS
+# ...is different from plotting a field from the IDS (which plots the quantity against its coordinate and with units)
 
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)
 
 # Customizing plot attributes:
 
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label="", linewidth=2, color=:red, labelfontsize=25)
+
+# Use `findall(ids, r"...")` to search for certain fields. In Julia string starting with `r` are regular expressions.
+
+findall(dd, r"pressure")
+
+# `findall(ids, r"...")` can be combined with `plot()` to plot multiple fields
+
+plot(findall(dd, r"\.pressure"))
 
 # ## Working with time series
 
@@ -136,7 +165,7 @@ print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)
 
 # Here we restore the `:init` checkpoint that we had previously stored. Resetting any changes to `dd`, `ini`, and `act` that we did in the meantime.
 
-@checkout chk :init dd ini act
+@checkout :init dd ini act
 
 # Actors in FUSE can be executed by passing two arguments to them: `dd` and `act`.
 # Internally, actors can call other actors, creating workflows.
@@ -147,7 +176,7 @@ FUSE.ActorWholeFacility(dd, act);
 
 # Like before we can checkpoint results for later use
 
-@checkin chk :awf dd ini act
+@checkin :awf dd ini act
 
 # ## Running a custom workflow
 
@@ -156,7 +185,7 @@ FUSE.ActorWholeFacility(dd, act);
 
 # Let's start again from after the initialization stage
 
-@checkout chk :init dd ini act
+@checkout :init dd ini act
 
 # Let's start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape.
 # This will be important to ensure the stability of the `ActorStationaryPlasma` that we are going to run next.
@@ -222,7 +251,7 @@ plot(actor)
 
 # With information about both pf_active and pf_passive we can now evaluate vertical stability
 
-ActorVerticalStability(dd, act)
+FUSE.ActorVerticalStability(dd, act)
 IMAS.freeze(dd.mhd_linear)
 
 # The `ActorNeutronics` calculates the heat flux on the first wall
@@ -245,8 +274,8 @@ print_tree(IMAS.freeze(dd.divertors); maxdepth=4)
 
 # The `ActorBalanceOfPlant` calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle
 
-actor = FUSE.ActorBalanceOfPlant(dd, act);
-plot(actor)
+FUSE.ActorBalanceOfPlant(dd, act);
+IMAS.freeze(dd.balance_of_plant)
 
 # `ActorCosting` will break down the capital and operational costs
 
@@ -255,7 +284,7 @@ plot(dd.costing)
 
 # Let's checkpoint our results
 
-@checkin chk :manual dd ini act
+@checkin :manual dd ini act
 
 # ## Saving and loading data
 
@@ -286,4 +315,9 @@ FUSE.extract(dd)
 filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
 FUSE.digest(dd)#, filename)
 
+# ## More things
+
+# disable or enable printing of what actor is executed
+
+FUSE.actor_logging(dd, false) # or true
 
