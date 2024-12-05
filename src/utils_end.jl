@@ -983,32 +983,34 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
 end
 
 """
-    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    install_fusebot()
 
-This function installs the `fusebot` executable in a given folder,
-by default in the directory where the juliaup executable is located.
+Installs the `fusebot` executable in the directory where the `juliaup` executable is located
 """
-function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+function install_fusebot()
+    try
+        if Sys.iswindows()
+            folder = dirname(readchomp(`where juliaup`))
+        else
+            folder = dirname(readchomp(`which juliaup`))
+        end
+        return install_fusebot(folder)
+    catch e
+        error("error locating `juliaup` executable: $(string(e))\nPlease use `FUSE.install_fusebot(folder)` specifying a folder in your \$PATH")
+    end
+end
+
+"""
+    install_fusebot(folder::String)
+
+Installs the `fusebot` executable in a specified folder
+"""
+function install_fusebot(folder::String)
     fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
     target_path = joinpath(folder, "fusebot")
-    ptp_target_path = joinpath(folder, "ptp")
-
-    if !isfile(fusebot_path)
-        error("The `fusebot` executable does not exist in the FUSE directory!?")
-    end
-
+    @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
-
-    if folder == dirname(readchomp(`which juliaup`))
-        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
-    else
-        println("`fusebot` has been successfully installed in folder: $folder")
-    end
-
-    if isfile(ptp_target_path)
-        rm(ptp_target_path)
-        println("Old `ptp` has been successfully removed from folder: $folder")
-    end
+    println("`fusebot` has been successfully installed: $target_path")
 end
 
 """
