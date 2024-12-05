@@ -57,27 +57,11 @@ function _step(actor::ActorFRESCO)
     eqt = dd.equilibrium.time_slice[]
     eqt1d = eqt.profiles_1d
 
-    # Ip_target = eqt.global_quantities.ip
-    # if par.fixed_grid === :poloidal
-    #     rho = sqrt.(eqt1d.psi_norm)
-    #     rho[1] = 0.0
-    #     P = (FRESCO.FE(rho, eqt1d.pressure), :poloidal)
-    #     # don't allow current to change sign
-    #     Jt = (FRESCO.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eqt1d.j_tor]), :poloidal)
-    #     Pbnd = eqt1d.pressure[end]
-    # elseif par.fixed_grid === :toroidal
-    #     rho = eqt1d.rho_tor_norm
-    #     P = (FRESCO.FE(rho, eqt1d.pressure), :toroidal)
-    #     # don't allow current to change sign
-    #     Jt = (FRESCO.FE(rho, [sign(j) == sign(Ip_target) ? j : 0.0 for j in eqt1d.j_tor]), :toroidal)
-    #     Pbnd = eqt1d.pressure[end]
-    # end
-
-    gpp = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi, :cubic)
-    gffp = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi, :cubic)
-    profile = FRESCO.PprimeFFprime(x -> gpp(x), x -> gffp(x))
-
     actor.canvas = FRESCO.Canvas(dd, par.nR, par.nZ)
+
+    pressure = IMAS.IMASdd.DataInterpolations.CubicSpline(eqt1d.pressure, eqt1d.psi_norm; extrapolate=true)
+    JtoR = IMAS.IMASdd.DataInterpolations.CubicSpline(eqt1d.j_tor .* eqt1d.gm9, eqt1d.psi_norm; extrapolate=true)
+    profile = FRESCO.PressureJtoR(pressure, JtoR)
 
     FRESCO.solve!(actor.canvas, profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
