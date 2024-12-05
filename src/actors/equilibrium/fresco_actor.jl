@@ -65,11 +65,7 @@ function _step(actor::ActorFRESCO)
 
     FRESCO.solve!(actor.canvas, profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
-    # using Plots
-    # p1 = Plots.heatmap(Rs, Zs, psi', aspect_ratio=:equal, xrange=(0,12.5), yrange=(-9,9), size=(400,500))
-    # Plots.plot!(p1, coils, label=nothing)
-    # Plots.contour!(p1, Rs, Zs, psi', levels=[C.Ψbnd], color=:white)
-    # display(p1)
+    # display(plot(actor.canvas))
 
     return actor
 end
