@@ -1,6 +1,4 @@
-using JSON
 using ProgressMeter
-using CSV
 
 #= ====================== =#
 #  StudyDatabaseGenerator  #
@@ -184,6 +182,17 @@ function run_case(study::AbstractStudy, item::Int)
 
         # save empty dd and error to directory
         save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
+        
+        # return empty parameter list
+        out = extract(IMAS.dd())
+        list = Vector{}()
+        # first list element is the runID
+        push!(list, item)
+        for key in out.keys
+            push!(list, out[key].value)
+        end     
+        return list
+
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
