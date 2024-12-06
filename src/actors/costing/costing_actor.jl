@@ -46,6 +46,7 @@ function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::Param
     empty!(dd.costing)
 
     ddR = IMAS.get_timeslice(Measurement{Float64}, dd)
+    copy_workflow!(ddR, dd) # to let FUSE continue tracking the execution workflow on ddR
 
     ddR.costing.construction_start_year = act.ActorCosting.construction_start_year
     ddR.costing.future.inflation_rate = act.ActorCosting.future_inflation_rate
