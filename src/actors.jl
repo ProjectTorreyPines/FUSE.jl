@@ -172,7 +172,7 @@ end
 #= ============= =#
 #  actor_logging  #
 #= ============= =#
-function actor_logging(dd::IMAS.dd)
+function actor_logging(dd::IMAS.DD)
     aux = getfield(dd, :_aux)
     if :fuse_actor_logging ∉ keys(aux)
         aux[:fuse_actor_logging] = true
@@ -180,7 +180,7 @@ function actor_logging(dd::IMAS.dd)
     return aux[:fuse_actor_logging]
 end
 
-function actor_logging(dd::IMAS.dd, value::Bool)
+function actor_logging(dd::IMAS.DD, value::Bool)
     aux = getfield(dd, :_aux)
     old_value = actor_logging(dd)
     aux[:fuse_actor_logging] = value
@@ -219,14 +219,14 @@ end
 
 function enter_workflow(actor::AbstractActor)
     aux = _aux_workflow(actor.dd)
-    h = goto_worflow_depth(aux[:fuse_workflow], aux[:fuse_workflow_depth])
-    aux[:fuse_workflow_count] += 1
-    aux[:fuse_workflow_depth] += 1
-    return h[(name(actor), aux[:fuse_workflow_count])] = Workflow(name(actor))
+    h = goto_worflow_depth(aux[:fuse_workflow], aux[:fuse_workflow_depth][1])
+    aux[:fuse_workflow_count][1] += 1
+    aux[:fuse_workflow_depth][1] += 1
+    return h[(name(actor), aux[:fuse_workflow_count][1])] = Workflow(name(actor))
 end
 
 function exit_workflow(actor::AbstractActor)
-    return _aux_workflow(actor.dd)[:fuse_workflow_depth] -= 1
+    return _aux_workflow(actor.dd)[:fuse_workflow_depth][1] -= 1
 end
 
 function goto_worflow_depth(workflow::Workflow, depth::Int)
@@ -237,20 +237,35 @@ function goto_worflow_depth(workflow::Workflow, depth::Int)
     return h
 end
 
-function workflow_depth(dd::IMAS.dd)
-    return _aux_workflow(dd)[:fuse_workflow_depth]
+function workflow_depth(dd::IMAS.DD)
+    return _aux_workflow(dd)[:fuse_workflow_depth][1]
 end
 
-function workflow(dd::IMAS.dd)
+function workflow(dd::IMAS.DD)
     return _aux_workflow(dd)[:fuse_workflow]
 end
 
-function _aux_workflow(dd::IMAS.dd)
+function _aux_workflow(dd::IMAS.DD)
     aux = getfield(dd, :_aux)
     if :fuse_workflow ∉ keys(aux)
         aux[:fuse_workflow] = Workflow("Main")
-        aux[:fuse_workflow_depth] = 0
-        aux[:fuse_workflow_count] = 0
+        aux[:fuse_workflow_depth] = [0]
+        aux[:fuse_workflow_count] = [0]
     end
     return aux
+end
+
+"""
+    copy_workflow!(dd_out::IMAS.DD, dd_in::IMAS.DD)
+
+Copy (:fuse_workflow, :fuse_workflow_depth, :fuse_workflow_count, :fuse_actor_logging) from `dd_in` to `dd_out`
+
+This is useful when continuing the execution of a FUSE workflow on different dd's
+"""
+function copy_workflow!(dd_out::IMAS.DD, dd_in::IMAS.DD)
+    for item in (:fuse_workflow, :fuse_workflow_depth, :fuse_workflow_count, :fuse_actor_logging)
+        if item in keys(getfield(dd_in, :_aux))
+            getfield(dd_out, :_aux)[item] = getfield(dd_in, :_aux)[item]
+        end
+    end
 end

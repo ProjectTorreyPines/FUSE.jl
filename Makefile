@@ -16,7 +16,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TroyonBetaNN VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
 ifndef NO_FUSE_EXTENSION
 	FUSE_PACKAGES_MAKEFILE := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
@@ -69,52 +69,19 @@ help: header help_info
 ADAS:
 	$(call clone_pull_repo,$@)
 
-FUSE:
+BalanceOfPlantSurrogate:
+	$(call clone_pull_repo$@)
+
+BoundaryPlasmaModels:
 	$(call clone_pull_repo,$@)
 
-IMAS:
-	$(call clone_pull_repo,$@)
-
-IMASdd:
+CHEASE:
 	$(call clone_pull_repo,$@)
 
 CoordinateConventions:
 	$(call clone_pull_repo,$@)
 
-MillerExtendedHarmonic:
-	$(call clone_pull_repo,$@)
-
-IMASutils:
-	$(call clone_pull_repo,$@)
-
-FuseUtils:
-	$(call clone_pull_repo,$@)
-
-FusionMaterials:
-	$(call clone_pull_repo,$@)
-
-FuseExchangeProtocol:
-	$(call clone_pull_repo,$@)
-
-VacuumFields:
-	$(call clone_pull_repo,$@)
-
-MXHEquilibrium:
-	$(call clone_pull_repo,$@)
-
-MeshTools:
-	$(call clone_pull_repo,$@)
-
-TGLFNN:
-	$(call clone_pull_repo,$@)
-
-TJLF:
-	$(call clone_pull_repo,$@)
-
 EPEDNN:
-	$(call clone_pull_repo,$@)
-
-QED:
 	$(call clone_pull_repo,$@)
 
 FiniteElementHermite:
@@ -123,31 +90,66 @@ FiniteElementHermite:
 FRESCO:
 	$(call clone_pull_repo,$@)
 
-CHEASE:
+FusionMaterials:
 	$(call clone_pull_repo,$@)
 
-TEQUILA:
+FuseExchangeProtocol:
 	$(call clone_pull_repo,$@)
 
-BalanceOfPlantSurrogate:
-	$(call clone_pull_repo$@)
-
-NNeutronics:
+IMAS:
 	$(call clone_pull_repo,$@)
 
-SimulationParameters:
+IMASdd:
 	$(call clone_pull_repo,$@)
 
-BoundaryPlasmaModels:
+IMASutils:
+	$(call clone_pull_repo,$@)
+
+MXHEquilibrium:
+	$(call clone_pull_repo,$@)
+
+MeshTools:
+	$(call clone_pull_repo,$@)
+
+MillerExtendedHarmonic:
 	$(call clone_pull_repo,$@)
 
 NEO:
 	$(call clone_pull_repo,$@)
 
-XSteam:
+NNeutronics:
+	$(call clone_pull_repo,$@)
+
+QED:
 	$(call clone_pull_repo,$@)
 
 RABBIT:
+	$(call clone_pull_repo,$@)
+
+SimulationParameters:
+	$(call clone_pull_repo,$@)
+
+TEQUILA:
+	$(call clone_pull_repo,$@)
+
+TGLFNN:
+	$(call clone_pull_repo,$@)
+
+TJLF:
+	$(call clone_pull_repo,$@)
+
+TroyonBetaNN:
+	$(call clone_pull_repo,$@)
+
+VacuumFields:
+	$(call clone_pull_repo,$@)
+
+# ========
+
+FUSE:
+	$(call clone_pull_repo,$@)
+
+XSteam:
 	$(call clone_pull_repo,$@)
 
 ThermalSystemModels:
