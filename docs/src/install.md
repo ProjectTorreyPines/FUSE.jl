@@ -4,7 +4,7 @@
 
 We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) manager to install Julia
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
-* Windows: `winget install julia -s msstore`
+* Windows: `winget install julia -s msstore --accept-source-agreements --accept-package-agreements`
 
 Once installed, restart your termninal to pick-up the `julia` executable.
 

@@ -88,6 +88,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     #### ACT ####
 
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
+    act.ActorFluxMatcher.rho_transport = 0.2:0.05:0.8
 
     act.ActorStabilityLimits.raise_on_breach = false
 
@@ -115,7 +116,7 @@ function case_parameters(::Type{Val{:KDEMO_compact}})::Tuple{ParametersAllInits,
         :hfs_high_temp_shield => 0.2,
         :hfs_blanket => 0.38,
         :hfs_first_wall => 0.02,
-        :plasma => 1.3, 
+        :plasma => 1.3,
         :lfs_first_wall => 0.02,
         :lfs_blanket => 0.7,
         :lfs_high_temp_shield => 0.2,
@@ -124,7 +125,7 @@ function case_parameters(::Type{Val{:KDEMO_compact}})::Tuple{ParametersAllInits,
         :lfs_gap_water => 0.15,
         :lfs_vacuum_vessel_outer => 0.1,
         :lfs_gap_TF_vacuum_vessel => 0.789,
-        :lfs_TF => 0.949,  
+        :lfs_TF => 0.949,
         :gap_cryostat => 1.0,
         :cryostat => 0.1
     )
