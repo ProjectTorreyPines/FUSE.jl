@@ -26,6 +26,7 @@ mutable struct ActorFRESCO{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFRESCO{P}
     canvas::Union{Nothing,FRESCO.Canvas}
+    profile::Union{Nothing,FRESCO.PressureJtoR}
 end
 
 """
@@ -43,7 +44,7 @@ end
 function ActorFRESCO(dd::IMAS.dd{D}, par::FUSEparameters__ActorFRESCO{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFRESCO)
     par = par(kw...)
-    return ActorFRESCO(dd, par, nothing)
+    return ActorFRESCO(dd, par, nothing, nothing)
 end
 
 """
@@ -61,9 +62,9 @@ function _step(actor::ActorFRESCO)
 
     pressure = IMAS.IMASdd.DataInterpolations.CubicSpline(eqt1d.pressure, eqt1d.psi_norm; extrapolate=true)
     JtoR = IMAS.IMASdd.DataInterpolations.CubicSpline(eqt1d.j_tor .* eqt1d.gm9, eqt1d.psi_norm; extrapolate=true)
-    profile = FRESCO.PressureJtoR(pressure, JtoR)
+    actor.profile = FRESCO.PressureJtoR(pressure, JtoR)
 
-    FRESCO.solve!(actor.canvas, profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
+    FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
     # display(plot(actor.canvas))
 
@@ -73,24 +74,44 @@ end
 # finalize by converting FRESCO canvas to dd.equilibrium
 function _finalize(actor::ActorFRESCO)
     canvas = actor.canvas
+    profile = actor.profile
     dd = actor.dd
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     eqt1d = eqt.profiles_1d
     eq2d = resize!(eqt.profiles_2d, 1)[1]
 
-    Raxis, Zaxis, _ = FRESCO.find_axis(canvas)
-    eqt.global_quantities.magnetic_axis.r = Raxis
-    eqt.global_quantities.magnetic_axis.z = Zaxis
+    eqt.global_quantities.magnetic_axis.r = canvas.Raxis
+    eqt.global_quantities.magnetic_axis.z = canvas.Zaxis
     eqt.global_quantities.psi_boundary = canvas.Ψbnd
     eqt.global_quantities.psi_axis = canvas.Ψaxis
-    eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, length(eqt1d.psi))
-    # p, p', f, ff' don't change
+
+    Npsi = length(eqt1d.psi)
+    eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, Npsi)
+    eqt1d.dpressure_dpsi = FRESCO.pprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm)
+    if length(canvas._gm1) == Npsi
+        gm1 = canvas._gm1
+    else
+        psin = range(0.0, 1.0, length(canvas._gm1))
+        gitp = DataInterpolations.CubicSpline(canvas._gm1, psin; extrapolate=false)
+        gm1 = gitp.(eqt1d.psi_norm)
+    end
+    eqt1d.f_df_dpsi = FRESCO.ffprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm, gm1)
+
+    fend = eq.vacuum_toroidal_field.b0[end] * eq.vacuum_toroidal_field.r0
+    f2 = 2 * IMAS.cumtrapz(eqt1d.psi, eqt1d.f_df_dpsi)
+    f2 .= f2 .- f2[end] .+ fend^2
+    eqt1d.f = sign(fend) .* sqrt.(f2)
+
+    pend = eqt1d.pressure[end]
+    eqt1d.pressure = IMAS.cumtrapz(eqt1d.psi, eqt1d.dpressure_dpsi)
+    eqt1d.pressure .+= pend .- eqt1d.pressure[end]
 
     eq2d.grid_type.index = 1
-    eq2d.grid.dim1 = canvas.Rs
-    eq2d.grid.dim2 = canvas.Zs
-    eq2d.psi = canvas.Ψ
+    eq2d.grid.dim1 = collect(range(canvas.Rs[1], canvas.Rs[end], Npsi))
+    eq2d.grid.dim2 = collect(range(canvas.Zs[1], canvas.Zs[end], Npsi))
+    FRESCO.update_interpolation!(canvas)
+    eq2d.psi = [canvas._Ψitp(r, z) for r in eq2d.grid.dim1, z in eq2d.grid.dim2]
 
     return actor
 end
