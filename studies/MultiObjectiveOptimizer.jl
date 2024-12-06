@@ -40,6 +40,7 @@ mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
     constraint_functions::Vector{IMAS.ConstraintFunction}
     objective_functions::Vector{IMAS.ObjectiveFunction}
     dataframe::Union{DataFrame,Missing}
+    workflow::Union{Function,Missing}
 end
 
 function StudyMultiObjectiveOptimizer(
@@ -51,7 +52,7 @@ function StudyMultiObjectiveOptimizer(
     kw...
 )
     sty = sty(kw...)
-    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, missing)
+    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, missing, missing)
     return setup(study)
 end
 
@@ -76,9 +77,10 @@ function _run(study::StudyMultiObjectiveOptimizer)
         :N => sty.population_size,
         :iterations => sty.number_of_generations,
         :continue_state => nothing,
-        :save_folder => sty.save_folder)
+        :save_folder => sty.save_folder,
+        :save_dd => true)
     state = workflow_multiobjective_optimization(
-        study.ini, study.act, ActorWholeFacility, study.objective_functions,
+        study.ini, study.act, study.workflow, study.objective_functions,
         study.constraint_functions; optimization_parameters...)
 
     save_optimization(
