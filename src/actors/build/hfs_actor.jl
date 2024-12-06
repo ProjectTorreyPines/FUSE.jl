@@ -150,16 +150,18 @@ function _step(actor::ActorHFSsizing)
         c_mgn = norm(margins)
         c_Δmn = norm(margins[2:end] .- margins[1]) ./ (length(margins) - 1)
 
+        c_mgn = 0.0
+        c_Δmn = 0.0
+
         # want smallest possible TF and OH
         c_geo = (OH.thickness + TFhfs.thickness) / CPradius / 2.0
 
         # favor steel over superconductor
         # for all things being equal, maximizing steel is good to keep the cost of the magnets down
-        if nose
+        if false #nose
             c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel), (1.0 - dd.build.tf.nose_hfs_fraction))) / 3.0
         else
-            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel))) / 2.0
-        end
+            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel))) / 2.0        end
 
         if par.verbose
             push!(C_JOH, c_joh)
@@ -175,7 +177,7 @@ function _step(actor::ActorHFSsizing)
         end
 
         # total cost and constraints
-        return norm([c_geo, c_scs, c_mgn * 10, c_Δmn]), [c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl], [0.0]
+        return norm([c_geo * 10, c_scs, c_mgn * 10, c_Δmn]), [c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl], [0.0]
     end
 
     # initialize
