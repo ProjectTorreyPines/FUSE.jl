@@ -27,7 +27,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     file_save_mode::Switch{Symbol} = study_common_parameters(; file_save_mode=:safe_write)
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
-    run_in_safe_mode :: Entry{Bool} = Entry{Bool}("-", "Runs the optimization in a loop restarting the workers every 5 generations"; default=false)
+    restart_workers_after_n_generations :: Entry{Int} = Entry{Int}("-", "Runs the optimization in a safe way restarting the workers every N generations, default is never restart"; default=0)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     # Optimization related parameters
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
@@ -66,6 +66,21 @@ function _setup(study::StudyMultiObjectiveOptimizer)
 
     parallel_environment(sty.server, sty.n_workers)
 
+    
+    # import FUSE and IJulia on workers
+    if isdefined(Main, :IJulia)
+        code = """
+        using Distributed
+        @everywhere import FUSE
+        @everywhere import IJulia
+        """
+    else    
+        code = """
+        using Distributed
+        @everywhere import FUSE
+        """
+    end
+    Base.include_string(Main, code)
     return study
 end
 
@@ -75,40 +90,44 @@ function _run(study::StudyMultiObjectiveOptimizer)
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
     @assert iseven(sty.population_size) "Population size must be even"
 
-    if sty.run_in_safe_mode
-        max_gens_per_iteration = 5
-        steps = Int(ceil(sty.number_of_generations / max_gens_per_iteration )) # 5 max
+    if sty.restart_workers_after_n_generations > 0
+        # if restart_workers_after_n_generations we are going to call _run again with modified
+        max_gens_per_iteration = sty.restart_workers_after_n_generations
+        steps = Int(ceil(sty.number_of_generations / max_gens_per_iteration ))
+        sty_bkp = deepcopy(sty)
         for i in 1:steps
             try
                 println("Running $max_gens_per_iteration generations ($i / $steps)")
                 gens = max_gens_per_iteration
                 if i == steps && mod(sty.number_of_generations,max_gens_per_iteration) != 0
-                    gens = mod(gen,max_gens_per_iteration)
+                    gens = mod(gen, max_gens_per_iteration)
                 end
-                sty.number_of_generations = gens
-                sty.run_in_safe_mode = false
+                sty.restart_workers_after_n_generations = 0
                 sty.release_workers_after_run = false
                 sty.file_save_mode = :append
+                sty.number_of_generations = gens
 
-                if !isnothing(study.state)
+                if study.state !== nothing
                     study.state = load_optimization(joinpath(sty.save_folder,"results.jls")).state
                     study.generation += study.state.iteration
                 end
-                setup(study)
                 run(study)
             catch e
                 if isa(e, InterruptException)
                     rethrow(e)
                 end
                 @warn "error occured in step $i \n $(string(e))"
-                   
+            finally
+                sty.restart_workers_after_n_generations = sty_bkp.restart_workers_after_n_generations
+                sty.release_workers_after_run = sty_bkp.release_workers_after_run
+                sty.file_save_mode = sty_bkp.file_save_mode
             end
         end
         Distributed.rmprocs(Distributed.workers())
         @info "released workers"
-        sty.run_in_safe_mode = true
-        sty.file_save_mode = :safe_write
+
     else
+        setup(study)
         optimization_parameters = Dict(
             :N => sty.population_size,
             :iterations => sty.number_of_generations,
