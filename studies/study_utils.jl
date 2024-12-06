@@ -1,7 +1,7 @@
 """
     extract_results(simulations_path::String)
 
-Extracts informatation from all the simulation results in simulations_path and returns them inside a dataframe (This is done safely in parallel and with checkpoints) 
+Extracts informatation from all the simulation results in simulations_path and returns them inside a dataframe (This is done safely in parallel and with checkpoints)
 Note : If you want to speed up this process incrase the number of threads
 """
 function extract_results(simulations_path::String)
@@ -9,7 +9,7 @@ function extract_results(simulations_path::String)
         dd = IMAS.json2imas(file_path)
         df = DataFrame(IMAS.extract(dd, :all))
         df.dir = [file_path]
-        df.gen = [parse(Int,split(split(file_path,"/")[end-1],"__")[1])]
+        df.gen = [parse(Int, split(split(file_path, "/")[end-1], "__")[1])]
         return df
     end
 
@@ -128,12 +128,12 @@ function extract_results(simulations_path::String)
 end
 
 function extract_results(study::AbstractStudy; re_extract::Bool=false)
-    csv_loc = joinpath(study.sty.save_folder,"output.csv")
+    csv_loc = joinpath(study.sty.save_folder, "output.csv")
     if isfile(csv_loc) && !re_extract
         study.dataframe = CSV.read(csv_loc, DataFrame)
     elseif re_extract && isfile(csv_loc)
         rm(csv_loc)
-        rm(joinpath(study.sty.save_folder,"checkpoints"), force=true, recursive=true)
+        rm(joinpath(study.sty.save_folder, "checkpoints"); force=true, recursive=true)
         study.dataframe = extract_results(study.sty.save_folder)
     else
         study.dataframe = extract_results(study.sty.save_folder)

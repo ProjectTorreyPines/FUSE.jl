@@ -42,7 +42,7 @@ end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
     sty::FUSEparameters__ParametersStudyDatabaseGenerator
-    ini::Union{ParametersAllInits, Vector{ParametersAllInits}}
+    ini::Union{ParametersAllInits,Vector{ParametersAllInits}}
     act::ParametersAllActors
     dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{Int},Missing}
@@ -144,9 +144,9 @@ function run_case(study::AbstractStudy, item::Int)
     elseif typeof(study.ini) <: Vector{ParametersAllInits}
         ini = study.ini[item]
     end
-    
+
     dd = IMAS.dd()
-    
+
     try
         redirect_stdout(file_log)
         redirect_stderr(file_log)

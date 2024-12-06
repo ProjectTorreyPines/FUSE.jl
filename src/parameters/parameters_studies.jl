@@ -90,9 +90,9 @@ function check_and_create_file_save_mode(sty)
             mkdir(sty.save_folder)
         end
     elseif sty.file_save_mode == :overwrite
-        rm(sty.save_folder, force=true, recursive=true)
+        rm(sty.save_folder; force=true, recursive=true)
         mkdir(sty.save_folder)
     elseif sty.file_save_mode == :append
-       # this is fine
+        # this is fine
     end
 end

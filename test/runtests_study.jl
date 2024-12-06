@@ -12,7 +12,7 @@ using ProgressMeter
     sty.n_simulations = 2
 
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
-    act.ActorPedestal.density_match=:ne_line
+    act.ActorPedestal.density_match = :ne_line
     ini.core_profiles.ne_setting = :greenwald_fraction
     ini.core_profiles.ne_value = 0.2 ↔ [0.2, 1.0]
 

@@ -249,7 +249,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 800
             cpus_per_node = 30
             if nworkers > 0
-                nodes = 1 
+                nodes = 1
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -325,4 +325,5 @@ struct MissingExtensionError <: Exception
     package_name::String
 end
 
-Base.showerror(io::IO, e::MissingExtensionError) = print(io, "The FUSE actor $(e.actor_name) cannot be run because the Julia package $(e.package_name).jl is not loaded. Please load it to enable this feature.")
+Base.showerror(io::IO, e::MissingExtensionError) =
+    print(io, "The FUSE actor $(e.actor_name) cannot be run because the Julia package $(e.package_name).jl is not loaded. Please load it to enable this feature.")

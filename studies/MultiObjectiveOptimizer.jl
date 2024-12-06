@@ -27,7 +27,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     file_save_mode::Switch{Symbol} = study_common_parameters(; file_save_mode=:safe_write)
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
-    restart_workers_after_n_generations :: Entry{Int} = Entry{Int}("-", "Runs the optimization in a safe way restarting the workers every N generations, default is never restart"; default=0)
+    restart_workers_after_n_generations::Entry{Int} =
+        Entry{Int}("-", "Runs the optimization in a safe way restarting the workers every N generations, default is never restart"; default=0)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     # Optimization related parameters
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
@@ -55,7 +56,7 @@ function StudyMultiObjectiveOptimizer(
     kw...
 )
     sty = sty(kw...)
-    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions,nothing, missing, missing, 0)
+    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
     return setup(study)
 end
 
@@ -66,7 +67,7 @@ function _setup(study::StudyMultiObjectiveOptimizer)
 
     parallel_environment(sty.server, sty.n_workers)
 
-    
+
     # import FUSE and IJulia on workers
     if isdefined(Main, :IJulia)
         code = """
@@ -74,7 +75,7 @@ function _setup(study::StudyMultiObjectiveOptimizer)
         @everywhere import FUSE
         @everywhere import IJulia
         """
-    else    
+    else
         code = """
         using Distributed
         @everywhere import FUSE
@@ -93,13 +94,13 @@ function _run(study::StudyMultiObjectiveOptimizer)
     if sty.restart_workers_after_n_generations > 0
         # if restart_workers_after_n_generations we are going to call _run again with modified
         max_gens_per_iteration = sty.restart_workers_after_n_generations
-        steps = Int(ceil(sty.number_of_generations / max_gens_per_iteration ))
+        steps = Int(ceil(sty.number_of_generations / max_gens_per_iteration))
         sty_bkp = deepcopy(sty)
         for i in 1:steps
             try
                 println("Running $max_gens_per_iteration generations ($i / $steps)")
                 gens = max_gens_per_iteration
-                if i == steps && mod(sty.number_of_generations,max_gens_per_iteration) != 0
+                if i == steps && mod(sty.number_of_generations, max_gens_per_iteration) != 0
                     gens = mod(gen, max_gens_per_iteration)
                 end
                 sty.restart_workers_after_n_generations = 0
@@ -108,7 +109,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
                 sty.number_of_generations = gens
 
                 if study.state !== nothing
-                    study.state = load_optimization(joinpath(sty.save_folder,"results.jls")).state
+                    study.state = load_optimization(joinpath(sty.save_folder, "results.jls")).state
                     study.generation += study.state.iteration
                 end
                 run(study)
@@ -133,7 +134,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
             :iterations => sty.number_of_generations,
             :continue_state => study.state,
             :save_folder => sty.save_folder)
-        
+
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
         state = workflow_multiobjective_optimization(
             study.ini, study.act, ActorWholeFacility, study.objective_functions,
@@ -162,7 +163,7 @@ end
 function _analyze(study::StudyMultiObjectiveOptimizer)
     extract_results(study)
     if !isempty(study.dataframe)
-        study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions]) 
+        study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions])
     end
     return study
 end
@@ -173,9 +174,9 @@ end
 Filters the dataframe to the constraints you pass.
 Common usage will be df_filtered = FUSE.filter_outputs(df, constraint_list)
 """
-function filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
+function filter_outputs(outputs::DataFrame, constraint_symbols::Vector{Symbol})
     n = length(outputs.Pelectric_net)
-    constraint_values = [ outputs[i,key] for key in constraint_symbols, i in 1:n]
-    all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:,i]),1:n)
-    return outputs[all_constraint_idxs,:]
+    constraint_values = [outputs[i, key] for key in constraint_symbols, i in 1:n]
+    all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:, i]), 1:n)
+    return outputs[all_constraint_idxs, :]
 end
