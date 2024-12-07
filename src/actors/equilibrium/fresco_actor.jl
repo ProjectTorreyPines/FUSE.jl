@@ -62,47 +62,13 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     Rs = range(minimum(eqt.boundary.outline.r) - ΔR / 3, maximum(eqt.boundary.outline.r) + ΔR / 3, par.nR)
     Zs = range(minimum(eqt.boundary.outline.z) - ΔZ / 3, maximum(eqt.boundary.outline.z) + ΔZ / 3, par.nZ)
 
-    #######
-    wall_r, wall_z = IMAS.first_wall(dd.wall)
-    if isempty(wall_r)
-        mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 2)
-        mxh.ϵ *= 1.1
-        wall_r, wall_z = mxh(100)
-    end
-
-    eqt = dd.equilibrium.time_slice[]
-    boundary = IMAS.closed_polygon(eqt.boundary.outline.r, eqt.boundary.outline.z)
-
-    # define current
-    Ip = eqt.global_quantities.ip
-
-    # define coils
     if isempty(dd.pf_active.coil)
         coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.boundary.geometric_axis.r, eqt.boundary.geometric_axis.z, 8)
     else
-        coils = VacuumFields.MultiCoils(dd; load_pf_active=true, load_pf_passive=true)
+        coils = nothing
     end
 
-    fixed_coils = Int[]
-    kpassive0 = length(dd.pf_active.coil)
-    for (k, coil) in enumerate(dd.pf_active.coil)
-        if :shaping ∉ (IMAS.index_2_name(coil.function)[f.index] for f in coil.function)
-            push!(fixed_coils, k)
-        end
-    end
-    fixed_coils = vcat(fixed_coils, kpassive0 .+ eachindex(dd.pf_passive.loop))
-
-    Nsurfaces = !ismissing(eqt.profiles_1d, :psi) ? length(eqt.profiles_1d.psi) : 129
-    surfaces = Vector{IMAS.SimpleSurface{D}}(undef, Nsurfaces)
-
-    Ψ = zeros(D, length(Rs), length(Zs))
-    canvas = FRESCO.Canvas(Rs, Zs, Ψ, Ip, coils, wall_r, wall_z, collect(boundary.r), collect(boundary.z), surfaces; fixed_coils)
-
-    FRESCO.set_Ψvac!(canvas)
-    canvas._Ψpl .= canvas.Ψ - canvas._Ψvac
-    #######
-
-    actor.canvas = canvas #FRESCO.Canvas(dd, Rs, Zs)
+    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; coils, load_pf_passive=false)
 
     actor.profile = FRESCO.PressureJt(dd)
 
