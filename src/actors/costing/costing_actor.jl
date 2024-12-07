@@ -13,8 +13,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersAc
     future_inflation_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Predicted average rate of future inflation"; default=0.025 ± 0.0125)
     plant_lifetime::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Lifetime of the plant"; default=35.0 ± 5.0)
     availability::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Availability fraction of the plant"; default=0.8 ± 0.1)
-    production_increase::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Factor by which production of ReBCO multiplies per year"; default=1.0 ± 0.5, check=x->@assert x>=0 "production_increase must be >= 0.0")
-    learning_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Learning rate for ReBCO technology production"; default=0.85 ± 0.1, check=x->@assert 1.0>=x>=0.0 "learning_rate must be between 0.0 and 1.0")
+    production_increase::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}(
+        "-",
+        "Factor by which production of ReBCO multiplies per year";
+        default=1.0 ± 0.5,
+        check=x -> @assert x >= 0 "production_increase must be >= 0.0"
+    )
+    learning_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}(
+        "-",
+        "Learning rate for ReBCO technology production";
+        default=0.85 ± 0.1,
+        check=x -> @assert 1.0 >= x >= 0.0 "learning_rate must be between 0.0 and 1.0"
+    )
 end
 
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
@@ -25,12 +35,13 @@ mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-	ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the cost of building, operating, and recommission the fusion power plant.
 
-!!! note 
-	Stores data in `dd.costing`
+!!! note
+
+    Stores data in `dd.costing`
 """
 function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCosting(dd, act.ActorCosting, act; kw...)

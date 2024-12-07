@@ -31,7 +31,8 @@ end
 
 Evaluates blankets tritium breeding ratio (TBR), heat deposition, and neutron leakage
 
-!!! note 
+!!! note
+
     Stores data in `dd.blanket`
 """
 function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
