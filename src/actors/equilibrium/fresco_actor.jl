@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
-    debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=true)
+    debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
     #== IMAS psi grid settings ==#
     nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
     nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
@@ -26,7 +26,7 @@ mutable struct ActorFRESCO{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFRESCO{P}
     canvas::Union{Nothing,FRESCO.Canvas}
-    profile::Union{Nothing,FRESCO.PressureJtoR}
+    profile::Union{Nothing,FRESCO.PressureJt}
 end
 
 """
@@ -52,17 +52,59 @@ end
 
 Runs FRESCO on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
-function _step(actor::ActorFRESCO)
+function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
     eqt = dd.equilibrium.time_slice[]
-    eqt1d = eqt.profiles_1d
 
-    actor.canvas = FRESCO.Canvas(dd, par.nR, par.nZ)
+    ΔR = maximum(eqt.boundary.outline.r) - minimum(eqt.boundary.outline.r)
+    ΔZ = maximum(eqt.boundary.outline.z) - minimum(eqt.boundary.outline.z)
+    Rs = range(minimum(eqt.boundary.outline.r) - ΔR / 3, maximum(eqt.boundary.outline.r) + ΔR / 3, par.nR)
+    Zs = range(minimum(eqt.boundary.outline.z) - ΔZ / 3, maximum(eqt.boundary.outline.z) + ΔZ / 3, par.nZ)
 
-    pressure = IMAS.IMASdd.DataInterpolations.CubicSpline(eqt1d.pressure, eqt1d.psi_norm; extrapolate=true)
-    JtoR = IMAS.IMASdd.DataInterpolations.CubicSpline(eqt1d.j_tor .* eqt1d.gm9, eqt1d.psi_norm; extrapolate=true)
-    actor.profile = FRESCO.PressureJtoR(pressure, JtoR)
+    #######
+    wall_r, wall_z = IMAS.first_wall(dd.wall)
+    if isempty(wall_r)
+        mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 2)
+        mxh.ϵ *= 1.1
+        wall_r, wall_z = mxh(100)
+    end
+
+    eqt = dd.equilibrium.time_slice[]
+    boundary = IMAS.closed_polygon(eqt.boundary.outline.r, eqt.boundary.outline.z)
+
+    # define current
+    Ip = eqt.global_quantities.ip
+
+    # define coils
+    if isempty(dd.pf_active.coil)
+        coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.boundary.geometric_axis.r, eqt.boundary.geometric_axis.z, 8)
+    else
+        coils = VacuumFields.MultiCoils(dd; load_pf_active=true, load_pf_passive=true)
+    end
+
+    fixed_coils = Int[]
+    kpassive0 = length(dd.pf_active.coil)
+    for (k, coil) in enumerate(dd.pf_active.coil)
+        if :shaping ∉ (IMAS.index_2_name(coil.function)[f.index] for f in coil.function)
+            push!(fixed_coils, k)
+        end
+    end
+    fixed_coils = vcat(fixed_coils, kpassive0 .+ eachindex(dd.pf_passive.loop))
+
+    Nsurfaces = !ismissing(eqt.profiles_1d, :psi) ? length(eqt.profiles_1d.psi) : 129
+    surfaces = Vector{IMAS.SimpleSurface{D}}(undef, Nsurfaces)
+
+    Ψ = zeros(D, length(Rs), length(Zs))
+    canvas = FRESCO.Canvas(Rs, Zs, Ψ, Ip, coils, wall_r, wall_z, collect(boundary.r), collect(boundary.z), surfaces; fixed_coils)
+
+    FRESCO.set_Ψvac!(canvas)
+    canvas._Ψpl .= canvas.Ψ - canvas._Ψvac
+    #######
+
+    actor.canvas = canvas #FRESCO.Canvas(dd, Rs, Zs)
+
+    actor.profile = FRESCO.PressureJt(dd)
 
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
@@ -89,16 +131,12 @@ function _finalize(actor::ActorFRESCO)
     Npsi = length(eqt1d.psi)
     eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, Npsi)
     eqt1d.dpressure_dpsi = FRESCO.pprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm)
-    if length(canvas._gm1) == Npsi
-        gm1 = canvas._gm1
-    else
-        psin = range(0.0, 1.0, length(canvas._gm1))
-        gitp = DataInterpolations.CubicSpline(canvas._gm1, psin; extrapolate=false)
-        gm1 = gitp.(eqt1d.psi_norm)
-    end
-    eqt1d.f_df_dpsi = FRESCO.ffprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm, gm1)
+    eqt1d.f_df_dpsi = FRESCO.ffprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm)
 
-    fend = eq.vacuum_toroidal_field.b0[end] * eq.vacuum_toroidal_field.r0
+    @ddtime(eq.vacuum_toroidal_field.b0 = eqt.global_quantities.vacuum_toroidal_field.b0)
+    eq.vacuum_toroidal_field.r0 = eqt.global_quantities.vacuum_toroidal_field.r0
+
+    fend = eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0
     f2 = 2 * IMAS.cumtrapz(eqt1d.psi, eqt1d.f_df_dpsi)
     f2 .= f2 .- f2[end] .+ fend^2
     eqt1d.f = sign(fend) .* sqrt.(f2)
