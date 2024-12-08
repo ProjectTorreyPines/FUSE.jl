@@ -1,7 +1,6 @@
 using FUSE
 using Test
 using Distributed
-using ProgressMeter
 
 @testset "study" begin
     sty, act = FUSE.study_parameters(:DatabaseGenerator)
