@@ -20,19 +20,19 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.ip = 9.9e6
 
     # explicitly set thickness of radial build layers
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.82
     layers[:OH] = 0.3
     layers[:hfs_TF] = 0.6
     layers[:hfs_gap_blanket_TF] = 0.186
-    layers[:hfs_blanket] = 0.4
     layers[:hfs_vacuum_vessel] = 0.166
+    layers[:hfs_blanket] = 0.4
     layers[:hfs_wall] = 0.02
     layers[:plasma] = 2.05
     layers[:lfs_wall] = 0.02
-    layers[:lfs_vacuum_vessel] = 0.166
     layers[:lfs_blanket] = 0.95
+    layers[:lfs_vacuum_vessel] = 0.166
     layers[:lfs_gap_blanket_TF] = 0.28
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119

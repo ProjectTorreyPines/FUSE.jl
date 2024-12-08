@@ -272,9 +272,13 @@ function _step(actor::ActorBlanket)
 
         d1, d2, d3 = d1_d2_d3_layers(structure, dd.build.layer, eqt.boundary.geometric_axis.r, length(blankets))
 
-        d1.thickness = bm.layer[1].midplane_thickness
+        if !isempty(d1)
+            d1.thickness = bm.layer[1].midplane_thickness
+        end
         d2.thickness = bm.layer[2].midplane_thickness
-        d3.thickness = bm.layer[3].midplane_thickness
+        if !isempty(d3)
+            d3.thickness = bm.layer[3].midplane_thickness
+        end
     end
 
     # rebuild geometry
@@ -301,6 +305,9 @@ function d1_d2_d3_layers(structure::IMAS.build__structure, layers::AbstractVecto
     end
     d2 = IMAS.get_build_layer(layers; type=_blanket_, fs=fs)
     d3 = IMAS.get_build_layers(layers; type=_shield_, fs=fs)
+    if isempty(d3)
+        d3 = IMAS.get_build_layers(layers; type=_vessel_, fs=fs)
+    end
     if !isempty(d3)
         # if there are multiple shields we choose the one closest to the plasma
         if fs == _hfs_
