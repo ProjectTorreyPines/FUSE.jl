@@ -102,13 +102,14 @@ function _finalize(actor::ActorEquilibrium)
         end
 
         # add flux surfaces information
+        fw = IMAS.first_wall(dd.wall)
         try
-            fw = IMAS.first_wall(dd.wall)
             IMAS.flux_surfaces(eqt, fw.r, fw.z)
         catch e
             eqt2d = findfirst(:rectangular, eqt.profiles_2d)
             par.do_plot && display(current())
             contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
+            plot!(fw.r, fw.z; color=:gray)
             display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
             rethrow(e)
         end
