@@ -177,7 +177,7 @@ function _step(actor::ActorBlanket)
         modules_effective_thickness::Vector{Matrix{Float64}},
         modules_wall_loading_power::Vector{<:Any},
         total_power_neutrons::Real,
-        min_d1::Float64=0.02,
+        min_thickness::Float64=0.02,
         target::Float64=0.0
     )
         Li6 = mirror_bound(abs(Li6), 0.0, 100.0 * par.max_Li6_enrichment_fraction)
@@ -198,8 +198,10 @@ function _step(actor::ActorBlanket)
             x1 = d1 / dtot
             x2 = d2 / dtot
             x3 = d3 / dtot
-            if total_thickness * x1 < min_d1
-                extra_cost += (min_d1 - total_thickness * x1) / min_d1
+            for xl in (x1, x2, x3)
+                if total_thickness * xl < min_thickness
+                    extra_cost += (min_thickness - total_thickness * xl) / min_thickness
+                end
             end
             for k in eachindex(modules_wall_loading_power[ibm])
                 ed1 = modules_effective_thickness[ibm][k, 1] * x1
@@ -230,7 +232,7 @@ function _step(actor::ActorBlanket)
         else
             cost = norm((
                 (total_tritium_breeding_ratio - target) / target,
-                maximum(modules_peak_escape_flux) / (sum(modules_peak_wall_flux) / length(modules_peak_wall_flux)),
+                exp(Li6) / exp(100.0),
                 extra_cost
             ))
             return cost
