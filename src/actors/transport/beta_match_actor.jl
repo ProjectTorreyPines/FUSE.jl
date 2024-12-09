@@ -7,6 +7,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBetaMatch{T<:Real} <: Parameters
     _time::Float64 = NaN
     βn_target::Entry{T} = Entry{T}("-", "Target value for normalized toroidal beta")
     T_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile")
+    Ti_Te_ratio::Entry{T} = Entry{T}("-", "Ratio of Ti to Te on-axis")
 end
 
 mutable struct ActorBetaMatch{D,P} <: CompoundAbstractActor{D,P}
@@ -51,11 +52,10 @@ function _step(actor::ActorBetaMatch)
     ti_sep = ti[end]
     te_ped = dd.summary.local.pedestal.t_e.value[1]
     ti_ped = dd.summary.local.pedestal.t_i_average.value[1]
-    t_ratio = ti[1]/te[1]
     
     function cost_function(x)
         te_new = IMAS.Hmode_profiles(te_sep, te_ped, x[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
-        ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, x[1]*t_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
+        ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, x[1]*par.Ti_Te_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
         cp1d.electrons.temperature = te_new
         for ion in cp1d.ion
             ion.temperature = ti_new
@@ -73,7 +73,7 @@ function _step(actor::ActorBetaMatch)
     if Te0 < te_ped
         Te0 = te_ped
         te_new = IMAS.Hmode_profiles(te_sep, te_ped, Te0, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
-        ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, Te0*t_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
+        ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, Te0*par.Ti_Te_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
         cp1d.electrons.temperature = te_new
         for ion in cp1d.ion
             ion.temperature = ti_new
