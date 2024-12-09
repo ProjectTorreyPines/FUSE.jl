@@ -101,7 +101,9 @@ function _step(actor::ActorWholeFacility)
         # remove the wall from the calculation to avoid switching between limited/diverted plasma
         wall_bkp = deepcopy(dd.wall)
         empty!(dd.wall)
-        IMAS.first_wall!(dd.wall, IMAS.first_wall(dd.pf_active)...)
+        if !isempty(dd.pf_active.coil)
+            IMAS.first_wall!(dd.wall, IMAS.first_wall(dd.pf_active)...)
+        end
         actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
         dd.wall = wall_bkp
     end
