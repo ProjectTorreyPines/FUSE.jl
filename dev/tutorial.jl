@@ -38,8 +38,7 @@ act.ActorCoreTransport.model = :FluxMatcher;
 # 
 # **NOTE:** `init()` does not return a self-consistent solution, just a plausible starting point to initialize our simulations!
 
-dd = IMAS.dd() # an empty dd
-FUSE.init(dd, ini, act);
+dd = FUSE.init(ini, act);
 
 # We can `@checkin` and `@checkout` variables with an associated tag.
 # 
@@ -96,14 +95,6 @@ plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)
 # Customizing plot attributes:
 
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label="", linewidth=2, color=:red, labelfontsize=25)
-
-# Use `findall(ids, r"...")` to search for certain fields. In Julia string starting with `r` are regular expressions.
-
-findall(dd, r"pressure")
-
-# `findall(ids, r"...")` can be combined with `plot()` to plot multiple fields
-
-plot(findall(dd, r"\.pressure"))
 
 # ## Working with time series
 
@@ -274,8 +265,7 @@ print_tree(IMAS.freeze(dd.divertors); maxdepth=4)
 
 # The `ActorBalanceOfPlant` calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle
 
-FUSE.ActorBalanceOfPlant(dd, act);
-IMAS.freeze(dd.balance_of_plant)
+FUSE.ActorBalanceOfPlant(dd, act; do_plot=true);
 
 # `ActorCosting` will break down the capital and operational costs
 
@@ -314,10 +304,4 @@ FUSE.extract(dd)
 
 filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
 FUSE.digest(dd)#, filename)
-
-# ## More things
-
-# disable or enable printing of what actor is executed
-
-FUSE.actor_logging(dd, false) # or true
 
