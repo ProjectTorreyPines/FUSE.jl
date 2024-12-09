@@ -98,8 +98,12 @@ function _step(actor::ActorWholeFacility)
     end
 
     if par.update_plasma
+        # remove the wall from the calculation to avoid switching between limited/diverted plasma
+        wall_bkp = deepcopy(dd.wall)
+        empty!(dd.wall)
+        IMAS.first_wall!(dd.wall, IMAS.first_wall(dd.pf_active)...)
         actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
-        actor.StabilityLimits = ActorStabilityLimits(dd, act)
+        dd.wall = wall_bkp
     end
 
     if isempty(dd.build.layer)
@@ -109,28 +113,31 @@ function _step(actor::ActorWholeFacility)
         if par.update_build
             actor.HFSsizing = ActorHFSsizing(dd, act)
             actor.LFSsizing = ActorLFSsizing(dd, act)
+            empty!(dd.pf_active) # remove old coils since those affect the shape of the layers
             actor.CXbuild = ActorCXbuild(dd, act)
 
             actor.PFdesign = ActorPFdesign(dd, act)
             if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
                 actor.CXbuild = ActorCXbuild(dd, act)
-                actor.PFactive = ActorPFactive(dd, act; update_equilibrium=false)
             end
 
-            actor.PassiveStructures = ActorPassiveStructures(dd, act)
         else
             actor.FluxSwing = ActorFluxSwing(dd, act)
             actor.Stresses = ActorStresses(dd, act)
-            actor.PFactive = ActorPFactive(dd, act)
         end
 
-        actor.VerticalStability = ActorVerticalStability(dd, act)
+        actor.PFactive = ActorPFactive(dd, act)
 
         actor.Neutronics = ActorNeutronics(dd, act)
-
         actor.Blanket = ActorBlanket(dd, act)
+        actor.CXbuild = ActorCXbuild(dd, act)
+
+        actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
         actor.Divertors = ActorDivertors(dd, act)
+
+        actor.StabilityLimits = ActorStabilityLimits(dd, act)
+        actor.VerticalStability = ActorVerticalStability(dd, act)
 
         actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
 

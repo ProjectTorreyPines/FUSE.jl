@@ -283,9 +283,6 @@ function _step(actor::ActorBlanket)
         end
     end
 
-    # rebuild geometry
-    ActorCXbuild(dd, act)
-
     return actor
 end
 
