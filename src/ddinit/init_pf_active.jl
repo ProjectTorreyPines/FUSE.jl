@@ -31,13 +31,21 @@ function init_pf_active!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAl
     end
 end
 
-function clip_rails(rail_r::AbstractVector{T1}, rail_z::AbstractVector{T1}, pr::AbstractVector{T2}, pz::AbstractVector{T2}, RA::T3, ZA::T3, side::IMAS.BuildLayerSide) where {T1<:Real,T2<:Real,T3<:Real}
-    rail_r = convert(Vector{Float64},rail_r)
-    rail_z = convert(Vector{Float64},rail_z)
-    pr = convert(Vector{Float64},pr)
-    pz = convert(Vector{Float64},pz)
-    RA = convert(Float64,RA)
-    ZA = convert(Float64,ZA)
+function clip_rails(
+    rail_r::AbstractVector{T1},
+    rail_z::AbstractVector{T1},
+    pr::AbstractVector{T2},
+    pz::AbstractVector{T2},
+    RA::T3,
+    ZA::T3,
+    side::IMAS.BuildLayerSide
+) where {T1<:Real,T2<:Real,T3<:Real}
+    rail_r = convert(Vector{Float64}, rail_r)
+    rail_z = convert(Vector{Float64}, rail_z)
+    pr = convert(Vector{Float64}, pr)
+    pz = convert(Vector{Float64}, pz)
+    RA = convert(Float64, RA)
+    ZA = convert(Float64, ZA)
     return clip_rails(rail_r, rail_z, pr, pz, RA, ZA, side)
 end
 
@@ -53,6 +61,11 @@ function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vec
     index = argmin(rail_r)
     rail_z = circshift(rail_z[1:end-1], index)
     rail_r = circshift(rail_r[1:end-1], index)
+
+    # smooth out pr,pz to make sure curvature does not pick up anything spurious
+    pr, pz = IMAS.resample_2d_path(pr, pz; method=:linear)
+    pr, pz = IMAS.MXH(pr, pz, 2)(100)
+    IMAS.reorder_flux_surface!(pr, pz, RA, ZA)
 
     theta = atan.(pz .- ZA, pr .- RA)
     weight = sin.(theta) .^ 2
@@ -89,7 +102,7 @@ function clip_rails(rail_r::Vector{T}, rail_z::Vector{T}, pr::Vector{T}, pz::Vec
             popat!(rail_r, idx)
             popat!(rail_z, idx)
         end
-        index = argmax(rail_r)-1
+        index = argmax(rail_r) - 1
         circshift!(rail_z, -index)
         circshift!(rail_r, -index)
 
@@ -125,7 +138,7 @@ function init_pf_active!(
     krail = 1
     pf_coils_size = 0.0
     for (kl, layer) in enumerate(bd.layer)
-        if ismissing(layer, :coils_inside) || layer.thickness==0.0
+        if ismissing(layer, :coils_inside) || layer.thickness == 0.0
             continue
         end
 

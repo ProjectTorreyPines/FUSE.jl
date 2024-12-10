@@ -140,7 +140,6 @@ function _finalize(actor::ActorTEQUILA)
         tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound, actor.act.ActorPFactive.green_model)
     catch e
         display(plot(actor.shot))
-        display(contour())
         rethrow(e)
     end
     return actor
@@ -188,7 +187,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     eq2d = eqt.profiles_2d[1]
     eq2d.grid.dim1 = shot.ρ
     MXH_modes = (size(shot.surfaces, 1) - 5) ÷ 2
-    eq2d.grid.dim2 = vcat(@SVector[0.0, 0.0, 0.0, 0.0, 0.0], range(1,MXH_modes), .-range(1,MXH_modes))
+    eq2d.grid.dim2 = vcat(@SVector[0.0, 0.0, 0.0, 0.0, 0.0], range(1, MXH_modes), .-range(1, MXH_modes))
     eq2d.grid_type.index = 57 # inverse_rhotor_mxh : Flux surface type with radial label sqrt[Phi/pi/B0] (dim1), Phi being toroidal flux, and MXH coefficients R0, Z0, ϵ, κ, c0, c[...], s[...] (dim2)
     eq2d.psi = collect(shot.surfaces')
 
@@ -223,16 +222,18 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         # Boundary control points
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
+        flux_saddle_weights = 0.1
+
         # Flux control points
-        mag = VacuumFields.FluxControlPoint(eqt.global_quantities.magnetic_axis.r,eqt.global_quantities.magnetic_axis.z, psia, 1.0)
+        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, 1.0)
         flux_cps = VacuumFields.FluxControlPoint[mag]
-        strike_weight = 1.0
-        strike_cps = [VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+        strike_weight = flux_saddle_weights / length(eqt.boundary.strike_point)
+        strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)
 
         # Saddle control points
-        saddle_weight = 1.0
-        saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        saddle_weight = flux_saddle_weights / length(eqt.boundary.x_point)
+        saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
         if isempty(dd.pf_active.coil)

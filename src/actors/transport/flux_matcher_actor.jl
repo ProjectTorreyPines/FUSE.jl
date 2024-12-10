@@ -387,13 +387,9 @@ function flux_match_errors(
     for (inorm, norm0) in enumerate(actor.norms)
         index = (inorm-1)*nrho+1:inorm*nrho
         if norm0 === NaN
-            # this sets the norm to be the based on the initial error
+            # this sets the norm to be the based on the average of the fluxes and targets
             # actor.norm is only used if the targets are zero
-            actor.norms[inorm] = norm0 = norm(fluxes[index] .* surface0)
-        end
-        if sum(abs.(targets[index])) != 0.0
-            # if the channel has non-zero targets, then the error is relative to the targets
-            norm0 = norm(targets[index] .* surface0)
+            actor.norms[inorm] = norm0 = (norm(fluxes[index] .* surface0) + norm(targets[index] .* surface0)) / 2.0
         end
         errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 .* surface0
     end
@@ -411,61 +407,6 @@ end
 
 function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) where {T<:Real}
     return (sum(abs.(norm_source)) .+ sum(abs.(norm_transp))) / length(norm_source) / 2.0
-end
-
-"""
-    flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
-
-Returns vector of normalizations for the different channels that are being evolved.
-
-This normalization affects how hard the optimizer tries to match one channel versus another.
-
-The normalization is calculated as the mean square average of the transport and source fluxes.
-"""
-function flux_match_norms(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
-    cp1d = dd.core_profiles.profiles_1d[]
-    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
-    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
-    cs_gridpoints = [argmin((rho_x .- total_sources.grid.rho_tor_norm) .^ 2) for rho_x in par.rho_transport]
-    cf_gridpoints = [argmin(abs.(rho_x .- total_fluxes.grid_flux.rho_tor_norm)) for rho_x in par.rho_transport]
-
-    norms = Float64[]
-
-    if par.evolve_Te == :flux_match #[W / m²]
-        norm_source = total_sources.electrons.power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        norm_transp = total_fluxes.electrons.energy.flux[cf_gridpoints]
-        push!(norms, norm_transformation(norm_source, norm_transp))
-    end
-
-    if par.evolve_Ti == :flux_match #[W / m²]
-        norm_source = total_sources.total_ion_power_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        norm_transp = total_fluxes.total_ion_energy.flux[cf_gridpoints]
-        push!(norms, norm_transformation(norm_source, norm_transp))
-    end
-
-    if par.evolve_rotation == :flux_match #[kg / m s²]
-        norm_source = total_sources.torque_tor_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-        norm_transp = total_fluxes.momentum_tor.flux[cf_gridpoints]
-        push!(norms, norm_transformation(norm_source, norm_transp))
-    end
-
-    evolve_densities = evolve_densities_dictionary(cp1d, par)
-    if !isempty(evolve_densities)
-        if evolve_densities[:electrons] == :flux_match #[m⁻² s⁻¹]
-            norm_source = total_sources.electrons.particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-            norm_transp = total_fluxes.electrons.particles.flux[cf_gridpoints]
-            push!(norms, norm_transformation(norm_source, norm_transp))
-        end
-        for (k, ion) in enumerate(cp1d.ion)
-            if evolve_densities[Symbol(ion.label)] == :flux_match
-                norm_source = total_sources.ion[k].particles_inside[cs_gridpoints] ./ total_sources.grid.surface[cs_gridpoints]
-                norm_transp = total_fluxes.ion[k].particles.flux[cf_gridpoints]
-                push!(norms, norm_transformation(norm_source, norm_transp))
-            end
-        end
-    end
-
-    return norms
 end
 
 """

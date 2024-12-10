@@ -29,7 +29,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
         :gap_cryostat => 1.4,
         :cryostat => 0.2
     )
-    ini.build.plasma_gap = 0.1
+    ini.build.plasma_gap = 0.15
     ini.build.symmetric = true
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
@@ -59,7 +59,6 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.core_profiles.impurity = :Kr
 
     ini.build.layers[:OH].coils_inside = 6
-    ini.build.layers[:hfs_blanket].coils_inside = 4
     ini.build.layers[:lfs_blanket].coils_inside = 4
 
     ini.oh.technology = :rebco
