@@ -542,7 +542,7 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
             ini.equilibrium.ϵ,
             ini_equilibrium_elongation_true(ini.equilibrium),
             ini.equilibrium.tilt,
-            [ini.equilibrium.𝚶, 0.0],
+            [ini.equilibrium.𝚶, ini.equilibrium.twist],
             [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
     else
         error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
