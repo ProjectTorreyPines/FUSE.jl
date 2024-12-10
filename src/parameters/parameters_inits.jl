@@ -550,8 +550,8 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
 
     if boundary_from == :ods
         # in case of ODS we have all information to generate MXHboundary
-        RX = [x_point.r for x_point in eqt.boundary.x_point]
-        ZX = [x_point.z for x_point in eqt.boundary.x_point]
+        RX = Float64[x_point.r for x_point in eqt.boundary.x_point]
+        ZX = Float64[x_point.z for x_point in eqt.boundary.x_point]
         mxhb = MXHboundary(mxh, ini.equilibrium.xpoints in (:upper, :double), ini.equilibrium.xpoints in (:lower, :double), RX, ZX, pr, pz)
     else
         # all other cases we must reconcile mxh boundary with requested x-points
