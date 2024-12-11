@@ -134,6 +134,8 @@ Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit{T}
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
+    efficiency_cd_scale::Entry{T} = Entry{T}("-", "Scale factor for CD efficiency"; default=1.0, check=x -> @assert x >= 0.0 "must be: efficiency_cd_scale >= 0.0")
+
 end
 
 Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit{T}
