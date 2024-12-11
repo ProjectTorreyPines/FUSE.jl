@@ -70,7 +70,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
     sty = study.sty
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
-    @assert iseven(sty.number_of_generations) "Population size must be even"
+    @assert iseven(sty.population_size) "Population size must be even"
     @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
     optimization_parameters = Dict(
