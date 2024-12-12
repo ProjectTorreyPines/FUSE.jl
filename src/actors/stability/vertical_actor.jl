@@ -105,17 +105,17 @@ function _finalize(actor::ActorVerticalStability)
 
     # Stability margin
     mode = mhd.toroidal_mode[1]
-    mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability (N.B., not in Hz)"
+    mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability"
     mode.perturbation_type.name = "m_s"
     mode.n_tor = 0
-    mode.growthrate = actor.stability_margin # not in Hz
+    mode.stability_metric = actor.stability_margin
 
     # Normalized growth rate
     mode = mhd.toroidal_mode[2]
-    mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability (N.B., not in Hz)"
+    mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability"
     mode.perturbation_type.name = "γτ"
     mode.n_tor = 0
-    mode.growthrate = actor.normalized_growth_rate # not in Hz
+    mode.stability_metric = actor.normalized_growth_rate
 
     # plot
     if par.do_plot

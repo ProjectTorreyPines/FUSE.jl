@@ -35,7 +35,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         :gap_cryostat => 1.5,
         :cryostat => 0.2
     )
-    ini.build.layers[:cryostat].shape = :rectangle
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = true
     ini.build.divertors = :double
