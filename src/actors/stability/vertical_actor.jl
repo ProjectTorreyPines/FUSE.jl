@@ -100,21 +100,16 @@ function _finalize(actor::ActorVerticalStability)
     dd = actor.dd
     par = actor.par
 
-    mhd = resize!(dd.mhd_linear.time_slice)
-    resize!(mhd.toroidal_mode, 2)
+    mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
 
     # Stability margin
-    mode = mhd.toroidal_mode[1]
+    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
     mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability"
-    mode.perturbation_type.name = "m_s"
-    mode.n_tor = 0
     mode.stability_metric = actor.stability_margin
 
     # Normalized growth rate
-    mode = mhd.toroidal_mode[2]
+    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
     mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability"
-    mode.perturbation_type.name = "γτ"
-    mode.n_tor = 0
     mode.stability_metric = actor.normalized_growth_rate
 
     # plot
