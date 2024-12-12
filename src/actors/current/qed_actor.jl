@@ -120,8 +120,33 @@ function _step(actor::ActorQED)
             Ip = nothing
             Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
         end
+        B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+
 
         actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
+
+        j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+        p2 = plot(j_total)
+        display(p2)
+        if true 
+            rho = cp1d.grid.rho_tor_norm
+            qval = 1.0 ./ abs.(actor.QO.ι.(rho))
+            #println(qval)
+            qdes = 1.0
+            i_qeq1 = findlast(qval .< qdes)
+            print(i_qeq1)
+            #η = η_imas(dd.core_profiles.profiles_1d[],i_qeq1)
+            actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[],i_qeq1=i_qeq1); Vedge, Ip)
+            #p = plot(qval)
+            #display(p)
+            #p2 = plot!(1.0./abs.(actor.QO.ι.(rho)))
+            #display(p2)
+
+            j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+            p2 = plot!(j_total)
+            display(p2)
+            #print(qval-1.0./abs.(actor.QO.ι.(rho)),qval,1.0./abs.(actor.QO.ι.(rho)))
+        end
     end
 
     return actor
@@ -135,7 +160,8 @@ function _finalize(actor::ActorQED)
 
     cp1d = dd.core_profiles.profiles_1d[]
     j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-
+    p = plot!(j_total)
+    display(p)
     if ismissing(cp1d, :j_non_inductive)
         cp1d.j_ohmic = j_total
     else
@@ -191,8 +217,12 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
 end
 
-function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
+function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true,i_qeq1=nothing)
     rho = cp1d.grid.rho_tor_norm
     η = 1.0 ./ cp1d.conductivity_parallel
+    if i_qeq1 != nothing
+        η[1:i_qeq1] .= η[i_qeq1]
+        #println(i_qeq1,η)
+    end
     return QED.η_FE(rho, η; use_log)
 end

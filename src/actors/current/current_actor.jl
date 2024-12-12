@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T<:Real} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED, :none], "-", "Current actor to run"; default=:SteadyStateCurrent)
+    model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED, :none], "-", "Current actor to run"; default=:QED)
     allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip"; default=true)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -57,9 +57,9 @@ function _step(actor::ActorCurrent)
 
     # freeze jboot and j_non_inductive before updating johmic
     cp1d = dd.core_profiles.profiles_1d[]
-    for field in [:j_bootstrap, :j_non_inductive]
-        IMAS.refreeze!(cp1d, field)
-    end
+    #for field in [:j_bootstrap, :j_non_inductive]
+    #    IMAS.refreeze!(cp1d, field)
+    #end
 
     step(actor.jt_actor)
 
@@ -79,13 +79,13 @@ function _finalize(actor::ActorCurrent)
     # freeze cp1d j_total and j_tor after johmic update
     # important to freeze first j_total and then j_tor
     cp1d = dd.core_profiles.profiles_1d[]
-    for field in (:j_total, :j_tor)
-        IMAS.refreeze!(cp1d, field)
-    end
+    #for field in (:j_total, :j_tor)
+    #    IMAS.refreeze!(cp1d, field)
+    #end
 
     # similarly, freeze parallel plasma current
     eqt = dd.equilibrium.time_slice[]
-    IMAS.refreeze!(eqt.profiles_1d, :j_parallel)
+    #IMAS.refreeze!(eqt.profiles_1d, :j_parallel)
 
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
