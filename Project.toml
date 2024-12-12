@@ -4,6 +4,7 @@ authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.2.2"
 
 [deps]
+AbstractGPs = "99985d1d-32ba-4be9-9821-2ec096f28918"
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
 BalanceOfPlantSurrogate = "001e48cb-5a1e-4e3c-a5d4-cdc3aa14f3de"
 BoundaryPlasmaModels = "2da5b0d0-c5e5-4f14-9caf-62d0020df410"
@@ -51,6 +52,8 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimulationParameters = "32ab26d3-25d6-405d-a295-367385e16093"
 SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
+Surrogates = "6fc51010-71bc-11e9-0e15-a3fcc6593c49"
+SurrogatesAbstractGPs = "78aa1720-c2af-471b-b307-964fd38f9b5f"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 TEQUILA = "a60c9cbd-e72f-4185-96b6-b8fc312c4d37"
