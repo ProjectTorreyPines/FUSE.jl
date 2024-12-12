@@ -156,7 +156,6 @@ end
 Start multiprocessing environment
 
   - kw arguments are passed to the Distributed.addprocs
-
   - nworkers == 0 uses as many workers as the number of available CPUs
   - cpus_per_task can be used to control memory usage
   - memory_usage_fraction is the fraction of peak memory that can be used

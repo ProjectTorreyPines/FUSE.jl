@@ -1,7 +1,6 @@
 using FUSE
 using Test
 using Distributed
-using ProgressMeter
 
 @testset "study" begin
     sty, act = FUSE.study_parameters(:DatabaseGenerator)
@@ -17,6 +16,7 @@ using ProgressMeter
     ini.core_profiles.ne_value = 0.2 ↔ [0.2, 1.0]
 
     @everywhere import FUSE
+    @everywhere import ProgressMeter
 
     @everywhere function workflow_DatabaseGenerator(dd::FUSE.IMAS.dd, ini::FUSE.ParametersAllInits, act::FUSE.ParametersAllActors)
         FUSE.init(dd, ini, act)

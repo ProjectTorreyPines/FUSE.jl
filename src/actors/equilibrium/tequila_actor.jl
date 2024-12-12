@@ -135,16 +135,15 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound, actor.act.ActorPFactive.green_model)
+        tequila2imas(actor.shot, actor.dd, actor.par, actor.act; actor.ψbound)
     catch e
         display(plot(actor.shot))
-        display(contour())
         rethrow(e)
     end
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA; ψbound::D=0.0, green_model::Symbol) where {D<:Real}
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA, act::ParametersAllActors; ψbound::D) where {D<:Real}
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -186,7 +185,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     eq2d = eqt.profiles_2d[1]
     eq2d.grid.dim1 = shot.ρ
     MXH_modes = (size(shot.surfaces, 1) - 5) ÷ 2
-    eq2d.grid.dim2 = vcat(@SVector[0.0, 0.0, 0.0, 0.0, 0.0], range(1,MXH_modes), .-range(1,MXH_modes))
+    eq2d.grid.dim2 = vcat(@SVector[0.0, 0.0, 0.0, 0.0, 0.0], range(1, MXH_modes), .-range(1, MXH_modes))
     eq2d.grid_type.index = 57 # inverse_rhotor_mxh : Flux surface type with radial label sqrt[Phi/pi/B0] (dim1), Phi being toroidal flux, and MXH coefficients R0, Z0, ϵ, κ, c0, c[...], s[...] (dim2)
     eq2d.psi = collect(shot.surfaces')
 
@@ -222,21 +221,21 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
         # Flux control points
-        mag = VacuumFields.FluxControlPoint(eqt.global_quantities.magnetic_axis.r,eqt.global_quantities.magnetic_axis.z, psia, 1.0)
+        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, 1.0)
         flux_cps = VacuumFields.FluxControlPoint[mag]
-        strike_weight = 1.0
-        strike_cps = [VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+        strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
+        strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)
 
         # Saddle control points
-        saddle_weight = 1.0
-        saddle_cps = [VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
+        saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields
