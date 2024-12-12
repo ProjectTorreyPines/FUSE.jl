@@ -97,6 +97,7 @@ end
 function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
+    act = actor.act
 
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
@@ -116,12 +117,12 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
         # Flux control points
         mag = VacuumFields.FluxControlPoint{D}(actor.chease.gfile.rmaxis, actor.chease.gfile.zmaxis, actor.chease.gfile.psi[1], 1.0)
         flux_cps = VacuumFields.FluxControlPoint[mag]
-        strike_weight = flux_saddle_weights / length(eqt.boundary.strike_point)
+        strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
         strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)
 
         # Saddle control points
-        saddle_weight = flux_saddle_weights / length(eqt.boundary.x_point)
+        saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
         saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations

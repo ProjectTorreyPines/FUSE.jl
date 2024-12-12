@@ -137,7 +137,7 @@ end
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
     try
-        tequila2imas(actor.shot, actor.dd, actor.par; actor.ψbound, actor.act.ActorPFactive.green_model)
+        tequila2imas(actor.shot, actor.dd, actor.par, actor.act; actor.ψbound)
     catch e
         display(plot(actor.shot))
         rethrow(e)
@@ -145,7 +145,7 @@ function _finalize(actor::ActorTEQUILA)
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA; ψbound::D=0.0, green_model::Symbol) where {D<:Real}
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA, act::ParametersAllActors; ψbound::D) where {D<:Real}
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -222,24 +222,22 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         # Boundary control points
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
-        flux_saddle_weights = 0.1
-
         # Flux control points
         mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, 1.0)
         flux_cps = VacuumFields.FluxControlPoint[mag]
-        strike_weight = flux_saddle_weights / length(eqt.boundary.strike_point)
+        strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
         strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)
 
         # Saddle control points
-        saddle_weight = flux_saddle_weights / length(eqt.boundary.x_point)
+        saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
         saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields
