@@ -57,9 +57,9 @@ function _step(actor::ActorCurrent)
 
     # freeze jboot and j_non_inductive before updating johmic
     cp1d = dd.core_profiles.profiles_1d[]
-    #for field in [:j_bootstrap, :j_non_inductive]
-    #    IMAS.refreeze!(cp1d, field)
-    #end
+    for field in [:j_bootstrap, :j_non_inductive]
+        IMAS.refreeze!(cp1d, field)
+    end
 
     step(actor.jt_actor)
 
@@ -79,13 +79,13 @@ function _finalize(actor::ActorCurrent)
     # freeze cp1d j_total and j_tor after johmic update
     # important to freeze first j_total and then j_tor
     cp1d = dd.core_profiles.profiles_1d[]
-    #for field in (:j_total, :j_tor)
-    #    IMAS.refreeze!(cp1d, field)
-    #end
+    for field in (:j_total, :j_tor)
+        IMAS.refreeze!(cp1d, field)
+    end
 
     # similarly, freeze parallel plasma current
     eqt = dd.equilibrium.time_slice[]
-    #IMAS.refreeze!(eqt.profiles_1d, :j_parallel)
+    IMAS.refreeze!(eqt.profiles_1d, :j_parallel)
 
     # update core_sources related to current
     IMAS.bootstrap_source!(dd)
