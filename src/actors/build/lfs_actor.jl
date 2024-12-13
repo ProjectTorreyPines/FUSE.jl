@@ -34,8 +34,7 @@ Actor that resizes the Low Field Side of the tokamak radial build
 
 !!! note
 
-
-Manipulates radial build information in `dd.build.layer`
+    Manipulates radial build information in `dd.build.layer`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)

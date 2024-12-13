@@ -1,7 +1,7 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
 authors = ["Orso Meneghini <orso82@gmail.com>"]
-version = "0.2.2"
+version = "0.3.3"
 
 [deps]
 AbstractGPs = "99985d1d-32ba-4be9-9821-2ec096f28918"
