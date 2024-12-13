@@ -3,7 +3,6 @@ using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
 import DataFrames
-import ProgressMeter
 
 # ========== #
 # Checkpoint #
@@ -11,53 +10,31 @@ import ProgressMeter
 """
 Provides handy checkpoint capabilities of `dd`, `ini`, `act`
 
-It essentially behaves like a ordered dictionary, with the difference that it does deepcopy on getindex and setindex!
+@checkin and @checkout macros use FUSE.checkpoint = Checkpoint()
 
-Sample usage in a Jupyter notebook:
-
-    chk = FUSE.Checkpoint()
     ...init...
-    chk[:init] = dd, ini, act; # store
+    @checkin :init dd ini act # store dd, ini, act
 
     --------
 
-    dd, ini, act = chk[:init] # restore
+    @checkout :init dd ini act # restore dd, ini, act
     ...something...
-    chk[:something] = dd, ini, act; # store
+    @checkin :something dd act # store dd, act
 
     --------
 
-    dd = chk[:something].dd # restore only dd
+    @checkout :something dd # restore only dd
     ...something_else...
-    chk[:something_else] = dd # store only dd
+    @checkin :something_else dd # store only dd
 
     --------
 
-    dd = chk[:something_else].dd # restore only dd
+    @checkout :something_else dd # restore only dd
     ...something_else_more...
 
-also works with @checkin and @checkout macros
+    ========
 
-    chk = FUSE.Checkpoint()
-    ...init...
-    @checkin chk :init dd ini act # store dd, ini, act
-
-    --------
-
-    @checkout chk :init dd ini act # restore dd, ini, act
-    ...something...
-    @checkin chk :something dd act # store dd, act
-
-    --------
-
-    @checkout chk :something dd # restore only dd
-    ...something_else...
-    @checkin chk :something_else dd # store only dd
-
-    --------
-
-    @checkout chk :something_else dd # restore only dd
-    ...something_else_more...
+    empty!(FUSE.checkpoint) # to start over
 """
 Base.@kwdef struct Checkpoint
     history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
@@ -87,6 +64,10 @@ function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     return nothing
 end
 
+function Base.iterate(chk::Checkpoint, state=1)
+    return iterate(chk.history, state)
+end
+
 # Generate the delegated methods (NOTE: these methods do not require deepcopy)
 for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
     @eval function Base.$func(chk::Checkpoint, args...; kw...)
@@ -95,17 +76,17 @@ for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
 end
 
 """
-    @checkin chk :key a b c
+    @checkin :key a b c
 
 Macro to save variables into a Checkpoint under a specific key
 """
-macro checkin(checkpoint, key, vars...)
+macro checkin(key, vars...)
     key = esc(key)
-    checkpoint = esc(checkpoint)
 
     # Save all the variables in the `vars` list under the provided key using their names
     return quote
-        d = getfield($checkpoint, :history)
+        @assert typeof($key) <: Symbol "`@checkin chk :what var1 var2` was deprecated in favor of `@checkin :what var1 var2`"
+        d = getfield(checkpoint, :history)
         if $key in keys(d)
             dict = Dict(k => v for (k, v) in pairs(d[$key]))
         else
@@ -118,17 +99,17 @@ macro checkin(checkpoint, key, vars...)
 end
 
 """
-    @checkout chk :key a c
+    @checkout :key a c
 
 Macro to load variables from a Checkpoint
 """
-macro checkout(checkpoint, key, vars...)
+macro checkout(key, vars...)
     key = esc(key)
-    checkpoint = esc(checkpoint)
 
     # Restore variables from the checkpoint
     return quote
-        d = getfield($checkpoint, :history)
+        @assert typeof($key) <: Symbol "`@checkout chk :what var1 var2` was deprecated in favor of `@checkout :what var1 var2`"
+        d = getfield(checkpoint, :history)
         if haskey(d, $key)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
@@ -138,6 +119,8 @@ macro checkout(checkpoint, key, vars...)
         nothing
     end
 end
+
+const checkpoint = Checkpoint()
 
 # ===================================== #
 # extract data from FUSE save folder(s) #
@@ -230,6 +213,7 @@ function IMAS.extract(
         end
 
         # load the data
+        ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
         Threads.@threads for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
@@ -498,7 +482,7 @@ function digest(
     end
 
     # core sources
-    for k in 1:5+length(IMAS.list_ions(dd.core_sources))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles.profiles_1d[]))
         if !isempty(dd.core_sources.source) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_sources; only=k))
@@ -506,7 +490,7 @@ function digest(
     end
 
     # core transport
-    for k in 1:4+length(IMAS.list_ions(dd.core_transport))
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles.profiles_1d[]))
         if !isempty(dd.core_transport) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_transport; only=k))
@@ -554,7 +538,7 @@ function digest(
         plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
-        plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
+        plot!(p, dd.pf_active; time0, subplot=2, coil_identifiers=true)
         plot!(p, dd.build.pf_active.rail; subplot=2)
         display(p)
     end
@@ -693,7 +677,7 @@ function categorize_errors(
 
     # go through directories
     for dir in dirs
-        filename = joinpath([dir, "error.txt"])
+        filename = joinpath(dir, "error.txt")
         if !isfile(filename)
             continue
         end
@@ -980,6 +964,7 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     for k in 2:length(dds)
         push!(df, df[1, :])
     end
+    ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(length(dds); showspeed=true)
     Threads.@threads for k in eachindex(dds)
         try
@@ -998,30 +983,92 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
 end
 
 """
-    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    install_fusebot()
 
-This function installs the `fusebot` executable in a given folder,
-by default in the directory where the juliaup executable is located.
+Installs the `fusebot` executable in the directory where the `juliaup` executable is located
 """
-function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+function install_fusebot()
+    try
+        if Sys.iswindows()
+            folder = dirname(readchomp(`where juliaup`))
+        else
+            folder = dirname(readchomp(`which juliaup`))
+        end
+        return install_fusebot(folder)
+    catch e
+        error("error locating `juliaup` executable: $(string(e))\nPlease use `FUSE.install_fusebot(folder)` specifying a folder in your \$PATH")
+    end
+end
+
+"""
+    install_fusebot(folder::String)
+
+Installs the `fusebot` executable in a specified folder
+"""
+function install_fusebot(folder::String)
     fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
     target_path = joinpath(folder, "fusebot")
-    ptp_target_path = joinpath(folder, "ptp")
-
-    if !isfile(fusebot_path)
-        error("The `fusebot` executable does not exist in the FUSE directory!?")
-    end
-
+    @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
+    println("`fusebot` has been successfully installed: $target_path")
+end
 
-    if folder == dirname(readchomp(`which juliaup`))
-        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
-    else
-        println("`fusebot` has been successfully installed in folder: $folder")
-    end
+"""
+    compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
 
-    if isfile(ptp_target_path)
-        rm(ptp_target_path)
-        println("Old `ptp` has been successfully removed from folder: $folder")
+This function activates the `Manifest.toml` files for the provided directories and compares their dependencies. It identifies:
+
+  - **Added dependencies**: Packages present in the env2 environment but not in the working environment.
+  - **Removed dependencies**: Packages present in the working environment but not in the env2 environment.
+  - **Modified dependencies**: Packages that exist in both environments but differ in version.
+"""
+function compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
+    # Save the current active environment
+    original_env = Base.current_project()
+
+    try
+        # Activate the env2 environment and retrieve its dependencies
+        Pkg.activate(env2_dir)
+        env_env2 = Pkg.dependencies()
+
+        # Activate the working environment and retrieve its dependencies
+        Pkg.activate(env1_dir)
+        env_env1 = Pkg.dependencies()
+
+        # Compare dependencies
+        added = setdiff(keys(env_env2), keys(env_env1))
+        removed = setdiff(keys(env_env1), keys(env_env2))
+        modified = [uuid for uuid in intersect(keys(env_env1), keys(env_env2)) if env_env1[uuid] != env_env2[uuid]]
+
+        println("Added dependencies: ")
+        for uuid in added
+            package_pkg = env_env2[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Removed dependencies:")
+        for uuid in removed
+            package_pkg = env_env1[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Modified dependencies:")
+        for uuid in modified
+            env2_pkg = env_env2[uuid]
+            env1_pkg = env_env1[uuid]
+            env2_name = env2_pkg.name
+            env2_version = env2_pkg.version
+            env1_version = env1_pkg.version
+            println("    $env2_name: env2=$env2_version, env1=$env1_version")
+        end
+
+        return (added=added, removed=removed, modified=modified)
+    finally
+        # Restore the original environment
+        Pkg.activate(original_env)
     end
 end

@@ -7,7 +7,8 @@ CurrentModule = FUSE
 
 ```@example
 import FUSE # hide
-act = FUSE.ParametersActors()
+act = FUSE.ParametersActors() # hide
+act # hide
 ```
 
 """]

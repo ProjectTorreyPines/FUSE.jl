@@ -58,13 +58,6 @@ function unwrap(v, inplace=false)
     return unwrapped
 end
 
-function IMAS.force_float(x::ForwardDiff.Dual)
-    ## we purposly do not do it recursively since generally
-    ## ForwardDiff.Dual of ForwardDiff.Dual is an indication of someghing going wrong
-    # return force_float(x.value)
-    return x.value
-end
-
 """
     same_length_vectors(args...)
 
@@ -91,31 +84,6 @@ function same_length_vectors(args...)
     args = collect(map(x -> isa(x, Vector) ? x : [x], args))
     return args = map(x -> vcat([x for k in 1:n]...)[1:n], args)
 end
-
-"""
-    mirror_bound(x::T, l::T, u::T) where {T<:Real}
-
-Return tuple with value of x bounded between l and u
-The bounding is done by mirroring the value at the bound limits.
-"""
-function mirror_bound(x::T, l::T, u::T) where {T<:Real}
-    d = (u - l) / 2.0
-    c = (u + l) / 2.0
-    x0 = (x .- c) / d
-    while abs(x0) > 1.0
-        if x0 < 1.0
-            x0 = -2.0 - x0
-        else
-            x0 = 2.0 - x0
-        end
-    end
-    return x0 * d + c
-end
-
-# =========== #
-# Convex Hull #
-# =========== #
-import VacuumFields: convex_hull!, convex_hull
 
 # ======== #
 # TraceCAD #
@@ -188,7 +156,6 @@ end
 Start multiprocessing environment
 
   - kw arguments are passed to the Distributed.addprocs
-
   - nworkers == 0 uses as many workers as the number of available CPUs
   - cpus_per_task can be used to control memory usage
   - memory_usage_fraction is the fraction of peak memory that can be used
@@ -276,6 +243,33 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             error("Not running on saga cluster")
         end
 
+    elseif cluster == "feynman"
+        if occursin("feynman", gethostname())
+            gigamem_per_node = 800
+            cpus_per_node = 30
+            if nworkers > 0
+                nodes = 1
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
+            end
+            np = nworkers + 1
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            ENV["JULIA_WORKER_TIMEOUT"] = "360"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="LocalQ",
+                    topology=:master_worker,
+                    time="99:99:99",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    kw...
+                )
+            end
+        else
+            error("Not running on feynman cluster")
+        end
+
     elseif cluster == "localhost"
         mem_size = Int(ceil(localhost_memory() * memory_usage_fraction))
 
@@ -321,3 +315,14 @@ function localhost_memory()
     end
     return mem_size
 end
+
+# ====== #
+# errors #
+# ====== #
+struct MissingExtensionError <: Exception
+    actor_name::String
+    package_name::String
+end
+
+Base.showerror(io::IO, e::MissingExtensionError) =
+    print(io, "The FUSE actor $(e.actor_name) cannot be run because the Julia package $(e.package_name).jl is not loaded. Please load it to enable this feature.")

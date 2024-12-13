@@ -166,7 +166,8 @@ function init(
         end
 
         # initialize oh and pf coils
-        if initialize_hardware && (!ismissing(ini.oh, :n_coils) || !isempty(dd1.pf_active.coil))
+        n_coils = [length(layer.coils_inside) for layer in dd.build.layer if !ismissing(layer, :coils_inside)]
+        if initialize_hardware && !isempty(n_coils)
             verbose && @info "INIT: init_pf_active"
             init_pf_active!(dd, ini, act, dd1)
             if do_plot
@@ -175,6 +176,13 @@ function init(
                 plot!(dd.build.pf_active.rail)
                 display(plot!(dd.pf_active))
             end
+        end
+
+        # pf_passive
+        if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
+            dd.pf_passive = deepcopy(dd1.pf_passive)
+        else
+            FUSE.ActorPassiveStructures(dd, act)
         end
 
         # initialize balance of plant
@@ -269,13 +277,13 @@ Makes `ini` and `act` self-consistent and consistent with one another
 NOTE: operates in place
 """
 function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-    if !ismissing(ini.core_profiles, :T_ratio)
-        act.ActorEPEDprofiles.T_ratio_core = ini.core_profiles.T_ratio
-        act.ActorEPED.T_ratio_pedestal = ini.core_profiles.T_ratio
+    if !ismissing(ini.core_profiles, :Ti_Te_ratio)
+        act.ActorEPEDprofiles.T_ratio_core = ini.core_profiles.Ti_Te_ratio
+        act.ActorEPED.T_ratio_pedestal = ini.core_profiles.Ti_Te_ratio
     end
 
-    if !ismissing(ini.core_profiles, :T_shaping)
-        act.ActorEPEDprofiles.T_shaping = ini.core_profiles.T_shaping
+    if !ismissing(ini.core_profiles, :Te_shaping)
+        act.ActorEPEDprofiles.Te_shaping = ini.core_profiles.Te_shaping
     end
 
     if !ismissing(ini.core_profiles, :ne_shaping)

@@ -38,24 +38,16 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 psin = rhon .^ 2
                 cp1d.grid.rho_tor_norm = rhon
                 cp1d.grid.psi = psin
-                cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin .^ 2) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference)
-                if !ismissing(ini.requirements, :power_electric_net) && ismissing(ini.equilibrium, :pressure_core)
-                    Pfusion_estimate = ini.requirements.power_electric_net * 2.0
-                    dd0 = deepcopy(dd)
-                    dd0.core_profiles.profiles_1d[].pressure = 1E4 .* (1.0 .- psin)
-                    act_copy = deepcopy(act)
-                    act_copy.ActorTEQUILA.free_boundary = false
-                    ActorEquilibrium(dd0, act_copy; model=:TEQUILA, ip_from=:pulse_schedule)
-                    res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd0, ini), 1e1, 1e7, Optim.GoldenSection())
-                    ini.equilibrium.pressure_core = pressure_core = res.minimizer[1]
-                    @warn "Guessing `ini.equilibrium.pressure_core=$pressure_core` based on ini.requirements.power_electric_net=$(ini.requirements.power_electric_net)"
-                elseif !ismissing(getproperty(ini.equilibrium, :pressure_core))
-                    pressure_core = ini.equilibrium.pressure_core
-                else
-                    error("Specify `ini.equilibrium.pressure_core` for this case")
+                cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference)
+
+                # estimate ini.equilibrium.pressure_core
+                if ismissing(ini.equilibrium, :pressure_core)
+                    dd0 = IMAS.dd()
+                    init_core_profiles!(dd0, ini, act, dd1)
+                    ini.equilibrium.pressure_core = dd0.core_profiles.profiles_1d[].pressure[1]
                 end
 
-                cp1d.pressure = pressure_core .* (1.0 .- psin)
+                cp1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin).^2
             end
         end
 

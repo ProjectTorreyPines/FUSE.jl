@@ -15,9 +15,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersAct
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorCHEASE{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCHEASE{P}
+    act::ParametersAllActors{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 
@@ -27,16 +28,16 @@ end
 Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorCHEASE(dd, act.ActorCHEASE; kw...)
+    actor = ActorCHEASE(dd, act.ActorCHEASE, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
+function ActorCHEASE(dd::IMAS.dd{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCHEASE)
     par = par(kw...)
-    return ActorCHEASE(dd, par, nothing)
+    return ActorCHEASE(dd, par, act, nothing)
 end
 
 """
@@ -93,9 +94,10 @@ function _step(actor::ActorCHEASE)
     return actor
 end
 
-function _finalize(actor::ActorCHEASE)
+function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
+    act = actor.act
 
     # convert from fixed to free boundary equilibrium
     if par.free_boundary
@@ -108,30 +110,30 @@ function _finalize(actor::ActorCHEASE)
         ψbound = 0.0
 
         # Boundary control points
-        flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, ψbound)
+        iso_cps = VacuumFields.boundary_iso_control_points(EQ, 0.999)
+
+        flux_saddle_weights = 0.1
 
         # Flux control points
-        if !isempty(eqt.boundary.strike_point)
-            strike_weight = 0.01
-            strike_cps = VacuumFields.FluxControlPoint{Float64}[
-                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
-            ]
-            append!(flux_cps, strike_cps)
-        end
+        mag = VacuumFields.FluxControlPoint{D}(actor.chease.gfile.rmaxis, actor.chease.gfile.zmaxis, actor.chease.gfile.psi[1], 1.0)
+        flux_cps = VacuumFields.FluxControlPoint[mag]
+        strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
+        strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+        append!(flux_cps, strike_cps)
 
         # Saddle control points
-        saddle_weight = 0.01
-        saddle_cps = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
+        saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
 
         # Coils locations
         if isempty(dd.pf_active.coil)
             coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
         else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
+            coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model, zero_currents=true)
         end
 
         # from fixed boundary to free boundary via VacuumFields
-        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
+        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         actor.chease.gfile.psirz .= psi_free_rz'
     end
 

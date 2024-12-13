@@ -7,7 +7,14 @@ CurrentModule = FUSE
 
 ```@example
 import FUSE # hide
-ini = FUSE.ParametersInits(; n_ic=1, n_nb=1, n_ec=1, n_lh=1, n_pl=1, n_layers=1)
+ini = FUSE.ParametersInits() # hide
+resize!(ini.build.layers, 1) # hide
+resize!(ini.nb_unit, 1) # hide
+resize!(ini.ec_launcher, 1) # hide
+resize!(ini.pellet_launcher, 1) # hide
+resize!(ini.ic_antenna, 1) # hide
+resize!(ini.lh_antenna, 1) # hide
+ini # hide
 ```
 
 """]
@@ -16,5 +23,12 @@ open("$(@__DIR__)/ini.md", "w") do io
 end
 
 open("$(@__DIR__)/ini_details.md", "w") do io
-    return parameters_details_md(io, FUSE.ParametersInits(; n_ic=1, n_nb=1, n_ec=1, n_lh=1, n_pl=1, n_layers=1))
+    ini = FUSE.ParametersInits()
+    resize!(ini.build.layers, 1)
+    resize!(ini.nb_unit, 1)
+    resize!(ini.ec_launcher, 1)
+    resize!(ini.pellet_launcher, 1)
+    resize!(ini.ic_antenna, 1)
+    resize!(ini.lh_antenna, 1)
+    return parameters_details_md(io, ini)
 end

@@ -1,8 +1,6 @@
 import Metaheuristics
-import ProgressMeter
 import Distributed
 import Dates
-ProgressMeter.ijulia_behavior(:clear)
 
 # =================== #
 # Optimization engine #
@@ -152,12 +150,13 @@ function optimization_engine(
     constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
     save_folder::AbstractString,
     save_dd::Bool,
-    p::ProgressMeter.Progress)
+    p::ProgressMeter.Progress,
+    generation_offset::Int)
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(
-        x -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter, save_dd),
+        x -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter + generation_offset, save_dd),
         [X[k, :] for k in 1:size(X)[1]]
     )
     F = zeros(size(X)[1], length(tmp[1][1]))
