@@ -314,6 +314,13 @@ compat: error_missing_repo_var download_compat_tomls combine_compat_toml
 	@echo ""
 
 # @devs
+compat_all:
+# apply compat to all repos in development
+	for repo in $(DEV_PACKAGES_MAKEFILE); do \
+		make compat repo=$$repo; \
+	done
+
+# @devs
 compat_cleanup: error_missing_repo_var
 # Remove temporary Project_PR???.toml files and close CompatHelper PRs
 	@echo "Closing corresponding PRs and deleting temporary Project_PR???.toml files"
