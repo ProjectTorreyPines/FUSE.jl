@@ -62,7 +62,9 @@ function _step(actor::ActorSteadyStateCurrent)
         time = IMAS.interp1d(rho_tor_norm, j_diffusion_time).(par.current_relaxation_radius)
         alpha = 1.0 .- exp.(-time ./ j_diffusion_time)
 
-        interpo_j_ohmic = relaxed_j_ohmic .* alpha .+ initial_j_ohmic .* (1.0 .- alpha)
+        interp_j = relaxed_j_ohmic .* alpha .+ initial_j_ohmic .* (1.0 .- alpha)
+        interpo_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, interp_j)
+
         cp1d.j_ohmic = interpo_j_ohmic
     end
 
