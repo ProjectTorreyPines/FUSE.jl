@@ -661,7 +661,7 @@ function unpack_z_profiles(
     z_profiles::AbstractVector{<:Real})
 
     # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 5.0
+    z_max = 10.
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
     cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
