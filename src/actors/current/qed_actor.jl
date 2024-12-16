@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
-    q0_desired::Entry{Float64} = Entry{Float64}("-", "Desired minimum q-profile"; default=1.0)
+    qmin_desired::Entry{Float64} = Entry{Float64}("-", "Desired minimum magnitude of q-profile"; default=1.0)
 end
 
 mutable struct ActorQED{D,P} <: SingleAbstractActor{D,P}
@@ -123,17 +123,16 @@ function _step(actor::ActorQED)
         end
         B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
-
         actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
-
         j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
 
-        if par.q0_desired > 0  
-            rho = cp1d.grid.rho_tor_norm
-            qval = 1.0 ./ abs.(actor.QO.ι.(rho))
-            i_qdes = findlast(qval .< par.q0_desired)
-            actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[],i_qdes=i_qdes); Vedge, Ip)
+        # using Jardin's model for stationary sawteeth to raise q>1
+        # requires running QED twice (the first time to evaluate q, the second to relax using updated q profile)
+        if par.qmin_desired > 0  
+            qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+            i_qdes = findlast(qval .< par.qmin_desired)
 
+            actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]; i_qdes); Vedge, Ip)
             j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
         end
     end
@@ -205,11 +204,10 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
 end
 
-function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true,i_qdes=nothing)
-    rho = cp1d.grid.rho_tor_norm
+function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true, i_qdes::Int=0)
     η = 1.0 ./ cp1d.conductivity_parallel
-    if i_qdes != nothing
+    if i_qdes != 0
         η[1:i_qdes] .= η[i_qdes]
     end
-    return QED.η_FE(rho, η; use_log)
+    return QED.η_FE(cp1d.grid.rho_tor_norm, η; use_log)
 end
