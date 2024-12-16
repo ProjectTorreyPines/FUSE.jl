@@ -171,9 +171,12 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     offset = mirror_bound(oh_height_off[2], -1.0, 1.0)
                 end
                 z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], offset)
+                r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r)
                 for k in 1:rail.coils_number
                     koptim += 1
                     koh += 1
+                    coil_distance = (z_oh[koh] - minimum(rail.outline.z)) / (maximum(rail.outline.z) - minimum(rail.outline.z)) * 2 - 1
+                    optim_coils[koptim].z = r_interp(coil_distance)
                     optim_coils[koptim].z = z_oh[koh]
                     optim_coils[koptim].height = height_oh
                 end
