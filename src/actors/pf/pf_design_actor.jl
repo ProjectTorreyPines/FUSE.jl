@@ -8,6 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersA
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     model::Switch{Symbol} = Switch{Symbol}([:none, :uniform, :optimal], "-", "Coil placement strategy"; default=:optimal)
+    reset_rails::Entry{Bool} = Entry{Bool}("-", "Reset PF coils rails"; default=true)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -55,7 +56,9 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
     elseif par.model in [:uniform, :optimal]
         # reset pf coil rails
-        init_pf_active!(dd.pf_active, dd.build, eqt)
+        if par.reset_rails
+            init_pf_active!(dd.pf_active, dd.build, eqt)
+        end
 
         # optimize coil placement
         if par.model == :optimal
