@@ -172,7 +172,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             end
             np = nworkers + 1
             gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
-            ENV["JULIA_WORKER_TIMEOUT"] = "360"
+            ENV["JULIA_WORKER_TIMEOUT"] = "1200"
             if Distributed.nprocs() < np
                 Distributed.addprocs(
                     ClusterManagers.SlurmManager(np - Distributed.nprocs());
