@@ -337,6 +337,7 @@ Allows users to initialize layers from a dictionary
 """
 function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
     @assert field == :layers
+    empty!(parameters_build.layers)
     for (k, (name, thickness)) in enumerate(layers)
         layer = FUSEparameters__build_layer{T}()
         push!(parameters_build.layers, layer)
@@ -348,7 +349,7 @@ function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Sy
         layer.thickness = thickness
 
         # type
-        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name))
+        if occursin("OH", uppercase(layer.name)) && occursin("hfs", lowercase(layer.name)) && !occursin("gap ", lowercase(layer.name))
             layer.type = :oh
         elseif occursin("gap ", lowercase(layer.name))
             layer.type = :gap
