@@ -166,7 +166,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 512
             cpus_per_node = 128
             if nworkers > 0
-                nodes = 4 # omega has 12 ga-ird nodes
+                nodes = 4  # don't use more than 4 nodes (omega has 12 ird nodes)
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -194,7 +194,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 192
             cpus_per_node = 96
             if nworkers > 0
-                nodes = 4
+                nodes = 4 # don't use more than 4 nodes
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -222,7 +222,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 192
             cpus_per_node = 48
             if nworkers > 0
-                nodes = 4  # saga has 6 nodes
+                nodes = 4 # don't use more than 4 nodes (saga has 6 nodes)
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -248,7 +248,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 800
             cpus_per_node = 30
             if nworkers > 0
-                nodes = 1
+                nodes = 1 # don't use more than 1 node
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -275,7 +275,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 512
             cpus_per_node = 64
             if nworkers > 0
-                nodes = 4 # omega has 12 ga-ird nodes
+                nodes = 4 # don't use more than 4 nodes
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -300,7 +300,6 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
 
     elseif cluster == "localhost"
         mem_size = Int(ceil(localhost_memory() * memory_usage_fraction))
-
         if nworkers > 0
             nprocs_max = length(Sys.cpu_info())
             nworkers = min(nworkers, nprocs_max)
