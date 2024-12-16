@@ -19,6 +19,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    write_to_dd::Entry{Bool} = Entry{Bool}("-", "Use pedestal results to update core_profiles, via blend_core_edge function"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
 end
@@ -113,7 +114,9 @@ function _finalize(actor::ActorEPED)
     @ddtime summary_ped.position.rho_tor_norm = position
 
     # this function takes information about the H-mode pedestal from summary IDS and blends it with core_profiles core
-    IMAS.blend_core_edge(:H_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped)
+    if par.write_to_dd
+        IMAS.blend_core_edge(:H_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped)
+    end
 
     return actor
 end
