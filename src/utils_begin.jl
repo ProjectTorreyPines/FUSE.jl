@@ -271,7 +271,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
         end
 
     elseif cluster == "engaging"
-        if occursin("eofe10", gethostname())
+        if occursin("eofe", gethostname())
             gigamem_per_node = 512
             cpus_per_node = 64
             if nworkers > 0
