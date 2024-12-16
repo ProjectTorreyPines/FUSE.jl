@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorBetaMatch{T<:Real} <: Parameters
     ne_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core"; default=1.0)
+    do_plot::Entry{Bool} = Entry{Bool}("-", "Display optimization details and plot equilibrium, current profiles"; default=false)
 end
 
 mutable struct ActorBetaMatch{D,P} <: SingleAbstractActor{D,P}
@@ -87,20 +88,7 @@ function _step(actor::ActorBetaMatch)
     
     # run optimizer to find Te0 that gives target betaN
     res = Optim.optimize(x -> cost_function(x), 0, 1e6)
-    #display(res)
     Te0 = res.minimizer[1]
-    if true # do_plot
-        pressure = cp1d.pressure
-        volume = cp1d.grid.volume
-        pressure_avg = IMAS.trapz(volume, pressure) / volume[end]
-        display("<P> = $(pressure_avg)")
-        display("Ip = $(IMAS.Ip(cp1d))")
-        display("βn = $(IMAS.beta_tor_norm(dd.equilibrium, cp1d))")
-        display(res)
-        display(plot(dd.core_profiles))
-        display(plot(dd.equilibrium))
-        display(plot(dd.core_sources; only=5))
-    end
     
     # if optimized Te0 is less than te_ped, increase to be equal to te_ped
     if Te0 < te_ped
@@ -112,6 +100,20 @@ function _step(actor::ActorBetaMatch)
         for ion in cp1d.ion
             ion.temperature = ti_new
         end
+    end
+
+    # plot results
+    if par.do_plot
+        pressure = cp1d.pressure
+        volume = cp1d.grid.volume
+        pressure_avg = IMAS.trapz(volume, pressure) / volume[end]
+        display("<P> = $(pressure_avg)")
+        display("Ip = $(IMAS.Ip(cp1d))")
+        display("βn = $(IMAS.beta_tor_norm(dd.equilibrium, cp1d))")
+        display(res)
+        display(plot(dd.core_profiles))
+        display(plot(dd.equilibrium))
+        display(plot(dd.core_sources; only=5))
     end
 
     return actor
