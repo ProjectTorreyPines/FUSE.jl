@@ -181,7 +181,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                     topology=:master_worker,
                     time="99:99:99",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
                     kw...
                 )
             end
@@ -209,7 +209,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                     topology=:master_worker,
                     time="00:48:00",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
                     kw...
                 )
             end
@@ -235,7 +235,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                     exclusive="",
                     topology=:master_worker,
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
                     kw...
                 )
             end
@@ -262,7 +262,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                     topology=:master_worker,
                     time="99:99:99",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
                     kw...
                 )
             end
