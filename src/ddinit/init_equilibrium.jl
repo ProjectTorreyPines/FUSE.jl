@@ -55,6 +55,9 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         if !(init_from == :ods && ini.equilibrium.boundary_from == :ods)
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
+            if act_copy.ActorEquilibrium.model == :FRESCO
+                act_copy.ActorEquilibrium.model = :TEQUILA
+            end
             ActorEquilibrium(dd, act_copy; ip_from=:pulse_schedule)
         end
 
