@@ -11,9 +11,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPEDprofiles{T<:Real} <: Paramet
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core"; default=1.0)
 end
 
-mutable struct ActorEPEDprofiles{D,P} <: CompoundAbstractActor{D,P}
+mutable struct ActorEPEDprofiles{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEPEDprofiles{P}
+    function ActorEPEDprofiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorEPEDprofiles{P}; kw...) where {D<:Real,P<:Real}
+        par = par(kw...)
+        return new{D,P}(dd, par)
+    end
 end
 
 """
@@ -28,11 +32,6 @@ function ActorEPEDprofiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
     step(actor)
     finalize(actor)
     return actor
-end
-
-function ActorEPEDprofiles(dd::IMAS.dd, par::FUSEparameters__ActorEPEDprofiles, act::ParametersAllActors; kw...)
-    par = par(kw...)
-    return ActorEPEDprofiles(dd, par)
 end
 
 """

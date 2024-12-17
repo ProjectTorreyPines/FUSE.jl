@@ -12,6 +12,7 @@ end
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCoreTransport{P}
+    act::ParametersAllActors{P}
     tr_actor::Union{ActorFluxMatcher{D,P},ActorEPEDprofiles{D,P},ActorNoOperation{D,P}}
 end
 
@@ -37,7 +38,7 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     elseif par.model == :none
         tr_actor = ActorNoOperation(dd, act.ActorNoOperation)
     end
-    return ActorCoreTransport(dd, par, tr_actor)
+    return ActorCoreTransport(dd, par, act, tr_actor)
 end
 
 """

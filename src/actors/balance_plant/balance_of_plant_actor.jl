@@ -10,7 +10,7 @@ end
 mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBalanceOfPlant{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     thermal_plant_actor::ActorThermalPlant{D}
     power_needs_actor::ActorPowerNeeds{D}
 end

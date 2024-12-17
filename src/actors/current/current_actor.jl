@@ -15,6 +15,7 @@ end
 mutable struct ActorCurrent{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCurrent{P}
+    act::ParametersAllActors{P}
     jt_actor::Union{ActorSteadyStateCurrent{D,P},ActorQED{D,P},ActorNoOperation{D,P}}
 end
 
@@ -44,7 +45,7 @@ function ActorCurrent(dd::IMAS.dd, par::FUSEparameters__ActorCurrent, act::Param
     elseif par.model == :QED
         jt_actor = ActorQED(dd, act.ActorQED; par.ip_from, par.vloop_from, par.allow_floating_plasma_current)
     end
-    return ActorCurrent(dd, par, jt_actor)
+    return ActorCurrent(dd, par, act, jt_actor)
 end
 
 """

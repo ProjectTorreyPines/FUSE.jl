@@ -15,6 +15,7 @@ end
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
+    act::ParametersAllActors{P}
     ec_actor::Union{Missing,ActorSimpleEC{D,P}}
     ic_actor::Union{Missing,ActorSimpleIC{D,P}}
     lh_actor::Union{Missing,ActorSimpleLH{D,P}}
@@ -64,7 +65,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     else
         pellet_actor = missing
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
+    return ActorHCD(dd, par, act, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
 end
 
 """

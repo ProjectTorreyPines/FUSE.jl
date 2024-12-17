@@ -16,6 +16,7 @@ end
 mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPFdesign{P}
+    act::ParametersAllActors{P}
     actor_pf::ActorPFactive{D,P}
 end
 
@@ -38,7 +39,7 @@ function ActorPFdesign(dd::IMAS.dd, par::FUSEparameters__ActorPFdesign, act::Par
     logging_actor_init(ActorPFdesign)
     par = par(kw...)
     actor_pf = ActorPFactive(dd, act.ActorPFactive; par.update_equilibrium)
-    return ActorPFdesign(dd, par, actor_pf)
+    return ActorPFdesign(dd, par, act, actor_pf)
 end
 
 """

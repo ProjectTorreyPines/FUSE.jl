@@ -14,6 +14,7 @@ end
 mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHFSsizing{P}
+    act::ParametersAllActors{P}
     stresses_actor::ActorStresses{D,P}
     fluxswing_actor::ActorFluxSwing{D,P}
 end
@@ -48,7 +49,7 @@ function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::P
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)
     stresses_actor = ActorStresses(dd, act.ActorStresses)
-    return ActorHFSsizing(dd, par, stresses_actor, fluxswing_actor)
+    return ActorHFSsizing(dd, par, act, stresses_actor, fluxswing_actor)
 end
 
 function _step(actor::ActorHFSsizing)

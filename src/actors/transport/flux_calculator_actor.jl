@@ -13,6 +13,7 @@ end
 mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxCalculator{P}
+    act::ParametersAllActors{P}
     actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
 end
@@ -51,7 +52,7 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
         actor_neoc = ActorNeoclassical(dd, act.ActorNeoclassical)
     end
 
-    return ActorFluxCalculator(dd, par, actor_turb, actor_neoc)
+    return ActorFluxCalculator(dd, par, act, actor_turb, actor_neoc)
 end
 
 """
