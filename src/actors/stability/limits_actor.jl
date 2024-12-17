@@ -47,16 +47,14 @@ function _step(actor::ActorPlasmaLimits)
 
     if !isempty(par.models) && par.raise_on_breach
         failed = String[]
-        desc = String[]
         for model in dd.limits.model
             if !Bool(@ddtime model.cleared)
                 model_name = model.identifier.name
-                push!(failed, model_name)
-                push!(desc, "$(model_name) ($(@ddtime(model.fraction)) of limit): $(model.identifier.description)")
+                push!(failed, "$(model_name) ($(@ddtime(model.fraction)) of limit): $(model.identifier.description)")
             end
         end
         if !isempty(failed)
-            error("Some stability models have breached their limit threshold:\n$(join(failed, " "))\n* $(join(desc, "\n* "))")
+            error("Some stability models have breached their limit threshold:\n* $(join(failed, "\n* "))")
         end
     end
 
