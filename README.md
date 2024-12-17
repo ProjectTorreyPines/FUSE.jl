@@ -70,18 +70,7 @@ Make sure to take a look at the [introductory tutorial](https://fuse.help/dev/tu
 
 ## Installation
 
-FUSE and its related packages are available through the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). To install:
-
-1. [Install Julia](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#juliaup---julia-version-manager)
-
-2. Add the FuseRegistry and General registries, then install FUSE:
-
-```julia
-using Pkg
-Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
-Pkg.Registry.add("General")
-Pkg.add("FUSE")
-```
+Follow these [installation instructions](https://fuse.help/dev/install.html).
 
 ## Citation
 

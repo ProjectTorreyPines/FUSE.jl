@@ -217,7 +217,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function size_pf_active(coils::AbstractVector{<:VacuumFields.GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
+function size_pf_active(coils::AbstractVector{<:VacuumFields.GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=0.1, symmetric::Bool)
     Rcenter = eqt.boundary.geometric_axis.r
     Zcenter = eqt.boundary.geometric_axis.z
 

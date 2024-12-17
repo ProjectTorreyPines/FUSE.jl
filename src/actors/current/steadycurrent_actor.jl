@@ -6,6 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: P
     _name::Symbol = :not_set
     _time::Float64 = NaN
     allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
+    current_relaxation_radius::Entry{Float64} = Entry{Float64}("-", "Radial position at which the artificial ohmic current profile relaxation starts to kick in"; default=0.0)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
@@ -46,7 +47,26 @@ function _step(actor::ActorSteadyStateCurrent)
     ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)
 
     # update j_ohmic
-    cp1d.j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target)
+    relaxed_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, cp1d.conductivity_parallel)
+    if par.current_relaxation_radius == 0.0
+        cp1d.j_ohmic = relaxed_j_ohmic
+    else
+        # blend between an initial (parabolic) ohmic current profile
+        # and the fully relaxed  ohmic current profile based on the
+        # current diffusion time evaluated at the 
+        rho_tor_norm = cp1d.grid.rho_tor_norm
+        initial_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, 1.0 ./ abs.(1.1 .- rho_tor_norm))
+
+        j_diffusion_time = IMAS.mks.μ_0 .* eqt.boundary.minor_radius .^ 2.0 .* cp1d.conductivity_parallel
+
+        time = IMAS.interp1d(rho_tor_norm, j_diffusion_time).(par.current_relaxation_radius)
+        alpha = 1.0 .- exp.(-time ./ j_diffusion_time)
+
+        interp_j = relaxed_j_ohmic .* alpha .+ initial_j_ohmic .* (1.0 .- alpha)
+        interpo_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, interp_j)
+
+        cp1d.j_ohmic = interpo_j_ohmic
+    end
 
     # allow floating plasma current
     ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)

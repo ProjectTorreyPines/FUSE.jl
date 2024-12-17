@@ -29,15 +29,18 @@ end
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Depending on `operate_oh_at_j_crit`
-* true => Evaluate the OH current limits, and evaluate flattop duration from that.
-* false => Evaluate what are the currents needed for a given flattop duration. This may or may not exceed the OH current limits.
+
+  - true => Evaluate the OH current limits, and evaluate flattop duration from that.
+  - false => Evaluate what are the currents needed for a given flattop duration. This may or may not exceed the OH current limits.
 
 OH flux consumption based on:
-* rampup estimate based on Ejima coefficient
-* flattop consumption
-* vertical field from PF coils
+
+  - rampup estimate based on Ejima coefficient
+  - flattop consumption
+  - vertical field from PF coils
 
 !!! note
+
     Stores data in `dd.build.flux_swing`, `dd.build.tf`, and `dd.build.oh`
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -126,13 +129,13 @@ end
 OH flux given its bd.oh.max_b_field and radial build
 """
 function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
-    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer; type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
     magneticFieldSolenoidBore = bd.oh.max_b_field
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
     totalOhFluxReq = magneticFieldSolenoidBore / 3.0 * pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)
-    bd.flux_swing.flattop = totalOhFluxReq - bd.flux_swing.rampup - bd.flux_swing.pf
+    return bd.flux_swing.flattop = totalOhFluxReq - bd.flux_swing.rampup - bd.flux_swing.pf
 end
 
 """

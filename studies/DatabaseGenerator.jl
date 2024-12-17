@@ -1,5 +1,4 @@
-using ProgressMeter
-
+import ProgressMeter
 #= ====================== =#
 #  StudyDatabaseGenerator  #
 #= ====================== =#
@@ -15,6 +14,12 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
 
     sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
     act = ParametersActors()
+
+    # Change act for the default DatabaseGenerator run
+    act.ActorCoreTransport.model = :FluxMatcher
+    act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorTGLF.warn_nn_train_bounds = false
+    act.ActorFluxMatcher.evolve_rotation = :fixed
 
     # finalize 
     set_new_base!(sty)
@@ -37,9 +42,9 @@ end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
     sty::FUSEparameters__ParametersStudyDatabaseGenerator
-    ini::Union{ParametersAllInits, Vector{ParametersAllInits}}
+    ini::Union{ParametersAllInits,Vector{ParametersAllInits}}
     act::ParametersAllActors
-    dataframes_dict::Union{Dict{String,DataFrame},Missing}
+    dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
 end
@@ -47,6 +52,12 @@ end
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = sty(kw...)
     study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
+    return setup(study)
+end
+
+function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{ParametersAllInits}, act::ParametersAllActors; kw...)
+    sty = sty(kw...)
+    study = StudyDatabaseGenerator(sty, inis, act, missing, missing, missing)
     return setup(study)
 end
 
@@ -82,29 +93,19 @@ function _run(study::StudyDatabaseGenerator)
         iterator = collect(1:length(study.ini))
     end
     
-    study.iterator = iterator
+    if typeof(study.ini) <: ParametersAllInits
+        iterator = collect(1:sty.n_simulations)
+    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+        iterator = collect(1:length(study.ini))
+    end
 
-    study.dataframes_dict = Dict("outputs_summary" => StudyDatabaseGenerator_summary_dataframe() for name in study.iterator)
+    study.iterator = iterator
 
     # paraller run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
-    results = pmap(item -> run_case(study, item), iterator)
+    ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
 
-    # populate DataFrame
-    for row in results
-        if !isnothing(row)
-            push!(study.dataframes_dict["outputs_summary"], row, promote=true)
-        end
-    end
-
-    # Save outputs_summary DataFrame to CSV
-    CSV.write("$(sty.save_folder)/scan_output.csv", study.dataframes_dict["outputs_summary"])
-
-    # Save JSON to a file
-    json_data = JSON.json(study.dataframes_dict["outputs_summary"])
-    open("$(sty.save_folder)/data_frame_outputs_summary.json", "w") do f
-        return write(f, json_data)
-    end
+    analyze(study)
 
     # Release workers after run
     if sty.release_workers_after_run
@@ -120,10 +121,12 @@ end
 
 Example of analyze plots to display after the run feel free to change this method for your needs
 """
-function _analyze(study::StudyDatabaseGenerator)
-    display(histogram(study.dataframes_dict["outputs_summary"].Te0; xlabel="Te0 [eV]", legend=false))
-    display(histogram(study.dataframes_dict["outputs_summary"].Ti0; xlabel="Ti0 [eV]", legend=false))
-    display(histogram(study.dataframes_dict["outputs_summary"].ne0; xlabel="ne0 [m⁻³]]", legend=false))
+function _analyze(study::StudyDatabaseGenerator; re_extract::Bool=false)
+    extract_results(study; re_extract)
+    df = study.dataframe
+    display(histogram(df.Te0; xlabel="Te0 [keV]", ylabel="Number of simulations per bin", legend=false))
+    display(histogram(df.Ti0; xlabel="Ti0 [keV]", ylabel="Number of simulations per bin", legend=false))
+    display(histogram(df.ne0; xlabel="ne0 [m⁻³]]", ylabel="Number of simulations per bin", legend=false))
     return study
 end
 
@@ -153,7 +156,7 @@ function run_case(study::AbstractStudy, item::Int)
     elseif typeof(study.ini) <: Vector{ParametersAllInits}
         ini = study.ini[item]
     end
-    
+
     dd = IMAS.dd()
 
     try
@@ -165,16 +168,7 @@ function run_case(study::AbstractStudy, item::Int)
         # save simulation data to directory
         save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
 
-        # make list of extracted parameters
-        out = extract(dd)
-        list = Vector{}()
-        # first list element is the runID
-        push!(list, item)
-        for key in out.keys
-            push!(list, out[key].value)
-        end     
-        return list
-        
+        return nothing
     catch error
         if isa(error, InterruptException)
             rethrow(error)
@@ -182,31 +176,10 @@ function run_case(study::AbstractStudy, item::Int)
 
         # save empty dd and error to directory
         save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
-        
-        # return empty parameter list
-        out = extract(IMAS.dd())
-        list = Vector{}()
-        # first list element is the runID
-        push!(list, item)
-        for key in out.keys
-            push!(list, out[key].value)
-        end     
-        return list
-
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
         cd(original_dir)
         close(file_log)
     end
-end
-
-function StudyDatabaseGenerator_summary_dataframe()
-    scan_outputs = DataFrame()
-    tmp = extract(IMAS.dd());
-    scan_outputs[!,"run_id"] = Int[]
-    for key in tmp.keys
-        scan_outputs[!,key] = Float64[]
-    end
-    return scan_outputs
 end

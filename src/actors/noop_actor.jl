@@ -35,11 +35,3 @@ end
 function _finalize(actor::ActorNoOperation)
     return actor
 end
-
-function step(actor::ActorNoOperation)
-    return actor
-end
-
-function finalize(actor::ActorNoOperation)
-    return actor
-end

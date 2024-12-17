@@ -156,18 +156,17 @@ end
 Start multiprocessing environment
 
   - kw arguments are passed to the Distributed.addprocs
-
   - nworkers == 0 uses as many workers as the number of available CPUs
   - cpus_per_task can be used to control memory usage
   - memory_usage_fraction is the fraction of peak memory that can be used
 """
 function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
     if cluster == "omega"
-        if occursin("omega", gethostname())
+    	if occursin("omega", gethostname())
             gigamem_per_node = 512
             cpus_per_node = 128
             if nworkers > 0
-                nodes = 4 # omega has 12 ga-ird nodes
+                nodes = 4  # don't use more than 4 nodes (omega has 12 ird nodes)
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -182,7 +181,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                     topology=:master_worker,
                     time="99:99:99",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
                     kw...
                 )
             end
@@ -195,7 +194,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 192
             cpus_per_node = 96
             if nworkers > 0
-                nodes = 4
+                nodes = 4 # don't use more than 4 nodes
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -210,7 +209,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                     topology=:master_worker,
                     time="00:48:00",
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
                     kw...
                 )
             end
@@ -223,7 +222,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             gigamem_per_node = 192
             cpus_per_node = 48
             if nworkers > 0
-                nodes = 4  # saga has 6 nodes
+                nodes = 4 # don't use more than 4 nodes (saga has 6 nodes)
                 nprocs_max = cpus_per_node * nodes
                 nworkers = min(nworkers, nprocs_max)
             end
@@ -236,7 +235,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
                     exclusive="",
                     topology=:master_worker,
                     cpus_per_task,
-                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G"],
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
                     kw...
                 )
             end
@@ -244,9 +243,63 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
             error("Not running on saga cluster")
         end
 
+    elseif cluster == "feynman"
+        if occursin("feynman", gethostname())
+            gigamem_per_node = 800
+            cpus_per_node = 30
+            if nworkers > 0
+                nodes = 1 # don't use more than 1 node
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
+            end
+            np = nworkers + 1
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            ENV["JULIA_WORKER_TIMEOUT"] = "360"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="LocalQ",
+                    topology=:master_worker,
+                    time="99:99:99",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
+                    kw...
+                )
+            end
+        else
+            error("Not running on feynman cluster")
+        end
+
+    elseif cluster == "engaging"
+        if occursin("eofe", gethostname())
+            gigamem_per_node = 512
+            cpus_per_node = 64
+            if nworkers > 0
+                nodes = 4 # don't use more than 4 nodes
+                nprocs_max = cpus_per_node * nodes
+                nworkers = min(nworkers, nprocs_max)
+            end
+            np = nworkers + 1
+            gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
+            ENV["JULIA_WORKER_TIMEOUT"] = "360"
+            if Distributed.nprocs() < np
+                Distributed.addprocs(
+                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
+                    partition="sched_mit_psfc_r8",
+                    exclusive="",
+                    topology=:master_worker,
+                    time="7:59:59",
+                    cpus_per_task,
+                    exeflags=["--threads=$(cpus_per_task)", "--heap-size-hint=$(gigamem_per_cpu)G", "--project=$(Base.active_project())"],
+                    kw...
+                )
+            end
+        else
+            error("Not running on engaging cluster")
+        end
+
     elseif cluster == "localhost"
         mem_size = Int(ceil(localhost_memory() * memory_usage_fraction))
-
         if nworkers > 0
             nprocs_max = length(Sys.cpu_info())
             nworkers = min(nworkers, nprocs_max)
@@ -298,4 +351,5 @@ struct MissingExtensionError <: Exception
     package_name::String
 end
 
-Base.showerror(io::IO, e::MissingExtensionError) = print(io, "The FUSE actor $(e.actor_name) cannot be run because the Julia package $(e.package_name).jl is not loaded. Please load it to enable this feature.")
+Base.showerror(io::IO, e::MissingExtensionError) =
+    print(io, "The FUSE actor $(e.actor_name) cannot be run because the Julia package $(e.package_name).jl is not loaded. Please load it to enable this feature.")

@@ -175,8 +175,6 @@ function case_parameters(
 
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
 
-    act.ActorFluxMatcher.step_size = 0.5
-
     act.ActorWholeFacility.update_build = false
 
     return ini, act

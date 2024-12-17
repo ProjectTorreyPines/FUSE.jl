@@ -24,4 +24,8 @@ include("runtests_workflow.jl")
 
 include("runtests_init_expressions.jl")
 
+if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+    include("runtests_study.jl")
+end
+
 println(FUSE.timer)

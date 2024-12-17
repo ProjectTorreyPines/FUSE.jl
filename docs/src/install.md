@@ -4,7 +4,7 @@
 
 We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) manager to install Julia
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
-* Windows: `winget install julia -s msstore`
+* Windows: `winget install julia -s msstore --accept-source-agreements --accept-package-agreements`
 
 Once installed, restart your termninal to pick-up the `julia` executable.
 
@@ -43,8 +43,10 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FuseExamples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
 
    ```bash
-   fusebot install_examples
+   git clone https://github.com/ProjectTorreyPines/FuseExamples
    ```
+
+   This is a git repository that you are in control of. Do a `git fetch && git reset --hard origin/master` to gather the latest updates (**NOTE: this will wipe out any changes you have made to those examples!**)
 
 ## Install Jupyter-Lab with Julia support
 
