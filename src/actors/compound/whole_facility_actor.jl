@@ -90,7 +90,12 @@ end
 function _step(actor::ActorWholeFacility)
     dd = actor.dd
     par = actor.par
-    act = actor.act
+    act = deepcopy(actor.act)
+
+    if par.update_build && act.ActorCXbuild.rebuild_wall
+        # when we rebuild the wall, we let the strike points do whatever they want, since the wall will adapt instead
+        act.ActorPFactive.strike_points_weight = 0.0
+    end
 
     if !isempty(dd.build.layer) && par.update_build
         # we start by optimizing coil location, so that when we go solve the equilibrium we can hold it in place
@@ -119,18 +124,19 @@ function _step(actor::ActorWholeFacility)
             actor.CXbuild = ActorCXbuild(dd, act)
 
             actor.PFdesign = ActorPFdesign(dd, act)
-            if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
+            if act.ActorCXbuild.rebuild_wall
+                ActorEquilibrium(dd, act; ip_from=:equilibrium, j_p_from=:equilibrium)
                 actor.CXbuild = ActorCXbuild(dd, act)
             end
 
         else
             actor.FluxSwing = ActorFluxSwing(dd, act)
             actor.Stresses = ActorStresses(dd, act)
+            actor.PFactive = ActorPFactive(dd, act)
         end
 
-        actor.PFactive = ActorPFactive(dd, act)
-
         actor.Neutronics = ActorNeutronics(dd, act)
+
         actor.Blanket = ActorBlanket(dd, act)
         actor.CXbuild = ActorCXbuild(dd, act)
 
