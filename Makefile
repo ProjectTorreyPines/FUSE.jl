@@ -579,7 +579,7 @@ fix_FortranNamelistParser:
 	@find $(PTP_ORIGINAL_DIR) -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
 
 # @devs
-generate_dd:
+generate_dd: .PHONY
 # Update dd from the json files in IMASdd
 	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
 
