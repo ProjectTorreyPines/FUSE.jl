@@ -138,7 +138,7 @@ function case_parameters(
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6
-    ini.ec_launcher[1].rho_0 = 0.0
+    ini.ec_launcher[1].rho_0 = 0.3
 
     resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 24E6
