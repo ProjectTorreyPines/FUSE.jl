@@ -92,7 +92,7 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     #### ACT ####
 
-    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
+    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
 
     act.ActorFluxSwing.operate_oh_at_j_crit = true
 

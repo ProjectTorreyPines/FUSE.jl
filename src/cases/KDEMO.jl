@@ -90,7 +90,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
     act.ActorFluxMatcher.rho_transport = 0.2:0.05:0.8
 
-    act.ActorStabilityLimits.raise_on_breach = false
+    act.ActorPlasmaLimits.raise_on_breach = false
 
     return ini, act
 end
@@ -181,7 +181,7 @@ function case_parameters(::Type{Val{:KDEMO_compact}})::Tuple{ParametersAllInits,
 
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
 
-    act.ActorStabilityLimits.raise_on_breach = false
+    act.ActorPlasmaLimits.raise_on_breach = false
 
     return ini, act
 end

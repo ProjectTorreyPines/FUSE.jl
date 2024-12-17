@@ -70,7 +70,7 @@
     "equilibrium.time_slice[:].profiles_2d[:].z",
     "pulse_schedule.tf.b_field_tor_vacuum_r.reference",
     "pulse_schedule.time",
-    "stability.all_cleared",
+    "limits.all_cleared",
     "summary.fusion.power.value",
     "summary.global_quantities.beta_pol_mhd.value",
     "summary.global_quantities.beta_tor.value",

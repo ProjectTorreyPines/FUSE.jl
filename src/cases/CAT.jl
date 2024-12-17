@@ -63,7 +63,7 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
 
     act.ActorPFdesign.symmetric = true
 
-    act.ActorStabilityLimits.raise_on_breach = false
+    act.ActorPlasmaLimits.raise_on_breach = false
 
     act.ActorFluxMatcher.optimizer_algorithm = :simple
 

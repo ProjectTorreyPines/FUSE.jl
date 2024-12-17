@@ -126,7 +126,7 @@ function case_parameters(::Type{Val{:D3D}};
 
     act.ActorFluxMatcher.evolve_pedestal = false
 
-    act.ActorStabilityLimits.raise_on_breach = false
+    act.ActorPlasmaLimits.raise_on_breach = false
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 

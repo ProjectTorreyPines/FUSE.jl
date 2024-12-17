@@ -36,13 +36,19 @@ function ActorTroyonBetaNN(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function _step(actor::ActorTroyonBetaNN)
-    eqt = actor.dd.equilibrium.time_slice[]
+    dd = actor.dd
+    par = actor.par
+
+    eqt = dd.equilibrium.time_slice[]
     TroyonBetaNN.calculate_Troyon_beta_limits_for_a_given_time_slice(actor.TD, eqt; silence=true, par.verbose);
     return actor
 end
 
 function _finalize(actor::ActorTroyonBetaNN)
-    mhd = resize!(actor.dd.mhd_linear.time_slice; wipe=false)
+    dd = actor.dd
+    par = actor.par
+
+    mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
 
     for MLP in actor.TD.MLPs
         mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "Troyon no-wall", "n_tor"=>MLP.n)

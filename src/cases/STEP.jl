@@ -209,7 +209,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     act.ActorTGLF.tglfnn_model = "sat0_em_d3d"
 
-    act.ActorStabilityLimits.models = Symbol[]
+    act.ActorPlasmaLimits.models = Symbol[]
 
     # High-beta ST equilibrium is tricky to converge
     act.ActorTEQUILA.relax = 0.01
