@@ -9,7 +9,7 @@ function warmup(dd::IMAS.dd)
     empty!(dd)
     TimerOutputs.reset_timer!("warmup")
     return TimerOutputs.@timeit timer "warmup" begin
-        ini, act = case_parameters(:FPP)
+        ini, act = case_parameters(:KDEMO)
         ini_act_tests_customizations!(ini, act)
 
         TimerOutputs.@timeit timer "init" begin

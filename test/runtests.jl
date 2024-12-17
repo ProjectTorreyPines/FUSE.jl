@@ -6,13 +6,7 @@ end
 using FUSE
 using Test
 
-@testset "warmup" begin
-    println("== warmup ==")
-    for round in (1, 2)
-        dd = IMAS.dd()
-        FUSE.warmup(dd)
-    end
-end
+include("runtests_warmup.jl")
 
 include("runtests_basics.jl")
 
