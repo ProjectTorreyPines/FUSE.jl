@@ -14,7 +14,7 @@ mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
     StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
-    StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
+    StabilityLimits::Union{Nothing,ActorPlasmaLimits{D,P}}
     FluxSwing::Union{Nothing,ActorFluxSwing{D,P}}
     Stresses::Union{Nothing,ActorStresses{D,P}}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
@@ -37,7 +37,7 @@ end
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
 
   - ActorStationaryPlasma
-  - ActorStabilityLimits
+  - ActorPlasmaLimits
   - ActorHFSsizing
   - ActorLFSsizing
   - ActorCXbuild
@@ -144,7 +144,7 @@ function _step(actor::ActorWholeFacility)
 
         actor.Divertors = ActorDivertors(dd, act)
 
-        actor.StabilityLimits = ActorStabilityLimits(dd, act)
+        actor.StabilityLimits = ActorPlasmaLimits(dd, act)
         actor.VerticalStability = ActorVerticalStability(dd, act)
 
         actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
