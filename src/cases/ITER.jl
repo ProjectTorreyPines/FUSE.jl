@@ -177,6 +177,8 @@ function case_parameters(
 
     act.ActorWholeFacility.update_build = false
 
+    act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
+
     return ini, act
 end
 
