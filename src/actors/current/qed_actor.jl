@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{
     _name::Symbol = :not_set
     _time::Float64 = NaN
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf, check=x->@assert x>=0 "Δt must be >= 0.0")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100, check=x->@assert x>0 "Nt must be > 0")
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
     allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
     #== data flow parameters ==#
