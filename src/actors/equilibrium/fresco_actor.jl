@@ -25,6 +25,7 @@ end
 mutable struct ActorFRESCO{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFRESCO{P}
+    act::ParametersAllActors{P}
     canvas::Union{Nothing,FRESCO.Canvas}
     profile::Union{Nothing,FRESCO.PressureJt}
 end
@@ -35,16 +36,16 @@ end
 Runs the Fixed boundary equilibrium solver FRESCO
 """
 function ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorFRESCO(dd, act.ActorFRESCO; kw...)
+    actor = ActorFRESCO(dd, act.ActorFRESCO, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorFRESCO(dd::IMAS.dd{D}, par::FUSEparameters__ActorFRESCO{P}; kw...) where {D<:Real,P<:Real}
+function ActorFRESCO(dd::IMAS.dd{D}, par::FUSEparameters__ActorFRESCO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFRESCO)
     par = par(kw...)
-    return ActorFRESCO(dd, par, nothing, nothing)
+    return ActorFRESCO(dd, par, act, nothing, nothing)
 end
 
 """
@@ -55,12 +56,16 @@ Runs FRESCO on the r_z boundary, equilibrium pressure and equilibrium j_tor
 function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
+    act = actor.act
+
     eqt = dd.equilibrium.time_slice[]
 
-    ΔR = maximum(eqt.boundary.outline.r) - minimum(eqt.boundary.outline.r)
-    ΔZ = maximum(eqt.boundary.outline.z) - minimum(eqt.boundary.outline.z)
-    Rs = range(minimum(eqt.boundary.outline.r) - ΔR / 3, maximum(eqt.boundary.outline.r) + ΔR / 3, par.nR)
-    Zs = range(minimum(eqt.boundary.outline.z) - ΔZ / 3, maximum(eqt.boundary.outline.z) + ΔZ / 3, par.nZ)
+    # FRESCO requires the wall to be always fully contained inside of the computation domain
+    fw_r, fw_z = IMAS.first_wall(dd.wall)
+    ΔR = maximum(fw_r) - minimum(fw_r)
+    ΔZ = maximum(fw_z) - minimum(fw_z)
+    Rs = range(max(0.01, minimum(fw_r) - ΔR / 100), maximum(fw_r) + ΔR / 100, par.nR)
+    Zs = range(minimum(fw_z) - ΔZ / 100, maximum(fw_z) + ΔZ / 100, par.nZ)
 
     if isempty(dd.pf_active.coil)
         coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.boundary.geometric_axis.r, eqt.boundary.geometric_axis.z, 8)
@@ -68,7 +73,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         coils = nothing
     end
 
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; coils, load_pf_passive=false)
+    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; coils, load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
 
     actor.profile = FRESCO.PressureJt(dd)
 

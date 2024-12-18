@@ -39,7 +39,7 @@ function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, ac
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
     if par.model == :FRESCO
-        eq_actor = ActorFRESCO(dd, act.ActorFRESCO)
+        eq_actor = ActorFRESCO(dd, act.ActorFRESCO, act)
     elseif par.model == :CHEASE
         eq_actor = ActorCHEASE(dd, act.ActorCHEASE, act)
     elseif par.model == :TEQUILA
