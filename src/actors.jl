@@ -50,24 +50,24 @@ end
 #  switch_get_from  #
 #= =============== =#
 """
-    switch_get_from(quantity::Symbol)
+    switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)::Switch{Symbol}
 
-Switch to pick form which IDS `quantity` comes from
+Switch to pick the IDS that `quantity` comes from
 """
-function switch_get_from(quantity::Symbol)::Switch{Symbol}
+function switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)::Switch{Symbol}
     txt = "Take $quantity from this IDS"
     if quantity == :ip
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt; default)
     elseif quantity == :vacuum_r0_b0
-        swch = Switch{Symbol}([:equilibrium, :pulse_schedule], "-", txt; default=:pulse_schedule)
+        swch = Switch{Symbol}([:equilibrium, :pulse_schedule], "-", txt; default)
     elseif quantity == :vloop
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt; default)
     elseif quantity == :βn
-        swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt; default)
     elseif quantity == :ne_ped
-        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt; default)
     elseif quantity == :zeff_ped
-        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt; default)
     else
         error("`$quantity` not supported in switch_get_from()")
     end
