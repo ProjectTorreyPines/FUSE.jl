@@ -70,7 +70,11 @@ function _setup(study::StudyMultiObjectiveOptimizer)
     function check_matching(requirement::Symbol, constraint_functions::Vector{Symbol})
     check_vector = Union{Symbol,Nothing}[]
         for cf in constraint_functions
-            if contains(String(cf), String(requirement))
+            if contains(String(cf), String(requirement)) 
+                match = requirement
+            elseif contains(String(cf), "coil_j") && contains(String(requirement), "coil_j") 
+                match = requirement
+            elseif contains(String(cf), "coil_stress") && contains(String(requirement), "coil_stress")
                 match = requirement
             else 
                 match = nothing
@@ -91,7 +95,6 @@ function _setup(study::StudyMultiObjectiveOptimizer)
             push!(set_requirements, fld)
         end 
     end
-    
     cfs = Symbol[]
     for cf in study.constraint_functions
         push!(cfs, cf.name)
