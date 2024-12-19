@@ -129,7 +129,12 @@ function _step(actor::ActorHFSsizing)
 
         # flattop
         if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
-            c_flt = -target_value(dd.build.oh.flattop_duration, dd.requirements.flattop_duration, 0.0)
+            # for fully non-inductive case (flattop_flux~zero => flattop_duration~Inf => c_flt~Inf) set c_flt = 0.0
+            if abs(dd.build.flux_swing.flattop) < 1e-6
+                c_flt = 0.0
+            else
+                c_flt = -target_value(dd.build.oh.flattop_duration, dd.requirements.flattop_duration, 0.0)
+            end
         else
             c_flt = 0.0
         end
@@ -158,10 +163,8 @@ function _step(actor::ActorHFSsizing)
 
         # favor steel over superconductor
         # for all things being equal, maximizing steel is good to keep the cost of the magnets down
-        if false #nose
-            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel), (1.0 - dd.build.tf.nose_hfs_fraction))) / 3.0
-        else
-            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel))) / 2.0        end
+        c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel))) / 2.0       
+        
 
         if par.verbose
             push!(C_JOH, c_joh)

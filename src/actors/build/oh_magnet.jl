@@ -86,9 +86,13 @@ function flattop_duration!(bd::IMAS.build, cp1d::IMAS.core_profiles__profiles_1d
     totalOhFlux = bd.oh.max_b_field * (π * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)) / 3.0
     bd.flux_swing.flattop = totalOhFlux - bd.flux_swing.rampup - bd.flux_swing.pf
 
-    j_ohmic = cp1d.j_ohmic
-    conductivity_parallel = cp1d.conductivity_parallel
-    f = (k, x) -> j_ohmic[k] / conductivity_parallel[k]
-    bd.oh.flattop_duration = bd.flux_swing.flattop / abs(trapz(cp1d.grid.area, f))
+    if abs(bd.flux_swing.flattop) < 1e-6
+        bd.oh.flattop_duration = Inf
+    else
+        j_ohmic = cp1d.j_ohmic
+        conductivity_parallel = cp1d.conductivity_parallel
+        f = (k, x) -> j_ohmic[k] / conductivity_parallel[k]
+        bd.oh.flattop_duration = bd.flux_swing.flattop / abs(trapz(cp1d.grid.area, f))
+    end
     return bd.oh
 end

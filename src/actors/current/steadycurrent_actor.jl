@@ -68,11 +68,28 @@ function _step(actor::ActorSteadyStateCurrent)
         cp1d.j_ohmic = interpo_j_ohmic
     end
 
-    # allow floating plasma current
+    ##### TEMPORARY HACK #####
+    ##########################
+    # deal with case where non_inductive current is larger than target Ip
     ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
+    ip_bootstrap = IMAS.Ip_bootstrap(cp1d,eqt)
+    ip_aux = ip_non_inductive - ip_bootstrap
+    # allow floating plasma current (fully non-inductive solution with Ip higher than target)
     if abs(ip_target) < abs(ip_non_inductive) && par.allow_floating_plasma_current
         cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
+    # don't allow floating plasma current (fully non-inductive solution with Ip equal to target)
+    elseif abs(ip_target) < abs(ip_non_inductive)
+        ηcd_scale = 1.0 - (abs(ip_non_inductive) - abs(ip_target)) / ip_aux
+        cs = dd.core_sources.source
+        for s in cs
+            if contains(s.identifier.name,"ec")
+                s.profiles_1d[].current_parallel_inside *= ηcd_scale
+                s.profiles_1d[].j_parallel *= ηcd_scale
+            end
+        end
     end
+    ##########################
+    ##########################
 
     return actor
 end
