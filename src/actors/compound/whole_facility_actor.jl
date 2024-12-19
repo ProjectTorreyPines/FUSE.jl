@@ -92,27 +92,13 @@ function _step(actor::ActorWholeFacility)
     par = actor.par
     act = deepcopy(actor.act)
 
-    if par.update_build && act.ActorCXbuild.rebuild_wall
-        # when we rebuild the wall, we let the strike points do whatever they want, since the wall will adapt instead
-        act.ActorPFactive.strike_points_weight = 0.0
-    end
-
     if !isempty(dd.build.layer) && par.update_build
         # we start by optimizing coil location, so that when we go solve the equilibrium we can hold it in place
         actor.PFdesign = ActorPFdesign(dd, act)
     end
 
     if par.update_plasma
-        # remove the wall from the calculation to avoid switching between limited/diverted plasma
-        wall_bkp = deepcopy(dd.wall)
-        if par.update_build && act.ActorCXbuild.rebuild_wall
-            empty!(dd.wall)
-            if !isempty(dd.pf_active.coil)
-                IMAS.first_wall!(dd.wall, IMAS.first_wall(dd.pf_active)...)
-            end
-        end
         actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
-        dd.wall = wall_bkp
     end
 
     if isempty(dd.build.layer)
@@ -122,12 +108,12 @@ function _step(actor::ActorWholeFacility)
         if par.update_build
             actor.HFSsizing = ActorHFSsizing(dd, act)
             actor.LFSsizing = ActorLFSsizing(dd, act)
-            empty!(dd.pf_active) # remove old coils since those affect the shape of the layers
-            actor.CXbuild = ActorCXbuild(dd, act)
 
+            actor.CXbuild = ActorCXbuild(dd, act; layers_aware_of_pf_coils = false)
             actor.PFdesign = ActorPFdesign(dd, act)
+
             if act.ActorCXbuild.rebuild_wall
-                ActorEquilibrium(dd, act; ip_from=:equilibrium, j_p_from=:equilibrium)
+                ActorEquilibrium(dd, act; ip_from=:pulse_schedule)
                 actor.CXbuild = ActorCXbuild(dd, act)
             end
 
