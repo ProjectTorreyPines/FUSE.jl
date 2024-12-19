@@ -701,7 +701,7 @@ register_general: error_missing_repo_var error_not_on_master_branch error_on_las
 		xargs -I{} gh api repos/ProjectTorreyPines/$(repo).jl/commits/{}/comments -f body='@JuliaRegistrator register' ;\
 		echo "Registered $(repo) to General registry." ;\
 	else \
-		echo "$(repo) is listed as part of the General registry." ;\
+		echo "$(repo) is not listed as part of the General registry." ;\
 	fi
 
 # @devs
