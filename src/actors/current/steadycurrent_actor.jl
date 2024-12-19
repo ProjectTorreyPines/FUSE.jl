@@ -56,9 +56,9 @@ function _step(actor::ActorSteadyStateCurrent)
     if par.current_relaxation_radius == 0.0
         cp1d.j_ohmic = relaxed_j_ohmic
     else
-        # blend between an initial (parabolic) ohmic current profile
-        # and the fully relaxed  ohmic current profile based on the
-        # current diffusion time evaluated at the 
+        # blend between an initial ohmic current profile and the fully relaxed  ohmic current profile
+        # the blending is proportional to the local current diffusion time and the current diffusion time
+        # that is characteristic of the `current_relaxation_radius` parameter
         rho_tor_norm = cp1d.grid.rho_tor_norm
         initial_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, 1.0 ./ abs.(1.1 .- rho_tor_norm))
 
