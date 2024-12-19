@@ -44,8 +44,7 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 1
-    ini.build.layers[:hfs_vacuum_vessel].coils_inside = 2
-    ini.build.layers[:gap_world].coils_inside = 8
+    ini.build.layers[:gap_world].coils_inside = 6
 
     ini.oh.technology = :copper
     ini.pf_active.technology = :copper

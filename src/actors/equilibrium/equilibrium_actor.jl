@@ -74,34 +74,6 @@ function _step(actor::ActorEquilibrium)
         prepare(actor)
     end
 
-    # # FRESCO needs p' and f'' to run
-    # # We can estimate of p' and ff' based on equilibrium at previous time-slice
-    # # if that's not available, we run TEQUILA first
-    # if par.model == :FRESCO
-    #     eqt = dd.equilibrium.time_slice[]
-    #     idxeqt = IMAS.index(eqt)
-    #     if false && idxeqt != 1 && !ismissing(dd.equilibrium.time_slice[idxeqt-1].global_quantities, :ip)
-    #         eqt1d = eqt.profiles_1d
-    #         eqt1d__1 = dd.equilibrium.time_slice[idxeqt-1].profiles_1d
-    #         psi__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.psi).(eqt1d.psi_norm)
-    #         R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm8).(eqt1d.psi_norm)
-    #         one_R__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm9).(eqt1d.psi_norm)
-    #         one_R2__1 = IMAS.interp1d(eqt1d__1.psi_norm, eqt1d__1.gm1).(eqt1d.psi_norm)
-    #         b0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    #         r0 = eqt.global_quantities.vacuum_toroidal_field.r0
-    #         dpressure_dpsi, f_df_dpsi, f = IMAS.calc_pprime_ffprim_f(psi__1, R__1, one_R__1, one_R2__1, r0, b0; eqt1d.pressure, eqt1d.j_tor)
-    #         eqt1d.dpressure_dpsi = dpressure_dpsi
-    #         eqt1d.f_df_dpsi = f_df_dpsi
-    #         eqt1d.f = f
-    #     else
-    #         # NOTE: using free_boundary=true will also update pf_active
-    #         #       which is then used as initial guess by FRESCO
-    #         ActorTEQUILA(dd, actor.act; free_boundary=true)
-    #         fw = IMAS.first_wall(dd.wall)
-    #         IMAS.flux_surfaces(eqt, fw.r, fw.z)
-    #     end
-    # end
-
     # step selected equilibrium actor
     step(actor.eq_actor)
 

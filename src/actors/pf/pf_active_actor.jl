@@ -13,8 +13,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T<:Real} <: ParametersA
     _time::Float64 = NaN
     green_model::Switch{Symbol} = Switch{Symbol}(options_green_model, "-", "Model used for the coils Green function calculations"; default=:quad)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
-    x_points_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to x-point constraints"; default=1.0)
-    strike_points_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to strike-point constraints"; default=1.0)
+    x_points_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to x-point constraints"; default=0.1)
+    strike_points_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to strike-point constraints"; default=0.1)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
@@ -158,6 +158,22 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
+function update_eq_out(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
+    dd = actor.dd
+    par = actor.par
+
+    # evaluate eq_out
+    eqt_in = dd.equilibrium.time_slice[]
+    eqt2d_out = findfirst(:rectangular, actor.eqt_out.profiles_2d)
+    coils = VacuumFields.IMAS_pf_active__coils(dd; par.green_model, zero_currents=false)
+    EQfixed = IMAS2Equilibrium(eqt_in)
+    Rgrid = eqt2d_out.grid.dim1
+    Zgrid = eqt2d_out.grid.dim2
+    eqt2d_out.psi = collect(VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)')
+
+    return actor
+end
+
 function equilibrium_control_points(
     eqt::IMAS.equilibrium__time_slice{T},
     pc::IMAS.pulse_schedule__position_control{T};
@@ -165,16 +181,18 @@ function equilibrium_control_points(
     strike_points_weight::Float64
 ) where {T<:Real}
 
+    # boundary
     psib = eqt.global_quantities.psi_boundary
     if ismissing(eqt.global_quantities, :ip) # field nulls
         fixed_eq = nothing
-        rb, zb = eqt.boundary.outline.r, eqt.boundary.outline.z
-        iso_control_points = VacuumFields.FluxControlPoints(rb, zb, psib)
+        iso_control_points = VacuumFields.FluxControlPoints(eqt.boundary.outline.r, eqt.boundary.outline.z, psib)
     else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
         iso_control_points = VacuumFields.boundary_iso_control_points(fixed_eq, 0.999)
     end
 
+    # x points
+    saddle_weight = x_points_weight / length(eqt.boundary.x_point)
     saddle_control_points = VacuumFields.SaddleControlPoint{T}[]
     if x_points_weight == 0.0
         # pass
@@ -186,38 +204,40 @@ function equilibrium_control_points(
                 continue
             end
             z = @ddtime(x_point.z.reference)
-            push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(r, z, x_points_weight))
-            x_points_weight /= 2.0
+            push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(r, z, saddle_weight))
         end
     else
         for x_point in eqt.boundary.x_point
-            push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(x_point.r, x_point.z, x_points_weight))
-            x_points_weight /= 2.0
+            push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(x_point.r, x_point.z, saddle_weight))
         end
     end
 
+    # strike points
     psib = eqt.global_quantities.psi_boundary
-    psia = eqt.global_quantities.psi_axis
-    mag = VacuumFields.FluxControlPoint{T}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, 1.0)
-    flux_control_points = VacuumFields.FluxControlPoint{T}[mag]
+    strike_weight = strike_points_weight / length(eqt.boundary.strike_point)
+    flux_control_points = VacuumFields.FluxControlPoint{T}[]
     if strike_points_weight == 0.0
         # pass
     elseif !isempty(pc.strike_point)
         # we favor taking the strike points from the pulse schedule, if available
-        flux_control_points = VacuumFields.FluxControlPoint{T}[mag]
+        flux_control_points = VacuumFields.FluxControlPoint{T}[]
         for strike_point in pc.strike_point
             r = @ddtime(strike_point.r.reference)
             if r == 0.0 || isnan(r)
                 continue
             end
             z = @ddtime(strike_point.z.reference)
-            push!(flux_control_points, VacuumFields.FluxControlPoint{T}(r, z, psib, strike_points_weight))
+            push!(flux_control_points, VacuumFields.FluxControlPoint{T}(r, z, psib, strike_weight))
         end
     else
         for strike_point in eqt.boundary.strike_point
-            push!(flux_control_points, VacuumFields.FluxControlPoint{T}(strike_point.r, strike_point.z, psib, strike_points_weight))
+            push!(flux_control_points, VacuumFields.FluxControlPoint{T}(strike_point.r, strike_point.z, psib, strike_weight))
         end
     end
+
+    # magnetic axis
+    push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_control_points[1].weight))
+    push!(flux_control_points, VacuumFields.FluxControlPoint{T}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, eqt.global_quantities.psi_axis, iso_control_points[1].weight))
 
     return (iso_control_points=iso_control_points, flux_control_points=flux_control_points, saddle_control_points=saddle_control_points)
 end
