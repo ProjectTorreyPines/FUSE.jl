@@ -15,12 +15,6 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
     act = ParametersActors()
 
-    # Change act for the default DatabaseGenerator run
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorTGLF.warn_nn_train_bounds = false
-    act.ActorFluxMatcher.evolve_rotation = :fixed
-
     # finalize 
     set_new_base!(sty)
     set_new_base!(act)
@@ -61,12 +55,6 @@ function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{ParametersAll
     return setup(study)
 end
 
-function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{ParametersAllInits}, act::ParametersAllActors; kw...)
-    sty = sty(kw...)
-    study = StudyDatabaseGenerator(sty, inis, act, missing, missing, missing)
-    return setup(study)
-end
-
 function _setup(study::StudyDatabaseGenerator)
     sty = study.sty
 
@@ -87,12 +75,6 @@ function _run(study::StudyDatabaseGenerator)
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
-    if typeof(study.ini) <: ParametersAllInits
-        iterator = collect(1:sty.n_simulations)
-    elseif typeof(study.ini) <: Vector{ParametersAllInits}
-        iterator = collect(1:length(study.ini))
-    end
-    
     if typeof(study.ini) <: ParametersAllInits
         iterator = collect(1:sty.n_simulations)
     elseif typeof(study.ini) <: Vector{ParametersAllInits}
@@ -167,6 +149,23 @@ function run_case(study::AbstractStudy, item::Int)
 
         # save simulation data to directory
         save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
+
+        # save Extract() parameters in DataFrame to directory
+        df = DataFrame()
+        df[!,"run_id"] = Int[]
+        df[!,"dir"] = String[]
+        
+        list = Vector{}()
+        push!(list,item)
+        push!(list,savedir)
+        
+        out = FUSE.extract(dd)
+        for key in out.keys
+            df[!,key] = Float64[]
+            push!(list, out[key].value)
+        end
+        push!(df,list,promote=true)
+        CSV.write("$(savedir)/extract.csv", df)
 
         return nothing
     catch error

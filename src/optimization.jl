@@ -69,6 +69,23 @@ function optimization_engine(
         # save simulation data to directory
         save(savedir, save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
 
+        # save Extract() parameters in DataFrame to directory
+        df = DataFrame()
+        df[!,"generation"] = Int[]
+        df[!,"dir"] = String[]
+        
+        list = Vector{}()
+        push!(list,generation)
+        push!(list,savedir)
+        
+        out = FUSE.extract(dd)
+        for key in out.keys
+            df[!,key] = Float64[]
+            push!(list, out[key].value)
+        end
+        push!(df,list,promote=true)
+        CSV.write("$(savedir)/extract.csv", df)
+
         # evaluate multiple objectives
         ff = collect(map(f -> nan2inf(f(dd)), objective_functions))
         gg = collect(map(g -> nan2inf(g(dd)), constraint_functions))
