@@ -1,4 +1,3 @@
-import ProgressMeter
 #= ====================== =#
 #  StudyDatabaseGenerator  #
 #= ====================== =#
@@ -91,7 +90,7 @@ function _run(study::StudyDatabaseGenerator)
 
     # paraller run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
-    ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
+    FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
 
     analyze(study)
 
