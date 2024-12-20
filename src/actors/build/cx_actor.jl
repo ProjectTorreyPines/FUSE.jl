@@ -253,7 +253,7 @@ function wall_from_eq!(
     try
         pr, pz = IMAS.resample_2d_path(pr, pz; n_points=101, method=:linear)
     catch e
-        pp = plot(wall_poly; aspect_ratio=:equal)
+        pp = plot(wall_poly; aspect_ratio=:equal, alpha=0.5)
         for (pr, pz) in private
             plot!(pp, pr, pz; label="")
         end
