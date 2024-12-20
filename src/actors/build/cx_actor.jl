@@ -57,7 +57,7 @@ function _step(actor::ActorCXbuild)
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
     fw = IMAS.first_wall(dd.wall)
     if isempty(fw.r) || par.rebuild_wall
-        wall_from_eq!(dd.wall, eqt, bd, dd.pf_active; par.divertor_size)
+        wall_from_eq!(dd.wall, eqt, bd, dd.pulse_schedule.position_control, dd.pf_active; par.divertor_size)
         fw = IMAS.first_wall(dd.wall)
         IMAS.flux_surfaces(eqt, fw.r, fw.z) # output of flux_surfaces depends on the wall
     end
@@ -93,11 +93,11 @@ function _step(actor::ActorCXbuild)
 end
 
 """
-    wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build; divertor_size)
+wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pc::IMAS.pulse_schedule__position_control, pfa::IMAS.pf_active; divertor_size::Float64)
 
 Generate first wall and divertors outline starting from an equilibrium and radial build
 """
-function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pfa::IMAS.pf_active; divertor_size)
+function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pc::IMAS.pulse_schedule__position_control, pfa::IMAS.pf_active; divertor_size::Float64)
     # Set the radial build thickness of the plasma vacuum chamber
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
     rlcfs = eqt.boundary.outline.r
@@ -107,17 +107,18 @@ function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::I
     upper_divertor = ismissing(bd.divertors.upper, :installed) ? false : Bool(bd.divertors.upper.installed)
     lower_divertor = ismissing(bd.divertors.lower, :installed) ? false : Bool(bd.divertors.lower.installed)
 
-    return wall_from_eq!(wall, eqt, pfa, gap; upper_divertor, lower_divertor, divertor_size)
+    return wall_from_eq!(wall, eqt, pc, pfa, gap; upper_divertor, lower_divertor, divertor_size)
 end
 
 function wall_from_eq!(
     wall::IMAS.wall{T},
     eqt::IMAS.equilibrium__time_slice{T},
+    pc::IMAS.pulse_schedule__position_control,
     pfa::IMAS.pf_active{T},
     gap::Float64;
     upper_divertor::Bool,
     lower_divertor::Bool,
-    divertor_size::Real) where {T<:Real}
+    divertor_size::Float64) where {T<:Real}
 
     upper_divertor = Int(upper_divertor)
     lower_divertor = Int(lower_divertor)
@@ -136,6 +137,14 @@ function wall_from_eq!(
     ψb = eqt.global_quantities.psi_boundary
     pf_wall_r, pf_wall_z = IMAS.first_wall(pfa, eqt)
     ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, pf_wall_r, pf_wall_z)
+
+    # convex hull of equilibrium lcfs with ideal boundary from pulse_schedule
+    pc_r, pc_z = IMAS.boundary(pc)
+    hull = IMAS.convex_hull([rlcfs; pc_r], [zlcfs; pc_z]; closed_polygon=true)
+    rlcfs = [r for (r, z) in hull]
+    zlcfs = [z for (r, z) in hull]
+
+    # uniform resample of lcfs
     rlcfs, zlcfs = IMAS.resample_2d_path(rlcfs, zlcfs; n_points=201, method=:linear)
     IMAS.reorder_flux_surface!(rlcfs, zlcfs, argmax(rlcfs))
 
@@ -992,7 +1001,7 @@ Returns named tuple with outline of the wall defined ast the intersection of the
 function IMAS.first_wall(pf_active::IMAS.pf_active{T}, eqt::IMAS.equilibrium__time_slice) where {T<:Real}
     r_pf, z_pf = IMAS.first_wall(pf_active)
     r_eq, z_eq = IMAS.first_wall(eqt)
-    
+
     if isempty(r_pf)
         return (r=r_eq, z=z_eq)
     elseif isempty(r_eq)

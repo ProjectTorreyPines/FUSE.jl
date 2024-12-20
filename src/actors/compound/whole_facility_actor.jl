@@ -110,7 +110,10 @@ function _step(actor::ActorWholeFacility)
             actor.LFSsizing = ActorLFSsizing(dd, act)
 
             actor.CXbuild = ActorCXbuild(dd, act; layers_aware_of_pf_coils = false)
+            strike_points_weight_bkp = act.ActorPFactive.strike_points_weight
+            act.ActorPFactive.strike_points_weight = 0.0
             actor.PFdesign = ActorPFdesign(dd, act)
+            act.ActorPFactive.strike_points_weight = strike_points_weight_bkp
 
             if act.ActorCXbuild.rebuild_wall
                 ActorEquilibrium(dd, act; ip_from=:pulse_schedule)
