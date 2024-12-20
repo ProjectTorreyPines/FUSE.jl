@@ -98,6 +98,9 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
 
     #### ACT ####
 
+    act.ActorPFactive.x_points_weight = 0.01
+    act.ActorPFactive.strike_points_weight = 0.01
+
     act.ActorLFSsizing.maintenance = :vertical
 
     act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
