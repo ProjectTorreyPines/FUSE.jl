@@ -202,7 +202,7 @@ function init(
             eqt = dd.equilibrium.time_slice[]
             fw = IMAS.first_wall(dd.wall)
             psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-            Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open, dd.divertors; private_flux_regions=true)
+            Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open, dd.divertors)
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, 4)
             for k in 1:4
