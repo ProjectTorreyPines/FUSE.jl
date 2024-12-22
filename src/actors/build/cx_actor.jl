@@ -135,7 +135,7 @@ function wall_from_eq!(
 
     # lcfs and magnetic axis
     ψb = eqt.global_quantities.psi_boundary
-    pf_wall_r, pf_wall_z = IMAS.first_wall(pfa, eqt)
+    pf_wall_r, pf_wall_z = IMAS.first_wall(eqt, pfa)
     ((rlcfs, zlcfs),) = IMAS.flux_surface(eqt, ψb, :closed, pf_wall_r, pf_wall_z)
 
     # convex hull of equilibrium lcfs with ideal boundary from pulse_schedule
@@ -204,6 +204,8 @@ function wall_from_eq!(
         if isempty(inner_slot)
             continue
         end
+        pr = [r for (r, z) in inner_slot]
+        pz = [z for (r, z) in inner_slot]
 
         # do not add more than one private flux region for each of the x-points
         if Zx > Z0
@@ -219,14 +221,17 @@ function wall_from_eq!(
         end
 
         # slot carving
-        pr, pz = IMAS.rdp_simplify_2d_path([r for (r, z) in inner_slot], [z for (r, z) in inner_slot], gap)
-        pr = [pr; (R0 + Rx) / 2; pr[1]]
-        pz = [pz; (Z0 + Zx) / 2; pz[1]]
+        pr, pz = IMAS.rdp_simplify_2d_path(pr, pz, gap / 2)
+        Dx = sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0)
+        Dx = ((1.0 .- Dx ./ maximum(Dx)) .* (1.0 + divertor_size * 3) .+ 1.0) .* div_gap
+        POLYs = [xy_polygon(IMAS.thick_line_polygon(pr[i], pz[i], pr[i+1], pz[i+1], Dx[i], Dx[i+1])) for i in 1:length(pr)-1]
+        POLYs[1] = LibGEOS.buffer(POLYs[1], div_gap)
+        for k in 2:length(POLYs)
+            POLYs[1] = LibGEOS.union(POLYs[1], LibGEOS.buffer(POLYs[k], div_gap))
+        end
+        slot_poly = POLYs[1]
 
-        slot_poly = xy_polygon(pr, pz)
-        buffered_slot_poly = LibGEOS.buffer(slot_poly, div_gap)
-
-        wall_poly = LibGEOS.union(wall_poly, buffered_slot_poly)
+        wall_poly = LibGEOS.union(wall_poly, slot_poly)
     end
 
     # detect if equilibrium has x-points to define build of divertors
@@ -991,30 +996,6 @@ function convex_outline(rail::IMAS.build__pf_active__rail{T}) where {T<:Real}
     dd = IMAS.top_dd(rail)
     coils = IMAS.pf_active__coil{T}[dd.pf_active.coil[k] for k in coil_start:coil_end if :shaping ∈ dd.pf_active.coil[k].function && :flux ∉ dd.pf_active.coil[k].function]
     return convex_outline(coils)
-end
-
-"""
-    first_wall(pf_active::IMAS.pf_active{T}, eqt::IMAS.equilibrium__time_slice) where {T<:Real}
-
-Returns named tuple with outline of the wall defined ast the intersection of the pf_active.coils domain and the equilibrium computational domain
-"""
-function IMAS.first_wall(pf_active::IMAS.pf_active{T}, eqt::IMAS.equilibrium__time_slice) where {T<:Real}
-    r_pf, z_pf = IMAS.first_wall(pf_active)
-    r_eq, z_eq = IMAS.first_wall(eqt)
-
-    if isempty(r_pf)
-        return (r=r_eq, z=z_eq)
-    elseif isempty(r_eq)
-        return (r=r_pf, z=z_pf)
-    else
-        pf_poly = xy_polygon(r_pf, z_pf)
-        eq_poly = xy_polygon(r_eq, z_eq)
-        poly = LibGEOS.intersection(pf_poly, eq_poly)
-        poly_coords = GeoInterface.coordinates(poly)[1]
-        r = [v[1] for v in poly_coords]
-        z = [v[2] for v in poly_coords]
-        return (r=r, z=z)
-    end
 end
 
 #= ========================================== =#
