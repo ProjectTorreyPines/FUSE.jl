@@ -22,7 +22,9 @@ function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, 
 
     # OH positions and sizes
     r_ohcoils = minimum(bnd_r) / 3
-    z_ohcoils, h_oh = size_oh_coils(min(valid_z[1], valid_z[end]), max(valid_z[1], valid_z[end]), 0.0, n_coils)
+    z_oh_low = (min(valid_z[1], valid_z[end]) + minimum(bnd_z)) / 2.0
+    z_oh_high = (max(valid_z[1], valid_z[end]) + maximum(bnd_z)) / 2.0
+    z_ohcoils, h_oh = size_oh_coils(z_oh_low, z_oh_high, 0.0, n_coils)
     w_oh = minimum(bnd_r) / 3
 
     # PF posistions and sizes
