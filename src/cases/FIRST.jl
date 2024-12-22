@@ -55,5 +55,8 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
 
     ini.requirements.flattop_duration = 2.0
 
+    act.ActorPFactive.x_points_weight = 0.001
+    act.ActorPFactive.strike_points_weight = 0.01
+
     return ini, act
 end
