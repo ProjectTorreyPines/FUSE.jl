@@ -67,13 +67,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     Rs = range(max(0.01, minimum(fw_r) - ΔR / 100), maximum(fw_r) + ΔR / 100, par.nR)
     Zs = range(minimum(fw_z) - ΔZ / 100, maximum(fw_z) + ΔZ / 100, par.nZ)
 
-    if isempty(dd.pf_active.coil)
-        coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, eqt.boundary.geometric_axis.r, eqt.boundary.geometric_axis.z, 8)
-    else
-        coils = nothing
-    end
-
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; coils, load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
+    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
 
     actor.profile = FRESCO.PressureJt(dd)
 

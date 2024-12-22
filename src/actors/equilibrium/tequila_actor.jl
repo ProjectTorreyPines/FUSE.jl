@@ -191,7 +191,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
 
     # RZ
     if ismissing(par, :Z)
-        Zdim = κ * 1.6 * a
+        Zdim = κ * (1.1 + act.ActorCXbuild.divertor_size) * a
         nz_grid = nψ_grid
         Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
     else
@@ -201,9 +201,9 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     end
 
     if ismissing(par, :R)
-        Rdim = min(1.5 * a, R0) # 50% bigger than the plasma, but a no bigger than R0
+        Rdim = (1.1 + act.ActorCXbuild.divertor_size) * a # divertor_size% bigger than the plasma, but a no bigger than R0
         nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
-        Rgrid = range(R0 - Rdim, R0 + Rdim, nr_grid)
+        Rgrid = range(R0 - min(Rdim, R0), R0 + Rdim, nr_grid)
     else
         Rgrid = par.R
         Rdim = abs(-(extrema(Rgrid)...)) / 2
@@ -233,11 +233,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_cps[1].weight))
 
         # Coils locations
-        if isempty(dd.pf_active.coil)
-            coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
-        else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
-        end
+        coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
 
         # from fixed boundary to free boundary via VacuumFields
         psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)

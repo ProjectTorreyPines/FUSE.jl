@@ -101,9 +101,6 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
     if par.free_boundary
         eqt = dd.equilibrium.time_slice[]
 
-        RA = actor.chease.gfile.rmaxis
-        ZA = actor.chease.gfile.zmaxis
-
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         ψbound = 0.0
 
@@ -123,11 +120,7 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
         push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_cps[1].weight))
 
         # Coils locations
-        if isempty(dd.pf_active.coil)
-            coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
-        else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model, zero_currents=true)
-        end
+        coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model, zero_currents=true)
 
         # from fixed boundary to free boundary via VacuumFields
         psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)

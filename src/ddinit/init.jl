@@ -82,8 +82,15 @@ function init(
                 verbose && @info "INIT: init_pf_active"
                 init_pf_active!(dd, ini, act, dd1)
             end
-            for coil in dd.pf_active.coil
-                empty!(coil.current)
+            if isempty(dd.pf_active.coil)
+                # add some coils encircling the plasma so that the equilibrium solvers can get free-boundary solution
+                bnd_r, bnd_z = IMAS.boundary(dd.pulse_schedule.position_control)
+                dd.pf_active.coil = encircling_coils(bnd_r, bnd_z, sum(extrema(bnd_r)) / 2.0, sum(extrema(bnd_z)) / 2.0, 8)
+                act.ActorCXbuild.layers_aware_of_pf_coils = false
+            else
+                for coil in dd.pf_active.coil
+                    empty!(coil.current)
+                end
             end
             verbose && @info "INIT: init_equilibrium"
             init_equilibrium!(dd, ini, act, dd1)
