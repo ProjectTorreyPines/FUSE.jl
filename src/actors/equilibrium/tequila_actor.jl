@@ -189,9 +189,12 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     eq2d.grid_type.index = 57 # inverse_rhotor_mxh : Flux surface type with radial label sqrt[Phi/pi/B0] (dim1), Phi being toroidal flux, and MXH coefficients R0, Z0, ϵ, κ, c0, c[...], s[...] (dim2)
     eq2d.psi = collect(shot.surfaces')
 
+    # maximum expected size of divertor regions based on ActorCXbuild settings
+    divertor_size = max(act.ActorCXbuild.divertor_hfs_size_fraction, act.ActorCXbuild.divertor_lfs_size_fraction)
+
     # RZ
     if ismissing(par, :Z)
-        Zdim = κ * (1.1 + act.ActorCXbuild.divertor_size) * a
+        Zdim = κ * (1.1 + divertor_size) * a
         nz_grid = nψ_grid
         Zgrid = range(Z0 - Zdim, Z0 + Zdim, nz_grid)
     else
@@ -201,7 +204,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     end
 
     if ismissing(par, :R)
-        Rdim = (1.1 + act.ActorCXbuild.divertor_size) * a # divertor_size% bigger than the plasma, but a no bigger than R0
+        Rdim = (1.1 + divertor_size) * a # divertor_size% bigger than the plasma, but a no bigger than R0
         nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
         Rgrid = range(R0 - min(Rdim, R0), R0 + Rdim, nr_grid)
     else

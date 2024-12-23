@@ -8,10 +8,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium"; default=true)
-    layers_aware_of_pf_coils::Entry{Bool} = Entry{Bool}("-", "Build layers are aware of PF coils"; default=true)
-    divertor_size::Entry{T} = Entry{T}("-", "Divertor size as fraction of plasma minor radius"; default=0.50)
-    n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101)
+    rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium, even if dd.wall is already filled"; default=true)
+    layers_aware_of_pf_coils::Entry{Bool} = Entry{Bool}("-", "Build layers are aware of pf_active coils"; default=true)
+    divertor_hfs_size_fraction::Entry{T} = Entry{T}(
+        "-",
+        "Divertor size on the high-field-side as fraction of plasma minor radius";
+        default=0.50,
+        check=x -> @assert x >= 0 "divertor_hfs_size_fraction must be >= 0.0")
+    divertor_lfs_size_fraction::Entry{T} = Entry{T}(
+        "-",
+        "Divertor size on the low-field-side as fraction of plasma minor radius";
+        default=0.50,
+        check=x -> @assert x >= 0 "divertor_lfs_size_fraction must be >= 0.0")
+    n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101, check=x -> @assert x >= 0 "n_points must be > 0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
@@ -57,7 +66,7 @@ function _step(actor::ActorCXbuild)
     # If wall information is missing, then the first wall information is generated starting from equilibrium time_slice
     fw = IMAS.first_wall(dd.wall)
     if isempty(fw.r) || par.rebuild_wall
-        wall_from_eq!(dd.wall, eqt, bd, dd.pulse_schedule.position_control, dd.pf_active; par.divertor_size)
+        wall_from_eq!(dd.wall, eqt, bd, dd.pulse_schedule.position_control, dd.pf_active; par.divertor_hfs_size_fraction, par.divertor_lfs_size_fraction)
         fw = IMAS.first_wall(dd.wall)
         IMAS.flux_surfaces(eqt, fw.r, fw.z) # output of flux_surfaces depends on the wall
     end
@@ -93,11 +102,11 @@ function _step(actor::ActorCXbuild)
 end
 
 """
-wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pc::IMAS.pulse_schedule__position_control, pfa::IMAS.pf_active; divertor_size::Float64)
+wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pc::IMAS.pulse_schedule__position_control, pfa::IMAS.pf_active; divertor_hfs_size_fraction::Float64, divertor_lfs_size_fraction::Float64)
 
 Generate first wall and divertors outline starting from an equilibrium and radial build
 """
-function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pc::IMAS.pulse_schedule__position_control, pfa::IMAS.pf_active; divertor_size::Float64)
+function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pc::IMAS.pulse_schedule__position_control, pfa::IMAS.pf_active; divertor_hfs_size_fraction::Float64, divertor_lfs_size_fraction::Float64)
     # Set the radial build thickness of the plasma vacuum chamber
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
     rlcfs = eqt.boundary.outline.r
@@ -107,7 +116,7 @@ function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::I
     upper_divertor = ismissing(bd.divertors.upper, :installed) ? false : Bool(bd.divertors.upper.installed)
     lower_divertor = ismissing(bd.divertors.lower, :installed) ? false : Bool(bd.divertors.lower.installed)
 
-    return wall_from_eq!(wall, eqt, pc, pfa, gap; upper_divertor, lower_divertor, divertor_size)
+    return wall_from_eq!(wall, eqt, pc, pfa, gap; upper_divertor, lower_divertor, divertor_hfs_size_fraction, divertor_lfs_size_fraction)
 end
 
 function wall_from_eq!(
@@ -118,7 +127,8 @@ function wall_from_eq!(
     gap::Float64;
     upper_divertor::Bool,
     lower_divertor::Bool,
-    divertor_size::Float64) where {T<:Real}
+    divertor_hfs_size_fraction::Float64,
+    divertor_lfs_size_fraction::Float64) where {T<:Real}
 
     upper_divertor = Int(upper_divertor)
     lower_divertor = Int(lower_divertor)
@@ -160,7 +170,6 @@ function wall_from_eq!(
 
     # divertor lengths
     minor_radius = (maximum(rlcfs) - minimum(rlcfs)) / 2.0
-    max_divertor_length = minor_radius * divertor_size
 
     # private flux regions sorted by distance from lcfs
     private = IMAS.flux_surface(eqt, ψb, :open, pf_wall_r, pf_wall_z)
@@ -191,22 +200,6 @@ function wall_from_eq!(
             continue
         end
 
-        # distance from points in private flux region to X-point
-        Dx = sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0)
-        divertor_length = min(maximum(Dx), max_divertor_length)
-
-        # limit extent of private flux regions
-        circle_r = divertor_length .* cos.(t) .+ Rx
-        circle_z = sign(Zx) .* divertor_length .* sin.(t) .+ Zx
-        circle = collect(zip(circle_r, circle_z))
-        circle[1] = circle[end]
-        inner_slot = [(rr, zz) for (rr, zz) in zip(pr, pz) if PolygonOps.inpolygon((rr, zz), circle) == 1 && PolygonOps.inpolygon((rr, zz), eq_domain) == 1]
-        if isempty(inner_slot)
-            continue
-        end
-        pr = [r for (r, z) in inner_slot]
-        pz = [z for (r, z) in inner_slot]
-
         # do not add more than one private flux region for each of the x-points
         if Zx > Z0
             if detected_upper == 0
@@ -220,11 +213,25 @@ function wall_from_eq!(
             detected_lower -= 1
         end
 
-        # slot carving
-        pr, pz = IMAS.rdp_simplify_2d_path(pr, pz, gap / 2)
+        # distance from points in private flux region to X-point
         Dx = sqrt.((Rx .- pr) .^ 2.0 .+ (Zx .- pz) .^ 2.0)
-        Dx = ((1.0 .- Dx ./ maximum(Dx)) .* (1.0 + divertor_size * 3) .+ 1.0) .* div_gap
-        POLYs = [xy_polygon(IMAS.thick_line_polygon(pr[i], pz[i], pr[i+1], pz[i+1], Dx[i], Dx[i+1])) for i in 1:length(pr)-1]
+        L = cumsum(sqrt.(IMAS.gradient(pr) .^ 2 .+ IMAS.gradient(pz) .^ 2))
+        L .-= L[argmin(Dx)]
+        if pr[argmin(Dx)+1] < pr[argmin(Dx)-1]
+            L .*= -1.0
+        end
+
+        # limit extent of private flux regions
+        divertor_hfs_size = min(maximum(-L), divertor_hfs_size_fraction * minor_radius)
+        divertor_lfs_size = min(maximum(L), divertor_lfs_size_fraction * minor_radius)
+        index = (-divertor_hfs_size .< L) .&& (L .< divertor_lfs_size)
+        pr = pr[index]
+        pz = pz[index]
+        L = L[index]
+
+        # slot carving
+        L = ((1.0 .- abs.(L) ./ maximum(abs.(L))) .* (1.0 + max(divertor_hfs_size, divertor_lfs_size)) * 3.0 .+ 1.0) .* div_gap / 2.0
+        POLYs = [xy_polygon(IMAS.thick_line_polygon(pr[i], pz[i], pr[i+1], pz[i+1], L[i], L[i+1])) for i in 1:length(pr)-1]
         POLYs[1] = LibGEOS.buffer(POLYs[1], div_gap)
         for k in 2:length(POLYs)
             POLYs[1] = LibGEOS.union(POLYs[1], LibGEOS.buffer(POLYs[k], div_gap))
