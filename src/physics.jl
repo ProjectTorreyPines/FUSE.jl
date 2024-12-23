@@ -27,14 +27,13 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         return nothing
     else
         height = maximum(z_obstruction) - minimum(z_obstruction) + clearance * 2.0
-        z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
         r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
 
         shape_index_mod = shape_function_index
-        is_z_offset = false
+        z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
-            is_z_offset = true
+            z_offset = true
         end
         if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             shape_parameters = Float64[]
@@ -61,8 +60,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
     if shape_parameters === nothing
         error(layer_shape_message(shape_function_index))
     end
-    if is_z_offset
-        push!(shape_parameters, z_offset)
+    if z_offset
+        push!(shape_parameters, (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0)
     end
     return shape_parameters
 end
@@ -73,10 +72,10 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         return nothing
     else
         shape_index_mod = shape_function_index
-        is_z_offset = false
+        z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
-            is_z_offset = true
+            z_offset = true
         end
         if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             func = princeton_D_approx
@@ -107,7 +106,7 @@ function shape_function(shape_function_index::Int; resolution::Float64)
 
     # zoffset
     zfunc = rfunc
-    if is_z_offset
+    if z_offset
         zfunc(args...) = begin
             R, Z = rfunc(args[1:end-1]...)
             Z .+= args[end]

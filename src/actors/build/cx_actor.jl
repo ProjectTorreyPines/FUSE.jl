@@ -600,10 +600,11 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
     plasma.outline.r = fw.r
     plasma.outline.z = fw.z
 
-    # detect up-down symmetric plasma
-    is_z_offset = false
-    if !IMAS.is_updown_symmetric(plasma.outline.r, plasma.outline.z)
-        is_z_offset = true
+    # detect offset in z
+    if IMAS.is_z_offset(plasma.outline.r, plasma.outline.z)
+        z_offset = true
+    else
+        z_offset = false
     end
 
     plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
@@ -630,7 +631,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
                 vertical_clearance,
                 resolution=n_points / 201.0,
                 obstruction_outline,
-                is_z_offset)
+                z_offset)
             if verbose
                 plot(ocoils)
                 display(plot!(bd.layer[plasma_to_tf[kl]]))
@@ -653,7 +654,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
                         vertical_clearance,
                         resolution=n_points / 201.0,
                         obstruction_outline,
-                        is_z_offset)
+                        z_offset)
                     kl = kk
                     if verbose
                         #plot(ocoils)
@@ -680,7 +681,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
                     vertical_clearance,
                     resolution=n_points / 201.0,
                     obstruction_outline=nothing,
-                    is_z_offset)
+                    z_offset)
                 if verbose
                     plot(ocoils)
                     display(plot!(bd.layer[plasma_to_tf[kk]]))
@@ -744,7 +745,7 @@ end
         vertical_clearance::Float64=1.0,
         resolution::Float64=1.0,
         obstruction_outline=nothing,
-        is_z_offset::Bool=false)
+        z_offset::Bool=false)
 
 Generates outline of layer in such a way to maintain minimum distance from inner layer
 """
@@ -756,7 +757,7 @@ function optimize_layer_outline(
     vertical_clearance::Float64=1.0,
     resolution::Float64=1.0,
     obstruction_outline=nothing,
-    is_z_offset::Bool=false)
+    z_offset::Bool=false)
 
     shape = Int(shape_enum)
 
@@ -824,7 +825,7 @@ function optimize_layer_outline(
 
     else # handle shapes
         shape = mod(shape, 100)
-        if is_z_offset
+        if z_offset
             shape = shape + 100
         end
 
