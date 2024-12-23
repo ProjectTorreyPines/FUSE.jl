@@ -91,9 +91,9 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                 end
 
                 coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
-                cost_currents = norm([coil.current for coil in coils]) / eqt.global_quantities.ip
+                cost_currents = norm((coil.current for coil in coils)) / eqt.global_quantities.ip
 
-                cost = norm([actor.actor_pf.cost, 0.1 * cost_spacing])^2 * (1 .+ cost_currents)
+                cost = norm((actor.actor_pf.cost, 0.1 * cost_spacing))^2 * (1 .+ cost_currents)
 
                 if prog !== nothing
                     ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing), ("currents", cost_currents)])
