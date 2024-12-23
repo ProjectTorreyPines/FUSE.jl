@@ -663,7 +663,7 @@ end
 function silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
     n_points = Int(round(n_points * resolution))
     height_start = abs(height_start)
-    curved_fraction = mirror_bound(curved_fraction, 0.1, 0.9)
+    curved_fraction = mirror_bound(curved_fraction, 0.01, 0.99)
     height_end = height_start * (1 - curved_fraction)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0.0, pi / 2, r_start, height_end; n_points)
     return vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)

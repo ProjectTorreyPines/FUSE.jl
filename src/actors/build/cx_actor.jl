@@ -106,7 +106,15 @@ wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build
 
 Generate first wall and divertors outline starting from an equilibrium and radial build
 """
-function wall_from_eq!(wall::IMAS.wall, eqt::IMAS.equilibrium__time_slice, bd::IMAS.build, pc::IMAS.pulse_schedule__position_control, pfa::IMAS.pf_active; divertor_hfs_size_fraction::Float64, divertor_lfs_size_fraction::Float64)
+function wall_from_eq!(
+    wall::IMAS.wall,
+    eqt::IMAS.equilibrium__time_slice,
+    bd::IMAS.build,
+    pc::IMAS.pulse_schedule__position_control,
+    pfa::IMAS.pf_active;
+    divertor_hfs_size_fraction::Float64,
+    divertor_lfs_size_fraction::Float64
+)
     # Set the radial build thickness of the plasma vacuum chamber
     plasma = IMAS.get_build_layer(bd.layer; type=_plasma_)
     rlcfs = eqt.boundary.outline.r
@@ -762,25 +770,34 @@ function optimize_layer_outline(
     shape = Int(shape_enum)
 
     layer = bd.layer[layer_index]
+    if layer.side == Int(_lfs_)
+        layer = IMAS.opposite_side_layer(layer)
+    end
     obstr = bd.layer[obstr_index]
+    if obstr.side == Int(_lfs_)
+        obstr = IMAS.opposite_side_layer(obstr)
+    end
+
     # display("Layer $layer_index = $(layer.name)")
     # display("Obstr $obstr_index = $(obstr.name)")
 
-    o_start = obstr.start_radius
-    l_start = layer.start_radius
-    if obstr.side in (Int(_lhfs_), Int(_out_))
-        o_end = obstr.end_radius
-    else
-        o_end = IMAS.opposite_side_layer(obstr).end_radius
-    end
-    if layer.side in (Int(_lhfs_), Int(_out_))
-        l_end = layer.end_radius
-    else
+    if obstr.side == Int(_lhfs_)
+        # plasma obstruction
+        l_start = layer.start_radius
         l_end = IMAS.opposite_side_layer(layer).end_radius
-    end
-    if layer.side == Int(_out_) || obstr.side == Int(_out_)
-        l_start = 0.0
-        o_start = 0.0
+        o_start = obstr.start_radius
+        o_end = obstr.end_radius
+    elseif layer.side == Int(_out_) && obstr.side == Int(_hfs_)
+        # first _out_ layer
+        l_start = layer.start_radius
+        l_end = IMAS.opposite_side_layer(layer).end_radius
+        o_start = obstr.start_radius
+        o_end = IMAS.opposite_side_layer(obstr).end_radius
+    else
+        l_start = layer.start_radius
+        l_end = IMAS.opposite_side_layer(layer).end_radius
+        o_start = obstr.start_radius
+        o_end = IMAS.opposite_side_layer(obstr).end_radius
     end
 
     # handle internal obstructions (in addition to inner layer)
@@ -887,10 +904,12 @@ function optimize_outline(
                 difference_poly = LibGEOS.difference(RZ_poly, obstruction_buffered_poly)
                 difference_area = LibGEOS.area(difference_poly)
 
-                cost_overlap = (intersection_area - obstruction_buffered_area) * 100.0
+                cost_overlap = (intersection_area - obstruction_buffered_area) * 100
                 cost_overspill = difference_area
 
                 if verbose
+                    plot!(obstruction_buffered_poly; alpha=0.5)
+                    display(plot!(RZ_poly; alpha=0.5, aspect_ratio=:equal))
                     @show cost_overlap^2
                     @show cost_overspill^2
                     println()
@@ -901,7 +920,7 @@ function optimize_outline(
                 if typeof(e) <: LibGEOS.GEOSError
                     if verbose
                         plot(RZ_poly; alpha=0.5)
-                        plot!(obstruction_buffered_poly; alpha=0.5)
+                        plot!(obstruction_buffered_poly; alpha=0.5, aspect_ratio=:equal)
                         display(plot!())
                     end
                     return Inf
@@ -930,8 +949,8 @@ function optimize_outline(
             ),
             initial_guess, length(shape_parameters) == 1 ? Optim.BFGS() : Optim.NelderMead(), Optim.Options(; iterations=1000))
         shape_parameters = Optim.minimizer(res)
-
         if verbose
+            plot(r_obstruction, z_obstruction)
             cost_shape(
                 obstruction_buffered_poly,
                 obstruction_buffered_area,
