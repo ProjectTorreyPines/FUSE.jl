@@ -239,12 +239,13 @@ function wall_from_eq!(
 
         # slot carving
         L = ((1.0 .- abs.(L) ./ maximum(abs.(L))) .* (1.0 + max(divertor_hfs_size, divertor_lfs_size)) * 3.0 .+ 1.0) .* div_gap / 2.0
-        POLYs = [xy_polygon(IMAS.thick_line_polygon(pr[i], pz[i], pr[i+1], pz[i+1], L[i], L[i+1])) for i in 1:length(pr)-1]
-        POLYs[1] = LibGEOS.buffer(POLYs[1], div_gap)
-        for k in 2:length(POLYs)
-            POLYs[1] = LibGEOS.union(POLYs[1], LibGEOS.buffer(POLYs[k], div_gap))
+        slot_poly = LibGEOS.buffer(xy_polygon(IMAS.thick_line_polygon(pr[1], pz[1], pr[2], pz[2], L[1], L[2])), div_gap)
+        for i in 1:length(pr)-1
+            if pr[i] != pr[i+1] && pz[i] != pz[i+1]
+                poly = xy_polygon(IMAS.thick_line_polygon(pr[i], pz[i], pr[i+1], pz[i+1], L[i], L[i+1]))
+                slot_poly = LibGEOS.union(slot_poly, LibGEOS.buffer(poly, div_gap))
+            end
         end
-        slot_poly = POLYs[1]
 
         wall_poly = LibGEOS.union(wall_poly, slot_poly)
     end
