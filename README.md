@@ -55,6 +55,9 @@ dd = FUSE.init(ini, act)
 # Run a stationary plasma actor simulation
 FUSE.ActorStationaryPlasma(dd, act)
 
+# Run a stationary FPP actor simulation
+FUSE.ActorStationaryFPP(dd, act)
+
 # Get an overview of the simulation results
 FUSE.digest(dd)
 ```
