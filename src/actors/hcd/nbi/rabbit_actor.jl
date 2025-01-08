@@ -93,6 +93,17 @@ function _finalize(actor::ActorRABBIT)
         ion.particles = source.profiles_1d[].electrons.particles
         ion.particles_inside = source.profiles_1d[].electrons.particles_inside
         ion.fast_particles_energy = beam_energy
+
+        # add neutron rate profile 
+        neutral = resize!(source.profiles_1d[].neutral, 1)[1]
+        neutral_particles = output.nrate_data[:, end]
+        neutral_particles = [neutral_particles[1]; neutral_particles; neutral_particles[end]]
+        neutral.particles = neutral_particles
+        neutral.label = "neutrons"
+
+        element = resize!(neutral.element, 1)[1]
+        element.z_n = 0.0
+        
     end
 
     return actor
