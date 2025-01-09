@@ -97,6 +97,8 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
 
     act.ActorPFdesign.symmetric = true
 
+    filter!(!=(:q95_gt_2), act.ActorPlasmaLimits.models)
+
     return ini, act
 end
 
