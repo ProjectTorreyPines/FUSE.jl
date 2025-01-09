@@ -136,7 +136,6 @@ function _step(actor::ActorWholeFacility)
         actor.Divertors = ActorDivertors(dd, act)
 
         actor.StabilityLimits = ActorPlasmaLimits(dd, act)
-        actor.VerticalStability = ActorVerticalStability(dd, act)
 
         actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
 

@@ -79,6 +79,7 @@ function _step(actor::ActorVerticalStability)
             return actor
         end
     end
+
     for (k, coil) in enumerate(actor.passive_coils)
         if VacuumFields.resistance(coil) <= 0.0
             @warn "Passive coil #$(k) has invalid resistance: $(VacuumFields.resistance(coil)). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
@@ -103,14 +104,22 @@ function _finalize(actor::ActorVerticalStability)
     mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
 
     # Stability margin
-    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
-    mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability"
-    mode.stability_metric = actor.stability_margin
+    if !isnan(actor.stability_margin)
+        mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
+        mode.perturbation_type.description = "Vertical stability margin > 0.15 for stability"
+        mode.stability_metric = actor.stability_margin
+    else
+        deleteat!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
+    end
 
     # Normalized growth rate
-    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
-    mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability"
-    mode.stability_metric = actor.normalized_growth_rate
+    if !isnan(actor.normalized_growth_rate)
+        mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
+        mode.perturbation_type.description = "Normalized vertical growth rate < 10 for stability"
+        mode.stability_metric = actor.normalized_growth_rate
+    else
+        deleteat!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
+    end
 
     # plot
     if par.do_plot

@@ -1,39 +1,54 @@
-function run_limits_models(dd::IMAS.dd, act::ParametersAllActors, model_name::Symbol)
-    return run_limits_models(dd, act, [model_name])
-end
+const supported_limit_models = Symbol[]
+const default_limit_models = Symbol[]
 
-function run_limits_models(dd::IMAS.dd, act::ParametersAllActors, model_names::Vector{Symbol})
-    for model_name in model_names
-        func = try
-            eval(model_name)
-        catch e
-            if typeof(e) <: UndefVarError
-                error("Unknown model `$(repr(model_name))`. Supported models are $(supported_limit_models)")
-            else
-                rethrow(e)
-            end
-        end
-        func(dd, act)
+##### VERTICAL STABILITY #####
+
+function vertical_stability(dd::IMAS.dd, act::ParametersAllActors)
+    ActorVerticalStability(dd, act)
+    mhd = dd.mhd_linear.time_slice[]
+
+    # Vertical stability margin > 0.15 for stability
+    model = resize!(dd.limits.model, "identifier.name" => "Vertical Stability margin")
+    model.identifier.description = "Vertical stability margin > 0.15 for stability"
+    index = findfirst(mode -> mode.perturbation_type.name == "m_s" && mode.n_tor == 0, mhd.toroidal_mode)
+    if index !== nothing
+        mode = mhd.toroidal_mode[index]
+        model_value = mode.stability_metric
+        target_value = 0.15
+        @ddtime(model.fraction = target_value / model_value)
+    else
+        @ddtime(model.fraction = 0.0)
+    end
+
+    # Normalized vertical growth rate, < 10 for stability
+    model = resize!(dd.limits.model, "identifier.name" => "Vertical Stability growth rate")
+    model.identifier.description = "Normalized vertical growth rate < 10 for stability"
+    index = findfirst(mode -> mode.perturbation_type.name == "γτ" && mode.n_tor == 0, mhd.toroidal_mode)
+    if index !== nothing
+        mode = mhd.toroidal_mode[index]
+        model_value = mode.stability_metric
+        target_value = 10.0
+        @ddtime(model.fraction = model_value / target_value)
+    else
+        @ddtime(model.fraction = 0.0)
     end
 end
-
-supported_limit_models = Symbol[]
-default_limit_models = Symbol[]
+push!(supported_limit_models, :vertical_stability)
+push!(default_limit_models, :vertical_stability)
 
 ##### BETA LIMIT MODELS #####
 
 function beta_troyon_nn(dd::IMAS.dd, act::ParametersAllActors)
     ActorTroyonBetaNN(dd, act)
     mhd = dd.mhd_linear.time_slice[]
-
     for n in 1:3
-        model = resize!(dd.limits.model, "identifier.name" => "BetaTroyonNN__n$(n)")
+        model = resize!(dd.limits.model, "identifier.name" => "BetaTroyonNN n=$(n)")
         model.identifier.description = "βn < BetaTroyonNN n=$(n)"
 
         beta_normal = dd.equilibrium.time_slice[].global_quantities.beta_normal
         model_value = beta_normal
 
-        index = findfirst(mode -> mode.perturbation_type.name == "Troyon no-wall" && mode.n_tor==n, mhd.toroidal_mode)
+        index = findfirst(mode -> mode.perturbation_type.name == "Troyon no-wall" && mode.n_tor == n, mhd.toroidal_mode)
         target_value = mhd.toroidal_mode[index].stability_metric
 
         @ddtime(model.fraction = model_value / target_value)
