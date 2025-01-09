@@ -34,9 +34,7 @@ concurrency:
 
 jobs:
   test:
-    if: >
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'push' && !startsWith(github.ref, 'refs/pull/'))
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'dev') }}
     name: Julia ${{ matrix.flavor.version }} - ${{ matrix.flavor.os }} - ${{ matrix.flavor.arch }}
     runs-on: ${{ matrix.flavor.os }}
     strategy:
