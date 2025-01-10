@@ -566,19 +566,6 @@ feature_or_master:
 	end'
 
 # @devs
-fix_environment:fix_FortranNamelistParser
-# Applies fixes
-	@echo "* Fixes applied"
-
-# @devs
-fix_FortranNamelistParser:
-# Replaces Fortran90Namelists with FortranNamelistParser in the Manifest.toml
-	@echo "* Sanitizing Manifest.toml files of Fortran90Namelists --> FortranNamelistParser"
-	@find $(JULIA_DIR)/environments -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
-	@find .. -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
-	@find $(PTP_ORIGINAL_DIR) -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
-
-# @devs
 generate_dd: .PHONY
 # Update dd from the json files in IMASdd
 	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
