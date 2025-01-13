@@ -22,7 +22,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
 end
 
-mutable struct ActorFRESCO{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorFRESCO{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFRESCO{P}
     act::ParametersAllActors{P}
