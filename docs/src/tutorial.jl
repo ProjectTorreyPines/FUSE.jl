@@ -82,8 +82,10 @@ help_plot(dd.equilibrium; core_profiles_overlay=true, psi_levels_in=21, psi_leve
 # These plots can be composed by calling `plot!()` instead of `plot()`
 
 plot(dd.equilibrium; color=:gray, cx=true)
-plot!(dd.build; equilibrium=false, pf_active=false)
+plot!(dd.build.layer)
 plot!(dd.pf_active)
+plot!(dd.pf_passive)
+plot!(dd.pulse_schedule.position_control; color=:red)
 
 # Plotting an array...
 
@@ -174,6 +176,10 @@ print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)
 
 FUSE.ActorWholeFacility(dd, act);
 
+# Let's check what we got at a glance with the `FUSE.digest(dd)` function:
+
+FUSE.digest(dd)
+
 # Like before we can checkpoint results for later use
 
 @checkin :awf dd ini act
@@ -190,7 +196,7 @@ FUSE.ActorWholeFacility(dd, act);
 # Let's start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape.
 # This will be important to ensure the stability of the `ActorStationaryPlasma` that we are going to run next.
 
-actor = FUSE.ActorPFdesign(dd, act);
+FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`
 
 # The `ActorStationaryPlasma` iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution
 
@@ -247,7 +253,7 @@ plot(dd.pf_passive)
 # We can now give the PF coils their final position given the new build
 
 actor = FUSE.ActorPFdesign(dd, act);
-plot(actor)
+plot(actor) # some actors define their own plot
 
 # With information about both pf_active and pf_passive we can now evaluate vertical stability
 
@@ -310,7 +316,7 @@ IMAS.diff(dd.equilibrium, dd1.equilibrium)
 
 FUSE.extract(dd)
 
-# Extract + plots saved to PDF (or printed to screen it `filename` is omitted)
+# Extract + plots saved to PDF (printed to screen it `filename` is omitted)
 
 filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
 FUSE.digest(dd)#, filename)
