@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryFPP{T<:Real} <: Parame
     num_iterations::Entry{Int} = Entry{Int}("-", "Number of main workflow iterations"; default=5)
     transport_num::Entry{Int} = Entry{Int}("-", "Maximum number of transport iterations per workflow"; default=5)
     json_num::Entry{Int} = Entry{Int}("-", "Starting iteration number"; default=0)
-
+    
     # Default settings for actor parameters
     tglf_sat_rule::Entry{Symbol} = Entry{Symbol}("-", "Saturation rule for TGLF"; default=:sat0)
     tglf_lump_ions::Entry{Bool} = Entry{Bool}("-", "Lump ions for TGLF"; default=false)
@@ -69,14 +69,15 @@ Allows overriding of default `par` values via keyword arguments.
 A constructed `ActorStationaryFPP` instance.
 """
 
-function ActorStationaryFPP(dd::IMAS.dd, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
+function ActorStationaryFPP(dd::IMAS.dd, par::FUSEparameters__ActorStationaryFPP, act::ParametersAllActors; kw...)
     # Input validation
     if isnothing(dd) || isnothing(act)
         error("`dd` and `act` must be provided and initialized.")
     end
     logging_actor_init(ActorStationaryFPP)
-    # Handle missing `par`
-    par = isnothing(par) ? FUSEparameters__ActorStationaryFPP(kw...) : par(kw...)
+    # Initialize parameters with defaults and apply keyword overrides
+    #par = FUSEparameters__ActorStationaryFPP(kw...)
+    par = par(kw...)
 
     # Apply default or overridden values to actor-specific parameters
     act.ActorTGLF.sat_rule = par.tglf_sat_rule
@@ -101,8 +102,8 @@ function ActorStationaryFPP(dd::IMAS.dd, par::FUSEparameters__ActorStationaryPla
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act)
 
     actor = ActorStationaryFPP(dd, par, act, actor_hc, actor_tr, actor_eq, actor_jt)
-    # Automatically run the workflow
-    run_workflow!(actor)
+    step(actor)
+    #finalize(actor)
     return actor
 end
 
@@ -188,25 +189,6 @@ function _step(actor::ActorStationaryFPP)
     par.json_num = json_num
 end
 
-"""
-    run_workflow!(actor::ActorStationaryFPP)
-
-Runs the full FPP workflow for the given actor, including all iterations and adjustments.
-
-# Arguments
-- `actor`: An instance of `ActorStationaryFPP` containing the workflow setup.
-# Example
-```julia
-dd = IMAS.json2imas("/path/to/data")
-act = ParametersAllActors()
-FUSE.ActorStationaryFPP(dd, act; json_num = 0, save_path="/home/username/FPP/custom_scenario")
-
-"""
-function run_workflow!(actor::ActorStationaryFPP)
-    println("Starting FPP workflow...")
-    _step(actor)  # Call the internal step function
-    println("FPP workflow completed.")
-end
 
 # Helper functions
 # 1. Reset the current plasma state to the previous state if transport iterations are within the limit and the betaN deviation exceeds the threshold

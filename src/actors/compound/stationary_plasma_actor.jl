@@ -31,7 +31,7 @@ Compound actor that runs the following actors in succesion:
   - ActorCurrent
   - ActorHCD
   - ActorCoreTransport
-  - ActorEquilibrium
+  - ActorEquilibrium ### IMAS:: github..///IMAS # master
 
 !!! note
 
