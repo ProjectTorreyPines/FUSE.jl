@@ -14,12 +14,13 @@
 ├─ <span class="sgr1">ActorCHEASE</span>
 │  ├─ <a href='act_details.html#act.ActorCHEASE.free_boundary'>free_boundary</a>
 │  ├─ <a href='act_details.html#act.ActorCHEASE.clear_workdir'>clear_workdir</a>
-│  ├─ <a href='act_details.html#act.ActorCHEASE.rescale_eq_to_ip'>rescale_eq_to_ip</a>
-│  └─ <a href='act_details.html#act.ActorCHEASE.ip_from'>ip_from</a>
+│  └─ <a href='act_details.html#act.ActorCHEASE.rescale_eq_to_ip'>rescale_eq_to_ip</a>
 ├─ <span class="sgr1">ActorCXbuild</span>
 │  ├─ <a href='act_details.html#act.ActorCXbuild.rebuild_wall'>rebuild_wall</a>
+│  ├─ <a href='act_details.html#act.ActorCXbuild.layers_aware_of_pf_coils'>layers_aware_of_pf_coils</a>
+│  ├─ <a href='act_details.html#act.ActorCXbuild.divertor_hfs_size_fraction'>divertor_hfs_size_fraction</a>
+│  ├─ <a href='act_details.html#act.ActorCXbuild.divertor_lfs_size_fraction'>divertor_lfs_size_fraction</a>
 │  ├─ <a href='act_details.html#act.ActorCXbuild.n_points'>n_points</a>
-│  ├─ <a href='act_details.html#act.ActorCXbuild.divertor_size'>divertor_size</a>
 │  └─ <a href='act_details.html#act.ActorCXbuild.do_plot'>do_plot</a>
 ├─ <span class="sgr1">ActorCoreRadHeatFlux</span>
 │  ├─ <a href='act_details.html#act.ActorCoreRadHeatFlux.N'>N</a>
@@ -101,6 +102,16 @@
 │  ├─ <a href='act_details.html#act.ActorEquilibrium.ip_from'>ip_from</a>
 │  ├─ <a href='act_details.html#act.ActorEquilibrium.vacuum_r0_b0_from'>vacuum_r0_b0_from</a>
 │  └─ <a href='act_details.html#act.ActorEquilibrium.do_plot'>do_plot</a>
+├─ <span class="sgr1">ActorFRESCO</span>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.control'>control</a>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.number_of_iterations'>number_of_iterations</a>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.relax'>relax</a>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.tolerance'>tolerance</a>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.fixed_grid'>fixed_grid</a>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.do_plot'>do_plot</a>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.debug'>debug</a>
+│  ├─ <a href='act_details.html#act.ActorFRESCO.nR'>nR</a>
+│  └─ <a href='act_details.html#act.ActorFRESCO.nZ'>nZ</a>
 ├─ <span class="sgr1">ActorFluxCalculator</span>
 │  ├─ <a href='act_details.html#act.ActorFluxCalculator.rho_transport'>rho_transport</a>
 │  ├─ <a href='act_details.html#act.ActorFluxCalculator.turbulence_model'>turbulence_model</a>
@@ -184,6 +195,10 @@
 │  ├─ <a href='act_details.html#act.ActorPedestal.ne_from'>ne_from</a>
 │  ├─ <a href='act_details.html#act.ActorPedestal.zeff_ped_from'>zeff_ped_from</a>
 │  └─ <a href='act_details.html#act.ActorPedestal.do_plot'>do_plot</a>
+├─ <span class="sgr1">ActorPlasmaLimits</span>
+│  ├─ <a href='act_details.html#act.ActorPlasmaLimits.models'>models</a>
+│  ├─ <a href='act_details.html#act.ActorPlasmaLimits.raise_on_breach'>raise_on_breach</a>
+│  └─ <a href='act_details.html#act.ActorPlasmaLimits.verbose'>verbose</a>
 ├─ <span class="sgr1">ActorPowerNeeds</span>
 │  ├─ <a href='act_details.html#act.ActorPowerNeeds.model'>model</a>
 │  ├─ <a href='act_details.html#act.ActorPowerNeeds.thermal_power_fraction'>thermal_power_fraction</a>
@@ -217,15 +232,6 @@
 ├─ <span class="sgr1">ActorSimpleNB</span>
 │  └─ <a href='act_details.html#act.ActorSimpleNB.ηcd_scale'>ηcd_scale</a>
 ├─ <span class="sgr1">ActorSimplePellet</span>
-├─ <span class="sgr1">ActorSolovev</span>
-│  ├─ <a href='act_details.html#act.ActorSolovev.ngrid'>ngrid</a>
-│  ├─ <a href='act_details.html#act.ActorSolovev.qstar'>qstar</a>
-│  ├─ <a href='act_details.html#act.ActorSolovev.alpha'>alpha</a>
-│  ├─ <a href='act_details.html#act.ActorSolovev.ip_from'>ip_from</a>
-│  └─ <a href='act_details.html#act.ActorSolovev.verbose'>verbose</a>
-├─ <span class="sgr1">ActorStabilityLimits</span>
-│  ├─ <a href='act_details.html#act.ActorStabilityLimits.models'>models</a>
-│  └─ <a href='act_details.html#act.ActorStabilityLimits.raise_on_breach'>raise_on_breach</a>
 ├─ <span class="sgr1">ActorStationaryPlasma</span>
 │  ├─ <a href='act_details.html#act.ActorStationaryPlasma.max_iter'>max_iter</a>
 │  ├─ <a href='act_details.html#act.ActorStationaryPlasma.convergence_error'>convergence_error</a>
@@ -246,7 +252,6 @@
 │  ├─ <a href='act_details.html#act.ActorTEQUILA.number_of_iterations'>number_of_iterations</a>
 │  ├─ <a href='act_details.html#act.ActorTEQUILA.relax'>relax</a>
 │  ├─ <a href='act_details.html#act.ActorTEQUILA.tolerance'>tolerance</a>
-│  ├─ <a href='act_details.html#act.ActorTEQUILA.ip_from'>ip_from</a>
 │  ├─ <a href='act_details.html#act.ActorTEQUILA.fixed_grid'>fixed_grid</a>
 │  ├─ <a href='act_details.html#act.ActorTEQUILA.do_plot'>do_plot</a>
 │  ├─ <a href='act_details.html#act.ActorTEQUILA.debug'>debug</a>
@@ -269,6 +274,9 @@
 ├─ <span class="sgr1">ActorThermalSystemModels</span>
 │  ├─ <a href='act_details.html#act.ActorThermalSystemModels.do_plot'>do_plot</a>
 │  └─ <a href='act_details.html#act.ActorThermalSystemModels.verbose'>verbose</a>
+├─ <span class="sgr1">ActorTroyonBetaNN</span>
+│  ├─ <a href='act_details.html#act.ActorTroyonBetaNN.do_plot'>do_plot</a>
+│  └─ <a href='act_details.html#act.ActorTroyonBetaNN.verbose'>verbose</a>
 ├─ <span class="sgr1">ActorVerticalStability</span>
 │  ├─ <a href='act_details.html#act.ActorVerticalStability.model'>model</a>
 │  └─ <a href='act_details.html#act.ActorVerticalStability.do_plot'>do_plot</a>
@@ -281,4 +289,4 @@
 └─ <span class="sgr1">ActorWholeFacility</span>
    ├─ <a href='act_details.html#act.ActorWholeFacility.update_plasma'>update_plasma</a>
    └─ <a href='act_details.html#act.ActorWholeFacility.update_build'>update_build</a>
-</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="actors.html">« List of actors</a><a class="docs-footer-nextpage" href="inits.html">Init routines »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Friday 10 January 2025 02:52">Friday 10 January 2025</span>. Using Julia version 1.11.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="actors.html">« List of actors</a><a class="docs-footer-nextpage" href="inits.html">Init routines »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.8.0 on <span class="colophon-date" title="Wednesday 15 January 2025 02:53">Wednesday 15 January 2025</span>. Using Julia version 1.11.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
