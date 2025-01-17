@@ -205,6 +205,7 @@ function init_core_profiles!(
     end
 
     # temperatures
+    @assert Te_core !== missing || pressure_core !== missing "Must specify either `ini.core_profiles.Te_core` or `ini.equilibrium.pressure_core`"
     if Te_core === missing
         Te_core = pressure_core / (Ti_Te_ratio * ni_core + ne_core) / IMAS.mks.e
     end

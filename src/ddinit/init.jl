@@ -206,20 +206,21 @@ function init(
 
         # add strike point information to pulse_schedule
         if ps_was_set
-            eqt = dd.equilibrium.time_slice[]
-            fw = IMAS.first_wall(dd.wall)
-            psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-            Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open, dd.divertors)
+            RXX = []
+            ZXX = []
+            for eqt in dd.equilibrium.time_slice
+                fw = IMAS.first_wall(dd.wall)
+                psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
+                Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open, dd.divertors)
+                push!(RXX, Rxx)
+                push!(ZXX, Zxx)
+            end
+            N = maximum(collect(map(length, RXX)))
             pc = dd.pulse_schedule.position_control
-            resize!(pc.strike_point, 4)
-            for k in 1:4
-                if k <= length(Rxx)
-                    pc.strike_point[k].r.reference = fill(Rxx[k], size(pc.time))
-                    pc.strike_point[k].z.reference = fill(Zxx[k], size(pc.time))
-                else
-                    pc.strike_point[k].r.reference = zeros(size(pc.time))
-                    pc.strike_point[k].z.reference = zeros(size(pc.time))
-                end
+            resize!(pc.strike_point, N)
+            for k in 1:N
+                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Rxx) ? Rxx[k] : 0.0 for Rxx in RXX]).(pc.time)
+                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Zxx) ? Zxx[k] : 0.0 for Zxx in ZXX]).(pc.time)
             end
         end
 

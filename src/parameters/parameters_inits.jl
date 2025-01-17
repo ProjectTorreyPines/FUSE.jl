@@ -512,7 +512,7 @@ end
 function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
-        eqt = dd.equilibrium.time_slice[]
+        eqt = dd.equilibrium.time_slice[ini.time.simulation_start]
         pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
@@ -700,21 +700,25 @@ end
 # plot #
 ########
 """
-    plot_ini(ini::ParametersAllInits; time0=global_time(ini))
+    plot_ini(ini::ParametersAllInits; time0=global_time(ini), cx=false)
 
 Plots ini time dependent time traces including plasma boundary
 """
-@recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini))
-    @assert typeof(time0) <: Float64
+@recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini), cx=false)
+    id = IMAS.plot_help_id(ini)
+    IMAS.assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
+    IMAS.assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
 
     # count number of time-dependent parameters
-    N = 0
-    for par in SimulationParameters.leaves(ini)
-        if typeof(par.value) <: Function
-            N += 1
+    if !cx
+        N = 0
+        for par in SimulationParameters.leaves(ini)
+            if typeof(par.value) <: Function
+                N += 1
+            end
         end
+        layout := @layout [N + 1]
     end
-    layout := @layout [N + 1]
 
     time_bkp = ini.time.simulation_start
     try
@@ -738,16 +742,18 @@ Plots ini time dependent time traces including plasma boundary
             mxhb
         end
 
-        # plot time dependent parameters
-        k = 1
-        for par in SimulationParameters.leaves(ini)
-            if typeof(par.value) <: Function
-                k += 1
-                @series begin
-                    label := ""
-                    subplot := k
-                    time0 := time0
-                    par
+        if !cx
+            # plot time dependent parameters
+            k = 1
+            for par in SimulationParameters.leaves(ini)
+                if typeof(par.value) <: Function
+                    k += 1
+                    @series begin
+                        label := ""
+                        subplot := k
+                        time0 := time0
+                        par
+                    end
                 end
             end
         end

@@ -16,12 +16,11 @@ DIII-D
 `scenario_sources` keywods says whether core_sources will be taken from scenario or not
 """
 function case_parameters(::Type{Val{:D3D}};
-    scenario::Union{Symbol,AbstractString}=:default,
+    scenario::Union{Symbol,AbstractString,Tuple{Int,Float64}}=:default,
     scenario_sources::Bool=true,
     scenario_core_profiles::Bool=true,
-    realistic_pf_active::Bool=true)::Tuple{ParametersAllInits,ParametersAllActors}
-
-    @assert scenario in (:default, :H_mode, :L_mode) || isfile(scenario)
+    realistic_pf_active::Bool=true
+)::Tuple{ParametersAllInits,ParametersAllActors}
 
     ini = ParametersInits()
     act = ParametersActors()
@@ -30,9 +29,73 @@ function case_parameters(::Type{Val{:D3D}};
     ini.general.init_from = :ods
     ini.equilibrium.boundary_from = :ods
 
+    ini.time.simulation_start = 0.0
+    shot_ods_dir = ""
+    shot = 0
+    if typeof(scenario) <: Symbol
+        @assert scenario in (:default, :H_mode, :L_mode)
+        scenario_selector = scenario
+    elseif typeof(scenario) <: AbstractString
+        @assert isfile(scenario)
+        scenario_selector = :file
+    else
+        scenario_selector = :experiment
+        shot, time0 = scenario
+        ini.time.simulation_start = time0
+        shot_ods_dir = tempdir()
+        omas_py = """
+        print("Importing packages")
+        import time
+        import omas
+        from numpy import *
+
+        tic = time.time()
+        ods = omas.ODS()
+
+        print("Fetching ec_launcher data")
+        omas.omas_machine.d3d.ec_launcher_active_hardware(ods, $shot)
+
+        print("Fetching core_profiles data")
+        omas.omas_machine.d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="ZIPFIT01")
+
+        print("Fetching equilibrium data")
+        with ods.open('d3d', $shot, options={'EFIT_tree': 'EFIT02'}):
+            ods["equilibrium.time"]
+            k = argmin(abs(ods["equilibrium.time"] - $time0))
+            ods["equilibrium.time"]
+            for k in range(len(ods["equilibrium.time"])):
+                ods["equilibrium.time_slice"][k]["time"]
+                ods["equilibrium.time_slice"][k]["global_quantities.ip"]
+                ods["equilibrium.time_slice"][k]["profiles_1d.psi"]
+                ods["equilibrium.time_slice"][k]["profiles_1d.f"]
+                ods["equilibrium.time_slice"][k]["profiles_1d.pressure"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].psi"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].grid.dim1"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].grid.dim2"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].grid_type.index"] = 1
+                ods["equilibrium.vacuum_toroidal_field.r0"]
+                ods["equilibrium.vacuum_toroidal_field.b0"]
+
+        toc = time.time()
+        print(f"Data fetched in {toc-tic} seconds")
+
+        print("Saving ODS to json")
+        tic = time.time()
+        ods.save("$shot_ods_dir/D3D_$shot.json")
+        toc = time.time()
+        print(f"Saved in {toc-tic} seconds")
+
+        """
+        println(omas_py)
+        open(joinpath(shot_ods_dir, "omas_data_fetch.py"), "w") do io
+            return write(io, omas_py)
+        end
+        Base.run(`python -u $(joinpath(shot_ods_dir,"omas_data_fetch.py"))`)
+    end
+
     machine_description = joinpath("__FUSE__", "sample", "D3D_machine.json")
     shot_mappings = Dict(
-        scenario => Dict(
+        :file => Dict(
             :nbi_power => 0.0,
             :filename => "$(machine_description),$(scenario)"
         ),
@@ -46,14 +109,21 @@ function case_parameters(::Type{Val{:D3D}};
         ),
         :default => Dict(
             :nbi_power => 5.0e6,
-            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
+            :filename => "$(machine_description),$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))"),
+        :experiment => Dict(
+            :nbi_power => 5.0e6,
+            :filename => "$(machine_description),$(joinpath(shot_ods_dir, "D3D_$shot.json"))")
     )
 
-    ini.time.simulation_start = 0.0
-    ini.ods.filename = shot_mappings[scenario][:filename]
+    ini.ods.filename = shot_mappings[scenario_selector][:filename]
     ini.general.dd = load_ods(ini; error_on_missing_coordinates=false)
     if !realistic_pf_active
         empty!(ini.general.dd.pf_active)
+    end
+    if scenario_selector == :experiment
+        tt = round.(ini.general.dd.equilibrium.time, digits=3)
+        ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], Int(round((tt[end] - tt[1]) / minimum(diff(tt)))))
+        IMAS.flux_surfaces(ini.general.dd.equilibrium, IMAS.first_wall(ini.general.dd.wall)...)
     end
 
     ini.build.layers = OrderedCollections.OrderedDict(
@@ -80,7 +150,6 @@ function case_parameters(::Type{Val{:D3D}};
     ini.build.layers[:hfs_gap_coils].coils_inside = [7:10; 16:19]
     ini.build.layers[:lfs_gap_coils].coils_inside = [11:15; 20:24]
 
-
     ini.oh.technology = :copper
     ini.pf_active.technology = :copper
     ini.tf.technology = :copper
@@ -101,10 +170,10 @@ function case_parameters(::Type{Val{:D3D}};
         ini.core_profiles.rot_core = 5E3
     end
 
-    if isempty(ini.general.dd.core_profiles) || !scenario_sources
+    if isempty(ini.general.dd.core_sources) || !scenario_sources
         empty!(ini.general.dd.core_sources)
         resize!(ini.nb_unit, 1)
-        ini.nb_unit[1].power_launched = shot_mappings[scenario][:nbi_power]
+        ini.nb_unit[1].power_launched = shot_mappings[scenario_selector][:nbi_power]
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
         ini.nb_unit[1].toroidal_angle = 18.0 * deg

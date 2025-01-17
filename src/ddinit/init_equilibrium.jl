@@ -92,10 +92,9 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
             pc.boundary_outline[k].z.reference[1] = z
         end
     else
+        pushfirst!(pc.time, -Inf)
         for (k, (r, z)) in enumerate(zip(pr, pz))
-            pushfirst!(pc.time, -Inf)
             pushfirst!(pc.boundary_outline[k].r.reference, r)
-            pushfirst!(pc.time, -Inf)
             pushfirst!(pc.boundary_outline[k].z.reference, z)
         end
     end
