@@ -6,7 +6,7 @@
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_time_traces::Float64=0.1)
+function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_time_traces::Float64=0.0001)
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
@@ -59,7 +59,10 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ini_time_simulation_start = ini.time.simulation_start
             dd1_time_backup = dd1.global_time
             for (k, time0) in enumerate(time)
-                if time0 < ini_time_simulation_start
+                if !ismissing(ini.time, :pulse_shedule_time_basis) && time0 < ini.time.pulse_shedule_time_basis[1]
+                    ini.time.simulation_start = ini.time.pulse_shedule_time_basis[1]
+                    dd1.global_time = ini.time.pulse_shedule_time_basis[1]
+                elseif time0 < ini_time_simulation_start
                     # This is necessary because equilibrium quantities may not be defined at < simulation_start as it happens for example when starting from ODS
                     ini.time.simulation_start = ini_time_simulation_start
                     dd1.global_time = ini_time_simulation_start
@@ -178,10 +181,8 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
                 time, data = IMAS.simplify_2d_path(time_range, Float64.(data), simplify_time_traces)
             end
             data = [mapping[Int(d)] for d in data]
-        else
-            if simplify_time_traces != 0.0
-                time, data = IMAS.simplify_2d_path(time_range, data, simplify_time_traces)
-            end
+        elseif simplify_time_traces != 0.0
+            time, data = IMAS.simplify_2d_path(time_range, data, simplify_time_traces)
         end
 
         # if it is a constant

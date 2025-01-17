@@ -60,6 +60,7 @@
     "equilibrium.time_slice[:].profiles_1d.dpsi_drho_tor",
     "equilibrium.time_slice[:].profiles_1d.dvolume_dpsi",
     "equilibrium.time_slice[:].profiles_1d.dvolume_drho_tor",
+    "equilibrium.time_slice[:].profiles_1d.f_df_dpsi",
     "equilibrium.time_slice[:].profiles_1d.geometric_axis.r",
     "equilibrium.time_slice[:].profiles_1d.geometric_axis.z",
     "equilibrium.time_slice[:].profiles_1d.j_parallel",
