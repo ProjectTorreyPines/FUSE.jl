@@ -157,32 +157,41 @@ function case_parameters(::Type{Val{:D3D}};
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
 
-    if isempty(ini.general.dd.core_profiles) || !scenario_core_profiles
-        empty!(ini.general.dd.core_profiles)
-        ini.core_profiles.ne_setting = :greenwald_fraction_ped
-        ini.core_profiles.ne_value = 0.75 * 0.75
-        ini.core_profiles.ne_shaping = 0.9
-        ini.core_profiles.Te_shaping = 1.8
-        ini.core_profiles.Ti_Te_ratio = 1.0
-        ini.core_profiles.zeff = 2.0
-        ini.core_profiles.bulk = :D
-        ini.core_profiles.impurity = :C
-        ini.core_profiles.rot_core = 5E3
-    end
-
-    if isempty(ini.general.dd.core_sources) || !scenario_sources
-        empty!(ini.general.dd.core_sources)
+    if scenario_selector == :experiment
+        # until we can fetch beams data
         resize!(ini.nb_unit, 1)
         ini.nb_unit[1].power_launched = shot_mappings[scenario_selector][:nbi_power]
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
         ini.nb_unit[1].toroidal_angle = 18.0 * deg
     else
-        act.ActorHCD.nb_model = :none
-        act.ActorHCD.ec_model = :none
-        act.ActorHCD.lh_model = :none
-        act.ActorHCD.ic_model = :none
-        act.ActorHCD.pellet_model = :none
+        if isempty(ini.general.dd.core_profiles) || !scenario_core_profiles
+            empty!(ini.general.dd.core_profiles)
+            ini.core_profiles.ne_setting = :greenwald_fraction_ped
+            ini.core_profiles.ne_value = 0.75 * 0.75
+            ini.core_profiles.ne_shaping = 0.9
+            ini.core_profiles.Te_shaping = 1.8
+            ini.core_profiles.Ti_Te_ratio = 1.0
+            ini.core_profiles.zeff = 2.0
+            ini.core_profiles.bulk = :D
+            ini.core_profiles.impurity = :C
+            ini.core_profiles.rot_core = 5E3
+        end
+
+        if isempty(ini.general.dd.core_sources) || !scenario_sources
+            empty!(ini.general.dd.core_sources)
+            resize!(ini.nb_unit, 1)
+            ini.nb_unit[1].power_launched = shot_mappings[scenario_selector][:nbi_power]
+            ini.nb_unit[1].beam_energy = 80e3
+            ini.nb_unit[1].beam_mass = 2.0
+            ini.nb_unit[1].toroidal_angle = 18.0 * deg
+        else
+            act.ActorHCD.nb_model = :none
+            act.ActorHCD.ec_model = :none
+            act.ActorHCD.lh_model = :none
+            act.ActorHCD.ic_model = :none
+            act.ActorHCD.pellet_model = :none
+        end
     end
 
     #### ACT ####
