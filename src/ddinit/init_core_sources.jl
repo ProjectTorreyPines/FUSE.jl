@@ -134,6 +134,42 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         init_from = ini.general.init_from
 
         if init_from == :ods
+            # EC
+            if IMAS.hasdata(dd1.ec_launchers)
+                dd.ec_launchers = deepcopy(dd1.ec_launchers)
+            else
+                init_ec(dd, ini, act, dd1)
+            end
+
+            # IC
+            if IMAS.hasdata(dd1.ic_antennas)
+                dd.ic_antennas = deepcopy(dd1.ic_antennas)
+            else
+                init_ic(dd, ini, act, dd1)
+            end
+
+            # LH
+            if IMAS.hasdata(dd1.lh_antennas)
+                dd.lh_antennas = deepcopy(dd1.lh_antennas)
+            else
+                init_lh(dd, ini, act, dd1)
+            end
+
+            # NB
+            if IMAS.hasdata(dd1.nbi)
+                dd.nbi = deepcopy(dd1.nbi)
+            else
+                init_nb(dd, ini, act, dd1)
+            end
+
+            # PL
+            if IMAS.hasdata(dd1.pellets)
+                dd.pellets = deepcopy(dd1.pellets)
+            else
+                init_pl(dd, ini, act, dd1)
+            end
+
+            # core_sources
             if IMAS.hasdata(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
                 dd.core_sources = deepcopy(dd1.core_sources)
                 unique_core_sources_names!(dd.core_sources)
@@ -159,11 +195,6 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
 
         if init_from == :scalars
             empty!(dd.core_sources) # needed for power_scaling_cost_function
-            init_ec(dd, ini, act, dd1)
-            init_ic(dd, ini, act, dd1)
-            init_lh(dd, ini, act, dd1)
-            init_nb(dd, ini, act, dd1)
-            init_pl(dd, ini, act, dd1)
         end
 
         ActorHCD(dd, act)
