@@ -22,10 +22,10 @@ end
 """
     ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that resizes the High Field Side of the tokamak radial build
-
-  - takes into account the OH maximum allowed superconductor current/Field
-  - takes into account the stresses on the center stack
+Actor that resizes the High Field Side of the tokamak radial build.
+It changes the radial build of the center stack (plug, OH, and TF)
+accounting for stresses, superconductors critical currents, flux swing, and field requirements.
+It keeps the 
 
 !!! note
 

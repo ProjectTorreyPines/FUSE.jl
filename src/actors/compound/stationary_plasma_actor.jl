@@ -26,7 +26,7 @@ end
 """
     ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs the following actors in succesion:
+Compound actor that runs the following actors in succesion to find a self-consistent stationary plasma solution
 
   - ActorCurrent
   - ActorHCD
