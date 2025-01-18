@@ -8,11 +8,16 @@ TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
 ifdef GITHUB_HEAD_REF
-  # For pull_request events
-  FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
+    # On GitHub for pull_request events
+    FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
 else
-  # For push events and others
-  FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+    ifdef GITHUB_REF
+		# On GitHub for push events and others
+		FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+	else
+		# For local machine
+		FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
+	endif
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic IMAS IMASdd IMASutils
@@ -214,7 +219,7 @@ merge_remote: error_missing_repo_var error_missing_branch_var
 # GitHub merge of `branch` into master for a given `repo`
 # >> make merge_remote branch=my_branch repo=FUSE
 	@merge_response=$$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-		-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+		-H "Authorization: token $$(PTP_READ_TOKEN)" \
 		-H "Accept: application/vnd.github.v3+json" \
 		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
 		-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}'); \
@@ -222,7 +227,7 @@ merge_remote: error_missing_repo_var error_missing_branch_var
 	if [ "$$merge_response" -eq 201 ]; then \
 		echo "Merge successful. Deleting branch $(branch) from remote..."; \
 		curl -X DELETE \
-		-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+		-H "Authorization: token $$(PTP_READ_TOKEN)" \
 		-H "Accept: application/vnd.github.v3+json" \
 		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/git/refs/heads/$(branch); \
 	else \
@@ -553,13 +558,14 @@ error_not_on_master_branch: error_missing_repo_var
 # @devs
 feature_or_master:
 # checks if on the packages remote GitHub repos there is a branch with the same name of the local FUSE branch
-	julia -e ';\
+	@echo "Local branch is \`$(FUSE_LOCAL_BRANCH)\`"
+	@julia -e ';\
 	$(feature_or_master_julia);\
 	fuse_packages = $(FUSE_PACKAGES);\
 	for package in fuse_packages;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
         if branch == "master";\
-            println(">>> $$(package)");\
+            println("    $$(package)");\
         else;\
             println(">>> $$(package) @ $$(branch)");\
         end;\
