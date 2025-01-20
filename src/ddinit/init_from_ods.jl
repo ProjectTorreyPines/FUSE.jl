@@ -2,7 +2,7 @@
     ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
 
 The purpose of this function is to set `ini` values based on what is in the ods thus
-simplifying the logic of the init functions so that they only have to look at `ini` scalar values
+simplifying the logic of the init functions so that they only have to look at `ini` scalar values.
 """
 function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
     if ini.general.init_from != :ods
@@ -192,7 +192,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 time = [dd1.global_time]
             else
                 time = dd1.core_profiles.time
-                time = time[dd1.equilibrium.time[1] .<= time .<= dd1.equilibrium.time[end]]
+                time = time[dd1.equilibrium.time[1].<=time.<=dd1.equilibrium.time[end]]
             end
             for time0 in time
                 cp1d = dd1.core_profiles.profiles_1d[time0]
@@ -261,6 +261,66 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 end
             end
         end
+
+        # EC
+        for (k, beam) in enumerate(dd1.ec_launchers.beam)
+            if k > length(ini.ec_launcher)
+                resize!(ini.ec_launcher, k)
+                if ismissing(ini.time, :pulse_shedule_time_basis)
+                    ini.ec_launcher[k].power_launched = @ddtime beam.power_launched.data
+                else
+                    ini.ec_launcher[k].power_launched = t -> IMAS.interp1d(beam.power_launched.time, beam.power_launched.data).(t)
+                end
+            end
+        end
+
+        # IC
+        for (k, antenna) in enumerate(dd1.ic_antennas.antenna)
+            if k > length(ini.ic_antenna)
+                resize!(ini.ic_antenna, k)
+                if ismissing(ini.time, :pulse_shedule_time_basis)
+                    ini.ic_antenna[k].power_launched = @ddtime antenna.power_launched.data
+                else
+                    ini.ic_antenna[k].power_launched = t -> IMAS.interp1d(antenna.power_launched.time, antenna.power_launched.data).(t)
+                end
+            end
+        end
+
+        # LH
+        for (k, antenna) in enumerate(dd1.lh_antennas.antenna)
+            if k > length(ini.lh_antenna)
+                resize!(ini.lh_antenna, k)
+                if ismissing(ini.time, :pulse_shedule_time_basis)
+                    ini.lh_antenna[k].power_launched = @ddtime antenna.power_launched.data
+                else
+                    ini.lh_antenna[k].power_launched = t -> IMAS.interp1d(antenna.power_launched.time, antenna.power_launched.data).(t)
+                end
+            end
+        end
+
+        # NB
+        for (k, unit) in enumerate(dd1.nbi.unit)
+            if k > length(ini.nb_unit)
+                resize!(ini.nb_unit, k)
+                if ismissing(ini.time, :pulse_shedule_time_basis)
+                    ini.nb_unit[k].power_launched = @ddtime unit.power_launched.data
+                else
+                    ini.nb_unit[k].power_launched = t -> IMAS.interp1d(unit.power_launched.time, unit.power_launched.data).(t)
+                end
+            end
+        end
+
+        # PL
+        # for (k, launcher) in enumerate(dd1.pellets.launcher)
+        #     if k > length(ini.pellet_launcher)
+        #         resize!(ini.pellet_launcher, k)
+        #         if ismissing(ini.time, :pulse_shedule_time_basis)
+        #             ini.pellet_launcher[k].power_launched = @ddtime launcher.power_launched.data
+        #         else
+        #             ini.pellet_launcher[k].power_launched = t -> IMAS.interp1d(launcher.power_launched.time, launcher.power_launched.data).(t)
+        #         end
+        #     end
+        # end
 
         # Here we delete fields from the ODS for which we know FUSE has expressions for.
         # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
