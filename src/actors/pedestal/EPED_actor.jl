@@ -13,6 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width scaled by sqrt of this factor)"; default=1.0)
+    density_factor::Entry{T} = Entry{T}("-", "Scale input density by given factor"; default=1.0)
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -62,7 +63,7 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    sol = run_EPED(dd, actor.inputs, actor.epedmod; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+    sol = run_EPED(dd, actor.inputs, actor.epedmod; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds, par.density_factor)
 
     if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
@@ -125,11 +126,12 @@ function run_EPED(
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
-    warn_nn_train_bounds::Bool)
+    warn_nn_train_bounds::Bool,
+    density_factor::Float64)
 
     inputs = EPEDNN.InputEPED()
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return run_EPED(dd, inputs, epedmod; ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
+    return run_EPED(dd, inputs, epedmod; ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds, density_factor)
 end
 
 """
@@ -155,7 +157,8 @@ function run_EPED(
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
-    warn_nn_train_bounds::Bool)
+    warn_nn_train_bounds::Bool,
+    density_factor::Float64)
 
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
@@ -165,7 +168,7 @@ function run_EPED(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_ped_from, nothing)
+    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_ped_from, nothing) * density_factor
     zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from, nothing)
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
