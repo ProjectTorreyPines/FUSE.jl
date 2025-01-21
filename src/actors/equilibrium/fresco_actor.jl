@@ -58,10 +58,16 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     act = actor.act
 
-    eqt = dd.equilibrium.time_slice[]
-
-    # FRESCO requires the wall to be always fully contained inside of the computation domain
-    fw_r, fw_z = IMAS.first_wall(dd.wall)
+    # FRESCO requires wall information
+    if IMAS.hasdata(dd.wall)
+        fw_r, fw_z = IMAS.first_wall(dd.wall)
+    elseif IMAS.hasdata(dd.pf_active) && findfirst(:rectangular, dd.equilibrium.time_slice[].profiles_2d) !== nothing
+        fw_r, fw_z = IMAS.first_wall(dd.equilibrium.time_slice[], dd.pf_active)
+    elseif IMAS.hasdata(dd.pf_active)
+        fw_r, fw_z = IMAS.first_wall(dd.pf_active)
+    else
+        error("FRESCO needs at least pf_active.coils to be filled")
+    end
     ΔR = maximum(fw_r) - minimum(fw_r)
     ΔZ = maximum(fw_z) - minimum(fw_z)
     Rs = range(max(0.01, minimum(fw_r) - ΔR / 100), maximum(fw_r) + ΔR / 100, par.nR)
