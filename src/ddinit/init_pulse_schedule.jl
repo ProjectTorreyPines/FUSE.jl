@@ -65,8 +65,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 if !ismissing(ini.time, :pulse_shedule_time_basis) && time0 < ini.time.pulse_shedule_time_basis[1]
                     ini.time.simulation_start = ini.time.pulse_shedule_time_basis[1]
                     dd1.global_time = ini.time.pulse_shedule_time_basis[1]
-                elseif time0 < ini_time_simulation_start
-                    # This is necessary because equilibrium quantities may not be defined at < simulation_start as it happens for example when starting from ODS
+                elseif ismissing(ini.time, :pulse_shedule_time_basis) && time0 < ini_time_simulation_start
+                    # This is necessary because equilibrium quantities may not be defined at < simulation_start as it happens for example sometimes when starting from ODS
                     ini.time.simulation_start = ini_time_simulation_start
                     dd1.global_time = ini_time_simulation_start
                 else
