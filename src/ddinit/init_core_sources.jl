@@ -133,67 +133,61 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
     TimerOutputs.@timeit timer "init_core_sources" begin
         init_from = ini.general.init_from
 
-        if init_from == :ods
-            # EC
-            if IMAS.hasdata(dd1.ec_launchers)
-                dd.ec_launchers = deepcopy(dd1.ec_launchers)
-            else
-                init_ec(dd, ini, act, dd1)
-            end
-
-            # IC
-            if IMAS.hasdata(dd1.ic_antennas)
-                dd.ic_antennas = deepcopy(dd1.ic_antennas)
-            else
-                init_ic(dd, ini, act, dd1)
-            end
-
-            # LH
-            if IMAS.hasdata(dd1.lh_antennas)
-                dd.lh_antennas = deepcopy(dd1.lh_antennas)
-            else
-                init_lh(dd, ini, act, dd1)
-            end
-
-            # NB
-            if IMAS.hasdata(dd1.nbi)
-                dd.nbi = deepcopy(dd1.nbi)
-            else
-                init_nb(dd, ini, act, dd1)
-            end
-
-            # PL
-            if IMAS.hasdata(dd1.pellets)
-                dd.pellets = deepcopy(dd1.pellets)
-            else
-                init_pl(dd, ini, act, dd1)
-            end
-
-            # core_sources
-            if IMAS.hasdata(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
-                dd.core_sources = deepcopy(dd1.core_sources)
-                unique_core_sources_names!(dd.core_sources)
-                if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `ods.ec_launchers.beam`"
-                end
-                if isempty(dd1.ic_antennas.antenna) && findfirst(:ic, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.ic_model == :none "Init using sources from ODS requires `act.ActorHCD.ic_model = :none` or data in `ods.ic_launchers.antenna`"
-                end
-                if isempty(dd1.lh_antennas.antenna) && findfirst(:lh, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.lh_model == :none "Init using sources from ODS requires `act.ActorHCD.lh_model = :none` or data in `ods.lh_antennas.antenna`"
-                end
-                if isempty(dd1.nbi.unit) && findfirst(:nbi, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.nb_model == :none "Init using sources from ODS requires `act.ActorHCD.nb_model = :none` or data in `ods.nbi.unit`"
-                end
-                if !isempty(dd.pellets.time_slice) && !isempty(dd.pellets.time_slice[].pellet) && findfirst(:pellet, dd.core_sources.source) !== missing
-                    @assert act.ActorHCD.pellet_model == :none "Init using sources from ODS requires `act.ActorHCD.pellet_model = :none` or data in `dd.pellets.time_slice[].pellet`"
-                end
-            else
-                init_from = :scalars
-            end
+        # EC
+        if init_from == :ods && IMAS.hasdata(dd1.ec_launchers)
+            dd.ec_launchers = deepcopy(dd1.ec_launchers)
+        else
+            init_ec(dd, ini, act, dd1)
         end
 
-        if init_from == :scalars
+        # IC
+        if init_from == :ods && IMAS.hasdata(dd1.ic_antennas)
+            dd.ic_antennas = deepcopy(dd1.ic_antennas)
+        else
+            init_ic(dd, ini, act, dd1)
+        end
+
+        # LH
+        if init_from == :ods && IMAS.hasdata(dd1.lh_antennas)
+            dd.lh_antennas = deepcopy(dd1.lh_antennas)
+        else
+            init_lh(dd, ini, act, dd1)
+        end
+
+        # NB
+        if init_from == :ods && IMAS.hasdata(dd1.nbi)
+            dd.nbi = deepcopy(dd1.nbi)
+        else
+            init_nb(dd, ini, act, dd1)
+        end
+
+        # PL
+        if init_from == :ods && IMAS.hasdata(dd1.pellets)
+            dd.pellets = deepcopy(dd1.pellets)
+        else
+            init_pl(dd, ini, act, dd1)
+        end
+
+        # core_sources
+        if init_from == :ods && IMAS.hasdata(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
+            dd.core_sources = deepcopy(dd1.core_sources)
+            unique_core_sources_names!(dd.core_sources)
+            if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
+                @assert act.ActorHCD.ec_model == :none "Init using sources from ODS requires `act.ActorHCD.ec_model = :none` or data in `ods.ec_launchers.beam`"
+            end
+            if isempty(dd1.ic_antennas.antenna) && findfirst(:ic, dd.core_sources.source) !== missing
+                @assert act.ActorHCD.ic_model == :none "Init using sources from ODS requires `act.ActorHCD.ic_model = :none` or data in `ods.ic_launchers.antenna`"
+            end
+            if isempty(dd1.lh_antennas.antenna) && findfirst(:lh, dd.core_sources.source) !== missing
+                @assert act.ActorHCD.lh_model == :none "Init using sources from ODS requires `act.ActorHCD.lh_model = :none` or data in `ods.lh_antennas.antenna`"
+            end
+            if isempty(dd1.nbi.unit) && findfirst(:nbi, dd.core_sources.source) !== missing
+                @assert act.ActorHCD.nb_model == :none "Init using sources from ODS requires `act.ActorHCD.nb_model = :none` or data in `ods.nbi.unit`"
+            end
+            if !isempty(dd.pellets.time_slice) && !isempty(dd.pellets.time_slice[].pellet) && findfirst(:pellet, dd.core_sources.source) !== missing
+                @assert act.ActorHCD.pellet_model == :none "Init using sources from ODS requires `act.ActorHCD.pellet_model = :none` or data in `dd.pellets.time_slice[].pellet`"
+            end
+        else
             empty!(dd.core_sources) # needed for power_scaling_cost_function
         end
 
