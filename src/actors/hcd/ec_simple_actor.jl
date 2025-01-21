@@ -5,7 +5,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimpleEC{T<:Real} <: ParametersA
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    ηcd_scale::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    actuator::ParametersVector{_FUSEparameters__ActorSimple{T}} = ParametersVector{_FUSEparameters__ActorSimple{T}}()
+end
+
+function Base.resize!(par::FUSEparameters__ActorSimpleEC, n::Int)
+    # default rho_0 and width
+    resize!(par.actuator, n, 0.5, 0.025)
 end
 
 mutable struct ActorSimpleEC{D,P} <: SingleAbstractActor{D,P}
@@ -51,22 +56,15 @@ function _step(actor::ActorSimpleEC)
 
     for (k, (ps, ecl)) in enumerate(zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam))
         power_launched = @ddtime(ps.power_launched.reference)
-        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
-        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
-
-        @ddtime(ecl.power_launched.data = power_launched)
+        rho_0 = par.actuator[k].rho_0
+        width = par.actuator[k].width
+        ηcd_scale = par.actuator[k].ηcd_scale
 
         ion_electron_fraction_cp = zeros(length(rho_cp))
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
         zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0)
-
-        if typeof(par.ηcd_scale) <: Vector
-            ηcd_scale = par.ηcd_scale[k]
-        else
-            ηcd_scale = par.ηcd_scale
-        end
 
         eta = ηcd_scale * TekeV * 0.09 / (5.0 + zeff)
         j_parallel = eta / R0 / ne20 * power_launched

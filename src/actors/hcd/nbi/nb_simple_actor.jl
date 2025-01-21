@@ -5,7 +5,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersA
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    ηcd_scale::Entry{Union{T,Vector{T}}} = Entry{Union{T,Vector{T}}}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    actuator::ParametersVector{_FUSEparameters__ActorSimple{T}} = ParametersVector{_FUSEparameters__ActorSimple{T}}()
+end
+
+function Base.resize!(par::FUSEparameters__ActorSimpleNB, n::Int)
+    # default rho_0 and width
+    resize!(par.actuator, n, 0.0, 0.3)
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -51,13 +56,14 @@ function _step(actor::ActorSimpleNB)
 
     for (k, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
         power_launched = @ddtime(ps.power.reference)
-        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
-        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
-        beam_energy = @ddtime(nbu.energy.data)
-        beam_mass = nbu.species.a
+        rho_0 = par.actuator[k].rho_0
+        width = par.actuator[k].width
+        ηcd_scale = par.actuator[k].ηcd_scale
 
         @ddtime(nbu.power_launched.data = power_launched)
 
+        beam_energy = @ddtime(nbu.energy.data)
+        beam_mass = nbu.species.a
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
         electrons_particles = power_launched / (beam_energy * IMAS.mks.e)
@@ -66,12 +72,6 @@ function _step(actor::ActorSimpleNB)
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
-
-        if typeof(par.ηcd_scale) <: Vector
-            ηcd_scale = par.ηcd_scale[k]
-        else
-            ηcd_scale = par.ηcd_scale
-        end
 
         eta = ηcd_scale * TekeV * 0.025
         j_parallel = eta / R0 / ne20 * power_launched

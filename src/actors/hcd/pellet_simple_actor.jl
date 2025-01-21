@@ -5,6 +5,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T<:Real} <: Paramet
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    actuator::ParametersVector{_FUSEparameters__ActorSimple{T}} = ParametersVector{_FUSEparameters__ActorSimple{T}}()
+end
+
+function Base.resize!(par::FUSEparameters__ActorSimplePellet, n::Int)
+    # default rho_0 and width
+    resize!(par.actuator, n, 0.5, 0.25)
 end
 
 mutable struct ActorSimplePellet{D,P} <: SingleAbstractActor{D,P}
@@ -45,10 +51,10 @@ function _step(actor::ActorSimplePellet)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    for (ps, pll) in zip(dd.pulse_schedule.pellet.launcher, dd.pellets.launcher)
+    for (k,(ps, pll)) in enumerate(zip(dd.pulse_schedule.pellet.launcher, dd.pellets.launcher))
         frequency = @ddtime(ps.frequency.reference)
-        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
-        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
+        rho_0 = par.actuator[k].rho_0
+        width = par.actuator[k].width
 
         shape = IMAS.index_2_name(pll.shape)[pll.shape.type.index]
         size = pll.shape.size

@@ -1,3 +1,41 @@
+function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
+    if !isempty(ini.ec_launcher)
+        if isempty(act.ActorSimpleEC.actuator)
+            resize!(act.ActorSimpleEC, length(ini.ec_launcher))
+        else
+            @assert length(act.ActorSimpleEC.actuator) == length(ini.ec_launcher)
+        end
+    end
+    if !isempty(ini.ic_antenna)
+        if isempty(act.ActorSimpleIC.actuator)
+            resize!(act.ActorSimpleIC, length(ini.ic_antenna))
+        else
+            @assert length(act.ActorSimpleIC.actuator) == length(ini.ic_antenna)
+        end
+    end
+    if !isempty(ini.lh_antenna)
+        if isempty(act.ActorSimpleLH.actuator)
+            resize!(act.ActorSimpleLH, length(ini.lh_antenna))
+        else
+            @assert length(act.ActorSimpleLH.actuator) == length(ini.lh_antenna)
+        end
+    end
+    if !isempty(ini.nb_unit)
+        if isempty(act.ActorSimpleNB.actuator)
+            resize!(act.ActorSimpleNB, length(ini.nb_unit))
+        else
+            @assert length(act.ActorSimpleNB.actuator) == length(ini.nb_unit)
+        end
+    end
+    if !isempty(ini.pellet_launcher)
+        if isempty(act.ActorSimplePellet.actuator)
+            resize!(act.ActorSimplePellet, length(ini.pellet_launcher))
+        else
+            @assert length(act.ActorSimplePellet.actuator) == length(ini.pellet_launcher)
+        end
+    end
+end
+
 """
     insert_subtype_members T
 
@@ -6,9 +44,11 @@ Expands the subtypes into struct members
 macro insert_subtype_members(T)
     expr = Expr(:block)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__" => ""))
-        constraint = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
-        push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
+        if !startswith(String(Symbol(s)), "FUSE._")
+            mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__" => ""))
+            constraint = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
+            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
+        end
     end
     return expr
 end
@@ -22,8 +62,10 @@ subtypes we can then splat into the larger constructor
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
-        push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+        if !startswith(String(Symbol(s)), "FUSE._")
+            mem = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
+            push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+        end
     end
     return expr
 end

@@ -37,6 +37,8 @@ function case_parameters(case::Symbol, args...; kw...)
         ini_act_tests_customizations!(ini, act)
     end
 
+    consistent_ini_act!(ini, act)
+
     set_new_base!(ini)
     set_new_base!(act)
 

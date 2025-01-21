@@ -76,8 +76,9 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 150.e6
-    ini.ec_launcher[1].width = 0.25
-    ini.ec_launcher[1].rho_0 = 0.0
+    resize!(act.ActorSimpleEC, 1)
+    act.act.ActorSimpleEC.actuator[1].rho_0 = 0.0
+    act.act.ActorSimpleEC.actuator[1].width = 0.25
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1

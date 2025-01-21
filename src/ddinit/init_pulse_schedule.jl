@@ -134,11 +134,9 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             else
                 resize!(ps.nbi.unit, length(ini.nb_unit))
                 for (k, ini_nbu) in enumerate(ini.nb_unit)
-                    time, data = get_time_dependent(ini_nbu, [:power_launched, :rho_0, :width]; simplify_time_traces)
+                    time, power_launched = get_time_dependent(ini_nbu, :power_launched; simplify_time_traces)
                     ps.nbi.time = time
-                    ps.nbi.unit[k].power.reference = data.power_launched
-                    ps.nbi.unit[k].deposition_rho_tor_norm.reference = data.rho_0
-                    ps.nbi.unit[k].deposition_rho_tor_norm_width.reference = data.width
+                    ps.nbi.unit[k].power.reference = power_launched
                 end
             end
         end
@@ -149,12 +147,10 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 ps.ec = deepcopy(ps1.ec)
             else
                 resize!(ps.ec.beam, length(ini.ec_launcher))
-                for (k, ini_ecb) in enumerate(ini.ec_launcher)
-                    time, data = get_time_dependent(ini_ecb, [:power_launched, :rho_0, :width]; simplify_time_traces)
-                    ps.ec.time = time
-                    ps.ec.beam[k].power_launched.reference = data.power_launched
-                    ps.ec.beam[k].deposition_rho_tor_norm.reference = data.rho_0
-                    ps.ec.beam[k].deposition_rho_tor_norm_width.reference = data.width
+                time, powers_launched = get_time_dependent(ini.ec_launcher, :power_launched; simplify_time_traces)
+                ps.ec.time = time
+                for k in eachindex(ini.ec_launcher)
+                    ps.ec.beam[k].power_launched.reference = powers_launched[k]
                 end
             end
         end
@@ -165,12 +161,10 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 ps.ic = deepcopy(ps1.ic)
             else
                 resize!(ps.ic.antenna, length(ini.ic_antenna))
-                for (k, ini_ica) in enumerate(ini.ic_antenna)
-                    time, data = get_time_dependent(ini_ica, [:power_launched, :rho_0, :width]; simplify_time_traces)
-                    ps.ic.time = time
-                    ps.ic.antenna[k].power.reference = data.power_launched
-                    ps.ic.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
-                    ps.ic.antenna[k].deposition_rho_tor_norm_width.reference = data.width
+                time, powers_launched = get_time_dependent(ini.ic_antenna, :power_launched; simplify_time_traces)
+                ps.ic.time = time
+                for k in eachindex(ini.ic_antenna)
+                    ps.ic.antenna[k].power.reference = powers_launched[k]
                 end
             end
         end
@@ -181,12 +175,10 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 ps.lh = deepcopy(ps1.lh)
             else
                 resize!(ps.lh.antenna, length(ini.lh_antenna))
-                for (k, ini_lha) in enumerate(ini.lh_antenna)
-                    time, data = get_time_dependent(ini_lha, [:power_launched, :rho_0, :width]; simplify_time_traces)
-                    ps.lh.time = time
-                    ps.lh.antenna[k].power.reference = data.power_launched
-                    ps.lh.antenna[k].deposition_rho_tor_norm.reference = data.rho_0
-                    ps.lh.antenna[k].deposition_rho_tor_norm_width.reference = data.width
+                time, powers_launched = get_time_dependent(ini.lh_antenna, :power_launched; simplify_time_traces)
+                ps.lh.time = time
+                for k in eachindex(ini.lh_antenna)
+                    ps.lh.antenna[k].power.reference = powers_launched[k]
                 end
             end
         end
@@ -197,12 +189,10 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 ps.pellet = deepcopy(ps1.pellet)
             else
                 resize!(ps.pellet.launcher, length(ini.pellet_launcher))
-                for (k, ini_peln) in enumerate(ini.pellet_launcher)
-                    time, data = get_time_dependent(ini_peln, [:frequency, :rho_0, :width]; simplify_time_traces)
-                    ps.pellet.time = time
-                    ps.pellet.launcher[k].frequency.reference = data.frequency
-                    ps.pellet.launcher[k].deposition_rho_tor_norm.reference = data.rho_0
-                    ps.pellet.launcher[k].deposition_rho_tor_norm_width.reference = data.width
+                time, frequencies = get_time_dependent(ini.pellet_launcher, :frequency; simplify_time_traces)
+                ps.pellet.time = time
+                for k in eachindex(ini.pellet_launcher)
+                    ps.pellet.launcher[k].frequency.reference = frequencies[k]
                 end
             end
         end
@@ -242,6 +232,32 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
     end
 
     return time, data
+end
+
+function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol}; simplify_time_traces::Float64)
+    all_times = Float64[]
+
+    for field in fields
+        time, data = get_time_dependent(par, field; simplify_time_traces)
+        append!(all_times, time)
+    end
+
+    all_times = sort!(unique(all_times))
+
+    return all_times, NamedTuple{Tuple(fields)}([get_time_dependent(par, field, all_times) for field in fields])
+end
+
+function get_time_dependent(pars::ParametersVector, field::Symbol; simplify_time_traces::Float64)
+    all_times = Float64[]
+
+    for par in pars
+        time, data = get_time_dependent(par, field; simplify_time_traces)
+        append!(all_times, time)
+    end
+
+    all_times = sort!(unique(all_times))
+
+    return all_times, [get_time_dependent(par, field, all_times) for par in pars]
 end
 
 function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol}; simplify_time_traces::Float64)

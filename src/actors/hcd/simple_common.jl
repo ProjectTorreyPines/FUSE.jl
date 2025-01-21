@@ -1,5 +1,24 @@
 import IMASutils: trapz
 
+mutable struct _FUSEparameters__ActorSimple{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef
+    _name::Symbol
+    _time::Float64
+    ηcd_scale::Entry{T}
+    rho_0::Entry{T}
+    width::Entry{T}
+end
+
+function _FUSEparameters__ActorSimple{T}(rho_0_default::T, width_default::T) where {T<:Real}
+    _parent = WeakRef(nothing)
+    _name = :not_set
+    _time = NaN
+    ηcd_scale = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    rho_0 = Entry{T}("-", "Desired radial location of the deposition profile"; default=rho_0_default, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width = Entry{T}("-", "Desired width of the deposition profile"; default=width_default, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+    return _FUSEparameters__ActorSimple(_parent, _name, _time, ηcd_scale, rho_0, width)
+end
+
 #= ========= =#
 #  functions  #
 #= ========= =#

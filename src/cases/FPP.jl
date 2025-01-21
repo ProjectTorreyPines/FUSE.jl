@@ -84,12 +84,13 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
 
     total_ec_power = 90E6
     resize!(ini.ec_launcher, 6)
+    resize!(act.ActorSimpleEC, 6)
     x = range(0.1, 0.8, length(ini.ec_launcher))
     for (k, rho_0) in enumerate(x)
         ini.ec_launcher[k].power_launched = total_ec_power * rho_0^2 / sum(x)
         ini.ec_launcher[k].efficiency_conversion = 0.45
         ini.ec_launcher[k].efficiency_transmission = 0.8
-        ini.ec_launcher[k].rho_0 = rho_0
+        act.ActorSimpleEC.actuator[k].rho_0 = rho_0
     end
 
     ini.requirements.power_electric_net = 2.0e8
