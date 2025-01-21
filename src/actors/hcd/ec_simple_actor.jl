@@ -60,6 +60,8 @@ function _step(actor::ActorSimpleEC)
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
 
+        @ddtime(ecl.power_launched.data = power_launched)
+
         ion_electron_fraction_cp = zeros(length(rho_cp))
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
