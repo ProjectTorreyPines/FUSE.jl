@@ -18,12 +18,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
 
-    # tau_t
+    # L to H and H to L transition model #
     tau_t::Entry{T} = Entry{T}("[s]", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("[s]", "pedestal density LH transition tanh evolution time (95% of full transition)")
     density_ratio_L_over_H::Entry{T} = Entry{T}("[-]", "n_Lmode / n_Hmode")
-
-
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -87,16 +85,13 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
     elseif par.model == :dynamic
         @assert par.ne_from == :pulse_schedule "Dyanmic requires ne_from pulse schedule"
-        @show "dynamic"
+
         if IMAS.satisfies_h_mode_conditions(dd)
             push!(actor.state,:H_mode)
         else
             push!(actor.state,:L_mode)
         end
-        neped = IMAS.get_from(dd, Val{:ne_ped}, actor.par.ne_from, nothing)
-        @show neped
-        # 2 scenarios
-        @show length(actor.state)
+
         if length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode] 
             # L to H
             actor.t_lh = dd.global_time
@@ -105,59 +100,29 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             actor.t_hl = dd.global_time
         end
 
-        # actor.cp1d_transition.electrons.temperature
-        # actor.cp1d_transition.electrons.density_thermal
-
         if actor.state[end] == :L_mode
-            # run WPED
-
-             
-            α_t = HL_tanh_response(par.tau_t,actor.t_hl, dd.global_time;time_steps=100)
-            α_n = HL_tanh_response(par.tau_n,actor.t_hl, dd.global_time;time_steps=100)
-            @show alpha_t, alpha_n
+            α_t = HL_tanh_response(par.tau_t, dd.global_time,actor.t_hl;time_steps=100)
+            α_n = HL_tanh_response(par.tau_n, dd.global_time,actor.t_hl;time_steps=100)
 
             actor.ped_actor = actor.wped_actor
             actor.ped_actor.density_factor = α_n * density_ratio_L_over_H
             run_selected_pedstal_model(actor)
-            
-            # use cp1d_old as current
-            #pedestal = alpha_t .* WPED .+ (1-\alpaha ) .* T_current
         else
             # H mode
-
-            alpha_t = LH_tanh_response(par.tau_t,actor.t_lh, dd.global_time;time_steps=100)
-            alpha_n = LH_tanh_response(par.tau_n,actor.t_lh, dd.global_time;time_steps=100)
-            @show alpha_t, alpha_n
-            
-            # t_inf makes alpha = 1
-            #t_profile_now = alpha_t .* EPED .+ (1-\alpaha ) .* T_current   
-            
-            
-            #alpha_n = alphan @ t_hl
-            # this is going to use density_multiplier
-
-            # pulse schedule will have Hmode density
-
-            # l mode density is then H mode density / multiplier
-            # run EPED
+            alpha_t = LH_tanh_response(par.tau_t,dd.global_time,actor.t_lh;time_steps=100)
+            alpha_n = LH_tanh_response(par.tau_n,dd.global_time, actor.t_lh;time_steps=100)
             actor.ped_actor = actor.eped_actor
            
             actor.ped_actor.par.density_factor =  (1 - par.density_ratio_L_over_H) * alpha_n + par.density_ratio_L_over_H 
             run_selected_pedstal_model(actor)
 
-#            t_profile_new = alpha_t .* EPED .+ (1-\alpaha ) .* T_current 
             Te_ongoing = (1 .- alpha_t) .* actor.cp1d_transition.electrons.temperature .+  alpha_t .* dd.core_profiles.profiles_1d[].electrons.temperature
-            plot(actor.cp1d_transition.electrons.temperature,label="Te old")
-            display(plot!(dd.core_profiles.profiles_1d[].electrons.temperature,label="te EPED", ls =:dash))
-            @show dd.core_profiles.profiles_1d[].electrons.temperature[1]
-            display(plot!(Te_ongoing,label= "Te ongoing", ls =:dash))
-            
+            Ti_ongoing = (1 .- alpha_t) .* actor.cp1d_transition.ion[1].temperature .+  alpha_t .* dd.core_profiles.profiles_1d[].ion[1].temperature
 
-            plot(actor.cp1d_transition.electrons.density_thermal,label="Te old")
-            display(plot!(dd.core_profiles.profiles_1d[].electrons.density_thermal,label="ne EPED", ls =:dash))
-            @show dd.core_profiles.profiles_1d[].electrons.density_thermal[1]
-#            display(plot!(Te_ongoing,label= "Te ongoing", ls =:dash))
-
+            cp1d.electrons.temperature = Te_ongoing
+            for ion in cp1d.ion
+                ion.temperature = Ti_ongoing
+            end
         end
     end
 
@@ -165,20 +130,19 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 end
 
 
-function LH_tanh_response(τ,t_now, t_LH;time_steps=100)
+function LH_tanh_response(τ::Float64,t_now::Float64, t_LH::Float64;time_steps::Int=100)
     t, α = LH_tanh_response(τ, t_LH)
-    @show α[1], IMAS.interp1d(t,α).(t_now)
     return maximum([minimum([IMAS.interp1d(t,α).(t_now),1.0]),0.0])
 end
 
-function LH_tanh_response(τ,t_LH;time_steps=100)
+function LH_tanh_response(τ::Float64,t_LH::Float64;time_steps::Int=100)
     t = (0:τ/time_steps:τ) .+ t_LH
     α = tanh.((2pi.*(t .- t_LH .- τ / 4.0)) ./ τ)
     α = ((α .- α[1]) ./ (α[end]-α[1]))
     return t, α
 end
 
-function run_selected_pedstal_model(actor)
+function run_selected_pedstal_model(actor::Union{ActorNoOperation,ActorEPED,ActorWPED})
     par = actor.par
     if par.density_match == :ne_ped
         finalize(step(actor.ped_actor))
