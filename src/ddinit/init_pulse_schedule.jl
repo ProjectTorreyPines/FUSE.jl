@@ -119,18 +119,6 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             end
         end
 
-        # NB
-        if init_from == :ods && IMAS.hasdata(ps1.nbi)
-            ps.nbi = deepcopy(ps1.nbi)
-        else
-            resize!(ps.nbi.unit, length(ini.nb_unit))
-            for (k, ini_nbu) in enumerate(ini.nb_unit)
-                time, power_launched = get_time_dependent(ini_nbu, :power_launched; simplify_time_traces)
-                ps.nbi.time = time
-                ps.nbi.unit[k].power.reference = power_launched
-            end
-        end
-
         # EC
         if init_from == :ods && IMAS.hasdata(ps1.ec)
             ps.ec = deepcopy(ps1.ec)
@@ -164,6 +152,18 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.lh.time = time
             for k in eachindex(ini.lh_antenna)
                 ps.lh.antenna[k].power.reference = powers_launched[k]
+            end
+        end
+
+        # NB
+        if init_from == :ods && IMAS.hasdata(ps1.nbi)
+            ps.nbi = deepcopy(ps1.nbi)
+        else
+            resize!(ps.nbi.unit, length(ini.nb_unit))
+            time, powers_launched = get_time_dependent(ini.nb_unit, :power_launched; simplify_time_traces)
+            ps.nbi.time = time
+            for k in eachindex(ini.nb_unit)
+                ps.nbi.unit[k].power.reference = powers_launched[k]
             end
         end
 
