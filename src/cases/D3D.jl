@@ -55,6 +55,9 @@ function case_parameters(::Type{Val{:D3D}};
         print("Fetching ec_launcher data")
         omas.omas_machine.d3d.ec_launcher_active_hardware(ods, $shot)
 
+        print("Fetching nbi data")
+        omas.omas_machine.d3d.nbi_active_hardware(ods, $shot)
+
         print("Fetching core_profiles data")
         omas.omas_machine.d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="ZIPFIT01")
 
@@ -121,8 +124,8 @@ function case_parameters(::Type{Val{:D3D}};
         empty!(ini.general.dd.pf_active)
     end
     if scenario_selector == :experiment
-        tt = round.(ini.general.dd.equilibrium.time, digits=3)
-        ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], Int(round((tt[end] - tt[1]) / minimum(diff(tt)))))
+        tt = ini.general.dd.equilibrium.time
+        ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
         IMAS.flux_surfaces(ini.general.dd.equilibrium, IMAS.first_wall(ini.general.dd.wall)...)
     end
 
@@ -157,14 +160,7 @@ function case_parameters(::Type{Val{:D3D}};
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
 
-    if scenario_selector == :experiment
-        # until we can fetch beams data
-        resize!(ini.nb_unit, 1)
-        ini.nb_unit[1].power_launched = shot_mappings[scenario_selector][:nbi_power]
-        ini.nb_unit[1].beam_energy = 80e3
-        ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 18.0 * deg
-    else
+    if scenario_selector !== :experiment
         if isempty(ini.general.dd.core_profiles) || !scenario_core_profiles
             empty!(ini.general.dd.core_profiles)
             ini.core_profiles.ne_setting = :greenwald_fraction_ped
