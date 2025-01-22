@@ -532,56 +532,56 @@ function getPoint!(
 end
 
 """
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T) where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T) where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
-    @inline return get_xy(poly_b, Float64)
+    @inline return get_xy(poly_b, Float64)::Tuple{Vector{Float64},Vector{Float64}}
 end
 
 """
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
     x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
     x_offset = 0.5 * (b_lfs - b_hfs)
     x_b .+= x_offset
-    return x_b, y_b
+    return (x_b, y_b)::Tuple{Vector{T},Vector{T}}
 end
 
 """
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T, b_updown::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T, b_updown::T) where {T<:Real}
     b_radius = 0.5 * (b_lfs + b_hfs)
     x_offset = 0.5 * (b_lfs - b_hfs)
     y_max = maximum(y)
     y_min = minimum(y)
     y_scaled = (y .- y_min) ./ (y_max - y_min) .* (y_max + b_updown - b_radius - (y_min - b_updown + b_radius)) .+ (y_min - b_updown + b_radius)
     x_b, y_b = buffer(x .+ x_offset, y_scaled, b_radius)
-    return x_b, y_b
+    return (x_b, y_b)::Tuple{Vector{T},Vector{T}}
 end
 
 """
-    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real) where {T<:Real}
 
 Limit maximum curvature of a polygon described by x,y arrays
 """
-function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real) where {T<:Real}
     @assert max_curvature > 0.0
     x = convert(Vector{Float64}, x)
     y = convert(Vector{Float64}, y)
     max_curvature = convert(Float64, max_curvature)
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature)::LibGEOS.Polygon, max_curvature)::LibGEOS.Polygon
-    @inline return get_xy(poly_b, Float64)
+    @inline return get_xy(poly_b, Float64)::Tuple{Vector{Float64},Vector{Float64}}
 end
 
 """

@@ -50,11 +50,11 @@ end
 #  switch_get_from  #
 #= =============== =#
 """
-    switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)::Switch{Symbol}
+    switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)
 
 Switch to pick the IDS that `quantity` comes from
 """
-function switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)::Switch{Symbol}
+function switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)
     txt = "Take $quantity from this IDS"
     if quantity == :ip
         swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt; default)
