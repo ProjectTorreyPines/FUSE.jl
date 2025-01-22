@@ -82,7 +82,7 @@ function _step(actor::ActorSimpleEC)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            ρ -> gaus(ρ, rho_0, width, 1.0);
+            ρ -> IMAS.gaus(ρ, rho_0, width, 1.0);
             j_parallel
         )
     end

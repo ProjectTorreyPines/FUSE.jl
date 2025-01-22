@@ -87,7 +87,7 @@ function _step(actor::ActorSimpleNB)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            ρ -> gaus(ρ, rho_0, width, 2.0);
+            ρ -> IMAS.gaus(ρ, rho_0, width, 2.0);
             electrons_particles=particles_per_second,
             momentum_tor,
             j_parallel

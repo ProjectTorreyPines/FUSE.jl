@@ -88,7 +88,7 @@ function _step(actor::ActorSimplePellet)
             area_cp,
             0.0,
             ion_electron_fraction_cp,
-            ρ -> beta(ρ + ρ_peak * beta_width, rho_0, beta_width, mode);
+            ρ -> IMAS.beta(ρ + ρ_peak * beta_width, rho_0, beta_width, mode);
             electrons_particles
         )
     end

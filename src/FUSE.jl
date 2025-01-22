@@ -3,6 +3,7 @@ __precompile__(true)
 module FUSE
 
 using IMAS
+import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
 import Plots
 using Plots
 using Printf
@@ -52,7 +53,6 @@ include("physics.jl")
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
-include("signal.jl")
 include(joinpath("parameters", "parameters_inits.jl"))
 
 include(joinpath("ddinit", "init.jl"))
