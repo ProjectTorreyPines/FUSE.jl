@@ -10,7 +10,7 @@ end
 
 function Base.resize!(par::FUSEparameters__ActorSimpleNB, n::Int)
     # default rho_0 and width
-    resize!(par.actuator, n, 0.0, 0.3)
+    return resize!(par.actuator, n, 0.0, 0.3)
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -66,9 +66,9 @@ function _step(actor::ActorSimpleNB)
         beam_mass = nbu.species.a
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
-        electrons_particles = power_launched / (beam_energy * IMAS.mks.e)
-        momentum_tor =
-            power_launched * sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * IMAS.mks.e / beam_mass / IMAS.mks.m_u) * beam_mass * IMAS.mks.m_u
+        particles_per_second = power_launched / (beam_energy * IMAS.mks.e) # [1/s]
+        velocity = sqrt(2.0 * beam_energy * IMAS.mks.e / (beam_mass * IMAS.mks.m_u)) # [m/s]
+        momentum_tor = sin(nbu.beamlets_group[1].angle) * particles_per_second * velocity * beam_mass * IMAS.mks.m_u # [kg*m/s^2] = [N]
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
@@ -88,7 +88,7 @@ function _step(actor::ActorSimpleNB)
             power_launched,
             ion_electron_fraction_cp,
             ρ -> gaus(ρ, rho_0, width, 2.0);
-            electrons_particles,
+            electrons_particles=particles_per_second,
             momentum_tor,
             j_parallel
         )
