@@ -56,15 +56,8 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-
-    # add some auto mode for ped to core fraction
-    # if eqt.boundary.triangularity < 0.0
-    #     actor.wped_actor.par.ped_to_core_fraction = 0.3
-    # else
-    #     actor.wped_actor.par.ped_to_core_fraction = 0.05
-    # end
-
     summary_ped = dd.summary.local.pedestal
+
     @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
     @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_ped_from, par.rho_ped) * par.density_factor
     @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_ped_from, par.rho_ped)

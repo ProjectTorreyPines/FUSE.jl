@@ -18,7 +18,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
 
-    # L to H and H to L transition model #
+    #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("[s]", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("[s]", "pedestal density LH transition tanh evolution time (95% of full transition)")
     density_ratio_L_over_H::Entry{T} = Entry{T}("[-]", "n_Lmode / n_Hmode")
@@ -58,7 +58,7 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     eped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.rho_nml, par.rho_ped)
     wped_actor = ActorWPED(dd, act.ActorWPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.rho_ped, par.do_plot)
     none_actor = ActorNoOperation(dd, act.ActorNoOperation)
-    return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor, Symbol[], -Inf, -Inf, IMAS.core_profiles__profiles_1d())
+    return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor, Symbol[], -1e10, -1e10, IMAS.core_profiles__profiles_1d())
 end
 
 """
@@ -101,23 +101,23 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         end
 
         if actor.state[end] == :L_mode
-            α_t = HL_tanh_response(par.tau_t, dd.global_time,actor.t_hl;time_steps=100)
-            α_n = HL_tanh_response(par.tau_n, dd.global_time,actor.t_hl;time_steps=100)
+            α_t = 1 - LH_tanh_response(par.tau_t, dd.global_time,actor.t_hl;time_steps=100)
+            α_n = 1 - LH_tanh_response(par.tau_n, dd.global_time,actor.t_hl;time_steps=100)
 
+            @show α_t, α_n, LH_tanh_response(par.tau_n, dd.global_time,actor.t_hl;time_steps=100), actor.t_hl
             actor.ped_actor = actor.wped_actor
-            actor.ped_actor.density_factor = α_n * density_ratio_L_over_H
             run_selected_pedstal_model(actor)
         else
             # H mode
-            alpha_t = LH_tanh_response(par.tau_t,dd.global_time,actor.t_lh;time_steps=100)
-            alpha_n = LH_tanh_response(par.tau_n,dd.global_time, actor.t_lh;time_steps=100)
+            α_t = LH_tanh_response(par.tau_t,dd.global_time,actor.t_lh;time_steps=100)
+            α_n = LH_tanh_response(par.tau_n,dd.global_time, actor.t_lh;time_steps=100)
             actor.ped_actor = actor.eped_actor
            
-            actor.ped_actor.par.density_factor =  (1 - par.density_ratio_L_over_H) * alpha_n + par.density_ratio_L_over_H 
+            actor.ped_actor.par.density_factor =  (1 - par.density_ratio_L_over_H) * α_n + par.density_ratio_L_over_H 
             run_selected_pedstal_model(actor)
 
-            Te_ongoing = (1 .- alpha_t) .* actor.cp1d_transition.electrons.temperature .+  alpha_t .* dd.core_profiles.profiles_1d[].electrons.temperature
-            Ti_ongoing = (1 .- alpha_t) .* actor.cp1d_transition.ion[1].temperature .+  alpha_t .* dd.core_profiles.profiles_1d[].ion[1].temperature
+            Te_ongoing = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+  α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
+            Ti_ongoing = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+  α_t .* dd.core_profiles.profiles_1d[].ion[1].temperature
 
             cp1d.electrons.temperature = Te_ongoing
             for ion in cp1d.ion
@@ -142,7 +142,7 @@ function LH_tanh_response(τ::Float64,t_LH::Float64;time_steps::Int=100)
     return t, α
 end
 
-function run_selected_pedstal_model(actor::Union{ActorNoOperation,ActorEPED,ActorWPED})
+function run_selected_pedstal_model(actor::ActorPedestal)
     par = actor.par
     if par.density_match == :ne_ped
         finalize(step(actor.ped_actor))
