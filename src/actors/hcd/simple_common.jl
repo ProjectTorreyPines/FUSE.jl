@@ -9,7 +9,7 @@ mutable struct _FUSEparameters__ActorSimple{T<:Real} <: ParametersActor{T}
     width::Entry{T}
 end
 
-function _FUSEparameters__ActorSimple{T}(rho_0_default::T, width_default::T) where {T<:Real}
+function _FUSEparameters__ActorSimple{T}(rho_0_default::T=NaN, width_default::T=NaN) where {T<:Real}
     _parent = WeakRef(nothing)
     _name = :not_set
     _time = NaN

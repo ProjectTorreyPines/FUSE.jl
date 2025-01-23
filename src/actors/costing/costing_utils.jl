@@ -178,7 +178,7 @@ end
 """
     bop_powers(bop::IMAS.balance_of_plant)
 
-Returns maximum total_useful_heat_power, power_electric_generated, power_electric_net over time, setting them to 0.0 if negative, Nan or missing
+Returns maximum total_useful_heat_power, power_electric_generated, power_electric_net over time, setting them to 0.0 if negative, NaN or missing
 """
 function bop_powers(bop::IMAS.balance_of_plant)
     if ismissing(bop.power_plant, :total_heat_supplied)
