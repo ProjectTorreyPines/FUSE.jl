@@ -313,16 +313,16 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
         end
 
         # PL
-        # for (k, launcher) in enumerate(dd1.pellets.launcher)
-        #     if k > length(ini.pellet_launcher)
-        #         resize!(ini.pellet_launcher, k)
-        #         if ismissing(ini.time, :pulse_shedule_time_basis)
-        #             ini.pellet_launcher[k].power_launched = @ddtime launcher.power_launched.data
-        #         else
-        #             ini.pellet_launcher[k].power_launched = t -> IMAS.moving_average(launcher.power_launched.time, launcher.power_launched.data, t, ini.time.pulse_shedule_time_basis.step)
-        #         end
-        #     end
-        # end
+        for (k, launcher) in enumerate(dd1.pellets.launcher)
+            if k > length(ini.pellet_launcher)
+                resize!(ini.pellet_launcher, k)
+                if ismissing(ini.time, :pulse_shedule_time_basis)
+                    ini.pellet_launcher[k].frequency = @ddtime launcher.frequency.data
+                else
+                    ini.pellet_launcher[k].frequency = t -> IMAS.moving_average(launcher.frequency.time, launcher.frequency.data, t, ini.time.pulse_shedule_time_basis.step)
+                end
+            end
+        end
 
         # Here we delete fields from the ODS for which we know FUSE has expressions for.
         # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!

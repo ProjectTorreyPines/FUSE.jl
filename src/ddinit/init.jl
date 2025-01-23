@@ -110,14 +110,15 @@ function init(
             end
         end
 
-        # initialize core sources
+        # initialize core sources and HCD
         if (
             !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
             !isempty(dd1.core_sources)
         )
-            verbose && @info "INIT: init_core_sources"
+            verbose && @info "INIT: init_core_sources and HCD"
             if ismissing(ini.hcd, :power_scaling_cost_function)
                 init_core_sources!(dd, ini, act, dd1)
+                init_hcd!(dd, ini, act, dd1)
             else
                 # get an estimate for Ohmic heating before scaling HCD powers
                 ini0 = deepcopy(ini)
@@ -126,6 +127,7 @@ function init(
                 function scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, power_scaling_cost_function)
                     scale_powers!(ps, ini, ps0, ini0, scale)
                     init_core_sources!(dd, ini, act, dd1)
+                    init_hcd!(dd, ini, act, dd1)
                     init_currents!(dd, ini, act, dd1) # to pick up ohmic power
                     error = abs(power_scaling_cost_function(dd))
                     return error
