@@ -136,6 +136,10 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         # EC
         if init_from == :ods && IMAS.hasdata(dd1.ec_launchers)
             dd.ec_launchers = deepcopy(dd1.ec_launchers)
+            for beam in dd.ec_launchers.beam
+                empty!(beam.power_launched, :data)
+                empty!(beam.power_launched, :time)
+            end
         else
             init_ec(dd, ini, act, dd1)
         end
@@ -143,6 +147,10 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         # IC
         if init_from == :ods && IMAS.hasdata(dd1.ic_antennas)
             dd.ic_antennas = deepcopy(dd1.ic_antennas)
+            for antenna in dd.ic_antennas.antenna
+                empty!(antenna.power_launched, :data)
+                empty!(antenna.power_launched, :time)
+            end
         else
             init_ic(dd, ini, act, dd1)
         end
@@ -150,6 +158,10 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         # LH
         if init_from == :ods && IMAS.hasdata(dd1.lh_antennas)
             dd.lh_antennas = deepcopy(dd1.lh_antennas)
+            for antenna in dd.lh_antennas.antenna
+                empty!(antenna.power_launched, :data)
+                empty!(antenna.power_launched, :time)
+            end
         else
             init_lh(dd, ini, act, dd1)
         end
@@ -157,6 +169,12 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         # NB
         if init_from == :ods && IMAS.hasdata(dd1.nbi)
             dd.nbi = deepcopy(dd1.nbi)
+            for unit in dd.nbi.unit
+                empty!(unit.power_launched, :data)
+                empty!(unit.power_launched, :time)
+                empty!(unit.energy, :data)
+                empty!(unit.energy, :time)
+            end
         else
             init_nb(dd, ini, act, dd1)
         end
@@ -164,6 +182,10 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         # PL
         if init_from == :ods && IMAS.hasdata(dd1.pellets)
             dd.pellets = deepcopy(dd1.pellets)
+            for launcher in dd.pellets.launcher
+                empty!(launcher.frequency, :data)
+                empty!(launcher.frequency, :time)
+            end
         else
             init_pl(dd, ini, act, dd1)
         end

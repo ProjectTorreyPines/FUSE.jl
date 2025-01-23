@@ -56,13 +56,13 @@ function _step(actor::ActorSimpleNB)
 
     for (k, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
         power_launched = @ddtime(ps.power.reference)
+        beam_energy = @ddtime(ps.energy.reference)
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
 
         @ddtime(nbu.power_launched.data = power_launched)
-
-        beam_energy = @ddtime(nbu.energy.data)
+        @ddtime(nbu.energy.data = beam_energy)
         beam_mass = nbu.species.a
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 

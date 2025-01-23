@@ -161,9 +161,11 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
         else
             resize!(ps.nbi.unit, length(ini.nb_unit))
             time, powers_launched = get_time_dependent(ini.nb_unit, :power_launched; simplify_time_traces)
+            energies = [nb_unit.beam_energy for nb_unit in ini.nb_unit]
             ps.nbi.time = time
             for k in eachindex(ini.nb_unit)
                 ps.nbi.unit[k].power.reference = powers_launched[k]
+                ps.nbi.unit[k].energy.reference = fill(energies[k], size(time))
             end
         end
 

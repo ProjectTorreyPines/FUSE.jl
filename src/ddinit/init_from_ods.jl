@@ -307,6 +307,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 else
                     ini.nb_unit[k].power_launched = t -> IMAS.moving_average(unit.power_launched.time, unit.power_launched.data, t, ini.time.pulse_shedule_time_basis.step)
                 end
+                # make beam energy constant
+                ini.nb_unit[k].beam_energy = maximum(unit.energy.data)
             end
         end
 
