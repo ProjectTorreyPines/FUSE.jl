@@ -61,6 +61,9 @@ function case_parameters(::Type{Val{:D3D}};
         print("Fetching core_profiles data")
         omas.omas_machine.d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="ZIPFIT01")
 
+        print("Fetching wall data")
+        omas.omas_machine.d3d.wall(ods, $shot)
+
         print("Fetching equilibrium data")
         with ods.open('d3d', $shot, options={'EFIT_tree': 'EFIT02'}):
             ods["equilibrium.time"]
