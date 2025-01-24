@@ -226,6 +226,9 @@ function init(
             end
         end
 
+        # trim any data before the first equilibrium since things are really not robust against that
+        IMAS.trim_time!(dd, (dd.equilibrium.time[1], Inf));
+
         return dd
     end
 end
