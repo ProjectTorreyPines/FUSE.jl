@@ -71,7 +71,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     end
 
     if ismissing(par, :ped_to_core_fraction)
-        core, edge = core_and_edge_energy(cp1d, 0.9)
+        core, edge = core_edge_energy(cp1d, 0.9)
         ped_to_core_fraction = edge / core
     else
         ped_to_core_fraction = par.ped_to_core_fraction
@@ -123,7 +123,7 @@ function cost_WPED_ztarget_pedratio!(
     res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
     cost_WPED_α_Ti!(cp1d, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped)
 
-    core, edge = core_and_edge_energy(cp1d, 0.9)
+    core, edge = IMAS.core_edge_energy(cp1d, 0.9)
 
     cost = (edge / core .- ped_to_core_fraction)^2
 
@@ -146,17 +146,4 @@ function cost_WPED_α_Te!(cp1d::IMAS.core_profiles__profiles_1d, α_Te::Real, va
     Te = cp1d.electrons.temperature
     rho = cp1d.grid.rho_tor_norm
     return IMAS.cost_WPED_α!(rho, Te, α_Te, value_bound, rho_ped)
-end
-
-function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_ped::Real)
-    p = IMAS.pressure_thermal(cp1d)
-    rho_tor_norm = cp1d.grid.rho_tor_norm
-    rho_bound_idx = argmin(abs(rho - rho_ped) for rho in rho_tor_norm)
-    pedge = p[rho_bound_idx]
-    fedge = (k, x) -> (k <= rho_bound_idx) ? pedge : p[k]
-    fcore = (k, x) -> (k <= rho_bound_idx) ? (p[k] - pedge) : 0.0
-    volume = cp1d.grid.volume
-    core_value = 1.5 * trapz(volume, fcore)
-    edge_value = 1.5 * trapz(volume, fedge)
-    return core_value, edge_value
 end
