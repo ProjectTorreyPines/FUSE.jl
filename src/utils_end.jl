@@ -808,18 +808,27 @@ A plot with the following characteristics:
         [], []
     end
 end
-
 """
     get_julia_process_memory_usage()
 
 Returns memory used by current julia process
 """
 function get_julia_process_memory_usage()
-    pid = getpid()
-    mem_info = read(`ps -p $pid -o rss=`, String)
-    mem_usage_kb = parse(Int, strip(mem_info))
+    if Sys.iswindows()
+        pid = getpid()
+        # Use PowerShell to get the current process's WorkingSet (memory in bytes)
+        cmd = `powershell -Command "(Get-Process -Id $pid).WorkingSet64"`
+        mem_bytes_str = readchomp(cmd)
+        mem_bytes = parse(Int, mem_bytes_str)
+        return mem_bytes        
+    else
+        pid = getpid()
+        mem_info = read(`ps -p $pid -o rss=`, String)
+        mem_usage_kb = parse(Int, strip(mem_info))
+    end
     return mem_usage_kb * 1024
 end
+
 
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")

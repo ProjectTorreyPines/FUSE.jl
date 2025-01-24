@@ -324,19 +324,20 @@ Determines what the maximum memory is based on the device type (apple, windows, 
 function localhost_memory()
     if Sys.isapple()
         cmd = `sysctl hw.memsize` # for OSX
-        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3 # GiB
     elseif Sys.isunix()
         # General Unix command (including macOS and Linux)
         cmd = `free -b` # get memory in bytes
-        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3 # GiB
     elseif Sys.iswindows()
         # Windows command
-        cmd = `wmic ComputerSystem get TotalPhysicalMemory`
-        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3
+        cmd = `powershell -Command "Get-CimInstance Win32_ComputerSystem | Select-Object -ExpandProperty TotalPhysicalMemory"`
+        mem_bytes = parse(Int, readchomp(cmd))
+        mem_size = mem_bytes / 1024^3 # GiB
     elseif Sys.islinux()
         # Linux-specific command
         cmd = `grep MemTotal /proc/meminfo`
-        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^2 # Linux reports in KB
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^2 # GiB
     else
         error("couldn't determine the mem_size")
     end
