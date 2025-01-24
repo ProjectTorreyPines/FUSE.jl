@@ -57,6 +57,7 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.ip = 8.0e6
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
+    ini.equilibrium.field_null_surface = 0.75
 
     ini.core_profiles.ne_setting = :greenwald_fraction
     act.ActorPedestal.density_match = :ne_line
