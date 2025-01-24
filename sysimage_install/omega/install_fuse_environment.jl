@@ -48,8 +48,16 @@ local basedir = "/fusion/projects/codes/julia/fuse"
 local fuse_env = "$fuse_env"
 
 help([[
-Module for julia with FUSE sysimage
-Environment: $fuse_env
+Module for julia with FUSE $fuse_env sysimage
+Automatically created by FUSE install script:
+  `julia /fusion/projects/codes/julia/fuse/install/install_fuse_environment.jl`
+Maintainers: B.C. Lyons, lyonsbc@fusion.gat.com
+	     C.M. Clark, clarkm@fusion.gat.com
+Physics Officers: O.M. Meneghini, meneghini@fusion.gat.com
+		  B.C. Lyons, lyonsbc@fusion.gat.com
+Known technical debt: 
+The first time a custom Jupyter kernel is used, it may hang.
+Restarting (sometimes twice) normally resolves the issue. 
 ]])
 
 """
