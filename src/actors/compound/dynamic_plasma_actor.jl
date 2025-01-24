@@ -131,6 +131,9 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
     prog = ProgressMeter.Progress(Nt * step_calls_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
+    # remove timeslices after global_time
+    IMAS.trim_time!(dd, t0; trim_pulse_schedule=false)
+
     try
         for (kk, tt) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
