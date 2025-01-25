@@ -297,4 +297,44 @@ function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
     if !ismissing(ini.core_profiles, :ne_shaping)
         act.ActorEPEDprofiles.ne_shaping = ini.core_profiles.ne_shaping
     end
+
+    if !isempty(ini.ec_launcher)
+        if isempty(act.ActorSimpleEC.actuator)
+            resize!(act.ActorSimpleEC, length(ini.ec_launcher))
+        else
+            @assert length(act.ActorSimpleEC.actuator) == length(ini.ec_launcher) "length(act.ActorSimpleEC.actuator) = $(length(act.ActorSimpleEC.actuator)) must be equal to length(ini.ec_launcher)=$(length(ini.ec_launcher))"
+        end
+    end
+
+    if !isempty(ini.ic_antenna)
+        if isempty(act.ActorSimpleIC.actuator)
+            resize!(act.ActorSimpleIC, length(ini.ic_antenna))
+        else
+            @assert length(act.ActorSimpleIC.actuator) == length(ini.ic_antenna) "length(act.ActorSimpleIC.actuator) = $(length(act.ActorSimpleIC.actuator)) must be equal to length(ini.ic_antenna)=$(length(ini.ic_antenna))"
+        end
+    end
+
+    if !isempty(ini.lh_antenna)
+        if isempty(act.ActorSimpleLH.actuator)
+            resize!(act.ActorSimpleLH, length(ini.lh_antenna))
+        else
+            @assert length(act.ActorSimpleLH.actuator) == length(ini.lh_antenna) "length(act.ActorSimpleLH.actuator) = $(length(act.ActorSimpleLH.actuator)) must be equal to length(ini.lh_antenna)=$(length(ini.lh_antenna))"
+        end
+    end
+
+    if !isempty(ini.nb_unit)
+        if isempty(act.ActorSimpleNB.actuator)
+            resize!(act.ActorSimpleNB, length(ini.nb_unit))
+        else
+            @assert length(act.ActorSimpleNB.actuator) == length(ini.nb_unit) "length(act.ActorSimpleNB.actuator) = $(length(act.ActorSimpleNB.actuator)) must be equal to length(ini.nb_unit)=$(length(ini.nb_unit))"
+        end
+    end
+
+    if !isempty(ini.pellet_launcher)
+        if isempty(act.ActorSimplePellet.actuator)
+            resize!(act.ActorSimplePellet, length(ini.pellet_launcher))
+        else
+            @assert length(act.ActorSimplePellet.actuator) == length(ini.pellet_launcher) "length(act.ActorSimplePellet.actuator) = $(length(act.ActorSimplePellet.actuator)) must be equal to length(ini.pellet_launcher)=$(length(ini.pellet_launcher))"
+        end
+    end
 end
