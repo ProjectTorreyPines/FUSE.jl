@@ -11,13 +11,13 @@
 
 Initialize `dd` starting from `ini` and `act` parameters
 
-FUSE provides this high-level `init` function to populate `dd` starting from the `ini` parameters.
+FUSE provides this high-level `init` function to populate `dd` starting from the `ini` parameters
 
-This function essentially calls all other `FUSE.init...` functions in FUSE.
+This function calls all other `FUSE.init...` functions in FUSE
 
-For most studies, calling this high level function is sufficient.
+Modifies `ini` and `act` in place
 """
-function init(
+function init!(
     dd::IMAS.dd,
     ini::ParametersAllInits,
     act::ParametersAllActors;
@@ -43,11 +43,6 @@ function init(
 
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
-
-        # we make a copy because we overwrite some of the parameters internally
-        # and we want this function to work always the same for subsequent calls
-        ini = deepcopy(ini)
-        act = deepcopy(act)
 
         # load ods once if needed
         verbose && @info "INIT: ini_from_ods"
