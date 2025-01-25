@@ -66,7 +66,6 @@ function case_parameters(::Type{Val{:D3D}};
 
         print("Fetching equilibrium data")
         with ods.open('d3d', $shot, options={'EFIT_tree': 'EFIT02'}):
-            ods["equilibrium.time"]
             for k in range(len(ods["equilibrium.time"])):
                 ods["equilibrium.time_slice"][k]["time"]
                 ods["equilibrium.time_slice"][k]["global_quantities.ip"]
