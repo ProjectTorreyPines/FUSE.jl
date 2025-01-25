@@ -218,19 +218,6 @@ function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_tim
     return time, data
 end
 
-function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol}; simplify_time_traces::Float64)
-    all_times = Float64[]
-
-    for field in fields
-        time, data = get_time_dependent(par, field; simplify_time_traces)
-        append!(all_times, time)
-    end
-
-    all_times = sort!(unique(all_times))
-
-    return all_times, NamedTuple{Tuple(fields)}([get_time_dependent(par, field, all_times) for field in fields])
-end
-
 function get_time_dependent(pars::ParametersVector, field::Symbol; simplify_time_traces::Float64)
     all_times = Float64[]
 
