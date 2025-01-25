@@ -138,31 +138,18 @@ This is typically used to update `dd` to whatever the actor has calculated at th
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
     if !actor_logging(actor.dd)
-        _finalize_and_freeze_onetime_expressions(actor)::T
+        f_actor = _finalize(actor)::T
     else
         timer_name = name(actor)
         TimerOutputs.@timeit timer timer_name begin
             memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
-            f_actor = _finalize_and_freeze_onetime_expressions(actor)
+            f_actor = _finalize(actor)
             @assert f_actor === actor "`$(T)._finalize(actor)` should return the same actor that is input to the function"
             memory_time_tag(actor, "finalize OUT")
         end
     end
     return actor
-end
-
-function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractActor}
-    f_actor = _finalize(actor)
-    # freeze onetime expressions (ie. grids)
-    while !isempty(IMAS.expression_onetime_weakref)
-        idsw = pop!(IMAS.expression_onetime_weakref, first(keys(IMAS.expression_onetime_weakref)))
-        if idsw.value !== nothing
-            # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
-            IMAS.freeze!(idsw.value)
-        end
-    end
-    return f_actor
 end
 
 @recipe function plot_actor(actor::AbstractActor, args...)
