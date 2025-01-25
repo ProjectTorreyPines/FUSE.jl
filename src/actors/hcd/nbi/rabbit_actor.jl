@@ -88,10 +88,11 @@ function _finalize(actor::ActorRABBIT)
         )
 
         # add nbi fast ion particles source
-        ion = resize!(source.profiles_1d[].ion, 1)[1]
+        source1d = source.profiles_1d[]
+        ion = resize!(source1d.ion, 1)[1]
         IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
-        ion.particles = source.profiles_1d[].electrons.particles
-        ion.particles_inside = source.profiles_1d[].electrons.particles_inside
+        ion.particles = source1d.electrons.particles
+        ion.particles_inside = source1d.electrons.particles_inside
         ion.fast_particles_energy = beam_energy
     end
 

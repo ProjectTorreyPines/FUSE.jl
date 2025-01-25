@@ -66,7 +66,11 @@ function _step(actor::ActorSimpleNB)
         beam_mass = nbu.species.a
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
-        particles_per_second = power_launched / (beam_energy * IMAS.mks.e) # [1/s]
+        if beam_energy > 0.0
+            particles_per_second = power_launched / (beam_energy * IMAS.mks.e) # [1/s]
+        else
+            particles_per_second = 0.0
+        end
         velocity = sqrt(2.0 * beam_energy * IMAS.mks.e / (beam_mass * IMAS.mks.m_u)) # [m/s]
         momentum_tor = sin(nbu.beamlets_group[1].angle) * particles_per_second * velocity * beam_mass * IMAS.mks.m_u # [kg*m/s^2] = [N]
 
@@ -94,10 +98,11 @@ function _step(actor::ActorSimpleNB)
         )
 
         # add nbi fast ion particles source
-        ion = resize!(source.profiles_1d[].ion, 1)[1]
+        source1d = source.profiles_1d[]
+        ion = resize!(source1d.ion, 1)[1]
         IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
-        ion.particles = source.profiles_1d[].electrons.particles
-        ion.particles_inside = source.profiles_1d[].electrons.particles_inside
+        ion.particles = source1d.electrons.particles
+        ion.particles_inside = source1d.electrons.particles_inside
         ion.fast_particles_energy = beam_energy
 
     end
