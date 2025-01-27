@@ -20,7 +20,7 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     ic_actor::Union{Missing,ActorSimpleIC{D,P}}
     lh_actor::Union{Missing,ActorSimpleLH{D,P}}
     nb_actor::Union{Missing,ActorSimpleNB{D,P},ActorRABBIT{D,P}}
-    pellet_actor::Union{Missing,ActorSimplePellet{D,P}}
+    pellet_actor::Union{Missing,ActorSimplePL{D,P}}
 end
 
 """
@@ -82,7 +82,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     else
         @assert length(dd.pulse_schedule.pellet.launcher) == length(dd.pellets.launcher) "length(dd.pulse_schedule.pellet.launcher)=$(length(dd.pulse_schedule.pellet.launcher)) VS length(dd.pellets.launcher)=$(length(dd.pellets.launcher))"
         if par.pellet_model == :Pelletsimple
-            pellet_actor = ActorSimplePellet(dd, act.ActorSimplePellet)
+            pellet_actor = ActorSimplePL(dd, act.ActorSimplePL)
         end
     end
 

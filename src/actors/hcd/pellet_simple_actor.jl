@@ -1,30 +1,34 @@
-#= ====== =#
-#  PELLET  #
-#= ====== =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T<:Real} <: ParametersActor{T}
+#= ============= =#
+#  Simple PELLET  #
+#= ============= =#
+Base.@kwdef mutable struct FUSEparameters__ActorSimplePL{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    actuator::ParametersVector{_FUSEparameters__ActorSimple{T}} = ParametersVector{_FUSEparameters__ActorSimple{T}}()
+    actuator::ParametersVector{_FUSEparameters__ActorSimplePLactuator{T}} = ParametersVector{_FUSEparameters__ActorSimplePLactuator{T}}()
 end
 
-function Base.resize!(par::FUSEparameters__ActorSimplePellet, n::Int)
-    # default rho_0 and width
-    resize!(par.actuator, n, 0.5, 0.25)
+Base.@kwdef mutable struct _FUSEparameters__ActorSimplePLactuator{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.25, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
-mutable struct ActorSimplePellet{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorSimplePL{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSimplePellet{P}
-    function ActorSimplePellet(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePellet{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorSimplePellet)
+    par::FUSEparameters__ActorSimplePL{P}
+    function ActorSimplePL(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePL{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSimplePL)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorSimplePellet(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the Pellet particle deposition
 
@@ -32,14 +36,14 @@ Estimates the Pellet particle deposition
 
     Reads data in `dd.pellet_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
-function ActorSimplePellet(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorSimplePellet(dd, act.ActorSimplePellet; kw...)
+function ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSimplePL(dd, act.ActorSimplePL; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorSimplePellet)
+function _step(actor::ActorSimplePL)
     dd = actor.dd
     par = actor.par
 

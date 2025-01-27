@@ -138,7 +138,7 @@ function case_parameters(
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6
-    resize!(act.ActorSimpleEC, 1)
+    resize!(act.ActorSimpleEC.actuator, 1)
     act.ActorSimpleEC.actuator[1].rho_0 = 0.3
 
     resize!(ini.ic_antenna, 1)

@@ -1,16 +1,20 @@
-#= == =#
-#  IC  #
-#= == =#
+#= ========= =#
+#  Simple IC  #
+#= ========= =#
 Base.@kwdef mutable struct FUSEparameters__ActorSimpleIC{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    actuator::ParametersVector{_FUSEparameters__ActorSimple{T}} = ParametersVector{_FUSEparameters__ActorSimple{T}}()
+    actuator::ParametersVector{_FUSEparameters__ActorSimpleICactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleICactuator{T}}()
 end
 
-function Base.resize!(par::FUSEparameters__ActorSimpleIC, n::Int)
-    # default rho_0 and width
-    resize!(par.actuator, n, 0.0, 0.1)
+Base.@kwdef mutable struct _FUSEparameters__ActorSimpleICactuator{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.1, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
 mutable struct ActorSimpleIC{D,P} <: SingleAbstractActor{D,P}
