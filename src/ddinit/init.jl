@@ -222,7 +222,9 @@ function init!(
         end
 
         # trim any data before the first equilibrium since things are really not robust against that
-        IMAS.trim_time!(dd, (dd.equilibrium.time[1], Inf));
+        if dd.equilibrium.time[1] != dd.equilibrium.time[end]
+            IMAS.trim_time!(dd, (dd.equilibrium.time[1], dd.equilibrium.time[end]));
+        end
 
         return dd
     end
