@@ -1,13 +1,6 @@
 #= ========= =#
 #  Simple LH  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimpleLH{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
-    actuator::ParametersVector{_FUSEparameters__ActorSimpleLHactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleLHactuator{T}}()
-end
-
 Base.@kwdef mutable struct _FUSEparameters__ActorSimpleLHactuator{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -15,6 +8,13 @@ Base.@kwdef mutable struct _FUSEparameters__ActorSimpleLHactuator{T<:Real} <: Pa
     ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
     rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.8, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.05, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+end
+
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleLH{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    actuator::ParametersVector{_FUSEparameters__ActorSimpleLHactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleLHactuator{T}}()
 end
 
 mutable struct ActorSimpleLH{D,P} <: SingleAbstractActor{D,P}
