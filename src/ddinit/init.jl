@@ -1,5 +1,16 @@
 """
-    init(
+    init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; kw...)
+
+Like `init!(dd, ini, act)` function, but does not modify `ini` and `act`
+"""
+function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; kw...)
+    ini = deepcopy(ini)
+    act = deepcopy(act)
+    return init!(dd, ini, act; kw...)
+end
+
+"""
+    init!(
         dd::IMAS.dd,
         ini::ParametersAllInits,
         act::ParametersAllActors;
