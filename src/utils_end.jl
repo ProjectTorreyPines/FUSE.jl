@@ -297,7 +297,7 @@ end
         error::Any=nothing,
         timer::Bool=true,
         varinfo::Bool=false,
-        freeze::Bool=true,
+        freeze::Bool=false,
         format::Symbol=:json,
         overwrite_files::Bool=true)
 
@@ -317,7 +317,7 @@ function save(
     error::Any=nothing,
     timer::Bool=true,
     varinfo::Bool=false,
-    freeze::Bool=true,
+    freeze::Bool=false,
     format::Symbol=:json,
     overwrite_files::Bool=true)
 
