@@ -582,20 +582,7 @@ function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=tr
     end
 
     dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
-
-    # handle time
     dd.global_time = ini.time.simulation_start
-    for field in keys(dd)
-        ids = getproperty(dd, field)
-        # handle cases where someone forgot to fill the ids.time
-        if !isempty(ids) && ismissing(ids, :time)
-            ids.time = [dd.global_time]
-        end
-        # if IDS has a single time_slice we can retime it
-        if !ismissing(ids, :time) && length(ids.time) == 1
-            IMAS.retime!(ids, dd.global_time)
-        end
-    end
 
     return dd
 end
