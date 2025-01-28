@@ -232,9 +232,11 @@ function init!(
             end
         end
 
-        # trim any data before the first equilibrium since things are really not robust against that
+        # trim core_profiles data before the first equilibrium since things are really not robust against that
+        # also trim other IDSs not to go past equilibrium.time[end]
         if dd.equilibrium.time[1] != dd.equilibrium.time[end]
-            IMAS.trim_time!(dd, (dd.equilibrium.time[1], dd.equilibrium.time[end]));
+            IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]));
+            IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]));
         end
 
         return dd
