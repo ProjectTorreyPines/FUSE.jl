@@ -199,11 +199,11 @@ function equilibrium_control_points(
     elseif !isempty(pc.x_point)
         # we favor taking the x-points from the pulse schedule, if available
         for x_point in pc.x_point
-            r = @ddtime(x_point.r.reference)
+            r = IMAS.get_time_array(x_point.r, :reference, :constant)
             if r == 0.0 || isnan(r)
                 continue
             end
-            z = @ddtime(x_point.z.reference)
+            z = IMAS.get_time_array(x_point.z, :reference, :constant)
             push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(r, z, saddle_weight))
         end
     else
@@ -222,11 +222,11 @@ function equilibrium_control_points(
         # we favor taking the strike points from the pulse schedule, if available
         flux_control_points = VacuumFields.FluxControlPoint{T}[]
         for strike_point in pc.strike_point
-            r = @ddtime(strike_point.r.reference)
+            r = IMAS.get_time_array(strike_point.r, :reference, :constant)
             if r == 0.0 || isnan(r)
                 continue
             end
-            z = @ddtime(strike_point.z.reference)
+            z = IMAS.get_time_array(strike_point.z, :reference, :constant)
             push!(flux_control_points, VacuumFields.FluxControlPoint{T}(r, z, psib, strike_weight))
         end
     else

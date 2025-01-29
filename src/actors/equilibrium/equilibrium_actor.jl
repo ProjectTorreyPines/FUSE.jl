@@ -202,11 +202,12 @@ function prepare(actor::ActorEquilibrium)
     eqt.boundary.twist = @ddtime(pc.twist.reference)
 
     # x-points from position control
+    # NOTE: we use get_time_array(...,:constant) instead of @ddtime because x-points can suddenly jump
     if !isempty(getproperty(pc, :x_point, []))
         n = 0
         for k in eachindex(pc.x_point)
-            rx = @ddtime(pc.x_point[k].r.reference)
-            zx = @ddtime(pc.x_point[k].z.reference)
+            rx = IMAS.get_time_array(pc.x_point[k].r, :reference, :constant)
+            zx = IMAS.get_time_array(pc.x_point[k].z, :reference, :constant)
             if rx > 0.0 && !isnan(rx) && !isnan(zx)
                 n += 1
                 resize!(eqt.boundary.x_point, n)
@@ -217,11 +218,12 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # stike-points from position control
+    # NOTE: we use get_time_array(...,:constant) instead of @ddtime because strike-points can suddenly jump
     if !isempty(getproperty(pc, :strike_point, []))
         n = 0
         for k in eachindex(pc.strike_point)
-            rs = @ddtime(pc.strike_point[k].r.reference)
-            zs = @ddtime(pc.strike_point[k].z.reference)
+            rs = IMAS.get_time_array(pc.strike_point[k].r, :reference, :constant)
+            zs = IMAS.get_time_array(pc.strike_point[k].z, :reference, :constant)
             if rs > 0.0 && !isnan(rs) && !isnan(zs)
                 n += 1
                 resize!(eqt.boundary.strike_point, n)
