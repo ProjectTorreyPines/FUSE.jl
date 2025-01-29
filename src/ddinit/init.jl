@@ -227,8 +227,8 @@ function init!(
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, N)
             for k in 1:N
-                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Rxx) ? Rxx[k] : NaN for Rxx in RXX]).(pc.time)
-                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX]).(pc.time)
+                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
+                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
             end
         end
 
