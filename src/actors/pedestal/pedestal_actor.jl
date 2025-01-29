@@ -172,7 +172,12 @@ end
 Runs selected pedestal model this prevents code duplication for using different par.model settings
 """
 function run_selected_pedstal_model(actor::ActorPedestal)
+    dd = actor.dd
     par = actor.par
+
+    eq = dd.equilibrium
+    eqt = eq.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
     if par.density_match == :ne_ped
         finalize(step(actor.ped_actor))
 
