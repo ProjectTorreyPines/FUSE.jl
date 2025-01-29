@@ -309,6 +309,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 end
                 # make beam energy constant
                 ini.nb_unit[k].beam_energy = maximum(unit.energy.data)
+                ini.nb_unit[k].toroidal_angle = unit.beamlets_group[1].angle
             end
         end
 
