@@ -87,7 +87,6 @@ function case_parameters(::Type{Val{:D3D}};
         ods.save("$shot_ods_dir/D3D_$shot.json")
         toc = time.time()
         print(f"Saved in {toc-tic} seconds")
-
         """
         println(omas_py)
         open(joinpath(shot_ods_dir, "omas_data_fetch.py"), "w") do io
@@ -127,6 +126,12 @@ function case_parameters(::Type{Val{:D3D}};
         tt = ini.general.dd.equilibrium.time
         ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
         IMAS.flux_surfaces(ini.general.dd.equilibrium, IMAS.first_wall(ini.general.dd.wall)...)
+        ini.core_profiles.rot_core = 5E3
+        for cp1d in dd.core_profiles.profiles_1d
+            if ismissing(cp1d, :rotation_frequency_tor_sonic)
+                cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
+            end
+        end
     end
 
     ini.build.layers = OrderedCollections.OrderedDict(
