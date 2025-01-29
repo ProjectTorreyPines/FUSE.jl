@@ -62,7 +62,7 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    sol = run_EPED(dd, actor.inputs, actor.epedmod; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
     if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
@@ -129,11 +129,11 @@ function run_EPED(
 
     inputs = EPEDNN.InputEPED()
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return run_EPED(dd, inputs, epedmod; ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
+    return run_EPED!(dd, inputs, epedmod; ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
 end
 
 """
-    run_EPED(
+    run_EPED!(
         dd::IMAS.dd,
         eped_inputs::EPEDNN.InputEPED,
         epedmod::EPEDNN.EPED1NNmodel;
@@ -146,7 +146,7 @@ end
 
 Runs EPED from dd and outputs the EPED solution as the sol struct
 """
-function run_EPED(
+function run_EPED!(
     dd::IMAS.dd,
     eped_inputs::EPEDNN.InputEPED,
     epedmod::EPEDNN.EPED1NNmodel;
