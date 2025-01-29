@@ -198,6 +198,7 @@ function run_EPED(
     end
 
     eped_inputs.a = a
+    @assert !isnan(βn)
     eped_inputs.betan = βn
     eped_inputs.bt = Bt
     eped_inputs.delta = EPEDNN.effective_triangularity(δu, δl)
