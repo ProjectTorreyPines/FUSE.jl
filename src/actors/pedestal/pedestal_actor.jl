@@ -58,7 +58,7 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     eped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.rho_nml, par.rho_ped)
     wped_actor = ActorWPED(dd, act.ActorWPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.rho_ped, par.do_plot)
     none_actor = ActorNoOperation(dd, act.ActorNoOperation)
-    return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor, Symbol[], -1e10, -1e10, IMAS.core_profiles__profiles_1d())
+    return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor, Symbol[], -Inf, -Inf, IMAS.core_profiles__profiles_1d())
 end
 
 """
@@ -82,13 +82,12 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     elseif par.model == :WPED
         actor.ped_actor = actor.wped_actor
         run_selected_pedstal_model(actor)
-
     elseif par.model == :dynamic
         @assert par.ne_from == :pulse_schedule "Dyanmic requires ne_from pulse schedule"
 
         if IMAS.satisfies_h_mode_conditions(dd; threshold_multiple=2.0)
             push!(actor.state,:H_mode)
-        elseif IMAS.satisfies_h_mode_conditions(dd, threshold_multiple=1.0)
+        elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiple=1.0)
             push!(actor.state,:L_mode)
         else
             push!(actor.state,actor.state[end])
@@ -100,14 +99,22 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:H_mode, :L_mode] 
             # H to L
             actor.t_hl = dd.global_time
+
+            # The L to H and H to L model are triggered when hmode conditions are triggered so therefore pulse_schedule needs to be updated based on this model
+            if par.density_match == :ne_ped
+                @ddtime(dd.pulse_schedule.density_control.n_e_pedestal.reference =  @ddtime(dd.summary.local.pedestal.n_e.value))
+            elseif par.density_match == :ne_line
+                @ddtime(dd.pulse_schedule.density_control.n_e_line.reference =  IMAS.geometric_midplane_line_averaged_density(eqt, cp1d))
+            end
         end
 
         if actor.state[end] == :L_mode
-            α_t = 1 - LH_tanh_response(par.tau_t, dd.global_time,actor.t_hl;time_steps=100)
-            α_n = 1 - LH_tanh_response(par.tau_n, dd.global_time,actor.t_hl;time_steps=100)
+            α_t = LH_tanh_response(par.tau_t, dd.global_time,actor.t_hl;time_steps=100)
+            α_n = LH_tanh_response(par.tau_n, dd.global_time,actor.t_hl;time_steps=100)
 
             actor.ped_actor = actor.wped_actor
-            actor.ped_actor.density_factor = 1. - α_n * (1 - par.density_ratio_L_over_H).#α_n * density_ratio_L_over_H
+            actor.ped_actor.par.density_factor = 1. - α_n * (1 - par.density_ratio_L_over_H)
+
             run_selected_pedstal_model(actor)
 
             Te_ongoing = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+  α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
@@ -145,6 +152,9 @@ end
 Returns a parameter that follows a tanh like response where τ represent the value of 0.95 @ τ time starting from t_LH
 """
 function LH_tanh_response(τ::Float64,t_now::Float64, t_LH::Float64; time_steps::Int=100)
+    if isinf(t_LH)
+        return 0.0
+    end
     t, α = LH_tanh_response(τ, t_LH; time_steps)
     return maximum([minimum([IMAS.interp1d(t,α).(t_now),1.0]),0.0])
 end
