@@ -166,8 +166,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     time_x_points = [IMAS.x_points_inside_wall(eqt.boundary.x_point, dd1.wall) for eqt in dd1.equilibrium.time_slice]
                     upper = [any(x_point.z > eqt.boundary.geometric_axis.z for x_point in x_points) for x_points in time_x_points]
                     lower = [any(x_point.z < eqt.boundary.geometric_axis.z for x_point in x_points) for x_points in time_x_points]
-                    xpoints = Float64.(xpoints_bool_2_int.(upper, lower))
-                    ini.equilibrium.xpoints = t -> xpoints_int_2_symbol(Int(round(IMAS.interp1d(dd1.equilibrium.time, xpoints).(t))))
+                    xpoints = xpoints_int_2_symbol.(Int.(Float64.(xpoints_bool_2_int.(upper, lower))))
+                    ini.equilibrium.xpoints = TimeData(dd1.equilibrium.time, xpoints)
                 end
             end
         end

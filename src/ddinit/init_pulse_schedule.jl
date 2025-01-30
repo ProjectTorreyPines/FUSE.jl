@@ -269,33 +269,14 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     # NOTE: upper X-point always in first slot, lower X-point in second slot
     resize!(pc.x_point, 2; wipe=false)
     rxu = rxl = zxu = zxl = NaN
-    if length(mxhb.RX) == 0
-        # pass
-    elseif length(mxhb.RX) == 1
-        if mxhb.ZX[1] > mxhb.mxh.Z0
-            rxu = mxhb.RX[1]
-            zxu = mxhb.ZX[1]
+    for k in eachindex(mxhb.ZX)
+        if mxhb.ZX[k] > mxhb.mxh.Z0
+            rxu = mxhb.RX[k]
+            zxu = mxhb.ZX[k]
         else
-            rxl = mxhb.RX[1]
-            zxl = mxhb.ZX[1]
+            rxl = mxhb.RX[k]
+            zxl = mxhb.ZX[k]
         end
-    elseif length(mxhb.RX) == 2
-        if mxhb.ZX[1] > mxhb.mxh.Z0
-            rxu = mxhb.RX[1]
-            zxu = mxhb.ZX[1]
-        else
-            rxl = mxhb.RX[1]
-            zxl = mxhb.ZX[1]
-        end
-        if mxhb.ZX[2] > mxhb.mxh.Z0
-            rxu = mxhb.RX[2]
-            zxu = mxhb.ZX[2]
-        else
-            rxl = mxhb.RX[2]
-            zxl = mxhb.ZX[2]
-        end
-    #else
-    #    error("cannot handle more than two X-points")
     end
     IMAS.set_time_array(pc.x_point[1].r, :reference, time0, rxu)
     IMAS.set_time_array(pc.x_point[1].z, :reference, time0, zxu)
