@@ -325,10 +325,6 @@ function localhost_memory()
     if Sys.isapple()
         cmd = `sysctl hw.memsize` # for OSX
         mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3 # GiB
-    elseif Sys.isunix()
-        # General Unix command (including macOS and Linux)
-        cmd = `free -b` # get memory in bytes
-        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3 # GiB
     elseif Sys.iswindows()
         # Windows command
         cmd = `powershell -Command "Get-CimInstance Win32_ComputerSystem | Select-Object -ExpandProperty TotalPhysicalMemory"`
@@ -338,6 +334,10 @@ function localhost_memory()
         # Linux-specific command
         cmd = `grep MemTotal /proc/meminfo`
         mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^2 # GiB
+    elseif Sys.isunix()
+        # General Unix command (including macOS and Linux)
+        cmd = `free -b` # get memory in bytes
+        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3 # GiB
     else
         error("couldn't determine the mem_size")
     end
