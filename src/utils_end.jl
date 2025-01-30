@@ -820,13 +820,13 @@ function get_julia_process_memory_usage()
         cmd = `powershell -Command "(Get-Process -Id $pid).WorkingSet64"`
         mem_bytes_str = readchomp(cmd)
         mem_bytes = parse(Int, mem_bytes_str)
-        return mem_bytes        
     else
         pid = getpid()
         mem_info = read(`ps -p $pid -o rss=`, String)
         mem_usage_kb = parse(Int, strip(mem_info))
+        mem_bytes = mem_usage_kb * 1024
     end
-    return mem_usage_kb * 1024
+    return mem_bytes::Int
 end
 
 
@@ -1019,7 +1019,7 @@ function install_fusebot(folder::String)
     target_path = joinpath(folder, "fusebot")
     @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
-    println("`fusebot` has been successfully installed: $target_path")
+    return println("`fusebot` has been successfully installed: $target_path")
 end
 
 """

@@ -334,10 +334,6 @@ function localhost_memory()
         # Linux-specific command
         cmd = `grep MemTotal /proc/meminfo`
         mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^2 # GiB
-    elseif Sys.isunix()
-        # General Unix command (including macOS and Linux)
-        cmd = `free -b` # get memory in bytes
-        mem_size = parse(Int, match(r"\d+", readchomp(cmd)).match) / 1024^3 # GiB
     else
         error("couldn't determine the mem_size")
     end

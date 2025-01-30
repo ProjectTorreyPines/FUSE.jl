@@ -32,11 +32,7 @@ function optimization_engine(
 
     # create working directory
     original_dir = pwd()
-    if Sys.iswindows()
-        savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))        
-    else
-        savedir = abspath(joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())"))
-    end
+    savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))        
     mkdir(savedir)
     cd(savedir)
 
