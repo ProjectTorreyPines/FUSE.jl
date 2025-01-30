@@ -52,7 +52,8 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     ζ::Entry{T} = Entry{T}("-", "Squareness of the plasma boundary [MXH -s2]"; default=0.0)
     𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary [MXH c1]"; default=0.0)
     twist::Entry{T} = Entry{T}("-", "Twist of the plasma boundary [MXH c2]"; default=0.0)
-    pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure (NOTE: `pressure_core` can be calculated from `ini.core_profiles.Te_core`)"; check=x -> @assert x > 0.0 "must be: P > 0.0")
+    pressure_core::Entry{T} =
+        Entry{T}("Pa", "On axis pressure (NOTE: `pressure_core` can be calculated from `ini.core_profiles.Te_core`)"; check=x -> @assert x > 0.0 "must be: P > 0.0")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the equilibrium grid"; default=129)
@@ -94,7 +95,8 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     Te_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     Te_sep::Entry{T} = Entry{T}("eV", "Separatrix temperature"; default=80.0, check=x -> @assert x > 0.0 "must be: Te_sep > 0.0")
     Te_ped::Entry{T} = Entry{T}("eV", "Pedestal temperature"; check=x -> @assert x > 0.0 "must be: Te_ped > 0.0")
-    Te_core::Entry{T} = Entry{T}("eV", "Core temperature (NOTE: `Te_core` can be calculated from `ini.equilibrium.presssure_core`)"; check=x -> @assert x > 0.0 "must be: Te_core > 0.0")
+    Te_core::Entry{T} =
+        Entry{T}("eV", "Core temperature (NOTE: `Te_core` can be calculated from `ini.equilibrium.presssure_core`)"; check=x -> @assert x > 0.0 "must be: Te_core > 0.0")
     zeff::Entry{T} = Entry{T}("-", "Effective ion charge"; check=x -> @assert x >= 1.0 "must be: zeff > 1.0")
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
@@ -102,7 +104,8 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
-    polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= polarized_fuel_fraction <= 1.0")
+    polarized_fuel_fraction::Entry{T} =
+        Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= polarized_fuel_fraction <= 1.0")
     ITB::FUSEparameters__ITB{T} = FUSEparameters__ITB{T}()
 end
 
@@ -690,11 +693,14 @@ Plots ini time dependent time traces including plasma boundary
     if !cx
         N = 0
         for par in SimulationParameters.leaves(ini)
-            if typeof(par.value) <: Function
+            if typeof(par.value) <: Union{TimeData,Function}
                 N += 1
             end
         end
         layout := @layout [N + 1]
+        w = max(600, Int(ceil(300 * sqrt(N))))
+        h = max(400, Int(ceil(200 * sqrt(N))))
+        size --> (w, h)
     end
 
     time_bkp = ini.time.simulation_start
@@ -723,7 +729,7 @@ Plots ini time dependent time traces including plasma boundary
             # plot time dependent parameters
             k = 1
             for par in SimulationParameters.leaves(ini)
-                if typeof(par.value) <: Function
+                if typeof(par.value) <: Union{TimeData,Function}
                     k += 1
                     @series begin
                         label := ""

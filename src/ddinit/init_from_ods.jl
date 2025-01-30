@@ -22,7 +22,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.B0 = @ddtime(dd1.equilibrium.vacuum_toroidal_field.b0)
                 else
-                    ini.equilibrium.B0 = t -> IMAS.moving_average(dd1.equilibrium.time, dd1.equilibrium.vacuum_toroidal_field.b0, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.B0 = TimeData(dd1.equilibrium.time, dd1.equilibrium.vacuum_toroidal_field.b0)
                 end
             end
             if ismissing(ini.equilibrium, :R0)
@@ -34,16 +34,14 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.pressure_core = eqt.profiles_1d.pressure[1]
                 else
-                    pressure_core = [eqt.profiles_1d.pressure[1] for eqt in dd1.equilibrium.time_slice]
-                    ini.equilibrium.pressure_core = t -> IMAS.moving_average(dd1.equilibrium.time, pressure_core, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.pressure_core = TimeData(dd1.equilibrium.time, [eqt.profiles_1d.pressure[1] for eqt in dd1.equilibrium.time_slice])
                 end
             end
             if ismissing(ini.equilibrium, :ip) && !ismissing(eqt.global_quantities, :ip)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.ip = eqt.global_quantities.ip
                 else
-                    ip = [eqt.global_quantities.ip for eqt in dd1.equilibrium.time_slice]
-                    ini.equilibrium.ip = t -> IMAS.moving_average(dd1.equilibrium.time, ip, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.ip = TimeData(dd1.equilibrium.time, [eqt.global_quantities.ip for eqt in dd1.equilibrium.time_slice])
                 end
             end
 
@@ -54,20 +52,19 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 mxh = nothing
                 mxhs = nothing
             end
+
             if ismissing(ini.equilibrium, :ϵ)
                 if mxhs !== nothing
                     if ismissing(ini.time, :pulse_shedule_time_basis)
                         ini.equilibrium.ϵ = mxh.ϵ
                     else
-                        ϵ = [mxh.ϵ for mxh in mxhs]
-                        ini.equilibrium.ϵ = t -> IMAS.moving_average(dd1.equilibrium.time, ϵ, t, ini.time.pulse_shedule_time_basis.step)
+                        ini.equilibrium.ϵ = TimeData(dd1.equilibrium.time, [mxh.ϵ for mxh in mxhs])
                     end
                 elseif !ismissing(eqt.boundary, :minor_radius)
                     if ismissing(ini.time, :pulse_shedule_time_basis)
                         ini.equilibrium.ϵ = eqt.boundary.minor_radius / ini.equilibrium.R0
                     else
-                        data = [eqt.boundary.minor_radius / ini.equilibrium.R0 for eqt in dd1.equilibrium.time_slice]
-                        ini.equilibrium.ϵ = t -> IMAS.moving_average(dd1.equilibrium.time, data, t, ini.time.pulse_shedule_time_basis.step)
+                        ini.equilibrium.ϵ = TimeData(dd1.equilibrium.time, [eqt.boundary.minor_radius / ini.equilibrium.R0 for eqt in dd1.equilibrium.time_slice])
                     end
                 end
             end
@@ -76,91 +73,85 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     if ismissing(ini.time, :pulse_shedule_time_basis)
                         ini.equilibrium.κ = mxh.κ
                     else
-                        κ = [mxh.κ for mxh in mxhs]
-                        ini.equilibrium.κ = t -> IMAS.moving_average(dd1.equilibrium.time, κ, t, ini.time.pulse_shedule_time_basis.step)
+                        ini.equilibrium.κ = TimeData(dd1.equilibrium.time, [mxh.κ for mxh in mxhs])
                     end
                 elseif !ismissing(eqt.boundary, :elongation)
                     if ismissing(ini.time, :pulse_shedule_time_basis)
                         ini.equilibrium.κ = eqt.boundary.elongation
                     else
-                        elongation = [eqt.boundary.elongation for eqt in dd1.equilibrium.time_slice]
-                        ini.equilibrium.κ = t -> IMAS.moving_average(dd1.equilibrium.time, elongation, t, ini.time.pulse_shedule_time_basis.step)
+                        ini.equilibrium.κ = TimeData(dd1.equilibrium.time, [eqt.boundary.elongation for eqt in dd1.equilibrium.time_slice])
                     end
                 end
             end
+
             if mxhs !== nothing
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.tilt = mxh.tilt
                 else
-                    tilt = [mxh.tilt for mxh in mxhs]
-                    ini.equilibrium.tilt = t -> IMAS.moving_average(dd1.equilibrium.time, tilt, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.tilt = TimeData(dd1.equilibrium.time, [mxh.tilt for mxh in mxhs])
                 end
             elseif !ismissing(eqt.boundary, :tilt)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.tilt = eqt.boundary.tilt
                 else
-                    tilt = [eqt.boundary.tilt for eqt in dd1.equilibrium.time_slice]
-                    ini.equilibrium.tilt = t -> IMAS.moving_average(dd1.equilibrium.time, tilt, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.tilt = TimeData(dd1.equilibrium.time, [eqt.boundary.tilt for eqt in dd1.equilibrium.time_slice])
                 end
             end
+
             if mxhs !== nothing
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.δ = mxh.δ
                 else
-                    δ = [mxh.δ for mxh in mxhs]
-                    ini.equilibrium.δ = t -> IMAS.moving_average(dd1.equilibrium.time, δ, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.δ = TimeData(dd1.equilibrium.time, [mxh.δ for mxh in mxhs])
                 end
             elseif !ismissing(eqt.boundary, :triangularity)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.δ = eqt.boundary.triangularity
                 else
-                    triangularity = [eqt.boundary.triangularity for eqt in dd1.equilibrium.time_slice]
-                    ini.equilibrium.δ = t -> IMAS.moving_average(dd1.equilibrium.time, triangularity, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.δ = TimeData(dd1.equilibrium.time, [eqt.boundary.triangularity for eqt in dd1.equilibrium.time_slice])
                 end
             end
+
             if mxhs !== nothing
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.ζ = mxh.ζ
                 else
                     ζ = [mxh.ζ for mxh in mxhs]
-                    ini.equilibrium.ζ = t -> IMAS.moving_average(dd1.equilibrium.time, ζ, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.ζ = TimeData(dd1.equilibrium.time, ζ)
                 end
             elseif !ismissing(eqt.boundary, :squareness)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.ζ = eqt.boundary.squareness
                 else
-                    squareness = [eqt.boundary.squareness for eqt in dd1.equilibrium.time_slice]
-                    ini.equilibrium.ζ = t -> IMAS.moving_average(dd1.equilibrium.time, squareness, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.ζ = TimeData(dd1.equilibrium.time, [eqt.boundary.squareness for eqt in dd1.equilibrium.time_slice])
                 end
             end
+
             if mxhs !== nothing
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.𝚶 = mxh.𝚶
                 else
-                    𝚶 = [mxh.𝚶 for mxh in mxhs]
-                    ini.equilibrium.𝚶 = t -> IMAS.moving_average(dd1.equilibrium.time, 𝚶, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.𝚶 = TimeData(dd1.equilibrium.time, [mxh.𝚶 for mxh in mxhs])
                 end
             elseif !ismissing(eqt.boundary, :ovality)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.𝚶 = eqt.boundary.ovality
                 else
-                    ovality = [eqt.boundary.ovality for eqt in dd1.equilibrium.time_slice]
-                    ini.equilibrium.𝚶 = t -> IMAS.moving_average(dd1.equilibrium.time, ovality, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.𝚶 = TimeData(dd1.equilibrium.time, [eqt.boundary.ovality for eqt in dd1.equilibrium.time_slice])
                 end
             end
+
             if mxhs !== nothing
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.twist = mxh.twist
                 else
-                    twist = [mxh.twist for mxh in mxhs]
-                    ini.equilibrium.twist = t -> IMAS.moving_average(dd1.equilibrium.time, twist, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.twist = TimeData(dd1.equilibrium.time, [mxh.twist for mxh in mxhs])
                 end
             elseif !ismissing(eqt.boundary, :twist)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.equilibrium.twist = eqt.boundary.twist
                 else
-                    twist = [eqt.boundary.twist for eqt in dd1.equilibrium.time_slice]
-                    ini.equilibrium.twist = t -> IMAS.moving_average(dd1.equilibrium.time, twist, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.equilibrium.twist = TimeData(dd1.equilibrium.time, [eqt.boundary.twist for eqt in dd1.equilibrium.time_slice])
                 end
             end
 
@@ -219,45 +210,50 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
             end
             if ismissing(ini.core_profiles, :ne_setting) && ismissing(ini.core_profiles, :ne_value)
                 ini.core_profiles.ne_setting = :ne_ped
+                @assert !any(isnan.(NE_PED))
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.core_profiles.ne_value = NE_PED[1]
                 else
-                    ini.core_profiles.ne_value = t -> IMAS.moving_average(time, NE_PED, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.core_profiles.ne_value = TimeData(time, NE_PED)
                 end
             end
             if ismissing(ini.core_profiles, :w_ped)
+                @assert !any(isnan.(W_PED))
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.core_profiles.w_ped = W_PED[1]
                 else
-                    ini.core_profiles.w_ped = t -> IMAS.moving_average(time, W_PED, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.core_profiles.w_ped = TimeData(time, W_PED)
                 end
             end
             if ismissing(ini.core_profiles, :zeff)
+                @assert !any(isnan.(ZEFF))
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.core_profiles.zeff = ZEFF[1]
                 else
-                    ini.core_profiles.zeff = t -> IMAS.moving_average(time, ZEFF, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.core_profiles.zeff = TimeData(time, ZEFF)
                 end
             end
             if ismissing(ini.core_profiles, :Ti_Te_ratio)
+                @assert !any(isnan.(TI_TE_RATIO))
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.core_profiles.Ti_Te_ratio = TI_TE_RATIO[1]
                 else
-                    ini.core_profiles.Ti_Te_ratio = t -> IMAS.moving_average(time, TI_TE_RATIO, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.core_profiles.Ti_Te_ratio = TimeData(time, TI_TE_RATIO)
                 end
             end
             if ismissing(ini.core_profiles, :Te_core)
+                @assert !any(isnan.(TE_CORE))
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.core_profiles.Te_core = TE_CORE[1]
                 else
-                    ini.core_profiles.Te_core = t -> IMAS.moving_average(time, TE_CORE, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.core_profiles.Te_core = TimeData(time, TE_CORE)
                 end
             end
             if ismissing(ini.core_profiles, :ejima) && !ismissing(dd1.core_profiles.global_quantities, :ejima)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.core_profiles.ejima = @ddtime dd1.core_profiles.global_quantities.ejima
                 else
-                    ini.core_profiles.ejima = t -> IMAS.moving_average(dd1.core_profiles.time, dd1.core_profiles.global_quantities.ejima, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.core_profiles.ejima = TimeData(dd1.core_profiles.time, dd1.core_profiles.global_quantities.ejima)
                 end
             end
         end
@@ -269,7 +265,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.ec_launcher[k].power_launched = @ddtime beam.power_launched.data
                 else
-                    ini.ec_launcher[k].power_launched = t -> IMAS.moving_average(beam.power_launched.time, beam.power_launched.data, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.ec_launcher[k].power_launched = TimeData(beam.power_launched.time, beam.power_launched.data)
                 end
             end
         end
@@ -281,7 +277,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.ic_antenna[k].power_launched = @ddtime antenna.power_launched.data
                 else
-                    ini.ic_antenna[k].power_launched = t -> IMAS.moving_average(antenna.power_launched.time, antenna.power_launched.data, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.ic_antenna[k].power_launched = TimeData(antenna.power_launched.time, antenna.power_launched.data)
                 end
             end
         end
@@ -293,7 +289,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.lh_antenna[k].power_launched = @ddtime antenna.power_launched.data
                 else
-                    ini.lh_antenna[k].power_launched = t -> IMAS.moving_average(antenna.power_launched.time, antenna.power_launched.data, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.lh_antenna[k].power_launched = TimeData(antenna.power_launched.time, antenna.power_launched.data)
                 end
             end
         end
@@ -305,7 +301,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.nb_unit[k].power_launched = @ddtime unit.power_launched.data
                 else
-                    ini.nb_unit[k].power_launched = t -> IMAS.moving_average(unit.power_launched.time, unit.power_launched.data, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.nb_unit[k].power_launched = TimeData(unit.power_launched.time, unit.power_launched.data)
                 end
                 # make beam energy constant
                 ini.nb_unit[k].beam_energy = maximum(unit.energy.data)
@@ -320,7 +316,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.pellet_launcher[k].frequency = @ddtime launcher.frequency.data
                 else
-                    ini.pellet_launcher[k].frequency = t -> IMAS.moving_average(launcher.frequency.time, launcher.frequency.data, t, ini.time.pulse_shedule_time_basis.step)
+                    ini.pellet_launcher[k].frequency = TimeData(launcher.frequency.time, launcher.frequency.data)
                 end
             end
         end

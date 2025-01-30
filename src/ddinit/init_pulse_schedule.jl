@@ -6,7 +6,7 @@
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_time_traces::Float64=0.0001)
+function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_equilibrium_time_traces::Float64=0.0001)
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
@@ -18,7 +18,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
         if init_from == :ods && IMAS.hasdata(ps1.flux_control)
             ps.flux_control = deepcopy(ps1.flux_control)
         else
-            time, data = get_time_dependent(ini.equilibrium, :ip; simplify_time_traces)
+            time, data = get_time_dependent(ini.equilibrium, :ip)
             ps.flux_control.time = time
             ps.flux_control.i_plasma.reference = data
         end
@@ -31,7 +31,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             if !isempty(dd.build.layer)
                 plasma = IMAS.get_build_layer(dd.build.layer; type=_plasma_)
                 R0 = (plasma.start_radius + plasma.end_radius) / 2.0
-            elseif typeof(getfield(ini.equilibrium, :R0).value) <: Function
+            elseif typeof(getfield(ini.equilibrium, :R0).value) <: Union{Function,TimeData}
                 error("`ini.equilibrium.R0` should not be time dependent")
             else
                 mxhb = MXHboundary(ini, dd1)
@@ -39,7 +39,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             end
 
             # B0
-            time, data = get_time_dependent(ini.equilibrium, :B0; simplify_time_traces)
+            time, data = get_time_dependent(ini.equilibrium, :B0)
             ps.tf.time = time
             ps.tf.b_field_tor_vacuum.reference = data
             ps.tf.r0 = R0
@@ -49,7 +49,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
         if init_from == :ods && IMAS.hasdata(ps1.position_control)
             ps.position_control = deepcopy(ps1.position_control)
         else
-            time, _ = get_time_dependent(ini.equilibrium, [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :tilt, :𝚶, :xpoints, :MXH_params, :rz_points]; simplify_time_traces)
+            time, _ = get_time_dependent(ini.equilibrium, [:R0, :Z0, :ϵ, :κ, :δ, :ζ, :tilt, :𝚶, :xpoints, :MXH_params, :rz_points])
             if !ismissing(ini.rampup, :ends_at)
                 time = filter(t -> t > ini.rampup.ends_at, time)
                 pushfirst!(time, ini.rampup.ends_at)
@@ -103,7 +103,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
         if init_from == :ods && IMAS.hasdata(ps1.density_control)
             ps.density_control = deepcopy(ps1.density_control)
         else
-            time, data = get_time_dependent(ini.core_profiles, [:zeff, :ne_value]; simplify_time_traces)
+            time, data = get_time_dependent(ini.core_profiles, [:zeff, :ne_value])
             dd.pulse_schedule.density_control.time = time
             dd.pulse_schedule.density_control.zeff.reference = data.zeff
             dd.pulse_schedule.density_control.zeff_pedestal.reference = data.zeff
@@ -124,7 +124,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.ec = deepcopy(ps1.ec)
         else
             resize!(ps.ec.beam, length(ini.ec_launcher))
-            time, powers_launched = get_time_dependent(ini.ec_launcher, :power_launched; simplify_time_traces)
+            time, powers_launched = get_time_dependent(ini.ec_launcher, :power_launched)
             ps.ec.time = time
             for k in eachindex(ini.ec_launcher)
                 ps.ec.beam[k].power_launched.reference = powers_launched[k]
@@ -136,7 +136,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.ic = deepcopy(ps1.ic)
         else
             resize!(ps.ic.antenna, length(ini.ic_antenna))
-            time, powers_launched = get_time_dependent(ini.ic_antenna, :power_launched; simplify_time_traces)
+            time, powers_launched = get_time_dependent(ini.ic_antenna, :power_launched)
             ps.ic.time = time
             for k in eachindex(ini.ic_antenna)
                 ps.ic.antenna[k].power.reference = powers_launched[k]
@@ -148,7 +148,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.lh = deepcopy(ps1.lh)
         else
             resize!(ps.lh.antenna, length(ini.lh_antenna))
-            time, powers_launched = get_time_dependent(ini.lh_antenna, :power_launched; simplify_time_traces)
+            time, powers_launched = get_time_dependent(ini.lh_antenna, :power_launched)
             ps.lh.time = time
             for k in eachindex(ini.lh_antenna)
                 ps.lh.antenna[k].power.reference = powers_launched[k]
@@ -160,7 +160,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.nbi = deepcopy(ps1.nbi)
         else
             resize!(ps.nbi.unit, length(ini.nb_unit))
-            time, powers_launched = get_time_dependent(ini.nb_unit, :power_launched; simplify_time_traces)
+            time, powers_launched = get_time_dependent(ini.nb_unit, :power_launched)
             energies = [nb_unit.beam_energy for nb_unit in ini.nb_unit]
             ps.nbi.time = time
             for k in eachindex(ini.nb_unit)
@@ -174,7 +174,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.pellet = deepcopy(ps1.pellet)
         else
             resize!(ps.pellet.launcher, length(ini.pellet_launcher))
-            time, frequencies = get_time_dependent(ini.pellet_launcher, :frequency; simplify_time_traces)
+            time, frequencies = get_time_dependent(ini.pellet_launcher, :frequency)
             ps.pellet.time = time
             for k in eachindex(ini.pellet_launcher)
                 ps.pellet.launcher[k].frequency.reference = frequencies[k]
@@ -185,44 +185,35 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
     end
 end
 
-function get_time_dependent(par::AbstractParameters, field::Symbol; simplify_time_traces::Float64)
-    @assert 0.0 <= simplify_time_traces <= 1.0 "get_time_dependent() simplify_time_traces must be between [0,1]"
-
+function get_time_dependent(par::AbstractParameters, field::Symbol)
     value = getfield(par, field).value
 
     # if it is a time dependent quantity
-    if typeof(value) <: Function
+    if typeof(value) <: TimeData
+        time = value.time
+        data = value.data
+    elseif typeof(value) <: Function
         time = time_range = collect(SimulationParameters.time_range(par))
         data = value.(time_range)
         if !(eltype(data) <: Number)
             data, mapping = SimulationParameters.encode_array(data)
-            if simplify_time_traces != 0.0
-                time, data = IMAS.simplify_2d_path(time_range, Float64.(data), simplify_time_traces)
-            end
             data = [mapping[Int(d)] for d in data]
-        elseif simplify_time_traces != 0.0
-            time, data = IMAS.simplify_2d_path(time_range, data, simplify_time_traces)
         end
 
         # if it is a constant
     else
-        if simplify_time_traces != 0.0 || isempty(SimulationParameters.time_range(par))
-            time = Float64[-Inf, SimulationParameters.global_time(par), Inf]
-            data = [value, value, value]
-        else
-            time = SimulationParameters.time_range(par)
-            data = fill(value, length(time))
-        end
+        time = Float64[-Inf, SimulationParameters.global_time(par), Inf]
+        data = [value, value, value]
     end
 
     return time, data
 end
 
-function get_time_dependent(pars::ParametersVector, field::Symbol; simplify_time_traces::Float64)
+function get_time_dependent(pars::ParametersVector, field::Symbol)
     all_times = Float64[]
 
     for par in pars
-        time, data = get_time_dependent(par, field; simplify_time_traces)
+        time, data = get_time_dependent(par, field)
         append!(all_times, time)
     end
 
@@ -231,11 +222,11 @@ function get_time_dependent(pars::ParametersVector, field::Symbol; simplify_time
     return all_times, [get_time_dependent(par, field, all_times) for par in pars]
 end
 
-function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol}; simplify_time_traces::Float64)
+function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol})
     all_times = Float64[]
 
     for field in fields
-        time, data = get_time_dependent(par, field; simplify_time_traces)
+        time, data = get_time_dependent(par, field)
         append!(all_times, time)
     end
 
@@ -247,7 +238,7 @@ end
 function get_time_dependent(par::AbstractParameters, field::Symbol, all_times::Vector{Float64})
     value = getfield(par, field).value
 
-    if typeof(value) <: Function
+    if typeof(value) <: Union{Function, TimeData}
         time = collect(SimulationParameters.time_range(par))
         data = value.(time)
         if !(eltype(data) <: Number)
@@ -303,8 +294,8 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
             rxl = mxhb.RX[2]
             zxl = mxhb.ZX[2]
         end
-    else
-        error("cannot handle more than two X-points")
+    #else
+    #    error("cannot handle more than two X-points")
     end
     IMAS.set_time_array(pc.x_point[1].r, :reference, time0, rxu)
     IMAS.set_time_array(pc.x_point[1].z, :reference, time0, zxu)
