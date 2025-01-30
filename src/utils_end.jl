@@ -114,7 +114,7 @@ macro checkout(key, vars...)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
         else
-            throw(KeyError($key))
+            throw(Exception("Checkpoint `$key` does not exist"))
         end
         nothing
     end
