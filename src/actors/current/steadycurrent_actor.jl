@@ -64,7 +64,7 @@ function _step(actor::ActorSteadyStateCurrent)
 
         j_diffusion_time = IMAS.mks.μ_0 .* eqt.boundary.minor_radius .^ 2.0 .* cp1d.conductivity_parallel
 
-        time = IMAS.interp1d(rho_tor_norm, j_diffusion_time).(par.current_relaxation_radius)
+        time = IMAS.interp1d(rho_tor_norm, j_diffusion_time).(par.current_relaxation_radius) .+ 0.1 ./ par.current_relaxation_radius
         alpha = 1.0 .- exp.(-time ./ j_diffusion_time)
 
         interp_j = relaxed_j_ohmic .* alpha .+ initial_j_ohmic .* (1.0 .- alpha)
