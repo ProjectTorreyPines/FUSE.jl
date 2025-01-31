@@ -124,8 +124,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.ec = deepcopy(ps1.ec)
         else
             resize!(ps.ec.beam, length(ini.ec_launcher))
-            time, powers_launched = get_time_dependent(ini.ec_launcher, :power_launched)
-            ps.ec.time = time
+            ps.ec.time, powers_launched = get_time_dependent(ini.ec_launcher, :power_launched)
             for k in eachindex(ini.ec_launcher)
                 ps.ec.beam[k].power_launched.reference = powers_launched[k]
             end
@@ -136,8 +135,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.ic = deepcopy(ps1.ic)
         else
             resize!(ps.ic.antenna, length(ini.ic_antenna))
-            time, powers_launched = get_time_dependent(ini.ic_antenna, :power_launched)
-            ps.ic.time = time
+            ps.ic.time, powers_launched = get_time_dependent(ini.ic_antenna, :power_launched)
             for k in eachindex(ini.ic_antenna)
                 ps.ic.antenna[k].power.reference = powers_launched[k]
             end
@@ -148,8 +146,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.lh = deepcopy(ps1.lh)
         else
             resize!(ps.lh.antenna, length(ini.lh_antenna))
-            time, powers_launched = get_time_dependent(ini.lh_antenna, :power_launched)
-            ps.lh.time = time
+            ps.lh.time, powers_launched = get_time_dependent(ini.lh_antenna, :power_launched)
             for k in eachindex(ini.lh_antenna)
                 ps.lh.antenna[k].power.reference = powers_launched[k]
             end
@@ -160,9 +157,8 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.nbi = deepcopy(ps1.nbi)
         else
             resize!(ps.nbi.unit, length(ini.nb_unit))
-            time, powers_launched = get_time_dependent(ini.nb_unit, :power_launched)
+            ps.nbi.time, powers_launched = get_time_dependent(ini.nb_unit, :power_launched)
             energies = [nb_unit.beam_energy for nb_unit in ini.nb_unit]
-            ps.nbi.time = time
             for k in eachindex(ini.nb_unit)
                 ps.nbi.unit[k].power.reference = powers_launched[k]
                 ps.nbi.unit[k].energy.reference = fill(energies[k], size(time))
@@ -174,8 +170,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             ps.pellet = deepcopy(ps1.pellet)
         else
             resize!(ps.pellet.launcher, length(ini.pellet_launcher))
-            time, frequencies = get_time_dependent(ini.pellet_launcher, :frequency)
-            ps.pellet.time = time
+            ps.pellet.time, frequencies = get_time_dependent(ini.pellet_launcher, :frequency)
             for k in eachindex(ini.pellet_launcher)
                 ps.pellet.launcher[k].frequency.reference = frequencies[k]
             end
@@ -210,16 +205,13 @@ function get_time_dependent(par::AbstractParameters, field::Symbol)
 end
 
 function get_time_dependent(pars::ParametersVector, field::Symbol)
-    all_times = Float64[]
-
-    for par in pars
-        time, data = get_time_dependent(par, field)
-        append!(all_times, time)
+    if isempty(pars)
+        return Float64[], Float64[]
+    else
+        all_times = getfield(pars[1], field).value.time
+        data = [getfield(par, field).value.data for par in pars]
+        return all_times, data
     end
-
-    all_times = sort!(unique(all_times))
-
-    return all_times, [get_time_dependent(par, field, all_times) for par in pars]
 end
 
 function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol})
