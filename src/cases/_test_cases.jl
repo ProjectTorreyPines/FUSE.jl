@@ -100,6 +100,16 @@ function test(dd::IMAS.DD, args...; kw...)
         FUSE.ActorWholeFacility(dd, act)
     end
 
+    return (dd=dd, ini=ini, act=act)
+end
+
+function test_ini_act_save_load(args...; kw...)
+    ini, act = FUSE.case_parameters(args...; kw...)
+
+    Test.@testset "init" begin
+        FUSE.init(dd, ini, act)
+    end
+
     Test.@testset "ini_dict" begin
         FUSE.dict2ini(FUSE.ini2dict(ini))
     end
@@ -130,7 +140,7 @@ function test(dd::IMAS.DD, args...; kw...)
         act2 = FUSE.SimulationParameters.jstr2par(act_str, FUSE.ParametersActors())
     end
 
-    return (dd=dd, ini=ini, act=act)
+    return (ini=ini, act=act)
 end
 
 function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
