@@ -4,7 +4,7 @@ using Test
 @testset "warmup" begin
     for round in ("before_compile", "after_compile")
         println("== warmup_$(round) ==")
-        TimerOutputs.@timeit timer "warmup_$(round)" begin
+        FUSE.TimerOutputs.@timeit timer "warmup_$(round)" begin
             dd = IMAS.dd()
             @test begin
                 FUSE.warmup(dd)
