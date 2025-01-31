@@ -197,12 +197,14 @@ function _step(actor::ActorFluxMatcher)
                 show_zeros=true
             )
             for model in dd.core_transport.model
-                if model.identifier.index == model_type[:anomalous]
-                    plot_opts = Dict(:markershape => :diamond, :markerstrokewidth => 0.5, :linewidth => 0, :color => :orange)
-                elseif model.identifier.index == model_type[:neoclassical]
-                    plot_opts = Dict(:markershape => :cross, :linewidth => 0, :color => :purple)
+                if !ismissing(IMAS.goto(model.profiles_1d[], fluxes_path), :flux)
+                    if model.identifier.index == model_type[:anomalous]
+                        plot_opts = Dict(:markershape => :diamond, :markerstrokewidth => 0.5, :linewidth => 0, :color => :orange)
+                    elseif model.identifier.index == model_type[:neoclassical]
+                        plot_opts = Dict(:markershape => :cross, :linewidth => 0, :color => :purple)
+                    end
+                    plot!(IMAS.goto(model.profiles_1d[], fluxes_path), Val(:flux); subplot=2 * ch - 1, plot_opts...)
                 end
-                plot!(IMAS.goto(model.profiles_1d[], fluxes_path), Val(:flux); subplot=2 * ch - 1, plot_opts...)
             end
             plot!(IMAS.goto(tot_fluxes, fluxes_path), Val(:flux); subplot=2 * ch - 1, color=:red, label="total transport", linewidth=2)
 
@@ -267,7 +269,7 @@ function profiles_title(cp1d, profiles_path)
         else
             return "Electron density"
         end
-    elseif profiles_path[1] == :momentum_tor
+    elseif profiles_path[1] == :rotation_frequency_tor_sonic
         return "Rotation"
     elseif profiles_path[1] == :t_i_average
         return "Ions temperature"
@@ -620,7 +622,7 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     if par.evolve_rotation == :flux_match
         z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :third_order)[cp_gridpoints]
         append!(z_profiles, z_rot)
-        push!(profiles_paths, (:momentum_tor,))
+        push!(profiles_paths, (:rotation_frequency_tor_sonic,))
         push!(fluxes_paths, (:momentum_tor,))
     end
 
