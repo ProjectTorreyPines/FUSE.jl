@@ -205,13 +205,15 @@ function get_time_dependent(par::AbstractParameters, field::Symbol)
 end
 
 function get_time_dependent(pars::ParametersVector, field::Symbol)
-    if isempty(pars)
-        return Float64[], Float64[]
-    else
-        all_times = getfield(pars[1], field).value.time
-        data = [getfield(par, field).value.data for par in pars]
-        return all_times, data
+    all_times = Float64[]
+
+    for par in pars
+        time, data = get_time_dependent(par, field)
+        append!(all_times, time)
+        all_times = sort!(unique(all_times))
     end
+
+    return all_times, [get_time_dependent(par, field, all_times) for par in pars]
 end
 
 function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol})
@@ -220,9 +222,8 @@ function get_time_dependent(par::AbstractParameters, fields::Vector{Symbol})
     for field in fields
         time, data = get_time_dependent(par, field)
         append!(all_times, time)
+        all_times = sort!(unique(all_times))
     end
-
-    all_times = sort!(unique(all_times))
 
     return all_times, NamedTuple{Tuple(fields)}([get_time_dependent(par, field, all_times) for field in fields])
 end
@@ -230,14 +231,13 @@ end
 function get_time_dependent(par::AbstractParameters, field::Symbol, all_times::Vector{Float64})
     value = getfield(par, field).value
 
-    if typeof(value) <: Union{Function, TimeData}
-        time = collect(SimulationParameters.time_range(par))
-        data = value.(time)
+    if typeof(value) <: TimeData && value.time == all_times
+        all_data = value.data
+    elseif typeof(value) <: Union{Function,TimeData}
+        all_data = data = value.(all_times)
         if !(eltype(data) <: Number)
             data, mapping = SimulationParameters.encode_array(data)
-            all_data = [mapping[Int(d)] for d in IMAS.interp1d(time, Float64.(data), :constant).(all_times)]
-        else
-            all_data = IMAS.interp1d(time, data, :constant).(all_times)
+            all_data = [mapping[d] for d in Int.(data)]
         end
     else
         all_data = fill(value, size(all_times))
