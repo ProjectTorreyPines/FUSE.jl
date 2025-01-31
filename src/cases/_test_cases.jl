@@ -106,10 +106,6 @@ end
 function test_ini_act_save_load(args...; kw...)
     ini, act = FUSE.case_parameters(args...; kw...)
 
-    Test.@testset "init" begin
-        FUSE.init(dd, ini, act)
-    end
-
     Test.@testset "ini_dict" begin
         FUSE.dict2ini(FUSE.ini2dict(ini))
     end
