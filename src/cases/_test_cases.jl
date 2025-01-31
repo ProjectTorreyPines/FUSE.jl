@@ -136,6 +136,19 @@ function test_ini_act_save_load(args...; kw...)
         act2 = FUSE.SimulationParameters.jstr2par(act_str, FUSE.ParametersActors())
     end
 
+    Test.@testset "ini_hdf5" begin
+        tmpdir = mktempdir()
+        ini.general.dd = missing # general.dd cannot be serialized
+        ini_str = FUSE.SimulationParameters.par2hdf(ini, joinpath(tmpdir, "ini.h5"))
+        ini2 = FUSE.SimulationParameters.hdf2par(joinpath(tmpdir, "ini.h5"), FUSE.ParametersInits())
+    end
+
+    Test.@testset "act_hdf5" begin
+        tmpdir = mktempdir()
+        act_str = FUSE.SimulationParameters.par2hdf(act, joinpath(tmpdir, "act.h5"))
+        act2 = FUSE.SimulationParameters.hdf2par(joinpath(tmpdir, "act.h5"), FUSE.ParametersActors())
+    end
+
     return (ini=ini, act=act)
 end
 

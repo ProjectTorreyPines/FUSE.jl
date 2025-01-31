@@ -385,7 +385,7 @@ end
 function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
     par = getfield(parameters_layer, field)
 
-    if field == :material
+    if field == :material && !ismissing(parameters_layer, :type)
         layer_type = parameters_layer.type
 
         pretty_layer_type = replace("$layer_type", "_" => "")
