@@ -79,6 +79,7 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         @ddtime(nbu.energy.data = ini_nbu.beam_energy)
         nbu.available_launch_power = maximum(ps_nbu.power.reference)
         nbu.species.a = ini_nbu.beam_mass
+        nbu.species.z_n = 1.0
         # 1 beamlet
         beamlet = resize!(nbu.beamlets_group, 1)[1]
         beamlet.angle = ini_nbu.toroidal_angle / 360 * 2pi

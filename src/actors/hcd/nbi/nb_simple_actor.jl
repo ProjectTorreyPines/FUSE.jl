@@ -59,8 +59,10 @@ function _step(actor::ActorSimpleNB)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     for (k, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
-        power_launched = @ddtime(ps.power.reference)
+        # smooting of the instantaneous power based on the NBI thermalization time
         beam_energy = @ddtime(ps.energy.reference)
+        τ_th = IMAS.beam_thermalization_time(cp1d, nbu.species, beam_energy)
+        power_launched = IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th)
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
