@@ -2,12 +2,14 @@ using FUSE
 using Test
 
 @testset "warmup" begin
-    println("== warmup ==")
-    for round in (1, 2)
-        dd = IMAS.dd()
-        @test begin
-            FUSE.warmup(dd)
-            true
+    for round in ("before_compile", "after_compile")
+        println("== warmup_$(round) ==")
+        TimerOutputs.@timeit timer "warmup_$(round)" begin
+            dd = IMAS.dd()
+            @test begin
+                FUSE.warmup(dd)
+                true # this is to make the test pass
+            end
         end
     end
 end
