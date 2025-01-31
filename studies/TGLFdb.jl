@@ -219,7 +219,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     rho_transport = dd.core_transport.model[1].profiles_1d[].grid_flux.rho_tor_norm
 
     ct1d_tglf = dd.core_transport.model[1].profiles_1d[]
-    ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport)
+    ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport; time0=dd.global_time)
 
     qybro_bohms = [IMAS.gyrobohm_energy_flux(cp1d, eqt), IMAS.gyrobohm_particle_flux(cp1d, eqt), IMAS.gyrobohm_momentum_flux(cp1d, eqt)]
     rho_cp = cp1d.grid.rho_tor_norm

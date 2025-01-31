@@ -181,8 +181,8 @@ function _step(actor::ActorFluxMatcher)
         display(p)
 
         p = plot(; layout=(N_channels, 2), size=(1000, 300 * N_channels))
-        tot_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
-        tot_sources = IMAS.total_sources(dd.core_sources, cp1d)
+        tot_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport; time0=dd.global_time)
+        tot_sources = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time)
         model_type = IMAS.name_2_index(dd.core_transport.model)
         for (ch, (profiles_path, fluxes_path)) in enumerate(zip(profiles_paths, fluxes_paths))
             title = IMAS.p2i(collect(map(string, fluxes_path)))
@@ -420,7 +420,7 @@ NOTE: flux matching is done in physical units
 function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
     cs_gridpoints = [argmin(abs.(rho_x .- total_sources.grid.rho_tor_norm)) for rho_x in par.rho_transport]
 
     targets = Float64[]
@@ -467,7 +467,7 @@ NOTE: flux matching is done in physical units
 function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport; time0=dd.global_time)
 
     fluxes = Float64[]
 
@@ -560,12 +560,16 @@ end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     cp1d = dd.core_profiles.profiles_1d[]
-    return (
-        ("         error", error),
-        ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
-        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
-        ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20))
+    out = Tuple{String,Float64}[]
+    push!(out, ("         error", error))
+    pfus = IMAS.fusion_power(cp1d)
+    if pfus > 1E3
+        push!(out, ("  Pfusion [MW]", pfus / 1E6))
+    end
+    push!(out, ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3))
+    push!(out, ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3))
+    push!(out, ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20))
+    return out
 end
 
 function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
