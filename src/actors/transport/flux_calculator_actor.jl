@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T<:Real} <: Param
     _name::Symbol = :not_set
     _time::Float64 = NaN
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho core transport grid"; default=0.25:0.1:0.85)
-    turbulence_model::Switch{Symbol} = Switch{Symbol}([:TGLF, :QLGYRO, :none], "-", "Turbulence model to use"; default=:TGLF)
+    turbulence_model::Switch{Symbol} = Switch{Symbol}([:TGLF, :QLGYRO,:surrogate, :none], "-", "Turbulence model to use"; default=:TGLF)
     neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
 end
 
@@ -16,6 +16,7 @@ mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
+    actor_surrogate::Union{ActorSurrogate{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -42,6 +43,9 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
     elseif par.turbulence_model == :QLGYRO
         act.ActorQLGYRO.rho_transport = par.rho_transport
         actor_turb = ActorQLGYRO(dd, act.ActorQLGYRO)
+    elseif par.turbulence_model == :surrogate
+        act.ActorSurrogate.generate_surrogates = par.false
+        actor_turb = ActorSurrogate(dd, act.ActorSurrogate)      
     end
 
     if par.neoclassical_model == :none

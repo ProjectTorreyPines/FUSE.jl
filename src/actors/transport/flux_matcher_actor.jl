@@ -23,7 +23,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
     optimizer_algorithm::Switch{Symbol} =
-        Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+        Switch{Symbol}([:anderson, :newton, :trust_region, :simple,:surrogate, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -44,6 +44,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
+    actor_sur::Union{ActorSurrogate{D,P},ActorNoOperation{D,P}}
     norms::Vector{Float64}
     error::Float64
 end
@@ -120,6 +121,8 @@ function _step(actor::ActorFluxMatcher)
             res = (zero=z_init_scaled,)
         elseif par.optimizer_algorithm == :simple
             res = flux_match_simple(actor, z_init_scaled, initial_cp1d, initial_summary_ped, z_scaled_history, err_history, ftol, xtol, prog)
+        if par.optimizer_algorithm == :surrogate
+            res = flux_match_surrogate(actor, z_init_scaled, initial_cp1d, initial_summary_ped, z_scaled_history, err_history, ftol, xtol, prog)
         else
             if par.optimizer_algorithm == :newton
                 opts = Dict(:method => :newton, :factor => par.step_size)
@@ -542,6 +545,7 @@ function flux_match_simple(
     xerror = Inf
     step_size = par.step_size
     max_iterations = par.max_iterations
+
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
         if (i > max_iterations)
@@ -553,10 +557,88 @@ function flux_match_simple(
         targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
         xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
         zprofiles_old = zprofiles
+
+
     end
 
     return (zero=z_scaled_history[argmin(map(norm, err_history))],)
 end
+
+
+
+"""
+    flux_match_simple(
+        actor::ActorFluxMatcher,
+        z_init::Vector{<:Real},
+        initial_cp1d::IMAS.core_profiles__profiles_1d,
+        initial_summary_ped::IMAS.summary__local__pedestal,
+        z_scaled_history::Vector,
+        err_history::Vector{Float64},
+        ftol::Float64,
+        xtol::Float64,
+        prog::Any)
+
+Updates zprofiles based on TGYRO simple algorithm
+"""
+function flux_match_surrogate(
+    actor::ActorFluxMatcher,
+    z_init_scaled::Vector{<:Real},
+    initial_cp1d::IMAS.core_profiles__profiles_1d,
+    initial_summary_ped::IMAS.summary__local__pedestal,
+    z_scaled_history::Vector,
+    err_history::Vector{Float64},
+    ftol::Float64,
+    xtol::Float64,
+    prog::Any)
+
+    par = actor.par
+    dd = actor.dd
+
+    i = 0
+    zprofiles_old = unscale_z_profiles(z_init_scaled)
+    targets, fluxes, errors = flux_match_errors(actor, z_init_scaled, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+    ferror = norm(errors)
+    xerror = Inf
+    step_size = par.step_size
+    max_iterations = par.max_iterations
+
+    all_model_inputs = []
+    all_model_outputs = []
+    while (ferror > ftol) || (xerror .> xtol)
+        i += 1
+        if (i > max_iterations)
+            @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+            break
+        end
+
+        zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+        xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
+        zprofiles_old = zprofiles
+
+        push!(all_model_inputs, actor.actor_ct.actor_turb.input_tglfs)
+        push!(all_model_outputs, fluxes)
+    end
+
+    max_iterations_surrogates = 1
+    while (ferror > ftol) || (xerror .> xtol)
+        i += 1
+        if (i > max_iterations_surrogates)
+            @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+            break
+        end
+
+        actor.actor_sur.all_model_inputs = all_model_inputs
+        actor.actor_sur.all_model_outputs = all_model_outputs
+        actor.actor_sur.par.generate_surrogates = true
+        ActorSurrogate(dd, actor.actor_sur)
+
+    end
+
+
+    return (zero=z_scaled_history[argmin(err_history)],)
+end
+
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     cp1d = dd.core_profiles.profiles_1d[]
