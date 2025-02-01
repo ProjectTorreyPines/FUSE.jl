@@ -213,7 +213,7 @@ end
 
 function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
     dd = actor.dd
-    cp1d = dd.core_profiles.profiles_1d[end]
+    cp1d = dd.core_profiles.profiles_1d[]
     return (
         ("    start time", t0),
         ("      end time", t1),
