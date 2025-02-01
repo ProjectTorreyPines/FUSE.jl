@@ -112,6 +112,14 @@ function _finalize(actor::ActorEPED)
     @ddtime summary_ped.t_i_average.value = t_i_average
     @ddtime summary_ped.position.rho_tor_norm = position
 
+    # Change the last point of the ion temperature profiles since
+    # this is what blend_core_edge will use to construct the blended profiles
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature[end] = cp1d.electrons.temperature[end] * T_ratio_pedestal
+        end
+    end
+
     # this function takes information about the H-mode pedestal from summary IDS and blends it with core_profiles core
     IMAS.blend_core_edge(:H_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped)
 
