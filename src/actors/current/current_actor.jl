@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T<:Real} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED, :none], "-", "Current actor to run"; default=:SteadyStateCurrent)
+    model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED, :none], "-", "Current actor to run"; default=:QED)
     allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip"; default=true)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)

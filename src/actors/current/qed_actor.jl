@@ -7,10 +7,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf, check=x->@assert x>=0 "Δt must be >= 0.0")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100, check=x->@assert x>0 "Nt must be > 0")
+    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf, check=x -> @assert x >= 0 "Δt must be >= 0.0")
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100, check=x -> @assert x > 0 "Nt must be > 0")
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
     allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
+    qmin_desired::Entry{Float64} = Entry{Float64}("-", "Keep the minimum magnitude of the q-profile above this value"; default=1.0, check=x -> @assert x >= 0 "qmin_desired >= 0")
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
@@ -68,7 +69,7 @@ function _step(actor::ActorQED)
 
     # initialize QED
     if actor.QO === nothing || par.Δt == Inf
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho = 501)
+        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
     else
         actor.QO.JBni = JBni
     end
@@ -104,7 +105,16 @@ function _step(actor::ActorQED)
                 Ip = nothing
                 Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0)
             end
-            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[time0]), δt, Ni; Vedge, Ip, debug=false)
+
+            # check where q<1 based on the the q-profile at the previous
+            # time-step and change the resisitivity to keep q>1
+            qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+            i_qdes = findlast(qval .< par.qmin_desired)
+            if i_qdes === nothing
+                i_qdes = 0
+            end
+
+            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[time0], i_qdes), δt, Ni; Vedge, Ip, debug=false)
         end
 
     elseif par.Δt == Inf
@@ -121,7 +131,18 @@ function _step(actor::ActorQED)
             Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
         end
 
-        actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[]); Vedge, Ip)
+        # we need to run steady state twice, the first time to find the q-profile when the
+        # current fully relaxes, and the second time we change the resisitivity to keep q>1
+        i_qdes = 0
+        for _ in (1, 2)
+            actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[], i_qdes); Vedge, Ip)
+            # check where q<1
+            qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+            i_qdes = findlast(qval .< par.qmin_desired)
+            if i_qdes === nothing
+                break
+            end
+        end
     end
 
     return actor
@@ -191,8 +212,15 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
 end
 
-function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
-    rho = cp1d.grid.rho_tor_norm
+"""
+    η_imas(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
+
+Jardin's model for stationary sawteeth changes the plasma resistivity to raise q>1
+"""
+function η_imas(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
     η = 1.0 ./ cp1d.conductivity_parallel
-    return QED.η_FE(rho, η; use_log)
+    if i_qdes != 0
+        η[1:i_qdes] .= η[i_qdes]
+    end
+    return QED.η_FE(cp1d.grid.rho_tor_norm, η; use_log)
 end
