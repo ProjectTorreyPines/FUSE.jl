@@ -5,10 +5,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPEDprofiles{T<:Real} <: Paramet
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    Te_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile"; default=1.8)
-    ne_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile"; default=1.8)
-    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal"; default=1.0)
-    T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core"; default=1.0)
+    Te_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile")
+    ne_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile")
+    T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal")
+    T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core")
 end
 
 mutable struct ActorEPEDprofiles{D,P} <: SingleAbstractActor{D,P}

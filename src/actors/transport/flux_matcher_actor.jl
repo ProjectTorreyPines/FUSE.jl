@@ -154,6 +154,7 @@ function _step(actor::ActorFluxMatcher)
     dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
     ProgressMeter.finish!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
 
+    # plotting of the channels that have been evolved
     if par.do_plot
         plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
