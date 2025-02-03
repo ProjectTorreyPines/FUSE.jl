@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
-    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width scaled by sqrt of this factor)"; default=1.0)
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -64,13 +64,15 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
     sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
+    # NOTE: EPED 1/2 width, while Hmode_profiles uses the full width
+    from_ped_to_full_width = 2.0
     if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
-        actor.wped = max(sol.width.GH.H, 0.01)
+        actor.wped = max(sol.width.GH.H * from_ped_to_full_width, 0.01)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.1 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
         actor.pped = sol.pressure.GH.H
-        actor.wped = sol.width.GH.H
+        actor.wped = sol.width.GH.H * from_ped_to_full_width
     end
 
     return actor
