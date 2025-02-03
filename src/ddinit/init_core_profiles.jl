@@ -15,22 +15,22 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
 
                 # also set the pedestal in summary IDS
                 if any([ismissing(getproperty(dd.summary.local.pedestal, field), :value) for field in (:n_e, :zeff, :t_e)])
-                    pe_ped, w_ped = IMAS.pedestal_finder(cp1d.electrons.pressure, cp1d.grid.psi_norm)
+                    pedestal = IMAS.pedestal_finder(cp1d.electrons.pressure, cp1d.grid.psi_norm)
                     ped_summ = dd.summary.local.pedestal
-                    @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
+                    @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - pedestal.width)
                     if ismissing(getproperty(dd1.summary.local.pedestal.n_e, :value, missing))
                         @ddtime ped_summ.n_e.value =
-                            IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - w_ped)
+                            IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - pedestal.width)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_e, :value, missing))
                         @ddtime ped_summ.t_e.value =
-                            IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - w_ped)
+                            IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - pedestal.width)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_i_average, :value, missing))
-                        @ddtime ped_summ.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - w_ped)
+                        @ddtime ped_summ.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - pedestal.width)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.zeff, :value, missing))
-                        @ddtime ped_summ.zeff.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(1 - w_ped)
+                        @ddtime ped_summ.zeff.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(1 - pedestal.width)
                     end
                 end
             else

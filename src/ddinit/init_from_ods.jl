@@ -174,8 +174,9 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
 
         # core_profiles
         if !isempty(dd1.core_profiles.profiles_1d)
-            NE_PED = Float64[]
             W_PED = Float64[]
+            NE_PED = Float64[]
+            NE_LINE = Float64[]
             ZEFF = Float64[]
             TI_TE_RATIO = Float64[]
             TE_CORE = Float64[]
@@ -185,6 +186,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 time = dd1.core_profiles.time
                 time = time[dd1.equilibrium.time[1].<=time.<=dd1.equilibrium.time[end]]
             end
+            pedestal = nothing
+            do_plot = false
             for time0 in time
                 cp1d = dd1.core_profiles.profiles_1d[time0]
                 eqt = dd1.equilibrium.time_slice[time0]
@@ -192,15 +195,20 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     cp1d.grid.psi = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.psi).(cp1d.grid.rho_tor_norm)
                 end
                 if !ismissing(cp1d.electrons, :pressure)
-                    psi_norm = getproperty(cp1d.grid, :psi_norm, cp1d.grid.rho_tor_norm) # ideally `psi_norm`, but if not available `rho_tor_norm` will do
-                    _, w_ped = IMAS.pedestal_finder(cp1d.electrons.pressure, psi_norm)
-                    ne_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - w_ped)
-                    te_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - w_ped)
-                    ti_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - w_ped)
-                    zeff_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(1 - w_ped)
+                    #psi_norm = getproperty(cp1d.grid, :psi_norm, cp1d.grid.rho_tor_norm) # ideally `psi_norm`, but if not available `rho_tor_norm` will do
+                    psi_norm = cp1d.grid.rho_tor_norm
+                    pedestal = IMAS.pedestal_finder(cp1d.electrons.pressure, psi_norm; do_plot, guess=pedestal)
+                    ne_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - pedestal.width)
+                    te_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - pedestal.width)
+                    ti_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - pedestal.width)
+                    ped_region = psi_norm .> pedestal.width
+                    zeff_ped = sum(cp1d.zeff[ped_region]) / length(ped_region)
 
+                    ne_line = trapz(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
+
+                    push!(W_PED, pedestal.width)
                     push!(NE_PED, ne_ped)
-                    push!(W_PED, w_ped)
+                    push!(NE_LINE, ne_line)
                     push!(ZEFF, zeff_ped)
                     push!(TI_TE_RATIO, ti_ped / te_ped)
                 end
@@ -208,13 +216,21 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     push!(TE_CORE, cp1d.electrons.temperature[1] / 1E3)
                 end
             end
-            if ismissing(ini.core_profiles, :ne_setting) && ismissing(ini.core_profiles, :ne_value)
-                ini.core_profiles.ne_setting = :ne_ped
-                @assert !any(isnan.(NE_PED))
-                if ismissing(ini.time, :pulse_shedule_time_basis)
-                    ini.core_profiles.ne_value = NE_PED[1]
-                else
-                    ini.core_profiles.ne_value = TimeData(time, NE_PED)
+            if ismissing(ini.core_profiles, :ne_value)
+                if ini.core_profiles.ne_setting == :ne_ped
+                    @assert !any(isnan.(NE_PED))
+                    if ismissing(ini.time, :pulse_shedule_time_basis)
+                        ini.core_profiles.ne_value = NE_PED[1]
+                    else
+                        ini.core_profiles.ne_value = TimeData(time, NE_PED)
+                    end
+                elseif ini.core_profiles.ne_setting == :ne_line
+                    @assert !any(isnan.(NE_LINE))
+                    if ismissing(ini.time, :pulse_shedule_time_basis)
+                        ini.core_profiles.ne_value = NE_LINE[1]
+                    else
+                        ini.core_profiles.ne_value = TimeData(time, NE_LINE)
+                    end
                 end
             end
             if ismissing(ini.core_profiles, :w_ped)

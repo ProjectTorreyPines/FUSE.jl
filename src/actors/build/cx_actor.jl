@@ -20,7 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersAc
         "Divertor size on the low-field-side as fraction of plasma minor radius";
         default=0.50,
         check=x -> @assert x >= 0 "divertor_lfs_size_fraction must be >= 0.0")
-    n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101, check=x -> @assert x >= 0 "n_points must be > 0")
+    n_points::Entry{Int} = Entry{Int}("-", "Number of points used for cross-sectional outlines"; default=101, check=x -> @assert x > 0 "n_points must be > 0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 

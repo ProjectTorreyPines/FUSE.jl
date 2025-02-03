@@ -1155,21 +1155,6 @@ function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{
 end
 
 """
-    check_ped_finder(profile::AbstractVector{<:Real},psi_norm::AbstractVector{<:Real})
-
-Plots the profile and fitted profile for pedestal finding (region outside pedestal not important for fit)
-"""
-function check_ped_finder(profile::AbstractVector{<:Real}, psi_norm::AbstractVector{<:Real})
-    ped_height, ped_width = IMAS.pedestal_finder(profile, psi_norm)
-    plot(psi_norm, profile; label="original profile")
-    return plot!(
-        psi_norm,
-        IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width);
-        label="fitted profile (pedestal region is important only)"
-    )
-end
-
-"""
     ip_from_q_star(a::Real, B0::Real, q_star::Real, R0::Real, κ::Real)
 
 Calculate ip from the cylindrical equivalent safety factor
