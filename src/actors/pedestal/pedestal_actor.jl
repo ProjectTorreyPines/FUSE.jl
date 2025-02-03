@@ -96,35 +96,40 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         # Here we convert the desirred pulse_schedule ne_line to ne_ped
         @assert par.ne_from == :pulse_schedule
 
-        # freeze pressures since they are input to the pedestal models
-        IMAS.refreeze!(cp1d, :pressure_thermal)
-        IMAS.refreeze!(cp1d, :pressure)
-
         # run pedestal model on scaled density
         if par.model != :none
             actor.ped_actor.par.ne_ped_from = :core_profiles
         end
 
-        # first run the pedestal model on the density as is
-        _finalize(_step(actor.ped_actor))
+        cp1d_copy = deepcopy(cp1d)
+        factor = 1.0
+        for k in 1:10
+            # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
+            ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+            ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
+            factor = factor * ne_line_wanted / ne_line
+            cp1d.electrons.density_thermal = cp1d_copy.electrons.density_thermal * factor
+            for i in eachindex(cp1d.ion)
+                cp1d.ion[i].density_thermal = cp1d_copy.ion[i].density_thermal * factor
+            end
+            cp1d.electrons.temperature = cp1d_copy.electrons.temperature / factor
+            for i in eachindex(cp1d.ion)
+                cp1d.ion[i].temperature = cp1d_copy.ion[i].temperature / factor
+            end
 
-        # scale thermal densities to match desired line average
-        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-        ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
-        factor = ne_line_wanted / ne_line
-        cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
-        for ion in cp1d.ion
-            ion.density_thermal = ion.density_thermal * factor
+            # run the pedestal model
+            _finalize(_step(actor.ped_actor))
+
+            ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+            ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
+            if abs(ne_line - ne_line_wanted) / ne_line_wanted < 1E-3
+                break
+            end
         end
 
-        finalize(step(actor.ped_actor))
         if par.model != :none
             actor.ped_actor.par.ne_ped_from = :pulse_schedule
         end
-
-        # turn pressures back into expressions
-        IMAS.empty!(cp1d, :pressure_thermal)
-        IMAS.empty!(cp1d, :pressure)
 
     else
         error("act.ActorPedestal.density_match can be either one of [:ne_ped, :ne_line]")
