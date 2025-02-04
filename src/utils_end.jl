@@ -482,7 +482,7 @@ function digest(
     end
 
     # core sources
-    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles; time0))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles; dd.global_time))
         if !isempty(dd.core_sources.source) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_sources; only=k))
@@ -490,7 +490,7 @@ function digest(
     end
 
     # core transport
-    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles; time0))
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles; dd.global_time))
         if !isempty(dd.core_transport) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_transport; only=k))
