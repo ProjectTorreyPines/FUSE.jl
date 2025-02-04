@@ -34,7 +34,7 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     if par.model == :FluxMatcher
         tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
     elseif par.model == :EPEDProfiles
-        tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
+        tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles)
     elseif par.model == :none
         tr_actor = ActorNoOperation(dd, act.ActorNoOperation)
     end
