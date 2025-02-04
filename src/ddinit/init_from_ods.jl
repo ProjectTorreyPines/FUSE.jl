@@ -201,7 +201,11 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     ped_region = cp1d.grid.rho_tor_norm .> pedestal.width
                     zeff_ped = sum(cp1d.zeff[ped_region]) / length(ped_region)
 
-                    ne_line = trapz(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
+                    if isempty(dd1.equilibrium.time_slice)
+                        ne_line = IMAS.geometric_midplane_line_averaged_density(nothing, cp1d)
+                    else
+                        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+                    end
 
                     push!(W_PED, pedestal.width)
                     push!(NE_PED, ne_ped)
