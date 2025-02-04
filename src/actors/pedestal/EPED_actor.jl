@@ -7,18 +7,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    #== actor parameters ==#
+    #== common pedestal parameters==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
-    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
-    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
-    #== data flow parameters ==#
+    Te_sep::Entry{T} = Entry{T}("-", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
-    ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
-    zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    #== actor parameters==#
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width is scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
+    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
 end
@@ -62,9 +63,10 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
     # NOTE: EPED 1/2 width, while Hmode_profiles uses the full width
+    #       also, note that EPED width is in psi_norm
     from_ped_to_full_width = 2.0
     if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
@@ -95,17 +97,11 @@ function _finalize(actor::ActorEPED)
     nsum = actor.inputs.neped * 1e19 + nval + nival
     tped = (actor.pped * 1e6) / nsum / IMAS.mks.e
 
-    if par.T_ratio_pedestal == 0.0
-        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))
-    elseif par.T_ratio_pedestal <= 0.0
-        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.T_ratio_pedestal)
-    else
-        T_ratio_pedestal = par.T_ratio_pedestal
-    end
+    Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
 
     n_e = actor.inputs.neped * 1e19
-    t_e = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
-    t_i_average = t_e * T_ratio_pedestal
+    t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
+    t_i_average = t_e * Ti_over_Te
     position = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
 
     summary_ped = dd.summary.local.pedestal
@@ -114,11 +110,12 @@ function _finalize(actor::ActorEPED)
     @ddtime summary_ped.t_i_average.value = t_i_average
     @ddtime summary_ped.position.rho_tor_norm = position
 
-    # Change the last point of the ion temperature profiles since
-    # this is what blend_core_edge will use to construct the blended profiles
+    # Change the last point of the temperatures profiles since
+    # The rest of the profile will be taken care by the blend_core_edge() function
+    cp1d.electrons.temperature[end] = par.Te_sep
     for ion in cp1d.ion
         if !ismissing(ion, :temperature)
-            ion.temperature[end] = cp1d.electrons.temperature[end] * T_ratio_pedestal
+            ion.temperature[end] = cp1d.electrons.temperature[end] * Ti_over_Te
         end
     end
 
@@ -130,8 +127,8 @@ end
 
 function run_EPED(
     dd::IMAS.dd;
-    ne_ped_from::Symbol,
-    zeff_ped_from::Symbol,
+    ne_from::Symbol,
+    zeff_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
@@ -139,7 +136,7 @@ function run_EPED(
 
     inputs = EPEDNN.InputEPED()
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return run_EPED!(dd, inputs, epedmod; ne_ped_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
+    return run_EPED!(dd, inputs, epedmod; ne_from, zeff_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
 end
 
 """
@@ -147,8 +144,8 @@ end
         dd::IMAS.dd,
         eped_inputs::EPEDNN.InputEPED,
         epedmod::EPEDNN.EPED1NNmodel;
-        ne_ped_from::Symbol,
-        zeff_ped_from::Symbol,
+        ne_from::Symbol,
+        zeff_from::Symbol,
         βn_from::Symbol,
         ip_from::Symbol,
         only_powerlaw::Bool,
@@ -160,8 +157,8 @@ function run_EPED!(
     dd::IMAS.dd,
     eped_inputs::EPEDNN.InputEPED,
     epedmod::EPEDNN.EPED1NNmodel;
-    ne_ped_from::Symbol,
-    zeff_ped_from::Symbol,
+    ne_from::Symbol,
+    zeff_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
@@ -175,8 +172,8 @@ function run_EPED!(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_ped_from, nothing)
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from, nothing)
+    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing)
+    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, nothing)
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
     Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r

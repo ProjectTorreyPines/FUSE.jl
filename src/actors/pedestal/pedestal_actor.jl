@@ -7,16 +7,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    #== actor parameters ==#
+    #== common pedestal parameters==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
-    density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :auto, :none], "-", "Pedestal model to use"; default=:EPED)
-    #== data flow parameters ==#
+    T_ratio_pedestal::Entry{T} =
+        Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
+    Te_sep::Entry{T} = Entry{T}("-", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
-    zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    #== actor parameters==#
+    density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :auto, :none], "-", "Pedestal model to use"; default=:EPED)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -46,8 +49,8 @@ end
 function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
-    eped_actor = ActorEPED(dd, act.ActorEPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.rho_nml, par.rho_ped)
-    wped_actor = ActorWPED(dd, act.ActorWPED; ne_ped_from=par.ne_from, par.zeff_ped_from, par.rho_ped, par.do_plot)
+    eped_actor = ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, par.ne_from, par.zeff_from)
+    wped_actor = ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, par.ne_from, par.zeff_from)
     none_actor = ActorNoOperation(dd, act.ActorNoOperation)
     return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor)
 end
@@ -98,7 +101,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
         # run pedestal model on scaled density
         if par.model != :none
-            actor.ped_actor.par.ne_ped_from = :core_profiles
+            actor.ped_actor.par.ne_from = :core_profiles
         end
 
         cp1d_copy = deepcopy(cp1d)
@@ -128,7 +131,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         end
 
         if par.model != :none
-            actor.ped_actor.par.ne_ped_from = :pulse_schedule
+            actor.ped_actor.par.ne_from = :pulse_schedule
         end
 
     else
@@ -136,4 +139,15 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     end
 
     return actor
+end
+
+function ti_te_ratio(cp1d, T_ratio_pedestal, rho_nml, rho_ped)
+    if T_ratio_pedestal == 0.0
+        # take ratio inside of the plasma core
+        return IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(rho_nml - (rho_ped - rho_nml))
+    elseif T_ratio_pedestal <= 0.0
+        return IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(abs(T_ratio_pedestal))
+    else
+        return T_ratio_pedestal
+    end
 end

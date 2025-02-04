@@ -5,12 +5,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    #== common pedestal parameters==#
+    rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
+    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
+    T_ratio_pedestal::Entry{T} =
+        Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
+    Te_sep::Entry{T} = Entry{T}("-", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
+    βn_from::Switch{Symbol} = switch_get_from(:βn)
+    ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters ==#
     ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas, missing keeps original ratio]")
-    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the edge region starts")
-    #== data flow parameters ==#
-    ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
-    zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -58,12 +64,9 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     summary_ped = dd.summary.local.pedestal
     @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_ped_from, par.rho_ped)
-    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_ped_from, par.rho_ped)
+    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, par.rho_ped)
+    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, par.rho_ped)
     IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, NaN, par.rho_ped; what=:densities)
-
-    rho = cp1d.grid.rho_tor_norm
-    rho_bound_idx = argmin(abs.(rho .- par.rho_ped))
 
     if par.do_plot
         q = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
@@ -77,7 +80,17 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
         ped_to_core_fraction = par.ped_to_core_fraction
     end
 
-    Ti_over_Te = cp1d.t_i_average[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
+    Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
+
+    # Change the last point of the temperatures profiles since
+    # The rest of the profile will be taken care by the blend_core_edge() function
+    cp1d.electrons.temperature[end] = par.Te_sep
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature[end] = cp1d.electrons.temperature[end] * Ti_over_Te
+        end
+    end
+
     res_value_bound = Optim.optimize(
         value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
         1.0,
@@ -87,8 +100,8 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, ped_to_core_fraction, par.rho_ped, Ti_over_Te)
 
-    @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(par.rho_ped)
-    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(par.rho_ped)
+    @ddtime summary_ped.t_e.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(par.rho_ped)
+    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(par.rho_ped)
 
     if par.do_plot
         display(plot!(q, cp1d.electrons, :temperature; label="Te after WPED blending"))

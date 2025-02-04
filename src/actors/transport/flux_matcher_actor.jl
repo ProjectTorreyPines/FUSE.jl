@@ -71,7 +71,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         ip_from=:core_profiles,
         βn_from=:core_profiles,
         ne_from=:pulse_schedule,
-        zeff_ped_from=:pulse_schedule,
+        zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
     return ActorFluxMatcher(dd, par, act, actor_ct, actor_ped, Float64[], Inf)

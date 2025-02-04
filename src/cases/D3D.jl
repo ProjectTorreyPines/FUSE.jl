@@ -209,6 +209,9 @@ function case_parameters(::Type{Val{:D3D}};
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
+    # average pedestal height, not peak
+    act.ActorEPED.ped_factor = 0.8
+
     return ini, act
 end
 
