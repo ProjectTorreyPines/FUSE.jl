@@ -15,14 +15,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersAc
     number_of_iterations::Entry{Int} = Entry{Int}("-", "Number of TEQUILA iterations"; default=1000)
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.25, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
-    #== data flow parameters ==#
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
+    R::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi R axis")
+    Z::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi Z axis")
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
-    #== IMAS psi grid settings ==#
-    R::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi R axis")
-    Z::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi Z axis")
 end
 
 mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}

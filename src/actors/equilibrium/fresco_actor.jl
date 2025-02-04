@@ -12,14 +12,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     number_of_iterations::Entry{Tuple{Int,Int}} = Entry{Tuple{Int,Int}}("-", "Number of outer and inner iterations"; default=(100, 3))
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
-    #== data flow parameters ==#
-    fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
+    nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
+    nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
-    #== IMAS psi grid settings ==#
-    nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
-    nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
 end
 
 mutable struct ActorFRESCO{D,P} <: CompoundAbstractActor{D,P}
