@@ -63,7 +63,7 @@ function _step(actor::ActorPlasmaLimits)
     failed_list = String[]
     passed_list = String[]
     for model in dd.limits.model
-        txt = "$(Int(ceil(@ddtime(model.fraction)*100)))% of $(model.identifier.description)"
+        txt = "$(Int(ceil(@ddtime(model.fraction)*100)))% of: $(model.identifier.description)"
         if Bool(@ddtime model.cleared)
             push!(passed_list, txt)
         else

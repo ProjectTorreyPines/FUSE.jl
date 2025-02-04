@@ -121,7 +121,11 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             end
 
             # run the pedestal model
-            _finalize(_step(actor.ped_actor))
+            if k == 1
+                finalize(step(actor.ped_actor))
+            else
+                _finalize(_step(actor.ped_actor))
+            end
 
             ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
             ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
