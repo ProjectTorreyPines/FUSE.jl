@@ -571,21 +571,32 @@ function n_xpoints(xpoints::Symbol)
 end
 
 """
-    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true, time_from_ods::Bool=false)
 
-Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
+Load ODSs as specified in `ini.ods.filename`
+
+If `time_from_ods==true` then `dd.global_time` and `ini.time.simulation_start` are set from the last available time in the loaded dd0.
+
+If `time_from_ods==false` then `ini.time.simulation_start` takes precedence, and `dd.global_time` is set from that.
 
 NOTE: supports multiple comma-separated filenames
 
 NOTE: ini.general.dd takes priority over ini.general.ods
 """
-function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true, time_from_ods::Bool=false)
     if !ismissing(ini.general, :dd)
         return ini.general.dd
     end
 
     dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
-    dd.global_time = ini.time.simulation_start
+
+    if time_from_ods
+        IMAS.last_global_time(dd)
+        ini.time.simulation_start = dd.global_time
+
+    else
+        dd.global_time = ini.time.simulation_start
+    end
 
     return dd
 end

@@ -16,7 +16,7 @@ DIII-D
 `scenario_sources` keywods says whether core_sources will be taken from scenario or not
 """
 function case_parameters(::Type{Val{:D3D}};
-    scenario::Union{Symbol,AbstractString,Tuple{Int,Float64}}=:default,
+    scenario::Union{Symbol,AbstractString,Int}=:default,
     scenario_sources::Bool=true,
     scenario_core_profiles::Bool=true,
     realistic_pf_active::Bool=true
@@ -40,8 +40,7 @@ function case_parameters(::Type{Val{:D3D}};
         scenario_selector = :file
     else
         scenario_selector = :experiment
-        shot, time0 = scenario
-        ini.time.simulation_start = time0
+        shot = scenario
         shot_ods_dir = tempdir()
         omas_py = """
         print("Importing packages")
@@ -118,7 +117,7 @@ function case_parameters(::Type{Val{:D3D}};
     )
 
     ini.ods.filename = shot_mappings[scenario_selector][:filename]
-    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false)
+    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
     if !realistic_pf_active
         empty!(ini.general.dd.pf_active)
     end
@@ -129,7 +128,8 @@ function case_parameters(::Type{Val{:D3D}};
         ini.core_profiles.rot_core = 5E3
         for cp1d in ini.general.dd.core_profiles.profiles_1d
             if ismissing(cp1d, :rotation_frequency_tor_sonic)
-                cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
+                cp1d.rotation_frequency_tor_sonic =
+                    IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
             end
         end
     end
@@ -165,7 +165,12 @@ function case_parameters(::Type{Val{:D3D}};
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
 
-    if scenario_selector !== :experiment
+    if scenario_selector === :experiment
+        ini.core_profiles.ne_setting = :ne_line
+        act.ActorPedestal.density_match = :ne_line
+        ini.time.simulation_start = missing
+
+    else
         if isempty(ini.general.dd.core_profiles) || !scenario_core_profiles
             empty!(ini.general.dd.core_profiles)
             ini.core_profiles.ne_setting = :greenwald_fraction_ped

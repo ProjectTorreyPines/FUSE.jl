@@ -218,7 +218,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 end
             end
             if ismissing(ini.core_profiles, :ne_value)
-                if ini.core_profiles.ne_setting == :ne_ped
+                if ismissing(ini.core_profiles, :ne_setting) || ini.core_profiles.ne_setting == :ne_ped
+                    ini.core_profiles.ne_setting = :ne_ped
                     @assert !any(isnan.(NE_PED))
                     if ismissing(ini.time, :pulse_shedule_time_basis)
                         ini.core_profiles.ne_value = NE_PED[1]
