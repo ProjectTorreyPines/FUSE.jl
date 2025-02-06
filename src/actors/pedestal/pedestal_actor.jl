@@ -70,8 +70,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
-    eq = dd.equilibrium
-    eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
     if par.model == :none
@@ -93,28 +91,37 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             push!(actor.state, actor.state[end])
         end
 
-        if length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode]
+        if length(actor.state) < 2
+            actor.t_lh = -Inf
+            actor.t_hl = -Inf
+            actor.cp1d_transition = deepcopy(cp1d)
+
+        elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode]
             # L to H
             actor.t_lh = dd.global_time
+            actor.cp1d_transition = deepcopy(cp1d)
+
         elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:H_mode, :L_mode]
             # H to L
             actor.t_hl = dd.global_time
+            actor.cp1d_transition = deepcopy(cp1d)
 
-            # The L to H and H to L model are triggered when hmode conditions are triggered so therefore pulse_schedule needs to be updated based on this model
-            if par.density_match == :ne_ped
-                @ddtime(dd.pulse_schedule.density_control.n_e_pedestal.reference = @ddtime(dd.summary.local.pedestal.n_e.value))
-            elseif par.density_match == :ne_line
-                @ddtime(dd.pulse_schedule.density_control.n_e_line.reference = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d))
-            end
+            # # The L to H and H to L model are triggered when hmode conditions are triggered so therefore pulse_schedule needs to be updated based on this model
+            # if par.density_match == :ne_ped
+            #     @ddtime(dd.pulse_schedule.density_control.n_e_pedestal.reference = @ddtime(dd.summary.local.pedestal.n_e.value))
+            # elseif par.density_match == :ne_line
+            #     @ddtime(dd.pulse_schedule.density_control.n_e_line.reference = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d))
+            # end            
         end
 
         if actor.state[end] == :L_mode
-            α_t = LH_tanh_response(par.tau_t, dd.global_time, actor.t_hl; time_steps=100)
-            α_n = LH_tanh_response(par.tau_n, dd.global_time, actor.t_hl; time_steps=100)
+            # L-mode
+            α_t = LH_tanh_response(par.tau_t, actor.t_hl, dd.global_time)
+            α_n = LH_tanh_response(par.tau_n, actor.t_hl, dd.global_time)
 
             actor.ped_actor = actor.wped_actor
-            actor.ped_actor.par.density_factor = 1.0 - α_n * (1 - par.density_ratio_L_over_H)
-
+            actor.ped_actor.par.density_factor = 1.0 * (1 - α_n) + par.density_ratio_L_over_H * α_n
+            @show α_n
             run_selected_pedstal_model(actor)
 
             Te_ongoing = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
@@ -125,12 +132,13 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
                 ion.temperature = Ti_ongoing
             end
         else
-            # H mode
-            α_t = LH_tanh_response(par.tau_t, dd.global_time, actor.t_lh; time_steps=100)
-            α_n = LH_tanh_response(par.tau_n, dd.global_time, actor.t_lh; time_steps=100)
-            actor.ped_actor = actor.eped_actor
+            # H-mode
+            α_t = LH_tanh_response(par.tau_t, actor.t_lh, dd.global_time)
+            α_n = LH_tanh_response(par.tau_n, actor.t_lh, dd.global_time)
 
-            actor.ped_actor.par.density_factor = 1 + (1 / par.density_ratio_L_over_H - 1) * α_n
+            actor.ped_actor = actor.eped_actor
+            actor.ped_actor.par.density_factor = par.density_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
+
             run_selected_pedstal_model(actor)
 
             Te_ongoing = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
@@ -147,23 +155,21 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 end
 
 """
-    LH_tanh_response(τ::Float64,t_now::Float64, t_LH::Float64; time_steps::Int=100)
+    LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
 
 Returns a parameter that follows a tanh like response where τ represent the value of 0.95 @ τ time starting from t_LH
 """
-function LH_tanh_response(τ::Float64, t_now::Float64, t_LH::Float64; time_steps::Int=100)
-    if isinf(t_LH)
+function LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
+    if t_LH == -Inf
+        return 1.0
+    elseif t_now <= t_LH
         return 0.0
     end
-    t, α = LH_tanh_response(τ, t_LH; time_steps)
-    return maximum([minimum([IMAS.interp1d(t, α).(t_now), 1.0]), 0.0])
-end
-
-function LH_tanh_response(τ::Float64, t_LH::Float64; time_steps::Int=100)
-    t = (0:τ/time_steps:τ) .+ t_LH
-    α = tanh.((2pi .* (t .- t_LH .- τ / 4.0)) ./ τ)
-    α = ((α .- α[1]) ./ (α[end] - α[1]))
-    return t, α
+    t = t_now .+ t_LH
+    α = tanh.((2pi .* (t .- t_LH .- τ / 4.0)) ./ τ) / 2.0 + 0.5
+    α0 = tanh.((2pi .* (.-τ / 4.0)) ./ τ) / 2.0 + 0.5
+    α = (α .- α0) ./ (1 - α0)
+    return α
 end
 
 """
@@ -196,7 +202,7 @@ function run_selected_pedstal_model(actor::ActorPedestal)
         for k in 1:10
             # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
             ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-            ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
+            ne_line_wanted = IMAS.ne_line(dd.pulse_schedule) * actor.ped_actor.par.density_factor
             factor = factor * ne_line_wanted / ne_line
             cp1d.electrons.density_thermal = cp1d_copy.electrons.density_thermal * factor
             for i in eachindex(cp1d.ion)

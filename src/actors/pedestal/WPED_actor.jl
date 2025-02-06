@@ -68,7 +68,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, par.rho_ped) * par.density_factor
     @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, par.rho_ped)
 
-    IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, NaN, par.rho_ped; what=:densities)
+    IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
 
     if par.do_plot
         q = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
