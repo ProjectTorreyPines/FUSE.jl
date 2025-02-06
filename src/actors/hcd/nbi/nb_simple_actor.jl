@@ -7,7 +7,7 @@ Base.@kwdef mutable struct _FUSEparameters__ActorSimpleNBactuator{T<:Real} <: Pa
     _time::Float64 = NaN
     ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
     rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.3, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
