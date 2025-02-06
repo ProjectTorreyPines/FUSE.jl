@@ -16,6 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters ==#
+    density_factor::Entry{T} = Entry{T}("-", "Scale input density by given factor"; default=1.0)
     ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas, missing keeps original ratio]")
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -61,11 +62,12 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-
     summary_ped = dd.summary.local.pedestal
+
     @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, par.rho_ped)
+    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, par.rho_ped) * par.density_factor
     @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, par.rho_ped)
+
     IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, NaN, par.rho_ped; what=:densities)
 
     if par.do_plot
@@ -74,7 +76,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     end
 
     if ismissing(par, :ped_to_core_fraction)
-        core, edge = core_edge_energy(cp1d, 0.9)
+        core, edge = IMAS.core_edge_energy(cp1d, 0.9)
         ped_to_core_fraction = edge / core
     else
         ped_to_core_fraction = par.ped_to_core_fraction

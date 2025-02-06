@@ -18,6 +18,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters==#
+    density_factor::Entry{T} = Entry{T}("-", "Scale input density by given factor"; default=1.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width is scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
     #== display and debugging parameters ==#
@@ -63,7 +64,7 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds, par.density_factor)
 
     # NOTE: EPED 1/2 width, while Hmode_profiles uses the full width
     #       also, note that EPED width is in psi_norm
@@ -132,11 +133,12 @@ function run_EPED(
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
-    warn_nn_train_bounds::Bool)
+    warn_nn_train_bounds::Bool,
+    density_factor::Float64)
 
     inputs = EPEDNN.InputEPED()
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return run_EPED!(dd, inputs, epedmod; ne_from, zeff_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
+    return run_EPED!(dd, inputs, epedmod; ne_from, zeff_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds, density_factor)
 end
 
 """
@@ -162,7 +164,8 @@ function run_EPED!(
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
-    warn_nn_train_bounds::Bool)
+    warn_nn_train_bounds::Bool,
+    density_factor::Float64)
 
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
@@ -172,7 +175,7 @@ function run_EPED!(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing)
+    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing) * density_factor
     zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, nothing)
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
