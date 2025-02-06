@@ -75,9 +75,14 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.tf.shape = :double_ellipse
 
     resize!(ini.ec_launcher, 2)
+    resize!(act.ActorSimpleEC.actuator, 2)
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.5
+    act.ActorSimpleEC.actuator[1].width = 0.1
     ini.ec_launcher[1].power_launched = 25.0e6
     ini.ec_launcher[1].efficiency_conversion = 0.45
     ini.ec_launcher[1].efficiency_transmission = 0.8
+    act.ActorSimpleEC.actuator[2].rho_0 = 0.7
+    act.ActorSimpleEC.actuator[2].width = 0.1
     ini.ec_launcher[2].power_launched = 25.0e6
     ini.ec_launcher[2].efficiency_conversion = 0.45
     ini.ec_launcher[2].efficiency_transmission = 0.8
