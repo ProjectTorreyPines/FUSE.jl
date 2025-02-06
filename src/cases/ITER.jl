@@ -32,14 +32,15 @@ function case_parameters(
         if boundary_from == :auto
             boundary_from = :ods
         end
+        act.ActorEquilibrium.model = :FRESCO
     else
         ini.equilibrium.B0 = -5.3
         act.ActorCXbuild.rebuild_wall = true
         if boundary_from == :auto
             boundary_from = :MXH_params
         end
+        act.ActorEquilibrium.model = :TEQUILA
     end
-    act.ActorEquilibrium.model = :TEQUILA
 
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = boundary_from
@@ -140,6 +141,7 @@ function case_parameters(
     ini.ec_launcher[1].power_launched = 20E6
     resize!(act.ActorSimpleEC.actuator, 1)
     act.ActorSimpleEC.actuator[1].rho_0 = 0.3
+    act.ActorSimpleEC.actuator[1].width = 0.2
 
     resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 24E6
