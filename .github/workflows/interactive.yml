@@ -46,7 +46,6 @@ jobs:
           version: "1.x"
           arch: ${{ inputs.arch }}
           show-versioninfo: true
-      - uses: julia-actions/julia-buildpkg@v1
       #============
       - name: Interactive with tmate
         uses: mxschmitt/action-tmate@v3
