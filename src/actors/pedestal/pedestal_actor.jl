@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :auto, :none], "-", "Pedestal model to use"; default=:EPED)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :none], "-", "Pedestal model to use"; default=:EPED)
     #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("s", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("s", "pedestal density LH transition tanh evolution time (95% of full transition)")
@@ -80,7 +80,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     elseif par.model == :WPED
         actor.ped_actor = actor.wped_actor
         run_selected_pedstal_model(actor)
-    elseif par.model == :auto
+    elseif par.model == :dynamic
         @assert par.ne_from == :pulse_schedule "Dyanmic requires ne_from pulse schedule"
 
         if IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.5)
