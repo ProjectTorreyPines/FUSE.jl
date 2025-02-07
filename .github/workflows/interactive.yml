@@ -39,7 +39,6 @@ jobs:
       #============
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
-      - run: pip install nbconvert
       #============
       - uses: julia-actions/setup-julia@v1
         with:
@@ -49,4 +48,3 @@ jobs:
       #============
       - name: Interactive with tmate
         uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
