@@ -246,7 +246,7 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, kw...)
+function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, dd1::Union{Nothing,IMAS.DD}=nothing, kw...)
     l = @layout grid(3, 4)
     p = plot(; layout=l, size=(1600, 1000), left_margin=1 * Plots.Measures.mm, kw...)
 
@@ -299,40 +299,60 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     # equilibrium, build, and pf_active
     subplot = 2
     if !isempty(dd.build.layer)
-        plot!(dd.build; time0, subplot, axis=false, legend=false)
-    else
+        plot!(dd.build; time0, subplot, legend=false, equilibrium=false, pf_active=false)
+    end
+    if dd1 !== nothing
+        plot!(dd1.equilibrium.time_slice[time0]; cx=true, color=:black, subplot)
+    end
+    if dd !== dd1
         plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
     end
+    plot!(dd.pf_active; time0, subplot, colorbar=nothing)
     plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
     out = convex_outline(dd.pf_active.coil)
     if !isempty(out.r)
         plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
     end
+    plot!(;title="Time = $(@sprintf("%.4f", time0)) [s]", subplot)
 
     # core_profiles temperatures
     subplot = 3
     #    plot!(dd.core_profiles.profiles_1d[1]; only=1, color=:gray, label=" initial", subplot, normalization=1E-3)
-    plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]", legend_foreground_color=:transparent)#, ylim=(0.0, 23.0))
+    if dd1 !== nothing
+        plot!(dd1.core_profiles.profiles_1d[time0]; color=:black, only=1, subplot, normalization=1E-3, label="")
+    end
+    if dd !== dd1
+        plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]", legend_foreground_color=:transparent)#, ylim=(0.0, 23.0))
+    end
 
     # core_profiles densities
     subplot = 4
     #    plot!(dd.core_profiles.profiles_1d[1]; only=2, color=:gray, label=" initial", subplot)
-    plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]", legend=:left, legend_foreground_color=:transparent)#, ylim=(0.0, 1.3E20))
+    if dd1 !== nothing
+        plot!(dd1.core_profiles.profiles_1d[time0]; color=:black, only=2, subplot, label="")
+    end
+    if dd !== dd1
+        plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]", legend=:left, legend_foreground_color=:transparent)#, ylim=(0.0, 1.3E20))
+    end
 
     # q
     subplot = 9
 #    plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
-    plot!(
-        dd.equilibrium.time_slice[time0].profiles_1d,
-        :q;
-        lw=2.0,
-        coordinate=:rho_tor_norm,
-        label="q",
-        subplot,
-        legend_foreground_color=:transparent,
-        title="Safety factor",
-        legend=:bottomleft
-    )
+
+    # plot!(
+    #     dd.equilibrium.time_slice[time0].profiles_1d,
+    #     :q;
+    #     lw=2.0,
+    #     coordinate=:rho_tor_norm,
+    #     label="q",
+    #     subplot,
+    #     legend_foreground_color=:transparent,
+    #     title="Safety factor",
+    #     legend=:bottomleft
+    # )
+
+    plot!(dd.nbi; subplot, smooth_beam_tau=0.1)
+    vline!([time0]; label="", subplot)
 
     # # fusion power
     # subplot = 9
@@ -341,21 +361,30 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
 
     # core_sources
     subplot = 5
-    plot!(
-        dd.core_sources;
-        time0,
-        only=5,
-        subplot,
-        min_power,
-        aggregate_radiation,
-        weighted=:area,
-        legend=:topleft,
-        legend_foreground_color=:transparent,
-        title="Parallel current",
-        normalization=1E-6,
-        ylabel="[MA]",
-        #ylim=(0.0, 10.0)
-    )
+    if dd1 !== nothing
+        plot!(dd1.equilibrium.time_slice[time0].profiles_1d, :q; color=:black, coordinate=:rho_tor_norm, label="Experiment q", subplot)
+    end
+    plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Modeled q", subplot)
+    hline!([-1];subplot)
+    plot!(;ylim=(-5, 0),subplot)
+
+    # core_sources
+    # subplot = 5
+    # plot!(
+    #     dd.core_sources;
+    #     time0,
+    #     only=5,
+    #     subplot,
+    #     min_power,
+    #     aggregate_radiation,
+    #     weighted=:area,
+    #     legend=:topleft,
+    #     legend_foreground_color=:transparent,
+    #     title="Parallel current",
+    #     normalization=1E-6,
+    #     ylabel="[MA]",
+    #     #ylim=(0.0, 10.0)
+    # )
 
     subplot = 6
     plot!(
