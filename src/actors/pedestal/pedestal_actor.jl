@@ -37,6 +37,7 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     state::Vector{Symbol}
     t_lh::Float64
     t_hl::Float64
+    previous_time::Float64
     cp1d_transition::IMAS.core_profiles__profiles_1d{D}
 end
 
@@ -58,7 +59,7 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     eped_actor = ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, par.ne_from, par.zeff_from)
     wped_actor = ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, par.ne_from, par.zeff_from)
     none_actor = ActorNoOperation(dd, act.ActorNoOperation)
-    return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor, Symbol[], -Inf, -Inf, IMAS.core_profiles__profiles_1d())
+    return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d())
 end
 
 """
@@ -70,7 +71,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
-    cp1d = dd.core_profiles.profiles_1d[]
+    debug = false
 
     if par.model == :none
         actor.ped_actor = actor.none_actor
@@ -81,7 +82,10 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         actor.ped_actor = actor.wped_actor
         run_selected_pedstal_model(actor)
     elseif par.model == :dynamic
-        @assert par.ne_from == :pulse_schedule "Dyanmic requires ne_from pulse schedule"
+        @assert par.ne_from == :pulse_schedule ":dyanmic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
+        @assert previous_time < dd.global_time "subsequent calls to :dyanmic pedestal model require dd.global_time advance"
+
+        cp1d = dd.core_profiles.profiles_1d[]
 
         if IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.5)
             push!(actor.state, :H_mode)
@@ -98,30 +102,23 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
         elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode]
             # L to H
-            actor.t_lh = dd.global_time
+            actor.t_lh = (actor.previous_time + dd.global_time) / 2.0
             actor.cp1d_transition = deepcopy(cp1d)
 
         elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:H_mode, :L_mode]
             # H to L
-            actor.t_hl = dd.global_time
+            actor.t_hl = (actor.previous_time + dd.global_time) / 2.0
             actor.cp1d_transition = deepcopy(cp1d)
-
-            # # The L to H and H to L model are triggered when hmode conditions are triggered so therefore pulse_schedule needs to be updated based on this model
-            # if par.density_match == :ne_ped
-            #     @ddtime(dd.pulse_schedule.density_control.n_e_pedestal.reference = @ddtime(dd.summary.local.pedestal.n_e.value))
-            # elseif par.density_match == :ne_line
-            #     @ddtime(dd.pulse_schedule.density_control.n_e_line.reference = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d))
-            # end            
         end
 
         if actor.state[end] == :L_mode
             # L-mode
-            α_t = LH_tanh_response(par.tau_t, actor.t_hl, dd.global_time)
-            α_n = LH_tanh_response(par.tau_n, actor.t_hl, dd.global_time)
+            α_t = LH_tanh_response(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
+            α_n = LH_tanh_response(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
 
             actor.ped_actor = actor.wped_actor
             actor.ped_actor.par.density_factor = 1.0 * (1 - α_n) + par.density_ratio_L_over_H * α_n
-            @show α_n
+
             run_selected_pedstal_model(actor)
 
             Te_ongoing = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
@@ -133,8 +130,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             end
         else
             # H-mode
-            α_t = LH_tanh_response(par.tau_t, actor.t_lh, dd.global_time)
-            α_n = LH_tanh_response(par.tau_n, actor.t_lh, dd.global_time)
+            α_t = LH_tanh_response(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
+            α_n = LH_tanh_response(par.tau_n, actor.t_lh, dd.global_time) # from 0 -> 1
 
             actor.ped_actor = actor.eped_actor
             actor.ped_actor.par.density_factor = par.density_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
@@ -149,6 +146,19 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
                 ion.temperature = Ti_ongoing
             end
         end
+
+        if debug
+            println()
+            @show dd.global_time
+            println(actor.state[end])
+            @show actor.t_lh
+            @show actor.t_hl
+            @show α_t
+            @show α_n
+        end
+
+        actor.previous_time = dd.global_time
+
     end
 
     return actor
@@ -165,8 +175,7 @@ function LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
     elseif t_now <= t_LH
         return 0.0
     end
-    t = t_now .+ t_LH
-    α = tanh.((2pi .* (t .- t_LH .- τ / 4.0)) ./ τ) / 2.0 + 0.5
+    α = tanh.((2pi .* (t_now .- t_LH .- τ / 4.0)) ./ τ) / 2.0 + 0.5
     α0 = tanh.((2pi .* (.-τ / 4.0)) ./ τ) / 2.0 + 0.5
     α = (α .- α0) ./ (1 - α0)
     return α
