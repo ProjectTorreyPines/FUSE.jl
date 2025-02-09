@@ -88,7 +88,7 @@ function _step(actor::ActorCXbuild)
     # divertors + find strike points on divertors
     divertor_regions!(bd, eqt, dd.divertors, fw.r, fw.z)
     psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_first_open, dd.divertors)
+    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_first_open)
 
     # blankets
     blanket_regions!(bd, eqt)
