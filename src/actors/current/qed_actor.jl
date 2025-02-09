@@ -114,7 +114,7 @@ function _step(actor::ActorQED)
                 i_qdes = 0
             end
 
-            actor.QO = QED.diffuse(actor.QO, η_imas(dd.core_profiles.profiles_1d[time0], i_qdes), δt, Ni; Vedge, Ip, debug=false)
+            actor.QO = QED.diffuse(actor.QO, η_Jardin(dd.core_profiles.profiles_1d[time0], i_qdes), δt, Ni; Vedge, Ip, debug=false)
         end
 
     elseif par.Δt == Inf
@@ -135,7 +135,7 @@ function _step(actor::ActorQED)
         # current fully relaxes, and the second time we change the resisitivity to keep q>1
         i_qdes = 0
         for _ in (1, 2)
-            actor.QO = QED.steady_state(actor.QO, η_imas(dd.core_profiles.profiles_1d[], i_qdes); Vedge, Ip)
+            actor.QO = QED.steady_state(actor.QO, η_Jardin(dd.core_profiles.profiles_1d[], i_qdes); Vedge, Ip)
             # check where q<1
             qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
             i_qdes = findlast(qval .< par.qmin_desired)
@@ -213,11 +213,11 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
 end
 
 """
-    η_imas(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
+    η_Jardin(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
 
 Jardin's model for stationary sawteeth changes the plasma resistivity to raise q>1
 """
-function η_imas(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
+function η_Jardin(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
     η = 1.0 ./ cp1d.conductivity_parallel
     if i_qdes != 0
         η[1:i_qdes] .= η[i_qdes]
