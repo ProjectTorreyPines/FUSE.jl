@@ -178,7 +178,7 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
                 end
             end
 
-            # run equilibrium actor with the updated beta
+            # run equilibrium actor with the updated current or pressure
             ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_eq, phase))
             if par.evolve_equilibrium
                 finalize(step(actor.actor_eq))
@@ -190,7 +190,7 @@ function _step(actor::ActorDynamicPlasma; n_steps::Int=0)
                 finalize(step(actor.actor_hc))
             end
 
-            # run the pf_active actor to get update coil currents
+            # run the pf_active actor to update coil currents
             ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_pf, phase))
             if par.evolve_pf_active
                 finalize(step(actor.actor_pf))

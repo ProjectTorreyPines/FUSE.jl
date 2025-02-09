@@ -71,8 +71,8 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
 
     if par.do_plot
-        q = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
-        qq = plot(cp1d, :t_i_average; label="Ti before WPED blending", xlabel="rho")
+        ppe = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
+        ppi = plot(cp1d, :t_i_average; label="Ti before WPED blending", xlabel="rho")
     end
 
     if ismissing(par, :ped_to_core_fraction)
@@ -84,8 +84,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
 
-    # Change the last point of the temperatures profiles since
-    # The rest of the profile will be taken care by the blend_core_edge() function
+    # Change the last point of the temperatures profiles since that's what used in cost_WPED_ztarget_pedratio()
     cp1d.electrons.temperature[end] = par.Te_sep
     for ion in cp1d.ion
         if !ismissing(ion, :temperature)
@@ -106,8 +105,8 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     @ddtime summary_ped.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(par.rho_ped)
 
     if par.do_plot
-        display(plot!(q, cp1d.electrons, :temperature; label="Te after WPED blending"))
-        display(plot!(qq, cp1d, :t_i_average; label="Ti after WPED blending"))
+        display(plot!(ppe, cp1d.electrons, :temperature; label="Te after WPED blending"))
+        display(plot!(ppi, cp1d, :t_i_average; label="Ti after WPED blending"))
     end
 
     return actor
