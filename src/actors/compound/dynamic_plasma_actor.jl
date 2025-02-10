@@ -248,7 +248,11 @@ Inclusinon in BEAMER presentation can then be done with:
 """
 function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, dd1::Union{Nothing,IMAS.DD}=nothing, kw...)
     l = @layout grid(3, 4)
-    p = plot(; layout=l, size=(1600, 1000), left_margin=1 * Plots.Measures.mm, kw...)
+    kw = Dict(kw...)
+    if :size ∉ keys(kw)
+        kw[:size] =(1600, 1000)
+    end
+    p = plot(; layout=l, left_margin=1 * Plots.Measures.mm, kw...)
 
     cp1d = dd.core_profiles.profiles_1d[time0]
 
