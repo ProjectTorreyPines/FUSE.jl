@@ -158,15 +158,15 @@ function init_core_profiles!(
         end
     elseif ne_setting == :ne_line
         if typeof(equil) <: IMAS.equilibrium__time_slice
-            ne_ped = ne_value / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+            ne_ped = ne_value / IMAS.ne_line(equil, cp1d)
         else
-            ne_ped = ne_value / IMAS.geometric_midplane_line_averaged_density(nothing, cp1d)
+            ne_ped = ne_value / IMAS.ne_line(nothing, cp1d)
         end
     elseif ne_setting == :greenwald_fraction
         if typeof(equil) <: IMAS.equilibrium__time_slice
-            ne_ped = ne_value * IMAS.greenwald_density(equil) / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+            ne_ped = ne_value * IMAS.greenwald_density(equil) / IMAS.ne_line(equil, cp1d)
         else
-            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0) / IMAS.geometric_midplane_line_averaged_density(nothing, cp1d)
+            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0) / IMAS.ne_line(nothing, cp1d)
         end
     end
     cp1d.electrons.density_thermal .*= ne_ped

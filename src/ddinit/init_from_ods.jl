@@ -202,14 +202,14 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     zeff_ped = sum(cp1d.zeff[ped_region]) / length(ped_region)
 
                     if isempty(dd1.equilibrium.time_slice)
-                        ne_line = IMAS.geometric_midplane_line_averaged_density(nothing, cp1d)
+                        nel = IMAS.ne_line(nothing, cp1d)
                     else
-                        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+                        nel = IMAS.ne_line(eqt, cp1d)
                     end
 
                     push!(W_PED, pedestal.width)
                     push!(NE_PED, ne_ped)
-                    push!(NE_LINE, ne_line)
+                    push!(NE_LINE, nel)
                     push!(ZEFF, zeff_ped)
                     push!(TI_TE_RATIO, ti_ped / te_ped)
                 end
