@@ -93,6 +93,7 @@ function _finalize(actor::ActorEPED)
     cp1d = dd.core_profiles.profiles_1d[]
     impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
     zi = sum(impurity) / length(impurity)
+    @assert actor.inputs.zeffped <= zi
     nival = actor.inputs.neped * 1e19 * (actor.inputs.zeffped - 1) / (zi^2 - zi)
     nval = actor.inputs.neped * 1e19 - zi * nival
     nsum = actor.inputs.neped * 1e19 + nval + nival

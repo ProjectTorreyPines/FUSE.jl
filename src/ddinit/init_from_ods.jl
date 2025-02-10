@@ -194,12 +194,13 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     cp1d.grid.psi = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.psi).(cp1d.grid.rho_tor_norm)
                 end
                 if !ismissing(cp1d.electrons, :pressure)
+                    rho09 = 0.9 # in FUSE pedestal quantities are defined at rho=0.9
                     pedestal = IMAS.pedestal_finder(cp1d.electrons.pressure, cp1d.grid.rho_tor_norm; guess=pedestal)
-                    ne_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - pedestal.width)
-                    te_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - pedestal.width)
-                    ti_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - pedestal.width)
-                    ped_region = cp1d.grid.rho_tor_norm .> pedestal.width
-                    zeff_ped = sum(cp1d.zeff[ped_region]) / length(ped_region)
+                    ne_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(rho09)
+                    te_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(rho09)
+                    ti_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(rho09)
+                    ped_region = cp1d.grid.rho_tor_norm .>= rho09
+                    zeff_ped = sum(cp1d.zeff[ped_region]) / sum(ped_region)
 
                     if isempty(dd1.equilibrium.time_slice)
                         nel = IMAS.ne_line(nothing, cp1d)
