@@ -179,9 +179,7 @@ end
 
 The EPED and WPED models only operate on the temperature profiles.
 Here we make the densities always conform to the EPED tanh form with w_ped = 0.05
-FUSE defines "pedestal" density, as the density at rho=0.9 (ne_ped09)
-the conversion from ne_ped09 to ne_ped with w_ped = 0.05 is roughly 0.86
-1/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, 0.05)[90] ∼ 0.86
+Throughout FUSE, the "pedestal" density is the density at rho=0.9
 """
 function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
     cp1d = dd.core_profiles.profiles_1d[]
@@ -189,17 +187,14 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
 
     rho09 = 0.9
     w_ped = 0.05
-    ped09_to_ped = 0.86
-    ne_ped09_old = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
-    ne_ped09 = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
-    ne_ped = ne_ped09 * ped09_to_ped
+    ne_ped_old = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
+    ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
     cp1d.electrons.density_thermal = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped)
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
-            ni_ped09_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ni_ped09 = ni_ped09_old  / ne_ped09_old * ne_ped09
-            ni_ped = ni_ped09 * ped09_to_ped
+            ni_ped_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
+            ni_ped = ni_ped_old  / ne_ped_old * ne_ped
             ion.density_thermal[end] = ni_ped / 4.0
             ion.density_thermal = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped)
         end

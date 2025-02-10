@@ -184,9 +184,12 @@ function run_EPED!(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    rho09 = 0.9 # FUSE defines "pedestal" as rho=0.9, which is not what EPED does
+    # Throughout FUSE, the "pedestal" density is the density at rho=0.9
+    # the conversion from ne_ped09 to ne_ped with w_ped = 0.05 is roughly 0.86
+    # 1/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, 0.05)[90] ∼ 0.86
+    rho09 = 0.9
     ne09 = IMAS.get_from(dd, Val{:ne_ped}, ne_from, rho09) * density_factor
-    neped = ne09 * 0.9
+    neped = ne09 * 0.86
     zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, rho09) # zeff is taken as the average value
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
