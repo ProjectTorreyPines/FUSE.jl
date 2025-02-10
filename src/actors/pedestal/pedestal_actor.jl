@@ -79,17 +79,23 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         return actor
     end
 
-    # Make all densities conform to EPED tanh form
-    # the EPED and WPED models only operate on the temperature profiles
-    rho09 = 0.9 # FUSE defines "pedestal" as rho=0.9
-    w_ped = 1.0 - rho09
+    # The EPED and WPED models only operate on the temperature profiles.
+    # Here we make the densities always conform to the EPED tanh form with w_ped = 0.05
+    # FUSE defines "pedestal" density, as the density at rho=0.9 (ne_ped09)
+    # the conversion from ne_ped09 to ne_ped with w_ped = 0.05 is roughly 0.85
+    # 1/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, 0.05)[90] ∼ 0.85
+    rho09 = 0.9
+    w_ped = 0.05
+    ped09_to_ped = 0.85
     rho = cp1d.grid.rho_tor_norm
-    ne_ped = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
+    ne_ped09 = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
+    ne_ped = ne_ped09 * ped09_to_ped
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
     cp1d.electrons.density_thermal = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped)
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
-            ni_ped = IMAS.interp1d(rho, ion.density_thermal).(rho09)
+            ni_ped09 = IMAS.interp1d(rho, ion.density_thermal).(rho09) * 0.85
+            ni_ped = ni_ped09 * ped09_to_ped
             ion.density_thermal[end] = ni_ped / 4.0
             ion.density_thermal = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped)
         end
@@ -198,8 +204,8 @@ function LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
     elseif t_now <= t_LH
         return 0.0
     end
-    α = tanh.((2pi .* (t_now .- t_LH .- τ / 4.0)) ./ τ) / 2.0 + 0.5
-    α0 = tanh.((2pi .* (.-τ / 4.0)) ./ τ) / 2.0 + 0.5
+    α = tanh.((2pi .* (t_now .- t_LH .- τ / 2.0)) ./ τ) / 2.0 + 0.5
+    α0 = tanh.((2pi .* (.-τ / 2.0)) ./ τ) / 2.0 + 0.5
     α = (α .- α0) ./ (1 - α0)
     return α
 end
