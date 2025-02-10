@@ -31,6 +31,7 @@ function ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculator, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorFluxCalculator)
     par = par(kw...)
 
     if par.turbulence_model == :none

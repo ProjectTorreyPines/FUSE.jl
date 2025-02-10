@@ -18,6 +18,7 @@ mutable struct ActorTroyonBetaNN{D,P} <: AbstractActor{D,P}
 end
 
 function ActorTroyonBetaNN(dd::IMAS.dd{D}, par::FUSEparameters__ActorTroyonBetaNN{P}; kw...) where {D<:Real,P<:Real}
+    logging_actor_init(ActorTroyonBetaNN)
     par = par(kw...)
     TD = TroyonBetaNN.load_predefined_Troyon_NN_Models();
     return ActorTroyonBetaNN{D,P}(dd, par, TD)

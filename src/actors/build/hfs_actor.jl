@@ -46,6 +46,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorHFSsizing)
     par = act.ActorHFSsizing(kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)
     stresses_actor = ActorStresses(dd, act.ActorStresses)

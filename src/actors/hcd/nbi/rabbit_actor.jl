@@ -17,6 +17,7 @@ mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
 end
 
 function ActorRABBIT(dd::IMAS.dd, par::FUSEparameters__ActorRABBIT; kw...)
+    logging_actor_init(ActorRABBIT)
     par = par(kw...)
     return ActorRABBIT(dd, par, RABBIT.RABBIToutput[])
 end
