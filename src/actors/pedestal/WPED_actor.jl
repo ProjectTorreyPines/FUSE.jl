@@ -64,11 +64,10 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
     summary_ped = dd.summary.local.pedestal
 
+    rho09 = 0.9 # FUSE defines "pedestal" as rho=0.9
+    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * par.density_factor
+    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) # zeff is taken as the average value
     @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, par.rho_ped) * par.density_factor
-    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, par.rho_ped)
-
-    IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped; what=:densities)
 
     if par.do_plot
         ppe = plot(cp1d.electrons, :temperature; label="Te before WPED blending")

@@ -70,22 +70,42 @@ Runs actors to evaluate profiles at the edge of the plasma
 function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
 
     debug = false
 
     if par.model == :none
         actor.ped_actor = actor.none_actor
-    elseif par.model == :EPED
+        return actor
+    end
+
+    # Make all densities conform to EPED tanh form
+    # the EPED and WPED models only operate on the temperature profiles
+    rho09 = 0.9 # FUSE defines "pedestal" as rho=0.9
+    w_ped = 1.0 - rho09
+    rho = cp1d.grid.rho_tor_norm
+    ne_ped = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
+    cp1d.electrons.density_thermal[end] = ne_ped / 4.0
+    cp1d.electrons.density_thermal = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped)
+    for ion in cp1d.ion
+        if !ismissing(ion, :density_thermal)
+            ni_ped = IMAS.interp1d(rho, ion.density_thermal).(rho09)
+            ion.density_thermal[end] = ni_ped / 4.0
+            ion.density_thermal = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped)
+        end
+    end
+
+    if par.model == :EPED
         actor.ped_actor = actor.eped_actor
         run_selected_pedstal_model(actor)
+
     elseif par.model == :WPED
         actor.ped_actor = actor.wped_actor
         run_selected_pedstal_model(actor)
-    elseif par.model == :dynamic
-        @assert par.ne_from == :pulse_schedule ":dyanmic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
-        @assert previous_time < dd.global_time "subsequent calls to :dyanmic pedestal model require dd.global_time advance"
 
-        cp1d = dd.core_profiles.profiles_1d[]
+    elseif par.model == :dynamic
+        @assert par.ne_from == :pulse_schedule ":dynamic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
+        @assert actor.previous_time < dd.global_time "subsequent calls to :dynamic pedestal model require dd.global_time advance"
 
         if IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.5)
             push!(actor.state, :H_mode)
@@ -96,6 +116,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         end
 
         if length(actor.state) < 2
+            # initialization
             actor.t_lh = -Inf
             actor.t_hl = -Inf
             actor.cp1d_transition = deepcopy(cp1d)
@@ -128,6 +149,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             for ion in cp1d.ion
                 ion.temperature = Ti_ongoing
             end
+
         else
             # H-mode
             α_t = LH_tanh_response(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
@@ -206,35 +228,22 @@ function run_selected_pedstal_model(actor::ActorPedestal)
             actor.ped_actor.par.ne_from = :core_profiles
         end
 
-        cp1d_copy = deepcopy(cp1d)
-        factor = 1.0
-        for k in 1:10
-            # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
-            ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-            ne_line_wanted = IMAS.ne_line(dd.pulse_schedule) * actor.ped_actor.par.density_factor
-            factor = factor * ne_line_wanted / ne_line
-            cp1d.electrons.density_thermal = cp1d_copy.electrons.density_thermal * factor
-            for i in eachindex(cp1d.ion)
-                cp1d.ion[i].density_thermal = cp1d_copy.ion[i].density_thermal * factor
-            end
-            cp1d.electrons.temperature = cp1d_copy.electrons.temperature / factor
-            for i in eachindex(cp1d.ion)
-                cp1d.ion[i].temperature = cp1d_copy.ion[i].temperature / factor
-            end
-
-            # run the pedestal model
-            if k == 1
-                finalize(step(actor.ped_actor))
-            else
-                _finalize(_step(actor.ped_actor))
-            end
-
-            ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
-            ne_line_wanted = IMAS.ne_line(dd.pulse_schedule)
-            if abs(ne_line - ne_line_wanted) / ne_line_wanted < 1E-3
-                break
-            end
+        # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
+        # we can do this because EPED and WPED only operate on temperature profiles
+        ne_line_wanted = IMAS.ne_line(dd.pulse_schedule) * actor.ped_actor.par.density_factor
+        ne_line = IMAS.geometric_midplane_line_averaged_density(eqt, cp1d)
+        factor = ne_line_wanted / ne_line
+        cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
+        for ion in cp1d.ion
+            ion.density_thermal = ion.density_thermal * factor
         end
+        cp1d.electrons.temperature = cp1d.electrons.temperature / factor
+        for ion in cp1d.ion
+            ion.temperature = ion.temperature / factor
+        end
+
+        # run the pedestal model
+        finalize(step(actor.ped_actor))
 
         if par.model != :none
             actor.ped_actor.par.ne_from = :pulse_schedule

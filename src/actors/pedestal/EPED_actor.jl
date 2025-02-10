@@ -104,6 +104,7 @@ function _finalize(actor::ActorEPED)
     t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
     t_i_average = t_e * Ti_over_Te
     position = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
+    w_ped = 1.0 - position
 
     summary_ped = dd.summary.local.pedestal
     @ddtime summary_ped.n_e.value = n_e
@@ -112,7 +113,7 @@ function _finalize(actor::ActorEPED)
     @ddtime summary_ped.position.rho_tor_norm = position
 
     # Change the last point of the temperatures profiles since
-    # The rest of the profile will be taken care by the blend_core_edge() function
+    # The rest of the profile will be taken care by the blend_core_edge_Hmode() function
     cp1d.electrons.temperature[end] = par.Te_sep
     for ion in cp1d.ion
         if !ismissing(ion, :temperature)
@@ -120,8 +121,15 @@ function _finalize(actor::ActorEPED)
         end
     end
 
-    # this function takes information about the H-mode pedestal from summary IDS and blends it with core_profiles core
-    IMAS.blend_core_edge(:H_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped)
+    # blend  core_profiles core
+    rho = cp1d.grid.rho_tor_norm
+    cp1d.electrons.temperature = IMAS.blend_core_edge_Hmode(cp1d.electrons.temperature, rho, t_e, w_ped, par.rho_nml, par.rho_ped)
+    ti_avg_new = IMAS.blend_core_edge_Hmode(cp1d.t_i_average, rho, t_i_average, w_ped, par.rho_nml, par.rho_ped)
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature = ti_avg_new
+        end
+    end
 
     return actor
 end
@@ -175,21 +183,23 @@ function run_EPED!(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing) * density_factor
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, nothing)
+    rho09 = 0.9 # FUSE defines "pedestal" as rho=0.9, which is not what EPED does
+    ne09 = IMAS.get_from(dd, Val{:ne_ped}, ne_from, rho09) * density_factor
+    neped = ne09 * 0.9
+    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, rho09) # zeff is taken as the average value
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
     Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
-    #NOTE: EPED results can be very sensitive to δu, δl
+    # NOTE: EPED results can be very sensitive to δu, δl
     #
-    #      eqt.boundary can have small changes in κ, δu, δl just due to contouring
-    #      This issue can be mitigated using higher grid resolutions in the equilibrium solver.
+    # eqt.boundary can have small changes in κ, δu, δl just due to contouring
+    # This issue can be mitigated using higher grid resolutions in the equilibrium solver.
     #
-    #      Here we use the flux surface right inside of the LCFS, and not the LCFS itself.
-    #      Not only this avoids these sensitivity issues, but it's actually more correct,
-    #      since the TOQ equilibrium used by EPED is a fixed boundary equilibrium solver,
-    #      and as such it cuts out psi at 99% or similar.
+    # Here we use the flux surface right inside of the LCFS, and not the LCFS itself.
+    # Not only this avoids these sensitivity issues, but it's actually more correct,
+    # since the TOQ equilibrium used by EPED is a fixed boundary equilibrium solver,
+    # and as such it cuts out psi at 99% or similar.
     if false
         R = eqt.boundary.geometric_axis.r
         a = eqt.boundary.minor_radius
