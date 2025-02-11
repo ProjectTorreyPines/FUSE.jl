@@ -16,11 +16,11 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
     act::ParametersAllActors{P}
-    ec_actor::Union{Missing,ActorSimpleEC{D,P}}
-    ic_actor::Union{Missing,ActorSimpleIC{D,P}}
-    lh_actor::Union{Missing,ActorSimpleLH{D,P}}
-    nb_actor::Union{Missing,ActorSimpleNB{D,P},ActorRABBIT{D,P}}
-    pellet_actor::Union{Missing,ActorSimplePL{D,P}}
+    ec_actor::Union{ActorSimpleEC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    lh_actor::Union{ActorSimpleLH{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    pellet_actor::Union{ActorSimplePL{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -38,55 +38,48 @@ end
 function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAllActors; kw...)
     logging_actor_init(ActorHCD)
     par = par(kw...)
-    
-    if par.ec_model == :none
-        ec_actor = missing
-    else
-        @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
-        if par.ec_model == :ECsimple
-            ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
-        end
+
+    noop = ActorNoOperation(dd, act.ActorNoOperation)
+    actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop)
+
+    @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
+    if par.ec_model == :ECsimple
+        actor.ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
+    elseif par.ec_mode == :replay
+        actor.ec_actor = ActorReplay(dd, act.ActorSimpleEC, actor)
     end
 
-    if par.ic_model == :none
-        ic_actor = missing
-    else
-        @assert length(dd.pulse_schedule.ic.antenna) == length(dd.ic_antennas.antenna) "length(dd.pulse_schedule.ic.antenna)=$(length(dd.pulse_schedule.ic.antenna)) VS length(dd.ic_antennas.antenna)=$(length(dd.ic_antennas.antenna))"
-        if par.ic_model == :ICsimple
-            ic_actor = ActorSimpleIC(dd, act.ActorSimpleIC)
-        end
+    @assert length(dd.pulse_schedule.ic.antenna) == length(dd.ic_antennas.antenna) "length(dd.pulse_schedule.ic.antenna)=$(length(dd.pulse_schedule.ic.antenna)) VS length(dd.ic_antennas.antenna)=$(length(dd.ic_antennas.antenna))"
+    if par.ic_model == :ICsimple
+        actor.ic_actor = ActorSimpleIC(dd, act.ActorSimpleIC)
+    elseif par.ic_model == :replay
+        actor.ic_actor = ActorReplay(dd, act.ActorSimpleIC, actor)
     end
 
-    if par.lh_model == :none
-        lh_actor = missing
-    else
-        @assert length(dd.pulse_schedule.lh.antenna) == length(dd.lh_antennas.antenna) "length(dd.pulse_schedule.lh.antenna)=$(length(dd.pulse_schedule.lh.antenna)) VS length(dd.lh_antennas.antenna)=$(length(dd.lh_antennas.antenna))"
-        if par.lh_model == :LHsimple
-            lh_actor = ActorSimpleLH(dd, act.ActorSimpleLH)
-        end
+    @assert length(dd.pulse_schedule.lh.antenna) == length(dd.lh_antennas.antenna) "length(dd.pulse_schedule.lh.antenna)=$(length(dd.pulse_schedule.lh.antenna)) VS length(dd.lh_antennas.antenna)=$(length(dd.lh_antennas.antenna))"
+    if par.lh_model == :LHsimple
+        actor.lh_actor = ActorSimpleLH(dd, act.ActorSimpleLH)
+    elseif par.lh_model == :replay
+        actor.lh_actor = ActorReplay(dd, act.ActorSimpleLH, actor)
     end
 
-    if par.nb_model == :none
-        nb_actor = missing
-    else
-        @assert length(dd.pulse_schedule.nbi.unit) == length(dd.nbi.unit) "length(dd.pulse_schedule.nbi.unit)=$(length(dd.pulse_schedule.nbi.unit)) VS length(dd.nbi.unit)=$(length(dd.nbi.unit))"
-        if par.nb_model == :NBsimple
-            nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
-        elseif par.nb_model == :RABBIT
-            nb_actor = ActorRABBIT(dd, act.ActorRABBIT)        
-        end
+    @assert length(dd.pulse_schedule.nbi.unit) == length(dd.nbi.unit) "length(dd.pulse_schedule.nbi.unit)=$(length(dd.pulse_schedule.nbi.unit)) VS length(dd.nbi.unit)=$(length(dd.nbi.unit))"
+    if par.nb_model == :NBsimple
+        actor.nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
+    elseif par.nb_model == :RABBIT
+        actor.nb_actor = ActorRABBIT(dd, act.ActorRABBIT)
+    elseif par.nb_model == :replay
+        actor.nb_actor = ActorReplay(dd, act.ActorSimpleNB, actor)
     end
 
-    if par.pellet_model == :none
-        pellet_actor = missing
-    else
-        @assert length(dd.pulse_schedule.pellet.launcher) == length(dd.pellets.launcher) "length(dd.pulse_schedule.pellet.launcher)=$(length(dd.pulse_schedule.pellet.launcher)) VS length(dd.pellets.launcher)=$(length(dd.pellets.launcher))"
-        if par.pellet_model == :Pelletsimple
-            pellet_actor = ActorSimplePL(dd, act.ActorSimplePL)
-        end
+    @assert length(dd.pulse_schedule.pellet.launcher) == length(dd.pellets.launcher) "length(dd.pulse_schedule.pellet.launcher)=$(length(dd.pulse_schedule.pellet.launcher)) VS length(dd.pellets.launcher)=$(length(dd.pellets.launcher))"
+    if par.pellet_model == :Pelletsimple
+        actor.pellet_actor = ActorSimplePL(dd, act.ActorSimplePL)
+    elseif par.pellet_model == :replay
+        actor.pellet_actor = ActorReplay(dd, act.ActorSimplePL, actor)
     end
 
-    return ActorHCD(dd, par, act, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
+    return actor
 end
 
 """
@@ -100,21 +93,11 @@ function _step(actor::ActorHCD)
     # Call IMAS.sources!(dd) since the most would expect sources to be consistent when coming out of this actor
     IMAS.sources!(dd)
 
-    if actor.ec_actor !== missing
-        step(actor.ec_actor)
-    end
-    if actor.ic_actor !== missing
-        step(actor.ic_actor)
-    end
-    if actor.lh_actor !== missing
-        step(actor.lh_actor)
-    end
-    if actor.nb_actor !== missing
-        step(actor.nb_actor)
-    end
-    if actor.pellet_actor !== missing
-        step(actor.pellet_actor)
-    end
+    step(actor.ec_actor)
+    step(actor.ic_actor)
+    step(actor.lh_actor)
+    step(actor.nb_actor)
+    step(actor.pellet_actor)
 
     return actor
 end
@@ -125,20 +108,37 @@ end
 Finalizes the selected CHD actor's finalize
 """
 function _finalize(actor::ActorHCD)
-    if actor.ec_actor !== missing
-        finalize(actor.ec_actor)
-    end
-    if actor.ic_actor !== missing
-        finalize(actor.ic_actor)
-    end
-    if actor.lh_actor !== missing
-        finalize(actor.lh_actor)
-    end
-    if actor.nb_actor !== missing
-        finalize(actor.nb_actor)
-    end
-    if actor.pellet_actor !== missing
-        finalize(actor.pellet_actor)
-    end
+
+    finalize(actor.ec_actor)
+    finalize(actor.ic_actor)
+    finalize(actor.lh_actor)
+    finalize(actor.nb_actor)
+    finalize(actor.pellet_actor)
+
     return actor
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorSimpleEC, replay_dd::IMAS.dd)
+    IMAS.IMASdd.copy_timeslice!(actor.dd.ec_launcher, replay_dd.ec_launcher, actor.dd.global_time);
+    return replay_actor
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorSimpleIC, replay_dd::IMAS.dd)
+    IMAS.IMASdd.copy_timeslice!(actor.dd.ic_antenna, replay_dd.ic_antenna, actor.dd.global_time);
+    return replay_actor
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorSimpleLH, replay_dd::IMAS.dd)
+    IMAS.IMASdd.copy_timeslice!(actor.dd.lh_antenna, replay_dd.lh_antenna, actor.dd.global_time);
+    return replay_actor
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorSimpleNB, replay_dd::IMAS.dd)
+    IMAS.IMASdd.copy_timeslice!(actor.dd.nbi, replay_dd.nbi, actor.dd.global_time);
+    return replay_actor
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorSimplePL, replay_dd::IMAS.dd)
+    IMAS.IMASdd.copy_timeslice!(actor.dd.pellet, replay_dd.pellet, actor.dd.global_time);
+    return replay_actor
 end
