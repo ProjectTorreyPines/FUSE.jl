@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :none], "-", "Pedestal model to use"; default=:EPED)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
     #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("s", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("s", "pedestal density LH transition tanh evolution time (95% of full transition)")
@@ -30,10 +30,11 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPedestal{P}
     act::ParametersAllActors{P}
-    ped_actor::Union{ActorNoOperation{D,P},ActorEPED{D,P},ActorWPED{D,P}}
-    none_actor::ActorNoOperation{D,P}
-    eped_actor::ActorEPED{D,P}
+    ped_actor::Union{ActorWPED{D,P},ActorEPED{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     wped_actor::ActorWPED{D,P}
+    eped_actor::ActorEPED{D,P}
+    replay_actor::Union{ActorReplay{D,P},ActorNoOperation{D,P}}
+    noop_actor::ActorNoOperation{D,P}
     state::Vector{Symbol}
     t_lh::Float64
     t_hl::Float64
@@ -58,8 +59,10 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     par = par(kw...)
     eped_actor = ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     wped_actor = ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
-    none_actor = ActorNoOperation(dd, act.ActorNoOperation)
-    return ActorPedestal(dd, par, act, none_actor, none_actor, eped_actor, wped_actor, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d())
+    noop = ActorNoOperation(dd, act.ActorNoOperation)
+    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d())
+    actor.replay_actor = ActorReplay(dd, act.ActorReplay, actor)
+    return actor
 end
 
 """
@@ -75,7 +78,12 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     debug = true
 
     if par.model == :none
-        actor.ped_actor = actor.none_actor
+        actor.ped_actor = actor.noop_actor
+        finalize(step(actor.ped_actor))
+
+    elseif par.model == :replay
+        actor.ped_actor = actor.replay_actor
+        finalize(step(actor.ped_actor))
 
     elseif par.model == :EPED
         actor.ped_actor = actor.eped_actor
@@ -281,4 +289,30 @@ function ti_te_ratio(cp1d, T_ratio_pedestal, rho_nml, rho_ped)
     else
         return T_ratio_pedestal
     end
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.dd)
+    dd = actor.dd
+    par = actor.par
+
+    time0 = dd.global_time
+    cp1d = dd.core_profiles.profiles_1d[time0]
+    replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
+    rho = cp1d.grid.rho_tor_norm
+
+    cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped)
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if !ismissing(ion, :density_thermal)
+            ion.density_thermal = IMAS.blend_core_edge(ion.density_thermal, replay_ion.density_thermal, rho, par.rho_nml, par.rho_ped)
+        end
+    end
+
+    cp1d.electrons.temperature = IMAS.blend_core_edge(cp1d.electrons.temperature, replay_cp1d.electrons.temperature, rho, par.rho_nml, par.rho_ped)
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if !ismissing(ion, :temperature)
+            ion.temperature = IMAS.blend_core_edge(ion.temperature, replay_ion.temperature, rho, par.rho_nml, par.rho_ped)
+        end
+    end
+
+    return replay_actor
 end
