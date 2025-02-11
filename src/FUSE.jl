@@ -49,6 +49,7 @@ include(joinpath("cases", "_cases.jl"))
 #  PHYSICS  #
 #= ======= =#
 include("physics.jl")
+include("experiments.jl")
 
 #= ====== =#
 #  DDINIT  #
