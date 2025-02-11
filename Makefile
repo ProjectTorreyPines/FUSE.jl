@@ -23,11 +23,13 @@ endif
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic IMAS IMASdd IMASutils
 FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TroyonBetaNN VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
+FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
 ifndef NO_FUSE_EXTENSION
-	FUSE_PACKAGES_MAKEFILE := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
+	FUSE_PACKAGES_MAKEFILE := $(FUSE_PACKAGES_MAKEFILE_ALL)
 endif
-FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
+FUSE_PACKAGES_ALL := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_ALL)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
 
 # use command line interface for git to work nicely with private repos
@@ -360,7 +362,8 @@ endif
 deps_tree:
 # Print FUSE dependency tree of project-torrey-pines packages
 	@julia -e' ;\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = $(FUSE_PACKAGES_ALL);\
+	println(fuse_packages);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using AbstractTrees ;\
@@ -380,7 +383,8 @@ deps_tree:
 deps_dag:
 # Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
 	@julia -e' ;\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = $(FUSE_PACKAGES_ALL);\
+	println(fuse_packages);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using Random ;\
