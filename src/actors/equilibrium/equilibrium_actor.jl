@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: Paramete
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :CHEASE, :none], "-", "Equilibrium actor to run"; default=:TEQUILA)
+    model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :CHEASE, :replay, :none], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
     #== data flow parameters ==#
     j_p_from::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Take j_tor and pressure profiles from this IDS"; default=:core_profiles)
@@ -20,7 +20,7 @@ mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEquilibrium{P}
     act::ParametersAllActors{P}
-    eq_actor::Union{Nothing,ActorFRESCO{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P},ActorNoOperation{D,P}}
+    eq_actor::Union{Nothing,ActorFRESCO{D,P},ActorCHEASE{D,P},ActorTEQUILA{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -38,18 +38,21 @@ end
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = par(kw...)
+
+    noop = ActorNoOperation(dd, act.ActorNoOperation)
+    actor = ActorEquilibrium(dd, par, act, noop)
+
     if par.model == :FRESCO
-        eq_actor = ActorFRESCO(dd, act.ActorFRESCO, act)
+        actor.eq_actor = ActorFRESCO(dd, act.ActorFRESCO, act)
     elseif par.model == :CHEASE
-        eq_actor = ActorCHEASE(dd, act.ActorCHEASE, act)
+        actor.eq_actor = ActorCHEASE(dd, act.ActorCHEASE, act)
     elseif par.model == :TEQUILA
-        eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA, act)
-    elseif par.model == :none
-        eq_actor = ActorNoOperation(dd, act.ActorNoOperation)
-    else
-        error("ActorEquilibrium: model = `$(par.model)` can only be one of [:TEQUILA, :FRESCO, :CHEASE, :none]")
+        actor.eq_actor = ActorTEQUILA(dd, act.ActorTEQUILA, act)
+    elseif par.model == :replay
+        actor.eq_actor = ActorReplay(dd, act.ActorReplay, actor)
     end
-    return ActorEquilibrium(dd, par, act, eq_actor)
+
+    return actor
 end
 
 """
@@ -92,7 +95,7 @@ function _finalize(actor::ActorEquilibrium)
     # finalize selected equilibrium actor
     finalize(actor.eq_actor)
 
-    if par.model !== :none
+    if par.model  ∉ (:none, :replay)
         eqt = dd.equilibrium.time_slice[]
 
         # symmetrize equilibrium if requested and number of X-points is even
@@ -240,6 +243,15 @@ function prepare(actor::ActorEquilibrium)
     eqt1d.j_tor = j_itp.(sqrt.(eqt1d.psi_norm))
     eqt1d.pressure = p_itp.(sqrt.(eqt1d.psi_norm))
 
+    # if sign(maximum(eqt1d.j_tor)) != sign(minimum(eqt1d.j_tor))
+    #     j_tor = eqt1d.j_tor
+    #     s = sign(sum(j_tor))
+    #     j_tor = s .* j_tor
+    #     min_j = sum(j_tor[j_tor.>0.0]) / length(j_tor) / 100.0
+    #     j_tor[j_tor.<=min_j] .= min_j
+    #     eqt1d.j_tor = s .* j_tor
+    # end
+
     return dd
 end
 
@@ -281,11 +293,11 @@ Convert IMAS.equilibrium__time_slice to MXHEquilibrium.jl EFIT structure
 function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     eqt2d = findfirst(:rectangular, eqt.profiles_2d)
     dim1 = range(eqt2d.grid.dim1[1], eqt2d.grid.dim1[end], length(eqt2d.grid.dim1))
-    @assert collect(dim1) ≈ eqt2d.grid.dim1
+    @assert norm(dim1 .- eqt2d.grid.dim1) / norm(eqt2d.grid.dim1)< 1E-3
     dim2 = range(eqt2d.grid.dim2[1], eqt2d.grid.dim2[end], length(eqt2d.grid.dim2))
-    @assert collect(dim2) ≈ eqt2d.grid.dim2
+    @assert norm(dim2 .- eqt2d.grid.dim2) / norm(eqt2d.grid.dim2) < 1E-3
     psi = range(eqt.profiles_1d.psi[1], eqt.profiles_1d.psi[end], length(eqt.profiles_1d.psi))
-    @assert collect(psi) ≈ eqt.profiles_1d.psi
+    @assert norm(psi .- eqt.profiles_1d.psi) / norm(eqt.profiles_1d.psi) < 1E-3
 
     return MXHEquilibrium.efit(
         MXHEquilibrium.cocos(11), # COCOS
@@ -300,4 +312,9 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
         (eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z), # Magnetic Axis (raxis,zaxis)
         Int(sign(eqt.profiles_1d.f[end]) * sign(eqt.global_quantities.ip)) # sign(dot(J,B))
     )
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorEquilibrium, replay_dd::IMAS.dd)
+    IMAS.IMASdd.copy_timeslice!(actor.dd.equilibrium, replay_dd.equilibrium, actor.dd.global_time);
+    return replay_actor
 end
