@@ -5,13 +5,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorBalanceOfPlant{T<:Real} <: Param
     _parent::WeakRef = WeakRef(Nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBalanceOfPlant{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     thermal_plant_actor::ActorThermalPlant{D}
     power_needs_actor::ActorPowerNeeds{D}
 end
@@ -20,8 +19,10 @@ end
     ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Balance of plant actor that estimates the net electrical power output by comparing the balance of plant electrical needs with the electricity generated from the thermal cycle.
+
 !!! note
-Stores data in `dd.balance_of_plant`
+
+    Stores data in `dd.balance_of_plant`
 """
 function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorBalanceOfPlant(dd, act.ActorBalanceOfPlant, act; kw...)
@@ -45,9 +46,9 @@ function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPla
     @ddtime(bop.power_plant.heat_load.divertor = divertor_heat_load)
     wall_heat_load = abs(IMAS.radiation_losses(dd.core_sources))
     @ddtime(bop.power_plant.heat_load.wall = wall_heat_load)
-    
+
     # setup actors
-    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant; par.do_plot)
+    thermal_plant_actor = ActorThermalPlant(dd, act.ActorThermalPlant, act)
     power_needs_actor = ActorPowerNeeds(dd, act.ActorPowerNeeds)
     return ActorBalanceOfPlant(dd, par, act, thermal_plant_actor, power_needs_actor)
 end

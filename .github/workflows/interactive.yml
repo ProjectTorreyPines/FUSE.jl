@@ -2,44 +2,49 @@ name: interactive
 
 on:
   workflow_dispatch:
+    inputs:
+      system:
+        description: 'OS'
+        required: true
+        default: 'ubuntu-latest'
+        type: choice
+        options:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+      arch:
+        description: 'Architecture'
+        required: true
+        default: 'x64'
+        type: choice
+        options:
+          - x64
+          - arm64
 
 env:
   PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - "1.x"
-        os:
-          - ubuntu-latest
-        arch:
-          - x64
+    name: Julia 1.x - ${{ inputs.system }} - ${{ inputs.arch }}
+    runs-on: ${{ inputs.system }}
     env:
-        GKSwstype: 100 # disable Plots.jl interactive output
+      GKSwstype: 100 # disable Plots.jl interactive output
     steps:
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
       - name: Set JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}
         run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
       #============
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
-      - run: pip install nbconvert
       #============
       - uses: julia-actions/setup-julia@v1
         with:
-          version: ${{ matrix.version }}
-          arch: ${{ matrix.arch }}
+          version: "1.x"
+          arch: ${{ inputs.arch }}
           show-versioninfo: true
-      - run: make install_ci_add
-      - uses: julia-actions/julia-buildpkg@v1
       #============
       - name: Interactive with tmate
         uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60

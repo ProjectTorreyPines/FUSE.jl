@@ -1,4 +1,4 @@
-import FuseUtils: trapz
+import IMASutils: trapz
 
 #= ========= =#
 #  functions  #
@@ -34,9 +34,11 @@ function shaped_source(
     if electrons_particles !== missing
         electrons_particles = gaussian_vol .* electrons_particles
     end
+
     if momentum_tor !== missing
-        momentum_tor = gaussian_area .* momentum_tor
+        momentum_tor = gaussian_vol .* momentum_tor
     end
+
     if j_parallel !== missing
         j_parallel = gaussian_area .* j_parallel
     end

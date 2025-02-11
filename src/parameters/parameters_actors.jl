@@ -6,9 +6,11 @@ Expands the subtypes into struct members
 macro insert_subtype_members(T)
     expr = Expr(:block)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__" => ""))
-        constraint = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
-        push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
+        if !startswith(String(Symbol(s)), "FUSE._")
+            mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__" => ""))
+            constraint = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
+            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
+        end
     end
     return expr
 end
@@ -22,8 +24,10 @@ subtypes we can then splat into the larger constructor
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
-        push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+        if !startswith(String(Symbol(s)), "FUSE._")
+            mem = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
+            push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+        end
     end
     return expr
 end

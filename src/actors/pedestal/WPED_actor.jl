@@ -5,12 +5,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    #== common pedestal parameters==#
+    rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
+    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
+    T_ratio_pedestal::Entry{T} =
+        Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
+    Te_sep::Entry{T} = Entry{T}("-", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
+    ip_from::Switch{Symbol} = switch_get_from(:ip)
+    βn_from::Switch{Symbol} = switch_get_from(:βn)
+    ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters ==#
+    density_factor::Entry{T} = Entry{T}("-", "Scale input density by given factor"; default=1.0)
     ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas, missing keeps original ratio]")
-    rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the edge region starts")
-    #== data flow parameters ==#
-    ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
-    zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -55,29 +62,36 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-
     summary_ped = dd.summary.local.pedestal
-    @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_ped_from, par.rho_ped)
-    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_ped_from, par.rho_ped)
-    IMAS.blend_core_edge(:L_mode, cp1d, summary_ped, NaN, par.rho_ped; what=:densities)
 
-    rho = cp1d.grid.rho_tor_norm
-    rho_bound_idx = argmin(abs.(rho .- par.rho_ped))
+    # Throughout FUSE, the "pedestal" density is the density at rho=0.9
+    rho09 = 0.9
+    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * par.density_factor
+    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) # zeff is taken as the average value
+    @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
 
     if par.do_plot
-        q = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
-        qq = plot(cp1d, :t_i_average; label="Ti before WPED blending", xlabel="rho")
+        ppe = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
+        ppi = plot(cp1d, :t_i_average; label="Ti before WPED blending", xlabel="rho")
     end
 
     if ismissing(par, :ped_to_core_fraction)
-        core, edge = core_and_edge_energy(cp1d, 0.9)
+        core, edge = IMAS.core_edge_energy(cp1d, 0.9)
         ped_to_core_fraction = edge / core
     else
         ped_to_core_fraction = par.ped_to_core_fraction
     end
 
-    Ti_over_Te = cp1d.t_i_average[rho_bound_idx] / cp1d.electrons.temperature[rho_bound_idx]
+    Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
+
+    # Change the last point of the temperatures profiles since that's what used in cost_WPED_ztarget_pedratio()
+    cp1d.electrons.temperature[end] = par.Te_sep
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature[end] = cp1d.electrons.temperature[end] * Ti_over_Te
+        end
+    end
+
     res_value_bound = Optim.optimize(
         value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
         1.0,
@@ -87,12 +101,12 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, ped_to_core_fraction, par.rho_ped, Ti_over_Te)
 
-    @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(par.rho_ped)
-    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(par.rho_ped)
+    @ddtime summary_ped.t_e.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(par.rho_ped)
+    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(par.rho_ped)
 
     if par.do_plot
-        display(plot!(q, cp1d.electrons, :temperature; label="Te after WPED blending"))
-        display(plot!(qq, cp1d, :t_i_average; label="Ti after WPED blending"))
+        display(plot!(ppe, cp1d.electrons, :temperature; label="Te after WPED blending"))
+        display(plot!(ppi, cp1d, :t_i_average; label="Ti after WPED blending"))
     end
 
     return actor
@@ -123,7 +137,7 @@ function cost_WPED_ztarget_pedratio!(
     res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped), -500, 500, Optim.GoldenSection(); rel_tol=1E-3)
     cost_WPED_α_Ti!(cp1d, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped)
 
-    core, edge = core_and_edge_energy(cp1d, 0.9)
+    core, edge = IMAS.core_edge_energy(cp1d, 0.9)
 
     cost = (edge / core .- ped_to_core_fraction)^2
 
@@ -146,17 +160,4 @@ function cost_WPED_α_Te!(cp1d::IMAS.core_profiles__profiles_1d, α_Te::Real, va
     Te = cp1d.electrons.temperature
     rho = cp1d.grid.rho_tor_norm
     return IMAS.cost_WPED_α!(rho, Te, α_Te, value_bound, rho_ped)
-end
-
-function core_and_edge_energy(cp1d::IMAS.core_profiles__profiles_1d, rho_ped::Real)
-    p = IMAS.pressure_thermal(cp1d)
-    rho_tor_norm = cp1d.grid.rho_tor_norm
-    rho_bound_idx = argmin(abs(rho - rho_ped) for rho in rho_tor_norm)
-    pedge = p[rho_bound_idx]
-    fedge = (k, x) -> (k <= rho_bound_idx) ? pedge : p[k]
-    fcore = (k, x) -> (k <= rho_bound_idx) ? (p[k] - pedge) : 0.0
-    volume = cp1d.grid.volume
-    core_value = 1.5 * trapz(volume, fcore)
-    edge_value = 1.5 * trapz(volume, fedge)
-    return core_value, edge_value
 end

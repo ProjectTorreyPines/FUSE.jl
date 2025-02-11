@@ -28,19 +28,16 @@ end
     ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Actor that resizes the Low Field Side of the tokamak radial build
-
-  - Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
-  - Other low-field side layers are scaled proportionally
+It changes the location of the outer TF leg by takig into account requirement of ripple and maintenance ports.
 
 !!! note
 
-
-Manipulates radial build information in `dd.build.layer`
+    Manipulates radial build information in `dd.build.layer`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)
     if actor.par.do_plot
-        plot(dd.build)
+        plot(dd.build.layer)
     end
     step(actor)
     finalize(actor)
@@ -65,7 +62,7 @@ function _step(actor::ActorLFSsizing)
 
         if par.tor_modularity == 1
             # if tor_modularity is 1, then lfs vessel end_radius must coincide with rVP_lfs_ob
-            vessel_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_vessel_, fs=_lfs_)
+            vessel_lfs_layer = IMAS.get_build_layers(dd.build.layer; type=_vessel_, fs=_lfs_)[1]
             @assert TF_lfs_layer.start_radius > vessel_lfs_layer.end_radius
             maintenance_TF_radius = rVP_lfs_ob + (TF_lfs_layer.start_radius - vessel_lfs_layer.end_radius)
         else
@@ -89,7 +86,7 @@ function _step(actor::ActorLFSsizing)
         println("old_TF_radius = $old_TF_radius [m], new_TF_radius = $new_TF_radius [m]")
     end
 
-    ivessel = IMAS.get_build_index(dd.build.layer; type=_vessel_, fs=_lfs_) - 1
+    ivessel = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)[1] - 1
     iplasma = IMAS.get_build_index(dd.build.layer; type=_plasma_) + 1
 
     # resize first vacuum gap between VV and plasma

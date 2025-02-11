@@ -1,11 +1,20 @@
-#= == =#
-#  EC  #
-#= == =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimpleEC{T<:Real} <: ParametersActor{T}
+#= ========= =#
+#  Simple EC  #
+#= ========= =#
+Base.@kwdef mutable struct _FUSEparameters__ActorSimpleECactuator{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.025, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+end
+
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleEC{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    actuator::ParametersVector{_FUSEparameters__ActorSimpleECactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleECactuator{T}}()
 end
 
 mutable struct ActorSimpleEC{D,P} <: SingleAbstractActor{D,P}
@@ -49,10 +58,11 @@ function _step(actor::ActorSimpleEC)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    for (ps, ecl) in zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam)
+    for (k, (ps, ecl)) in enumerate(zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam))
         power_launched = @ddtime(ps.power_launched.reference)
-        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
-        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
+        rho_0 = par.actuator[k].rho_0
+        width = par.actuator[k].width
+        ηcd_scale = par.actuator[k].ηcd_scale
 
         @ddtime(ecl.power_launched.data = power_launched)
 
@@ -62,7 +72,7 @@ function _step(actor::ActorSimpleEC)
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
         zeff = IMAS.interp1d(rho_cp, cp1d.zeff).(rho_0)
 
-        eta = par.ηcd_scale * TekeV * 0.09 / (5.0 + zeff)
+        eta = ηcd_scale * TekeV * 0.09 / (5.0 + zeff)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
@@ -76,7 +86,7 @@ function _step(actor::ActorSimpleEC)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            ρ -> gaus(ρ, rho_0, width, 1.0);
+            ρ -> IMAS.gaus(ρ, rho_0, width, 1.0);
             j_parallel
         )
     end

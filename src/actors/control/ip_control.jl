@@ -10,12 +10,9 @@ function ip_control(dd::IMAS.dd, δt::Float64)
     else
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
         # guess PID gains based on resistivity
-        cp1d = dd.core_profiles.profiles_1d[]
-        conductivity_parallel = cp1d.conductivity_parallel
-        f = (k, x) -> 1.0 / conductivity_parallel[k]
-        η_avg = trapz(cp1d.grid.area, f) / cp1d.grid.area[end]
-        P = η_avg * 5.0
-        I = η_avg * 0.5
+        Ω = IMAS.plasma_lumped_resistance(dd)
+        P = Ω * 10.0
+        I = Ω * 2.0
         D = 0.0
         # instantiate PID controller
         IMAS.pid_controller(ctrl_ip, P, I, D)
@@ -23,7 +20,8 @@ function ip_control(dd::IMAS.dd, δt::Float64)
             @info("Running Ip controller via FXP")
         end
         # initial guess for Vloop
-        Vloop0 = IMAS.get_from(dd, Val{:vloop}, :core_profiles)
+        Ip0 = IMAS.get_from(dd, Val{:ip}, :pulse_schedule)
+        Vloop0 = Ip0 * Ω
         ip_control(ctrl_ip, dd; time0=dd.global_time - δt)
         ctrl_ip.inputs.data[1, 1] = Vloop0 / I / δt * 1.5
         ctrl_ip.outputs.data[1, 1] = Vloop0

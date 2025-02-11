@@ -19,7 +19,7 @@ mutable struct ActorVerticalStability{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     stability_margin::D
     normalized_growth_rate::D
-    passive_coils::Vector{VacuumFields.QuadCoil}
+    passive_coils::Vector{VacuumFields.MultiCoil}
 end
 
 """
@@ -38,7 +38,7 @@ end
 function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorVerticalStability)
     par = par(kw...)
-    return ActorVerticalStability(dd, par, act, D(NaN), D(NaN), VacuumFields.QuadCoil[])
+    return ActorVerticalStability(dd, par, act, D(NaN), D(NaN), VacuumFields.MultiCoil[])
 end
 
 """
@@ -59,22 +59,13 @@ function _step(actor::ActorVerticalStability)
     end
 
     active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
-
-    if all(coil.current == 0.0 for coil in active_coils)
+    if all(VacuumFields.current(coil) == 0.0 for coil in active_coils)
         @warn "Active coils have no current. Can't compute vertical stability metrics"
         return actor
     end
 
     # load passive structures from pf_passive
-    actor.passive_coils = VacuumFields.QuadCoil[]
-    for loop in dd.pf_passive.loop
-        for element in loop.element
-            @assert length(element.geometry.outline.r) == 4 "For the time being passive structures must be composed of quadrilateral elements"
-            passive_coil = VacuumFields.QuadCoil(element.geometry.outline.r, element.geometry.outline.z)
-            passive_coil.resistance = VacuumFields.resistance(passive_coil, loop.resistivity)
-            push!(actor.passive_coils, passive_coil)
-        end
-    end
+    actor.passive_coils = VacuumFields.MultiCoils(dd.pf_passive)
 
     eqt = dd.equilibrium.time_slice[]
     Ip = eqt.global_quantities.ip
@@ -83,14 +74,15 @@ function _step(actor::ActorVerticalStability)
     actor.stability_margin = VacuumFields.stability_margin(image, coils, Ip)
 
     for (k, coil) in enumerate(active_coils)
-        if coil.resistance <= 0.0
-            @warn "Active coil #$(k) has invalid resistance: $(coil.resistance). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
+        if VacuumFields.resistance(coil) <= 0.0
+            @warn "Active coil #$(k) has invalid resistance: $(VacuumFields.resistance(coil)). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
             return actor
         end
     end
+
     for (k, coil) in enumerate(actor.passive_coils)
-        if coil.resistance <= 0.0
-            @warn "Passive coil #$(k) has invalid resistance: $(coil.resistance). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
+        if VacuumFields.resistance(coil) <= 0.0
+            @warn "Passive coil #$(k) has invalid resistance: $(VacuumFields.resistance(coil)). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
             return actor
         end
     end
@@ -109,22 +101,25 @@ function _finalize(actor::ActorVerticalStability)
     dd = actor.dd
     par = actor.par
 
-    mhd = resize!(dd.mhd_linear.time_slice)
-    resize!(mhd.toroidal_mode, 2)
+    mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
 
     # Stability margin
-    mode = mhd.toroidal_mode[1]
-    mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability (N.B., not in Hz)"
-    mode.perturbation_type.name = "m_s"
-    mode.n_tor = 0
-    mode.growthrate = actor.stability_margin # not in Hz
+    if !isnan(actor.stability_margin)
+        mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
+        mode.perturbation_type.description = "Vertical stability margin > 0.15 for stability"
+        mode.stability_metric = actor.stability_margin
+    else
+        deleteat!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
+    end
 
     # Normalized growth rate
-    mode = mhd.toroidal_mode[2]
-    mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability (N.B., not in Hz)"
-    mode.perturbation_type.name = "γτ"
-    mode.n_tor = 0
-    mode.growthrate = actor.normalized_growth_rate # not in Hz
+    if !isnan(actor.normalized_growth_rate)
+        mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
+        mode.perturbation_type.description = "Normalized vertical growth rate < 10 for stability"
+        mode.stability_metric = actor.normalized_growth_rate
+    else
+        deleteat!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
+    end
 
     # plot
     if par.do_plot

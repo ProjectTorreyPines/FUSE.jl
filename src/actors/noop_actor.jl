@@ -11,6 +11,7 @@ mutable struct ActorNoOperation{D,P} <: AbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNoOperation{P}
     function ActorNoOperation(dd::IMAS.dd{D}, par::FUSEparameters__ActorNoOperation{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorNoOperation)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
@@ -33,13 +34,5 @@ function _step(actor::ActorNoOperation)
 end
 
 function _finalize(actor::ActorNoOperation)
-    return actor
-end
-
-function step(actor::ActorNoOperation)
-    return actor
-end
-
-function finalize(actor::ActorNoOperation)
     return actor
 end

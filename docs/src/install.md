@@ -4,7 +4,7 @@
 
 We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) manager to install Julia
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
-* Windows: `winget install julia -s msstore`
+* Windows: `winget install julia -s msstore --accept-source-agreements --accept-package-agreements`
 
 Once installed, restart your termninal to pick-up the `julia` executable.
 
@@ -43,21 +43,10 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FuseExamples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
 
    ```bash
-   fusebot install_examples
+   git clone https://github.com/ProjectTorreyPines/FuseExamples
    ```
 
-## Updating FUSE
-
-1. Get notified of new FUSE releases by "watching" the [FUSE repo on GitHub](https://github.com/ProjectTorreyPines/FUSE.jl)
-
-1. FUSE is [updated like any other Julia package](https://pkgdocs.julialang.org/v1/managing-packages/#updating):
-
-    ```julia
-    ] up
-    ```
-
-!!! tip
-    Become familiar with how [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/) works.
+   This is a git repository that you are in control of. Do a `git fetch && git reset --hard origin/master` to gather the latest updates (**NOTE: this will wipe out any changes you have made to those examples!**)
 
 ## Install Jupyter-Lab with Julia support
 
@@ -74,6 +63,8 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 
        The number of threads of the multi-threaded julia kernels can be set via the `JULIA_NUM_THREADS` environmental variable.
 
+       This needs to be done every time a new version of Julia is installed.
+
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
 
    ```bash
@@ -81,6 +72,19 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    ```
 
 1.  Now you can browse the examples in the `FuseExamples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.
+
+## Updating FUSE
+
+1. Get notified of new FUSE releases by "watching" the [FUSE repo on GitHub](https://github.com/ProjectTorreyPines/FUSE.jl)
+
+1. FUSE is [updated like any other Julia package](https://pkgdocs.julialang.org/v1/managing-packages/#updating):
+
+    ```julia
+    ] up
+    ```
+
+!!! tip
+    Become familiar with how [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/) works.
 
 ## Updating Julia
 

@@ -52,15 +52,26 @@ Base.@kwdef mutable struct FUSEparameters__equilibrium{T} <: ParametersInit{T}
     ζ::Entry{T} = Entry{T}("-", "Squareness of the plasma boundary [MXH -s2]"; default=0.0)
     𝚶::Entry{T} = Entry{T}("-", "Ovality of the plasma boundary [MXH c1]"; default=0.0)
     twist::Entry{T} = Entry{T}("-", "Twist of the plasma boundary [MXH c2]"; default=0.0)
-    pressure_core::Entry{T} = Entry{T}("Pa", "On axis pressure"; check=x -> @assert x > 0.0 "must be: P > 0.0")
+    pressure_core::Entry{T} =
+        Entry{T}("Pa", "On axis pressure (NOTE: `pressure_core` can be calculated from `ini.core_profiles.Te_core`)"; check=x -> @assert x > 0.0 "must be: P > 0.0")
     ip::Entry{T} = Entry{T}(IMAS.equilibrium__time_slice___global_quantities, :ip)
     xpoints::Switch{Symbol} = Switch{Symbol}([:lower, :upper, :double, :none], "-", "X-points configuration")
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the equilibrium grid"; default=129)
     field_null_surface::Entry{T} =
-        Entry{T}("-", "ψn value of the field_null_surface. Disable with 0.0"; default=0.75, check=x -> @assert x > 0.0 "must be: field_null_surface > 0.0")
+        Entry{T}("-", "ψn value of the field_null_surface. Disable with 0.0"; default=0.0, check=x -> @assert x >= 0.0 "must be: field_null_surface >= 0.0")
     boundary_from::Switch{Symbol} = Switch{Symbol}([:scalars, :MXH_params, :rz_points, :ods], "-", "The starting r, z boundary taken from")
     MXH_params::Entry{Vector{T}} = Entry{Vector{T}}("-", "Vector of MXH flats")
     rz_points::Entry{Vector{Vector{T}}} = Entry{Vector{Vector{T}}}("m", "R_Z boundary as Vector{Vector{$T}}} : r = rz_points[1], z = rz_points[2]")
+end
+
+Base.@kwdef mutable struct FUSEparameters__ITB{T} <: ParametersInit{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :pf_active
+    radius::Entry{T} = Entry{T}("-", "Rho at which the ITB starts")
+    ne_width::Entry{T} = Entry{T}("-", "Width of the electron density ITB")
+    ne_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron density ITB, expressed as the ratio of the density without ITB evaluated on axis")
+    Te_width::Entry{T} = Entry{T}("-", "Width of the electron temperature ITB")
+    Te_height_ratio::Entry{T} = Entry{T}("-", "Height of the electron temperature ITB, expressed as the ratio of the temperature without ITB evaluated on axis")
 end
 
 Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
@@ -80,9 +91,12 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     ne_core_to_ped_ratio::Entry{T} =
         Entry{T}("-", "Ratio used to set the core density based on the pedestal density"; default=1.4, check=x -> @assert x > 0.0 "must be: ne_core_to_ped_ratio > 0.0")
     ne_shaping::Entry{T} = Entry{T}("-", "Density shaping factor")
-    T_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: T_ratio > 0.0")
-    T_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
+    Ti_Te_ratio::Entry{T} = Entry{T}("-", "Ti/Te ratio"; check=x -> @assert x > 0.0 "must be: Ti_Te_ratio > 0.0")
+    Te_shaping::Entry{T} = Entry{T}("-", "Temperature shaping factor")
     Te_sep::Entry{T} = Entry{T}("eV", "Separatrix temperature"; default=80.0, check=x -> @assert x > 0.0 "must be: Te_sep > 0.0")
+    Te_ped::Entry{T} = Entry{T}("eV", "Pedestal temperature"; check=x -> @assert x > 0.0 "must be: Te_ped > 0.0")
+    Te_core::Entry{T} =
+        Entry{T}("eV", "Core temperature (NOTE: `Te_core` can be calculated from `ini.equilibrium.presssure_core`)"; check=x -> @assert x > 0.0 "must be: Te_core > 0.0")
     zeff::Entry{T} = Entry{T}("-", "Effective ion charge"; check=x -> @assert x >= 1.0 "must be: zeff > 1.0")
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
@@ -90,7 +104,9 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
-    polarized_fuel_fraction::Entry{T} = Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 < x < 1.0 "must be: 0.0 < polarized_fuel_fraction < 1.0")
+    polarized_fuel_fraction::Entry{T} =
+        Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= polarized_fuel_fraction <= 1.0")
+    ITB::FUSEparameters__ITB{T} = FUSEparameters__ITB{T}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
@@ -103,8 +119,6 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :nbi
     power_launched::Entry{T} = Entry{T}("W", "Beam power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
-    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.3, check=x -> @assert x > 0.0 "must be: width > 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
     toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; check=x -> @assert (-pi / 2 <= x <= pi / 2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
@@ -116,8 +130,6 @@ Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ec_launcher
     power_launched::Entry{T} = Entry{T}("W", "EC launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
-    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.025, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ec_launchers__beam___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.ec_launchers__beam___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
@@ -127,8 +139,6 @@ Base.@kwdef mutable struct FUSEparameters__ic_antenna{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :ic_antenna
     power_launched::Entry{T} = Entry{T}("W", "IC launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
-    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.1, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.ic_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.ic_antennas__antenna___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
@@ -139,8 +149,6 @@ Base.@kwdef mutable struct FUSEparameters__lh_antenna{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :lh_antenna
     power_launched::Entry{T} = Entry{T}("W", "LH launched power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
-    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.8, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.05, check=x -> @assert x > 0.0 "must be: width > 0.0")
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.lh_antennas__antenna___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} =
         Entry{T}(IMAS.lh_antennas__antenna___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
@@ -151,8 +159,6 @@ Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInit{
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pellet_launcher
     frequency::Entry{T} = Entry{T}("Hz", "Frequency of pellets launched"; check=x -> @assert x >= 0.0 "pellet frequency must be >= 0.0")
-    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.25, check=x -> @assert x > 0.0 "must be: width > 0.0")
     shape::Switch{Symbol} = Switch{Symbol}([:spherical, :cylindrical, :rectangular], "-", "The pellet geometry"; default=:spherical)
     species::Switch{Symbol} = Switch{Symbol}([:H, :D, :T, :DT, :C, :Ne], "-", "Pellet species")
     size::Entry{Vector{T}} = Entry{Vector{T}}(
@@ -200,7 +206,11 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
     material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.all_materials(), "-", "Material of the layer")
-    coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}("-", "List of coils within this layer"; check=x -> @assert (typeof(x) <: Int && x > 0) || (length(x) > 0 && minimum(x) > 0) "coils_inside must be > 0")
+    coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}(
+        "-",
+        "List of coils within this layer";
+        check=x -> @assert (typeof(x) <: Int && x > 0) || (length(x) > 0 && minimum(x) > 0) "coils_inside must be > 0"
+    )
     shape::Switch{BuildLayerShape} = Switch{BuildLayerShape}(layer_shape_options, "-", "Shape of the layer")
     type::Switch{BuildLayerType} = Switch{BuildLayerType}(layer_type_options, "-", "Type of the layer")
     side::Switch{BuildLayerSide} = Switch{BuildLayerSide}(layer_side_options, "-", "Side of the layer")
@@ -210,6 +220,7 @@ Base.@kwdef mutable struct FUSEparameters__build{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :build
     layers::ParametersVector{FUSEparameters__build_layer{T}} = ParametersVector{FUSEparameters__build_layer{T}}()
+    scale_layers_to_R0::Entry{Bool} = Entry{Bool}("-", "Scale layers thicknesses to center plasma equilibrium (R0) in vacuum vessel"; default=true)
     plasma_gap::Entry{T} =
         Entry{T}("-", "Fraction of vacuum gap between first wall and plasma separatrix in radial build"; default=0.1, check=x -> @assert x > 0.0 "must be: plasma_gap > 0.0")
     symmetric::Entry{Bool} = Entry{Bool}("-", "Is the build up-down symmetric")
@@ -276,7 +287,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     requirements::FUSEparameters__requirements{T}
 end
 
-function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0, n_lh::Int=0, n_layers::Int=0) where {T<:Real}
+function ParametersInits{T}() where {T<:Real}
     ini = ParametersInits{T}(
         WeakRef(nothing),
         :ini,
@@ -300,30 +311,6 @@ function ParametersInits{T}(; n_nb::Int=0, n_ec::Int=0, n_pl::Int=0, n_ic::Int=0
         FUSEparameters__balance_of_plant{T}(),
         FUSEparameters__requirements{T}())
 
-    for k in 1:n_layers
-        push!(ini.build.layers, FUSEparameters__build_layer{T}())
-    end
-
-    for k in 1:n_nb
-        push!(ini.nb_unit, FUSEparameters__nb_unit{T}())
-    end
-
-    for k in 1:n_ec
-        push!(ini.ec_launcher, FUSEparameters__ec_launcher{T}())
-    end
-
-    for k in 1:n_pl
-        push!(ini.pellet_launcher, FUSEparameters__pellet_launcher{T}())
-    end
-
-    for k in 1:n_ic
-        push!(ini.ic_antenna, FUSEparameters__ic_antenna{T}())
-    end
-
-    for k in 1:n_lh
-        push!(ini.lh_antenna, FUSEparameters__lh_antenna{T}())
-    end
-
     setup_parameters!(ini)
 
     return ini
@@ -343,6 +330,7 @@ Allows users to initialize layers from a dictionary
 """
 function Base.setproperty!(parameters_build::FUSEparameters__build{T}, field::Symbol, layers::AbstractDict{Symbol,<:Real}) where {T<:Real}
     @assert field == :layers
+    empty!(parameters_build.layers)
     for (k, (name, thickness)) in enumerate(layers)
         layer = FUSEparameters__build_layer{T}()
         push!(parameters_build.layers, layer)
@@ -397,7 +385,7 @@ end
 function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, field::Symbol, val::Symbol) where {T<:Real}
     par = getfield(parameters_layer, field)
 
-    if field == :material
+    if field == :material && !ismissing(parameters_layer, :type)
         layer_type = parameters_layer.type
 
         pretty_layer_type = replace("$layer_type", "_" => "")
@@ -448,11 +436,6 @@ function SimulationParameters.par2ystr(par::ParametersVector{<:FUSEparameters__b
     end
     return txt
 end
-
-###############################
-# custom dispatches for coils #
-###############################
-
 
 ################################
 # functions for populating ini #
@@ -522,7 +505,7 @@ end
 function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
-        eqt = dd.equilibrium.time_slice[]
+        eqt = dd.equilibrium.time_slice[ini.time.simulation_start]
         pr, pz = eqt.boundary.outline.r, eqt.boundary.outline.z
         pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=101)
         pr, pz = IMAS.reorder_flux_surface!(pr, pz)
@@ -553,7 +536,7 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
             ini.equilibrium.ϵ,
             ini_equilibrium_elongation_true(ini.equilibrium),
             ini.equilibrium.tilt,
-            [ini.equilibrium.𝚶, 0.0],
+            [ini.equilibrium.𝚶, ini.equilibrium.twist],
             [asin(ini.equilibrium.δ), -ini.equilibrium.ζ])
     else
         error("ini.equilibrium.boundary_from must be one of [:scalars, :rz_points, :MXH_params, :ods]")
@@ -561,9 +544,9 @@ function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
 
     if boundary_from == :ods
         # in case of ODS we have all information to generate MXHboundary
-        RX = [x_point.r for x_point in eqt.boundary.x_point]
-        ZX = [x_point.z for x_point in eqt.boundary.x_point]
-        mxhb = MXHboundary(mxh, RX, ZX, pr, pz)
+        RX = Float64[x_point.r for x_point in eqt.boundary.x_point]
+        ZX = Float64[x_point.z for x_point in eqt.boundary.x_point]
+        mxhb = MXHboundary(mxh, ini.equilibrium.xpoints in (:upper, :double), ini.equilibrium.xpoints in (:lower, :double), RX, ZX, pr, pz)
     else
         # all other cases we must reconcile mxh boundary with requested x-points
         nx = n_xpoints(ini.equilibrium.xpoints)
@@ -588,33 +571,31 @@ function n_xpoints(xpoints::Symbol)
 end
 
 """
-    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+    load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true, time_from_ods::Bool=false)
 
-Load ODSs as specified in `ini.ods.filename` and sets `dd.global_time` equal to `ini.time.simulation_start`
+Load ODSs as specified in `ini.ods.filename`
+
+If `time_from_ods==true` then `dd.global_time` and `ini.time.simulation_start` are set from the last available time in the loaded dd0.
+
+If `time_from_ods==false` then `ini.time.simulation_start` takes precedence, and `dd.global_time` is set from that.
 
 NOTE: supports multiple comma-separated filenames
 
 NOTE: ini.general.dd takes priority over ini.general.ods
 """
-function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true)
+function load_ods(ini::ParametersAllInits; error_on_missing_coordinates::Bool=true, time_from_ods::Bool=false)
     if !ismissing(ini.general, :dd)
         return ini.general.dd
     end
 
     dd = load_ods(ini.ods.filename; error_on_missing_coordinates)
 
-    # handle time
-    dd.global_time = ini.time.simulation_start
-    for field in keys(dd)
-        ids = getproperty(dd, field)
-        # handle cases where someone forgot to fill the ids.time
-        if !isempty(ids) && ismissing(ids, :time)
-            ids.time = [dd.global_time]
-        end
-        # if IDS has a single time_slice we can retime it
-        if !ismissing(ids, :time) && length(ids.time) == 1
-            IMAS.retime!(ids, dd.global_time)
-        end
+    if time_from_ods
+        IMAS.last_global_time(dd)
+        ini.time.simulation_start = dd.global_time
+
+    else
+        dd.global_time = ini.time.simulation_start
     end
 
     return dd
@@ -710,21 +691,28 @@ end
 # plot #
 ########
 """
-    plot_ini(ini::ParametersAllInits; time0=global_time(ini))
+    plot_ini(ini::ParametersAllInits; time0=global_time(ini), cx=false)
 
 Plots ini time dependent time traces including plasma boundary
 """
-@recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini))
-    @assert typeof(time0) <: Float64
+@recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini), cx=false)
+    id = IMAS.plot_help_id(ini)
+    IMAS.assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
+    IMAS.assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
 
     # count number of time-dependent parameters
-    N = 0
-    for par in SimulationParameters.leaves(ini)
-        if typeof(par.value) <: Function
-            N += 1
+    if !cx
+        N = 0
+        for par in SimulationParameters.leaves(ini)
+            if typeof(par.value) <: Union{TimeData,Function}
+                N += 1
+            end
         end
+        layout := @layout [N + 1]
+        w = max(600, Int(ceil(300 * sqrt(N))))
+        h = max(400, Int(ceil(200 * sqrt(N))))
+        size --> (w, h)
     end
-    layout := @layout [N + 1]
 
     time_bkp = ini.time.simulation_start
     try
@@ -748,16 +736,18 @@ Plots ini time dependent time traces including plasma boundary
             mxhb
         end
 
-        # plot time dependent parameters
-        k = 1
-        for par in SimulationParameters.leaves(ini)
-            if typeof(par.value) <: Function
-                k += 1
-                @series begin
-                    label := ""
-                    subplot := k
-                    time0 := time0
-                    par
+        if !cx
+            # plot time dependent parameters
+            k = 1
+            for par in SimulationParameters.leaves(ini)
+                if typeof(par.value) <: Union{TimeData,Function}
+                    k += 1
+                    @series begin
+                        label := ""
+                        subplot := k
+                        time0 := time0
+                        par
+                    end
                 end
             end
         end

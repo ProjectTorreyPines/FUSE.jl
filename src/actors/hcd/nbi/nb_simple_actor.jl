@@ -1,11 +1,20 @@
 #= ========== =#
 #  Simple NBI  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
+Base.@kwdef mutable struct _FUSEparameters__ActorSimpleNBactuator{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
     ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+end
+
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
@@ -49,25 +58,32 @@ function _step(actor::ActorSimpleNB)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    for (ps, nbu) in zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit)
-        power_launched = @ddtime(ps.power.reference)
-        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
-        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
-        beam_energy = @ddtime(nbu.energy.data)
-        beam_mass = nbu.species.a
+    for (k, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
+        # smooting of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
+        beam_energy = @ddtime(ps.energy.reference)
+        τ_th = IMAS.beam_thermalization_time(cp1d, nbu.species, beam_energy)
+        power_launched = IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th)
+        rho_0 = par.actuator[k].rho_0
+        width = par.actuator[k].width
+        ηcd_scale = par.actuator[k].ηcd_scale
 
         @ddtime(nbu.power_launched.data = power_launched)
-
+        @ddtime(nbu.energy.data = beam_energy)
+        beam_mass = nbu.species.a
         ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
 
-        electrons_particles = power_launched / (beam_energy * constants.e)
-        momentum_tor =
-            power_launched * sin(nbu.beamlets_group[1].angle) * electrons_particles * sqrt(2.0 * beam_energy * constants.e / beam_mass / constants.m_u) * beam_mass * constants.m_u
+        if beam_energy > 0.0
+            particles_per_second = power_launched / (beam_energy * IMAS.mks.e) # [1/s]
+        else
+            particles_per_second = 0.0
+        end
+        velocity = sqrt(2.0 * beam_energy * IMAS.mks.e / (beam_mass * IMAS.mks.m_u)) # [m/s]
+        momentum_tor = sin(nbu.beamlets_group[1].angle) * particles_per_second * velocity * beam_mass * IMAS.mks.m_u # [kg*m/s^2] = [N]
 
         ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
         TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
 
-        eta = par.ηcd_scale * TekeV * 0.025
+        eta = ηcd_scale * TekeV * 0.025
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
@@ -81,17 +97,18 @@ function _step(actor::ActorSimpleNB)
             area_cp,
             power_launched,
             ion_electron_fraction_cp,
-            ρ -> gaus(ρ, rho_0, width, 2.0);
-            electrons_particles,
+            ρ -> IMAS.gaus(ρ, rho_0, width, 2.0);
+            electrons_particles=particles_per_second,
             momentum_tor,
             j_parallel
         )
 
         # add nbi fast ion particles source
-        ion = resize!(source.profiles_1d[].ion, 1)[1]
+        source1d = source.profiles_1d[]
+        ion = resize!(source1d.ion, 1)[1]
         IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
-        ion.particles = source.profiles_1d[].electrons.particles
-        ion.particles_inside = source.profiles_1d[].electrons.particles_inside
+        ion.particles = source1d.electrons.particles
+        ion.particles_inside = source1d.electrons.particles_inside
         ion.fast_particles_energy = beam_energy
 
     end

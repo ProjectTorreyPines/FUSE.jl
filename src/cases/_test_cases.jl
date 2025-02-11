@@ -13,6 +13,9 @@ end
 TestCases() = TestCases(OrderedCollections.OrderedDict{String,Any}())
 
 function Base.getindex(tc::TestCases, key::AbstractString)
+    if key ∉ keys(tc.data)
+        error("Test case \"$(key)\" not found. Valid test cases are: $(sort!(collect(keys(tc.data))))")
+    end
     return getindex(tc.data, key)
 end
 
@@ -59,6 +62,7 @@ test_cases["JET_HDB5"] = ([:HDB5], Dict(:tokamak => :JET, :case => 500))
 test_cases["ARC"] = ([:ARC], Dict())
 test_cases["SPARC"] = ([:SPARC], Dict(:init_from => :ods))
 test_cases["KDEMO"] = ([:KDEMO], Dict())
+test_cases["KDEMO_compact"] = ([:KDEMO_compact], Dict())
 test_cases["DTT"] = ([:DTT], Dict())
 test_cases["EXCITE"] = ([:EXCITE], Dict())
 test_cases["MANTA"] = ([:MANTA], Dict())
@@ -96,6 +100,12 @@ function test(dd::IMAS.DD, args...; kw...)
         FUSE.ActorWholeFacility(dd, act)
     end
 
+    return (dd=dd, ini=ini, act=act)
+end
+
+function test_ini_act_save_load(args...; kw...)
+    ini, act = FUSE.case_parameters(args...; kw...)
+
     Test.@testset "ini_dict" begin
         FUSE.dict2ini(FUSE.ini2dict(ini))
     end
@@ -126,14 +136,28 @@ function test(dd::IMAS.DD, args...; kw...)
         act2 = FUSE.SimulationParameters.jstr2par(act_str, FUSE.ParametersActors())
     end
 
-    return (dd=dd, ini=ini, act=act)
+    Test.@testset "ini_hdf5" begin
+        tmpdir = mktempdir()
+        ini.general.dd = missing # general.dd cannot be serialized
+        ini_str = FUSE.SimulationParameters.par2hdf(ini, joinpath(tmpdir, "ini.h5"))
+        ini2 = FUSE.SimulationParameters.hdf2par(joinpath(tmpdir, "ini.h5"), FUSE.ParametersInits())
+    end
+
+    Test.@testset "act_hdf5" begin
+        tmpdir = mktempdir()
+        act_str = FUSE.SimulationParameters.par2hdf(act, joinpath(tmpdir, "act.h5"))
+        act2 = FUSE.SimulationParameters.hdf2par(joinpath(tmpdir, "act.h5"), FUSE.ParametersActors())
+    end
+
+    return (ini=ini, act=act)
 end
 
 function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
     # speedup the tests
     act.ActorStationaryPlasma.max_iter = 2
-    # use full model for ActorThermalPlant
-    act.ActorThermalPlant.model = :network
+    # use full model for ActorThermalPlant if environmental variable `FUSE_WITH_EXTENSIONS` is set
+    if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+        act.ActorThermalPlant.model = :network
+    end
     return (ini=ini, act=act)
 end
-

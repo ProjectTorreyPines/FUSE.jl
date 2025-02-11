@@ -15,11 +15,12 @@ end
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
+    act::ParametersAllActors{P}
     ec_actor::Union{Missing,ActorSimpleEC{D,P}}
     ic_actor::Union{Missing,ActorSimpleIC{D,P}}
     lh_actor::Union{Missing,ActorSimpleLH{D,P}}
     nb_actor::Union{Missing,ActorSimpleNB{D,P},ActorRABBIT{D,P}}
-    pellet_actor::Union{Missing,ActorSimplePellet{D,P}}
+    pellet_actor::Union{Missing,ActorSimplePL{D,P}}
 end
 
 """
@@ -37,34 +38,55 @@ end
 function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAllActors; kw...)
     logging_actor_init(ActorHCD)
     par = par(kw...)
-    if par.ec_model == :ECsimple
-        ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
-    else
+    
+    if par.ec_model == :none
         ec_actor = missing
-    end
-    if par.ic_model == :ICsimple
-        ic_actor = ActorSimpleIC(dd, act.ActorSimpleIC)
     else
+        @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
+        if par.ec_model == :ECsimple
+            ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
+        end
+    end
+
+    if par.ic_model == :none
         ic_actor = missing
-    end
-    if par.lh_model == :LHsimple
-        lh_actor = ActorSimpleLH(dd, act.ActorSimpleLH)
     else
+        @assert length(dd.pulse_schedule.ic.antenna) == length(dd.ic_antennas.antenna) "length(dd.pulse_schedule.ic.antenna)=$(length(dd.pulse_schedule.ic.antenna)) VS length(dd.ic_antennas.antenna)=$(length(dd.ic_antennas.antenna))"
+        if par.ic_model == :ICsimple
+            ic_actor = ActorSimpleIC(dd, act.ActorSimpleIC)
+        end
+    end
+
+    if par.lh_model == :none
         lh_actor = missing
-    end
-    if par.nb_model == :NBsimple
-        nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
-    elseif par.nb_model == :RABBIT
-        nb_actor = ActorRABBIT(dd, act.ActorRABBIT)
     else
+        @assert length(dd.pulse_schedule.lh.antenna) == length(dd.lh_antennas.antenna) "length(dd.pulse_schedule.lh.antenna)=$(length(dd.pulse_schedule.lh.antenna)) VS length(dd.lh_antennas.antenna)=$(length(dd.lh_antennas.antenna))"
+        if par.lh_model == :LHsimple
+            lh_actor = ActorSimpleLH(dd, act.ActorSimpleLH)
+        end
+    end
+
+    if par.nb_model == :none
         nb_actor = missing
-    end
-    if par.pellet_model == :Pelletsimple
-        pellet_actor = ActorSimplePellet(dd, act.ActorSimplePellet)
     else
-        pellet_actor = missing
+        @assert length(dd.pulse_schedule.nbi.unit) == length(dd.nbi.unit) "length(dd.pulse_schedule.nbi.unit)=$(length(dd.pulse_schedule.nbi.unit)) VS length(dd.nbi.unit)=$(length(dd.nbi.unit))"
+        if par.nb_model == :NBsimple
+            nb_actor = ActorSimpleNB(dd, act.ActorSimpleNB)
+        elseif par.nb_model == :RABBIT
+            nb_actor = ActorRABBIT(dd, act.ActorRABBIT)        
+        end
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
+
+    if par.pellet_model == :none
+        pellet_actor = missing
+    else
+        @assert length(dd.pulse_schedule.pellet.launcher) == length(dd.pellets.launcher) "length(dd.pulse_schedule.pellet.launcher)=$(length(dd.pulse_schedule.pellet.launcher)) VS length(dd.pellets.launcher)=$(length(dd.pellets.launcher))"
+        if par.pellet_model == :Pelletsimple
+            pellet_actor = ActorSimplePL(dd, act.ActorSimplePL)
+        end
+    end
+
+    return ActorHCD(dd, par, act, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor)
 end
 
 """

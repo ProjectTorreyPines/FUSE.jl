@@ -2,18 +2,12 @@
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
 
-## 📢 2024 Code Camp 📢
-
-* **Date:** Dec 9th - 13th
-* **Location:** In person @ General Atomics
-* **Agenda:** [here](https://docs.google.com/document/d/1OwJPx4G3HP7wx9FuGLMqxjaKewrhOY7Kd7nTZkmVdw4/edit?usp=sharing)
-* **Seats:** All out! Join us on [Discord](https://discord.gg/CbjpZH9SKM) to know of upcoming events!
-
 ## Resources
 
 Here are some key resources for getting started with FUSE:
 
 * 📚 **[Online documentation](https://fuse.help)**
+* 🎤 **[Overview presentation](https://tinyurl.com/FUSEslideDeck)**
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
 * 🗒️ **[Weekly devs meeting minutes](https://github.com/ProjectTorreyPines/FUSE.jl/discussions)**
@@ -55,7 +49,7 @@ using FUSE
 # Obtain `ini` and `act` parameters for a specific use case
 ini, act = FUSE.case_parameters(:FPP)
 
-# Initialize the `dd` structure with 0D parameters
+# Initialize the `dd` structure from 0D `ini` parameters
 dd = FUSE.init(ini, act)
 
 # Run a stationary plasma actor simulation
@@ -69,18 +63,7 @@ Make sure to take a look at the [introductory tutorial](https://fuse.help/dev/tu
 
 ## Installation
 
-FUSE and its related packages are available through the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/). To install:
-
-1. [Install Julia](https://github.com/JuliaLang/juliaup?tab=readme-ov-file#juliaup---julia-version-manager)
-
-2. Add the FuseRegistry and General registries, then install FUSE:
-
-```julia
-using Pkg
-Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
-Pkg.Registry.add("General")
-Pkg.add("FUSE")
-```
+Follow these [installation instructions](https://fuse.help/dev/install.html).
 
 ## Citation
 

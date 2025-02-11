@@ -1,24 +1,33 @@
-#= ====== =#
-#  PELLET  #
-#= ====== =#
-Base.@kwdef mutable struct FUSEparameters__ActorSimplePellet{T<:Real} <: ParametersActor{T}
+#= ============= =#
+#  Simple PELLET  #
+#= ============= =#
+Base.@kwdef mutable struct _FUSEparameters__ActorSimplePLactuator{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.25, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
-mutable struct ActorSimplePellet{D,P} <: SingleAbstractActor{D,P}
+Base.@kwdef mutable struct FUSEparameters__ActorSimplePL{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    actuator::ParametersVector{_FUSEparameters__ActorSimplePLactuator{T}} = ParametersVector{_FUSEparameters__ActorSimplePLactuator{T}}()
+end
+
+mutable struct ActorSimplePL{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSimplePellet{P}
-    function ActorSimplePellet(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePellet{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorSimplePellet)
+    par::FUSEparameters__ActorSimplePL{P}
+    function ActorSimplePL(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePL{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorSimplePL)
         par = par(kw...)
         return new{D,P}(dd, par)
     end
 end
 
 """
-    ActorSimplePellet(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Estimates the Pellet particle deposition
 
@@ -26,14 +35,14 @@ Estimates the Pellet particle deposition
 
     Reads data in `dd.pellet_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
 """
-function ActorSimplePellet(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorSimplePellet(dd, act.ActorSimplePellet; kw...)
+function ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSimplePL(dd, act.ActorSimplePL; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _step(actor::ActorSimplePellet)
+function _step(actor::ActorSimplePL)
     dd = actor.dd
     par = actor.par
 
@@ -45,10 +54,10 @@ function _step(actor::ActorSimplePellet)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    for (ps, pll) in zip(dd.pulse_schedule.pellet.launcher, dd.pellets.launcher)
+    for (k,(ps, pll)) in enumerate(zip(dd.pulse_schedule.pellet.launcher, dd.pellets.launcher))
         frequency = @ddtime(ps.frequency.reference)
-        rho_0 = @ddtime(ps.deposition_rho_tor_norm.reference)
-        width = @ddtime(ps.deposition_rho_tor_norm_width.reference)
+        rho_0 = par.actuator[k].rho_0
+        width = par.actuator[k].width
 
         shape = IMAS.index_2_name(pll.shape)[pll.shape.type.index]
         size = pll.shape.size
@@ -82,7 +91,7 @@ function _step(actor::ActorSimplePellet)
             area_cp,
             0.0,
             ion_electron_fraction_cp,
-            ρ -> beta(ρ + ρ_peak * beta_width, rho_0, beta_width, mode);
+            ρ -> IMAS.beta(ρ + ρ_peak * beta_width, rho_0, beta_width, mode);
             electrons_particles
         )
     end
@@ -93,5 +102,5 @@ end
 function pellet_density(species::String)
     material_density = Dict("DT" => 0.257, "D" => 0.2, "T" => 0.318, "C" => 3.3, "Ne" => 1.44)
     atomic_weigth = Dict("DT" => 2.515, "D" => 2.014, "T" => 3.016, "C" => 12.011, "Ne" => 20.183)
-    return material_density[species] * constants.avog / atomic_weigth[species] * 1E6
+    return material_density[species] * IMAS.mks.avog / atomic_weigth[species] * 1E6
 end

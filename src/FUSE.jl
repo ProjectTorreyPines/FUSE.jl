@@ -3,6 +3,7 @@ __precompile__(true)
 module FUSE
 
 using IMAS
+import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
 import Plots
 using Plots
 using Printf
@@ -11,7 +12,7 @@ import LinearAlgebra
 using StaticArrays
 import AbstractTrees: print_tree
 import ProgressMeter
-import Measurements:Measurement
+import Measurements: ±, Measurement
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -52,7 +53,6 @@ include("physics.jl")
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
-include("signal.jl")
 include(joinpath("parameters", "parameters_inits.jl"))
 
 include(joinpath("ddinit", "init.jl"))
@@ -62,6 +62,7 @@ include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_balance_of_plant.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
+include(joinpath("ddinit", "init_hcd.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
@@ -76,7 +77,7 @@ include("actors.jl")
 
 include(joinpath("actors", "noop_actor.jl"))
 
-include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
+include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
 include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
@@ -129,6 +130,7 @@ include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))
+include(joinpath("actors", "stability", "troyon_actor.jl"))
 include(joinpath("actors", "stability", "vertical_actor.jl"))
 
 include(joinpath("actors", "balance_plant", "thermal_plant_actor.jl"))
@@ -187,7 +189,8 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, constants, ±, ↔, Logging, print_tree, @checkin, @checkout, help_plot
+export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, @findall
+export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 
 end

@@ -4,7 +4,7 @@
 GA Compact Advanced Tokamak design
 """
 function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_nb=1)
+    ini = ParametersInits()
     act = ParametersActors()
 
     ini.general.casename = "CAT"
@@ -19,15 +19,15 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
         wall=0.1,
         blanket=1.0,
         shield=0.5,
-        vessel=0.25,
+        vessel=0.5,
         pf_inside_tf=false,
         pf_outside_tf=true,
         thin_vessel_walls=true)
+
     ini.build.n_first_wall_conformal_layers = 1
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 6
-    act.ActorPFdesign.symmetric = true
 
     ini.oh.technology = :nb3sn_iter
     ini.pf_active.technology = :nb3sn_iter
@@ -42,10 +42,10 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.8 * 0.75
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.helium_fraction = 0.01
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.5
+    ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
@@ -53,16 +53,21 @@ function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,Parameters
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
 
+    resize!(ini.nb_unit, 1)
     ini.nb_unit[1].power_launched = 20E6
     ini.nb_unit[1].beam_energy = 200e3
     ini.nb_unit[1].beam_mass = 2.0
     ini.nb_unit[1].toroidal_angle = 20.0 * deg
 
-    act.ActorStabilityLimits.raise_on_breach = false
+    #### ACT ####
+
+    act.ActorPFdesign.symmetric = true
+
+    act.ActorPlasmaLimits.raise_on_breach = false
+
     act.ActorFluxMatcher.optimizer_algorithm = :simple
 
-    set_new_base!(ini)
-    set_new_base!(act)
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
 end

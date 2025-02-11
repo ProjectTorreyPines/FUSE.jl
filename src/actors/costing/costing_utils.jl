@@ -16,7 +16,7 @@ end
 #  materials cost  #
 #= ============== =#
 function unit_cost(material::Material, cst::IMAS.costing)
-    cost_per_unit_volume = material.cost_m3
+    cost_per_unit_volume = material.cost_m3 * material.manufacturing_multiplier / 1e6 # costs in $M/m^3
 
     if material.name == "rebco"
         production_increase = cst.future.learning.hts.production_increase
@@ -24,7 +24,7 @@ function unit_cost(material::Material, cst::IMAS.costing)
         cost_per_unit_volume = cost_per_unit_volume * cost_multiplier(production_increase, learning_rate)
     end
 
-    return cost_per_unit_volume / 1e6 # costs in $M/m^3
+    return cost_per_unit_volume
 end
 
 #= ====================== =#
@@ -178,7 +178,7 @@ end
 """
     bop_powers(bop::IMAS.balance_of_plant)
 
-Returns maximum total_useful_heat_power, power_electric_generated, power_electric_net over time, setting them to 0.0 if negative, Nan or missing
+Returns maximum total_useful_heat_power, power_electric_generated, power_electric_net over time, setting them to 0.0 if negative, NaN or missing
 """
 function bop_powers(bop::IMAS.balance_of_plant)
     if ismissing(bop.power_plant, :total_heat_supplied)

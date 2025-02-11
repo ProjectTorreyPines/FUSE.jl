@@ -4,7 +4,7 @@
 GA EXCITE design
 """
 function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
-    ini = ParametersInits(; n_ec=2)
+    ini = ParametersInits()
     act = ParametersActors()
 
     #### INI ####
@@ -20,15 +20,15 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
         :hfs_gap_low_temp_shield_TF => 0.01,
         :hfs_low_temp_shield => 0.101,
         :hfs_gap_vacuum_vessel_low_temp_shield => 0.01,
-        :hfs_vacuum_vessel_wall_outer => 0.05,
-        :hfs_vacuum_vessel => 0.05,
-        :hfs_vacuum_vessel_wall_inner => 0.05,
+        :hfs_vacuum_vessel_outer => 0.05,
+        :hfs_gap_water => 0.05,
+        :hfs_vacuum_vessel_inner => 0.05,
         :hfs_first_wall => 0.005,
         :plasma => 1.10,
         :lfs_first_wall => 0.005,
-        :lfs_vacuum_vessel_wall_inner => 0.05,
-        :lfs_vacuum_vessel => 0.05,
-        :lfs_vacuum_vessel_wall_outer => 0.05,
+        :lfs_vacuum_vessel_inner => 0.05,
+        :lfs_gap_water => 0.05,
+        :lfs_vacuum_vessel_outer => 0.05,
         :lfs_gap_vacuum_vessel_low_temp_shield => 0.01,
         :lfs_low_temp_shield => 0.10,
         :lfs_gap_low_temp_shield_TF => 0.4,
@@ -55,13 +55,14 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.25
     ini.core_profiles.ne_shaping = 1.5
-    ini.core_profiles.T_ratio = 0.825
-    ini.core_profiles.T_shaping = 2.5
+    ini.core_profiles.Te_shaping = 2.5
+    ini.core_profiles.Te_sep = 100.0
+    ini.core_profiles.Ti_Te_ratio = 0.825
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.00
+    ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 6
@@ -73,10 +74,15 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.tf.n_coils = 16
     ini.tf.shape = :double_ellipse
 
+    resize!(ini.ec_launcher, 2)
+    resize!(act.ActorSimpleEC.actuator, 2)
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.5
+    act.ActorSimpleEC.actuator[1].width = 0.1
     ini.ec_launcher[1].power_launched = 25.0e6
     ini.ec_launcher[1].efficiency_conversion = 0.45
     ini.ec_launcher[1].efficiency_transmission = 0.8
-
+    act.ActorSimpleEC.actuator[2].rho_0 = 0.7
+    act.ActorSimpleEC.actuator[2].width = 0.1
     ini.ec_launcher[2].power_launched = 25.0e6
     ini.ec_launcher[2].efficiency_conversion = 0.45
     ini.ec_launcher[2].efficiency_transmission = 0.8
@@ -91,7 +97,7 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     #### ACT ####
 
-    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
+    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
 
     act.ActorFluxSwing.operate_oh_at_j_crit = true
 
@@ -100,9 +106,7 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
 
     act.ActorCoreTransport.model = :none # No flux matching possible
 
-    # finalize
-    set_new_base!(ini)
-    set_new_base!(act)
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
 end

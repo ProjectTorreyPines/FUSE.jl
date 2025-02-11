@@ -13,11 +13,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
-    user_specified_model::Entry{String} = Entry{String}(
+    tglfnn_model::Entry{String} = Entry{String}(
         "-",
         "Use a user specified TGLF-NN model stored in TGLFNN/models";
-        default="",
-        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.user_specified_model must be one of:\n  \"$(join(TGLFNN.available_models(),"\"\n  \""))\""
+        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(TGLFNN.available_models(),"\"\n  \""))\""
     )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
@@ -46,6 +45,7 @@ function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
+    logging_actor_init(ActorTGLF)
     par = par(kw...)
     if par.model ∈ [:TGLF, :TGLFNN]
         input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))
@@ -127,12 +127,7 @@ end
 
 function model_filename(par::FUSEparameters__ActorTGLF)
     if par.model == :TGLFNN
-        if !isempty(par.user_specified_model)
-            filename = par.user_specified_model
-        else
-            filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
-            filename *= "_d3d" # will be changed to FPP soon
-        end
+        filename = par.tglfnn_model
     else
         filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
     end
