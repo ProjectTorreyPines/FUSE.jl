@@ -33,7 +33,8 @@ end
 function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorThermalPlant)
     par = par(kw...)
-    return ActorThermalPlant(dd, par, act, ActorNoOperation(dd,act.ActorNoOperation))
+    noop = ActorNoOperation(dd,act.ActorNoOperation)
+    return ActorThermalPlant(dd, par, act, noop)
 end
 
 """
