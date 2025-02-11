@@ -67,6 +67,33 @@ function _finalize(actor::ActorCoreTransport)
 end
 
 function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::IMAS.dd)
-    IMAS.IMASdd.copy_timeslice!(actor.dd.core_profiles, replay_dd.core_profiles, actor.dd.global_time);
+    dd = actor.dd
+
+    time0 = dd.global_time
+    cp1d = dd.core_profiles.profiles_1d[time0]
+    replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
+    rho = cp1d.grid.rho_tor_norm
+
+    # here we purposely set rho_nml == rho_ped
+    # Here blend_core_edge() will connect the replay core to the edge,
+    # but will allow for a discontinuity of the profiles.
+    # It is the role of the ActorPedestal to do the actual blending between rho_nml and rho_ped
+    rho_nml = actor.act.ActorFluxMatcher.rho_transport[end]
+    rho_ped = actor.act.ActorFluxMatcher.rho_transport[end]
+
+    cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped)
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if !ismissing(ion, :density_thermal)
+            ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped)
+        end
+    end
+
+    cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if !ismissing(ion, :temperature)
+            ion.temperature = IMAS.blend_core_edge(replay_ion.temperature, ion.temperature, rho, rho_nml, rho_ped)
+        end
+    end
+
     return replay_actor
 end
