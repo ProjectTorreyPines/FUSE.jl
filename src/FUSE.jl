@@ -76,6 +76,7 @@ include(joinpath("ddinit", "write_init_expressions.jl"))
 include("actors.jl")
 
 include(joinpath("actors", "noop_actor.jl"))
+include(joinpath("actors", "replay_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
 include(joinpath("actors", "equilibrium", "chease_actor.jl"))
