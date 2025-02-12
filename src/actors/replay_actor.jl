@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorReplay{T<:Real} <: ParametersAct
     replay_dd::Entry{IMAS.dd{T}} = Entry{IMAS.dd{T}}("-", "`dd` to replay data from")
 end
 
-mutable struct ActorReplay{D,P} <: CompoundAbstractActor{D,P}
+mutable struct ActorReplay{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorReplay{P}
     replay_dd::IMAS.dd{D}
@@ -26,6 +26,12 @@ function ActorReplay(dd::IMAS.dd{D}, par::FUSEparameters__ActorReplay{P}, base_a
         replay_dd = IMAS.dd{D}()
     end
     return ActorReplay{D,P}(dd, par, replay_dd, base_actor)
+end
+
+function ActorReplay(dd::IMAS.dd{D}, par::FUSEparameters__ActorReplay{P}; kw...) where {D<:Real,P<:Real}
+    # This constructor is only used to conform with the standard SingleAbstractActor call signature
+    # which is necessary to not break the generation of the FUSE documentation.
+    ActorReplay(dd, par, ActorNoOperation(dd, ParametersAllActors{D,P}()))
 end
 
 """
