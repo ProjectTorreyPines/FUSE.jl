@@ -57,8 +57,10 @@ end
 function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPedestal)
     par = par(kw...)
-    eped_actor = ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
-    wped_actor = ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
+    eped_actor =
+        ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
+    wped_actor =
+        ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d())
     actor.replay_actor = ActorReplay(dd, act.ActorReplay, actor)
@@ -194,17 +196,19 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
     rho = cp1d.grid.rho_tor_norm
 
     rho09 = 0.9
-    w_ped = 0.05
+    w_ped_ne = 0.05
     ne_ped_old = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
-    cp1d.electrons.density_thermal = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped)
+    ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped_ne, par.rho_nml, par.rho_ped)
+    cp1d.electrons.density_thermal = IMAS.ped_height_at_09(rho, ne, ne_ped)
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
             ni_ped_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ni_ped = ni_ped_old  / ne_ped_old * ne_ped
+            ni_ped = ni_ped_old / ne_ped_old * ne_ped
             ion.density_thermal[end] = ni_ped / 4.0
-            ion.density_thermal = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped)
+            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped)
+            ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
     end
 end
