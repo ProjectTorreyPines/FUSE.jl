@@ -45,7 +45,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
     if par.ec_model == :ECsimple
         actor.ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
-    elseif par.ec_mode == :replay
+    elseif par.ec_model == :replay
         actor.ec_actor = ActorReplay(dd, act.ActorSimpleEC, actor)
     end
 
