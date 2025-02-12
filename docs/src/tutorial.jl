@@ -363,19 +363,10 @@ dd1.equilibrium.time_slice[1].time = -100.0
 IMAS.diff(dd.equilibrium, dd1.equilibrium)
 
 # ## Summary
-# Snapshot of `dd` in 0D quantities (evaluated at `dd.global_time`)
-
-#FUSE.extract(dd)
-
+# Snapshot of `dd` in 0D quantities (evaluated at `dd.global_time`).
+# 
 # Extract + plots saved to PDF (printed to screen it `filename` is omitted)
 
-# filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
-# FUSE.digest(dd)#, filename)
-
-# ## More things
-
-# disable or enable printing of what actor is executed
-
-# FUSE.actor_logging(dd, false) # or true
-
+filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
+FUSE.extract(dd)#, filename)
 
