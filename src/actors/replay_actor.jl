@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorReplay{T<:Real} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    replay_dd::Entry{IMAS.dd{T}} = Entry{IMAS.dd{T}}("-", "`dd` to replay data from"; default=IMAS.dd{T}())
+    replay_dd::Entry{IMAS.dd{T}} = Entry{IMAS.dd{T}}("-", "`dd` to replay data from")
 end
 
 mutable struct ActorReplay{D,P} <: CompoundAbstractActor{D,P}
@@ -20,10 +20,12 @@ function ActorReplay(dd::IMAS.dd{D}, par::FUSEparameters__ActorReplay{P}, base_a
     # NOTE: we don't do `par = par(kw...)` here to avoid the deepcopy of an entire `dd`
     if :replay_dd in keys(kw)
         replay_dd = kw.replay_dd
-    else
+    elseif !ismissing(par, :replay_dd)
         replay_dd = par.replay_dd
+    else
+        replay_dd = IMAS.dd{D}()
     end
-    return ActorReplay{D,P}(dd, par, par.replay_dd, base_actor)
+    return ActorReplay{D,P}(dd, par, replay_dd, base_actor)
 end
 
 """
@@ -33,8 +35,9 @@ This actor is meant to be used as a specific model in generic actors
 for replaying past behaviour from data specified in `act.ActorReplay.replay_dd`.
 
 The behaviour of this actor (what it replays) is defined by the dispatch on these functions:
-  *  `_step(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)`
-  *  `_finalize(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)`
+
+  - `_step(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)`
+  - `_finalize(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)`
 """
 function ActorReplay(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorReplay(dd, act.ActorReplay; kw...)
