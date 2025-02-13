@@ -25,7 +25,6 @@ end
 Actor that resizes the High Field Side of the tokamak radial build.
 It changes the radial build of the center stack (plug, OH, and TF)
 accounting for stresses, superconductors critical currents, flux swing, and field requirements.
-It keeps the 
 
 !!! note
 
@@ -98,86 +97,75 @@ function _step(actor::ActorHFSsizing)
         # if operate_oh_at_j_crit then coil_j_margin will be blown
         # then it makes more sense to constrain over the flattop duration
         if (dd.requirements.coil_j_margin >= 0) && !actor.fluxswing_actor.par.operate_oh_at_j_crit
-            c_joh = target_value(dd.build.oh.max_j, dd.build.oh.critical_j, dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
+            c_joh = dd.build.oh.critical_j / dd.build.oh.max_j - (1.0 + dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
         else
             c_joh = 0.0
         end
 
         if (dd.requirements.coil_stress_margin >= 0)
-            c_soh = target_value(maximum(cs.stress.vonmises.oh), cs.properties.yield_strength.oh, dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
+            c_soh = cs.properties.yield_strength.oh / maximum(cs.stress.vonmises.oh) - (1.0 + dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
         else
             c_soh = 0.0
         end
 
         # TF currents and stresses
         if (dd.requirements.coil_j_margin >= 0)
-            c_jtf = target_value(dd.build.tf.max_j, dd.build.tf.critical_j, dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
+            c_jtf = dd.build.tf.critical_j / dd.build.tf.max_j - (1.0 + dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
         else
             c_jtf = 0.0
         end
 
         if (dd.requirements.coil_stress_margin >= 0)
-            c_stf = target_value(maximum(cs.stress.vonmises.tf), cs.properties.yield_strength.tf, dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
+            c_stf = cs.properties.yield_strength.tf / maximum(cs.stress.vonmises.tf) - (1.0 + dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
         else
             c_stf = 0.0
         end
 
         # plug stresses
         if (dd.requirements.coil_stress_margin >= 0) && !ismissing(cs.stress.vonmises, :pl)
-            c_spl = target_value(maximum(cs.stress.vonmises.pl), cs.properties.yield_strength.pl, dd.requirements.coil_stress_margin)
+            c_spl = cs.properties.yield_strength.pl / maximum(cs.stress.vonmises.pl) - (1.0 + dd.requirements.coil_stress_margin)
         else
             c_spl = 0.0
         end
 
         # flattop
         if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
-            c_flt = -target_value(dd.build.oh.flattop_duration, dd.requirements.flattop_duration, dd.requirements.coil_j_margin)
+            c_flt = dd.build.oh.flattop_duration / dd.requirements.flattop_duration - (1.0 + dd.requirements.coil_j_margin)
         else
             c_flt = 0.0
         end
 
         # margins
-        margins = [
-            dd.build.oh.critical_j / dd.build.oh.max_j - 1.0 - dd.requirements.coil_j_margin,
-            dd.build.tf.critical_j / dd.build.tf.max_j - 1.0 - dd.requirements.coil_j_margin,
-            cs.properties.yield_strength.oh / maximum(cs.stress.vonmises.oh) - 1.0 - dd.requirements.coil_stress_margin,
-            cs.properties.yield_strength.tf / maximum(cs.stress.vonmises.tf) - 1.0 - dd.requirements.coil_stress_margin]
-        if !ismissing(cs.stress.vonmises, :pl)
-            push!(margins, cs.properties.yield_strength.pl / maximum(cs.stress.vonmises.pl) - 1.0 - dd.requirements.coil_stress_margin)
-        end
-        if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
-            push!(margins, dd.build.oh.flattop_duration / dd.requirements.flattop_duration - 1.0 - dd.requirements.coil_j_margin)
-        end
-
-        c_mgn = norm(margins)
-        c_Δmn = norm(margins[2:end] .- margins[1]) ./ (length(margins) - 1)
+        margins = [c_joh, c_soh, c_jtf, c_stf, c_spl, c_flt]
+        c_mgn = norm(margins) * 10.0
+        c_Δmn = (maximum(margins) - minimum(margins))^2
 
         # want smallest possible TF and OH
-        c_geo = (OH.thickness + TFhfs.thickness) / CPradius / 2.0
-
-        # favor steel over superconductor
         # for all things being equal, maximizing steel is good to keep the cost of the magnets down
         if nose
-            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel), (1.0 - dd.build.tf.nose_hfs_fraction))) / 3.0
+            c_scs = norm((
+                OH.thickness / CPradius * (1.0 - dd.build.oh.technology.fraction_steel),
+                TFhfs.thickness / CPradius * (1.0 - dd.build.tf.nose_hfs_fraction) * (1.0 - dd.build.tf.technology.fraction_steel)
+            ))
         else
-            c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel))) / 2.0
+            c_scs = norm((
+                OH.thickness / CPradius * (1.0 - dd.build.oh.technology.fraction_steel),
+                TFhfs.thickness / CPradius * (1.0 - dd.build.tf.technology.fraction_steel)
+            ))
         end
 
-        if par.verbose
-            push!(C_JOH, c_joh)
-            push!(C_SOH, c_soh)
-            push!(C_JTF, c_jtf)
-            push!(C_STF, c_stf)
-            push!(C_SPL, c_spl)
-            push!(C_FLT, c_flt)
-            push!(C_GEO, c_geo)
-            push!(C_SCS, c_scs)
-            push!(C_MGN, c_mgn)
-            push!(C_ΔMG, c_Δmn)
-        end
+        push!(C_JOH, c_joh)
+        push!(C_SOH, c_soh)
+        push!(C_JTF, c_jtf)
+        push!(C_STF, c_stf)
+        push!(C_SPL, c_spl)
+        push!(C_FLT, c_flt)
+        push!(C_SCS, c_scs)
+        push!(C_MGN, c_mgn)
+        push!(C_ΔMG, c_Δmn)
 
         # total cost and constraints
-        return norm([c_geo, c_scs, c_mgn * 10, c_Δmn]), [c_joh, c_soh, c_flt, c_jtf, c_stf, c_spl], [0.0]
+        return norm([c_scs, c_mgn, c_Δmn]), [max(0.0, -c_joh), max(0.0, -c_soh), max(0.0, -c_flt), max(0.0, -c_jtf), max(0.0, -c_stf), max(0.0, -c_spl)], [0.0]
     end
 
     # initialize
@@ -191,18 +179,15 @@ function _step(actor::ActorHFSsizing)
     R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
     target_B0 = abs(B0)
 
-    if par.verbose
-        C_JOH = Float64[]
-        C_SOH = Float64[]
-        C_JTF = Float64[]
-        C_STF = Float64[]
-        C_SPL = Float64[]
-        C_FLT = Float64[]
-        C_GEO = Float64[]
-        C_SCS = Float64[]
-        C_MGN = Float64[]
-        C_ΔMG = Float64[]
-    end
+    C_JOH = Float64[]
+    C_SOH = Float64[]
+    C_JTF = Float64[]
+    C_STF = Float64[]
+    C_SPL = Float64[]
+    C_FLT = Float64[]
+    C_SCS = Float64[]
+    C_MGN = Float64[]
+    C_ΔMG = Float64[]
 
     if Bool(dd.solid_mechanics.center_stack.bucked)
         nose = false
@@ -240,26 +225,32 @@ function _step(actor::ActorHFSsizing)
     actor.stresses_actor.par.n_points = original_n_points
     finalize(step(actor.stresses_actor))
 
-    function print_details()
+    function print_details(; do_plot::Bool=par.do_plot)
         if res !== nothing
             print(res)
         end
 
-        if par.verbose
+        if do_plot
             p = plot(; yscale=:log10, legend=:bottomleft)
-            plot!(p, C_GEO ./ (C_GEO .> 0.0); label="minimize TF & OH size", alpha=0.9)
-            plot!(p, C_SCS ./ (C_SCS .> 0.0); label="minimize superconductor", alpha=0.9)
             plot!(p, C_MGN ./ (C_MGN .> 0.0); label="satisfy tolerances", alpha=0.9)
+            plot!(p, C_SCS ./ (C_SCS .> 0.0); label="minimize superconductor", alpha=0.9)
             plot!(p, C_ΔMG ./ (C_ΔMG .> 0.0); label="clear tolerances by an equal amount", alpha=0.9)
-            # scatter!(p, C_JOH ./ (C_JOH .> 0.0); label="Jcrit OH constraint", alpha=0.25)
-            # scatter!(p, C_JTF ./ (C_JTF .> 0.0); label="Jcrit TF constraint", alpha=0.25)
-            # scatter!(p, C_SPL ./ (C_SPL .> 0.0); label="stress PL constraint", alpha=0.25)
-            # scatter!(p, C_SOH ./ (C_SOH .> 0.0); label="stress OH constraint", alpha=0.25)
-            # scatter!(p, C_STF ./ (C_STF .> 0.0); label="stress TF constraint", alpha=0.25)
-            # scatter!(p, C_FLT ./ (C_FLT .> 0.0); label="flattop constraint", alpha=0.25)
+            display(p)
+
+            p = plot(; yscale=:log10, legend=:bottomleft)
+            scatter!(p, C_JOH ./ (C_JOH .> 0.0); label="Jcrit OH constraint", alpha=0.25)
+            scatter!(p, C_JTF ./ (C_JTF .> 0.0); label="Jcrit TF constraint", alpha=0.25)
+            scatter!(p, C_SPL ./ (C_SPL .> 0.0); label="stress PL constraint", alpha=0.25)
+            scatter!(p, C_SOH ./ (C_SOH .> 0.0); label="stress OH constraint", alpha=0.25)
+            scatter!(p, C_STF ./ (C_STF .> 0.0); label="stress TF constraint", alpha=0.25)
+            scatter!(p, C_FLT ./ (C_FLT .> 0.0); label="flattop constraint", alpha=0.25)
             display(p)
         end
 
+        @show Bool(dd.solid_mechanics.center_stack.bucked)
+        @show Bool(dd.solid_mechanics.center_stack.noslip)
+        @show Bool(dd.solid_mechanics.center_stack.plug)
+        println()
         @show [PL.thickness]
         @show [OH.thickness, dd.build.oh.technology.fraction_steel]
         @show [TFhfs.thickness, dd.build.tf.technology.fraction_steel]
@@ -350,7 +341,7 @@ function _step(actor::ActorHFSsizing)
         end
 
     catch e
-        print_details()
+        print_details(; do_plot=true)
         plot(eqt; cx=true)
         plot!(old_build)
         display(plot!(dd.build; cx=false))
