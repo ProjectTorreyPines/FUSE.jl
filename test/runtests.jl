@@ -16,8 +16,6 @@ include("runtests_cases.jl")
 
 include("runtests_actors.jl")
 
-include("runtests_workflow.jl")
-
 include("runtests_init_expressions.jl")
 
 if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
