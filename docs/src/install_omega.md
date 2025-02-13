@@ -1,156 +1,44 @@
-# Users: Public FUSE installation on GA's Omega
+# Public FUSE installation on GA's Omega
+
+## FUSE module
 
 If you only intend to use FUSE and don't plan to develop the source code, release versions of FUSE
-have been installed on the Omega cluster. To load the latest version, do
+have been installed on the Omega cluster. All available versions can be found with `module avail fuse`.
+To load the latest version, do:
 ```
 module load fuse
 ```
-All available versions can be found with `module avail fuse`.
 
-These modules do several things to make running FUSE easier for Omega users:
+Once the module is loaded, you can start Julia at the terminal and import the FUSE module.
 
-1. The `julia` module is loaded, which gives you access to a public Julia installation with your
-   own private "depot" in which each user can add or develop their own packages. The location
-   of this private depot is given by the environment variable `JULIA_USER_DEPOT`.
+## Running Julia/FUSE via VScode
 
-1. The FUSE codebase has been precompiled and made available to Julia via a
-   [sysimage](https://julialang.github.io/PackageCompiler.jl/dev/sysimages.html).
-   This greatly reduces the time-to-first-execution (TTFX) for many functions in the FUSE code suite,
-   at the expense of "locking" those packages and functions to the versions with which they
-   were compiled.
+The simplest way to start using FUSE is with [VScode and remote SHH connection](https://code.visualstudio.com/docs/remote/ssh-tutorial) to Omega.
 
-1. FUSE is already available when you launch Julia, so there's no need to do `Pkg.add("FUSE")`.
-   You can simply do `using FUSE` and being working.
+To do this:
 
-1. A custom conda installation is made available to you that has Jupyter notebooks with
-   precompiled Julia kernels that include the FUSE sysimage. You can just do `jupyter lab` to
-   start a Jupyter session and select the desired kernels. There is a kernel with 10 threads meant
-   for the login nodes and one with 40 threads meant for the worker nodes.
-   !!! warning
-       **Problem**: There's a bug that occurs when a new user first launches one of these
-       Julia + FUSE Jupyter kernels.
-       In your terminal, you will see output about precompiling IJulia, which is expected.
-       Once the precompilation is done, it will report `Starting kernel event loops` but then the
-       kernel may hang and your notebook may not work. It is unclear why this happens, but it is
-       only the first time for each user.
+* Open a remote connection to Omega
 
-       **Solution**: Restart the kernel. Occasionally this needs to be done twice, perhaps if you
-       restart too quickly and the precompilation was not finished. In any case, if the problem
-       does not resolve after restarting the kernel twice, reach out to the FUSE developers.
+* Install the `Julia` and the `Jupyter` VScode extensions in on Omega
 
+* Open the `Code > Settings... > Settings` menu
 
-# Developing FUSE on GA's Omega cluster
+  * Select the `Remote [SSH: omega]` tab
 
-## Setting up Jupyter Notebooks
+  * Search for `julia executable` in the search bar
 
-!!! note
-    Omega does have a system version of conda (available via `module load conda`) and one can create
-    a custom environment as described in the
-    [Omega documentation](http://mkdocs.gat.com/Software_On_Omega/Conda/), but this
-    has not been tested yet. Two important caveats if one wants to try this:
-    - The `conda` module should be loaded _after_ the `julia` module, as `julia` purges all other
-      modules, as discussed below.
-    - The `conda` module requires use of the bash shell. No other shell is supported.
+  * Edit the `julia: Executable Path` to `/fusion/projects/codes/julia/fuse/julia_with_fuse`
 
-The following is a robust setup to make Jupyter notebooks compatible with Julia on Omega:
+Now Julia scripts and notebooks can be run directly from this remote VScode session.
 
-1. Install miniconda
-   ```
-   cd # in your home folder
-   wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-   sh Miniconda3-latest-Linux-x86_64.sh
-   ```
-   read and accept the license, and install under `$HOME/miniconda3`, answer questions, and restart
-   your shell.
-
-1. Install `mamba` for faster package management
-   ```
-   $HOME/miniconda3/bin/conda install -c conda-forge mamba
-   ```
-   !!! note
-       We use the full `conda` path to avoid picking up the system `conda` install. There is no system-wide `mamba` executable, so that's not necessary when running `mamba`.
-
-1. Install `jupyterlab`
-   ```
-   mamba install -c conda-forge jupyterlab
-   ```
-
-1. Load the Julia module with
-   ```
-   module load julia
-   ```
-   This gives you access to a public Julia
-   installation with your own private "depot" in which each user can add or develop their own
-   packages. The location of this private depot is given by the environment variable
-   `JULIA_USER_DEPOT`.
-   !!! warning
-       Julia is incompatible with some modules loaded by the `defaults` module, which typically
-       comes pre-loaded on Omega and is used to run experimental tools like review+, efit_viewer,
-       etc.... The `julia` module automatically purges your modules to prevent this conflict.
-       If you do use your own installation of Julia, you'll want to do a `module purge` yourself
-       or remove `module load defaults` from your `~/.bashrc` file.
-
-1. Follow the instructions under the [Install FUSE](https://fuse.help/dev/install.html) page,
-   ignoring the sections about _Julia installation_ and _Updating Julia_.
-
-1. Setup a multi-threaded Jupyter Julia kernel that does not take the whole login node
-   ```
-   export JULIA_NUM_THREADS=10
-   fusebot install_IJulia
-
-   export JULIA_NUM_THREADS=40
-   fusebot install_IJulia
-   ```
-   Omega login nodes are a shared resource. Each login node has 40 cores.
-   This will setup a Jupyter Julia kernel with both 10 and 40 threads.
-   Use 10 threads on login nodes and 40 threads on worker nodes.
-
-## Distributed.jl on Omega
-
-We have found issues when trying to run parallel jobs using `Distributed.jl` on Omega.
-The fix for this is simple: don't use the `Main` environment, rather activate a separate environment.
-
-This can be easily by doing the following in the first cell of your Jupyter notebook:
-
-```julia
-using Pkg
-Pkg.activate("$HOME/julia_runs/my_run") # this is key, to avoid using the Main FUSE environment
-Pkg.add(("Plots", "FUSE"))
-```
-
-## Three ways to run parallel jobs
-
-Keep in mind that each worker node on Omega has 128 CPUs
-
-1. Screen + Jupyter on the login node, workers on the worker nodes
-
-   OK when the master process will not be doing a lot of work, and we need multiple nodes
-
-   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
-
-1. Screen on the login node, Jupyter and workers on one worker node
-
-   OK when the master process will be doing a lot of work, and we don't need more than one node
-
-   Here we will use the `FUSE.parallel_environment("localhost", ...)` call.
-
-1. Screen on the login node, Jupyter on a worker node, workers on different worker nodes
-
-   OK when the master process will be doing a lot of work, and we need multiple nodes
-
-   This is more complex, and finicky. Avoid if possible.
-
-   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
-
-
-## FUSE on Omega cluster
+## Connecting to a Jupyter-lab server running on OMEGA
 
 1. Connect to `omega` and launch `screen`
 
    !!! note
        You can re-connect to an existing `screen` session with `screen -r`
 
-1. **If (and only if) you want to run Jupyter on a worker node** do as follows:
+1. **If (and only if) you want to run jupyter-lab on a worker node** do as follows:
 
     `srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l`
 
@@ -196,6 +84,30 @@ Keep in mind that each worker node on Omega has 128 CPUs
 1. On your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab
    session on `omega`. Use the token when prompted.
 
+## Three ways to run parallel jobs
+
+Keep in mind that each worker node on Omega has 128 CPUs
+
+1. Screen + Jupyter on the login node, workers on the worker nodes
+
+   OK when the master process will not be doing a lot of work, and we need multiple nodes
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+1. Screen on the login node, Jupyter and workers on one worker node
+
+   OK when the master process will be doing a lot of work, and we don't need more than one node
+
+   Here we will use the `FUSE.parallel_environment("localhost", ...)` call.
+
+1. Screen on the login node, Jupyter on a worker node, workers on different worker nodes
+
+   OK when the master process will be doing a lot of work, and we need multiple nodes
+
+   This is more complex, and finicky. Avoid if possible.
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
 ## Using Revise on Omega
 When working on omega it seems ones need to manually trigger revise to pick up code changes:
 ```
@@ -214,3 +126,37 @@ module load atom
 module unload gcc
 module unload env
 ```
+
+### How the public installation of FUSE works
+
+The FUSE unix module `module load fuse` does several things:
+
+1. The `julia` unix module is loaded, which gives you access to a public Julia installation with your
+   own private "depot" in which each user can add or develop their own packages. The location
+   of this private depot is given by the environment variable `JULIA_USER_DEPOT`.
+
+1. The FUSE codebase has been precompiled and made available to Julia via a
+   [sysimage](https://julialang.github.io/PackageCompiler.jl/dev/sysimages.html).
+   This greatly reduces the time-to-first-execution (TTFX) for many functions in the FUSE code suite,
+   at the expense of "locking" those packages and functions to the versions with which they
+   were compiled.
+
+1. FUSE is already available when you launch Julia, so there's no need to do `Pkg.add("FUSE")`.
+   You can simply do `using FUSE` and being working.
+
+1. A custom conda installation is made available to you that has Jupyter notebooks with
+   precompiled Julia kernels that include the FUSE sysimage. You can just do `jupyter lab` to
+   start a Jupyter session and select the desired kernels. There is a kernel with 10 threads meant
+   for the login nodes and one with 40 threads meant for the worker nodes.
+   !!! warning
+       **Problem**: There's a bug that occurs when a new user first launches one of these
+       Julia + FUSE Jupyter kernels.
+       In your terminal, you will see output about precompiling IJulia, which is expected.
+       Once the precompilation is done, it will report `Starting kernel event loops` but then the
+       kernel may hang and your notebook may not work. It is unclear why this happens, but it is
+       only the first time for each user.
+
+       **Solution**: Restart the kernel. Occasionally this needs to be done twice, perhaps if you
+       restart too quickly and the precompilation was not finished. In any case, if the problem
+       does not resolve after restarting the kernel twice, reach out to the FUSE developers.
+
