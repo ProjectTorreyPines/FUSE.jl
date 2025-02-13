@@ -1,7 +1,23 @@
 # # FUSE Introductory Tutorial
 
 # Download this tutorial from the [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/tutorial.ipynb)
+
+# ## Basic concepts
 # 
+# To make sense of this tutorial, you'll need to know the following organization concepts of FUSE:
+# 
+# 1. **📂 Data storage**: All data is stored in the `dd` structure, which follows the ITER IMAS ontology.
+# 2. **🧠 Actors**: The core components of FUSE simulations are physics and engineering actors.
+# 3. **🕹️ Control**: Actor functionality is governed by `act` parameters.
+# 4. **🚀 Initialization**: The data structure can be initialized from 0D `ini` parameters.
+# 5. **🔧 Use cases**: FUSE includes templates for various machines (e.g., FPP, ITER, ARC).
+# 6. **🔄 Workflows**: Self-contained studies and optimizations are conducted via workflows, typically involving multiple FUSE simulations.
+# 7. **🌍 Interoperability**: FUSE interfaces with existing modeling tools like OMFIT/OMAS and the IMAS ecosystem.
+# 
+# A diagram illustrating these concepts is provided below:
+# ![image.png](attachment:5ff4862c-b856-485b-9649-02fec5bdd0d7.png)
+
+# # Let's get started!
 # -----------
 # 
 # **NOTE**: Julia is a Just In Time (JIT) programming language. The first time something is executed it will take longer because of the compilation process. Subsequent calls the the same code will be blazingly fast.
@@ -54,11 +70,11 @@ FUSE.init(dd, ini, act);
 
 # Display part of the equilibrium data in `dd`
 
-dd.equilibrium.time_slice[2].boundary
+dd.equilibrium.time_slice[1].boundary
 
 # this can be done up to a certain depth with `print_tree`
 
-print_tree(dd.equilibrium.time_slice[2].boundary; maxdepth=1)
+print_tree(dd.equilibrium.time_slice[1].boundary; maxdepth=1)
 
 # ## Plotting data from `dd`
 # FUSE uses `Plots.jl` recipes for visualizing data from `dd`.
@@ -99,67 +115,102 @@ plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)
 
 plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label="", linewidth=2, color=:red, labelfontsize=25)
 
-# Use `findall(ids, r"...")` to search for certain fields. In Julia string starting with `r` are regular expressions.
+# Use `findall(ids, r"...")` to search for certain fields. In Julia, string starting with `r` are regular expressions.
 
-findall(dd, r"pressure")
+findall(dd, r"\.psi")
 
 # `findall(ids, r"...")` can be combined with `plot()` to plot multiple fields
 
-plot(findall(dd, r"\.pressure"))
+plot(findall(dd, r"\.psi"))
 
 # ## Working with time series
 
 # The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.
 
-# Each `dd` has a `global_time` attribute, and actors operate at such time
+# Each `dd` has a `global_time` attribute, which is used throughout FUSE and IMAS to indicate the time at which things should be operate.
 
 dd.global_time
+
+# For the sake of demonstrating handling of time, let's add a new time_slice to the equilibrium.
+# 
+# NOTE: time dependent arrays of structures can be resized with `resize!(ids, time0::Float64)` in addition to the usual `resize!(ids, n::Int)`.
+
+# resize the time dependent array of structure
+resize!(dd.equilibrium.time_slice, 1.0);
+
+# let's just populate it with the data from the previous time slice
+dd.equilibrium.time_slice[2] = deepcopy(dd.equilibrium.time_slice[1]);
+dd.equilibrium.time_slice[2].time = 1.0
 
 # Here we see that equilibrium has mulitiple time_slices
 
 dd.equilibrium.time
 
-# Accessing time-dependent arrays of structures, via integer index
+# We can access time-dependent arrays of structures via integer index...
 
 eqt = dd.equilibrium.time_slice[2]
 eqt.time
 
-# At a given time, by passing the time as a floating point number (in seconds)
+# ...or at a given time, by passing the time as a floating point number (in seconds)
 
-eqt = dd.equilibrium.time_slice[0.0]
+eqt = dd.equilibrium.time_slice[1.0]
 eqt.time
 
-# At the global time, leaving the square brackets empty
+# NOTE: If we ask a time that is not exactly in the arrays of structures, we'll get the closest (causal!) time-slice
 
+eqt = dd.equilibrium.time_slice[0.9]
+eqt.time
+
+eqt = dd.equilibrium.time_slice[1.1]
+eqt.time
+
+# ... or at the current `dd.global_time` by leaving the square brackets empty []
+# 
+# NOTE: __This is what you want to use in most situations that involve arrays of structures!__
+
+dd.global_time = 0.0
 eqt = dd.equilibrium.time_slice[]
 eqt.time
 
-# Using the `@ddtime` macro to access and modify time-dependent arrays at `dd.global_time`:
+dd.global_time = 1.0
+eqt = dd.equilibrium.time_slice[]
+eqt.time
+
+# What we described above was for time-dependent arrays of structures.
+# 
+# The other place where time comes in, is when dealing with time-dependent arrays of data.
+# 
+# In this case, we can use the `@ddtime` macro to manipulate these time-dependent arrays at `dd.global_time`.
+# 
+# NOTE: Also in this case, `@ddtime` will operate on the closest (causal!) time point
 
 dd.equilibrium.vacuum_toroidal_field.b0
 
-# Accessing data at `dd.global_time`
-
-my_b0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-
-# Writin data at `dd.global_time`
-
-@ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = my_b0 + 1)
-
+dd.global_time = 1.0
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = 10.0)
 dd.equilibrium.vacuum_toroidal_field.b0
+
+dd.global_time = 0.0
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
+
+dd.global_time = 1.0
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
 
 # ## Expressions in `dd`
 
 # Some fields in the data dictionary are expressions (ie. Functions).
 # For example `dd.core_profiles.profiles_1d[].pressure` is dynamically calculated as the product of thermal densities and temperature with addition of fast ions contributions
 
-print_tree(dd.core_profiles.profiles_1d[1]; maxdepth=1)
+dd.global_time = 0.0
+print_tree(dd.core_profiles.profiles_1d[]; maxdepth=1)
 
-# accessing a dynamic expression, automatically evaluates it (in the `pressure` example, we get an array with data)
+# accessing a dynamic expression, automatically evaluates it
 
-dd.core_profiles.profiles_1d[1].electrons.pressure
+dd.core_profiles.profiles_1d[].conductivity_parallel
 
-# In addition to evaluating expressions by accessing them, expressions in the tree can be evaluated using `IMAS.freeze()`
+# In addition to evaluating expressions by accessing them, expressions in the tree can be evaluated using `IMAS.freeze(ids)`
+# 
+# NOTE: `IMAS.freeze(ids, field::Symbol)` works on a single field and `IMAS.refreeze!(ids, field)` forces re-evaluation of an expression. Also, `IMAS.empty!(ids, field::Symbol)` can be used to revert a frozen field back into an expression.
 
 print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)
 
@@ -312,18 +363,10 @@ dd1.equilibrium.time_slice[1].time = -100.0
 IMAS.diff(dd.equilibrium, dd1.equilibrium)
 
 # ## Summary
-# Snapshot of `dd` in 0D quantities (evaluated at `dd.global_time`)
-
-FUSE.extract(dd)
-
+# Snapshot of `dd` in 0D quantities (evaluated at `dd.global_time`).
+# 
 # Extract + plots saved to PDF (printed to screen it `filename` is omitted)
 
 filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
-FUSE.digest(dd)#, filename)
-
-# ## More things
-
-# disable or enable printing of what actor is executed
-
-FUSE.actor_logging(dd, false) # or true
+FUSE.extract(dd)#, filename)
 
