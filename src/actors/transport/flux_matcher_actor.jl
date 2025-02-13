@@ -100,14 +100,6 @@ function _step(actor::ActorFluxMatcher)
     err_history = Vector{Vector{Float64}}()
 
     actor.norms = fill(NaN, N_channels)
-
-    # make sure no zeros are in norms
-    for i in 1:length(actor.norms)
-        if actor.norms[i] == 0.0
-            actor.norms[i] = 1.0
-        end
-    end
-
     ftol = 1E-4 # relative error
     xtol = 1E-3 # difference in input array
 
@@ -140,7 +132,7 @@ function _step(actor::ActorFluxMatcher)
                 opts...)
         end
 
-        out = flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+        flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
 
     finally
 
