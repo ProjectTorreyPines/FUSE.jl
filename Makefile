@@ -359,6 +359,11 @@ daily_example_ci_commit:
 endif
 
 # @devs
+delete_dev_branch: error_missing_repo_var
+# delete `dev` branch on GitHub for a repo
+	@cd ../$(repo) && git push origin --delete dev
+
+# @devs
 deps_tree:
 # Print FUSE dependency tree of project-torrey-pines packages
 	@julia -e' ;\
