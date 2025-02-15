@@ -54,8 +54,8 @@ function _finalize(actor::ActorRABBIT)
     area = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho)
 
     for (ps, nbu) in zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit)
-        power_launched = @ddtime(ps.power.reference)
-        beam_energy = @ddtime(nbu.energy.data)
+        power_launched = max(0.0, @ddtime(ps.power.reference))
+        beam_energy = max(0.0, @ddtime(nbu.energy.data))
 
         @ddtime(nbu.power_launched.data = power_launched)
 

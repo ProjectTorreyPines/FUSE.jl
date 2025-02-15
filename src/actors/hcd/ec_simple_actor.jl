@@ -58,11 +58,42 @@ function _step(actor::ActorSimpleEC)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
+    # rho interpolant
+    _, _, RHO_interpolant = IMAS.ρ_interpolant(eqt)
+
     for (k, (ps, ecl)) in enumerate(zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam))
-        power_launched = @ddtime(ps.power_launched.reference)
+        τ_th = 0.01 # what's a good time here?
+        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.ec.time, ps.power_launched.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
+
+        coherent_wave = resize!(dd.waves.coherent_wave, k; wipe=false)[k]
+
+        # vacuum "ray tracing"
+        if !ismissing(ecl.frequency, :data)
+            position_vector = [@ddtime(ecl.launching_position.r), 0, @ddtime(ecl.launching_position.z)]
+            angle_pol = @ddtime(ecl.steering_angle_pol)
+            angle_tor = @ddtime(ecl.steering_angle_tor)
+            resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecl))
+            t_intersect = IMAS.toroidal_intersection(resonance_layer.r, resonance_layer.z, position_vector..., angle_pol, angle_tor)
+            if t_intersect == Inf
+                t_intersect = 0.0
+            end
+            x, y, z, r = IMAS.pencil_beam(position_vector, angle_pol, angle_tor, range(0.0, t_intersect, 100))
+
+            # save trajectory to dd
+            beam_tracing = resize!(coherent_wave.beam_tracing)
+            beam = resize!(beam_tracing.beam, 1)[1]
+            beam.length = cumsum(sqrt.(IMAS.gradient(x) .^ 2 .+ IMAS.gradient(y) .^ 2 .+ IMAS.gradient(z) .^ 2))
+            beam.position.r = r
+            beam.position.z = z
+            if t_intersect != 0.0
+                rho_0 = RHO_interpolant.(r[end], z[end])
+            else
+                power_launched = 0.0
+            end
+        end
 
         @ddtime(ecl.power_launched.data = power_launched)
 
@@ -89,6 +120,14 @@ function _step(actor::ActorSimpleEC)
             ρ -> IMAS.gaus(ρ, rho_0, width, 1.0);
             j_parallel
         )
+        cs1d = source.profiles_1d[]
+
+        wv1d = resize!(coherent_wave.profiles_1d)
+        wv1d.grid.rho_tor_norm = cs1d.grid.rho_tor_norm
+        wv1d.grid.psi = cs1d.grid.psi
+        wv1d.power_density = cs1d.electrons.energy
+        wv1d.electrons.power_density_thermal = cs1d.electrons.energy
+        wv1d.current_parallel_density = cs1d.j_parallel
     end
     return actor
 end

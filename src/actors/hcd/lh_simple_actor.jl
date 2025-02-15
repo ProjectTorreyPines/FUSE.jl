@@ -60,7 +60,7 @@ function _step(actor::ActorSimpleLH)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     for (k, (ps, lha)) in enumerate(zip(dd.pulse_schedule.lh.antenna, dd.lh_antennas.antenna))
-        power_launched = @ddtime(ps.power.reference)
+        power_launched = max(0.0, @ddtime(ps.power.reference))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale

@@ -60,9 +60,9 @@ function _step(actor::ActorSimpleNB)
 
     for (k, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
         # smooting of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
-        beam_energy = @ddtime(ps.energy.reference)
+        beam_energy = max(0.0, @ddtime(ps.energy.reference))
         τ_th = IMAS.beam_thermalization_time(cp1d, nbu.species, beam_energy)
-        power_launched = IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th)
+        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
