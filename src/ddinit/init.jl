@@ -116,6 +116,18 @@ function init!(
             end
         end
 
+        # initialize build
+        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
+            verbose && @info "INIT: init_build"
+            init_build!(dd, ini, act, dd1)
+            if do_plot
+                plot(dd.equilibrium; cx=true, color=:gray)
+                plot!(dd.build; equilibrium=false, pf_active=false)
+                display(plot!(dd.build; cx=false))
+                display(dd.build.layer)
+            end
+        end
+
         # initialize core sources and HCD
         if (
             !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
@@ -167,18 +179,6 @@ function init!(
         # initialize currents
         verbose && @info "INIT: init_currents"
         init_currents!(dd, ini, act, dd1)
-
-        # initialize build
-        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
-            verbose && @info "INIT: init_build"
-            init_build!(dd, ini, act, dd1)
-            if do_plot
-                plot(dd.equilibrium; cx=true, color=:gray)
-                plot!(dd.build; equilibrium=false, pf_active=false)
-                display(plot!(dd.build; cx=false))
-                display(dd.build.layer)
-            end
-        end
 
         # initialize oh and pf coils
         n_coils = [length(layer.coils_inside) for layer in dd.build.layer if !ismissing(layer, :coils_inside)]
