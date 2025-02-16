@@ -36,7 +36,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.ec_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.ec_launchers`, `dd.pulse_schedule` and stores data in `dd.waves` and `dd.core_sources`
 """
 function ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleEC(dd, act.ActorSimpleEC; kw...)
@@ -62,7 +62,7 @@ function _step(actor::ActorSimpleEC)
     _, _, RHO_interpolant = IMAS.ρ_interpolant(eqt)
 
     for (k, (ps, ecl)) in enumerate(zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam))
-        τ_th = 0.01 # what's a good time here?
+        τ_th = 0.01 # what's a good averating time here?
         power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.ec.time, ps.power_launched.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
@@ -108,7 +108,7 @@ function _step(actor::ActorSimpleEC)
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source = resize!(cs.source, :ec, "identifier.name" => ecl.name; wipe=false)
-        shaped_source(
+        shaped_source!(
             source,
             ecl.name,
             source.identifier.index,
@@ -120,14 +120,14 @@ function _step(actor::ActorSimpleEC)
             ρ -> IMAS.gaus(ρ, rho_0, width, 1.0);
             j_parallel
         )
-        cs1d = source.profiles_1d[]
 
-        wv1d = resize!(coherent_wave.profiles_1d)
-        wv1d.grid.rho_tor_norm = cs1d.grid.rho_tor_norm
-        wv1d.grid.psi = cs1d.grid.psi
-        wv1d.power_density = cs1d.electrons.energy
-        wv1d.electrons.power_density_thermal = cs1d.electrons.energy
-        wv1d.current_parallel_density = cs1d.j_parallel
+        # populate waves IDS
+        resize!(coherent_wave.profiles_1d)
+        populate_wave1d_from_source1d!(coherent_wave.profiles_1d[], source.profiles_1d[])
     end
     return actor
+end
+
+function wave_from_source(wv1d::IMAS.waves__coherent_wave___profiles_1d, cs1d::IMAS.core_sources__source___profiles_1d)
+    
 end

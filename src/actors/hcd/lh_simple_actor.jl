@@ -36,7 +36,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.lh_antennas`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.lh_antennas`, `dd.pulse_schedule` and stores data in `dd.waves` and `dd.core_sources`
 """
 function ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleLH(dd, act.ActorSimpleLH; kw...)
@@ -60,7 +60,8 @@ function _step(actor::ActorSimpleLH)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     for (k, (ps, lha)) in enumerate(zip(dd.pulse_schedule.lh.antenna, dd.lh_antennas.antenna))
-        power_launched = max(0.0, @ddtime(ps.power.reference))
+        τ_th = 0.01 # what's a good averating time here?
+        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.lh.time, ps.power_launched.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
@@ -78,7 +79,7 @@ function _step(actor::ActorSimpleLH)
         j_parallel *= sign(eqt.global_quantities.ip)
 
         source = resize!(cs.source, :lh, "identifier.name" => lha.name; wipe=false)
-        shaped_source(
+        shaped_source!(
             source,
             lha.name,
             source.identifier.index,
@@ -90,6 +91,10 @@ function _step(actor::ActorSimpleLH)
             ρ -> IMAS.gaus(ρ, rho_0, width, 1.0);
             j_parallel
         )
+
+        # populate waves IDS
+        resize!(coherent_wave.profiles_1d)
+        populate_wave1d_from_source1d!(coherent_wave.profiles_1d[], source.profiles_1d[])
     end
     return actor
 end

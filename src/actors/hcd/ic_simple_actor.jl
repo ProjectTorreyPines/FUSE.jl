@@ -36,7 +36,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.ic_antennas`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.ic_antennas`, `dd.pulse_schedule` and stores data in `dd.waves` and `dd.core_sources`
 """
 function ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleIC(dd, act.ActorSimpleIC; kw...)
@@ -60,10 +60,13 @@ function _step(actor::ActorSimpleIC)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     for (k, (ps, ica)) in enumerate(zip(dd.pulse_schedule.ic.antenna, dd.ic_antennas.antenna))
-        power_launched = max(0.0, @ddtime(ps.power.reference))
+        τ_th = IMAS.fast_ion_thermalization_time(cp1d, cp1d.ion[1], 1e6) # MeV range fast-ions
+        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.ic.time, ps.power_launched.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
+
+        coherent_wave = resize!(dd.waves.coherent_wave, k; wipe=false)[k]
 
         @ddtime(ica.power_launched.data = power_launched)
 
@@ -79,7 +82,7 @@ function _step(actor::ActorSimpleIC)
         j_parallel *= sign(eqt.global_quantities.ip) .* ion_electron_fraction_cp
 
         source = resize!(cs.source, :ic, "identifier.name" => ica.name; wipe=false)
-        shaped_source(
+        shaped_source!(
             source,
             ica.name,
             source.identifier.index,
@@ -91,6 +94,10 @@ function _step(actor::ActorSimpleIC)
             ρ -> IMAS.gaus(ρ, rho_0, width, 1.0);
             j_parallel
         )
+
+        # populate waves IDS
+        resize!(coherent_wave.profiles_1d)
+        populate_wave1d_from_source1d!(coherent_wave.profiles_1d[], source.profiles_1d[])
     end
     return actor
 end

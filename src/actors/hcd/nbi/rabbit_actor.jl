@@ -85,8 +85,7 @@ function _finalize(actor::ActorRABBIT)
             total_ion_energy,
             electrons_particles,
             j_parallel,
-            momentum_tor
-        )
+            momentum_tor)
 
         # add nbi fast ion particles source
         source1d = source.profiles_1d[]
@@ -94,6 +93,8 @@ function _finalize(actor::ActorRABBIT)
         IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
         ion.particles = source1d.electrons.particles
         ion.particles_inside = source1d.electrons.particles_inside
+        ion.energy = source1d.total_ion_energy
+        ion.power_inside = source1d.total_ion_power_inside
         ion.fast_particles_energy = beam_energy
     end
 
