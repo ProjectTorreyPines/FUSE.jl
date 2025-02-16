@@ -95,6 +95,7 @@ function _step(actor::ActorSimplePL)
             electrons_particles
         )
     end
+
     return actor
 end
 

@@ -68,31 +68,56 @@ function _step(actor::ActorSimpleEC)
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
 
-        coherent_wave = resize!(dd.waves.coherent_wave, k; wipe=false)[k]
+        coherent_wave = resize!(dd.waves.coherent_wave, "identifier.antenna_name" => ecl.name; wipe=false)
 
         # vacuum "ray tracing"
-        if !ismissing(ecl.frequency, :data)
-            position_vector = [@ddtime(ecl.launching_position.r), 0, @ddtime(ecl.launching_position.z)]
+        if ismissing(ecl.frequency, :data)
+            resonance = IMAS.ech_resonance(eqt)
+            ecl.frequency.time = [-Inf]
+            ecl.frequency.data = [resonance.frequency]
+            ecl.mode = resonance.mode == "X" ? -1 : 1
+        end
+        if ismissing(ecl, :steering_angle_pol) || ismissing(ecl.launching_position, :r)
+            fw = IMAS.first_wall(dd.wall)
+            index = argmax(fw.r .+ fw.z)
+            launch_r = fw.r[index]
+            launch_z = fw.z[index]
+            angle_pol = 0.0
+            angle_tor = 0.0
+            resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecl))
+            _, _, RHO_interpolant = IMAS.ρ_interpolant(eqt)
+            rho_resonance_layer = RHO_interpolant.(resonance_layer.r, resonance_layer.z)
+            index = resonance_layer.z .> eqt.global_quantities.magnetic_axis.z
+            sub_index = argmin(abs.(rho_resonance_layer[index] .- rho_0))
+            t_intersect = 1.0
+            x, y, z, r = IMAS.pencil_beam(
+                [launch_r, 0.0, launch_z],
+                [resonance_layer.r[index][sub_index] - launch_r, 0.0, resonance_layer.z[index][sub_index] - launch_z],
+                range(0.0, t_intersect, 100)
+            )
+        else
+            launch_r = @ddtime(ecl.launching_position.r)
+            launch_z = @ddtime(ecl.launching_position.z)
             angle_pol = @ddtime(ecl.steering_angle_pol)
             angle_tor = @ddtime(ecl.steering_angle_tor)
             resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecl))
-            t_intersect = IMAS.toroidal_intersection(resonance_layer.r, resonance_layer.z, position_vector..., angle_pol, angle_tor)
+            t_intersect = IMAS.toroidal_intersection(resonance_layer.r, resonance_layer.z, launch_r, 0.0, launch_z, angle_pol, angle_tor)
             if t_intersect == Inf
                 t_intersect = 0.0
             end
-            x, y, z, r = IMAS.pencil_beam(position_vector, angle_pol, angle_tor, range(0.0, t_intersect, 100))
+            x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))
+        end
 
-            # save trajectory to dd
-            beam_tracing = resize!(coherent_wave.beam_tracing)
-            beam = resize!(beam_tracing.beam, 1)[1]
-            beam.length = cumsum(sqrt.(IMAS.gradient(x) .^ 2 .+ IMAS.gradient(y) .^ 2 .+ IMAS.gradient(z) .^ 2))
-            beam.position.r = r
-            beam.position.z = z
-            if t_intersect != 0.0
-                rho_0 = RHO_interpolant.(r[end], z[end])
-            else
-                power_launched = 0.0
-            end
+        # save ray trajectory to dd
+        beam_tracing = resize!(coherent_wave.beam_tracing)
+        beam = resize!(beam_tracing.beam, 1)[1]
+        beam.length = cumsum(sqrt.(IMAS.gradient(x) .^ 2 .+ IMAS.gradient(y) .^ 2 .+ IMAS.gradient(z) .^ 2))
+        beam.position.r = r
+        beam.position.z = z
+        if t_intersect != 0.0
+            rho_0 = RHO_interpolant.(r[end], z[end])
+        else
+            power_launched = 0.0
         end
 
         @ddtime(ecl.power_launched.data = power_launched)
@@ -125,9 +150,10 @@ function _step(actor::ActorSimpleEC)
         resize!(coherent_wave.profiles_1d)
         populate_wave1d_from_source1d!(coherent_wave.profiles_1d[], source.profiles_1d[])
     end
+
     return actor
 end
 
 function wave_from_source(wv1d::IMAS.waves__coherent_wave___profiles_1d, cs1d::IMAS.core_sources__source___profiles_1d)
-    
+
 end

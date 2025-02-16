@@ -60,13 +60,13 @@ function _step(actor::ActorSimpleIC)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     for (k, (ps, ica)) in enumerate(zip(dd.pulse_schedule.ic.antenna, dd.ic_antennas.antenna))
-        τ_th = IMAS.fast_ion_thermalization_time(cp1d, cp1d.ion[1], 1e6) # MeV range fast-ions
-        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.ic.time, ps.power_launched.reference, dd.global_time, τ_th))
+        τ_th = IMAS.fast_ion_thermalization_time(cp1d, cp1d.ion[1].element[1], 1e6) # MeV range fast-ions
+        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.ic.time, ps.power.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
 
-        coherent_wave = resize!(dd.waves.coherent_wave, k; wipe=false)[k]
+        coherent_wave = resize!(dd.waves.coherent_wave, "identifier.antenna_name" => ica.name; wipe=false)
 
         @ddtime(ica.power_launched.data = power_launched)
 
@@ -99,5 +99,6 @@ function _step(actor::ActorSimpleIC)
         resize!(coherent_wave.profiles_1d)
         populate_wave1d_from_source1d!(coherent_wave.profiles_1d[], source.profiles_1d[])
     end
+
     return actor
 end
