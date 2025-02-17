@@ -2,11 +2,11 @@
 #  init pulse_schedule IDS  #
 #= ======================= =#
 """
-    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_time_traces::Float64=0.1)
+    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_equilibrium_time_traces::Float64=0.0001)
+function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from

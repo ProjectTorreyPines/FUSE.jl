@@ -84,18 +84,16 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int)
 
     ini.core_profiles.ne_setting = :ne_line
     act.ActorPedestal.density_match = :ne_line
+
+    set_ini_act_from_ods!(ini, act)
+
     ini.time.simulation_start = missing # to force user selection
 
     #### ACT ####
 
-    act.ActorFluxMatcher.evolve_pedestal = false
-
-    act.ActorPlasmaLimits.raise_on_breach = false
-
-    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
-
-    # average pedestal height, not peak
-    act.ActorEPED.ped_factor = 0.8
+    for actuator in act.ActorSimpleEC.actuator
+        actuator.rho_0 = missing
+    end
 
     return ini, act
 end
@@ -111,7 +109,8 @@ function case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
     ini.general.casename = "D3D $ods_file"
     ini.ods.filename = "$(ini.ods.filename),$(ods_file)"
 
-    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
+    ini.general.dd = load_ods(ini.ods.filename; error_on_missing_coordinates=false, time_from_ods=true)
+    set_ini_act_from_ods!(ini, act)
 
     return ini, act
 end
@@ -132,7 +131,7 @@ function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
 
     if isempty(ini.general.dd.core_sources)
         resize!(ini.nb_unit, 1)
-        ini.nb_unit[1].power_launched = shot_mappings[scenario_selector][:nbi_power]
+        ini.nb_unit[1].power_launched = 3E6
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
         ini.nb_unit[1].toroidal_angle = 18.0 * deg

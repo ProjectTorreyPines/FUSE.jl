@@ -77,8 +77,9 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 150.e6
     resize!(act.ActorSimpleEC.actuator, 1)
-    act.act.ActorSimpleEC.actuator[1].rho_0 = 0.0
-    act.act.ActorSimpleEC.actuator[1].width = 0.25
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.0
+    act.ActorSimpleEC.actuator[1].width = 0.25
+    act.ActorSimpleEC.actuator[1].ηcd_scale = 0.5
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
@@ -88,7 +89,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     # if init_from==:ods we need to sanitize the ODS that was given to us
     if init_from == :ods
         # Fix the core profiles
-        dd = load_ods(ini)
+        dd = load_ods(ini.ods.filename)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm
@@ -200,8 +201,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     #### ACT ####
 
     act.ActorPFdesign.symmetric = true
-
-    act.ActorSimpleEC.ηcd_scale = 0.5
 
     act.ActorCoreTransport.model = :FluxMatcher
 

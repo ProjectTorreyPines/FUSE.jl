@@ -17,7 +17,6 @@ end
         do_plot::Bool=false,
         initialize_hardware::Bool=true,
         initialize_pulse_schedule::Bool=true,
-        restore_expressions::Bool=true,
         verbose::Bool=false)
 
 Initialize `dd` starting from `ini` and `act` parameters
@@ -55,13 +54,16 @@ function init!(
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
 
-        # load ods once if needed
-        verbose && @info "INIT: ini_from_ods"
-        dd1 = ini_from_ods!(ini; restore_expressions)
+        # load ods once
+        verbose && @info "INIT: load_ods"
+        dd1 = set_ini_act_from_ods!(ini, act)
 
-        # Makes `ini` and `act` self-consistent and consistent with one another
-        verbose && @info "INIT: consistent_ini_act"
-        consistent_ini_act!(ini, act)
+        # Here we delete fields from the ODS for which we know FUSE has expressions for.
+        # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
+        if restore_expressions
+            verbose = !ismissing(ini.ods, :filename) && any(!contains(filename, "__FUSE__") for filename in split(ini.ods.filename, ","))
+            FUSE.restore_init_expressions!(dd1; verbose)
+        end
 
         # initialize pulse_schedule
         ps_was_set = false
@@ -227,16 +229,16 @@ function init!(
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, N)
             for k in 1:N
-                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
-                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
+                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
+                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
             end
         end
 
         # trim core_profiles data before the first equilibrium since things are really not robust against that
         # also trim other IDSs not to go past equilibrium.time[end]
         if dd.equilibrium.time[1] != dd.equilibrium.time[end]
-            IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]));
-            IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]));
+            IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]))
+            IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
         end
 
         return dd
@@ -290,53 +292,4 @@ function init(case::Symbol; do_plot::Bool=false, kw...)
     dd = IMAS.dd()
     init(dd, ini, act; do_plot=do_plot)
     return dd, ini, act
-end
-
-"""
-    consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-
-Makes `ini` and `act` self-consistent and consistent with one another
-
-NOTE: operates in place
-"""
-function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-    if !isempty(ini.ec_launcher)
-        if isempty(act.ActorSimpleEC.actuator)
-            resize!(act.ActorSimpleEC.actuator, length(ini.ec_launcher))
-        else
-            @assert length(act.ActorSimpleEC.actuator) == length(ini.ec_launcher) "length(act.ActorSimpleEC.actuator) = $(length(act.ActorSimpleEC.actuator)) must be equal to length(ini.ec_launcher)=$(length(ini.ec_launcher))"
-        end
-    end
-
-    if !isempty(ini.ic_antenna)
-        if isempty(act.ActorSimpleIC.actuator)
-            resize!(act.ActorSimpleIC.actuator, length(ini.ic_antenna))
-        else
-            @assert length(act.ActorSimpleIC.actuator) == length(ini.ic_antenna) "length(act.ActorSimpleIC.actuator) = $(length(act.ActorSimpleIC.actuator)) must be equal to length(ini.ic_antenna)=$(length(ini.ic_antenna))"
-        end
-    end
-
-    if !isempty(ini.lh_antenna)
-        if isempty(act.ActorSimpleLH.actuator)
-            resize!(act.ActorSimpleLH.actuator, length(ini.lh_antenna))
-        else
-            @assert length(act.ActorSimpleLH.actuator) == length(ini.lh_antenna) "length(act.ActorSimpleLH.actuator) = $(length(act.ActorSimpleLH.actuator)) must be equal to length(ini.lh_antenna)=$(length(ini.lh_antenna))"
-        end
-    end
-
-    if !isempty(ini.nb_unit)
-        if isempty(act.ActorSimpleNB.actuator)
-            resize!(act.ActorSimpleNB.actuator, length(ini.nb_unit))
-        else
-            @assert length(act.ActorSimpleNB.actuator) == length(ini.nb_unit) "length(act.ActorSimpleNB.actuator) = $(length(act.ActorSimpleNB.actuator)) must be equal to length(ini.nb_unit)=$(length(ini.nb_unit))"
-        end
-    end
-
-    if !isempty(ini.pellet_launcher)
-        if isempty(act.ActorSimplePL.actuator)
-            resize!(act.ActorSimplePL.actuator, length(ini.pellet_launcher))
-        else
-            @assert length(act.ActorSimplePL.actuator) == length(ini.pellet_launcher) "length(act.ActorSimplePL.actuator) = $(length(act.ActorSimplePL.actuator)) must be equal to length(ini.pellet_launcher)=$(length(ini.pellet_launcher))"
-        end
-    end
 end
