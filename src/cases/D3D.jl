@@ -5,7 +5,7 @@ DIII-D from experimental shot
 
 NOTE: calls `python` with `import omas` package to use DIII-D IMAS mappings defined there
 """
-function case_parameters(::Type{Val{:D3D}}, shot::Int)
+function case_parameters(::Type{Val{:D3D}}, shot::Int; EFIT_tree::String="EFIT02", PROFILES_tree::String="ZIPFIT01")
     ini, act = case_parameters(Val{:D3D_machine})
 
     ini.general.casename = "D3D $shot"
@@ -27,13 +27,13 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int)
     omas.omas_machine.d3d.nbi_active_hardware(ods, $shot)
 
     print("Fetching core_profiles data")
-    omas.omas_machine.d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="ZIPFIT01")
+    omas.omas_machine.d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
 
     print("Fetching wall data")
     omas.omas_machine.d3d.wall(ods, $shot)
 
     print("Fetching equilibrium data")
-    with ods.open('d3d', $shot, options={'EFIT_tree': 'EFIT02'}):
+    with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
         for k in range(len(ods["equilibrium.time"])):
             ods["equilibrium.time_slice"][k]["time"]
             ods["equilibrium.time_slice"][k]["global_quantities.ip"]

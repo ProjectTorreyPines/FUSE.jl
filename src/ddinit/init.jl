@@ -61,8 +61,7 @@ function init!(
         # Here we delete fields from the ODS for which we know FUSE has expressions for.
         # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
         if restore_expressions
-            verbose = !ismissing(ini.ods, :filename) && any(!contains(filename, "__FUSE__") for filename in split(ini.ods.filename, ","))
-            FUSE.restore_init_expressions!(dd1; verbose)
+            FUSE.restore_init_expressions!(dd1; verbose=false)
         end
 
         # initialize pulse_schedule
