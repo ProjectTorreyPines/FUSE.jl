@@ -1,7 +1,7 @@
 """
     case_parameters(:KDEMO)
 """
-function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:KDEMO}})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -96,7 +96,7 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
 end
 
 
-function case_parameters(::Type{Val{:KDEMO_compact}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:KDEMO_compact}})
     ini = ParametersInits()
     act = ParametersActors()
 

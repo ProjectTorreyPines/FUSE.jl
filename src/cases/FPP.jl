@@ -3,7 +3,7 @@
 
 GA's FPP design
 """
-function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
