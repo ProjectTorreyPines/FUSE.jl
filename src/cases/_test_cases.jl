@@ -84,12 +84,12 @@ function test(testname::String, dd::IMAS.DD)
 end
 
 function test(dd::IMAS.DD, args...; kw...)
-    ini, act = FUSE.case_parameters(args...; kw...)
+    ini, act = case_parameters(args...; kw...)
 
     ini_act_tests_customizations!(ini, act)
 
     Test.@testset "init" begin
-        FUSE.init(dd, ini, act)
+        init(dd, ini, act)
     end
 
     Test.@testset "sol" begin
@@ -97,56 +97,56 @@ function test(dd::IMAS.DD, args...; kw...)
     end
 
     Test.@testset "whole_facility" begin
-        FUSE.ActorWholeFacility(dd, act)
+        ActorWholeFacility(dd, act)
     end
 
     return (dd=dd, ini=ini, act=act)
 end
 
 function test_ini_act_save_load(args...; kw...)
-    ini, act = FUSE.case_parameters(args...; kw...)
+    ini, act = case_parameters(args...; kw...)
 
     Test.@testset "ini_dict" begin
-        FUSE.dict2ini(FUSE.ini2dict(ini))
+        dict2ini(ini2dict(ini))
     end
 
     Test.@testset "act_dict" begin
-        FUSE.dict2act(FUSE.act2dict(act))
+        dict2act(act2dict(act))
     end
 
     Test.@testset "ini_yaml" begin
         ini.general.dd = missing # general.dd cannot be serialized
-        ini_str = FUSE.SimulationParameters.par2ystr(ini; skip_defaults=true, show_info=false)
-        ini2 = FUSE.SimulationParameters.ystr2par(ini_str, FUSE.ParametersInits())
+        ini_str = SimulationParameters.par2ystr(ini; skip_defaults=true, show_info=false)
+        ini2 = SimulationParameters.ystr2par(ini_str, ParametersInits())
     end
 
     Test.@testset "act_yaml" begin
-        act_str = FUSE.SimulationParameters.par2ystr(act; skip_defaults=true, show_info=false)
-        act2 = FUSE.SimulationParameters.ystr2par(act_str, FUSE.ParametersActors())
+        act_str = SimulationParameters.par2ystr(act; skip_defaults=true, show_info=false)
+        act2 = SimulationParameters.ystr2par(act_str, ParametersActors())
     end
 
     Test.@testset "ini_json" begin
         ini.general.dd = missing # general.dd cannot be serialized
-        ini_str = FUSE.SimulationParameters.par2jstr(ini)
-        ini2 = FUSE.SimulationParameters.jstr2par(ini_str, FUSE.ParametersInits())
+        ini_str = SimulationParameters.par2jstr(ini)
+        ini2 = SimulationParameters.jstr2par(ini_str, ParametersInits())
     end
 
     Test.@testset "act_json" begin
-        act_str = FUSE.SimulationParameters.par2jstr(act)
-        act2 = FUSE.SimulationParameters.jstr2par(act_str, FUSE.ParametersActors())
+        act_str = SimulationParameters.par2jstr(act)
+        act2 = SimulationParameters.jstr2par(act_str, ParametersActors())
     end
 
     Test.@testset "ini_hdf5" begin
         tmpdir = mktempdir()
         ini.general.dd = missing # general.dd cannot be serialized
-        ini_str = FUSE.SimulationParameters.par2hdf(ini, joinpath(tmpdir, "ini.h5"))
-        ini2 = FUSE.SimulationParameters.hdf2par(joinpath(tmpdir, "ini.h5"), FUSE.ParametersInits())
+        ini_str = SimulationParameters.par2hdf(ini, joinpath(tmpdir, "ini.h5"))
+        ini2 = SimulationParameters.hdf2par(joinpath(tmpdir, "ini.h5"), ParametersInits())
     end
 
     Test.@testset "act_hdf5" begin
         tmpdir = mktempdir()
-        act_str = FUSE.SimulationParameters.par2hdf(act, joinpath(tmpdir, "act.h5"))
-        act2 = FUSE.SimulationParameters.hdf2par(joinpath(tmpdir, "act.h5"), FUSE.ParametersActors())
+        act_str = SimulationParameters.par2hdf(act, joinpath(tmpdir, "act.h5"))
+        act2 = SimulationParameters.hdf2par(joinpath(tmpdir, "act.h5"), ParametersActors())
     end
 
     return (ini=ini, act=act)

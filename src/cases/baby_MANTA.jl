@@ -2,13 +2,13 @@
     case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)
 """
 function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)
-    ini = FUSE.ParametersInits()
-    act = FUSE.ParametersActors()
+    ini = ParametersInits()
+    act = ParametersActors()
 
     ini.general.casename = "BABY MANTA"
     ini.general.init_from = :scalars
 
-    ini.build.layers = FUSE.OrderedCollections.OrderedDict(
+    ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 1.3,
         :OH => 0.33,
         :hfs_gap_coils => 0.0,
