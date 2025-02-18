@@ -49,7 +49,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
-    # allows users to hardwire `rho_nml` and `rho_ped`
+    # allows users to hardwire `rho_nml` and `rho_ped` (same logic here as in ActorStationaryPlasma)
     if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_nml)
         rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
     elseif ismissing(act.ActorPedestal, :rho_nml)
