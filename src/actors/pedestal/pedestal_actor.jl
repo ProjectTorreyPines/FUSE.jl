@@ -77,7 +77,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
-    debug = true
+    debug = false
 
     if par.model == :none
         actor.ped_actor = actor.noop_actor
@@ -132,8 +132,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
         if actor.state[end] == :L_mode
             # L-mode
-            α_t = LH_tanh_response(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
-            α_n = LH_tanh_response(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
+            α_t = LH_dynamics(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
+            α_n = LH_dynamics(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
 
             actor.ped_actor = actor.wped_actor
             actor.ped_actor.par.density_factor = 1.0 * (1 - α_n) + par.density_ratio_L_over_H * α_n
@@ -150,8 +150,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
         else
             # H-mode
-            α_t = LH_tanh_response(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
-            α_n = LH_tanh_response(par.tau_n, actor.t_lh, dd.global_time) # from 0 -> 1
+            α_t = LH_dynamics(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
+            α_n = LH_dynamics(par.tau_n, actor.t_lh, dd.global_time) # from 0 -> 1
 
             actor.ped_actor = actor.eped_actor
             actor.ped_actor.par.density_factor = par.density_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
@@ -214,11 +214,11 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
 end
 
 """
-    LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
+    LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
 
 Returns a parameter that follows a tanh like response where τ represent the value of 0.95 @ τ time starting from t_LH
 """
-function LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
+function LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
     if t_LH == -Inf
         return 1.0
     elseif t_now <= t_LH
@@ -263,11 +263,15 @@ function run_selected_pedstal_model(actor::ActorPedestal)
             factor = nel_wanted / nel
             cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
             for ion in cp1d.ion
-                ion.density_thermal = ion.density_thermal * factor
+                if !ismissing(ion, :density_thermal)
+                    ion.density_thermal = ion.density_thermal * factor
+                end
             end
             cp1d.electrons.temperature = cp1d.electrons.temperature / factor
             for ion in cp1d.ion
-                ion.temperature = ion.temperature / factor
+                if !ismissing(ion, :temperature)
+                    ion.temperature = ion.temperature / factor
+                end
             end
 
             # run the pedestal model
