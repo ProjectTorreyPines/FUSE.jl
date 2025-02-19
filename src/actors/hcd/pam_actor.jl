@@ -12,6 +12,7 @@
      time_from:: Switch{Symbol} = Switch{Symbol}([:pulse_schedule, :pellet_time, :none], "-", "initialize time for the pellet calculations"; default=:none)
      time_step::Entry{Float64} = Entry{Float64}("-", "Time step [s]"; default=0.00001)
      time_end::Entry{Float64} = Entry{Float64}("-", "Time end [s]"; default=0.0008)
+     Bt_dependance::Entry{Bool} = Entry{Bool}("-", "Enable Bt dependance"; default=false)
      density_update::Entry{Bool} = Entry{Bool}("-", "Update plasma density"; default=false)
  end
 
@@ -54,13 +55,19 @@
     end
 
     inputs=(
-         t0 = t0,
-         tf = par.time_end,
-         dt = par.time_step, 
+         t_start = t0,
+         t_finish = par.time_end,
+         time_step = par.time_step, 
          drift_model=par.drift_model,
-         BtDependance=false
+         BtDependance=par.Bt_dependance,
+         plasma_update=par.density_update
       )
-
+      
+     
+      
+      
+      
+ 
      actor.outputs = PAM.run_PAM(dd, inputs)
      
 
@@ -69,7 +76,7 @@
  """
     _finalize(actor::ActorPAM)
 
- Update plasma density in dd
+ Update plasma sources in dd
  """
  function _finalize(actor::ActorPAM)
     dd = actor.dd
@@ -80,6 +87,10 @@
     volume = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho)
     area = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho)   
     
+   
+   
+
+
     for (ps, pll) in zip(dd.pulse_schedule.pellet.launcher, dd.pellets.launcher)
          electrons_particles = vec(sum(output.density_source; dims=1))
         
@@ -97,6 +108,8 @@
     end
 
      return actor
+
+     
  end    
 
 
