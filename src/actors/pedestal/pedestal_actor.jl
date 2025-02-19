@@ -15,6 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    mode_transitions::Entry{Dict{Float64,Symbol}} = Entry{Dict{Float64,Symbol}}("s", "Times at which the plasma transitions to a given mode [:L_mode, :H_mode]. If missing, the L-H transition will be based on `IMAS.satisfies_h_mode_conditions(dd)`.")
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
     model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
@@ -79,6 +80,25 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
     debug = false
 
+    if !ismissing(par.mode_transitions)
+        causal_transition_time = IMAS.causal_time_index(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
+        mode = par.mode_transitions[causal_transition_time]
+    elseif IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
+        mode = :H_mode
+    elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=0.8)
+        mode = :L_mode
+    elseif isempty(actor.state)
+        if IMAS.satisfies_h_mode_conditions(dd)
+            mode = :H_mode
+        else
+            mode = :L_mode
+        end
+    else
+        mode = actor.state[end]
+    end
+    push!(actor.state, mode)
+    @ddtime(dd.summary.global_quantities.h_mode.value = Int(mode == :H_mode))
+
     if par.model == :none
         actor.ped_actor = actor.noop_actor
         finalize(step(actor.ped_actor))
@@ -99,20 +119,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         @assert par.ne_from == :pulse_schedule ":dynamic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
         @assert actor.previous_time < dd.global_time "subsequent calls to :dynamic pedestal model require dd.global_time advance"
 
-        if IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
-            push!(actor.state, :H_mode)
-        elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=0.8)
-            push!(actor.state, :L_mode)
-        elseif isempty(actor.state)
-            if IMAS.satisfies_h_mode_conditions(dd)
-                push!(actor.state, :H_mode)
-            else
-                push!(actor.state, :L_mode)
-            end
-        else
-            push!(actor.state, actor.state[end])
-        end
-
         if length(actor.state) < 2
             # initialization
             actor.t_lh = -Inf
@@ -130,7 +136,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             actor.cp1d_transition = deepcopy(cp1d)
         end
 
-        if actor.state[end] == :L_mode
+        if mode == :L_mode
             # L-mode
             α_t = LH_dynamics(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
             α_n = LH_dynamics(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
@@ -171,7 +177,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             println()
             @show dd.global_time
             @show IMAS.L_H_threshold(dd)
-            println(actor.state[end])
+            println(mode)
             @show actor.t_lh
             @show actor.t_hl
             @show α_t
