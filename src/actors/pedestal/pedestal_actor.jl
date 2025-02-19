@@ -220,20 +220,25 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
 
     rho09 = 0.9
     w_ped_ne = 0.05
-    ne_ped_old = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
+    ne_ped_old = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, rho09)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped_ne, par.rho_nml, par.rho_ped)
     cp1d.electrons.density_thermal = IMAS.ped_height_at_09(rho, ne, ne_ped)
+
+    zeff_ped_old = IMAS.get_from(dd, Val{:zeff_ped}, :core_profiles, rho09)
+    zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09)
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
             ni_ped_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ni_ped = ni_ped_old / ne_ped_old * ne_ped
+            ni_ped = ni_ped_old / ne_ped_old * ne_ped * zeff_ped / zeff_ped_old
             ion.density_thermal[end] = ni_ped / 4.0
-            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped)
+            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped;)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
     end
+
+    IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
 end
 
 """
