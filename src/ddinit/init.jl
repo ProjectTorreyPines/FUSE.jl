@@ -195,10 +195,12 @@ function init!(
         end
 
         # pf_passive
-        if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
-            dd.pf_passive = deepcopy(dd1.pf_passive)
-        else
-            FUSE.ActorPassiveStructures(dd, act)
+        if !isempty(dd.build.layer)
+            if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
+                dd.pf_passive = deepcopy(dd1.pf_passive)
+            else
+                FUSE.ActorPassiveStructures(dd, act)
+            end
         end
 
         # initialize balance of plant
@@ -214,11 +216,11 @@ function init!(
         init_missing_from_ods!(dd, ini, act, dd1)
 
         # add strike point information to pulse_schedule
-        if ps_was_set
+        fw = IMAS.first_wall(dd.wall)
+        if !isempty(fw.r) && ps_was_set
             RXX = []
             ZXX = []
             for eqt in dd.equilibrium.time_slice
-                fw = IMAS.first_wall(dd.wall)
                 psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
                 Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open)
                 push!(RXX, Rxx)
