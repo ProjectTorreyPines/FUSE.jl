@@ -15,7 +15,13 @@ using PackageCompiler
 
 # Setup new environment
 Pkg.activate(env_dir)
-Pkg.add(["FUSE", "Plots", "IJulia", "WebIO", "Interact"])
+Pkg.add(["FUSE", "Plots", "IJulia", "WebIO", "Interact", "ADAS",
+         "BalanceOfPlantSurrogate", "BoundaryPlasmaModels", "CHEASE",
+         "CoordinateConventions", "EFIT", "EPEDNN", "FiniteElementHermite",
+         "FRESCO", "FusionMaterials", "FuseExchangeProtocol", "IMAS", "IMASdd",
+         "IMASutils", "MXHEquilibrium", "MillerExtendedHarmonic", "NEO",
+         "NNeutronics", "QED", "RABBIT", "SimulationParameters", "TEQUILA",
+         "TGLFNN", "TJLF", "TroyonBetaNN", "VacuumFields"])
 Pkg.build("IJulia")
 
 # Freeze Project and Manifest to read only
@@ -25,7 +31,11 @@ chmod(joinpath(env_dir, "Manifest.toml"), 0o444)
 # Create precompile script
 precompile_execution_file = joinpath(env_dir, "precompile_script.jl")
 precompile_cmds = """
-using FUSE
+using FUSE, ADAS, BalanceOfPlantSurrogate, BoundaryPlasmaModels, CHEASE, 
+      CoordinateConventions, EFIT, EPEDNN, FiniteElementHermite, FRESCO, 
+      FusionMaterials, FuseExchangeProtocol, IMAS, IMASdd, IMASutils, 
+      MXHEquilibrium, MillerExtendedHarmonic, NEO, NNeutronics, QED, RABBIT, 
+      SimulationParameters, TEQUILA, TGLFNN, TJLF, TroyonBetaNN, VacuumFields
 include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
 include(joinpath(pkgdir(FUSE), "test", "runtests.jl"))
 """
@@ -55,9 +65,9 @@ Maintainers: B.C. Lyons, lyonsbc@fusion.gat.com
              C.M. Clark, clarkm@fusion.gat.com
 Physics Officers: O.M. Meneghini, meneghini@fusion.gat.com
                   B.C. Lyons, lyonsbc@fusion.gat.com
-Known technical debt: 
+Known technical debt:
 The first time a custom Jupyter kernel is used, it may hang.
-Restarting (sometimes twice) normally resolves the issue. 
+Restarting (sometimes twice) normally resolves the issue.
 ]])
 
 """

@@ -1,7 +1,7 @@
 whatis("Name    : fuse")
 whatis("Version : " .. fuse_env)
 
-depends_on("julia/1.11.2")
+depends_on("julia/1.11.3")
 depends_on("env/gcc11.x")
 
 -- FUSE environment uses its own conda install with custom jupyter kernels
