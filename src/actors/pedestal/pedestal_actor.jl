@@ -191,6 +191,23 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 end
 
 """
+    LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
+
+Returns a parameter that follows a tanh like response where τ represent the value of 0.95 @ τ time starting from t_LH
+"""
+function LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
+    if t_LH == -Inf
+        return 1.0
+    elseif t_now <= t_LH
+        return 0.0
+    end
+    α = tanh.((2pi .* (t_now .- t_LH .- τ / 2.0)) ./ τ) / 2.0 + 0.5
+    α0 = tanh.((2pi .* (.-τ / 2.0)) ./ τ) / 2.0 + 0.5
+    α = (α .- α0) ./ (1 - α0)
+    return α
+end
+
+"""
     pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
 
 The EPED and WPED models only operate on the temperature profiles.
@@ -217,23 +234,6 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
     end
-end
-
-"""
-    LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
-
-Returns a parameter that follows a tanh like response where τ represent the value of 0.95 @ τ time starting from t_LH
-"""
-function LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
-    if t_LH == -Inf
-        return 1.0
-    elseif t_now <= t_LH
-        return 0.0
-    end
-    α = tanh.((2pi .* (t_now .- t_LH .- τ / 2.0)) ./ τ) / 2.0 + 0.5
-    α0 = tanh.((2pi .* (.-τ / 2.0)) ./ τ) / 2.0 + 0.5
-    α = (α .- α0) ./ (1 - α0)
-    return α
 end
 
 """
