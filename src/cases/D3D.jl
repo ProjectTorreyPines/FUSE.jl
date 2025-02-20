@@ -109,7 +109,7 @@ function case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
     ini.general.casename = "D3D $ods_file"
     ini.ods.filename = "$(ini.ods.filename),$(ods_file)"
 
-    ini.general.dd = load_ods(ini.ods.filename; error_on_missing_coordinates=false, time_from_ods=true)
+    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
     set_ini_act_from_ods!(ini, act)
 
     return ini, act
