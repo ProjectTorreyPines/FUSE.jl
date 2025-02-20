@@ -116,6 +116,26 @@ function case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
 end
 
 """
+    case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
+
+DIII-D from dd file
+"""
+function case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
+    ini, act = case_parameters(Val{:D3D_machine})
+
+    ini.general.casename = "D3D from dd"
+
+    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
+    merge!(ini.general.dd, dd)
+    IMAS.last_global_time(ini.general.dd)
+    ini.time.simulation_start = dd.global_time
+
+    set_ini_act_from_ods!(ini, act)
+
+    return ini, act
+end
+
+"""
     case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
 
 DIII-D from sample cases
