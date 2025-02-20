@@ -100,17 +100,38 @@ function _run(study::StudyDatabaseGenerator)
     if study.sty.file_storage_policy == :separate_folders
         FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
     elseif study.sty.file_storage_policy == :merged_hdf5
-        FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item, Val{:hdf5}), iterator)
+        dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item, Val{:hdf5}), iterator)
+        study.dataframe = reduce(vcat, dataframe_list)
 
-        IMAS.h5merge(joinpath(sty.save_folder, "combined_output_$(Dates.now()).h5"),
+        date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        merged_hdf5_filename = "database_$(date_time_str).h5"
+
+        IMAS.h5merge(joinpath(sty.save_folder, merged_hdf5_filename),
             joinpath(sty.save_folder, "tmp_output_dir");
             strip_root=true,
             cleanup=true)
+
+
+        # write study.dataframe into a separate csv file
+        csv_filepath = joinpath(sty.save_folder, "extract_$(date_time_str).csv")
+        CSV.write(csv_filepath, study.dataframe)
+
+        # write study.dataframe into the mergedh5 file as well
+        HDF5.h5open(joinpath(sty.save_folder, merged_hdf5_filename), "r+") do fid
+            io_buffer = IOBuffer()
+            CSV.write(io_buffer, study.dataframe)
+            csv_text = String(take!(io_buffer))
+            HDF5.write(fid, "extract.csv", csv_text)
+            attr = HDF5.attrs("/extract.csv")
+            attr["date_time"] = date_time_str
+            attr["FUSE_version"] = string(pkgversion(FUSE))
+        end
+
     else
         error("DatabaseGenerator should never be here: file_storage_policy must be either `:separate_folders` or `merged_hdf5`")
     end
 
-    analyze(study)
+    analyze(study; extract_results=false)
 
     # Release workers after run
     if sty.release_workers_after_run
@@ -126,8 +147,10 @@ end
 
 Example of analyze plots to display after the run feel free to change this method for your needs
 """
-function _analyze(study::StudyDatabaseGenerator; re_extract::Bool=false)
-    extract_results(study; re_extract)
+function _analyze(study::StudyDatabaseGenerator; extract_results::Bool=true, re_extract::Bool=false)
+    if extract_results
+        extract_results(study; re_extract)
+    end
     df = study.dataframe
     display(histogram(df.Te0; xlabel="Te0 [keV]", ylabel="Number of simulations per bin", legend=false))
     display(histogram(df.Ti0; xlabel="Ti0 [keV]", ylabel="Number of simulations per bin", legend=false))
@@ -238,7 +261,11 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
         save2hdf("tmp_output_dir", parent_group, (sty.save_dd ? dd : nothing), ini, act, tmp_log_io;
                             timer=true, freeze=false, overwrite_groups=true, kw...)
 
-        return nothing
+
+        this_df = DataFrame(IMAS.extract(dd,:all))
+        this_df[!,:gen] = fill(item, nrow(this_df))
+
+        return this_df
     catch error
         if isa(error, InterruptException)
             rethrow(error)
