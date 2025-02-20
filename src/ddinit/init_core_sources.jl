@@ -36,7 +36,7 @@ function init_core_sources!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameter
         init_from = ini.general.init_from
 
         # core_sources
-        if init_from == :ods && IMAS.hasdata(dd1.core_sources, :time) && length(dd1.core_sources.time) > 0
+        if init_from == :ods && !IMAS.isempty(dd1.core_sources.source)
             dd.core_sources = deepcopy(dd1.core_sources)
             unique_core_sources_names!(dd.core_sources)
             if isempty(dd1.ec_launchers.beam) && findfirst(:ec, dd.core_sources.source) !== missing
