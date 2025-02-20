@@ -35,7 +35,7 @@ end
 function _step(actor::ActorRABBIT)
     dd = actor.dd
 
-    @assert length(dd.nbi.unit) == 1 "For now only one NBI unit is supported"
+    @assert length(dd.pulse_schedule.nbi.unit) == length(dd.nbi.unit) "Ensure that number of NBI units is consistent between dd.pulse schedule and dd.nbi"
 
     all_inputs = FUSEtoRABBITinput(dd)
     actor.outputs = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
@@ -45,13 +45,19 @@ end
 function _finalize(actor::ActorRABBIT)
     dd = actor.dd
     cs = dd.core_sources
-    output = actor.outputs
+    outputs = actor.outputs
 
     eqt = dd.equilibrium.time_slice[]
 
-    rho = [0.0; output.rho_data; 1.0]
+    rho = [0.0; outputs[1].rho_data; 1.0]
     volume = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho)
     area = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho)
+
+    total_powe_data = sum(o.powe_data for o in outputs)
+    total_powi_data = sum(o.powi_data for o in outputs)
+    total_bdep_data = sum(o.bdep_data for o in outputs)
+    total_jnbcd_data = sum(o.jnbcd_data for o in outputs)
+    total_torqdepo_data = sum(o.torqdepo_data for o in outputs)
 
     for (ps, nbu) in zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit)
         power_launched = @ddtime(ps.power.reference)
@@ -62,15 +68,15 @@ function _finalize(actor::ActorRABBIT)
         # evaluate various source channels
         # here we also extend the RABBIT grid to the edges
         # so that the linear interpolation does not extrapolate in weird ways
-        electrons_energy = output.powe_data[:, end]
+        electrons_energy = total_powe_data[:, end]
         electrons_energy = [electrons_energy[1]; electrons_energy; electrons_energy[end]]
-        total_ion_energy = output.powi_data[:, end]
+        total_ion_energy = total_powi_data[:, end]
         total_ion_energy = [total_ion_energy[1]; total_ion_energy; total_ion_energy[end]]
-        electrons_particles = vec(sum(output.bdep_data[:, end, :]; dims=2))
+        electrons_particles = vec(sum(total_bdep_data[:, end, :]; dims=2))
         electrons_particles = [electrons_particles[1]; electrons_particles; electrons_particles[end]]
-        j_parallel = output.jnbcd_data[:, end]
+        j_parallel = total_jnbcd_data[:, end]
         j_parallel = [j_parallel[1]; j_parallel; j_parallel[end]]
-        momentum_tor = vec(sum(output.torqdepo_data[:, end, :]; dims=2))
+        momentum_tor = vec(sum(total_torqdepo_data[:, end, :]; dims=2))
         momentum_tor = [momentum_tor[1]; momentum_tor; momentum_tor[end]]
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
