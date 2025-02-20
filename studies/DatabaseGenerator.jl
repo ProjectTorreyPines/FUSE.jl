@@ -1,3 +1,5 @@
+import HDF5
+
 #= ====================== =#
 #  StudyDatabaseGenerator  #
 #= ====================== =#
