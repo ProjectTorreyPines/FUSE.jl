@@ -21,6 +21,8 @@ function study_common_parameters(; kw...)
         return Entry{Bool}("-", "Releases the workers after running the study"; default)
     elseif name == :save_dd
         return Entry{Bool}("-", "Save dd of the study to save folder"; default)
+    elseif name == :file_storage_policy
+        return Switch{Symbol}([:separate_folders, :merged_hdf5], "-", "File storage policy: 'separate_folders' stores each case in a separate folder, while 'merged_hdf5' merges all cases into a single HDF5 file"; default)
     else
         error("There is no study_common_parameter named `$name`")
     end
