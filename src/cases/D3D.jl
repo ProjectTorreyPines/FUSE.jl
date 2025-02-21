@@ -54,9 +54,6 @@ function case_parameters(::Type{Val{:D3D}};
         print("Fetching ec_launcher data")
         omas.omas_machine.d3d.ec_launcher_active_hardware(ods, $shot)
 
-        print("Fetching nbi data")
-        omas.omas_machine.d3d.nbi_active_hardware(ods, $shot)
-
         print("Fetching core_profiles data")
         omas.omas_machine.d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="ZIPFIT01")
 
