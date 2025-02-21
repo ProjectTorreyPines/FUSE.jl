@@ -38,7 +38,13 @@ function _step(actor::ActorRABBIT)
     @assert length(dd.pulse_schedule.nbi.unit) == length(dd.nbi.unit) "Ensure that number of NBI units is consistent between dd.pulse schedule and dd.nbi"
 
     all_inputs = FUSEtoRABBITinput(dd)
-    actor.outputs = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
+
+    hostname = read(`hostname`, String) |> strip
+    if contains(hostname, "omega")
+        actor.outputs = RABBIT.run_RABBIT_omega(all_inputs; remove_inputs=true)
+    else
+        actor.outputs = RABBIT.run_RABBIT_local(all_inputs; remove_inputs=true)
+    end
     return actor
 end
 
