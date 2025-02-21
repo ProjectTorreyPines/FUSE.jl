@@ -83,7 +83,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
     debug = false
 
-    if !ismissing(par.mode_transitions)
+    if !ismissing(par, :mode_transitions)
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
     elseif IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
