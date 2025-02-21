@@ -66,6 +66,7 @@ test_cases["KDEMO_compact"] = ([:KDEMO_compact], Dict())
 test_cases["DTT"] = ([:DTT], Dict())
 test_cases["EXCITE"] = ([:EXCITE], Dict())
 test_cases["MANTA"] = ([:MANTA], Dict())
+test_cases["UNIT"] = ([:UNIT], Dict())
 
 """
     test(testname::String, dd::IMAS.DD)

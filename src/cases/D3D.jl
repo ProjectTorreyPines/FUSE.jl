@@ -127,6 +127,7 @@ function case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
 
     ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
     merge!(ini.general.dd, dd)
+
     IMAS.last_global_time(ini.general.dd)
     ini.time.simulation_start = dd.global_time
 
