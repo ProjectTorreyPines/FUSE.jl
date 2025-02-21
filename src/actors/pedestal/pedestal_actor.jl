@@ -15,7 +15,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
-    mode_transitions::Entry{Dict{Float64,Symbol}} = Entry{Dict{Float64,Symbol}}("s", "Times at which the plasma transitions to a given mode [:L_mode, :H_mode]. If missing, the L-H transition will be based on `IMAS.satisfies_h_mode_conditions(dd)`.")
+    mode_transitions::Entry{Dict{Float64,Symbol}} = Entry{Dict{Float64,Symbol}}(
+        "s",
+        "Times at which the plasma transitions to a given mode [:L_mode, :H_mode]. If missing, the L-H transition will be based on `IMAS.satisfies_h_mode_conditions(dd)`."
+    )
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
     model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
@@ -220,25 +223,34 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
 
     rho09 = 0.9
     w_ped_ne = 0.05
+    original_zeff = cp1d.zeff
+
     ne_ped_old = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, rho09)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
-    ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped_ne, par.rho_nml, par.rho_ped)
+    ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped_ne, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = IMAS.ped_height_at_09(rho, ne, ne_ped)
 
-    zeff_ped_old = IMAS.get_from(dd, Val{:zeff_ped}, :core_profiles, rho09)
-    zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09)
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
             ni_ped_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ni_ped = ni_ped_old / ne_ped_old * ne_ped * zeff_ped / zeff_ped_old
+            ni_ped = ni_ped_old / ne_ped_old * ne_ped
             ion.density_thermal[end] = ni_ped / 4.0
-            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped;)
+            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
     end
 
-    IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
+    if false
+        #NOTE: Zeff can change after a pedestal actor is run, even though actors like EPED and WPED only operate on the temperature profiles.
+        # This is because in FUSE the calculation of Zeff is temperature dependent.
+        idx09 = argmin(abs.(rho .- rho09))
+        original_zeff[idx09:end] .= original_zeff[idx09]
+        IMAS.scale_ion_densities_to_target_zeff!(cp1d, original_zeff)
+    else
+        zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09)
+        IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
+    end
 end
 
 """
