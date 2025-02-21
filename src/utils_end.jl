@@ -395,7 +395,8 @@ function save2hdf(
     varinfo::Bool=false,
     freeze::Bool=false,
     overwrite_groups::Bool=false,
-    verbose::Bool=false
+    verbose::Bool=false,
+    kw...
    )
 
     savedir = abspath(savedir)

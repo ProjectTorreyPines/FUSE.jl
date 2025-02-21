@@ -103,29 +103,7 @@ function _run(study::StudyDatabaseGenerator)
         dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item, Val{:hdf5}), iterator)
         study.dataframe = reduce(vcat, dataframe_list)
 
-        date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-        merged_hdf5_filename = "database_$(date_time_str).h5"
-
-        IMAS.h5merge(joinpath(sty.save_folder, merged_hdf5_filename),
-            joinpath(sty.save_folder, "tmp_output_dir");
-            strip_root=true,
-            cleanup=true)
-
-
-        # write study.dataframe into a separate csv file
-        csv_filepath = joinpath(sty.save_folder, "extract_$(date_time_str).csv")
-        CSV.write(csv_filepath, study.dataframe)
-
-        # write study.dataframe into the mergedh5 file as well
-        HDF5.h5open(joinpath(sty.save_folder, merged_hdf5_filename), "r+") do fid
-            io_buffer = IOBuffer()
-            CSV.write(io_buffer, study.dataframe)
-            csv_text = String(take!(io_buffer))
-            HDF5.write(fid, "extract.csv", csv_text)
-            attr = HDF5.attrs("/extract.csv")
-            attr["date_time"] = date_time_str
-            attr["FUSE_version"] = string(pkgversion(FUSE))
-        end
+        _merge_h5_files_and_write_csv_file(study; cleanup=true)
 
     else
         error("DatabaseGenerator should never be here: data_storage_policy must be either `:separate_folders` or `merged_hdf5`")
@@ -141,6 +119,35 @@ function _run(study::StudyDatabaseGenerator)
 
     return study
 end
+
+function _merge_h5_files_and_write_csv_file(study::StudyDatabaseGenerator; cleanup::Bool=false)
+    sty = study.sty
+    date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+    merged_hdf5_filename = "database_$(date_time_str).h5"
+
+    save_folder = study.sty.save_folder
+
+    IMAS.h5merge(joinpath(save_folder, merged_hdf5_filename),
+        joinpath(save_folder, "tmp_h5_output");
+        h5_strip_group_prefix=true,
+        cleanup)
+
+    # write study.dataframe into a separate csv file
+    csv_filepath = joinpath(sty.save_folder, "extract_$(date_time_str).csv")
+    CSV.write(csv_filepath, study.dataframe)
+
+    # write study.dataframe into the mergedh5 file as well
+    HDF5.h5open(joinpath(sty.save_folder, merged_hdf5_filename), "r+") do fid
+        io_buffer = IOBuffer()
+        CSV.write(io_buffer, study.dataframe)
+        csv_text = String(take!(io_buffer))
+        HDF5.write(fid, "extract.csv", csv_text)
+        attr = HDF5.attrs(fid["/extract.csv"])
+        attr["date_time"] = date_time_str
+        attr["FUSE_version"] = string(pkgversion(FUSE))
+    end
+end
+
 
 """
     _analyze(study::StudyDatabaseGenerator)
@@ -230,9 +237,6 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
     # Redirect stdout and stderr to the file
     original_stdout = stdout  # Save the original stdout
     original_stderr = stderr  # Save the original stderr
-    # Create a temporary log file to capture output
-    tmp_log_filename, tmp_log_io = mktemp()  # mktemp returns (filename, IO)
-    tmp_log_io = open(tmp_log_filename, "w+")
 
     # ini/act variations
     if typeof(study.ini) <: ParametersAllInits
@@ -249,8 +253,13 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
 
     dd = IMAS.dd()
 
-    zero_pad_length = length(string(sty.n_simulations))
-    parent_group = "case$(lpad(item,zero_pad_length,"0"))"
+    # zero_pad_length = length(string(sty.n_simulations))
+    # parent_group = "case$(lpad(item,zero_pad_length,"0"))"
+
+    parent_group = "case_$item"
+    tmp_log_filename = "tmp_log_case_$item.txt"
+    tmp_log_io = open(tmp_log_filename, "w+")
+
 
     try
         redirect_stdout(tmp_log_io)
@@ -258,7 +267,7 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
 
         study.workflow(dd, ini, act)
 
-        save2hdf("tmp_output_dir", parent_group, (sty.save_dd ? dd : nothing), ini, act, tmp_log_io;
+        save2hdf("tmp_h5_output", parent_group, (sty.save_dd ? dd : nothing), ini, act, tmp_log_io;
                             timer=true, freeze=false, overwrite_groups=true, kw...)
 
 
@@ -272,14 +281,14 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
         end
 
         # save empty dd and error to directory
-        save2hdf("tmp_output_dir", parent_group, nothing, ini, act, tmp_log_io;
+        save2hdf("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
                             error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
-        cd(original_dir)
-
         close(tmp_log_io)
         rm(tmp_log_filename; force=true)
+
+        cd(original_dir)
     end
 end
