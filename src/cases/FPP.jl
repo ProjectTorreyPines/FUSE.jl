@@ -95,7 +95,7 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)
     end
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 18000.0
+    ini.requirements.flattop_duration = missing # let the optimizer figure out maximum flattop duration
     ini.requirements.coil_j_margin = 0.2
     ini.requirements.tritium_breeding_ratio = 1.1
 
