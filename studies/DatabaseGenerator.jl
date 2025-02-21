@@ -39,7 +39,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled simulations")
-    file_storage_policy::Switch{Symbol} = study_common_parameters(; file_storage_policy=:separate_folders)
+    data_storage_policy::Switch{Symbol} = study_common_parameters(; data_storage_policy=:separate_folders)
 end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
@@ -97,9 +97,9 @@ function _run(study::StudyDatabaseGenerator)
     # paraller run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
 
-    if study.sty.file_storage_policy == :separate_folders
+    if study.sty.data_storage_policy == :separate_folders
         FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
-    elseif study.sty.file_storage_policy == :merged_hdf5
+    elseif study.sty.data_storage_policy == :merged_hdf5
         dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item, Val{:hdf5}), iterator)
         study.dataframe = reduce(vcat, dataframe_list)
 
@@ -128,7 +128,7 @@ function _run(study::StudyDatabaseGenerator)
         end
 
     else
-        error("DatabaseGenerator should never be here: file_storage_policy must be either `:separate_folders` or `merged_hdf5`")
+        error("DatabaseGenerator should never be here: data_storage_policy must be either `:separate_folders` or `merged_hdf5`")
     end
 
     analyze(study; extract_results=false)
