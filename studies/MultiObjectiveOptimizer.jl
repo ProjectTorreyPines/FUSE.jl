@@ -12,7 +12,7 @@ function study_parameters(::Type{Val{:MultiObjectiveOptimizer}})::Tuple{FUSEpara
     sty = FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
     act = ParametersActors()
 
-    # finalize 
+    # finalize
     set_new_base!(sty)
     set_new_base!(act)
 
@@ -33,6 +33,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     # Optimization related parameters
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
     number_of_generations::Entry{Int} = Entry{Int}("-", "Number generations")
+    data_storage_policy::Switch{Symbol} = study_common_parameters(; data_storage_policy=:separate_folders)
 end
 
 mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
@@ -138,7 +139,8 @@ function _run(study::StudyMultiObjectiveOptimizer)
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
         state = workflow_multiobjective_optimization(
             study.ini, study.act, ActorWholeFacility, study.objective_functions,
-            study.constraint_functions; optimization_parameters..., generation_offset=study.generation)
+            study.constraint_functions; optimization_parameters..., generation_offset=study.generation, data_storage_policy=sty.data_storage_policy)
+
         study.state = state
 
         save_optimization(
@@ -149,7 +151,13 @@ function _run(study::StudyMultiObjectiveOptimizer)
             study.objective_functions,
             study.constraint_functions)
 
-        analyze(study)
+        if study.sty.data_storage_policy == :separate_folders
+            analyze(study; extract_results=true)
+        else
+            _merge_h5_and_csv_files(study; cleanup=true)
+            analyze(study; extract_results=false)
+        end
+
         # Release workers after run
         if sty.release_workers_after_run
             Distributed.rmprocs(Distributed.workers())
@@ -160,8 +168,49 @@ function _run(study::StudyMultiObjectiveOptimizer)
     end
 end
 
-function _analyze(study::StudyMultiObjectiveOptimizer)
-    extract_results(study)
+function _merge_h5_and_csv_files(study::StudyMultiObjectiveOptimizer; cleanup::Bool=false)
+    date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+    merged_hdf5_filename = "generations_$(date_time_str).h5"
+
+    save_folder = study.sty.save_folder
+
+    IMAS.h5merge(joinpath(save_folder, merged_hdf5_filename),
+        joinpath(save_folder, "tmp_h5_output");
+        h5_group_search_depth=2,
+        h5_strip_group_prefix=true,
+        cleanup)
+
+    # read csv files
+    tmp_csv_folder = joinpath(save_folder, "tmp_csv_output")
+    csv_files = readdir(tmp_csv_folder; join=true)
+    dfs = [CSV.read(file, DataFrame) for file in csv_files]
+
+    study.dataframe = reduce(vcat, dfs)
+
+    merged_csv_filepath = joinpath(save_folder, "extract_$(date_time_str).csv")
+    CSV.write(merged_csv_filepath, study.dataframe)
+
+    # write study.dataframe into the mergedh5 file as well
+    HDF5.h5open(joinpath(save_folder, merged_hdf5_filename), "r+") do fid
+        io_buffer = IOBuffer()
+        CSV.write(io_buffer, study.dataframe)
+        csv_text = String(take!(io_buffer))
+        HDF5.write(fid, "extract.csv", csv_text)
+        attr = HDF5.attrs(fid["/extract.csv"])
+        attr["date_time"] = date_time_str
+        return attr["FUSE_version"] = string(pkgversion(FUSE))
+    end
+
+    if cleanup
+        rm(tmp_csv_folder; recursive=true)
+    end
+end
+
+
+function _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
+    if extract_results
+        extract_results(study)
+    end
     if !isempty(study.dataframe)
         study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions])
     end

@@ -15,7 +15,7 @@ import Dates
         constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
         save_folder::AbstractString,
         generation::Int,
-        save_dd::Bool=true)
+        save_dd::Bool)
 
 NOTE: This function is run by the worker nodes
 """
@@ -28,11 +28,11 @@ function optimization_engine(
     constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
     save_folder::AbstractString,
     generation::Int,
-    save_dd::Bool=true)
+    save_dd::Bool)
 
     # create working directory
     original_dir = pwd()
-    savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))        
+    savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))
     mkdir(savedir)
     cd(savedir)
 
@@ -110,6 +110,150 @@ function optimization_engine(
     end
 end
 
+"""
+    optimization_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{Type{<:AbstractActor},Function},
+        x::AbstractVector,
+        objective_functions::AbstractVector{<:IMAS.ObjectiveFunction},
+        constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
+        save_folder::AbstractString,
+        generation::Int,
+        save_dd::Bool,
+        ::Type{Val{:hdf5}};
+        case_index::Union{Nothing,Int}=nothing
+        )
+
+NOTE: This function is run by the worker nodes
+"""
+function optimization_engine(
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
+    x::AbstractVector,
+    objective_functions::AbstractVector{<:IMAS.ObjectiveFunction},
+    constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
+    save_folder::AbstractString,
+    generation::Int,
+    save_dd::Bool,
+    ::Type{Val{:hdf5}};
+    case_index::Union{Nothing,Int}=nothing,
+    kw...
+)
+
+    # create working directory
+    original_dir = pwd()
+    if !isdir(save_folder)
+        mkdir(save_folder)
+    end
+    cd(save_folder)
+
+
+    # Redirect stdout and stderr to the file
+    original_stdout = stdout  # Save the original stdout
+    original_stderr = stderr  # Save the original stderr
+
+    if isnothing(case_index)
+        parent_group = "/generation_$generation/pid$(getpid())"
+        tmp_log_filename = "tmp_log_pid$(getpid()).txt"
+        tmp_log_io = open(joinpath(tmp_log_folder,"pid$(getpid()).txt"), "w+")
+    else
+        parent_group = "/generation_$generation/case_$case_index"
+        tmp_log_filename = "tmp_log_case_$case_index.txt"
+    end
+    tmp_log_io = open(tmp_log_filename, "w+")
+
+    try
+        redirect_stdout(tmp_log_io)
+        redirect_stderr(tmp_log_io)
+
+        # deepcopy ini/act to avoid changes
+        ini = deepcopy(ini)
+        act = deepcopy(act)
+
+        # update ini based on input optimization vector `x`
+        @show x
+        parameters_from_opt!(ini, x)
+        @show x
+
+        # attempt to release memory
+        malloc_trim_if_glibc()
+
+        # run the problem
+        if typeof(actor_or_workflow) <: Function
+            dd = actor_or_workflow(ini, act)
+        else
+            dd = init(ini, act)
+            actor = actor_or_workflow(dd, act)
+            dd = actor.dd
+        end
+
+        # save simulation data
+        save2hdf("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
+            timer=true, freeze=false, overwrite_groups=true)
+
+        # extract dd and save it to csv file
+        tmp_csv_folder = joinpath(save_folder,"tmp_csv_output")
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+
+        csv_filepath =joinpath(tmp_csv_folder, "extract_pid$(getpid()).csv")
+        open(csv_filepath, "a") do io
+            df = DataFrame(IMAS.extract(dd, :all))
+            df[!,:gen] = fill(generation, nrow(df))
+            df[!,:case] = fill(case_index, nrow(df))
+
+            CSV.write(io, df)
+        end
+
+
+        # evaluate multiple objectives
+        ff = collect(map(f -> nan2inf(f(dd)), objective_functions))
+        gg = collect(map(g -> nan2inf(g(dd)), constraint_functions))
+        hh = Float64[]
+
+        println("finished")
+        @show ff
+        @show gg
+        @show hh
+
+        return ff, gg, hh
+
+    catch error
+        if isa(error, InterruptException)
+            rethrow(error)
+        end
+
+        # save empty dd and error to directory
+        save2hdf("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
+            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+
+        # rethrow(e) # uncomment for debugging purposes
+
+        ff = Float64[Inf for f in objective_functions]
+        gg = Float64[Inf for g in constraint_functions]
+        hh = Float64[]
+
+        println("failed")
+        @show ff
+        @show gg
+        @show hh
+
+        return ff, gg, hh
+
+    finally
+        redirect_stdout(original_stdout)
+        redirect_stderr(original_stderr)
+        close(tmp_log_io)
+        rm(tmp_log_filename, force=true)
+
+        cd(original_dir)
+    end
+end
+
+
 function _optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
@@ -119,9 +263,19 @@ function _optimization_engine(
     constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
     save_folder::AbstractString,
     generation::Int,
-    save_dd::Bool=true)
+    save_dd::Bool;
+    case_index::Union{Nothing, Int}=nothing,
+    kw...)
 
-    tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
+    data_storage_policy = get(kw, :data_storage_policy, :separate_folders)
+
+    if data_storage_policy == :separate_folders
+        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
+    elseif data_storage_policy == :merged_hdf5
+        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd, Val{:hdf5}; case_index, kw...)
+    else
+        error("data_storage_policy must be `separate_folders` or `:merged_hdf5`")
+    end
 
     GC.gc()
     return tmp
@@ -151,12 +305,14 @@ function optimization_engine(
     save_folder::AbstractString,
     save_dd::Bool,
     p::ProgressMeter.Progress,
-    generation_offset::Int)
+    generation_offset::Int;
+    kw...)
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(
-        x -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter + generation_offset, save_dd),
+        (k,x) -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter + generation_offset, save_dd; case_index=k, kw...),
+        1:size(X,1),
         [X[k, :] for k in 1:size(X)[1]]
     )
     F = zeros(size(X)[1], length(tmp[1][1]))
