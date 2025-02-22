@@ -50,31 +50,31 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
-    if act.ActorCoreTransport.model in (:FluxMatcher, :EPEDProfiles)
-        # allows users to hardwire `rho_nml` and `rho_ped`
-        if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_nml)
-            rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
-        else
-            rho_nml = act.ActorPedestal.rho_nml
-        end
-        if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_ped)
-            rho_ped = actor_tr.tr_actor.par.rho_transport[end]
-        else
-            rho_ped = act.ActorPedestal.rho_ped
-        end
-        actor_ped = ActorPedestal(
-            dd,
-            act.ActorPedestal,
-            act;
-            ip_from=:core_profiles,
-            βn_from=:core_profiles,
-            ne_from=:pulse_schedule,
-            zeff_from=:pulse_schedule,
-            rho_nml,
-            rho_ped)
+    # allows users to hardwire `rho_nml` and `rho_ped` (same logic here as in ActorDynamicPlasma)
+    if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_nml)
+        rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
+    elseif ismissing(act.ActorPedestal, :rho_nml)
+        rho_nml = act.ActorFluxMatcher.rho_transport[end-1]
     else
-        actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
+        rho_nml = act.ActorPedestal.rho_nml
     end
+    if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_ped)
+        rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+    elseif ismissing(act.ActorPedestal, :rho_ped)
+        rho_ped = act.ActorFluxMatcher.rho_transport[end]
+    else
+        rho_ped = act.ActorPedestal.rho_ped
+    end
+    actor_ped = ActorPedestal(
+        dd,
+        act.ActorPedestal,
+        act;
+        ip_from=:core_profiles,
+        βn_from=:core_profiles,
+        ne_from=:pulse_schedule,
+        zeff_from=:pulse_schedule,
+        rho_nml,
+        rho_ped)
 
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 

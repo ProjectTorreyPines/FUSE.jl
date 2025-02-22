@@ -60,9 +60,9 @@ function _step(actor::ActorSimpleNB)
 
     for (k, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
         # smooting of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
-        beam_energy = @ddtime(ps.energy.reference)
-        τ_th = IMAS.beam_thermalization_time(cp1d, nbu.species, beam_energy)
-        power_launched = IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th)
+        beam_energy = max(0.0, @ddtime(ps.energy.reference))
+        τ_th = IMAS.fast_ion_thermalization_time(cp1d, nbu.species, beam_energy)
+        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
@@ -88,7 +88,7 @@ function _step(actor::ActorSimpleNB)
         j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
-        shaped_source(
+        shaped_source!(
             source,
             nbu.name,
             source.identifier.index,
@@ -99,9 +99,8 @@ function _step(actor::ActorSimpleNB)
             ion_electron_fraction_cp,
             ρ -> IMAS.gaus(ρ, rho_0, width, 2.0);
             electrons_particles=particles_per_second,
-            momentum_tor,
-            j_parallel
-        )
+            j_parallel,
+            momentum_tor)
 
         # add nbi fast ion particles source
         source1d = source.profiles_1d[]
@@ -109,8 +108,10 @@ function _step(actor::ActorSimpleNB)
         IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
         ion.particles = source1d.electrons.particles
         ion.particles_inside = source1d.electrons.particles_inside
+        ion.energy = source1d.total_ion_energy
+        ion.power_inside = source1d.total_ion_power_inside
         ion.fast_particles_energy = beam_energy
-
     end
+
     return actor
 end

@@ -315,6 +315,6 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
 end
 
 function _step(replay_actor::ActorReplay, actor::ActorEquilibrium, replay_dd::IMAS.dd)
-    IMAS.IMASdd.copy_timeslice!(actor.dd.equilibrium, replay_dd.equilibrium, actor.dd.global_time);
+    IMAS.copy_timeslice!(actor.dd.equilibrium, replay_dd.equilibrium, actor.dd.global_time);
     return replay_actor
 end
