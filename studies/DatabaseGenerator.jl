@@ -102,17 +102,17 @@ function _run(study::StudyDatabaseGenerator)
 
     if study.sty.data_storage_policy == :separate_folders
         FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
+        analyze(study; extract=true)
+
     elseif study.sty.data_storage_policy == :merged_hdf5
         dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item, Val{:hdf5}), iterator)
         study.dataframe = reduce(vcat, dataframe_list)
 
         _merge_h5_files_and_write_csv_file(study; cleanup=true)
-
+        analyze(study; extract=false)
     else
         error("DatabaseGenerator should never be here: data_storage_policy must be either `:separate_folders` or `merged_hdf5`")
     end
-
-    analyze(study; extract_results=false)
 
     # Release workers after run
     if sty.release_workers_after_run
@@ -157,8 +157,8 @@ end
 
 Example of analyze plots to display after the run feel free to change this method for your needs
 """
-function _analyze(study::StudyDatabaseGenerator; extract_results::Bool=true, re_extract::Bool=false)
-    if extract_results
+function _analyze(study::StudyDatabaseGenerator; extract::Bool=true, re_extract::Bool=false)
+    if extract
         extract_results(study; re_extract)
     end
     df = study.dataframe
