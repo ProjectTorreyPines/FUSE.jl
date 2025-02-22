@@ -82,7 +82,7 @@ function _step(actor::ActorSimplePL)
         ρ_peak = (α - 1) / (α + β - 2) / 2 + 0.5
         beta_width = width * 4
 
-        shaped_source(
+        shaped_source!(
             source,
             pll.name,
             source.identifier.index,
@@ -95,6 +95,7 @@ function _step(actor::ActorSimplePL)
             electrons_particles
         )
     end
+
     return actor
 end
 

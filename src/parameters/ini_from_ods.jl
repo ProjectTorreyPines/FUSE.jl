@@ -1,12 +1,12 @@
 """
-    ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
+    set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors)
 
 The purpose of this function is to set `ini` values based on what is in the ods thus
 simplifying the logic of the init functions so that they only have to look at `ini` scalar values.
 """
-function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS.dd
+function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors)
     if ini.general.init_from != :ods
-        # don't do anything if to ini and return an empty dd
+        # don't do anything to ini and return an empty dd
         dd1 = IMAS.dd()
 
     else
@@ -189,8 +189,8 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
             pedestal = nothing
             for time0 in time
                 cp1d = dd1.core_profiles.profiles_1d[time0]
-                eqt = dd1.equilibrium.time_slice[time0]
-                if ismissing(cp1d.grid, :psi) && eqt !== nothing && !ismissing(eqt.profiles_1d, :rho_tor_norm)
+                if ismissing(cp1d.grid, :psi) && !isempty(dd1.equilibrium.time_slice) && !ismissing(eqt.profiles_1d, :rho_tor_norm)
+                    eqt = dd1.equilibrium.time_slice[time0]
                     cp1d.grid.psi = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.psi).(cp1d.grid.rho_tor_norm)
                 end
                 if !ismissing(cp1d.electrons, :pressure)
@@ -205,6 +205,7 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                     if isempty(dd1.equilibrium.time_slice)
                         nel = IMAS.ne_line(nothing, cp1d)
                     else
+                        eqt = dd1.equilibrium.time_slice[time0]
                         nel = IMAS.ne_line(eqt, cp1d)
                     end
 
@@ -339,16 +340,58 @@ function ini_from_ods!(ini::ParametersAllInits; restore_expressions::Bool)::IMAS
                 end
             end
         end
+    end
 
-        # Here we delete fields from the ODS for which we know FUSE has expressions for.
-        # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
-        if restore_expressions
-            verbose = !ismissing(ini.ods, :filename) && any(!contains(filename, "__FUSE__") for filename in split(ini.ods.filename, ","))
-            FUSE.restore_init_expressions!(dd1; verbose)
+    consistent_ini_act!(ini, act)
+
+    return dd1
+end
+
+"""
+    consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
+
+Makes `ini` and `act` self-consistent and consistent with one another
+"""
+function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
+    if !isempty(ini.ec_launcher)
+        if isempty(act.ActorSimpleEC.actuator)
+            resize!(act.ActorSimpleEC.actuator, length(ini.ec_launcher))
+        else
+            @assert length(act.ActorSimpleEC.actuator) == length(ini.ec_launcher) "length(act.ActorSimpleEC.actuator) = $(length(act.ActorSimpleEC.actuator)) must be equal to length(ini.ec_launcher)=$(length(ini.ec_launcher))"
         end
     end
 
-    return dd1
+    if !isempty(ini.ic_antenna)
+        if isempty(act.ActorSimpleIC.actuator)
+            resize!(act.ActorSimpleIC.actuator, length(ini.ic_antenna))
+        else
+            @assert length(act.ActorSimpleIC.actuator) == length(ini.ic_antenna) "length(act.ActorSimpleIC.actuator) = $(length(act.ActorSimpleIC.actuator)) must be equal to length(ini.ic_antenna)=$(length(ini.ic_antenna))"
+        end
+    end
+
+    if !isempty(ini.lh_antenna)
+        if isempty(act.ActorSimpleLH.actuator)
+            resize!(act.ActorSimpleLH.actuator, length(ini.lh_antenna))
+        else
+            @assert length(act.ActorSimpleLH.actuator) == length(ini.lh_antenna) "length(act.ActorSimpleLH.actuator) = $(length(act.ActorSimpleLH.actuator)) must be equal to length(ini.lh_antenna)=$(length(ini.lh_antenna))"
+        end
+    end
+
+    if !isempty(ini.nb_unit)
+        if isempty(act.ActorSimpleNB.actuator)
+            resize!(act.ActorSimpleNB.actuator, length(ini.nb_unit))
+        else
+            @assert length(act.ActorSimpleNB.actuator) == length(ini.nb_unit) "length(act.ActorSimpleNB.actuator) = $(length(act.ActorSimpleNB.actuator)) must be equal to length(ini.nb_unit)=$(length(ini.nb_unit))"
+        end
+    end
+
+    if !isempty(ini.pellet_launcher)
+        if isempty(act.ActorSimplePL.actuator)
+            resize!(act.ActorSimplePL.actuator, length(ini.pellet_launcher))
+        else
+            @assert length(act.ActorSimplePL.actuator) == length(ini.pellet_launcher) "length(act.ActorSimplePL.actuator) = $(length(act.ActorSimplePL.actuator)) must be equal to length(ini.pellet_launcher)=$(length(ini.pellet_launcher))"
+        end
+    end
 end
 
 function xpoints_int_2_symbol(xpoint::Int)

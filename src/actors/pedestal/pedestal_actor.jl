@@ -15,6 +15,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    mode_transitions::Entry{Dict{Float64,Symbol}} = Entry{Dict{Float64,Symbol}}(
+        "s",
+        "Times at which the plasma transitions to a given mode [:L_mode, :H_mode]. If missing, the L-H transition will be based on `IMAS.satisfies_h_mode_conditions(dd)`."
+    )
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
     model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
@@ -77,7 +81,26 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
-    debug = true
+    debug = false
+
+    if !ismissing(par, :mode_transitions)
+        causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
+        mode = par.mode_transitions[causal_transition_time]
+    elseif IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
+        mode = :H_mode
+    elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=0.8)
+        mode = :L_mode
+    elseif isempty(actor.state)
+        if IMAS.satisfies_h_mode_conditions(dd)
+            mode = :H_mode
+        else
+            mode = :L_mode
+        end
+    else
+        mode = actor.state[end]
+    end
+    push!(actor.state, mode)
+    @ddtime(dd.summary.global_quantities.h_mode.value = Int(mode == :H_mode))
 
     if par.model == :none
         actor.ped_actor = actor.noop_actor
@@ -99,20 +122,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         @assert par.ne_from == :pulse_schedule ":dynamic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
         @assert actor.previous_time < dd.global_time "subsequent calls to :dynamic pedestal model require dd.global_time advance"
 
-        if IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
-            push!(actor.state, :H_mode)
-        elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=0.8)
-            push!(actor.state, :L_mode)
-        elseif isempty(actor.state)
-            if IMAS.satisfies_h_mode_conditions(dd)
-                push!(actor.state, :H_mode)
-            else
-                push!(actor.state, :L_mode)
-            end
-        else
-            push!(actor.state, actor.state[end])
-        end
-
         if length(actor.state) < 2
             # initialization
             actor.t_lh = -Inf
@@ -130,10 +139,10 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             actor.cp1d_transition = deepcopy(cp1d)
         end
 
-        if actor.state[end] == :L_mode
+        if mode == :L_mode
             # L-mode
-            α_t = LH_tanh_response(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
-            α_n = LH_tanh_response(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
+            α_t = LH_dynamics(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
+            α_n = LH_dynamics(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
 
             actor.ped_actor = actor.wped_actor
             actor.ped_actor.par.density_factor = 1.0 * (1 - α_n) + par.density_ratio_L_over_H * α_n
@@ -150,8 +159,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
         else
             # H-mode
-            α_t = LH_tanh_response(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
-            α_n = LH_tanh_response(par.tau_n, actor.t_lh, dd.global_time) # from 0 -> 1
+            α_t = LH_dynamics(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
+            α_n = LH_dynamics(par.tau_n, actor.t_lh, dd.global_time) # from 0 -> 1
 
             actor.ped_actor = actor.eped_actor
             actor.ped_actor.par.density_factor = par.density_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
@@ -171,7 +180,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             println()
             @show dd.global_time
             @show IMAS.L_H_threshold(dd)
-            println(actor.state[end])
+            println(mode)
             @show actor.t_lh
             @show actor.t_hl
             @show α_t
@@ -182,6 +191,23 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     actor.previous_time = dd.global_time
 
     return actor
+end
+
+"""
+    LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
+
+Returns a parameter that follows a tanh like response where τ represent the value of 0.95 @ τ time starting from t_LH
+"""
+function LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
+    if t_LH == -Inf
+        return 1.0
+    elseif t_now <= t_LH
+        return 0.0
+    end
+    α = tanh.((2pi .* (t_now .- t_LH .- τ / 2.0)) ./ τ) / 2.0 + 0.5
+    α0 = tanh.((2pi .* (.-τ / 2.0)) ./ τ) / 2.0 + 0.5
+    α = (α .- α0) ./ (1 - α0)
+    return α
 end
 
 """
@@ -197,37 +223,34 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal)
 
     rho09 = 0.9
     w_ped_ne = 0.05
-    ne_ped_old = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(rho09)
+    original_zeff = cp1d.zeff
+
+    ne_ped_old = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, rho09)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
-    ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped_ne, par.rho_nml, par.rho_ped)
+    ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped_ne, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = IMAS.ped_height_at_09(rho, ne, ne_ped)
+
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
             ni_ped_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
             ni_ped = ni_ped_old / ne_ped_old * ne_ped
             ion.density_thermal[end] = ni_ped / 4.0
-            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped)
+            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
     end
-end
 
-"""
-    LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
-
-Returns a parameter that follows a tanh like response where τ represent the value of 0.95 @ τ time starting from t_LH
-"""
-function LH_tanh_response(τ::Float64, t_LH::Float64, t_now::Float64)
-    if t_LH == -Inf
-        return 1.0
-    elseif t_now <= t_LH
-        return 0.0
+    if false
+        #NOTE: Zeff can change after a pedestal actor is run, even though actors like EPED and WPED only operate on the temperature profiles.
+        # This is because in FUSE the calculation of Zeff is temperature dependent.
+        idx09 = argmin(abs.(rho .- rho09))
+        original_zeff[idx09:end] .= original_zeff[idx09]
+        IMAS.scale_ion_densities_to_target_zeff!(cp1d, original_zeff)
+    else
+        zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09)
+        IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
     end
-    α = tanh.((2pi .* (t_now .- t_LH .- τ / 2.0)) ./ τ) / 2.0 + 0.5
-    α0 = tanh.((2pi .* (.-τ / 2.0)) ./ τ) / 2.0 + 0.5
-    α = (α .- α0) ./ (1 - α0)
-    return α
 end
 
 """
@@ -263,11 +286,15 @@ function run_selected_pedstal_model(actor::ActorPedestal)
             factor = nel_wanted / nel
             cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
             for ion in cp1d.ion
-                ion.density_thermal = ion.density_thermal * factor
+                if !ismissing(ion, :density_thermal)
+                    ion.density_thermal = ion.density_thermal * factor
+                end
             end
             cp1d.electrons.temperature = cp1d.electrons.temperature / factor
             for ion in cp1d.ion
-                ion.temperature = ion.temperature / factor
+                if !ismissing(ion, :temperature)
+                    ion.temperature = ion.temperature / factor
+                end
             end
 
             # run the pedestal model

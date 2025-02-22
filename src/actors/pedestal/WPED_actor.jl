@@ -92,8 +92,10 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
         end
     end
 
+    Te_orig = cp1d.electrons.temperature
+    Ti_orig = cp1d.t_i_average
     res_value_bound = Optim.optimize(
-        value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
+        value_bound -> cost_WPED_ztarget_pedratio(cp1d, Te_orig, Ti_orig, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
         1.0,
         cp1d.electrons.temperature[1],
         Optim.GoldenSection();
@@ -113,14 +115,24 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 end
 
 function cost_WPED_ztarget_pedratio(
-    cp1d::IMAS.core_profiles__profiles_1d,
+    cp1d::IMAS.core_profiles__profiles_1d{T},
+    Te_orig::Vector{T},
+    Ti_orig::Vector{T},
     value_bound::Real,
     ped_to_core_fraction::Real,
     rho_ped::Real,
-    Ti_over_Te::Real)
+    Ti_over_Te::Real) where {T<:Real}
 
-    cp1d_copy = deepcopy(cp1d)
-    cost = cost_WPED_ztarget_pedratio!(cp1d_copy, value_bound, ped_to_core_fraction, rho_ped, Ti_over_Te)
+    # restore original profiles
+    cp1d.electrons.temperature = deepcopy(Te_orig)
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature = deepcopy(Ti_orig)
+        end
+    end
+
+    cost = cost_WPED_ztarget_pedratio!(cp1d, value_bound, ped_to_core_fraction, rho_ped, Ti_over_Te)
+
     return cost
 end
 

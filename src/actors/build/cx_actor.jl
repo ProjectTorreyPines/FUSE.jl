@@ -632,7 +632,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
         if layer_shape !== IMAS._negative_offset_
             verbose && @show "N", IMAS.index(layer), layer.name, layer_shape
             obstruction_outline = obstructing_coils!(ocoils, pfa.coil, layer, +1)
-            layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+            layer.shape, layer.shape_parameters = optimize_layer_outline(
                 bd,
                 plasma_to_tf[kl-1],
                 plasma_to_tf[kl],
@@ -655,7 +655,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
                 layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
                 if layer_shape != IMAS._negative_offset_
                     verbose && @show "F", IMAS.index(layer), layer.name, layer_shape
-                    layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                    layer.shape, layer.shape_parameters = optimize_layer_outline(
                         bd,
                         plasma_to_tf[kl-1],
                         plasma_to_tf[kk],
