@@ -493,7 +493,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     subplot = 12
     plot!(dd.core_transport; time0, only=3, subplot, legend=:bottomleft, legend_foreground_color=:transparent)#, ylim=(0.0, 6.5E17))
 
-    # # inverse scale lenghts
+    # # inverse scale lengths
     # max_scale = 5
     # subplot = 14
     # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order); subplot, ylim=(-max_scale, max_scale), lw=2.0)
