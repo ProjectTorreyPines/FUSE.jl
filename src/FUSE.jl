@@ -79,9 +79,10 @@ include("actors.jl")
 include(joinpath("actors", "noop_actor.jl"))
 include(joinpath("actors", "replay_actor.jl"))
 
-include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
-include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
+include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
+include(joinpath("actors", "equilibrium", "eggo_actor.jl"))
+include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf", "pf_active_utils.jl"))
