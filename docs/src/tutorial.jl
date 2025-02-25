@@ -93,7 +93,7 @@ plot(dd.core_profiles)
 
 # Whant to know what arguments can be passed? use `help_plot()` function
 
-help_plot(dd.equilibrium; core_profiles_overlay=true, psi_levels_in=21, psi_levels_out=5, show_secondary_separatrix=true, coordinate=:psi_norm)
+help_plot(dd.equilibrium; core_profiles_overlay=true, levels_in=21, levels_out=5, show_secondary_separatrix=true, coordinate=:rho_tor_norm)
 
 # These plots can be composed by calling `plot!()` instead of `plot()`
 
