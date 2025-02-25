@@ -331,10 +331,10 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
     replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
     rho = cp1d.grid.rho_tor_norm
 
-    cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped)
+    cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :density_thermal)
-            ion.density_thermal = IMAS.blend_core_edge(ion.density_thermal, replay_ion.density_thermal, rho, par.rho_nml, par.rho_ped)
+            ion.density_thermal = IMAS.blend_core_edge(ion.density_thermal, replay_ion.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
         end
     end
 

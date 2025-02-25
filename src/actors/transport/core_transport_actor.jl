@@ -81,14 +81,13 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
     rho_nml = actor.act.ActorFluxMatcher.rho_transport[end]
     rho_ped = actor.act.ActorFluxMatcher.rho_transport[end]
 
-    original_zeff = cp1d.zeff
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :density_thermal)
             ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
         end
     end
-    IMAS.scale_ion_densities_to_target_zeff!(cp1d, original_zeff)
+    IMAS.scale_ion_densities_to_target_zeff!(cp1d, replay_cp1d.zeff)
 
     cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
