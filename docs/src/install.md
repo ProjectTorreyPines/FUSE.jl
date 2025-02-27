@@ -13,7 +13,7 @@ Once installed, restart your termninal to pick-up the `julia` executable.
 FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
 For installation start your Julia interpreter by typing `julia` at the terminal, then:
 
-1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 20+ mins):
+1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 5+ mins):
 
    ```julia
    using Pkg
