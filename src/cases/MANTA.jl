@@ -98,6 +98,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)
     act.ActorPFdesign.symmetric = true
 
     filter!(!=(:q95_gt_2), act.ActorPlasmaLimits.models)
+    filter!(!=(:beta_troyon_nn), act.ActorPlasmaLimits.models)
 
     return ini, act
 end

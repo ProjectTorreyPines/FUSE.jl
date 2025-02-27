@@ -5,9 +5,11 @@
 """
     study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
-Generates a database of dds from ini and act based on ranges specified in ini (i.e. ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0])
-It's also possible to run the database generator on Vector of inis
-There is a example notebook in FUSE_examples/study_database_generator.ipynb that goes through the steps of setting up, running and analyzing this study
+Generates a database of dds from `ini` and `act` based on ranges specified in `ini` (i.e. `ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0]`)
+
+It's also possible to run the database generator on Vector of `ini`s and `act`s. NOTE: the length of the `ini`s and `act`s must be the same.
+
+There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
@@ -20,7 +22,7 @@ function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters
     act.ActorTGLF.warn_nn_train_bounds = false
     act.ActorFluxMatcher.evolve_rotation = :fixed
 
-    # finalize 
+    # finalize
     set_new_base!(sty)
     set_new_base!(act)
 
@@ -41,8 +43,8 @@ end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
     sty::FUSEparameters__ParametersStudyDatabaseGenerator
-    ini::Union{ParametersAllInits,Vector{ParametersAllInits}}
-    act::ParametersAllActors
+    ini::Union{ParametersAllInits,Vector{<:ParametersAllInits}}
+    act::Union{ParametersAllActors,Vector{<:ParametersAllActors}}
     dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
@@ -54,9 +56,10 @@ function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, a
     return setup(study)
 end
 
-function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{ParametersAllInits}, act::ParametersAllActors; kw...)
+function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; kw...)
+    @assert length(inis) == length(acts)
     sty = sty(kw...)
-    study = StudyDatabaseGenerator(sty, inis, act, missing, missing, missing)
+    study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
     return setup(study)
 end
 
@@ -80,10 +83,13 @@ function _run(study::StudyDatabaseGenerator)
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
-    if typeof(study.ini) <: ParametersAllInits
+    if typeof(study.ini) <: ParametersAllInits && typeof(study.act) <: ParametersAllActors
         iterator = collect(1:sty.n_simulations)
-    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+    elseif typeof(study.ini) <: Vector{<:ParametersAllInits} && typeof(study.act) <: Vector{<:ParametersAllActors}
+        @assert length(study.ini) == length(study.act)
         iterator = collect(1:length(study.ini))
+    else
+        error("DatabaseGenerator should never be here: ini and act are incompatible")
     end
 
     study.iterator = iterator
@@ -137,11 +143,16 @@ function run_case(study::AbstractStudy, item::Int)
     original_stderr = stderr  # Save the original stderr
     file_log = open("log.txt", "w")
 
-    # deepcopy ini/act to avoid changes
+    # ini/act variations
     if typeof(study.ini) <: ParametersAllInits
         ini = rand(study.ini)
-    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+    elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
         ini = study.ini[item]
+    end
+    if typeof(study.act) <: ParametersAllActors
+        act = rand(study.act)
+    elseif typeof(study.act) <: Vector{<:ParametersAllActors}
+        act = study.act[item]
     end
 
     dd = IMAS.dd()
