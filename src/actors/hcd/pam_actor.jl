@@ -18,13 +18,13 @@ end
 mutable struct ActorPAM{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorPAM{P}
-    outputs::Union{PAM.Pellet1,Vector{<:PAM.Pellet1}}
+    outputs::Union{PAM.Pellet,Vector{<:PAM.Pellet}}
 end
 
 function ActorPAM(dd::IMAS.dd{D}, par::FUSEparameters__ActorPAM{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorPAM)
     par = par(kw...)
-    return ActorPAM{D,P}(dd, par, PAM.Pellet1[])
+    return ActorPAM{D,P}(dd, par, PAM.Pellet[])
 end
 
 """
