@@ -60,23 +60,35 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     eqt = dd.equilibrium.time_slice[]
     eqt1d = eqt.profiles_1d
 
+    # prepare inputs
     wall = Dict{Symbol,Vector{Float64}}()
     wall[:rlim], wall[:zlim] = IMAS.first_wall(dd.wall)
-
-    Rb_target, Zb_target = eqt.boundary.outline.r, eqt.boundary.outline.z
-    b0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    r0 = eqt.global_quantities.vacuum_toroidal_field.r0
-    pend = eqt.profiles_1d.pressure[end]
-
     psi_norm = collect(range(0.0, 1.0, actor.green[:nw]))
     pp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi).(psi_norm) * 2π
     ffp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi).(psi_norm) * 2π
     ecurrt_target = fill(0.0, 6)
+    bound_mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z, 4)
+    pp_fit, ffp_fit = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d)
 
-    Jt, psirz, Ip, fcurrt =
-        EGGO.predict_model(Rb_target, Zb_target, pp_target, ffp_target, ecurrt_target, actor.NNmodel, actor.green, actor.basis_functions, actor.basis_functions_1d)
+    # make actual prediction
+    Jt, psirz, Ip, fcurrt = EGGO.predict_model(bound_mxh, pp_fit, ffp_fit, ecurrt_target, actor.NNmodel, actor.green, actor.basis_functions, nothing)
 
-    EGGO.get_surfaces(eqt, Matrix(transpose(psirz)), Ip, fcurrt, actor.green, wall, Rb_target, Zb_target, pp_target, ffp_target, ecurrt_target, b0, r0, pend)
+    # pp' and ff' that were actually used in EGGO
+    pp = zero(actor.basis_functions_1d[:pp][1, :])
+    for k in eachindex(pp_fit)
+        pp .+= pp_fit[k] .* actor.basis_functions_1d[:pp][k, :]
+    end
+    ffp = zero(actor.basis_functions_1d[:ffp][1, :])
+    for k in eachindex(ffp_fit)
+        ffp .+= ffp_fit[k] .* actor.basis_functions_1d[:ffp][k, :]
+    end
+    # ff' and p' edge offsets
+    b0 = eqt.global_quantities.vacuum_toroidal_field.b0
+    r0 = eqt.global_quantities.vacuum_toroidal_field.r0
+    pend = eqt.profiles_1d.pressure[end]
+
+    # fill out eqt quantities
+    EGGO.get_surfaces(eqt, Matrix(transpose(psirz)), Ip, fcurrt, actor.green, wall, eqt.boundary.outline.r, eqt.boundary.outline.z, pp, ffp, ecurrt_target, b0, r0, pend)
 
     return actor
 end
