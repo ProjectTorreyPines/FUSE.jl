@@ -525,6 +525,76 @@ function save2hdf(
     return savedir
 end
 
+function load_database(filename::AbstractString)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    HDF5.h5open(filename, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        return load_database(filename, df[!, :gparent])
+    end
+end
+
+function load_database(filename::AbstractString, func_for_filter::Function)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    HDF5.h5open(filename, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        parent_groups = filter(func_for_filter, df)[!, :gparent]
+        return load_database(filename, parent_groups)
+    end
+end
+
+function load_database(filename::AbstractString, parent_group::AbstractString)
+    return load_database(filename, [parent_group])
+end
+
+function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString})
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    H5_fid = HDF5.h5open(filename, "r")
+
+    # Load dataframe (from extract)
+    df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+    df = subset(df, :gparent => ByRow(x -> x in parent_groups))
+
+    Nparents = length(parent_groups)
+
+    # Prepare output data
+    dds = fill(IMAS.dd(), Nparents)
+    inis = fill(ParametersInits(), Nparents)
+    acts = fill(ParametersActors(), Nparents)
+    logs = fill("", Nparents)
+    timers = fill("", Nparents)
+    errors = fill("", Nparents)
+
+    for (k, gparent) in pairs(parent_groups)
+        for key in keys(H5_fid[gparent])
+            h5path = gparent * "/" * key
+            if endswith(h5path, "dd.h5")
+                dds[k] = IMAS.hdf2imas(filename, h5path)
+            elseif endswith(h5path, "ini.h5")
+                inis[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
+            elseif endswith(h5path, "act.h5")
+                acts[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
+            elseif endswith(h5path, "log.txt")
+                logs[k] = H5_fid[h5path][]
+            elseif endswith(h5path, "timer.txt")
+                timers[k] = H5_fid[h5path][]
+            elseif endswith(h5path, "error.txt")
+                errors[k] = H5_fid[h5path][]
+            end
+        end
+    end
+
+    close(H5_fid)
+
+    if Nparents == 1
+        return (dd=dds[1], ini=inis[1], act=acts[1], log=logs[1], timer=timers[1], error=errors[1], df=df)
+    else
+        return (dds=dds, inis=inis, acts=acts, logs=logs, timers=timers, errors=errors, df=df)
+    end
+end
+
 
 """
     load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
