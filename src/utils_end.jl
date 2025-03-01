@@ -397,7 +397,7 @@ function save2hdf(
     overwrite_groups::Bool=false,
     verbose::Bool=false,
     kw...
-   )
+)
 
     savedir = abspath(savedir)
     if !isdir(savedir)
@@ -406,7 +406,7 @@ function save2hdf(
 
     parent_group = IMAS.norm_hdf5_path(parent_group)
 
-    h5_filename = joinpath(savedir, "pid$(getpid())_output.h5");
+    h5_filename = joinpath(savedir, "pid$(getpid())_output.h5")
 
     function check_and_create_group(fid::HDF5.File, target_group::AbstractString)
         if haskey(fid, target_group)
@@ -415,7 +415,7 @@ function save2hdf(
             else
                 if !overwrite_groups
                     error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
-                        "\n       Set `overwrite_groups`=true to replace the existing group.")
+                          "\n       Set `overwrite_groups`=true to replace the existing group.")
                 else
                     verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
                     HDF5.delete_object(fid, target_group)
@@ -435,7 +435,7 @@ function save2hdf(
             if target_group != "/"
                 if !overwrite_groups
                     error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
-                        "\n       Set `overwrite_groups`=true to replace the existing group.")
+                          "\n       Set `overwrite_groups`=true to replace the existing group.")
                 else
                     verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
                     HDF5.delete_object(fid, target_group)
@@ -457,7 +457,7 @@ function save2hdf(
         attr["original_file_abs_path"] = abspath(fid.filename)
         attr["original_file_rel_path"] = relpath(fid.filename)
 
-        if !haskey(fid,parent_group)
+        if !haskey(fid, parent_group)
             HDF5.create_group(fid, parent_group)
         end
         attr = HDF5.attrs(fid[parent_group])
@@ -476,26 +476,26 @@ function save2hdf(
             else
                 error_str = string(error_info)
             end
-            check_and_write(fid, parent_group*"/error.txt", error_str)
+            check_and_write(fid, parent_group * "/error.txt", error_str)
         end
 
         if ini !== nothing
-            gparent = check_and_create_group(fid, parent_group*"/ini.h5")
+            gparent = check_and_create_group(fid, parent_group * "/ini.h5")
             SimulationParameters.par2hdf!(ini, gparent)
         end
 
         if dd !== nothing
-            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group*"/dd.h5", overwrite=overwrite_groups, verbose)
+            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, verbose)
         end
 
         if act !== nothing
-            gparent = check_and_create_group(fid, parent_group*"/act.h5")
+            gparent = check_and_create_group(fid, parent_group * "/act.h5")
             SimulationParameters.par2hdf!(act, gparent)
         end
 
         # save timer output
         if timer
-            check_and_write(fid, parent_group*"/timer.txt", string(FUSE.timer))
+            check_and_write(fid, parent_group * "/timer.txt", string(FUSE.timer))
         end
 
         # save memory trace
@@ -504,13 +504,13 @@ function save2hdf(
             for (date, txt, kb) in FUSE.memtrace.data
                 push!(memtrace_string, "$date $kb \"$txt\"")
             end
-            check_and_write(fid, parent_group*"/memtrace.txt", memtrace_string)
+            check_and_write(fid, parent_group * "/memtrace.txt", memtrace_string)
         end
 
         # save vars usage
         if varinfo
             varinfo_string = string(FUSE.varinfo(FUSE; all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
-            check_and_write(fid, parent_group*"/varinfo.txt", varinfo_string)
+            check_and_write(fid, parent_group * "/varinfo.txt", varinfo_string)
         end
 
         # save log
@@ -518,7 +518,7 @@ function save2hdf(
         seekstart(log_io)
         log_str = read(log_io, String)
         if !isempty(log_str)
-            check_and_write(fid, parent_group*"/log.txt", log_str)
+            check_and_write(fid, parent_group * "/log.txt", log_str)
         end
     end
 

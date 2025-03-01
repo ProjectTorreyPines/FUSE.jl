@@ -62,6 +62,10 @@ end
 function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; kw...)
     @assert length(inis) == length(acts)
     sty = sty(kw...)
+    if sty.n_simulations ≠ length(inis)
+        @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
+        sty.n_simulations = length(inis)
+    end
     study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
     return setup(study)
 end
@@ -105,10 +109,19 @@ function _run(study::StudyDatabaseGenerator)
         analyze(study; extract=true)
 
     elseif study.sty.data_storage_policy == :merged_hdf5
-        dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item, Val{:hdf5}), iterator)
-        study.dataframe = reduce(vcat, dataframe_list)
+        dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> begin
+                try
+                    run_case(study, item, Val{:hdf5})
+                catch e
+                    if isa(e, InterruptException)
+                        rethrow(e)  # or handle as needed
+                    end
+                end
+            end, iterator)
 
-        _merge_h5_files_and_write_csv_file(study; cleanup=true)
+        study.dataframe = reduce(vcat, dataframe_list; cols=:union)
+
+        _merge_tmp_files(study; cleanup=true)
         analyze(study; extract=false)
     else
         error("DatabaseGenerator should never be here: data_storage_policy must be either `:separate_folders` or `merged_hdf5`")
@@ -123,7 +136,7 @@ function _run(study::StudyDatabaseGenerator)
     return study
 end
 
-function _merge_h5_files_and_write_csv_file(study::StudyDatabaseGenerator; cleanup::Bool=false)
+function _merge_tmp_files(study::StudyDatabaseGenerator; cleanup::Bool=false)
     sty = study.sty
     date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
     merged_hdf5_filename = "database_$(date_time_str).h5"
@@ -147,7 +160,7 @@ function _merge_h5_files_and_write_csv_file(study::StudyDatabaseGenerator; clean
         HDF5.write(fid, "extract.csv", csv_text)
         attr = HDF5.attrs(fid["/extract.csv"])
         attr["date_time"] = date_time_str
-        attr["FUSE_version"] = string(pkgversion(FUSE))
+        return attr["FUSE_version"] = string(pkgversion(FUSE))
     end
 end
 
@@ -243,22 +256,24 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
     # ini/act variations
     if typeof(study.ini) <: ParametersAllInits
         ini = rand(study.ini)
-    elseif typeof(study.ini) <: Vector{ParametersAllInits}
+    elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
         ini = study.ini[item]
     end
 
     if typeof(study.act) <: ParametersAllActors
         act = rand(study.act)
-    elseif typeof(study.act) <: Vector{ParametersAllActors}
+    elseif typeof(study.act) <: Vector{<:ParametersAllActors}
         act = study.act[item]
     end
 
     dd = IMAS.dd()
 
-    # zero_pad_length = length(string(sty.n_simulations))
-    # parent_group = "case$(lpad(item,zero_pad_length,"0"))"
 
-    parent_group = "case_$item"
+    zero_pad_length = length(string(sty.n_simulations))
+    parent_group = "/case$(lpad(item, zero_pad_length, "0"))"
+
+
+    # parent_group = "case_$item"
     tmp_log_filename = "tmp_log_case_$item.txt"
     tmp_log_io = open(tmp_log_filename, "w+")
 
@@ -269,22 +284,26 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
 
         study.workflow(dd, ini, act)
 
-        save2hdf("tmp_h5_output", parent_group, (sty.save_dd ? dd : nothing), ini, act, tmp_log_io;
-                            timer=true, freeze=false, overwrite_groups=true, kw...)
+        save2hdf("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
+            timer=true, freeze=false, overwrite_groups=true, kw...)
 
 
-        this_df = DataFrame(IMAS.extract(dd,:all))
-        this_df[!,:gen] = fill(item, nrow(this_df))
-
-        return this_df
+        df = DataFrame(IMAS.extract(dd, :all))
+        df[!, :case] = fill(item, nrow(df))
+        df[!, :dir] = fill(sty.save_folder, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :status] = fill("success", nrow(df))
+        return df
     catch error
         if isa(error, InterruptException)
             rethrow(error)
         end
 
         # save empty dd and error to directory
-        save2hdf("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
-                            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+        save2hdf("tmp_h5_output", parent_group, IMAS.dd(), ini, act, tmp_log_io;
+            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+
+        return DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
