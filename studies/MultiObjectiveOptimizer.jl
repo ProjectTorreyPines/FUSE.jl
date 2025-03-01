@@ -138,8 +138,9 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
         state = workflow_multiobjective_optimization(
-            study.ini, study.act, ActorWholeFacility, study.objective_functions,
-            study.constraint_functions; optimization_parameters..., generation_offset=study.generation, data_storage_policy=sty.data_storage_policy)
+            study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
+            optimization_parameters..., generation_offset=study.generation, data_storage_policy=sty.data_storage_policy,
+            number_of_generations = sty.number_of_generations, population_size = sty.population_size)
 
         study.state = state
 
@@ -154,7 +155,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
         if study.sty.data_storage_policy == :separate_folders
             analyze(study; extract_results=true)
         else
-            _merge_h5_and_csv_files(study; cleanup=true)
+            _merge_tmp_files(study; cleanup=true)
             analyze(study; extract_results=false)
         end
 
@@ -168,7 +169,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
     end
 end
 
-function _merge_h5_and_csv_files(study::StudyMultiObjectiveOptimizer; cleanup::Bool=false)
+function _merge_tmp_files(study::StudyMultiObjectiveOptimizer; cleanup::Bool=false)
     date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
     merged_hdf5_filename = "generations_$(date_time_str).h5"
 

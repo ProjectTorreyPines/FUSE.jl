@@ -149,6 +149,8 @@ function optimization_engine(
     end
     cd(save_folder)
 
+    number_of_generations = get(kw, :number_of_generations, 10000)
+    population_size = get(kw, :population_size, 10000)
 
     # Redirect stdout and stderr to the file
     original_stdout = stdout  # Save the original stdout
@@ -159,7 +161,9 @@ function optimization_engine(
         tmp_log_filename = "tmp_log_pid$(getpid()).txt"
         tmp_log_io = open(joinpath(tmp_log_folder,"pid$(getpid()).txt"), "w+")
     else
-        parent_group = "/generation_$generation/case_$case_index"
+        Lpad_gen = length(string(number_of_generations))
+        Lpad_case = length(string(population_size))
+        parent_group = "/gen$(lpad(generation,Lpad_gen,"0"))/case$(lpad(case_index,Lpad_case, "0"))"
         tmp_log_filename = "tmp_log_case_$case_index.txt"
     end
     tmp_log_io = open(tmp_log_filename, "w+")
@@ -170,9 +174,7 @@ function optimization_engine(
 
         # deepcopy ini/act to avoid changes
         ini = deepcopy(ini)
-        act = deepcopy(act)
-
-        # update ini based on input optimization vector `x`
+        act = deepcopy(act)        # update ini based on input optimization vector `x`
         @show x
         parameters_from_opt!(ini, x)
         @show x
@@ -202,9 +204,12 @@ function optimization_engine(
         csv_filepath =joinpath(tmp_csv_folder, "extract_pid$(getpid()).csv")
         open(csv_filepath, "a") do io
             df = DataFrame(IMAS.extract(dd, :all))
+            df[!,:dir] = [save_folder]
             df[!,:gen] = fill(generation, nrow(df))
             df[!,:case] = fill(case_index, nrow(df))
-
+            df[!,:gparent] = fill(parent_group, nrow(df))
+            df[!,:Ngen] = fill(number_of_generations, nrow(df))
+            df[!,:Ncase] = fill(population_size, nrow(df))
             CSV.write(io, df)
         end
 
