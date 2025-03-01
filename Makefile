@@ -21,7 +21,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic IMAS IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TroyonBetaNN VacuumFields
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TroyonBetaNN VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
 FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
