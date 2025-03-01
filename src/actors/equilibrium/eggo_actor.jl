@@ -82,13 +82,14 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     for k in eachindex(ffp_fit)
         ffp .+= ffp_fit[k] .* actor.basis_functions_1d[:ffp][k, :]
     end
+
     # ff' and p' edge offsets
     b0 = eqt.global_quantities.vacuum_toroidal_field.b0
     r0 = eqt.global_quantities.vacuum_toroidal_field.r0
     pend = eqt.profiles_1d.pressure[end]
 
     # fill out eqt quantities
-    EGGO.get_surfaces(eqt, Matrix(transpose(psirz)), Ip, fcurrt, actor.green, wall, eqt.boundary.outline.r, eqt.boundary.outline.z, pp, ffp, ecurrt_target, b0, r0, pend)
+    EGGO.fill_eqt(eqt, psirz, actor.green, wall, pp, ffp, b0, r0, pend)
 
     return actor
 end
