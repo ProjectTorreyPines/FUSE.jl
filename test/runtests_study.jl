@@ -11,9 +11,11 @@ using FUSE.SimulationParameters.Distributions
     sty.server = "localhost"
     sty.n_workers = 2
     sty.file_save_mode = :append
-    sty.save_folder = mktempdir()
     sty.n_simulations = 2
     sty.release_workers_after_run = false
+    sty.save_folder = mktempdir()
+
+    println("save_folder = $(sty.save_folder)")
 
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
 
@@ -31,6 +33,9 @@ using FUSE.SimulationParameters.Distributions
 
     act.ActorPedestal.density_match = :ne_line
     act.ActorSimpleEC.actuator[1].rho_0 = 0.3 ↔ [0.29, 0.81]
+
+    act.ActorTEQUILA.number_of_iterations=2
+    act.ActorTEQUILA.debug = true
 
     # The study must be created first, inside of which the parallel_environment is set.
     study = FUSE.StudyDatabaseGenerator(sty, ini, act)
@@ -58,7 +63,7 @@ using FUSE.SimulationParameters.Distributions
         ini_list = [rand(ini) for _ in 1:Ncase]
         act_list = [rand(act) for _ in 1:Ncase]
 
-        # Set very high zeff to make some cases fail
+        # Set very high zeff to make them fail
         ini_list[3].core_profiles.zeff = 100.0
         ini_list[6].core_profiles.zeff = 100.0
 
@@ -85,7 +90,7 @@ using FUSE.SimulationParameters.Distributions
 
         all_dirs = filter(isdir, readdir(save_dir; join=true))
         db_folders = filter(x -> any(i -> contains(x, "$(i)__"), 1:length(ini_list)), all_dirs)
-        sorted_dirs = sort(db_folders; by=x -> parse(Int, split(splitpath(x)[2], "__")[1]))
+        sorted_dirs = sort(db_folders; by=x -> parse(Int, split(splitpath(x)[end], "__")[1]))
         @test length(db_folders) == length(ini_list)
 
         dds1 = typeof(IMAS.dd())[]

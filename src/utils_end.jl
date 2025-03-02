@@ -525,31 +525,33 @@ function save2hdf(
     return savedir
 end
 
-function load_database(filename::AbstractString)
+function load_database(filename::AbstractString; kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
     HDF5.h5open(filename, "r") do H5_fid
         df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-        return load_database(filename, df[!, :gparent])
+        return load_database(filename, df[!, :gparent]; kw...)
     end
 end
 
-function load_database(filename::AbstractString, func_for_filter::Function)
+function load_database(filename::AbstractString, conditions::Function; kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
     HDF5.h5open(filename, "r") do H5_fid
         df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-        parent_groups = filter(func_for_filter, df)[!, :gparent]
-        return load_database(filename, parent_groups)
+        parent_groups = filter(conditions, df)[!, :gparent]
+        return load_database(filename, parent_groups; kw...)
     end
 end
 
-function load_database(filename::AbstractString, parent_group::AbstractString)
-    return load_database(filename, [parent_group])
+function load_database(filename::AbstractString, parent_group::AbstractString, kw...)
+    return load_database(filename, [parent_group]; kw...)
 end
 
-function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString})
+function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    parent_groups = IMAS.norm_hdf5_path.(parent_groups)
 
     H5_fid = HDF5.h5open(filename, "r")
 
@@ -560,27 +562,28 @@ function load_database(filename::AbstractString, parent_groups::Vector{<:Abstrac
     Nparents = length(parent_groups)
 
     # Prepare output data
-    dds = fill(IMAS.dd(), Nparents)
-    inis = fill(ParametersInits(), Nparents)
-    acts = fill(ParametersActors(), Nparents)
-    logs = fill("", Nparents)
-    timers = fill("", Nparents)
-    errors = fill("", Nparents)
+    dds = occursin(pattern, "dd.h5") ? fill(IMAS.dd(), Nparents) : nothing
+    inis = occursin(pattern, "ini.h5") ? fill(ParametersInits(), Nparents) : nothing
+    acts = occursin(pattern, "act.h5") ? fill(ParametersActors(), Nparents) : nothing
+    logs = occursin(pattern, "log.txt") ? fill("", Nparents) : nothing
+    timers = occursin(pattern, "timer.txt") ? fill("", Nparents) : nothing
+    errors = occursin(pattern, "error.txt") ? fill("", Nparents) : nothing
 
     for (k, gparent) in pairs(parent_groups)
-        for key in keys(H5_fid[gparent])
+        filterd_keys = filter(x->occursin(pattern,x), keys(H5_fid[gparent]))
+        for key in filterd_keys
             h5path = gparent * "/" * key
-            if endswith(h5path, "dd.h5")
+            if key == "dd.h5"
                 dds[k] = IMAS.hdf2imas(filename, h5path)
-            elseif endswith(h5path, "ini.h5")
+            elseif key == "ini.h5"
                 inis[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
-            elseif endswith(h5path, "act.h5")
+            elseif key == "act.h5"
                 acts[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
-            elseif endswith(h5path, "log.txt")
+            elseif key == "log.txt"
                 logs[k] = H5_fid[h5path][]
-            elseif endswith(h5path, "timer.txt")
+            elseif key == "timer.txt"
                 timers[k] = H5_fid[h5path][]
-            elseif endswith(h5path, "error.txt")
+            elseif key == "error.txt"
                 errors[k] = H5_fid[h5path][]
             end
         end
@@ -588,11 +591,7 @@ function load_database(filename::AbstractString, parent_groups::Vector{<:Abstrac
 
     close(H5_fid)
 
-    if Nparents == 1
-        return (dd=dds[1], ini=inis[1], act=acts[1], log=logs[1], timer=timers[1], error=errors[1], df=df)
-    else
-        return (dds=dds, inis=inis, acts=acts, logs=logs, timers=timers, errors=errors, df=df)
-    end
+    return (dds=dds, inis=inis, acts=acts, logs=logs, timers=timers, errors=errors, df=df)
 end
 
 
