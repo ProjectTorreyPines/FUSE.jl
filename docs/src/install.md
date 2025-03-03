@@ -65,6 +65,13 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 
        This needs to be done every time a new version of Julia is installed.
 
+   !!! note
+       The WebIO jupyter-lab extension is needed for the [`Interact.jl`](https://github.com/JuliaGizmos/Interact.jl?tab=readme-ov-file#usage) package to work.
+
+       Make sure WebIO is working with `jupyter labextension list`.
+
+       If the extension has compatibility issues, consider installing an older verision of Jupyter (eg. `conda install jupyterlab=3.6.7`).
+
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
 
    ```bash
