@@ -272,14 +272,14 @@ function _optimization_engine(
     case_index::Union{Nothing, Int}=nothing,
     kw...)
 
-    data_storage_policy = get(kw, :data_storage_policy, :separate_folders)
+    database_policy = get(kw, :database_policy, :separate_folders)
 
-    if data_storage_policy == :separate_folders
+    if database_policy == :separate_folders
         tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
-    elseif data_storage_policy == :merged_hdf5
+    elseif database_policy == :single_hdf5
         tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd, Val{:hdf5}; case_index, kw...)
     else
-        error("data_storage_policy must be `separate_folders` or `:merged_hdf5`")
+        error("database_policy must be `separate_folders` or `:single_hdf5`")
     end
 
     GC.gc()

@@ -33,7 +33,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     # Optimization related parameters
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
     number_of_generations::Entry{Int} = Entry{Int}("-", "Number generations")
-    data_storage_policy::Switch{Symbol} = study_common_parameters(; data_storage_policy=:separate_folders)
+    database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
 end
 
 mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
@@ -139,7 +139,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
         state = workflow_multiobjective_optimization(
             study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
-            optimization_parameters..., generation_offset=study.generation, data_storage_policy=sty.data_storage_policy,
+            optimization_parameters..., generation_offset=study.generation, database_policy=sty.database_policy,
             number_of_generations = sty.number_of_generations, population_size = sty.population_size)
 
         study.state = state
@@ -152,7 +152,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
             study.objective_functions,
             study.constraint_functions)
 
-        if study.sty.data_storage_policy == :separate_folders
+        if study.sty.database_policy == :separate_folders
             analyze(study; extract_results=true)
         else
             _merge_tmp_files(study; cleanup=true)

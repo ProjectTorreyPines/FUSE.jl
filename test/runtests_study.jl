@@ -51,11 +51,11 @@ using FUSE.SimulationParameters.Distributions
     study.workflow = workflow_DatabaseGenerator
 
     @info "Running study with `:separate_folder` policy... "
-    study.sty.data_storage_policy = :separate_folders
+    study.sty.database_policy = :separate_folders
     FUSE.run(study)
 
-    @info "Running study with `:merged_hdf5` policy... "
-    study.sty.data_storage_policy = :merged_hdf5
+    @info "Running study with `:single_hdf5` policy... "
+    study.sty.database_policy = :single_hdf5
     FUSE.run(study)
 
     @testset "inis and acts" begin
@@ -78,11 +78,11 @@ using FUSE.SimulationParameters.Distributions
         study.workflow = workflow_DatabaseGenerator
 
         @info "Running study for predefined `inis` and `acts` (w/ :separate_folders policy)..."
-        study.sty.data_storage_policy = :separate_folders
+        study.sty.database_policy = :separate_folders
         FUSE.run(study)
 
-        @info "Running study for predefined `inis` and `acts` (w/ :merged_hdf5 policy)..."
-        study.sty.data_storage_policy = :merged_hdf5
+        @info "Running study for predefined `inis` and `acts` (w/ :single_hdf5 policy)..."
+        study.sty.database_policy = :single_hdf5
         FUSE.run(study)
 
         @info "Checking if two run cases produce the same output..."
