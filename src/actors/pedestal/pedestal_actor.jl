@@ -258,7 +258,6 @@ Runs selected pedestal model this prevents code duplication for using different 
 function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float64, zeff_factor::Float64)
     dd = actor.dd
     par = actor.par
-    @show (density_factor, zeff_factor)
 
     eq = dd.equilibrium
     eqt = eq.time_slice[]
