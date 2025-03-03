@@ -116,7 +116,7 @@ macro checkout(key, vars...)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
         else
-            throw(Exception("Checkpoint `$key` does not exist"))
+            error("Checkpoint named `:$($key)` does not exist. Possible options are: [:$(join(keys(d),", :"))]")
         end
         nothing
     end

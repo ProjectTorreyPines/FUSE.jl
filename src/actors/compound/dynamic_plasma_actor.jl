@@ -289,7 +289,12 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_power::Float64=0.0, aggregate_radiation::Bool=true, dd1::Union{Nothing,IMAS.DD}=nothing, kw...)
+function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
+    min_power::Float64=0.0,
+    aggregate_radiation::Bool=true,
+    dd1::Union{Nothing,IMAS.DD}=nothing,
+    kw...) where {T<:Real}
+
     l = @layout grid(3, 4)
     kw = Dict(kw...)
     if :size ∉ keys(kw)
@@ -398,7 +403,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     #     legend=:bottomleft
     # )
 
-    plot!(dd.nbi; subplot, smooth_beam_tau=0.1)
+    plot!(dd.nbi; subplot, smooth_beam_tau=0.1, legend_foreground_color=:transparent)
     vline!([time0]; label="", subplot)
 
     # # fusion power
@@ -487,11 +492,11 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time; min_po
     #subplot=9
     #plot!(dd.core_transport; time0, only=4, subplot)
     subplot = 10
-    plot!(dd.core_transport; time0, only=1, subplot, legend=:bottomleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
+    plot!(dd.core_transport; time0, only=1, subplot, legend=:topleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
     subplot = 11
-    plot!(dd.core_transport; time0, only=2, subplot, legend=:bottomleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
+    plot!(dd.core_transport; time0, only=2, subplot, legend=:topleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
     subplot = 12
-    plot!(dd.core_transport; time0, only=3, subplot, legend=:bottomleft, legend_foreground_color=:transparent)#, ylim=(0.0, 6.5E17))
+    plot!(dd.core_transport; time0, only=3, subplot, legend=:topleft, legend_foreground_color=:transparent)#, ylim=(0.0, 6.5E17))
 
     # # inverse scale lengths
     # max_scale = 5
