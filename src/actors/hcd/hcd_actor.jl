@@ -5,10 +5,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :replay, :none], "-", "EC source actor to run"; default=:ECsimple)
+    ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :TORBEAM, :replay, :none], "-", "EC source actor to run"; default=:ECsimple)
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :replay, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
-    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :replay, :RABBIT, :none], "-", "NB source actor to run"; default=:NBsimple)
+    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :replay, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
 end
 
@@ -16,7 +16,7 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorHCD{P}
     act::ParametersAllActors{P}
-    ec_actor::Union{ActorSimpleEC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    ec_actor::Union{ActorSimpleEC{D,P},ActorTORBEAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     lh_actor::Union{ActorSimpleLH{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
@@ -45,6 +45,8 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
     if par.ec_model == :ECsimple
         actor.ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
+    elseif par.ec_model == :TORBEAM
+        actor.ec_actor = ActorTORBEAM(dd, act.ActorTORBEAM)
     elseif par.ec_model == :replay
         actor.ec_actor = ActorReplay(dd, act.ActorReplay, actor.ec_actor)
     end
