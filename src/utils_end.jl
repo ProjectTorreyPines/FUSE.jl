@@ -217,7 +217,7 @@ function IMAS.extract(
         # load the data
         ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
-        Threads.@threads for k in eachindex(DD)
+        Threads.@threads :static for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
             try
                 if aDDk in cached_dirs

@@ -237,7 +237,8 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
+        ("                 max(zeff)", maximum(cp1d.zeff)),
     ]
     return tuple(tmp...)
 end

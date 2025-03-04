@@ -3,34 +3,37 @@
 
 DIII-D from experimental shot
 
-NOTE: calls `python` with `import omas` package to use DIII-D IMAS mappings defined there
+NOTE: calls `python` with `import omas` package to use DIII-D IMAS mappings defined there.
+Use `ENV['OMAS_PYTHON']` to set which python executable to use.
 """
 function case_parameters(::Type{Val{:D3D}}, shot::Int; EFIT_tree::String="EFIT02", PROFILES_tree::String="ZIPFIT01")
     ini, act = case_parameters(Val{:D3D_machine})
 
     ini.general.casename = "D3D $shot"
     shot_ods_dir = tempdir()
+    filename = joinpath(shot_ods_dir, "D3D_$shot.json")
     omas_py = """
 
     print("Importing packages")
     import time
     import omas
+    from omas.machine_mappings import d3d
     from numpy import *
 
     tic = time.time()
     ods = omas.ODS()
 
     print("Fetching ec_launcher data")
-    omas.omas_machine.d3d.ec_launcher_active_hardware(ods, $shot)
+    d3d.ec_launcher_active_hardware(ods, $shot)
 
     print("Fetching nbi data")
-    omas.omas_machine.d3d.nbi_active_hardware(ods, $shot)
+    d3d.nbi_active_hardware(ods, $shot)
 
     print("Fetching core_profiles data")
-    omas.omas_machine.d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
+    d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
 
     print("Fetching wall data")
-    omas.omas_machine.d3d.wall(ods, $shot)
+    d3d.wall(ods, $shot)
 
     print("Fetching equilibrium data")
     with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
@@ -52,7 +55,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int; EFIT_tree::String="EFIT02
 
     print("Saving ODS to json")
     tic = time.time()
-    ods.save("$shot_ods_dir/D3D_$shot.json")
+    ods.save("$filename")
     toc = time.time()
     print(f"Saved in {toc-tic} seconds")
     """
@@ -60,10 +63,13 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int; EFIT_tree::String="EFIT02
     open(joinpath(shot_ods_dir, "omas_data_fetch.py"), "w") do io
         return write(io, omas_py)
     end
-    Base.run(`python -u $(joinpath(shot_ods_dir,"omas_data_fetch.py"))`)
+    python = get(ENV, "OMAS_PYTHON", "python3")
+    println("PYTHON: $python")
+    Base.run(`$python -u $(joinpath(shot_ods_dir,"omas_data_fetch.py"))`)
 
     # load experimental ods
-    ini.ods.filename = "$(ini.ods.filename),$(joinpath(shot_ods_dir, "D3D_$shot.json"))"
+    ini.ods.filename = "$(ini.ods.filename),$(filename)"
+    print("Loading ods from file: $(filename)")
     ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
     # set time basis
