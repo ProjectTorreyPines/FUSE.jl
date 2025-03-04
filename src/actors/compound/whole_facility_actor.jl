@@ -14,7 +14,7 @@ mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
     par::FUSEparameters__ActorWholeFacility{P}
     act::ParametersAllActors
     StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
-    StabilityLimits::Union{Nothing,ActorStabilityLimits{D,P}}
+    StabilityLimits::Union{Nothing,ActorPlasmaLimits{D,P}}
     FluxSwing::Union{Nothing,ActorFluxSwing{D,P}}
     Stresses::Union{Nothing,ActorStresses{D,P}}
     HFSsizing::Union{Nothing,ActorHFSsizing{D,P}}
@@ -37,7 +37,7 @@ end
 Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
 
   - ActorStationaryPlasma
-  - ActorStabilityLimits
+  - ActorPlasmaLimits
   - ActorHFSsizing
   - ActorLFSsizing
   - ActorCXbuild
@@ -90,22 +90,17 @@ end
 function _step(actor::ActorWholeFacility)
     dd = actor.dd
     par = actor.par
-    act = actor.act
+    act = deepcopy(actor.act)
 
     if !isempty(dd.build.layer) && par.update_build
-        # we start by optimizing coil location, so that when we go solve the equilibrium we can hold it in place
+        # ActorPFdesign optimizing optimizes the coils location, to make sure that ActorStationaryPlasma will be able to keep the equilibrium in place.
+        # Internally, ActorPFdesign calls ActorPFactive, which finds the currents that satisfy the (boundary, x-points, strike-points) constraints for a given coils configuration
         actor.PFdesign = ActorPFdesign(dd, act)
     end
 
     if par.update_plasma
-        # remove the wall from the calculation to avoid switching between limited/diverted plasma
-        wall_bkp = deepcopy(dd.wall)
-        empty!(dd.wall)
-        if !isempty(dd.pf_active.coil)
-            IMAS.first_wall!(dd.wall, IMAS.first_wall(dd.pf_active)...)
-        end
+        # ActorStationaryPlasma iterates between ActorCurrent, ActorHCD, ActorCoreTransport, and ActorEquilibrium to find a self-consistent stationary plasma solution
         actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
-        dd.wall = wall_bkp
     end
 
     if isempty(dd.build.layer)
@@ -113,36 +108,62 @@ function _step(actor::ActorWholeFacility)
 
     else
         if par.update_build
+            # ActorHFSsizing changes the radial build of the center stack (plug, OH, and TF)
+            # accounting for stresses, superconductors critical currents, flux swing, and field requirements
             actor.HFSsizing = ActorHFSsizing(dd, act)
-            actor.LFSsizing = ActorLFSsizing(dd, act)
-            empty!(dd.pf_active) # remove old coils since those affect the shape of the layers
-            actor.CXbuild = ActorCXbuild(dd, act)
 
+            # ActorLFSsizing changes the radial build of the outer TF leg to satisfy requirement of ripple and maintenance ports.
+            actor.LFSsizing = ActorLFSsizing(dd, act)
+
+            # ActorCXbuild takes the radial build information and generates 2D cross-section outlines of the build layers.
+            # At this point we let these outlines ingnore the position of the pf coils, since we'll regenerate them.
+            actor.CXbuild = ActorCXbuild(dd, act; layers_aware_of_pf_coils = false)
+
+            # We now re-position the PF coils based on the new 2D build.
+            # If we plan on rebuilding the first wall with ActorCXbuild, let the strike-points do whatever they naturally want to do.
+            strike_points_weight_bkp = act.ActorPFactive.strike_points_weight
+            if act.ActorCXbuild.rebuild_wall
+                act.ActorPFactive.strike_points_weight = 0.0
+            end
             actor.PFdesign = ActorPFdesign(dd, act)
-            if act.ActorPFactive.update_equilibrium && act.ActorCXbuild.rebuild_wall
+            act.ActorPFactive.strike_points_weight = strike_points_weight_bkp
+
+            # We now re-solve the equilibrium with the new coils positions
+            ActorEquilibrium(dd, act; ip_from=:pulse_schedule)
+
+            # and we update the first wall based on the new equilibrium
+            if act.ActorCXbuild.rebuild_wall
                 actor.CXbuild = ActorCXbuild(dd, act)
             end
 
         else
+            # Here we just make sure to populate the dd with all the information that creating a new build would give.
             actor.FluxSwing = ActorFluxSwing(dd, act)
             actor.Stresses = ActorStresses(dd, act)
+            actor.PFactive = ActorPFactive(dd, act)
         end
 
-        actor.PFactive = ActorPFactive(dd, act)
-
+        # ActorNeutronics evaluates the neutron flux on the first wall
         actor.Neutronics = ActorNeutronics(dd, act)
+
+        # ActorBlanket optimizes the radial build thickness of the first wall, blanket, shield and Li6 enrichment to achieve a target TBR
         actor.Blanket = ActorBlanket(dd, act)
+        # We must re-generate the CX build since we updated the radial build
         actor.CXbuild = ActorCXbuild(dd, act)
 
+        # ActorPassiveStructures populates dd.pf_passive based on the vacuum vessel layer(s)
         actor.PassiveStructures = ActorPassiveStructures(dd, act)
 
+        # ActorDivertors evaluates divertor fluxes using reduced SOL models
         actor.Divertors = ActorDivertors(dd, act)
 
-        actor.StabilityLimits = ActorStabilityLimits(dd, act)
-        actor.VerticalStability = ActorVerticalStability(dd, act)
+        # ActorPlasmaLimits evaluates opearational plasma limits, including vertical stability and low-n ideal MHD stability
+        actor.StabilityLimits = ActorPlasmaLimits(dd, act)
 
+        # ActorBalanceOfPlant evaluates power needs and optimal thermal-to-electric power conversion efficiency
         actor.BalanceOfPlant = ActorBalanceOfPlant(dd, act)
 
+        # ActorCosting costs the plant
         actor.Costing = ActorCosting(dd, act)
     end
 

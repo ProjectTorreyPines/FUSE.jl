@@ -19,11 +19,15 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
             default=:flux_match
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
-    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal within the transport solver"; default=true)
+    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal at each iteration"; default=true)
+    evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
     optimizer_algorithm::Switch{Symbol} =
-        Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+        Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none],
+        "-",
+        "Optimizing algorithm used for the flux matching";
+        default=:anderson)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -41,6 +45,7 @@ end
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorFluxMatcher{P}
+    act::ParametersAllActors{P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
     norms::Vector{Float64}
@@ -70,10 +75,10 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         ip_from=:core_profiles,
         βn_from=:core_profiles,
         ne_from=:pulse_schedule,
-        zeff_ped_from=:pulse_schedule,
+        zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    return ActorFluxMatcher(dd, par, actor_ct, actor_ped, Float64[], Inf)
+    return ActorFluxMatcher(dd, par, act, actor_ct, actor_ped, Float64[], Inf)
 end
 
 """
@@ -85,6 +90,9 @@ function _step(actor::ActorFluxMatcher)
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+
+    IMAS.sources!(dd)
+
     initial_cp1d = IMAS.freeze(cp1d)
     initial_summary_ped = IMAS.freeze(dd.summary.local.pedestal)
 
@@ -99,14 +107,6 @@ function _step(actor::ActorFluxMatcher)
     err_history = Vector{Vector{Float64}}()
 
     actor.norms = fill(NaN, N_channels)
-
-    # make sure no zeros are in norms
-    for i in 1:length(actor.norms)
-        if actor.norms[i] == 0.0
-            actor.norms[i] = 1.0
-        end
-    end
-
     ftol = 1E-4 # relative error
     xtol = 1E-3 # difference in input array
 
@@ -123,7 +123,7 @@ function _step(actor::ActorFluxMatcher)
             if par.optimizer_algorithm == :newton
                 opts = Dict(:method => :newton, :factor => par.step_size)
             elseif par.optimizer_algorithm == :anderson
-                opts = Dict(:method => :anderson, :m => 3, :beta => -par.step_size * 0.5)
+                opts = Dict(:method => :anderson, :m => 4, :beta => -par.step_size * 0.5)
             elseif par.optimizer_algorithm == :trust_region
                 opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
             end
@@ -139,7 +139,7 @@ function _step(actor::ActorFluxMatcher)
                 opts...)
         end
 
-        out = flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+        flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
 
     finally
 
@@ -153,6 +153,7 @@ function _step(actor::ActorFluxMatcher)
     dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
     ProgressMeter.finish!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
 
+    # plotting of the channels that have been evolved
     if par.do_plot
         plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
@@ -180,8 +181,8 @@ function _step(actor::ActorFluxMatcher)
         display(p)
 
         p = plot(; layout=(N_channels, 2), size=(1000, 300 * N_channels))
-        tot_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
-        tot_sources = IMAS.total_sources(dd.core_sources, cp1d)
+        tot_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport; time0=dd.global_time)
+        tot_sources = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time)
         model_type = IMAS.name_2_index(dd.core_transport.model)
         for (ch, (profiles_path, fluxes_path)) in enumerate(zip(profiles_paths, fluxes_paths))
             title = IMAS.p2i(collect(map(string, fluxes_path)))
@@ -196,12 +197,14 @@ function _step(actor::ActorFluxMatcher)
                 show_zeros=true
             )
             for model in dd.core_transport.model
-                if model.identifier.index == model_type[:anomalous]
-                    plot_opts = Dict(:markershape => :diamond, :markerstrokewidth => 0.5, :linewidth => 0, :color => :orange)
-                elseif model.identifier.index == model_type[:neoclassical]
-                    plot_opts = Dict(:markershape => :cross, :linewidth => 0, :color => :purple)
+                if !ismissing(IMAS.goto(model.profiles_1d[], fluxes_path), :flux)
+                    if model.identifier.index == model_type[:anomalous]
+                        plot_opts = Dict(:markershape => :diamond, :markerstrokewidth => 0.5, :linewidth => 0, :color => :orange)
+                    elseif model.identifier.index == model_type[:neoclassical]
+                        plot_opts = Dict(:markershape => :cross, :linewidth => 0, :color => :purple)
+                    end
+                    plot!(IMAS.goto(model.profiles_1d[], fluxes_path), Val(:flux); subplot=2 * ch - 1, plot_opts...)
                 end
-                plot!(IMAS.goto(model.profiles_1d[], fluxes_path), Val(:flux); subplot=2 * ch - 1, plot_opts...)
             end
             plot!(IMAS.goto(tot_fluxes, fluxes_path), Val(:flux); subplot=2 * ch - 1, color=:red, label="total transport", linewidth=2)
 
@@ -266,7 +269,7 @@ function profiles_title(cp1d, profiles_path)
         else
             return "Electron density"
         end
-    elseif profiles_path[1] == :momentum_tor
+    elseif profiles_path[1] == :rotation_frequency_tor_sonic
         return "Rotation"
     elseif profiles_path[1] == :t_i_average
         return "Ions temperature"
@@ -340,7 +343,9 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate sources (ie. target fluxes)
-    IMAS.sources!(dd; bootstrap=false, ohmic=false)
+    if par.evolve_plasma_sources
+        IMAS.sources!(dd; bootstrap=false, ohmic=false)
+    end
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
@@ -419,7 +424,7 @@ NOTE: flux matching is done in physical units
 function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    total_sources = IMAS.total_sources(dd.core_sources, cp1d; fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
+    total_sources = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
     cs_gridpoints = [argmin(abs.(rho_x .- total_sources.grid.rho_tor_norm)) for rho_x in par.rho_transport]
 
     targets = Float64[]
@@ -466,7 +471,7 @@ NOTE: flux matching is done in physical units
 function flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport)
+    total_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport; time0=dd.global_time)
 
     fluxes = Float64[]
 
@@ -559,12 +564,16 @@ end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     cp1d = dd.core_profiles.profiles_1d[]
-    return (
-        ("         error", error),
-        ("  Pfusion [MW]", IMAS.fusion_power(cp1d) / 1E6),
-        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
-        ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20))
+    out = Tuple{String,Float64}[]
+    push!(out, ("         error", error))
+    pfus = IMAS.fusion_power(cp1d)
+    if pfus > 1E3
+        push!(out, ("  Pfusion [MW]", pfus / 1E6))
+    end
+    push!(out, ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3))
+    push!(out, ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3))
+    push!(out, ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20))
+    return out
 end
 
 function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
@@ -615,7 +624,7 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparamet
     if par.evolve_rotation == :flux_match
         z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :third_order)[cp_gridpoints]
         append!(z_profiles, z_rot)
-        push!(profiles_paths, (:momentum_tor,))
+        push!(profiles_paths, (:rotation_frequency_tor_sonic,))
         push!(fluxes_paths, (:momentum_tor,))
     end
 

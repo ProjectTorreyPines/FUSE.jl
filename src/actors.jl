@@ -50,24 +50,24 @@ end
 #  switch_get_from  #
 #= =============== =#
 """
-    switch_get_from(quantity::Symbol)
+    switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)
 
-Switch to pick form which IDS `quantity` comes from
+Switch to pick the IDS that `quantity` comes from
 """
-function switch_get_from(quantity::Symbol)::Switch{Symbol}
+function switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)
     txt = "Take $quantity from this IDS"
     if quantity == :ip
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt; default)
     elseif quantity == :vacuum_r0_b0
-        swch = Switch{Symbol}([:equilibrium, :pulse_schedule], "-", txt; default=:pulse_schedule)
+        swch = Switch{Symbol}([:equilibrium, :pulse_schedule], "-", txt; default)
     elseif quantity == :vloop
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt; default)
     elseif quantity == :βn
-        swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt; default)
     elseif quantity == :ne_ped
-        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt; default)
     elseif quantity == :zeff_ped
-        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt; default)
     else
         error("`$quantity` not supported in switch_get_from()")
     end
@@ -138,31 +138,18 @@ This is typically used to update `dd` to whatever the actor has calculated at th
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
     if !actor_logging(actor.dd)
-        _finalize_and_freeze_onetime_expressions(actor)::T
+        f_actor = _finalize(actor)::T
     else
         timer_name = name(actor)
         TimerOutputs.@timeit timer timer_name begin
             memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
-            f_actor = _finalize_and_freeze_onetime_expressions(actor)
+            f_actor = _finalize(actor)
             @assert f_actor === actor "`$(T)._finalize(actor)` should return the same actor that is input to the function"
             memory_time_tag(actor, "finalize OUT")
         end
     end
     return actor
-end
-
-function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractActor}
-    f_actor = _finalize(actor)
-    # freeze onetime expressions (ie. grids)
-    while !isempty(IMAS.expression_onetime_weakref)
-        idsw = pop!(IMAS.expression_onetime_weakref, first(keys(IMAS.expression_onetime_weakref)))
-        if idsw.value !== nothing
-            # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
-            IMAS.freeze!(idsw.value)
-        end
-    end
-    return f_actor
 end
 
 @recipe function plot_actor(actor::AbstractActor, args...)

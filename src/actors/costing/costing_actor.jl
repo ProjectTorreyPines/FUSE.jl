@@ -30,7 +30,7 @@ end
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorCosting{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     cst_actor::Union{ActorCostingSheffield{Measurement{Float64},P},ActorCostingARIES{Measurement{Float64},P}}
 end
 

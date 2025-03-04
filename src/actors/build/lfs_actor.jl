@@ -28,9 +28,7 @@ end
     ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Actor that resizes the Low Field Side of the tokamak radial build
-
-  - Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
-  - Other low-field side layers are scaled proportionally
+It changes the location of the outer TF leg by takig into account requirement of ripple and maintenance ports.
 
 !!! note
 
@@ -39,7 +37,7 @@ Actor that resizes the Low Field Side of the tokamak radial build
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)
     if actor.par.do_plot
-        plot(dd.build)
+        plot(dd.build.layer)
     end
     step(actor)
     finalize(actor)

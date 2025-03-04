@@ -27,14 +27,13 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
         return nothing
     else
         height = maximum(z_obstruction) - minimum(z_obstruction) + clearance * 2.0
-        z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
         r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
 
         shape_index_mod = shape_function_index
-        is_z_offset = false
+        z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
-            is_z_offset = true
+            z_offset = true
         end
         if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             shape_parameters = Float64[]
@@ -61,8 +60,8 @@ function initialize_shape_parameters(shape_function_index, r_obstruction, z_obst
     if shape_parameters === nothing
         error(layer_shape_message(shape_function_index))
     end
-    if is_z_offset
-        push!(shape_parameters, z_offset)
+    if z_offset
+        push!(shape_parameters, (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0)
     end
     return shape_parameters
 end
@@ -73,10 +72,10 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         return nothing
     else
         shape_index_mod = shape_function_index
-        is_z_offset = false
+        z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
-            is_z_offset = true
+            z_offset = true
         end
         if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             func = princeton_D_approx
@@ -107,7 +106,7 @@ function shape_function(shape_function_index::Int; resolution::Float64)
 
     # zoffset
     zfunc = rfunc
-    if is_z_offset
+    if z_offset
         zfunc(args...) = begin
             R, Z = rfunc(args[1:end-1]...)
             Z .+= args[end]
@@ -481,6 +480,10 @@ function xy_polygon(coords::T) where {T<:Vector{Tuple{Float64,Float64}}}
     return LibGEOS.Polygon([[[coord[1], coord[2]] for coord in coords]])
 end
 
+function xy_polygon(coords::T) where {T<:Vector{Vector{Float64}}}
+    return LibGEOS.Polygon([[[coord[1], coord[2]] for coord in coords]])
+end
+
 """
     xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
 
@@ -529,56 +532,56 @@ function getPoint!(
 end
 
 """
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T) where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T) where {T<:Real}
     poly = xy_polygon(x, y)
     poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
-    @inline return get_xy(poly_b, Float64)
+    @inline return get_xy(poly_b, Float64)::Tuple{Vector{Float64},Vector{Float64}}
 end
 
 """
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
     x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
     x_offset = 0.5 * (b_lfs - b_hfs)
     x_b .+= x_offset
-    return x_b, y_b
+    return (x_b, y_b)::Tuple{Vector{T},Vector{T}}
 end
 
 """
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
 
 Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T, b_updown::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T, b_updown::T) where {T<:Real}
     b_radius = 0.5 * (b_lfs + b_hfs)
     x_offset = 0.5 * (b_lfs - b_hfs)
     y_max = maximum(y)
     y_min = minimum(y)
     y_scaled = (y .- y_min) ./ (y_max - y_min) .* (y_max + b_updown - b_radius - (y_min - b_updown + b_radius)) .+ (y_min - b_updown + b_radius)
     x_b, y_b = buffer(x .+ x_offset, y_scaled, b_radius)
-    return x_b, y_b
+    return (x_b, y_b)::Tuple{Vector{T},Vector{T}}
 end
 
 """
-    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real) where {T<:Real}
 
 Limit maximum curvature of a polygon described by x,y arrays
 """
-function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real)::Tuple{Vector{Float64},Vector{Float64}} where {T<:Real}
+function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real) where {T<:Real}
     @assert max_curvature > 0.0
     x = convert(Vector{Float64}, x)
     y = convert(Vector{Float64}, y)
     max_curvature = convert(Float64, max_curvature)
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature)::LibGEOS.Polygon, max_curvature)::LibGEOS.Polygon
-    @inline return get_xy(poly_b, Float64)
+    @inline return get_xy(poly_b, Float64)::Tuple{Vector{Float64},Vector{Float64}}
 end
 
 """
@@ -660,7 +663,7 @@ end
 function silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
     n_points = Int(round(n_points * resolution))
     height_start = abs(height_start)
-    curved_fraction = mirror_bound(curved_fraction, 0.1, 0.9)
+    curved_fraction = mirror_bound(curved_fraction, 0.01, 0.99)
     height_end = height_start * (1 - curved_fraction)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0.0, pi / 2, r_start, height_end; n_points)
     return vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
@@ -1149,21 +1152,6 @@ function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{
     zz_l = vcat(zz_l_hfs[1:end-1], zz_l_lfs[2:end])
 
     return rr_u, zz_u, rr_l, zz_l
-end
-
-"""
-    check_ped_finder(profile::AbstractVector{<:Real},psi_norm::AbstractVector{<:Real})
-
-Plots the profile and fitted profile for pedestal finding (region outside pedestal not important for fit)
-"""
-function check_ped_finder(profile::AbstractVector{<:Real}, psi_norm::AbstractVector{<:Real})
-    ped_height, ped_width = IMAS.pedestal_finder(profile, psi_norm)
-    plot(psi_norm, profile; label="original profile")
-    return plot!(
-        psi_norm,
-        IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width);
-        label="fitted profile (pedestal region is important only)"
-    )
 end
 
 """

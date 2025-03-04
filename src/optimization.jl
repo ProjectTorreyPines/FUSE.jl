@@ -32,7 +32,7 @@ function optimization_engine(
 
     # create working directory
     original_dir = pwd()
-    savedir = abspath(joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())"))
+    savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))        
     mkdir(savedir)
     cd(savedir)
 
@@ -193,11 +193,11 @@ function optimization_engine(
 end
 
 """
-    nan2inf(x::Float64)::Float64
+    nan2inf(x::Float64)
 
 Turn NaNs into Inf
 """
-function nan2inf(x::Float64)::Float64
+function nan2inf(x::Float64)
     if isnan(x)
         return Inf
     else

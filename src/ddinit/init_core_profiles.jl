@@ -9,33 +9,35 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if IMAS.hasdata(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
+            if !isempty(dd1.core_profiles.profiles_1d)
                 dd.core_profiles = deepcopy(dd1.core_profiles)
+                cp1d = dd.core_profiles.profiles_1d[]
 
                 # also set the pedestal in summary IDS
-                if any([ismissing(getproperty(dd1.summary.local.pedestal, field), :value) for field in (:n_e, :zeff, :t_e)])
-                    pe_ped, w_ped = IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.pressure, dd.core_profiles.profiles_1d[].grid.psi_norm)
+                if any([ismissing(getproperty(dd.summary.local.pedestal, field), :value) for field in (:n_e, :zeff, :t_e)])
+                    pedestal = IMAS.pedestal_finder(cp1d.electrons.pressure, cp1d.grid.psi_norm)
                     ped_summ = dd.summary.local.pedestal
-                    cp1d = dd.core_profiles.profiles_1d[]
-                    @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - w_ped)
+                    @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - pedestal.width)
                     if ismissing(getproperty(dd1.summary.local.pedestal.n_e, :value, missing))
                         @ddtime ped_summ.n_e.value =
-                            IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.density_thermal).(1 - w_ped)
+                            IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - pedestal.width)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_e, :value, missing))
                         @ddtime ped_summ.t_e.value =
-                            IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].electrons.temperature).(1 - w_ped)
+                            IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(1 - pedestal.width)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.t_i_average, :value, missing))
-                        @ddtime ped_summ.t_i_average.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].t_i_average).(1 - w_ped)
+                        @ddtime ped_summ.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(1 - pedestal.width)
                     end
                     if ismissing(getproperty(dd1.summary.local.pedestal.zeff, :value, missing))
-                        @ddtime ped_summ.zeff.value = IMAS.interp1d(dd.core_profiles.profiles_1d[].grid.rho_tor_norm, dd.core_profiles.profiles_1d[].zeff).(1 - w_ped)
+                        @ddtime ped_summ.zeff.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(1 - pedestal.width)
                     end
                 end
             else
                 init_from = :scalars
             end
+
+            # ejima
             if ismissing(dd.core_profiles.global_quantities, :ejima) && !ismissing(ini.core_profiles, :ejima)
                 @ddtime(dd.core_profiles.global_quantities.ejima = ini.core_profiles.ejima)
             end
@@ -131,21 +133,17 @@ function init_core_profiles!(
     @assert ne_core_to_ped_ratio > 1.0
     @assert plasma_mode in (:H_mode, :L_mode)
 
-    if plasma_mode == :L_mode
-        ne_core_to_ped_ratio = 1.0 + 1.0 / w_ped * (1.0 - w_ped)
-    end
-
     cp1d = resize!(cp.profiles_1d)
 
     # grid
     cp1d.grid.rho_tor_norm = range(0, 1, ngrid)
 
     # Density
-    if plasma_mode == :H_mode
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped)
-    else
-        cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, 1.0, w_ped)
-    end
+    # first we start with a "unit" density profile...
+    w_ped_ne = 0.05
+    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped_ne)
+    cp1d.electrons.density_thermal = IMAS.ped_height_at_09(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, 1.0)
+    # ...which then we scale according to :ne_setting and :ne_value
     if ne_setting == :ne_ped
         ne_ped = ne_value
     elseif ne_setting == :greenwald_fraction_ped
@@ -156,15 +154,15 @@ function init_core_profiles!(
         end
     elseif ne_setting == :ne_line
         if typeof(equil) <: IMAS.equilibrium__time_slice
-            ne_ped = ne_value / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+            ne_ped = ne_value / IMAS.ne_line(equil, cp1d)
         else
-            ne_ped = ne_value / trapz(range(0.0, 1.0, ngrid), cp1d.electrons.density_thermal)
+            ne_ped = ne_value / IMAS.ne_line(nothing, cp1d)
         end
     elseif ne_setting == :greenwald_fraction
         if typeof(equil) <: IMAS.equilibrium__time_slice
-            ne_ped = ne_value * IMAS.greenwald_density(equil) / IMAS.geometric_midplane_line_averaged_density(equil, cp1d)
+            ne_ped = ne_value * IMAS.greenwald_density(equil) / IMAS.ne_line(equil, cp1d)
         else
-            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0) / trapz(range(0.0, 1.0, ngrid), cp1d.electrons.density_thermal)
+            ne_ped = ne_value * IMAS.greenwald_density(equil.ip, equil.ϵ * equil.R0) / IMAS.ne_line(nothing, cp1d)
         end
     end
     cp1d.electrons.density_thermal .*= ne_ped
@@ -205,6 +203,7 @@ function init_core_profiles!(
     end
 
     # temperatures
+    @assert Te_core !== missing || pressure_core !== missing "Must specify either `ini.core_profiles.Te_core` or `ini.equilibrium.pressure_core`"
     if Te_core === missing
         Te_core = pressure_core / (Ti_Te_ratio * ni_core + ne_core) / IMAS.mks.e
     end

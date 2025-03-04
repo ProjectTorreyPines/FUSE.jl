@@ -15,7 +15,7 @@ end
 mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStationaryPlasma{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
     actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
     actor_hc::ActorHCD{D,P}
@@ -26,7 +26,7 @@ end
 """
     ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs the following actors in succesion:
+Compound actor that runs the following actors in succesion to find a self-consistent stationary plasma solution
 
   - ActorCurrent
   - ActorHCD
@@ -244,7 +244,8 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
+        ("                 max(zeff)", maximum(cp1d.zeff)),
     ]
     return tuple(tmp...)
 end

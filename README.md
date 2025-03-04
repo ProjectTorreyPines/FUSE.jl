@@ -2,13 +2,6 @@
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
 
-## 📢 2024 Code Camp 📢
-
-* **Date:** Dec 9th - 13th
-* **Location:** In person @ General Atomics
-* **Agenda:** [here](https://docs.google.com/document/d/1OwJPx4G3HP7wx9FuGLMqxjaKewrhOY7Kd7nTZkmVdw4/edit?usp=sharing)
-* **Seats:** All out! Join us on [Discord](https://discord.gg/CbjpZH9SKM) to know of upcoming events!
-
 ## Resources
 
 Here are some key resources for getting started with FUSE:

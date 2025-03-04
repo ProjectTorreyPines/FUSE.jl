@@ -13,13 +13,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersAc
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
     max_Li6_enrichment_fraction::Entry{T} = Entry{T}("-", "Maximum allowed Li6 enrichment_fraction"; default=0.9)
+#    optimize_blanket_layers
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBlanket{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     function ActorBlanket(dd::IMAS.dd{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorBlanket)
         par = par(kw...)

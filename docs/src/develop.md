@@ -64,6 +64,10 @@ The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples
 !!! note
     When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
 
+## Add/modify a new cluster
+
+The `parallel_environment()` function is used to easily setup the working environment for distributed jobs. Edit it [here](https://github.com/search?q=repo%3AProjectTorreyPines%2FFUSE.jl+%22function+parallel_environment%22&type=code) with your own cluster, folllowing the others as a template.
+
 ## Write IMAS physics functions
 
 IMAS physics and engineering functions are structured in [IMAS.jl](https://github.com/ProjectTorreyPines/IMAS.jl) under `IMAS/src/physics`. These functions use or modify the datastructure (dd) in some way and are used to calculate certain quantities or fill the data structure.

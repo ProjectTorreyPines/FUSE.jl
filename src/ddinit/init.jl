@@ -1,23 +1,33 @@
 """
-    init(
+    init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; kw...)
+
+Like `init!(dd, ini, act)` function, but does not modify `ini` and `act`
+"""
+function init(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors; kw...)
+    ini = deepcopy(ini)
+    act = deepcopy(act)
+    return init!(dd, ini, act; kw...)
+end
+
+"""
+    init!(
         dd::IMAS.dd,
         ini::ParametersAllInits,
         act::ParametersAllActors;
         do_plot::Bool=false,
         initialize_hardware::Bool=true,
         initialize_pulse_schedule::Bool=true,
-        restore_expressions::Bool=true,
         verbose::Bool=false)
 
 Initialize `dd` starting from `ini` and `act` parameters
 
-FUSE provides this high-level `init` function to populate `dd` starting from the `ini` parameters.
+FUSE provides this high-level `init` function to populate `dd` starting from the `ini` parameters
 
-This function essentially calls all other `FUSE.init...` functions in FUSE.
+This function calls all other `FUSE.init...` functions in FUSE
 
-For most studies, calling this high level function is sufficient.
+Modifies `ini` and `act` in place
 """
-function init(
+function init!(
     dd::IMAS.dd,
     ini::ParametersAllInits,
     act::ParametersAllActors;
@@ -44,18 +54,15 @@ function init(
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
 
-        # we make a copy because we overwrite some of the parameters internally
-        # and we want this function to work always the same for subsequent calls
-        ini = deepcopy(ini)
-        act = deepcopy(act)
+        # load ods once
+        verbose && @info "INIT: load_ods"
+        dd1 = set_ini_act_from_ods!(ini, act)
 
-        # load ods once if needed
-        verbose && @info "INIT: ini_from_ods"
-        dd1 = ini_from_ods!(ini; restore_expressions)
-
-        # Makes `ini` and `act` self-consistent and consistent with one another
-        verbose && @info "INIT: consistent_ini_act"
-        consistent_ini_act!(ini, act)
+        # Here we delete fields from the ODS for which we know FUSE has expressions for.
+        # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
+        if restore_expressions
+            FUSE.restore_init_expressions!(dd1; verbose=false)
+        end
 
         # initialize pulse_schedule
         ps_was_set = false
@@ -82,8 +89,15 @@ function init(
                 verbose && @info "INIT: init_pf_active"
                 init_pf_active!(dd, ini, act, dd1)
             end
-            for coil in dd.pf_active.coil
-                empty!(coil.current)
+            if isempty(dd.pf_active.coil)
+                # add some coils encircling the plasma so that the equilibrium solvers can get free-boundary solution
+                bnd_r, bnd_z = IMAS.boundary(dd.pulse_schedule.position_control)
+                dd.pf_active.coil = encircling_coils(bnd_r, bnd_z, sum(extrema(bnd_r)) / 2.0, sum(extrema(bnd_z)) / 2.0, 8)
+                act.ActorCXbuild.layers_aware_of_pf_coils = false
+            else
+                for coil in dd.pf_active.coil
+                    empty!(coil.current)
+                end
             end
             verbose && @info "INIT: init_equilibrium"
             init_equilibrium!(dd, ini, act, dd1)
@@ -103,14 +117,27 @@ function init(
             end
         end
 
-        # initialize core sources
+        # initialize build
+        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
+            verbose && @info "INIT: init_build"
+            init_build!(dd, ini, act, dd1)
+            if do_plot
+                plot(dd.equilibrium; cx=true, color=:gray)
+                plot!(dd.build; equilibrium=false, pf_active=false)
+                display(plot!(dd.build; cx=false))
+                display(dd.build.layer)
+            end
+        end
+
+        # initialize core sources and HCD
         if (
             !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
             !isempty(dd1.core_sources)
         )
-            verbose && @info "INIT: init_core_sources"
+            verbose && @info "INIT: init_core_sources and HCD"
             if ismissing(ini.hcd, :power_scaling_cost_function)
                 init_core_sources!(dd, ini, act, dd1)
+                init_hcd!(dd, ini, act, dd1)
             else
                 # get an estimate for Ohmic heating before scaling HCD powers
                 ini0 = deepcopy(ini)
@@ -119,6 +146,7 @@ function init(
                 function scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, power_scaling_cost_function)
                     scale_powers!(ps, ini, ps0, ini0, scale)
                     init_core_sources!(dd, ini, act, dd1)
+                    init_hcd!(dd, ini, act, dd1)
                     init_currents!(dd, ini, act, dd1) # to pick up ohmic power
                     error = abs(power_scaling_cost_function(dd))
                     return error
@@ -153,18 +181,6 @@ function init(
         verbose && @info "INIT: init_currents"
         init_currents!(dd, ini, act, dd1)
 
-        # initialize build
-        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
-            verbose && @info "INIT: init_build"
-            init_build!(dd, ini, act, dd1)
-            if do_plot
-                plot(dd.equilibrium; cx=true, color=:gray)
-                plot!(dd.build; equilibrium=false, pf_active=false)
-                display(plot!(dd.build; cx=false))
-                display(dd.build.layer)
-            end
-        end
-
         # initialize oh and pf coils
         n_coils = [length(layer.coils_inside) for layer in dd.build.layer if !ismissing(layer, :coils_inside)]
         if initialize_hardware && !isempty(n_coils)
@@ -179,10 +195,12 @@ function init(
         end
 
         # pf_passive
-        if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
-            dd.pf_passive = deepcopy(dd1.pf_passive)
-        else
-            FUSE.ActorPassiveStructures(dd, act)
+        if !isempty(dd.build.layer)
+            if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
+                dd.pf_passive = deepcopy(dd1.pf_passive)
+            else
+                FUSE.ActorPassiveStructures(dd, act)
+            end
         end
 
         # initialize balance of plant
@@ -198,22 +216,30 @@ function init(
         init_missing_from_ods!(dd, ini, act, dd1)
 
         # add strike point information to pulse_schedule
-        if ps_was_set
-            eqt = dd.equilibrium.time_slice[]
-            fw = IMAS.first_wall(dd.wall)
-            psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-            Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open, dd.divertors; private_flux_regions=true)
-            pc = dd.pulse_schedule.position_control
-            resize!(pc.strike_point, 4)
-            for k in 1:4
-                if k <= length(Rxx)
-                    pc.strike_point[k].r.reference = fill(Rxx[k], size(pc.time))
-                    pc.strike_point[k].z.reference = fill(Zxx[k], size(pc.time))
-                else
-                    pc.strike_point[k].r.reference = zeros(size(pc.time))
-                    pc.strike_point[k].z.reference = zeros(size(pc.time))
-                end
+        fw = IMAS.first_wall(dd.wall)
+        if !isempty(fw.r) && ps_was_set
+            RXX = []
+            ZXX = []
+            for eqt in dd.equilibrium.time_slice
+                psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
+                Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open)
+                push!(RXX, Rxx)
+                push!(ZXX, Zxx)
             end
+            N = maximum(collect(map(length, RXX)))
+            pc = dd.pulse_schedule.position_control
+            resize!(pc.strike_point, N)
+            for k in 1:N
+                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
+                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
+            end
+        end
+
+        # trim core_profiles data before the first equilibrium since things are really not robust against that
+        # also trim other IDSs not to go past equilibrium.time[end]
+        if dd.equilibrium.time[1] != dd.equilibrium.time[end]
+            IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]))
+            IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
         end
 
         return dd
@@ -267,26 +293,4 @@ function init(case::Symbol; do_plot::Bool=false, kw...)
     dd = IMAS.dd()
     init(dd, ini, act; do_plot=do_plot)
     return dd, ini, act
-end
-
-"""
-    consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-
-Makes `ini` and `act` self-consistent and consistent with one another
-
-NOTE: operates in place
-"""
-function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-    if !ismissing(ini.core_profiles, :Ti_Te_ratio)
-        act.ActorEPEDprofiles.T_ratio_core = ini.core_profiles.Ti_Te_ratio
-        act.ActorEPED.T_ratio_pedestal = ini.core_profiles.Ti_Te_ratio
-    end
-
-    if !ismissing(ini.core_profiles, :Te_shaping)
-        act.ActorEPEDprofiles.Te_shaping = ini.core_profiles.Te_shaping
-    end
-
-    if !ismissing(ini.core_profiles, :ne_shaping)
-        act.ActorEPEDprofiles.ne_shaping = ini.core_profiles.ne_shaping
-    end
 end

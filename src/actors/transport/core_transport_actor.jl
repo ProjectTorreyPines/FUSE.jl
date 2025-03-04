@@ -30,8 +30,12 @@ end
 function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCoreTransport)
     par = par(kw...)
+
+    noop = ActorNoOperation(dd, act.ActorNoOperation)
+    actor = ActorCoreTransport(dd, par, act, noop)
+
     if par.model == :FluxMatcher
-        tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
+        actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
     elseif par.model == :EPEDProfiles
         tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
     elseif par.model == :BetaMatch
@@ -39,7 +43,8 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     elseif par.model == :none
         tr_actor = ActorNoOperation(dd, act.ActorNoOperation)
     end
-    return ActorCoreTransport(dd, par, tr_actor)
+
+    return actor
 end
 
 """
@@ -60,4 +65,37 @@ Finalizes the selected core transport actor finalize
 function _finalize(actor::ActorCoreTransport)
     finalize(actor.tr_actor)
     return actor
+end
+
+function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::IMAS.dd)
+    dd = actor.dd
+
+    time0 = dd.global_time
+    cp1d = dd.core_profiles.profiles_1d[time0]
+    replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
+    rho = cp1d.grid.rho_tor_norm
+
+    # here we purposely set rho_nml == rho_ped
+    # Here blend_core_edge() will connect the replay core to the edge,
+    # but will allow for a discontinuity of the profiles.
+    # It is the role of the ActorPedestal to do the actual blending between rho_nml and rho_ped
+    rho_nml = actor.act.ActorFluxMatcher.rho_transport[end]
+    rho_ped = actor.act.ActorFluxMatcher.rho_transport[end]
+
+    cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if !ismissing(ion, :density_thermal)
+            ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+        end
+    end
+    IMAS.scale_ion_densities_to_target_zeff!(cp1d, replay_cp1d.zeff)
+
+    cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if !ismissing(ion, :temperature)
+            ion.temperature = IMAS.blend_core_edge(replay_ion.temperature, ion.temperature, rho, rho_nml, rho_ped)
+        end
+    end
+
+    return replay_actor
 end

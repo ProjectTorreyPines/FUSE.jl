@@ -114,7 +114,7 @@ macro checkout(key, vars...)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
         else
-            throw(KeyError($key))
+            error("Checkpoint named `:$($key)` does not exist. Possible options are: [:$(join(keys(d),", :"))]")
         end
         nothing
     end
@@ -215,7 +215,7 @@ function IMAS.extract(
         # load the data
         ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
-        Threads.@threads for k in eachindex(DD)
+        Threads.@threads :static for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
             try
                 if aDDk in cached_dirs
@@ -297,7 +297,7 @@ end
         error::Any=nothing,
         timer::Bool=true,
         varinfo::Bool=false,
-        freeze::Bool=true,
+        freeze::Bool=false,
         format::Symbol=:json,
         overwrite_files::Bool=true)
 
@@ -317,7 +317,7 @@ function save(
     error::Any=nothing,
     timer::Bool=true,
     varinfo::Bool=false,
-    freeze::Bool=true,
+    freeze::Bool=false,
     format::Symbol=:json,
     overwrite_files::Bool=true)
 
@@ -482,7 +482,7 @@ function digest(
     end
 
     # core sources
-    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles.profiles_1d[]))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles; time0=dd.global_time))
         if !isempty(dd.core_sources.source) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_sources; only=k))
@@ -490,7 +490,7 @@ function digest(
     end
 
     # core transport
-    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles.profiles_1d[]))
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles; time0=dd.global_time))
         if !isempty(dd.core_transport) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_transport; only=k))
@@ -535,7 +535,7 @@ function digest(
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
         p = plot(; layout=l, size=(900, 400))
-        plot!(p, dd.pf_active, what=:currents; time0, title="PF currents at t=$(time0) s", subplot=1)
+        plot!(p, dd.pf_active; what=:currents, time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
         plot!(p, dd.pf_active; time0, subplot=2, coil_identifiers=true)
@@ -808,18 +808,27 @@ A plot with the following characteristics:
         [], []
     end
 end
-
 """
     get_julia_process_memory_usage()
 
 Returns memory used by current julia process
 """
 function get_julia_process_memory_usage()
-    pid = getpid()
-    mem_info = read(`ps -p $pid -o rss=`, String)
-    mem_usage_kb = parse(Int, strip(mem_info))
-    return mem_usage_kb * 1024
+    if Sys.iswindows()
+        pid = getpid()
+        # Use PowerShell to get the current process's WorkingSet (memory in bytes)
+        cmd = `powershell -Command "(Get-Process -Id $pid).WorkingSet64"`
+        mem_bytes_str = readchomp(cmd)
+        mem_bytes = parse(Int, mem_bytes_str)
+    else
+        pid = getpid()
+        mem_info = read(`ps -p $pid -o rss=`, String)
+        mem_usage_kb = parse(Int, strip(mem_info))
+        mem_bytes = mem_usage_kb * 1024
+    end
+    return mem_bytes::Int
 end
+
 
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
@@ -1010,7 +1019,7 @@ function install_fusebot(folder::String)
     target_path = joinpath(folder, "fusebot")
     @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
-    println("`fusebot` has been successfully installed: $target_path")
+    return println("`fusebot` has been successfully installed: $target_path")
 end
 
 """

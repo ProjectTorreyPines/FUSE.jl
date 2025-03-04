@@ -12,7 +12,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if IMAS.hasdata(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
+            if !isempty(dd1.equilibrium.time_slice) && ini.equilibrium.boundary_from == :ods
                 dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
                 fw = IMAS.first_wall(dd.wall)
@@ -89,10 +89,9 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
             pc.boundary_outline[k].z.reference[1] = z
         end
     else
+        pushfirst!(pc.time, -Inf)
         for (k, (r, z)) in enumerate(zip(pr, pz))
-            pushfirst!(pc.time, -Inf)
             pushfirst!(pc.boundary_outline[k].r.reference, r)
-            pushfirst!(pc.time, -Inf)
             pushfirst!(pc.boundary_outline[k].z.reference, z)
         end
     end

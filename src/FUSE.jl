@@ -3,6 +3,7 @@ __precompile__(true)
 module FUSE
 
 using IMAS
+import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
 import Plots
 using Plots
 using Printf
@@ -48,20 +49,21 @@ include(joinpath("cases", "_cases.jl"))
 #  PHYSICS  #
 #= ======= =#
 include("physics.jl")
+include("experiments.jl")
 
 #= ====== =#
 #  DDINIT  #
 #= ====== =#
-include("signal.jl")
 include(joinpath("parameters", "parameters_inits.jl"))
+include(joinpath("parameters", "ini_from_ods.jl"))
 
 include(joinpath("ddinit", "init.jl"))
-include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_balance_of_plant.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
+include(joinpath("ddinit", "init_hcd.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
 include(joinpath("ddinit", "init_pf_active.jl"))
@@ -75,10 +77,12 @@ include(joinpath("ddinit", "write_init_expressions.jl"))
 include("actors.jl")
 
 include(joinpath("actors", "noop_actor.jl"))
+include(joinpath("actors", "replay_actor.jl"))
 
-include(joinpath("actors", "equilibrium", "solovev_actor.jl"))
-include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
+include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
+include(joinpath("actors", "equilibrium", "eggo_actor.jl"))
+include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf", "pf_active_utils.jl"))
@@ -129,6 +133,7 @@ include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))
+include(joinpath("actors", "stability", "troyon_actor.jl"))
 include(joinpath("actors", "stability", "vertical_actor.jl"))
 
 include(joinpath("actors", "balance_plant", "thermal_plant_actor.jl"))
@@ -165,7 +170,6 @@ include(joinpath("parameters", "parameters_studies.jl"))
 #= ========= =#
 #  WORKFLOWS  #
 #= ========= =#
-include(joinpath("workflows", "yaml_workflow.jl"))
 include(joinpath("workflows", "optimization_workflow.jl"))
 include(joinpath("workflows", "DB5_validation_workflow.jl"))
 
@@ -187,7 +191,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, @findall
+export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 
