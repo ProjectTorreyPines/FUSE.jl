@@ -151,6 +151,9 @@ TGLFNN:
 TJLF:
 	$(call clone_pull_repo,$@)
 
+TORBEAM:
+	$(call clone_pull_repo,$@)
+
 TroyonBetaNN:
 	$(call clone_pull_repo,$@)
 
