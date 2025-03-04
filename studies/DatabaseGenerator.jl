@@ -1,3 +1,5 @@
+import HDF5
+
 #= ====================== =#
 #  StudyDatabaseGenerator  #
 #= ====================== =#
@@ -39,6 +41,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled simulations")
+    database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
 end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
@@ -59,6 +62,10 @@ end
 function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; kw...)
     @assert length(inis) == length(acts)
     sty = sty(kw...)
+    if sty.n_simulations ≠ length(inis)
+        @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
+        sty.n_simulations = length(inis)
+    end
     study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
     return setup(study)
 end
@@ -96,9 +103,29 @@ function _run(study::StudyDatabaseGenerator)
 
     # paraller run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
-    FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
 
-    analyze(study)
+    if study.sty.database_policy == :separate_folders
+        FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
+        analyze(study; extract=true)
+
+    elseif study.sty.database_policy == :single_hdf5
+        dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> begin
+                try
+                    run_case(study, item, Val{:hdf5})
+                catch e
+                    if isa(e, InterruptException)
+                        rethrow(e)  # or handle as needed
+                    end
+                end
+            end, iterator)
+
+        study.dataframe = reduce(vcat, dataframe_list; cols=:union)
+
+        _merge_tmp_files(study; cleanup=true)
+        analyze(study; extract=false)
+    else
+        error("DatabaseGenerator should never be here: database_policy must be either `:separate_folders` or `:single_hdf5`")
+    end
 
     # Release workers after run
     if sty.release_workers_after_run
@@ -109,13 +136,44 @@ function _run(study::StudyDatabaseGenerator)
     return study
 end
 
+function _merge_tmp_files(study::StudyDatabaseGenerator; cleanup::Bool=false)
+    sty = study.sty
+    date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+    merged_hdf5_filename = "database_$(date_time_str).h5"
+
+    save_folder = study.sty.save_folder
+
+    IMAS.h5merge(joinpath(save_folder, merged_hdf5_filename),
+        joinpath(save_folder, "tmp_h5_output");
+        h5_strip_group_prefix=true,
+        cleanup)
+
+    # write study.dataframe into a separate csv file
+    csv_filepath = joinpath(sty.save_folder, "extract_$(date_time_str).csv")
+    CSV.write(csv_filepath, study.dataframe)
+
+    # write study.dataframe into the mergedh5 file as well
+    HDF5.h5open(joinpath(sty.save_folder, merged_hdf5_filename), "r+") do fid
+        io_buffer = IOBuffer()
+        CSV.write(io_buffer, study.dataframe)
+        csv_text = String(take!(io_buffer))
+        HDF5.write(fid, "extract.csv", csv_text)
+        attr = HDF5.attrs(fid["/extract.csv"])
+        attr["date_time"] = date_time_str
+        return attr["FUSE_version"] = string(pkgversion(FUSE))
+    end
+end
+
+
 """
     _analyze(study::StudyDatabaseGenerator)
 
 Example of analyze plots to display after the run feel free to change this method for your needs
 """
-function _analyze(study::StudyDatabaseGenerator; re_extract::Bool=false)
-    extract_results(study; re_extract)
+function _analyze(study::StudyDatabaseGenerator; extract::Bool=true, re_extract::Bool=false)
+    if extract
+        extract_results(study; re_extract)
+    end
     df = study.dataframe
     display(histogram(df.Te0; xlabel="Te0 [keV]", ylabel="Number of simulations per bin", legend=false))
     display(histogram(df.Ti0; xlabel="Ti0 [keV]", ylabel="Number of simulations per bin", legend=false))
@@ -129,7 +187,6 @@ end
 Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
 """
 function run_case(study::AbstractStudy, item::Int)
-    act = study.act
     sty = study.sty
     @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
 
@@ -179,5 +236,80 @@ function run_case(study::AbstractStudy, item::Int)
         redirect_stderr(original_stderr)
         cd(original_dir)
         close(file_log)
+    end
+end
+
+function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
+    sty = study.sty
+    @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
+
+    original_dir = pwd()
+    if !isdir(sty.save_folder)
+        mkdir(sty.save_folder)
+    end
+    cd(sty.save_folder)
+
+    # Redirect stdout and stderr to the file
+    original_stdout = stdout  # Save the original stdout
+    original_stderr = stderr  # Save the original stderr
+
+    # ini/act variations
+    if typeof(study.ini) <: ParametersAllInits
+        ini = rand(study.ini)
+    elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
+        ini = study.ini[item]
+    end
+
+    if typeof(study.act) <: ParametersAllActors
+        act = rand(study.act)
+    elseif typeof(study.act) <: Vector{<:ParametersAllActors}
+        act = study.act[item]
+    end
+
+    dd = IMAS.dd()
+
+
+    zero_pad_length = length(string(sty.n_simulations))
+    parent_group = "/case$(lpad(item, zero_pad_length, "0"))"
+
+
+    # parent_group = "case_$item"
+    tmp_log_filename = "tmp_log_case_$item.txt"
+    tmp_log_io = open(tmp_log_filename, "w+")
+
+
+    try
+        redirect_stdout(tmp_log_io)
+        redirect_stderr(tmp_log_io)
+
+        study.workflow(dd, ini, act)
+
+        save2hdf("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
+            timer=true, freeze=false, overwrite_groups=true, kw...)
+
+
+        df = DataFrame(IMAS.extract(dd, :all))
+        df[!, :case] = fill(item, nrow(df))
+        df[!, :dir] = fill(sty.save_folder, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :status] = fill("success", nrow(df))
+        return df
+    catch error
+        if isa(error, InterruptException)
+            rethrow(error)
+        end
+
+        # save empty dd and error to directory
+        save2hdf("tmp_h5_output", parent_group, IMAS.dd(), ini, act, tmp_log_io;
+            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+
+        return DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
+    finally
+        redirect_stdout(original_stdout)
+        redirect_stderr(original_stderr)
+        close(tmp_log_io)
+        rm(tmp_log_filename; force=true)
+
+        cd(original_dir)
     end
 end
