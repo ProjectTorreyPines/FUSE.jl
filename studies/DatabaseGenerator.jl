@@ -119,9 +119,8 @@ function _run(study::StudyDatabaseGenerator)
                 end
             end, iterator)
 
-        study.dataframe = reduce(vcat, dataframe_list; cols=:union)
+        study.dataframe = _merge_tmp_study_files(study.sty.save_folder; cleanup=true)
 
-        _merge_tmp_files(study; cleanup=true)
         analyze(study; extract=false)
     else
         error("DatabaseGenerator should never be here: database_policy must be either `:separate_folders` or `:single_hdf5`")
@@ -134,34 +133,6 @@ function _run(study::StudyDatabaseGenerator)
     end
 
     return study
-end
-
-function _merge_tmp_files(study::StudyDatabaseGenerator; cleanup::Bool=false)
-    sty = study.sty
-    date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-    merged_hdf5_filename = "database_$(date_time_str).h5"
-
-    save_folder = study.sty.save_folder
-
-    IMAS.h5merge(joinpath(save_folder, merged_hdf5_filename),
-        joinpath(save_folder, "tmp_h5_output");
-        h5_strip_group_prefix=true,
-        cleanup)
-
-    # write study.dataframe into a separate csv file
-    csv_filepath = joinpath(sty.save_folder, "extract_$(date_time_str).csv")
-    CSV.write(csv_filepath, study.dataframe)
-
-    # write study.dataframe into the mergedh5 file as well
-    HDF5.h5open(joinpath(sty.save_folder, merged_hdf5_filename), "r+") do fid
-        io_buffer = IOBuffer()
-        CSV.write(io_buffer, study.dataframe)
-        csv_text = String(take!(io_buffer))
-        HDF5.write(fid, "extract.csv", csv_text)
-        attr = HDF5.attrs(fid["/extract.csv"])
-        attr["date_time"] = date_time_str
-        return attr["FUSE_version"] = string(pkgversion(FUSE))
-    end
 end
 
 
@@ -284,15 +255,27 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
 
         study.workflow(dd, ini, act)
 
-        save2hdf("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
+        save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
             timer=true, freeze=false, overwrite_groups=true, kw...)
-
 
         df = DataFrame(IMAS.extract(dd, :all))
         df[!, :case] = fill(item, nrow(df))
         df[!, :dir] = fill(sty.save_folder, nrow(df))
         df[!, :gparent] = fill(parent_group, nrow(df))
         df[!, :status] = fill("success", nrow(df))
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+        csv_filepath =joinpath(tmp_csv_folder, "extract_success_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df, append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
+        end
+
         return df
     catch error
         if isa(error, InterruptException)
@@ -300,10 +283,24 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
         end
 
         # save empty dd and error to directory
-        save2hdf("tmp_h5_output", parent_group, IMAS.dd(), ini, act, tmp_log_io;
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
             error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
 
-        return DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
+        df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+        csv_filepath =joinpath(tmp_csv_folder, "extract_fail_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df, append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
+        end
+
+        return df
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
