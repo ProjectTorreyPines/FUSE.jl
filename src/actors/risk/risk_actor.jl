@@ -166,8 +166,8 @@ function _step(actor::ActorRisk)
     ##########
     # Plasma #
     ##########
-    if isempty(dd.stability.model)
-        @warn "Plasma risk won't be calculated; must run ActorStabilityLimits before ActorRisk to compute plasma risk"
+    if isempty(dd.limits.model)
+        @warn "Plasma risk won't be calculated; must run ActorPlasmaLimits before ActorRisk to compute plasma risk"
     end
 
     plasma_failure_probability(dd)
@@ -230,23 +230,8 @@ end
 
 function plasma_failure_probability(dd::IMAS.dd)
     rsk = dd.risk 
-    kvessel = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)
-    if isempty(kvessel)
-        resize!(rsk.plasma.loss, length(dd.stability.model))
-    else
-        resize!(rsk.plasma.loss, length(dd.stability.model) + 1)
-        # Include vertical stability
-        mode = dd.mhd_linear.time_slice[].toroidal_mode[1]
-        rsk.plasma.loss[end].description = mode.perturbation_type.description
-
-        if mode.growthrate ≥ 0.15 || mode.growthrate < 0.0
-            rsk.plasma.loss[end].probability = 0.0
-        elseif mode.growthrate < 0.15 
-            rsk.plasma.loss[end].probability = disruption_probability(mode.growthrate / 0.15)
-        end
-    end
-
-    for (i,model) in enumerate(dd.stability.model)
+    resize!(rsk.plasma.loss, length(dd.limits.model))
+    for (i,model) in enumerate(dd.limits.model)
         rsk.plasma.loss[i].description = model.identifier.description
         rsk.plasma.loss[i].probability = disruption_probability(model.fraction[1])
     end    
