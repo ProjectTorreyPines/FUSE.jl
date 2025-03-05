@@ -55,9 +55,9 @@ include("experiments.jl")
 #  DDINIT  #
 #= ====== =#
 include(joinpath("parameters", "parameters_inits.jl"))
+include(joinpath("parameters", "ini_from_ods.jl"))
 
 include(joinpath("ddinit", "init.jl"))
-include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
@@ -79,9 +79,10 @@ include("actors.jl")
 include(joinpath("actors", "noop_actor.jl"))
 include(joinpath("actors", "replay_actor.jl"))
 
-include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
-include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
+include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
+include(joinpath("actors", "equilibrium", "eggo_actor.jl"))
+include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf", "pf_active_utils.jl"))
@@ -189,7 +190,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, @findall
+export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 

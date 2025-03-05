@@ -114,7 +114,7 @@ macro checkout(key, vars...)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
         else
-            throw(Exception("Checkpoint `$key` does not exist"))
+            error("Checkpoint named `:$($key)` does not exist. Possible options are: [:$(join(keys(d),", :"))]")
         end
         nothing
     end
@@ -215,7 +215,7 @@ function IMAS.extract(
         # load the data
         ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
-        Threads.@threads for k in eachindex(DD)
+        Threads.@threads :static for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
             try
                 if aDDk in cached_dirs

@@ -3,7 +3,7 @@
 
 CFS/MIT ARC design
 """
-function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "ARC"

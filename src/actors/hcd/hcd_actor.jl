@@ -5,11 +5,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :none], "-", "EC source actor to run"; default=:ECsimple)
-    ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :none], "-", "IC source actor to run"; default=:ICsimple)
-    lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :none], "-", "LH source actor to run"; default=:LHsimple)
-    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :none], "-", "NB source actor to run"; default=:NBsimple)
-    pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
+    ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :replay, :none], "-", "EC source actor to run"; default=:ECsimple)
+    ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :replay, :none], "-", "IC source actor to run"; default=:ICsimple)
+    lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
+    nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :replay, :RABBIT, :none], "-", "NB source actor to run"; default=:NBsimple)
+    pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :replay, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
 end
 
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
@@ -46,21 +46,21 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     if par.ec_model == :ECsimple
         actor.ec_actor = ActorSimpleEC(dd, act.ActorSimpleEC)
     elseif par.ec_model == :replay
-        actor.ec_actor = ActorReplay(dd, act.ActorSimpleEC, actor)
+        actor.ec_actor = ActorReplay(dd, act.ActorReplay, actor.ec_actor)
     end
 
     @assert length(dd.pulse_schedule.ic.antenna) == length(dd.ic_antennas.antenna) "length(dd.pulse_schedule.ic.antenna)=$(length(dd.pulse_schedule.ic.antenna)) VS length(dd.ic_antennas.antenna)=$(length(dd.ic_antennas.antenna))"
     if par.ic_model == :ICsimple
         actor.ic_actor = ActorSimpleIC(dd, act.ActorSimpleIC)
     elseif par.ic_model == :replay
-        actor.ic_actor = ActorReplay(dd, act.ActorSimpleIC, actor)
+        actor.ic_actor = ActorReplay(dd, act.ActorReplay, actor.ic_actor)
     end
 
     @assert length(dd.pulse_schedule.lh.antenna) == length(dd.lh_antennas.antenna) "length(dd.pulse_schedule.lh.antenna)=$(length(dd.pulse_schedule.lh.antenna)) VS length(dd.lh_antennas.antenna)=$(length(dd.lh_antennas.antenna))"
     if par.lh_model == :LHsimple
         actor.lh_actor = ActorSimpleLH(dd, act.ActorSimpleLH)
     elseif par.lh_model == :replay
-        actor.lh_actor = ActorReplay(dd, act.ActorSimpleLH, actor)
+        actor.lh_actor = ActorReplay(dd, act.ActorReplay, actor.lh_actor)
     end
 
     @assert length(dd.pulse_schedule.nbi.unit) == length(dd.nbi.unit) "length(dd.pulse_schedule.nbi.unit)=$(length(dd.pulse_schedule.nbi.unit)) VS length(dd.nbi.unit)=$(length(dd.nbi.unit))"
@@ -69,14 +69,14 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     elseif par.nb_model == :RABBIT
         actor.nb_actor = ActorRABBIT(dd, act.ActorRABBIT)
     elseif par.nb_model == :replay
-        actor.nb_actor = ActorReplay(dd, act.ActorSimpleNB, actor)
+        actor.nb_actor = ActorReplay(dd, act.ActorReplay, actor.nb_actor)
     end
 
     @assert length(dd.pulse_schedule.pellet.launcher) == length(dd.pellets.launcher) "length(dd.pulse_schedule.pellet.launcher)=$(length(dd.pulse_schedule.pellet.launcher)) VS length(dd.pellets.launcher)=$(length(dd.pellets.launcher))"
     if par.pellet_model == :Pelletsimple
         actor.pellet_actor = ActorSimplePL(dd, act.ActorSimplePL)
     elseif par.pellet_model == :replay
-        actor.pellet_actor = ActorReplay(dd, act.ActorSimplePL, actor)
+        actor.pellet_actor = ActorReplay(dd, act.ActorReplay, actor.pellet_actor)
     end
 
     return actor
@@ -119,26 +119,38 @@ function _finalize(actor::ActorHCD)
 end
 
 function _step(replay_actor::ActorReplay, actor::ActorSimpleEC, replay_dd::IMAS.dd)
-    IMAS.IMASdd.copy_timeslice!(actor.dd.ec_launcher, replay_dd.ec_launcher, actor.dd.global_time);
+    IMAS.copy_timeslice!(actor.dd.ec_launcher, replay_dd.ec_launcher, actor.dd.global_time)
+    copy_source_timeslice!(actor.dd, replay_dd, :ec)
     return replay_actor
 end
 
 function _step(replay_actor::ActorReplay, actor::ActorSimpleIC, replay_dd::IMAS.dd)
-    IMAS.IMASdd.copy_timeslice!(actor.dd.ic_antenna, replay_dd.ic_antenna, actor.dd.global_time);
+    IMAS.copy_timeslice!(actor.dd.ic_antenna, replay_dd.ic_antenna, actor.dd.global_time)
+    copy_source_timeslice!(actor.dd, replay_dd, :ic)
     return replay_actor
 end
 
 function _step(replay_actor::ActorReplay, actor::ActorSimpleLH, replay_dd::IMAS.dd)
-    IMAS.IMASdd.copy_timeslice!(actor.dd.lh_antenna, replay_dd.lh_antenna, actor.dd.global_time);
+    IMAS.copy_timeslice!(actor.dd.lh_antenna, replay_dd.lh_antenna, actor.dd.global_time)
+    copy_source_timeslice!(actor.dd, replay_dd, :lh)
     return replay_actor
 end
 
 function _step(replay_actor::ActorReplay, actor::ActorSimpleNB, replay_dd::IMAS.dd)
-    IMAS.IMASdd.copy_timeslice!(actor.dd.nbi, replay_dd.nbi, actor.dd.global_time);
+    IMAS.copy_timeslice!(actor.dd.nbi, replay_dd.nbi, actor.dd.global_time)
+    copy_source_timeslice!(actor.dd, replay_dd, :nbi)
     return replay_actor
 end
 
 function _step(replay_actor::ActorReplay, actor::ActorSimplePL, replay_dd::IMAS.dd)
-    IMAS.IMASdd.copy_timeslice!(actor.dd.pellet, replay_dd.pellet, actor.dd.global_time);
+    IMAS.copy_timeslice!(actor.dd.pellet, replay_dd.pellet, actor.dd.global_time)
+    copy_source_timeslice!(actor.dd, replay_dd, :pellet)
     return replay_actor
+end
+
+function copy_source_timeslice!(dd::IMAS.dd, replay_dd::IMAS.dd, identifier::Symbol)
+    for replay_source in findall(identifier, replay_dd.core_sources.source)
+        source = resize!(dd.core_sources.source, :identifier, "identifier.name" => replay_source.name; wipe=false)
+        IMAS.copy_timeslice!(source, replay_source, actor.dd.global_time)
+    end
 end

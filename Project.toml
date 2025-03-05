@@ -1,7 +1,7 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
 authors = ["Orso Meneghini <orso82@gmail.com>"]
-version = "0.5.3"
+version = "0.5.7"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -14,8 +14,8 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+EGGO = "25cd7528-e4e3-46fe-8df7-7ec8e1454e14"
 EPEDNN = "e64856f0-3bb8-4376-b4b7-c03396503991"
-FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 FRESCO = "f2db6eb9-2c54-4c18-912b-ce467796777a"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -64,6 +64,12 @@ VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
 
+[weakdeps]
+ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
+
+[extensions]
+ThermalSystemModelsExt = "ThermalSystemModels"
+
 [compat]
 AbstractTrees = "0.4"
 BalanceOfPlantSurrogate = "3"
@@ -73,8 +79,8 @@ CSV = "0.10"
 ClusterManagers = "0.4"
 DataFrames = "1"
 DelimitedFiles = "1"
+EGGO = "1"
 EPEDNN = "1"
-FFMPEG = "0.4"
 FRESCO = "0.2.3"
 FileIO = "1"
 ForwardDiff = "0.10"
@@ -117,9 +123,3 @@ TroyonBetaNN = "1"
 VacuumFields = "3.0.4"
 Weave = "0.10"
 YAML = "0.4"
-
-[weakdeps]
-ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
-
-[extensions]
-ThermalSystemModelsExt = "ThermalSystemModels"
