@@ -383,7 +383,7 @@ function save(
 end
 
 
-function save2hdf(
+function save_database(
     savedir::AbstractString,
     parent_group::AbstractString,
     dd::Union{Nothing,IMAS.dd},

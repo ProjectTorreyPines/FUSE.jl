@@ -155,7 +155,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
         if study.sty.database_policy == :separate_folders
             analyze(study; extract_results=true)
         else
-            _merge_tmp_files(study; cleanup=true)
+            study.dataframe = _merge_tmp_study_files(sty.save_folder; cleanup=true)
             analyze(study; extract_results=false)
         end
 
@@ -169,32 +169,49 @@ function _run(study::StudyMultiObjectiveOptimizer)
     end
 end
 
-function _merge_tmp_files(study::StudyMultiObjectiveOptimizer; cleanup::Bool=false)
+function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false)
+    @assert isdir(save_folder) "The folder (\"$save_folder\") you are trying to merge does not exist"
+
     date_time_str = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-    merged_hdf5_filename = "generations_$(date_time_str).h5"
-
-    save_folder = study.sty.save_folder
-
-    IMAS.h5merge(joinpath(save_folder, merged_hdf5_filename),
-        joinpath(save_folder, "tmp_h5_output");
-        h5_group_search_depth=2,
-        h5_strip_group_prefix=true,
-        cleanup)
 
     # read csv files
     tmp_csv_folder = joinpath(save_folder, "tmp_csv_output")
     csv_files = readdir(tmp_csv_folder; join=true)
     dfs = [CSV.read(file, DataFrame) for file in csv_files]
 
-    study.dataframe = reduce(vcat, dfs)
+    merged_df = reduce(vcat, dfs; cols=:union)
+    sort!(merged_df, "gparent")
+
+    if "gen" in names(merged_df)
+        # This is a multi-objective optimization
+        leading_cols = ["gparent", "status", "gen", "case", "Ngen", "Ncase", "dir"]
+        h5_group_search_depth = 2
+    else
+        # This is a database generator
+        leading_cols = ["gparent", "status", "case", "dir"]
+        h5_group_search_depth = 1
+    end
+    remaining = setdiff(names(merged_df), leading_cols)
+    desired_order = vcat(leading_cols, sort(remaining))
+
+    # change order of columns, and replace missing values with NaN
+    merged_df = coalesce.(merged_df[:, desired_order], NaN)
 
     merged_csv_filepath = joinpath(save_folder, "extract_$(date_time_str).csv")
-    CSV.write(merged_csv_filepath, study.dataframe)
+    CSV.write(merged_csv_filepath, merged_df)
 
-    # write study.dataframe into the mergedh5 file as well
+    merged_hdf5_filename = "database_$(date_time_str).h5"
+
+    IMAS.h5merge(joinpath(save_folder, merged_hdf5_filename),
+        joinpath(save_folder, "tmp_h5_output");
+        h5_group_search_depth=h5_group_search_depth,
+        h5_strip_group_prefix=true,
+        cleanup)
+
+    # Add merged_df into the mergedh5 file as well
     HDF5.h5open(joinpath(save_folder, merged_hdf5_filename), "r+") do fid
         io_buffer = IOBuffer()
-        CSV.write(io_buffer, study.dataframe)
+        CSV.write(io_buffer, merged_df)
         csv_text = String(take!(io_buffer))
         HDF5.write(fid, "extract.csv", csv_text)
         attr = HDF5.attrs(fid["/extract.csv"])
@@ -205,6 +222,8 @@ function _merge_tmp_files(study::StudyMultiObjectiveOptimizer; cleanup::Bool=fal
     if cleanup
         rm(tmp_csv_folder; recursive=true)
     end
+
+    return merged_df
 end
 
 

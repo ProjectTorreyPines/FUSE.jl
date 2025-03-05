@@ -157,9 +157,9 @@ function optimization_engine(
     original_stderr = stderr  # Save the original stderr
 
     if isnothing(case_index)
-        parent_group = "/generation_$generation/pid$(getpid())"
+        parent_group = "/gen$(lpad(generation,Lpad_gen,"0"))/pid$(getpid())"
         tmp_log_filename = "tmp_log_pid$(getpid()).txt"
-        tmp_log_io = open(joinpath(tmp_log_folder,"pid$(getpid()).txt"), "w+")
+        tmp_log_io = open(joinpath(tmp_log_folder, "pid$(getpid()).txt"), "w+")
     else
         Lpad_gen = length(string(number_of_generations))
         Lpad_case = length(string(population_size))
@@ -192,25 +192,28 @@ function optimization_engine(
         end
 
         # save simulation data
-        save2hdf("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
+        save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
             timer=true, freeze=false, overwrite_groups=true)
 
-        # extract dd and save it to csv file
-        tmp_csv_folder = joinpath(save_folder,"tmp_csv_output")
+        df = DataFrame(IMAS.extract(dd, :all))
+        df[!, :dir] = [save_folder]
+        df[!, :gen] = fill(generation, nrow(df))
+        df[!, :case] = fill(case_index, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :Ngen] = fill(number_of_generations, nrow(df))
+        df[!, :Ncase] = fill(population_size, nrow(df))
+        df[!, :status] = fill("success", nrow(df))
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
         if !isdir(tmp_csv_folder)
             mkdir(tmp_csv_folder)
         end
-
-        csv_filepath =joinpath(tmp_csv_folder, "extract_pid$(getpid()).csv")
-        open(csv_filepath, "a") do io
-            df = DataFrame(IMAS.extract(dd, :all))
-            df[!,:dir] = [save_folder]
-            df[!,:gen] = fill(generation, nrow(df))
-            df[!,:case] = fill(case_index, nrow(df))
-            df[!,:gparent] = fill(parent_group, nrow(df))
-            df[!,:Ngen] = fill(number_of_generations, nrow(df))
-            df[!,:Ncase] = fill(population_size, nrow(df))
-            CSV.write(io, df)
+        csv_filepath = joinpath(tmp_csv_folder, "extract_success_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df; append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
         end
 
 
@@ -232,8 +235,29 @@ function optimization_engine(
         end
 
         # save empty dd and error to directory
-        save2hdf("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
             error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+
+        df = DataFrame()
+        df[!, :dir] = [save_folder]
+        df[!, :gen] = fill(generation, nrow(df))
+        df[!, :case] = fill(case_index, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :Ngen] = fill(number_of_generations, nrow(df))
+        df[!, :Ncase] = fill(population_size, nrow(df))
+        df[!, :status] = fill("fail", nrow(df))
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+        csv_filepath = joinpath(tmp_csv_folder, "extract_fail_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df; append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
+        end
 
         # rethrow(e) # uncomment for debugging purposes
 
@@ -252,7 +276,7 @@ function optimization_engine(
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
         close(tmp_log_io)
-        rm(tmp_log_filename, force=true)
+        rm(tmp_log_filename; force=true)
 
         cd(original_dir)
     end
