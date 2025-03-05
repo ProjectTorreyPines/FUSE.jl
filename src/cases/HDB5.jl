@@ -6,7 +6,7 @@ using CSV: CSV
 
 For description of cases/variables see https://osf.io/593q6/
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
     if !ismissing(database_case)
         data_row = load_hdb5(; database_case)
     elseif !ismissing(case)
@@ -59,8 +59,8 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     ini.core_profiles.ne_setting = :ne_line
     ini.core_profiles.ne_value = data_row[:NEL]
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = data_row[:ZEFF]
     ini.core_profiles.rot_core = 10e3
     ini.core_profiles.ngrid = 201

@@ -3,7 +3,7 @@
 
 CFS/MIT ARC design
 """
-function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "ARC"
@@ -18,22 +18,21 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.B0 = -11.5
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 9.9e6
-    ini.equilibrium.pressure_core = 1.45e6
 
     # explicitly set thickness of radial build layers
-    ini.build.n_first_wall_conformal_layers = 2
+    ini.build.n_first_wall_conformal_layers = 1
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.82
     layers[:OH] = 0.3
     layers[:hfs_TF] = 0.6
     layers[:hfs_gap_blanket_TF] = 0.186
-    layers[:hfs_blanket] = 0.4
     layers[:hfs_vacuum_vessel] = 0.166
+    layers[:hfs_blanket] = 0.4
     layers[:hfs_wall] = 0.02
     layers[:plasma] = 2.05
     layers[:lfs_wall] = 0.02
-    layers[:lfs_vacuum_vessel] = 0.166
     layers[:lfs_blanket] = 0.95
+    layers[:lfs_vacuum_vessel] = 0.166
     layers[:lfs_gap_blanket_TF] = 0.28
     layers[:lfs_TF] = 0.55
     layers[:gap_cryostat] = 1.119
@@ -64,13 +63,14 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)::Tuple{Par
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.49 * 0.75
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.helium_fraction = 0.10 #estimate
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_core = 20E3
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 1.5
-    ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :Ne #estimate (from ITER)
+    ini.core_profiles.impurity = :Ne
+    ini.core_profiles.helium_fraction = 0.10
+    ini.core_profiles.rot_core = 0.0
 
     resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled

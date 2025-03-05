@@ -12,7 +12,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if IMAS.hasdata(dd1.equilibrium, :time) && length(dd1.equilibrium.time) > 0 && ini.equilibrium.boundary_from == :ods
+            if !isempty(dd1.equilibrium.time_slice) && ini.equilibrium.boundary_from == :ods
                 dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
                 fw = IMAS.first_wall(dd.wall)
@@ -39,21 +39,15 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 cp1d.grid.rho_tor_norm = rhon
                 cp1d.grid.psi = psin
                 cp1d.j_tor = ini.equilibrium.ip .* (1.0 .- psin) ./ @ddtime(dd.pulse_schedule.position_control.geometric_axis.r.reference)
-                if !ismissing(ini.requirements, :power_electric_net) && ismissing(ini.equilibrium, :pressure_core)
-                    Pfusion_estimate = ini.requirements.power_electric_net * 2.0
-                    dd0 = deepcopy(dd)
-                    dd0.core_profiles.profiles_1d[].pressure = 1E4 .* (1.0 .- psin).^2
-                    ActorEquilibrium(dd0, act; ip_from=:pulse_schedule)
-                    res = Optim.optimize(x -> cost_Pfusion_p0(x, Pfusion_estimate, dd0, ini), 1e1, 1e7, Optim.GoldenSection())
-                    ini.equilibrium.pressure_core = pressure_core = res.minimizer[1]
-                    @warn "Guessing `ini.equilibrium.pressure_core=$pressure_core` based on ini.requirements.power_electric_net=$(ini.requirements.power_electric_net)"
-                elseif !ismissing(getproperty(ini.equilibrium, :pressure_core))
-                    pressure_core = ini.equilibrium.pressure_core
-                else
-                    error("Specify `ini.equilibrium.pressure_core` for this case")
+
+                # estimate ini.equilibrium.pressure_core
+                if ismissing(ini.equilibrium, :pressure_core)
+                    dd0 = IMAS.dd()
+                    init_core_profiles!(dd0, ini, act, dd1)
+                    ini.equilibrium.pressure_core = dd0.core_profiles.profiles_1d[].pressure[1]
                 end
 
-                cp1d.pressure = pressure_core .* (1.0 .- psin).^2
+                cp1d.pressure = ini.equilibrium.pressure_core .* (1.0 .- psin).^2
             end
         end
 
@@ -95,10 +89,9 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
             pc.boundary_outline[k].z.reference[1] = z
         end
     else
+        pushfirst!(pc.time, -Inf)
         for (k, (r, z)) in enumerate(zip(pr, pz))
-            pushfirst!(pc.time, -Inf)
             pushfirst!(pc.boundary_outline[k].r.reference, r)
-            pushfirst!(pc.time, -Inf)
             pushfirst!(pc.boundary_outline[k].z.reference, z)
         end
     end

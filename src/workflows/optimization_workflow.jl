@@ -28,7 +28,8 @@ function workflow_multiobjective_optimization(
     iterations::Int=N,
     continue_state::Union{Nothing,Metaheuristics.State}=nothing,
     save_folder::AbstractString="optimization_runs",
-    save_dd::Bool=true)
+    save_dd::Bool=true,
+    generation_offset::Int=0)
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
@@ -44,19 +45,21 @@ function workflow_multiobjective_optimization(
 
     # itentify optimization variables in ini
     opt_ini = opt_parameters(ini)
-    println("== Actuators ==")
-    for optpar in opt_ini
-        println(optpar)
-    end
-    println()
-    println("== Objectives ==")
-    for objf in objective_functions
-        println(objf)
-    end
-    println()
-    println("== Constraints ==")
-    for cnst in constraint_functions
-        println(cnst)
+    if generation_offset == 0
+        println("== Actuators ==")
+        for optpar in opt_ini
+            println(optpar)
+        end
+        println()
+        println("== Objectives ==")
+        for objf in objective_functions
+            println(objf)
+        end
+        println()
+        println("== Constraints ==")
+        for cnst in constraint_functions
+            println(cnst)
+        end
     end
 
     # optimization floating point boundaries
@@ -109,8 +112,14 @@ function workflow_multiobjective_optimization(
     ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
     @time state =
-        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p), bounds, algorithm)
-    display(state)
+        Metaheuristics.optimize(
+            X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p, generation_offset),
+            bounds,
+            algorithm
+        )
+    if generation_offset == 0
+        display(state)
+    end
 
     if !isempty(save_folder)
         save_optimization(joinpath(save_folder, "results.jls"), state, ini, act, objective_functions, constraint_functions)

@@ -25,7 +25,7 @@ end
 """
     ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Populates `pf_passive` structures
+Populates `pf_passive` IDS based on the vacuum vessel layer(s)
 """
 function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPassiveStructures(dd, act.ActorPassiveStructures; kw...)

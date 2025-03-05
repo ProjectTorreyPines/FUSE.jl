@@ -12,13 +12,15 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersAc
     thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-",
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
-    verbose::Entry{Bool} = act_common_parameters(verbose=false)
+    max_Li6_enrichment_fraction::Entry{T} = Entry{T}("-", "Maximum allowed Li6 enrichment_fraction"; default=0.9)
+#    optimize_blanket_layers
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorBlanket{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     function ActorBlanket(dd::IMAS.dd{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorBlanket)
         par = par(kw...)
@@ -31,7 +33,8 @@ end
 
 Evaluates blankets tritium breeding ratio (TBR), heat deposition, and neutron leakage
 
-!!! note 
+!!! note
+
     Stores data in `dd.blanket`
 """
 function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -44,9 +47,9 @@ end
 function _step(actor::ActorBlanket)
     dd = actor.dd
     empty!(dd.blanket)
-    
-    blankets = IMAS.get_build_layers(dd.build.layer, type=_blanket_)
-    if isempty(blankets)
+
+    blanket_layers = IMAS.get_build_layers(dd.build.layer; type=_blanket_)
+    if isempty(blanket_layers)
         @warn "No blanket present for ActorBlanket to do anything"
         return actor
     end
@@ -85,31 +88,8 @@ function _step(actor::ActorBlanket)
         bm = dd.blanket.module[istructure]
         bm.name = structure.name
 
-        # get the relevant blanket layers (d1, d2, d3)
-        if sum(structure.outline.r) / length(structure.outline.r) < eqt.boundary.geometric_axis.r && length(blankets) > 1 # HFS
-            fs = _hfs_
-        else
-            fs = _lfs_
-        end
-        d1 = IMAS.get_build_layers(dd.build.layer, type=_wall_, fs=fs)
-        if !isempty(d1)
-            # if there are multiple walls we choose the one closest to the plasma
-            if fs == _hfs_
-                d1 = d1[end]
-            else
-                d1 = d1[1]
-            end
-        end
-        d2 = IMAS.get_build_layer(dd.build.layer, type=_blanket_, fs=fs)
-        d3 = IMAS.get_build_layers(dd.build.layer, type=_shield_, fs=fs)
-        if !isempty(d3)
-            # if there are multiple shields we choose the one closest to the plasma
-            if fs == _hfs_
-                d3 = d3[end]
-            else
-                d3 = d3[1]
-            end
-        end
+        d1, d2, d3 = d1_d2_d3_layers(structure, dd.build.layer, eqt.boundary.geometric_axis.r, length(blankets))
+
         append!(modules_relative_thickness13, [1.0, 1.0])
 
         # assign blanket module layers (designed to handle missing wall and/or missing shield)
@@ -128,7 +108,7 @@ function _step(actor::ActorBlanket)
         end
 
         # identify first wall portion of the blanket module
-        tmp = convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
+        tmp = IMAS.convex_hull(vcat(eqt.boundary.outline.r, structure.outline.r), vcat(eqt.boundary.outline.z, structure.outline.z); closed_polygon=true)
         index = findall(x -> x == 1, [IMAS.PolygonOps.inpolygon((r, z), tmp) for (r, z) in zip(wall_r, wall_z)])
         istart = argmin(abs.(wall_z[index]))
         if IMAS.getindex_circular(wall_z[index], istart + 1) > wall_z[index][istart]
@@ -190,29 +170,40 @@ function _step(actor::ActorBlanket)
 
     # Optimize layers thicknesses and minimize Li6 enrichment needed to match
     # target TBR and minimize neutron leakage (realistic geometry and wall loading)
-    function target_TBR2D(blanket_model::NNeutronics.Blanket, modules_relative_thickness13::Vector{<:Real}, Li6::Real, dd::IMAS.dd, modules_effective_thickness::Vector{Matrix{Float64}}, modules_wall_loading_power::Vector{<:Any}, total_power_neutrons::Real, min_d1::Float64=0.02, target::Float64=0.0)
+    function target_TBR2D(
+        blanket_model::NNeutronics.Blanket,
+        modules_relative_thickness13::Vector{<:Real},
+        Li6::Real,
+        dd::IMAS.dd,
+        modules_effective_thickness::Vector{Matrix{Float64}},
+        modules_wall_loading_power::Vector{<:Any},
+        total_power_neutrons::Real,
+        min_thickness::Float64=0.02,
+        target::Float64=0.0
+    )
+        Li6 = mirror_bound(abs(Li6), 0.0, 100.0 * par.max_Li6_enrichment_fraction)
         energy_grid = NNeutronics.energy_grid()
         total_tritium_breeding_ratio = 0.0
-        Li6 = min(max(abs(Li6), 0.0), 100.0)
         modules_peak_wall_flux = zeros(length(dd.blanket.module))
         modules_peak_escape_flux = zeros(length(dd.blanket.module))
         extra_cost = 0.0
         for (ibm, bm) in enumerate(dd.blanket.module)
-            bmt = bm.time_slice[]
-            bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f", Li6)
+            total_thickness = bm.layer[1].midplane_thickness + bm.layer[2].midplane_thickness + bm.layer[3].midplane_thickness
+            bm.layer[2].material = @sprintf("lithium-lead: Li6/7=%3.3f%%", Li6)
             module_tritium_breeding_ratio = 0.0
             module_wall_loading_power = sum(modules_wall_loading_power[ibm])
             d1 = bm.layer[1].midplane_thickness * abs(modules_relative_thickness13[1+(ibm-1)*2])
-            if d1 < min_d1
-                extra_cost += (min_d1 - d1)
-                d1 = max(d1, min_d1)
-            end
             d2 = bm.layer[2].midplane_thickness
             d3 = bm.layer[3].midplane_thickness * abs(modules_relative_thickness13[2+(ibm-1)*2])
             dtot = d1 + d2 + d3
             x1 = d1 / dtot
             x2 = d2 / dtot
             x3 = d3 / dtot
+            for xl in (x1, x2, x3)
+                if total_thickness * xl < min_thickness
+                    extra_cost += (min_thickness - total_thickness * xl) / min_thickness
+                end
+            end
             for k in eachindex(modules_wall_loading_power[ibm])
                 ed1 = modules_effective_thickness[ibm][k, 1] * x1
                 ed2 = modules_effective_thickness[ibm][k, 2] * x2
@@ -228,30 +219,102 @@ function _step(actor::ActorBlanket)
             modules_peak_wall_flux[ibm] = maximum(modules_wall_loading_power[ibm])
             total_tritium_breeding_ratio += module_tritium_breeding_ratio * module_wall_loading_power / total_power_neutrons
             if target === 0.0
+                bmt = bm.time_slice[]
                 bmt.tritium_breeding_ratio = module_tritium_breeding_ratio
                 bmt.peak_wall_flux = modules_peak_wall_flux[ibm]
                 bmt.peak_escape_flux = modules_peak_escape_flux[ibm]
-                bm.layer[1].midplane_thickness = d1
-                bm.layer[2].midplane_thickness = d2
-                bm.layer[3].midplane_thickness = d3
+                bm.layer[1].midplane_thickness = total_thickness * x1
+                bm.layer[2].midplane_thickness = total_thickness * x2
+                bm.layer[3].midplane_thickness = total_thickness * x3
             end
         end
         if target === 0.0
             @ddtime(dd.blanket.tritium_breeding_ratio = total_tritium_breeding_ratio)
         else
-            cost = norm([(total_tritium_breeding_ratio - target), maximum(modules_peak_escape_flux) / sum(modules_peak_wall_flux), extra_cost])
+            cost = norm((
+                (total_tritium_breeding_ratio - target) / target,
+                exp(Li6) / exp(100.0),
+                extra_cost
+            ))
             return cost
         end
     end
 
-    res = Optim.optimize(x -> target_TBR2D(blanket_model_1d, x[1:end-1], x[end], dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness, dd.requirements.tritium_breeding_ratio), vcat(modules_relative_thickness13, 50.0), Optim.NelderMead())#; autodiff=:forward)#, rel_tol=1E-6)
-    total_tritium_breeding_ratio = target_TBR2D(blanket_model_1d, res.minimizer[1:end-1], abs(res.minimizer[end]), dd, modules_effective_thickness, modules_wall_loading_power, total_power_neutrons, par.minimum_first_wall_thickness)
+    res = Optim.optimize(
+        x -> target_TBR2D(
+            blanket_model_1d,
+            x[1:end-1],
+            x[end],
+            dd,
+            modules_effective_thickness,
+            modules_wall_loading_power,
+            total_power_neutrons,
+            par.minimum_first_wall_thickness,
+            dd.requirements.tritium_breeding_ratio
+        ),
+        vcat(modules_relative_thickness13, 50.0),
+        Optim.NelderMead()
+    )#; autodiff=:forward)#, rel_tol=1E-6)
+    total_tritium_breeding_ratio = target_TBR2D(
+        blanket_model_1d,
+        res.minimizer[1:end-1],
+        abs(res.minimizer[end]),
+        dd,
+        modules_effective_thickness,
+        modules_wall_loading_power,
+        total_power_neutrons,
+        par.minimum_first_wall_thickness
+    )
     if par.verbose
         println(res)
     end
 
-    # rebuild geometry
-    ActorCXbuild(dd, act)
+    # assign the thicknesses back to the dd.build.layer
+    for (istructure, structure) in enumerate(blankets)
+        bm = dd.blanket.module[istructure]
+
+        d1, d2, d3 = d1_d2_d3_layers(structure, dd.build.layer, eqt.boundary.geometric_axis.r, length(blankets))
+
+        if !isempty(d1)
+            d1.thickness = bm.layer[1].midplane_thickness
+        end
+        d2.thickness = bm.layer[2].midplane_thickness
+        if !isempty(d3)
+            d3.thickness = bm.layer[3].midplane_thickness
+        end
+    end
 
     return actor
+end
+
+function d1_d2_d3_layers(structure::IMAS.build__structure, layers::AbstractVector{<:IMAS.build__layer}, RA::Float64, n_blankets)
+    # get the relevant blanket layers (d1, d2, d3)
+    if sum(structure.outline.r) / length(structure.outline.r) < RA && n_blankets > 1 # HFS
+        fs = _hfs_
+    else
+        fs = _lfs_
+    end
+    d1 = IMAS.get_build_layers(layers; type=_wall_, fs=fs)
+    if !isempty(d1)
+        # if there are multiple walls we choose the one closest to the plasma
+        if fs == _hfs_
+            d1 = d1[end]
+        else
+            d1 = d1[1]
+        end
+    end
+    d2 = IMAS.get_build_layer(layers; type=_blanket_, fs=fs)
+    d3 = IMAS.get_build_layers(layers; type=_shield_, fs=fs)
+    if isempty(d3)
+        d3 = IMAS.get_build_layers(layers; type=_vessel_, fs=fs)
+    end
+    if !isempty(d3)
+        # if there are multiple shields we choose the one closest to the plasma
+        if fs == _hfs_
+            d3 = d3[end]
+        else
+            d3 = d3[1]
+        end
+    end
+    return d1, d2, d3
 end

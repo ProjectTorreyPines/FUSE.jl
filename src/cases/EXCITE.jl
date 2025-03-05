@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
+    case_parameters(::Type{Val{:EXCITE}})
 
 GA EXCITE design
 """
-function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:EXCITE}})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -15,7 +15,6 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.build.layers = OrderedCollections.OrderedDict(
         :gap_OH => 0.253,
         :OH => 0.154,
-        :gap_TF_OH => 0.01,
         :hfs_TF => 0.212,
         :hfs_gap_low_temp_shield_TF => 0.01,
         :hfs_low_temp_shield => 0.101,
@@ -55,13 +54,14 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.25
     ini.core_profiles.ne_shaping = 1.5
-    ini.core_profiles.T_ratio = 0.825
-    ini.core_profiles.T_shaping = 2.5
+    ini.core_profiles.Te_shaping = 2.5
+    ini.core_profiles.Te_sep = 100.0
+    ini.core_profiles.Ti_Te_ratio = 0.825
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.helium_fraction = 0.0
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.00
+    ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 6
@@ -70,13 +70,21 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.oh.technology = :rebco
     ini.pf_active.technology = :nb3sn
 
+    ini.center_stack.bucked = true
+    ini.center_stack.plug = true
+
     ini.tf.n_coils = 16
-    ini.tf.shape = :double_ellipse
+    ini.tf.shape = :rectangle_ellipse
 
     resize!(ini.ec_launcher, 2)
+    resize!(act.ActorSimpleEC.actuator, 2)
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.5
+    act.ActorSimpleEC.actuator[1].width = 0.1
     ini.ec_launcher[1].power_launched = 25.0e6
     ini.ec_launcher[1].efficiency_conversion = 0.45
     ini.ec_launcher[1].efficiency_transmission = 0.8
+    act.ActorSimpleEC.actuator[2].rho_0 = 0.7
+    act.ActorSimpleEC.actuator[2].width = 0.1
     ini.ec_launcher[2].power_launched = 25.0e6
     ini.ec_launcher[2].efficiency_conversion = 0.45
     ini.ec_launcher[2].efficiency_transmission = 0.8
@@ -84,14 +92,12 @@ function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,Paramet
     ini.requirements.power_electric_net = 0.0e0
     ini.requirements.flattop_duration = 1800.0
     ini.requirements.tritium_breeding_ratio = 0.0
-    ini.requirements.coil_j_margin = 0.1
-    ini.requirements.coil_stress_margin = 0.1
 
     ini.time.simulation_start = 0.0
 
     #### ACT ####
 
-    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
+    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
 
     act.ActorFluxSwing.operate_oh_at_j_crit = true
 

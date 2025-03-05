@@ -7,7 +7,7 @@ https://arxiv.org/abs/2405.20243
 
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
-function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -29,7 +29,6 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
         :gap_cryostat => 1.4,
         :cryostat => 0.2
     )
-    ini.build.plasma_gap = 0.1
     ini.build.symmetric = true
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
@@ -40,7 +39,6 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.equilibrium.κ = 1.4
     ini.equilibrium.δ = -0.45
     ini.equilibrium.ζ = -0.25
-    ini.equilibrium.pressure_core = 1.0E6
     ini.equilibrium.ip = 10.e6
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
@@ -50,17 +48,17 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     act.ActorPedestal.density_match = :ne_line
     ini.core_profiles.ne_value = 0.5
     ini.core_profiles.ne_shaping = 4.0
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 2.0
+    ini.core_profiles.Te_core = 20E3
+    ini.core_profiles.Te_shaping = 2.0
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.0
+    ini.core_profiles.helium_fraction = 0.025
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.025
 
     ini.build.layers[:OH].coils_inside = 6
-    ini.build.layers[:hfs_blanket].coils_inside = 4
-    ini.build.layers[:lfs_blanket].coils_inside = 4
+    ini.build.layers[:lfs_blanket].coils_inside = 8
 
     ini.oh.technology = :rebco
     ini.pf_active.technology = :rebco
@@ -98,6 +96,9 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     act.ActorTGLF.model = :TJLF
 
     act.ActorPFdesign.symmetric = true
+
+    filter!(!=(:q95_gt_2), act.ActorPlasmaLimits.models)
+    filter!(!=(:beta_troyon_nn), act.ActorPlasmaLimits.models)
 
     return ini, act
 end

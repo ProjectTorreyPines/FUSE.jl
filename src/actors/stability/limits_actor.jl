@@ -1,73 +1,99 @@
-#= ==================== =#
-#  ActorStabilityLimits  #
-#= ==================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStabilityLimits{T<:Real} <: ParametersActor{T}
+#= ================= =#
+#  ActorPlasmaLimits  #
+#= ================= =#
+Base.@kwdef mutable struct FUSEparameters__ActorPlasmaLimits{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    models::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "Models used for checking plasma stability limits: $(supported_stability_models())"; default=[:default_limits])
-    raise_on_breach::Entry{Bool} = Entry{Bool}("-", "Raise an error when one or more stability limits are breached"; default=true)
+    models::Entry{Vector{Symbol}} =
+        Entry{Vector{Symbol}}("-", "Models used for checking plasma operational limits: $(supported_limit_models)"; default=deepcopy(default_limit_models))
+    raise_on_breach::Entry{Bool} = Entry{Bool}("-", "Raise an error when one or more operational limits are breached"; default=true)
+    #== display and debugging parameters ==#
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
-mutable struct ActorStabilityLimits{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorPlasmaLimits{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorStabilityLimits{P}
-    function ActorStabilityLimits(dd::IMAS.dd{D}, par::FUSEparameters__ActorStabilityLimits{P}; kw...) where {D<:Real,P<:Real}
-        logging_actor_init(ActorStabilityLimits)
+    par::FUSEparameters__ActorPlasmaLimits{P}
+    act::ParametersAllActors{P}
+    function ActorPlasmaLimits(dd::IMAS.dd{D}, par::FUSEparameters__ActorPlasmaLimits{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorPlasmaLimits)
         par = par(kw...)
-        return new{D,P}(dd, par)
+        return new{D,P}(dd, par, act)
     end
 end
 
 """
-    ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPlasmaLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
 Runs all the limit actors
 """
-function ActorStabilityLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorStabilityLimits(dd, act.ActorStabilityLimits; kw...)
+function ActorPlasmaLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorPlasmaLimits(dd, act.ActorPlasmaLimits, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
 """
-    _step(actor::ActorStabilityLimits)
+    _step(actor::ActorPlasmaLimits)
 
-Runs through the selected stability actor's step
+Runs through the selected plasma limits
 """
-function _step(actor::ActorStabilityLimits)
+function _step(actor::ActorPlasmaLimits)
     dd = actor.dd
     par = actor.par
-    
-    # run all stability models
-    run_stability_models(dd, par.models)
+    act = actor.act
 
-    if !isempty(par.models) && par.raise_on_breach
-        failed = String[]
-        desc = String[]
-        for model in dd.stability.model
-            if !Bool(@ddtime model.cleared)
-                model_name = IMAS.index_2_name__stability__model[model.identifier.index]
-                push!(failed, "$(model_name)")
-                push!(desc, "$(model_name) ($(@ddtime(model.fraction)) of limit): $(model.identifier.description)")
+    # run all limit models
+    for model_name in par.models
+        func = try
+            eval(model_name)
+        catch e
+            if typeof(e) <: UndefVarError
+                error("Unknown model `$(repr(model_name))`. Supported models are $(supported_limit_models)")
+            else
+                rethrow(e)
             end
         end
-        if !isempty(failed)
-            error("Some stability models have breached their limit threshold:\n$(join(failed, " "))\n* $(join(desc, "\n* "))")
+        func(dd, act)
+    end
+
+    # identify which limits were breached
+    failed_list = String[]
+    passed_list = String[]
+    for model in dd.limits.model
+        txt = "$(Int(ceil(@ddtime(model.fraction)*100)))% of: $(model.identifier.description)"
+        if Bool(@ddtime model.cleared)
+            push!(passed_list, txt)
+        else
+            push!(failed_list, txt)
         end
     end
 
-    return actor
-end
+    # generate report text
+    if !isempty(failed_list)
+        failed = "\n\nSome stability rules exceed their limit threshold:\n $(join(failed_list, "\n "))"
+    else
+        failed = ""
+    end
+    if !isempty(passed_list)
+        passed = "\n\nSome stability rules satisfy their limit threshold:\n $(join(passed_list, "\n "))"
+    else
+        passed = ""
+    end
+    txt = "act.ActorPlasmaLimits.models = $(par.models)$failed$passed"
 
-"""
-    _finalize(actor::ActorStabilityLimits)
+    # error, warn, or print
+    if !isempty(failed)
+        if par.raise_on_breach
+            error(txt)
+        else
+            @warn(txt)
+        end
+    elseif par.verbose
+        println(txt)
+    end
 
-Finalizes the selected stability actor
-"""
-function _finalize(actor::ActorStabilityLimits)
-    sort!(actor.dd.stability.collection, by=x -> x.identifier.index)
-    sort!(actor.dd.stability.model, by=x -> x.identifier.index)
     return actor
 end

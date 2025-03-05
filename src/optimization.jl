@@ -32,7 +32,7 @@ function optimization_engine(
 
     # create working directory
     original_dir = pwd()
-    savedir = abspath(joinpath(save_folder, "$(generation)__$(Dates.now())__$(getpid())"))
+    savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))        
     mkdir(savedir)
     cd(savedir)
 
@@ -150,12 +150,13 @@ function optimization_engine(
     constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
     save_folder::AbstractString,
     save_dd::Bool,
-    p::ProgressMeter.Progress)
+    p::ProgressMeter.Progress,
+    generation_offset::Int)
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(
-        x -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter, save_dd),
+        x -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter + generation_offset, save_dd),
         [X[k, :] for k in 1:size(X)[1]]
     )
     F = zeros(size(X)[1], length(tmp[1][1]))
@@ -175,11 +176,11 @@ function optimization_engine(
 end
 
 """
-    nan2inf(x::Float64)::Float64
+    nan2inf(x::Float64)
 
 Turn NaNs into Inf
 """
-function nan2inf(x::Float64)::Float64
+function nan2inf(x::Float64)
     if isnan(x)
         return Inf
     else

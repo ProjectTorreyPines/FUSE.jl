@@ -114,7 +114,7 @@ macro checkout(key, vars...)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
         else
-            throw(KeyError($key))
+            error("Checkpoint named `:$($key)` does not exist. Possible options are: [:$(join(keys(d),", :"))]")
         end
         nothing
     end
@@ -215,7 +215,7 @@ function IMAS.extract(
         # load the data
         ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
-        Threads.@threads for k in eachindex(DD)
+        Threads.@threads :static for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
             try
                 if aDDk in cached_dirs
@@ -297,7 +297,7 @@ end
         error::Any=nothing,
         timer::Bool=true,
         varinfo::Bool=false,
-        freeze::Bool=true,
+        freeze::Bool=false,
         format::Symbol=:json,
         overwrite_files::Bool=true)
 
@@ -317,7 +317,7 @@ function save(
     error::Any=nothing,
     timer::Bool=true,
     varinfo::Bool=false,
-    freeze::Bool=true,
+    freeze::Bool=false,
     format::Symbol=:json,
     overwrite_files::Bool=true)
 
@@ -482,7 +482,7 @@ function digest(
     end
 
     # core sources
-    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles.profiles_1d[]))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles; time0=dd.global_time))
         if !isempty(dd.core_sources.source) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_sources; only=k))
@@ -490,7 +490,7 @@ function digest(
     end
 
     # core transport
-    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles.profiles_1d[]))
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles; time0=dd.global_time))
         if !isempty(dd.core_transport) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_transport; only=k))
@@ -535,7 +535,7 @@ function digest(
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
         p = plot(; layout=l, size=(900, 400))
-        plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
+        plot!(p, dd.pf_active; what=:currents, time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
         plot!(p, dd.pf_active; time0, subplot=2, coil_identifiers=true)
@@ -677,7 +677,7 @@ function categorize_errors(
 
     # go through directories
     for dir in dirs
-        filename = joinpath([dir, "error.txt"])
+        filename = joinpath(dir, "error.txt")
         if !isfile(filename)
             continue
         end
@@ -808,18 +808,27 @@ A plot with the following characteristics:
         [], []
     end
 end
-
 """
     get_julia_process_memory_usage()
 
 Returns memory used by current julia process
 """
 function get_julia_process_memory_usage()
-    pid = getpid()
-    mem_info = read(`ps -p $pid -o rss=`, String)
-    mem_usage_kb = parse(Int, strip(mem_info))
-    return mem_usage_kb * 1024
+    if Sys.iswindows()
+        pid = getpid()
+        # Use PowerShell to get the current process's WorkingSet (memory in bytes)
+        cmd = `powershell -Command "(Get-Process -Id $pid).WorkingSet64"`
+        mem_bytes_str = readchomp(cmd)
+        mem_bytes = parse(Int, mem_bytes_str)
+    else
+        pid = getpid()
+        mem_info = read(`ps -p $pid -o rss=`, String)
+        mem_usage_kb = parse(Int, strip(mem_info))
+        mem_bytes = mem_usage_kb * 1024
+    end
+    return mem_bytes::Int
 end
+
 
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
@@ -983,30 +992,92 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
 end
 
 """
-    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    install_fusebot()
 
-This function installs the `fusebot` executable in a given folder,
-by default in the directory where the juliaup executable is located.
+Installs the `fusebot` executable in the directory where the `juliaup` executable is located
 """
-function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+function install_fusebot()
+    try
+        if Sys.iswindows()
+            folder = dirname(readchomp(`where juliaup`))
+        else
+            folder = dirname(readchomp(`which juliaup`))
+        end
+        return install_fusebot(folder)
+    catch e
+        error("error locating `juliaup` executable: $(string(e))\nPlease use `FUSE.install_fusebot(folder)` specifying a folder in your \$PATH")
+    end
+end
+
+"""
+    install_fusebot(folder::String)
+
+Installs the `fusebot` executable in a specified folder
+"""
+function install_fusebot(folder::String)
     fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
     target_path = joinpath(folder, "fusebot")
-    ptp_target_path = joinpath(folder, "ptp")
-
-    if !isfile(fusebot_path)
-        error("The `fusebot` executable does not exist in the FUSE directory!?")
-    end
-
+    @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
+    return println("`fusebot` has been successfully installed: $target_path")
+end
 
-    if folder == dirname(readchomp(`which juliaup`))
-        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
-    else
-        println("`fusebot` has been successfully installed in folder: $folder")
-    end
+"""
+    compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
 
-    if isfile(ptp_target_path)
-        rm(ptp_target_path)
-        println("Old `ptp` has been successfully removed from folder: $folder")
+This function activates the `Manifest.toml` files for the provided directories and compares their dependencies. It identifies:
+
+  - **Added dependencies**: Packages present in the env2 environment but not in the working environment.
+  - **Removed dependencies**: Packages present in the working environment but not in the env2 environment.
+  - **Modified dependencies**: Packages that exist in both environments but differ in version.
+"""
+function compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
+    # Save the current active environment
+    original_env = Base.current_project()
+
+    try
+        # Activate the env2 environment and retrieve its dependencies
+        Pkg.activate(env2_dir)
+        env_env2 = Pkg.dependencies()
+
+        # Activate the working environment and retrieve its dependencies
+        Pkg.activate(env1_dir)
+        env_env1 = Pkg.dependencies()
+
+        # Compare dependencies
+        added = setdiff(keys(env_env2), keys(env_env1))
+        removed = setdiff(keys(env_env1), keys(env_env2))
+        modified = [uuid for uuid in intersect(keys(env_env1), keys(env_env2)) if env_env1[uuid] != env_env2[uuid]]
+
+        println("Added dependencies: ")
+        for uuid in added
+            package_pkg = env_env2[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Removed dependencies:")
+        for uuid in removed
+            package_pkg = env_env1[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Modified dependencies:")
+        for uuid in modified
+            env2_pkg = env_env2[uuid]
+            env1_pkg = env_env1[uuid]
+            env2_name = env2_pkg.name
+            env2_version = env2_pkg.version
+            env1_version = env1_pkg.version
+            println("    $env2_name: env2=$env2_version, env1=$env1_version")
+        end
+
+        return (added=added, removed=removed, modified=modified)
+    finally
+        # Restore the original environment
+        Pkg.activate(original_env)
     end
 end

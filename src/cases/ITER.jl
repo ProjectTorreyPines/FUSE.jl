@@ -13,7 +13,7 @@ function case_parameters(
     init_from::Symbol,
     boundary_from::Symbol=:auto,
     ne_setting::Symbol=:ne_ped,
-    time_dependent::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+    time_dependent::Bool=false)
 
     ini = ParametersInits()
     act = ParametersActors()
@@ -28,18 +28,19 @@ function case_parameters(
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(pf_passive_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
-        # act.ActorStabilityLimits.raise_on_breach = false
+        # act.ActorPlasmaLimits.raise_on_breach = false
         if boundary_from == :auto
             boundary_from = :ods
         end
+        act.ActorEquilibrium.model = :FRESCO
     else
         ini.equilibrium.B0 = -5.3
         act.ActorCXbuild.rebuild_wall = true
         if boundary_from == :auto
             boundary_from = :MXH_params
         end
+        act.ActorEquilibrium.model = :TEQUILA
     end
-    act.ActorEquilibrium.model = :TEQUILA
 
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = boundary_from
@@ -123,10 +124,10 @@ function case_parameters(
         act.ActorPedestal.density_match = :ne_line
     end
     ini.core_profiles.ne_shaping = 1.0
-    ini.core_profiles.helium_fraction = 0.01
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.0
+    ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
@@ -138,7 +139,9 @@ function case_parameters(
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6
-    ini.ec_launcher[1].rho_0 = 0.0
+    resize!(act.ActorSimpleEC.actuator, 1)
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.3
+    act.ActorSimpleEC.actuator[1].width = 0.2
 
     resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 24E6
@@ -175,9 +178,11 @@ function case_parameters(
 
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
 
-    act.ActorFluxMatcher.step_size = 0.5
-
     act.ActorWholeFacility.update_build = false
+
+    act.ActorCurrent.model = :SteadyStateCurrent
+
+    act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
 
     return ini, act
 end

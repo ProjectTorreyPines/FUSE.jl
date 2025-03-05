@@ -3,7 +3,7 @@
 
 DTT
 """
-function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:DTT}})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -15,7 +15,6 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     ini.equilibrium.B0 = 5.85
     ini.equilibrium.ip = 5.5e6
-    ini.equilibrium.pressure_core = 0.9e6
 
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
@@ -40,15 +39,16 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
 
     layers[:plasma] = 1.4
 
-    layers[:lfs_wall] = 0.255
-    layers[:lfs_vacuum_vessel] = 0.21
+    layers[:lfs_wall] = 0.05
+    layers[:lfs_vacuum_vessel] = 0.41
     layers[:lfs_low_temp_shield] = 0.02
-    layers[:lfs_TF] = 0.585 # 4.078
+    layers[:lfs_TF] = 0.585
 
     layers[:gap_cryostat] = 0.5
     layers[:cryostat] = 0.10
     ini.build.layers = layers
     # ==============
+    
     ini.build.n_first_wall_conformal_layers = 1
 
     ini.build.layers[:OH].coils_inside = 6
@@ -66,12 +66,14 @@ function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,Parameters
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.366
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.T_ratio = 0.6
-    ini.core_profiles.T_shaping = 1.8
+    ini.core_profiles.Te_core = 20E3
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Te_sep = 100.0
+    ini.core_profiles.Ti_Te_ratio = 0.6
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Ne
+    ini.core_profiles.rot_core = 0.0
 
     ini.core_profiles.ejima = 0.4
 

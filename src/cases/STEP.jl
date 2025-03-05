@@ -3,7 +3,7 @@
 
 UKAEA STEP design
 """
-function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
     @assert init_from in (:scalars, :ods)
     @assert pf_from in (:scalars, :ods)
 
@@ -35,7 +35,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         :gap_cryostat => 1.5,
         :cryostat => 0.2
     )
-    ini.build.layers[:cryostat].shape = :rectangle
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = true
     ini.build.divertors = :double
@@ -49,17 +48,17 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     ini.equilibrium.ip = 21.1e6 # from PyTok
     ini.equilibrium.xpoints = :double
     ini.equilibrium.boundary_from = :scalars
-    ini.equilibrium.pressure_core = 776466.0
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.85
     ini.core_profiles.ne_shaping = 1.2
-    ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
+    ini.core_profiles.Te_core = 20E3
+    ini.core_profiles.Te_shaping = 2.5
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.zeff = 2.5 # from PyTok
+    ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
     ini.core_profiles.impurity = :Ne #Barium :Ba
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 2.5
     ini.core_profiles.rot_core = 0.0
     ini.core_profiles.ejima = 0.1
 
@@ -77,8 +76,10 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 150.e6
-    ini.ec_launcher[1].width = 0.25
-    ini.ec_launcher[1].rho_0 = 0.0
+    resize!(act.ActorSimpleEC.actuator, 1)
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.0
+    act.ActorSimpleEC.actuator[1].width = 0.25
+    act.ActorSimpleEC.actuator[1].ηcd_scale = 0.5
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
@@ -88,7 +89,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     # if init_from==:ods we need to sanitize the ODS that was given to us
     if init_from == :ods
         # Fix the core profiles
-        dd = load_ods(ini)
+        dd = load_ods(ini.ods.filename)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm
@@ -201,8 +202,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     act.ActorPFdesign.symmetric = true
 
-    act.ActorSimpleEC.ηcd_scale = 0.5
-
     act.ActorCoreTransport.model = :FluxMatcher
 
     act.ActorFluxMatcher.evolve_densities = :fixed
@@ -210,7 +209,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     act.ActorTGLF.tglfnn_model = "sat0_em_d3d"
 
-    act.ActorStabilityLimits.models = Symbol[]
+    act.ActorPlasmaLimits.models = Symbol[]
 
     # High-beta ST equilibrium is tricky to converge
     act.ActorTEQUILA.relax = 0.01

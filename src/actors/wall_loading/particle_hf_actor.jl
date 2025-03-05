@@ -39,7 +39,7 @@ function ActorParticleHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function _step(actor::ActorParticleHeatFlux)
+function _step(actor::ActorParticleHeatFlux{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
 
@@ -51,14 +51,14 @@ function _step(actor::ActorParticleHeatFlux)
     # s                     curvilinear abscissa computed from (Rwall, Zwall), clockwise starting at OMP - m
     # SOL                   list of OpenFieldLines used to compute (Rwall, Zwall) 
     # (r,q)                 Hypothesis of power density decay at omp for definition of SOL
-    Rwall, Zwall, rwall, zwall, s, SOL, r, q = IMAS.mesher_HF(dd; par.r, par.q, par.merge_wall, par.levels, par.step)
+    Rwall, Zwall, rwall, zwall, s, SOL, r, q = IMAS.mesher_heat_flux(dd; par.r, par.q, par.merge_wall, par.levels, par.step)
 
     # Compute the heat flux due to the influx of charged particles
     # q_part                 Heat flux due to particles perpendicular to the wall       - W/m2
     # q_parallel             Heat flux due to particles parallel to the magnetic field  - W/m2
-    q_part, q_parallel = IMAS.particle_HF(eqt, SOL, rwall, zwall, r, q; par.merge_wall)
+    q_part, q_parallel = IMAS.particle_heat_flux(eqt, SOL, rwall, zwall, r, q; par.merge_wall)
 
-    HF = IMAS.WallHeatFlux(; r=Rwall, z=Zwall, q_part, q_parallel, s)
+    HF = IMAS.WallHeatFlux{D}(; r=Rwall, z=Zwall, q_part, q_parallel, s)
     actor.wall_heat_flux = HF
 
     #plot

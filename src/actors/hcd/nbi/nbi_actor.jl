@@ -11,7 +11,7 @@ end
 mutable struct ActorNBI{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNBI{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     nbi_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P}}
 end
 

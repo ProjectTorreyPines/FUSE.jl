@@ -45,6 +45,7 @@ function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
+    logging_actor_init(ActorTGLF)
     par = par(kw...)
     if par.model ∈ [:TGLF, :TGLFNN]
         input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))

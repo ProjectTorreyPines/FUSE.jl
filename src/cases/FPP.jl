@@ -3,7 +3,7 @@
 
 GA's FPP design
 """
-function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -54,23 +54,24 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.δ = 0.6
     ini.equilibrium.ζ = 0.05
     ini.equilibrium.𝚶 = 0.1
-    ini.equilibrium.pressure_core = 1.e6
     ini.equilibrium.ip = 8.0e6
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
+    ini.equilibrium.field_null_surface = 0.75
 
     ini.core_profiles.ne_setting = :greenwald_fraction
     act.ActorPedestal.density_match = :ne_line
     ini.core_profiles.ne_value = 0.9
     ini.core_profiles.ne_shaping = 2.5
-    ini.core_profiles.T_ratio = 0.825
-    ini.core_profiles.T_shaping = 2.5
+    ini.core_profiles.Te_core = 25e3
+    ini.core_profiles.Te_shaping = 2.5
     ini.core_profiles.Te_sep = 250.0
+    ini.core_profiles.Ti_Te_ratio = 0.825
     ini.core_profiles.zeff = 1.5
-    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
-    ini.core_profiles.helium_fraction = 0.01
+    ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 5
@@ -84,23 +85,28 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
 
     total_ec_power = 90E6
     resize!(ini.ec_launcher, 6)
+    resize!(act.ActorSimpleEC.actuator, 6)
     x = range(0.1, 0.8, length(ini.ec_launcher))
     for (k, rho_0) in enumerate(x)
         ini.ec_launcher[k].power_launched = total_ec_power * rho_0^2 / sum(x)
         ini.ec_launcher[k].efficiency_conversion = 0.45
         ini.ec_launcher[k].efficiency_transmission = 0.8
-        ini.ec_launcher[k].rho_0 = rho_0
+        act.ActorSimpleEC.actuator[k].rho_0 = rho_0
     end
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 36000.0
+    ini.requirements.flattop_duration = missing # let the optimizer figure out maximum flattop duration
+    ini.requirements.coil_j_margin = 0.2
     ini.requirements.tritium_breeding_ratio = 1.1
 
     #### ACT ####
 
+    act.ActorPFactive.x_points_weight = 0.01
+    act.ActorPFactive.strike_points_weight = 0.01
+
     act.ActorLFSsizing.maintenance = :vertical
 
-    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
+    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
 
     if !flux_matcher
         act.ActorCoreTransport.model = :none
