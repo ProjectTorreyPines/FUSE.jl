@@ -27,7 +27,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
     control_points=true,
     plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
-    id = IMAS.plot_help_id(actor)
+    id = IMAS.recipe_id_for_help_plot(actor)
     IMAS.assert_type_and_record_argument(id, Bool, "Show equilibrium"; equilibrium)
     IMAS.assert_type_and_record_argument(id, Bool, "Show build"; build)
     IMAS.assert_type_and_record_argument(id, Bool, "Show coils flux"; coils_flux)
