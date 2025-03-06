@@ -49,8 +49,8 @@ function case_parameters(
         print("Fetching ec_launcher data")
         d3d.ec_launcher_active_hardware(ods, $shot)
 
-        print("Fetching nbi data")
-        d3d.nbi_active_hardware(ods, $shot)
+        # print("Fetching nbi data")
+        # d3d.nbi_active_hardware(ods, $shot)
 
         print("Fetching core_profiles data")
         d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
@@ -107,8 +107,13 @@ function case_parameters(
         pwd
         export PYTHONPATH=$(remote_omas_root):\$PYTHONPATH
         echo \$PYTHONPATH
+
+        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null &
+
         python -u omas_data_fetch.py
-        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'"
+
+        echo "Waiting for OMFIT D3D BEAMS data fetching to complete..."
+        wait
         """
     open(joinpath(shot_ods_dir, "remote_slurm.sh"), "w") do io
         return write(io, remote_slurm)
