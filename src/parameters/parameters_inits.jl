@@ -697,8 +697,8 @@ Plots ini time dependent time traces including plasma boundary
 """
 @recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini), cx=false)
     id = IMAS.recipe_id_for_help_plot(ini)
-    IMAS.assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
-    IMAS.assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
+    HelpPlots.assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
+    HelpPlots.assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
 
     # count number of time-dependent parameters
     if !cx
