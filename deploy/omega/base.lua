@@ -31,10 +31,7 @@ setenv("JULIA_CC", "gcc -O3")
 --   modeled after how the Julia binaries are built
 setenv("JULIA_CPU_TARGET", "generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)")
 
-
 prepend_path("JUPYTER_PATH", envdir .. "/.jupyter")
 
 prepend_path("PATH", basedir .. "/miniconda3/bin")
-
-local fuse_sysimage = envdir .. "/sys_fuse.so"
-set_alias("julia", "julia --sysimage=" .. fuse_sysimage)
+prepend_path("PATH", envdir)
