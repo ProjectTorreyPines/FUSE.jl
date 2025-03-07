@@ -166,9 +166,20 @@ function optimization_engine(
         Lpad_gen = length(string(number_of_generations))
         Lpad_case = length(string(population_size))
         parent_group = "/gen$(lpad(generation,Lpad_gen,"0"))/case$(lpad(case_index,Lpad_case, "0"))"
-        tmp_log_filename = "tmp_log_case_$case_index.txt"
+        tmp_log_filename = "tmp_log_worker_$(Distributed.myid())_pid$(getpid())_gen_$(generation)_case_$case_index.txt"
     end
     tmp_log_io = open(tmp_log_filename, "w+")
+
+    flush_interval = 5.0
+    flush_active = Ref(true)
+    flush_task = @async begin
+        while flush_active[]
+            sleep(flush_interval)
+            if isopen(tmp_log_io)
+                flush(tmp_log_io)
+            end
+        end
+    end
 
     myid = Distributed.myid()
 
@@ -285,6 +296,10 @@ function optimization_engine(
         return ff, gg, hh
 
     finally
+
+        flush_active[] = false
+        wait(flush_task)
+
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
         close(tmp_log_io)
