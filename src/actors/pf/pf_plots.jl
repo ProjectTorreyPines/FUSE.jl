@@ -27,13 +27,13 @@ Plot recipe for ActorPFdesign and ActorPFactive
     control_points=true,
     plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
-    id = IMAS.plot_help_id(actor)
-    IMAS.assert_type_and_record_argument(id, Bool, "Show equilibrium"; equilibrium)
-    IMAS.assert_type_and_record_argument(id, Bool, "Show build"; build)
-    IMAS.assert_type_and_record_argument(id, Bool, "Show coils flux"; coils_flux)
-    IMAS.assert_type_and_record_argument(id, Bool, "Show rails"; rails)
-    IMAS.assert_type_and_record_argument(id, Bool, "Show control points"; control_points)
-    IMAS.assert_type_and_record_argument(id, Float64, "How much to buffer R axis of the plot to fit the legend"; plot_r_buffer)
+    id = recipe_dispatch(actor)
+    assert_type_and_record_argument(id, Bool, "Show equilibrium"; equilibrium)
+    assert_type_and_record_argument(id, Bool, "Show build"; build)
+    assert_type_and_record_argument(id, Bool, "Show coils flux"; coils_flux)
+    assert_type_and_record_argument(id, Bool, "Show rails"; rails)
+    assert_type_and_record_argument(id, Bool, "Show control points"; control_points)
+    assert_type_and_record_argument(id, Float64, "How much to buffer R axis of the plot to fit the legend"; plot_r_buffer)
 
     dd = actor.dd
     par = actor.par
