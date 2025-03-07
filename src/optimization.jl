@@ -149,6 +149,8 @@ function optimization_engine(
     end
     cd(save_folder)
 
+    file_lock_channels = get(kw, :file_lock_channels, nothing)
+
     number_of_generations = get(kw, :number_of_generations, 10000)
     population_size = get(kw, :population_size, 10000)
 
@@ -167,6 +169,8 @@ function optimization_engine(
         tmp_log_filename = "tmp_log_case_$case_index.txt"
     end
     tmp_log_io = open(tmp_log_filename, "w+")
+
+    myid = Distributed.myid()
 
     try
         redirect_stdout(tmp_log_io)
@@ -191,12 +195,15 @@ function optimization_engine(
             dd = actor.dd
         end
 
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
+
         # save simulation data
         save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
             timer=true, freeze=false, overwrite_groups=true)
 
         df = DataFrame(IMAS.extract(dd, :all))
-        df[!, :dir] = [save_folder]
+        df[!, :dir] = [relpath(".", original_dir)]
         df[!, :gen] = fill(generation, nrow(df))
         df[!, :case] = fill(case_index, nrow(df))
         df[!, :gparent] = fill(parent_group, nrow(df))
@@ -215,7 +222,8 @@ function optimization_engine(
         else
             CSV.write(csv_filepath, df)
         end
-
+        sleep(1) # wait a bit to make sure the file is written
+        put!(file_lock_channels.w2m[myid], :unlock)
 
         # evaluate multiple objectives
         ff = collect(map(f -> nan2inf(f(dd)), objective_functions))
@@ -233,13 +241,15 @@ function optimization_engine(
         if isa(error, InterruptException)
             rethrow(error)
         end
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
 
         # save empty dd and error to directory
         save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
             error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         df = DataFrame()
-        df[!, :dir] = [save_folder]
+        df[!, :dir] = [relpath(".", original_dir)]
         df[!, :gen] = fill(generation, nrow(df))
         df[!, :case] = fill(case_index, nrow(df))
         df[!, :gparent] = fill(parent_group, nrow(df))
@@ -258,6 +268,8 @@ function optimization_engine(
         else
             CSV.write(csv_filepath, df)
         end
+        sleep(1) # wait a bit to make sure the file is written
+        put!(file_lock_channels.w2m[myid], :unlock)
 
         # rethrow(e) # uncomment for debugging purposes
 

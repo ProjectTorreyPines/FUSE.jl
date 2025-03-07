@@ -13,12 +13,12 @@ using FUSE.SimulationParameters.Distributions
     sty.file_save_mode = :append
     sty.n_simulations = 2
     sty.release_workers_after_run = false
+    sty.single_hdf5_merge_interval = 10
     sty.save_folder = mktempdir()
 
     println("save_folder = $(sty.save_folder)")
 
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
-
     ini.equilibrium.R0 = 5.0 ↔ [1.0, 10.0]
     ini.equilibrium.Z0 = 0.0 ↔ truncated(Normal(0.0, 2.0); lower=0.0)
 
@@ -104,10 +104,7 @@ using FUSE.SimulationParameters.Distributions
         end
         df1 = CSV.read(joinpath(save_dir, "output.csv"), DataFrame)
 
-        db_file_names = filter(x -> contains(x, "database_") && endswith(x, ".h5"), readdir(save_dir; join=true))
-        @test length(db_file_names) == 1
-
-        out = FUSE.load_database(db_file_names[1])
+        out = FUSE.load_database(joinpath(save_dir, "database.h5"))
         dds2 = out.dds
         inis2 = out.inis
         acts2 = out.acts
@@ -118,9 +115,8 @@ using FUSE.SimulationParameters.Distributions
         @test all(.!diff.(inis1, inis2))
         @test all(.!diff.(acts1, acts2))
 
-        extract_files = filter(x -> contains(x, "extract_") && endswith(x, ".csv"), readdir(save_dir; join=true))
-        @test length(extract_files) == 1
-        df2_from_extract_csv = coalesce.(CSV.read(extract_files[1], DataFrame), NaN)
+        df2_from_extract_csv = coalesce.(CSV.read(joinpath(save_dir, "extract.csv"), DataFrame), NaN)
+        sort!(df2_from_extract_csv, "gparent")
 
         df2_success_case = filter(x -> x.status == "success", df2)
         @test isequal(df1[!, Not(:dir, :gen)], df2_success_case[!, Not(:dir, :case, :gparent, :status)])

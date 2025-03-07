@@ -42,6 +42,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled simulations")
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
+    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=300)
 end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
@@ -109,15 +110,24 @@ function _run(study::StudyDatabaseGenerator)
         analyze(study; extract=true)
 
     elseif study.sty.database_policy == :single_hdf5
-        dataframe_list = FUSE.ProgressMeter.@showprogress pmap(item -> begin
+
+        file_lock_channels = prepare_file_lock_channels()
+        study_status = Ref(:running)
+        db_io_manager = @async database_IO_manager(study.sty.save_folder,file_lock_channels, study_status, study.sty.single_hdf5_merge_interval)
+
+        FUSE.ProgressMeter.@showprogress pmap(item -> begin
                 try
-                    run_case(study, item, Val{:hdf5})
+                    run_case(study, item, Val{:hdf5}, file_lock_channels)
                 catch e
                     if isa(e, InterruptException)
                         rethrow(e)  # or handle as needed
                     end
                 end
             end, iterator)
+
+        study_status[] = :finished
+
+        wait(db_io_manager)
 
         study.dataframe = _merge_tmp_study_files(study.sty.save_folder; cleanup=true)
 
@@ -210,7 +220,7 @@ function run_case(study::AbstractStudy, item::Int)
     end
 end
 
-function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
+function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}, file_lock_channels; kw...)
     sty = study.sty
     @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
 
@@ -249,11 +259,15 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
     tmp_log_io = open(tmp_log_filename, "w+")
 
 
+    myid = Distributed.myid()
     try
         redirect_stdout(tmp_log_io)
         redirect_stderr(tmp_log_io)
 
         study.workflow(dd, ini, act)
+
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
 
         save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
             timer=true, freeze=false, overwrite_groups=true, kw...)
@@ -275,12 +289,17 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
         else
             CSV.write(csv_filepath, df)
         end
+        sleep(1) # wait a bit to make sure the file is written
+        put!(file_lock_channels.w2m[myid], :unlock)
 
         return df
     catch error
         if isa(error, InterruptException)
             rethrow(error)
         end
+
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
 
         # save empty dd and error to directory
         save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
@@ -299,6 +318,8 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
         else
             CSV.write(csv_filepath, df)
         end
+        sleep(1) # wait a bit to make sure the file is written
+        put!(file_lock_channels.w2m[myid], :unlock)
 
         return df
     finally
