@@ -238,7 +238,10 @@ function _step(actor::ActorSimpleNB)
         qbeami = sum(sum(qbeami,dims=1),dims=2)[1,1,:]
         mombeam = sum(sum(mombeam,dims=1),dims=2)[1,1,:]
         curbeam = sum(sum(curbeam,dims=1),dims=2)[1,1,:]
-
+        @ddtime(B0 = dd.equilibrium.vacuum_toroidal_field.b0)
+        JparB = JtoR_2_JparB(rhon_transport, curbeam*dd.equilibrium.vacuum_toroidal_field.r0,
+                             includes_bootstrap=false, eqt::IMAS.equilibrium__time_slice)/B0
+ 
         # Convert curbeam to parallel current here
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
