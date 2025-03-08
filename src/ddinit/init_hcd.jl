@@ -80,12 +80,15 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         nbu.available_launch_power = maximum(ps_nbu.power.reference)
         nbu.species.a = ini_nbu.beam_mass
         nbu.species.z_n = 1.0
+
         # 1 beamlet
         beamlet = resize!(nbu.beamlets_group, 1)[1]
-        beamlet.angle = ini_nbu.toroidal_angle / 360 * 2pi
+        #beamlet.angle = ini_nbu.toroidal_angle / 360 * 2pi
         # Efficiencies
         nbu.efficiency.conversion = ini_nbu.efficiency_conversion
         nbu.efficiency.transmission = ini_nbu.efficiency_transmission
+ 
+
     end
     return dd
 end
@@ -158,3 +161,71 @@ function init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActor
     end
 end
 
+function add_beam_examples(dd::IMAS.dd,name::Symbol)
+    #bunit = resize!(dd.nbi.unit,1)[1]
+    if name == :d3d_co
+        bunit.beam_current_fraction.data[1,:] = [0.8,0.15,0.05]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 8.2
+        bgroup.position.z = 0.0
+        bgroup.tangency_radius = 1.0
+        bgroup.angle = 0.0
+        bgroup.direction = 1
+    elseif name == :d3d_counter
+        bunit.beam_current_fraction.data[1,:] = [0.8,0.15,0.05]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 8.2
+        bgroup.position.z = 0.0
+        bgroup.tangency_radius = 0.9
+        bgroup.angle = 0.0
+        bgroup.direction = 1
+    elseif name == :d3d_offaxis
+        bunit.beam_current_fraction.data[1,:] = [0.8,0.15,0.05]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 8.2
+        bgroup.position.z = 1.66
+        bgroup.tangency_radius = 0.9
+        bgroup.angle = -0.28
+        bgroup.direction = 1
+    elseif name == :nstx
+        bunit.beam_current_fraction.data[1,:] = [0.48,0.37,0.15]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 11.4
+        bgroup.position.z = 1.66
+        bgroup.tangency_radius = 0.6
+        bgroup.angle = 0.0
+        bgroup.direction = 1
+    elseif name == :mast_onaxis
+        bunit.beam_current_fraction.data[1,:] = [0.69,0.18,0.13]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 7.08
+        bgroup.position.z = 0.0
+        bgroup.tangency_radius = 0.705
+        bgroup.angle = 0.0
+        bgroup.direction = 1
+    elseif name == :mast_offaxis
+        bunit.beam_current_fraction.data[1,:] = [0.69,0.18,0.13]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 7.06
+        bgroup.position.z = 0.65
+        bgroup.tangency_radius = 0.705
+        bgroup.angle = 0.0
+        bgroup.direction = 1
+    elseif name == :iter_onaxis
+        bunit.beam_current_fraction.data[1,:] = [1.0,0.0,0.0]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 14.0 # CHECK POSITION!
+        bgroup.position.z = 0.5
+        bgroup.tangency_radius = 5.3
+        bgroup.angle = 0.0402
+        bgroup.direction = 1
+    elseif name == :iter_offaxis
+        bunit.beam_current_fraction.data[1,:] = [1.0,0.0,0.0]
+        bgroup = resize!(bunit.beamlets_group,1)[1]
+        bgroup.position.r = 14.0 # CHECK POSITION!
+        bgroup.position.z = 0.5
+        bgroup.tangency_radius = 5.3
+        bgroup.angle = 0.0582
+        bgroup.direction = 1
+    end
+end

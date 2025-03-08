@@ -121,10 +121,22 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     power_launched::Entry{T} = Entry{T}("W", "Beam power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
-    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; check=x -> @assert (-pi / 2 <= x <= pi / 2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
+    normalized_tangency_radius::Entry{T} = Entry{T}("-", "Tangency radius normalized to major radius "; default=0.6, check=x -> @assert x < 2.0 "must be: beam_mass >= 1.0")
+    beam_current_fraction::Entry{Vector{T}}=  Entry{Vector{Vector{T}}} = Entry{Vector{T}}("-", "Beam current fraction", check=x -> @assert sum(x) <= 1.0 )
+    current_direction::Entry{Symbol} =  Switch{Symbol}([:co, :counter], "-", "Direction of beam current relative to plasma current",default=false)
+    offaxis::Entry{Bool} = Entry{Bool}("-", "Injection neutral beam off axis",default=false)
+    template_beam:: Entry{Symbol} =  Switch{Symbol}([:d3d_co,:d3d_counter,:d3d_offaxis, :nstx,:mast_onaxis,:mast_offaxis,:iter_onaxis,:iter_offaxis])
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
+
+
+beamlet.position.r = ini_nbu.r
+beamlet.position.z = ini_nbu.z
+beamlet.tangency_radius =ini_nbu.tangency_radius
+beamlet.angle = ini_nbu.angle
+beamlet.beam_current_fraction = ini_nbu.beam_current_fraction 
+beamlet.direction = ini_nbu.direction
 
 Base.@kwdef mutable struct FUSEparameters__ec_launcher{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
