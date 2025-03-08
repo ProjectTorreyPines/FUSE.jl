@@ -426,7 +426,7 @@ function database_IO_manager(
         for _ in 1:interval
             sleep(1)
             if study_status[] == :finished
-                printstyled(elapsed() * "Master: database_IO_manager finished\n"; bold=true, color=:blue)
+                printstyled("\n" * elapsed() * "Master: database_IO_manager finished\n"; bold=true, color=:blue)
                 return
             end
         end
@@ -459,7 +459,7 @@ function database_IO_manager(
         end
         verbose && println(elapsed() * "Master: all workers unlocked files")
 
-        printstyled(elapsed() * "Master: merges temporary study files\n"; bold=true, color=:blue)
+        printstyled("\n"*elapsed() * "Master: merges temporary study files\n"; bold=true, color=:blue)
         _merge_tmp_study_files(save_folder; cleanup=true)
         verbose && println(elapsed() * "Master: merge finished")
 
@@ -476,14 +476,14 @@ end
 
 
 """
-    wait_for_unlock!(ch::Distributed.RemoteChannel; timeout=30, poll_interval=0.1, stable_period=2.0, verbose=false)
+    wait_for_unlock!(ch::Distributed.RemoteChannel; timeout=30, poll_interval=0.1, stable_period=0.5, verbose=false)
 
 Continuously polls the channel `ch` until an `:unlock` signal is observed for at least `stable_period` seconds,
 or a timeout is reached.
 If the unlock state persists for the stable period, reinserts `:unlock` into `ch` and returns true.
 If a lock signal is received during that period or the timeout is reached, it logs a warning and returns false.
 """
-function wait_for_unlock!(ch::Distributed.RemoteChannel; timeout::Real=300.0, poll_interval::Real=0.1, stable_period::Real=2.0, verbose::Bool=false)
+function wait_for_unlock!(ch::Distributed.RemoteChannel; timeout::Real=300.0, poll_interval::Real=0.1, stable_period::Real=0.5, verbose::Bool=false)
     myid = Distributed.myid()
     start_time = time()
 

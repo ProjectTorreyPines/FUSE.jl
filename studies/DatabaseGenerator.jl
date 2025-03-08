@@ -257,17 +257,6 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}, file_lock
     tmp_log_filename = "tmp_log_worker_$(Distributed.myid())_pid$(getpid())_case_$item.txt"
     tmp_log_io = open(tmp_log_filename, "w+")
 
-    flush_interval = 5.0
-    flush_active = Ref(true)
-    flush_task = @async begin
-        while flush_active[]
-            sleep(flush_interval)
-            if isopen(tmp_log_io)
-                flush(tmp_log_io)
-            end
-        end
-    end
-
     myid = Distributed.myid()
     try
         redirect_stdout(tmp_log_io)
@@ -298,7 +287,6 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}, file_lock
         else
             CSV.write(csv_filepath, df)
         end
-        sleep(1) # wait a bit to make sure the file is written
         put!(file_lock_channels.w2m[myid], :unlock)
 
         return df
@@ -327,14 +315,10 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}, file_lock
         else
             CSV.write(csv_filepath, df)
         end
-        sleep(1) # wait a bit to make sure the file is written
         put!(file_lock_channels.w2m[myid], :unlock)
 
         return df
     finally
-
-        flush_active[] = false
-        wait(flush_task)
 
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)

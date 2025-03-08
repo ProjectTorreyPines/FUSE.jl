@@ -170,17 +170,6 @@ function optimization_engine(
     end
     tmp_log_io = open(tmp_log_filename, "w+")
 
-    flush_interval = 5.0
-    flush_active = Ref(true)
-    flush_task = @async begin
-        while flush_active[]
-            sleep(flush_interval)
-            if isopen(tmp_log_io)
-                flush(tmp_log_io)
-            end
-        end
-    end
-
     myid = Distributed.myid()
 
     try
@@ -296,9 +285,6 @@ function optimization_engine(
         return ff, gg, hh
 
     finally
-
-        flush_active[] = false
-        wait(flush_task)
 
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
