@@ -80,12 +80,36 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         nbu.available_launch_power = maximum(ps_nbu.power.reference)
         nbu.species.a = ini_nbu.beam_mass
         nbu.species.z_n = 1.0
+
         # 1 beamlet
-        beamlet = resize!(nbu.beamlets_group, 1)[1]
-        beamlet.angle = ini_nbu.toroidal_angle / 360 * 2pi
+        if ini_nbu.template_beam != :none
+            add_beam_examples!(nbu, ini_nbu.template_beam)
+        else
+            beamlet = resize!(nbu.beamlets_group, 1)[1]
+
+            beamlet.position.r = dd.equilibrium.time_slice[].profiles_1d.r_outboard
+            beamlet.position.z = 0.0
+            beamlet.tangency_radius = ini_nbu.normalized_tangency_radius*0.5*(dd.equilibrium.time_slice[].profiles_1d.r_outboard+
+                                      dd.equilibrium.time_slice[].profiles_1d.r_outboard)
+
+            beamlet.beam_current_fraction.time = [0.0] # how can I avoid this???
+            beamlet.beam_current_fraction.data = zeros(1,3)
+            beamlet.beam_current_fraction.data[1,:] = ini_nbu.beam_current_fraction
+
+            if ini_nbu.current_direction == :co
+                beamlet.direction = 1
+            else
+                beamlet.direction = -1
+            end
+            if ini_nbu.offaxis == true
+                beamlet.angle = atan(0.5*dd.equilibrium.time_slice[].profiles_1d.elongation)
+            end
+        end
+        
         # Efficiencies
         nbu.efficiency.conversion = ini_nbu.efficiency_conversion
         nbu.efficiency.transmission = ini_nbu.efficiency_transmission
+ 
     end
     return dd
 end
@@ -158,3 +182,66 @@ function init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActor
     end
 end
 
+function add_beam_examples!(nbu, name::Symbol)
+    beamlet = resize!(nbu.beamlets_group, 1)[1]
+
+    if name == :d3d_co
+        nbu.beam_current_fraction.time = [0.]
+        nbu.beam_current_fraction.data = zeros(1,3)
+        nbu.beam_current_fraction.data[1,:] = [0.85, 0.1, 0.05]
+        beamlet.position.r = 8.2
+        beamlet.position.z = 0.0
+        beamlet.tangency_radius = 1.0
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :d3d_counter
+        nbu.beam_current_fraction.data[1,:] = [0.8,0.15,0.05]
+        beamlet.position.r = 8.2
+        beamlet.position.z = 0.0
+        beamlet.tangency_radius = 0.9
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :d3d_offaxis
+        nbu.beam_current_fraction.data[1,:] = [0.8,0.15,0.05]
+        beamlet.position.r = 8.2
+        beamlet.position.z = 1.66
+        beamlet.tangency_radius = 0.9
+        beamlet.angle = -0.28
+        beamlet.direction = 1
+    elseif name == :nstx
+        nbu.beam_current_fraction.data[1,:] = [0.48,0.37,0.15]
+        beamlet.position.r = 11.4
+        beamlet.position.z = 1.66
+        beamlet.tangency_radius = 0.6
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :mast_onaxis
+        nbu.beam_current_fraction.data[1,:] = [0.69,0.18,0.13]
+        beamlet.position.r = 7.08
+        beamlet.position.z = 0.0
+        beamlet.tangency_radius = 0.705
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :mast_offaxis
+        nbu.beam_current_fraction.data[1,:] = [0.69,0.18,0.13]
+        beamlet.position.r = 7.06
+        beamlet.position.z = 0.65
+        beamlet.tangency_radius = 0.705
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :iter_onaxis
+        nbu.beam_current_fraction.data[1,:] = [1.0,0.0,0.0]
+        beamlet.position.r = 14.0 # CHECK POSITION!
+        beamlet.position.z = 0.5
+        beamlet.tangency_radius = 5.3
+        beamlet.angle = 0.0402
+        beamlet.direction = 1
+    elseif name == :iter_offaxis
+        nbu.beam_current_fraction.data[1,:] = [1.0,0.0,0.0]
+        beamlet.position.r = 14.0 # CHECK POSITION!
+        beamlet.position.z = 0.5
+        beamlet.tangency_radius = 5.3
+        beamlet.angle = 0.0582
+        beamlet.direction = 1
+    end
+end
