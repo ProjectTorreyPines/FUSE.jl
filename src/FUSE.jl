@@ -6,6 +6,7 @@ using IMAS
 import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
 import Plots
 using Plots
+using HelpPlots
 using Printf
 using InteractiveUtils
 import LinearAlgebra
