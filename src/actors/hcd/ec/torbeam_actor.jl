@@ -34,6 +34,6 @@ end
 
 function _step(actor::ActorTORBEAM)
     dd = actor.dd
-    TORBEAM.torbeam!(dd, actor.torbeam_params)
+    TORBEAM.run_torbeam(dd, actor.torbeam_params)
     return actor
 end
