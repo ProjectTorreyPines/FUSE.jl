@@ -4,6 +4,7 @@
 Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
 function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    eqt = dd.equilibrium.time_slice[]
     resize!(dd.ec_launchers.beam, length(ini.ec_launcher); wipe=false)
     @assert length(dd.ec_launchers.beam) == length(ini.ec_launcher) == length(dd.pulse_schedule.ec.beam)
     for (idx, (ecb, ini_ecb, ps_ecb)) in enumerate(zip(dd.ec_launchers.beam, ini.ec_launcher, dd.pulse_schedule.ec.beam))
@@ -12,6 +13,8 @@ function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         end
         ps_ecb.name = ecb.name
         ecb.available_launch_power = maximum(ps_ecb.power_launched.reference)
+        # Launcher setup
+        setup(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[idx])
         # Efficiencies
         ecb.efficiency.conversion = ini_ecb.efficiency_conversion
         ecb.efficiency.transmission = ini_ecb.efficiency_transmission
@@ -87,14 +90,14 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         else
             beamlet = resize!(nbu.beamlets_group, 1)[1]
 
-            beamlet.position.r = dd.equilibrium.time_slice[].profiles_1d.r_outboard
+            beamlet.position.r = dd.equilibrium.time_slice[].profiles_1d.r_outboard[end]
             beamlet.position.z = 0.0
-            beamlet.tangency_radius = ini_nbu.normalized_tangency_radius*0.5*(dd.equilibrium.time_slice[].profiles_1d.r_outboard+
-                                      dd.equilibrium.time_slice[].profiles_1d.r_outboard)
+            beamlet.tangency_radius = ini_nbu.normalized_tangency_radius*0.5*(dd.equilibrium.time_slice[].profiles_1d.r_inboard[end]+
+                                      dd.equilibrium.time_slice[].profiles_1d.r_outboard[end])
 
-            beamlet.beam_current_fraction.time = [0.0] # how can I avoid this???
-            beamlet.beam_current_fraction.data = zeros(1,3)
-            beamlet.beam_current_fraction.data[1,:] = ini_nbu.beam_current_fraction
+            nbu.beam_current_fraction.time = [0.0] # how can I avoid this???
+            nbu.beam_current_fraction.data = zeros(1,3)
+            nbu.beam_current_fraction.data[1,:] = ini_nbu.beam_current_fraction
 
             if ini_nbu.current_direction == :co
                 beamlet.direction = 1
