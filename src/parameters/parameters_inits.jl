@@ -619,7 +619,7 @@ function load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordina
     dd = IMAS.dd()
     for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
-        dd1 = IMAS.json2imas(filename; error_on_missing_coordinates)
+        dd1 = IMAS.file2imas(filename; error_on_missing_coordinates)
         merge!(dd, dd1)
     end
     IMAS.last_global_time(dd)
@@ -696,9 +696,9 @@ end
 Plots ini time dependent time traces including plasma boundary
 """
 @recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini), cx=false)
-    id = IMAS.plot_help_id(ini)
-    IMAS.assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
-    IMAS.assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
+    id = recipe_dispatch(ini)
+    assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
+    assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
 
     # count number of time-dependent parameters
     if !cx

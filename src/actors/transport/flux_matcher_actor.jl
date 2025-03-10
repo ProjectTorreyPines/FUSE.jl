@@ -19,11 +19,15 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
             default=:flux_match
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
-    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal within the transport solver"; default=true)
+    evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal at each iteration"; default=true)
+    evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
     optimizer_algorithm::Switch{Symbol} =
-        Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+        Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none],
+        "-",
+        "Optimizing algorithm used for the flux matching";
+        default=:anderson)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -86,6 +90,9 @@ function _step(actor::ActorFluxMatcher)
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+
+    IMAS.sources!(dd)
+
     initial_cp1d = IMAS.freeze(cp1d)
     initial_summary_ped = IMAS.freeze(dd.summary.local.pedestal)
 
@@ -336,7 +343,9 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate sources (ie. target fluxes)
-    IMAS.sources!(dd; bootstrap=false, ohmic=false)
+    if par.evolve_plasma_sources
+        IMAS.sources!(dd; bootstrap=false, ohmic=false)
+    end
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
