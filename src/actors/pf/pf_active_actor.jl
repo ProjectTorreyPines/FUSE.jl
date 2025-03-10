@@ -195,7 +195,12 @@ function equilibrium_control_points(
 
     # boundary
     psib = eqt.global_quantities.psi_boundary
-    iso_control_points = VacuumFields.IsoControlPoints(eqt.boundary.outline.r, eqt.boundary.outline.z)
+
+    if ismissing(eqt.global_quantities, :ip) # field nulls
+        iso_control_points = VacuumFields.FluxControlPoints(eqt.boundary.outline.r, eqt.boundary.outline.z, psib)
+    else # solutions with plasma
+        iso_control_points = VacuumFields.IsoControlPoints(eqt.boundary.outline.r, eqt.boundary.outline.z)
+    end
 
     # x points
     saddle_weight = x_points_weight / length(eqt.boundary.x_point)
