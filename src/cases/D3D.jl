@@ -236,6 +236,9 @@ function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
         ini.nb_unit[1].toroidal_angle = 18.0 * deg
+
+        resize!(ini.ec_launcher, 1)
+        ini.ec_launcher[1].power_launched = 3E6
     else
         act.ActorHCD.nb_model = :none
         act.ActorHCD.ec_model = :none
