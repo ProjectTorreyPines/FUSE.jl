@@ -136,12 +136,12 @@ function case_parameters(
     ini.nb_unit[1].power_launched = 16.7
     ini.nb_unit[1].beam_energy = 1e6
     ini.nb_unit[1].beam_mass = 2.0
-    int.nb_unit[1].template_beam = :iter_onaxis
+    ini.nb_unit[1].template_beam = :iter_onaxis
 
     ini.nb_unit[2].power_launched = 16.7
     ini.nb_unit[2].beam_energy = 1e6
     ini.nb_unit[2].beam_mass = 2.0
-    int.nb_unit[2].template_beam = :iter_offaxis
+    ini.nb_unit[2].template_beam = :iter_offaxis
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6

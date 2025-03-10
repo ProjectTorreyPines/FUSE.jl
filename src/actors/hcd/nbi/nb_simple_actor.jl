@@ -90,7 +90,7 @@ function _step(actor::ActorSimpleNB)
     ne_interp = IMAS.interp1d(rho_cp,ne)
     Te_interp = IMAS.interp1d(rho_cp,Te)
     dl = 0.005
-    banana_shift_fraction = 0.25
+    banana_shift_fraction = 0.5
     smoothing_width = 0.12
     for (ibeam, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
         # smooting of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
@@ -189,8 +189,8 @@ function _step(actor::ActorSimpleNB)
                 cs = zeros(ngrid)
                 for (i,(R,Z)) in enumerate(zip(Rs,Zs))
                     cs1 = IMAS.imfp_electron_collisions(vbeam*1e2, Te_beam[i], ne_beam[i]*1e-6)
-                    cs2 = IMAS.imfp_ion_collisions(mass_beam[ibeam], E_beam/mass_beam, ne_beam[i]*1e-6, 1)
-                    cs3 = IMAS.imfp_charge_exchange(mass_beam[ibeam], E_beam/mass_beam, ne_beam[i]*1e-6)
+                    cs2 = IMAS.imfp_ion_collisions(mass_beam, E_beam/mass_beam, ne_beam[i]*1e-6, 1)
+                    cs3 = IMAS.imfp_charge_exchange(mass_beam, E_beam/mass_beam, ne_beam[i]*1e-6)
                     cs[i] = (cs1+cs2+cs3)
                 end
         
@@ -201,7 +201,7 @@ function _step(actor::ActorSimpleNB)
             
                 mask = rho_beam .< 1
                 eps = eps_interp.(rho_beam[mask])
-                rbananas[mask] .= IMAS.banana_width.(E_beam[ibeam] / ifpow, Bt, Z_beam, mass_beam, eps_interp.(.5), q_interp.(rho_beam[mask]))
+                rbananas[mask] .= IMAS.banana_width.(E_beam / ifpow, Bt, Z_beam, mass_beam, eps_interp.(.5), q_interp.(rho_beam[mask]))
                 for i in 1:ngrid
                     rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * banana_shift_fraction * bgroup.direction, Zs[i])
                 end
@@ -228,9 +228,9 @@ function _step(actor::ActorSimpleNB)
             for (ifpow, fpow) in enumerate(fbcur)
                 frac_ie = IMAS.sivukhin_fraction(cp1d, nbu.energy.data[1]/ifpow, nbu.species.a)
                 tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, nbu.energy.data[1]/ifpow, nbu.species.z_n, Int(nbu.species.a)) 
-                qbeame[igroup,ifpow,:]  += (1.0.-frac_ie).*qbeam[ibeam,ifpow,:]
-                qbeami[igroup,ifpow,:]  += frac_ie.*qbeam[ibeam,ifpow,:]
-                curbi = IMAS.mks.e*mombeam[ibeam,ifpow,:].*tauppff/(nbu.species.a*IMAS.mks.m_p)
+                qbeame[igroup,ifpow,:]  += (1.0.-frac_ie).*qbeam[igroup,ifpow,:]
+                qbeami[igroup,ifpow,:]  += frac_ie.*qbeam[igroup,ifpow,:]
+                curbi = IMAS.mks.e*mombeam[igroup,ifpow,:].*tauppff/(nbu.species.a*IMAS.mks.m_p)
                 curbe = -curbi./cp1d.zeff
                 curbet = -curbe.*((1.55.+0.85./cp1d.zeff) .* sqrt.(eps) .-(0.20.+1.55./cp1d.zeff) .* eps)
                 curbeam[igroup,ifpow,:] = curbe .+ curbi .+ curbet
