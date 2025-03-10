@@ -106,6 +106,8 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
             end
             if ini_nbu.offaxis == true
                 beamlet.angle = atan(0.5*dd.equilibrium.time_slice[].profiles_1d.elongation)
+            else
+                beamlet.angle = 0.0
             end
         end
         

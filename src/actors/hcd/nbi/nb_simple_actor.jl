@@ -53,6 +53,7 @@ function _step(actor::ActorSimpleNB)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     cs = dd.core_sources
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
 
     rho_cp = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
@@ -66,12 +67,12 @@ function _step(actor::ActorSimpleNB)
     
     rho_eq = dd.equilibrium.time_slice[].profiles_1d.rho_tor
     
-    phi = dd.equilibrium.time_slice[].profiles_2d[1].phi
+    phi = eqt2d.phi
     Bt = dd.equilibrium.vacuum_toroidal_field.b0[end]
     rho2d = sqrt.(abs.((phi)./pi./Bt))./rho_eq[end]
     
-    r = dd.equilibrium.time_slice[].profiles_2d[1].grid.dim1
-    z = dd.equilibrium.time_slice[].profiles_2d[1].grid.dim2
+    r = eqt2d.grid.dim1
+    z = eqt2d.grid.dim2
     r = range(r[1],r[end],length(r))
     z = range(z[1],z[end],length(z))
     rho2d_interp = Interpolations.cubic_spline_interpolation((r, z), (rho2d); extrapolation_bc=2.)
