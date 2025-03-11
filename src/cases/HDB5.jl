@@ -78,7 +78,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         end
         ini.nb_unit[1].normalized_tangency_radius = 0.6
         ini.nb_unit[1].beam_current_fraction = [0.8,0.15,0.05]
-        ini.nb_unit[1].direction = :co
+        ini.nb_unit[1].current_direction = :co
         ini.nb_unit[1].offaxis = false
     end
     if data_row[:PECRH] > 0

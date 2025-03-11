@@ -59,7 +59,7 @@ function case_parameters(::Type{Val{:CAT}})
     ini.nb_unit[1].beam_mass = 2.0
     ini.nb_unit[1].normalized_tangency_radius = 0.8
     ini.nb_unit[1].beam_current_fraction = [1.0,0.0,0.0]
-    ini.nb_unit[1].direction = :co
+    ini.nb_unit[1].current_direction = :co
     ini.nb_unit[1].offaxis = false
 
     #### ACT ####
