@@ -15,7 +15,7 @@ import Dates
         constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
         save_folder::AbstractString,
         generation::Int,
-        save_dd::Bool=true)
+        save_dd::Bool)
 
 NOTE: This function is run by the worker nodes
 """
@@ -28,11 +28,11 @@ function optimization_engine(
     constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
     save_folder::AbstractString,
     generation::Int,
-    save_dd::Bool=true)
+    save_dd::Bool)
 
     # create working directory
     original_dir = pwd()
-    savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))        
+    savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))
     mkdir(savedir)
     cd(savedir)
 
@@ -110,6 +110,195 @@ function optimization_engine(
     end
 end
 
+"""
+    optimization_engine(
+        ini::ParametersAllInits,
+        act::ParametersAllActors,
+        actor_or_workflow::Union{Type{<:AbstractActor},Function},
+        x::AbstractVector,
+        objective_functions::AbstractVector{<:IMAS.ObjectiveFunction},
+        constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
+        save_folder::AbstractString,
+        generation::Int,
+        save_dd::Bool,
+        ::Type{Val{:hdf5}};
+        case_index::Union{Nothing,Int}=nothing
+        )
+
+NOTE: This function is run by the worker nodes
+"""
+function optimization_engine(
+    ini::ParametersAllInits,
+    act::ParametersAllActors,
+    actor_or_workflow::Union{Type{<:AbstractActor},Function},
+    x::AbstractVector,
+    objective_functions::AbstractVector{<:IMAS.ObjectiveFunction},
+    constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
+    save_folder::AbstractString,
+    generation::Int,
+    save_dd::Bool,
+    ::Type{Val{:hdf5}};
+    case_index::Union{Nothing,Int}=nothing,
+    kw...
+)
+
+    # create working directory
+    original_dir = pwd()
+    if !isdir(save_folder)
+        mkdir(save_folder)
+    end
+    cd(save_folder)
+
+    file_lock_channels = get(kw, :file_lock_channels, nothing)
+
+    number_of_generations = get(kw, :number_of_generations, 10000)
+    population_size = get(kw, :population_size, 10000)
+
+    # Redirect stdout and stderr to the file
+    original_stdout = stdout  # Save the original stdout
+    original_stderr = stderr  # Save the original stderr
+
+    if isnothing(case_index)
+        parent_group = "/gen$(lpad(generation,Lpad_gen,"0"))/pid$(getpid())"
+        tmp_log_filename = "tmp_log_pid$(getpid()).txt"
+        tmp_log_io = open(joinpath(tmp_log_folder, "pid$(getpid()).txt"), "w+")
+    else
+        Lpad_gen = length(string(number_of_generations))
+        Lpad_case = length(string(population_size))
+        parent_group = "/gen$(lpad(generation,Lpad_gen,"0"))/case$(lpad(case_index,Lpad_case, "0"))"
+        tmp_log_filename = "tmp_log_worker_$(Distributed.myid())_pid$(getpid())_gen_$(generation)_case_$case_index.txt"
+    end
+    tmp_log_io = open(tmp_log_filename, "w+")
+
+    myid = Distributed.myid()
+    start_time = time()
+
+    try
+        redirect_stdout(tmp_log_io)
+        redirect_stderr(tmp_log_io)
+
+        # deepcopy ini/act to avoid changes
+        ini = deepcopy(ini)
+        act = deepcopy(act)        # update ini based on input optimization vector `x`
+        @show x
+        parameters_from_opt!(ini, x)
+        @show x
+
+        # attempt to release memory
+        malloc_trim_if_glibc()
+
+        # run the problem
+        if typeof(actor_or_workflow) <: Function
+            dd = actor_or_workflow(ini, act)
+        else
+            dd = init(ini, act)
+            actor = actor_or_workflow(dd, act)
+            dd = actor.dd
+        end
+
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
+
+        df = DataFrame(IMAS.extract(dd, :all))
+        df[!, :dir] = [relpath(".", original_dir)]
+        df[!, :gen] = fill(generation, nrow(df))
+        df[!, :case] = fill(case_index, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :Ngen] = fill(number_of_generations, nrow(df))
+        df[!, :Ncase] = fill(population_size, nrow(df))
+        df[!, :status] = fill("success", nrow(df))
+        df[!, :worker_id] = fill(myid, nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
+        # save simulation data
+        save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
+            timer=true, freeze=false, overwrite_groups=true)
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+        csv_filepath = joinpath(tmp_csv_folder, "extract_success_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df; append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
+        end
+        put!(file_lock_channels.w2m[myid], :unlock)
+
+        # evaluate multiple objectives
+        ff = collect(map(f -> nan2inf(f(dd)), objective_functions))
+        gg = collect(map(g -> nan2inf(g(dd)), constraint_functions))
+        hh = Float64[]
+
+        println("finished")
+        @show ff
+        @show gg
+        @show hh
+
+        return ff, gg, hh
+
+    catch error
+        if isa(error, InterruptException)
+            rethrow(error)
+        end
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
+
+        df = DataFrame()
+        df[!, :dir] = [relpath(".", original_dir)]
+        df[!, :gen] = fill(generation, nrow(df))
+        df[!, :case] = fill(case_index, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :Ngen] = fill(number_of_generations, nrow(df))
+        df[!, :Ncase] = fill(population_size, nrow(df))
+        df[!, :status] = fill("fail", nrow(df))
+        df[!, :worker_id] = fill(Distributed.myid(), nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
+        # save empty dd and error to directory
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
+            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+        csv_filepath = joinpath(tmp_csv_folder, "extract_fail_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df; append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
+        end
+        put!(file_lock_channels.w2m[myid], :unlock)
+
+        # rethrow(e) # uncomment for debugging purposes
+
+        ff = Float64[Inf for f in objective_functions]
+        gg = Float64[Inf for g in constraint_functions]
+        hh = Float64[]
+
+        println("failed")
+        @show ff
+        @show gg
+        @show hh
+
+        return ff, gg, hh
+
+    finally
+
+        redirect_stdout(original_stdout)
+        redirect_stderr(original_stderr)
+        close(tmp_log_io)
+        rm(tmp_log_filename; force=true)
+
+        cd(original_dir)
+    end
+end
+
+
 function _optimization_engine(
     ini::ParametersAllInits,
     act::ParametersAllActors,
@@ -119,9 +308,19 @@ function _optimization_engine(
     constraint_functions::AbstractVector{<:IMAS.ConstraintFunction},
     save_folder::AbstractString,
     generation::Int,
-    save_dd::Bool=true)
+    save_dd::Bool;
+    case_index::Union{Nothing, Int}=nothing,
+    kw...)
 
-    tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
+    database_policy = get(kw, :database_policy, :separate_folders)
+
+    if database_policy == :separate_folders
+        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
+    elseif database_policy == :single_hdf5
+        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd, Val{:hdf5}; case_index, kw...)
+    else
+        error("database_policy must be `separate_folders` or `:single_hdf5`")
+    end
 
     GC.gc()
     return tmp
@@ -151,12 +350,14 @@ function optimization_engine(
     save_folder::AbstractString,
     save_dd::Bool,
     p::ProgressMeter.Progress,
-    generation_offset::Int)
+    generation_offset::Int;
+    kw...)
 
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(
-        x -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter + generation_offset, save_dd),
+        (k,x) -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter + generation_offset, save_dd; case_index=k, kw...),
+        1:size(X,1),
         [X[k, :] for k in 1:size(X)[1]]
     )
     F = zeros(size(X)[1], length(tmp[1][1]))
