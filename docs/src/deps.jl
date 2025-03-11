@@ -1,6 +1,6 @@
 # NOTE: to update the deps.svg file, run `make deps_dag` in the FUSE folder.
 
-deps = "ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TroyonBetaNN VacuumFields ThermalSystemModels"
+deps = "ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TORBEAM TroyonBetaNN VacuumFields ThermalSystemModels"
 
 txt = String["""
 # Ecosystem
