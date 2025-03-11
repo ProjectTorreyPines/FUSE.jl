@@ -34,7 +34,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
     number_of_generations::Entry{Int} = Entry{Int}("-", "Number generations")
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
-    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=3600)
+    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=1_000_000)
 end
 
 mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
