@@ -312,7 +312,7 @@ function _optimization_engine(
     case_index::Union{Nothing, Int}=nothing,
     kw...)
 
-    database_policy = get(kw, :database_policy, :separate_folders)
+    database_policy = get(kw, :database_policy, :single_hdf5)
 
     if database_policy == :separate_folders
         tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)

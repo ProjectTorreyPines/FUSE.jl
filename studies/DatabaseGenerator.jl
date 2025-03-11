@@ -41,7 +41,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled simulations")
-    database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
+    database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:single_hdf5)
     single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=1_000_000)
 end
 
