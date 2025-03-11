@@ -240,14 +240,14 @@ function _step(actor::ActorSimpleNB)
         
 
 
-        electrons_energy = sum(sum(qbeame,dims=2),dims=2)[1,1,:]
-        total_ion_energy = sum(sum(qbeami,dims=2),dims=2)[1,1,:]
-        momentum_tor = sum(sum(mombeam,dims=2),dims=2)[1,1,:]
-        j_parallel = sum(sum(curbeam,dims=2),dims=2)[1,1,:]
-        electrons_particles = sum(sum(sbeam,dims=2),dims=2)[1,1,:]
+        electrons_energy = sum(sum(qbeame,dims=1),dims=2)[1,1,:]
+        total_ion_energy = sum(sum(qbeami,dims=1),dims=2)[1,1,:]
+        momentum_tor = sum(sum(mombeam,dims=1),dims=2)[1,1,:]
+        curbeam = sum(sum(curbeam,dims=1),dims=2)[1,1,:]
+        electrons_particles = sum(sum(sbeam,dims=1),dims=2)[1,1,:]
 
         B0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-        JparB = IMAS.JtoR_2_JparB(rho_cp, curbeam*dd.equilibrium.vacuum_toroidal_field.r0,
+        j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam*dd.equilibrium.vacuum_toroidal_field.r0,
                              false, eqt)/B0
  
         # Convert curbeam to parallel current here
