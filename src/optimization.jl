@@ -171,6 +171,7 @@ function optimization_engine(
     tmp_log_io = open(tmp_log_filename, "w+")
 
     myid = Distributed.myid()
+    start_time = time()
 
     try
         redirect_stdout(tmp_log_io)
@@ -198,10 +199,6 @@ function optimization_engine(
         wait_for_unlock!(file_lock_channels.m2w[myid])
         put!(file_lock_channels.w2m[myid], :lock)
 
-        # save simulation data
-        save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
-            timer=true, freeze=false, overwrite_groups=true)
-
         df = DataFrame(IMAS.extract(dd, :all))
         df[!, :dir] = [relpath(".", original_dir)]
         df[!, :gen] = fill(generation, nrow(df))
@@ -210,6 +207,12 @@ function optimization_engine(
         df[!, :Ngen] = fill(number_of_generations, nrow(df))
         df[!, :Ncase] = fill(population_size, nrow(df))
         df[!, :status] = fill("success", nrow(df))
+        df[!, :worker_id] = fill(myid, nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
+        # save simulation data
+        save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
+            timer=true, freeze=false, overwrite_groups=true)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
@@ -222,7 +225,6 @@ function optimization_engine(
         else
             CSV.write(csv_filepath, df)
         end
-        sleep(1) # wait a bit to make sure the file is written
         put!(file_lock_channels.w2m[myid], :unlock)
 
         # evaluate multiple objectives
@@ -244,10 +246,6 @@ function optimization_engine(
         wait_for_unlock!(file_lock_channels.m2w[myid])
         put!(file_lock_channels.w2m[myid], :lock)
 
-        # save empty dd and error to directory
-        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
-            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
-
         df = DataFrame()
         df[!, :dir] = [relpath(".", original_dir)]
         df[!, :gen] = fill(generation, nrow(df))
@@ -256,6 +254,12 @@ function optimization_engine(
         df[!, :Ngen] = fill(number_of_generations, nrow(df))
         df[!, :Ncase] = fill(population_size, nrow(df))
         df[!, :status] = fill("fail", nrow(df))
+        df[!, :worker_id] = fill(Distributed.myid(), nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
+        # save empty dd and error to directory
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
+            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
@@ -268,7 +272,6 @@ function optimization_engine(
         else
             CSV.write(csv_filepath, df)
         end
-        sleep(1) # wait a bit to make sure the file is written
         put!(file_lock_channels.w2m[myid], :unlock)
 
         # rethrow(e) # uncomment for debugging purposes

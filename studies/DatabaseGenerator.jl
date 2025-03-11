@@ -42,7 +42,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled simulations")
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
-    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=300)
+    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=3600)
 end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
@@ -258,23 +258,28 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}, file_lock
     tmp_log_io = open(tmp_log_filename, "w+")
 
     myid = Distributed.myid()
+    start_time = time()
+
     try
         redirect_stdout(tmp_log_io)
         redirect_stderr(tmp_log_io)
 
         study.workflow(dd, ini, act)
 
-        wait_for_unlock!(file_lock_channels.m2w[myid])
-        put!(file_lock_channels.w2m[myid], :lock)
-
-        save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
-            timer=true, freeze=false, overwrite_groups=true, kw...)
-
         df = DataFrame(IMAS.extract(dd, :all))
         df[!, :case] = fill(item, nrow(df))
         df[!, :dir] = fill(sty.save_folder, nrow(df))
         df[!, :gparent] = fill(parent_group, nrow(df))
         df[!, :status] = fill("success", nrow(df))
+        df[!, :worker_id] = fill(myid, nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
+
+        save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
+        timer=true, freeze=false, overwrite_groups=true, kw...)
+
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
@@ -295,14 +300,16 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}, file_lock
             rethrow(error)
         end
 
+        df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
+        df[!, :worker_id] = fill(myid, nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
         wait_for_unlock!(file_lock_channels.m2w[myid])
         put!(file_lock_channels.w2m[myid], :lock)
 
         # save empty dd and error to directory
         save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
             error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
-
-        df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"

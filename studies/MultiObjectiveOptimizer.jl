@@ -34,7 +34,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
     number_of_generations::Entry{Int} = Entry{Int}("-", "Number generations")
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
-    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=300)
+    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=3600)
 end
 
 mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
@@ -209,11 +209,11 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
 
     if "gen" in names(merged_df)
         # This is a multi-objective optimization
-        leading_cols = ["gparent", "status", "gen", "case", "Ngen", "Ncase", "dir"]
+        leading_cols = ["gparent", "status", "gen", "case", "Ngen", "Ncase", "dir", "worker_id", "elapsed_time"]
         h5_group_search_depth = 2
     else
         # This is a database generator
-        leading_cols = ["gparent", "status", "case", "dir"]
+        leading_cols = ["gparent", "status", "case", "dir", "worker_id", "elapsed_time"]
         h5_group_search_depth = 1
     end
     remaining = setdiff(names(merged_df), leading_cols)

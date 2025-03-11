@@ -423,8 +423,9 @@ function database_IO_manager(
     printstyled("\n" * elapsed() * "Master: database_IO_manager starts\n"; bold=true, color=:blue)
 
     while study_status[] == :running
-        for _ in 1:interval
-            sleep(1)
+        NN = interval*5
+        for _ in 1:NN
+            sleep(0.2)
             if study_status[] == :finished
                 printstyled("\n" * elapsed() * "Master: database_IO_manager finished\n"; bold=true, color=:blue)
                 return

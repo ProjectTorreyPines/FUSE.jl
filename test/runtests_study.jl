@@ -119,7 +119,7 @@ using FUSE.SimulationParameters.Distributions
         sort!(df2_from_extract_csv, "gparent")
 
         df2_success_case = filter(x -> x.status == "success", df2)
-        @test isequal(df1[!, Not(:dir, :gen)], df2_success_case[!, Not(:dir, :case, :gparent, :status)])
+        @test isequal(df1[!, Not(:dir, :gen)], df2_success_case[!, Not(:dir, :case, :gparent, :status, :worker_id, :elapsed_time)])
         @test isequal(df2, df2_from_extract_csv)
     end
 
