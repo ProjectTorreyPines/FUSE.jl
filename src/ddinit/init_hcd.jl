@@ -191,72 +191,56 @@ function add_beam_examples!(nbu, name::Symbol)
     beamlet = resize!(nbu.beamlets_group, 1)[1]
 
     if name == :d3d_co
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [0.85, 0.1, 0.05]
+        @ddtime(nbu.beam_current_fraction.data = [0.8;0.15;0.05;;])
         beamlet.position.r = 8.2
         beamlet.position.z = 0.0
         beamlet.tangency_radius = 1.0
         beamlet.angle = 0.0
         beamlet.direction = 1
     elseif name == :d3d_counter
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [0.8,0.15,0.05]
+        @ddtime(nbu.beam_current_fraction.data = [0.8;0.15;0.05;;])
         beamlet.position.r = 8.2
         beamlet.position.z = 0.0
         beamlet.tangency_radius = 0.9
         beamlet.angle = 0.0
-        beamlet.direction = 1
+        beamlet.direction = -1
     elseif name == :d3d_offaxis
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [0.8,0.15,0.05]
+        @ddtime(nbu.beam_current_fraction.data = [0.8;0.15;0.05;;])
         beamlet.position.r = 8.2
         beamlet.position.z = 1.66
         beamlet.tangency_radius = 0.9
         beamlet.angle = -0.28
         beamlet.direction = 1
     elseif name == :nstx
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [0.48,0.37,0.15]
+        @ddtime(nbu.beam_current_fraction.data = [0.48;0.37;0.15;;])
         beamlet.position.r = 11.4
         beamlet.position.z = 1.66
         beamlet.tangency_radius = 0.6
         beamlet.angle = 0.0
         beamlet.direction = 1
     elseif name == :mast_onaxis
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [0.69,0.18,0.13]
+        @ddtime(nbu.beam_current_fraction.data = [0.69;0.18;0.13;;])
         beamlet.position.r = 7.08
         beamlet.position.z = 0.0
         beamlet.tangency_radius = 0.705
         beamlet.angle = 0.0
         beamlet.direction = 1
     elseif name == :mast_offaxis
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [0.69,0.18,0.13]
+        @ddtime(nbu.beam_current_fraction.data = [0.69;0.18;0.13;;])
         beamlet.position.r = 7.06
         beamlet.position.z = 0.65
         beamlet.tangency_radius = 0.705
         beamlet.angle = 0.0
         beamlet.direction = 1
     elseif name == :iter_onaxis
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [1.0,0.0,0.0]
+        @ddtime(nbu.beam_current_fraction.data = [1.0;0.0;0.0;;])
         beamlet.position.r = 14.0 # CHECK POSITION!
         beamlet.position.z = 0.5
         beamlet.tangency_radius = 5.3
         beamlet.angle = 0.0402
         beamlet.direction = 1
     elseif name == :iter_offaxis
-        nbu.beam_current_fraction.time = [0.]
-        nbu.beam_current_fraction.data = zeros(1,3)
-        nbu.beam_current_fraction.data[1,:] = [1.0,0.0,0.0]
+        @ddtime(nbu.beam_current_fraction.data = [1.0;0.0;0.0;;])
         beamlet.position.r = 14.0 # CHECK POSITION!
         beamlet.position.z = 0.5
         beamlet.tangency_radius = 5.3

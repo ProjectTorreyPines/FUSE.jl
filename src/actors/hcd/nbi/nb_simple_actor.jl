@@ -133,7 +133,6 @@ function _step(actor::ActorSimpleNB)
             y = 0.0
             Z = source_z
             #t_intersect = IMAS.toroidal_intersection(rin[end], 0.0, source_r, 0.0,  source_z, angleh, anglev)        
-            #print(t_intersect)
             #xtmp, ytmp, ztmp, rtmp = IMAS.pencil_beam([source_r, 0.0, source_z], anglev, angleh, range(0.0, t_intersect, 100))
             in_box = false
             out_box = false
@@ -177,12 +176,12 @@ function _step(actor::ActorSimpleNB)
             ne_beam[rho_beam .> 1] .= 0.0
             Te_beam = Te_interp.(rho_beam)
             Te_beam[rho_beam .> 1] .= 0.0
-            fbcur = nbu.beam_current_fraction.data[igroup,:]
     
             E_beam = nbu.energy.data[1]
             mass_beam = nbu.species.a
             Z_beam = nbu.species.z_n
-    
+            fbcur = nbu.beam_current_fraction.data[:,1]
+
             for (ifpow, fpow) in enumerate(fbcur)
                 vbeam = sqrt( (IMAS.mks.e * E_beam/ ifpow) / (0.5*mass_beam * IMAS.mks.m_p) )
                 times = dist ./ vbeam
@@ -204,18 +203,17 @@ function _step(actor::ActorSimpleNB)
                 eps = eps_interp.(rho_beam[mask])
                 rbananas[mask] .= IMAS.banana_width.(E_beam / ifpow, Bt, Z_beam, mass_beam, eps_interp.(.5), q_interp.(rho_beam[mask]))
                 for i in 1:ngrid
-                    rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * banana_shift_fraction * bgroup.direction, Zs[i])
+                    rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0-ftors[i])* banana_shift_fraction * bgroup.direction, Zs[i])
                 end
     
                 for itime in 1:length(times)-1
                     if rho_beam[itime] < 1
                         gaus = exp.(-0.5 .* (rho_cp .- rho_beam[itime]).^2 ./ smoothing_width^2) ./ (smoothing_width * sqrt(2 * π))
                         qbeamtmp = fpow * power_launched * group_power_frac * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(volume_cp,gaus)
-    
                         qbeam[igroup,ifpow,:] .+= qbeamtmp
     
                         sbeam[igroup,ifpow,:] .+= qbeamtmp/(E_beam*IMAS.mks.e/ifpow)#/vbeam^2/mass_beam/IMAS.mks.m_p
-                        mombeam[igroup,ifpow,:] .+= qbeamtmp.*(mass_beam*IMAS.mks.m_p.*vbeam).*ftors[itime]/(E_beam*IMAS.mks.e/ifpow)#)#fpow *ftor * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(vol,gaus)
+                        mombeam[igroup,ifpow,:] .+= bgroup.direction .* qbeamtmp.*(mass_beam*IMAS.mks.m_p.*vbeam).*ftors[itime]/(E_beam*IMAS.mks.e/ifpow)#)#fpow *ftor * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(vol,gaus)
                     end
                 end
             end
@@ -224,13 +222,14 @@ function _step(actor::ActorSimpleNB)
             cp1d = dd.core_profiles.profiles_1d[]
     
             eps = maximum(eps).*cp1d.grid.rho_tor_norm
-            
-            fbcur = nbu.beam_current_fraction.data[1,:]
+            fbcur = nbu.beam_current_fraction.data[:,1]
+            #@ddtime(fbcur = nbu.beam_current_fraction.data)
+
             for (ifpow, fpow) in enumerate(fbcur)
                 frac_ie = IMAS.sivukhin_fraction(cp1d, nbu.energy.data[1]/ifpow, nbu.species.a)
                 tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, nbu.energy.data[1]/ifpow, nbu.species.z_n, Int(nbu.species.a)) 
-                qbeame[igroup,ifpow,:]  += (1.0.-frac_ie).*qbeam[igroup,ifpow,:]
-                qbeami[igroup,ifpow,:]  += frac_ie.*qbeam[igroup,ifpow,:]
+                qbeame[igroup,ifpow,:] = (1.0.-frac_ie).*qbeam[igroup,ifpow,:]
+                qbeami[igroup,ifpow,:] = frac_ie.*qbeam[igroup,ifpow,:]
                 curbi = IMAS.mks.e*mombeam[igroup,ifpow,:].*tauppff/(nbu.species.a*IMAS.mks.m_p)
                 curbe = -curbi./cp1d.zeff
                 curbet = -curbe.*((1.55.+0.85./cp1d.zeff) .* sqrt.(eps) .-(0.20.+1.55./cp1d.zeff) .* eps)
@@ -239,9 +238,9 @@ function _step(actor::ActorSimpleNB)
         end
         
 
-
         electrons_energy = sum(sum(qbeame,dims=1),dims=2)[1,1,:]
         total_ion_energy = sum(sum(qbeami,dims=1),dims=2)[1,1,:]
+
         momentum_tor = sum(sum(mombeam,dims=1),dims=2)[1,1,:]
         curbeam = sum(sum(curbeam,dims=1),dims=2)[1,1,:]
         electrons_particles = sum(sum(sbeam,dims=1),dims=2)[1,1,:]

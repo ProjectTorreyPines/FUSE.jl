@@ -231,11 +231,21 @@ function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
     ini.general.casename = "D3D $scenario"
 
     if isempty(ini.general.dd.core_sources)
-        resize!(ini.nb_unit, 1)
-        ini.nb_unit[1].power_launched = 3E6
+        resize!(ini.nb_unit, 3)
+        ini.nb_unit[1].power_launched = 1E6
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
         ini.nb_unit[1].template_beam = :d3d_co
+
+        ini.nb_unit[2].power_launched = 1E6
+        ini.nb_unit[2].beam_energy = 80e3
+        ini.nb_unit[2].beam_mass = 2.0
+        ini.nb_unit[2].template_beam = :d3d_counter
+
+        ini.nb_unit[3].power_launched = 1E6
+        ini.nb_unit[3].beam_energy = 80e3
+        ini.nb_unit[3].beam_mass = 2.0
+        ini.nb_unit[3].template_beam = :d3d_offaxis
 
         resize!(ini.ec_launcher, 1)
         ini.ec_launcher[1].power_launched = 3E6
