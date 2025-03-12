@@ -909,8 +909,8 @@ install_IJulia:
 	'
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter nbextension list
 	jupyter labextension list
+	jupyter nbextension list
 
 # @user
 install_examples:
