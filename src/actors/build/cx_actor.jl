@@ -181,7 +181,7 @@ function wall_from_eq!(
 
     # private flux regions sorted by distance from lcfs
     private = IMAS.flux_surface(eqt, ψb, :open, pf_wall_r, pf_wall_z)
-    sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
+    sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs).distance)
 
     t = LinRange(0, 2π, 31)
     detected_upper = upper_divertor
@@ -193,10 +193,10 @@ function wall_from_eq!(
         end
 
         # xpoint between lcfs and private region
-        index = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
-        Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
-        Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
-        d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
+        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs).
+        Rx = (pr[k1] + rlcfs[k2]) / 2.0
+        Zx = (pz[k1] + zlcfs[k2]) / 2.0
+        d = sqrt((pr[k1] - rlcfs[k2])^2 + (pz[k1] - zlcfs[k2])^2)
         if d > minor_radius
             continue
         end
@@ -337,10 +337,10 @@ function divertor_regions!(
         end
 
         # xpoint between lcfs and private region
-        index = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
-        Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
-        Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
-        d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
+        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
+        Rx = (pr[k1] + rlcfs[k2]) / 2.0
+        Zx = (pz[k1] + zlcfs[k2]) / 2.0
+        d = sqrt((pr[k1] - rlcfs[k2])^2 + (pz[k1] - zlcfs[k2])^2)
         if d > minor_radius
             continue
         end
