@@ -176,6 +176,8 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
 
     merged_hdf5_filepath = joinpath(save_folder, "database.h5")
 
+    @info "Merging temporary study files into \"$(merged_hdf5_filepath)\"..."
+
     # read csv files
     tmp_csv_folder = joinpath(save_folder, "tmp_csv_output")
     if !isdir(tmp_csv_folder)

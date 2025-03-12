@@ -364,6 +364,9 @@ function optimization_engine(
             H[k, :] .= h
         end
     end
+
+    _merge_tmp_study_files(save_folder; cleanup=true)
+
     return F, G, H
 end
 
