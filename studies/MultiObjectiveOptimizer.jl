@@ -34,7 +34,6 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     population_size::Entry{Int} = Entry{Int}("-", "Number of individuals in a generation")
     number_of_generations::Entry{Int} = Entry{Int}("-", "Number generations")
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:single_hdf5)
-    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=1_000_000)
 end
 
 mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
@@ -139,16 +138,11 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
-        if study.sty.database_policy == :single_hdf5
-            file_lock_channels = prepare_file_lock_channels()
-            study_status = Ref(:running)
-            db_io_manager = @async database_IO_manager(sty.save_folder,file_lock_channels, study_status, sty.single_hdf5_merge_interval)
-        end
 
         state = workflow_multiobjective_optimization(
             study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
             optimization_parameters..., generation_offset=study.generation, database_policy=sty.database_policy,
-            number_of_generations = sty.number_of_generations, population_size = sty.population_size, file_lock_channels=file_lock_channels)
+            number_of_generations = sty.number_of_generations, population_size = sty.population_size)
 
         study.state = state
 
@@ -163,9 +157,6 @@ function _run(study::StudyMultiObjectiveOptimizer)
         if study.sty.database_policy == :separate_folders
             analyze(study; extract_results=true)
         else
-            study_status[] = :finished
-            wait(db_io_manager)
-
             study.dataframe = _merge_tmp_study_files(sty.save_folder; cleanup=true)
             analyze(study; extract_results=false)
         end
