@@ -645,7 +645,7 @@ Samples the database by filtering groups that satisfy the provided `conditions` 
 ### Examples:
 ```julia
     sample_and_write_database("database.h5", "sampled.h5", x -> x.status == "fail")
-    sample_and_write_database("database.h5", "sampled.h5", x -> x -> x.R0>2 && x."<zeff>">1.5)
+    sample_and_write_database("database.h5", "sampled.h5", x -> x.R0>2 && x."<zeff>">1.5)
 ```
 """
 function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function)
