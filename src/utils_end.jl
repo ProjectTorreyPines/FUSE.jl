@@ -525,6 +525,16 @@ function save_database(
     return savedir
 end
 
+"""
+    load_database(filename::AbstractString; kw...)
+
+Loads all data in a combined HDF5 database. Additional keyword arguments are forwarded.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5")
+```
+"""
 function load_database(filename::AbstractString; kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
@@ -534,6 +544,18 @@ function load_database(filename::AbstractString; kw...)
     end
 end
 
+"""
+    load_database(filename::AbstractString, conditions::Function; kw...)
+
+Loads a combined HDF5 database using a filtering condition. The condition is applied to the
+extract.csv contents to select parent group paths for loading.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", x -> x.status=="fail"; kw...)
+    data = FUSE.load_database("database.h5", x -> x.R0>2 && x."<zeff>">1.5; kw...)
+```
+"""
 function load_database(filename::AbstractString, conditions::Function; kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
@@ -544,10 +566,30 @@ function load_database(filename::AbstractString, conditions::Function; kw...)
     end
 end
 
+"""
+    load_database(filename::AbstractString, parent_group::AbstractString, kw...)
+
+Loads a combined HDF5 database for a single parent group path
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", "/case01"; kw...)
+```
+"""
 function load_database(filename::AbstractString, parent_group::AbstractString, kw...)
     return load_database(filename, [parent_group]; kw...)
 end
 
+"""
+    load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
+
+Loads a combined HDF5 database for the specified parent group paths.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", ["/case01", "/case02"]; pattern=r"dd.h5")
+```
+"""
 function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
