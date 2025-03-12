@@ -42,7 +42,7 @@ function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::Param
 
     model_name = :d3d_efit01
     green = EGGO.get_greens_function_tables(model_name)
-    basis_functions = EGGO.get_basis_functions(model_name, green)
+    basis_functions = EGGO.get_basis_functions(model_name)
     NNmodel = EGGO.get_model(model_name)
     basis_functions_1d, _ = EGGO.get_basis_functions_1d(model_name)
 
