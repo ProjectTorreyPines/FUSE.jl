@@ -193,7 +193,7 @@ function wall_from_eq!(
         end
 
         # xpoint between lcfs and private region
-        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs).
+        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs)
         Rx = (pr[k1] + rlcfs[k2]) / 2.0
         Zx = (pz[k1] + zlcfs[k2]) / 2.0
         d = sqrt((pr[k1] - rlcfs[k2])^2 + (pz[k1] - zlcfs[k2])^2)
