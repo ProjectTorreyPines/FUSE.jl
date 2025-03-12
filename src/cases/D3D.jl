@@ -1,3 +1,5 @@
+ssh = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
 """
     case_parameters(::Type{Val{:D3D}}, shot::Int)
 
@@ -110,7 +112,7 @@ function case_parameters(
     open(joinpath(local_path, "remote_slurm.sh"), "w") do io
         return write(io, remote_slurm)
     end
-
+    println("here3")
     # local driver script
     local_driver = """
         #!/bin/bash
@@ -122,16 +124,17 @@ function case_parameters(
         REMOTE_SCRIPT="remote_slurm.sh"
 
         # Use rsync to create directory if it doesn't exist and copy the script
-        ssh "\$REMOTE_HOST" "mkdir -p \$REMOTE_PATH"
-        rsync -az \$LOCAL_FILES "\$REMOTE_HOST":"\$REMOTE_PATH" >&2
+        $ssh \$REMOTE_HOST mkdir -p \$REMOTE_PATH
+        rsync -az -e "$ssh" \$LOCAL_FILES \$REMOTE_HOST:\$REMOTE_PATH >&2
 
         # Execute script remotely
-        ssh "\$REMOTE_HOST" "module load omfit; cd \$REMOTE_PATH && bash \$REMOTE_SCRIPT"
+        $ssh \$REMOTE_HOST "module load omfit; cd \$REMOTE_PATH && bash \$REMOTE_SCRIPT"
 
         # Retrieve results using rsync
-        rsync -az "\$REMOTE_HOST:\$REMOTE_PATH/$(filename) \$REMOTE_PATH/nbi_ods_$shot.h5 \$REMOTE_PATH/beams_$shot.dat" "\$LOCAL_OUTPUT_DIR" >&2
+        rsync -az -e "$ssh" \$REMOTE_HOST:\$REMOTE_PATH/$(filename) :\$REMOTE_PATH/nbi_ods_$shot.h5 :\$REMOTE_PATH/beams_$shot.dat \$LOCAL_OUTPUT_DIR >&2
         """
     open(joinpath(local_path, "local_driver.sh"), "w") do io
+        println(local_driver)
         return write(io, local_driver)
     end
 
@@ -139,6 +142,7 @@ function case_parameters(
     @info("Remote D3D data fetching for shot $shot")
     @info("Path on OMEGA: $remote_path")
     @info("Path on Localhost: $local_path")
+    println("$local_path/local_driver.sh")
     Base.run(`bash $local_path/local_driver.sh`)
 
     # load experimental ods
