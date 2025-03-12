@@ -3,6 +3,8 @@ using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
 import DataFrames
+import Dates
+import HDF5
 
 # ========== #
 # Checkpoint #
@@ -379,6 +381,219 @@ function save(
 
     return savedir
 end
+
+
+function save_database(
+    savedir::AbstractString,
+    parent_group::AbstractString,
+    dd::Union{Nothing,IMAS.dd},
+    ini::Union{Nothing,ParametersAllInits},
+    act::Union{Nothing,ParametersAllActors},
+    log_io::IOStream;
+    error_info::Any=nothing,
+    timer::Bool=true,
+    varinfo::Bool=false,
+    freeze::Bool=false,
+    overwrite_groups::Bool=false,
+    verbose::Bool=false,
+    kw...
+)
+
+    savedir = abspath(savedir)
+    if !isdir(savedir)
+        mkdir(savedir)
+    end
+
+    parent_group = IMAS.norm_hdf5_path(parent_group)
+
+    h5_filename = joinpath(savedir, "pid$(getpid())_output.h5")
+
+    function check_and_create_group(fid::HDF5.File, target_group::AbstractString)
+        if haskey(fid, target_group)
+            if target_group == "/"
+                gparent = fid
+            else
+                if !overwrite_groups
+                    error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
+                          "\n       Set `overwrite_groups`=true to replace the existing group.")
+                else
+                    verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
+                    HDF5.delete_object(fid, target_group)
+                    gparent = HDF5.create_group(fid, target_group)
+                end
+            end
+        else
+            gparent = HDF5.create_group(fid, target_group)
+        end
+        attr = HDF5.attrs(gparent)
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        return gparent
+    end
+
+    function check_and_write(fid::HDF5.File, target_group::AbstractString, data)
+        if haskey(fid, target_group)
+            if target_group != "/"
+                if !overwrite_groups
+                    error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
+                          "\n       Set `overwrite_groups`=true to replace the existing group.")
+                else
+                    verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
+                    HDF5.delete_object(fid, target_group)
+                end
+            end
+        end
+        HDF5.write(fid, target_group, data)
+        attr = HDF5.attrs(fid[target_group])
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+    end
+
+    mode = isfile(h5_filename) ? "r+" : "w"
+
+    HDF5.h5open(h5_filename, mode) do fid
+
+        attr = HDF5.attrs(fid)
+        attr["FUSE_version"] = string(pkgversion(FUSE))
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        attr["original_file_abs_path"] = abspath(fid.filename)
+        attr["original_file_rel_path"] = relpath(fid.filename)
+
+        if !haskey(fid, parent_group)
+            HDF5.create_group(fid, parent_group)
+        end
+        attr = HDF5.attrs(fid[parent_group])
+        attr["FUSE_version"] = string(pkgversion(FUSE))
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        attr["original_file_abs_path"] = abspath(fid.filename)
+        attr["original_file_rel_path"] = relpath(fid.filename)
+
+        # Write error information into the HDF5 file (instead of separate txt file)
+        if error_info !== nothing
+            error_str = ""
+            if typeof(error_info) <: Exception
+                io = IOBuffer()
+                showerror(io, error_info, catch_backtrace())
+                error_str = String(take!(io))
+            else
+                error_str = string(error_info)
+            end
+            check_and_write(fid, parent_group * "/error.txt", error_str)
+        end
+
+        if ini !== nothing
+            gparent = check_and_create_group(fid, parent_group * "/ini.h5")
+            SimulationParameters.par2hdf!(ini, gparent)
+        end
+
+        if dd !== nothing
+            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, verbose)
+        end
+
+        if act !== nothing
+            gparent = check_and_create_group(fid, parent_group * "/act.h5")
+            SimulationParameters.par2hdf!(act, gparent)
+        end
+
+        # save timer output
+        if timer
+            check_and_write(fid, parent_group * "/timer.txt", string(FUSE.timer))
+        end
+
+        # save memory trace
+        if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
+            memtrace_string = String[]
+            for (date, txt, kb) in FUSE.memtrace.data
+                push!(memtrace_string, "$date $kb \"$txt\"")
+            end
+            check_and_write(fid, parent_group * "/memtrace.txt", memtrace_string)
+        end
+
+        # save vars usage
+        if varinfo
+            varinfo_string = string(FUSE.varinfo(FUSE; all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
+            check_and_write(fid, parent_group * "/varinfo.txt", varinfo_string)
+        end
+
+        # save log
+        flush(log_io)
+        seekstart(log_io)
+        log_str = read(log_io, String)
+        if !isempty(log_str)
+            check_and_write(fid, parent_group * "/log.txt", log_str)
+        end
+    end
+
+    return savedir
+end
+
+function load_database(filename::AbstractString; kw...)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    HDF5.h5open(filename, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        return load_database(filename, df[!, :gparent]; kw...)
+    end
+end
+
+function load_database(filename::AbstractString, conditions::Function; kw...)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    HDF5.h5open(filename, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        parent_groups = filter(conditions, df)[!, :gparent]
+        return load_database(filename, parent_groups; kw...)
+    end
+end
+
+function load_database(filename::AbstractString, parent_group::AbstractString, kw...)
+    return load_database(filename, [parent_group]; kw...)
+end
+
+function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    parent_groups = IMAS.norm_hdf5_path.(parent_groups)
+
+    H5_fid = HDF5.h5open(filename, "r")
+
+    # Load dataframe (from extract)
+    df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+    df = subset(df, :gparent => ByRow(x -> x in parent_groups))
+
+    Nparents = length(parent_groups)
+
+    # Prepare output data
+    dds = occursin(pattern, "dd.h5") ? fill(IMAS.dd(), Nparents) : nothing
+    inis = occursin(pattern, "ini.h5") ? fill(ParametersInits(), Nparents) : nothing
+    acts = occursin(pattern, "act.h5") ? fill(ParametersActors(), Nparents) : nothing
+    logs = occursin(pattern, "log.txt") ? fill("", Nparents) : nothing
+    timers = occursin(pattern, "timer.txt") ? fill("", Nparents) : nothing
+    errors = occursin(pattern, "error.txt") ? fill("", Nparents) : nothing
+
+    for (k, gparent) in pairs(parent_groups)
+        filterd_keys = filter(x->occursin(pattern,x), keys(H5_fid[gparent]))
+        for key in filterd_keys
+            h5path = gparent * "/" * key
+            if key == "dd.h5"
+                dds[k] = IMAS.hdf2imas(filename, h5path)
+            elseif key == "ini.h5"
+                inis[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
+            elseif key == "act.h5"
+                acts[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
+            elseif key == "log.txt"
+                logs[k] = H5_fid[h5path][]
+            elseif key == "timer.txt"
+                timers[k] = H5_fid[h5path][]
+            elseif key == "error.txt"
+                errors[k] = H5_fid[h5path][]
+            end
+        end
+    end
+
+    close(H5_fid)
+
+    return (dds=dds, inis=inis, acts=acts, logs=logs, timers=timers, errors=errors, df=df)
+end
+
 
 """
     load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)

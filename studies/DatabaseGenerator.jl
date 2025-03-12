@@ -1,3 +1,5 @@
+import HDF5
+
 #= ====================== =#
 #  StudyDatabaseGenerator  #
 #= ====================== =#
@@ -39,6 +41,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     save_dd::Entry{Bool} = study_common_parameters(; save_dd=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     n_simulations::Entry{Int} = Entry{Int}("-", "Number of sampled simulations")
+    database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:separate_folders)
+    single_hdf5_merge_interval::Entry{Int} = study_common_parameters(; single_hdf5_merge_interval=1_000_000)
 end
 
 mutable struct StudyDatabaseGenerator <: AbstractStudy
@@ -59,6 +63,10 @@ end
 function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; kw...)
     @assert length(inis) == length(acts)
     sty = sty(kw...)
+    if sty.n_simulations ≠ length(inis)
+        @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
+        sty.n_simulations = length(inis)
+    end
     study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
     return setup(study)
 end
@@ -96,9 +104,37 @@ function _run(study::StudyDatabaseGenerator)
 
     # paraller run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
-    FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
 
-    analyze(study)
+    if study.sty.database_policy == :separate_folders
+        FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
+        analyze(study; extract=true)
+
+    elseif study.sty.database_policy == :single_hdf5
+
+        file_lock_channels = prepare_file_lock_channels()
+        study_status = Ref(:running)
+        db_io_manager = @async database_IO_manager(study.sty.save_folder,file_lock_channels, study_status, study.sty.single_hdf5_merge_interval)
+
+        FUSE.ProgressMeter.@showprogress pmap(item -> begin
+                try
+                    run_case(study, item, Val{:hdf5}, file_lock_channels)
+                catch e
+                    if isa(e, InterruptException)
+                        rethrow(e)  # or handle as needed
+                    end
+                end
+            end, iterator)
+
+        study_status[] = :finished
+
+        wait(db_io_manager)
+
+        study.dataframe = _merge_tmp_study_files(study.sty.save_folder; cleanup=true)
+
+        analyze(study; extract=false)
+    else
+        error("DatabaseGenerator should never be here: database_policy must be either `:separate_folders` or `:single_hdf5`")
+    end
 
     # Release workers after run
     if sty.release_workers_after_run
@@ -109,13 +145,16 @@ function _run(study::StudyDatabaseGenerator)
     return study
 end
 
+
 """
     _analyze(study::StudyDatabaseGenerator)
 
 Example of analyze plots to display after the run feel free to change this method for your needs
 """
-function _analyze(study::StudyDatabaseGenerator; re_extract::Bool=false)
-    extract_results(study; re_extract)
+function _analyze(study::StudyDatabaseGenerator; extract::Bool=true, re_extract::Bool=false)
+    if extract
+        extract_results(study; re_extract)
+    end
     df = study.dataframe
     display(histogram(df.Te0; xlabel="Te0 [keV]", ylabel="Number of simulations per bin", legend=false))
     display(histogram(df.Ti0; xlabel="Ti0 [keV]", ylabel="Number of simulations per bin", legend=false))
@@ -129,7 +168,6 @@ end
 Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
 """
 function run_case(study::AbstractStudy, item::Int)
-    act = study.act
     sty = study.sty
     @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
 
@@ -179,5 +217,121 @@ function run_case(study::AbstractStudy, item::Int)
         redirect_stderr(original_stderr)
         cd(original_dir)
         close(file_log)
+    end
+end
+
+function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}, file_lock_channels; kw...)
+    sty = study.sty
+    @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
+
+    original_dir = pwd()
+    if !isdir(sty.save_folder)
+        mkdir(sty.save_folder)
+    end
+    cd(sty.save_folder)
+
+    # Redirect stdout and stderr to the file
+    original_stdout = stdout  # Save the original stdout
+    original_stderr = stderr  # Save the original stderr
+
+    # ini/act variations
+    if typeof(study.ini) <: ParametersAllInits
+        ini = rand(study.ini)
+    elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
+        ini = study.ini[item]
+    end
+
+    if typeof(study.act) <: ParametersAllActors
+        act = rand(study.act)
+    elseif typeof(study.act) <: Vector{<:ParametersAllActors}
+        act = study.act[item]
+    end
+
+    dd = IMAS.dd()
+
+
+    zero_pad_length = length(string(sty.n_simulations))
+    parent_group = "/case$(lpad(item, zero_pad_length, "0"))"
+
+
+    tmp_log_filename = "tmp_log_worker_$(Distributed.myid())_pid$(getpid())_case_$item.txt"
+    tmp_log_io = open(tmp_log_filename, "w+")
+
+    myid = Distributed.myid()
+    start_time = time()
+
+    try
+        redirect_stdout(tmp_log_io)
+        redirect_stderr(tmp_log_io)
+
+        study.workflow(dd, ini, act)
+
+        df = DataFrame(IMAS.extract(dd, :all))
+        df[!, :case] = fill(item, nrow(df))
+        df[!, :dir] = fill(sty.save_folder, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :status] = fill("success", nrow(df))
+        df[!, :worker_id] = fill(myid, nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
+
+        save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
+        timer=true, freeze=false, overwrite_groups=true, kw...)
+
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+        csv_filepath =joinpath(tmp_csv_folder, "extract_success_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df, append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
+        end
+        put!(file_lock_channels.w2m[myid], :unlock)
+
+        return df
+    catch error
+        if isa(error, InterruptException)
+            rethrow(error)
+        end
+
+        df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
+        df[!, :worker_id] = fill(myid, nrow(df))
+        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+
+        wait_for_unlock!(file_lock_channels.m2w[myid])
+        put!(file_lock_channels.w2m[myid], :lock)
+
+        # save empty dd and error to directory
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
+            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+
+        # Write into temporary csv files, in case the whole Julia session is crashed
+        tmp_csv_folder = "tmp_csv_output"
+        if !isdir(tmp_csv_folder)
+            mkdir(tmp_csv_folder)
+        end
+        csv_filepath =joinpath(tmp_csv_folder, "extract_fail_pid$(getpid()).csv")
+        if isfile(csv_filepath)
+            CSV.write(csv_filepath, df, append=true, header=false)
+        else
+            CSV.write(csv_filepath, df)
+        end
+        put!(file_lock_channels.w2m[myid], :unlock)
+
+        return df
+    finally
+
+        redirect_stdout(original_stdout)
+        redirect_stderr(original_stderr)
+        close(tmp_log_io)
+        rm(tmp_log_filename; force=true)
+
+        cd(original_dir)
     end
 end

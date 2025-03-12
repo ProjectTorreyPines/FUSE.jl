@@ -67,34 +67,6 @@ function _step(actor::ActorSimpleEC)
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
 
-        # ===== Eventually this should be moved to a ActorEC that handles all EC models
-        # Estimate operating frequency and mode
-        if ismissing(ecb.frequency, :data)
-            resonance = IMAS.ech_resonance(eqt)
-            ecb.frequency.time = [-Inf]
-            ecb.frequency.data = [resonance.frequency]
-            ecb.mode = resonance.mode == "X" ? -1 : 1
-        end
-        # Pick a reasonable launch location
-        if ismissing(ecb.launching_position, :r) || ismissing(ecb.launching_position, :z)
-            fw = IMAS.first_wall(dd.wall)
-            index = argmax(fw.r .+ fw.z)
-            @ddtime(ecb.launching_position.r = fw.r[index])
-            @ddtime(ecb.launching_position.z = fw.z[index])
-        end
-        # aiming based on rho0
-        if !ismissing(par.actuator[k], :rho_0)
-            launch_r = @ddtime(ecb.launching_position.r)
-            launch_z = @ddtime(ecb.launching_position.z)
-            resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecb))
-            _, _, RHO_interpolant = IMAS.ρ_interpolant(eqt)
-            rho_resonance_layer = RHO_interpolant.(resonance_layer.r, resonance_layer.z)
-            index = resonance_layer.z .> eqt.global_quantities.magnetic_axis.z
-            sub_index = argmin(abs.(rho_resonance_layer[index] .- par.actuator[k].rho_0))
-            @ddtime(ecb.steering_angle_tor = 0.0)
-            @ddtime(ecb.steering_angle_pol = atan(resonance_layer.z[index][sub_index] - launch_z, resonance_layer.r[index][sub_index] - launch_r) + pi)
-        end
-        # =====
         # vacuum "ray tracing"
         launch_r = @ddtime(ecb.launching_position.r)
         launch_z = @ddtime(ecb.launching_position.z)
