@@ -87,8 +87,8 @@ function _step(actor::ActorCXbuild)
 
     # divertors + find strike points on divertors
     divertor_regions!(bd, eqt, dd.divertors, fw.r, fw.z)
-    psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_first_open)
+    psi_boundaries = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true)
+    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
 
     # blankets
     blanket_regions!(bd, eqt)
@@ -337,7 +337,7 @@ function divertor_regions!(
         end
 
         # xpoint between lcfs and private region
-        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
+        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs)
         Rx = (pr[k1] + rlcfs[k2]) / 2.0
         Zx = (pz[k1] + zlcfs[k2]) / 2.0
         d = sqrt((pr[k1] - rlcfs[k2])^2 + (pz[k1] - zlcfs[k2])^2)
