@@ -104,9 +104,9 @@ function _step(actor::ActorSimpleNB)
 
         @ddtime(nbu.power_launched.data = power_launched)
         @ddtime(nbu.energy.data = beam_energy)
-       
-        ngroups = length(dd.nbi.unit[ibeam].beamlets_group)
+        fbcur = @ddtime(nbu.beam_current_fraction.data)
 
+        ngroups = length(dd.nbi.unit[ibeam].beamlets_group)
         qbeam = zeros(ngroups,3, ntransport)
         sbeam = zeros(ngroups,3, ntransport)
         mombeam = zeros(ngroups, 3, ntransport)
@@ -132,8 +132,6 @@ function _step(actor::ActorSimpleNB)
             x = source_r
             y = 0.0
             Z = source_z
-            #t_intersect = IMAS.toroidal_intersection(rin[end], 0.0, source_r, 0.0,  source_z, angleh, anglev)        
-            #xtmp, ytmp, ztmp, rtmp = IMAS.pencil_beam([source_r, 0.0, source_z], anglev, angleh, range(0.0, t_intersect, 100))
             in_box = false
             out_box = false
             istep = 0
@@ -180,7 +178,6 @@ function _step(actor::ActorSimpleNB)
             E_beam = nbu.energy.data[1]
             mass_beam = nbu.species.a
             Z_beam = nbu.species.z_n
-            fbcur = nbu.beam_current_fraction.data[:,1]
 
             for (ifpow, fpow) in enumerate(fbcur)
                 vbeam = sqrt( (IMAS.mks.e * E_beam/ ifpow) / (0.5*mass_beam * IMAS.mks.m_p) )
@@ -212,8 +209,8 @@ function _step(actor::ActorSimpleNB)
                         qbeamtmp = fpow * power_launched * group_power_frac * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(volume_cp,gaus)
                         qbeam[igroup,ifpow,:] .+= qbeamtmp
     
-                        sbeam[igroup,ifpow,:] .+= qbeamtmp/(E_beam*IMAS.mks.e/ifpow)#/vbeam^2/mass_beam/IMAS.mks.m_p
-                        mombeam[igroup,ifpow,:] .+= bgroup.direction .* qbeamtmp.*(mass_beam*IMAS.mks.m_p.*vbeam).*ftors[itime]/(E_beam*IMAS.mks.e/ifpow)#)#fpow *ftor * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(vol,gaus)
+                        sbeam[igroup,ifpow,:] .+= qbeamtmp/(E_beam*IMAS.mks.e/ifpow)
+                        mombeam[igroup,ifpow,:] .+= bgroup.direction .* qbeamtmp.*(mass_beam*IMAS.mks.m_p.*vbeam).*ftors[itime]/(E_beam*IMAS.mks.e/ifpow)
                     end
                 end
             end
@@ -222,8 +219,6 @@ function _step(actor::ActorSimpleNB)
             cp1d = dd.core_profiles.profiles_1d[]
     
             eps = maximum(eps).*cp1d.grid.rho_tor_norm
-            fbcur = nbu.beam_current_fraction.data[:,1]
-            #@ddtime(fbcur = nbu.beam_current_fraction.data)
 
             for (ifpow, fpow) in enumerate(fbcur)
                 frac_ie = IMAS.sivukhin_fraction(cp1d, nbu.energy.data[1]/ifpow, nbu.species.a)

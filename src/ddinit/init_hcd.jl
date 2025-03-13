@@ -95,9 +95,8 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
             beamlet.tangency_radius = ini_nbu.normalized_tangency_radius*0.5*(dd.equilibrium.time_slice[].profiles_1d.r_inboard[end]+
                                       dd.equilibrium.time_slice[].profiles_1d.r_outboard[end])
 
-            nbu.beam_current_fraction.time = [0.0] # how can I avoid this???
-            nbu.beam_current_fraction.data = zeros(1,3)
-            nbu.beam_current_fraction.data[1,:] = ini_nbu.beam_current_fraction
+
+            @ddtime(nbu.beam_current_fraction.data = reshape(ini_nbu.beam_current_fraction,3,1) )
 
             if ini_nbu.current_direction == :co
                 beamlet.direction = 1
