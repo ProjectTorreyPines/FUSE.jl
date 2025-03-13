@@ -200,7 +200,7 @@ function equilibrium_control_points(
         iso_control_points = VacuumFields.FluxControlPoints(eqt.boundary.outline.r, eqt.boundary.outline.z, psib)
     else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
-        iso_control_points = VacuumFields.boundary_iso_control_points(fixed_eq, 0.999)
+        iso_control_points = VacuumFields.boundary_iso_control_points(fixed_eq, 0.99)
     end
 
     # x points
