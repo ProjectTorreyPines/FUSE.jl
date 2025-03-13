@@ -13,7 +13,6 @@ using FUSE.SimulationParameters.Distributions
     sty.file_save_mode = :append
     sty.n_simulations = 2
     sty.release_workers_after_run = false
-    sty.single_hdf5_merge_interval = 10
     sty.save_folder = mktempdir()
 
     println("save_folder = $(sty.save_folder)")
