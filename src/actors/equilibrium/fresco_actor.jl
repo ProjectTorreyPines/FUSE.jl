@@ -67,8 +67,8 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     end
     ΔR = maximum(fw_r) - minimum(fw_r)
     ΔZ = maximum(fw_z) - minimum(fw_z)
-    Rs = range(max(0.01, minimum(fw_r) - ΔR / 100), maximum(fw_r) + ΔR / 100, par.nR)
-    Zs = range(minimum(fw_z) - ΔZ / 100, maximum(fw_z) + ΔZ / 100, par.nZ)
+    Rs = range(max(0.01, minimum(fw_r) - ΔR / 20), maximum(fw_r) + ΔR / 20, par.nR)
+    Zs = range(minimum(fw_z) - ΔZ / 20, maximum(fw_z) + ΔZ / 20, par.nZ)
 
     # reuse green table if possible
     if actor.canvas !== nothing

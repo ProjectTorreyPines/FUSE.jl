@@ -21,6 +21,10 @@ function study_common_parameters(; kw...)
         return Entry{Bool}("-", "Releases the workers after running the study"; default)
     elseif name == :save_dd
         return Entry{Bool}("-", "Save dd of the study to save folder"; default)
+    elseif name == :database_policy
+        return Switch{Symbol}([:separate_folders, :single_hdf5], "-", "Data storage policy: 'separate_folders' stores each case in a separate folder, while 'single_hdf5' merges all cases into a single HDF5 file"; default)
+    elseif name == :single_hdf5_merge_interval
+        return Entry{Int}("seconds", "Interval to merge temporary files into single HDF5 database file (only used when database_policy is :single_hdf5)"; default)
     else
         error("There is no study_common_parameter named `$name`")
     end
