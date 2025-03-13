@@ -148,11 +148,11 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
     # beam properties
     if ismissing(ecb.phase, :angle) || ismissing(ecb.phase, :curvature)
         @ddtime(ecb.phase.angle = 0.0)
-        @ddtime(ecb.phase.curvature = [0.0; 0.0;;])
+        @ddtime(ecb.phase.curvature = [0.0, 0.0])
     end
     if ismissing(ecb.spot, :angle) || ismissing(ecb.spot, :size)
         @ddtime(ecb.spot.angle = 0.0)
-        @ddtime(ecb.spot.size = [0.0172; 0.0172;;])
+        @ddtime(ecb.spot.size = [0.0172, 0.0172])
     end
     # aiming based on rho0
     if (ismissing(ecb, :steering_angle_tor) || ismissing(ecb, :steering_angle_pol)) && !ismissing(par, :rho_0)
