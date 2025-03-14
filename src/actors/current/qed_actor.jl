@@ -155,7 +155,23 @@ function _finalize(actor::ActorQED)
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
     cp1d = dd.core_profiles.profiles_1d[]
-    cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+    j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+
+    if true
+        cp1d.j_total = j_total
+    else
+        # TEMP FIX: scale ohmic current coming so that total current does not change
+        Ip_CP1D = trapz(cp1d.grid.area, IMAS.Jpar_2_Jtor(cp1d.grid.rho_tor_norm, j_total, true, eqt))
+        Ip_QED = QED.Ip(actor.QO)
+        if ismissing(cp1d, :j_non_inductive)
+            ohmic_correction_factor = Ip_QED / Ip_CP1D
+            cp1d.j_total = j_total * ohmic_correction_factor
+        else
+            Ip_ni = IMAS.Ip_non_inductive(cp1d, eqt)
+            ohmic_correction_factor = (Ip_QED - Ip_ni) / (Ip_CP1D - Ip_ni)
+            cp1d.j_total = (j_total .- cp1d.j_non_inductive) * ohmic_correction_factor .+ cp1d.j_non_inductive
+        end
+    end
 
     return actor
 end
