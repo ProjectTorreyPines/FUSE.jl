@@ -155,13 +155,7 @@ function _finalize(actor::ActorQED)
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
     cp1d = dd.core_profiles.profiles_1d[]
-    j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-
-    if ismissing(cp1d, :j_non_inductive)
-        cp1d.j_ohmic = j_total
-    else
-        cp1d.j_ohmic = j_total .- cp1d.j_non_inductive
-    end
+    cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
 
     return actor
 end
