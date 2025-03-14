@@ -3,8 +3,8 @@
 
 Function used to actuate controllers, like this: `control(ip_controller(dd, δt))`
 """
-function control(ctrl::IMAS.controllers__linear_controller; time0::Float64=dd.global_time)
-    return control(Symbol(ctrl.name), ctrl; time0)
+function control(ctrl::IMAS.controllers__linear_controller; time0::Float64=global_time(ctrl))
+    return control(Val(Symbol(ctrl.name)), ctrl; time0)
 end
 
 """
@@ -44,7 +44,7 @@ end
 Activates controller for the plasma current
 """
 function control(::Val{:ip}, ctrl::IMAS.controllers__linear_controller; time0::Float64)
-    dd = top_dd(ctrl)
+    dd = IMAS.top_dd(ctrl)
     ip_target_now = IMAS.get_from(dd, Val{:ip}, :pulse_schedule)
     ip_value_now = IMAS.get_from(dd, Val{:ip}, :core_profiles) # eventually this should be Ip from Rogowski coil
 
