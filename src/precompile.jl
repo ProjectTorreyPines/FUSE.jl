@@ -20,3 +20,40 @@ function warmup(dd::IMAS.dd)
 
     return frozen_dd
 end
+
+function warmup()
+
+    # Run ActorWholeFacility for FPP
+    dd = IMAS.dd()
+    actor_logging(dd, false)
+    ini, act = case_parameters(:FPP)
+    ini_act_tests_customizations!(ini, act)
+    init(dd, ini, act)
+    ActorWholeFacility(dd, act)
+    IMAS.freeze(dd)
+
+    # Run ActorStationaryPlasma for ITER, :ods
+    empty!(dd)
+    actor_logging(dd, false)
+    ini, act = case_parameters(:ITER, init_from=:ods)
+    ini_act_tests_customizations!(ini, act)
+    act.ActorEquilibrium.model = :FRESCO
+    act.ActorCurrent.model = :SteadyStateCurrent;
+    init(dd, ini, act)
+    ActorStationaryPlasma(dd, act)
+
+    # Run ActorDynamicPlasma for D3D, :default
+    empty!(dd)
+    actor_logging(dd, false)
+    ini, act = case_parameters(:D3D, :default)
+    ini_act_tests_customizations!(ini, act)
+    act.ActorEquilibrium.model = :FRESCO
+    act.ActorDynamicPlasma.Δt = 0.01
+    act.ActorDynamicPlasma.Nt = 2
+    act.ActorDynamicPlasma.ip_controller = true
+    act.ActorDynamicPlasma.time_derivatives_sources = true
+    init(dd, ini, act)
+    ActorDynamicPlasma(dd, act)
+
+    return IMAS.freeze(dd)
+end
