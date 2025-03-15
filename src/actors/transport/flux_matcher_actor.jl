@@ -86,15 +86,19 @@ end
 
 ActorFluxMatcher step
 """
-function _step(actor::ActorFluxMatcher)
+function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
     IMAS.sources!(dd)
 
-    initial_cp1d = IMAS.freeze(cp1d)
-    initial_summary_ped = IMAS.freeze(dd.summary.local.pedestal)
+    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
+    initial_summary_ped = IMAS.summary__local__pedestal{D}()
+    setfield!(initial_summary_ped.position, :rho_tor_norm, [@ddtime(dd.summary.local.pedestal.position.rho_tor_norm)])
+    for field in (:n_e, :t_e, :t_i_average, :zeff)
+        setfield!(getfield(initial_summary_ped, field), :value, [@ddtime(getproperty(dd.summary.local.pedestal, field).value)])
+    end
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
@@ -335,7 +339,10 @@ function flux_match_errors(
     if par.evolve_pedestal
         unpack_z_profiles(cp1d, par, z_profiles)
         actor.actor_ped.par.βn_from = :core_profiles
-        dd.summary.local.pedestal = deepcopy(initial_summary_ped)
+        @ddtime(dd.summary.local.pedestal.position.rho_tor_norm = getfield(initial_summary_ped.position, :rho_tor_norm)[1])
+        for field in (:n_e, :t_e, :t_i_average, :zeff)
+            @ddtime(getfield(dd.summary.local.pedestal, field).value = getfield(initial_summary_ped, field).value[1])
+        end
         finalize(step(actor.actor_ped))
     end
 
@@ -809,7 +816,6 @@ function setup_density_evolution_electron_flux_match_impurities_fixed(dd::IMAS.d
     return setup_density_evolution_electron_flux_match_impurities_fixed(dd.core_profiles.profiles_1d[])
 end
 
-
 """
     setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
 
@@ -845,4 +851,19 @@ Checks if there are any NaNs in the output
 """
 function check_output_fluxes(output::Vector{Float64}, what::String)
     @assert isnothing(findfirst(x -> isnan(x), output)) "The output flux is NaN check your transport model fluxes in core_transport ($(what))"
+end
+
+function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) where {T<:Real}
+    to_cp1d = IMAS.core_profiles__profiles_1d{T}()
+    to_cp1d.grid.rho_tor_norm = deepcopy(cp1d.grid.rho_tor_norm)
+    to_cp1d.electrons.density_thermal = deepcopy(cp1d.electrons.density_thermal)
+    to_cp1d.electrons.temperature = deepcopy(cp1d.electrons.temperature)
+    resize!(to_cp1d.ion, length(cp1d.ion))
+    for (initial_ion,ion) in zip(to_cp1d.ion, cp1d.ion)
+        initial_ion.element = ion.element
+        initial_ion.density_thermal = deepcopy(ion.density_thermal)
+        initial_ion.temperature = deepcopy(ion.temperature)
+    end
+    to_cp1d.rotation_frequency_tor_sonic = cp1d.rotation_frequency_tor_sonic
+    return to_cp1d
 end

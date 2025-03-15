@@ -151,8 +151,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
             run_selected_pedestal_model(actor; density_factor, zeff_factor)
 
-            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
-            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* dd.core_profiles.profiles_1d[].ion[1].temperature
+            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
+            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
 
             cp1d.electrons.temperature = Te_now
             for ion in cp1d.ion
@@ -170,8 +170,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
             run_selected_pedestal_model(actor; density_factor, zeff_factor)
 
-            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
-            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* dd.core_profiles.profiles_1d[].ion[1].temperature
+            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
+            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
 
             cp1d.electrons.temperature = Te_now
             for ion in cp1d.ion
@@ -247,7 +247,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; 
     #NOTE: Zeff can change after a pedestal actor is run, even though actors like EPED and WPED only operate on the temperature profiles.
     # This is because in FUSE the calculation of Zeff is temperature dependent.
     zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) * zeff_factor
-    IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
+    return IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
 end
 
 """
