@@ -366,9 +366,9 @@ daily_example_ci_commit:
 endif
 
 # @devs
-delete_dev_branch: error_missing_repo_var
+delete_remote_branch: error_missing_repo_var error_missing_branch_var
 # delete `dev` branch on GitHub for a repo
-	@cd ../$(repo) && git push origin --delete dev
+	@cd ../$(repo) && git push origin --delete $(branch)
 
 # @devs
 deps_tree:
@@ -572,18 +572,17 @@ error_not_on_master_branch: error_missing_repo_var
 	fi
 
 # @devs
-feature_or_master:
+feature_or_master: error_missing_branch_var
 # checks if on the packages remote GitHub repos there is a branch with the same name of the local FUSE branch
-	@echo "Local branch is \`$(FUSE_LOCAL_BRANCH)\`"
 	@julia -e ';\
 	$(feature_or_master_julia);\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = sort!(["FUSE"; $(FUSE_PACKAGES_ALL)]);\
 	for package in fuse_packages;\
-		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
-        if branch == "master";\
+		branch_name = feature_or_master(package, "$(branch)");\
+        if branch_name == "master";\
             println("    $$(package)");\
         else;\
-            println(">>> $$(package) @ $$(branch)");\
+            println(">>> $$(package) @ $$(branch_name)");\
         end;\
 	end'
 

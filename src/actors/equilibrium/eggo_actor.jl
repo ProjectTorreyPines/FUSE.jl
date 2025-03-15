@@ -18,10 +18,10 @@ mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorEGGO{P}
     act::ParametersAllActors{P}
-    green::Dict{Symbol,Any}
-    basis_functions::Dict{Symbol,Any}
-    basis_functions_1d::Dict{Any,Any}
-    NNmodel::Dict{Any,Any}
+    green::Dict
+    basis_functions::Dict
+    basis_functions_1d::Dict
+    NNmodel::Dict
 end
 
 """
@@ -71,7 +71,7 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     pp_fit, ffp_fit = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d)
 
     # make actual prediction
-    Jt, psirz, Ip, fcurrt = EGGO.predict_model(bound_mxh, pp_fit, ffp_fit, ecurrt_target, actor.NNmodel, actor.green, actor.basis_functions, nothing)
+    Jt, psirz, Ip, fcurrt = EGGO.predict_model(bound_mxh, pp_fit, ffp_fit, ecurrt_target, actor.NNmodel, actor.green, actor.basis_functions)
 
     # pp' and ff' that were actually used in EGGO
     pp = zero(actor.basis_functions_1d[:pp][1, :])
@@ -90,6 +90,5 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
 
     # fill out eqt quantities
     EGGO.fill_eqt(eqt, psirz, actor.green, wall, pp, ffp, b0, r0, pend)
-
     return actor
 end

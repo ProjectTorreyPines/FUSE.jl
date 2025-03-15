@@ -82,10 +82,9 @@ function _finalize(actor::ActorCurrent)
 
     finalize(actor.jt_actor)
 
-    # freeze cp1d j_total and j_tor after j_ohmic update
-    # important to freeze first j_total and then j_tor
+    # freeze cp1d j_ohmic and j_tor after j_total update
     cp1d = dd.core_profiles.profiles_1d[]
-    for field in (:j_total, :j_tor)
+    for field in (:j_ohmic, :j_tor)
         IMAS.refreeze!(cp1d, field)
     end
 
@@ -107,7 +106,7 @@ function _step(replay_actor::ActorReplay, actor::ActorCurrent, replay_dd::IMAS.d
     cp1d = dd.core_profiles.profiles_1d[time0]
     replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
 
-    cp1d.j_ohmic = replay_cp1d.j_ohmic
+    cp1d.j_total = replay_cp1d.j_total
 
     return replay_actor
 end
