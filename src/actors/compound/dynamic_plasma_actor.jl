@@ -106,7 +106,7 @@ function _step(actor::ActorDynamicPlasma)
     old_logging = actor_logging(dd, false)
 
     try
-        for kk in 1:2*Nt # NOTE: δt is a full step, some actors are called every 1/2 step
+        for (kk, tt) in enumerate(range(t0, t1, 2 * Nt+1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
             progr = (prog, t0, t1, phase)
 
@@ -116,6 +116,7 @@ function _step(actor::ActorDynamicPlasma)
             # by actor_tr and actor_ped at the 1/2 steps.
             # For dd.core_profiles we thus create a new time slice
             # at the 1/2 steps which is then retimed at the 2/2 steps.
+            dd.global_time = tt
             substep(actor, Val{:time_advance}, δt / 2; progr, retime_core_profiles=(phase == 2))
 
             δtt = kk == 1 ? δt / 2 : δt
@@ -145,7 +146,6 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:time_advance}}, δt::Flo
     retime_equilibrium::Bool=false, retime_core_sources::Bool=false, retime_core_profiles::Bool=false)
     # time_advance
     dd = actor.dd
-    dd.global_time += δt
     if retime_equilibrium
         IMAS.retime!(dd.equilibrium)
     else
