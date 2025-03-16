@@ -25,9 +25,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
     optimizer_algorithm::Switch{Symbol} =
         Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none],
-        "-",
-        "Optimizing algorithm used for the flux matching";
-        default=:anderson)
+            "-",
+            "Optimizing algorithm used for the flux matching";
+            default=:anderson)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -115,7 +115,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     xtol = 1E-3 # difference in input array
 
     ProgressMeter.ijulia_behavior(:clear)
-    prog = ProgressMeter.ProgressUnknown(;dt=0.1, desc="Calls:", enabled=par.verbose)
+    prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     out = try
@@ -677,7 +677,7 @@ function unpack_z_profiles(
     z_profiles::AbstractVector{<:Real})
 
     # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10.
+    z_max = 10.0
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
     cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
@@ -723,15 +723,6 @@ function unpack_z_profiles(
         end
     end
 
-    # re-freeze densities expressions
-    zero_value = zero(cp1d.grid.rho_tor_norm)
-    for field in [:density_fast, :density]
-        IMAS.refreeze!(cp1d.electrons, field, zero_value)
-        for ion in cp1d.ion
-            IMAS.refreeze!(ion, field, zero_value)
-        end
-    end
-
     # Ensure quasi neutrality if densities are evolved
     # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs 
     for (species, evolve) in evolve_densities
@@ -742,6 +733,7 @@ function unpack_z_profiles(
     end
 
     # re-freeze pressures expressions
+    zero_value = zero(cp1d.grid.rho_tor_norm)
     IMAS.refreeze!(cp1d.electrons, :pressure_thermal, zero_value)
     IMAS.refreeze!(cp1d.electrons, :pressure, zero_value)
     for ion in cp1d.ion
@@ -761,7 +753,11 @@ end
 Checks if the evolve_densities dictionary makes sense and return sensible errors if this is not the case
 """
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
-    dd_species = [:electrons; [Symbol(ion.label) for ion in cp1d.ion]; [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if sum(ion.density_fast) > 0.0]]
+    dd_species = [
+        :electrons;
+        [Symbol(ion.label) for ion in cp1d.ion];
+        [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if IMAS.hasdata(ion, :density_fast) && sum(ion.density_fast) > 0.0]
+    ]
 
     # Check if evolve_densities contains all of dd thermal species
     @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Not all species $(sort(dd_species)) are accounted for in the evolve_densities : $(sort([i for (i,j) in evolve_densities]))"
@@ -859,7 +855,7 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
     to_cp1d.electrons.density_thermal = deepcopy(cp1d.electrons.density_thermal)
     to_cp1d.electrons.temperature = deepcopy(cp1d.electrons.temperature)
     resize!(to_cp1d.ion, length(cp1d.ion))
-    for (initial_ion,ion) in zip(to_cp1d.ion, cp1d.ion)
+    for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
         initial_ion.element = ion.element
         initial_ion.density_thermal = deepcopy(ion.density_thermal)
         initial_ion.temperature = deepcopy(ion.temperature)
