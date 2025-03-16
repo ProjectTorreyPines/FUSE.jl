@@ -336,6 +336,9 @@ function flux_match_errors(
     push!(z_scaled_history, Tuple(z_profiles_scaled))
     z_profiles = unscale_z_profiles(z_profiles_scaled)
 
+    # restore profiles at initial conditions
+    cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
+
     # evolve pedestal
     if par.evolve_pedestal
         # modify cp1d with new z_profiles
@@ -869,6 +872,19 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
         initial_ion.density_thermal = deepcopy(ion.density_thermal)
         initial_ion.temperature = deepcopy(ion.temperature)
     end
-    to_cp1d.rotation_frequency_tor_sonic = cp1d.rotation_frequency_tor_sonic
+    to_cp1d.rotation_frequency_tor_sonic = deepcopy(cp1d.rotation_frequency_tor_sonic)
+    return to_cp1d
+end
+
+function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_profiles__profiles_1d{<:Real}}
+    @assert length(to_cp1d.ion) == length(cp1d.ion)
+    to_cp1d.grid.rho_tor_norm .= cp1d.grid.rho_tor_norm
+    to_cp1d.electrons.density_thermal .= cp1d.electrons.density_thermal
+    to_cp1d.electrons.temperature .= cp1d.electrons.temperature
+    for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
+        initial_ion.density_thermal .= ion.density_thermal
+        initial_ion.temperature .= ion.temperature
+    end
+    to_cp1d.rotation_frequency_tor_sonic .= cp1d.rotation_frequency_tor_sonic
     return to_cp1d
 end
