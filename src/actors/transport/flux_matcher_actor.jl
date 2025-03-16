@@ -207,6 +207,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                         plot_opts = Dict(:markershape => :diamond, :markerstrokewidth => 0.5, :linewidth => 0, :color => :orange)
                     elseif model.identifier.index == model_type[:neoclassical]
                         plot_opts = Dict(:markershape => :cross, :linewidth => 0, :color => :purple)
+                    else
+                        continue
                     end
                     plot!(IMAS.goto(model.profiles_1d[], fluxes_path), Val(:flux); subplot=2 * ch - 1, plot_opts...)
                 end
