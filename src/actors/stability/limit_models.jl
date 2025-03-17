@@ -49,9 +49,12 @@ function beta_troyon_nn(dd::IMAS.dd, act::ParametersAllActors)
         model_value = beta_normal
 
         index = findfirst(mode -> mode.perturbation_type.name == "Troyon no-wall" && mode.n_tor == n, mhd.toroidal_mode)
-        target_value = mhd.toroidal_mode[index].stability_metric
-
-        @ddtime(model.fraction = model_value / target_value)
+        if index !== nothing
+            target_value = mhd.toroidal_mode[index].stability_metric
+            @ddtime(model.fraction = model_value / target_value)
+        else        
+            @ddtime(model.fraction = 0.0)
+        end
     end
 end
 push!(supported_limit_models, :beta_troyon_nn)
