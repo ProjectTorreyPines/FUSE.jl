@@ -5,9 +5,9 @@ Base.@kwdef mutable struct _FUSEparameters__ActorSimpleNBactuator{T<:Real} <: Pa
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
-    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+    dl::Entry{T} = Entry{T}("-", "Step size for pencil beam [meters]"; default=0.005, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    banana_shift_fraction::Entry{T} = Entry{T}("-", "Shift factor"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
+    smoothing_width::Entry{T} = Entry{T}("-", "Width of the deposition profile"; default=0.12, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
@@ -82,7 +82,6 @@ function _step(actor::ActorSimpleNB)
     ntransport = length(ne)
         
     q_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm,dd.equilibrium.time_slice[].profiles_1d.q)
-    
     rin = dd.equilibrium.time_slice[].profiles_1d.r_inboard
     rout = dd.equilibrium.time_slice[].profiles_1d.r_outboard
     eps = (rout.-rin)./(rout.+rin)
@@ -90,26 +89,18 @@ function _step(actor::ActorSimpleNB)
 
     ne_interp = IMAS.interp1d(rho_cp,ne)
     Te_interp = IMAS.interp1d(rho_cp,Te)
-    dl = 0.005
-    banana_shift_fraction = 0.5
-    smoothing_width = 0.12
-    for (ibeam, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
-        # smooting of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
-        beam_energy = max(0.0, @ddtime(ps.energy.reference))
-        τ_th = IMAS.fast_ion_thermalization_time(cp1d, nbu.species, beam_energy)
-        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
-        rho_0 = par.actuator[ibeam].rho_0
-        width = par.actuator[ibeam].width
-        ηcd_scale = par.actuator[ibeam].ηcd_scale
 
-        @ddtime(nbu.power_launched.data = power_launched)
+    for (ibeam, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
+        # smoothing of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
+        beam_energy = max(0.0, @ddtime(ps.energy.reference))
         @ddtime(nbu.energy.data = beam_energy)
+
         fbcur = @ddtime(nbu.beam_current_fraction.data)
 
         ngroups = length(dd.nbi.unit[ibeam].beamlets_group)
-        qbeam = zeros(ngroups,3, ntransport)
-        sbeam = zeros(ngroups,3, ntransport)
-        mombeam = zeros(ngroups, 3, ntransport)
+        qbeam = zeros(ngroups,nenergies, ntransport)
+        sbeam = zeros(ngroups,nenergies, ntransport)
+        mombeam = zeros(ngroups, nenergies, ntransport)
         qbeame = zeros(size(qbeam))
         qbeami = zeros(size(qbeam))
         curbeam = zeros(size(qbeam))
@@ -126,9 +117,9 @@ function _step(actor::ActorSimpleNB)
             angleh = bgroup.direction * asin(bgroup.tangency_radius / (source_r))
             anglev =  bgroup.angle
                 
-            dx = -dl .* cos(angleh).*cos(anglev)
-            dy = -dl .* sin(angleh)*cos(anglev)
-            dZ = dl .* cos(angleh)*sin(anglev)
+            dx = -par.actuator[ibeam].dl .* cos(angleh).*cos(anglev)
+            dy = -par.actuator[ibeam].dl .* sin(angleh)*cos(anglev)
+            dZ = par.actuator[ibeam].dl .* cos(angleh)*sin(anglev)
             x = source_r
             y = 0.0
             Z = source_z
@@ -147,7 +138,7 @@ function _step(actor::ActorSimpleNB)
                 R = sqrt(x^2+y^2)
                 phi = asin(y/R)
     
-                ftor = abs(-dx*sin(phi)+dy*cos(phi))/dl
+                ftor = abs(-dx*sin(phi)+dy*cos(phi))/par.actuator[ibeam].dl
                 istep += 1
                 if ~in_box
     
@@ -165,11 +156,12 @@ function _step(actor::ActorSimpleNB)
             
                 end
             end
+
             rho_beam = zeros(ngrid)
             for i in 1:ngrid
                 rho_beam[i] = rho2d_interp(Rs[i], Zs[i])
             end
-            dist = dl* LinRange(0,1,ngrid) *ngrid
+            dist = par.actuator[ibeam].dl* LinRange(0,1,ngrid) * ngrid
             ne_beam = ne_interp.(rho_beam)
             ne_beam[rho_beam .> 1] .= 0.0
             Te_beam = Te_interp.(rho_beam)
@@ -178,8 +170,13 @@ function _step(actor::ActorSimpleNB)
             E_beam = nbu.energy.data[1]
             mass_beam = nbu.species.a
             Z_beam = nbu.species.z_n
-
+            power_launched_allenergies = zeros(length(dd.pulse_schedule.nbi.time))
             for (ifpow, fpow) in enumerate(fbcur)
+
+                τ_th = IMAS.fast_ion_thermalization_time(cp1d, nbu.species, beam_energy/ifpow)
+                power_launched = fpow*max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
+                power_launched_allenergies .+= power_launched
+
                 vbeam = sqrt( (IMAS.mks.e * E_beam/ ifpow) / (0.5*mass_beam * IMAS.mks.m_p) )
                 times = dist ./ vbeam
                 
@@ -200,13 +197,13 @@ function _step(actor::ActorSimpleNB)
                 eps = eps_interp.(rho_beam[mask])
                 rbananas[mask] .= IMAS.banana_width.(E_beam / ifpow, Bt, Z_beam, mass_beam, eps_interp.(.5), q_interp.(rho_beam[mask]))
                 for i in 1:ngrid
-                    rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0-ftors[i])* banana_shift_fraction * bgroup.direction, Zs[i])
+                    rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0-ftors[i])* par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
                 end
     
                 for itime in 1:length(times)-1
                     if rho_beam[itime] < 1
-                        gaus = exp.(-0.5 .* (rho_cp .- rho_beam[itime]).^2 ./ smoothing_width^2) ./ (smoothing_width * sqrt(2 * π))
-                        qbeamtmp = fpow * power_launched * group_power_frac * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(volume_cp,gaus)
+                        gaus = exp.(-0.5 .* (rho_cp .- rho_beam[itime]).^2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
+                        qbeamtmp = power_launched * group_power_frac * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(volume_cp,gaus)
                         qbeam[igroup,ifpow,:] .+= qbeamtmp
     
                         sbeam[igroup,ifpow,:] .+= qbeamtmp/(E_beam*IMAS.mks.e/ifpow)
@@ -214,6 +211,8 @@ function _step(actor::ActorSimpleNB)
                     end
                 end
             end
+            @ddtime(nbu.power_launched.data = power_launched_allenergies)
+
             mombeam *= 2.0 # fudge factor to get momentum flux right, why is this needed?????
     
             cp1d = dd.core_profiles.profiles_1d[]
