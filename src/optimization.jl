@@ -149,8 +149,6 @@ function optimization_engine(
     end
     cd(save_folder)
 
-    file_lock_channels = get(kw, :file_lock_channels, nothing)
-
     number_of_generations = get(kw, :number_of_generations, 10000)
     population_size = get(kw, :population_size, 10000)
 
@@ -196,9 +194,6 @@ function optimization_engine(
             dd = actor.dd
         end
 
-        wait_for_unlock!(file_lock_channels.m2w[myid])
-        put!(file_lock_channels.w2m[myid], :lock)
-
         df = DataFrame(IMAS.extract(dd, :all))
         df[!, :dir] = [relpath(".", original_dir)]
         df[!, :gen] = fill(generation, nrow(df))
@@ -225,7 +220,6 @@ function optimization_engine(
         else
             CSV.write(csv_filepath, df)
         end
-        put!(file_lock_channels.w2m[myid], :unlock)
 
         # evaluate multiple objectives
         ff = collect(map(f -> nan2inf(f(dd)), objective_functions))
@@ -243,8 +237,6 @@ function optimization_engine(
         if isa(error, InterruptException)
             rethrow(error)
         end
-        wait_for_unlock!(file_lock_channels.m2w[myid])
-        put!(file_lock_channels.w2m[myid], :lock)
 
         df = DataFrame()
         df[!, :dir] = [relpath(".", original_dir)]
@@ -272,7 +264,6 @@ function optimization_engine(
         else
             CSV.write(csv_filepath, df)
         end
-        put!(file_lock_channels.w2m[myid], :unlock)
 
         # rethrow(e) # uncomment for debugging purposes
 
@@ -312,7 +303,7 @@ function _optimization_engine(
     case_index::Union{Nothing, Int}=nothing,
     kw...)
 
-    database_policy = get(kw, :database_policy, :separate_folders)
+    database_policy = get(kw, :database_policy, :single_hdf5)
 
     if database_policy == :separate_folders
         tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
@@ -373,6 +364,9 @@ function optimization_engine(
             H[k, :] .= h
         end
     end
+
+    _merge_tmp_study_files(save_folder; cleanup=true)
+
     return F, G, H
 end
 
