@@ -23,7 +23,7 @@ end
 
 function warmup()
 
-    # Run ActorWholeFacility for FPP
+    println("Run ActorWholeFacility for FPP")
     dd = IMAS.dd()
     actor_logging(dd, false)
     ini, act = case_parameters(:FPP)
@@ -31,8 +31,9 @@ function warmup()
     init(dd, ini, act)
     ActorWholeFacility(dd, act)
     IMAS.freeze(dd)
+    println()
 
-    # Run ActorStationaryPlasma for ITER, :ods
+    println("Run ActorStationaryPlasma for ITER, :ods")
     empty!(dd)
     actor_logging(dd, false)
     ini, act = case_parameters(:ITER, init_from=:ods)
@@ -41,8 +42,9 @@ function warmup()
     act.ActorCurrent.model = :SteadyStateCurrent;
     init(dd, ini, act)
     ActorStationaryPlasma(dd, act)
+    println()
 
-    # Run ActorDynamicPlasma for D3D, :default
+    println("Run ActorDynamicPlasma for D3D, :default")
     empty!(dd)
     actor_logging(dd, false)
     ini, act = case_parameters(:D3D, :default)
