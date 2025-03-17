@@ -3,7 +3,7 @@
 
 GA Compact Advanced Tokamak design
 """
-function case_parameters(::Type{Val{:CAT}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:CAT}})
     ini = ParametersInits()
     act = ParametersActors()
 

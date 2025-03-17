@@ -13,7 +13,7 @@ function case_parameters(
     init_from::Symbol,
     boundary_from::Symbol=:auto,
     ne_setting::Symbol=:ne_ped,
-    time_dependent::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+    time_dependent::Bool=false)
 
     ini = ParametersInits()
     act = ParametersActors()

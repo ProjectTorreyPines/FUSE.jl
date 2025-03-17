@@ -36,7 +36,7 @@ NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Effi
 
 !!! note
 
-    Reads data in `dd.ec_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.ec_launchers`, `dd.pulse_schedule` and stores data in `dd.waves` and `dd.core_sources`
 """
 function ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleEC(dd, act.ActorSimpleEC; kw...)
@@ -58,13 +58,37 @@ function _step(actor::ActorSimpleEC)
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    for (k, (ps, ecl)) in enumerate(zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam))
-        power_launched = @ddtime(ps.power_launched.reference)
-        rho_0 = par.actuator[k].rho_0
+    # rho interpolant
+    _, _, RHO_interpolant = IMAS.ρ_interpolant(eqt)
+
+    for (k, (ps, ecb)) in enumerate(zip(dd.pulse_schedule.ec.beam, dd.ec_launchers.beam))
+        τ_th = 0.01 # what's a good averating time here?
+        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.ec.time, ps.power_launched.reference, dd.global_time, τ_th))
         width = par.actuator[k].width
         ηcd_scale = par.actuator[k].ηcd_scale
 
-        @ddtime(ecl.power_launched.data = power_launched)
+        # vacuum "ray tracing"
+        launch_r = @ddtime(ecb.launching_position.r)
+        launch_z = @ddtime(ecb.launching_position.z)
+        resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecb))
+        angle_pol = @ddtime(ecb.steering_angle_pol)
+        angle_tor = @ddtime(ecb.steering_angle_tor)
+        t_intersect = IMAS.toroidal_intersection(resonance_layer.r, resonance_layer.z, launch_r, 0.0, launch_z, angle_pol, angle_tor)
+        if t_intersect == Inf
+            t_intersect = 0.0
+        end
+        x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))
+        rho_0 = RHO_interpolant.(r[end], z[end])
+
+        # save ray trajectory to dd
+        coherent_wave = resize!(dd.waves.coherent_wave, "identifier.antenna_name" => ecb.name; wipe=false)
+        beam_tracing = resize!(coherent_wave.beam_tracing)
+        beam = resize!(beam_tracing.beam, 1)[1]
+        beam.length = cumsum(sqrt.(IMAS.gradient(x) .^ 2 .+ IMAS.gradient(y) .^ 2 .+ IMAS.gradient(z) .^ 2))
+        beam.position.r = r
+        beam.position.z = z
+
+        @ddtime(ecb.power_launched.data = power_launched)
 
         ion_electron_fraction_cp = zeros(length(rho_cp))
 
@@ -76,10 +100,10 @@ function _step(actor::ActorSimpleEC)
         j_parallel = eta / R0 / ne20 * power_launched
         j_parallel *= sign(eqt.global_quantities.ip)
 
-        source = resize!(cs.source, :ec, "identifier.name" => ecl.name; wipe=false)
-        shaped_source(
+        source = resize!(cs.source, :ec, "identifier.name" => ecb.name; wipe=false)
+        shaped_source!(
             source,
-            ecl.name,
+            ecb.name,
             source.identifier.index,
             rho_cp,
             volume_cp,
@@ -89,6 +113,11 @@ function _step(actor::ActorSimpleEC)
             ρ -> IMAS.gaus(ρ, rho_0, width, 1.0);
             j_parallel
         )
+
+        # populate waves IDS
+        resize!(coherent_wave.profiles_1d)
+        populate_wave1d_from_source1d!(coherent_wave.profiles_1d[], source.profiles_1d[])
     end
+
     return actor
 end

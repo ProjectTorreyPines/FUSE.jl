@@ -9,7 +9,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if IMAS.hasdata(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
+            if !isempty(dd1.core_profiles.profiles_1d)
                 dd.core_profiles = deepcopy(dd1.core_profiles)
                 cp1d = dd.core_profiles.profiles_1d[]
 

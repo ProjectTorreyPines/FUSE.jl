@@ -71,10 +71,22 @@ Find currents that satisfy boundary and flux/saddle constraints in a least-squar
 function _step(actor::ActorPFactive{T}) where {T<:Real}
     dd = actor.dd
 
-    # setup (with caching, used for coil optimization)
+    # setup coils information (with caching)
     if actor.setup_cache === nothing
         eqt = dd.equilibrium.time_slice[]
-        actor.setup_cache = setup(actor, eqt)
+        if ismissing(eqt.global_quantities, :ip) # field nulls
+            fixed_eq = nothing
+            image_eq = nothing
+
+        else # solutions with plasma
+            fixed_eq = IMAS2Equilibrium(eqt)
+            image_eq = VacuumFields.Image(fixed_eq)
+        end
+
+        # Get coils organized by their function and initialize them
+        fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor; zero_currents=true)
+
+        actor.setup_cache = (fixed_eq=fixed_eq, image_eq=image_eq, fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils, ψbound=eqt.global_quantities.psi_boundary)
     end
     fixed_eq, image_eq, fixed_coils, pinned_coils, optim_coils, ψbound = actor.setup_cache
 
@@ -183,8 +195,8 @@ function equilibrium_control_points(
 
     # boundary
     psib = eqt.global_quantities.psi_boundary
+
     if ismissing(eqt.global_quantities, :ip) # field nulls
-        fixed_eq = nothing
         iso_control_points = VacuumFields.FluxControlPoints(eqt.boundary.outline.r, eqt.boundary.outline.z, psib)
     else # solutions with plasma
         fixed_eq = IMAS2Equilibrium(eqt)
@@ -213,7 +225,6 @@ function equilibrium_control_points(
     end
 
     # strike points
-    psib = eqt.global_quantities.psi_boundary
     strike_weight = strike_points_weight / length(eqt.boundary.strike_point)
     flux_control_points = VacuumFields.FluxControlPoint{T}[]
     if strike_points_weight == 0.0
@@ -237,25 +248,17 @@ function equilibrium_control_points(
 
     # magnetic axis
     push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_control_points[1].weight))
-    push!(flux_control_points, VacuumFields.FluxControlPoint{T}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, eqt.global_quantities.psi_axis, iso_control_points[1].weight))
+    push!(
+        flux_control_points,
+        VacuumFields.FluxControlPoint{T}(
+            eqt.global_quantities.magnetic_axis.r,
+            eqt.global_quantities.magnetic_axis.z,
+            eqt.global_quantities.psi_axis,
+            iso_control_points[1].weight
+        )
+    )
 
     return (iso_control_points=iso_control_points, flux_control_points=flux_control_points, saddle_control_points=saddle_control_points)
-end
-
-function setup(actor::ActorPFactive, eqt::IMAS.equilibrium__time_slice)
-    if ismissing(eqt.global_quantities, :ip) # field nulls
-        fixed_eq = nothing
-        image_eq = nothing
-
-    else # solutions with plasma
-        fixed_eq = IMAS2Equilibrium(eqt)
-        image_eq = VacuumFields.Image(fixed_eq)
-    end
-
-    # Get coils organized by their function and initialize them
-    fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor; zero_currents=true)
-
-    return (fixed_eq=fixed_eq, image_eq=image_eq, fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils, ψbound=eqt.global_quantities.psi_boundary)
 end
 
 """

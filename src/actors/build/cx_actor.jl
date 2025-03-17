@@ -87,8 +87,8 @@ function _step(actor::ActorCXbuild)
 
     # divertors + find strike points on divertors
     divertor_regions!(bd, eqt, dd.divertors, fw.r, fw.z)
-    psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_first_open)
+    psi_boundaries = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true)
+    IMAS.find_strike_points!(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
 
     # blankets
     blanket_regions!(bd, eqt)
@@ -181,7 +181,7 @@ function wall_from_eq!(
 
     # private flux regions sorted by distance from lcfs
     private = IMAS.flux_surface(eqt, ψb, :open, pf_wall_r, pf_wall_z)
-    sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs))
+    sort!(private; by=p -> IMAS.minimum_distance_polygons_vertices(p..., rlcfs, zlcfs).distance)
 
     t = LinRange(0, 2π, 31)
     detected_upper = upper_divertor
@@ -193,10 +193,10 @@ function wall_from_eq!(
         end
 
         # xpoint between lcfs and private region
-        index = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
-        Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
-        Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
-        d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
+        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs)
+        Rx = (pr[k1] + rlcfs[k2]) / 2.0
+        Zx = (pz[k1] + zlcfs[k2]) / 2.0
+        d = sqrt((pr[k1] - rlcfs[k2])^2 + (pz[k1] - zlcfs[k2])^2)
         if d > minor_radius
             continue
         end
@@ -337,10 +337,10 @@ function divertor_regions!(
         end
 
         # xpoint between lcfs and private region
-        index = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs; return_index=true)
-        Rx = (pr[index[1]] + rlcfs[index[2]]) / 2.0
-        Zx = (pz[index[1]] + zlcfs[index[2]]) / 2.0
-        d = sqrt((pr[index[1]] - rlcfs[index[2]])^2 + (pz[index[1]] - zlcfs[index[2]])^2)
+        distance, k1, k2 = IMAS.minimum_distance_polygons_vertices(pr, pz, rlcfs, zlcfs)
+        Rx = (pr[k1] + rlcfs[k2]) / 2.0
+        Zx = (pz[k1] + zlcfs[k2]) / 2.0
+        d = sqrt((pr[k1] - rlcfs[k2])^2 + (pz[k1] - zlcfs[k2])^2)
         if d > minor_radius
             continue
         end
@@ -632,7 +632,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
         if layer_shape !== IMAS._negative_offset_
             verbose && @show "N", IMAS.index(layer), layer.name, layer_shape
             obstruction_outline = obstructing_coils!(ocoils, pfa.coil, layer, +1)
-            layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+            layer.shape, layer.shape_parameters = optimize_layer_outline(
                 bd,
                 plasma_to_tf[kl-1],
                 plasma_to_tf[kl],
@@ -655,7 +655,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
                 layer_shape = IMAS.BuildLayerShape(mod(layer.shape, 100))
                 if layer_shape != IMAS._negative_offset_
                     verbose && @show "F", IMAS.index(layer), layer.name, layer_shape
-                    layer.shape, layer.shape_parameters = FUSE.optimize_layer_outline(
+                    layer.shape, layer.shape_parameters = optimize_layer_outline(
                         bd,
                         plasma_to_tf[kl-1],
                         plasma_to_tf[kk],

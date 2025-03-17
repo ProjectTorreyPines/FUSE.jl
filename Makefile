@@ -1,5 +1,5 @@
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
-JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
+JULIA_DIR ?= $(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia))
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -12,16 +12,16 @@ ifdef GITHUB_HEAD_REF
     FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
 else
     ifdef GITHUB_REF
-		# On GitHub for push events and others
-		FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
-	else
-		# For local machine
-		FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
-	endif
+       # On GitHub for push events and others
+       FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+    else
+       # For local machine
+       FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
+    endif
 endif
 
-GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic IMAS IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TroyonBetaNN VacuumFields
+GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TORBEAM TroyonBetaNN VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
 FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
@@ -44,6 +44,7 @@ endif
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	@echo $(JULIA_PKG_DEVDIR)/$(1)
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull 2>&1 | sed 's/^/$(1): /'; fi
 endef
 
@@ -88,6 +89,9 @@ CHEASE:
 CoordinateConventions:
 	$(call clone_pull_repo,$@)
 
+EGGO:
+	$(call clone_pull_repo,$@)
+
 EPEDNN:
 	$(call clone_pull_repo,$@)
 
@@ -103,6 +107,9 @@ FusionMaterials:
 FuseExchangeProtocol:
 	$(call clone_pull_repo,$@)
 
+HelpPlots:
+	$(call clone_pull_repo,$@)
+
 IMAS:
 	$(call clone_pull_repo,$@)
 
@@ -113,9 +120,6 @@ IMASutils:
 	$(call clone_pull_repo,$@)
 
 MXHEquilibrium:
-	$(call clone_pull_repo,$@)
-
-MeshTools:
 	$(call clone_pull_repo,$@)
 
 MillerExtendedHarmonic:
@@ -143,6 +147,9 @@ TGLFNN:
 	$(call clone_pull_repo,$@)
 
 TJLF:
+	$(call clone_pull_repo,$@)
+
+TORBEAM:
 	$(call clone_pull_repo,$@)
 
 TroyonBetaNN:
@@ -902,8 +909,8 @@ install_IJulia:
 	'
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter nbextension list
 	jupyter labextension list
+	jupyter nbextension list
 
 # @user
 install_examples:

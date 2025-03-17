@@ -16,7 +16,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters ==#
-    density_factor::Entry{T} = Entry{T}("-", "Scale input density by given factor"; default=1.0)
     ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas, missing keeps original ratio]")
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -66,7 +65,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 
     # Throughout FUSE, the "pedestal" density is the density at rho=0.9
     rho09 = 0.9
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * par.density_factor
+    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
     @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) # zeff is taken as the average value
     @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
 
@@ -92,8 +91,10 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
         end
     end
 
+    Te_orig = cp1d.electrons.temperature
+    Ti_orig = cp1d.t_i_average
     res_value_bound = Optim.optimize(
-        value_bound -> cost_WPED_ztarget_pedratio(cp1d, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
+        value_bound -> cost_WPED_ztarget_pedratio(cp1d, Te_orig, Ti_orig, value_bound, ped_to_core_fraction, par.rho_ped, Ti_over_Te),
         1.0,
         cp1d.electrons.temperature[1],
         Optim.GoldenSection();
@@ -113,14 +114,24 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
 end
 
 function cost_WPED_ztarget_pedratio(
-    cp1d::IMAS.core_profiles__profiles_1d,
+    cp1d::IMAS.core_profiles__profiles_1d{T},
+    Te_orig::Vector{T},
+    Ti_orig::Vector{T},
     value_bound::Real,
     ped_to_core_fraction::Real,
     rho_ped::Real,
-    Ti_over_Te::Real)
+    Ti_over_Te::Real) where {T<:Real}
 
-    cp1d_copy = deepcopy(cp1d)
-    cost = cost_WPED_ztarget_pedratio!(cp1d_copy, value_bound, ped_to_core_fraction, rho_ped, Ti_over_Te)
+    # restore original profiles
+    cp1d.electrons.temperature = deepcopy(Te_orig)
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature = deepcopy(Ti_orig)
+        end
+    end
+
+    cost = cost_WPED_ztarget_pedratio!(cp1d, value_bound, ped_to_core_fraction, rho_ped, Ti_over_Te)
+
     return cost
 end
 

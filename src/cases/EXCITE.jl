@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
+    case_parameters(::Type{Val{:EXCITE}})
 
 GA EXCITE design
 """
-function case_parameters(::Type{Val{:EXCITE}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:EXCITE}})
     ini = ParametersInits()
     act = ParametersActors()
 

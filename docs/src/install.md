@@ -13,7 +13,7 @@ Once installed, restart your termninal to pick-up the `julia` executable.
 FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
 For installation start your Julia interpreter by typing `julia` at the terminal, then:
 
-1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 20+ mins):
+1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 5+ mins):
 
    ```julia
    using Pkg
@@ -64,6 +64,13 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
        The number of threads of the multi-threaded julia kernels can be set via the `JULIA_NUM_THREADS` environmental variable.
 
        This needs to be done every time a new version of Julia is installed.
+
+   !!! note
+       The WebIO jupyter-lab extension is needed for the [`Interact.jl`](https://github.com/JuliaGizmos/Interact.jl?tab=readme-ov-file#usage) package to work.
+
+       Make sure WebIO is working with `jupyter labextension list`.
+
+       If the extension has compatibility issues, consider installing an older verision of Jupyter (eg. `conda install jupyterlab=3.6.7`).
 
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
 

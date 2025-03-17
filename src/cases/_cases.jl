@@ -27,7 +27,7 @@ function case_parameters(case::Symbol, args...; kw...)
         end
     end
 
-    if length(methods(case_parameters, (Type{Val{case}},))) == 0
+    if length(methods(case_parameters, (Type{Val{case}}, map(typeof, args)...))) == 0
         error("case `$case` does not exist.\nPossible options are:\n\n$(join(["$method" for method in methods(case_parameters)],"\n"))")
     end
 

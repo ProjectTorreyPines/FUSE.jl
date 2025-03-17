@@ -3,7 +3,7 @@
 
 DTT
 """
-function case_parameters(::Type{Val{:DTT}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:DTT}})
     ini = ParametersInits()
     act = ParametersActors()
 

@@ -2,11 +2,11 @@
 #  init pulse_schedule IDS  #
 #= ======================= =#
 """
-    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_time_traces::Float64=0.1)
+    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd(); simplify_equilibrium_time_traces::Float64=0.0001)
+function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
@@ -252,10 +252,6 @@ end
 Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
 """
 function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
-    # MXHboundary adds x-points
-    pr = mxhb.r_boundary
-    pz = mxhb.z_boundary
-
     # X-point information
     # NOTE: always fill for both X-points and set things to NaN if no X-point
     # NOTE: upper X-point always in first slot, lower X-point in second slot
@@ -275,12 +271,18 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     IMAS.set_time_array(pc.x_point[2].r, :reference, time0, rxl)
     IMAS.set_time_array(pc.x_point[2].z, :reference, time0, zxl)
 
-    # boundary with x-points parametrized with MXH
-    mxh = IMAS.MXH(pr, pz, 2)
-    pr, pz = IMAS.resample_plasma_boundary(pr, pz; n_points=100)
-    IMAS.reorder_flux_surface!(pr, pz, argmax(pz))
+    # from MXHboundary to pr,pz
+    pr = mxhb.r_boundary
+    pz = mxhb.z_boundary
+    if isempty(mxhb.RX)
+        # boundary without x-points
+        mxh = mxhb.mxh
+    else
+        # boundary with x-points parametrized with MXH
+        mxh = IMAS.MXH(IMAS.resample_plasma_boundary(pr, pz; n_points=100)..., 2)
+    end
 
-    # scalars
+    # scalars from mxh
     IMAS.set_time_array(pc.minor_radius, :reference, time0, mxh.minor_radius)
     IMAS.set_time_array(pc.geometric_axis.r, :reference, time0, mxh.R0)
     IMAS.set_time_array(pc.geometric_axis.z, :reference, time0, mxh.Z0)

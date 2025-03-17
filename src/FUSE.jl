@@ -6,6 +6,7 @@ using IMAS
 import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
 import Plots
 using Plots
+using HelpPlots
 using Printf
 using InteractiveUtils
 import LinearAlgebra
@@ -55,9 +56,9 @@ include("experiments.jl")
 #  DDINIT  #
 #= ====== =#
 include(joinpath("parameters", "parameters_inits.jl"))
+include(joinpath("parameters", "ini_from_ods.jl"))
 
 include(joinpath("ddinit", "init.jl"))
-include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
@@ -79,9 +80,10 @@ include("actors.jl")
 include(joinpath("actors", "noop_actor.jl"))
 include(joinpath("actors", "replay_actor.jl"))
 
-include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
-include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
+include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
+include(joinpath("actors", "equilibrium", "eggo_actor.jl"))
+include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf", "pf_active_utils.jl"))
@@ -106,13 +108,13 @@ include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 include(joinpath("actors", "current", "current_actor.jl"))
 
 include(joinpath("actors", "hcd", "simple_common.jl"))
-include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
+include(joinpath("actors", "hcd", "ec", "ec_simple_actor.jl"))
+include(joinpath("actors", "hcd", "ec", "torbeam_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "nb_simple_actor.jl"))
-include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
-include(joinpath("actors", "hcd", "nbi", "nbi_actor.jl"))
+include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
@@ -189,7 +191,7 @@ include("precompile.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, @findall
+export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 

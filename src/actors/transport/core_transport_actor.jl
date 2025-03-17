@@ -6,7 +6,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: Parame
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
-    do_plot::Entry{Bool} = act_common_parameters(do_plot=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
@@ -31,10 +31,10 @@ end
 function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCoreTransport)
     par = par(kw...)
-    
+
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorCoreTransport(dd, par, act, noop)
-    
+
     if par.model == :FluxMatcher
         actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
     elseif par.model == :EPEDProfiles
@@ -42,7 +42,7 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     elseif par.model == :replay
         actor.tr_actor = ActorReplay(dd, act.ActorReplay, actor)
     end
-    
+
     return actor
 end
 
@@ -81,12 +81,13 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
     rho_nml = actor.act.ActorFluxMatcher.rho_transport[end]
     rho_ped = actor.act.ActorFluxMatcher.rho_transport[end]
 
-    cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped)
+    cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :density_thermal)
-            ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped)
+            ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
         end
     end
+    IMAS.scale_ion_densities_to_target_zeff!(cp1d, replay_cp1d.zeff)
 
     cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)

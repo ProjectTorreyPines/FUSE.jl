@@ -4,6 +4,7 @@
 Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
 function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    eqt = dd.equilibrium.time_slice[]
     resize!(dd.ec_launchers.beam, length(ini.ec_launcher); wipe=false)
     @assert length(dd.ec_launchers.beam) == length(ini.ec_launcher) == length(dd.pulse_schedule.ec.beam)
     for (idx, (ecb, ini_ecb, ps_ecb)) in enumerate(zip(dd.ec_launchers.beam, ini.ec_launcher, dd.pulse_schedule.ec.beam))
@@ -12,6 +13,8 @@ function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         end
         ps_ecb.name = ecb.name
         ecb.available_launch_power = maximum(ps_ecb.power_launched.reference)
+        # Launcher setup
+        setup(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[idx])
         # Efficiencies
         ecb.efficiency.conversion = ini_ecb.efficiency_conversion
         ecb.efficiency.transmission = ini_ecb.efficiency_transmission
