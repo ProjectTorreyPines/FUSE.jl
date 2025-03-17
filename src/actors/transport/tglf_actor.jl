@@ -29,7 +29,7 @@ mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
-    flux_solutions::Union{Vector{<:IMAS.flux_solution},Any}
+    flux_solutions::Union{Vector{<:IMAS.FluxSolution},Any}
 end
 
 """
@@ -52,7 +52,7 @@ function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
     elseif par.model == :TJLF
         input_tglfs = Vector{InputTJLF}(undef, length(par.rho_transport))
     end
-    return ActorTGLF(dd, par, input_tglfs, IMAS.flux_solution[])
+    return ActorTGLF(dd, par, input_tglfs, IMAS.FluxSolution[])
 end
 
 """
@@ -98,7 +98,7 @@ function _step(actor::ActorTGLF)
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
         actor.flux_solutions =
-            [IMAS.flux_solution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
+            [IMAS.FluxSolution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
     end
 
     return actor

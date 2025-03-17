@@ -15,8 +15,8 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNeoclassical{P}
     input_neos::Vector{<:NEO.InputNEO}
-    flux_solutions::Vector{<:IMAS.flux_solution}
-    equilibrium_geometry::Union{NEO.equilibrium_geometry,Missing}
+    flux_solutions::Vector{<:IMAS.FluxSolution}
+    equilibrium_geometry::Union{NEO.EquilibriumGeometry,Missing}
 end
 
 """
@@ -34,7 +34,7 @@ end
 function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
     logging_actor_init(ActorNeoclassical)
     par = par(kw...)
-    return ActorNeoclassical(dd, par, NEO.InputNEO[], IMAS.flux_solution[], missing)
+    return ActorNeoclassical(dd, par, NEO.InputNEO[], IMAS.FluxSolution[], missing)
 end
 
 """
@@ -46,25 +46,26 @@ function _step(actor::ActorNeoclassical)
     par = actor.par
     dd = actor.dd
 
+    eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     rho_cp = cp1d.grid.rho_tor_norm
 
     if par.model == :changhinton
-        eqt = dd.equilibrium.time_slice[]
         actor.flux_solutions = [NEO.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
 
     elseif par.model == :neo
         gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
-        actor.input_neos = [NEO.InputNEO(dd, i) for (idx, i) in enumerate(gridpoint_cps)]
+        actor.input_neos = [NEO.InputNEO(eqt, cp1d, i) for (idx, i) in enumerate(gridpoint_cps)]
         actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)
 
     elseif par.model == :hirshmansigmar
         gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
-        if ismissing(actor.equilibrium_geometry)
-            actor.equilibrium_geometry = NEO.get_equilibrium_parameters(actor.dd)
+        if ismissing(actor.equilibrium_geometry) || actor.equilibrium_geometryt.time != eqt.time
+            actor.equilibrium_geometry = NEO.get_equilibrium_parameters(eqt, cp1d)#, gridpoint_cps)
         end
-        parameter_matrices = NEO.get_ion_electron_parameters(dd)
-        actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, dd, parameter_matrices, actor.equilibrium_geometry), gridpoint_cps)
+        parameter_matrices = NEO.get_ion_electron_parameters(eqt, cp1d)
+        actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry), gridpoint_cps)
+        @show actor.flux_solutions
     end
 
     return actor
@@ -92,11 +93,11 @@ function _finalize(actor::ActorNeoclassical)
 
     elseif par.model == :neo
         model.identifier.name = "NEO"
-        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :hirshmansigmar
         model.identifier.name = "Hirshman-Sigmar"
-        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
+        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
     end
 
     return actor

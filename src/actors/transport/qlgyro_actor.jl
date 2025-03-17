@@ -26,7 +26,7 @@ mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
     par::FUSEparameters__ActorQLGYRO{P}
     input_qlgyros::Vector{<:InputQLGYRO}
     input_cgyros::Vector{<:InputCGYRO}
-    flux_solutions::Union{Vector{<:IMAS.flux_solution},Any}
+    flux_solutions::Union{Vector{<:IMAS.FluxSolution},Any}
 end
 
 """
@@ -46,7 +46,7 @@ function ActorQLGYRO(dd::IMAS.dd, par::FUSEparameters__ActorQLGYRO; kw...)
     par = par(kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
     input_CGYROs = Vector{InputCGYRO}(undef, length(par.rho_transport))
-    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, IMAS.flux_solution[])
+    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, IMAS.FluxSolution[])
 end
 
 """
