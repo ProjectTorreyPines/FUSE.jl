@@ -60,12 +60,11 @@ function _step(actor::ActorNeoclassical)
 
     elseif par.model == :hirshmansigmar
         gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
-        if ismissing(actor.equilibrium_geometry) || actor.equilibrium_geometryt.time != eqt.time
+        if ismissing(actor.equilibrium_geometry) || actor.equilibrium_geometry.time != eqt.time
             actor.equilibrium_geometry = NEO.get_equilibrium_geometry(eqt, cp1d)#, gridpoint_cps)
         end
         parameter_matrices = NEO.get_plasma_profiles(eqt, cp1d)
         actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry), gridpoint_cps)
-        @show actor.flux_solutions
     end
 
     return actor
