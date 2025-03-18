@@ -170,12 +170,12 @@ function _step(actor::ActorSimpleNB)
             E_beam = nbu.energy.data[1]
             mass_beam = nbu.species.a
             Z_beam = nbu.species.z_n
-            power_launched_allenergies = zeros(length(dd.pulse_schedule.nbi.time))
+            power_launched_allenergies = 0.0
             for (ifpow, fpow) in enumerate(fbcur)
 
                 τ_th = IMAS.fast_ion_thermalization_time(cp1d, nbu.species, beam_energy/ifpow)
                 power_launched = fpow*max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
-                power_launched_allenergies .+= power_launched
+                power_launched_allenergies += power_launched
 
                 vbeam = sqrt( (IMAS.mks.e * E_beam/ ifpow) / (0.5*mass_beam * IMAS.mks.m_p) )
                 times = dist ./ vbeam
