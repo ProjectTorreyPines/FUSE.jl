@@ -157,10 +157,9 @@ function _finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
 
     model = resize!(dd.core_transport.model, :anomalous; wipe=false)
-    if par.onnx_model == false
-        model.identifier.name = string(par.model) * " " * model_filename(par)
-    elseif par.onnx_model == true
-        model.identifier.name = string(par.model) * " " * "onnx model"
+    model.identifier.name = string(par.model) * " " * model_filename(par)
+    if par.onnx_model
+        model.identifier.name *= " onnx"
     end
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
