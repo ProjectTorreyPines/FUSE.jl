@@ -101,7 +101,6 @@ function _step(actor::ActorDynamicPlasma)
     IMAS.trim_time!(actor.dd, (-Inf, dd.global_time); trim_pulse_schedule=false)
 
     substeps_per_2loop = 9
-        substeps_per_2loop = 8
     ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
