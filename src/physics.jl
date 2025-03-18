@@ -755,7 +755,7 @@ function add_xpoint(
         i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
     end
 
-    res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+    res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.Brent())
     return add_xpoint(mr, mz, i, R0, Z0, 1.0 + (res.minimizer[1] - 1.0) * α_multiplier)
 end
 
