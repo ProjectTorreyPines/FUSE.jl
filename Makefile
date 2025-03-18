@@ -32,6 +32,14 @@ FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\
 FUSE_PACKAGES_ALL := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_ALL)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
 
+# ANSI color codes
+RESET=\033[0m
+BOLD=\033[1m
+BLUE=\033[34m
+RED=\033[31m
+GREEN=\033[32m
+PURPLE=\033[35m
+
 # use command line interface for git to work nicely with private repos
 export JULIA_PKG_USE_CLI_GIT := true
 
@@ -609,14 +617,13 @@ help_user:
 	@FILTER="user" make help_common
 
 header:
-	@printf "\n"
-	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m╔════╝\033[0m\n"
-	@printf "  \033[1;31m█████\033[1;30m╗  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m███████\033[1;30m╗\033[1;31m█████\033[1;30m╗  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
-	@printf "   Project  Torrey  Pines  (PTP)\n"
+	@echo "    $(BOLD)$(GREEN)_$(RESET)  __               $(BOLD)$(PURPLE)_$(RESET) $(BOLD)$(BLUE)_$(RESET)"
+	@echo "   $(BOLD)$(GREEN)(_)$(RESET)/ _|             $(BOLD)$(PURPLE)(_$(RESET)$(BOLD)$(BLUE)(_)$(RESET)"
+	@echo "  $(BOLD)$(RED)(_)$(RESET)| |_ _   _ ___  _$(BOLD)$(BLUE)(_$(RESET)$(BOLD)$(PURPLE)(_)$(RESET)    Documentation: https://fuse.help"
+	@echo "     |  _| | | / __|/ _ \\"
+	@echo "    $(BOLD)$(RED)_$(RESET)| | | |_| \\__ \\  __/"
+	@echo "   $(BOLD)$(RED)(_)$(RESET)_|  \\__'_|___/\\___|$(BOLD)$(BLUE)_$(RESET)"
+	@echo "  $(BOLD)$(GREEN)(_(_)$(RESET)                 $(BOLD)$(BLUE)(_)$(RESET)"
 
 # Update Makefile targets
 sort_targets:
