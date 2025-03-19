@@ -210,6 +210,7 @@ function equilibrium_control_points(
         # pass
     elseif !isempty(pc.x_point)
         # we favor taking the x-points from the pulse schedule, if available
+        saddle_weight = x_points_weight / length(pc.x_point)
         for x_point in pc.x_point
             r = IMAS.get_time_array(x_point.r, :reference, :constant)
             if r == 0.0 || isnan(r)
@@ -219,19 +220,20 @@ function equilibrium_control_points(
             push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(r, z, saddle_weight))
         end
     else
+        saddle_weight = x_points_weight / length(eqt.boundary.x_point)
         for x_point in eqt.boundary.x_point
             push!(saddle_control_points, VacuumFields.SaddleControlPoint{T}(x_point.r, x_point.z, saddle_weight))
         end
     end
 
     # strike points
-    strike_weight = strike_points_weight / length(eqt.boundary.strike_point)
     flux_control_points = VacuumFields.FluxControlPoint{T}[]
     if strike_points_weight == 0.0
         # pass
     elseif !isempty(pc.strike_point)
         # we favor taking the strike points from the pulse schedule, if available
         flux_control_points = VacuumFields.FluxControlPoint{T}[]
+        strike_weight = strike_points_weight / length(pc.strike_point)
         for strike_point in pc.strike_point
             r = IMAS.get_time_array(strike_point.r, :reference, :constant)
             if r == 0.0 || isnan(r)
@@ -241,6 +243,7 @@ function equilibrium_control_points(
             push!(flux_control_points, VacuumFields.FluxControlPoint{T}(r, z, psib, strike_weight))
         end
     else
+        strike_weight = strike_points_weight / length(eqt.boundary.strike_point)
         for strike_point in eqt.boundary.strike_point
             push!(flux_control_points, VacuumFields.FluxControlPoint{T}(strike_point.r, strike_point.z, psib, strike_weight))
         end
