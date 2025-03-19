@@ -195,7 +195,7 @@ function _step(actor::ActorSimpleNB)
             
                 mask = rho_beam .< 1
                 eps = eps_interp.(rho_beam[mask])
-                rbananas[mask] .= IMAS.banana_width.(E_beam / ifpow, Bt, Z_beam, mass_beam, eps_interp.(.5), q_interp.(rho_beam[mask]))
+                rbananas[mask] .= IMAS.banana_width.(E_beam / ifpow, Bt, Z_beam, mass_beam, eps, q_interp.(rho_beam[mask]))
                 for i in 1:ngrid
                     rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0-ftors[i])* par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
                 end
@@ -205,7 +205,6 @@ function _step(actor::ActorSimpleNB)
                         gaus = exp.(-0.5 .* (rho_cp .- rho_beam[itime]).^2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
                         qbeamtmp = power_launched * group_power_frac * (fbeam[itime] - fbeam[itime+1]) .* gaus ./ IMAS.trapz(volume_cp,gaus)
                         qbeam[igroup,ifpow,:] .+= qbeamtmp
-    
                         sbeam[igroup,ifpow,:] .+= qbeamtmp/(E_beam*IMAS.mks.e/ifpow)
                         mombeam[igroup,ifpow,:] .+= bgroup.direction .* qbeamtmp.*(mass_beam*IMAS.mks.m_p.*vbeam).*ftors[itime]/(E_beam*IMAS.mks.e/ifpow)
                     end
@@ -240,7 +239,7 @@ function _step(actor::ActorSimpleNB)
         electrons_particles = sum(sum(sbeam,dims=1),dims=2)[1,1,:]
 
         B0 = @ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
-        j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam*dd.equilibrium.vacuum_toroidal_field.r0,
+        j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam/dd.equilibrium.vacuum_toroidal_field.r0,
                              false, eqt)/B0
  
         # Convert curbeam to parallel current here
