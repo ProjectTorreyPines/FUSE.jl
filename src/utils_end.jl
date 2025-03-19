@@ -5,6 +5,7 @@ import OrderedCollections
 import DataFrames
 import Dates
 import HDF5
+import Random
 
 # ========== #
 # Checkpoint #
@@ -525,6 +526,16 @@ function save_database(
     return savedir
 end
 
+"""
+    load_database(filename::AbstractString; kw...)
+
+Loads all data in a combined HDF5 database. Additional keyword arguments are forwarded.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5")
+```
+"""
 function load_database(filename::AbstractString; kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
@@ -534,6 +545,18 @@ function load_database(filename::AbstractString; kw...)
     end
 end
 
+"""
+    load_database(filename::AbstractString, conditions::Function; kw...)
+
+Loads a combined HDF5 database using a filtering condition. The condition is applied to the
+extract.csv contents to select parent group paths for loading.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", x -> x.status=="fail"; kw...)
+    data = FUSE.load_database("database.h5", x -> x.R0>2 && x."<zeff>">1.5; kw...)
+```
+"""
 function load_database(filename::AbstractString, conditions::Function; kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
@@ -544,10 +567,30 @@ function load_database(filename::AbstractString, conditions::Function; kw...)
     end
 end
 
+"""
+    load_database(filename::AbstractString, parent_group::AbstractString, kw...)
+
+Loads a combined HDF5 database for a single parent group path
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", "/case01"; kw...)
+```
+"""
 function load_database(filename::AbstractString, parent_group::AbstractString, kw...)
     return load_database(filename, [parent_group]; kw...)
 end
 
+"""
+    load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
+
+Loads a combined HDF5 database for the specified parent group paths.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", ["/case01", "/case02"]; pattern=r"dd.h5")
+```
+"""
 function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
@@ -593,6 +636,120 @@ function load_database(filename::AbstractString, parent_groups::Vector{<:Abstrac
 
     return (dds=dds, inis=inis, acts=acts, logs=logs, timers=timers, errors=errors, df=df)
 end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function)
+
+Samples the database by filtering groups that satisfy the provided `conditions` function.
+
+### Examples:
+```julia
+    sample_and_write_database("database.h5", "sampled.h5", x -> x.status == "fail")
+    sample_and_write_database("database.h5", "sampled.h5", x -> x.R0>2 && x."<zeff>">1.5)
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function)
+    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+
+    HDF5.h5open(ori_DB_name, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        parent_groups = filter(conditions, df)[!, :gparent]
+        return sample_and_write_database(ori_DB_name, sampled_DB_name, parent_groups)
+    end
+end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString;
+                              Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing)
+
+Samples the database by randomly selecting a subset of the original HDF5 file.
+The sample size is determined by either a fixed number (`Nsamples`) or a fraction (`sampling_ratio`) of the
+total number of rows.
+
+### Examples:
+```julia
+    sample_and_write_database("database.h5", "sampled.h5"; sampling_ratio=0.2)
+    sample_and_write_database("database.h5", "sampled.h5"; Nsamples=15)
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString;
+    Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing)
+
+    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+    if isnothing(Nsamples) && isnothing(sampling_ratio)
+        error("Either Nsamples or sampling_ratio must be provided.")
+    end
+
+    HDF5.h5open(ori_DB_name, "r") do H5_fid
+        ori_df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        if isnothing(Nsamples)
+            Nsamples = clamp(ceil(Int, sampling_ratio * nrow(ori_df)), 1, nrow(ori_df))
+        else
+            Nsamples = clamp(Nsamples, 1, nrow(ori_df))
+        end
+        sampled_df = ori_df[Random.shuffle(1:nrow(ori_df))[1:Nsamples], :]
+        return sample_and_write_database(ori_DB_name, sampled_DB_name, sampled_df[!, :gparent])
+    end
+end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString)
+
+Sampling a single specific group from the original HDF5 file.
+
+### Example:
+```julia
+    sample_and_write_database("database.h5", "sampled.h5", "/case01")
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString)
+    return sample_and_write_database(ori_DB_name, sampled_DB_name, [parent_group])
+end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString})
+
+Sampling the groups specified in `parent_groups` from the original HDF5 file.
+
+### Example:
+```julia
+    df = sample_and_write_database("database.h5", "sampled.h5", ["/case01", "/case02"])
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString})
+
+    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+
+    ori_fid = HDF5.h5open(ori_DB_name, "r")
+    new_fid = HDF5.h5open(sampled_DB_name, "w")
+
+    ori_df = coalesce.(CSV.read(IOBuffer(ori_fid["/extract.csv"][]), DataFrame), NaN)
+
+    parent_groups = IMAS.norm_hdf5_path.(parent_groups)
+
+    sampled_df = filter(row -> string(row.gparent) in parent_groups, ori_df)
+    sort!(sampled_df, "gparent")
+
+    for gparent in parent_groups
+        HDF5.copy_object(ori_fid, gparent, new_fid, gparent)
+    end
+
+    # write extract.csv into HDF5
+    io_buffer = IOBuffer()
+    CSV.write(io_buffer, sampled_df)
+    csv_text = String(take!(io_buffer))
+    HDF5.write(new_fid, "extract.csv", csv_text)
+    attr = HDF5.attrs(new_fid["/extract.csv"])
+    attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+    attr["FUSE_version"] = string(pkgversion(FUSE))
+
+    close(ori_fid)
+    close(new_fid)
+
+    return sampled_df
+end
+
+
 
 """
     load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
