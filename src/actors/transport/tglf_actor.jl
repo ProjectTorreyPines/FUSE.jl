@@ -238,9 +238,7 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     input_tjlf.IFLUX = true
     input_tjlf.IBRANCH = -1
     input_tjlf.KX0_LOC = 0.0
-
-    # for now settings
-    input_tjlf.ALPHA_ZF = -1  # smooth   
+    input_tjlf.ALPHA_ZF = -1  
 
     # check converison
     TJLF.checkInput(input_tjlf)
