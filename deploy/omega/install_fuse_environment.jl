@@ -106,7 +106,7 @@ local fuse_env = "$fuse_env"
 help([[
 Module for julia with FUSE $fuse_env sysimage
 Automatically created by FUSE install script:
-  `julia /fusion/projects/codes/julia/fuse/install/install_fuse_environment.jl`
+  `julia <FUSE.jl git repo>/deploy/omega/install_fuse_environment.jl`
 Maintainers: B.C. Lyons, lyonsbc@fusion.gat.com
              C.M. Clark, clarkm@fusion.gat.com
 Physics Officers: O.M. Meneghini, meneghini@fusion.gat.com

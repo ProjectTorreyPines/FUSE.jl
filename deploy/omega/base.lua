@@ -28,8 +28,10 @@ setenv("JULIA_LOAD_PATH", ":" .. envdir)
 setenv("JULIA_CC", "gcc -O3")
 
 -- This lets the compiled sysimage work on login and worker nodes,
---   modeled after how the Julia binaries are built
-setenv("JULIA_CPU_TARGET", "generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)")
+--   Intel login nodes are cascadelake
+--   AMD worker nodes are either znver2 or znver3 (built on znver2 to keep a bit smaller)
+--   generic is a fallback just in case
+setenv("JULIA_CPU_TARGET", "generic;cascadelake,clone_all;znver2,clone_all;znver3,base(2)")
 
 prepend_path("JUPYTER_PATH", envdir .. "/.jupyter")
 

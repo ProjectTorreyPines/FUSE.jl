@@ -22,7 +22,9 @@ export JULIA_DEPOT_PATH="$envdir/.julia:"
 export JULIA_PKG_USE_CLI_GIT=1
 export JULIA_CC="gcc -O3"
 export JULIA_NUM_THREADS=1
-export JULIA_CPU_TARGET="generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)"
+
+# cascadelake for Intel login; znver2 & znver3 (based on znver2) for worker; generic fallback
+export JULIA_CPU_TARGET="generic;cascadelake,clone_all;znver2,clone_all;znver3,base(2)"
 export IJULIA_NODEFAULTKERNEL=1
 export JUPYTER_DATA_DIR="$envdir/.jupyter"
 
