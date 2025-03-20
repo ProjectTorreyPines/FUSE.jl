@@ -183,16 +183,67 @@ function FUSEtoRABBITinput(dd::IMAS.dd)
         end
         inp.pnbi = pnbis
 
-        inp.n_sources = length(dd.nbi.unit)
-        inp.injection_energy = dd.nbi.unit[1].energy.data
-        inp.a_beam = [dd.nbi.unit[1].species.a]
+        function gather_beams(dd::IMAS.dd)
+            nbeams = length(dd.nbi.unit)
+            nv = 3
+        
+            xyz_src = zeros(3, nbeams)
+            xtan = zeros(3, nbeams)
+            xyz_vec = zeros(3, nbeams)
+            beamwidthpoly = zeros(3, nbeams)
+            part_frac = zeros(3, nbeams)
+        
+            Rs = [unit.beamlets_group[1].position.r for unit in dd.nbi.unit]
+            zs = [unit.beamlets_group[1].position.z for unit in dd.nbi.unit]
+            phis = [unit.beamlets_group[1].position.phi for unit in dd.nbi.unit]
+            Rts = [unit.beamlets_group[1].tangency_radius for unit in dd.nbi.unit]
+            angles = [unit.beamlets_group[1].angle for unit in dd.nbi.unit]
+            direcs = [unit.beamlets_group[1].direction for unit in dd.nbi.unit]
+        
+            phis .= 2 * π .- phis
+        
+            xyz_src[1, :] .= Rs .* cos.(phis)
+            xyz_src[2, :] .= Rs .* sin.(phis)
+            xyz_src[3, :] .= zs
+        
+            l2d = sqrt.(Rs .^ 2 .- Rts .^ 2)
+            delta = atan.(Rts, l2d)
+            phit = phis .+ delta .* direcs
+            zt = xyz_src[3, :] .+ tan.(angles) .* l2d
+        
+            xtan[1, :] .= Rts .* cos.(phit)
+            xtan[2, :] .= Rts .* sin.(phit)
+            xtan[3, :] .= zt
+        
+            xyz_vec .= xtan .- xyz_src
+        
+            for n in 1:nbeams
+                xyz_vec[:, n] .= xyz_vec[:, n] ./ sqrt(sum(xyz_vec[:, n] .^ 2))
+            end
+        
+            @warn "Removing time information from injected energy"
+            Einj = [maximum(unit.energy.data) for unit in dd.nbi.unit]
+            abeam = [unit.species.a for unit in dd.nbi.unit]
+        
+            for (n,unit) in enumerate(dd.nbi.unit)
+                for i in 1:3
+                    part_frac[i,n] = maximum(unit.beam_current_fraction.data[i,:])
+                end
+            end
+        
+            for (n,unit) in enumerate(dd.nbi.unit)
+                part_frac[:,n] = part_frac[:,n] ./ sum(part_frac[:,n])
+            end
+        
+            for (n,unit) in enumerate(dd.nbi.unit)
+                beamwidthpoly[2,n] = unit.beamlets_group[1].divergence_component[1].vertical
+            end
+        
+            return nbeams, nv, xyz_src, xyz_vec, beamwidthpoly, Einj, part_frac, abeam
+            
+        end
 
-        # the settings below reflect the default beams.dat input file for DIII-D from OMFIT
-        inp.nv = 3
-        inp.start_pos = [5.804921, 5.6625959, 0.0000000]
-        inp.beam_unit_vector = [-0.80732277, -0.59011012, 0.0000000]
-        inp.beam_width_polynomial_coefficients = [0.0000000, 0.023835, 0.0000000]
-        inp.particle_fraction = [0.52422392, 0.3088602, 0.16691588]
+        inp.n_sources, inp.nv, inp.start_pos, inp.beam_unit_vector, inp.beam_width_polynomial_coefficients, inp.injection_energy, inp.particle_fraction, inp.a_beam = gather_beams(dd)
 
         push!(all_inputs, inp)
     end
