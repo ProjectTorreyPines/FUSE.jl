@@ -6,70 +6,144 @@ DIII-D from experimental shot
 NOTE: calls `python` with `import omas` package to use DIII-D IMAS mappings defined there.
 Use `ENV['OMAS_PYTHON']` to set which python executable to use.
 """
-function case_parameters(::Type{Val{:D3D}}, shot::Int; EFIT_tree::String="EFIT02", PROFILES_tree::String="ZIPFIT01")
+function case_parameters(
+    ::Type{Val{:D3D}},
+    shot::Int;
+    EFIT_tree::String="EFIT02",
+    PROFILES_tree::String="ZIPFIT01",
+    omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
+    omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
+    omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas")
+)
     ini, act = case_parameters(Val{:D3D_machine})
-
     ini.general.casename = "D3D $shot"
-    shot_ods_dir = tempdir()
-    filename = joinpath(shot_ods_dir, "D3D_$shot.json")
+
+    # variables used for data fetching
+    remote_omas_root = "\$OMAS_ROOT"
+    if !isempty(omega_omas_root)
+        remote_omas_root = omega_omas_root
+    end
+    remote_omfit_root = "\$OMFIT_ROOT"
+    if !isempty(omega_omfit_root)
+        remote_omfit_root = omega_omfit_root
+    end
+    remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
+    filename = "D3D_$shot.h5"
+    local_path = joinpath(tempdir(), "D3D_$shot")
+    if isdir(local_path)
+        rm(local_path; recursive=true)
+    end
+    mkdir(local_path)
+
+    # remote omas script
     omas_py = """
+        import time
+        import omas
+        from omas.omas_utils import printe
+        from omas.machine_mappings import d3d
+        from numpy import *
 
-    print("Importing packages")
-    import time
-    import omas
-    from omas.machine_mappings import d3d
-    from numpy import *
+        ods = omas.ODS()
 
-    tic = time.time()
-    ods = omas.ODS()
+        printe("- Fetching ec_launcher data")
+        d3d.ec_launcher_active_hardware(ods, $shot)
 
-    print("Fetching ec_launcher data")
-    d3d.ec_launcher_active_hardware(ods, $shot)
+        # printe("- Fetching nbi data")
+        # d3d.nbi_active_hardware(ods, $shot)
 
-    print("Fetching nbi data")
-    d3d.nbi_active_hardware(ods, $shot)
+        printe("- Fetching core_profiles data")
+        d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
 
-    print("Fetching core_profiles data")
-    d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
+        printe("- Fetching wall data")
+        d3d.wall(ods, $shot)
 
-    print("Fetching wall data")
-    d3d.wall(ods, $shot)
+        printe("- Fetching equilibrium data")
+        with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
+            for k in range(len(ods["equilibrium.time"])):
+                ods["equilibrium.time_slice"][k]["time"]
+                ods["equilibrium.time_slice"][k]["global_quantities.ip"]
+                ods["equilibrium.time_slice"][k]["profiles_1d.psi"]
+                ods["equilibrium.time_slice"][k]["profiles_1d.f"]
+                ods["equilibrium.time_slice"][k]["profiles_1d.pressure"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].psi"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].grid.dim1"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].grid.dim2"]
+                ods["equilibrium.time_slice"][k]["profiles_2d[0].grid_type.index"] = 1
+                ods["equilibrium.vacuum_toroidal_field.r0"]
+                ods["equilibrium.vacuum_toroidal_field.b0"]
 
-    print("Fetching equilibrium data")
-    with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
-        for k in range(len(ods["equilibrium.time"])):
-            ods["equilibrium.time_slice"][k]["time"]
-            ods["equilibrium.time_slice"][k]["global_quantities.ip"]
-            ods["equilibrium.time_slice"][k]["profiles_1d.psi"]
-            ods["equilibrium.time_slice"][k]["profiles_1d.f"]
-            ods["equilibrium.time_slice"][k]["profiles_1d.pressure"]
-            ods["equilibrium.time_slice"][k]["profiles_2d[0].psi"]
-            ods["equilibrium.time_slice"][k]["profiles_2d[0].grid.dim1"]
-            ods["equilibrium.time_slice"][k]["profiles_2d[0].grid.dim2"]
-            ods["equilibrium.time_slice"][k]["profiles_2d[0].grid_type.index"] = 1
-            ods["equilibrium.vacuum_toroidal_field.r0"]
-            ods["equilibrium.vacuum_toroidal_field.b0"]
-
-    toc = time.time()
-    print(f"Data fetched in {toc-tic} seconds")
-
-    print("Saving ODS to json")
-    tic = time.time()
-    ods.save("$filename")
-    toc = time.time()
-    print(f"Saved in {toc-tic} seconds")
-    """
-    @info(omas_py)
-    open(joinpath(shot_ods_dir, "omas_data_fetch.py"), "w") do io
+        printe("Saving ODS to $filename")
+        ods.save("$filename")
+        """
+    open(joinpath(local_path, "omas_data_fetch.py"), "w") do io
         return write(io, omas_py)
     end
-    python = get(ENV, "OMAS_PYTHON", "python3")
-    println("PYTHON: $python")
-    Base.run(`$python -u $(joinpath(shot_ods_dir,"omas_data_fetch.py"))`)
+
+    # remote bash/slurm script
+    remote_slurm = """#!/bin/bash -l
+        #SBATCH --job-name=fetch_d3d_omas
+        #SBATCH --partition=short
+        #SBATCH --cpus-per-task=1
+        #SBATCH --ntasks=2
+        #SBATCH --output=$remote_path/%j.out
+        #SBATCH --error=$remote_path/%j.err
+        #SBATCH --wait
+
+        # Load any required modules
+        module purge
+        module load omfit/unstable
+
+        echo "Starting parallel tasks..." >&2
+
+        # Run both tasks in parallel
+        cd $remote_path
+        export PYTHONPATH=$(remote_omas_root):\$PYTHONPATH
+
+        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+
+        python -u omas_data_fetch.py
+
+        echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
+        wait
+        echo "Transfering data from remote" >&2
+        """
+    open(joinpath(local_path, "remote_slurm.sh"), "w") do io
+        return write(io, remote_slurm)
+    end
+
+    # local driver script
+    local_driver = """
+        #!/bin/bash
+
+        REMOTE_HOST="$(omega_user)@omega.gat.com"
+        REMOTE_PATH="$remote_path"
+        LOCAL_OUTPUT_DIR="$(local_path)"
+        LOCAL_FILES="$(local_path)/remote_slurm.sh $(local_path)/omas_data_fetch.py"
+        REMOTE_SCRIPT="remote_slurm.sh"
+
+        # Use rsync to create directory if it doesn't exist and copy the script
+        ssh "\$REMOTE_HOST" "mkdir -p \$REMOTE_PATH"
+        rsync -az \$LOCAL_FILES "\$REMOTE_HOST":"\$REMOTE_PATH" >&2
+
+        # Execute script remotely
+        ssh "\$REMOTE_HOST" "module load omfit; cd \$REMOTE_PATH && bash \$REMOTE_SCRIPT"
+
+        # Retrieve results using rsync
+        rsync -az "\$REMOTE_HOST:\$REMOTE_PATH/$(filename) \$REMOTE_PATH/nbi_ods_$shot.h5 \$REMOTE_PATH/beams_$shot.dat" "\$LOCAL_OUTPUT_DIR" >&2
+        """
+    open(joinpath(local_path, "local_driver.sh"), "w") do io
+        return write(io, local_driver)
+    end
+
+    # run data fetching
+    @info("Remote D3D data fetching for shot $shot")
+    @info("Path on OMEGA: $remote_path")
+    @info("Path on Localhost: $local_path")
+    Base.run(`bash $local_path/local_driver.sh`)
 
     # load experimental ods
-    ini.ods.filename = "$(ini.ods.filename),$(filename)"
-    print("Loading ods from file: $(filename)")
+    ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
+    @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
     # set time basis
@@ -162,6 +236,9 @@ function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
         ini.nb_unit[1].toroidal_angle = 18.0 * deg
+
+        resize!(ini.ec_launcher, 1)
+        ini.ec_launcher[1].power_launched = 3E6
     else
         act.ActorHCD.nb_model = :none
         act.ActorHCD.ec_model = :none
