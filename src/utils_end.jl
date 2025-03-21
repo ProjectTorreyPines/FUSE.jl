@@ -605,9 +605,9 @@ function load_database(filename::AbstractString, parent_groups::Vector{<:Abstrac
     Nparents = length(parent_groups)
 
     # Prepare output data
-    dds = occursin(pattern, "dd.h5") ? fill(IMAS.dd(), Nparents) : nothing
-    inis = occursin(pattern, "ini.h5") ? fill(ParametersInits(), Nparents) : nothing
-    acts = occursin(pattern, "act.h5") ? fill(ParametersActors(), Nparents) : nothing
+    dds = occursin(pattern, "dd.h5") || occursin(pattern, "dd.json") ? fill(IMAS.dd(), Nparents) : nothing
+    inis = occursin(pattern, "ini.h5") || occursin(pattern, "ini.json")  ? fill(ParametersInits(), Nparents) : nothing
+    acts = occursin(pattern, "act.h5") || occursin(pattern, "act.json") ? fill(ParametersActors(), Nparents) : nothing
     logs = occursin(pattern, "log.txt") ? fill("", Nparents) : nothing
     timers = occursin(pattern, "timer.txt") ? fill("", Nparents) : nothing
     errors = occursin(pattern, "error.txt") ? fill("", Nparents) : nothing
@@ -618,10 +618,16 @@ function load_database(filename::AbstractString, parent_groups::Vector{<:Abstrac
             h5path = gparent * "/" * key
             if key == "dd.h5"
                 dds[k] = IMAS.hdf2imas(filename, h5path)
+            elseif key == "dd.json"
+                dds[k] = IMAS.jstr2imas(H5_fid[h5path][])
             elseif key == "ini.h5"
                 inis[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
+            elseif key == "ini.json"
+                inis[k] = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersInits())
             elseif key == "act.h5"
                 acts[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
+            elseif key == "act.json"
+                acts[k] = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersActors())
             elseif key == "log.txt"
                 logs[k] = H5_fid[h5path][]
             elseif key == "timer.txt"
