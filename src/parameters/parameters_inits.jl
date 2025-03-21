@@ -205,7 +205,7 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     name::Entry{String} = Entry{String}("-", "Name of the layer")
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
-    material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.all_materials(), "-", "Material of the layer")
+    material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.ALL_MATERIALS, "-", "Material of the layer")
     coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}(
         "-",
         "List of coils within this layer";
