@@ -725,12 +725,21 @@ function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name:
 
     ori_df = coalesce.(CSV.read(IOBuffer(ori_fid["/extract.csv"][]), DataFrame), NaN)
 
+    # normalize and unique the parent_groups
     parent_groups = IMAS.norm_hdf5_path.(parent_groups)
+    unique!(parent_groups)
+
+    # Check if any requested groups don't exist in the original database
+    missing_groups = setdiff(parent_groups, ori_df.gparent)
+    if !isempty(missing_groups)
+        missing_list = join(["\n  [$i]: \"$group\"" for (i, group) in pairs(missing_groups)], "")
+        @warn "Following $(length(missing_groups)) groups not found in original database:$missing_list"
+    end
 
     sampled_df = filter(row -> string(row.gparent) in parent_groups, ori_df)
     sort!(sampled_df, "gparent")
 
-    for gparent in parent_groups
+    for gparent in sampled_df.gparent
         HDF5.copy_object(ori_fid, gparent, new_fid, gparent)
     end
 
