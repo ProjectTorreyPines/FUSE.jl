@@ -758,6 +758,66 @@ function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name:
     return sampled_df
 end
 
+function convert_database_subgroup_format(ori_DB_name::AbstractString, new_DB_name::AbstractString, format_indicator::Symbol)
+    @assert format_indicator ∈ (:json, :h5) "format_indicator must be either `:json` or `:h5`"
+    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+
+    ori_fid = HDF5.h5open(ori_DB_name, "r")
+    new_fid = HDF5.h5open(new_DB_name, "w")
+
+    ori_df = coalesce.(CSV.read(IOBuffer(ori_fid["/extract.csv"][]), DataFrame), NaN)
+
+    for gparent in ori_df.gparent
+        for key in keys(ori_fid[gparent])
+            println(gparent)
+            println(key)
+            ori_h5path = gparent * "/" * key
+            if endswith(key, r"\.txt")
+                HDF5.copy_object(ori_fid, ori_h5path, new_fid, ori_h5path)
+            elseif endswith(key, Regex(string(format_indicator)))
+                HDF5.copy_object(ori_fid, ori_h5path, new_fid, ori_h5path)
+            else
+                if startswith(key, r"dd")
+                    if format_indicator == :json
+                        json_string = string(IMAS.hdf2imas(ori_DB_name, gparent * "/dd.h5"))
+                        HDF5.write(new_fid, gparent * "/dd.json", json_string)
+                    else
+                        dd = IMAS.jstr2imas(ori_fid[ori_h5path][], IMAS.dd())
+                        HDF5.create_group(new_fid, gparent * "/dd.h5")
+                        IMAS.imas2hdf(dd, new_fid[gparent*"/dd.h5"])
+                    end
+                elseif startswith(key, r"ini")
+                    if format_indicator == :json
+                        ini = SimulationParameters.hdf2par(ori_fid[ori_h5path], ParametersInits())
+                        json_string = SimulationParameters.par2jstr(ini)
+                        HDF5.write(new_fid, gparent * "/ini.json", json_string)
+                    else
+                        ini = SimulationParameters.jstr2par(ori_fid[ori_h5path][], ParametersInits())
+                        HDF5.create_group(new_fid, gparent * "/ini.h5")
+                        SimulationParameters.par2hdf!(ini, new_fid[gparent*"/ini.h5"])
+                    end
+                elseif startswith(key, r"act")
+                    if format_indicator == :json
+                        act = SimulationParameters.hdf2par(ori_fid[ori_h5path], ParametersActors())
+                        json_string = SimulationParameters.par2jstr(act)
+                        HDF5.write(new_fid, gparent * "/act.json", json_string)
+                    else
+                        act = SimulationParameters.jstr2par(ori_fid[ori_h5path][], ParametersActors())
+                        HDF5.create_group(new_fid, gparent * "/act.h5")
+                        SimulationParameters.par2hdf!(act, new_fid[gparent*"/act.h5"])
+                    end
+                end
+            end
+        end
+    end
+
+    # copy extract.csv
+    HDF5.copy_object(ori_fid, "extract.csv", new_fid, "extract.csv")
+
+    close(ori_fid)
+    return close(new_fid)
+end
+
 
 
 """
