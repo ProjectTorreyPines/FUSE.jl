@@ -1,4 +1,5 @@
 import NEO
+import GACODE
 
 #= ================= =#
 #  ActorNeoclassical  #
@@ -15,7 +16,7 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorNeoclassical{P}
     input_neos::Vector{<:NEO.InputNEO}
-    flux_solutions::Vector{<:IMAS.FluxSolution}
+    flux_solutions::Vector{<:GACODE.FluxSolution}
     equilibrium_geometry::Union{NEO.EquilibriumGeometry,Missing}
 end
 
@@ -34,7 +35,7 @@ end
 function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
     logging_actor_init(ActorNeoclassical)
     par = par(kw...)
-    return ActorNeoclassical(dd, par, NEO.InputNEO[], IMAS.FluxSolution[], missing)
+    return ActorNeoclassical(dd, par, NEO.InputNEO[], GACODE.FluxSolution[], missing)
 end
 
 """
@@ -88,15 +89,15 @@ function _finalize(actor::ActorNeoclassical)
 
     if par.model == :changhinton
         model.identifier.name = "Chang-Hinton"
-        IMAS.flux_gacode_to_fuse((:ion_energy_flux,), actor.flux_solutions, m1d, eqt, cp1d)
+        GACODE.flux_gacode_to_imas((:ion_energy_flux,), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :neo
         model.identifier.name = "NEO"
-        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+        GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :hirshmansigmar
         model.identifier.name = "Hirshman-Sigmar"
-        IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
+        GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
     end
 
     return actor

@@ -1,5 +1,6 @@
 import TGLFNN
 import TGLFNN: InputQLGYRO, InputCGYRO
+import GACODE
 
 #= =========== =#
 #  ActorQLGYRO  #
@@ -26,7 +27,7 @@ mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
     par::FUSEparameters__ActorQLGYRO{P}
     input_qlgyros::Vector{<:InputQLGYRO}
     input_cgyros::Vector{<:InputCGYRO}
-    flux_solutions::Union{Vector{<:IMAS.FluxSolution},Any}
+    flux_solutions::Union{Vector{<:GACODE.FluxSolution},Any}
 end
 
 """
@@ -46,7 +47,7 @@ function ActorQLGYRO(dd::IMAS.dd, par::FUSEparameters__ActorQLGYRO; kw...)
     par = par(kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
     input_CGYROs = Vector{InputCGYRO}(undef, length(par.rho_transport))
-    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, IMAS.FluxSolution[])
+    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, GACODE.FluxSolution[])
 end
 
 """
@@ -108,7 +109,7 @@ function _finalize(actor::ActorQLGYRO)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end
