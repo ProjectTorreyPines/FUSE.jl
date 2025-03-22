@@ -372,7 +372,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
     end
     plot!(dd.pf_active; time0, subplot, colorbar=nothing)
-    plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
+    plot!(dd.pulse_schedule.position_control, nothing; time0, subplot, color=:red)
     out = convex_outline(dd.pf_active.coil)
     if !isempty(out.r)
         plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
