@@ -86,6 +86,14 @@ function _step(actor::ActorSimpleNB)
     ne_interp = IMAS.interp1d(rho_cp, ne)
     Te_interp = IMAS.interp1d(rho_cp, Te)
 
+    nmaxgroups = maximum(length(nbu.beamlets_group) for nbu in dd.nbi.unit)
+    qbeam = zeros(nmaxgroups, nenergies, ncp1d)
+    sbeam = zeros(nmaxgroups, nenergies, ncp1d)
+    mombeam = zeros(nmaxgroups, nenergies, ncp1d)
+    qbeame = zeros(nmaxgroups, nenergies, ncp1d)
+    qbeami = zeros(nmaxgroups, nenergies, ncp1d)
+    curbeam = zeros(nmaxgroups, nenergies, ncp1d)
+
     gaus = similar(rho_cp)
     qbeamtmp = similar(rho_cp)
     IMAS.freeze!(cp1d, :zeff)
@@ -101,14 +109,15 @@ function _step(actor::ActorSimpleNB)
 
         fbcur = @ddtime(nbu.beam_current_fraction.data)
 
+        qbeam .*= 0.0
+        sbeam .*= 0.0
+        mombeam .*= 0.0
+        qbeame .*= 0.0
+        qbeami .*= 0.0
+        curbeam .*= 0.0
+
         ngroups = length(nbu.beamlets_group)
-        qbeam = zeros(ngroups, nenergies, ncp1d)
-        sbeam = zeros(ngroups, nenergies, ncp1d)
-        mombeam = zeros(ngroups, nenergies, ncp1d)
-        qbeame = zeros(ngroups, nenergies, ncp1d)
-        qbeami = zeros(ngroups, nenergies, ncp1d)
-        curbeam = zeros(ngroups, nenergies, ncp1d)
-        for igroup in 1:ngroups
+        for igroup in 1:length(nbu.beamlets_group)
             bgroup = nbu.beamlets_group[igroup]
             if ngroups > 1
                 group_power_frac = bgroup.beamlets.power_fractions
@@ -220,17 +229,17 @@ function _step(actor::ActorSimpleNB)
                 curbi = IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
                 curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps)
-                curbeam[igroup, ifpow, :] = curbe .+ curbi .+ curbet
+                curbeam[igroup, ifpow, :] .= curbe .+ curbi .+ curbet
             end
         end
 
         electrons_energy = sum(sum(qbeame; dims=1); dims=2)[1, 1, :]
         total_ion_energy = sum(sum(qbeami; dims=1); dims=2)[1, 1, :]
         momentum_tor = sum(sum(mombeam; dims=1); dims=2)[1, 1, :]
-        curbeam = sum(sum(curbeam; dims=1); dims=2)[1, 1, :]
+        curbeam_tot = sum(sum(curbeam; dims=1); dims=2)[1, 1, :]
         electrons_particles = sum(sum(sbeam; dims=1); dims=2)[1, 1, :]
 
-        j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam / R0, false, eqt) / B0
+        j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam_tot ./ R0, false, eqt) ./ B0
 
         # Convert curbeam to parallel current here
         source = resize!(dd.core_sources.source, :nbi, "identifier.name" => nbu.name; wipe=false)
