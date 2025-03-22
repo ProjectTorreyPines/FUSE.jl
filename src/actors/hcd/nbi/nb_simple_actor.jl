@@ -86,6 +86,8 @@ function _step(actor::ActorSimpleNB)
     ne_interp = IMAS.interp1d(rho_cp, ne)
     Te_interp = IMAS.interp1d(rho_cp, Te)
 
+    ngrid = 100
+
     nmaxgroups = maximum(length(nbu.beamlets_group) for nbu in dd.nbi.unit)
     qbeam = zeros(nmaxgroups, nenergies, ncp1d)
     sbeam = zeros(nmaxgroups, nenergies, ncp1d)
@@ -127,55 +129,30 @@ function _step(actor::ActorSimpleNB)
             source_r = bgroup.position.r
             source_z = bgroup.position.z
 
-            angleh = bgroup.direction * asin(bgroup.tangency_radius / (source_r))
+            angleh = bgroup.direction * asin(bgroup.tangency_radius / source_r)
             anglev = bgroup.angle
 
             # trace pencil beam
-            dx = -par.actuator[ibeam].dl .* cos(angleh) .* cos(anglev)
-            dy = -par.actuator[ibeam].dl .* sin(angleh) * cos(anglev)
-            dZ = par.actuator[ibeam].dl .* cos(angleh) * sin(anglev)
-            x = source_r
-            y = 0.0
-            Z = source_z
-            in_box = false
-            out_box = false
-            istep = 0
-            ngrid = 0
-            Rs = []
-            Zs = []
-            ftors = []
-            max_steps = 1e6
-            while ~in_box || ~out_box && istep < max_steps
-                x += dx
-                y += dy
-                Z += dZ
-                R = sqrt(x^2 + y^2)
-                phi = asin(y / R)
-
-                ftor = abs(-dx * sin(phi) + dy * cos(phi)) / par.actuator[ibeam].dl
-                istep += 1
-                if ~in_box
-                    if R < rout[end]
-                        in_box = true
-                    end
-                else
-                    push!(Rs, R)
-                    push!(Zs, Z)
-                    push!(ftors, ftor)
-                    ngrid += 1
-                    if R > rout[end] || R < rin[end]
-                        out_box = true
-                    end
-                end
+            vx = -cos(angleh) .* cos(anglev)
+            vy = -sin(angleh) * cos(anglev)
+            vz = cos(angleh) * sin(anglev)
+            px = source_r
+            py = 0.0
+            pz = source_z
+            t_intersect1, t_intersect2 = IMAS.toroidal_intersection(eqt.boundary.outline.r, eqt.boundary.outline.z, px, py, pz, vx, vy, vz)
+            if rin[end] < source_r < rout[end]
+                tt = range(0.0, t_intersect1, ngrid)
+            else
+                tt = range(t_intersect1, t_intersect2, ngrid)
             end
-
+            Xs, Ys, Zs, Rs = IMAS.pencil_beam([source_r, 0.0, source_z], [vx, vy, vz], tt)
+            phi = asin.(Ys ./ Rs)
+            ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
             rho_beam = rho2d_interp.(Rs, Zs)
+            dist = [0.0; cumsum(sqrt.(diff(Xs) .^ 2 .+ diff(Ys) .^ 2 .+ diff(Zs) .^ 2))]
 
-            dist = range(0.0, par.actuator[ibeam].dl * ngrid, ngrid)
             ne_beam = ne_interp.(rho_beam)
-            ne_beam[rho_beam.>1] .= 0.0
             Te_beam = Te_interp.(rho_beam)
-            Te_beam[rho_beam.>1] .= 0.0
 
             power_launched_allenergies = 0.0
             for (ifpow, fpow) in enumerate(fbcur)
@@ -187,33 +164,28 @@ function _step(actor::ActorSimpleNB)
                 times = dist ./ vbeam
 
                 cs = zeros(ngrid)
-                for (i, (R, Z)) in enumerate(zip(Rs, Zs))
-                    cs1 = IMAS.imfp_electron_collisions(vbeam * 1e2, Te_beam[i], ne_beam[i] * 1e-6)
-                    cs2 = IMAS.imfp_ion_collisions(beam_mass, beam_energy / beam_mass, ne_beam[i] * 1e-6, 1)
-                    cs3 = IMAS.imfp_charge_exchange(beam_mass, beam_energy / beam_mass, ne_beam[i] * 1e-6)
-                    cs[i] = (cs1 + cs2 + cs3)
+                for i in 1:ngrid
+                    cs1 = IMAS.imfp_electron_collisions(vbeam, Te_beam[i], ne_beam[i])
+                    cs2 = IMAS.imfp_ion_collisions(beam_mass, beam_energy / beam_mass, ne_beam[i], 1)
+                    cs3 = IMAS.imfp_charge_exchange(beam_mass, beam_energy / beam_mass, ne_beam[i])
+                    cs[i] = cs1 + cs2 + cs3
                 end
                 cross_section_t = IMAS.cumtrapz(times, cs .* vbeam)
-
                 fbeam = exp.(-cross_section_t)
-                rbananas = zeros(ngrid)
 
-                mask = rho_beam .< 1
-                eps = eps_interp.(rho_beam[mask])
-                rbananas[mask] .= IMAS.banana_width.(beam_energy / ifpow, B0, beam_Z, beam_mass, eps, q_interp.(rho_beam[mask]))
+                eps = eps_interp.(rho_beam)
+                rbananas = IMAS.banana_width.(beam_energy / ifpow, B0, beam_Z, beam_mass, eps, q_interp.(rho_beam))
                 for i in 1:ngrid
                     rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
                 end
 
-                for itime in 1:length(times)-1
-                    if rho_beam[itime] < 1
-                        @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam[itime]) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
-                        gaus ./= IMAS.trapz(volume_cp, gaus)
-                        @. qbeamtmp .= power_launched * group_power_frac * (fbeam[itime] - fbeam[itime+1]) .* gaus
-                        @. qbeam[igroup, ifpow, :] .+= qbeamtmp
-                        @. sbeam[igroup, ifpow, :] .+= qbeamtmp / (beam_energy * IMAS.mks.e / ifpow)
-                        @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* ftors[itime] / (beam_energy * IMAS.mks.e / ifpow)
-                    end
+                for i in 1:ngrid-1
+                    @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam[i]) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
+                    gaus ./= IMAS.trapz(volume_cp, gaus)
+                    @. qbeamtmp .= power_launched * group_power_frac * (fbeam[i] - fbeam[i+1]) .* gaus
+                    @. qbeam[igroup, ifpow, :] .+= qbeamtmp
+                    @. sbeam[igroup, ifpow, :] .+= qbeamtmp / (beam_energy * IMAS.mks.e / ifpow)
+                    @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* ftors[i] / (beam_energy * IMAS.mks.e / ifpow)
                 end
             end
             @ddtime(nbu.power_launched.data = power_launched_allenergies)
