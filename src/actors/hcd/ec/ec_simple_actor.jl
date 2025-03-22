@@ -73,8 +73,8 @@ function _step(actor::ActorSimpleEC)
         resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecb))
         angle_pol = @ddtime(ecb.steering_angle_pol)
         angle_tor = @ddtime(ecb.steering_angle_tor)
-        t_intersect = IMAS.toroidal_intersection(resonance_layer.r, resonance_layer.z, launch_r, 0.0, launch_z, angle_pol, angle_tor)
-        if t_intersect == Inf
+        t_intersect = IMAS.toroidal_intersections(resonance_layer.r, resonance_layer.z, launch_r, 0.0, launch_z, angle_pol, angle_tor).t1
+        if t_intersect == NaN
             t_intersect = 0.0
         end
         x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))

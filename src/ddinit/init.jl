@@ -159,7 +159,7 @@ function init!(
                             scale -> scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, ini.hcd.power_scaling_cost_function),
                             0.0,
                             100,
-                            Optim.GoldenSection();
+                            Optim.Brent();
                             abs_tol=1E-3
                         )
                     actor_logging(dd, old_logging)

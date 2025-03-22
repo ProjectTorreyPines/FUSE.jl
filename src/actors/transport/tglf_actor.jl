@@ -2,6 +2,7 @@ import TGLFNN
 import TGLFNN: InputTGLF
 import TJLF
 import TJLF: InputTJLF
+import GACODE
 
 #= ========= =#
 #  ActorTGLF  #
@@ -30,7 +31,7 @@ mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorTGLF{P}
     input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
-    flux_solutions::Union{Vector{<:IMAS.flux_solution},Any}
+    flux_solutions::Union{Vector{<:GACODE.FluxSolution},Any}
 end
 
 """
@@ -53,7 +54,7 @@ function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
     elseif par.model == :TJLF
         input_tglfs = Vector{InputTJLF}(undef, length(par.rho_transport))
     end
-    return ActorTGLF(dd, par, input_tglfs, IMAS.flux_solution[])
+    return ActorTGLF(dd, par, input_tglfs, GACODE.FluxSolution[])
 end
 
 """
@@ -139,7 +140,7 @@ function _step(actor::ActorTGLF)
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
         actor.flux_solutions =
-            [IMAS.flux_solution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
+            [GACODE.FluxSolution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
     end
 
     return actor
@@ -164,7 +165,7 @@ function _finalize(actor::ActorTGLF)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end

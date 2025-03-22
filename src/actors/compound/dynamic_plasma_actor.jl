@@ -100,13 +100,13 @@ function _step(actor::ActorDynamicPlasma)
     # remove time dependent data after global_time
     IMAS.trim_time!(actor.dd, (-Inf, dd.global_time); trim_pulse_schedule=false)
 
-    step_calls_per_2loop = 9
+    substeps_per_2loop = 9
     ProgressMeter.ijulia_behavior(:clear)
-    prog = ProgressMeter.Progress(Nt * step_calls_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
+    prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     try
-        for kk in 1:2*Nt # NOTE: δt is a full step, some actors are called every 1/2 step
+        for (kk, tt) in enumerate(range(t0, t1, 2 * Nt+1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
             progr = (prog, t0, t1, phase)
 
@@ -116,6 +116,7 @@ function _step(actor::ActorDynamicPlasma)
             # by actor_tr and actor_ped at the 1/2 steps.
             # For dd.core_profiles we thus create a new time slice
             # at the 1/2 steps which is then retimed at the 2/2 steps.
+            dd.global_time = tt
             substep(actor, Val{:time_advance}, δt / 2; progr, retime_core_profiles=(phase == 2))
 
             δtt = kk == 1 ? δt / 2 : δt
@@ -145,7 +146,6 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:time_advance}}, δt::Flo
     retime_equilibrium::Bool=false, retime_core_sources::Bool=false, retime_core_profiles::Bool=false)
     # time_advance
     dd = actor.dd
-    dd.global_time += δt
     if retime_equilibrium
         IMAS.retime!(dd.equilibrium)
     else
@@ -332,6 +332,17 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         lw=2.0,
         subplot
     )
+    # plot!(
+    #     dd.equilibrium.time,
+    #     [eqt.global_quantities.ip for eqt in dd.equilibrium.time_slice] / 1E6;
+    #     ylim=extrema([eqt.global_quantities.ip for eqt in dd.equilibrium.time_slice]/ 1E6),
+    #     seriestype=:time,
+    #     color=:magenta,
+    #     label="Ip  [MA]",
+    #     ylabel="Ip [MA]",
+    #     lw=2.0,
+    #     subplot
+    # )
     if IMAS.controller(dd.controllers, "ip") !== nothing
         plot!([NaN], [NaN]; color=:red, label="Vloop [mV]", lw=2.0, subplot)
         time, data = IMAS.vloop_time(dd.controllers)
@@ -361,7 +372,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         plot!(dd.equilibrium.time_slice[time0]; cx=true, subplot)
     end
     plot!(dd.pf_active; time0, subplot, colorbar=nothing)
-    plot!(dd.pulse_schedule.position_control; time0, subplot, color=:red)
+    plot!(dd.pulse_schedule.position_control, nothing; time0, subplot, color=:red)
     out = convex_outline(dd.pf_active.coil)
     if !isempty(out.r)
         plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z), subplot)
@@ -418,11 +429,9 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         plot!(dd1.equilibrium.time_slice[time0].profiles_1d, :q; color=:black, coordinate=:rho_tor_norm, label="Experiment q", subplot)
     end
     plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Modeled q", subplot)
-    hline!([-1]; subplot)
+    hline!([-1]; subplot, label="", ls=:dash, color=:black)
     plot!(; ylim=(-5, 0), subplot)
 
-    # core_sources
-    # subplot = 5
     # plot!(
     #     dd.core_sources;
     #     time0,

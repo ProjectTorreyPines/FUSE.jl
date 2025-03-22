@@ -121,7 +121,11 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     power_launched::Entry{T} = Entry{T}("W", "Beam power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
-    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; check=x -> @assert (-pi / 2 <= x <= pi / 2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
+    normalized_tangency_radius::Entry{T} = Entry{T}("-", "Tangency radius normalized to major radius "; default=0.6, check=x -> @assert x < 2.0 "must be: beam_mass >= 1.0")
+    beam_current_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Beam current fraction"; default=[0.8, 0.15, 0.05], check=x -> @assert sum(x) <= 1.0)
+    current_direction::Switch{Symbol} = Switch{Symbol}([:co, :counter], "-", "Direction of beam current relative to plasma current"; default=:co)
+    offaxis::Entry{Bool} = Entry{Bool}("-", "Injection neutral beam off axis"; default=false)
+    template_beam::Switch{Symbol} = Switch{Symbol}([:none, :d3d_co, :d3d_counter, :d3d_offaxis, :nstx, :mast_onaxis, :mast_offaxis, :iter_onaxis, :iter_offaxis], "-", "Template beam setup"; default=:none)
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end

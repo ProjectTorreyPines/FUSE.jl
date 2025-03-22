@@ -26,7 +26,7 @@ function oh_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
         return abs(critical_j - currentDensityOH * (1.0 + coil_j_margin))
     end
     rel_tol = 1e-7
-    res = Optim.optimize(max_J_OH, 0.0, 1E9, Optim.GoldenSection(); rel_tol)
+    res = Optim.optimize(max_J_OH, 0.0, 1E9, Optim.Brent(); rel_tol)
 
     # solenoid maximum current and field
     bd.oh.max_j = abs(res.minimizer[1]) * (1 - rel_tol)
