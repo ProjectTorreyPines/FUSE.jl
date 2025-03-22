@@ -62,9 +62,6 @@ function _step(actor::ActorSimpleNB)
     ne = dd.core_profiles.profiles_1d[].electrons.density
     Te = dd.core_profiles.profiles_1d[].electrons.temperature
 
-    Rbbbs = dd.equilibrium.time_slice[].boundary.outline.r
-    Zbbbs = dd.equilibrium.time_slice[].boundary.outline.z
-
     rho_eq = dd.equilibrium.time_slice[].profiles_1d.rho_tor
 
     phi = eqt2d.phi
@@ -92,6 +89,9 @@ function _step(actor::ActorSimpleNB)
     for (ibeam, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
         # smoothing of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
         beam_energy = max(0.0, @ddtime(ps.energy.reference))
+        if beam_energy == 0.0
+            continue
+        end
         @ddtime(nbu.energy.data = beam_energy)
 
         fbcur = @ddtime(nbu.beam_current_fraction.data)
@@ -228,7 +228,6 @@ function _step(actor::ActorSimpleNB)
                 curbeam[igroup, ifpow, :] = curbe .+ curbi .+ curbet
             end
         end
-
 
         electrons_energy = sum(sum(qbeame; dims=1); dims=2)[1, 1, :]
         total_ion_energy = sum(sum(qbeami; dims=1); dims=2)[1, 1, :]
