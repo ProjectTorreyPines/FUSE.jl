@@ -161,7 +161,6 @@ function _step(actor::ActorSimpleNB)
                 power_launched_allenergies += power_launched
 
                 vbeam = sqrt((IMAS.mks.e * beam_energy / ifpow) / (0.5 * beam_mass * IMAS.mks.m_p))
-                times = dist ./ vbeam
 
                 cs = zeros(ngrid)
                 for i in 1:ngrid
@@ -170,7 +169,7 @@ function _step(actor::ActorSimpleNB)
                     cs3 = IMAS.imfp_charge_exchange(beam_mass, beam_energy / beam_mass, ne_beam[i])
                     cs[i] = cs1 + cs2 + cs3
                 end
-                cross_section_t = IMAS.cumtrapz(times, cs .* vbeam)
+                cross_section_t = IMAS.cumtrapz(dist, cs)
                 fbeam = exp.(-cross_section_t)
 
                 eps = eps_interp.(rho_beam)
