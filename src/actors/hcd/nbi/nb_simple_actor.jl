@@ -139,7 +139,7 @@ function _step(actor::ActorSimpleNB)
             px = source_r
             py = 0.0
             pz = source_z
-            t_intersect1, t_intersect2 = IMAS.toroidal_intersection(eqt.boundary.outline.r, eqt.boundary.outline.z, px, py, pz, vx, vy, vz)
+            t_intersect1, t_intersect2 = IMAS.toroidal_intersections(eqt.boundary.outline.r, eqt.boundary.outline.z, px, py, pz, vx, vy, vz)
             if rin[end] < source_r < rout[end]
                 tt = range(0.0, t_intersect1, ngrid)
             else
