@@ -5,9 +5,8 @@ Base.@kwdef mutable struct _FUSEparameters__ActorSimpleNBactuator{T<:Real} <: Pa
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    dl::Entry{T} = Entry{T}("-", "Step size for pencil beam [meters]"; default=0.005, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    banana_shift_fraction::Entry{T} = Entry{T}("-", "Shift factor"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    smoothing_width::Entry{T} = Entry{T}("-", "Width of the deposition profile"; default=0.12, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+    banana_shift_fraction::Entry{T} = Entry{T}("-", "Shift factor"; default=0.5, check=x -> @assert x >= 0.0 "must be: banana_shift_fraction >= 0.0")
+    smoothing_width::Entry{T} = Entry{T}("-", "Width of the deposition profile"; default=0.12, check=x -> @assert x >= 0.0 "must be: smoothing_width > 0.0")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
@@ -30,9 +29,7 @@ end
 """
     ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
-
-NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+Calculates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a pencil beam.
 
 !!! note
 
