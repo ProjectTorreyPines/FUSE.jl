@@ -174,12 +174,13 @@ function _step(actor::ActorSimpleNB)
 
                 eps = eps_interp.(rho_beam)
                 rbananas = IMAS.banana_width.(beam_energy / ifpow, B0, beam_Z, beam_mass, eps, q_interp.(rho_beam))
+                rho_beam_banana = similar(rho_beam)
                 for i in 1:ngrid
-                    rho_beam[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
+                    rho_beam_banana[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
                 end
 
                 for i in 1:ngrid-1
-                    @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam[i]) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
+                    @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam_banana[i]) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
                     gaus ./= IMAS.trapz(volume_cp, gaus)
                     @. qbeamtmp .= power_launched * group_power_frac * (fbeam[i] - fbeam[i+1]) .* gaus
                     @. qbeam[igroup, ifpow, :] .+= qbeamtmp
