@@ -79,6 +79,7 @@ function _step(actor::ActorSimpleNB)
     rout = eqt.profiles_1d.r_outboard
     eps = (rout .- rin) ./ (rout .+ rin)
     eps_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eps)
+    eps0 = maximum(eps) .* cp1d.grid.rho_tor_norm
 
     ne_interp = IMAS.interp1d(rho_cp, ne)
     Te_interp = IMAS.interp1d(rho_cp, Te)
@@ -153,7 +154,7 @@ function _step(actor::ActorSimpleNB)
 
             power_launched_allenergies = 0.0
             for (ifpow, fpow) in enumerate(fbcur)
-                τ_th = IMAS.fast_ion_thermalization_time(cp1d, nbu.species, beam_energy / ifpow)
+                τ_th = IMAS.fast_ion_thermalization_time(cp1d, 1, nbu.species, beam_energy / ifpow)
                 power_launched = fpow * max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
                 power_launched_allenergies += power_launched
 
@@ -169,8 +170,7 @@ function _step(actor::ActorSimpleNB)
                 cross_section_t = IMAS.cumtrapz(dist, cs)
                 fbeam = exp.(-cross_section_t)
 
-                eps = eps_interp.(rho_beam)
-                rbananas = IMAS.banana_width.(beam_energy / ifpow, B0, beam_Z, beam_mass, eps, q_interp.(rho_beam))
+                rbananas = IMAS.banana_width.(beam_energy / ifpow, B0, beam_Z, beam_mass, eps_interp.(rho_beam), q_interp.(rho_beam))
                 rho_beam_banana = similar(rho_beam)
                 for i in 1:ngrid
                     rho_beam_banana[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
@@ -187,17 +187,14 @@ function _step(actor::ActorSimpleNB)
             end
             @ddtime(nbu.power_launched.data = power_launched_allenergies)
 
-            mombeam *= 2.0 # fudge factor to get momentum flux right, why is this needed?????
-
-            eps = maximum(eps) .* cp1d.grid.rho_tor_norm
             for ifpow in eachindex(fbcur)
                 frac_ie = IMAS.sivukhin_fraction(cp1d, nbu.energy.data[1] / ifpow, nbu.species.a)
-                tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, nbu.energy.data[1] / ifpow, nbu.species.z_n, Int(nbu.species.a))
+                tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, nbu.energy.data[1] / ifpow, nbu.species.a, nbu.species.z_n)
                 qbeame[igroup, ifpow, :] .= @views (1.0 .- frac_ie) .* qbeam[igroup, ifpow, :]
                 qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
                 curbi = IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
-                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps)
+                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps0) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps0)
                 curbeam[igroup, ifpow, :] .= curbe .+ curbi .+ curbet
             end
         end
