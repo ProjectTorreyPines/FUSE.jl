@@ -73,6 +73,23 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     # make actual prediction
     Jt, psirz, Ip, fcurrt = EGGO.predict_model(bound_mxh, pp_fit, ffp_fit, ecurrt_target, actor.NNmodel, actor.green, actor.basis_functions)
 
+    # average out EGGO solution with previous time slice(s)
+    # until EGGO becomes a bit more robust
+    n = 2 # number of time slices to average
+    i = IMAS.index(eqt)
+    if i > n
+        d = 1.0
+        for k in 1:n
+            eqt0 = dd.equilibrium.time_slice[i-k]
+            eqt02d = findfirst(:rectangular, eqt0.profiles_2d)
+            if size(eqt02d.psi) == size(psirz)
+                psirz .+= (eqt02d.psi ./ 2pi)
+                d += 1
+            end
+        end
+        psirz ./= d
+    end
+
     # pp' and ff' that were actually used in EGGO
     pp = zero(actor.basis_functions_1d[:pp][1, :])
     for k in eachindex(pp_fit)
