@@ -16,10 +16,10 @@ end
 
 mutable struct ActorCostingARIES{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCostingARIES{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCostingARIES{P}}
     function ActorCostingARIES(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingARIES{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCostingARIES)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

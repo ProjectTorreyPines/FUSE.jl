@@ -19,7 +19,7 @@ end
 
 mutable struct ActorQED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorQED{P}
+    par::OverrideParameters{P,FUSEparameters__ActorQED{P}}
     QO::Union{Nothing,QED.QED_state}
 end
 
@@ -49,7 +49,7 @@ end
 
 function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED; kw...)
     logging_actor_init(ActorQED)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorQED(dd, par, nothing)
 end
 
@@ -157,7 +157,7 @@ function _finalize(actor::ActorQED)
     cp1d = dd.core_profiles.profiles_1d[]
     j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
 
-    if true
+    if false
         cp1d.j_total = j_total
     else
         # TEMP FIX: scale ohmic current coming so that total current does not change

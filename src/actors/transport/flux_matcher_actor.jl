@@ -44,7 +44,7 @@ end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorFluxMatcher{P}
+    par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}
     act::ParametersAllActors{P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
@@ -66,7 +66,7 @@ end
 
 function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, act::ParametersAllActors; kw...)
     logging_actor_init(ActorFluxMatcher)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
     actor_ped = ActorPedestal(
         dd,
@@ -438,7 +438,7 @@ Evaluates the flux_matching targets for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_source = resize!(dd.core_sources.source, :total; wipe=false)
@@ -487,7 +487,7 @@ Evaluates the flux_matching fluxes for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_fluxes(dd::IMAS.dd{T}, par::FUSEparameters__ActorFluxMatcher) where {T<:Real}
+function flux_match_fluxes(dd::IMAS.dd{T}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {T<:Real, P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_flux = resize!(dd.core_transport.model, :combined; wipe=false)
@@ -597,7 +597,7 @@ function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
     return out
 end
 
-function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
+function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
     if par.evolve_densities == :fixed
         return setup_density_evolution_fixed(cp1d)
     elseif par.evolve_densities == :flux_match
@@ -621,7 +621,7 @@ Packs the z_profiles based on evolution parameters
 
 NOTE: the order for packing and unpacking is always: [Te, Ti, Rotation, ne, nis...]
 """
-function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
+function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
     cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
 
     z_profiles = Float64[]
@@ -687,8 +687,8 @@ NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis.
 """
 function unpack_z_profiles(
     cp1d::IMAS.core_profiles__profiles_1d,
-    par::FUSEparameters__ActorFluxMatcher,
-    z_profiles::AbstractVector{<:Real})
+    par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
+    z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
     # bound range of accepted z_profiles to avoid issues during optimization
     z_max = 10.0

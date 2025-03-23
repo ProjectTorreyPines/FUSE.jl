@@ -12,7 +12,7 @@ end
 
 mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorFluxCalculator{P}
+    par::OverrideParameters{P,FUSEparameters__ActorFluxCalculator{P}}
     act::ParametersAllActors{P}
     actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
@@ -32,7 +32,7 @@ end
 
 function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculator, act::ParametersAllActors; kw...)
     logging_actor_init(ActorFluxCalculator)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     if par.turbulence_model == :none
         logging(Logging.Debug, :actors, "ActorFluxCalculator: turbulent transport disabled")

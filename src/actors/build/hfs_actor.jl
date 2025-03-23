@@ -13,7 +13,7 @@ end
 
 mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorHFSsizing{P}
+    par::OverrideParameters{P,FUSEparameters__ActorHFSsizing{P}}
     act::ParametersAllActors{P}
     stresses_actor::ActorStresses{D,P}
     fluxswing_actor::ActorFluxSwing{D,P}

@@ -26,7 +26,7 @@ end
 
 mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEPED{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEPED{P}}
     epedmod::EPEDNN.EPEDmodel
     inputs::EPEDNN.InputEPED
     wped::Union{Missing,Real}
@@ -48,7 +48,7 @@ end
 
 function ActorEPED(dd::IMAS.dd, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
     return ActorEPED(dd, par, epedmod, EPEDNN.InputEPED(), missing, missing)
 end

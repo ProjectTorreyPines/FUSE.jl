@@ -10,22 +10,15 @@ end
 
 mutable struct ActorReplay{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorReplay{P}
+    par::OverrideParameters{P,FUSEparameters__ActorReplay{P}}
     replay_dd::IMAS.dd{D}
     base_actor::AbstractActor{D,P}
 end
 
 function ActorReplay(dd::IMAS.dd{D}, par::FUSEparameters__ActorReplay{P}, base_actor::AbstractActor{D,P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorReplay)
-    # NOTE: we don't do `par = par(kw...)` here to avoid the deepcopy of an entire `dd`
-    if :replay_dd in keys(kw)
-        replay_dd = kw.replay_dd
-    elseif !ismissing(par, :replay_dd)
-        replay_dd = par.replay_dd
-    else
-        replay_dd = IMAS.dd{D}()
-    end
-    return ActorReplay{D,P}(dd, par, replay_dd, base_actor)
+    par = OverrideParameters(par; kw...)
+    return ActorReplay{D,P}(dd, par, par.replay_dd, base_actor)
 end
 
 function ActorReplay(dd::IMAS.dd{D}, par::FUSEparameters__ActorReplay{P}; kw...) where {D<:Real,P<:Real}

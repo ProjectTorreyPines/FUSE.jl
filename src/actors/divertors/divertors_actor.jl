@@ -17,7 +17,7 @@ end
 
 mutable struct ActorDivertors{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorDivertors{P}
+    par::OverrideParameters{P,FUSEparameters__ActorDivertors{P}}
     boundary_plasma_models::Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}
 end
 
@@ -39,7 +39,7 @@ end
 
 function ActorDivertors(dd::IMAS.dd, par::FUSEparameters__ActorDivertors; kw...)
     logging_actor_init(ActorDivertors)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorDivertors(dd, par, Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}())
 end
 

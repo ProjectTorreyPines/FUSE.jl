@@ -24,7 +24,7 @@ end
 
 mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorQLGYRO{P}
+    par::OverrideParameters{P,FUSEparameters__ActorQLGYRO{P}}
     input_qlgyros::Vector{<:InputQLGYRO}
     input_cgyros::Vector{<:InputCGYRO}
     flux_solutions::Union{Vector{<:GACODE.FluxSolution},Any}
@@ -44,7 +44,7 @@ end
 
 function ActorQLGYRO(dd::IMAS.dd, par::FUSEparameters__ActorQLGYRO; kw...)
     logging_actor_init(ActorQLGYRO)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
     input_CGYROs = Vector{InputCGYRO}(undef, length(par.rho_transport))
     return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, GACODE.FluxSolution[])

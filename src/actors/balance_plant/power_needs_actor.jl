@@ -12,10 +12,10 @@ end
 
 mutable struct ActorPowerNeeds{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPowerNeeds{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPowerNeeds{P}}
     function ActorPowerNeeds(dd::IMAS.dd{D}, par::FUSEparameters__ActorPowerNeeds{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPowerNeeds)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

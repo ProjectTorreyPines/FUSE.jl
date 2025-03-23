@@ -16,7 +16,7 @@ end
 
 mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEGGO{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEGGO{P}}
     act::ParametersAllActors{P}
     green::Dict
     basis_functions::Dict
@@ -38,7 +38,7 @@ end
 
 function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorEGGO)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     model_name = :d3d_efit01
     green = EGGO.get_greens_function_tables(model_name)

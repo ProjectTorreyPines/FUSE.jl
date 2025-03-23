@@ -11,10 +11,10 @@ end
 
 mutable struct ActorNeutronics{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorNeutronics{P}
+    par::OverrideParameters{P,FUSEparameters__ActorNeutronics{P}}
     function ActorNeutronics(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutronics{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNeutronics)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

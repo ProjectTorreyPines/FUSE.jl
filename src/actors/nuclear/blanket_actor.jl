@@ -19,11 +19,11 @@ end
 
 mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorBlanket{P}
+    par::OverrideParameters{P,FUSEparameters__ActorBlanket{P}}
     act::ParametersAllActors{P}
     function ActorBlanket(dd::IMAS.dd{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorBlanket)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
     end
 end

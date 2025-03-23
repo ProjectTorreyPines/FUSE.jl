@@ -29,7 +29,7 @@ end
 
 mutable struct ActorWPED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorWPED{P}
+    par::OverrideParameters{P,FUSEparameters__ActorWPED{P}}
     optimization_guesses::OptimizationWPED
 end
 
@@ -47,7 +47,7 @@ end
 
 function ActorWPED(dd::IMAS.dd, par::FUSEparameters__ActorWPED; kw...)
     logging_actor_init(ActorWPED)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorWPED(dd, par, OptimizationWPED(0.0, 0.0, 3e3))
 end
 

@@ -25,7 +25,7 @@ end
 
 mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorTEQUILA{P}
+    par::OverrideParameters{P,FUSEparameters__ActorTEQUILA{P}}
     act::ParametersAllActors{P}
     shot::Union{Nothing,TEQUILA.Shot}
     ψbound::D
@@ -47,7 +47,7 @@ end
 
 function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])
 end
 

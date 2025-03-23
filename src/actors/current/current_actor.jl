@@ -14,7 +14,7 @@ end
 
 mutable struct ActorCurrent{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCurrent{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCurrent{P}}
     act::ParametersAllActors{P}
     jt_actor::Union{ActorSteadyStateCurrent{D,P},ActorQED{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
@@ -37,7 +37,7 @@ end
 
 function ActorCurrent(dd::IMAS.dd, par::FUSEparameters__ActorCurrent, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCurrent)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorCurrent(dd, par, act, noop)

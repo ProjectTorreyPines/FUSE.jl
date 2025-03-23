@@ -21,7 +21,7 @@ end
 
 mutable struct ActorFRESCO{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorFRESCO{P}
+    par::OverrideParameters{P,FUSEparameters__ActorFRESCO{P}}
     act::ParametersAllActors{P}
     canvas::Union{Nothing,FRESCO.Canvas}
     profile::Union{Nothing,FRESCO.PressureJt}
@@ -41,7 +41,7 @@ end
 
 function ActorFRESCO(dd::IMAS.dd{D}, par::FUSEparameters__ActorFRESCO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFRESCO)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorFRESCO(dd, par, act, nothing, nothing)
 end
 

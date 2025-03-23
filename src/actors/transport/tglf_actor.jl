@@ -28,7 +28,7 @@ end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorTGLF{P}
+    par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}
     input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
     flux_solutions::Union{Vector{<:GACODE.FluxSolution},Any}
 end
@@ -47,7 +47,7 @@ end
 
 function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
     logging_actor_init(ActorTGLF)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     if par.model ∈ [:TGLF, :TGLFNN]
         input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))
     elseif par.model == :TJLF
@@ -126,7 +126,7 @@ function _finalize(actor::ActorTGLF)
     return actor
 end
 
-function model_filename(par::FUSEparameters__ActorTGLF)
+function model_filename(par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}) where {P<:Real}
     if par.model == :TGLFNN
         filename = par.tglfnn_model
     else

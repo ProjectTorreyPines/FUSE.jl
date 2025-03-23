@@ -18,10 +18,10 @@ end
 
 mutable struct ActorSteadyStateCurrent{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSteadyStateCurrent{P}
+    par::OverrideParameters{P,FUSEparameters__ActorSteadyStateCurrent{P}}
     function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSteadyStateCurrent)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

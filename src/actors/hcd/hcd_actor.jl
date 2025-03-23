@@ -14,7 +14,7 @@ end
 
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorHCD{P}
+    par::OverrideParameters{P,FUSEparameters__ActorHCD{P}}
     act::ParametersAllActors{P}
     ec_actor::Union{ActorSimpleEC{D,P},ActorTORBEAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
@@ -37,7 +37,7 @@ end
 
 function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAllActors; kw...)
     logging_actor_init(ActorHCD)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop)

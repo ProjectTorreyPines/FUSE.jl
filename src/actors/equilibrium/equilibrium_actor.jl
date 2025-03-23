@@ -18,7 +18,7 @@ end
 
 mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEquilibrium{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEquilibrium{P}}
     act::ParametersAllActors{P}
     eq_actor::Union{Nothing,ActorTEQUILA{D,P},ActorFRESCO{D,P},ActorEGGO{D,P},ActorCHEASE{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
@@ -37,7 +37,7 @@ end
 
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorEquilibrium(dd, par, act, noop)

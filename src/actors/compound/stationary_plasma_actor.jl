@@ -14,7 +14,7 @@ end
 
 mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorStationaryPlasma{P}
+    par::OverrideParameters{P,FUSEparameters__ActorStationaryPlasma{P}}
     act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
     actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
@@ -46,7 +46,7 @@ end
 
 function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorStationaryPlasma)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 

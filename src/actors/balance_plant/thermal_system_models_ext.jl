@@ -16,7 +16,7 @@ MTK.@independent_variables t
 
 mutable struct ActorThermalSystemModels{D,P} <: AbstractActorThermalPlant{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorThermalSystemModels{P}   # Actors must carry with them the parameters they are run with
+    par::OverrideParameters{P,FUSEparameters__ActorThermalSystemModels{P}}
     components::Vector{MTK.ODESystem}           # Vector of type ODESystem
     connections::Vector{MTK.Equation}           # Connection equations
     odeparams::Vector{MTK.Num}                  # Circuit Parameters
@@ -36,7 +36,7 @@ end
 
 function ActorThermalSystemModels(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalSystemModels{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorThermalSystemModels)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorThermalSystemModels(
         dd,
         par,
