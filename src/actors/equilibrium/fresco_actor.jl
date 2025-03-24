@@ -14,6 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
     nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
     nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
+    active_x_points::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "Active x-points in the equilibrium solver"; default=Int[])
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
@@ -77,7 +78,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         Green_table = D[;;;]
     end
 
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
+    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points)
     actor.profile = FRESCO.PressureJt(dd)
 
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
