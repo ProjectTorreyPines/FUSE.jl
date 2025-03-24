@@ -46,6 +46,7 @@ function case_parameters(
 
         ods = omas.ODS()
 
+        tic = time.time()
         printe("- Fetching ec_launcher data")
         d3d.ec_launcher_active_hardware(ods, $shot)
 
@@ -57,6 +58,12 @@ function case_parameters(
 
         printe("- Fetching wall data")
         d3d.wall(ods, $shot)
+
+        printe("- Fetching flux loops data")
+        d3d.magnetics_floops_data(ods, $shot)
+
+        printe("- Fetching magnetic probes data")
+        d3d.magnetics_probes_data(ods, $shot)
 
         printe("- Fetching equilibrium data")
         with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
@@ -73,8 +80,12 @@ function case_parameters(
                 ods["equilibrium.vacuum_toroidal_field.r0"]
                 ods["equilibrium.vacuum_toroidal_field.b0"]
 
-        printe("Saving ODS to $filename")
+        printe(f"Data fetched via OMAS in {time.time()-tic:.2f} [s]")
+
+        printe("Saving ODS to $filename", end="")
+        tic = time.time()
         ods.save("$filename")
+        printe(f" Done in {time.time()-tic:.2f} [s]")
         """
     open(joinpath(local_path, "omas_data_fetch.py"), "w") do io
         return write(io, omas_py)
