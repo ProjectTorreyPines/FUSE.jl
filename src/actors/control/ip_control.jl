@@ -18,6 +18,9 @@ function ip_controller(dd::IMAS.dd, δt::Float64)
         ctrl_ip = dd.controllers.linear_controller[index]
     else
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
+        ctrl_ip.input_names = ["Ip error"]
+        ctrl_ip.output_names = ["Vloop"]
+
         # guess PID gains based on resistivity
         Ω = IMAS.plasma_lumped_resistance(dd)
         P = Ω * 10.0
@@ -32,7 +35,7 @@ function ip_controller(dd::IMAS.dd, δt::Float64)
         Ip0 = IMAS.get_from(dd, Val{:ip}, :pulse_schedule)
         Vloop0 = Ip0 * Ω
         control(ctrl_ip; time0=dd.global_time - δt)
-        ctrl_ip.inputs.data[1, 1] = Vloop0 / I / δt * 1.5
+        ctrl_ip.inputs.data[1, 1] = 0.0
         ctrl_ip.outputs.data[1, 1] = Vloop0
     end
     return ctrl_ip
