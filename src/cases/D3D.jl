@@ -110,30 +110,39 @@ function case_parameters(
     open(joinpath(local_path, "remote_slurm.sh"), "w") do io
         return write(io, remote_slurm)
     end
+    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+        local_path=remote_path
+        # local driver script
+        local_driver = """
+            #!/bin/bash
+            module load omfit; cd $remote_path && bash remote_slurm.sh
+            """
+    else
+        # local driver script
+        local_driver = """
+            #!/bin/bash
 
-    # local driver script
-    local_driver = """
-        #!/bin/bash
+            REMOTE_HOST="$(omega_user)@omega.gat.com"
+            REMOTE_PATH="$remote_path"
+            LOCAL_OUTPUT_DIR="$(local_path)"
+            LOCAL_FILES="$(local_path)/remote_slurm.sh $(local_path)/omas_data_fetch.py"
+            REMOTE_SCRIPT="remote_slurm.sh"
 
-        REMOTE_HOST="$(omega_user)@omega.gat.com"
-        REMOTE_PATH="$remote_path"
-        LOCAL_OUTPUT_DIR="$(local_path)"
-        LOCAL_FILES="$(local_path)/remote_slurm.sh $(local_path)/omas_data_fetch.py"
-        REMOTE_SCRIPT="remote_slurm.sh"
+            # Use rsync to create directory if it doesn't exist and copy the script
+            ssh "\$REMOTE_HOST" "mkdir -p \$REMOTE_PATH"
+            rsync -az \$LOCAL_FILES "\$REMOTE_HOST":"\$REMOTE_PATH" >&2
 
-        # Use rsync to create directory if it doesn't exist and copy the script
-        ssh "\$REMOTE_HOST" "mkdir -p \$REMOTE_PATH"
-        rsync -az \$LOCAL_FILES "\$REMOTE_HOST":"\$REMOTE_PATH" >&2
+            # Execute script remotely
+            ssh "\$REMOTE_HOST" "module load omfit; cd \$REMOTE_PATH && bash \$REMOTE_SCRIPT"
 
-        # Execute script remotely
-        ssh "\$REMOTE_HOST" "module load omfit; cd \$REMOTE_PATH && bash \$REMOTE_SCRIPT"
-
-        # Retrieve results using rsync
-        rsync -az "\$REMOTE_HOST:\$REMOTE_PATH/$(filename) \$REMOTE_PATH/nbi_ods_$shot.h5 \$REMOTE_PATH/beams_$shot.dat" "\$LOCAL_OUTPUT_DIR" >&2
-        """
+            # Retrieve results using rsync
+            rsync -az "\$REMOTE_HOST:\$REMOTE_PATH/$(filename) \$REMOTE_PATH/nbi_ods_$shot.h5 \$REMOTE_PATH/beams_$shot.dat" "\$LOCAL_OUTPUT_DIR" >&2
+            """
+    end
     open(joinpath(local_path, "local_driver.sh"), "w") do io
         return write(io, local_driver)
     end
+    
 
     # run data fetching
     @info("Remote D3D data fetching for shot $shot")
