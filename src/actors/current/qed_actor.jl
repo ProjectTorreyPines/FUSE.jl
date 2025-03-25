@@ -28,6 +28,8 @@ end
 
 Evolves the plasma current using the QED current diffusion solver.
 
+The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
+
 !!! note
 
     This actor operates at "dd.global_time", any time advance must be done outside of the actor
@@ -35,10 +37,6 @@ Evolves the plasma current using the QED current diffusion solver.
         IMAS.new_timeslice!(dd, dd.global_time + Δt)
         dd.global_time += Δt
         ActorQED(dd, act)
-
-!!! note
-
-    Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
 """
 function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorQED(dd, act.ActorQED; kw...)
@@ -144,7 +142,6 @@ function _step(actor::ActorQED)
             end
         end
     end
-
     return actor
 end
 

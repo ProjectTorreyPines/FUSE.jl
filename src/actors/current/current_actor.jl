@@ -24,9 +24,12 @@ end
 
 Provides a common interface to run multiple ohmic current evolution actors
 
-  - Sets the `j_ohmic`, `j_tor`, `j_total` under `dd.core_profiles.profiles_1d[]`
-  - Sets `j_parallel` in `dd.equilibrium.time_slice[].profiles_1d`
-  - Updates `bootstrap` and `ohmic` parallel current and heating sources in `dd.core_sources`
+  - The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
+  - Also updates:
+
+      + `j_ohmic`, `j_tor` in `dd.core_profiles.profiles_1d[]`
+      + `j_parallel` in `dd.equilibrium.time_slice[].profiles_1d`
+      + `bootstrap` and `ohmic` parallel current and heating sources in `dd.core_sources`
 """
 function ActorCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCurrent(dd, act.ActorCurrent, act; kw...)

@@ -33,7 +33,7 @@ Evolves the ohmic current to steady state using the conductivity from `dd.core_p
 
 !!! note
 
-    Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
+    The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
