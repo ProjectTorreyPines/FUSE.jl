@@ -11,6 +11,7 @@ import Printf: @sprintf
 import ThermalSystemModels: Dynamics as TSMD
 import ThermalSystemModels.Dynamics: DifferentialEquations, ModelingToolkit as MTK
 import ThermalSystemModels.Dynamics.ModelingToolkit: @parameters
+import SimulationParameters: OverrideParameters
 
 MTK.@independent_variables t
 
