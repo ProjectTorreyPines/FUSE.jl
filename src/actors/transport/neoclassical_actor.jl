@@ -32,6 +32,7 @@ function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
+    logging_actor_init(ActorNeoclassical)
     par = par(kw...)
     return ActorNeoclassical(dd, par, NEO.InputNEO[], IMAS.flux_solution[], missing)
 end

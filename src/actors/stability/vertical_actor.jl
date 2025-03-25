@@ -79,6 +79,7 @@ function _step(actor::ActorVerticalStability)
             return actor
         end
     end
+
     for (k, coil) in enumerate(actor.passive_coils)
         if VacuumFields.resistance(coil) <= 0.0
             @warn "Passive coil #$(k) has invalid resistance: $(VacuumFields.resistance(coil)). Can't compute normalized growth rate.\nOffending coil: $(repr(coil))"
@@ -100,22 +101,25 @@ function _finalize(actor::ActorVerticalStability)
     dd = actor.dd
     par = actor.par
 
-    mhd = resize!(dd.mhd_linear.time_slice)
-    resize!(mhd.toroidal_mode, 2)
+    mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
 
     # Stability margin
-    mode = mhd.toroidal_mode[1]
-    mode.perturbation_type.description = "Vertical stability margin, > 0.15 for stability (N.B., not in Hz)"
-    mode.perturbation_type.name = "m_s"
-    mode.n_tor = 0
-    mode.growthrate = actor.stability_margin # not in Hz
+    if !isnan(actor.stability_margin)
+        mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
+        mode.perturbation_type.description = "Vertical stability margin > 0.15 for stability"
+        mode.stability_metric = actor.stability_margin
+    else
+        deleteat!(mhd.toroidal_mode, "perturbation_type.name" => "m_s", "n_tor" => 0)
+    end
 
     # Normalized growth rate
-    mode = mhd.toroidal_mode[2]
-    mode.perturbation_type.description = "Normalized vertical growth rate, < 10 for stability (N.B., not in Hz)"
-    mode.perturbation_type.name = "γτ"
-    mode.n_tor = 0
-    mode.growthrate = actor.normalized_growth_rate # not in Hz
+    if !isnan(actor.normalized_growth_rate)
+        mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
+        mode.perturbation_type.description = "Normalized vertical growth rate < 10 for stability"
+        mode.stability_metric = actor.normalized_growth_rate
+    else
+        deleteat!(mhd.toroidal_mode, "perturbation_type.name" => "γτ", "n_tor" => 0)
+    end
 
     # plot
     if par.do_plot

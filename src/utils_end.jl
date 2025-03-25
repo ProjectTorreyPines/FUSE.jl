@@ -3,6 +3,9 @@ using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
 import DataFrames
+import Dates
+import HDF5
+import Random
 
 # ========== #
 # Checkpoint #
@@ -114,7 +117,7 @@ macro checkout(key, vars...)
             saved_vars = d[$key]
             $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
         else
-            throw(KeyError($key))
+            error("Checkpoint named `:$($key)` does not exist. Possible options are: [:$(join(keys(d),", :"))]")
         end
         nothing
     end
@@ -215,7 +218,7 @@ function IMAS.extract(
         # load the data
         ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
-        Threads.@threads for k in eachindex(DD)
+        Threads.@threads :static for k in eachindex(DD)
             aDDk, aDD = identifier(DD, k)
             try
                 if aDDk in cached_dirs
@@ -297,7 +300,7 @@ end
         error::Any=nothing,
         timer::Bool=true,
         varinfo::Bool=false,
-        freeze::Bool=true,
+        freeze::Bool=false,
         format::Symbol=:json,
         overwrite_files::Bool=true)
 
@@ -317,7 +320,7 @@ function save(
     error::Any=nothing,
     timer::Bool=true,
     varinfo::Bool=false,
-    freeze::Bool=true,
+    freeze::Bool=false,
     format::Symbol=:json,
     overwrite_files::Bool=true)
 
@@ -379,6 +382,374 @@ function save(
 
     return savedir
 end
+
+
+function save_database(
+    savedir::AbstractString,
+    parent_group::AbstractString,
+    dd::Union{Nothing,IMAS.dd},
+    ini::Union{Nothing,ParametersAllInits},
+    act::Union{Nothing,ParametersAllActors},
+    log_io::IOStream;
+    error_info::Any=nothing,
+    timer::Bool=true,
+    varinfo::Bool=false,
+    freeze::Bool=false,
+    overwrite_groups::Bool=false,
+    verbose::Bool=false,
+    kw...
+)
+
+    savedir = abspath(savedir)
+    if !isdir(savedir)
+        mkdir(savedir)
+    end
+
+    parent_group = IMAS.norm_hdf5_path(parent_group)
+
+    h5_filename = joinpath(savedir, "pid$(getpid())_output.h5")
+
+    function check_and_create_group(fid::HDF5.File, target_group::AbstractString)
+        if haskey(fid, target_group)
+            if target_group == "/"
+                gparent = fid
+            else
+                if !overwrite_groups
+                    error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
+                          "\n       Set `overwrite_groups`=true to replace the existing group.")
+                else
+                    verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
+                    HDF5.delete_object(fid, target_group)
+                    gparent = HDF5.create_group(fid, target_group)
+                end
+            end
+        else
+            gparent = HDF5.create_group(fid, target_group)
+        end
+        attr = HDF5.attrs(gparent)
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        return gparent
+    end
+
+    function check_and_write(fid::HDF5.File, target_group::AbstractString, data)
+        if haskey(fid, target_group)
+            if target_group != "/"
+                if !overwrite_groups
+                    error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
+                          "\n       Set `overwrite_groups`=true to replace the existing group.")
+                else
+                    verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
+                    HDF5.delete_object(fid, target_group)
+                end
+            end
+        end
+        HDF5.write(fid, target_group, data)
+        attr = HDF5.attrs(fid[target_group])
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+    end
+
+    mode = isfile(h5_filename) ? "r+" : "w"
+
+    HDF5.h5open(h5_filename, mode) do fid
+
+        attr = HDF5.attrs(fid)
+        attr["FUSE_version"] = string(pkgversion(FUSE))
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        attr["original_file_abs_path"] = abspath(fid.filename)
+        attr["original_file_rel_path"] = relpath(fid.filename)
+
+        if !haskey(fid, parent_group)
+            HDF5.create_group(fid, parent_group)
+        end
+        attr = HDF5.attrs(fid[parent_group])
+        attr["FUSE_version"] = string(pkgversion(FUSE))
+        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        attr["original_file_abs_path"] = abspath(fid.filename)
+        attr["original_file_rel_path"] = relpath(fid.filename)
+
+        # Write error information into the HDF5 file (instead of separate txt file)
+        if error_info !== nothing
+            error_str = ""
+            if typeof(error_info) <: Exception
+                io = IOBuffer()
+                showerror(io, error_info, catch_backtrace())
+                error_str = String(take!(io))
+            else
+                error_str = string(error_info)
+            end
+            check_and_write(fid, parent_group * "/error.txt", error_str)
+        end
+
+        if ini !== nothing
+            gparent = check_and_create_group(fid, parent_group * "/ini.h5")
+            SimulationParameters.par2hdf!(ini, gparent)
+        end
+
+        if dd !== nothing
+            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, verbose)
+        end
+
+        if act !== nothing
+            gparent = check_and_create_group(fid, parent_group * "/act.h5")
+            SimulationParameters.par2hdf!(act, gparent)
+        end
+
+        # save timer output
+        if timer
+            check_and_write(fid, parent_group * "/timer.txt", string(FUSE.timer))
+        end
+
+        # save memory trace
+        if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
+            memtrace_string = String[]
+            for (date, txt, kb) in FUSE.memtrace.data
+                push!(memtrace_string, "$date $kb \"$txt\"")
+            end
+            check_and_write(fid, parent_group * "/memtrace.txt", memtrace_string)
+        end
+
+        # save vars usage
+        if varinfo
+            varinfo_string = string(FUSE.varinfo(FUSE; all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
+            check_and_write(fid, parent_group * "/varinfo.txt", varinfo_string)
+        end
+
+        # save log
+        flush(log_io)
+        seekstart(log_io)
+        log_str = read(log_io, String)
+        if !isempty(log_str)
+            check_and_write(fid, parent_group * "/log.txt", log_str)
+        end
+    end
+
+    return savedir
+end
+
+"""
+    load_database(filename::AbstractString; kw...)
+
+Loads all data in a combined HDF5 database. Additional keyword arguments are forwarded.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5")
+```
+"""
+function load_database(filename::AbstractString; kw...)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    HDF5.h5open(filename, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        return load_database(filename, df[!, :gparent]; kw...)
+    end
+end
+
+"""
+    load_database(filename::AbstractString, conditions::Function; kw...)
+
+Loads a combined HDF5 database using a filtering condition. The condition is applied to the
+extract.csv contents to select parent group paths for loading.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", x -> x.status=="fail"; kw...)
+    data = FUSE.load_database("database.h5", x -> x.R0>2 && x."<zeff>">1.5; kw...)
+```
+"""
+function load_database(filename::AbstractString, conditions::Function; kw...)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    HDF5.h5open(filename, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        parent_groups = filter(conditions, df)[!, :gparent]
+        return load_database(filename, parent_groups; kw...)
+    end
+end
+
+"""
+    load_database(filename::AbstractString, parent_group::AbstractString, kw...)
+
+Loads a combined HDF5 database for a single parent group path
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", "/case01"; kw...)
+```
+"""
+function load_database(filename::AbstractString, parent_group::AbstractString, kw...)
+    return load_database(filename, [parent_group]; kw...)
+end
+
+"""
+    load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
+
+Loads a combined HDF5 database for the specified parent group paths.
+
+### Example:
+```julia
+    data = FUSE.load_database("database.h5", ["/case01", "/case02"]; pattern=r"dd.h5")
+```
+"""
+function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
+    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
+
+    parent_groups = IMAS.norm_hdf5_path.(parent_groups)
+
+    H5_fid = HDF5.h5open(filename, "r")
+
+    # Load dataframe (from extract)
+    df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+    df = subset(df, :gparent => ByRow(x -> x in parent_groups))
+
+    Nparents = length(parent_groups)
+
+    # Prepare output data
+    dds = occursin(pattern, "dd.h5") ? fill(IMAS.dd(), Nparents) : nothing
+    inis = occursin(pattern, "ini.h5") ? fill(ParametersInits(), Nparents) : nothing
+    acts = occursin(pattern, "act.h5") ? fill(ParametersActors(), Nparents) : nothing
+    logs = occursin(pattern, "log.txt") ? fill("", Nparents) : nothing
+    timers = occursin(pattern, "timer.txt") ? fill("", Nparents) : nothing
+    errors = occursin(pattern, "error.txt") ? fill("", Nparents) : nothing
+
+    for (k, gparent) in pairs(parent_groups)
+        filterd_keys = filter(x -> occursin(pattern, x), keys(H5_fid[gparent]))
+        for key in filterd_keys
+            h5path = gparent * "/" * key
+            if key == "dd.h5"
+                dds[k] = IMAS.hdf2imas(filename, h5path)
+            elseif key == "ini.h5"
+                inis[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
+            elseif key == "act.h5"
+                acts[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
+            elseif key == "log.txt"
+                logs[k] = H5_fid[h5path][]
+            elseif key == "timer.txt"
+                timers[k] = H5_fid[h5path][]
+            elseif key == "error.txt"
+                errors[k] = H5_fid[h5path][]
+            end
+        end
+    end
+
+    close(H5_fid)
+
+    return (dds=dds, inis=inis, acts=acts, logs=logs, timers=timers, errors=errors, df=df)
+end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function)
+
+Samples the database by filtering groups that satisfy the provided `conditions` function.
+
+### Examples:
+```julia
+    sample_and_write_database("database.h5", "sampled.h5", x -> x.status == "fail")
+    sample_and_write_database("database.h5", "sampled.h5", x -> x.R0>2 && x."<zeff>">1.5)
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function)
+    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+
+    HDF5.h5open(ori_DB_name, "r") do H5_fid
+        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        parent_groups = filter(conditions, df)[!, :gparent]
+        return sample_and_write_database(ori_DB_name, sampled_DB_name, parent_groups)
+    end
+end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString;
+                              Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing)
+
+Samples the database by randomly selecting a subset of the original HDF5 file.
+The sample size is determined by either a fixed number (`Nsamples`) or a fraction (`sampling_ratio`) of the
+total number of rows.
+
+### Examples:
+```julia
+    sample_and_write_database("database.h5", "sampled.h5"; sampling_ratio=0.2)
+    sample_and_write_database("database.h5", "sampled.h5"; Nsamples=15)
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString;
+    Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing)
+
+    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+    if isnothing(Nsamples) && isnothing(sampling_ratio)
+        error("Either Nsamples or sampling_ratio must be provided.")
+    end
+
+    HDF5.h5open(ori_DB_name, "r") do H5_fid
+        ori_df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
+        if isnothing(Nsamples)
+            Nsamples = clamp(ceil(Int, sampling_ratio * nrow(ori_df)), 1, nrow(ori_df))
+        else
+            Nsamples = clamp(Nsamples, 1, nrow(ori_df))
+        end
+        sampled_df = ori_df[Random.shuffle(1:nrow(ori_df))[1:Nsamples], :]
+        return sample_and_write_database(ori_DB_name, sampled_DB_name, sampled_df[!, :gparent])
+    end
+end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString)
+
+Sampling a single specific group from the original HDF5 file.
+
+### Example:
+```julia
+    sample_and_write_database("database.h5", "sampled.h5", "/case01")
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString)
+    return sample_and_write_database(ori_DB_name, sampled_DB_name, [parent_group])
+end
+
+"""
+    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString})
+
+Sampling the groups specified in `parent_groups` from the original HDF5 file.
+
+### Example:
+```julia
+    df = sample_and_write_database("database.h5", "sampled.h5", ["/case01", "/case02"])
+```
+"""
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString})
+
+    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+
+    ori_fid = HDF5.h5open(ori_DB_name, "r")
+    new_fid = HDF5.h5open(sampled_DB_name, "w")
+
+    ori_df = coalesce.(CSV.read(IOBuffer(ori_fid["/extract.csv"][]), DataFrame), NaN)
+
+    parent_groups = IMAS.norm_hdf5_path.(parent_groups)
+
+    sampled_df = filter(row -> string(row.gparent) in parent_groups, ori_df)
+    sort!(sampled_df, "gparent")
+
+    for gparent in parent_groups
+        HDF5.copy_object(ori_fid, gparent, new_fid, gparent)
+    end
+
+    # write extract.csv into HDF5
+    io_buffer = IOBuffer()
+    CSV.write(io_buffer, sampled_df)
+    csv_text = String(take!(io_buffer))
+    HDF5.write(new_fid, "extract.csv", csv_text)
+    attr = HDF5.attrs(new_fid["/extract.csv"])
+    attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+    attr["FUSE_version"] = string(pkgversion(FUSE))
+
+    close(ori_fid)
+    close(new_fid)
+
+    return sampled_df
+end
+
+
 
 """
     load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
@@ -482,7 +853,7 @@ function digest(
     end
 
     # core sources
-    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles.profiles_1d[]))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles; time0=dd.global_time))
         if !isempty(dd.core_sources.source) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_sources; only=k))
@@ -490,7 +861,7 @@ function digest(
     end
 
     # core transport
-    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles.profiles_1d[]))
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles; time0=dd.global_time))
         if !isempty(dd.core_transport) && section ∈ (0, sec)
             println('\u200B')
             display(plot(dd.core_transport; only=k))
@@ -535,7 +906,7 @@ function digest(
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
         p = plot(; layout=l, size=(900, 400))
-        plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
+        plot!(p, dd.pf_active; what=:currents, time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
         plot!(p, dd.pf_active; time0, subplot=2, coil_identifiers=true)
@@ -808,18 +1179,27 @@ A plot with the following characteristics:
         [], []
     end
 end
-
 """
     get_julia_process_memory_usage()
 
 Returns memory used by current julia process
 """
 function get_julia_process_memory_usage()
-    pid = getpid()
-    mem_info = read(`ps -p $pid -o rss=`, String)
-    mem_usage_kb = parse(Int, strip(mem_info))
-    return mem_usage_kb * 1024
+    if Sys.iswindows()
+        pid = getpid()
+        # Use PowerShell to get the current process's WorkingSet (memory in bytes)
+        cmd = `powershell -Command "(Get-Process -Id $pid).WorkingSet64"`
+        mem_bytes_str = readchomp(cmd)
+        mem_bytes = parse(Int, mem_bytes_str)
+    else
+        pid = getpid()
+        mem_info = read(`ps -p $pid -o rss=`, String)
+        mem_usage_kb = parse(Int, strip(mem_info))
+        mem_bytes = mem_usage_kb * 1024
+    end
+    return mem_bytes::Int
 end
+
 
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
@@ -1010,7 +1390,7 @@ function install_fusebot(folder::String)
     target_path = joinpath(folder, "fusebot")
     @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
-    println("`fusebot` has been successfully installed: $target_path")
+    return println("`fusebot` has been successfully installed: $target_path")
 end
 
 """

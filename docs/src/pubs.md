@@ -1,10 +1,13 @@
 # Publications
 
+### References
+
 * 📜 **[ArXiv preprint publication](https://arxiv.org/abs/2409.05894)**
-
-# Taks/Posters
-
 * 🎤 **[Overview presentation](https://tinyurl.com/FUSEslideDeck)**
+
+### 2024 Code Camp
+
+* ⛺️ **Dec 9th - 13th in person @ General Atomics** [Agenda](https://docs.google.com/document/d/1OwJPx4G3HP7wx9FuGLMqxjaKewrhOY7Kd7nTZkmVdw4/edit?usp=sharing)
 
 ### APS DPP 2024
 

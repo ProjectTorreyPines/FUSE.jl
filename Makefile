@@ -1,5 +1,5 @@
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
-JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
+JULIA_DIR ?= $(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia))
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -8,21 +8,28 @@ TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
 ifdef GITHUB_HEAD_REF
-  # For pull_request events
-  FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
+    # On GitHub for pull_request events
+    FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
 else
-  # For push events and others
-  FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+    ifdef GITHUB_REF
+       # On GitHub for push events and others
+       FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+    else
+       # For local machine
+       FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
+    endif
 endif
 
-GENERAL_REGISTRY_PACKAGES := CoordinateConventions FuseExchangeProtocol MillerExtendedHarmonic IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields
+GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TORBEAM TroyonBetaNN VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
+FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
 ifndef NO_FUSE_EXTENSION
-	FUSE_PACKAGES_MAKEFILE := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
+	FUSE_PACKAGES_MAKEFILE := $(FUSE_PACKAGES_MAKEFILE_ALL)
 endif
-FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
+FUSE_PACKAGES_ALL := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_ALL)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
 
 # use command line interface for git to work nicely with private repos
@@ -37,6 +44,7 @@ endif
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	@echo $(JULIA_PKG_DEVDIR)/$(1)
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull 2>&1 | sed 's/^/$(1): /'; fi
 endef
 
@@ -69,25 +77,28 @@ help: header help_info
 ADAS:
 	$(call clone_pull_repo,$@)
 
-FUSE:
+BalanceOfPlantSurrogate:
+	$(call clone_pull_repo$@)
+
+BoundaryPlasmaModels:
 	$(call clone_pull_repo,$@)
 
-IMAS:
-	$(call clone_pull_repo,$@)
-
-IMASdd:
+CHEASE:
 	$(call clone_pull_repo,$@)
 
 CoordinateConventions:
 	$(call clone_pull_repo,$@)
 
-MillerExtendedHarmonic:
+EGGO:
 	$(call clone_pull_repo,$@)
 
-IMASutils:
+EPEDNN:
 	$(call clone_pull_repo,$@)
 
-FuseUtils:
+FiniteElementHermite:
+	$(call clone_pull_repo,$@)
+
+FRESCO:
 	$(call clone_pull_repo,$@)
 
 FusionMaterials:
@@ -96,13 +107,40 @@ FusionMaterials:
 FuseExchangeProtocol:
 	$(call clone_pull_repo,$@)
 
-VacuumFields:
+HelpPlots:
+	$(call clone_pull_repo,$@)
+
+IMAS:
+	$(call clone_pull_repo,$@)
+
+IMASdd:
+	$(call clone_pull_repo,$@)
+
+IMASutils:
 	$(call clone_pull_repo,$@)
 
 MXHEquilibrium:
 	$(call clone_pull_repo,$@)
 
-MeshTools:
+MillerExtendedHarmonic:
+	$(call clone_pull_repo,$@)
+
+NEO:
+	$(call clone_pull_repo,$@)
+
+NNeutronics:
+	$(call clone_pull_repo,$@)
+
+QED:
+	$(call clone_pull_repo,$@)
+
+RABBIT:
+	$(call clone_pull_repo,$@)
+
+SimulationParameters:
+	$(call clone_pull_repo,$@)
+
+TEQUILA:
 	$(call clone_pull_repo,$@)
 
 TGLFNN:
@@ -111,40 +149,21 @@ TGLFNN:
 TJLF:
 	$(call clone_pull_repo,$@)
 
-EPEDNN:
+TORBEAM:
 	$(call clone_pull_repo,$@)
 
-QED:
+TroyonBetaNN:
 	$(call clone_pull_repo,$@)
 
-FiniteElementHermite:
+VacuumFields:
 	$(call clone_pull_repo,$@)
 
-CHEASE:
-	$(call clone_pull_repo,$@)
+# ========
 
-TEQUILA:
-	$(call clone_pull_repo,$@)
-
-BalanceOfPlantSurrogate:
-	$(call clone_pull_repo$@)
-
-NNeutronics:
-	$(call clone_pull_repo,$@)
-
-SimulationParameters:
-	$(call clone_pull_repo,$@)
-
-BoundaryPlasmaModels:
-	$(call clone_pull_repo,$@)
-
-NEO:
+FUSE:
 	$(call clone_pull_repo,$@)
 
 XSteam:
-	$(call clone_pull_repo,$@)
-
-RABBIT:
 	$(call clone_pull_repo,$@)
 
 ThermalSystemModels:
@@ -209,7 +228,7 @@ merge_remote: error_missing_repo_var error_missing_branch_var
 # GitHub merge of `branch` into master for a given `repo`
 # >> make merge_remote branch=my_branch repo=FUSE
 	@merge_response=$$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-		-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+		-H "Authorization: token $$(PTP_READ_TOKEN)" \
 		-H "Accept: application/vnd.github.v3+json" \
 		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
 		-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}'); \
@@ -217,7 +236,7 @@ merge_remote: error_missing_repo_var error_missing_branch_var
 	if [ "$$merge_response" -eq 201 ]; then \
 		echo "Merge successful. Deleting branch $(branch) from remote..."; \
 		curl -X DELETE \
-		-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
+		-H "Authorization: token $$(PTP_READ_TOKEN)" \
 		-H "Accept: application/vnd.github.v3+json" \
 		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/git/refs/heads/$(branch); \
 	else \
@@ -309,6 +328,13 @@ compat: error_missing_repo_var download_compat_tomls combine_compat_toml
 	@echo ""
 
 # @devs
+compat_all:
+# apply compat to all repos in development
+	for repo in $(DEV_PACKAGES_MAKEFILE); do \
+		make compat repo=$$repo; \
+	done
+
+# @devs
 compat_cleanup: error_missing_repo_var
 # Remove temporary Project_PR???.toml files and close CompatHelper PRs
 	@echo "Closing corresponding PRs and deleting temporary Project_PR???.toml files"
@@ -340,10 +366,16 @@ daily_example_ci_commit:
 endif
 
 # @devs
+delete_dev_branch: error_missing_repo_var
+# delete `dev` branch on GitHub for a repo
+	@cd ../$(repo) && git push origin --delete dev
+
+# @devs
 deps_tree:
 # Print FUSE dependency tree of project-torrey-pines packages
 	@julia -e' ;\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = $(FUSE_PACKAGES_ALL);\
+	println(fuse_packages);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using AbstractTrees ;\
@@ -363,7 +395,8 @@ deps_tree:
 deps_dag:
 # Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
 	@julia -e' ;\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = $(FUSE_PACKAGES_ALL);\
+	println(fuse_packages);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using Random ;\
@@ -541,33 +574,21 @@ error_not_on_master_branch: error_missing_repo_var
 # @devs
 feature_or_master:
 # checks if on the packages remote GitHub repos there is a branch with the same name of the local FUSE branch
-	julia -e ';\
+	@echo "Local branch is \`$(FUSE_LOCAL_BRANCH)\`"
+	@julia -e ';\
 	$(feature_or_master_julia);\
 	fuse_packages = $(FUSE_PACKAGES);\
 	for package in fuse_packages;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
         if branch == "master";\
-            println(">>> $$(package)");\
+            println("    $$(package)");\
         else;\
             println(">>> $$(package) @ $$(branch)");\
         end;\
 	end'
 
 # @devs
-fix_environment:fix_FortranNamelistParser
-# Applies fixes
-	@echo "* Fixes applied"
-
-# @devs
-fix_FortranNamelistParser:
-# Replaces Fortran90Namelists with FortranNamelistParser in the Manifest.toml
-	@echo "* Sanitizing Manifest.toml files of Fortran90Namelists --> FortranNamelistParser"
-	@find $(JULIA_DIR)/environments -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
-	@find .. -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
-	@find $(PTP_ORIGINAL_DIR) -maxdepth 3 -type f -name "Manifest.toml" -print -exec sed -i '' 's/Fortran90Namelists/FortranNamelistParser/g' {} \;
-
-# @devs
-generate_dd:
+generate_dd: .PHONY
 # Update dd from the json files in IMASdd
 	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
 
@@ -689,7 +710,7 @@ register_general: error_missing_repo_var error_not_on_master_branch error_on_las
 		xargs -I{} gh api repos/ProjectTorreyPines/$(repo).jl/commits/{}/comments -f body='@JuliaRegistrator register' ;\
 		echo "Registered $(repo) to General registry." ;\
 	else \
-		echo "$(repo) is listed as part of the General registry." ;\
+		echo "$(repo) is not listed as part of the General registry." ;\
 	fi
 
 # @devs
@@ -888,8 +909,8 @@ install_IJulia:
 	'
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter nbextension list
 	jupyter labextension list
+	jupyter nbextension list
 
 # @user
 install_examples:

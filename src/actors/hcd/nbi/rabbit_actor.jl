@@ -17,6 +17,7 @@ mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
 end
 
 function ActorRABBIT(dd::IMAS.dd, par::FUSEparameters__ActorRABBIT; kw...)
+    logging_actor_init(ActorRABBIT)
     par = par(kw...)
     return ActorRABBIT(dd, par, RABBIT.RABBIToutput[])
 end
@@ -53,8 +54,8 @@ function _finalize(actor::ActorRABBIT)
     area = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho)
 
     for (ps, nbu) in zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit)
-        power_launched = @ddtime(ps.power.reference)
-        beam_energy = @ddtime(nbu.energy.data)
+        power_launched = max(0.0, @ddtime(ps.power.reference))
+        beam_energy = max(0.0, @ddtime(nbu.energy.data))
 
         @ddtime(nbu.power_launched.data = power_launched)
 
@@ -84,14 +85,16 @@ function _finalize(actor::ActorRABBIT)
             total_ion_energy,
             electrons_particles,
             j_parallel,
-            momentum_tor
-        )
+            momentum_tor)
 
         # add nbi fast ion particles source
-        ion = resize!(source.profiles_1d[].ion, 1)[1]
+        source1d = source.profiles_1d[]
+        ion = resize!(source1d.ion, 1)[1]
         IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
-        ion.particles = source.profiles_1d[].electrons.particles
-        ion.particles_inside = source.profiles_1d[].electrons.particles_inside
+        ion.particles = source1d.electrons.particles
+        ion.particles_inside = source1d.electrons.particles_inside
+        ion.energy = source1d.total_ion_energy
+        ion.power_inside = source1d.total_ion_power_inside
         ion.fast_particles_energy = beam_energy
     end
 

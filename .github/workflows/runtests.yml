@@ -20,6 +20,8 @@ on:
       - master
       - dev
   pull_request:
+    branches:
+      - master
   schedule:
     - cron: '7 0 * * *' # midnight PT
 
@@ -33,6 +35,7 @@ concurrency:
 jobs:
   test:
     name: Julia ${{ matrix.flavor.version }} - ${{ matrix.flavor.os }} - ${{ matrix.flavor.arch }}
+    if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'dev') }}
     runs-on: ${{ matrix.flavor.os }}
     strategy:
       fail-fast: false
@@ -146,4 +149,4 @@ jobs:
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
         with:
-          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}

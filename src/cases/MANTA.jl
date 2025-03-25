@@ -7,7 +7,7 @@ https://arxiv.org/abs/2405.20243
 
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
-function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -29,7 +29,6 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
         :gap_cryostat => 1.4,
         :cryostat => 0.2
     )
-    ini.build.plasma_gap = 0.1
     ini.build.symmetric = true
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 1
@@ -59,8 +58,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     ini.core_profiles.impurity = :Kr
 
     ini.build.layers[:OH].coils_inside = 6
-    ini.build.layers[:hfs_blanket].coils_inside = 4
-    ini.build.layers[:lfs_blanket].coils_inside = 4
+    ini.build.layers[:lfs_blanket].coils_inside = 8
 
     ini.oh.technology = :rebco
     ini.pf_active.technology = :rebco
@@ -98,6 +96,9 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     act.ActorTGLF.model = :TJLF
 
     act.ActorPFdesign.symmetric = true
+
+    filter!(!=(:q95_gt_2), act.ActorPlasmaLimits.models)
+    filter!(!=(:beta_troyon_nn), act.ActorPlasmaLimits.models)
 
     return ini, act
 end

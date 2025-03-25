@@ -3,7 +3,7 @@
 
 UKAEA STEP design
 """
-function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
     @assert init_from in (:scalars, :ods)
     @assert pf_from in (:scalars, :ods)
 
@@ -35,7 +35,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         :gap_cryostat => 1.5,
         :cryostat => 0.2
     )
-    ini.build.layers[:cryostat].shape = :rectangle
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = true
     ini.build.divertors = :double
@@ -77,8 +76,10 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 150.e6
-    ini.ec_launcher[1].width = 0.25
-    ini.ec_launcher[1].rho_0 = 0.0
+    resize!(act.ActorSimpleEC.actuator, 1)
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.0
+    act.ActorSimpleEC.actuator[1].width = 0.25
+    act.ActorSimpleEC.actuator[1].ηcd_scale = 0.5
 
     ini.requirements.flattop_duration = 1000.0
     ini.requirements.tritium_breeding_ratio = 1.1
@@ -88,7 +89,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
     # if init_from==:ods we need to sanitize the ODS that was given to us
     if init_from == :ods
         # Fix the core profiles
-        dd = load_ods(ini)
+        dd = load_ods(ini.ods.filename)
         cp1d = dd.core_profiles.profiles_1d[]
 
         rho = cp1d.grid.rho_tor_norm
@@ -201,8 +202,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     act.ActorPFdesign.symmetric = true
 
-    act.ActorSimpleEC.ηcd_scale = 0.5
-
     act.ActorCoreTransport.model = :FluxMatcher
 
     act.ActorFluxMatcher.evolve_densities = :fixed
@@ -210,7 +209,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
     act.ActorTGLF.tglfnn_model = "sat0_em_d3d"
 
-    act.ActorStabilityLimits.models = Symbol[]
+    act.ActorPlasmaLimits.models = Symbol[]
 
     # High-beta ST equilibrium is tricky to converge
     act.ActorTEQUILA.relax = 0.01

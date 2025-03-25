@@ -3,7 +3,7 @@
 
 Formosa Integrated Research Spherical Tokamak
 """
-function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FIRST}})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -44,8 +44,7 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 1
-    ini.build.layers[:hfs_vacuum_vessel].coils_inside = 2
-    ini.build.layers[:gap_world].coils_inside = 8
+    ini.build.layers[:gap_world].coils_inside = 6
 
     ini.oh.technology = :copper
     ini.pf_active.technology = :copper
@@ -55,6 +54,9 @@ function case_parameters(::Type{Val{:FIRST}})::Tuple{ParametersAllInits,Paramete
     ini.tf.n_coils = 18
 
     ini.requirements.flattop_duration = 2.0
+
+    act.ActorPFactive.x_points_weight = 0.001
+    act.ActorPFactive.strike_points_weight = 0.01
 
     return ini, act
 end

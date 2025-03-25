@@ -8,28 +8,65 @@ const options_green_model = [
 ]
 
 """
-    encircling_coils(bnd_r::AbstractVector{T}, bnd_z::AbstractVector{T}, r_axis::T, z_axis::T, n_coils::Integer) where {T<:Real}
+    encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, r_axis::T2, z_axis::T2, n_coils::Integer) where {T1<:Real,T2<:Real}
 
-Generates VacuumFields.ParallelogramCoil around the plasma boundary using some educated guesses for where the PF and OH coils should be
+Generates pf_active.coil around the plasma boundary making some educated guesses for where the PF and OH coils should be.
+
+`n_coils` is used to set equal number of "OH" and "PF" coils
 """
 function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, r_axis::T2, z_axis::T2, n_coils::Integer) where {T1<:Real,T2<:Real}
-    rail_r, rail_z = buffer(bnd_r, bnd_z, (maximum(bnd_r) - minimum(bnd_r)) / 1.5)
-    rail_z = (rail_z .- z_axis) .* 1.1 .+ z_axis # give divertors
-
+    # define PF rail
+    a = (maximum(bnd_r) - minimum(bnd_r)) / 2
+    rail_r, rail_z = buffer(bnd_r, bnd_z, a * 1.3)
     valid_r, valid_z = clip_rails(rail_r, rail_z, bnd_r, bnd_z, r_axis, z_axis, _lfs_)
-    r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
 
-    n_oh = n_coils
+    # OH positions and sizes
     r_ohcoils = minimum(bnd_r) / 3
-    z_ohcoils, h_oh = size_oh_coils(min(valid_z[1],valid_z[end]), max(valid_z[1],valid_z[end]), 0.0, n_oh)
+    z_oh_low = (min(valid_z[1], valid_z[end]) + minimum(bnd_z)) / 2.0
+    z_oh_high = (max(valid_z[1], valid_z[end]) + maximum(bnd_z)) / 2.0
+    z_ohcoils, h_oh = size_oh_coils(z_oh_low, z_oh_high, 0.0, n_coils)
     w_oh = minimum(bnd_r) / 3
 
-    w_pf = sum(sqrt.(diff(valid_r) .^ 2.0 .+ diff(valid_z) .^ 2.0)) / n_coils / sqrt(2.0)
+    # PF posistions and sizes
+    r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
+    w_pf = h_pf = sum(sqrt.(diff(valid_r) .^ 2.0 .+ diff(valid_z) .^ 2.0)) / n_coils / sqrt(2.0)
 
-    coils = [
-        [VacuumFields.ParallelogramCoil(r, z, w_oh, h_oh, 0.0, 90.0) for (r, z) in zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils)];
-        [VacuumFields.ParallelogramCoil(r, z, w_pf, w_pf, 0.0, 90.0) for (r, z) in zip(r_coils, z_coils)]
-    ]
+    # OH coils
+    coils = IMAS.pf_active__coil{Float64}[]
+    for (kk, (r, z)) in enumerate(zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils))
+        coil = IMAS.pf_active__coil()
+        coil.identifier = "optim"
+        coil.name = "OH $kk"
+        resize!(coil.element, 1)
+        coil.element[1].turns_with_sign = 1.0
+        pf_geo = coil.element[1].geometry
+        pf_geo.geometry_type = 2
+        pf_geo.rectangle.r = r
+        pf_geo.rectangle.z = z
+        pf_geo.rectangle.width = w_oh
+        pf_geo.rectangle.height = h_oh
+        func = resize!(coil.function, :shaping)
+        func.description = "OH"
+        push!(coils, coil)
+    end
+
+    # PF coils
+    for (kk, (r, z)) in enumerate(zip(r_coils, z_coils))
+        coil = IMAS.pf_active__coil()
+        coil.identifier = "optim"
+        coil.name = "PF $kk"
+        resize!(coil.element, 1)
+        coil.element[1].turns_with_sign = 1.0
+        pf_geo = coil.element[1].geometry
+        pf_geo.geometry_type = 2
+        pf_geo.rectangle.r = r
+        pf_geo.rectangle.z = z
+        pf_geo.rectangle.width = w_pf
+        pf_geo.rectangle.height = h_pf
+        func = resize!(coil.function, :shaping)
+        func.description = "PF"
+        push!(coils, coil)
+    end
 
     return coils
 end
@@ -67,32 +104,34 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
         else
             coil_tech = bd.pf_active.technology
         end
-        mat_pf = Material(coil_tech)
 
-        # magnetic field of operation
-        coil.b_field_max = range(0.1, 30; step=0.1)
+        if !ismissing(coil_tech, :material)
+            # magnetic field of operation
+            coil.b_field_max = range(0.1, 30; step=0.1)
 
-        # temperature range of operation
-        coil.temperature = [-1, coil_tech.temperature]
+            # temperature range of operation
+            coil.temperature = [-1, coil_tech.temperature]
 
-        # current limit evaluated at all magnetic fields and temperatures
-        coil_area = IMAS.area(coil)
-        frac_conductor = IMAS.fraction_conductor(coil_tech)
-        turns = coil.element[1].turns_with_sign
-        coil.current_limit_max = [
-            abs(mat_pf.critical_current_density(; Bext=b) * coil_area * frac_conductor / turns) for
-            b in coil.b_field_max,
-            t in coil.temperature
-        ]
+            # current limit evaluated at all magnetic fields and temperatures
+            mat_pf = Material(coil_tech)
+            coil_area = IMAS.area(coil)
+            frac_conductor = IMAS.fraction_conductor(coil_tech)
+            turns = coil.element[1].turns_with_sign
+            coil.current_limit_max = [
+                abs(mat_pf.critical_current_density(; Bext=b) * coil_area * frac_conductor / turns) for
+                b in coil.b_field_max,
+                t in coil.temperature
+            ]
 
-        # maximum magnetic field in time
-        coil.b_field_max_timed.time = coil.current.time
-        if IMAS.is_ohmic_coil(coil)
-            if !ismissing(bd.oh, :max_b_field)
-                coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in eachindex(coil.current.time)]
+            # maximum magnetic field in time
+            coil.b_field_max_timed.time = coil.current.time
+            if IMAS.is_ohmic_coil(coil)
+                if !ismissing(bd.oh, :max_b_field)
+                    coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in eachindex(coil.current.time)]
+                end
+            else
+                coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] .* coil.element[1].turns_with_sign) for time_index in eachindex(coil.current.time)]
             end
-        else
-            coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] .* coil.element[1].turns_with_sign) for time_index in eachindex(coil.current.time)]
         end
     end
 end
@@ -171,9 +210,12 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     offset = mirror_bound(oh_height_off[2], -1.0, 1.0)
                 end
                 z_oh, height_oh = size_oh_coils(minimum(rail.outline.z), maximum(rail.outline.z), rail.coils_cleareance, rail.coils_number, oh_height_off[1], offset)
+                r_interp = IMAS.interp1d(rail.outline.distance, rail.outline.r)
                 for k in 1:rail.coils_number
                     koptim += 1
                     koh += 1
+                    coil_distance = (z_oh[koh] - minimum(rail.outline.z)) / (maximum(rail.outline.z) - minimum(rail.outline.z)) * 2 - 1
+                    optim_coils[koptim].z = r_interp(coil_distance)
                     optim_coils[koptim].z = z_oh[koh]
                     optim_coils[koptim].height = height_oh
                 end
@@ -217,7 +259,13 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
     return 10^λ_regularize
 end
 
-function size_pf_active(coils::AbstractVector{<:VacuumFields.GS_IMAS_pf_active__coil}, eqt::IMAS.equilibrium__time_slice; tolerance::Float64=0.0, min_size::Float64=1.0, symmetric::Bool)
+function size_pf_active(
+    coils::AbstractVector{<:VacuumFields.GS_IMAS_pf_active__coil},
+    eqt::IMAS.equilibrium__time_slice;
+    tolerance::Float64=0.0,
+    min_size::Float64=0.1,
+    symmetric::Bool
+)
     Rcenter = eqt.boundary.geometric_axis.r
     Zcenter = eqt.boundary.geometric_axis.z
 
@@ -377,7 +425,7 @@ function DataFrames.DataFrame(supplies::IMAS.IDSvector{<:IMAS.pf_active__supply}
     df = DataFrames.DataFrame(;
         name=String[],
         voltage_limits=Tuple{Float64,Float64}[],
-        current_limits=Tuple{Float64,Float64}[],
+        current_limits=Tuple{Float64,Float64}[]
     )
 
     for supply in supplies

@@ -145,8 +145,8 @@ end
 function preprocess_dd(filename)
     dd = IMAS.json2imas(filename; verbose=false)
 
-    dd.summary.local.pedestal.n_e.value = [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
-    dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm)[1]]
+    dd.summary.local.pedestal.n_e.value = [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
+    dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
     dd.pulse_schedule.tf.time = dd.summary.time
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = dd.equilibrium.vacuum_toroidal_field.b0
 
@@ -219,7 +219,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     rho_transport = dd.core_transport.model[1].profiles_1d[].grid_flux.rho_tor_norm
 
     ct1d_tglf = dd.core_transport.model[1].profiles_1d[]
-    ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport)
+    ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport; time0=dd.global_time)
 
     qybro_bohms = [IMAS.gyrobohm_energy_flux(cp1d, eqt), IMAS.gyrobohm_particle_flux(cp1d, eqt), IMAS.gyrobohm_momentum_flux(cp1d, eqt)]
     rho_cp = cp1d.grid.rho_tor_norm

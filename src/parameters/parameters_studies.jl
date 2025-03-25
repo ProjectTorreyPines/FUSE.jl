@@ -12,15 +12,17 @@ function study_common_parameters(; kw...)
     name = first(keys(kw))
     default = first(values(kw))
     if name == :server
-        return Switch{String}(["localhost", "omega", "saga"], "-", "Where to run"; default)
+        return Switch{String}(["localhost", "omega", "saga", "feynman", "engaging"], "-", "Where to run"; default)
     elseif name == :n_workers
         return Entry{Int}("-", "Number of workers to run with"; default)
     elseif name == :file_save_mode
-        return Switch{Symbol}([:safe_write, :overwrite], "-", "Saving file policy, `safe_write` only writes when the folder is empty"; default)
+        return Switch{Symbol}([:safe_write, :overwrite, :append], "-", "Saving file policy, `safe_write` only writes when the folder is empty"; default)
     elseif name == :release_workers_after_run
         return Entry{Bool}("-", "Releases the workers after running the study"; default)
     elseif name == :save_dd
         return Entry{Bool}("-", "Save dd of the study to save folder"; default)
+    elseif name == :database_policy
+        return Switch{Symbol}([:separate_folders, :single_hdf5], "-", "Data storage policy: 'separate_folders' stores each case in a separate folder, while 'single_hdf5' merges all cases into a single HDF5 file"; default)
     else
         error("There is no study_common_parameter named `$name`")
     end
@@ -57,9 +59,9 @@ function setup(study::AbstractStudy)
     return _setup(study)
 end
 
-function analyze(study::AbstractStudy)
+function analyze(study::AbstractStudy; kw...)
     # here you can add timing info and more
-    return _analyze(study)
+    return _analyze(study; kw...)
 end
 
 function run(study::T, args...; kw...) where {T<:AbstractStudy}
@@ -89,7 +91,10 @@ function check_and_create_file_save_mode(sty)
             @assert !isfile(sty.save_folder) "$(sty.save_folder) can't be a file"
             mkdir(sty.save_folder)
         end
-    elseif sty.file_save_mode == :overwrite && !isdir(sty.save_folder)
+    elseif sty.file_save_mode == :overwrite
+        rm(sty.save_folder; force=true, recursive=true)
         mkdir(sty.save_folder)
+    elseif sty.file_save_mode == :append
+        # this is fine
     end
 end

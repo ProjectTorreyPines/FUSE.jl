@@ -30,7 +30,8 @@ Power needs actor that calculates the needed power to operate the plant
   - `model = :FUSE` subdivides power plant needs into subsystems and calculates their power needs.
 
 !!! note
-Stores data in `dd.balance_of_plant.power_electric_plant_operation`
+
+    Stores data in `dd.balance_of_plant.power_electric_plant_operation`
 """
 function ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPowerNeeds(dd, act.ActorPowerNeeds; kw...)

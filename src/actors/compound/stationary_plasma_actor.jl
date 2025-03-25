@@ -15,7 +15,7 @@ end
 mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::FUSEparameters__ActorStationaryPlasma{P}
-    act::ParametersAllActors
+    act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
     actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
     actor_hc::ActorHCD{D,P}
@@ -26,7 +26,7 @@ end
 """
     ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs the following actors in succesion:
+Compound actor that runs the following actors in succesion to find a self-consistent stationary plasma solution
 
   - ActorCurrent
   - ActorHCD
@@ -50,35 +50,35 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
-    if act.ActorCoreTransport.model in (:FluxMatcher, :EPEDProfiles)
-        # allows users to hardwire `rho_nml` and `rho_ped`
-        if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_nml)
-            rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
-        else
-            rho_nml = act.ActorPedestal.rho_nml
-        end
-        if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_ped)
-            rho_ped = actor_tr.tr_actor.par.rho_transport[end]
-        else
-            rho_ped = act.ActorPedestal.rho_ped
-        end
-        actor_ped = ActorPedestal(
-            dd,
-            act.ActorPedestal,
-            act;
-            ip_from=:core_profiles,
-            βn_from=:core_profiles,
-            ne_from=:pulse_schedule,
-            zeff_ped_from=:pulse_schedule,
-            rho_nml,
-            rho_ped)
+    # allows users to hardwire `rho_nml` and `rho_ped` (same logic here as in ActorDynamicPlasma)
+    if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_nml)
+        rho_nml = actor_tr.tr_actor.par.rho_transport[end-1]
+    elseif ismissing(act.ActorPedestal, :rho_nml)
+        rho_nml = act.ActorFluxMatcher.rho_transport[end-1]
     else
-        actor_ped = ActorNoOperation(dd, act.ActorNoOperation)
+        rho_nml = act.ActorPedestal.rho_nml
     end
+    if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_ped)
+        rho_ped = actor_tr.tr_actor.par.rho_transport[end]
+    elseif ismissing(act.ActorPedestal, :rho_ped)
+        rho_ped = act.ActorFluxMatcher.rho_transport[end]
+    else
+        rho_ped = act.ActorPedestal.rho_ped
+    end
+    actor_ped = ActorPedestal(
+        dd,
+        act.ActorPedestal,
+        act;
+        ip_from=:core_profiles,
+        βn_from=:core_profiles,
+        ne_from=:pulse_schedule,
+        zeff_from=:pulse_schedule,
+        rho_nml,
+        rho_ped)
 
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; model=:QED, ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
+    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
@@ -237,7 +237,8 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20)
+        ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
+        ("                 max(zeff)", maximum(cp1d.zeff)),
     ]
     return tuple(tmp...)
 end

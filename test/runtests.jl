@@ -1,27 +1,30 @@
-if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
-    using Pkg
-    Pkg.add("ThermalSystemModels")
-    using ThermalSystemModels
-end
-using FUSE
-using Test
-
-@testset "warmup" begin
-    println("== warmup ==")
-    for round in (1, 2)
-        dd = IMAS.dd()
-        FUSE.warmup(dd)
+# Check if specific test files are requested via ARGS
+if !isempty(ARGS)
+    for testfile in ARGS
+        @info "Running test file: $testfile"
+        include(testfile)
     end
+else
+    # Default behavior: run all tests
+
+    # Conditionally run extension tests if environment variable is set.
+    if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+        using Pkg
+        Pkg.add("ThermalSystemModels")
+        using ThermalSystemModels
+    end
+
+    include("runtests_warmup.jl")
+    include("runtests_basics.jl")
+    include("runtests_ini_act.jl")
+    include("runtests_cases.jl")
+    include("runtests_actors.jl")
+    include("runtests_init_expressions.jl")
+
+    # Conditionally run extension tests if environment variable is set.
+    if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+        include("runtests_study.jl")
+    end
+
+    println(FUSE.timer)
 end
-
-include("runtests_basics.jl")
-
-include("runtests_cases.jl")
-
-include("runtests_actors.jl")
-
-include("runtests_workflow.jl")
-
-include("runtests_init_expressions.jl")
-
-println(FUSE.timer)

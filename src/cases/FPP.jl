@@ -3,7 +3,7 @@
 
 GA's FPP design
 """
-function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -12,39 +12,43 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.general.casename = "FPP"
     ini.general.init_from = :scalars
 
-    gaps_thickness = 0.069
+    gaps_thickness = 0.05
     ini.build.layers = OrderedCollections.OrderedDict(
-        :gap_OH => 0.967,
+        :gap_OH => 1.18,
         :OH => 0.35,
-        :gap_TF_OH => 0.088,
-        :hfs_TF => 0.507,
+        :gap_TF_OH => gaps_thickness,
+        :hfs_TF => 0.3,
         :hfs_gap_low_temp_shield_TF => gaps_thickness,
-        :hfs_low_temp_shield => 0.424,
+        :hfs_low_temp_shield => 0.42,
         :hfs_gap_vacuum_vessel_low_temp_shield => gaps_thickness,
-        :hfs_vacuum_vessel=> 0.172,
+        :hfs_vacuum_vessel_outer => 0.02,
+        :hfs_gap_water => 0.13,
+        :hfs_vacuum_vessel_inner => 0.02,
         :hfs_gap_high_temp_shield_vacuum_vessel => gaps_thickness,
-        :hfs_high_temp_shield => 0.0,
-        :hfs_blanket => 0.558,
+        :hfs_high_temp_shield => 0.2,
+        :hfs_blanket => 0.33,
         :hfs_first_wall => 0.02,
-        :plasma => 3.17,
+        :plasma => 3.1,
         :lfs_first_wall => 0.02,
-        :lfs_blanket => 1.102,
-        :lfs_high_temp_shield => 0.0,
-        :lfs_gap_high_temp_shield_vacuum_vessel => 1.525,
-        :lfs_vacuum_vessel => 0.172,
-        :lfs_gap_vacuum_vessel_low_temp_shield => gaps_thickness,
-        :lfs_low_temp_shield => 0.424,
-        :lfs_gap_low_temp_shield_TF => gaps_thickness,
-        :lfs_TF => 0.507,
-        :gap_cryostat => 2.0,
+        :lfs_blanket => 0.77,
+        :lfs_high_temp_shield => 0.20,
+        :lfs_gap_high_temp_shield_vacuum_vessel => gaps_thickness * 5,
+        :lfs_vacuum_vessel_inner => 0.02,
+        :lfs_gap_water => 0.13,
+        :lfs_vacuum_vessel_outer => 0.02,
+        :lfs_gap_vacuum_vessel_low_temp_shield => gaps_thickness * 2,
+        :lfs_low_temp_shield => 0.42,
+        :lfs_gap_low_temp_shield_TF => gaps_thickness * 2,
+        :lfs_TF => 0.3,
+        :gap_cryostat => 1.42,
         :cryostat => 0.2)
     ini.build.plasma_gap = 0.125
     ini.build.symmetric = false
     ini.build.divertors = :lower
     ini.build.n_first_wall_conformal_layers = 1
 
-    ini.equilibrium.B0 = 6.0
-    ini.equilibrium.R0 = 4.824
+    ini.equilibrium.B0 = 4.7
+    ini.equilibrium.R0 = 4.9
     ini.equilibrium.ϵ = 0.28
     ini.equilibrium.κ = 0.8
     ini.equilibrium.δ = 0.6
@@ -53,6 +57,7 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.equilibrium.ip = 8.0e6
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = :scalars
+    ini.equilibrium.field_null_surface = 0.75
 
     ini.core_profiles.ne_setting = :greenwald_fraction
     act.ActorPedestal.density_match = :ne_line
@@ -75,28 +80,33 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     ini.pf_active.technology = :nb3sn
     ini.tf.technology = :rebco
 
-    ini.tf.shape = :princeton_D_scaled
+    ini.tf.shape = :rectangle_ellipse
     ini.tf.n_coils = 16
 
     total_ec_power = 90E6
     resize!(ini.ec_launcher, 6)
+    resize!(act.ActorSimpleEC.actuator, 6)
     x = range(0.1, 0.8, length(ini.ec_launcher))
     for (k, rho_0) in enumerate(x)
         ini.ec_launcher[k].power_launched = total_ec_power * rho_0^2 / sum(x)
         ini.ec_launcher[k].efficiency_conversion = 0.45
         ini.ec_launcher[k].efficiency_transmission = 0.8
-        ini.ec_launcher[k].rho_0 = rho_0
+        act.ActorSimpleEC.actuator[k].rho_0 = rho_0
     end
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 36000.0
+    ini.requirements.flattop_duration = missing # let the optimizer figure out maximum flattop duration
+    ini.requirements.coil_j_margin = 0.2
     ini.requirements.tritium_breeding_ratio = 1.1
 
     #### ACT ####
 
+    act.ActorPFactive.x_points_weight = 0.01
+    act.ActorPFactive.strike_points_weight = 0.01
+
     act.ActorLFSsizing.maintenance = :vertical
 
-    act.ActorStabilityLimits.models = [:q95_gt_2, :κ_controllability]
+    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
 
     if !flux_matcher
         act.ActorCoreTransport.model = :none
