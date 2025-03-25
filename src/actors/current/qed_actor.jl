@@ -96,6 +96,7 @@ function _step(actor::ActorQED)
         for time0 in range(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
+                @show Ip, par.ip_from, time0
                 Vedge = nothing
                 if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
                     Ip = nothing
@@ -178,20 +179,26 @@ the two ought to be self-consistent
 """
 function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Int)
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+    eqt1d = eqt.profiles_1d
 
-    rho_tor = eqt.profiles_1d.rho_tor
-    gm1 = eqt.profiles_1d.gm1
-    f = eqt.profiles_1d.f
-    dvolume_drho_tor = eqt.profiles_1d.dvolume_drho_tor
-    q = eqt.profiles_1d.q
-    gm9 = eqt.profiles_1d.gm9
+    rho_tor = eqt1d.rho_tor
+    gm1 = eqt1d.gm1
+    f = eqt1d.f
+    dvolume_drho_tor = eqt1d.dvolume_drho_tor
+    q = eqt1d.q
+    gm9 = eqt1d.gm9
 
     # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
     # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
     if false
-        j_tor = eqt.profiles_1d.j_tor
+        j_tor = eqt1d.j_tor
+        gm2 = eqt1d.gm2
     else
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+        It = IMAS.cumtrapz(eqt1d.area, j_tor) # It(psi)
+        gm2 = (IMAS.mks.μ_0 * (2π) ^ 2)  .* It ./ (eqt1d.dvolume_dpsi .*  (eqt1d.dpsi_drho_tor .^ 2))
+        gm2_itp = IMAS.interp1d(eqt1d.rho_tor_norm[2:5], gm2[2:5], :cubic)
+        gm2[1] = gm2_itp(0.0)
     end
 
     y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
@@ -209,7 +216,8 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
     end
 
-    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
+    #return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
+    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9, gm2; ρ_j_non_inductive, ρ_grid)
 end
 
 """
