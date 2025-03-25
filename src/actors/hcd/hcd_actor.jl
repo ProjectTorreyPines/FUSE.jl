@@ -99,14 +99,28 @@ Runs through the selected HCD actor's step
 function _step(actor::ActorHCD)
     dd = actor.dd
 
-    # Call IMAS.sources!(dd) since the most would expect sources to be consistent when coming out of this actor
+    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
     IMAS.sources!(dd)
 
-    step(actor.ec_actor)
-    step(actor.ic_actor)
-    step(actor.lh_actor)
-    step(actor.nb_actor)
-    step(actor.pellet_actor)
+    if !isempty(dd.ec_launchers.beam)
+        step(actor.ec_actor)
+    end
+
+    if !isempty(dd.ic_antennas.antenna)
+        step(actor.ic_actor)
+    end
+
+    if !isempty(dd.lh_antennas.antenna)
+        step(actor.lh_actor)
+    end
+
+    if !isempty(dd.nbi.unit)
+        step(actor.nb_actor)
+    end
+
+    if !isempty(dd.pellets.launcher)
+        step(actor.pellet_actor)
+    end
 
     return actor
 end
@@ -117,12 +131,27 @@ end
 Finalizes the selected CHD actor's finalize
 """
 function _finalize(actor::ActorHCD)
+    dd = actor.dd
 
-    finalize(actor.ec_actor)
-    finalize(actor.ic_actor)
-    finalize(actor.lh_actor)
-    finalize(actor.nb_actor)
-    finalize(actor.pellet_actor)
+    if !isempty(dd.ec_launchers.beam)
+        finalize(actor.ec_actor)
+    end
+
+    if !isempty(dd.ic_antennas.antenna)
+        finalize(actor.ic_actor)
+    end
+
+    if !isempty(dd.lh_antennas.antenna)
+        finalize(actor.lh_actor)
+    end
+
+    if !isempty(dd.nbi.unit)
+        finalize(actor.nb_actor)
+    end
+
+    if !isempty(dd.pellets.launcher)
+        finalize(actor.pellet_actor)
+    end
 
     return actor
 end
