@@ -214,7 +214,7 @@ function LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
 end
 
 """
-    pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; density_factor::Float64, zeff_factor::Float64)
+    pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
 
 The EPED and WPED models only operate on the temperature profiles.
 Here we make the densities always conform to the EPED tanh form with w_ped = 0.05

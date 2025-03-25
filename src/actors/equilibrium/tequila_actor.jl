@@ -141,7 +141,7 @@ function _finalize(actor::ActorTEQUILA)
     return actor
 end
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA, act::ParametersAllActors; ψbound::D) where {D<:Real}
+function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorTEQUILA{P}}, act::ParametersAllActors; ψbound::D) where {D<:Real}
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]

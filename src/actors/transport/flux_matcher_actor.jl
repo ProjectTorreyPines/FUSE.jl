@@ -432,7 +432,7 @@ function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) whe
 end
 
 """
-    flux_match_targets(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, norms::Vector{Float64}, prog::Any)
+    flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
 
 Evaluates the flux_matching targets for the :flux_match species and channels
 
@@ -481,7 +481,7 @@ function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameter
 end
 
 """
-    flux_match_fluxes(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher)
+    flux_match_fluxes(dd::IMAS.dd{T}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {T<:Real, P<:Real}
 
 Evaluates the flux_matching fluxes for the :flux_match species and channels
 
@@ -615,7 +615,7 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
 end
 
 """
-    pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::FUSEparameters__ActorFluxMatcher)
+    pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
 
 Packs the z_profiles based on evolution parameters
 
@@ -678,8 +678,8 @@ end
 """
     unpack_z_profiles(
         cp1d::IMAS.core_profiles__profiles_1d,
-        par::FUSEparameters__ActorFluxMatcher,
-        z_profiles::AbstractVector{<:Real})
+        par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
+        z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
 Unpacks z_profiles based on evolution parameters
 
