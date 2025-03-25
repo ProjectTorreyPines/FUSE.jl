@@ -169,8 +169,6 @@ function FUSEtoRABBITinput(dd::IMAS.dd)
         inp.zeff = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(inp.rho)
         inp.ti = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(inp.rho) .* eV_to_keV
 
-            push!(pnbis, IMAS.get_time_array(ps.power, :reference, time))
-        end
         push!(all_inputs, inp)
     end
 
