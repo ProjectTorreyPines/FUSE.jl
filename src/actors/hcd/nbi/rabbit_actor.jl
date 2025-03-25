@@ -157,7 +157,11 @@ function FUSEtoRABBITinput(dd::IMAS.dd)
         inp.vol = eqt.profiles_1d.volume
         inp.area = eqt.profiles_1d.area
 
-        cp1d = dd.core_profiles.profiles_1d[time]
+        cp1d = try
+            dd.core_profiles.profiles_1d[time]
+        catch
+            dd.core_profiles.profiles_1d[1]
+        end
 
         inp.rho = cp1d.grid.rho_tor_norm
         inp.eq_rho = eqt.profiles_1d.rho_tor_norm
