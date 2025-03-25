@@ -91,7 +91,7 @@ function _step(actor::ActorQED)
             Ni = par.Nt
         end
 
-        for time0 in range(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
+        for time0 in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
                 Vedge = nothing
