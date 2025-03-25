@@ -72,25 +72,35 @@ end
 Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
 function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
-    resize!(dd.nbi.unit, length(ini.nb_unit); wipe=false)
-    @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
-    for (idx, (nbu, ini_nbu, ps_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit, dd.pulse_schedule.nbi.unit))
-        if ismissing(nbu, :name)
-            nbu.name = length(ini.nb_unit) > 1 ? "nbi_$idx" : "nbi"
+    pattern = r"\bD3D\s?\d{6}\b"
+    if occursin(pattern, ini.general.casename)
+        resize!(dd.nbi.unit, length(ini.general.dd.nbi.unit); wipe=false)
+        @assert length(dd.nbi.unit) == length(dd.pulse_schedule.nbi.unit)
+        dd.nbi = ini.general.dd.nbi
+        return dd
+    else
+        resize!(dd.nbi.unit, length(ini.nb_unit); wipe=false)
+        @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
+        for (idx, (nbu, ini_nbu, ps_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit, dd.pulse_schedule.nbi.unit))
+            if ismissing(nbu, :name)
+                nbu.name = length(ini.nb_unit) > 1 ? "nbi_$idx" : "nbi"
+            end
+            ps_nbu.name = nbu.name
+            @ddtime(nbu.energy.data = ini_nbu.beam_energy)
+            nbu.available_launch_power = maximum(ps_nbu.power.reference)
+            nbu.species.a = ini_nbu.beam_mass
+            nbu.species.z_n = 1.0
+            # 1 beamlet
+            beamlet = resize!(nbu.beamlets_group, 1)[1]
+            beamlet.angle = ini_nbu.toroidal_angle / 360 * 2pi
+            # Efficiencies
+            nbu.efficiency.conversion = ini_nbu.efficiency_conversion
+            nbu.efficiency.transmission = ini_nbu.efficiency_transmission
         end
-        ps_nbu.name = nbu.name
-        @ddtime(nbu.energy.data = ini_nbu.beam_energy)
-        nbu.available_launch_power = maximum(ps_nbu.power.reference)
-        nbu.species.a = ini_nbu.beam_mass
-        nbu.species.z_n = 1.0
-        # 1 beamlet
-        beamlet = resize!(nbu.beamlets_group, 1)[1]
-        beamlet.angle = ini_nbu.toroidal_angle / 360 * 2pi
-        # Efficiencies
-        nbu.efficiency.conversion = ini_nbu.efficiency_conversion
-        nbu.efficiency.transmission = ini_nbu.efficiency_transmission
+        return dd
     end
-    return dd
+
+    
 end
 
 """
