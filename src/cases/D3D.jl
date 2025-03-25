@@ -30,11 +30,15 @@ function case_parameters(
     remote_host = "$(omega_user)@omega.gat.com"
     remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
     filename = "D3D_$shot.h5"
-    local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
-    if isdir(local_path)
-        rm(local_path; recursive=true)
+    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+        local_path = remote_path
+    else
+        local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
+        if isdir(local_path)
+            rm(local_path; recursive=true)
+        end
+        mkdir(local_path)
     end
-    mkdir(local_path)
 
     # remote omas script
     omas_py = """
@@ -123,23 +127,37 @@ function case_parameters(
         return write(io, remote_slurm)
     end
 
-    # local driver script
-    local_driver = """
-        #!/bin/bash
+    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+        # local driver script
+        local_driver = """
+            #!/bin/bash
+            module load omfit; cd $remote_path && bash remote_slurm.sh
+            """
+    else
+        # local driver script
+        local_driver = """
+            #!/bin/bash
 
-        # Use rsync to create directory if it doesn't exist and copy the script
-        $(ssh_command(remote_host, "\"mkdir -p $remote_path\""))
-        $(upsync_command(remote_host, ["$(local_path)/remote_slurm.sh", "$(local_path)/omas_data_fetch.py"], remote_path))
+            # Use rsync to create directory if it doesn't exist and copy the script
+            $(ssh_command(remote_host, "\"mkdir -p $remote_path\""))
+            $(upsync_command(remote_host, ["$(local_path)/remote_slurm.sh", "$(local_path)/omas_data_fetch.py"], remote_path))
 
-        # Execute script remotely
-        $(ssh_command(remote_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
+            # Execute script remotely
+            $(ssh_command(remote_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
 
-        # Retrieve results using rsync
-        $(downsync_command(remote_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
-    """
+            # Retrieve results using rsync
+            $(downsync_command(remote_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
+        """
+    end
     open(joinpath(local_path, "local_driver.sh"), "w") do io
         return write(io, local_driver)
     end
+
+    # run data fetching
+    @info("Remote D3D data fetching for shot $shot")
+    @info("Path on OMEGA: $remote_path")
+    @info("Path on Localhost: $local_path")
+    Base.run(`bash $local_path/local_driver.sh`)
 
     # run data fetching
     @info("Remote D3D data fetching for shot $shot")
