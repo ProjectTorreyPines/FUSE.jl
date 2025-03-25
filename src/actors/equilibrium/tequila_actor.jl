@@ -131,7 +131,7 @@ function _step(actor::ActorTEQUILA)
 end
 
 # finalize by converting TEQUILA shot to dd.equilibrium
-function _finalize(actor::ActorTEQUILA)
+function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
     shot = actor.shot
     dd = actor.dd
     par = actor.par
