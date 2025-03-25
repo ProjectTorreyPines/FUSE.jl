@@ -132,16 +132,12 @@ end
 
 # finalize by converting TEQUILA shot to dd.equilibrium
 function _finalize(actor::ActorTEQUILA)
-    try
-        tequila2imas(actor.shot, actor.dd, actor.par, actor.act; actor.ψbound)
-    catch e
-        display(plot(actor.shot))
-        rethrow(e)
-    end
-    return actor
-end
+    shot = actor.shot
+    dd = actor.dd
+    par = actor.par
+    act = actor.act
+    ψbound = actor.ψbound
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorTEQUILA{P}}, act::ParametersAllActors; ψbound::D) where {D<:Real}
     free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
@@ -222,7 +218,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::OverrideParameter
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
         # Flux control points
-        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia,  iso_cps[1].weight)
+        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, iso_cps[1].weight)
         flux_cps = VacuumFields.FluxControlPoint[mag]
         strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
         strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
@@ -253,4 +249,5 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::OverrideParameter
         eqt1d.psi .+= ψbound
     end
 
+    return actor
 end
