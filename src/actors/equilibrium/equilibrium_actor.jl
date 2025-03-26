@@ -156,7 +156,7 @@ function prepare(actor::ActorEquilibrium)
     if par.j_p_from == :core_profiles
         @assert !isempty(dd.core_profiles.time)
         cp1d = dd.core_profiles.profiles_1d[]
-        index = cp1d.grid.psi_norm .> 0.05
+        index = cp1d.grid.psi_norm .> 0.01
         psi0 = cp1d.grid.psi
         rho_tor_norm0 = cp1d.grid.rho_tor_norm
         rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))

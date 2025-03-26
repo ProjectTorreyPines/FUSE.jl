@@ -94,6 +94,7 @@ function _step(actor::ActorQED)
         end
 
         for time0 in range(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
+            @show par.solve_for
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
                 @show Ip, par.ip_from, time0
@@ -114,8 +115,9 @@ function _step(actor::ActorQED)
             if i_qdes === nothing
                 i_qdes = 0
             end
-
+            @show Ip
             actor.QO = QED.diffuse(actor.QO, η_Jardin(dd.core_profiles.profiles_1d[time0], i_qdes), δt, Ni; Vedge, Ip, debug=false)
+            @show QED.Ip(actor.QO)
         end
 
     elseif par.Δt == Inf
@@ -151,18 +153,42 @@ end
 
 function _finalize(actor::ActorQED)
     dd = actor.dd
+    QO = actor.QO
 
     eqt = dd.equilibrium.time_slice[]
+    eqt1d = eqt.profiles_1d
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
     cp1d = dd.core_profiles.profiles_1d[]
-    j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+    rho_tor_norm = cp1d.grid.rho_tor_norm
+    cp1d.j_total = QED.JB(QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+    #empty!(cp1d, :j_total)
+    #cp1d.j_tor = QED.Jt_R(QO; ρ=rho_tor_norm) ./ IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.gm9).(rho_tor_norm)
+    Jt = QED.Jt_R(QO; ρ=rho_tor_norm) ./ IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.gm9).(rho_tor_norm)
+    @show IMAS.trapz(cp1d.grid.area, Jt)
+    @show IMAS.trapz(cp1d.grid.area, cp1d.j_tor)
+    @show IMAS.Ip(cp1d)
+    @show QED.Ip(QO)
+    dΡ_dρ = eqt1d.rho_tor[end]
+    @show 2π * B0 * dΡ_dρ * eqt1d.dvolume_drho_tor[end] * eqt1d.gm2[end] * QO.ι(1) / ((2π)^2 * IMAS.mks.μ_0)
+    It = IMAS.cumtrapz(eqt1d.area, Jt) # It(psi)
+    gm2 = (IMAS.mks.μ_0 * (2π) ^ 2)  .* It ./ (eqt1d.dvolume_dpsi .*  (eqt1d.dpsi_drho_tor .^ 2))
+    gm2_itp = IMAS.interp1d(eqt1d.rho_tor_norm[2:5], gm2[2:5], :cubic)
+    gm2[1] = gm2_itp(0.0)
+    @show 2π * B0 * dΡ_dρ * eqt1d.dvolume_drho_tor[end] * gm2[end] * QO.ι(1) / ((2π)^2 * IMAS.mks.μ_0)
+    dΡ_dρ = eqt1d.rho_tor[end]
+    @show QED.dΦ_dρ(QO, 1), 2π * B0 * dΡ_dρ ^ 2
+    @show QO.dV_dρ(1), eqt1d.dvolume_drho_tor[end] * dΡ_dρ
+    @show QED.fsa_∇ρ²_R²(QO, 1), eqt1d.gm2[end] / dΡ_dρ ^ 2
+    plot(rho_tor_norm, Jt)
+    display(plot!(rho_tor_norm, cp1d.j_tor))
 
-    if ismissing(cp1d, :j_non_inductive)
-        cp1d.j_ohmic = j_total
-    else
-        cp1d.j_ohmic = j_total .- cp1d.j_non_inductive
-    end
+
+    # if ismissing(cp1d, :j_non_inductive)
+    #     cp1d.j_ohmic = j_total
+    # else
+    #     cp1d.j_ohmic = j_total .- cp1d.j_non_inductive
+    # end
 
     return actor
 end
@@ -199,7 +225,13 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         gm2 = (IMAS.mks.μ_0 * (2π) ^ 2)  .* It ./ (eqt1d.dvolume_dpsi .*  (eqt1d.dpsi_drho_tor .^ 2))
         gm2_itp = IMAS.interp1d(eqt1d.rho_tor_norm[2:5], gm2[2:5], :cubic)
         gm2[1] = gm2_itp(0.0)
+        plot(gm2)
+        display(plot!(eqt1d.gm2))
+        plot(j_tor)
+        display(plot!(eqt1d.j_tor))
+        #gm2 = eqt1d.gm2
     end
+
 
     y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
     if ismissing(cp1d, :j_non_inductive)
