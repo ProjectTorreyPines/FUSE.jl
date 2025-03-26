@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :replay, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
-    neutral_model::Switch{Symbol} = Switch{Symbol}([:neucg, :none], "-", "Pellet source actor to run"; default=:neucg)
+    neutral_model::Switch{Symbol} = Switch{Symbol}([:neucg,:replay, :none], "-", "Pellet source actor to run"; default=:neucg)
 end
 
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
@@ -20,7 +20,7 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     ec_actor::Union{ActorSimpleEC{D,P},ActorTORBEAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     lh_actor::Union{ActorSimpleLH{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
-    nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    nb_actor::Union{ActorSimpleNB{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     pellet_actor::Union{ActorSimplePL{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     neutral_actor::Union{ActorNeutralFueling{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
@@ -42,7 +42,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     par = par(kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop)
+    actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop, noop)
 
     @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
     # fill missing EC launcher hardware details
@@ -90,9 +90,11 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
         actor.pellet_actor = ActorReplay(dd, act.ActorReplay, actor.pellet_actor)
     end
     if par.neutral_model == :neucg
-        neutral_actor = ActorNeutralFueling(dd, act.ActorNeutralFueling)
+        actor.neutral_actor = ActorNeutralFueling(dd, act.ActorNeutralFueling)
+    elseif par.neutral_model == :replay
+        actor.neutral_actor = ActorReplay(dd, act.ActorReplay, actor.neutral_actor)
     end
-    return ActorHCD(dd, par, ec_actor, ic_actor, lh_actor, nb_actor, pellet_actor,neutral_actor)
+    return actor
 
 end
 
