@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorReplay{T<:Real} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    replay_dd::Entry{IMAS.dd{T}} = Entry{IMAS.dd{T}}("-", "`dd` to replay data from"; default=IMAS.dd{T}())
+    replay_dd::Entry{IMAS.dd{T}} = Entry{IMAS.dd{T}}("-", "`dd` to replay data from")
 end
 
 mutable struct ActorReplay{D,P} <: SingleAbstractActor{D,P}
@@ -18,7 +18,12 @@ end
 function ActorReplay(dd::IMAS.dd{D}, par::FUSEparameters__ActorReplay{P}, base_actor::AbstractActor{D,P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorReplay)
     par = OverrideParameters(par; kw...)
-    return ActorReplay{D,P}(dd, par, par.replay_dd, base_actor)
+    if ismissing(par, :replay_dd)
+        replay_dd = IMAS.dd{D}()
+    else
+        replay_dd = par.replay_dd
+    end
+    return ActorReplay{D,P}(dd, par, replay_dd, base_actor)
 end
 
 function ActorReplay(dd::IMAS.dd{D}, par::FUSEparameters__ActorReplay{P}; kw...) where {D<:Real,P<:Real}
