@@ -9,6 +9,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorRABBIT{T<:Real} <: ParametersAct
     _name::Symbol = :not_set
     _time::Float64 = NaN
     remove_inputs::Entry{Bool} = Entry{Bool}("-", "Delete directory containing RABBIT input files after run"; default=true)
+    start_time::Entry{Union{Missing,Float64}} = Entry{Union{Missing,Float64}}("s", "Simulation start time"; default=missing) # force user to set start time
+    end_time::Entry{Union{Missing,Float64}} = Entry{Union{Missing,Float64}}("s", "Simulation end time"; default=missing) # force user to set end time
 end
 
 mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
@@ -37,7 +39,15 @@ function _step(actor::ActorRABBIT)
     dd = actor.dd
     par = actor.par
 
-    all_inputs = FUSEtoRABBITinput(dd)
+    dd_selected_times = deepcopy(actor.dd)
+
+    if par.start_time < dd.equilibrium.time[1] || par.end_time > dd.equilibrium.time[end]
+        @error "Equilibrium info required for entire simulation duration - par.start_time must be > $dd.equilibrium.time[1] and par.end_time must be < $dd.equilibrium.time[end]"
+    else
+        IMAS.trim_time!(dd_selected_times, (par.start_time, par.end_time))
+    end
+
+    all_inputs = FUSEtoRABBITinput(dd_selected_times)
     actor.outputs = RABBIT.run_RABBIT(all_inputs; par.remove_inputs)
     return actor
 end
