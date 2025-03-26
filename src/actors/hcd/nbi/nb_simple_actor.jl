@@ -192,7 +192,7 @@ function _step(actor::ActorSimpleNB)
                 tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, nbu.energy.data[1] / ifpow, nbu.species.a, nbu.species.z_n)
                 qbeame[igroup, ifpow, :] .= @views (1.0 .- frac_ie) .* qbeam[igroup, ifpow, :]
                 qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
-                curbi = IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
+                curbi = @views IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
                 curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps0) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps0)
                 curbeam[igroup, ifpow, :] .= curbe .+ curbi .+ curbet
