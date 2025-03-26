@@ -92,11 +92,11 @@ end
 function heating_and_current_drive_calc(system_unit::Any)
     power_electric_total = 0.0
     for item_unit in system_unit
-        efficiencies = collect((value for value in values(item_unit.efficiency) if value !== missing))
-        if length(efficiencies) > 0
-            efficiency = prod(efficiencies)
-        else
+        efficiencies = [getproperty(item_unit.efficiency, key) for key in IMAS.keys_no_missing(item_unit.efficiency)]
+        if isempty(efficiencies)
             efficiency = 1.0
+        else
+            efficiency = prod(efficiencies)
         end
         power_electric_total += @ddtime(item_unit.power_launched.data) / efficiency
     end
