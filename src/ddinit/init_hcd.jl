@@ -90,7 +90,7 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         # 1 beamlet
         if ini_nbu.template_beam != :none
             add_beam_examples!(nbu, ini_nbu.template_beam)
-        else
+        elseif isempty(nbu.beamlets_group)
             beamlet = resize!(nbu.beamlets_group, 1)[1]
 
             beamlet.position.r = eqt.profiles_1d.r_outboard[end] * 1.1
@@ -108,6 +108,14 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
                 beamlet.angle = atan(0.5 * eqt.profiles_1d.elongation[end])
             else
                 beamlet.angle = 0.0
+            end
+        end
+        for beamlets_group in nbu.beamlets_group
+            if isempty(beamlets_group, :divergence_component)
+                divc = resize!(beamlets_group.divergence_component, 1)[1]
+                divc.horizontal = 0.0
+                divc.particles_fraction = 1.0
+                divc.vertical = 0.0
             end
         end
 
