@@ -162,8 +162,8 @@ function prepare(actor::ActorEquilibrium)
         rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
         j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
         pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     elseif par.j_p_from == :equilibrium
         @assert !isempty(dd.equilibrium.time)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
@@ -172,8 +172,8 @@ function prepare(actor::ActorEquilibrium)
         rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
-        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     else
         @assert par.j_p_from in (:core_profiles, :equilibrium)
     end
