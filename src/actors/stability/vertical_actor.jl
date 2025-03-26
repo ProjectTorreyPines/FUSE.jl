@@ -28,8 +28,7 @@ end
 Compute vertical stability metrics
 """
 function ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorVerticalStability(kw...)
-    actor = ActorVerticalStability(dd, par, act)
+    actor = ActorVerticalStability(dd, act.ActorVerticalStability, act; kw...)
     step(actor)
     finalize(actor)
     return actor

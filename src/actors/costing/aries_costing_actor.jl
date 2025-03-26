@@ -34,8 +34,7 @@ Estimates costing based on ARIES cost account documentation https://cer.ucsd.edu
     Stores data in `dd.costing`
 """
 function ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCostingARIES(kw...)
-    actor = ActorCostingARIES(dd, par)
+    actor = ActorCostingARIES(dd, act.ActorCostingARIES; kw...)
     step(actor)
     finalize(actor)
     return actor

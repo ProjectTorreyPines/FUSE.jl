@@ -34,8 +34,7 @@ Estimates costing based on Sheffield and Milora, FS&T 70 (2016)
     Stores data in `dd.costing`
 """
 function ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCostingSheffield(kw...)
-    actor = ActorCostingSheffield(dd, par)
+    actor = ActorCostingSheffield(dd, act.ActorCostingSheffield; kw...)
     step(actor)
     finalize(actor)
     return actor
