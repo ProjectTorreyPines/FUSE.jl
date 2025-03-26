@@ -59,18 +59,12 @@ function _step(actor::ActorQED)
     cp1d = dd.core_profiles.profiles_1d[]
 
     # non_inductive contribution
-    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    JBni = QED.FE(cp1d.grid.rho_tor_norm, cp1d.j_non_inductive .* B0)
     if par.solve_for == :ip && par.allow_floating_plasma_current
         ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
     end
 
     # initialize QED
-    if actor.QO === nothing || par.Δt == Inf
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
-    else
-        actor.QO.JBni = JBni
-    end
+    actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
 
     # QED calculates the total current based on q, which goes to infinity at the separatrix
     # this leads to some small but not negligible difference in the total current calculated
