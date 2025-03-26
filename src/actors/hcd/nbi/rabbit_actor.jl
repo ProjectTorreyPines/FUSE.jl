@@ -111,6 +111,7 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
     index_start = IMAS.nearest_causal_time(dd.equilibrium.time, (dd.global_time - Δt_history); bounds_error = false).index
     index_end = IMAS.nearest_causal_time(dd.equilibrium.time, dd.global_time).index
     eqts = [dd.equilibrium.time_slice[index] for index in index_start:index_end]
+    selected_equilibrium_times = [eqt.time for eqt in eqts]
 
     for eqt in eqts
         time = eqt.time
@@ -238,16 +239,16 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
         
     end
 
-    function get_pnbi(dd::IMAS.dd)
+    function get_pnbi(dd::IMAS.dd, selected_equilibrium_times::Vector{Float64})
         pnbis = Vector{Float64}[]
         for ps in dd.pulse_schedule.nbi.unit
-            power_downsampled = IMAS.interp1d(dd.pulse_schedule.nbi.time, ps.power.reference).(dd.equilibrium.time)
+            power_downsampled = IMAS.moving_average(dd.pulse_schedule.nbi.time, ps.power.reference, selected_equilibrium_times)
             push!(pnbis, power_downsampled)
         end
         return pnbis
     end
 
-    pnbis = get_pnbi(dd)
+    pnbis = get_pnbi(dd, selected_equilibrium_times)
     all_inputs[1].pnbi = pnbis
 
     # beam info isn't time dependent so store it in the first timeslice
