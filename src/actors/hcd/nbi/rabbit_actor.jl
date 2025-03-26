@@ -8,6 +8,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorRABBIT{T<:Real} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    remove_inputs::Entry{Bool} = Entry{Bool}("-", "Delete directory containing RABBIT input files after run"; default=true)
+    Δt_history::Entry{Float64} = Entry{Float64}("s", "Amount of history to include such that simulation proceeds from (dd.global_time - Δt_history) to dd.global_time")
 end
 
 mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
@@ -34,26 +36,25 @@ end
 
 function _step(actor::ActorRABBIT)
     dd = actor.dd
+    par = actor.par
 
-    @assert length(dd.nbi.unit) == 1 "For now only one NBI unit is supported"
-
-    all_inputs = FUSEtoRABBITinput(dd)
-    actor.outputs = RABBIT.run_RABBIT(all_inputs; remove_inputs=true)
+    all_inputs = FUSEtoRABBITinput(dd, par.Δt_history)
+    actor.outputs = RABBIT.run_RABBIT(all_inputs; par.remove_inputs)
     return actor
 end
 
 function _finalize(actor::ActorRABBIT)
     dd = actor.dd
     cs = dd.core_sources
-    output = actor.outputs
+    outputs = actor.outputs
 
     eqt = dd.equilibrium.time_slice[]
 
-    rho = [0.0; output.rho_data; 1.0]
+    rho = [0.0; outputs[1].rho_data; 1.0]
     volume = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho)
     area = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho)
 
-    for (ps, nbu) in zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit)
+    for (idx, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
         power_launched = max(0.0, @ddtime(ps.power.reference))
         beam_energy = max(0.0, @ddtime(nbu.energy.data))
 
@@ -62,15 +63,15 @@ function _finalize(actor::ActorRABBIT)
         # evaluate various source channels
         # here we also extend the RABBIT grid to the edges
         # so that the linear interpolation does not extrapolate in weird ways
-        electrons_energy = output.powe_data[:, end]
+        electrons_energy = outputs[idx].powe_data[:, end]
         electrons_energy = [electrons_energy[1]; electrons_energy; electrons_energy[end]]
-        total_ion_energy = output.powi_data[:, end]
+        total_ion_energy = outputs[idx].powi_data[:, end]
         total_ion_energy = [total_ion_energy[1]; total_ion_energy; total_ion_energy[end]]
-        electrons_particles = vec(sum(output.bdep_data[:, end, :]; dims=2))
+        electrons_particles = vec(sum(outputs[idx].bdep_data[:, end, :]; dims=2))
         electrons_particles = [electrons_particles[1]; electrons_particles; electrons_particles[end]]
-        j_parallel = output.jnbcd_data[:, end]
+        j_parallel = outputs[idx].jnbcd_data[:, end]
         j_parallel = [j_parallel[1]; j_parallel; j_parallel[end]]
-        momentum_tor = vec(sum(output.torqdepo_data[:, end, :]; dims=2))
+        momentum_tor = vec(sum(outputs[idx].torqdepo_data[:, end, :]; dims=2))
         momentum_tor = [momentum_tor[1]; momentum_tor; momentum_tor[end]]
 
         source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
@@ -101,15 +102,18 @@ function _finalize(actor::ActorRABBIT)
     return actor
 end
 
-function FUSEtoRABBITinput(dd::IMAS.dd)
+function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
     eV_to_keV = 1e-3
     cm3_to_m3 = 1e-6
 
-    eq = dd.equilibrium
-
     all_inputs = RABBIT.RABBITinput[]
 
-    for eqt in eq.time_slice
+    index_start = IMAS.nearest_causal_time(dd.equilibrium.time, (dd.global_time - Δt_history); bounds_error = false).index
+    index_end = IMAS.nearest_causal_time(dd.equilibrium.time, dd.global_time).index
+    eqts = [dd.equilibrium.time_slice[index] for index in index_start:index_end]
+    selected_equilibrium_times = [eqt.time for eqt in eqts]
+
+    for eqt in eqts
         time = eqt.time
 
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
@@ -157,7 +161,11 @@ function FUSEtoRABBITinput(dd::IMAS.dd)
         inp.vol = eqt.profiles_1d.volume
         inp.area = eqt.profiles_1d.area
 
-        cp1d = dd.core_profiles.profiles_1d[time]
+        cp1d = try
+            dd.core_profiles.profiles_1d[time]
+        catch
+            dd.core_profiles.profiles_1d[1]
+        end
 
         inp.rho = cp1d.grid.rho_tor_norm
         inp.eq_rho = eqt.profiles_1d.rho_tor_norm
@@ -169,31 +177,94 @@ function FUSEtoRABBITinput(dd::IMAS.dd)
         inp.zeff = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(inp.rho)
         inp.ti = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(inp.rho) .* eV_to_keV
 
-        pnbis = Float64[]
-        for ps in dd.pulse_schedule.nbi.unit
-            push!(pnbis, IMAS.get_time_array(ps.power, :reference, time))
-        end
-        inp.pnbi = pnbis
-
-        inp.n_sources = length(dd.nbi.unit)
-        inp.injection_energy = dd.nbi.unit[1].energy.data
-        inp.a_beam = [dd.nbi.unit[1].species.a]
-
-        # the settings below reflect the default beams.dat input file for DIII-D from OMFIT
-        inp.nv = 3
-        inp.start_pos = [5.804921, 5.6625959, 0.0000000]
-        inp.beam_unit_vector = [-0.80732277, -0.59011012, 0.0000000]
-        inp.beam_width_polynomial_coefficients = [0.0000000, 0.023835, 0.0000000]
-        inp.particle_fraction = [0.52422392, 0.3088602, 0.16691588]
-
         push!(all_inputs, inp)
     end
+
+    function gather_beams(dd::IMAS.dd)
+        nbeams = length(dd.nbi.unit)
+        nv = 3
+    
+        xyz_src = zeros(3, nbeams)
+        xtan = zeros(3, nbeams)
+        xyz_vec = zeros(3, nbeams)
+        beamwidthpoly = zeros(3, nbeams)
+        part_frac = zeros(3, nbeams)
+    
+        Rs = [unit.beamlets_group[1].position.r for unit in dd.nbi.unit]
+        zs = [unit.beamlets_group[1].position.z for unit in dd.nbi.unit]
+        phis = [unit.beamlets_group[1].position.phi for unit in dd.nbi.unit]
+        Rts = [unit.beamlets_group[1].tangency_radius for unit in dd.nbi.unit]
+        angles = [unit.beamlets_group[1].angle for unit in dd.nbi.unit]
+        direcs = [unit.beamlets_group[1].direction for unit in dd.nbi.unit]
+    
+        phis .= 2 * π .- phis
+    
+        xyz_src[1, :] .= Rs .* cos.(phis)
+        xyz_src[2, :] .= Rs .* sin.(phis)
+        xyz_src[3, :] .= zs
+    
+        l2d = sqrt.(Rs .^ 2 .- Rts .^ 2)
+        delta = atan.(Rts, l2d)
+        phit = phis .+ delta .* direcs
+        zt = xyz_src[3, :] .+ tan.(angles) .* l2d
+    
+        xtan[1, :] .= Rts .* cos.(phit)
+        xtan[2, :] .= Rts .* sin.(phit)
+        xtan[3, :] .= zt
+    
+        xyz_vec .= xtan .- xyz_src
+    
+        for n in 1:nbeams
+            xyz_vec[:, n] .= xyz_vec[:, n] ./ sqrt(sum(xyz_vec[:, n] .^ 2))
+        end
+    
+        Einj = [maximum(unit.energy.data) for unit in dd.nbi.unit]
+        abeam = [unit.species.a for unit in dd.nbi.unit]
+    
+        for (n,unit) in enumerate(dd.nbi.unit)
+            for i in 1:3
+                part_frac[i,n] = maximum(unit.beam_current_fraction.data[i,:])
+            end
+        end
+    
+        for (n,unit) in enumerate(dd.nbi.unit)
+            part_frac[:,n] = part_frac[:,n] ./ sum(part_frac[:,n])
+        end
+    
+        for (n,unit) in enumerate(dd.nbi.unit)
+            beamwidthpoly[2,n] = unit.beamlets_group[1].divergence_component[1].vertical
+        end
+    
+        return nbeams, nv, xyz_src, xyz_vec, beamwidthpoly, Einj, part_frac, abeam
+        
+    end
+
+    function get_pnbi(dd::IMAS.dd, selected_equilibrium_times::Vector{Float64})
+        pnbis = Vector{Float64}[]
+        for ps in dd.pulse_schedule.nbi.unit
+            power_downsampled = IMAS.moving_average(dd.pulse_schedule.nbi.time, ps.power.reference, selected_equilibrium_times)
+            push!(pnbis, power_downsampled)
+        end
+        return pnbis
+    end
+
+    pnbis = get_pnbi(dd, selected_equilibrium_times)
+    all_inputs[1].pnbi = pnbis
+
+    # beam info isn't time dependent so store it in the first timeslice
+    all_inputs[1].n_sources, all_inputs[1].nv, all_inputs[1].start_pos, all_inputs[1].beam_unit_vector, all_inputs[1].beam_width_polynomial_coefficients, all_inputs[1].injection_energy, all_inputs[1].particle_fraction, all_inputs[1].a_beam = gather_beams(dd)
 
     if length(all_inputs) == 1
         inp = deepcopy(all_inputs[1])
         inp.time = -1e6
         push!(all_inputs, inp)
         reverse!(all_inputs)
+        i = 1
+        while i <= length(all_inputs[1].pnbi) # pnbi is written per beam, per timeslice e.g. beam1@time1, beam1@time2, beam2@time1, beam2@time2, etc.
+            copy_elem = deepcopy(all_inputs[1].pnbi[i])
+            insert!(all_inputs[1].pnbi, i + 1, copy_elem)
+            i += 2
+        end
     end
 
     return all_inputs
