@@ -9,8 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorRABBIT{T<:Real} <: ParametersAct
     _name::Symbol = :not_set
     _time::Float64 = NaN
     remove_inputs::Entry{Bool} = Entry{Bool}("-", "Delete directory containing RABBIT input files after run"; default=true)
-    start_time::Entry{Union{Missing,Float64}} = Entry{Union{Missing,Float64}}("s", "Simulation start time"; default=missing) # force user to set start time
-    end_time::Entry{Union{Missing,Float64}} = Entry{Union{Missing,Float64}}("s", "Simulation end time"; default=missing) # force user to set end time
+    Δt_history::Entry{Float64} = Entry{Float64}("s", "Amount of history to include such that simulation proceeds from (dd.global_time - Δt_history) to dd.global_time")
 end
 
 mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
@@ -39,15 +38,7 @@ function _step(actor::ActorRABBIT)
     dd = actor.dd
     par = actor.par
 
-    dd_selected_times = deepcopy(actor.dd)
-
-    if par.start_time < dd.equilibrium.time[1] || par.end_time > dd.equilibrium.time[end]
-        @error "Equilibrium info required for entire simulation duration - par.start_time must be > $dd.equilibrium.time[1] and par.end_time must be < $dd.equilibrium.time[end]"
-    else
-        IMAS.trim_time!(dd_selected_times, (par.start_time, par.end_time))
-    end
-
-    all_inputs = FUSEtoRABBITinput(dd_selected_times)
+    all_inputs = FUSEtoRABBITinput(dd, par.Δt_history)
     actor.outputs = RABBIT.run_RABBIT(all_inputs; par.remove_inputs)
     return actor
 end
@@ -111,15 +102,23 @@ function _finalize(actor::ActorRABBIT)
     return actor
 end
 
-function FUSEtoRABBITinput(dd::IMAS.dd)
+function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
     eV_to_keV = 1e-3
     cm3_to_m3 = 1e-6
 
-    eq = dd.equilibrium
-
     all_inputs = RABBIT.RABBITinput[]
 
-    for eqt in eq.time_slice
+    if (dd.global_time - Δt_history) < dd.equilibrium.time[1]
+        @warn "Requested time history extends past available data - using all available time history"
+        index_start = 1
+    else
+        index_start = IMAS.nearest_causal_time(dd.equilibrium.time, (dd.global_time - Δt_history)).index
+    end 
+    
+    index_end = IMAS.nearest_causal_time(dd.equilibrium.time, dd.global_time).index
+    eqts = [dd.equilibrium.time_slice[index] for index in index_start:index_end]
+
+    for eqt in eqts
         time = eqt.time
 
         eqt2d = findfirst(:rectangular, eqt.profiles_2d)
