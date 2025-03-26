@@ -108,13 +108,7 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
 
     all_inputs = RABBIT.RABBITinput[]
 
-    if (dd.global_time - Δt_history) < dd.equilibrium.time[1]
-        @warn "Requested time history extends past available data - using all available time history"
-        index_start = 1
-    else
-        index_start = IMAS.nearest_causal_time(dd.equilibrium.time, (dd.global_time - Δt_history)).index
-    end 
-    
+    index_start = IMAS.nearest_causal_time(dd.equilibrium.time, (dd.global_time - Δt_history); bounds_error = false).index
     index_end = IMAS.nearest_causal_time(dd.equilibrium.time, dd.global_time).index
     eqts = [dd.equilibrium.time_slice[index] for index in index_start:index_end]
 
