@@ -93,10 +93,9 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         else
             beamlet = resize!(nbu.beamlets_group, 1)[1]
 
-            beamlet.position.r = eqt.profiles_1d.r_outboard[end]
+            beamlet.position.r = eqt.profiles_1d.r_outboard[end] * 1.1
             beamlet.position.z = 0.0
             beamlet.tangency_radius = ini_nbu.normalized_tangency_radius * 0.5 * (eqt.profiles_1d.r_inboard[end] + eqt.profiles_1d.r_outboard[end])
-
 
             @ddtime(nbu.beam_current_fraction.data = ini_nbu.beam_current_fraction)
 

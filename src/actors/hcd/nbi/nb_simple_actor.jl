@@ -84,7 +84,7 @@ function _step(actor::ActorSimpleNB)
     ne_interp = IMAS.interp1d(rho_cp, ne)
     Te_interp = IMAS.interp1d(rho_cp, Te)
 
-    ngrid = 100
+    ngrid = 25
 
     nmaxgroups = maximum(length(nbu.beamlets_group) for nbu in dd.nbi.unit)
     qbeam = zeros(nmaxgroups, nenergies, ncp1d)
@@ -137,11 +137,17 @@ function _step(actor::ActorSimpleNB)
             px = source_r
             py = 0.0
             pz = source_z
-            t_intersect1, t_intersect2 = IMAS.toroidal_intersections(eqt.boundary.outline.r, eqt.boundary.outline.z, px, py, pz, vx, vy, vz)
+
+            t_intersects = IMAS.toroidal_intersections(eqt.boundary.outline.r, eqt.boundary.outline.z, px, py, pz, vx, vy, vz; max_intersections=2)
+            if rin[end] < source_r < rout[end] && length(t_intersects) < 1
+                continue
+            elseif length(t_intersects) < 2
+                continue
+            end
             if rin[end] < source_r < rout[end]
-                tt = range(0.0, t_intersect1, ngrid)
+                tt = range(0.0, t_intersects[1], ngrid)
             else
-                tt = range(t_intersect1, t_intersect2, ngrid)
+                tt = range(t_intersects[1], t_intersects[2], ngrid)
             end
             Xs, Ys, Zs, Rs = IMAS.pencil_beam([source_r, 0.0, source_z], [vx, vy, vz], tt)
             phi = asin.(Ys ./ Rs)
