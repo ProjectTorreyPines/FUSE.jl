@@ -77,7 +77,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         Green_table = D[;;;]
     end
     eqt1d = dd.equilibrium.time_slice[].profiles_1d
-    display(plot(eqt1d.psi_norm, eqt1d.j_tor, yrange=(0,3e6)))
+    #display(plot(eqt1d.psi_norm, eqt1d.j_tor, yrange=(0,3e6)))
     actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
     actor.profile = FRESCO.PressureJt(dd)
 
