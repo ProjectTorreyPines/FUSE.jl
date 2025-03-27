@@ -10,7 +10,6 @@
     "core_profiles.global_quantities.v_loop",
     "core_profiles.profiles_1d[:].conductivity_parallel",
     "core_profiles.profiles_1d[:].electrons.density",
-    "core_profiles.profiles_1d[:].electrons.density_fast",
     "core_profiles.profiles_1d[:].electrons.pressure",
     "core_profiles.profiles_1d[:].electrons.pressure_fast_parallel",
     "core_profiles.profiles_1d[:].electrons.pressure_fast_perpendicular",
