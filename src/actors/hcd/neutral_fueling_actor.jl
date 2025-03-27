@@ -278,33 +278,35 @@ function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
 
     τp = par.τp
     T_wall = par.T_wall
-    
-    surface = dd.core_profiles.profiles_1d[].grid.surface
-    volume = dd.core_profiles.profiles_1d[].grid.volume
+    cp1d = dd.core_profiles.profiles_1d[]
+    eqt = dd.equilibrium.time_slice[]
 
-    Te = dd.core_profiles.profiles_1d[].electrons.temperature/1e3
-    rho = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
-    ne = dd.core_profiles.profiles_1d[].electrons.density/1e6
-    ni  = dd.core_profiles.profiles_1d[].ion[1].density/1e6
-    mi = dd.core_profiles.profiles_1d[].ion[1].element[1].a
-    kappa = dd.equilibrium.time_slice[].profiles_1d.elongation[end]
-    rmin = 0.5.*(dd.equilibrium.time_slice[].profiles_1d.r_outboard-
-                 dd.equilibrium.time_slice[].profiles_1d.r_inboard)
-    amin = 0.5.*(dd.equilibrium.time_slice[].profiles_1d.r_outboard[end]-
-                 dd.equilibrium.time_slice[].profiles_1d.r_inboard[end])
-    Rmaj = 0.5.*(dd.equilibrium.time_slice[].profiles_1d.r_outboard[end]+
-                 dd.equilibrium.time_slice[].profiles_1d.r_inboard[end])
+    surface = cp1d.grid.surface
+    volume = cp1d.grid.volume
+
+    Te = cp1d.electrons.temperature/1e3
+    rho = cp1d.grid.rho_tor_norm
+    ne = cp1d.electrons.density/1e6
+    ni  = cp1d.ion[1].density/1e6
+    mi = cp1d.ion[1].element[1].a
+    kappa = eqt.profiles_1d.elongation[end]
+    rmin = 0.5.*(eqt.profiles_1d.r_outboard-
+                 eqt.profiles_1d.r_inboard)
+    amin = 0.5.*(eqt.profiles_1d.r_outboard[end]-
+                 eqt.profiles_1d.r_inboard[end])
+    Rmaj = 0.5.*(eqt.profiles_1d.r_outboard[end]+
+                 eqt.profiles_1d.r_inboard[end])
     raneut = sqrt.(kappa).*amin
-    rhoa = dd.equilibrium.time_slice[].profiles_1d.rho_tor[end]
+    rhoa = eqt.profiles_1d.rho_tor[end]
     ratef = raneut / rhoa
     eionr = ratef .* eir(Te)
-    eirate = eir(dd.core_profiles.profiles_1d[].electrons.temperature/1e3).*ne
+    eirate = eir(cp1d.electrons.temperature/1e3).*ne
 
-    vth = 1e2 .* sqrt.(2*1.6e-19*(Te*1e3) ./ (mi*1.6e-27))
+    vth = 1e2 .* sqrt.(2*IMAS.mks.e*(Te*1e3) ./ (mi*IMAS.mks.m_p))
  
     a1 = ne .* eionr .+ ni .* cxr(Te/mi)
     b1 = ni .* cxr(Te/mi) 
-    vwall  = 100.0 * sqrt.(2.0*1.6e-19*T_wall ./ (mi*1.67e-27))
+    vwall  = 100.0 * sqrt.(2.0*IMAS.mks.e*T_wall ./ (mi*IMAS.mks.m_p))
     
     flux1 = IMAS.trapz(surface, ni)/τp
     swall = 2.0*flux1/vwall
@@ -402,8 +404,8 @@ function _step(actor::ActorNeutralFueling)
     end
 
     cp1d = dd.core_profiles.profiles_1d[]
-    resize!(cp1d.neutral, 1)[1]
-    actor.dd.core_profiles.profiles_1d[].neutral[1].density = nneut
+    neut = resize!(cp1d.neutral, "ion_index" => 1)
+    neut.density = nneut
 
     source = resize!(dd.core_sources.source, :gas_puff, "identifier.name" => "gas"; wipe=false)
     IMAS.new_source(source, source.identifier.index, "gas", cp1d.grid.rho_tor_norm, cp1d.grid.volume, cp1d.grid.area; electrons_particles=Sneut)
