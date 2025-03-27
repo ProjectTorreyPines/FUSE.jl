@@ -163,6 +163,10 @@ function _step(actor::ActorSimpleNB)
                 τ_th = IMAS.fast_ion_thermalization_time(cp1d, 1, nbu.species, beam_energy / ifpow)
                 power_launched = fpow * max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
                 power_launched_allenergies += power_launched
+                @ddtime(nbu.power_launched.data = power_launched_allenergies)
+                if power_launched == 0.0
+                    continue
+                end
 
                 vbeam = sqrt((IMAS.mks.e * beam_energy / ifpow) / (0.5 * beam_mass * IMAS.mks.m_p))
 
@@ -177,13 +181,10 @@ function _step(actor::ActorSimpleNB)
                 fbeam = exp.(-cross_section_t)
 
                 rbananas = IMAS.banana_width.(beam_energy / ifpow, B0, beam_Z, beam_mass, eps_interp.(rho_beam), q_interp.(rho_beam))
-                rho_beam_banana = similar(rho_beam)
-                for i in 1:ngrid
-                    rho_beam_banana[i] = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
-                end
 
                 for i in 1:ngrid-1
-                    @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam_banana[i]) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
+                    rho_beam_banana = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
+                    @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam_banana) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
                     gaus ./= IMAS.trapz(volume_cp, gaus)
                     @. qbeamtmp .= power_launched * group_power_frac * (fbeam[i] - fbeam[i+1]) .* gaus
                     @. qbeam[igroup, ifpow, :] .+= qbeamtmp
@@ -191,11 +192,10 @@ function _step(actor::ActorSimpleNB)
                     @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* ftors[i] / (beam_energy * IMAS.mks.e / ifpow)
                 end
             end
-            @ddtime(nbu.power_launched.data = power_launched_allenergies)
 
             for ifpow in eachindex(fbcur)
-                frac_ie = IMAS.sivukhin_fraction(cp1d, nbu.energy.data[1] / ifpow, nbu.species.a)
-                tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, nbu.energy.data[1] / ifpow, nbu.species.a, nbu.species.z_n)
+                frac_ie = IMAS.sivukhin_fraction(cp1d, beam_energy / ifpow, nbu.species.a)
+                tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, beam_energy / ifpow, nbu.species.a, nbu.species.z_n)
                 qbeame[igroup, ifpow, :] .= @views (1.0 .- frac_ie) .* qbeam[igroup, ifpow, :]
                 qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
                 curbi = @views IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
