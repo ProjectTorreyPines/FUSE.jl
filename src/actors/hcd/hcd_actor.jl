@@ -10,6 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:Pelletsimple, :replay, :none], "-", "Pellet source actor to run"; default=:Pelletsimple)
+    neutral_model::Switch{Symbol} = Switch{Symbol}([:neucg,:replay, :none], "-", "Pellet source actor to run"; default=:neucg)
 end
 
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
@@ -21,6 +22,7 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     lh_actor::Union{ActorSimpleLH{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     pellet_actor::Union{ActorSimplePL{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    neutral_actor::Union{ActorNeutralFueling{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -40,7 +42,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     par = par(kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop)
+    actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop, noop)
 
     @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
     # fill missing EC launcher hardware details
@@ -87,8 +89,13 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     elseif par.pellet_model == :replay
         actor.pellet_actor = ActorReplay(dd, act.ActorReplay, actor.pellet_actor)
     end
-
+    if par.neutral_model == :neucg
+        actor.neutral_actor = ActorNeutralFueling(dd, act.ActorNeutralFueling)
+    elseif par.neutral_model == :replay
+        actor.neutral_actor = ActorReplay(dd, act.ActorReplay, actor.neutral_actor)
+    end
     return actor
+
 end
 
 """
@@ -107,6 +114,7 @@ function _step(actor::ActorHCD)
     step(actor.lh_actor)
     step(actor.nb_actor)
     step(actor.pellet_actor)
+    step(actor.neutral_actor)
 
     return actor
 end
@@ -123,7 +131,7 @@ function _finalize(actor::ActorHCD)
     finalize(actor.lh_actor)
     finalize(actor.nb_actor)
     finalize(actor.pellet_actor)
-
+    finalize(actor.neutral_actor)
     return actor
 end
 
