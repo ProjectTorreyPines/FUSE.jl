@@ -20,8 +20,8 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     ec_actor::Union{ActorSimpleEC{D,P},ActorTORBEAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     lh_actor::Union{ActorSimpleLH{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
-    #nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
-    nb_actor::Union{ActorSimpleNB{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    #nb_actor::Union{ActorSimpleNB{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 
     pellet_actor::Union{ActorSimplePL{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     neutral_actor::Union{ActorNeutralFueling{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
