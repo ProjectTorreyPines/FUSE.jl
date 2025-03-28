@@ -63,6 +63,10 @@ function case_parameters(
         printe("- Fetching wall data")
         d3d.wall(ods, $shot)
 
+        printe("- Fetching coils data")
+        d3d.pf_active_hardware(ods, $shot)
+        d3d.pf_active_coil_current_data(ods, $shot)
+
         printe("- Fetching flux loops data")
         d3d.magnetics_floops_data(ods, $shot)
 
