@@ -180,7 +180,6 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:evolve_j_ohmic}}, δt::F
     if par.evolve_current
         if actor.actor_jt.par.model == :QED
             if par.ip_controller
-                control(ip_controller(actor.dd, δt))
                 # take vloop from controller
                 actor.actor_jt.jt_actor.par.solve_for = :vloop
                 actor.actor_jt.jt_actor.par.vloop_from = :controllers__ip

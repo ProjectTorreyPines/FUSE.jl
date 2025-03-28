@@ -68,13 +68,14 @@ function _step(actor::ActorQED)
     if par.Nt == 0
         # only initialize, nothing to do
 
-    elseif par.Δt != Inf
+    elseif par.Δt > 0.0 && par.Δt < Inf
         # current diffusion
         t0 = dd.global_time
         t1 = t0 + par.Δt
 
-        if false
-            # staircase approach to track current ramps: one QED diffuse call for each time step
+        if par.solve_for == :vloop && par.vloop_from == :controllers__ip
+            # staircase approach to call Ip control at each step of the current ramp: one QED diffuse call for each time step
+            # NOTE: `QED.diffuse` is inefficient, would be beneficial to have a `QED.diffuse!` function without allocations
             δt = par.Δt / par.Nt
             No = par.Nt
             Ni = 1
@@ -89,6 +90,10 @@ function _step(actor::ActorQED)
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0) * ratio
                 Vedge = nothing
             else
+                # run Ip controller if vloop_from == :controllers__ip
+                if par.vloop_from == :controllers__ip
+                    control(ip_controller(actor.dd, δt); time0)
+                end
                 Ip = nothing
                 Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0) * ratio
             end
@@ -102,6 +107,9 @@ function _step(actor::ActorQED)
             end
 
             actor.QO = QED.diffuse(actor.QO, η_Jardin(dd.core_profiles.profiles_1d[time0], i_qdes), δt, Ni; Vedge, Ip, debug=false)
+
+            B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+            cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
         end
 
     elseif par.Δt == Inf
@@ -126,19 +134,13 @@ function _step(actor::ActorQED)
                 break
             end
         end
+
+        B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+
+    else
+        error("act.ActorQED.Δt = $(par.Δt) is not valid")
     end
-    return actor
-end
-
-function _finalize(actor::ActorQED)
-    dd = actor.dd
-
-    eqt = dd.equilibrium.time_slice[]
-    cp1d = dd.core_profiles.profiles_1d[]
-
-    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-
     return actor
 end
 
