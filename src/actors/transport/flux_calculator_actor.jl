@@ -14,7 +14,7 @@ mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorFluxCalculator{P}}
     act::ParametersAllActors{P}
-    actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorNoOperation{D,P}}
+    actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorAnalyticalTurbulence{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
 end
 
@@ -35,18 +35,16 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
     par = OverrideParameters(par; kw...)
 
     if par.turbulence_model == :none
-        logging(Logging.Debug, :actors, "ActorFluxCalculator: turbulent transport disabled")
         actor_turb = ActorNoOperation(dd, act.ActorNoOperation)
     elseif par.turbulence_model == :TGLF
-        act.ActorTGLF.rho_transport = par.rho_transport
-        actor_turb = ActorTGLF(dd, act.ActorTGLF)
+        actor_turb = ActorTGLF(dd, act.ActorTGLF; par.rho_transport)
     elseif par.turbulence_model == :QLGYRO
-        act.ActorQLGYRO.rho_transport = par.rho_transport
-        actor_turb = ActorQLGYRO(dd, act.ActorQLGYRO)
+        actor_turb = ActorQLGYRO(dd, act.ActorQLGYRO; par.rho_transport)
+    elseif par.turbulence_model == :Analytical
+        actor_turb = ActorAnalyticalTurbulence(dd, act.ActorAnalyticalTurbulence; par.rho_transport)
     end
 
     if par.neoclassical_model == :none
-        logging(Logging.Debug, :actors, "ActorFluxCalculator: neoclassical transport disabled")
         actor_neoc = ActorNoOperation(dd, act.ActorNoOperation)
     elseif par.neoclassical_model == :neoclassical
         act.ActorNeoclassical.rho_transport = par.rho_transport

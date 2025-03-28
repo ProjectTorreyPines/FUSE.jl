@@ -31,7 +31,7 @@ mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}
     input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
-    flux_solutions::Union{Vector{<:GACODE.FluxSolution},Any}
+    flux_solutions::Vector{<:GACODE.FluxSolution}
 end
 
 """
