@@ -106,7 +106,7 @@ function _step(actor::ActorDynamicPlasma)
     old_logging = actor_logging(dd, false)
 
     try
-        for (kk, tt) in enumerate(range(t0, t1, 2 * Nt+1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
+        for (kk, tt) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
             progr = (prog, t0, t1, phase)
 
@@ -142,8 +142,15 @@ function _step(actor::ActorDynamicPlasma)
     return actor
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:time_advance}}, δt::Float64; progr=nothing,
-    retime_equilibrium::Bool=false, retime_core_sources::Bool=false, retime_core_profiles::Bool=false)
+function substep(
+    actor::ActorDynamicPlasma,
+    ::Type{Val{:time_advance}},
+    δt::Float64;
+    progr=nothing,
+    retime_equilibrium::Bool=false,
+    retime_core_sources::Bool=false,
+    retime_core_profiles::Bool=false
+)
     # time_advance
     dd = actor.dd
     if retime_equilibrium
@@ -357,6 +364,20 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
             lw=2.0,
             subplot
         )
+    else
+        plot!([NaN], [NaN]; color=:red, label="Vloop [mV]", lw=2.0, subplot)
+        time, data = IMAS.vloop_time(dd.core_profiles, dd.equilibrium)#; method=:edge)
+        plot!(
+            twinx(),
+            time,
+            data .* 1E3;
+            seriestype=:time,
+            color=:red,
+            ylabel="Vloop [mV]",
+            label="",
+            lw=2.0,
+            subplot
+        )
     end
     vline!([time0]; label="", subplot)
 
@@ -386,7 +407,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         plot!(dd1.core_profiles.profiles_1d[time0]; color=:black, only=1, subplot, normalization=1E-3, label="")
     end
     if dd !== dd1
-        plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]", legend_foreground_color=:transparent)#, ylim=(0.0, 23.0))
+        plot!(cp1d; only=1, lw=2.0, subplot, normalization=1E-3, ylabel="[keV]", legend_foreground_color=:transparent)
     end
 
     # core_profiles densities
@@ -396,7 +417,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         plot!(dd1.core_profiles.profiles_1d[time0]; color=:black, only=2, subplot, label="")
     end
     if dd !== dd1
-        plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]", legend=:left, legend_foreground_color=:transparent)#, ylim=(0.0, 1.3E20))
+        plot!(cp1d; only=2, lw=2.0, subplot, ylabel="[m⁻³]", legend=:left, legend_foreground_color=:transparent)
     end
 
     # q
@@ -444,8 +465,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     #     legend_foreground_color=:transparent,
     #     title="Parallel current",
     #     normalization=1E-6,
-    #     ylabel="[MA]",
-    #     #ylim=(0.0, 10.0)
+    #     ylabel="[MA]"
     # )
 
     subplot = 6
@@ -462,7 +482,6 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         title="Electron power source",
         normalization=1E-6,
         ylabel="[MW]"
-        #ylim=(-20.0, 41.0)
     )
 
     subplot = 7
@@ -479,7 +498,6 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         title="Ion power source",
         normalization=1E-6,
         ylabel="[MW]"
-        #ylim=(-20.0, 41.0)
     )
 
     subplot = 8
@@ -495,23 +513,22 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         legend_foreground_color=:transparent,
         title="Particle source",
         ylabel="[s⁻¹]"
-        #ylim=(-0.3E20, 1.1E20)
     )
 
     # transport
     #subplot=9
     #plot!(dd.core_transport; time0, only=4, subplot)
     subplot = 10
-    plot!(dd.core_transport; time0, only=1, subplot, legend=:topleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
+    plot!(dd.core_transport; time0, only=1, subplot, legend=:topleft, legend_foreground_color=:transparent)
     subplot = 11
-    plot!(dd.core_transport; time0, only=2, subplot, legend=:topleft, legend_foreground_color=:transparent)#, ylim=(0.0, 0.3))
+    plot!(dd.core_transport; time0, only=2, subplot, legend=:topleft, legend_foreground_color=:transparent)
     subplot = 12
-    plot!(dd.core_transport; time0, only=3, subplot, legend=:topleft, legend_foreground_color=:transparent)#, ylim=(0.0, 6.5E17))
+    plot!(dd.core_transport; time0, only=3, subplot, legend=:topleft, legend_foreground_color=:transparent)
 
     # # inverse scale lengths
     # max_scale = 5
     # subplot = 14
-    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order); subplot, ylim=(-max_scale, max_scale), lw=2.0)
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order); subplot, lw=2.0)
     # subplot = 15
     # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :third_order); subplot, ylim=(-max_scale, max_scale), lw=2.0)
     # subplot = 16
