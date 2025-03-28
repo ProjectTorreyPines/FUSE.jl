@@ -82,10 +82,16 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
             nbu.name = length(ini.nb_unit) > 1 ? "nbi_$idx" : "nbi"
         end
         ps_nbu.name = nbu.name
-        @ddtime(nbu.energy.data = ini_nbu.beam_energy)
+
         nbu.available_launch_power = maximum(ps_nbu.power.reference)
         nbu.species.a = ini_nbu.beam_mass
         nbu.species.z_n = 1.0
+
+        # energy and current fractions as constants
+        nbu.energy.time = [-Inf]
+        nbu.energy.data = [ini_nbu.beam_energy]
+        nbu.beam_current_fraction.time = [-Inf]
+        nbu.beam_current_fraction.data = [ini_nbu.beam_current_fraction;;]
 
         # 1 beamlet
         if ini_nbu.template_beam != :none
@@ -96,8 +102,6 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
             beamlet.position.r = eqt.profiles_1d.r_outboard[end] * 1.1
             beamlet.position.z = 0.0
             beamlet.tangency_radius = ini_nbu.normalized_tangency_radius * 0.5 * (eqt.profiles_1d.r_inboard[end] + eqt.profiles_1d.r_outboard[end])
-
-            @ddtime(nbu.beam_current_fraction.data = ini_nbu.beam_current_fraction)
 
             if ini_nbu.current_direction == :co
                 beamlet.direction = 1
@@ -110,6 +114,8 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
                 beamlet.angle = 0.0
             end
         end
+
+        # default divergence_component if they are not specified
         for beamlets_group in nbu.beamlets_group
             if isempty(beamlets_group, :divergence_component)
                 divc = resize!(beamlets_group.divergence_component, 1)[1]
