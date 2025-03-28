@@ -79,7 +79,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     end
 
     actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
-    actor.profile = FRESCO.PressureJt(dd; grid=fixed_grid)
+    actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
 
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
