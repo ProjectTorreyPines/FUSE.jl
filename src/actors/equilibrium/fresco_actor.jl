@@ -85,7 +85,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
-# finalize by converting FRESCO canvas to dd.equilibrium
+# finalize by converting FRESCO canvas to dd.equilibrium and updating currents in dd.pf_active and dd.pf_passive
 function _finalize(actor::ActorFRESCO)
     canvas = actor.canvas
     profile = actor.profile
@@ -122,6 +122,11 @@ function _finalize(actor::ActorFRESCO)
     eq2d.grid.dim2 = collect(range(canvas.Zs[1], canvas.Zs[end], Npsi))
     FRESCO.update_interpolation!(canvas)
     eq2d.psi = [canvas._Ψitp(r, z) for r in eq2d.grid.dim1, z in eq2d.grid.dim2]
+
+    # Set the currents in the pf_active and pf_passive
+    for (icoil, mcoil) in zip(dd.pf_active.coil, actor.canvas.coils)
+        VacuumFields.set_current!(icoil, VacuumFields.current(mcoil))
+    end
 
     return actor
 end
