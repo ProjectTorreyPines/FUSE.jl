@@ -10,7 +10,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf, check=x -> @assert x >= 0 "Δt must be >= 0.0")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100, check=x -> @assert x > 0 "Nt must be > 0")
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
-    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "Keep the minimum magnitude of the q-profile above this value"; default=1.0, check=x -> @assert x >= 0 "qmin_desired >= 0")
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -58,11 +57,6 @@ function _step(actor::ActorQED)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # non_inductive contribution
-    if par.solve_for == :ip && par.allow_floating_plasma_current
-        ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
-    end
-
     # initialize QED
     actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
 
@@ -94,10 +88,6 @@ function _step(actor::ActorQED)
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0) * ratio
                 Vedge = nothing
-                if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
-                    Ip = nothing
-                    Vedge = 0.0
-                end
             else
                 Ip = nothing
                 Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0) * ratio
@@ -119,10 +109,6 @@ function _step(actor::ActorQED)
         if par.solve_for == :ip
             Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from) * ratio
             Vedge = nothing
-            if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
-                Ip = nothing
-                Vedge = 0.0
-            end
         else
             Ip = nothing
             Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from) * ratio

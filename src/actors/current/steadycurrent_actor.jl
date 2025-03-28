@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: P
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
+    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip"; default=true)
     current_relaxation_radius::Entry{Float64} = Entry{Float64}(
         "-",
         "Radial position at which the artificial ohmic current profile relaxation starts to kick in";

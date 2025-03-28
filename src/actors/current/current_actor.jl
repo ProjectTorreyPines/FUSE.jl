@@ -6,7 +6,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T<:Real} <: ParametersAc
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED, :replay, :none], "-", "Current actor to run"; default=:QED)
-    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip"; default=true)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
@@ -46,9 +45,9 @@ function ActorCurrent(dd::IMAS.dd, par::FUSEparameters__ActorCurrent, act::Param
     actor = ActorCurrent(dd, par, act, noop)
 
     if par.model == :SteadyStateCurrent
-        actor.jt_actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; par.ip_from, par.allow_floating_plasma_current)
+        actor.jt_actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; par.ip_from)
     elseif par.model == :QED
-        actor.jt_actor = ActorQED(dd, act.ActorQED; par.ip_from, par.vloop_from, par.allow_floating_plasma_current)
+        actor.jt_actor = ActorQED(dd, act.ActorQED; par.ip_from, par.vloop_from)
     elseif par.model == :replay
         actor.jt_actor = ActorReplay(dd, act.ActorReplay, actor)
     end
