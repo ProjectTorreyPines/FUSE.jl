@@ -167,9 +167,15 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
     # Pick a reasonable launch location
     if ismissing(ecb.launching_position, :r) || ismissing(ecb.launching_position, :z)
         fw = IMAS.first_wall(wall)
-        index = argmax(fw.r .+ fw.z)
-        @ddtime(ecb.launching_position.r = fw.r[index])
-        @ddtime(ecb.launching_position.z = fw.z[index])
+        if !isempty(fw.r)
+            index = argmax(fw.r .+ fw.z)
+            @ddtime(ecb.launching_position.r = fw.r[index])
+            @ddtime(ecb.launching_position.z = fw.z[index])
+        else
+            index = argmax(eqt.boundary.outline.r .+ eqt.boundary.outline.z)
+            @ddtime(ecb.launching_position.r = eqt.boundary.outline.r[index])
+            @ddtime(ecb.launching_position.z = eqt.boundary.outline.z[index])
+        end
     end
     if ismissing(ecb.launching_position, :phi)
         @ddtime(ecb.launching_position.phi = 0.0)
