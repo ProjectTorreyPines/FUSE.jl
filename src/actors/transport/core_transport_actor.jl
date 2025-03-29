@@ -11,7 +11,7 @@ end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCoreTransport{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCoreTransport{P}}
     act::ParametersAllActors{P}
     tr_actor::Union{ActorFluxMatcher{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
@@ -30,7 +30,7 @@ end
 
 function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCoreTransport)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorCoreTransport(dd, par, act, noop)

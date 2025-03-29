@@ -17,13 +17,13 @@ end
 
 mutable struct ActorCoreRadHeatFlux{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCoreRadHeatFlux{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCoreRadHeatFlux{P}}
     wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
 end
 
 function ActorCoreRadHeatFlux(dd::IMAS.dd{D}, par::FUSEparameters__ActorCoreRadHeatFlux{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCoreRadHeatFlux)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorCoreRadHeatFlux(dd, par, nothing)
 end
 

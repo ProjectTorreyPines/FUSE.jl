@@ -10,7 +10,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf, check=x -> @assert x >= 0 "Δt must be >= 0.0")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100, check=x -> @assert x > 0 "Nt must be > 0")
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
-    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "Keep the minimum magnitude of the q-profile above this value"; default=1.0, check=x -> @assert x >= 0 "qmin_desired >= 0")
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)
@@ -19,7 +18,7 @@ end
 
 mutable struct ActorQED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorQED{P}
+    par::OverrideParameters{P,FUSEparameters__ActorQED{P}}
     QO::Union{Nothing,QED.QED_state}
 end
 
@@ -28,6 +27,8 @@ end
 
 Evolves the plasma current using the QED current diffusion solver.
 
+The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
+
 !!! note
 
     This actor operates at "dd.global_time", any time advance must be done outside of the actor
@@ -35,10 +36,6 @@ Evolves the plasma current using the QED current diffusion solver.
         IMAS.new_timeslice!(dd, dd.global_time + Δt)
         dd.global_time += Δt
         ActorQED(dd, act)
-
-!!! note
-
-    Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
 """
 function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorQED(dd, act.ActorQED; kw...)
@@ -49,7 +46,7 @@ end
 
 function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED; kw...)
     logging_actor_init(ActorQED)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorQED(dd, par, nothing)
 end
 
@@ -60,30 +57,25 @@ function _step(actor::ActorQED)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # non_inductive contribution
-    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    JBni = QED.FE(cp1d.grid.rho_tor_norm, cp1d.j_non_inductive .* B0)
-    if par.solve_for == :ip && par.allow_floating_plasma_current
-        ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
-    end
-
     # initialize QED
-    if actor.QO === nothing || par.Δt == Inf
-        actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
-    else
-        actor.QO.JBni = JBni
-    end
+    actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
+
+    # QED calculates the total current based on q, which goes to infinity at the separatrix
+    # this leads to some small but not negligible difference in the total current calculated
+    # internally by QED and the one from `dd`.
+    ratio = QED.Ip(actor.QO) / IMAS.Ip(cp1d, eqt)
 
     if par.Nt == 0
         # only initialize, nothing to do
 
-    elseif par.Δt != Inf
+    elseif par.Δt > 0.0 && par.Δt < Inf
         # current diffusion
         t0 = dd.global_time
         t1 = t0 + par.Δt
 
-        if false
-            # staircase approach to track current ramps: one QED diffuse call for each time step
+        if par.solve_for == :vloop && par.vloop_from == :controllers__ip
+            # staircase approach to call Ip control at each step of the current ramp: one QED diffuse call for each time step
+            # NOTE: `QED.diffuse` is inefficient, would be beneficial to have a `QED.diffuse!` function without allocations
             δt = par.Δt / par.Nt
             No = par.Nt
             Ni = 1
@@ -93,17 +85,17 @@ function _step(actor::ActorQED)
             Ni = par.Nt
         end
 
-        for time0 in range(t0 + δt / 2.0, t1 + δt / 2.0, No + 1)[1:end-1]
+        for time0 in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
-                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
+                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0) * ratio
                 Vedge = nothing
-                if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
-                    Ip = nothing
-                    Vedge = 0.0
-                end
             else
+                # run Ip controller if vloop_from == :controllers__ip
+                if par.vloop_from == :controllers__ip
+                    control(ip_controller(actor.dd, δt); time0)
+                end
                 Ip = nothing
-                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0)
+                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0) * ratio
             end
 
             # check where q<1 based on the the q-profile at the previous
@@ -115,20 +107,19 @@ function _step(actor::ActorQED)
             end
 
             actor.QO = QED.diffuse(actor.QO, η_Jardin(dd.core_profiles.profiles_1d[time0], i_qdes), δt, Ni; Vedge, Ip, debug=false)
+
+            B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+            cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
         end
 
     elseif par.Δt == Inf
         # steady state solution
         if par.solve_for == :ip
-            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from) * ratio
             Vedge = nothing
-            if par.allow_floating_plasma_current && abs(Ip) < abs(ip_non_inductive)
-                Ip = nothing
-                Vedge = 0.0
-            end
         else
             Ip = nothing
-            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
+            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from) * ratio
         end
 
         # we need to run steady state twice, the first time to find the q-profile when the
@@ -143,26 +134,13 @@ function _step(actor::ActorQED)
                 break
             end
         end
-    end
 
-    return actor
-end
+        B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
 
-function _finalize(actor::ActorQED)
-    dd = actor.dd
-
-    eqt = dd.equilibrium.time_slice[]
-    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-
-    cp1d = dd.core_profiles.profiles_1d[]
-    j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-
-    if ismissing(cp1d, :j_non_inductive)
-        cp1d.j_ohmic = j_total
     else
-        cp1d.j_ohmic = j_total .- cp1d.j_non_inductive
+        error("act.ActorQED.Δt = $(par.Δt) is not valid")
     end
-
     return actor
 end
 

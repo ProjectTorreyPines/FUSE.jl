@@ -12,13 +12,13 @@ end
 
 mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorRABBIT{P}
+    par::OverrideParameters{P,FUSEparameters__ActorRABBIT{P}}
     outputs::Union{RABBIT.RABBIToutput,Vector{<:RABBIT.RABBIToutput}}
 end
 
 function ActorRABBIT(dd::IMAS.dd, par::FUSEparameters__ActorRABBIT; kw...)
     logging_actor_init(ActorRABBIT)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorRABBIT(dd, par, RABBIT.RABBIToutput[])
 end
 

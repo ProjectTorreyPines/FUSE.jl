@@ -66,7 +66,7 @@ function from_TokSys(dd::IMAS.dd, mat::Dict; what...)
         end
         resize!(dd.equilibrium.time_slice, length(eq_time))
         for (k, eqt) in enumerate(dd.equilibrium.time_slice)
-            eq1d = eqt.profiles_1d
+            eqt1d = eqt.profiles_1d
             eq2d = resize!(eqt.profiles_2d, 1)[1]
             eq2d.grid_type.index = 1
 
@@ -76,13 +76,13 @@ function from_TokSys(dd::IMAS.dd, mat::Dict; what...)
             eqt.global_quantities.ip = -ip[k]
 
             # N.B. psi is poloidal flux, but pprime and ffprim are wrt poloidal flux per radian
-            eq1d.psi = range(psimag[k], psibry[k], length(psi_norm))
+            eqt1d.psi = range(psimag[k], psibry[k], length(psi_norm))
 
-            eq1d.q = q[:, k]
-            eq1d.pressure = pres[:, k] .+ 5e-4 .* pres[1, k]
-            eq1d.dpressure_dpsi = pprime[:, k] ./ 2π # make psi consistent
-            eq1d.f = fpol[:, k]
-            eq1d.f_df_dpsi = ffprim[:, k] ./ 2π # make psi consistent
+            eqt1d.q = q[:, k]
+            eqt1d.pressure = pres[:, k] .+ 5e-4 .* pres[1, k]
+            eqt1d.dpressure_dpsi = pprime[:, k] ./ 2π # make psi consistent
+            eqt1d.f = fpol[:, k]
+            eqt1d.f_df_dpsi = ffprim[:, k] ./ 2π # make psi consistent
 
             eq2d.grid.dim1 = rg
             eq2d.grid.dim2 = zg

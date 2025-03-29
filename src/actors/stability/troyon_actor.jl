@@ -13,13 +13,13 @@ end
 
 mutable struct ActorTroyonBetaNN{D,P} <: AbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorTroyonBetaNN{P}
+    par::OverrideParameters{P,FUSEparameters__ActorTroyonBetaNN{P}}
     TD::TroyonBetaNN.Troyon_Data
 end
 
 function ActorTroyonBetaNN(dd::IMAS.dd{D}, par::FUSEparameters__ActorTroyonBetaNN{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTroyonBetaNN)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     TD = TroyonBetaNN.load_predefined_Troyon_NN_Models()
     return ActorTroyonBetaNN{D,P}(dd, par, TD)
 end

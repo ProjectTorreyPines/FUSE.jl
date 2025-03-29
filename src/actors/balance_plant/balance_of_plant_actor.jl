@@ -9,7 +9,7 @@ end
 
 mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorBalanceOfPlant{P}
+    par::OverrideParameters{P,FUSEparameters__ActorBalanceOfPlant{P}}
     act::ParametersAllActors{P}
     thermal_plant_actor::ActorThermalPlant{D}
     power_needs_actor::ActorPowerNeeds{D}
@@ -33,7 +33,7 @@ end
 
 function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPlant, act::ParametersAllActors; kw...)
     logging_actor_init(ActorBalanceOfPlant)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     # set the time
     @ddtime(dd.balance_of_plant.time = dd.global_time)

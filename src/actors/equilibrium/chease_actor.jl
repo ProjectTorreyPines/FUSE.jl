@@ -15,7 +15,7 @@ end
 
 mutable struct ActorCHEASE{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCHEASE{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCHEASE{P}}
     act::ParametersAllActors{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
@@ -34,7 +34,7 @@ end
 
 function ActorCHEASE(dd::IMAS.dd{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCHEASE)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorCHEASE(dd, par, act, nothing)
 end
 

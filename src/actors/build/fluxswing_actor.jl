@@ -17,10 +17,10 @@ end
 
 mutable struct ActorFluxSwing{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorFluxSwing{P}
+    par::OverrideParameters{P,FUSEparameters__ActorFluxSwing{P}}
     function ActorFluxSwing(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFluxSwing)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

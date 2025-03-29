@@ -12,13 +12,13 @@ end
 
 mutable struct ActorTORBEAM{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorTORBEAM{P}
+    par::OverrideParameters{P,FUSEparameters__ActorTORBEAM{P}}
     torbeam_params::TORBEAM.TorbeamParams
 end
 
 function ActorTORBEAM(dd::IMAS.dd, par::FUSEparameters__ActorTORBEAM; kw...)
     logging_actor_init(ActorTORBEAM)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorTORBEAM(dd, par, TORBEAM.TorbeamParams())
 end
 

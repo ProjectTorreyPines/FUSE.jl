@@ -16,12 +16,12 @@ end
 
 mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEGGO{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEGGO{P}}
     act::ParametersAllActors{P}
-    green::Dict{Symbol,Any}
-    basis_functions::Dict{Symbol,Any}
-    basis_functions_1d::Dict{Any,Any}
-    NNmodel::Dict{Any,Any}
+    green::Dict
+    basis_functions::Dict
+    basis_functions_1d::Dict
+    NNmodel::Dict
 end
 
 """
@@ -38,7 +38,7 @@ end
 
 function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorEGGO)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     model_name = :d3d_efit01
     green = EGGO.get_greens_function_tables(model_name)
@@ -71,7 +71,24 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     pp_fit, ffp_fit = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d)
 
     # make actual prediction
-    Jt, psirz, Ip, fcurrt = EGGO.predict_model(bound_mxh, pp_fit, ffp_fit, ecurrt_target, actor.NNmodel, actor.green, actor.basis_functions, nothing)
+    Jt, psirz, Ip, fcurrt = EGGO.predict_model(bound_mxh, pp_fit, ffp_fit, ecurrt_target, actor.NNmodel, actor.green, actor.basis_functions)
+
+    # average out EGGO solution with previous time slice(s)
+    # until EGGO becomes a bit more robust
+    n = 2 # number of time slices to average
+    i = IMAS.index(eqt)
+    if i > n
+        d = 1.0
+        for k in 1:n
+            eqt0 = dd.equilibrium.time_slice[i-k]
+            eqt02d = findfirst(:rectangular, eqt0.profiles_2d)
+            if size(eqt02d.psi) == size(psirz)
+                psirz .+= (eqt02d.psi ./ 2pi)
+                d += 1
+            end
+        end
+        psirz ./= d
+    end
 
     # pp' and ff' that were actually used in EGGO
     pp = zero(actor.basis_functions_1d[:pp][1, :])
@@ -90,6 +107,5 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
 
     # fill out eqt quantities
     EGGO.fill_eqt(eqt, psirz, actor.green, wall, pp, ffp, b0, r0, pend)
-
     return actor
 end

@@ -17,13 +17,13 @@ end
 
 mutable struct ActorParticleHeatFlux{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorParticleHeatFlux{P}
+    par::OverrideParameters{P,FUSEparameters__ActorParticleHeatFlux{P}}
     wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
 end
 
 function ActorParticleHeatFlux(dd::IMAS.dd{D}, par::FUSEparameters__ActorParticleHeatFlux{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorParticleHeatFlux)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorParticleHeatFlux(dd, par, nothing)
 end
 

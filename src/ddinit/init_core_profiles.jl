@@ -227,6 +227,7 @@ function init_core_profiles!(
     @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - w_ped
     @ddtime summary.local.pedestal.zeff.value = zeff
     @ddtime summary.local.pedestal.t_e.value = Te_ped
+    @ddtime summary.local.pedestal.t_i_average.value = Te_ped * Ti_Te_ratio
 
     # rotation
     if plasma_mode == :H_mode

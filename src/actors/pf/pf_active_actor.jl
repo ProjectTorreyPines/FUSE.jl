@@ -20,7 +20,7 @@ end
 
 mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPFactive{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPFactive{P}}
     eqt_out::IMAS.equilibrium__time_slice{D}
     iso_control_points::Vector{VacuumFields.IsoControlPoint{Float64}}
     flux_control_points::Vector{VacuumFields.FluxControlPoint{Float64}}
@@ -47,7 +47,7 @@ end
 
 function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     control_points = equilibrium_control_points(dd.equilibrium.time_slice[], dd.pulse_schedule.position_control; par.x_points_weight, par.strike_points_weight)
 

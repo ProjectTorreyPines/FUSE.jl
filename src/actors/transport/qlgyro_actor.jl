@@ -1,5 +1,6 @@
 import TGLFNN
 import TGLFNN: InputQLGYRO, InputCGYRO
+import GACODE
 
 #= =========== =#
 #  ActorQLGYRO  #
@@ -8,13 +9,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:QLGYRO], "-", "Implementation of QLGYRO"; default=:QLGYRO)
     ky::Entry{Float64} = Entry{Float64}("-", "Max ky"; default=1.6)
     nky::Entry{Int} = Entry{Int}("-", "Number of ky modes"; default=16)
     cpu_per_ky::Entry{Int} = Entry{Int}("-", "Number of cpus per ky"; default=1)
     kygrid_model::Entry{Int} = Entry{Int}("-", "TGLF ky grid model"; default=0)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat1, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
-    n_field::Entry{Int} = Entry{Int}( "-", "1:phi, 2:phi+apar, 3:phi+apar+bpar"; default=1, check=x -> @assert 1 <= x <= 3 "n_fields must be either 1,2 or 3")
+    n_field::Entry{Int} = Entry{Int}("-", "1:phi, 2:phi+apar, 3:phi+apar+bpar"; default=1, check=x -> @assert 1 <= x <= 3 "n_fields must be either 1,2 or 3")
     delta_t::Entry{Float64} = Entry{Float64}("-", "CGYRO step size "; default=0.005)
     max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.0)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
@@ -23,10 +23,10 @@ end
 
 mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorQLGYRO{P}
+    par::OverrideParameters{P,FUSEparameters__ActorQLGYRO{P}}
     input_qlgyros::Vector{<:InputQLGYRO}
     input_cgyros::Vector{<:InputCGYRO}
-    flux_solutions::Union{Vector{<:IMAS.flux_solution},Any}
+    flux_solutions::Vector{<:GACODE.FluxSolution}
 end
 
 """
@@ -43,10 +43,10 @@ end
 
 function ActorQLGYRO(dd::IMAS.dd, par::FUSEparameters__ActorQLGYRO; kw...)
     logging_actor_init(ActorQLGYRO)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
     input_CGYROs = Vector{InputCGYRO}(undef, length(par.rho_transport))
-    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, IMAS.flux_solution[])
+    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, GACODE.FluxSolution[])
 end
 
 """
@@ -55,8 +55,8 @@ end
 Runs QLGYRO actor to evaluate the turbulence flux on a vector of gridpoints
 """
 function _step(actor::ActorQLGYRO)
-    par = actor.par
     dd = actor.dd
+    par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
     ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
@@ -83,8 +83,8 @@ function _step(actor::ActorQLGYRO)
         actor.input_cgyros[k].DELTA_T = par.delta_t
         actor.input_cgyros[k].MAX_TIME = par.max_time
 
-	actor.input_cgyros[k].DELTA_T_METHOD = 1
-	actor.input_cgyros[k].FREQ_TOL = 0.01
+        actor.input_cgyros[k].DELTA_T_METHOD = 1
+        actor.input_cgyros[k].FREQ_TOL = 0.01
     end
 
     actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
@@ -104,11 +104,11 @@ function _finalize(actor::ActorQLGYRO)
     eqt = dd.equilibrium.time_slice[]
 
     model = resize!(dd.core_transport.model, :anomalous; wipe=false)
-    model.identifier.name = string(par.model)
+    model.identifier.name = "QLGYRO"
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux,  :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end
