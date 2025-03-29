@@ -109,10 +109,10 @@ function _step(actor::ActorDivertors)
             @ddtime(target.power_incident.data = power_incident)
         end
 
-        @ddtime(divertor.power_thermal_extracted.data = par.thermal_power_extraction_efficiency * @ddtime(divertor.power_incident.data))
-
         # update totals
         IMAS.divertor_totals_from_targets!(divertor)
+
+        @ddtime(divertor.power_thermal_extracted.data = par.thermal_power_extraction_efficiency * @ddtime(divertor.power_incident.data))
     end
 
     return actor
