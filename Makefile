@@ -404,7 +404,7 @@ deps_tree:
 
 # @devs
 deps_dag:
-# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
+# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages (install dot with `brew install graphviz`)
 	@julia -e' ;\
 	fuse_packages = $(FUSE_PACKAGES_ALL);\
 	println(fuse_packages);\
