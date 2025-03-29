@@ -49,7 +49,6 @@
     "pulse_schedule.lh.power.reference",
     "pulse_schedule.nbi.power.reference",
     "pulse_schedule.tf.b_field_tor_vacuum_r.reference",
-    "pulse_schedule.time",
     "summary.fusion.power.value",
     "summary.global_quantities.beta_pol_mhd.value",
     "summary.global_quantities.beta_tor.value",
