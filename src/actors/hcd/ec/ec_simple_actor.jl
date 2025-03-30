@@ -75,7 +75,7 @@ function _step(actor::ActorSimpleEC)
         angle_tor = @ddtime(ecb.steering_angle_tor)
         t_intersect = IMAS.toroidal_intersection(resonance_layer.r, resonance_layer.z, launch_r, 0.0, launch_z, angle_pol, angle_tor)
         if isnan(t_intersect)
-            @warn "ECH $(ecb.name) does not intersect resonance layer: setting power to 0.0"
+            @warn "ECH `$(ecb.name)` does not intersect resonance layer: setting power to 0.0"
             t_intersect = 1.0
             power_launched = 0.0
         end
