@@ -860,7 +860,7 @@ end
 Checks if there are any NaNs in the output
 """
 function check_output_fluxes(output::Vector{Float64}, what::String)
-    @assert isnothing(findfirst(x -> isnan(x), output)) "The output flux is NaN check your transport model fluxes in core_transport ($(what))"
+    @assert !any(isnan, output) "The transport flux is NaN check your transport model fluxes in dd.core_transport ($(what)): $(output)"
 end
 
 function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) where {T<:Real}
