@@ -23,11 +23,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
-    optimizer_algorithm::Switch{Symbol} =
-        Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none],
-            "-",
-            "Optimizing algorithm used for the flux matching";
-            default=:anderson)
+    algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -36,7 +32,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     )
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
-    norms::Entry{Vector{Float64}} = Entry{Vector{Float64}}("-", "Relative normalization of different channels")
+    scale_turbulence_law::Switch{Symbol} = Switch{Symbol}([:h98, :ds03], "-", "Scale turbulent transport to achieve a desired confinement law")
+    scale_turbulence_value::Entry{Float64} = Entry{Float64}(
+        "-",
+        "Scale turbulent transport to achieve a desired confinement value for the `scale_turbulence_law`";
+        default=1.0,
+        check=x -> @assert x > 0.0 "must be: turbulence_scale_value > 0.0"
+    )
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -118,22 +120,28 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
+    if ismissing(par, :scale_turbulence_law)
+        opt_parameters = z_init_scaled
+    else
+        opt_parameters = [1.0; z_init_scaled]
+    end
+
     out = try
-        if par.optimizer_algorithm == :none
-            res = (zero=z_init_scaled,)
-        elseif par.optimizer_algorithm == :simple
-            res = flux_match_simple(actor, z_init_scaled, initial_cp1d, initial_summary_ped, z_scaled_history, err_history, ftol, xtol, prog)
+        if par.algorithm == :none
+            res = (zero=opt_parameters,)
+        elseif par.algorithm == :simple
+            res = flux_match_simple(actor, opt_parameters, initial_cp1d, initial_summary_ped, z_scaled_history, err_history, ftol, xtol, prog)
         else
-            if par.optimizer_algorithm == :newton
+            if par.algorithm == :newton
                 opts = Dict(:method => :newton, :factor => par.step_size)
-            elseif par.optimizer_algorithm == :anderson
+            elseif par.algorithm == :anderson
                 opts = Dict(:method => :anderson, :m => 4, :beta => -par.step_size * 0.5)
-            elseif par.optimizer_algorithm == :trust_region
+            elseif par.algorithm == :trust_region
                 opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
             end
             res = NLsolve.nlsolve(
                 z -> flux_match_errors(actor, z, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog).errors,
-                z_init_scaled;
+                opt_parameters;
                 show_trace=false,
                 store_trace=false,
                 extended_trace=false,
@@ -143,7 +151,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 opts...)
         end
 
-        flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped; par.save_input_tglf_folder) # z_profiles for the smallest error iteration
+        flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped) # z_profiles for the smallest error iteration
 
     finally
 
@@ -312,8 +320,7 @@ end
         initial_summary_ped::IMAS.summary__local__pedestal;
         z_scaled_history::Vector=[],
         err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
-        prog::Any=nothing,
-        save_input_tglf_folder::String="")
+        prog::Any=nothing)
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns named tuple with (targets, fluxes, errors)
 
@@ -321,17 +328,23 @@ NOTE: flux matching is done in physical units
 """
 function flux_match_errors(
     actor::ActorFluxMatcher,
-    z_profiles_scaled::Vector{<:Real},
+    opt_parameters::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     initial_summary_ped::IMAS.summary__local__pedestal;
     z_scaled_history::Vector=[],
     err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
-    prog::Any=nothing,
-    save_input_tglf_folder::String="")
+    prog::Any=nothing)
 
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+
+    if ismissing(par, :scale_turbulence_law)
+        z_profiles_scaled = opt_parameters
+    else
+        turbulence_scale = opt_parameters[1]
+        z_profiles_scaled = @views opt_parameters[2:end]
+    end
 
     # unscale z_profiles
     push!(z_scaled_history, Tuple(z_profiles_scaled))
@@ -376,6 +389,11 @@ function flux_match_errors(
     # evaluate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
+    # scale turbulent fluxes, if par.scale_turbulence_law is set
+    if !ismissing(par, :scale_turbulence_law)
+        m1d = dd.core_transport.model[:anomalous].profiles_1d[]
+        m1d.total_ion_energy.flux .*= turbulence_scale
+        m1d.electrons.energy.flux .*= turbulence_scale
     end
 
     # get transport fluxes and sources
@@ -398,13 +416,28 @@ function flux_match_errors(
         errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 .* surface0
     end
 
-    # update error history
-    push!(err_history, errors)
-
     # update progress meter
     if prog !== nothing
         ProgressMeter.next!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(errors)))
     end
+
+    # add error toward achieving desired scaling law value
+    if !ismissing(par, :scale_turbulence_law)
+        tau_th = IMAS.tau_e_thermal(dd; subtract_radiation_losses=true)
+        if par.scale_turbulence_law == :h98
+            tauH = IMAS.tau_e_h98(dd; subtract_radiation_losses=true)
+        elseif par.scale_turbulence_law == :ds03
+            tauH = IMAS.tau_e_ds03(dd; subtract_radiation_losses=true)
+        else
+            error("act.ActorFluxMatcher.scale_turbulence_law=$(par.scale_turbulence_law) not recognized: valid options are :h98 or :ds03")
+        end
+        H_value = tau_th / tauH
+        H_target = par.scale_turbulence_value
+        errors = [(H_value - H_target) / H_target; errors]
+    end
+
+    # update error history
+    push!(err_history, errors)
 
     return (targets=targets, fluxes=fluxes, errors=errors)
 end
@@ -469,7 +502,7 @@ Evaluates the flux_matching fluxes for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_fluxes(dd::IMAS.dd{T}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {T<:Real, P<:Real}
+function flux_match_fluxes(dd::IMAS.dd{T}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {T<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_flux = resize!(dd.core_transport.model, :combined; wipe=false)
@@ -531,7 +564,7 @@ Updates zprofiles based on TGYRO simple algorithm
 """
 function flux_match_simple(
     actor::ActorFluxMatcher,
-    z_init_scaled::Vector{<:Real},
+    opt_parameters::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     initial_summary_ped::IMAS.summary__local__pedestal,
     z_scaled_history::Vector,
@@ -543,8 +576,16 @@ function flux_match_simple(
     par = actor.par
 
     i = 0
+
+    if ismissing(par, :scale_turbulence_law)
+        z_init_scaled = opt_parameters
+    else
+        turbulence_scale = opt_parameters[1]
+        z_init_scaled = @views opt_parameters[2:end]
+    end
+
     zprofiles_old = unscale_z_profiles(z_init_scaled)
-    targets, fluxes, errors = flux_match_errors(actor, z_init_scaled, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+    targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
     ferror = norm(errors)
     xerror = Inf
     step_size = par.step_size
@@ -557,13 +598,22 @@ function flux_match_simple(
         end
 
         zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
-        targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+        if ismissing(par, :scale_turbulence_law)
+            targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+        else
+            turbulence_scale += errors[1] / 10.0
+            targets, fluxes, errors = flux_match_errors(actor, [turbulence_scale;scale_z_profiles(zprofiles)], initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+        end
         xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
         ferror = norm(errors)
         zprofiles_old = zprofiles
     end
 
-    return (zero=z_scaled_history[argmin(map(norm, err_history))],)
+    if ismissing(par, :scale_turbulence_law)
+        return (zero=collect(z_scaled_history[argmin(map(norm, err_history))]),)
+    else
+        return (zero=[turbulence_scale; collect(z_scaled_history[argmin(map(norm, err_history))])],)
+    end
 end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
