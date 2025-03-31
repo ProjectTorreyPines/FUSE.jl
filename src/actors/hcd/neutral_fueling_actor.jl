@@ -11,7 +11,7 @@ end
 
 mutable struct ActorNeutralFueling{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorNeutralFueling{P}
+    par::OverrideParameters{P,FUSEparameters__ActorNeutralFueling{P}}
     function ActorNeutralFueling(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutralFueling{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNeutralFueling)
         par = OverrideParameters(par; kw...)
@@ -35,9 +35,11 @@ function _step(actor::ActorNeutralFueling)
     dd = actor.dd
     par = actor.par
 
-    Sneut, nneut = neucg(dd, par)
-
+    eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
+
+    Sneut, nneut = neucg(eqt, cp1d, par.τp, par.T_wall)
+
     neut = resize!(cp1d.neutral, "ion_index" => 1)
     neut.density = nneut
 
@@ -180,9 +182,9 @@ function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
 end
 
 """
-    neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
+    get_At(r::Vector{Float64}, n::Int, r0::Float64, odelr::Float64, ra::Vector{Float64}, nra::Int, a1::Vector{Float64})
 
-    This function calculates K matrix of equation 11 in Burrel 1977
+This function calculates K matrix of equation 11 in Burrel 1977
 """
 function get_At(r::Vector{Float64}, n::Int, r0::Float64, odelr::Float64, ra::Vector{Float64}, nra::Int, a1::Vector{Float64})
     nram1 = nra - 1
@@ -225,17 +227,11 @@ function get_At(r::Vector{Float64}, n::Int, r0::Float64, odelr::Float64, ra::Vec
 end
 
 """
-    neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
+    get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{Float64}, nr::Int, theta::Vector{Float64}, nt::Int, sint::Vector{Float64})
 
 This function calculates K matrix of equation 9 in Burrel 1977
 """
-function get_K_matrix(atrr01::Matrix{Float64},
-    vth::Vector{Float64},
-    r::Vector{Float64},
-    nr::Int,
-    theta::Vector{Float64},
-    nt::Int,
-    sint::Vector{Float64})
+function get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{Float64}, nr::Int, theta::Vector{Float64}, nt::Int, sint::Vector{Float64})
 
     k11 = zeros(nr, nr)
     wt = theta[2] - theta[1]
@@ -253,7 +249,8 @@ function get_K_matrix(atrr01::Matrix{Float64},
                 g0ap = g0(apovp)
                 k11[1, j] = π * g0ap / r[j]
             else
-                sum1p, sum1r, sum1wp, sum1wr = 0.0, 0.0, 0.0, 0.0
+                sum1p = 0.0
+                sum1r = 0.0
                 pgt2 = r[j] * r[j]
 
                 for k in 1:nt
@@ -274,7 +271,6 @@ function get_K_matrix(atrr01::Matrix{Float64},
 
                     sum1p += wtx * (g0ap + g0am)
 
-
                     # r = rhogt=r(j), p=rholt=r(i)
                     apovp = abs(ap / vth[i])
                     amovp = abs(am / vth[i])
@@ -294,18 +290,12 @@ function get_K_matrix(atrr01::Matrix{Float64},
 end
 
 """
-    neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
+    neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, τp::T, T_wall::T) where {T<:Real}
 
 This model calculates neutral density source fueling based on the neucg
 model. K. Burrell,  Journal of Computational Physics 27.1 (1978): 88-102.
 """
-function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
-
-    τp = par.τp
-    T_wall = par.T_wall
-    cp1d = dd.core_profiles.profiles_1d[]
-    eqt = dd.equilibrium.time_slice[]
-
+function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, τp::T, T_wall::T) where {T<:Real}
     surface = cp1d.grid.surface
     volume = cp1d.grid.volume
 
@@ -315,17 +305,12 @@ function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
     ni = cp1d.ion[1].density / 1e6
     mi = cp1d.ion[1].element[1].a
     kappa = eqt.profiles_1d.elongation[end]
-    rmin = 0.5 .* (eqt.profiles_1d.r_outboard -
-                   eqt.profiles_1d.r_inboard)
-    amin = 0.5 .* (eqt.profiles_1d.r_outboard[end] -
-                   eqt.profiles_1d.r_inboard[end])
-    Rmaj = 0.5 .* (eqt.profiles_1d.r_outboard[end] +
-                   eqt.profiles_1d.r_inboard[end])
+    amin = 0.5 .* (eqt.profiles_1d.r_outboard[end] - eqt.profiles_1d.r_inboard[end])
     raneut = sqrt.(kappa) .* amin
     rhoa = eqt.profiles_1d.rho_tor[end]
     ratef = raneut / rhoa
     eionr = ratef .* eir(Te)
-    eirate = eir(cp1d.electrons.temperature / 1e3) .* ne
+    eirate = eir(Te) .* ne
 
     vth = 1e2 .* sqrt.(2 * IMAS.mks.e * (Te * 1e3) ./ (mi * IMAS.mks.m_p))
 
@@ -339,7 +324,7 @@ function neucg(dd::IMAS.dd, par::FUSEparameters__ActorNeutralFueling)
     theta = collect(0:0.05*(pi/2):pi/2)
 
     r = rho * 1e2 * rhoa
-    ra = deepcopy(r)
+    ra = copy(r)
     nr = length(r)
     nra = length(ra)
     nt = length(theta)
