@@ -193,54 +193,52 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
         beamwidthpoly = zeros(3, nbeams)
         part_frac = zeros(3, nbeams)
     
-        Rs = [unit.beamlets_group[1].position.r for unit in dd.nbi.unit]
-        zs = [unit.beamlets_group[1].position.z for unit in dd.nbi.unit]
-        phis = [unit.beamlets_group[1].position.phi for unit in dd.nbi.unit]
-        Rts = [unit.beamlets_group[1].tangency_radius for unit in dd.nbi.unit]
-        angles = [unit.beamlets_group[1].angle for unit in dd.nbi.unit]
-        direcs = [unit.beamlets_group[1].direction for unit in dd.nbi.unit]
-    
-        phis .= 2 * π .- phis
-    
-        xyz_src[1, :] .= Rs .* cos.(phis)
-        xyz_src[2, :] .= Rs .* sin.(phis)
-        xyz_src[3, :] .= zs
-    
-        l2d = sqrt.(Rs .^ 2 .- Rts .^ 2)
-        delta = atan.(Rts, l2d)
-        phit = phis .+ delta .* direcs
-        zt = xyz_src[3, :] .+ tan.(angles) .* l2d
-    
-        xtan[1, :] .= Rts .* cos.(phit)
-        xtan[2, :] .= Rts .* sin.(phit)
-        xtan[3, :] .= zt
-    
-        xyz_vec .= xtan .- xyz_src
+        Einj = Vector{Float64}(undef, nbeams)
+        abeam = Vector{Float64}(undef, nbeams)
     
         for n in 1:nbeams
-            xyz_vec[:, n] .= xyz_vec[:, n] ./ sqrt(sum(xyz_vec[:, n] .^ 2))
-        end
+            unit = dd.nbi.unit[n]
+            bgrp = unit.beamlets_group[1]
+            pos = bgrp.position
+            dir = bgrp.direction
+            angle = bgrp.angle
+            Rt = bgrp.tangency_radius
+            R = pos.r
+            z = pos.z
+            phi = 2π - pos.phi
     
-        Einj = [maximum(unit.energy.data) for unit in dd.nbi.unit]
-        abeam = [unit.species.a for unit in dd.nbi.unit]
+            x = R * cos(phi)
+            y = R * sin(phi)
     
-        for (n,unit) in enumerate(dd.nbi.unit)
+            xyz_src[:,n] .= (x, y, z)
+    
+            l2d = sqrt(R^2 - Rt^2)
+            delta = atan(Rt, l2d)
+            phit = phi + delta * dir
+            zt = z + tan(angle) * l2d
+    
+            xtan[:,n] .= (Rt * cos(phit), Rt * sin(phit), zt)
+    
+            for i in 1:3
+                xyz_vec[i,n] = xtan[i,n] - xyz_src[i,n]
+            end
+            norm = sqrt(sum(xyz_vec[:,n] .^ 2))
+            xyz_vec[:,n] ./= norm
+    
+            Einj[n] = maximum(unit.energy.data)
+            abeam[n] = unit.species.a
+    
             for i in 1:3
                 part_frac[i,n] = maximum(unit.beam_current_fraction.data[i,:])
             end
-        end
+            s = sum(part_frac[:,n])
+            part_frac[:,n] ./= s
     
-        for (n,unit) in enumerate(dd.nbi.unit)
-            part_frac[:,n] = part_frac[:,n] ./ sum(part_frac[:,n])
-        end
-    
-        for (n,unit) in enumerate(dd.nbi.unit)
-            beamwidthpoly[2,n] = unit.beamlets_group[1].divergence_component[1].vertical
+            beamwidthpoly[2,n] = bgrp.divergence_component[1].vertical
         end
     
         return nbeams, nv, xyz_src, xyz_vec, beamwidthpoly, Einj, part_frac, abeam
-        
-    end
+    end    
 
     function get_pnbi(dd::IMAS.dd, selected_equilibrium_times::Vector{Float64})
         pnbis = Vector{Float64}[]
