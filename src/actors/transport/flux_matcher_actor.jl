@@ -577,6 +577,7 @@ function flux_match_simple(
         zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
         xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
+        ferror = norm(errors)
         zprofiles_old = zprofiles
     end
 
