@@ -35,7 +35,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
         check=x -> @assert x > 0.0 "must be: step_size > 0.0"
     )
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
-    save_input_tglf_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder at the last iteration"; default="")
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
     norms::Entry{Vector{Float64}} = Entry{Vector{Float64}}("-", "Relative normalization of different channels")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -377,23 +376,6 @@ function flux_match_errors(
     # evaluate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
-    if !isempty(save_input_tglf_folder)
-        if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
-            input_tglfs = TGLFNN.InputTGLF(
-                dd,
-                par.rho_transport,
-                actor.actor_ct.actor_turb.par.sat_rule,
-                actor.actor_ct.actor_turb.par.electromagnetic,
-                actor.actor_ct.actor_turb.par.lump_ions
-            )
-        else
-            input_tglfs = actor.actor_ct.actor_turb.input_tglfs
-        end
-        for idx in 1:length(par.rho_transport)
-            input_tglf = input_tglfs[idx]
-            name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
-            TGLFNN.save(input_tglf, name)
-        end
     end
 
     # get transport fluxes and sources

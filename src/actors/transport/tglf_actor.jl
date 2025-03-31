@@ -12,7 +12,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
-    onnx_model::Entry{Bool} = Entry{Bool}("-", "use onnx model"; default=false)
+    onnx_model::Entry{Bool} = Entry{Bool}("-", "Use TGLF-NN ONNX model"; default=false)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
     tglfnn_model::Entry{String} = Entry{String}(
@@ -25,6 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
         Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
+    save_input_tglfs_to_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder")
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
@@ -67,10 +68,18 @@ function _step(actor::ActorTGLF)
     dd = actor.dd
 
     input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions)
+
     for k in eachindex(par.rho_transport)
         input_tglf = input_tglfs[k]
+
+        if !ismissing(par, :save_input_tglfs_to_folder)
+            name = joinpath(par.save_input_tglfs_to_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])")
+            TGLFNN.save(input_tglf, name)
+        end
+
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
+
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
                 nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
@@ -92,48 +101,52 @@ function _step(actor::ActorTGLF)
     end
 
     if par.model == :TGLFNN
-        if par.onnx_model == false
+
+        if !par.onnx_model
             actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
-        elseif par.onnx_model == true
-            actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model, [
-                "RLTS_3",
-                "KAPPA_LOC",
-                "ZETA_LOC",
-                "TAUS_3",
-                "VPAR_1",
-                "Q_LOC",
-                "RLNS_1",
-                "TAUS_2",
-                "Q_PRIME_LOC",
-                "P_PRIME_LOC",
-                "ZMAJ_LOC",
-                "VPAR_SHEAR_1",
-                "RLTS_2",
-                "S_DELTA_LOC",
-                "RLTS_1",
-                "RMIN_LOC",
-                "DRMAJDX_LOC",
-                "AS_3",
-                "RLNS_3",
-                "DZMAJDX_LOC",
-                "DELTA_LOC",
-                "S_KAPPA_LOC",
-                "ZEFF",
-                "VEXB_SHEAR",
-                "RMAJ_LOC",
-                "AS_2",
-                "RLNS_2",
-                "S_ZETA_LOC",
-                "BETAE_log10",
-                "XNUE_log10",
-                "DEBYE_log10"
-            ], [
-                "OUT_G_elec",
-                "OUT_Q_elec",
-                "OUT_Q_ions",
-                "OUT_P_ions"
-            ];)
+
+        elseif par.onnx_model
+            actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
+                [
+                    "RLTS_3",
+                    "KAPPA_LOC",
+                    "ZETA_LOC",
+                    "TAUS_3",
+                    "VPAR_1",
+                    "Q_LOC",
+                    "RLNS_1",
+                    "TAUS_2",
+                    "Q_PRIME_LOC",
+                    "P_PRIME_LOC",
+                    "ZMAJ_LOC",
+                    "VPAR_SHEAR_1",
+                    "RLTS_2",
+                    "S_DELTA_LOC",
+                    "RLTS_1",
+                    "RMIN_LOC",
+                    "DRMAJDX_LOC",
+                    "AS_3",
+                    "RLNS_3",
+                    "DZMAJDX_LOC",
+                    "DELTA_LOC",
+                    "S_KAPPA_LOC",
+                    "ZEFF",
+                    "VEXB_SHEAR",
+                    "RMAJ_LOC",
+                    "AS_2",
+                    "RLNS_2",
+                    "S_ZETA_LOC",
+                    "BETAE_log10",
+                    "XNUE_log10",
+                    "DEBYE_log10"
+                ], [
+                    "OUT_G_elec",
+                    "OUT_Q_elec",
+                    "OUT_Q_ions",
+                    "OUT_P_ions"
+                ];)
         end
+
     elseif par.model == :TGLF
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
 
@@ -239,7 +252,7 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     input_tjlf.IFLUX = true
     input_tjlf.IBRANCH = -1
     input_tjlf.KX0_LOC = 0.0
-    input_tjlf.ALPHA_ZF = -1  
+    input_tjlf.ALPHA_ZF = -1
 
     # check converison
     TJLF.checkInput(input_tjlf)
