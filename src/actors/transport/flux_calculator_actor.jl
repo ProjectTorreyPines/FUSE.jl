@@ -14,7 +14,7 @@ mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorFluxCalculator{P}}
     act::ParametersAllActors{P}
-    actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorAnalyticalTurbulence{D,P},ActorNoOperation{D,P}}
+    actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorAnalyticTurbulence{D,P},ActorNoOperation{D,P}}
     actor_neoc::Union{ActorNeoclassical{D,P},ActorNoOperation{D,P}}
 end
 
@@ -41,7 +41,7 @@ function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculat
     elseif par.turbulence_model == :QLGYRO
         actor_turb = ActorQLGYRO(dd, act.ActorQLGYRO; par.rho_transport)
     elseif par.turbulence_model == :analytical
-        actor_turb = ActorAnalyticalTurbulence(dd, act.ActorAnalyticalTurbulence; par.rho_transport)
+        actor_turb = ActorAnalyticTurbulence(dd, act.ActorAnalyticTurbulence; par.rho_transport)
     end
 
     if par.neoclassical_model == :none

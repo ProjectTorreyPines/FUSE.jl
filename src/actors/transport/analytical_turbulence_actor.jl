@@ -1,46 +1,46 @@
 import GACODE
 
-#= ========================= =#
-#  ActorAnalyticalTurbulence  #
-#= ========================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorAnalyticalTurbulence{T<:Real} <: ParametersActor{T}
+#= ======================= =#
+#  ActorAnalyticTurbulence  #
+#= ======================= =#
+Base.@kwdef mutable struct FUSEparameters__ActorAnalyticTurbulence{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:GyroBohm], "-", "Analytical transport model"; default=:GyroBohm)
+    model::Switch{Symbol} = Switch{Symbol}([:GyroBohm], "-", "Analytic transport model"; default=:GyroBohm)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute fluxes on"; default=0.25:0.1:0.85)
 end
 
-mutable struct ActorAnalyticalTurbulence{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorAnalyticTurbulence{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::OverrideParameters{P,FUSEparameters__ActorAnalyticalTurbulence{P}}
+    par::OverrideParameters{P,FUSEparameters__ActorAnalyticTurbulence{P}}
     flux_solutions::Vector{<:GACODE.FluxSolution}
 end
 
 """
-    ActorAnalyticalTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates analytical turbulence models
+Evaluates analytic turbulence models
 """
-function ActorAnalyticalTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorAnalyticalTurbulence(dd, act.ActorAnalyticalTurbulence; kw...)
+function ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorAnalyticTurbulence(dd, act.ActorAnalyticTurbulence; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorAnalyticalTurbulence(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticalTurbulence; kw...)
-    logging_actor_init(ActorAnalyticalTurbulence)
+function ActorAnalyticTurbulence(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticTurbulence; kw...)
+    logging_actor_init(ActorAnalyticTurbulence)
     par = OverrideParameters(par; kw...)
-    return ActorAnalyticalTurbulence(dd, par, GACODE.FluxSolution[])
+    return ActorAnalyticTurbulence(dd, par, GACODE.FluxSolution[])
 end
 
 """
-    _step(actor::ActorAnalyticalTurbulence)
+    _step(actor::ActorAnalyticTurbulence)
 
-Runs analytical turbulent transport model on a vector of gridpoints
+Runs analytic turbulent transport model on a vector of gridpoints
 """
-function _step(actor::ActorAnalyticalTurbulence)
+function _step(actor::ActorAnalyticTurbulence)
     dd = actor.dd
     par = actor.par
 
@@ -53,11 +53,11 @@ function _step(actor::ActorAnalyticalTurbulence)
 end
 
 """
-    _finalize(actor::ActorAnalyticalTurbulence)
+    _finalize(actor::ActorAnalyticTurbulence)
 
 Writes results to dd.core_transport
 """
-function _finalize(actor::ActorAnalyticalTurbulence)
+function _finalize(actor::ActorAnalyticTurbulence)
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
