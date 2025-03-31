@@ -14,7 +14,7 @@ end
 
 mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorHCD{P}
+    par::OverrideParameters{P,FUSEparameters__ActorHCD{P}}
     act::ParametersAllActors{P}
     ec_actor::Union{ActorSimpleEC{D,P},ActorTORBEAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
@@ -37,7 +37,7 @@ end
 
 function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAllActors; kw...)
     logging_actor_init(ActorHCD)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop)
@@ -99,14 +99,28 @@ Runs through the selected HCD actor's step
 function _step(actor::ActorHCD)
     dd = actor.dd
 
-    # Call IMAS.sources!(dd) since the most would expect sources to be consistent when coming out of this actor
+    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
     IMAS.sources!(dd)
 
-    step(actor.ec_actor)
-    step(actor.ic_actor)
-    step(actor.lh_actor)
-    step(actor.nb_actor)
-    step(actor.pellet_actor)
+    if !isempty(dd.ec_launchers.beam)
+        step(actor.ec_actor)
+    end
+
+    if !isempty(dd.ic_antennas.antenna)
+        step(actor.ic_actor)
+    end
+
+    if !isempty(dd.lh_antennas.antenna)
+        step(actor.lh_actor)
+    end
+
+    if !isempty(dd.nbi.unit)
+        step(actor.nb_actor)
+    end
+
+    if !isempty(dd.pellets.launcher)
+        step(actor.pellet_actor)
+    end
 
     return actor
 end
@@ -117,12 +131,27 @@ end
 Finalizes the selected CHD actor's finalize
 """
 function _finalize(actor::ActorHCD)
+    dd = actor.dd
 
-    finalize(actor.ec_actor)
-    finalize(actor.ic_actor)
-    finalize(actor.lh_actor)
-    finalize(actor.nb_actor)
-    finalize(actor.pellet_actor)
+    if !isempty(dd.ec_launchers.beam)
+        finalize(actor.ec_actor)
+    end
+
+    if !isempty(dd.ic_antennas.antenna)
+        finalize(actor.ic_actor)
+    end
+
+    if !isempty(dd.lh_antennas.antenna)
+        finalize(actor.lh_actor)
+    end
+
+    if !isempty(dd.nbi.unit)
+        finalize(actor.nb_actor)
+    end
+
+    if !isempty(dd.pellets.launcher)
+        finalize(actor.pellet_actor)
+    end
 
     return actor
 end
@@ -138,9 +167,15 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
     # Pick a reasonable launch location
     if ismissing(ecb.launching_position, :r) || ismissing(ecb.launching_position, :z)
         fw = IMAS.first_wall(wall)
-        index = argmax(fw.r .+ fw.z)
-        @ddtime(ecb.launching_position.r = fw.r[index])
-        @ddtime(ecb.launching_position.z = fw.z[index])
+        if !isempty(fw.r)
+            index = argmax(fw.r .+ fw.z)
+            @ddtime(ecb.launching_position.r = fw.r[index])
+            @ddtime(ecb.launching_position.z = fw.z[index])
+        else
+            index = argmax(eqt.boundary.outline.r .+ eqt.boundary.outline.z)
+            @ddtime(ecb.launching_position.r = eqt.boundary.outline.r[index])
+            @ddtime(ecb.launching_position.z = eqt.boundary.outline.z[index])
+        end
     end
     if ismissing(ecb.launching_position, :phi)
         @ddtime(ecb.launching_position.phi = 0.0)
@@ -164,7 +199,7 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
         index = resonance_layer.z .> eqt.global_quantities.magnetic_axis.z
         sub_index = argmin(abs.(rho_resonance_layer[index] .- par.rho_0))
         @ddtime(ecb.steering_angle_tor = 0.0)
-        @ddtime(ecb.steering_angle_pol = atan(resonance_layer.z[index][sub_index] - launch_z, resonance_layer.r[index][sub_index] - launch_r) + pi)
+        @ddtime(ecb.steering_angle_pol = atan(resonance_layer.r[index][sub_index] - launch_r, resonance_layer.z[index][sub_index] - launch_z) + pi / 2)
     end
 end
 

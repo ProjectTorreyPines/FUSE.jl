@@ -29,7 +29,7 @@ end
 
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCosting{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCosting{P}}
     act::ParametersAllActors{P}
     cst_actor::Union{ActorCostingSheffield{Measurement{Float64},P},ActorCostingARIES{Measurement{Float64},P}}
 end
@@ -52,7 +52,7 @@ end
 
 function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCosting)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     empty!(dd.costing)
 

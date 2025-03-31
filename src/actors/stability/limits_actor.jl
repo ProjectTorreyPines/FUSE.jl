@@ -14,11 +14,11 @@ end
 
 mutable struct ActorPlasmaLimits{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPlasmaLimits{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPlasmaLimits{P}}
     act::ParametersAllActors{P}
     function ActorPlasmaLimits(dd::IMAS.dd{D}, par::FUSEparameters__ActorPlasmaLimits{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPlasmaLimits)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
     end
 end

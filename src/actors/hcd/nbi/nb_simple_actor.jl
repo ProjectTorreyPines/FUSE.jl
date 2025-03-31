@@ -5,9 +5,8 @@ Base.@kwdef mutable struct _FUSEparameters__ActorSimpleNBactuator{T<:Real} <: Pa
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
-    rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
-    width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: width > 0.0")
+    banana_shift_fraction::Entry{T} = Entry{T}("-", "Shift factor"; default=0.5, check=x -> @assert x >= 0.0 "must be: banana_shift_fraction >= 0.0")
+    smoothing_width::Entry{T} = Entry{T}("-", "Width of the deposition profile"; default=0.12, check=x -> @assert x >= 0.0 "must be: smoothing_width > 0.0")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
@@ -19,10 +18,10 @@ end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSimpleNB{P}
+    par::OverrideParameters{P,FUSEparameters__ActorSimpleNB{P}}
     function ActorSimpleNB(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleNB{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimpleNB)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -30,9 +29,7 @@ end
 """
     ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a super-gaussian.
-
-NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+Calculates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a pencil beam.
 
 !!! note
 
@@ -45,6 +42,7 @@ function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+
 function _step(actor::ActorSimpleNB)
     dd = actor.dd
     par = actor.par
@@ -52,53 +50,181 @@ function _step(actor::ActorSimpleNB)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     cs = dd.core_sources
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
 
-    R0 = eqt.boundary.geometric_axis.r
+    rho_eq = eqt.profiles_1d.rho_tor
     rho_cp = cp1d.grid.rho_tor_norm
     volume_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.volume).(rho_cp)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
-    for (k, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
-        # smooting of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
-        beam_energy = max(0.0, @ddtime(ps.energy.reference))
-        τ_th = IMAS.fast_ion_thermalization_time(cp1d, nbu.species, beam_energy)
-        power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
-        rho_0 = par.actuator[k].rho_0
-        width = par.actuator[k].width
-        ηcd_scale = par.actuator[k].ηcd_scale
+    ne = cp1d.electrons.density
+    Te = cp1d.electrons.temperature
 
-        @ddtime(nbu.power_launched.data = power_launched)
-        @ddtime(nbu.energy.data = beam_energy)
+    phi = eqt2d.phi
+    R0 = eqt.global_quantities.vacuum_toroidal_field.r0
+    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+    rho2d = sqrt.(abs.((phi) ./ pi ./ B0)) ./ rho_eq[end]
+
+    r = eqt2d.grid.dim1
+    z = eqt2d.grid.dim2
+    r = range(r[1], r[end], length(r))
+    z = range(z[1], z[end], length(z))
+    rho2d_interp = Interpolations.cubic_spline_interpolation((r, z), rho2d; extrapolation_bc=2.0)
+
+    nenergies = 3
+    ncp1d = length(rho_cp)
+
+    q_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.q)
+    rin = eqt.profiles_1d.r_inboard
+    rout = eqt.profiles_1d.r_outboard
+    eps = (rout .- rin) ./ (rout .+ rin)
+    eps_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eps)
+    eps0 = maximum(eps) .* cp1d.grid.rho_tor_norm
+
+    ne_interp = IMAS.interp1d(rho_cp, ne)
+    Te_interp = IMAS.interp1d(rho_cp, Te)
+
+    ngrid = 25
+
+    nmaxgroups = maximum(length(nbu.beamlets_group) for nbu in dd.nbi.unit)
+    qbeam = zeros(nmaxgroups, nenergies, ncp1d)
+    sbeam = zeros(nmaxgroups, nenergies, ncp1d)
+    mombeam = zeros(nmaxgroups, nenergies, ncp1d)
+    qbeame = zeros(nmaxgroups, nenergies, ncp1d)
+    qbeami = zeros(nmaxgroups, nenergies, ncp1d)
+    curbeam = zeros(nmaxgroups, nenergies, ncp1d)
+
+    gaus = similar(rho_cp)
+    qbeamtmp = similar(rho_cp)
+    IMAS.freeze!(cp1d, :zeff)
+    for (ibeam, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
+        # smoothing of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
         beam_mass = nbu.species.a
-        ion_electron_fraction_cp = IMAS.sivukhin_fraction(cp1d, beam_energy, beam_mass)
-
-        if beam_energy > 0.0
-            particles_per_second = power_launched / (beam_energy * IMAS.mks.e) # [1/s]
-        else
-            particles_per_second = 0.0
+        beam_Z = nbu.species.z_n
+        beam_energy = max(0.0, @ddtime(ps.energy.reference))
+        if beam_energy == 0.0
+            continue
         end
-        velocity = sqrt(2.0 * beam_energy * IMAS.mks.e / (beam_mass * IMAS.mks.m_u)) # [m/s]
-        momentum_tor = sin(nbu.beamlets_group[1].angle) * particles_per_second * velocity * beam_mass * IMAS.mks.m_u # [kg*m/s^2] = [N]
+        @ddtime(nbu.energy.data = beam_energy)
 
-        ne20 = IMAS.interp1d(rho_cp, cp1d.electrons.density).(rho_0) / 1E20
-        TekeV = IMAS.interp1d(rho_cp, cp1d.electrons.temperature).(rho_0) / 1E3
+        fbcur = @ddtime(nbu.beam_current_fraction.data)
 
-        eta = ηcd_scale * TekeV * 0.025
-        j_parallel = eta / R0 / ne20 * power_launched
-        j_parallel *= sign(eqt.global_quantities.ip) .* (1 .- ion_electron_fraction_cp)
+        qbeam .*= 0.0
+        sbeam .*= 0.0
+        mombeam .*= 0.0
+        qbeame .*= 0.0
+        qbeami .*= 0.0
+        curbeam .*= 0.0
 
-        source = resize!(cs.source, :nbi, "identifier.name" => nbu.name; wipe=false)
-        shaped_source!(
+        ngroups = length(nbu.beamlets_group)
+        for igroup in 1:length(nbu.beamlets_group)
+            bgroup = nbu.beamlets_group[igroup]
+            if ngroups > 1
+                group_power_frac = bgroup.beamlets.power_fractions
+            else
+                group_power_frac = 1.0
+            end
+            source_r = bgroup.position.r
+            source_z = bgroup.position.z
+
+            angleh = bgroup.direction * asin(bgroup.tangency_radius / source_r)
+            anglev = bgroup.angle
+
+            # trace pencil beam
+            vx = -cos(angleh) .* cos(anglev)
+            vy = -sin(angleh) * cos(anglev)
+            vz = cos(angleh) * sin(anglev)
+            px = source_r
+            py = 0.0
+            pz = source_z
+
+            t_intersects = IMAS.toroidal_intersections(eqt.boundary.outline.r, eqt.boundary.outline.z, px, py, pz, vx, vy, vz; max_intersections=2)
+            if rin[end] < source_r < rout[end] && length(t_intersects) < 1
+                continue
+            elseif length(t_intersects) < 2
+                continue
+            end
+            if rin[end] < source_r < rout[end]
+                tt = range(0.0, t_intersects[1], ngrid)
+            else
+                tt = range(t_intersects[1], t_intersects[2], ngrid)
+            end
+            Xs, Ys, Zs, Rs = IMAS.pencil_beam([source_r, 0.0, source_z], [vx, vy, vz], tt)
+            phi = asin.(Ys ./ Rs)
+            ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
+            rho_beam = rho2d_interp.(Rs, Zs)
+            dist = [0.0; cumsum(sqrt.(diff(Xs) .^ 2 .+ diff(Ys) .^ 2 .+ diff(Zs) .^ 2))]
+
+            ne_beam = ne_interp.(rho_beam)
+            Te_beam = Te_interp.(rho_beam)
+
+            power_launched_allenergies = 0.0
+            for (ifpow, fpow) in enumerate(fbcur)
+                τ_th = IMAS.fast_ion_thermalization_time(cp1d, 1, nbu.species, beam_energy / ifpow)
+                power_launched = fpow * max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
+                power_launched_allenergies += power_launched
+                @ddtime(nbu.power_launched.data = power_launched_allenergies)
+                if power_launched == 0.0
+                    continue
+                end
+
+                vbeam = sqrt((IMAS.mks.e * beam_energy / ifpow) / (0.5 * beam_mass * IMAS.mks.m_p))
+
+                cs = zeros(ngrid)
+                for i in 1:ngrid
+                    cs1 = IMAS.imfp_electron_collisions(vbeam, Te_beam[i], ne_beam[i])
+                    cs2 = IMAS.imfp_ion_collisions(beam_mass, beam_energy / beam_mass, ne_beam[i], 1)
+                    cs3 = IMAS.imfp_charge_exchange(beam_mass, beam_energy / beam_mass, ne_beam[i])
+                    cs[i] = cs1 + cs2 + cs3
+                end
+                cross_section_t = IMAS.cumtrapz(dist, cs)
+                fbeam = exp.(-cross_section_t)
+
+                rbananas = IMAS.banana_width.(beam_energy / ifpow, B0, beam_Z, beam_mass, eps_interp.(rho_beam), q_interp.(rho_beam))
+
+                for i in 1:ngrid-1
+                    rho_beam_banana = rho2d_interp(Rs[i] - rbananas[i] * (1.0 - ftors[i]) * par.actuator[ibeam].banana_shift_fraction * bgroup.direction, Zs[i])
+                    @. gaus .= exp.(-0.5 .* (rho_cp .- rho_beam_banana) .^ 2 ./ par.actuator[ibeam].smoothing_width^2) ./ (par.actuator[ibeam].smoothing_width * sqrt(2 * π))
+                    gaus ./= IMAS.trapz(volume_cp, gaus)
+                    @. qbeamtmp .= power_launched * group_power_frac * (fbeam[i] - fbeam[i+1]) .* gaus
+                    @. qbeam[igroup, ifpow, :] .+= qbeamtmp
+                    @. sbeam[igroup, ifpow, :] .+= qbeamtmp / (beam_energy * IMAS.mks.e / ifpow)
+                    @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* ftors[i] / (beam_energy * IMAS.mks.e / ifpow)
+                end
+            end
+
+            for ifpow in eachindex(fbcur)
+                frac_ie = IMAS.sivukhin_fraction(cp1d, beam_energy / ifpow, nbu.species.a)
+                tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, beam_energy / ifpow, nbu.species.a, nbu.species.z_n)
+                qbeame[igroup, ifpow, :] .= @views (1.0 .- frac_ie) .* qbeam[igroup, ifpow, :]
+                qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
+                curbi = @views IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
+                curbe = -curbi ./ cp1d.zeff
+                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps0) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps0)
+                curbeam[igroup, ifpow, :] .= curbe .+ curbi .+ curbet
+            end
+        end
+
+        electrons_energy = sum(sum(qbeame; dims=1); dims=2)[1, 1, :]
+        total_ion_energy = sum(sum(qbeami; dims=1); dims=2)[1, 1, :]
+        momentum_tor = sum(sum(mombeam; dims=1); dims=2)[1, 1, :]
+        curbeam_tot = sum(sum(curbeam; dims=1); dims=2)[1, 1, :]
+        electrons_particles = sum(sum(sbeam; dims=1); dims=2)[1, 1, :]
+
+        j_parallel = IMAS.JtoR_2_JparB(rho_cp, curbeam_tot ./ R0, false, eqt) ./ B0
+
+        # Convert curbeam to parallel current here
+        source = resize!(dd.core_sources.source, :nbi, "identifier.name" => nbu.name; wipe=false)
+        IMAS.new_source(
             source,
-            nbu.name,
             source.identifier.index,
+            nbu.name,
             rho_cp,
             volume_cp,
-            area_cp,
-            power_launched,
-            ion_electron_fraction_cp,
-            ρ -> IMAS.gaus(ρ, rho_0, width, 2.0);
-            electrons_particles=particles_per_second,
+            area_cp;
+            electrons_energy,
+            total_ion_energy,
+            electrons_particles,
             j_parallel,
             momentum_tor)
 
@@ -112,6 +238,7 @@ function _step(actor::ActorSimpleNB)
         ion.power_inside = source1d.total_ion_power_inside
         ion.fast_particles_energy = beam_energy
     end
+    IMAS.empty!(cp1d, :zeff)
 
     return actor
 end

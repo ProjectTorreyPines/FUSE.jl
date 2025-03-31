@@ -72,35 +72,65 @@ end
 Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
 function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
-    pattern = r"\bD3D\s?\d{6}\b"
-    if occursin(pattern, ini.general.casename)
-        resize!(dd.nbi.unit, length(ini.general.dd.nbi.unit); wipe=false)
-        @assert length(dd.nbi.unit) == length(dd.pulse_schedule.nbi.unit)
-        dd.nbi = ini.general.dd.nbi
-        return dd
-    else
-        resize!(dd.nbi.unit, length(ini.nb_unit); wipe=false)
-        @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
-        for (idx, (nbu, ini_nbu, ps_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit, dd.pulse_schedule.nbi.unit))
-            if ismissing(nbu, :name)
-                nbu.name = length(ini.nb_unit) > 1 ? "nbi_$idx" : "nbi"
-            end
-            ps_nbu.name = nbu.name
-            @ddtime(nbu.energy.data = ini_nbu.beam_energy)
-            nbu.available_launch_power = maximum(ps_nbu.power.reference)
-            nbu.species.a = ini_nbu.beam_mass
-            nbu.species.z_n = 1.0
-            # 1 beamlet
-            beamlet = resize!(nbu.beamlets_group, 1)[1]
-            beamlet.angle = ini_nbu.toroidal_angle / 360 * 2pi
-            # Efficiencies
-            nbu.efficiency.conversion = ini_nbu.efficiency_conversion
-            nbu.efficiency.transmission = ini_nbu.efficiency_transmission
-        end
-        return dd
-    end
+    resize!(dd.nbi.unit, length(ini.nb_unit); wipe=false)
+    @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
 
-    
+    eqt = dd.equilibrium.time_slice[]
+
+    for (idx, (nbu, ini_nbu, ps_nbu)) in enumerate(zip(dd.nbi.unit, ini.nb_unit, dd.pulse_schedule.nbi.unit))
+        if ismissing(nbu, :name)
+            nbu.name = length(ini.nb_unit) > 1 ? "nbi_$idx" : "nbi"
+        end
+        ps_nbu.name = nbu.name
+
+        nbu.available_launch_power = maximum(ps_nbu.power.reference)
+        nbu.species.a = ini_nbu.beam_mass
+        nbu.species.z_n = 1.0
+
+        # energy and current fractions as constants
+        nbu.energy.time = [-Inf]
+        nbu.energy.data = [ini_nbu.beam_energy]
+        nbu.beam_current_fraction.time = [-Inf]
+        nbu.beam_current_fraction.data = [ini_nbu.beam_current_fraction;;]
+
+        # 1 beamlet
+        if ini_nbu.template_beam != :none
+            add_beam_examples!(nbu, ini_nbu.template_beam)
+        elseif isempty(nbu.beamlets_group)
+            beamlet = resize!(nbu.beamlets_group, 1)[1]
+
+            beamlet.position.r = eqt.profiles_1d.r_outboard[end] * 1.1
+            beamlet.position.z = 0.0
+            beamlet.tangency_radius = ini_nbu.normalized_tangency_radius * 0.5 * (eqt.profiles_1d.r_inboard[end] + eqt.profiles_1d.r_outboard[end])
+
+            if ini_nbu.current_direction == :co
+                beamlet.direction = 1
+            else
+                beamlet.direction = -1
+            end
+            if ini_nbu.offaxis == true
+                beamlet.angle = atan(0.5 * eqt.profiles_1d.elongation[end])
+            else
+                beamlet.angle = 0.0
+            end
+        end
+
+        # default divergence_component if they are not specified
+        for beamlets_group in nbu.beamlets_group
+            if isempty(beamlets_group, :divergence_component)
+                divc = resize!(beamlets_group.divergence_component, 1)[1]
+                divc.horizontal = 0.0
+                divc.particles_fraction = 1.0
+                divc.vertical = 0.0
+            end
+        end
+
+        # Efficiencies
+        nbu.efficiency.conversion = ini_nbu.efficiency_conversion
+        nbu.efficiency.transmission = ini_nbu.efficiency_transmission
+
+    end
+    return dd
 end
 
 """
@@ -171,3 +201,64 @@ function init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActor
     end
 end
 
+function add_beam_examples!(nbu, name::Symbol)
+    beamlet = resize!(nbu.beamlets_group, 1)[1]
+
+    if name == :d3d_co
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
+        beamlet.position.r = 8.2
+        beamlet.position.z = 0.0
+        beamlet.tangency_radius = 1.0
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :d3d_counter
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
+        beamlet.position.r = 8.2
+        beamlet.position.z = 0.0
+        beamlet.tangency_radius = 0.9
+        beamlet.angle = 0.0
+        beamlet.direction = -1
+    elseif name == :d3d_offaxis
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
+        beamlet.position.r = 8.2
+        beamlet.position.z = 1.66
+        beamlet.tangency_radius = 0.9
+        beamlet.angle = -0.28
+        beamlet.direction = 1
+    elseif name == :nstx
+        @ddtime(nbu.beam_current_fraction.data = [0.48, 0.37, 0.15])
+        beamlet.position.r = 11.4
+        beamlet.position.z = 1.66
+        beamlet.tangency_radius = 0.6
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :mast_onaxis
+        @ddtime(nbu.beam_current_fraction.data = [0.69, 0.18, 0.13])
+        beamlet.position.r = 7.08
+        beamlet.position.z = 0.0
+        beamlet.tangency_radius = 0.705
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :mast_offaxis
+        @ddtime(nbu.beam_current_fraction.data = [0.69, 0.18, 0.13])
+        beamlet.position.r = 7.06
+        beamlet.position.z = 0.65
+        beamlet.tangency_radius = 0.705
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :iter_onaxis
+        @ddtime(nbu.beam_current_fraction.data = [1.0, 0.0, 0.0])
+        beamlet.position.r = 14.0 # CHECK POSITION!
+        beamlet.position.z = 0.5
+        beamlet.tangency_radius = 5.3
+        beamlet.angle = 0.0402
+        beamlet.direction = 1
+    elseif name == :iter_offaxis
+        @ddtime(nbu.beam_current_fraction.data = [1.0, 0.0, 0.0])
+        beamlet.position.r = 14.0 # CHECK POSITION!
+        beamlet.position.z = 0.5
+        beamlet.tangency_radius = 5.3
+        beamlet.angle = 0.0582
+        beamlet.direction = 1
+    end
+end

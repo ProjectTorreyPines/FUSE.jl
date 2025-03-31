@@ -26,11 +26,11 @@ end
 
 mutable struct ActorCXbuild{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCXbuild{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCXbuild{P}}
     act::ParametersAllActors{P}
     function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCXbuild)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
     end
 end

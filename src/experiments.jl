@@ -1,4 +1,4 @@
-function ne_line_without_LH_transition(dd::IMAS.dd, transition_start::Float64, density_transition_end::Float64, temperature_transition_end::Float64=density_transition_end; do_plot::Bool=true)
+function LH_analysis(dd::IMAS.dd, transition_start::Float64, density_transition_end::Float64, temperature_transition_end::Float64=density_transition_end; do_plot::Bool=true)
     rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
     index09 = argmin(abs.(rho .- 0.9))
     time = dd.core_profiles.time
@@ -7,12 +7,12 @@ function ne_line_without_LH_transition(dd::IMAS.dd, transition_start::Float64, d
     tau_t = temperature_transition_end - transition_start
 
     # density timescale
-    ne = IMAS.interp1d(dd.pulse_schedule.density_control.time, dd.pulse_schedule.density_control.n_e_line.reference).(time)
+    ne = [IMAS.ne_line(dd.equilibrium.time_slice[cp1d.time], cp1d) for cp1d in dd.core_profiles.profiles_1d]
     ne0 = [cp1d.electrons.density[1] for cp1d in dd.core_profiles.profiles_1d]
     ne09 = [cp1d.electrons.density[index09] for cp1d in dd.core_profiles.profiles_1d]
 
     # zeff timescale
-    zeff = IMAS.interp1d(dd.pulse_schedule.density_control.time, dd.pulse_schedule.density_control.zeff.reference).(time)
+    zeff = [sum(cp1d.zeff) / length(cp1d.grid.rho_tor_norm) for cp1d in dd.core_profiles.profiles_1d]
     zeff0 = [cp1d.zeff[1] for cp1d in dd.core_profiles.profiles_1d]
     zeff09 = [cp1d.zeff[index09] for cp1d in dd.core_profiles.profiles_1d]
 
@@ -58,7 +58,7 @@ function ne_line_without_LH_transition(dd::IMAS.dd, transition_start::Float64, d
     zeff_L = IMAS.interp1d(time[index_no_LH], zeff_L[index_no_LH], :pchip).(time)
 
     # WPED
-    ped_to_core(W) = W[2]/W[1]
+    ped_to_core(W) = W[2] / W[1]
     W_ped_to_core = [ped_to_core(IMAS.core_edge_energy(cp1d, 0.9)) for cp1d in dd.core_profiles.profiles_1d]
     W_ped_to_core_fraction = sum(W_ped_to_core[index_L]) / sum(index_L)
 
@@ -67,48 +67,48 @@ function ne_line_without_LH_transition(dd::IMAS.dd, transition_start::Float64, d
 
         # Density
         subplot = 1
-        plot!(; title="Electron density", subplot, legend_position=:bottomright, ylim=(0,Inf))
-        plot!(dd.core_profiles.time, ne0; label="On axis density", lw=2, subplot)
+        plot!(; title="Electron density", subplot, legend_position=:bottomright, ylim=(0, Inf))
+        plot!(time, ne0; label="On axis density", lw=2, subplot)
         plot!(time, ne; label="Line average density", lw=2, subplot)
-        plot!(dd.core_profiles.time, ne09; label="Density @rho=0.9", lw=2, subplot)
+        plot!(time, ne09; label="Density @rho=0.9", lw=2, subplot)
         plot!(time, ne_L; label="Line average density L-mode", lw=2, subplot)
         plot!(time, ne_H; label="Line average density H-mode", lw=2, subplot)
         vline!([transition_start, density_transition_end]; label="Density transition time", subplot)
 
         # Zeff
         subplot = 2
-        plot!(; title="Zeff", subplot, link=:x, legend_position=:bottomright, ylim=(0,Inf))
-        plot!(dd.core_profiles.time, zeff0; label="On axis Zeff", lw=2, subplot)
-        plot!(dd.core_profiles.time, zeff; label="Average Zeff", lw=2, subplot)
-        plot!(dd.core_profiles.time, zeff09; label="Zeff @rho=0.9", lw=2, subplot)
+        plot!(; title="Zeff", subplot, link=:x, legend_position=:bottomright, ylim=(0, Inf))
+        plot!(time, zeff0; label="On axis Zeff", lw=2, subplot)
+        plot!(time, zeff; label="Average Zeff", lw=2, subplot)
+        plot!(time, zeff09; label="Zeff @rho=0.9", lw=2, subplot)
         plot!(time, zeff_L; label="Zeff L-mode", lw=2, subplot)
         plot!(time, zeff_H; label="Zeff H-mode", lw=2, subplot)
         vline!([transition_start, density_transition_end]; label="Density transition time", subplot)
 
         # Temperature
         subplot = 3
-        plot!(; title="Electron temperature", subplot, link=:x, legend_position=:bottomright, ylim=(0,Inf))
-        plot!(dd.core_profiles.time, te0; label="On axis temperature", lw=2, subplot)
-        plot!(dd.core_profiles.time, te; label="Average temperature", lw=2, subplot)
-        plot!(dd.core_profiles.time, te09; label="Temperature @rho=0.9", lw=2, subplot)
+        plot!(; title="Electron temperature", subplot, link=:x, legend_position=:bottomright, ylim=(0, Inf))
+        plot!(time, te0; label="On axis temperature", lw=2, subplot)
+        plot!(time, te; label="Average temperature", lw=2, subplot)
+        plot!(time, te09; label="Temperature @rho=0.9", lw=2, subplot)
         vline!([transition_start, temperature_transition_end]; label="Temperature transition time", subplot)
 
         # L-H power threshold based on scaling law
         subplot = 4
-        plot!(; title="L-H power thresold (no radiation)", subplot, xlabel="Time [s]", link=:x, legend_position=:bottomright, ylim=(0,Inf))
-        injected_power = IMAS.total_power(dd.pulse_schedule, dd.core_profiles.time; tau_smooth=dd.core_profiles.time[2] - dd.core_profiles.time[1])
-        scaling_power = [IMAS.scaling_L_to_H_power(dd; time0) for time0 in dd.core_profiles.time]
-        plot!(dd.core_profiles.time, injected_power ./ scaling_power; label="Power / Power threshold", lw=2, subplot)
+        plot!(; title="L-H power thresold (no radiation)", subplot, xlabel="Time [s]", link=:x, legend_position=:bottomright, ylim=(0, Inf))
+        injected_power = IMAS.total_power(dd.pulse_schedule, time; tau_smooth=time[2] - time[1])
+        scaling_power = [IMAS.scaling_L_to_H_power(dd; time0) for time0 in time]
+        plot!(time, injected_power ./ scaling_power; label="Power / Power threshold", lw=2, subplot)
         vline!([transition_start, temperature_transition_end, density_transition_end]; label="Transition times", subplot)
         #        scatter!([dd.global_time], [IMAS.L_H_threshold(dd)], subplot, label="Power threshold (with radiation)")
-        #plot!(dd.core_profiles.time, 1.0./W_ped_to_core; subplot, label="Core to pedestal stored energy")
+        #plot!(time, 1.0./W_ped_to_core; subplot, label="Core to pedestal stored energy")
 
         display(p)
     end
 
-    return (time=time, tau_n=tau_n, tau_t=tau_t, 
-            mode_transitions=Dict{Float64,Symbol}(0.0 => :L_mode, transition_start => :H_mode),
-            ne_L=ne_L, ne_H=ne_H, ne_L_over_H=ne_Lvalue / ne_Hvalue,
-            zeff_L=zeff_L, zeff_H=zeff_H, zeff_L_over_H=zeff_Lvalue / zeff_Hvalue,
-            W_ped_to_core_fraction = W_ped_to_core_fraction)
+    return (time=time, tau_n=tau_n, tau_t=tau_t,
+        mode_transitions=Dict{Float64,Symbol}(0.0 => :L_mode, transition_start => :H_mode),
+        ne_L=ne_L, ne_H=ne_H, ne_L_over_H=ne_Lvalue / ne_Hvalue,
+        zeff_L=zeff_L, zeff_H=zeff_H, zeff_L_over_H=zeff_Lvalue / zeff_Hvalue,
+        W_ped_to_core_fraction=W_ped_to_core_fraction)
 end

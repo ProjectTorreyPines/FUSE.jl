@@ -11,10 +11,10 @@ end
 
 mutable struct ActorStresses{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorStresses{P}
+    par::OverrideParameters{P,FUSEparameters__ActorStresses{P}}
     function ActorStresses(dd::IMAS.dd{D}, par::FUSEparameters__ActorStresses{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorStresses)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

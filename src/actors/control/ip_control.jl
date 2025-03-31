@@ -3,8 +3,8 @@
 
 Function used to actuate controllers, like this: `control(ip_controller(dd, δt))`
 """
-function control(ctrl::IMAS.controllers__linear_controller; time0::Float64=dd.global_time)
-    return control(Symbol(ctrl.name), ctrl; time0)
+function control(ctrl::IMAS.controllers__linear_controller; time0::Float64=global_time(ctrl))
+    return control(Val(Symbol(ctrl.name)), ctrl; time0)
 end
 
 """
@@ -18,6 +18,9 @@ function ip_controller(dd::IMAS.dd, δt::Float64)
         ctrl_ip = dd.controllers.linear_controller[index]
     else
         ctrl_ip = resize!(dd.controllers.linear_controller, "name" => "ip")
+        ctrl_ip.input_names = ["Ip error"]
+        ctrl_ip.output_names = ["Vloop"]
+
         # guess PID gains based on resistivity
         Ω = IMAS.plasma_lumped_resistance(dd)
         P = Ω * 10.0
@@ -32,7 +35,7 @@ function ip_controller(dd::IMAS.dd, δt::Float64)
         Ip0 = IMAS.get_from(dd, Val{:ip}, :pulse_schedule)
         Vloop0 = Ip0 * Ω
         control(ctrl_ip; time0=dd.global_time - δt)
-        ctrl_ip.inputs.data[1, 1] = Vloop0 / I / δt * 1.5
+        ctrl_ip.inputs.data[1, 1] = 0.0
         ctrl_ip.outputs.data[1, 1] = Vloop0
     end
     return ctrl_ip
@@ -44,7 +47,7 @@ end
 Activates controller for the plasma current
 """
 function control(::Val{:ip}, ctrl::IMAS.controllers__linear_controller; time0::Float64)
-    dd = top_dd(ctrl)
+    dd = IMAS.top_dd(ctrl)
     ip_target_now = IMAS.get_from(dd, Val{:ip}, :pulse_schedule)
     ip_value_now = IMAS.get_from(dd, Val{:ip}, :core_profiles) # eventually this should be Ip from Rogowski coil
 
