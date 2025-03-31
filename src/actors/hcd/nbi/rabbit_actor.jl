@@ -38,8 +38,11 @@ function _step(actor::ActorRABBIT)
     dd = actor.dd
     par = actor.par
 
+    vessel_hfs = IMAS.get_build_layer(dd.build.layer, type=IMAS._vessel_, fs=IMAS._hfs_).start_radius
+    vessel_lfs = IMAS.get_build_layer(dd.build.layer, type=IMAS._vessel_, fs=IMAS._lfs_).start_radius
+
     all_inputs = FUSEtoRABBITinput(dd, par.Δt_history)
-    actor.outputs = RABBIT.run_RABBIT(all_inputs; par.remove_inputs)
+    actor.outputs = RABBIT.run_RABBIT(all_inputs, vessel_hfs, vessel_lfs; par.remove_inputs)
     return actor
 end
 
