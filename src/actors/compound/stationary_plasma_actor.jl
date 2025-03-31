@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T<:Real} <: Par
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    max_iter::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
+    max_iterations::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -120,17 +120,17 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     ProgressMeter.ijulia_behavior(:clear)
-    prog = ProgressMeter.Progress((par.max_iter + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.Progress((par.max_iterations + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
     old_logging = actor_logging(dd, !(par.verbose && !par.do_plot))
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
 
         if !(par.verbose && !par.do_plot)
-            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iter)")
+            logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iterations)")
         end
 
-        # unless `par.max_iter==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
+        # unless `par.max_iterations==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
 
             # get current and pressure profiles before updating them
@@ -196,14 +196,14 @@ function _step(actor::ActorStationaryPlasma)
                 logging(
                     Logging.Info,
                     :actors,
-                    " "^workflow_depth(actor.dd) * "--------------- $(length(total_error))/$(par.max_iter) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
+                    " "^workflow_depth(actor.dd) * "--------------- $(length(total_error))/$(par.max_iterations) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
                 )
             end
 
-            if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iter)
-                @warn "Max number of iterations ($(par.max_iter)) has been reached with convergence error of (1)$(collect(map(x->round(x,digits = 3),total_error)))($(length(total_error))) compared to threshold of $(par.convergence_error)"
+            if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iterations)
+                @warn "Max number of iterations ($(par.max_iterations)) has been reached with convergence error of (1)$(collect(map(x->round(x,digits = 3),total_error)))($(length(total_error))) compared to threshold of $(par.convergence_error)"
                 break
-            elseif par.max_iter == 1
+            elseif par.max_iterations == 1
                 break
             end
         end
@@ -230,7 +230,7 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
     tmp = [
-        (par.max_iter == 1 ? "                 iteration" : "         iteration (min 2)", "$(length(total_error))/$(par.max_iter)"),
+        (par.max_iterations == 1 ? "                 iteration" : "         iteration (min 2)", "$(length(total_error))/$(par.max_iterations)"),
         ("required convergence error", par.convergence_error),
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
