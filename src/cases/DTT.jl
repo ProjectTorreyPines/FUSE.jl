@@ -80,7 +80,11 @@ function case_parameters(::Type{Val{:DTT}})
     resize!(ini.nb_unit, 1)
     ini.nb_unit[1].power_launched = 10e6
     ini.nb_unit[1].beam_energy = 0.5e6
-    ini.nb_unit[1].toroidal_angle = 40.0 * deg
+    ini.nb_unit[1].beam_mass = 2.0
+    ini.nb_unit[1].normalized_tangency_radius = 0.9
+    ini.nb_unit[1].beam_current_fraction = [1.0,0.0,0.0]
+    ini.nb_unit[1].current_direction = :co
+    ini.nb_unit[1].offaxis = false
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 29e6 #of 32 installed

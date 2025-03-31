@@ -14,10 +14,10 @@ end
 
 mutable struct ActorPassiveStructures{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPassiveStructures{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPassiveStructures{P}}
     function ActorPassiveStructures(dd::IMAS.dd{D}, par::FUSEparameters__ActorPassiveStructures{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPassiveStructures)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

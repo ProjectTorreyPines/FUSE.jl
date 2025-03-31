@@ -9,10 +9,10 @@ end
 
 mutable struct ActorNoOperation{D,P} <: AbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorNoOperation{P}
+    par::OverrideParameters{P,FUSEparameters__ActorNoOperation{P}}
     function ActorNoOperation(dd::IMAS.dd{D}, par::FUSEparameters__ActorNoOperation{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNoOperation)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

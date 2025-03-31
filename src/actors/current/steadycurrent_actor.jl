@@ -5,7 +5,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: P
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip")
+    allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip"; default=true)
     current_relaxation_radius::Entry{Float64} = Entry{Float64}(
         "-",
         "Radial position at which the artificial ohmic current profile relaxation starts to kick in";
@@ -18,10 +18,10 @@ end
 
 mutable struct ActorSteadyStateCurrent{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSteadyStateCurrent{P}
+    par::OverrideParameters{P,FUSEparameters__ActorSteadyStateCurrent{P}}
     function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSteadyStateCurrent)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -33,7 +33,7 @@ Evolves the ohmic current to steady state using the conductivity from `dd.core_p
 
 !!! note
 
-    Stores data in `dd.core_profiles.profiles_1d[].j_ohmic`
+    The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
 """
 function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
@@ -54,7 +54,7 @@ function _step(actor::ActorSteadyStateCurrent)
     # update j_ohmic
     relaxed_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, cp1d.conductivity_parallel)
     if par.current_relaxation_radius == 0.0
-        cp1d.j_ohmic = relaxed_j_ohmic
+        j_ohmic = relaxed_j_ohmic
     else
         # blend between an initial ohmic current profile and the fully relaxed  ohmic current profile
         # the blending is proportional to the local current diffusion time and the current diffusion time
@@ -68,15 +68,19 @@ function _step(actor::ActorSteadyStateCurrent)
         alpha = 1.0 .- exp.(-time ./ j_diffusion_time)
 
         interp_j = relaxed_j_ohmic .* alpha .+ initial_j_ohmic .* (1.0 .- alpha)
-        interpo_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, interp_j)
-
-        cp1d.j_ohmic = interpo_j_ohmic
+        j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, interp_j)
     end
 
     # allow floating plasma current
     ip_non_inductive = IMAS.Ip_non_inductive(cp1d, eqt)
     if abs(ip_target) < abs(ip_non_inductive) && par.allow_floating_plasma_current
-        cp1d.j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
+        j_ohmic = zeros(length(cp1d.grid.rho_tor_norm))
+    end
+
+    if ismissing(cp1d, :j_non_inductive)
+        cp1d.j_total = j_ohmic
+    else
+        cp1d.j_total = j_ohmic .+ cp1d.j_non_inductive
     end
 
     return actor

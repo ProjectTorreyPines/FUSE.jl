@@ -17,7 +17,7 @@ end
 
 mutable struct ActorDivertors{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorDivertors{P}
+    par::OverrideParameters{P,FUSEparameters__ActorDivertors{P}}
     boundary_plasma_models::Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}
 end
 
@@ -39,7 +39,7 @@ end
 
 function ActorDivertors(dd::IMAS.dd, par::FUSEparameters__ActorDivertors; kw...)
     logging_actor_init(ActorDivertors)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorDivertors(dd, par, Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}())
 end
 
@@ -94,7 +94,7 @@ function _step(actor::ActorDivertors)
             boundary_plasma_model = BoundaryPlasmaModels.DivertorHeatFluxModel(par.heat_flux_model)
             push!(actor.boundary_plasma_models, boundary_plasma_model)
             BoundaryPlasmaModels.setup_model(boundary_plasma_model, target, eqt, cp1d, sol1; par.impurities, par.impurities_fraction, par.heat_spread_factor)
-            boundary_plasma_model()
+            boundary_plasma_model() # run
             if par.verbose
                 println("      == $(uppercase(target.name)) ==")
                 BoundaryPlasmaModels.summary(boundary_plasma_model)
@@ -108,6 +108,9 @@ function _step(actor::ActorDivertors)
             power_incident = power_flux_peak * wetted_area
             @ddtime(target.power_incident.data = power_incident)
         end
+
+        # update totals
+        IMAS.divertor_totals_from_targets!(divertor)
 
         @ddtime(divertor.power_thermal_extracted.data = par.thermal_power_extraction_efficiency * @ddtime(divertor.power_incident.data))
     end

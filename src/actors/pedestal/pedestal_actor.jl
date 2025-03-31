@@ -33,7 +33,7 @@ end
 
 mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPedestal{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}
     act::ParametersAllActors{P}
     ped_actor::Union{ActorWPED{D,P},ActorEPED{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     wped_actor::ActorWPED{D,P}
@@ -61,7 +61,7 @@ end
 
 function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPedestal)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     eped_actor =
         ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     wped_actor =
@@ -151,8 +151,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
             run_selected_pedestal_model(actor; density_factor, zeff_factor)
 
-            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
-            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* dd.core_profiles.profiles_1d[].ion[1].temperature
+            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
+            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
 
             cp1d.electrons.temperature = Te_now
             for ion in cp1d.ion
@@ -170,8 +170,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
             run_selected_pedestal_model(actor; density_factor, zeff_factor)
 
-            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* dd.core_profiles.profiles_1d[].electrons.temperature
-            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* dd.core_profiles.profiles_1d[].ion[1].temperature
+            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
+            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
 
             cp1d.electrons.temperature = Te_now
             for ion in cp1d.ion
@@ -214,19 +214,18 @@ function LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
 end
 
 """
-    pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; density_factor::Float64, zeff_factor::Float64)
+    pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
 
 The EPED and WPED models only operate on the temperature profiles.
 Here we make the densities always conform to the EPED tanh form with w_ped = 0.05
 Throughout FUSE, the "pedestal" density is the density at rho=0.9
 """
-function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; density_factor::Float64, zeff_factor::Float64)
+function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm
 
     rho09 = 0.9
     w_ped_ne = 0.05
-    original_zeff = cp1d.zeff
 
     ne_ped_old = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, rho09)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * density_factor
@@ -247,7 +246,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::FUSEparameters__ActorPedestal; 
     #NOTE: Zeff can change after a pedestal actor is run, even though actors like EPED and WPED only operate on the temperature profiles.
     # This is because in FUSE the calculation of Zeff is temperature dependent.
     zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) * zeff_factor
-    IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
+    return IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
 end
 
 """

@@ -18,7 +18,7 @@ end
 
 mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEquilibrium{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEquilibrium{P}}
     act::ParametersAllActors{P}
     eq_actor::Union{Nothing,ActorTEQUILA{D,P},ActorFRESCO{D,P},ActorEGGO{D,P},ActorCHEASE{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
@@ -37,7 +37,7 @@ end
 
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorEquilibrium(dd, par, act, noop)
@@ -148,6 +148,7 @@ Prepare `dd.equilibrium` to run equilibrium actors
 function prepare(actor::ActorEquilibrium)
     dd = actor.dd
     par = actor.par
+    act = actor.act
 
     ps = dd.pulse_schedule
     pc = ps.position_control
@@ -156,14 +157,14 @@ function prepare(actor::ActorEquilibrium)
     if par.j_p_from == :core_profiles
         @assert !isempty(dd.core_profiles.time)
         cp1d = dd.core_profiles.profiles_1d[]
-        index = cp1d.grid.psi_norm .> 0.01
+        index = cp1d.grid.psi_norm .> 0.02
         psi0 = cp1d.grid.psi
         rho_tor_norm0 = cp1d.grid.rho_tor_norm
         rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
         j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
         pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     elseif par.j_p_from == :equilibrium
         @assert !isempty(dd.equilibrium.time)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
@@ -172,8 +173,8 @@ function prepare(actor::ActorEquilibrium)
         rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
-        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     else
         @assert par.j_p_from in (:core_profiles, :equilibrium)
     end
@@ -267,14 +268,28 @@ function prepare(actor::ActorEquilibrium)
         eqt1d.f = IMAS.interp1d(psi, tmp.f).(psi0)
     end
 
-    # if sign(maximum(eqt1d.j_tor)) != sign(minimum(eqt1d.j_tor))
-    #     j_tor = eqt1d.j_tor
-    #     s = sign(sum(j_tor))
-    #     j_tor = s .* j_tor
-    #     min_j = sum(j_tor[j_tor.>0.0]) / length(j_tor) / 100.0
-    #     j_tor[j_tor.<=min_j] .= min_j
-    #     eqt1d.j_tor = s .* j_tor
-    # end
+    # if available, restore coil currents and magnetic measurements from experiment
+    # these may be needed if equilibrium solver is run in reconstruction mode.
+    # The equilibrium solvers will overwritte the coil currents,
+    # and the synthetic diagnostics will overwrite the magnetics and flux loops
+    if !ismissing(act.ActorReplay, :replay_dd)
+        if !isempty(act.ActorReplay.replay_dd.pf_active.coil)
+            act.ActorReplay.replay_dd.global_time = dd.global_time
+            for (coil, replay_coil) in zip(dd.pf_active.coil, act.ActorReplay.replay_dd.pf_active.coil)
+                @ddtime(coil.current.data = @ddtime(replay_coil.current.data))
+            end
+        end
+        if !isempty(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
+            for (probe, replay_probe) in zip(dd.magnetics.b_field_pol_probe, act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
+                @ddtime(probe.field.data = @ddtime(replay_probe.field.data))
+            end
+        end
+        if !isempty(act.ActorReplay.replay_dd.magnetics.flux_loop)
+            for (loop, replay_loop) in zip(dd.magnetics.flux_loop, act.ActorReplay.replay_dd.magnetics.flux_loop)
+                @ddtime(loop.flux.data = @ddtime(replay_loop.flux.data))
+            end
+        end
+    end
 
     return dd
 end
