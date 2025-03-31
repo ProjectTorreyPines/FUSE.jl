@@ -32,7 +32,7 @@ end
 function ActorAnalyticalTurbulence(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticalTurbulence; kw...)
     logging_actor_init(ActorAnalyticalTurbulence)
     par = OverrideParameters(par; kw...)
-    return new(dd, par, GACODE.FluxSolution[])
+    return ActorAnalyticalTurbulence(dd, par, GACODE.FluxSolution[])
 end
 
 """
@@ -46,7 +46,7 @@ function _step(actor::ActorAnalyticalTurbulence)
 
     cp1d = dd.core_profiles.profiles_1d[]
 
-    flux_solution = FluxSolution(1.0, 1.0, 1.0, [1.0 for ion in cp1d.ion], 1.0)
+    flux_solution = GACODE.FluxSolution(1.0, 1.0, 1.0, [1.0 for ion in cp1d.ion], 1.0)
     actor.flux_solutions = [flux_solution for irho in par.rho_transport]
 
     return actor
