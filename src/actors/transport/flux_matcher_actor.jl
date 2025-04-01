@@ -423,11 +423,11 @@ function flux_match_errors(
 
     # add error toward achieving desired scaling law value
     if !ismissing(par, :scale_turbulence_law)
-        tau_th = IMAS.tau_e_thermal(dd; ignore_radiation=false)
+        tau_th = IMAS.tau_e_thermal(dd; include_radiation=true)
         if par.scale_turbulence_law == :h98
-            tauH = IMAS.tau_e_h98(dd; ignore_radiation=false)
+            tauH = IMAS.tau_e_h98(dd; include_radiation=true)
         elseif par.scale_turbulence_law == :ds03
-            tauH = IMAS.tau_e_ds03(dd; ignore_radiation=false)
+            tauH = IMAS.tau_e_ds03(dd; include_radiation=true)
         else
             error("act.ActorFluxMatcher.scale_turbulence_law=$(par.scale_turbulence_law) not recognized: valid options are :h98 or :ds03")
         end
