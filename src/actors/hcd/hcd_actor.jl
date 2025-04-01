@@ -130,6 +130,7 @@ function _step(actor::ActorHCD)
         step(actor.pellet_actor)
     end
 
+    # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
 
     return actor

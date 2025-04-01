@@ -5,8 +5,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeutralFueling{T<:Real} <: Param
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    τp::Entry{Float64} = Entry{Float64}("-", "Particle confinement time"; default=1.0)
-    T_wall::Entry{Float64} = Entry{Float64}("-", "Wall temperature (eV)"; default=10.0)
+    τp_over_τe::Entry{Float64} = Entry{Float64}("-", "Particle confinement time as fraction of energy confinement time"; default=0.5)
+    T_wall::Entry{Float64} = Entry{Float64}("eV", "Wall temperature"; default=10.0)
 end
 
 mutable struct ActorNeutralFueling{D,P} <: SingleAbstractActor{D,P}
@@ -38,7 +38,9 @@ function _step(actor::ActorNeutralFueling)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    Sneut, nneut = neucg(eqt, cp1d, par.τp, par.T_wall)
+    τp = min(10.0, par.τp_over_τe * IMAS.tau_e_thermal(dd; ignore_radiation=false))
+
+    Sneut, nneut = neucg(eqt, cp1d, τp, par.T_wall)
 
     neut = resize!(cp1d.neutral, "ion_index" => 1)
     neut.density = nneut
