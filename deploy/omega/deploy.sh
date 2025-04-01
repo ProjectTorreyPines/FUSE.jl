@@ -12,8 +12,8 @@ envdir="$basedir/environments/$fuse_env"
 
 if [ -d "$envdir" ]; then
     echo "FUSE $fuse_env already installed in $envdir"
-#    echo "Exiting"
-#    exit 0
+    echo "Exiting"
+    exit 0
 fi
 
 export FUSE_HOME="$basedir"
@@ -23,7 +23,8 @@ export JULIA_PKG_USE_CLI_GIT=1
 export JULIA_CC="gcc -O3"
 export JULIA_NUM_THREADS=1
 
-# cascadelake for Intel login; znver2 & znver3 (based on znver2) for worker; generic fallback
+# cascadelake for Intel login; znver2 for worker; generic fallback
+# remove xsaveopt since that's what julia distributions do
 export JULIA_CPU_TARGET="generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all"
 export IJULIA_NODEFAULTKERNEL=1
 export JUPYTER_DATA_DIR="$envdir/.jupyter"
