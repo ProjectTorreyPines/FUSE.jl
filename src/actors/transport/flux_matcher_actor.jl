@@ -373,7 +373,7 @@ function flux_match_errors(
 
     # evaluate sources (ie. target fluxes)
     if par.evolve_plasma_sources
-        IMAS.sources!(dd; bootstrap=false, ohmic=false)
+        IMAS.sources!(dd; bootstrap=false)
     end
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
