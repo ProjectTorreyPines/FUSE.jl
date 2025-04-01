@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
+    model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :GKNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     onnx_model::Entry{Bool} = Entry{Bool}("-", "use onnx model"; default=false)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
@@ -49,7 +49,7 @@ end
 function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
     logging_actor_init(ActorTGLF)
     par = OverrideParameters(par; kw...)
-    if par.model ∈ [:TGLF, :TGLFNN]
+    if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
         input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))
     elseif par.model == :TJLF
         input_tglfs = Vector{InputTJLF}(undef, length(par.rho_transport))
@@ -69,7 +69,7 @@ function _step(actor::ActorTGLF)
     input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions)
     for k in eachindex(par.rho_transport)
         input_tglf = input_tglfs[k]
-        if par.model ∈ [:TGLF, :TGLFNN]
+        if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
             actor.input_tglfs[k] = input_tglf
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
@@ -91,10 +91,10 @@ function _step(actor::ActorTGLF)
         end
     end
 
-    if par.model == :TGLFNN
-        if par.onnx_model == false
-            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
-        elseif par.onnx_model == true
+    if par.model ∈ [:TGLFNN, :GKNN]
+        if !par.onnx_model
+            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename = model_filename(par), fidelity = par.model)
+        elseif par.onnx_model
             actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model, [
                 "RLTS_3",
                 "KAPPA_LOC",
@@ -171,7 +171,7 @@ function _finalize(actor::ActorTGLF)
 end
 
 function model_filename(par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}) where {P<:Real}
-    if par.model == :TGLFNN
+    if par.model ∈ [:TGLFNN, :GKNN]
         filename = par.tglfnn_model
     else
         filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
