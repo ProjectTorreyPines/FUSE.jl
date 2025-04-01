@@ -3,6 +3,7 @@
 @assert ("FUSE_ENVIRONMENT" in keys(ENV)) "Error: Must define FUSE_ENVIRONMENT environment variable"
 fuse_env = ENV["FUSE_ENVIRONMENT"]
 env_dir = joinpath(ENV["FUSE_HOME"], "environments", fuse_env)
+cpu_target = ENV["JULIA_CPU_TARGET"]
 
 import Pkg
 
@@ -34,7 +35,7 @@ println("    ", packages)
 println()
 println("### Setup new environment")
 Pkg.activate(env_dir)
-Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact"]; packages])
+Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT"]; packages])
 Pkg.build("IJulia")
 
 println()
@@ -46,7 +47,7 @@ println()
 println("### Create precompile script")
 precompile_execution_file = joinpath(env_dir, "precompile_script.jl")
 precompile_cmds = """
-using FUSE, $pkgs_using
+using FUSE, EFIT, $pkgs_using
 include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
 include(joinpath(pkgdir(FUSE), "test", "runtests.jl"))
 """
@@ -56,15 +57,15 @@ chmod(precompile_execution_file, 0o444)
 println()
 println("### Precompile FUSE sys image")
 sysimage_path = joinpath(env_dir, "sys_fuse.so")
-cpu_target = ENV["JULIA_CPU_TARGET"]
 create_sysimage(["FUSE"]; sysimage_path, precompile_execution_file, cpu_target)
 chmod(sysimage_path, 0o555)
 
 println()
 println("### Create IJulia kernels (10 threads for login, 40 for worker)")
 import IJulia
-IJulia.installkernel("Julia+FUSE (login 10-threads)",  "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"10"))
-IJulia.installkernel("Julia+FUSE (worker 40-threads)", "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"40"))
+IJulia.installkernel("Julia+FUSE - single thread",  "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"1"))
+IJulia.installkernel("Julia+FUSE - 16-thread (medium)", "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"16"))
+IJulia.installkernel("Julia+FUSE - 10-thread (long)", "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"10"))
 
 println()
 println("### Create fuse executable")
@@ -90,7 +91,7 @@ ${BOLD}${GREEN}(_(_)${RESET}                 ${BOLD}${BLUE}(_)${RESET}  |       
 
 
 """
-fuse_exe = "JULIA_PROJECT=$env_dir julia -i --banner=no --sysimage=$(env_dir)/sys_fuse.so"
+fuse_exe = "JULIA_PROJECT=$env_dir julia -i --banner=no --sysimage=$(env_dir)/sys_fuse.so \$@"
 exe_file = joinpath(env_dir, "fuse")
 write(exe_file, fuse_banner * fuse_exe)
 chmod(exe_file, 0o555)
@@ -119,5 +120,8 @@ Restarting (sometimes twice) normally resolves the issue.
 """
 
 base = read(joinpath(@__DIR__, "base.lua"), String)
+
+# set the cpu target to the one defined in the environment
+base = replace(base, """setenv("JULIA_CPU_TARGET", "generic")""" => """setenv("JULIA_CPU_TARGET", "$cpu_target")""")
 
 write(module_file, header * base)
