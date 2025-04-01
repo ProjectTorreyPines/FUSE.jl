@@ -38,7 +38,7 @@ function _step(actor::ActorNeutralFueling)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    τp = min(10.0, par.τp_over_τe * IMAS.tau_e_thermal(dd; ignore_radiation=false))
+    τp = min(10.0, par.τp_over_τe * IMAS.tau_e_thermal(dd; ignore_radiation=false, ignore_time_derivative=true))
 
     Sneut, nneut = neucg(eqt, cp1d, τp, par.T_wall)
 
