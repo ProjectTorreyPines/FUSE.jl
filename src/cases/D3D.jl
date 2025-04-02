@@ -163,12 +163,6 @@ function case_parameters(
     @info("Path on Localhost: $local_path")
     Base.run(`bash $local_path/local_driver.sh`)
 
-    # run data fetching
-    @info("Remote D3D data fetching for shot $shot")
-    @info("Path on OMEGA: $remote_path")
-    @info("Path on Localhost: $local_path")
-    Base.run(`bash $local_path/local_driver.sh`)
-
     # load experimental ods
     ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
