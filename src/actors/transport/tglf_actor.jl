@@ -93,46 +93,47 @@ function _step(actor::ActorTGLF)
 
     if par.model ∈ [:TGLFNN, :GKNN]
         if !par.onnx_model
-            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename = model_filename(par), fidelity = par.model)
+            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
         elseif par.onnx_model
-            actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model, [
-                "RLTS_3",
-                "KAPPA_LOC",
-                "ZETA_LOC",
-                "TAUS_3",
-                "VPAR_1",
-                "Q_LOC",
-                "RLNS_1",
-                "TAUS_2",
-                "Q_PRIME_LOC",
-                "P_PRIME_LOC",
-                "ZMAJ_LOC",
-                "VPAR_SHEAR_1",
-                "RLTS_2",
-                "S_DELTA_LOC",
-                "RLTS_1",
-                "RMIN_LOC",
-                "DRMAJDX_LOC",
-                "AS_3",
-                "RLNS_3",
-                "DZMAJDX_LOC",
-                "DELTA_LOC",
-                "S_KAPPA_LOC",
-                "ZEFF",
-                "VEXB_SHEAR",
-                "RMAJ_LOC",
-                "AS_2",
-                "RLNS_2",
-                "S_ZETA_LOC",
-                "BETAE_log10",
-                "XNUE_log10",
-                "DEBYE_log10"
-            ], [
-                "OUT_G_elec",
-                "OUT_Q_elec",
-                "OUT_Q_ions",
-                "OUT_P_ions"
-            ];)
+            actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
+                [
+                    "RLTS_3",
+                    "KAPPA_LOC",
+                    "ZETA_LOC",
+                    "TAUS_3",
+                    "VPAR_1",
+                    "Q_LOC",
+                    "RLNS_1",
+                    "TAUS_2",
+                    "Q_PRIME_LOC",
+                    "P_PRIME_LOC",
+                    "ZMAJ_LOC",
+                    "VPAR_SHEAR_1",
+                    "RLTS_2",
+                    "S_DELTA_LOC",
+                    "RLTS_1",
+                    "RMIN_LOC",
+                    "DRMAJDX_LOC",
+                    "AS_3",
+                    "RLNS_3",
+                    "DZMAJDX_LOC",
+                    "DELTA_LOC",
+                    "S_KAPPA_LOC",
+                    "ZEFF",
+                    "VEXB_SHEAR",
+                    "RMAJ_LOC",
+                    "AS_2",
+                    "RLNS_2",
+                    "S_ZETA_LOC",
+                    "BETAE_log10",
+                    "XNUE_log10",
+                    "DEBYE_log10"
+                ], [
+                    "OUT_G_elec",
+                    "OUT_Q_elec",
+                    "OUT_Q_ions",
+                    "OUT_P_ions"
+                ];)
         end
     elseif par.model == :TGLF
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
@@ -239,7 +240,7 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     input_tjlf.IFLUX = true
     input_tjlf.IBRANCH = -1
     input_tjlf.KX0_LOC = 0.0
-    input_tjlf.ALPHA_ZF = -1  
+    input_tjlf.ALPHA_ZF = -1
 
     # check converison
     TJLF.checkInput(input_tjlf)
