@@ -94,6 +94,14 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     IMAS.sources!(dd)
 
+    if !isinf(par.Δt)
+        # "∂/∂t" is to account to changes in the profiles that
+        # have happened between t-1 and tnow outside of the flux matcher.
+        # The flux_macher then temporarily adds a "∂/∂t implicit" term to this to
+        # account for changes that occur because of transport predictions.
+        IMAS.time_derivative_source!(dd)
+    end
+
     initial_cp1d = cp1d_copy_primary_quantities(cp1d)
     initial_summary_ped = IMAS.summary__local__pedestal{D}()
     setfield!(initial_summary_ped.position, :rho_tor_norm, [@ddtime(dd.summary.local.pedestal.position.rho_tor_norm)])
@@ -256,6 +264,12 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.sources!(dd)
     end
 
+    # remove the temporary `∂/∂t implicit` term and update the full `∂/∂t` term
+    if !isinf(par.Δt)
+        deleteat!(dd.core_sources.source, :time_derivative, "identifier.name" => "∂/∂t implicit")
+        IMAS.time_derivative_source!(dd)
+    end
+
     # free total densities expressions
     IMAS.empty!(cp1d.electrons, :density)
     for ion in cp1d.ion
@@ -376,7 +390,7 @@ function flux_match_errors(
         IMAS.sources!(dd; bootstrap=false)
     end
     if par.Δt < Inf
-        IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
+        IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
     end
 
     # handle fixed widths in TJLF
@@ -602,7 +616,8 @@ function flux_match_simple(
             targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
         else
             turbulence_scale += errors[1] / 10.0
-            targets, fluxes, errors = flux_match_errors(actor, [turbulence_scale;scale_z_profiles(zprofiles)], initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+            targets, fluxes, errors =
+                flux_match_errors(actor, [turbulence_scale; scale_z_profiles(zprofiles)], initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
         end
         xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
         ferror = norm(errors)
