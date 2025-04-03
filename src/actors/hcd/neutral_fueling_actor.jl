@@ -48,6 +48,17 @@ function _step(actor::ActorNeutralFueling)
     source = resize!(dd.core_sources.source, :gas_puff, "identifier.name" => "gas"; wipe=false)
     IMAS.new_source(source, source.identifier.index, "gas", cp1d.grid.rho_tor_norm, cp1d.grid.volume, cp1d.grid.area; electrons_particles=Sneut)
 
+    # fill ion particle source from the wall, assuming equal number or particles from all hydrogenic species
+    hydrogenic_ion_list = [ion for ion in cp1d.ion if ion.element[1].z_n == 1 && !ismissing(ion, :density_thermal) && sum(ion.density_thermal)>0.0]
+    cs1d = source.profiles_1d[]
+    resize!(cs1d.ion, length(hydrogenic_ion_list))
+    for (cs1d_ion, ion) in zip(cs1d.ion, hydrogenic_ion_list)
+        cs1d_ion.label = ion.label
+        fill!(cs1d_ion.element, ion.element)
+        cs1d_ion.particles = cs1d.electrons.particles ./ length(hydrogenic_ion_list)
+        cs1d_ion.particles_inside = cs1d.electrons.particles_inside ./ length(hydrogenic_ion_list)
+    end
+
     return actor
 end
 
