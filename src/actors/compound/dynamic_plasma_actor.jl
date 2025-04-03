@@ -460,12 +460,11 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     #     subplot,
     #     min_power,
     #     aggregate_radiation,
-    #     weighted=:area,
     #     legend=:topleft,
     #     legend_foreground_color=:transparent,
     #     title="Parallel current",
     #     normalization=1E-6,
-    #     ylabel="[MA]"
+    #     ylabel="[MA/m²]"
     # )
 
     subplot = 6
@@ -476,12 +475,11 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Electron power source",
         normalization=1E-6,
-        ylabel="[MW]"
+        ylabel="[MW/m³]"
     )
 
     subplot = 7
@@ -492,12 +490,11 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Ion power source",
         normalization=1E-6,
-        ylabel="[MW]"
+        ylabel="[MW/m³]"
     )
 
     subplot = 8
@@ -508,11 +505,10 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Particle source",
-        ylabel="[s⁻¹]"
+        ylabel="[s⁻¹/m³]"
     )
 
     # transport
