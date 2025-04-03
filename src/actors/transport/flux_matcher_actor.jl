@@ -379,20 +379,28 @@ function flux_match_errors(
 
     if !isempty(save_input_tglf_folder)
         if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
-            input_tglfs = TGLFNN.InputTGLF(
+            input_tglfs_save_TJLF = TGLFNN.InputTGLF(
                 dd,
                 par.rho_transport,
                 actor.actor_ct.actor_turb.par.sat_rule,
                 actor.actor_ct.actor_turb.par.electromagnetic,
                 actor.actor_ct.actor_turb.par.lump_ions
             )
-        else
-            input_tglfs = actor.actor_ct.actor_turb.input_tglfs
         end
+        input_tglfs = actor.actor_ct.actor_turb.input_tglfs
         for idx in 1:length(par.rho_transport)
             input_tglf = input_tglfs[idx]
             name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
-            TGLFNN.save(input_tglf, name)
+            
+            if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
+              input_tglf_save_TJLF = input_tglfs_save_TJLF[idx]
+              name_j = joinpath(par.save_input_tglf_folder, "input.tjlf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
+              TJLF.save(input_tglf, name_j)
+              TGLFNN.save(input_tglf_save_TJLF, name)
+            else
+              TGLFNN.save(input_tglf, name)
+             
+            end
         end
     end
 
