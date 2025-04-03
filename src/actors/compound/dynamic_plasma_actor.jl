@@ -300,6 +300,7 @@ Inclusinon in BEAMER presentation can then be done with:
 function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     min_power::Float64=0.0,
     aggregate_radiation::Bool=true,
+    aggregate_hcd::Bool=true,
     dd1::Union{Nothing,IMAS.DD}=nothing,
     kw...) where {T<:Real}
 
@@ -460,6 +461,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     #     subplot,
     #     min_power,
     #     aggregate_radiation,
+    #     aggregate_hcd,
     #     legend=:topleft,
     #     legend_foreground_color=:transparent,
     #     title="Parallel current",
@@ -475,6 +477,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Electron power source",
@@ -490,6 +493,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Ion power source",
@@ -505,6 +509,7 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Particle source",
