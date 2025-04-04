@@ -154,6 +154,7 @@ function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
     end
 
     # Now iterate until the solution converges
+    del = 0.0
     for it in 1:maxit
         del = 0.0
         for i in 1:nr
@@ -180,7 +181,8 @@ function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
             return pn1
         end
     end
-    return error("Could not solve for neutral density")
+    display(plot(pn1))
+    return error("Could not solve for neutral density: error is $(del) Vs requested $(tol)")
 end
 
 """
