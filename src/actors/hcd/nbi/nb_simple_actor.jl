@@ -98,7 +98,6 @@ function _step(actor::ActorSimpleNB)
     qbeamtmp = similar(rho_cp)
     IMAS.freeze!(cp1d, :zeff)
     for (ibeam, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
-        # smoothing of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
         beam_mass = nbu.species.a
         beam_Z = nbu.species.z_n
         beam_energy = max(0.0, @ddtime(ps.energy.reference))
@@ -160,6 +159,7 @@ function _step(actor::ActorSimpleNB)
 
             power_launched_allenergies = 0.0
             for (ifpow, fpow) in enumerate(fbcur)
+                # smoothing of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power
                 τ_th = IMAS.fast_ion_thermalization_time(cp1d, 1, nbu.species, beam_energy / ifpow)
                 power_launched = fpow * max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
                 power_launched_allenergies += power_launched
