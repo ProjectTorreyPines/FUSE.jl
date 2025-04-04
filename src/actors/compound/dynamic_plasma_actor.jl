@@ -300,6 +300,7 @@ Inclusinon in BEAMER presentation can then be done with:
 function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     min_power::Float64=0.0,
     aggregate_radiation::Bool=true,
+    aggregate_hcd::Bool=true,
     dd1::Union{Nothing,IMAS.DD}=nothing,
     kw...) where {T<:Real}
 
@@ -460,12 +461,12 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     #     subplot,
     #     min_power,
     #     aggregate_radiation,
-    #     weighted=:area,
+    #     aggregate_hcd,
     #     legend=:topleft,
     #     legend_foreground_color=:transparent,
     #     title="Parallel current",
     #     normalization=1E-6,
-    #     ylabel="[MA]"
+    #     ylabel="[MA/m²]"
     # )
 
     subplot = 6
@@ -476,12 +477,12 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Electron power source",
         normalization=1E-6,
-        ylabel="[MW]"
+        ylabel="[MW/m³]"
     )
 
     subplot = 7
@@ -492,12 +493,12 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Ion power source",
         normalization=1E-6,
-        ylabel="[MW]"
+        ylabel="[MW/m³]"
     )
 
     subplot = 8
@@ -508,11 +509,11 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Particle source",
-        ylabel="[s⁻¹]"
+        ylabel="[s⁻¹/m³]"
     )
 
     # transport
