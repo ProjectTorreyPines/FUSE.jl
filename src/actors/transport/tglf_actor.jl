@@ -25,6 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
         Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
+    save_input_tglfs_to_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder"; default="")
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
@@ -89,6 +90,10 @@ function _step(actor::ActorTGLF)
                 end
             end
         end
+        if isdir(par.save_input_tglfs_to_folder)
+            save(actor.input_tglfs[k] ,joinpath(par.save_input_tglfs_to_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])"))
+        end
+
     end
 
     if par.model ∈ [:TGLFNN, :GKNN]
@@ -251,5 +256,20 @@ end
 function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF})
     for field_name in fieldnames(typeof(input))
         println(io, " $field_name = $(getfield(input,field_name))")
+    end
+end
+
+"""
+    save(input::Union{TGLFNN.InputCGYRO, TGLFNN.InputQLGYRO,  TGLFNN.InputTGLF, }, filename::String)
+
+Common save method for all the various inputTGLF types
+"""
+function save(input::Union{TGLFNN.InputCGYRO, TGLFNN.InputQLGYRO,  TGLFNN.InputTGLF, }, filename::String)
+    if input isa TGLFNN.InputCGYRO || input isa TGLFNN.InputQLGYRO || input isa TGLFNN.InputTGLF
+        return TGLFNN.save(input, filename)
+    elseif input isa TJLF.InputTJLF
+        return TJLF.save(input, filename)
+    else
+        error("Unsupported input type")
     end
 end
