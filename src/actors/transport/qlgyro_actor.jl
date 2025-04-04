@@ -59,7 +59,7 @@ function _step(actor::ActorQLGYRO)
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    ix_cp = [argmin(abs.(cp1d.grid.rho_tor_norm .- rho)) for rho in par.rho_transport]
+    ix_cp = [argmin_abs(cp1d.grid.rho_tor_norm, rho) for rho in par.rho_transport]
 
     for (k, gridpoint_cp) in enumerate(ix_cp)
         actor.input_qlgyros[k] = TGLFNN.InputQLGYRO()

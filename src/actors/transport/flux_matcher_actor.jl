@@ -414,7 +414,7 @@ function flux_match_errors(
     fluxes = flux_match_fluxes(dd, par)
     targets = flux_match_targets(dd, par)
 
-    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     surface0 = cp1d.grid.surface[cp_gridpoints] ./ cp1d.grid.surface[end]
 
     # Evaluate the flux_matching errors
@@ -473,7 +473,7 @@ function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameter
     total_source = resize!(dd.core_sources.source, :total; wipe=false)
     total_source1d = resize!(total_source.profiles_1d; wipe=false)
     IMAS.total_sources!(total_source1d, dd.core_sources, cp1d; time0=dd.global_time, fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
-    cs_gridpoints = [argmin(abs.(rho_x .- total_source1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cs_gridpoints = [argmin_abs(total_source1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
     targets = Float64[]
 
@@ -670,7 +670,7 @@ Packs the z_profiles based on evolution parameters
 NOTE: the order for packing and unpacking is always: [Te, Ti, Rotation, ne, nis...]
 """
 function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
-    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
     z_profiles = Float64[]
     profiles_paths = []
@@ -742,7 +742,7 @@ function unpack_z_profiles(
     z_max = 10.0
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
-    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)

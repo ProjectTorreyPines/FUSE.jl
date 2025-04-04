@@ -1,5 +1,3 @@
-import IMASutils: trapz
-
 #= ========= =#
 #  functions  #
 #= ========= =#
