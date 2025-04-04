@@ -66,7 +66,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     # Throughout FUSE, the "pedestal" density is the density at rho=0.9
     rho09 = 0.9
     @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
-    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) # zeff is taken as the average value
+    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09)
     @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
 
     if par.do_plot

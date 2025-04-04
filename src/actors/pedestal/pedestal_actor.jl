@@ -218,7 +218,7 @@ end
 
 The EPED and WPED models only operate on the temperature profiles.
 Here we make the densities always conform to the EPED tanh form with w_ped = 0.05
-Throughout FUSE, the "pedestal" density is the density at rho=0.9
+NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9 and the w_ped_ne = 0.05
 """
 function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]

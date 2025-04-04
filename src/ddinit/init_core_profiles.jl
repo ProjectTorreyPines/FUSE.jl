@@ -140,7 +140,9 @@ function init_core_profiles!(
 
     # Density
     # first we start with a "unit" density profile...
-    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped)
+    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9 and the w_ped_ne = 0.05
+    w_ped_ne = 0.05
+    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped_ne)
     cp1d.electrons.density_thermal = IMAS.ped_height_at_09(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, 1.0)
     # ...which then we scale according to :ne_setting and :ne_value
     if ne_setting == :ne_ped
