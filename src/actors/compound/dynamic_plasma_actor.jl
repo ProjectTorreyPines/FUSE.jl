@@ -106,7 +106,7 @@ function _step(actor::ActorDynamicPlasma)
     old_logging = actor_logging(dd, false)
 
     try
-        for (kk, tt) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
+        for (kk, time0) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2
             progr = (prog, t0, t1, phase)
 
@@ -116,16 +116,17 @@ function _step(actor::ActorDynamicPlasma)
             # by actor_tr and actor_ped at the 1/2 steps.
             # For dd.core_profiles we thus create a new time slice
             # at the 1/2 steps which is then retimed at the 2/2 steps.
-            dd.global_time = tt
+            dd.global_time = time0
             substep(actor, Val{:time_advance}, δt / 2; progr, retime_core_profiles=(phase == 2))
 
-            δtt = kk == 1 ? δt / 2 : δt
+            δtime0 = kk == 1 ? δt / 2 : δt
             if phase == 1
-                substep(actor, Val{:evolve_j_ohmic}, δtt; progr)
+                substep(actor, Val{:evolve_j_ohmic}, δtime0; progr)
             else
-                substep(actor, Val{:run_pedestal}, δtt; progr)
+                substep(actor, Val{:run_pedestal}, δtime0; progr)
 
-                substep(actor, Val{:run_transport}, δtt; progr)
+                substep(actor, Val{:run_transport}, δtime0; progr)
+                IMAS.time_derivative_source!(dd)
             end
 
             substep(actor, Val{:run_equilibrium}, δt / 2; progr)
@@ -299,6 +300,7 @@ Inclusinon in BEAMER presentation can then be done with:
 function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     min_power::Float64=0.0,
     aggregate_radiation::Bool=true,
+    aggregate_hcd::Bool=true,
     dd1::Union{Nothing,IMAS.DD}=nothing,
     kw...) where {T<:Real}
 
@@ -459,12 +461,12 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     #     subplot,
     #     min_power,
     #     aggregate_radiation,
-    #     weighted=:area,
+    #     aggregate_hcd,
     #     legend=:topleft,
     #     legend_foreground_color=:transparent,
     #     title="Parallel current",
     #     normalization=1E-6,
-    #     ylabel="[MA]"
+    #     ylabel="[MA/m²]"
     # )
 
     subplot = 6
@@ -475,12 +477,12 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Electron power source",
         normalization=1E-6,
-        ylabel="[MW]"
+        ylabel="[MW/m³]"
     )
 
     subplot = 7
@@ -491,12 +493,12 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Ion power source",
         normalization=1E-6,
-        ylabel="[MW]"
+        ylabel="[MW/m³]"
     )
 
     subplot = 8
@@ -507,11 +509,11 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
         subplot,
         min_power,
         aggregate_radiation,
-        weighted=:volume,
+        aggregate_hcd,
         legend=:topleft,
         legend_foreground_color=:transparent,
         title="Particle source",
-        ylabel="[s⁻¹]"
+        ylabel="[s⁻¹/m³]"
     )
 
     # transport
