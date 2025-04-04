@@ -258,3 +258,18 @@ function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF}
         println(io, " $field_name = $(getfield(input,field_name))")
     end
 end
+
+"""
+    save(input::Union{TGLFNN.InputCGYRO, TGLFNN.InputQLGYRO,  TGLFNN.InputTGLF, }, filename::String)
+
+Common save method for all the various inputTGLF types
+"""
+function save(input::Union{TGLFNN.InputCGYRO, TGLFNN.InputQLGYRO,  TGLFNN.InputTGLF, }, filename::String)
+    if input isa TGLFNN.InputCGYRO || input isa TGLFNN.InputQLGYRO || input isa TGLFNN.InputTGLF
+        return TGLFNN.save(input, filename)
+    elseif input isa TJLF.InputTJLF
+        return TJLF.save(input, filename)
+    else
+        error("Unsupported input type")
+    end
+end
