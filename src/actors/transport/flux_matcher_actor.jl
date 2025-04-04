@@ -149,8 +149,39 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     finally
 
         actor_logging(dd, old_logging)
-    end
+        #----- save TGLF/TJLF inputs for the failed iteration ----------
+        if par.verbose & !isempty(par.save_input_tglf_folder)
+         if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
+            input_tglfs_save_TJLF = TGLFNN.InputTGLF(
+                dd,
+                par.rho_transport,
+                actor.actor_ct.actor_turb.par.sat_rule,
+                actor.actor_ct.actor_turb.par.electromagnetic,
+                actor.actor_ct.actor_turb.par.lump_ions
+            )
+          end
+          input_tglfs = actor.actor_ct.actor_turb.input_tglfs
+        
+          for idx in 1:length(par.rho_transport)
+           
+            input_tglf = input_tglfs[idx] 
+                  
+            name = joinpath(par.save_input_tglf_folder, "input.tglf_failed_$(par.rho_transport[idx])")
+           
+            if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
+              input_tglf_save_TJLF = input_tglfs_save_TJLF[idx]
+              name_j = joinpath(par.save_input_tglf_folder, "input.tjlf_failed_$(par.rho_transport[idx])")
+              TJLF.save(input_tglf, name_j)              
+              TGLFNN.save(input_tglf_save_TJLF, name)
+            else
+              TGLFNN.save(input_tglf, name)
+             
+            end
+          end
+        end
 
+
+    end
     # evaluate profiles at the best-matching gradients
     actor.error = norm(out.errors)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
