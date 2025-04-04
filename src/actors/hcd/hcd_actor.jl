@@ -107,9 +107,6 @@ Runs through the selected HCD actor's step
 function _step(actor::ActorHCD)
     dd = actor.dd
 
-    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.sources!(dd)
-
     if !isempty(dd.ec_launchers.beam)
         step(actor.ec_actor)
     end
@@ -132,6 +129,9 @@ function _step(actor::ActorHCD)
 
     # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
+
+    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
+    IMAS.sources!(dd)
 
     return actor
 end
