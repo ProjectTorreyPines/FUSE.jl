@@ -196,6 +196,23 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
+function _finalize(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
+    dd = actor.dd
+
+    cp1d = dd.core_profiles.profiles_1d[]
+    summary_ped = dd.summary.local.pedestal
+
+    # Throughout FUSE, the "pedestal" values are always defined at rho=0.9
+    rho09 = 0.9
+    @ddtime summary_ped.position.rho_tor_norm = rho09
+    @ddtime summary_ped.n_e.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(rho09)
+    @ddtime summary_ped.zeff.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(rho09)
+    @ddtime summary_ped.t_e.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(rho09)
+    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(rho09)
+
+    return actor
+end
+
 """
     LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
 
@@ -218,7 +235,8 @@ end
 
 The EPED and WPED models only operate on the temperature profiles.
 Here we make the densities always conform to the EPED tanh form with w_ped = 0.05
-NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9 and the w_ped_ne = 0.05
+NOTE: Throughout FUSE, the "pedestal" values are defined at rho=0.9
+#     This is necessary because the edge density must be defined independently of the pedestal model
 """
 function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]

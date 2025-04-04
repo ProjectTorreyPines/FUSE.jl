@@ -101,17 +101,10 @@ function _finalize(actor::ActorEPED)
 
     # NOTE: EPED uses 1/2 width as fraction of psi_norm instead FUSE, IMAS, and the Hmode_profiles functions use the full width as a function of rho_tor_norm
     from_ped_to_full_width = 2.0
-    n_e = actor.inputs.neped * 1e19
     t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
     t_i_average = t_e * Ti_over_Te
     position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
     w_ped = 1.0 - position
-
-    summary_ped = dd.summary.local.pedestal
-    @ddtime summary_ped.n_e.value = n_e
-    @ddtime summary_ped.t_e.value = t_e
-    @ddtime summary_ped.t_i_average.value = t_i_average
-    @ddtime summary_ped.position.rho_tor_norm = position
 
     # Change the last point of the temperatures profiles since
     # The rest of the profile will be taken care by the blend_core_edge_Hmode() function
