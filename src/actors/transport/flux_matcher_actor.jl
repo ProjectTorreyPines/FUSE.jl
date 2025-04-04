@@ -1,6 +1,6 @@
 import NLsolve
 using LinearAlgebra
-import TJLF: InputTJLF
+import TJLF: InputTJLF, save
 
 #= ================ =#
 #  ActorFluxMatcher  #
@@ -160,43 +160,21 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
 
         flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped) # z_profiles for the smallest error iteration
-
-    finally
-
-        actor_logging(dd, old_logging)
+    catch e
         #----- save TGLF/TJLF inputs for the failed iteration ----------
         if par.verbose & !isempty(par.save_input_tglf_folder)
-         if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
-            input_tglfs_save_TJLF = TGLFNN.InputTGLF(
-                dd,
-                par.rho_transport,
-                actor.actor_ct.actor_turb.par.sat_rule,
-                actor.actor_ct.actor_turb.par.electromagnetic,
-                actor.actor_ct.actor_turb.par.lump_ions
-            )
-          end
-          input_tglfs = actor.actor_ct.actor_turb.input_tglfs
-        
-          for idx in 1:length(par.rho_transport)
-           
-            input_tglf = input_tglfs[idx] 
-                  
-            name = joinpath(par.save_input_tglf_folder, "input.tglf_failed_$(par.rho_transport[idx])")
-           
-            if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
-              input_tglf_save_TJLF = input_tglfs_save_TJLF[idx]
-              name_j = joinpath(par.save_input_tglf_folder, "input.tjlf_failed_$(par.rho_transport[idx])")
-              TJLF.save(input_tglf, name_j)              
-              TGLFNN.save(input_tglf_save_TJLF, name)
-            else
-              TGLFNN.save(input_tglf, name)
-             
+            input_tglfs = actor.actor_ct.actor_turb.input_tglfs
+            for idx in 1:length(par.rho_transport)           
+                input_tglf = input_tglfs[idx] 
+                name = joinpath(par.save_input_tglf_folder, "input.tglf_failed_$(par.rho_transport[idx])")
+                save(input_tglf,name)
             end
-          end
         end
-
-
+        rethrow(e)
+    finally
+        actor_logging(dd, old_logging)
     end
+
     # evaluate profiles at the best-matching gradients
     actor.error = norm(out.errors)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
@@ -435,30 +413,13 @@ function flux_match_errors(
     finalize(step(actor.actor_ct))
 
     if !isempty(save_input_tglf_folder)
-        if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
-            input_tglfs_save_TJLF = TGLFNN.InputTGLF(
-                dd,
-                par.rho_transport,
-                actor.actor_ct.actor_turb.par.sat_rule,
-                actor.actor_ct.actor_turb.par.electromagnetic,
-                actor.actor_ct.actor_turb.par.lump_ions
-            )
-        end
         input_tglfs = actor.actor_ct.actor_turb.input_tglfs
         for idx in 1:length(par.rho_transport)
             input_tglf = input_tglfs[idx]
             name = joinpath(par.save_input_tglf_folder, "input.tglf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
-            
-            if eltype(actor.actor_ct.actor_turb.input_tglfs) <: TJLF.InputTJLF
-              input_tglf_save_TJLF = input_tglfs_save_TJLF[idx]
-              name_j = joinpath(par.save_input_tglf_folder, "input.tjlf_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[idx])")
-              TJLF.save(input_tglf, name_j)
-              TGLFNN.save(input_tglf_save_TJLF, name)
-            else
-              TGLFNN.save(input_tglf, name)
-             
-            end
+            save(input_tglf, name)       
         end
+    end
     
     # scale turbulent fluxes, if par.scale_turbulence_law is set
     if !ismissing(par, :scale_turbulence_law)
