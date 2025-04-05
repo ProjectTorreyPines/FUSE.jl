@@ -360,7 +360,17 @@ function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__prof
         end
     end
 
-    G(x, n) = 2.0 / sqrt(π) * QuadGK.quadgk(η -> η .^ n .* exp.(-η .^ 2 .- x ./ η), 0.0, Inf)[1]
+    #G(x, n) = 2.0 / sqrt(π) * QuadGK.quadgk(η -> η^n * exp(-η^2 - x / η), 0.0, Inf)[1]
+    # Change of variable: η = t / (1 - t), maps (0, 1) to (0, ∞) and set custom precision
+    function G(x, n)
+        integrand(t) = begin
+            η = t / (1 - t)
+            jac = 1 / (1 - t)^2
+            η^n * exp(-η^2 - x / η) * jac
+        end
+        return 2.0 / sqrt(π) * QuadGK.quadgk(integrand, 0.0, 1.0;rtol=1e-6, atol=1e-12)[1]
+    end
+
     G1h = zeros(nr, nt)
     Ap = zeros(nr, nt)
     Am = zeros(nr, nt)
