@@ -113,7 +113,7 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     @views Z1 = Z1[2:end]
 
     # split long segments
-    L_inner = perimeter(inner_layer.outline.r, inner_layer.outline.z)
+    L_inner = IMAS.perimeter(inner_layer.outline.r, inner_layer.outline.z)
     max_seg_length = L_inner / min_n_segments
     R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
 

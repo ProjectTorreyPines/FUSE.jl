@@ -28,7 +28,7 @@ function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, 
 
     # PF posistions and sizes
     r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
-    w_pf = h_pf = perimeter(valid_r, valid_z) / n_coils / sqrt(2.0)
+    w_pf = h_pf = IMAS.perimeter(valid_r, valid_z) / n_coils / sqrt(2.0)
 
     # OH coils
     coils = IMAS.pf_active__coil{Float64}[]
