@@ -174,13 +174,16 @@ function run_EPED!(
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9 and the w_ped_ne = 0.05
-    # the conversion from ne_ped09 to ne_ped with w_ped = 0.05 is roughly 0.85
-    # peaked density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, 0.05)[90] ∼ 0.828
+    w_ped_ne = IMAS.pedestal_tanh_width_half_maximum(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
+
+    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9
+    # the conversion from ne_ped09 to ne_ped with w_ped is based on this
+    # peaked density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, w_ped_ne)[90] ∼ 0.828
     # flat density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 0.0, 1.0, 0.05)[90] ∼ 0.866
     rho09 = 0.9
+    tanh_width_to_09_factor = 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.5, 1.0, w_ped_ne)[90]
     ne09 = IMAS.get_from(dd, Val{:ne_ped}, ne_from, rho09)
-    neped = ne09 * 0.85
+    neped = ne09 * tanh_width_to_09_factor
     zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, rho09)
     βn = IMAS.get_from(dd, Val{:βn}, βn_from)
     ip = IMAS.get_from(dd, Val{:ip}, ip_from)
