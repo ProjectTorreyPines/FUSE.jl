@@ -152,7 +152,7 @@ function _step(actor::ActorSimpleNB)
             phi = asin.(Ys ./ Rs)
             ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
             rho_beam = rho2d_interp.(Rs, Zs)
-            dist = [0.0; cumsum(sqrt.(diff(Xs) .^ 2 .+ diff(Ys) .^ 2 .+ diff(Zs) .^ 2))]
+            dist = IMAS.arc_length(Xs, Ys, Zs)
 
             ne_beam = ne_interp.(rho_beam)
             Te_beam = Te_interp.(rho_beam)
