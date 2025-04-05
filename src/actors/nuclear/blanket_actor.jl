@@ -142,7 +142,7 @@ function _step(actor::ActorBlanket)
                     z_coords[ilayer+1] = hit[1][2]
                 end
             end
-            effective_thickness[k, :] .= IMAS.arc_length(r_coords, z_coords; include_zero=false)
+            effective_thickness[k, :] .= IMAS.arc_length(r_coords, z_coords)
 
             # approximate geometric scale of neutron flux from fist wall to the back of the blanket
             R1 = r_coords[1]
