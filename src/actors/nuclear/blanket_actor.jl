@@ -13,7 +13,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersAc
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
     max_Li6_enrichment_fraction::Entry{T} = Entry{T}("-", "Maximum allowed Li6 enrichment_fraction"; default=0.9)
-#    optimize_blanket_layers
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
@@ -142,7 +141,7 @@ function _step(actor::ActorBlanket)
                     z_coords[ilayer+1] = hit[1][2]
                 end
             end
-            effective_thickness[k, :] .= IMAS.arc_length(r_coords, z_coords)
+            effective_thickness[k, :] .= IMAS.arc_length(r_coords, z_coords; include_zero=false)
 
             # approximate geometric scale of neutron flux from fist wall to the back of the blanket
             R1 = r_coords[1]
