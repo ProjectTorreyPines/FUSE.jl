@@ -155,7 +155,7 @@ end
 
 function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
     # speedup the tests
-    act.ActorStationaryPlasma.max_iter = 2
+    act.ActorStationaryPlasma.max_iterations = 2
     # use full model for ActorThermalPlant if environmental variable `FUSE_WITH_EXTENSIONS` is set
     if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
         act.ActorThermalPlant.model = :network

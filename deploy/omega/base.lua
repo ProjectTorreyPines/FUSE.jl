@@ -1,7 +1,7 @@
 whatis("Name    : fuse")
 whatis("Version : " .. fuse_env)
 
-depends_on("julia/1.11.2")
+depends_on("julia/1.11.3")
 depends_on("env/gcc11.x")
 
 -- FUSE environment uses its own conda install with custom jupyter kernels
@@ -27,14 +27,10 @@ setenv("JULIA_LOAD_PATH", ":" .. envdir)
 
 setenv("JULIA_CC", "gcc -O3")
 
--- This lets the compiled sysimage work on login and worker nodes,
---   modeled after how the Julia binaries are built
-setenv("JULIA_CPU_TARGET", "generic;sandybridge,-xsaveopt,clone_all;haswell,-rdrnd,base(1)")
-
+-- This lets the compiled sysimage work on login and worker nodes
+setenv("JULIA_CPU_TARGET", "generic")
 
 prepend_path("JUPYTER_PATH", envdir .. "/.jupyter")
 
 prepend_path("PATH", basedir .. "/miniconda3/bin")
-
-local fuse_sysimage = envdir .. "/sys_fuse.so"
-set_alias("julia", "julia --sysimage=" .. fuse_sysimage)
+prepend_path("PATH", envdir)
