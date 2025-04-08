@@ -199,8 +199,7 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                     ne_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(rho09)
                     te_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(rho09)
                     ti_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(rho09)
-                    ped_region = cp1d.grid.rho_tor_norm .>= rho09
-                    zeff_ped = sum(cp1d.zeff[ped_region]) / sum(ped_region)
+                    zeff_ped = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff).(rho09)
 
                     if isempty(dd1.equilibrium.time_slice)
                         nel = IMAS.ne_line(nothing, cp1d)
