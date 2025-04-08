@@ -71,6 +71,15 @@ function _step(actor::ActorTGLF)
     for k in eachindex(par.rho_transport)
         input_tglf = input_tglfs[k]
         if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
+            if par.onnx_model && par.use_spectra
+                nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
+                temp_input_tjlf = InputTJLF{Float64}(input_tglf.NS, nky)
+                temp_input_tjlf.WIDTH_SPECTRUM .= 1.65
+                temp_input_tjlf.FIND_WIDTH = true # first case should find the widths
+                update_input_tjlf!(temp_input_tjlf, input_tglf)
+                satParams = TJLF.get_sat_params(temp_input_tjlf)
+                input_tglf.KY_SPECTRUM_ONNX = TJLF.get_ky_spectrum(temp_input_tjlf, satParams.grad_r0)
+            end
             actor.input_tglfs[k] = input_tglf
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
@@ -190,7 +199,7 @@ function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
     input_tjlf.NWIDTH = 21
 
     for fieldname in fieldnames(typeof(input_tglf))
-        if occursin(r"\d", String(fieldname)) || fieldname == :_Qgb # species parameter
+        if occursin(r"\d", String(fieldname)) || fieldname == :_Qgb || occursin("ONNX", String(fieldname)) # species parameter and onnx ignore
             continue
         end
         setfield!(input_tjlf, fieldname, getfield(input_tglf, fieldname))
