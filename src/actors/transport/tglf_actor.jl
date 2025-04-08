@@ -13,6 +13,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :GKNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     onnx_model::Entry{Bool} = Entry{Bool}("-", "use onnx model"; default=false)
+    use_spectra::Entry{Bool} = Entry{Bool}("-", "use a spectra based onnx model"; default=false)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
     tglfnn_model::Entry{String} = Entry{String}(
@@ -133,7 +134,7 @@ function _step(actor::ActorTGLF)
                     "OUT_Q_elec",
                     "OUT_Q_ions",
                     "OUT_P_ions"
-                ];)
+                ]; use_spectra=par.use_spectra)
         end
     elseif par.model == :TGLF
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
