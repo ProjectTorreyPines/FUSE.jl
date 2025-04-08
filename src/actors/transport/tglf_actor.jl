@@ -2,6 +2,7 @@ import TGLFNN
 import TGLFNN: InputTGLF
 import TJLF
 import TJLF: InputTJLF
+import GACODE
 
 #= ========= =#
 #  ActorTGLF  #
@@ -164,7 +165,7 @@ function _finalize(actor::ActorTGLF)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    IMAS.flux_gacode_to_fuse((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
+    GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     return actor
 end
