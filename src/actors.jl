@@ -102,7 +102,9 @@ This is where the main part of the actor calculation gets done
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
     global_time(actor.par, global_time(actor.dd)) # syncrhonize global_time of `par` with the one of `dd`
     if !actor_logging(actor.dd)
+        callback(actor, Val(:_pre_step))
         s_actor = _step(actor, args...; kw...)
+        callback(actor, Val(:_post_step))
     else
         timer_name = name(actor)
         TimerOutputs.reset_timer!(timer_name)
@@ -111,7 +113,9 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
             enter_workflow(actor)
             s_actor = try
+                callback(actor, Val(:_pre_step))
                 _step(actor, args...; kw...)
+                callback(actor, Val(:_post_step))
             finally
                 exit_workflow(actor)
             end
@@ -138,13 +142,17 @@ This is typically used to update `dd` to whatever the actor has calculated at th
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
     if !actor_logging(actor.dd)
+        callback(actor, Val(:_pre_finalize))
         f_actor = _finalize(actor)
+        callback(actor, Val(:_post_finalize))
     else
         timer_name = name(actor)
         TimerOutputs.@timeit timer timer_name begin
             memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
+            callback(actor, Val(:_pre_finalize))
             f_actor = _finalize(actor)
+            callback(actor, Val(:_post_finalize))
             memory_time_tag(actor, "finalize OUT")
         end
     end
@@ -154,6 +162,36 @@ end
 
 @recipe function plot_actor(actor::AbstractActor, args...)
     return error("No plot recipe defined for ator $(typeof(actor))")
+end
+
+#= ======== =#
+#  callback  #
+#= ======== =#
+"""
+    callback(actor::AbstractActor, specialize::Symbol; kw...)
+
+Provides callback functionality within actors. To use it, anywhere in an actor, define your entry point, for example:
+
+    callback(actor, :iteration_end; iteration_number, ...)
+
+Users can define their own callback functions (which will be called in arbitrary oder):
+
+    function callback(actor::ActorStationaryPlasma, ::Val{:iteration_end}, ::Val{:world}; kw...)
+        println("Hello world")
+    end
+
+    function callback(actor::ActorStationaryPlasma, ::Val{:iteration_end}, ::Val{:fuse}; kw...)
+        println("Hello fuse")
+    end
+"""
+function callback(actor::AbstractActor, callback_location::Any; kw...)
+    for m in methods(callback).ms
+        if m.nargs == 4 && typeof(callback_location) == m.sig.parameters[3]
+            callback_name = m.sig.parameters[4]
+            callback(actor, callback_location, callback_name(); kw...)
+        end
+    end
+    return actor
 end
 
 #= ============= =#
