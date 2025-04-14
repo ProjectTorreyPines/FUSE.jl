@@ -125,7 +125,7 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
         end
 
         inp = RABBIT.RABBITinput()
-        inp.time = time * 1e3
+        inp.time = time
 
         inp.nw = length(eqt2d.grid.dim1)
         inp.nh = length(eqt2d.grid.dim2)
