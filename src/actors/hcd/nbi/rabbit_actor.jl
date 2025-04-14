@@ -242,9 +242,16 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
 
     function get_pnbi(dd::IMAS.dd, selected_equilibrium_times::Vector{Float64})
         pnbis = Vector{Float64}[]
-        for ps in dd.pulse_schedule.nbi.unit
-            power_downsampled = IMAS.moving_average(dd.pulse_schedule.nbi.time, ps.power.reference, selected_equilibrium_times)
-            push!(pnbis, power_downsampled)
+        if length(selected_equilibrium_times) == 1
+            for ps in dd.pulse_schedule.nbi.unit
+                power = @ddtime ps.power.reference
+                push!(pnbis, [power])
+            end
+        else
+            for ps in dd.pulse_schedule.nbi.unit
+                power_downsampled = IMAS.moving_average(dd.pulse_schedule.nbi.time, ps.power.reference, selected_equilibrium_times)
+                push!(pnbis, power_downsampled)
+            end
         end
         return pnbis
     end
