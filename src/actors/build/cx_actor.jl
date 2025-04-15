@@ -708,6 +708,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
     for layer in IMAS.get_build_layers(bd.layer; fs=_in_)
         L = layer.start_radius
         R = layer.end_radius
+        layer.shape = Int(_rectangle_)
         layer.outline.r, layer.outline.z = rectangle_shape(L, R, D, U)
     end
 
@@ -730,6 +731,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
             R = layer.end_radius
             D = minimum(bd.layer[k-1].outline.z) - layer.thickness
             U = maximum(bd.layer[k-1].outline.z) + layer.thickness
+            layer.shape = Int(_rectangle_)
             layer.outline.r, layer.outline.z = rectangle_shape(L, R, D, U)
         end
     end
