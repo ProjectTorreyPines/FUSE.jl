@@ -68,7 +68,7 @@ function case_parameters(::Type{Val{:CAT}})
 
     act.ActorPlasmaLimits.raise_on_breach = false
 
-    act.ActorFluxMatcher.optimizer_algorithm = :simple
+    act.ActorFluxMatcher.algorithm = :simple
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
