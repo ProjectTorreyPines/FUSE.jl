@@ -168,8 +168,10 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
     if false
         j_tor = eqt.profiles_1d.j_tor
+        Ip0 = eqt.global_quantities.ip
     else
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+        Ip0 = IMAS.Ip(cp1d, eqt)
     end
 
     y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
@@ -187,7 +189,7 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
     end
 
-    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
+    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid, Ip0)
 end
 
 """
