@@ -110,7 +110,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
         # pedestal
         summary = dd.summary
-        @ddtime summary.local.pedestal.n_e.value = cp1d.electrons.density_thermal[argmin(abs.(rho .- (1 - ini.core_profiles.w_ped)))]
+        @ddtime summary.local.pedestal.n_e.value = cp1d.electrons.density_thermal[argmin_abs(rho, (1 - ini.core_profiles.w_ped))]
         @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - ini.core_profiles.w_ped
         @ddtime summary.local.pedestal.zeff.value = ini.core_profiles.zeff
 

@@ -82,8 +82,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
-    debug = false
-
     if !ismissing(par, :mode_transitions)
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
@@ -179,19 +177,26 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             end
         end
 
-        if debug
-            println()
-            @show dd.global_time
-            @show IMAS.L_H_threshold(dd)
-            println(mode)
-            @show actor.t_lh
-            @show actor.t_hl
-            @show α_t
-            @show α_n
-        end
     end
 
     actor.previous_time = dd.global_time
+
+    return actor
+end
+
+function _finalize(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
+    dd = actor.dd
+
+    cp1d = dd.core_profiles.profiles_1d[]
+    summary_ped = dd.summary.local.pedestal
+    rho = cp1d.grid.rho_tor_norm
+
+    position = 1 - IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
+    @ddtime summary_ped.position.rho_tor_norm = position
+    @ddtime summary_ped.n_e.value = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(position)
+    @ddtime summary_ped.zeff.value = IMAS.interp1d(rho, cp1d.zeff).(position)
+    @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(position)
+    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(position)
 
     return actor
 end
@@ -216,21 +221,24 @@ end
 """
     pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
 
-The EPED and WPED models only operate on the temperature profiles.
-Here we make the densities always conform to the EPED tanh form with w_ped = 0.05
-Throughout FUSE, the "pedestal" density is the density at rho=0.9
+The edge density must be defined independently of the pedestal model
+
+The EPED and WPED models only operate on the temperature profiles
 """
 function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm
 
+    # Throughout FUSE, the "pedestal" values are defined at rho=0.9
     rho09 = 0.9
-    w_ped_ne = 0.05
+
+    # density pedestal width to match the existing temperature pedestal width
+    w_ped = IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
 
     ne_ped_old = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, rho09)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * density_factor
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
-    ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped_ne, par.rho_nml, par.rho_ped; method=:scale)
+    ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = IMAS.ped_height_at_09(rho, ne, ne_ped)
 
     for ion in cp1d.ion
@@ -238,7 +246,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
             ni_ped_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
             ni_ped = ni_ped_old / ne_ped_old * ne_ped
             ion.density_thermal[end] = ni_ped / 4.0
-            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped_ne, par.rho_nml, par.rho_ped; method=:scale)
+            ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
     end

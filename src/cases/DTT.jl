@@ -48,7 +48,7 @@ function case_parameters(::Type{Val{:DTT}})
     layers[:cryostat] = 0.10
     ini.build.layers = layers
     # ==============
-    
+
     ini.build.n_first_wall_conformal_layers = 1
 
     ini.build.layers[:OH].coils_inside = 6
@@ -64,7 +64,7 @@ function case_parameters(::Type{Val{:DTT}})
     ini.requirements.flattop_duration = 70.0
 
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    ini.core_profiles.ne_value = 0.366
+    ini.core_profiles.ne_value = 0.35
     ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.Te_core = 20E3
     ini.core_profiles.Te_shaping = 1.8
@@ -82,12 +82,16 @@ function case_parameters(::Type{Val{:DTT}})
     ini.nb_unit[1].beam_energy = 0.5e6
     ini.nb_unit[1].beam_mass = 2.0
     ini.nb_unit[1].normalized_tangency_radius = 0.9
-    ini.nb_unit[1].beam_current_fraction = [1.0,0.0,0.0]
+    ini.nb_unit[1].beam_current_fraction = [1.0, 0.0, 0.0]
     ini.nb_unit[1].current_direction = :co
     ini.nb_unit[1].offaxis = false
 
-    resize!(ini.ec_launcher, 1)
-    ini.ec_launcher[1].power_launched = 29e6 #of 32 installed
+    resize!(ini.ec_launcher, 2)
+    resize!(act.ActorSimpleEC.actuator, 2)
+    ini.ec_launcher[1].power_launched = 12e6 #of 32 installed
+    act.ActorSimpleEC.actuator[1].rho_0 = 0.5
+    ini.ec_launcher[2].power_launched = 12e6 #of 32 installed
+    act.ActorSimpleEC.actuator[2].rho_0 = 0.3
 
     resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 6e6   #of 8 installed

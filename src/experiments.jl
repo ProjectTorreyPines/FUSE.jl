@@ -1,6 +1,6 @@
 function LH_analysis(dd::IMAS.dd, transition_start::Float64, density_transition_end::Float64, temperature_transition_end::Float64=density_transition_end; do_plot::Bool=true)
     rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
-    index09 = argmin(abs.(rho .- 0.9))
+    index09 = argmin_abs(rho, 0.9)
     time = dd.core_profiles.time
 
     tau_n = density_transition_end - transition_start
