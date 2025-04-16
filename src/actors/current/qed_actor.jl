@@ -172,14 +172,10 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
     else
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
         It = IMAS.cumtrapz(eqt1d.area, j_tor) # It(psi)
-        gm2 = (IMAS.mks.μ_0 * (2π) ^ 2)  .* It ./ (eqt1d.dvolume_dpsi .*  (eqt1d.dpsi_drho_tor .^ 2))
+        dΨ_dρ = (2π .* B0 .* rho_tor) ./ q  # dΦ/dρ * dΨ/dΦ
+        gm2 = (IMAS.mks.μ_0 * (2π) ^ 2)  .* It ./ (eqt1d.dvolume_drho_tor .* dΨ_dρ)
         gm2_itp = IMAS.interp1d(eqt1d.rho_tor_norm[2:5], gm2[2:5], :cubic)
         gm2[1] = gm2_itp(0.0)
-        #plot(gm2)
-        #display(plot!(eqt1d.gm2))
-        #plot(j_tor)
-        #display(plot!(eqt1d.j_tor))
-        #gm2 = eqt1d.gm2
     end
 
 
