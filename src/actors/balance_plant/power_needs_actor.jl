@@ -12,10 +12,10 @@ end
 
 mutable struct ActorPowerNeeds{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPowerNeeds{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPowerNeeds{P}}
     function ActorPowerNeeds(dd::IMAS.dd{D}, par::FUSEparameters__ActorPowerNeeds{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPowerNeeds)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -92,11 +92,11 @@ end
 function heating_and_current_drive_calc(system_unit::Any)
     power_electric_total = 0.0
     for item_unit in system_unit
-        efficiencies = collect((value for value in values(item_unit.efficiency) if value !== missing))
-        if length(efficiencies) > 0
-            efficiency = prod(efficiencies)
-        else
+        efficiencies = [getproperty(item_unit.efficiency, key) for key in IMAS.keys_no_missing(item_unit.efficiency)]
+        if isempty(efficiencies)
             efficiency = 1.0
+        else
+            efficiency = prod(efficiencies)
         end
         power_electric_total += @ddtime(item_unit.power_launched.data) / efficiency
     end

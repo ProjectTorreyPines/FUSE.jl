@@ -7,7 +7,7 @@ https://arxiv.org/abs/2405.20243
 
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
-function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -98,6 +98,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)::Tuple{P
     act.ActorPFdesign.symmetric = true
 
     filter!(!=(:q95_gt_2), act.ActorPlasmaLimits.models)
+    filter!(!=(:beta_troyon_nn), act.ActorPlasmaLimits.models)
 
     return ini, act
 end

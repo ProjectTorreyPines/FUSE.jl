@@ -49,9 +49,12 @@ function beta_troyon_nn(dd::IMAS.dd, act::ParametersAllActors)
         model_value = beta_normal
 
         index = findfirst(mode -> mode.perturbation_type.name == "Troyon no-wall" && mode.n_tor == n, mhd.toroidal_mode)
-        target_value = mhd.toroidal_mode[index].stability_metric
-
-        @ddtime(model.fraction = model_value / target_value)
+        if index !== nothing
+            target_value = mhd.toroidal_mode[index].stability_metric
+            @ddtime(model.fraction = model_value / target_value)
+        else        
+            @ddtime(model.fraction = 0.0)
+        end
     end
 end
 push!(supported_limit_models, :beta_troyon_nn)
@@ -201,7 +204,7 @@ function q80_gt_2(dd::IMAS.dd, act::ParametersAllActors)
     model.identifier.description = "q(rho=0.8) > 2.0"
 
     rho_eq = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
-    q_08 = abs.(dd.equilibrium.time_slice[].profiles_1d.q)[argmin(abs.(rho_eq .- 0.8))]
+    q_08 = abs.(dd.equilibrium.time_slice[].profiles_1d.q)[argmin_abs(rho_eq, 0.8)]
 
     model_value = abs(q_08)
     target_value = 2.0

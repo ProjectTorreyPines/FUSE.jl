@@ -9,7 +9,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
         init_from = ini.general.init_from
 
         if init_from == :ods
-            if IMAS.hasdata(dd1.core_profiles, :time) && length(dd1.core_profiles.time) > 0
+            if !isempty(dd1.core_profiles.profiles_1d)
                 dd.core_profiles = deepcopy(dd1.core_profiles)
                 cp1d = dd.core_profiles.profiles_1d[]
 
@@ -133,21 +133,17 @@ function init_core_profiles!(
     @assert ne_core_to_ped_ratio > 1.0
     @assert plasma_mode in (:H_mode, :L_mode)
 
-    if plasma_mode == :L_mode
-        ne_core_to_ped_ratio = 1.0 + 1.0 / w_ped * (1.0 - w_ped)
-    end
-
     cp1d = resize!(cp.profiles_1d)
 
     # grid
     cp1d.grid.rho_tor_norm = range(0, 1, ngrid)
 
     # Density
-    if plasma_mode == :H_mode
-        cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped)
-    else
-        cp1d.electrons.density_thermal = IMAS.Lmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, 1.0, w_ped)
-    end
+    # first we start with a "unit" density profile...
+    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9
+    cp1d.electrons.density_thermal = IMAS.Hmode_profiles(ne_sep_to_ped_ratio, 1.0, ne_core_to_ped_ratio, ngrid, ne_shaping, ne_shaping, w_ped)
+    cp1d.electrons.density_thermal = IMAS.ped_height_at_09(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, 1.0)
+    # ...which then we scale according to :ne_setting and :ne_value
     if ne_setting == :ne_ped
         ne_ped = ne_value
     elseif ne_setting == :greenwald_fraction_ped
@@ -231,6 +227,7 @@ function init_core_profiles!(
     @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - w_ped
     @ddtime summary.local.pedestal.zeff.value = zeff
     @ddtime summary.local.pedestal.t_e.value = Te_ped
+    @ddtime summary.local.pedestal.t_i_average.value = Te_ped * Ti_Te_ratio
 
     # rotation
     if plasma_mode == :H_mode

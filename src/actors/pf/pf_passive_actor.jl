@@ -14,10 +14,10 @@ end
 
 mutable struct ActorPassiveStructures{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPassiveStructures{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPassiveStructures{P}}
     function ActorPassiveStructures(dd::IMAS.dd{D}, par::FUSEparameters__ActorPassiveStructures{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPassiveStructures)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -113,7 +113,7 @@ function layer_quads(inner_layer::IMAS.build__layer, outer_layer::IMAS.build__la
     @views Z1 = Z1[2:end]
 
     # split long segments
-    L_inner = sum(sqrt.(diff(inner_layer.outline.r).^2 .+ diff(inner_layer.outline.z).^2))
+    L_inner = IMAS.perimeter(inner_layer.outline.r, inner_layer.outline.z)
     max_seg_length = L_inner / min_n_segments
     R1, Z1 = IMAS.split_long_segments(R1, Z1, max_seg_length)
 

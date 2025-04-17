@@ -6,7 +6,7 @@ using CSV: CSV
 
 For description of cases/variables see https://osf.io/593q6/
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
     if !ismissing(database_case)
         data_row = load_hdb5(; database_case)
     elseif !ismissing(case)
@@ -76,8 +76,10 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
         else
             ini.nb_unit[1].beam_energy = 100e3
         end
-        ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 18.0 * deg # 18 degrees assumed like DIII-D
+        ini.nb_unit[1].normalized_tangency_radius = 0.6
+        ini.nb_unit[1].beam_current_fraction = [0.8,0.15,0.05]
+        ini.nb_unit[1].current_direction = :co
+        ini.nb_unit[1].offaxis = false
     end
     if data_row[:PECRH] > 0
         resize!(ini.ec_launcher, 1)

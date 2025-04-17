@@ -18,10 +18,10 @@ end
 
 mutable struct ActorSimplePL{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSimplePL{P}
+    par::OverrideParameters{P,FUSEparameters__ActorSimplePL{P}}
     function ActorSimplePL(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePL{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimplePL)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -82,7 +82,7 @@ function _step(actor::ActorSimplePL)
         ρ_peak = (α - 1) / (α + β - 2) / 2 + 0.5
         beta_width = width * 4
 
-        shaped_source(
+        shaped_source!(
             source,
             pll.name,
             source.identifier.index,
@@ -95,6 +95,7 @@ function _step(actor::ActorSimplePL)
             electrons_particles
         )
     end
+
     return actor
 end
 

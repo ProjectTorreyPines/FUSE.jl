@@ -102,7 +102,7 @@ This is where the main part of the actor calculation gets done
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
     global_time(actor.par, global_time(actor.dd)) # syncrhonize global_time of `par` with the one of `dd`
     if !actor_logging(actor.dd)
-        _step(actor, args...; kw...)::T
+        s_actor = _step(actor, args...; kw...)
     else
         timer_name = name(actor)
         TimerOutputs.reset_timer!(timer_name)
@@ -110,15 +110,15 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
             memory_time_tag(actor, "step IN")
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
             enter_workflow(actor)
-            try
-                s_actor = _step(actor, args...; kw...)
-                @assert s_actor === actor "`$(T)._step(actor)` should return the same actor that is input to the function"
+            s_actor = try
+                _step(actor, args...; kw...)
             finally
                 exit_workflow(actor)
             end
             memory_time_tag(actor, "step OUT")
         end
     end
+    @assert s_actor === actor "`$(T)._step(actor)` should return the same actor that is input to the function"
     return actor
 end
 
@@ -138,22 +138,52 @@ This is typically used to update `dd` to whatever the actor has calculated at th
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
     if !actor_logging(actor.dd)
-        f_actor = _finalize(actor)::T
+        f_actor = _finalize(actor)
     else
         timer_name = name(actor)
         TimerOutputs.@timeit timer timer_name begin
             memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
             f_actor = _finalize(actor)
-            @assert f_actor === actor "`$(T)._finalize(actor)` should return the same actor that is input to the function"
             memory_time_tag(actor, "finalize OUT")
         end
     end
+    @assert f_actor === actor "`$(T)._finalize(actor)` should return the same actor that is input to the function"
     return actor
 end
 
 @recipe function plot_actor(actor::AbstractActor, args...)
     return error("No plot recipe defined for ator $(typeof(actor))")
+end
+
+#= ======== =#
+#  callback  #
+#= ======== =#
+"""
+    callback(actor::AbstractActor, specialize::Symbol; kw...)
+
+Provides callback functionality within actors. To use it, anywhere in an actor, define your entry point, for example:
+
+    callback(actor, :iteration_end; iteration_number, ...)
+
+Users can define their own callback functions (which will be called in arbitrary oder):
+
+    function callback(actor::ActorStationaryPlasma, ::Val{:iteration_end}, ::Val{:world}; kw...)
+        println("Hello world")
+    end
+
+    function callback(actor::ActorStationaryPlasma, ::Val{:iteration_end}, ::Val{:fuse}; kw...)
+        println("Hello fuse")
+    end
+"""
+function callback(actor::AbstractActor, callback_location::Any; kw...)
+    for m in methods(callback).ms
+        if m.nargs == 4 && typeof(callback_location) == m.sig.parameters[3]
+            callback_name = m.sig.parameters[4]
+            callback(actor, callback_location, callback_name(); kw...)
+        end
+    end
+    return actor
 end
 
 #= ============= =#

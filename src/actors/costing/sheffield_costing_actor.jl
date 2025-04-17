@@ -16,10 +16,10 @@ end
 
 mutable struct ActorCostingSheffield{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCostingSheffield{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCostingSheffield{P}}
     function ActorCostingSheffield(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingSheffield{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCostingSheffield)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -34,8 +34,7 @@ Estimates costing based on Sheffield and Milora, FS&T 70 (2016)
     Stores data in `dd.costing`
 """
 function ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCostingSheffield(kw...)
-    actor = ActorCostingSheffield(dd, par)
+    actor = ActorCostingSheffield(dd, act.ActorCostingSheffield; kw...)
     step(actor)
     finalize(actor)
     return actor

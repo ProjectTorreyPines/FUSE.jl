@@ -13,10 +13,10 @@ end
 
 mutable struct ActorEPEDprofiles{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEPEDprofiles{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEPEDprofiles{P}}
     function ActorEPEDprofiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorEPEDprofiles{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorEPEDprofiles)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -67,7 +67,7 @@ function _step(actor::ActorEPEDprofiles)
     tval = IMAS.Hmode_profiles(Te[end], Te_ped, Te[1], length(cp1d.grid.rho_tor_norm), par.Te_shaping, par.Te_shaping, wped)
     cp1d.electrons.temperature = tval
     if any(tval .< 0)
-        error("Te profile is negative for T0=$(Te[1]) eV and Tped=$(Te_ped) eV")
+        error("Te profile is negative for T0=$(Te[1]) [eV] and Tped=$(Te_ped) [eV]")
     end
 
     # update ion temperature profiles using:
@@ -82,7 +82,7 @@ function _step(actor::ActorEPEDprofiles)
         par.Te_shaping,
         wped)
     if any(tval_ions .< 0)
-        error("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) eV and Tped=$(Te_ped*par.T_ratio_pedestal) eV")
+        error("Ti profile is negative for T0=$(Te[1]*par.T_ratio_core) [eV] and Tped=$(Te_ped*par.T_ratio_pedestal) [eV]")
     end
     for ion in cp1d.ion
         ion.temperature = tval_ions
@@ -97,10 +97,10 @@ function _step(actor::ActorEPEDprofiles)
     for (ii, ion) in enumerate(cp1d.ion)
         ion_fractions[ii, :] = ion.density_thermal ./ ne
     end
-    nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.ne_shaping, par.ne_shaping, wped)
-    cp1d.electrons.density_thermal = nval
+    nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.ne_shaping, par.ne_shaping, 0.05)
+    cp1d.electrons.density_thermal = IMAS.ped_height_at_09(cp1d.grid.rho_tor_norm, nval, ne_ped)
     if any(nval .< 0)
-        error("ne profile is negative for n0=$(ne[1]) /m^3 and Tped=$(ne_ped) /m^3")
+        error("ne profile is negative for n0=$(ne[1]) [m⁻³] and ne_ped=$(ne_ped) [m⁻³]")
     end
 
     # update ion density profiles using
