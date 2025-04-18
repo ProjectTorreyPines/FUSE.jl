@@ -58,7 +58,7 @@ function _step(actor::ActorQED)
     cp1d = dd.core_profiles.profiles_1d[]
 
     # initialize QED
-    actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
+    actor.QO = qed_init_from_imas(dd; uniform_rho=501)
 
     if par.Nt == 0
         # only initialize, nothing to do
@@ -149,7 +149,9 @@ NOTE: QED is initalized from equilibrium and not core_profiles because
 it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
-function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Int)
+function qed_init_from_imas(dd::IMAS.dd; uniform_rho::Int)
+    eqt = dd.equilibrium.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
     rho_tor = eqt.profiles_1d.rho_tor
@@ -166,7 +168,7 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         Ip0 = eqt.global_quantities.ip
     else
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
-        Ip0 = IMAS.Ip(cp1d, eqt)
+        Ip0 = @ddtime(dd.core_profiles.global_quantities.ip)
     end
 
     y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
