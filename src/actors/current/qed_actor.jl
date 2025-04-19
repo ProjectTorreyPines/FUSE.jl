@@ -149,7 +149,7 @@ NOTE: QED is initalized from equilibrium and not core_profiles because
 it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
-function qed_init_from_imas(dd::IMAS.dd; uniform_rho::Int)
+function qed_init_from_imas(dd::IMAS.dd; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol, Real}=j_tor_from)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
@@ -163,12 +163,16 @@ function qed_init_from_imas(dd::IMAS.dd; uniform_rho::Int)
 
     # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
     # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
-    if false
-        j_tor = eqt.profiles_1d.j_tor
+    @assert j_tor_from in (:core_profiles, :equilibrium)
+    j_tor = (j_tor_from === :equilibrium) ? eqt.profiles_1d.j_tor : IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+    if ip_from === :equilibrium
         Ip0 = eqt.global_quantities.ip
-    else
-        j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+    elseif ip_from === :core_profiles
         Ip0 = @ddtime(dd.core_profiles.global_quantities.ip)
+    elseif ip_from isa Real
+        Ip0 = ip_from
+    else
+        error("ip_from must be :equilibrium, :core_profiles, or a real number")
     end
 
     y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
