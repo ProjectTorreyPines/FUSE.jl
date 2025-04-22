@@ -68,10 +68,10 @@ function case_parameters(
         d3d.pf_active_coil_current_data(ods, $shot)
 
         printe("- Fetching flux loops data")
-        #d3d.magnetics_floops_data(ods, $shot)
+        d3d.magnetics_floops_data(ods, $shot)
 
         printe("- Fetching magnetic probes data")
-        #d3d.magnetics_probes_data(ods, $shot)
+        d3d.magnetics_probes_data(ods, $shot)
 
         printe("- Fetching equilibrium data")
         with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):

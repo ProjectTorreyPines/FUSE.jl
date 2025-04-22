@@ -155,7 +155,7 @@ Gauss-Seidel iteration technique.
 function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
     f1 = zeros(nr)
     pn1 = zeros(nr)
-    maxit = 200
+    maxit = 100
     tol = 1.0e-4
 
     # Set up factor with diagonal term, and initial guess
@@ -164,7 +164,7 @@ function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
         pn1[i] = sn1[i]
     end
     
-    #f1[1]=0 # reduce numerical peaking in core. 
+    f1[1]=0 # reduce numerical peaking in core. 
 
     # Now iterate until the solution converges
     del = 0.0

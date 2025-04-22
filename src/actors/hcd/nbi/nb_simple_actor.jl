@@ -190,20 +190,19 @@ function _step(actor::ActorSimpleNB)
                     @. qbeamtmp .= power_launched * group_power_frac * (fbeam[i] - fbeam[i+1]) .* gaus
                     @. qbeam[igroup, ifpow, :] .+= qbeamtmp
                     @. sbeam[igroup, ifpow, :] .+= qbeamtmp / (beam_energy * IMAS.mks.e / ifpow)
-                    @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* Rs[i] * ftors[i] / (beam_energy * IMAS.mks.e / ifpow)
+                    @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* ftors[i] / (beam_energy * IMAS.mks.e / ifpow)
                 end
             end
+
             for ifpow in eachindex(fbcur)
                 frac_ie = IMAS.sivukhin_fraction(cp1d, beam_energy / ifpow, nbu.species.a)
                 tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, beam_energy / ifpow, nbu.species.a, nbu.species.z_n)
                 qbeame[igroup, ifpow, :] .= @views (1.0 .- frac_ie) .* qbeam[igroup, ifpow, :]
                 qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
-                # There seems to be a factor of 0.1 pull from freya, Maybe going from momentum of g*cm to kg*m? 
-                # from freya: charge/(2.99792458e9*atwb*xmassp)[A/cm^2] = 47894.15 * 1e4 =  0.1*IMAS.mks.e/(nbu.species.a * IMAS.mks.m_p)[A/m^2]
-                curbi = @views 0.1*IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
+                curbi = @views IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
-                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
-                curbeam[igroup, ifpow, :] .= curbi .+ curbe .+ curbet
+                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps0) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps0)
+                curbeam[igroup, ifpow, :] .= curbe .+ curbi .+ curbet
             end
         end
 
