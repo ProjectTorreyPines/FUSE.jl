@@ -80,6 +80,7 @@ function _step(actor::ActorSimpleNB)
     eps = (rout .- rin) ./ (rout .+ rin)
     eps_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eps)
     eps0 = maximum(eps) .* cp1d.grid.rho_tor_norm
+    eps_cp = eps_interp.(rho_cp)
 
     ne_interp = IMAS.interp1d(rho_cp, ne)
     Te_interp = IMAS.interp1d(rho_cp, Te)
