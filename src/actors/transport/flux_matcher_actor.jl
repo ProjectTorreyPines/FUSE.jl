@@ -196,8 +196,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         p = plot(; layout=(N_channels, 2), size=(1000, 300 * N_channels))
         total_flux1d = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport; time0=dd.global_time)
-        total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time,exclude_indexes=[7])
-
+        total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time)
         model_type = IMAS.name_2_index(dd.core_transport.model)
         for (ch, (profiles_path, fluxes_path)) in enumerate(zip(profiles_paths, fluxes_paths))
             title = IMAS.p2i(collect(map(string, fluxes_path)))
@@ -460,7 +459,6 @@ function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameter
     total_source = resize!(dd.core_sources.source, :total; wipe=false)
     total_source1d = resize!(total_source.profiles_1d; wipe=false)
     IMAS.total_sources!(total_source1d, dd.core_sources, cp1d; time0=dd.global_time, fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
-
     cs_gridpoints = [argmin_abs(total_source1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
     targets = Float64[]
@@ -725,7 +723,7 @@ function unpack_z_profiles(
     z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
     # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10000.0
+    z_max = 10.0
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
