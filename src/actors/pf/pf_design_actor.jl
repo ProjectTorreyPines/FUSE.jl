@@ -78,10 +78,14 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                 cost_spacing = 0.0
                 if length(optim_coils) > 0
                     for (k1, c1) in enumerate(optim_coils)
+                        r1, z1 = VacuumFields.centroid(c1)
+                        A1 = VacuumFields.area(c1)
                         for (k2, c2) in enumerate(optim_coils)
                             if k1 < k2
-                                d = sqrt((c1.r - c2.r)^2 + (c1.z - c2.z)^2)
-                                s = sqrt((c1.width + c2.width)^2 + (c1.height + c2.height)^2)
+                                r2, z2 = VacuumFields.centroid(c1)
+                                A2 = VacuumFields.area(c2)
+                                d = sqrt((r1 - r2)^2 + (z1 - z2)^2)
+                                s = (sqrt(2 * A1) + sqrt(2 * A2))  # approximate spacing based on coil areas
                                 if !(IMAS.is_ohmic_coil(VacuumFields.imas(c1)) && IMAS.is_ohmic_coil(VacuumFields.imas(c2)))
                                     cost_spacing = max(cost_spacing, (s - d) / d)
                                 end
@@ -91,7 +95,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                 end
 
                 coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
-                cost_currents = norm((coil.current for coil in coils)) / eqt.global_quantities.ip
+                cost_currents = norm((VacuumFields.current(coil) * VacuumFields.turns(coil) for coil in coils)) / eqt.global_quantities.ip
 
                 cost = norm((actor.actor_pf.cost, 0.1 * cost_spacing))^2 * (1 .+ cost_currents)
 

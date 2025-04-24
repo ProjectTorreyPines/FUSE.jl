@@ -2,7 +2,6 @@ import MXHEquilibrium
 import Optim
 using LinearAlgebra
 import VacuumFields
-import VacuumFields: GS_IMAS_pf_active__coil
 
 #= ============= =#
 #  ActorPFactive  #
@@ -11,7 +10,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorPFactive{T<:Real} <: ParametersA
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    green_model::Switch{Symbol} = Switch{Symbol}(options_green_model, "-", "Model used for the coils Green function calculations"; default=:quad)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     x_points_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to x-point constraints"; default=0.1)
     strike_points_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to strike-point constraints"; default=0.1)
@@ -142,7 +140,7 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     eqt2d_out = findfirst(:rectangular, eqt_out.profiles_2d)
     if !ismissing(eqt_in.global_quantities, :ip)
         # convert dd.pf_active to coils for VacuumFields calculation
-        coils = VacuumFields.IMAS_pf_active__coils(dd; par.green_model, zero_currents=false)
+        coils = VacuumFields.MultiCoils(dd.pf_active)
 
         # convert equilibrium to MXHEquilibrium.jl format, since this is what VacuumFields uses
         EQfixed = IMAS2Equilibrium(eqt_in)
@@ -154,6 +152,9 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
         eqt2d_out.grid.dim1 = Rgrid
         eqt2d_out.grid.dim2 = Zgrid
         eqt2d_out.psi = collect(VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)')
+        for (k, coil) in enumerate(coils)
+            VacuumFields.set_current_per_turn!(dd.pf_active.coil[k], VacuumFields.current_per_turn(coil) )
+        end
     end
 
     if par.do_plot
@@ -166,22 +167,6 @@ function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
         fw = IMAS.first_wall(dd.wall)
         IMAS.flux_surfaces(eqt_in, fw.r, fw.z)
     end
-
-    return actor
-end
-
-function update_eq_out(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
-    dd = actor.dd
-    par = actor.par
-
-    # evaluate eq_out
-    eqt_in = dd.equilibrium.time_slice[]
-    eqt2d_out = findfirst(:rectangular, actor.eqt_out.profiles_2d)
-    coils = VacuumFields.IMAS_pf_active__coils(dd; par.green_model, zero_currents=false)
-    EQfixed = IMAS2Equilibrium(eqt_in)
-    Rgrid = eqt2d_out.grid.dim1
-    Zgrid = eqt2d_out.grid.dim2
-    eqt2d_out.psi = collect(VacuumFields.fixed2free(EQfixed, coils, Rgrid, Zgrid)')
 
     return actor
 end
@@ -267,7 +252,7 @@ end
 """
     fixed_pinned_optim_coils(actor::ActorPFactive{D,P}; zero_currents::Bool) where {D<:Real,P<:Real}
 
-Returns tuple of GS_IMAS_pf_active__coil structs organized by their function:
+Returns tuple of MulitCoil structs organized by their function:
 
   - fixed: fixed position and current
   - pinned: coils with fixed position but current is optimized
@@ -277,34 +262,31 @@ function fixed_pinned_optim_coils(actor::ActorPFactive{D,P}; zero_currents::Bool
     dd = actor.dd
     par = actor.par
 
-    fixed_coils = GS_IMAS_pf_active__coil{D,D}[]
-    pinned_coils = GS_IMAS_pf_active__coil{D,D}[]
-    optim_coils = GS_IMAS_pf_active__coil{D,D}[]
-    for coil in dd.pf_active.coil
-        if IMAS.is_ohmic_coil(coil)
+    mcoils = VacuumFields.MultiCoils(dd.pf_active)
+    fixed_coils = eltype(mcoils)[]
+    pinned_coils = eltype(mcoils)[]
+    optim_coils = OptimCoil{eltype(mcoils), D}[]
+    for (k, imas_pf) in enumerate(dd.pf_active.coil)
+        if IMAS.is_ohmic_coil(imas_pf)
             coil_tech = dd.build.oh.technology
         else
             coil_tech = dd.build.pf_active.technology
         end
         if zero_currents
-            @ddtime(coil.current.data = 0.0)   # zero currents for all coils
+            # zero currents for all coils
+            VacuumFields.set_current_per_turn!(imas_pf, 0.0)
+            VacuumFields.set_current_per_turn!(mcoils[k], 0.0)
         end
-        pfcoil = GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
-        if :shaping ∉ [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
-            push!(fixed_coils, pfcoil)
+        if :shaping ∉ [IMAS.index_2_name(imas_pf.function)[f.index] for f in imas_pf.function]
+            push!(fixed_coils, mcoils[k])
         elseif coil.identifier == "optim"
-            push!(optim_coils, pfcoil)
+            push!(optim_coils, OptimCoil(mcoils[k], coil_tech, imas_pf)
         elseif coil.identifier == "fixed"
-            push!(fixed_coils, pfcoil)
+            push!(fixed_coils, mcoils[k])
         else
-            push!(pinned_coils, pfcoil)
+            push!(pinned_coils, mcoils[k])
         end
     end
-
-    # push!(fixed_coils, popat!(optim_coils,1))
-    # VacuumFields.imas(fixed_coils[end]).identifier = "fixed"
-    # push!(fixed_coils, popat!(optim_coils,length(optim_coils)))
-    # VacuumFields.imas(fixed_coils[end]).identifier = "fixed"
 
     return (fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils)
 end

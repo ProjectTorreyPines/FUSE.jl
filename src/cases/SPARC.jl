@@ -14,7 +14,6 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
         ini.ods.filename = "$(machine_ods)"
         act.ActorCXbuild.rebuild_wall = false
         act.ActorWholeFacility.update_build = false
-        act.ActorPFactive.green_model = :point
         act.ActorVerticalStability.model = false # throws an error
     end
 
@@ -29,7 +28,7 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     ini.equilibrium.ip = 8.7e6
     ini.equilibrium.xpoints = :double
 
-    # explicitly set thickness of 
+    # explicitly set thickness of
     ini.build.n_first_wall_conformal_layers = 4
     layers = OrderedCollections.OrderedDict{Symbol,Float64}()
     layers[:gap_OH] = 0.43
