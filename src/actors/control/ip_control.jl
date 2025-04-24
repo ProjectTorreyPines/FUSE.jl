@@ -97,8 +97,8 @@ function _step(actor::ActorControllerIp; time0::Float64=dd.global_time)
 
     else
         # run the controller
-        ip_target_now = IMAS.get_from(dd, Val{:ip}, :pulse_schedule)
-        ip_value_now = IMAS.get_from(dd, Val{:ip}, :core_profiles) # eventually this should be Ip from a synthetic Rogowski coil
+        ip_target_now = IMAS.get_from(dd, Val{:ip}, :pulse_schedule; time0)
+        ip_value_now = IMAS.get_from(dd, Val{:ip}, :core_profiles; time0) # eventually this should be Ip from a synthetic Rogowski coil
         actor.controller(Val(:ip), Val(par.algorithm), ip_target_now, ip_value_now, time0)
     end
 
