@@ -46,10 +46,10 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # Compute wall mesh 
+    # Compute wall mesh - same for both core radiation and particles (see ActorParticleHeatFlux)
     # (Rwall, Zwall)        wall mesh (with intersections of SOL) -  m
     # s                     curvilinear abscissa computed from (Rwall, Zwall), clockwise starting at OMP - m
-    Rwall, Zwall, _, _, s, _, _, _ = IMAS.mesher_heat_flux(dd; par.r, par.q, par.merge_wall, par.levels, par.step)
+    Rwall, Zwall, s, _ = IMAS.mesher_heat_flux(dd; par.r, par.q, par.merge_wall, par.levels, par.step)
 
     # Parameters for heat flux due to core radiarion
     total_rad_source1d = IMAS.total_radiation_sources(dd.core_sources, cp1d; time0=dd.global_time)
@@ -69,7 +69,7 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
         p = plot(; layout=ll, size=(1500, 500))
         plot!(p, HF; which_plot=:oneD, q=:core_radiation, subplot=1)
         sol = IMAS.sol(dd; levels=1)
-        photons, W_per_trace, dr, dz = IMAS.define_particles(eqt, psi, source_1d, par.N)
+        photons, _ = IMAS.define_particles(eqt, psi, source_1d, par.N)
         plot!(p, photons, actor.dd.equilibrium.time_slice[]; colorbar_entry=false, subplot=2)
         plot!(p, sol; subplot=2, line_z=nothing, color=:black)
         plot!(p, HF; q=:core_radiation, plot_type=:path, subplot=2)
