@@ -16,9 +16,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{
     vloop_from::Switch{Symbol} = switch_get_from(:vloop)
 end
 
-mutable struct ActorQED{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorQED{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorQED{P}}
+    act::ParametersAllActors{P}
+    ip_controller::ActorControllerIp{D,P}
     QO::Union{Nothing,QED.QED_state}
 end
 
@@ -38,16 +40,17 @@ The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profile
         ActorQED(dd, act)
 """
 function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorQED(dd, act.ActorQED; kw...)
+    actor = ActorQED(dd, act.ActorQED, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED; kw...)
+function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED, act::ParametersAllActors; kw...)
     logging_actor_init(ActorQED)
     par = OverrideParameters(par; kw...)
-    return ActorQED(dd, par, nothing)
+    ip_controller = ActorControllerIp(dd, act.ActorControllerIp)
+    return ActorQED(dd, par, act, ip_controller, nothing)
 end
 
 function _step(actor::ActorQED)
@@ -87,7 +90,7 @@ function _step(actor::ActorQED)
             else
                 # run Ip controller if vloop_from == :controllers__ip
                 if par.vloop_from == :controllers__ip
-                    control(ip_controller(actor.dd, δt); time0)
+                    finalize(step(actor.ip_controller; time0))
                 end
                 Ip = nothing
                 Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0)

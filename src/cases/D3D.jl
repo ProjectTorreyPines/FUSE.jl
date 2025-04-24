@@ -352,6 +352,11 @@ function case_parameters(::Type{Val{:D3D_machine}})
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
+    Ω = 1.0 / 1E6
+    act.ActorControllerIp.P = Ω * 100.0
+    act.ActorControllerIp.I = Ω * 20.0
+    act.ActorControllerIp.D = 0.0
+
     # average pedestal height, not peak
     act.ActorEPED.ped_factor = 0.8
 

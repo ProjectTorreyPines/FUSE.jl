@@ -190,6 +190,11 @@ function case_parameters(
 
     act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
 
+    Ω = 1.0 / 10E6
+    act.ActorControllerIp.P = Ω * 10.0
+    act.ActorControllerIp.I = Ω * 2.0
+    act.ActorControllerIp.D = 0.0
+
     return ini, act
 end
 
