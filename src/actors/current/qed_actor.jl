@@ -60,8 +60,14 @@ function _step(actor::ActorQED)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
+    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+    j_non_inductive = cp1d.j_non_inductive
+
     # initialize QED
-    actor.QO = qed_init_from_imas(dd; uniform_rho=501)
+   if actor.QO === nothing
+        # this is not right because it does not update the equilibrium metrics
+        actor.QO = qed_init_from_imas(actor; uniform_rho=501)
+   end
 
     if par.Nt == 0
         # only initialize, nothing to do
@@ -104,10 +110,13 @@ function _step(actor::ActorQED)
                 i_qdes = 0
             end
 
-            actor.QO = QED.diffuse(actor.QO, η_Jardin(dd.core_profiles.profiles_1d[time0], i_qdes), δt, Ni; Vedge, Ip, debug=false)
+            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, i_qdes)
+            actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
-            B0 = eqt.global_quantities.vacuum_toroidal_field.b0
+            actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
+
             cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+            cp1d.j_non_inductive = flattened_j_non_inductive
         end
 
     elseif par.Δt == Inf
@@ -124,21 +133,25 @@ function _step(actor::ActorQED)
         # current fully relaxes, and the second time we change the resisitivity to keep q>1
         i_qdes = 0
         for _ in (1, 2)
-            actor.QO = QED.steady_state(actor.QO, η_Jardin(dd.core_profiles.profiles_1d[], i_qdes); Vedge, Ip)
+            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, i_qdes)
+            actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
+
+            actor.QO = QED.steady_state(actor.QO, η_jardin; Vedge, Ip)
+
             # check where q<1
             qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
             i_qdes = findlast(qval .< par.qmin_desired)
             if i_qdes === nothing
                 break
             end
+
+            cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+            cp1d.j_non_inductive = flattened_j_non_inductive
         end
-
-        B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-
     else
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
     end
+
     return actor
 end
 
@@ -152,7 +165,10 @@ NOTE: QED is initalized from equilibrium and not core_profiles because
 it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
-function qed_init_from_imas(dd::IMAS.dd; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol, Real}=j_tor_from)
+function qed_init_from_imas(actor::ActorQED; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
+    dd = actor.dd
+    par = actor.par
+
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
@@ -166,45 +182,61 @@ function qed_init_from_imas(dd::IMAS.dd; uniform_rho::Int, j_tor_from::Symbol=:c
 
     # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
     # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
-    @assert j_tor_from in (:core_profiles, :equilibrium)
-    j_tor = (j_tor_from === :equilibrium) ? eqt.profiles_1d.j_tor : IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+    if j_tor_from === :equilibrium
+        j_tor = eqt.profiles_1d.j_tor
+    elseif j_tor_from === :core_profiles
+        j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+    else
+        error("j_tor_from must be :equilibrium, :core_profiles, or a real number")
+    end
     if ip_from === :equilibrium
         Ip0 = eqt.global_quantities.ip
     elseif ip_from === :core_profiles
         Ip0 = @ddtime(dd.core_profiles.global_quantities.ip)
-    elseif ip_from isa Real
+    elseif typeof(ip_from) <: Real
         Ip0 = ip_from
     else
         error("ip_from must be :equilibrium, :core_profiles, or a real number")
     end
 
-    y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
     if ismissing(cp1d, :j_non_inductive)
         ρ_j_non_inductive = nothing
     else
-        ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
-        y .*= ρ_j_non_inductive[2]
+        i_qdes = findlast(eqt.profiles_1d.q .< par.qmin_desired)
+        if i_qdes === nothing
+            i_qdes = 0
+        end
+        _, j_non_inductive = η_JBni_sawteeth(cp1d, cp1d.j_non_inductive, i_qdes)
+        ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, j_non_inductive)
     end
 
-    # uniform_rho just works better, and QED is fast enough that it can handle many radial points
-    if uniform_rho > 0
-        ρ_grid = collect(range(0.0, 1.0, uniform_rho))
-    else
-        ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
-    end
+    ρ_grid = collect(range(0.0, 1.0, uniform_rho))
 
     return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid, Ip0)
 end
 
 """
-    η_Jardin(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
+    η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, i_qdes::Int; use_log::Bool=true) where {T<:Real}
 
-Jardin's model for stationary sawteeth changes the plasma resistivity to raise q>1
+returns
+
+  - resistivity profile using Jardin's model for stationary sawteeth changes the plasma resistivity to raise q>1
+
+  - non-inductive profile with flattening of the current inside of the inversion radius
 """
-function η_Jardin(cp1d::IMAS.core_profiles__profiles_1d, i_qdes::Int; use_log::Bool=true)
+function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, i_qdes::Int; use_log::Bool=true) where {T<:Real}
+
     η = 1.0 ./ cp1d.conductivity_parallel
+
     if i_qdes != 0
+        # flattened current resistivity as per Jardin's model
         η[1:i_qdes] .= η[i_qdes]
+
+        # flatten non-inductive current contribution
+        rho0 = cp1d.grid.rho_tor_norm[i_qdes]
+        width = rho0 / 4.0
+        j_non_inductive = IMAS.flatten_profile!(copy(j_non_inductive), cp1d.grid.rho_tor_norm, cp1d.grid.area, rho0, width)
     end
-    return QED.η_FE(cp1d.grid.rho_tor_norm, η; use_log)
+
+    return QED.η_FE(cp1d.grid.rho_tor_norm, η; use_log), j_non_inductive
 end
