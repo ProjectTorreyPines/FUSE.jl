@@ -55,12 +55,12 @@ function _step(actor::ActorNeoclassical)
         actor.flux_solutions = [NEO.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
 
     elseif par.model == :neo
-        gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
+        gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
         actor.input_neos = [NEO.InputNEO(eqt, cp1d, i) for (idx, i) in enumerate(gridpoint_cps)]
         actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)
 
     elseif par.model == :hirshmansigmar
-        gridpoint_cps = [argmin(abs.(rho_cp .- rho)) for rho in par.rho_transport]
+        gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
         if ismissing(actor.equilibrium_geometry) || actor.equilibrium_geometry.time != eqt.time
             actor.equilibrium_geometry = NEO.get_equilibrium_geometry(eqt, cp1d)#, gridpoint_cps)
         end

@@ -80,6 +80,7 @@ function _step(actor::ActorSimpleNB)
     eps = (rout .- rin) ./ (rout .+ rin)
     eps_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eps)
     eps0 = maximum(eps) .* cp1d.grid.rho_tor_norm
+    eps_cp = eps_interp.(rho_cp)
 
     ne_interp = IMAS.interp1d(rho_cp, ne)
     Te_interp = IMAS.interp1d(rho_cp, Te)
@@ -98,7 +99,6 @@ function _step(actor::ActorSimpleNB)
     qbeamtmp = similar(rho_cp)
     IMAS.freeze!(cp1d, :zeff)
     for (ibeam, (ps, nbu)) in enumerate(zip(dd.pulse_schedule.nbi.unit, dd.nbi.unit))
-        # smoothing of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power.
         beam_mass = nbu.species.a
         beam_Z = nbu.species.z_n
         beam_energy = max(0.0, @ddtime(ps.energy.reference))
@@ -153,13 +153,14 @@ function _step(actor::ActorSimpleNB)
             phi = asin.(Ys ./ Rs)
             ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
             rho_beam = rho2d_interp.(Rs, Zs)
-            dist = [0.0; cumsum(sqrt.(diff(Xs) .^ 2 .+ diff(Ys) .^ 2 .+ diff(Zs) .^ 2))]
+            dist = IMAS.arc_length(Xs, Ys, Zs)
 
             ne_beam = ne_interp.(rho_beam)
             Te_beam = Te_interp.(rho_beam)
 
             power_launched_allenergies = 0.0
             for (ifpow, fpow) in enumerate(fbcur)
+                # smoothing of the instantaneous power_launched based on the NBI thermalization time, effectively turning it into a measure of the absorbed power
                 τ_th = IMAS.fast_ion_thermalization_time(cp1d, 1, nbu.species, beam_energy / ifpow)
                 power_launched = fpow * max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
                 power_launched_allenergies += power_launched
@@ -189,19 +190,20 @@ function _step(actor::ActorSimpleNB)
                     @. qbeamtmp .= power_launched * group_power_frac * (fbeam[i] - fbeam[i+1]) .* gaus
                     @. qbeam[igroup, ifpow, :] .+= qbeamtmp
                     @. sbeam[igroup, ifpow, :] .+= qbeamtmp / (beam_energy * IMAS.mks.e / ifpow)
-                    @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* ftors[i] / (beam_energy * IMAS.mks.e / ifpow)
+                    @. mombeam[igroup, ifpow, :] .+= bgroup.direction .* qbeamtmp .* (beam_mass * IMAS.mks.m_p .* vbeam) .* Rs[i] * ftors[i] / (beam_energy * IMAS.mks.e / ifpow)
                 end
             end
-
             for ifpow in eachindex(fbcur)
                 frac_ie = IMAS.sivukhin_fraction(cp1d, beam_energy / ifpow, nbu.species.a)
                 tauppff = IMAS.ion_momentum_slowingdown_time(cp1d, beam_energy / ifpow, nbu.species.a, nbu.species.z_n)
                 qbeame[igroup, ifpow, :] .= @views (1.0 .- frac_ie) .* qbeam[igroup, ifpow, :]
                 qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
-                curbi = @views IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
+                # There seems to be a factor of 0.1 pull from freya, Maybe going from momentum of g*cm to kg*m? 
+                # from freya: charge/(2.99792458e9*atwb*xmassp)[A/cm^2] = 47894.15 * 1e4 =  0.1*IMAS.mks.e/(nbu.species.a * IMAS.mks.m_p)[A/m^2]
+                curbi = @views 0.1*IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
-                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps0) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps0)
-                curbeam[igroup, ifpow, :] .= curbe .+ curbi .+ curbet
+                curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
+                curbeam[igroup, ifpow, :] .= curbi .+ curbe .+ curbet
             end
         end
 

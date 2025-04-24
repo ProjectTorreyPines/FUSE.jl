@@ -103,12 +103,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     initial_cp1d = cp1d_copy_primary_quantities(cp1d)
-    initial_summary_ped = IMAS.summary__local__pedestal{D}()
-    setfield!(initial_summary_ped.position, :rho_tor_norm, [@ddtime(dd.summary.local.pedestal.position.rho_tor_norm)])
-    setfield!(initial_summary_ped.n_e, :value, [@ddtime(dd.summary.local.pedestal.n_e.value)])
-    setfield!(initial_summary_ped.t_e, :value, [@ddtime(dd.summary.local.pedestal.t_e.value)])
-    setfield!(initial_summary_ped.t_i_average, :value, [@ddtime(dd.summary.local.pedestal.t_i_average.value)])
-    setfield!(initial_summary_ped.zeff, :value, [@ddtime(dd.summary.local.pedestal.zeff.value)])
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
@@ -138,7 +132,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         if par.algorithm == :none
             res = (zero=opt_parameters,)
         elseif par.algorithm == :simple
-            res = flux_match_simple(actor, opt_parameters, initial_cp1d, initial_summary_ped, z_scaled_history, err_history, ftol, xtol, prog)
+            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
         else
             if par.algorithm == :newton
                 opts = Dict(:method => :newton, :factor => par.step_size)
@@ -148,7 +142,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
             end
             res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog).errors,
+                z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog).errors,
                 opt_parameters;
                 show_trace=false,
                 store_trace=false,
@@ -159,7 +153,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 opts...)
         end
 
-        flux_match_errors(actor, collect(res.zero), initial_cp1d, initial_summary_ped) # z_profiles for the smallest error iteration
+        flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
 
     finally
 
@@ -331,7 +325,6 @@ end
         actor::ActorFluxMatcher,
         z_profiles_scaled::Vector{<:Real},
         initial_cp1d::IMAS.core_profiles__profiles_1d,
-        initial_summary_ped::IMAS.summary__local__pedestal;
         z_scaled_history::Vector=[],
         err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
         prog::Any=nothing)
@@ -343,8 +336,7 @@ NOTE: flux matching is done in physical units
 function flux_match_errors(
     actor::ActorFluxMatcher,
     opt_parameters::Vector{<:Real},
-    initial_cp1d::IMAS.core_profiles__profiles_1d,
-    initial_summary_ped::IMAS.summary__local__pedestal;
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
     err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
     prog::Any=nothing)
@@ -371,12 +363,6 @@ function flux_match_errors(
     if par.evolve_pedestal
         # modify cp1d with new z_profiles
         unpack_z_profiles(cp1d, par, z_profiles)
-        # restore pedestal at initial conditions
-        @ddtime(dd.summary.local.pedestal.position.rho_tor_norm = getfield(initial_summary_ped.position, :rho_tor_norm)[1])
-        @ddtime(dd.summary.local.pedestal.n_e.value = getfield(initial_summary_ped.n_e, :value)[1])
-        @ddtime(dd.summary.local.pedestal.t_e.value = getfield(initial_summary_ped.t_e, :value)[1])
-        @ddtime(dd.summary.local.pedestal.t_i_average.value = getfield(initial_summary_ped.t_i_average, :value)[1])
-        @ddtime(dd.summary.local.pedestal.zeff.value = getfield(initial_summary_ped.zeff, :value)[1])
         # run pedestal
         actor.actor_ped.par.βn_from = :core_profiles
         finalize(step(actor.actor_ped))
@@ -414,7 +400,7 @@ function flux_match_errors(
     fluxes = flux_match_fluxes(dd, par)
     targets = flux_match_targets(dd, par)
 
-    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     surface0 = cp1d.grid.surface[cp_gridpoints] ./ cp1d.grid.surface[end]
 
     # Evaluate the flux_matching errors
@@ -473,7 +459,7 @@ function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameter
     total_source = resize!(dd.core_sources.source, :total; wipe=false)
     total_source1d = resize!(total_source.profiles_1d; wipe=false)
     IMAS.total_sources!(total_source1d, dd.core_sources, cp1d; time0=dd.global_time, fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
-    cs_gridpoints = [argmin(abs.(rho_x .- total_source1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cs_gridpoints = [argmin_abs(total_source1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
     targets = Float64[]
 
@@ -567,7 +553,6 @@ end
         actor::ActorFluxMatcher,
         z_init::Vector{<:Real},
         initial_cp1d::IMAS.core_profiles__profiles_1d,
-        initial_summary_ped::IMAS.summary__local__pedestal,
         z_scaled_history::Vector,
         err_history::Vector{Vector{Float64}},
         ftol::Float64,
@@ -580,7 +565,6 @@ function flux_match_simple(
     actor::ActorFluxMatcher,
     opt_parameters::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
-    initial_summary_ped::IMAS.summary__local__pedestal,
     z_scaled_history::Vector,
     err_history::Vector{Vector{Float64}},
     ftol::Float64,
@@ -599,7 +583,7 @@ function flux_match_simple(
     end
 
     zprofiles_old = unscale_z_profiles(z_init_scaled)
-    targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+    targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d; z_scaled_history, err_history, prog)
     ferror = norm(errors)
     xerror = Inf
     step_size = par.step_size
@@ -613,11 +597,11 @@ function flux_match_simple(
 
         zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         if ismissing(par, :scale_turbulence_law)
-            targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+            targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         else
             turbulence_scale += errors[1] / 10.0
             targets, fluxes, errors =
-                flux_match_errors(actor, [turbulence_scale; scale_z_profiles(zprofiles)], initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog)
+                flux_match_errors(actor, [turbulence_scale; scale_z_profiles(zprofiles)], initial_cp1d; z_scaled_history, err_history, prog)
         end
         xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
         ferror = norm(errors)
@@ -670,7 +654,7 @@ Packs the z_profiles based on evolution parameters
 NOTE: the order for packing and unpacking is always: [Te, Ti, Rotation, ne, nis...]
 """
 function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
-    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
     z_profiles = Float64[]
     profiles_paths = []
@@ -742,7 +726,7 @@ function unpack_z_profiles(
     z_max = 10.0
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
-    cp_gridpoints = [argmin(abs.(rho_x .- cp1d.grid.rho_tor_norm)) for rho_x in par.rho_transport]
+    cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)

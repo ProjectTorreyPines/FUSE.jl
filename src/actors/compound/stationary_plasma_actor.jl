@@ -200,6 +200,8 @@ function _step(actor::ActorStationaryPlasma)
                 )
             end
 
+            callback(actor, :iteration_end; total_error)
+
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iterations)
                 @warn "Max number of iterations ($(par.max_iterations)) has been reached with convergence error of (1)$(collect(map(x->round(x,digits = 3),total_error)))($(length(total_error))) compared to threshold of $(par.convergence_error)"
                 break
