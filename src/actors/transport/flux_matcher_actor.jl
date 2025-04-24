@@ -252,7 +252,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         for ion in cp1d.ion
             ion.temperature = cp1d.t_i_average
         end
-        empty!(cp1d, :t_i_average)
+        IMAS.unfreeze!(cp1d, :t_i_average)
 
         # refresh sources with relatex profiles
         IMAS.sources!(dd)
@@ -265,20 +265,20 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # free total densities expressions
-    IMAS.empty!(cp1d.electrons, :density)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     for ion in cp1d.ion
-        IMAS.empty!(ion, :density)
+        IMAS.unfreeze!(ion, :density)
     end
 
     # free pressures expressions
-    IMAS.empty!(cp1d.electrons, :pressure_thermal)
-    IMAS.empty!(cp1d.electrons, :pressure)
+    IMAS.unfreeze!(cp1d.electrons, :pressure_thermal)
+    IMAS.unfreeze!(cp1d.electrons, :pressure)
     for ion in cp1d.ion
-        IMAS.empty!(ion, :pressure_thermal)
-        IMAS.empty!(ion, :pressure)
+        IMAS.unfreeze!(ion, :pressure_thermal)
+        IMAS.unfreeze!(ion, :pressure)
     end
     for field in [:pressure_ion_total, :pressure_thermal, :pressure]
-        IMAS.empty!(cp1d, field)
+        IMAS.unfreeze!(cp1d, field)
     end
 
     return actor

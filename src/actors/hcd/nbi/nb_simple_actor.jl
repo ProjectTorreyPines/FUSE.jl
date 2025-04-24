@@ -240,7 +240,7 @@ function _step(actor::ActorSimpleNB)
         ion.power_inside = source1d.total_ion_power_inside
         ion.fast_particles_energy = beam_energy
     end
-    IMAS.empty!(cp1d, :zeff)
+    IMAS.unfreeze!(cp1d, :zeff)
 
     return actor
 end
