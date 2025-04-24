@@ -279,9 +279,10 @@ function size_pf_active(
         pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0 - Zcenter) * (height - height0) / 2.0
 
         mat = Material(coil.tech)
-        Bext = coil_selfB(pfcoil, coil.current)
+        Ic = coil.current_per_turn * coil.turns
+        Bext = coil_selfB(pfcoil, Ic)
 
-        needed_conductor_area = abs(coil.current) / mat.critical_current_density(; Bext)
+        needed_conductor_area = abs(Ic) / mat.critical_current_density(; Bext)
         needed_area = needed_conductor_area / IMAS.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
         if needed_area > 1E6 # to handle cases where needed_area == Inf
             needed_area = 1E6
