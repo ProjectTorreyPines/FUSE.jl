@@ -213,7 +213,7 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
             xyz_src[:,n] .= (x, y, z)
     
             l2d = sqrt(R^2 - Rt^2)
-            delta = atan(Rt, l2d)
+            delta = atan(l2d, Rt)
             phit = phi + delta * dir
             zt = z + tan(angle) * l2d
     
