@@ -230,11 +230,14 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
         push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_cps[1].weight))
 
         # Coils locations
-        coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
+        coils = VacuumFields.MultiCoils(dd.pf_active)
 
         # from fixed boundary to free boundary via VacuumFields
         psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         eq2d.psi .= psi_free_rz'
+        for (k, coil) in enumerate(coils)
+            VacuumFields.set_current_per_turn!(dd.pf_active.coil[k], VacuumFields.current_per_turn(coil) )
+        end
 
         pf_current_limits(dd.pf_active, dd.build)
 
