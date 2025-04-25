@@ -57,7 +57,9 @@ function _step(actor::ActorVerticalStability)
         return actor
     end
 
-    active_coils = VacuumFields.MultiCoils(dd.pf_active)
+    active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
+    # BCL 4/24/25: Could do this, but active_only excludes coils with zero current, so behavior changes
+    # active_coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)
     if all(VacuumFields.current_per_turn(coil) == 0.0 for coil in active_coils)
         @warn "Active coils have no current. Can't compute vertical stability metrics"
         return actor
