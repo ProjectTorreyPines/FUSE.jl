@@ -64,18 +64,18 @@ function _step(actor::ActorQED)
     j_non_inductive = cp1d.j_non_inductive
 
     # initialize QED
-   if actor.QO === nothing
+    if actor.QO === nothing
         # this is not right because it does not update the equilibrium metrics
         actor.QO = qed_init_from_imas(actor; uniform_rho=501)
-   end
+    end
 
     if par.Nt == 0
         # only initialize, nothing to do
 
     elseif par.Δt > 0.0 && par.Δt < Inf
         # current diffusion
-        t0 = dd.global_time
-        t1 = t0 + par.Δt
+        t0 = dd.global_time - par.Δt
+        t1 = dd.global_time
 
         if par.solve_for == :vloop && par.vloop_from == :controllers__ip
             # staircase approach to call Ip control at each step of the current ramp: one QED diffuse call for each time step
@@ -117,6 +117,8 @@ function _step(actor::ActorQED)
 
             cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
             cp1d.j_non_inductive = flattened_j_non_inductive
+            eqt.profiles_1d.q =  1.0 ./ actor.QO.ι.(eqt.profiles_1d.rho_tor_norm)
+            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
         end
 
     elseif par.Δt == Inf
@@ -160,12 +162,8 @@ end
     qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Int)
 
 Setup QED from data in IMAS `dd`
-
-NOTE: QED is initalized from equilibrium and not core_profiles because
-it needs both `q` and `j_tor`, and equilibrium is the only place where
-the two ought to be self-consistent
 """
-function qed_init_from_imas(actor::ActorQED; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
+function qed_init_from_imas(actor::ActorQED{D,P}; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
@@ -187,12 +185,13 @@ function qed_init_from_imas(actor::ActorQED; uniform_rho::Int, j_tor_from::Symbo
     elseif j_tor_from === :core_profiles
         j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
     else
-        error("j_tor_from must be :equilibrium, :core_profiles, or a real number")
+        error("j_tor_from must be :equilibrium or :core_profiles")
     end
+
     if ip_from === :equilibrium
-        Ip0 = eqt.global_quantities.ip
+        Ip0 = IMAS.get_from(dd, Val{:ip}, :equilibrium)
     elseif ip_from === :core_profiles
-        Ip0 = @ddtime(dd.core_profiles.global_quantities.ip)
+        Ip0 = IMAS.get_from(dd, Val{:ip}, :core_profiles)
     elseif typeof(ip_from) <: Real
         Ip0 = ip_from
     else
@@ -202,7 +201,7 @@ function qed_init_from_imas(actor::ActorQED; uniform_rho::Int, j_tor_from::Symbo
     if ismissing(cp1d, :j_non_inductive)
         ρ_j_non_inductive = nothing
     else
-        i_qdes = findlast(eqt.profiles_1d.q .< par.qmin_desired)
+        i_qdes = findlast(abs.(eqt.profiles_1d.q) .< par.qmin_desired)
         if i_qdes === nothing
             i_qdes = 0
         end
