@@ -407,14 +407,14 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil{T}}) 
         var"function"=Vector{Symbol}[],
         n_elements=Int[],
         n_total_turns=T[],
-        resitance=T[]
+        resistance=T[]
     )
 
     for coil in coils
         func = [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
         turns = sum(getproperty(element, :turns_with_sign, 1.0) for element in coil.element)
-        resitance = getproperty(coil, :resistance, NaN)
-        push!(df, [coil.name, func, length(coil.element), sum(turns), resitance])
+        resistance = getproperty(coil, :resistance, NaN)
+        push!(df, [coil.name, func, length(coil.element), sum(turns), resistance])
     end
 
     return df
