@@ -169,6 +169,6 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
         index = resonance_layer.z .> eqt.global_quantities.magnetic_axis.z
         sub_index = argmin_abs(rho_resonance_layer[index], par.rho_0)
         @ddtime(ecb.steering_angle_tor = 0.0)
-        @ddtime(ecb.steering_angle_pol = atan(resonance_layer.r[index][sub_index] - launch_r, resonance_layer.z[index][sub_index] - launch_z) + pi / 2)
+        @ddtime(ecb.steering_angle_pol = -(atan(resonance_layer.r[index][sub_index] - launch_r, resonance_layer.z[index][sub_index] - launch_z) + pi / 2))
     end
 end
