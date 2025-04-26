@@ -70,6 +70,11 @@ function _step(actor::ActorQED)
         actor.QO = qed_init_from_imas(actor; uniform_rho=501)
     end
 
+    # QED calculates the total current based on q, which goes to infinity at the separatrix
+    # this leads to some small but not negligible difference in the total current calculated
+    # internally by QED and the one from `dd`.
+    ratio = QED.Ip(actor.QO) / IMAS.Ip(cp1d, eqt)
+
     if par.Nt == 0
         # only initialize, nothing to do
 
@@ -92,7 +97,7 @@ function _step(actor::ActorQED)
 
         for time0 in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
-                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
+                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0) * ratio
                 Vedge = nothing
             else
                 # run Ip controller if vloop_from == :controllers__ip
@@ -100,7 +105,7 @@ function _step(actor::ActorQED)
                     finalize(step(actor.ip_controller; time0))
                 end
                 Ip = nothing
-                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0)
+                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0) * ratio
             end
 
             # check where q<1 based on the the q-profile at the previous
@@ -125,11 +130,11 @@ function _step(actor::ActorQED)
     elseif par.Δt == Inf
         # steady state solution
         if par.solve_for == :ip
-            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from) * ratio
             Vedge = nothing
         else
             Ip = nothing
-            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
+            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from) * ratio
         end
 
         # we need to run steady state twice, the first time to find the q-profile when the
