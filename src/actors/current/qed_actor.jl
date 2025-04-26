@@ -61,7 +61,8 @@ function _step(actor::ActorQED)
     cp1d = dd.core_profiles.profiles_1d[]
 
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-    j_non_inductive = cp1d.j_non_inductive
+    # no ohmic, no sawteeth, no time dependent
+    j_non_inductive = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, exclude_indexes=[7, 409, 701], fields=[:j_parallel]).j_parallel
 
     # initialize QED
     if actor.QO === nothing
@@ -118,7 +119,7 @@ function _step(actor::ActorQED)
             cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
             cp1d.j_non_inductive = flattened_j_non_inductive
             eqt.profiles_1d.q =  1.0 ./ actor.QO.ι.(eqt.profiles_1d.rho_tor_norm)
-            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
+#            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
         end
 
     elseif par.Δt == Inf
@@ -149,6 +150,7 @@ function _step(actor::ActorQED)
 
             cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
             cp1d.j_non_inductive = flattened_j_non_inductive
+#            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
         end
     else
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
@@ -233,7 +235,7 @@ function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_induct
 
         # flatten non-inductive current contribution
         rho0 = cp1d.grid.rho_tor_norm[i_qdes]
-        width = rho0 / 4.0
+        width = min(rho0 / 4, 0.05)
         j_non_inductive = IMAS.flatten_profile!(copy(j_non_inductive), cp1d.grid.rho_tor_norm, cp1d.grid.area, rho0, width)
     end
 
