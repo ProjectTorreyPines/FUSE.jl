@@ -129,7 +129,11 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
                     coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in eachindex(coil.current.time)]
                 end
             else
-                coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] .* coil.element[1].turns_with_sign) for time_index in eachindex(coil.current.time)]
+                if !ismissing(coil.current, :data)
+                    # BCL 2/25/25: This only uses the first element. Is that correct???
+                    Nt = coil.element[1].turns_with_sign
+                    coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] * Nt) for time_index in eachindex(coil.current.time)]
+                end
             end
         end
     end
