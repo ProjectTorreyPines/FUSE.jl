@@ -424,20 +424,15 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
     subplot = 9
     #    plot!(dd.equilibrium.time_slice[2].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Initial q", subplot)
 
-    # plot!(
-    #     dd.equilibrium.time_slice[time0].profiles_1d,
-    #     :q;
-    #     lw=2.0,
-    #     coordinate=:rho_tor_norm,
-    #     label="q",
-    #     subplot,
-    #     legend_foreground_color=:transparent,
-    #     title="Safety factor",
-    #     legend=:bottomleft
-    # )
+    if dd1 !== nothing
+        plot!(dd1.equilibrium.time_slice[time0].profiles_1d, :q; color=:black, coordinate=:rho_tor_norm, label="Experiment q", subplot)
+    end
+    plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Modeled q", subplot)
+    hline!([-1]; subplot, label="", ls=:dash, color=:black)
+    plot!(; ylim=(-5, 0), subplot)
 
-    plot!(dd.nbi; subplot, smooth_beam_tau=0.1, legend_foreground_color=:transparent)
-    vline!([time0]; label="", subplot)
+    # plot!(dd.nbi; subplot, smooth_beam_tau=0.1, legend_foreground_color=:transparent)
+    # vline!([time0]; label="", subplot)
 
     # # fusion power
     # subplot = 9
@@ -446,27 +441,27 @@ function plot_plasma_overview(dd::IMAS.dd{T}, time0::Float64=dd.global_time;
 
     # core_sources
     subplot = 5
-    if dd1 !== nothing
-        plot!(dd1.equilibrium.time_slice[time0].profiles_1d, :q; color=:black, coordinate=:rho_tor_norm, label="Experiment q", subplot)
-    end
-    plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Modeled q", subplot)
-    hline!([-1]; subplot, label="", ls=:dash, color=:black)
-    plot!(; ylim=(-5, 0), subplot)
+    # if dd1 !== nothing
+    #     plot!(dd1.equilibrium.time_slice[time0].profiles_1d, :q; color=:black, coordinate=:rho_tor_norm, label="Experiment q", subplot)
+    # end
+    # plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Modeled q", subplot)
+    # hline!([-1]; subplot, label="", ls=:dash, color=:black)
+    # plot!(; ylim=(-5, 0), subplot)
 
-    # plot!(
-    #     dd.core_sources;
-    #     time0,
-    #     only=5,
-    #     subplot,
-    #     min_power,
-    #     aggregate_radiation,
-    #     aggregate_hcd,
-    #     legend=:topleft,
-    #     legend_foreground_color=:transparent,
-    #     title="Parallel current",
-    #     normalization=1E-6,
-    #     ylabel="[MA/m²]"
-    # )
+    plot!(
+        dd.core_sources;
+        time0,
+        only=5,
+        subplot,
+        min_power,
+        aggregate_radiation,
+        aggregate_hcd,
+        legend=:topleft,
+        legend_foreground_color=:transparent,
+        title="Parallel current",
+        normalization=1E-6,
+        ylabel="[MA/m²]"
+    )
 
     subplot = 6
     plot!(
