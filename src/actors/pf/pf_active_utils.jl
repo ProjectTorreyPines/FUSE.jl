@@ -31,9 +31,9 @@ function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, 
     w_pf = h_pf = IMAS.perimeter(valid_r, valid_z) / n_coils / sqrt(2.0)
 
     # OH coils
-    coils = IMAS.pf_active__coil{Float64}[]
+    coils = IMAS.pf_active__coil{T1}[]
     for (kk, (r, z)) in enumerate(zip(z_ohcoils .* 0.0 .+ r_ohcoils, z_ohcoils))
-        coil = IMAS.pf_active__coil()
+        coil = IMAS.pf_active__coil{T1}()
         coil.identifier = "optim"
         coil.name = "OH $kk"
         resize!(coil.element, 1)
@@ -51,7 +51,7 @@ function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, 
 
     # PF coils
     for (kk, (r, z)) in enumerate(zip(r_coils, z_coils))
-        coil = IMAS.pf_active__coil()
+        coil = IMAS.pf_active__coil{T1}()
         coil.identifier = "optim"
         coil.name = "PF $kk"
         resize!(coil.element, 1)
