@@ -340,6 +340,8 @@ function case_parameters(::Type{Val{:D3D_machine}})
 
     #### ACT ####
 
+    act.ActorEquilibrium.model = :FRESCO
+
     act.ActorPFdesign.symmetric = true
 
     act.ActorWholeFacility.update_build = false
