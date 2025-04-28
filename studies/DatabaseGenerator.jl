@@ -44,8 +44,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:single_hdf5)
 end
 
-mutable struct StudyDatabaseGenerator <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyDatabaseGenerator
+mutable struct StudyDatabaseGenerator{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T, FUSEparameters__ParametersStudyDatabaseGenerator{T}}
     ini::Union{ParametersAllInits,Vector{<:ParametersAllInits}}
     act::Union{ParametersAllActors,Vector{<:ParametersAllActors}}
     dataframe::Union{DataFrame,Missing}

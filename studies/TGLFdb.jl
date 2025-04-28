@@ -41,8 +41,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
 end
 
-mutable struct StudyTGLFdb <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyTGLFdb
+mutable struct StudyTGLFdb{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T, FUSEparameters__ParametersStudyTGLFdb{T}}
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{Union{String,Symbol}},Missing}
