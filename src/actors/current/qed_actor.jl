@@ -65,10 +65,8 @@ function _step(actor::ActorQED)
     j_non_inductive = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, exclude_indexes=[7, 409, 701], fields=[:j_parallel]).j_parallel
 
     # initialize QED
-    if actor.QO === nothing
-        # this is not right because it does not update the equilibrium metrics
-        actor.QO = qed_init_from_imas(actor; uniform_rho=501)
-    end
+    # we must reinitialize to update the equilibrium metrics
+    actor.QO = qed_init_from_imas(actor; uniform_rho=501)
 
     # QED calculates the total current based on q, which goes to infinity at the separatrix
     # this leads to some small but not negligible difference in the total current calculated
