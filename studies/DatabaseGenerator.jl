@@ -54,14 +54,14 @@ mutable struct StudyDatabaseGenerator <: AbstractStudy
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
     return setup(study)
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; kw...)
     @assert length(inis) == length(acts)
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     if sty.n_simulations ≠ length(inis)
         @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
         sty.n_simulations = length(inis)

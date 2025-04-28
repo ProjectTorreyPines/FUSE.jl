@@ -62,7 +62,7 @@ function TGLF_dataframe()
 end
 
 function StudyTGLFdb(sty, act; kw...)
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyTGLFdb(sty, act, missing, missing)
     return setup(study)
 end

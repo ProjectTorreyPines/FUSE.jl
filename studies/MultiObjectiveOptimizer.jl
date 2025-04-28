@@ -56,7 +56,7 @@ function StudyMultiObjectiveOptimizer(
     objective_functions::Vector{IMAS.ObjectiveFunction};
     kw...
 )
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
     return setup(study)
 end
