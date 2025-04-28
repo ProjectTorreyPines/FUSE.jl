@@ -2,6 +2,7 @@ module FUSE
 
 using IMAS
 import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
+import IMASutils: mirror_bound, argmin_abs, trapz
 import Plots
 using Plots
 using HelpPlots

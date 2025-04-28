@@ -79,6 +79,11 @@ function _step(actor::ActorSimpleEC)
             t_intersect = 1.0
             power_launched = 0.0
         end
+        # x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, 10.0, 100))
+        # plot(eqt;cx=true,coordinate=:rho_tor_norm)
+        # plot!(resonance_layer.r, resonance_layer.z)
+        # plot!(r,z)
+        # display(plot!())
         x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))
         rho_0 = RHO_interpolant.(r[end], z[end])
 
@@ -138,13 +143,11 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
     if ismissing(ecb.launching_position, :r) || ismissing(ecb.launching_position, :z)
         fw = IMAS.first_wall(wall)
         if !isempty(fw.r)
-            index = argmax(fw.r .+ fw.z)
-            @ddtime(ecb.launching_position.r = fw.r[index])
-            @ddtime(ecb.launching_position.z = fw.z[index])
+            @ddtime(ecb.launching_position.r = maximum(fw.r))
+            @ddtime(ecb.launching_position.z = maximum(fw.z))
         else
-            index = argmax(eqt.boundary.outline.r .+ eqt.boundary.outline.z)
-            @ddtime(ecb.launching_position.r = eqt.boundary.outline.r[index])
-            @ddtime(ecb.launching_position.z = eqt.boundary.outline.z[index])
+            @ddtime(ecb.launching_position.r = maximum(eqt.boundary.outline.r))
+            @ddtime(ecb.launching_position.z = maximum(eqt.boundary.outline.z[index]))
         end
     end
     if ismissing(ecb.launching_position, :phi)
@@ -167,8 +170,8 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
         _, _, RHO_interpolant = IMAS.ρ_interpolant(eqt)
         rho_resonance_layer = RHO_interpolant.(resonance_layer.r, resonance_layer.z)
         index = resonance_layer.z .> eqt.global_quantities.magnetic_axis.z
-        sub_index = argmin(abs.(rho_resonance_layer[index] .- par.rho_0))
+        sub_index = argmin_abs(rho_resonance_layer[index], par.rho_0)
         @ddtime(ecb.steering_angle_tor = 0.0)
-        @ddtime(ecb.steering_angle_pol = atan(resonance_layer.r[index][sub_index] - launch_r, resonance_layer.z[index][sub_index] - launch_z) + pi / 2)
+        @ddtime(ecb.steering_angle_pol = atan((resonance_layer.z[index][sub_index] - launch_z) / (resonance_layer.r[index][sub_index] - launch_r)))
     end
 end

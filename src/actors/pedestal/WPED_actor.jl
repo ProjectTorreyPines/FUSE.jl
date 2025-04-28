@@ -60,14 +60,8 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
-    cp1d = dd.core_profiles.profiles_1d[]
-    summary_ped = dd.summary.local.pedestal
-
-    # Throughout FUSE, the "pedestal" density is the density at rho=0.9
     rho09 = 0.9
-    @ddtime summary_ped.n_e.value = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
-    @ddtime summary_ped.zeff.value = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) # zeff is taken as the average value
-    @ddtime summary_ped.position.rho_tor_norm = par.rho_ped
+    cp1d = dd.core_profiles.profiles_1d[]
 
     if par.do_plot
         ppe = plot(cp1d.electrons, :temperature; label="Te before WPED blending")
@@ -75,7 +69,7 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     end
 
     if ismissing(par, :ped_to_core_fraction)
-        core, edge = IMAS.core_edge_energy(cp1d, 0.9)
+        core, edge = IMAS.core_edge_energy(cp1d, rho09)
         ped_to_core_fraction = edge / core
     else
         ped_to_core_fraction = par.ped_to_core_fraction
@@ -101,9 +95,6 @@ function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
         rel_tol=1E-3)
 
     cost_WPED_ztarget_pedratio!(cp1d, res_value_bound.minimizer, ped_to_core_fraction, par.rho_ped, Ti_over_Te)
-
-    @ddtime summary_ped.t_e.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature).(par.rho_ped)
-    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average).(par.rho_ped)
 
     if par.do_plot
         display(plot!(ppe, cp1d.electrons, :temperature; label="Te after WPED blending"))
@@ -148,7 +139,8 @@ function cost_WPED_ztarget_pedratio!(
     res_α_Ti = Optim.optimize(α -> cost_WPED_α_Ti!(cp1d, α, value_bound * Ti_over_Te, rho_ped), -500, 500, Optim.Brent(); rel_tol=1E-3)
     cost_WPED_α_Ti!(cp1d, res_α_Ti.minimizer, value_bound * Ti_over_Te, rho_ped)
 
-    core, edge = IMAS.core_edge_energy(cp1d, 0.9)
+    rho09 = 0.9
+    core, edge = IMAS.core_edge_energy(cp1d, rho09)
 
     cost = (edge / core .- ped_to_core_fraction)^2
 
