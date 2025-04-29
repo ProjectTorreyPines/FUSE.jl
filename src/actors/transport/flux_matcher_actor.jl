@@ -2,6 +2,8 @@ import NLsolve
 using LinearAlgebra
 import TJLF: InputTJLF
 
+import NonlinearSolve
+
 #= ================ =#
 #  ActorFluxMatcher  #
 #= ================ =#
@@ -115,8 +117,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     err_history = Vector{Vector{Float64}}()
 
     actor.norms = fill(NaN, N_channels)
-    ftol = 1E-4 # relative error
-    xtol = 1E-3 # difference in input array
+    ftol = 1E-2 # relative error
 
     ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
@@ -134,23 +135,42 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         elseif par.algorithm == :simple
             res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
         else
-            if par.algorithm == :newton
-                opts = Dict(:method => :newton, :factor => par.step_size)
-            elseif par.algorithm == :anderson
-                opts = Dict(:method => :anderson, :m => 4, :beta => -par.step_size * 0.5)
-            elseif par.algorithm == :trust_region
-                opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
+            # 1. In-place residual
+            function f!(F, u, initial_cp1d)
+                F .= flux_match_errors(actor, u, initial_cp1d;
+                                       z_scaled_history, err_history, prog).errors
             end
-            res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog).errors,
-                opt_parameters;
-                show_trace=false,
-                store_trace=false,
-                extended_trace=false,
-                iterations=par.max_iterations,
-                ftol,
-                xtol,
-                opts...)
+
+            # 2. Problem definition
+            problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, initial_cp1d)
+
+            # 3. Algorithm selection
+            alg = if par.algorithm == :newton
+                NonlinearSolve.NLsolveJL(method = :newton, factor = par.step_size)
+            elseif par.algorithm == :anderson
+                NonlinearSolve.NLsolveJL(method = :anderson, m = 4,
+                        beta = -par.step_size * 0.5)
+            elseif par.algorithm == :trust_region
+                NonlinearSolve.NLsolveJL(method = :trust_region,
+                        factor = par.step_size, autoscale = true)
+            else
+                error("Unsupported algorithm: $(par.algorithm)")
+            end
+
+            # 4. Solve with matching tolerances and iteration limits
+            # NonlinearSolve abstol is meant to be on u, but actually gets
+            #   passed to ftol in NLsolve which is an error on the residual
+            # See https://github.com/SciML/NonlinearSolve.jl/issues/593
+            sol = NonlinearSolve.solve(problem, alg;
+                        abstol = ftol,
+                        maxiters  = par.max_iterations,
+                        show_trace = Val(true),
+                        store_trace = Val(false),
+                        verbose    = false,
+            )
+
+            # Extract the solution vector
+            res = (zero = sol.u,)
         end
 
         flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
@@ -770,7 +790,7 @@ function unpack_z_profiles(
     end
 
     # Ensure quasi neutrality if densities are evolved
-    # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs 
+    # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
     for (species, evolve) in evolve_densities
         if evolve == :quasi_neutrality
             IMAS.enforce_quasi_neutrality!(cp1d, species)
