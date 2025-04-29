@@ -166,7 +166,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             sol = NonlinearSolve.solve(problem, alg;
                         abstol,
                         maxiters  = par.max_iterations,
-                        show_trace = Val(true),
+                        show_trace = Val(false),
                         store_trace = Val(false),
                         verbose    = false,
             )
