@@ -117,7 +117,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     err_history = Vector{Vector{Float64}}()
 
     actor.norms = fill(NaN, N_channels)
-    ftol = 1E-2 # relative error
 
     ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
@@ -133,6 +132,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         if par.algorithm == :none
             res = (zero=opt_parameters,)
         elseif par.algorithm == :simple
+            ftol = 1E-2 # relative error
+            xtol = 1E-3 # difference in input array
             res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
         else
             # 1. In-place residual
@@ -161,8 +162,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # NonlinearSolve abstol is meant to be on u, but actually gets
             #   passed to ftol in NLsolve which is an error on the residual
             # See https://github.com/SciML/NonlinearSolve.jl/issues/593
+            abstol = 1E-2
             sol = NonlinearSolve.solve(problem, alg;
-                        abstol = ftol,
+                        abstol,
                         maxiters  = par.max_iterations,
                         show_trace = Val(true),
                         store_trace = Val(false),
