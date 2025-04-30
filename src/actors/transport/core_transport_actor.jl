@@ -30,12 +30,8 @@ end
 function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCoreTransport)
     par = par(kw...)
-
-    noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorCoreTransport(dd, par, act, noop)
-
     if par.model == :FluxMatcher
-        actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
+        tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
     elseif par.model == :EPEDProfiles
         tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
     elseif par.model == :BetaMatch
@@ -43,8 +39,7 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     elseif par.model == :none
         tr_actor = ActorNoOperation(dd, act.ActorNoOperation)
     end
-
-    return actor
+    return ActorCoreTransport(dd, par, tr_actor)
 end
 
 """

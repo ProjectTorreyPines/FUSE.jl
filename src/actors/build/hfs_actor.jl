@@ -165,6 +165,9 @@ function _step(actor::ActorHFSsizing)
         c_Δmn = 0.0
 
         # want smallest possible TF and OH
+        c_geo = (OH.thickness + TFhfs.thickness) / CPradius / 2.0
+
+        # favor steel over superconductor
         # for all things being equal, maximizing steel is good to keep the cost of the magnets down
         c_scs = norm(((1.0 - dd.build.oh.technology.fraction_steel), (1.0 - dd.build.tf.technology.fraction_steel))) / 2.0       
         

@@ -69,7 +69,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
             ip_from=:core_profiles,
             βn_from=:core_profiles,
             ne_from=:pulse_schedule,
-            zeff_ped_from=:pulse_schedule,
+            zeff_from=:pulse_schedule,
             rho_nml=actor_tr.tr_actor.par.rho_transport[end-1],
             rho_ped=actor_tr.tr_actor.par.rho_transport[end])
     else #if act.ActorCoreTransport.model == :EPEDProfiles
