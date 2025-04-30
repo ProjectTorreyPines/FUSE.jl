@@ -94,9 +94,9 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
         #probably you will plot something
     end
 
-    # save output in struct actor to be passed to finalize
-    # Example:
-    actor.wall_heat_flux = Float64[] # using the example I used before
+    # # save output in struct actor to be passed to finalize
+    # # Example:
+    # actor.wall_heat_flux = Float64[] # using the example I used before
     return actor
 end
 
