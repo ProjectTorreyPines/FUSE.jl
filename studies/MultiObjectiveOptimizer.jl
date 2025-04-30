@@ -36,8 +36,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:single_hdf5)
 end
 
-mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyMultiObjectiveOptimizer
+mutable struct StudyMultiObjectiveOptimizer{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T, FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T}}
     ini::ParametersAllInits
     act::ParametersAllActors
     constraint_functions::Vector{IMAS.ConstraintFunction}
@@ -56,7 +56,7 @@ function StudyMultiObjectiveOptimizer(
     objective_functions::Vector{IMAS.ObjectiveFunction};
     kw...
 )
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
     return setup(study)
 end
