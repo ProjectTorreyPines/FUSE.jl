@@ -37,7 +37,7 @@ end
 function ActorSolBox(dd::IMAS.dd{D}, par::FUSEparameters__ActorSolBox{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorSolBox)
     par = OverrideParameters(par; kw...)
-    return ActorSolBox(dd, par, nothing)
+    return ActorSolBox(dd, par, nothing, nothing, nothing, nothing)
 end
 
 """
