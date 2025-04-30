@@ -73,10 +73,10 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     separatrix = sol[:lfs][1]
 
     # Parallel connection length from midplane to target (last point)
-    actor.sol_connection_length = separatrix[s][end]
+    actor.sol_connection_length = separatrix.s[end]
 
     # Total flux expansion from midplane to target (last point)
-    actor.sol_total_Fx = separatrix[total_flux_expansion][end]
+    actor.sol_total_Fx = separatrix.total_flux_expansion[end]
 
     # Step 2 - calculate the target temperature(s)
 
