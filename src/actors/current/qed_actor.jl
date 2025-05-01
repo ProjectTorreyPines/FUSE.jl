@@ -58,12 +58,7 @@ function _step(actor::ActorQED)
     cp1d = dd.core_profiles.profiles_1d[]
 
     # initialize QED
-    actor.QO = qed_init_from_imas(eqt, cp1d; uniform_rho=501)
-
-    # QED calculates the total current based on q, which goes to infinity at the separatrix
-    # this leads to some small but not negligible difference in the total current calculated
-    # internally by QED and the one from `dd`.
-    ratio = QED.Ip(actor.QO) / IMAS.Ip(cp1d, eqt)
+    actor.QO = qed_init_from_imas(dd; uniform_rho=501)
 
     if par.Nt == 0
         # only initialize, nothing to do
@@ -87,7 +82,7 @@ function _step(actor::ActorQED)
 
         for time0 in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
-                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0) * ratio
+                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
                 Vedge = nothing
             else
                 # run Ip controller if vloop_from == :controllers__ip
@@ -95,7 +90,7 @@ function _step(actor::ActorQED)
                     control(ip_controller(actor.dd, δt); time0)
                 end
                 Ip = nothing
-                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0) * ratio
+                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0)
             end
 
             # check where q<1 based on the the q-profile at the previous
@@ -115,11 +110,11 @@ function _step(actor::ActorQED)
     elseif par.Δt == Inf
         # steady state solution
         if par.solve_for == :ip
-            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from) * ratio
+            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
             Vedge = nothing
         else
             Ip = nothing
-            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from) * ratio
+            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
         end
 
         # we need to run steady state twice, the first time to find the q-profile when the
@@ -154,7 +149,9 @@ NOTE: QED is initalized from equilibrium and not core_profiles because
 it needs both `q` and `j_tor`, and equilibrium is the only place where
 the two ought to be self-consistent
 """
-function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d; uniform_rho::Int)
+function qed_init_from_imas(dd::IMAS.dd; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol, Real}=j_tor_from)
+    eqt = dd.equilibrium.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
 
     rho_tor = eqt.profiles_1d.rho_tor
@@ -166,10 +163,16 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
 
     # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
     # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
-    if false
-        j_tor = eqt.profiles_1d.j_tor
+    @assert j_tor_from in (:core_profiles, :equilibrium)
+    j_tor = (j_tor_from === :equilibrium) ? eqt.profiles_1d.j_tor : IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+    if ip_from === :equilibrium
+        Ip0 = eqt.global_quantities.ip
+    elseif ip_from === :core_profiles
+        Ip0 = @ddtime(dd.core_profiles.global_quantities.ip)
+    elseif ip_from isa Real
+        Ip0 = ip_from
     else
-        j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
+        error("ip_from must be :equilibrium, :core_profiles, or a real number")
     end
 
     y = log10.(1.0 ./ cp1d.conductivity_parallel) # `y` is used for packing points
@@ -187,7 +190,7 @@ function qed_init_from_imas(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_p
         ρ_grid = IMAS.pack_grid_gradients(cp1d.grid.rho_tor_norm, y; l=1E-2)
     end
 
-    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid)
+    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid, Ip0)
 end
 
 """
