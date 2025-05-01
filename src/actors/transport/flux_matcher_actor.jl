@@ -25,7 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
-    algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    algorithm::Switch{Symbol} = Switch{Symbol}([:broyden, :anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:broyden)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -154,6 +154,18 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             elseif par.algorithm == :trust_region
                 NonlinearSolve.NLsolveJL(method = :trust_region,
                         factor = par.step_size, autoscale = true)
+            elseif par.algorithm == :broyden
+                alg = NonlinearSolve.Broyden(
+                    linesearch  = NonlinearSolve.LineSearch.BackTracking(
+                        c_1  = 1e-4,   # Armijo parameter
+                        ρ_hi = 0.5,    # shrink factor
+                        order = 2,      # model order
+                        autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+                    ),
+                    update_rule   = Val(:good_broyden),
+                    init_jacobian = Val(:true_jacobian),
+                    autodiff      = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+                )
             else
                 error("Unsupported algorithm: $(par.algorithm)")
             end
