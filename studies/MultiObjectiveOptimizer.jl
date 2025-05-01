@@ -102,7 +102,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
                 println("Running $max_gens_per_iteration generations ($i / $steps)")
                 gens = max_gens_per_iteration
                 if i == steps && mod(sty.number_of_generations, max_gens_per_iteration) != 0
-                    gens = mod(gen, max_gens_per_iteration)
+                    gens = mod(sty.restart_workers_after_n_generations, max_gens_per_iteration)
                 end
                 sty.restart_workers_after_n_generations = 0
                 sty.release_workers_after_run = false
