@@ -2,7 +2,7 @@ import NLsolve
 using LinearAlgebra
 import TJLF: InputTJLF
 
-import NonlinearSolve
+import NonlinearSolve, FixedPointAcceleration
 
 #= ================ =#
 #  ActorFluxMatcher  #
@@ -174,6 +174,45 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             else
                 error("Unsupported algorithm: $(par.algorithm)")
             end
+
+            # fu0 = similar(opt_parameters)
+            # f!(fu0, opt_parameters, initial_cp1d)
+
+            # # --- replicate NonlinearSolve’s default α ------------------------------------
+            # α_default = max(norm(opt_parameters), 1) / (2 * norm(fu0))
+
+            # alg = NonlinearSolve.TrustRegion(
+            #     initial_trust_radius = par.step_size,   # plays the same role as “factor”
+            #     max_trust_radius     = 50 * par.step_size,
+            #     step_threshold       = 1e-6,
+            #     autodiff             = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+            # )
+            # fallback = NonlinearSolve.FixedPointAccelerationJL(
+            #     algorithm = :Anderson,
+            #     m         = 4,                        # history length
+            #     condition_number_threshold = 1e8,     # skip extrapolation if ill-conditioned
+            #     replace_invalids          = :ReplaceVector,
+            # )
+            # fallback = NonlinearSolve.DFSane(
+            #     sigma_min = 1e-10,
+            #     sigma_max = 1e10,
+            #     M = 10               # non-monotone window
+            # )
+            # fallback = NonlinearSolve.RobustMultiNewton(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
+            # fallback = alg = NonlinearSolve.Broyden(
+            #     linesearch  = NonlinearSolve.LineSearch.BackTracking(
+            #         c_1  = 1e-4,   # Armijo parameter
+            #         ρ_hi = 0.5,    # shrink factor
+            #         order = 2,      # model order
+            #         autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+            #         maxstep = 1000.,
+            #     ),
+            #     update_rule   = Val(:good_broyden),
+            #     init_jacobian = Val(:true_jacobian),
+            #     autodiff      = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+            # )
+            # alg = NonlinearSolve.NonlinearSolvePolyAlgorithm((fallback, alg))
+            # alg = NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
 
             # 4. Solve with matching tolerances and iteration limits
             # NonlinearSolve abstol is meant to be on u, but actually gets
