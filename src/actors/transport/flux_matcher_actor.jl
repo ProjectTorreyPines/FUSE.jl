@@ -138,8 +138,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         else
             # 1. In-place residual
             function f!(F, u, initial_cp1d)
-                F .= flux_match_errors(actor, u, initial_cp1d;
-                                       z_scaled_history, err_history, prog).errors
+                try
+                    F .= flux_match_errors(actor, u, initial_cp1d;
+                                        z_scaled_history, err_history, prog).errors
+
+                catch
+                    F .= Inf
+                end
             end
 
             # 2. Problem definition
