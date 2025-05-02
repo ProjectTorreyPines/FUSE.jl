@@ -53,12 +53,11 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
 
     # Parameters for heat flux due to core radiarion
     total_rad_source1d = IMAS.total_radiation_sources(dd.core_sources, cp1d; time0=dd.global_time)
-    psi = cp1d.grid.psi
     source_1d = -total_rad_source1d.electrons.energy # minus sign because loss for dd.core_sources
     Prad_core = -total_rad_source1d.electrons.power_inside[end]
 
     # Compute the heat flux due to the core radiation - q_core_rad - W/m2
-    q_core_rad = IMAS.core_radiation_heat_flux(eqt, psi, source_1d, par.N, Rwall, Zwall, Prad_core)
+    q_core_rad = IMAS.core_radiation_heat_flux(eqt, cp1d.grid.psi_norm, source_1d, par.N, Rwall, Zwall, Prad_core)
 
     HF = IMAS.WallHeatFlux{D}(; r=Rwall, z=Zwall, q_core_rad, s)
     actor.wall_heat_flux = HF
@@ -69,7 +68,7 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
         p = plot(; layout=ll, size=(1500, 500))
         plot!(p, HF; which_plot=:oneD, q=:core_radiation, subplot=1)
         sol = IMAS.sol(dd; levels=1)
-        photons, _ = IMAS.define_particles(eqt, psi, source_1d, par.N)
+        photons, _ = IMAS.define_particles(eqt, cp1d.grid.psi_norm, source_1d, par.N)
         plot!(p, photons, actor.dd.equilibrium.time_slice[]; colorbar_entry=false, subplot=2)
         plot!(p, sol; subplot=2, line_z=nothing, color=:black)
         plot!(p, HF; q=:core_radiation, plot_type=:path, subplot=2)

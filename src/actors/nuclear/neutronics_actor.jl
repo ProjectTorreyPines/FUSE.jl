@@ -84,8 +84,7 @@ function define_neutrons(dd::IMAS.dd, N::Int)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
     source_1d = IMAS.D_T_to_He4_heating(cp1d) .* 4.0 .+ IMAS.D_D_to_He3_heating(cp1d) .* 3.0
-    psi = cp1d.grid.psi
-    neutrons, W_per_trace, dr, dz = IMAS.define_particles(eqt, psi, source_1d, N)
+    neutrons, W_per_trace, dr, dz = IMAS.define_particles(eqt, cp1d.grid.psi_norm, source_1d, N)
     return (neutrons=neutrons, W_per_trace=W_per_trace, dr=dr, dz=dz)
 end
 
