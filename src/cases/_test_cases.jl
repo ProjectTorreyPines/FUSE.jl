@@ -88,6 +88,9 @@ function test(dd::IMAS.DD, args...; kw...)
     ini, act = case_parameters(args...; kw...)
 
     ini_act_tests_customizations!(ini, act)
+    if ini.general.casename == "ITER_scalars"
+        act.ActorStationaryPlasma.max_iterations = 5
+    end
 
     Test.@testset "init" begin
         init(dd, ini, act)
