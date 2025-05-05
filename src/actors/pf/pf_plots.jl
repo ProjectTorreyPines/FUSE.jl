@@ -79,16 +79,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
         R = range(xlim[1], xlim[2], ngrid)
         Z = range(ylim[1], ylim[2], Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
 
-        coils = VacuumFields.GS_IMAS_pf_active__coil{D,D}[]
-        for coil in dd.pf_active.coil
-            if IMAS.is_ohmic_coil(coil)
-                coil_tech = dd.build.oh.technology
-            else
-                coil_tech = dd.build.pf_active.technology
-            end
-            coil = VacuumFields.GS_IMAS_pf_active__coil(coil, coil_tech, par.green_model)
-            push!(coils, coil)
-        end
+        coils = VacuumFields.MultiCoils(dd.pf_active)
 
         # ψ coil currents
         ψbound = actor.eqt_out.global_quantities.psi_boundary

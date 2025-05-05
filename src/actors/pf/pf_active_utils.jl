@@ -1,10 +1,11 @@
 import VacuumFields
 import DataFrames
 
-const options_green_model = [
-    :point => "One filament per coil",
-    :quad => "Quadrilateral coil with quadrature integration"
-]
+mutable struct OptimCoil{CT<:VacuumFields.AbstractCoilType, T<:Real}
+    coil::CT
+    tech::IMAS.build__pf_active__technology{T}
+    imas::IMAS.pf_active__coil{T}
+end
 
 """
     encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, r_axis::T2, z_axis::T2, n_coils::Integer) where {T1<:Real,T2<:Real}
@@ -179,7 +180,7 @@ function pack_rail(bd::IMAS.build, λ_regularize::Float64, symmetric::Bool)
     return packed, (lbounds, ubounds)
 end
 
-function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::IMAS.build)
+function unpack_rail!(packed::Vector, optim_coils::Vector{<:OptimCoil}, symmetric::Bool, bd::IMAS.build)
     λ_regularize = packed[end]
     if any(rail.name == "OH" for rail in bd.pf_active.rail)
         if symmetric
@@ -214,7 +215,7 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
                     koptim += 1
                     koh += 1
                     coil_distance = (z_oh[koh] - minimum(rail.outline.z)) / (maximum(rail.outline.z) - minimum(rail.outline.z)) * 2 - 1
-                    optim_coils[koptim].z = r_interp(coil_distance)
+                    optim_coils[koptim].r = r_interp(coil_distance)
                     optim_coils[koptim].z = z_oh[koh]
                     optim_coils[koptim].height = height_oh
                 end
@@ -259,7 +260,8 @@ function unpack_rail!(packed::Vector, optim_coils::Vector, symmetric::Bool, bd::
 end
 
 function size_pf_active(
-    coils::AbstractVector{<:VacuumFields.GS_IMAS_pf_active__coil},
+    coils::AbstractVector{<:VacuumFields.MultiCoil},
+    coil_techs::AbstractVector{<:IMAS.build__pf_active__technology},
     eqt::IMAS.equilibrium__time_slice;
     tolerance::Float64=0.0,
     min_size::Float64=0.1,
@@ -292,8 +294,7 @@ function size_pf_active(
 
     # find optimal area for each coil
     areas = Float64[]
-    for coil in coils
-        pfcoil = getfield(coil, :imas)
+    for (k, coil) in enumerate(coils)
         if !IMAS.is_ohmic_coil(pfcoil)
             r0 = pfcoil.element[1].geometry.rectangle.r
             z0 = pfcoil.element[1].geometry.rectangle.z
@@ -309,13 +310,11 @@ function size_pf_active(
         symmetric_pairs = Tuple{Int,Int}[]
         k1 = 0
         for coil1 in coils
-            pfcoil1 = getfield(coil1, :imas)
             if !IMAS.is_ohmic_coil(pfcoil1)
                 k1 += 1
                 k2 = 0
                 min_symmetric_distance = Inf
                 for coil2 in coils
-                    pfcoil2 = getfield(coil2, :imas)
                     if !IMAS.is_ohmic_coil(pfcoil2)
                         k2 += 1
                         if k1 > k2
