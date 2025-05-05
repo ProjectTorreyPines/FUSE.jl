@@ -155,6 +155,10 @@ function pareto_front(solutions::Vector{Vector{T}}) where {T}
     return pareto
 end
 
+function pareto_front(objectives::Tuple{Vararg{Vector{T}}}) where {T}
+    return pareto_front([collect(point) for point in zip(objectives...)])
+end
+
 """
     save_optimization(
         filename::AbstractString,

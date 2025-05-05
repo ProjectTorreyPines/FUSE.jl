@@ -161,7 +161,7 @@ function beta_betali_a(dd::IMAS.dd, act::ParametersAllActors)
     plasma_inductance = dd.equilibrium.time_slice[].global_quantities.li_3
 
     model_value = beta_normal / plasma_inductance
-    target_value = 4.4
+    target_value = 4.0
 
     @ddtime(model.fraction = model_value / target_value)
 end
@@ -236,8 +236,62 @@ function gw_density(dd::IMAS.dd, act::ParametersAllActors)
 
     @ddtime(model.fraction = model_value / target_value)
 end
+
 push!(supported_limit_models, :gw_density)
 push!(default_limit_models, :gw_density)
+
+"""
+    edge_collisionality(dd::IMAS.dd)
+
+L-mode density limit based on edge collisionality 
+
+Model formulation: `ν_limit_edge = 3.0 * β_T_edge ^ -0.41`
+
+Sources: https://arxiv.org/pdf/2406.18442 (Maris et al, 2024) and https://iopscience.iop.org/article/10.1088/1741-4326/abdb91 (Verdoolaege et al, 2024)
+"""
+function edge_collisionality(dd::IMAS.dd, act::ParametersAllActors)
+    eqt = dd.equilibrium.time_slice[]
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    model = resize!(dd.limits.model, "identifier.name" => "edge_collisionality")
+    model.identifier.name = "Edge collisionality limit"
+    model.identifier.description = "edge ν* < 3.0 * edge βT^-0.41"
+
+    R0 = eqt.global_quantities.vacuum_toroidal_field.r0
+    B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
+
+    Rgeo = (eqt.profiles_1d.r_outboard[end] + eqt.profiles_1d.r_inboard[end]) / 2.0
+    Btvac = B0 * R0 / Rgeo
+
+    # edge is defined as all points between rho = 0.85 and rho = 0.95
+    edge = findall(x -> 0.85 <= x <= 0.95, dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
+    edge_density = sum(cp1d.electrons.density[edge]) / length(edge) # 1/m^3
+    edge_temperature = sum(cp1d.electrons.temperature[edge]) / length(edge) # eV 
+    
+    # Equation 4, with the addition of a factor of e to convert temperature from eV into Joules 
+    beta_tor_edge = 2.0 * edge_density * IMAS.mks.e * edge_temperature * 1e2 / (Btvac^2 / (2.0 * IMAS.mks.μ_0))
+
+    # Definition of loglam from Verdoolaege - Updated ITPA global confinement database, page 10
+    loglam = 30.9 .- log.(cp1d.electrons.density.^(1/2) ./ cp1d.electrons.temperature)
+    loglam_edge = sum(loglam[edge]) / length(edge)
+    epsilon = eqt.boundary.minor_radius / R0 
+    kappa = eqt.boundary.elongation 
+    ip = eqt.global_quantities.ip
+
+    # Definition of nu_star from Maris Equation 2, page 7 
+    first_term = IMAS.mks.e^2 * loglam_edge / (3^(3/2)* 2 * pi * IMAS.mks.ϵ_0^2)
+    second_term = edge_density / (edge_temperature^2)
+    qcyl = (2*pi / IMAS.mks.μ_0) * ((Btvac * kappa * eqt.boundary.minor_radius^2) / (ip * R0)) 
+    third_term = (qcyl * R0) / (epsilon^(3/2))
+
+    ν_star_edge = first_term * second_term * third_term
+
+    model_value = ν_star_edge
+    target_value = 3.0 * beta_tor_edge^-0.41
+
+    @ddtime(model.fraction = model_value / target_value)
+end
+push!(supported_limit_models, :edge_collisionality)
 
 ##### SHAPE LIMIT MODELS #####
 

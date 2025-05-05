@@ -29,6 +29,7 @@ mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
     Divertors::Union{Nothing,ActorDivertors{D,P}}
     BalanceOfPlant::Union{Nothing,ActorBalanceOfPlant{D,P}}
     Costing::Union{Nothing,ActorCosting{D,P}}
+    Risk::Union{Nothing,ActorRisk{D,P}}
 end
 
 """
@@ -52,6 +53,7 @@ Compound actor that runs all the physics, engineering and costing actors needed 
   - ActorDivertors
   - ActorBalanceOfPlant
   - ActorCosting
+  - ActorRisk
 
 !!! note
 
@@ -69,6 +71,7 @@ function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility
     par = OverrideParameters(par; kw...)
 
     return ActorWholeFacility(dd, par, act,
+        nothing,
         nothing,
         nothing,
         nothing,
@@ -165,6 +168,8 @@ function _step(actor::ActorWholeFacility)
 
         # ActorCosting costs the plant
         actor.Costing = ActorCosting(dd, act)
+
+        actor.Risk = ActorRisk(dd, act)
     end
 
     return actor
