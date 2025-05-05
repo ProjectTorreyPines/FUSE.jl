@@ -79,7 +79,7 @@ function AbstractTrees.printnode(io::IO, @nospecialize(ids::Type{<:IMAS.IDSvecto
 end
 
 function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASstructRepr; kwargs...)
-    nfo = IMAS.info(leaf.location)
+    nfo = IMAS.info(typeof(leaf.ids), leaf.field)
     units = nfo.units
     if units == "-"
         units = ""
