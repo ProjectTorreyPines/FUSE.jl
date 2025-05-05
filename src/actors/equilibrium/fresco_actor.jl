@@ -80,7 +80,6 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
 
     actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
-
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
     return actor
@@ -126,7 +125,7 @@ function _finalize(actor::ActorFRESCO)
 
     # Set the currents in the pf_active and pf_passive
     for (icoil, mcoil) in zip(dd.pf_active.coil, actor.canvas.coils)
-        VacuumFields.set_current!(icoil, VacuumFields.current(mcoil))
+        VacuumFields.set_current_per_turn!(icoil, VacuumFields.current_per_turn(mcoil))
     end
 
     return actor
