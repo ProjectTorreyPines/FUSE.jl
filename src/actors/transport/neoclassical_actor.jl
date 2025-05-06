@@ -125,32 +125,37 @@ function prepare_facit(actor::ActorNeoclassical)
 
     cp1d = dd.core_profiles.profiles_1d[];
     eqt = dd.equilibrium.time_slice[]
-    rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm) ./ 1e2
+    rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm) ./ 1e2 
     a = rmin[end]
 
-    rho = cp1d.grid.rho_tor_norm
+    function facit_interpolate(profile::Vector{Float64}, original_grid::Vector{Float64}, rmin_over_a::Vector{Float64})
+        return IMAS.interp1d(original_grid, profile).(rmin_over_a)
+    end
+
+    rho = rmin ./ a
     Zimp = cp1d.ion[end].z_ion
     Aimp = cp1d.ion[end].element[1].a
     Zi = cp1d.ion[1].z_ion
     Ai = cp1d.ion[1].element[1].a
-    Ti = cp1d.ion[1].temperature
-    ne = cp1d.electrons.density
-    Ni = cp1d.ion[1].density
-    Nimp = cp1d.ion[end].density
+    Ti = facit_interpolate(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, rho)
+    ne = facit_interpolate(cp1d.electrons.density, cp1d.grid.rho_tor_norm, rho)
+    Ni = facit_interpolate(cp1d.ion[1].density, cp1d.grid.rho_tor_norm, rho)
+    Nimp = facit_interpolate(cp1d.ion[end].density, cp1d.grid.rho_tor_norm, rho)
     Mi_core = 0.35
     Mi_edge = 0.05
 
     Machi = (Mi_core - Mi_edge) * (1 .- rho.^2) .+ Mi_edge
-    Zeff = cp1d.zeff
-    gradTi = -IMAS.calc_z(rmin / a, cp1d.ion[1].temperature, :backward)
-    gradNi = -IMAS.calc_z(rmin / a, cp1d.ion[1].density, :backward)
-    gradNimp = -IMAS.calc_z(rmin / a, cp1d.ion[end].density, :backward)
+    Zeff = facit_interpolate(cp1d.zeff, cp1d.grid.rho_tor_norm, rho)
+    gradTi = -IMAS.calc_z(rho, cp1d.ion[1].temperature, :backward)
+    gradNi = -IMAS.calc_z(rho, cp1d.ion[1].density, :backward)
+    gradNimp = -IMAS.calc_z(rho, cp1d.ion[end].density, :backward)
     invaspct = eqt.boundary.minor_radius / eqt.boundary.geometric_axis.r
     B0 = -eqt.global_quantities.vacuum_toroidal_field.b0
     R0 = eqt.boundary.geometric_axis.r
-    qmag = -IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.q).(cp1d.grid.rho_tor_norm)
-    FV = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.f).(cp1d.grid.rho_tor_norm);
-    dpsidx = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm,eqt.profiles_1d.dpsi_drho_tor).(cp1d.grid.rho_tor_norm); 
+    qmag = -facit_interpolate(eqt.profiles_1d.q, eqt.profiles_1d.rho_tor_norm, rho)
+    FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.rho_tor_norm, rho)
+    psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor, rho)
+    dpsidx = IMAS.gradient(rho, psi)
     RV = eqt.profiles_2d[1].r
     ZV = eqt.profiles_2d[1].z
 
