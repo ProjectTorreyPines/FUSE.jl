@@ -142,7 +142,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                     F .= flux_match_errors(actor, u, initial_cp1d;
                                         z_scaled_history, err_history, prog).errors
 
-                catch
+                catch error
+                    if isa(error, InterruptException)
+                        rethrow(error)
+                    end
                     F .= Inf
                 end
             end
