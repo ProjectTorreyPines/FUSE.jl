@@ -125,7 +125,7 @@ function prepare_facit(actor::ActorNeoclassical)
 
     cp1d = dd.core_profiles.profiles_1d[];
     eqt = dd.equilibrium.time_slice[]
-    rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm)
+    rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm) ./ 1e2
     a = rmin[end]
 
     rho = cp1d.grid.rho_tor_norm
