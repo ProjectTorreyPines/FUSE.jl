@@ -57,7 +57,10 @@ function case_parameters(::Type{Val{:CAT}})
     ini.nb_unit[1].power_launched = 20E6
     ini.nb_unit[1].beam_energy = 200e3
     ini.nb_unit[1].beam_mass = 2.0
-    ini.nb_unit[1].toroidal_angle = 20.0 * deg
+    ini.nb_unit[1].normalized_tangency_radius = 0.8
+    ini.nb_unit[1].beam_current_fraction = [1.0,0.0,0.0]
+    ini.nb_unit[1].current_direction = :co
+    ini.nb_unit[1].offaxis = false
 
     #### ACT ####
 
@@ -65,7 +68,7 @@ function case_parameters(::Type{Val{:CAT}})
 
     act.ActorPlasmaLimits.raise_on_breach = false
 
-    act.ActorFluxMatcher.optimizer_algorithm = :simple
+    act.ActorFluxMatcher.algorithm = :simple
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 

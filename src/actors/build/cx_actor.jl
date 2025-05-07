@@ -26,11 +26,11 @@ end
 
 mutable struct ActorCXbuild{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCXbuild{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCXbuild{P}}
     act::ParametersAllActors{P}
     function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCXbuild)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
     end
 end
@@ -708,6 +708,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
     for layer in IMAS.get_build_layers(bd.layer; fs=_in_)
         L = layer.start_radius
         R = layer.end_radius
+        layer.shape = Int(_rectangle_)
         layer.outline.r, layer.outline.z = rectangle_shape(L, R, D, U)
     end
 
@@ -730,6 +731,7 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
             R = layer.end_radius
             D = minimum(bd.layer[k-1].outline.z) - layer.thickness
             U = maximum(bd.layer[k-1].outline.z) + layer.thickness
+            layer.shape = Int(_rectangle_)
             layer.outline.r, layer.outline.z = rectangle_shape(L, R, D, U)
         end
     end

@@ -19,10 +19,10 @@ end
 
 mutable struct ActorSimpleIC{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSimpleIC{P}
+    par::OverrideParameters{P,FUSEparameters__ActorSimpleIC{P}}
     function ActorSimpleIC(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleIC{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimpleIC)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -60,7 +60,7 @@ function _step(actor::ActorSimpleIC)
     area_cp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eqt.profiles_1d.area).(rho_cp)
 
     for (k, (ps, ica)) in enumerate(zip(dd.pulse_schedule.ic.antenna, dd.ic_antennas.antenna))
-        τ_th = IMAS.fast_ion_thermalization_time(cp1d, cp1d.ion[1].element[1], 1e6) # MeV range fast-ions
+        τ_th = IMAS.fast_ion_thermalization_time(cp1d, 1, cp1d.ion[1].element[1], 1e6) # MeV range fast-ions
         power_launched = max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.ic.time, ps.power.reference, dd.global_time, τ_th))
         rho_0 = par.actuator[k].rho_0
         width = par.actuator[k].width

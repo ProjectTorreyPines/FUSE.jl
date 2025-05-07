@@ -1,6 +1,5 @@
 import VacuumFields
 import DataFrames
-import IMASutils: mirror_bound
 
 const options_green_model = [
     :point => "One filament per coil",
@@ -29,7 +28,7 @@ function encircling_coils(bnd_r::AbstractVector{T1}, bnd_z::AbstractVector{T1}, 
 
     # PF posistions and sizes
     r_coils, z_coils = IMAS.resample_2d_path(valid_r, valid_z; n_points=n_coils, method=:cubic)
-    w_pf = h_pf = sum(sqrt.(diff(valid_r) .^ 2.0 .+ diff(valid_z) .^ 2.0)) / n_coils / sqrt(2.0)
+    w_pf = h_pf = IMAS.perimeter(valid_r, valid_z) / n_coils / sqrt(2.0)
 
     # OH coils
     coils = IMAS.pf_active__coil{Float64}[]
@@ -130,7 +129,11 @@ function pf_current_limits(pfa::IMAS.pf_active, bd::IMAS.build)
                     coil.b_field_max_timed.data = [bd.oh.max_b_field for time_index in eachindex(coil.current.time)]
                 end
             else
-                coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] .* coil.element[1].turns_with_sign) for time_index in eachindex(coil.current.time)]
+                if !ismissing(coil.current, :data)
+                    # BCL 2/25/25: This only uses the first element. Is that correct???
+                    Nt = coil.element[1].turns_with_sign
+                    coil.b_field_max_timed.data = [coil_selfB(coil, coil.current.data[time_index] * Nt) for time_index in eachindex(coil.current.time)]
+                end
             end
         end
     end
@@ -280,9 +283,10 @@ function size_pf_active(
         pfcoil.element[1].geometry.rectangle.z = z0 + sign(z0 - Zcenter) * (height - height0) / 2.0
 
         mat = Material(coil.tech)
-        Bext = coil_selfB(pfcoil, coil.current)
+        Ic = coil.current_per_turn * coil.turns
+        Bext = coil_selfB(pfcoil, Ic)
 
-        needed_conductor_area = abs(coil.current) / mat.critical_current_density(; Bext)
+        needed_conductor_area = abs(Ic) / mat.critical_current_density(; Bext)
         needed_area = needed_conductor_area / IMAS.fraction_conductor(coil.tech) * (1.0 .+ tolerance)
         if needed_area > 1E6 # to handle cases where needed_area == Inf
             needed_area = 1E6
@@ -407,14 +411,14 @@ function DataFrames.DataFrame(coils::IMAS.IDSvector{<:IMAS.pf_active__coil{T}}) 
         var"function"=Vector{Symbol}[],
         n_elements=Int[],
         n_total_turns=T[],
-        resitance=T[]
+        resistance=T[]
     )
 
     for coil in coils
         func = [IMAS.index_2_name(coil.function)[f.index] for f in coil.function]
         turns = sum(getproperty(element, :turns_with_sign, 1.0) for element in coil.element)
-        resitance = getproperty(coil, :resistance, NaN)
-        push!(df, [coil.name, func, length(coil.element), sum(turns), resitance])
+        resistance = getproperty(coil, :resistance, NaN)
+        push!(df, [coil.name, func, length(coil.element), sum(turns), resistance])
     end
 
     return df

@@ -35,7 +35,7 @@ function case_parameters(::Type{Val{:EXCITE}})
         :gap_cryostat => 0.5,
         :cryostat => 0.05)
 
-    ini.build.plasma_gap = 0.05
+    ini.build.plasma_gap = 0.075
     ini.build.divertors = :double
     ini.build.n_first_wall_conformal_layers = 2
 
@@ -64,7 +64,7 @@ function case_parameters(::Type{Val{:EXCITE}})
     ini.core_profiles.rot_core = 0.0
 
     ini.build.layers[:OH].coils_inside = 6
-    ini.build.layers[:gap_cryostat].coils_inside = 6
+    ini.build.layers[:gap_cryostat].coils_inside = 4
 
     ini.tf.technology = :rebco
     ini.oh.technology = :rebco
@@ -72,6 +72,9 @@ function case_parameters(::Type{Val{:EXCITE}})
 
     ini.center_stack.bucked = true
     ini.center_stack.plug = true
+
+    ini.requirements.coil_j_margin = 0.05
+    ini.requirements.coil_stress_margin = 0.05
 
     ini.tf.n_coils = 16
     ini.tf.shape = :rectangle_ellipse
@@ -90,7 +93,7 @@ function case_parameters(::Type{Val{:EXCITE}})
     ini.ec_launcher[2].efficiency_transmission = 0.8
 
     ini.requirements.power_electric_net = 0.0e0
-    ini.requirements.flattop_duration = 1800.0
+    ini.requirements.flattop_duration = 900.0
     ini.requirements.tritium_breeding_ratio = 0.0
 
     ini.time.simulation_start = 0.0
@@ -107,6 +110,8 @@ function case_parameters(::Type{Val{:EXCITE}})
     act.ActorCoreTransport.model = :none # No flux matching possible
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+
+    act.ActorPFactive.strike_points_weight = 0.0
 
     return ini, act
 end

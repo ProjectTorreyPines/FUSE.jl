@@ -161,7 +161,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             energies = [nb_unit.beam_energy for nb_unit in ini.nb_unit]
             for k in eachindex(ini.nb_unit)
                 ps.nbi.unit[k].power.reference = powers_launched[k]
-                ps.nbi.unit[k].energy.reference = fill(energies[k], size(time))
+                ps.nbi.unit[k].energy.reference = fill(energies[k], size(ps.nbi.time))
             end
         end
 

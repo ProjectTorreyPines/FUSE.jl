@@ -445,7 +445,7 @@ function save_database(
         end
         HDF5.write(fid, target_group, data)
         attr = HDF5.attrs(fid[target_group])
-        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        return attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
     end
 
     mode = isfile(h5_filename) ? "r+" : "w"
@@ -605,9 +605,9 @@ function load_database(filename::AbstractString, parent_groups::Vector{<:Abstrac
     Nparents = length(parent_groups)
 
     # Prepare output data
-    dds = occursin(pattern, "dd.h5") ? fill(IMAS.dd(), Nparents) : nothing
-    inis = occursin(pattern, "ini.h5") ? fill(ParametersInits(), Nparents) : nothing
-    acts = occursin(pattern, "act.h5") ? fill(ParametersActors(), Nparents) : nothing
+    dds = occursin(pattern, "dd.h5") || occursin(pattern, "dd.json") ? fill(IMAS.dd(), Nparents) : nothing
+    inis = occursin(pattern, "ini.h5") || occursin(pattern, "ini.json")  ? fill(ParametersInits(), Nparents) : nothing
+    acts = occursin(pattern, "act.h5") || occursin(pattern, "act.json") ? fill(ParametersActors(), Nparents) : nothing
     logs = occursin(pattern, "log.txt") ? fill("", Nparents) : nothing
     timers = occursin(pattern, "timer.txt") ? fill("", Nparents) : nothing
     errors = occursin(pattern, "error.txt") ? fill("", Nparents) : nothing
@@ -618,10 +618,16 @@ function load_database(filename::AbstractString, parent_groups::Vector{<:Abstrac
             h5path = gparent * "/" * key
             if key == "dd.h5"
                 dds[k] = IMAS.hdf2imas(filename, h5path)
+            elseif key == "dd.json"
+                dds[k] = IMAS.jstr2imas(H5_fid[h5path][])
             elseif key == "ini.h5"
                 inis[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
+            elseif key == "ini.json"
+                inis[k] = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersInits())
             elseif key == "act.h5"
                 acts[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
+            elseif key == "act.json"
+                acts[k] = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersActors())
             elseif key == "log.txt"
                 logs[k] = H5_fid[h5path][]
             elseif key == "timer.txt"
@@ -648,13 +654,13 @@ Samples the database by filtering groups that satisfy the provided `conditions` 
     sample_and_write_database("database.h5", "sampled.h5", x -> x.R0>2 && x."<zeff>">1.5)
 ```
 """
-function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function)
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function; kw...)
     @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
 
     HDF5.h5open(ori_DB_name, "r") do H5_fid
         df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
         parent_groups = filter(conditions, df)[!, :gparent]
-        return sample_and_write_database(ori_DB_name, sampled_DB_name, parent_groups)
+        return sample_and_write_database(ori_DB_name, sampled_DB_name, parent_groups; kw...)
     end
 end
 
@@ -673,7 +679,7 @@ total number of rows.
 ```
 """
 function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString;
-    Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing)
+    Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing, kw...)
 
     @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
     if isnothing(Nsamples) && isnothing(sampling_ratio)
@@ -688,7 +694,7 @@ function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name:
             Nsamples = clamp(Nsamples, 1, nrow(ori_df))
         end
         sampled_df = ori_df[Random.shuffle(1:nrow(ori_df))[1:Nsamples], :]
-        return sample_and_write_database(ori_DB_name, sampled_DB_name, sampled_df[!, :gparent])
+        return sample_and_write_database(ori_DB_name, sampled_DB_name, sampled_df[!, :gparent]; kw...)
     end
 end
 
@@ -702,8 +708,8 @@ Sampling a single specific group from the original HDF5 file.
     sample_and_write_database("database.h5", "sampled.h5", "/case01")
 ```
 """
-function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString)
-    return sample_and_write_database(ori_DB_name, sampled_DB_name, [parent_group])
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString; kw...)
+    return sample_and_write_database(ori_DB_name, sampled_DB_name, [parent_group]; kw...)
 end
 
 """
@@ -716,23 +722,87 @@ Sampling the groups specified in `parent_groups` from the original HDF5 file.
     df = sample_and_write_database("database.h5", "sampled.h5", ["/case01", "/case02"])
 ```
 """
-function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString})
+function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString}; sub_format::Union{Symbol,Nothing}=nothing)
 
     @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
+    @assert sub_format ∈ (:h5, :json, nothing) "sub_format must be either `:h5` or `:json" or `nothing`
 
     ori_fid = HDF5.h5open(ori_DB_name, "r")
     new_fid = HDF5.h5open(sampled_DB_name, "w")
 
     ori_df = coalesce.(CSV.read(IOBuffer(ori_fid["/extract.csv"][]), DataFrame), NaN)
 
+    # normalize and unique the parent_groups
     parent_groups = IMAS.norm_hdf5_path.(parent_groups)
+    unique!(parent_groups)
+
+    # Check if any requested groups don't exist in the original database
+    missing_groups = setdiff(parent_groups, ori_df.gparent)
+    if !isempty(missing_groups)
+        missing_list = join(["\n  [$i]: \"$group\"" for (i, group) in pairs(missing_groups)], "")
+        @warn "Following $(length(missing_groups)) groups not found in original database:$missing_list"
+    end
 
     sampled_df = filter(row -> string(row.gparent) in parent_groups, ori_df)
     sort!(sampled_df, "gparent")
 
-    for gparent in parent_groups
-        HDF5.copy_object(ori_fid, gparent, new_fid, gparent)
+    # prepare progressmeter
+    ProgressMeter.ijulia_behavior(:clear)
+    Ngparents = length(sampled_df.gparent)
+    p = ProgressMeter.Progress(Ngparents; showspeed=true)
+
+    if isnothing(sub_format)
+        for (iter, gparent) in pairs(sampled_df.gparent)
+            HDF5.copy_object(ori_fid, gparent, new_fid, gparent)
+            ProgressMeter.next!(p; showvalues =[(:groups, "($iter/$Ngparents) \"$gparent\"")])
+        end
+    else
+        for (iter, gparent) in pairs(sampled_df.gparent)
+            for key in keys(ori_fid[gparent])
+
+                ori_h5path = gparent * "/" * key
+
+                if endswith(key, r"\.txt")
+                    HDF5.copy_object(ori_fid, ori_h5path, new_fid, ori_h5path)
+                elseif endswith(key, Regex(string(sub_format)))
+                    HDF5.copy_object(ori_fid, ori_h5path, new_fid, ori_h5path)
+                else
+                    if startswith(key, r"dd")
+                        if sub_format == :json
+                            json_string = string(IMAS.hdf2imas(ori_DB_name, gparent * "/dd.h5"))
+                            HDF5.write(new_fid, gparent * "/dd.json", json_string)
+                        else
+                            dd = IMAS.jstr2imas(ori_fid[ori_h5path][], IMAS.dd())
+                            HDF5.create_group(new_fid, gparent * "/dd.h5")
+                            IMAS.imas2hdf(dd, new_fid[gparent*"/dd.h5"])
+                        end
+                    elseif startswith(key, r"ini")
+                        if sub_format == :json
+                            ini = SimulationParameters.hdf2par(ori_fid[ori_h5path], ParametersInits())
+                            json_string = SimulationParameters.par2jstr(ini)
+                            HDF5.write(new_fid, gparent * "/ini.json", json_string)
+                        else
+                            ini = SimulationParameters.jstr2par(ori_fid[ori_h5path][], ParametersInits())
+                            HDF5.create_group(new_fid, gparent * "/ini.h5")
+                            SimulationParameters.par2hdf!(ini, new_fid[gparent*"/ini.h5"])
+                        end
+                    elseif startswith(key, r"act")
+                        if sub_format == :json
+                            act = SimulationParameters.hdf2par(ori_fid[ori_h5path], ParametersActors())
+                            json_string = SimulationParameters.par2jstr(act)
+                            HDF5.write(new_fid, gparent * "/act.json", json_string)
+                        else
+                            act = SimulationParameters.jstr2par(ori_fid[ori_h5path][], ParametersActors())
+                            HDF5.create_group(new_fid, gparent * "/act.h5")
+                            SimulationParameters.par2hdf!(act, new_fid[gparent*"/act.h5"])
+                        end
+                    end
+                end
+            end
+            ProgressMeter.next!(p; showvalues =[(:groups, "($iter/$Ngparents) \"$gparent\"")])
+        end
     end
+    ProgressMeter.finish!(p)
 
     # write extract.csv into HDF5
     io_buffer = IOBuffer()
@@ -1200,7 +1270,6 @@ function get_julia_process_memory_usage()
     return mem_bytes::Int
 end
 
-
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
 
@@ -1450,5 +1519,42 @@ function compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
     finally
         # Restore the original environment
         Pkg.activate(original_env)
+    end
+end
+
+# === #
+# SSH #
+# === #
+const ssh_exe = "ssh -o StrictHostKeyChecking=no"
+
+"""
+    ssh_command(remote_host::AbstractString, remote_command::AbstractString; extra_flags::AbstractString="")
+
+Generate ssh command string for executing remote_command on remote_host
+"""
+function ssh_command(remote_host::AbstractString, remote_command::AbstractString; extra_flags::AbstractString="")
+    return "$ssh_exe $extra_flags $remote_host $remote_command"
+end
+
+"""
+    upsync_command(remote_host::AbstractString, local_files::AbstractVector{<:AbstractString}, remote_dir::AbstractString; extra_flags::AbstractString="")
+
+Generate rsync command string for uploading local_files to remote_dir on remote_host
+"""
+function upsync_command(remote_host::AbstractString, local_files::AbstractVector{<:AbstractString}, remote_dir::AbstractString; extra_flags::AbstractString="")
+    return "rsync $extra_flags -az -e '$(ssh_exe)' $(join(local_files," ")) $(remote_host):$(remote_dir) >&2"
+end
+
+"""
+    downsync_command(remote_host::AbstractString, remote_files::AbstractVector{<:AbstractString}, local_dir::AbstractString; extra_flags::AbstractString="")
+
+Generate rsync command string for downloading remote_files to local_dir from remote_host
+"""
+function downsync_command(remote_host::AbstractString, remote_files::AbstractVector{<:AbstractString}, local_dir::AbstractString; extra_flags::AbstractString="")
+    # rsync works a bit different on MACs
+    if Sys.isapple()
+        return "rsync $extra_flags -az -e '$(ssh_exe)' $(remote_host):\"$(join(remote_files," "))\" $(local_dir) >&2"
+    else
+        return "rsync $extra_flags -az -e '$(ssh_exe)' $(remote_host):$(join(remote_files," :")) $(local_dir) >&2"
     end
 end

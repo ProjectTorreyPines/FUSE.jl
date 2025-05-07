@@ -40,6 +40,7 @@ function case_parameters(
             boundary_from = :MXH_params
         end
         act.ActorEquilibrium.model = :TEQUILA
+        act.ActorPlasmaLimits.raise_on_breach = false
     end
 
     ini.equilibrium.xpoints = :lower
@@ -132,10 +133,16 @@ function case_parameters(
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    resize!(ini.nb_unit, 1)
-    ini.nb_unit[1].power_launched = 33.4e6
+    resize!(ini.nb_unit, 2)
+    ini.nb_unit[1].power_launched = 16.7e6
     ini.nb_unit[1].beam_energy = 1e6
-    ini.nb_unit[1].toroidal_angle = 20.0 * deg
+    ini.nb_unit[1].beam_mass = 2.0
+    ini.nb_unit[1].template_beam = :iter_onaxis
+
+    ini.nb_unit[2].power_launched = 16.7e6
+    ini.nb_unit[2].beam_energy = 1e6
+    ini.nb_unit[2].beam_mass = 2.0
+    ini.nb_unit[2].template_beam = :iter_offaxis
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6

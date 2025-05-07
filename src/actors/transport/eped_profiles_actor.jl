@@ -13,10 +13,10 @@ end
 
 mutable struct ActorEPEDprofiles{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEPEDprofiles{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEPEDprofiles{P}}
     function ActorEPEDprofiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorEPEDprofiles{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorEPEDprofiles)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

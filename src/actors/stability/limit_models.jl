@@ -204,7 +204,7 @@ function q80_gt_2(dd::IMAS.dd, act::ParametersAllActors)
     model.identifier.description = "q(rho=0.8) > 2.0"
 
     rho_eq = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
-    q_08 = abs.(dd.equilibrium.time_slice[].profiles_1d.q)[argmin(abs.(rho_eq .- 0.8))]
+    q_08 = abs.(dd.equilibrium.time_slice[].profiles_1d.q)[argmin_abs(rho_eq, 0.8)]
 
     model_value = abs(q_08)
     target_value = 2.0

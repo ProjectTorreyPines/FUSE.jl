@@ -27,13 +27,18 @@ function case_parameters(
     if !isempty(omega_omfit_root)
         remote_omfit_root = omega_omfit_root
     end
+    remote_host = "$(omega_user)@omega.gat.com"
     remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
     filename = "D3D_$shot.h5"
-    local_path = joinpath(tempdir(), "D3D_$shot")
-    if isdir(local_path)
-        rm(local_path; recursive=true)
+    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+        local_path = remote_path
+    else
+        local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
+        if isdir(local_path)
+            rm(local_path; recursive=true)
+        end
+        mkdir(local_path)
     end
-    mkdir(local_path)
 
     # remote omas script
     omas_py = """
@@ -45,6 +50,7 @@ function case_parameters(
 
         ods = omas.ODS()
 
+        tic = time.time()
         printe("- Fetching ec_launcher data")
         d3d.ec_launcher_active_hardware(ods, $shot)
 
@@ -56,6 +62,16 @@ function case_parameters(
 
         printe("- Fetching wall data")
         d3d.wall(ods, $shot)
+
+        printe("- Fetching coils data")
+        d3d.pf_active_hardware(ods, $shot)
+        d3d.pf_active_coil_current_data(ods, $shot)
+
+        printe("- Fetching flux loops data")
+        d3d.magnetics_floops_data(ods, $shot)
+
+        printe("- Fetching magnetic probes data")
+        d3d.magnetics_probes_data(ods, $shot)
 
         printe("- Fetching equilibrium data")
         with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
@@ -72,8 +88,12 @@ function case_parameters(
                 ods["equilibrium.vacuum_toroidal_field.r0"]
                 ods["equilibrium.vacuum_toroidal_field.b0"]
 
-        printe("Saving ODS to $filename")
+        printe(f"Data fetched via OMAS in {time.time()-tic:.2f} [s]")
+
+        printe("Saving ODS to $filename", end="")
+        tic = time.time()
         ods.save("$filename")
+        printe(f" Done in {time.time()-tic:.2f} [s]")
         """
     open(joinpath(local_path, "omas_data_fetch.py"), "w") do io
         return write(io, omas_py)
@@ -111,26 +131,28 @@ function case_parameters(
         return write(io, remote_slurm)
     end
 
-    # local driver script
-    local_driver = """
-        #!/bin/bash
+    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+        # local driver script
+        local_driver = """
+            #!/bin/bash
+            module load omfit; cd $remote_path && bash remote_slurm.sh
+            """
+    else
+        # local driver script
+        local_driver = """
+            #!/bin/bash
 
-        REMOTE_HOST="$(omega_user)@omega.gat.com"
-        REMOTE_PATH="$remote_path"
-        LOCAL_OUTPUT_DIR="$(local_path)"
-        LOCAL_FILES="$(local_path)/remote_slurm.sh $(local_path)/omas_data_fetch.py"
-        REMOTE_SCRIPT="remote_slurm.sh"
+            # Use rsync to create directory if it doesn't exist and copy the script
+            $(ssh_command(remote_host, "\"mkdir -p $remote_path\""))
+            $(upsync_command(remote_host, ["$(local_path)/remote_slurm.sh", "$(local_path)/omas_data_fetch.py"], remote_path))
 
-        # Use rsync to create directory if it doesn't exist and copy the script
-        ssh "\$REMOTE_HOST" "mkdir -p \$REMOTE_PATH"
-        rsync -az \$LOCAL_FILES "\$REMOTE_HOST":"\$REMOTE_PATH" >&2
+            # Execute script remotely
+            $(ssh_command(remote_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
 
-        # Execute script remotely
-        ssh "\$REMOTE_HOST" "module load omfit; cd \$REMOTE_PATH && bash \$REMOTE_SCRIPT"
-
-        # Retrieve results using rsync
-        rsync -az "\$REMOTE_HOST:\$REMOTE_PATH/$(filename) \$REMOTE_PATH/nbi_ods_$shot.h5 \$REMOTE_PATH/beams_$shot.dat" "\$LOCAL_OUTPUT_DIR" >&2
+            # Retrieve results using rsync
+            $(downsync_command(remote_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
         """
+    end
     open(joinpath(local_path, "local_driver.sh"), "w") do io
         return write(io, local_driver)
     end
@@ -231,11 +253,21 @@ function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
     ini.general.casename = "D3D $scenario"
 
     if isempty(ini.general.dd.core_sources)
-        resize!(ini.nb_unit, 1)
-        ini.nb_unit[1].power_launched = 3E6
+        resize!(ini.nb_unit, 3)
+        ini.nb_unit[1].power_launched = 1E6
         ini.nb_unit[1].beam_energy = 80e3
         ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 18.0 * deg
+        ini.nb_unit[1].template_beam = :d3d_co
+
+        ini.nb_unit[2].power_launched = 1E6
+        ini.nb_unit[2].beam_energy = 80e3
+        ini.nb_unit[2].beam_mass = 2.0
+        ini.nb_unit[2].template_beam = :d3d_counter
+
+        ini.nb_unit[3].power_launched = 1E6
+        ini.nb_unit[3].beam_energy = 80e3
+        ini.nb_unit[3].beam_mass = 2.0
+        ini.nb_unit[3].template_beam = :d3d_offaxis
 
         resize!(ini.ec_launcher, 1)
         ini.ec_launcher[1].power_launched = 3E6
