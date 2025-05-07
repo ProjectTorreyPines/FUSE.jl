@@ -40,6 +40,7 @@ function case_parameters(
             boundary_from = :MXH_params
         end
         act.ActorEquilibrium.model = :TEQUILA
+        act.ActorPlasmaLimits.raise_on_breach = false
     end
 
     ini.equilibrium.xpoints = :lower
