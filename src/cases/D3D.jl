@@ -355,8 +355,6 @@ function case_parameters(::Type{Val{:D3D_machine}})
 
     act.ActorFluxMatcher.evolve_pedestal = false
 
-    act.ActorPlasmaLimits.raise_on_breach = false
-
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     Ω = 1.0 / 1E6
