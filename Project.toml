@@ -1,7 +1,7 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
 authors = ["Orso Meneghini <orso82@gmail.com>"]
-version = "0.7.1"
+version = "0.8.0"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -96,7 +96,7 @@ GACODE = "1"
 GeoInterface = "1"
 HDF5 = "0.17.2"
 HelpPlots = "1"
-IMAS = "5"
+IMAS = "5.2"
 IMASutils = "1.5.1"
 Interpolations = "0.15"
 JSON = "0.21"

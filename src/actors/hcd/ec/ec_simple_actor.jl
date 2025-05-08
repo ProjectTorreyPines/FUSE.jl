@@ -131,7 +131,7 @@ end
 
 # ============
 
-function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, par::_FUSEparameters__ActorSimpleECactuator)
+function setup_ec(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, par::_FUSEparameters__ActorSimpleECactuator)
     # Estimate operating frequency and mode
     if ismissing(ecb.frequency, :data)
         resonance = IMAS.ech_resonance(eqt)

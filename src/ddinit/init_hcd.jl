@@ -14,7 +14,7 @@ function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         ps_ecb.name = ecb.name
         ecb.available_launch_power = maximum(ps_ecb.power_launched.reference)
         # Launcher setup
-        setup(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[idx])
+        setup_ec(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[idx])
         # Efficiencies
         ecb.efficiency.conversion = ini_ecb.efficiency_conversion
         ecb.efficiency.transmission = ini_ecb.efficiency_transmission
