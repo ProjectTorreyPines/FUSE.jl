@@ -244,3 +244,18 @@ function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_induct
 
     return QED.η_FE(cp1d.grid.rho_tor_norm, η; use_log), j_non_inductive
 end
+
+"""
+    η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
+
+returns the resistivity profile as a function of rho_tor_norm
+
+    - `use_log=true`: Cubic finite element interpolation on a log scale
+
+    - `use_log=false` Cubic finite element interpolation on a linear scale
+"""
+function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
+    rho = cp1d.grid.rho_tor_norm
+    η = 1.0 ./ cp1d.conductivity_parallel
+    return QED.η_FE(rho, η; use_log)
+end
