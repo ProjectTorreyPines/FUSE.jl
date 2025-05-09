@@ -6,10 +6,10 @@ Expands the subtypes into struct members
 macro insert_subtype_members(T)
     expr = Expr(:block)
     for s in subtypes(eval(T))
-        if !startswith(String(Symbol(s)), "FUSE._")
-            mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__" => ""))
-            constraint = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
-            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
+        full_parameters_actor_name = split(String(Symbol(s)), '.')[end]
+        if !startswith(full_parameters_actor_name, '_')
+            mem = Symbol(split(full_parameters_actor_name, "__")[end])
+            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(s), esc(:T))))
         end
     end
     return expr
@@ -24,8 +24,9 @@ subtypes we can then splat into the larger constructor
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
     for s in subtypes(eval(T))
-        if !startswith(String(Symbol(s)), "FUSE._")
-            mem = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
+        full_actor_name = split(String(Symbol(s)), '.')[end]
+        if !startswith(full_actor_name, '_')
+            mem = Symbol(full_actor_name)
             push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
         end
     end
@@ -55,7 +56,6 @@ end
 ############
 # act_common_parameters
 ############
-
 """
     act_common_parameters(; kw...)
 
@@ -68,7 +68,7 @@ function act_common_parameters(; kw...)
     if name == :do_plot
         return Entry{Bool}("-", "Store the output dds of the workflow run"; default)
     elseif name == :verbose
-        return  Entry{Bool}("-", "Verbose"; default)
+        return Entry{Bool}("-", "Verbose"; default)
     else
         error("There is no act_common_parameter for name = $name")
     end
@@ -77,7 +77,6 @@ end
 ###############
 # save / load #
 ###############
-
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
