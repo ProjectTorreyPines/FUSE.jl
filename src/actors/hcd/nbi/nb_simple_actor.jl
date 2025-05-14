@@ -42,7 +42,6 @@ function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-
 function _step(actor::ActorSimpleNB)
     dd = actor.dd
     par = actor.par
@@ -79,7 +78,6 @@ function _step(actor::ActorSimpleNB)
     rout = eqt.profiles_1d.r_outboard
     eps = (rout .- rin) ./ (rout .+ rin)
     eps_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eps)
-    eps0 = maximum(eps) .* cp1d.grid.rho_tor_norm
     eps_cp = eps_interp.(rho_cp)
 
     ne_interp = IMAS.interp1d(rho_cp, ne)
@@ -200,7 +198,7 @@ function _step(actor::ActorSimpleNB)
                 qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
                 # There seems to be a factor of 0.1 pull from freya, Maybe going from momentum of g*cm to kg*m? 
                 # from freya: charge/(2.99792458e9*atwb*xmassp)[A/cm^2] = 47894.15 * 1e4 =  0.1*IMAS.mks.e/(nbu.species.a * IMAS.mks.m_p)[A/m^2]
-                curbi = @views 0.1*IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
+                curbi = @views 0.1 * IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
                 curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
                 curbeam[igroup, ifpow, :] .= curbi .+ curbe .+ curbet
@@ -240,7 +238,7 @@ function _step(actor::ActorSimpleNB)
         ion.power_inside = source1d.total_ion_power_inside
         ion.fast_particles_energy = beam_energy
     end
-    IMAS.empty!(cp1d, :zeff)
+    IMAS.unfreeze!(cp1d, :zeff)
 
     return actor
 end

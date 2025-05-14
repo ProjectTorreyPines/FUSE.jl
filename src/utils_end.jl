@@ -486,7 +486,7 @@ function save_database(
         end
 
         if dd !== nothing
-            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, verbose)
+            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, show_warnings=verbose)
         end
 
         if act !== nothing

@@ -13,7 +13,8 @@ function case_parameters(
     PROFILES_tree::String="ZIPFIT01",
     omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
     omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
-    omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas")
+    omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
+    use_local_cache::Bool=false
 )
     ini, act = case_parameters(Val{:D3D_machine})
     ini.general.casename = "D3D $shot"
@@ -34,10 +35,12 @@ function case_parameters(
         local_path = remote_path
     else
         local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
-        if isdir(local_path)
+        if isdir(local_path) && !use_local_cache
             rm(local_path; recursive=true)
         end
-        mkdir(local_path)
+        if !isdir(local_path)
+            mkdir(local_path)
+        end
     end
 
     # remote omas script
@@ -161,7 +164,9 @@ function case_parameters(
     @info("Remote D3D data fetching for shot $shot")
     @info("Path on OMEGA: $remote_path")
     @info("Path on Localhost: $local_path")
-    Base.run(`bash $local_path/local_driver.sh`)
+    if !isfile(joinpath(local_path,filename)) || !use_local_cache
+        Base.run(`bash $local_path/local_driver.sh`)
+    end
 
     # load experimental ods
     ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
@@ -340,6 +345,8 @@ function case_parameters(::Type{Val{:D3D_machine}})
 
     #### ACT ####
 
+    act.ActorEquilibrium.model = :FRESCO
+
     act.ActorPFdesign.symmetric = true
 
     act.ActorWholeFacility.update_build = false
@@ -348,9 +355,12 @@ function case_parameters(::Type{Val{:D3D_machine}})
 
     act.ActorFluxMatcher.evolve_pedestal = false
 
-    act.ActorPlasmaLimits.raise_on_breach = false
-
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+
+    Ω = 1.0 / 1E6
+    act.ActorControllerIp.P = Ω * 100.0
+    act.ActorControllerIp.I = Ω * 20.0
+    act.ActorControllerIp.D = 0.0
 
     # average pedestal height, not peak
     act.ActorEPED.ped_factor = 0.8
