@@ -1,5 +1,7 @@
 import NEO
 import GACODE
+import Interpolations
+import MillerExtendedHarmonic
 
 #= ================= =#
 #  ActorNeoclassical  #
@@ -112,6 +114,7 @@ function _finalize(actor::ActorNeoclassical)
             # interpolate onto the same grid as hirshman sigmar 
             flux_rho_transport = IMAS.interp1d(actor.facit_output.rho, actor.facit_output.Flux_z).(par.rho_transport)
             hs_index = findfirst(model -> model.identifier.name == "Hirshman-Sigmar", dd.core_transport.model)
+            dd.core_transport.model[hs_index].identifier.name = "Hirshman-Sigmar + FACIT"
             dd.core_transport.model[hs_index].profiles_1d[].ion[end].particles.flux = flux_rho_transport
         end
     end
@@ -123,7 +126,7 @@ function prepare_facit(actor::ActorNeoclassical)
     dd = actor.dd
     par = actor.par
 
-    cp1d = dd.core_profiles.profiles_1d[];
+    cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
     rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm) ./ 1e2 
     a = rmin[end]
@@ -133,6 +136,7 @@ function prepare_facit(actor::ActorNeoclassical)
     end
 
     rho = rmin ./ a
+    theta = range(0, 2π, length = length(rho))
     Zimp = cp1d.ion[end].z_ion
     Aimp = cp1d.ion[end].element[1].a
     Zi = cp1d.ion[1].z_ion
@@ -156,11 +160,82 @@ function prepare_facit(actor::ActorNeoclassical)
     FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.rho_tor_norm, rho)
     psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor, rho)
     dpsidx = IMAS.gradient(rho, psi)
-    RV = eqt.profiles_2d[1].r
-    ZV = eqt.profiles_2d[1].z
+
+    R, Z = FUSE.prepare_R_Z(dd, rho, collect(theta))
+    RV = R
+    ZV = Z
 
     fj0 = NEO.FACITinput(rho, Zimp, Aimp, Zi, Ai, Ti, Ni, Nimp, Machi, Zeff, gradTi, gradNi, gradNimp, invaspct, B0, R0, qmag; 
-        fsaout = true, rotation_model = par.facit_rotation_model, full_geom = par.facit_full_geometry, RV = missing, FV = FV, ZV = missing, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = false)
+        fsaout = true, rotation_model = par.facit_rotation_model, full_geom = par.facit_full_geometry, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
     
     return fj0
+end
+
+function prepare_R_Z(dd::IMAS.dd, rho::Vector{Float64}, theta::Vector{Float64})
+    eqt = dd.equilibrium.time_slice[]
+    fw = IMAS.first_wall(dd.wall)
+    surfaces = IMAS.trace_surfaces(eqt, fw.r, fw.z)
+
+    function rho_geom_to_psi(surfaces::Vector{IMAS.FluxSurface})
+        rmin_values = [fs.min_r for fs in surfaces]
+        rmin_axis = minimum(rmin_values)
+        rmin_edge = maximum(rmin_values)
+        a = rmin_edge - rmin_axis
+        
+        psi_vals = [fs.psi for fs in surfaces]
+        rho_geom = [(r - rmin_axis) / a for r in rmin_values]
+
+        sorted = sortperm(rho_geom)
+        rho_sorted = rho_geom[sorted]
+        
+        return Interpolations.LinearInterpolation(rho_sorted, psi_vals; extrapolation_bc=Interpolations.Line())
+    end
+
+    interp_psi = rho_geom_to_psi(surfaces)
+    target_psi = interp_psi.(rho)
+
+    interp_f = Interpolations.LinearInterpolation(eqt.profiles_1d.psi, eqt.profiles_1d.f; extrapolation_bc=Interpolations.Line())
+    target_f = interp_f.(target_psi)
+
+    eqt2d = findfirst(:rectangular, eqt.profiles_2d)
+    r, z, PSI_interpolant = IMAS.ψ_interpolant(eqt2d)
+    RA = eqt.global_quantities.magnetic_axis.r
+    ZA = eqt.global_quantities.magnetic_axis.z
+    Br, Bz = IMAS.Br_Bz(eqt2d)
+
+    selected_surfaces = IMAS.trace_surfaces(target_psi, target_f, r, z, eqt2d.psi, Br, Bz, PSI_interpolant, RA, ZA, fw.r, fw.z)
+
+    function RZ_at_rtheta(coeffs::MillerExtendedHarmonic.MXH, theta::Vector{Float64})
+        n = length(theta)
+        R_rth = Vector{Float64}(undef, n)
+        Z_rth = Vector{Float64}(undef, n)
+    
+        for i in eachindex(theta)
+            R_rth[i] = MillerExtendedHarmonic.R_MXH(theta[i], coeffs)
+            Z_rth[i] = MillerExtendedHarmonic.Z_MXH(theta[i], coeffs)
+        end
+    
+        return R_rth, Z_rth
+    end
+    
+    function miller_to_RZrtheta(surfaces::Vector{IMAS.FluxSurface}, theta::Vector{Float64})
+        nthetas = length(theta)
+        RV = zeros(length(surfaces), nthetas)
+        ZV = zeros(length(surfaces), nthetas) 
+        
+        for (i, surface) in enumerate(surfaces)
+            MillerExtendedHarmonic.reorder_flux_surface!(surface.r, surface.z)
+            coeffs = MillerExtendedHarmonic.MXH(surface.r, surface.z)
+    
+            R, Z = RZ_at_rtheta(coeffs, theta)
+    
+            RV[:, i] .= R
+            ZV[i, :] .= Z
+        end
+    
+        return RV, ZV
+    end
+
+    RV, ZV = miller_to_RZrtheta(selected_surfaces, theta)
+
 end
