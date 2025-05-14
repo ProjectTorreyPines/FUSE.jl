@@ -136,7 +136,7 @@ function prepare_facit(actor::ActorNeoclassical)
     end
 
     rho = rmin ./ a
-    theta = range(0, 2π, length = length(rho))
+    theta = collect(range(0, 2π, length = length(rho)))
     Zimp = cp1d.ion[end].z_ion
     Aimp = cp1d.ion[end].element[1].a
     Zi = cp1d.ion[1].z_ion
@@ -161,12 +161,12 @@ function prepare_facit(actor::ActorNeoclassical)
     psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor, rho)
     dpsidx = IMAS.gradient(rho, psi)
 
-    R, Z = FUSE.prepare_R_Z(dd, rho, collect(theta))
+    R, Z = FUSE.prepare_R_Z(dd, rho, theta)
     RV = R
     ZV = Z
 
     fj0 = NEO.FACITinput(rho, Zimp, Aimp, Zi, Ai, Ti, Ni, Nimp, Machi, Zeff, gradTi, gradNi, gradNimp, invaspct, B0, R0, qmag; 
-        fsaout = true, rotation_model = par.facit_rotation_model, full_geom = par.facit_full_geometry, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
+        fsaout = true, rotation_model = par.facit_rotation_model, full_geom = par.facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
     
     return fj0
 end
