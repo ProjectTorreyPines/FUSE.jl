@@ -8,7 +8,7 @@
 ### 2025 US-TTF
 
 * 📊 **Slendebroek** [Examining the impacts of power-exhaust
-solutions on core performance with FUSE](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_US-TTF/slendebroek_US-TTF.pdf.pdf)
+solutions on core performance with FUSE](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_US-TTF/slendebroek_US-TTF.pdf)
 
 ### 2025 D3D 
 
