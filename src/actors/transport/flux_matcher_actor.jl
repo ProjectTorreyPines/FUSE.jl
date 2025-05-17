@@ -138,8 +138,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         else
             # 1. In-place residual
             function f!(F, u, initial_cp1d)
-                F .= flux_match_errors(actor, u, initial_cp1d;
-                                       z_scaled_history, err_history, prog).errors
+                F .= flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog).errors
             end
 
             # 2. Problem definition
@@ -149,11 +148,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             alg = if par.algorithm == :newton
                 NonlinearSolve.NLsolveJL(method = :newton, factor = par.step_size)
             elseif par.algorithm == :anderson
-                NonlinearSolve.NLsolveJL(method = :anderson, m = 4,
-                        beta = -par.step_size * 0.5)
+                NonlinearSolve.NLsolveJL(method = :anderson, m = 4, beta = -par.step_size * 0.5)
             elseif par.algorithm == :trust_region
-                NonlinearSolve.NLsolveJL(method = :trust_region,
-                        factor = par.step_size, autoscale = true)
+                NonlinearSolve.NLsolveJL(method = :trust_region, factor = par.step_size, autoscale = true)
             else
                 error("Unsupported algorithm: $(par.algorithm)")
             end
