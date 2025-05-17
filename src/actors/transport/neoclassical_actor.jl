@@ -229,7 +229,7 @@ function prepare_R_Z(dd::IMAS.dd, rho::Vector{Float64}, theta::Vector{Float64})
     
             R, Z = RZ_at_rtheta(coeffs, theta)
     
-            RV[:, i] .= R
+            RV[i, :] .= R
             ZV[i, :] .= Z
         end
     
