@@ -79,21 +79,23 @@ function _step(actor::ActorSimpleEC)
             t_intersect = 1.0
             power_launched = 0.0
         end
-        # x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, 10.0, 100))
+        # Xs, Ys, z, Rs = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, 10.0, 100))
         # plot(eqt;cx=true,coordinate=:rho_tor_norm)
         # plot!(resonance_layer.r, resonance_layer.z)
-        # plot!(r,z)
+        # plot!(Rs,Zs)
         # display(plot!())
-        x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))
-        rho_0 = RHO_interpolant.(r[end], z[end])
+        Xs, Ys, Zs, Rs = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))
+        rho_0 = RHO_interpolant.(Rs[end], Zs[end])
 
         # save ray trajectory to dd
         coherent_wave = resize!(dd.waves.coherent_wave, "identifier.antenna_name" => ecb.name; wipe=false)
         beam_tracing = resize!(coherent_wave.beam_tracing)
         beam = resize!(beam_tracing.beam, 1)[1]
-        beam.length = cumsum(sqrt.(IMAS.gradient(x) .^ 2 .+ IMAS.gradient(y) .^ 2 .+ IMAS.gradient(z) .^ 2))
-        beam.position.r = r
-        beam.position.z = z
+        beam.length = IMAS.arc_length(Xs, Ys, Zs)
+        beam.position.r = Rs
+        beam.position.z = Zs
+        beam.position.phi = atan.(Ys,Xs)
+        beam.power_initial = power_launched
 
         @ddtime(ecb.power_launched.data = power_launched)
 
