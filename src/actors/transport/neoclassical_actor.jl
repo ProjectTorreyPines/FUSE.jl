@@ -150,9 +150,10 @@ function prepare_facit(actor::ActorNeoclassical)
 
     Machi = (Mi_core - Mi_edge) * (1 .- rho.^2) .+ Mi_edge
     Zeff = facit_interpolate(cp1d.zeff, cp1d.grid.rho_tor_norm, rho)
-    gradTi = IMAS.calc_z(rho, Ti, :backward)
-    gradNi = IMAS.calc_z(rho, Ni, :backward)
-    gradNimp = IMAS.calc_z(rho, Nimp, :backward)
+    gradTi = IMAS.gradient(rho .* a, Ti)
+    gradNi = IMAS.gradient(rho .* a, Ni)
+    gradNimp = IMAS.gradient(rho .* a, Nimp)
+
     invaspct = eqt.boundary.minor_radius / eqt.boundary.geometric_axis.r
     B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
     R0 = eqt.boundary.geometric_axis.r
