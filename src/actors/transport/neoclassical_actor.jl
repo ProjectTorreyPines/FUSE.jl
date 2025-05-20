@@ -150,11 +150,11 @@ function prepare_facit(actor::ActorNeoclassical)
 
     Machi = (Mi_core - Mi_edge) * (1 .- rho.^2) .+ Mi_edge
     Zeff = facit_interpolate(cp1d.zeff, cp1d.grid.rho_tor_norm, rho)
-    gradTi = -IMAS.calc_z(rho, cp1d.ion[1].temperature, :backward)
-    gradNi = -IMAS.calc_z(rho, cp1d.ion[1].density, :backward)
-    gradNimp = -IMAS.calc_z(rho, cp1d.ion[end].density, :backward)
+    gradTi = IMAS.calc_z(rho, Ti, :backward)
+    gradNi = IMAS.calc_z(rho, Ni, :backward)
+    gradNimp = IMAS.calc_z(rho, Nimp, :backward)
     invaspct = eqt.boundary.minor_radius / eqt.boundary.geometric_axis.r
-    B0 = -eqt.global_quantities.vacuum_toroidal_field.b0
+    B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
     R0 = eqt.boundary.geometric_axis.r
     qmag = -facit_interpolate(eqt.profiles_1d.q, eqt.profiles_1d.rho_tor_norm, rho)
     FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.rho_tor_norm, rho)
