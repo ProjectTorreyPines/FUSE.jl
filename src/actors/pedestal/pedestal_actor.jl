@@ -59,7 +59,7 @@ function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::ParametersAllActors; kw...)
+function ActorPedestal(dd::IMAS.dd{D}, par::FUSEparameters__ActorPedestal{P}, act::ParametersAllActors{P}; kw...) where {D<:Real, P<:Real}
     logging_actor_init(ActorPedestal)
     par = OverrideParameters(par; kw...)
     eped_actor =
@@ -67,7 +67,7 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     wped_actor =
         ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d())
+    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}())
     actor.replay_actor = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
