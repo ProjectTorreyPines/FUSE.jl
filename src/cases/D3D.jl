@@ -195,7 +195,9 @@ function case_parameters(
 
     # add impurity to match total radiation
     if new_impurity_match_power_rad !== :none
+        dd1_core_sources_old = deepcopy(dd1.core_sources)
         IMAS.new_impurity_radiation!(dd1, new_impurity_match_power_rad, dd1.summary.time, dd1.summary.global_quantities.power_radiated_inside_lcfs.value)
+        dd1.core_sources = dd1_core_sources_old
     end
 
     ini.core_profiles.ne_setting = :ne_line
@@ -210,9 +212,6 @@ function case_parameters(
     for actuator in act.ActorSimpleEC.actuator
         actuator.rho_0 = missing
     end
-    act.ActorHCD.ic_model = :none
-    act.ActorHCD.lh_model = :none
-    act.ActorHCD.pellet_model = :none
 
     return ini, act
 end
