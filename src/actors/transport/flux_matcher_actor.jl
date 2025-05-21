@@ -139,9 +139,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # 1. In-place residual
             function f!(F, u, initial_cp1d)
                 try
-                    F .= flux_match_errors(actor, u, initial_cp1d;
-                                        z_scaled_history, err_history, prog).errors
-
+                    F .= flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog).errors                    
                 catch error
                     if isa(error, InterruptException)
                         rethrow(error)
@@ -157,11 +155,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             alg = if par.algorithm == :newton
                 NonlinearSolve.NLsolveJL(method = :newton, factor = par.step_size)
             elseif par.algorithm == :anderson
-                NonlinearSolve.NLsolveJL(method = :anderson, m = 4,
-                        beta = -par.step_size * 0.5)
+                NonlinearSolve.NLsolveJL(method = :anderson, m = 4, beta = -par.step_size * 0.5)
             elseif par.algorithm == :trust_region
-                NonlinearSolve.NLsolveJL(method = :trust_region,
-                        factor = par.step_size, autoscale = true)
+                NonlinearSolve.NLsolveJL(method = :trust_region, factor = par.step_size, autoscale = true)                
             elseif par.algorithm == :broyden
                 alg = NonlinearSolve.Broyden(
                     linesearch  = NonlinearSolve.LineSearch.BackTracking(
@@ -671,8 +667,10 @@ function flux_match_simple(
     max_iterations = par.max_iterations
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
-        if (i > max_iterations)
-            @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+        if (i > abs(max_iterations))
+            if max_iterations > 0
+                @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+            end
             break
         end
 
