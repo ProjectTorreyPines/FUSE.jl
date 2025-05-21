@@ -44,44 +44,46 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Float64=1.0, transition_start::Float
     scaling_power = [IMAS.scaling_L_to_H_power(dd; time0) for time0 in time]
 
     # LH detection
-    mode_transitions = Dict{Float64,Symbol}()
-    mode_transitions[0.0] = :L_mode
     is_H_mask = [false for time0 in time]
 
     # function to take the ratio of pedestal to core stored energy
     ped_to_core(W) = W[2] / W[1]
 
-    if transition_start < 0.0
+    # auto-detect mode transitions
+    mode_transitions = Dict{Float64,Symbol}()
+    mode_transitions[0.0] = :L_mode
+    n = 1 # maximum number of H-mode transitions allowed
+    for k in eachindex(time)
+        if k == 1 || (n > 0 && is_H_mask[k-1] == true && injected_power[k] < scaling_power[k] * scale_LH * 1.1)
+            is_H_mask[k] = false
+        elseif n > 0 && is_H_mask[k-1] == false && injected_power[k] > scaling_power[k] * scale_LH * 0.9
+            is_H_mask[k] = true
+            n -= 1
+        else
+            is_H_mask[k] = is_H_mask[k-1]
+        end
+    end
+    for (h_start, h_end) in get_true_ranges(is_H_mask)
+        mode_transitions[time[h_start]] = :H_mode
+        if h_end < length(time)
+            mode_transitions[time[h_end]] = :L_mode
+        end
+    end
+
+    if transition_start < 0.0 || length(mode_transitions) == 1
         ne_L = ne_H = ne
         zeff_L = zeff_H = zeff
         W_ped_to_core_fraction = sum([ped_to_core(IMAS.core_edge_energy(dd.core_profiles.profiles_1d[time0], 0.9)) for time0 in time]) / length(time)
         ne_L_over_H = 1.0
         zeff_L_over_H = 1.0
+        transition_start = -1.0
     else
         if transition_start == 0.0
-            n = 1 # number of H-mode transitions allowed
-            for k in eachindex(time)
-                if k == 1 || (n > 0 && is_H_mask[k-1] == true && injected_power[k] < scaling_power[k] * scale_LH * 1.1)
-                    is_H_mask[k] = false
-                elseif n > 0 && is_H_mask[k-1] == false && injected_power[k] > scaling_power[k] * scale_LH * 0.9
-                    is_H_mask[k] = true
-                    n -= 1
-                else
-                    is_H_mask[k] = is_H_mask[k-1]
-                end
-            end
-            for (h_start, h_end) in get_true_ranges(is_H_mask)
-                mode_transitions[time[h_start]] = :H_mode
-                if h_end < length(time)
-                    mode_transitions[time[h_end]] = :L_mode
-                end
-            end
             transition_start = sort!(collect(keys(mode_transitions)))[2]
         elseif transition_start > 0.0
             mode_transitions[transition_start] = :H_mode
             is_H_mask[time.>=transition_start] .= true
         end
-        @show mode_transitions
         smoothed_H_mask =
             (IMAS.smooth_beam_power(time, Float64.(is_H_mask), tau_n / 2) .+ reverse(IMAS.smooth_beam_power(-reverse(time), Float64.(reverse(is_H_mask)), tau_n / 2))) / 2.0
         index_H = smoothed_H_mask .>= 0.95
