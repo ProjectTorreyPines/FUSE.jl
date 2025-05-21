@@ -66,12 +66,7 @@ function _step(actor::ActorQED)
 
     # initialize QED
     # we must reinitialize to update the equilibrium metrics
-    actor.QO = qed_init_from_imas(actor; uniform_rho=501)
-
-    # QED calculates the total current based on q, which goes to infinity at the separatrix
-    # this leads to some small but not negligible difference in the total current calculated
-    # internally by QED and the one from `dd`.
-    ratio = QED.Ip(actor.QO) / IMAS.Ip(cp1d, eqt)
+    actor.QO = qed_init_from_imas(dd, par.qmin_desired; uniform_rho=501)
 
     if par.Nt == 0
         # only initialize, nothing to do
@@ -164,13 +159,11 @@ end
 
 # utils
 """
-    qed_init_from_imas(actor::ActorQED{D,P}; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from) where {D<:Real,P<:Real}
+    qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from) where {D<:Real,P<:Real}
 
 Setup QED from data in IMAS `dd`
 """
-function qed_init_from_imas(actor::ActorQED{D,P}; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from) where {D<:Real,P<:Real}
-    dd = actor.dd
-    par = actor.par
+function qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
 
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
@@ -205,8 +198,10 @@ function qed_init_from_imas(actor::ActorQED{D,P}; uniform_rho::Int, j_tor_from::
 
     if ismissing(cp1d, :j_non_inductive)
         ρ_j_non_inductive = nothing
+    elseif qmin_desired === nothing
+        ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
     else
-        i_qdes = findlast(abs.(eqt.profiles_1d.q) .< par.qmin_desired)
+        i_qdes = findlast(abs.(eqt.profiles_1d.q) .< qmin_desired)
         if i_qdes === nothing
             i_qdes = 0
         end
