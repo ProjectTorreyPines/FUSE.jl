@@ -609,8 +609,10 @@ function flux_match_simple(
     max_iterations = par.max_iterations
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
-        if (i > max_iterations)
-            @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+        if (i > abs(max_iterations))
+            if max_iterations > 0
+                @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+            end
             break
         end
 
