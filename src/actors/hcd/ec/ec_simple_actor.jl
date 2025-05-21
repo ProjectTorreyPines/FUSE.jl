@@ -79,7 +79,7 @@ function _step(actor::ActorSimpleEC)
             t_intersect = 1.0
             power_launched = 0.0
         end
-        # Xs, Ys, z, Rs = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, 10.0, 100))
+        # Xs, Ys, Zs, Rs = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, 10.0, 100))
         # plot(eqt;cx=true,coordinate=:rho_tor_norm)
         # plot!(resonance_layer.r, resonance_layer.z)
         # plot!(Rs,Zs)
