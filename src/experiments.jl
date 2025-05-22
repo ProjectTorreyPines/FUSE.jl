@@ -131,7 +131,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
 
         # Density
         subplot = 1
-        plot!(; title="Electron density", subplot, legend_position=:bottomright, ylim=(0, Inf), background_color_legend, xlim=(0.0, Inf))
+        plot!(; title="Electron density", subplot, legend_position=:bottomright, xlim=(0.0, Inf), ylim=(0, Inf), background_color_legend)
         plot!(time, ne0; label="On axis density", lw=2, subplot)
         plot!(time, ne; label="Line average density", lw=2, subplot)
         plot!(time, ne09; label="Density @rho=0.9", lw=2, subplot)
@@ -143,7 +143,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
 
         # Zeff
         subplot = 2
-        plot!(; title="Zeff", subplot, link=:x, legend_position=:bottomright, ylim=(0, Inf), background_color_legend)
+        plot!(; title="Zeff", subplot, link=:x, legend_position=:bottomright, xlim=(0.0, Inf), ylim=(0, Inf), background_color_legend)
         plot!(time, zeff0; label="On axis Zeff", lw=2, subplot)
         plot!(time, zeff; label="Average Zeff", lw=2, subplot)
         plot!(time, zeff09; label="Zeff @rho=0.9", lw=2, subplot)
@@ -155,7 +155,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
 
         # Temperature
         subplot = 3
-        plot!(; title="Electron temperature", subplot, link=:x, legend_position=:bottomright, ylim=(0, Inf), background_color_legend)
+        plot!(; title="Electron temperature", subplot, link=:x, legend_position=:bottomright, xlim=(0.0, Inf), ylim=(0, Inf), background_color_legend)
         plot!(time, te0; label="On axis temperature", lw=2, subplot)
         plot!(time, te; label="Average temperature", lw=2, subplot)
         plot!(time, te09; label="Temperature @rho=0.9", lw=2, subplot)
@@ -165,7 +165,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
 
         # L-H power threshold based on scaling law
         subplot = 4
-        plot!(; title="L-H power thresold (no radiation)", subplot, xlabel="Time [s]", link=:x, legend_position=:bottomright, ylim=(0, Inf), background_color_legend)
+        plot!(; title="L-H power thresold (no radiation)", subplot, xlabel="Time [s]", link=:x, legend_position=:bottomright, xlim=(0.0, Inf), ylim=(0, Inf), background_color_legend)
         plot!(time, injected_power ./ scaling_power; label="Power / Power threshold", lw=2, subplot)
         if transition_start >= 0.0
             vline!([transition_start, temperature_transition_end, density_transition_end]; label="Transition times", subplot)
