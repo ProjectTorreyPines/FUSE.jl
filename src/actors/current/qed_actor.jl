@@ -111,10 +111,12 @@ function _step(actor::ActorQED)
             qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
             i_qdes = findlast(qval .< par.qmin_desired)
             if i_qdes === nothing
-                i_qdes = 0
+                rho_qdes = -1.0
+            else
+                rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
             end
 
-            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, i_qdes)
+            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
@@ -137,12 +139,15 @@ function _step(actor::ActorQED)
 
         # we need to run steady state twice, the first time to find the q-profile when the
         # current fully relaxes, and the second time we change the resisitivity to keep q>1
-        i_qdes = 0
+        rho_qdes = -1.0
         for _ in (1, 2)
-            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, i_qdes)
+            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.steady_state(actor.QO, η_jardin; Vedge, Ip)
+
+            cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+            cp1d.j_non_inductive = flattened_j_non_inductive
 
             # check where q<1
             qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
@@ -150,10 +155,7 @@ function _step(actor::ActorQED)
             if i_qdes === nothing
                 break
             end
-
-            cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-            cp1d.j_non_inductive = flattened_j_non_inductive
-#            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
+            rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
         end
     else
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
@@ -208,9 +210,11 @@ function qed_init_from_imas(actor::ActorQED{D,P}; uniform_rho::Int, j_tor_from::
     else
         i_qdes = findlast(abs.(eqt.profiles_1d.q) .< par.qmin_desired)
         if i_qdes === nothing
-            i_qdes = 0
+            rho_qdes = -1.0
+        else
+            rho_qdes = eqt.profiles_1d.rho_tor_norm[i_qdes]
         end
-        _, j_non_inductive = η_JBni_sawteeth(cp1d, cp1d.j_non_inductive, i_qdes)
+        _, j_non_inductive = η_JBni_sawteeth(cp1d, cp1d.j_non_inductive, rho_qdes)
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, j_non_inductive)
     end
 
@@ -220,7 +224,7 @@ function qed_init_from_imas(actor::ActorQED{D,P}; uniform_rho::Int, j_tor_from::
 end
 
 """
-    η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, i_qdes::Int; use_log::Bool=true) where {T<:Real}
+    η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
 
 returns
 
@@ -228,19 +232,35 @@ returns
 
   - non-inductive profile with flattening of the current inside of the inversion radius
 """
-function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, i_qdes::Int; use_log::Bool=true) where {T<:Real}
+function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
 
+    rho = cp1d.grid.rho_tor_norm
     η = 1.0 ./ cp1d.conductivity_parallel
 
-    if i_qdes != 0
+    if rho_qdes > 0.0
         # flattened current resistivity as per Jardin's model
-        η[1:i_qdes] .= η[i_qdes]
+        icp_qdes = argmin_abs(rho, rho_qdes)
+        η[1:icp_qdes] .= η[icp_qdes]
 
         # flatten non-inductive current contribution
-        rho0 = cp1d.grid.rho_tor_norm[i_qdes]
-        width = min(rho0 / 4, 0.05)
-        j_non_inductive = IMAS.flatten_profile!(copy(j_non_inductive), cp1d.grid.rho_tor_norm, cp1d.grid.area, rho0, width)
+        width = min(rho_qdes / 4, 0.05)
+        j_non_inductive = IMAS.flatten_profile!(copy(j_non_inductive), rho, cp1d.grid.area, rho_qdes, width)
     end
 
-    return QED.η_FE(cp1d.grid.rho_tor_norm, η; use_log), j_non_inductive
+    return QED.η_FE(rho, η; use_log), j_non_inductive
+end
+
+"""
+    η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
+
+returns the resistivity profile as a function of rho_tor_norm
+
+    - `use_log=true`: Cubic finite element interpolation on a log scale
+
+    - `use_log=false` Cubic finite element interpolation on a linear scale
+"""
+function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
+    rho = cp1d.grid.rho_tor_norm
+    η = 1.0 ./ cp1d.conductivity_parallel
+    return QED.η_FE(rho, η; use_log)
 end

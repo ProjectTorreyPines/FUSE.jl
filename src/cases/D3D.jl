@@ -9,6 +9,7 @@ Use `ENV['OMAS_PYTHON']` to set which python executable to use.
 function case_parameters(
     ::Type{Val{:D3D}},
     shot::Int;
+    new_impurity_match_power_rad::Symbol=:none,
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
@@ -167,29 +168,36 @@ function case_parameters(
     @info("Remote D3D data fetching for shot $shot")
     @info("Path on OMEGA: $remote_path")
     @info("Path on Localhost: $local_path")
-    if !isfile(joinpath(local_path,filename)) || !use_local_cache
+    if !isfile(joinpath(local_path, filename)) || !use_local_cache
         Base.run(`bash $local_path/local_driver.sh`)
     end
 
     # load experimental ods
     ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
-    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
+    ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
     # set time basis
-    tt = ini.general.dd.equilibrium.time
+    tt = dd1.equilibrium.time
     ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
 
     # add flux_surfaces information to experimental dd
-    IMAS.flux_surfaces(ini.general.dd.equilibrium, IMAS.first_wall(ini.general.dd.wall)...)
+    IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
 
     # add missing rotation information
     ini.core_profiles.rot_core = 5E3
-    for cp1d in ini.general.dd.core_profiles.profiles_1d
+    for cp1d in dd1.core_profiles.profiles_1d
         if ismissing(cp1d, :rotation_frequency_tor_sonic)
             cp1d.rotation_frequency_tor_sonic =
                 IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
         end
+    end
+
+    # add impurity to match total radiation
+    if new_impurity_match_power_rad !== :none
+        dd1_core_sources_old = deepcopy(dd1.core_sources)
+        IMAS.new_impurity_radiation!(dd1, new_impurity_match_power_rad, dd1.summary.time, dd1.summary.global_quantities.power_radiated_inside_lcfs.value)
+        dd1.core_sources = dd1_core_sources_old
     end
 
     ini.core_profiles.ne_setting = :ne_line
