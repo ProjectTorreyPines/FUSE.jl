@@ -823,8 +823,8 @@ Checks if the evolve_densities dictionary makes sense and return sensible errors
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
     dd_species = [
         :electrons;
-        [Symbol(ion.label) for ion in cp1d.ion];
-        [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if IMAS.hasdata(ion, :density_fast) && sum(ion.density_fast) > 0.0]
+        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)];
+        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:fast)]
     ]
 
     # Check if evolve_densities contains all of dd thermal species
@@ -848,8 +848,8 @@ end
 Sets up the evolve_density dict to evolve only ne and keep the rest matching the ne_scale lengths
 """
 function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.core_profiles__profiles_1d)
-    dd_thermal = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
-    dd_fast = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
+    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
     quasi_neutrality_specie = :D
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
@@ -867,11 +867,12 @@ end
 Sets up the evolve_density dict to evolve only ne, quasi_neutrality on main ion (:D or :DT) and fix the rest
 """
 function setup_density_evolution_electron_flux_match_impurities_fixed(cp1d::IMAS.core_profiles__profiles_1d)
-    dd_thermal = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
-    dd_fast = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
-    quasi_neutrality_specie = :D
+    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
+    else
+        quasi_neutrality_specie = :D
     end
     return evolve_densities_dict_creation([:electrons]; fixed_species=[dd_thermal..., dd_fast...], quasi_neutrality_specie)
 end
@@ -886,7 +887,7 @@ end
 Sets up the evolve_density dict to keep all species fixed
 """
 function setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
-    all_species = [item[2] for item in IMAS.species(cp1d)]
+    all_species = [specie.name for specie in IMAS.species(cp1d)]
     return evolve_densities_dict_creation(Symbol[]; fixed_species=all_species, quasi_neutrality_specie=false)
 end
 
