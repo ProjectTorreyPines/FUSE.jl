@@ -416,9 +416,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     plot!(title="Ions temperature [KeV]", xlabel="", ylabel="", label="")
 
     # link Te and Ti ylims
-    common_ylim = extrema(vcat(ylims(plot_Ti)..., ylims(plot_Te)...))
-    plot!(plot_Ti; ylim=common_ylim)
-    plot!(plot_Te; ylim=common_ylim)
+    maxT_ylim = maximum(vcat(ylims(plot_Ti)..., ylims(plot_Te)...))
+    plot!(plot_Ti; ylim=(0.0, maxT_ylim))
+    plot!(plot_Te; ylim=(0.0, maxT_ylim))
 
     # core_profiles densities
     plot_n = plot()
