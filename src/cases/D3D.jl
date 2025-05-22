@@ -76,6 +76,9 @@ function case_parameters(
         printe("- Fetching magnetic probes data")
         d3d.magnetics_probes_data(ods, $shot)
 
+        printe("- Fetching summary data")
+        d3d.summary(ods, $shot)
+
         printe("- Fetching equilibrium data")
         with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
             for k in range(len(ods["equilibrium.time"])):
