@@ -4,7 +4,7 @@
 This function takes the experimental data and returns time traces for the H-mode electron density and Zeff time traces
 that would go in pulse_schedule. It also returns scalar factors `ne_L_over_H` and `zeff_L_over_H` that can be used to
 obtain the L-mode traces by multiplying the H-mode traces.
-    
+
 Named tuple with:
 
   - `time::Vector{Float64}`: Time vector from core profiles.
@@ -19,7 +19,7 @@ Named tuple with:
   - `zeff_L_over_H::Float64`: Ratio of L-mode to H-mode Zeff values.
   - `W_ped_to_core_fraction::Float64`: Average ratio of pedestal to core stored energy during the L-mode phase.
 """
-function LH_analysis(dd::IMAS.dd; scale_LH::Float64=1.0, transition_start::Float64=0.0, tau_n::Float64=0.4, tau_t::Float64=tau_n * 0.75, do_plot::Bool=true)
+function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0, tau_n::Real=0.4, tau_t::Real=tau_n * 0.75, do_plot::Bool=true)
     rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
     index09 = argmin_abs(rho, 0.9)
     time = dd.core_profiles.time
@@ -82,12 +82,19 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Float64=1.0, transition_start::Float
             transition_start = sort!(collect(keys(mode_transitions)))[2]
         elseif transition_start > 0.0
             mode_transitions[transition_start] = :H_mode
+            is_H_mask = [false for time0 in time]
             is_H_mask[time.>=transition_start] .= true
         end
         smoothed_H_mask =
             (IMAS.smooth_beam_power(time, Float64.(is_H_mask), tau_n / 2) .+ reverse(IMAS.smooth_beam_power(-reverse(time), Float64.(reverse(is_H_mask)), tau_n / 2))) / 2.0
         index_H = smoothed_H_mask .>= 0.95
         index_L = smoothed_H_mask .<= 0.05
+        index_H[1] = false
+        index_L[1] = true
+
+        if sum(index_L) == 0 || sum(index_H) == 0
+            display(plot(time, injected_power ./ scaling_power; title="L-H power thresold (no radiation)", xlabel="Time [s]", xlim=(0.0, Inf)))
+        end
 
         density_transition_end = transition_start + tau_n
         temperature_transition_end = transition_start + tau_t
@@ -124,7 +131,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Float64=1.0, transition_start::Float
 
         # Density
         subplot = 1
-        plot!(; title="Electron density", subplot, legend_position=:bottomright, ylim=(0, Inf), background_color_legend)
+        plot!(; title="Electron density", subplot, legend_position=:bottomright, ylim=(0, Inf), background_color_legend, xlim=(0.0, Inf))
         plot!(time, ne0; label="On axis density", lw=2, subplot)
         plot!(time, ne; label="Line average density", lw=2, subplot)
         plot!(time, ne09; label="Density @rho=0.9", lw=2, subplot)
@@ -163,12 +170,11 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Float64=1.0, transition_start::Float
         if transition_start >= 0.0
             vline!([transition_start, temperature_transition_end, density_transition_end]; label="Transition times", subplot)
         end
-        hline!([scale_LH * 0.9, scale_LH * 1.1]; subplot)
+        hline!([scale_LH * 0.9, scale_LH * 1.1]; subplot, label="")
         true_ranges = get_true_ranges(is_H_mask)
         for (start_idx, end_idx) in true_ranges
             vspan!([time[start_idx-1], time[end_idx-1]]; color=:lightgray, alpha=0.5, label=false, subplot)
         end
-        # plot!(time, smoothed_H_mask; subplot)
 
         display(p)
     end
