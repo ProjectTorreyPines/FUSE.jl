@@ -74,6 +74,7 @@ end
 function test_case(::Val{:KDEMO}, dd::IMAS.dd)
     ini, act = case_parameters(:KDEMO)
     ini_act_tests_customizations!(ini, act)
+    act.ActorFluxMatcher.max_iterations = 5
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
