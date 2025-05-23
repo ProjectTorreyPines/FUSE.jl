@@ -83,7 +83,7 @@ end
 Checks the selected file_save_mode and creates the folder accordingly
 """
 function check_and_create_file_save_mode(sty)
-    @assert !ismissing(getproperty(sty, :save_folder, missing)) "Make sure sty.save_folder = $(sty.save_folder) is set"
+    @assert !isempty(sty.save_folder) "Make sure sty.save_folder = $(sty.save_folder) is set"
     if sty.file_save_mode == :safe_write
         if isdir(sty.save_folder)
             @assert isempty(readdir((sty.save_folder))) "$(sty.save_folder) isn't empty, change sty.file_save_mode or point to a new save folder"

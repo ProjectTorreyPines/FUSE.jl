@@ -106,8 +106,6 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)
 
     act.ActorLFSsizing.maintenance = :vertical
 
-    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
-
     if !flux_matcher
         act.ActorCoreTransport.model = :none
     end

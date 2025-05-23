@@ -42,7 +42,6 @@ function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-
 function _step(actor::ActorSimpleNB)
     dd = actor.dd
     par = actor.par
@@ -79,7 +78,6 @@ function _step(actor::ActorSimpleNB)
     rout = eqt.profiles_1d.r_outboard
     eps = (rout .- rin) ./ (rout .+ rin)
     eps_interp = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, eps)
-    eps0 = maximum(eps) .* cp1d.grid.rho_tor_norm
     eps_cp = eps_interp.(rho_cp)
 
     ne_interp = IMAS.interp1d(rho_cp, ne)
@@ -116,6 +114,10 @@ function _step(actor::ActorSimpleNB)
         qbeami .*= 0.0
         curbeam .*= 0.0
 
+        # save ray trajectory to dd
+        coherent_wave = resize!(dd.waves.coherent_wave, "identifier.antenna_name" => nbu.name; wipe=false)
+        beam_tracing = resize!(coherent_wave.beam_tracing)
+
         ngroups = length(nbu.beamlets_group)
         for igroup in 1:length(nbu.beamlets_group)
             bgroup = nbu.beamlets_group[igroup]
@@ -131,12 +133,20 @@ function _step(actor::ActorSimpleNB)
             anglev = bgroup.angle
 
             # trace pencil beam
-            vx = -cos(angleh) .* cos(anglev)
-            vy = -sin(angleh) * cos(anglev)
-            vz = cos(angleh) * sin(anglev)
-            px = source_r
-            py = 0.0
+
+            # initial position and velocity
+            px0 = source_r
+            py0 = 0.0
             pz = source_z
+            vx0 = -cos(angleh) .* cos(anglev)
+            vy0 = -sin(angleh) * cos(anglev)
+            vz = cos(angleh) * sin(anglev)
+
+            # rotate position and velocity in phi
+            px = px0 .* cos(bgroup.position.phi) .- py0 .* sin(bgroup.position.phi)
+            py = px0 .* sin(bgroup.position.phi) .+ py0 .* cos(bgroup.position.phi)
+            vx = vx0 .* cos(bgroup.position.phi) .- vy0 .* sin(bgroup.position.phi)
+            vy = vx0 .* sin(bgroup.position.phi) .+ vy0 .* cos(bgroup.position.phi)
 
             t_intersects = IMAS.toroidal_intersections(eqt.boundary.outline.r, eqt.boundary.outline.z, px, py, pz, vx, vy, vz; max_intersections=2)
             if rin[end] < source_r < rout[end] && length(t_intersects) < 1
@@ -149,11 +159,23 @@ function _step(actor::ActorSimpleNB)
             else
                 tt = range(t_intersects[1], t_intersects[2], ngrid)
             end
-            Xs, Ys, Zs, Rs = IMAS.pencil_beam([source_r, 0.0, source_z], [vx, vy, vz], tt)
+            Xs, Ys, Zs, Rs = IMAS.pencil_beam([px, py, pz], [vx, vy, vz], tt)
             phi = asin.(Ys ./ Rs)
             ftors = abs.(-vx .* sin.(phi) .+ vy .* cos.(phi))
             rho_beam = rho2d_interp.(Rs, Zs)
             dist = IMAS.arc_length(Xs, Ys, Zs)
+
+            # save ray trajectory to dd
+            coherent_wave = resize!(dd.waves.coherent_wave, "identifier.antenna_name" => nbu.name; wipe=false)
+            beam_tracing = resize!(coherent_wave.beam_tracing)
+            beam = resize!(beam_tracing.beam, igroup)[igroup]
+            pos_r = [sqrt(px^2 + py^2); sqrt.(Xs.^2 .+ Ys.^2)]
+            pos_phi = [atan(py, px); atan.(Ys, Xs)]
+            pos_z = [pz; Zs]
+            beam.length = IMAS.arc_length_cylindrical(pos_r, pos_phi, pos_z)
+            beam.position.r = pos_r
+            beam.position.z = pos_z
+            beam.position.phi = pos_phi
 
             ne_beam = ne_interp.(rho_beam)
             Te_beam = Te_interp.(rho_beam)
@@ -165,6 +187,7 @@ function _step(actor::ActorSimpleNB)
                 power_launched = fpow * max(0.0, IMAS.smooth_beam_power(dd.pulse_schedule.nbi.time, ps.power.reference, dd.global_time, τ_th))
                 power_launched_allenergies += power_launched
                 @ddtime(nbu.power_launched.data = power_launched_allenergies)
+                beam.power_initial = power_launched_allenergies
                 if power_launched == 0.0
                     continue
                 end
@@ -200,7 +223,7 @@ function _step(actor::ActorSimpleNB)
                 qbeami[igroup, ifpow, :] .= @views frac_ie .* qbeam[igroup, ifpow, :]
                 # There seems to be a factor of 0.1 pull from freya, Maybe going from momentum of g*cm to kg*m? 
                 # from freya: charge/(2.99792458e9*atwb*xmassp)[A/cm^2] = 47894.15 * 1e4 =  0.1*IMAS.mks.e/(nbu.species.a * IMAS.mks.m_p)[A/m^2]
-                curbi = @views 0.1*IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
+                curbi = @views 0.1 * IMAS.mks.e * mombeam[igroup, ifpow, :] .* tauppff / (nbu.species.a * IMAS.mks.m_p)
                 curbe = -curbi ./ cp1d.zeff
                 curbet = -curbe .* ((1.55 .+ 0.85 ./ cp1d.zeff) .* sqrt.(eps_cp) .- (0.20 .+ 1.55 ./ cp1d.zeff) .* eps_cp)
                 curbeam[igroup, ifpow, :] .= curbi .+ curbe .+ curbet
@@ -240,7 +263,7 @@ function _step(actor::ActorSimpleNB)
         ion.power_inside = source1d.total_ion_power_inside
         ion.fast_particles_energy = beam_energy
     end
-    IMAS.empty!(cp1d, :zeff)
+    IMAS.unfreeze!(cp1d, :zeff)
 
     return actor
 end

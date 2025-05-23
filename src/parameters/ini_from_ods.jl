@@ -46,8 +46,9 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
             end
 
             if !ismissing(eqt.boundary.outline, :r)
-                mxh = IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z)
-                mxhs = [IMAS.MXH(eqt.boundary.outline.r, eqt.boundary.outline.z) for eqt in dd1.equilibrium.time_slice]
+                pr, pz = IMAS.resample_plasma_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z; n_points=100)
+                mxh = IMAS.MXH(pr, pz)
+                mxhs = [IMAS.MXH(pr, pz) for eqt in dd1.equilibrium.time_slice]
             else
                 mxh = nothing
                 mxhs = nothing

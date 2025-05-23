@@ -80,7 +80,6 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
 
     actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight)
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
-
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
     return actor
@@ -103,8 +102,8 @@ function _finalize(actor::ActorFRESCO)
 
     Npsi = length(eqt1d.psi)
     eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, Npsi)
-    eqt1d.dpressure_dpsi = FRESCO.Pprime(canvas, profile, eqt1d.psi_norm)
-    eqt1d.f_df_dpsi = FRESCO.FFprime(canvas, profile, eqt1d.psi_norm)
+    eqt1d.dpressure_dpsi = FRESCO.Pprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm)
+    eqt1d.f_df_dpsi = FRESCO.FFprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm)
 
     @ddtime(eq.vacuum_toroidal_field.b0 = eqt.global_quantities.vacuum_toroidal_field.b0)
     eq.vacuum_toroidal_field.r0 = eqt.global_quantities.vacuum_toroidal_field.r0
@@ -126,7 +125,7 @@ function _finalize(actor::ActorFRESCO)
 
     # Set the currents in the pf_active and pf_passive
     for (icoil, mcoil) in zip(dd.pf_active.coil, actor.canvas.coils)
-        VacuumFields.set_current!(icoil, VacuumFields.current(mcoil))
+        VacuumFields.set_current_per_turn!(icoil, VacuumFields.current_per_turn(mcoil))
     end
 
     return actor
