@@ -10,7 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolBox{T<:Real} <: ParametersAct
     # Define parameters in act.ActorSolBox here: - ONLY INPUTS
     # Syntax is: name::Entry{Type} = Entry{Type}("unit", "Description of parameter"; default = default value)
     Te_u::Entry{T}   = Entry{T}("eV","Input electron temperature at the upstream"; default = 100.0)
-    Ti_u::Entry{T}   = Entry{T}("eV","Input ion temperature at the upstream"; default = 100.0)
+    Ti_u::Entry{T}   = Entry{T}("eV","Input ion temperature at the upstream"; default = 400.0)
     frac_cond::Entry{T}   = Entry{T}("-","Fraction of power carried by electron conduction"; default = 0.7)
     κ0_e::Entry{T}   = Entry{T}("-","Coefficient of electron conductivity"; default = 2000.0)
     κ0_i::Entry{T}   = Entry{T}("-","Coefficient of ion conductivity"; default = 60.0)
@@ -84,10 +84,64 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     alpha = par.frac_cond*1.75*actor.sol_connection_length*(1.0-0.5*(actor.sol_total_Fx - 1.0))
 
     # Target ion temperature
-    actor.Ti_t = ( par.Ti_u^3.5 - (par.qpar_i/par.κ0_i)*alpha)^(1.0/3.5)
+
+    # Define intermediate variables.
+    A = par.Ti_u^3.5
+    B = (par.qpar_i/par.κ0_i)*alpha
+
+    println("Debugging")
+    println("par.frac_cond: ",par.frac_cond)
+    println("actor.sol_connection_length: ",actor.sol_connection_length)
+    println("actor.sol_total_Fx: ",actor.sol_total_Fx)
+    println("alpha: ",alpha)
+    println("par.Ti_u: ",par.Ti_u)
+    println("par.qpar_i: ",par.qpar_i)
+    println("par.κ0_i: ",par.κ0_i)
+    println("qpar_i/κ0_i: ",par.qpar_i/par.κ0_i)
+    println("par.Ti_u^3.5: ",A)
+    println("(qpar_i/κ0_i)*alpha: ",B)
+
+    if A < B # the downstream ion temperature goes to 0 somewhere before the target position
+
+        actor.Ti_t = 0.0
+
+    else
+
+        actor.Ti_t = (A - B)^(1.0/3.5)
+
+    end
+
+    println("actor.Ti_t: ",actor.Ti_t)
 
     # Target electron temperature
-    actor.Te_t = ( par.Te_u^3.5 - (par.qpar_e/par.κ0_e)*alpha)^(1.0/3.5)
+
+    # Define intermediate variables.
+    A = par.Te_u^3.5
+    B = (par.qpar_e/par.κ0_e)*alpha
+
+    println("Debugging")
+    println("par.frac_cond: ",par.frac_cond)
+    println("actor.sol_connection_length: ",actor.sol_connection_length)
+    println("actor.sol_total_Fx: ",actor.sol_total_Fx)
+    println("alpha: ",alpha)
+    println("par.Te_u: ",par.Te_u)
+    println("par.qpar_e: ",par.qpar_e)
+    println("par.κ0_e: ",par.κ0_e)
+    println("qpar_e/κ0_e: ",par.qpar_e/par.κ0_e)
+    println("par.Te_u^3.5: ",A)
+    println("(qpar_e/κ0_e)*alpha: ",B)
+
+    if A < B # the downstream electron temperature goes to 0 somewhere before the target position
+
+        actor.Te_t = 0.0
+
+    else
+
+        actor.Te_t = (A - B)^(1.0/3.5)
+
+    end
+
+    println("actor.Te_t: ",actor.Te_t)
 
     #plot
     if par.do_plot
