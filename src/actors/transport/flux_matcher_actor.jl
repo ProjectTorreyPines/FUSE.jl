@@ -2,7 +2,7 @@ import NLsolve
 using LinearAlgebra
 import TJLF: InputTJLF
 
-import NonlinearSolve
+import NonlinearSolve, FixedPointAcceleration
 
 #= ================ =#
 #  ActorFluxMatcher  #
@@ -25,7 +25,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
-    algorithm::Switch{Symbol} = Switch{Symbol}([:anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:anderson)
+    algorithm::Switch{Symbol} =
+        Switch{Symbol}([:broyden, :anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:broyden)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -131,14 +132,23 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     out = try
         if par.algorithm == :none
             res = (zero=opt_parameters,)
+
         elseif par.algorithm == :simple
             ftol = 1E-2 # relative error
             xtol = 1E-3 # difference in input array
             res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
+
         else
             # 1. In-place residual
             function f!(F, u, initial_cp1d)
-                return F .= flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog).errors
+                try
+                    F .= flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog).errors
+                catch error
+                    if isa(error, InterruptException)
+                        rethrow(error)
+                    end
+                    F .= Inf
+                end
             end
 
             # 2. Problem definition
@@ -147,13 +157,68 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # 3. Algorithm selection
             alg = if par.algorithm == :newton
                 NonlinearSolve.NLsolveJL(; method=:newton, factor=par.step_size)
+
             elseif par.algorithm == :anderson
                 NonlinearSolve.NLsolveJL(; method=:anderson, m=4, beta=-par.step_size * 0.5)
+
             elseif par.algorithm == :trust_region
                 NonlinearSolve.NLsolveJL(; method=:trust_region, factor=par.step_size, autoscale=true)
+
+            elseif par.algorithm == :broyden
+                alg = NonlinearSolve.Broyden(;
+                    linesearch=NonlinearSolve.LineSearch.BackTracking(;
+                        c_1=1e-4,   # Armijo parameter
+                        ρ_hi=0.5,    # shrink factor
+                        order=2,      # model order
+                        autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff()
+                    ),
+                    update_rule=Val(:good_broyden),
+                    init_jacobian=Val(:true_jacobian),
+                    autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff()
+                )
+
             else
                 error("Unsupported algorithm: $(par.algorithm)")
             end
+
+            # fu0 = similar(opt_parameters)
+            # f!(fu0, opt_parameters, initial_cp1d)
+
+            # # --- replicate NonlinearSolve’s default α ------------------------------------
+            # α_default = max(norm(opt_parameters), 1) / (2 * norm(fu0))
+
+            # alg = NonlinearSolve.TrustRegion(
+            #     initial_trust_radius = par.step_size,   # plays the same role as “factor”
+            #     max_trust_radius     = 50 * par.step_size,
+            #     step_threshold       = 1e-6,
+            #     autodiff             = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+            # )
+            # fallback = NonlinearSolve.FixedPointAccelerationJL(
+            #     algorithm = :Anderson,
+            #     m         = 4,                        # history length
+            #     condition_number_threshold = 1e8,     # skip extrapolation if ill-conditioned
+            #     replace_invalids          = :ReplaceVector,
+            # )
+            # fallback = NonlinearSolve.DFSane(
+            #     sigma_min = 1e-10,
+            #     sigma_max = 1e10,
+            #     M = 10               # non-monotone window
+            # )
+            # fallback = NonlinearSolve.RobustMultiNewton(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
+            # fallback = alg = NonlinearSolve.Broyden(
+            #     linesearch  = NonlinearSolve.LineSearch.BackTracking(
+            #         c_1  = 1e-4,   # Armijo parameter
+            #         ρ_hi = 0.5,    # shrink factor
+            #         order = 2,      # model order
+            #         autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+            #         maxstep = 1000.,
+            #     ),
+            #     update_rule   = Val(:good_broyden),
+            #     init_jacobian = Val(:true_jacobian),
+            #     autodiff      = NonlinearSolve.ADTypes.AutoFiniteDiff(),
+            # )
+            # alg = NonlinearSolve.NonlinearSolvePolyAlgorithm((fallback, alg))
+            # alg = NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
 
             # 4. Solve with matching tolerances and iteration limits
             # NonlinearSolve abstol is meant to be on u, but actually gets
