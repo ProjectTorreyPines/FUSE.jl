@@ -1,12 +1,6 @@
 import AbstractTrees
 import OrderedCollections
 
-abstract type AbstractActor{D,P} end
-
-abstract type CompoundAbstractActor{D,P} <: AbstractActor{D,P} end
-
-abstract type SingleAbstractActor{D,P} <: AbstractActor{D,P} end
-
 function logging_actor_init(typeof_actor::Type{<:AbstractActor}, args...; kw...)
     return logging(Logging.Debug, :actors, "$(name(typeof_actor)) @ init")
 end
@@ -125,10 +119,6 @@ end
 #= ======== =#
 #  finalize  #
 #= ======== =#
-function _finalize(actor::AbstractActor)
-    return actor
-end
-
 """
     finalize(actor::T) where {T<:AbstractActor}
 

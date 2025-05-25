@@ -13,6 +13,7 @@ using StaticArrays
 import AbstractTrees: print_tree
 import ProgressMeter
 import Measurements: ±, Measurement
+import FuseActorsBase: _step, _finalize, SingleAbstractActor, CompoundAbstractActor, AbstractActor, ParametersActor, ParametersAllActors
 
 function __init__()
     # By default we disable use of threads in BLAS if using multiple Julia threads
@@ -34,7 +35,7 @@ const deg = pi / 180 # convert degrees to radians
 include("utils_begin.jl")
 
 #= =================== =#
-#  ABSTRACT PARAMETERS  #
+#  ACTORS and INI base  #
 #= =================== =#
 include("parameters.jl")
 

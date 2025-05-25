@@ -10,9 +10,6 @@ function SimulationParameters.Switch{T}(options, ids::Type{<:IMAS.IDS}, field::S
     return Switch{T}(options, nfo.units, nfo.documentation; default)
 end
 
-abstract type ParametersActor{T} <: AbstractParameters{T} end # abstract type for parameters of an actor (each actor has its concrete type)
-abstract type ParametersAllActors{T} <: AbstractParameters{T} end # --> abstract type for all parameters of all actors (the concrete type of this is ParametersActors)
-
 abstract type ParametersInit{T} <: AbstractParameters{T} end # abstract type for parameters of a init (each init has its concrete type)
 abstract type ParametersAllInits{T} <: AbstractParameters{T} end # --> abstract type for all parameters of all inits (the concrete type of this is ParametersInits)
 
