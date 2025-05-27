@@ -25,9 +25,7 @@ end
 
 mutable struct ActorAnalyticPedestal{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    #par::FUSEparameters__ActorAnalyticPedestal{P}
 	par::OverrideParameters{P,FUSEparameters__ActorAnalyticPedestal{P}}
-	#act::ParametersAllActors{P}
 end
 
 """
@@ -44,15 +42,12 @@ end
 
 function ActorAnalyticPedestal(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticPedestal; kw...)
     logging_actor_init(ActorAnalyticPedestal)
-    #par = par(kw...)
 	par = OverrideParameters(par; kw...)
     return ActorAnalyticPedestal(dd, par)
 end
 
 # Step function
 function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
-
-    # Retrieve variables defined in the struct ActorAnalyticPedestal
     dd = actor.dd
     par = actor.par
 
