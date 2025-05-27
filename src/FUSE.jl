@@ -121,6 +121,7 @@ include(joinpath("actors", "hcd", "hcd_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
 include(joinpath("actors", "pedestal", "WPED_actor.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
+include(joinpath("actors", "pedestal", "AnalyticPedestal_actor.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
