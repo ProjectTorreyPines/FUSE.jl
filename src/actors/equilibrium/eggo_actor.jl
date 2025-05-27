@@ -12,7 +12,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorEGGO{T<:Real} <: ParametersActor
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing EGGO solve"; default=false)
-    ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
 mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
@@ -81,7 +80,7 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     # make actual prediction
     Ip_target = eqt.global_quantities.ip
     @show(eqt.boundary.outline.r, eqt.boundary.outline.z, pp_fit, ffp_fit,Ip_target)
-    Jt, psirz, Ip = EGGO.predict_model_from_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z, pp_fit, ffp_fit, actor.NNmodel, actor.green, actor.basis_functions)#,Ip_target)
+    Jt, psirz, Ip = EGGO.predict_model_from_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z, pp_fit, ffp_fit, actor.NNmodel, actor.green, actor.basis_functions,dd.pf_active.coil, )#,Ip_target)
 
     # average out EGGO solution with previous time slice(s)
     # until EGGO becomes a bit more robust
