@@ -49,7 +49,7 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
     if par.ec_model in (:ECsimple, :TORBEAM)
         eqt = dd.equilibrium.time_slice[]
         for (k, ecb) in enumerate(dd.ec_launchers.beam)
-            setup(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[k])
+            setup_ec(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[k])
         end
     end
     if par.ec_model == :ECsimple

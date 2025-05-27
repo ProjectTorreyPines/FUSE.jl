@@ -34,23 +34,29 @@ using FUSE # this will also import IMAS in the current namespace
 # FUSE comes with some predefined [use-cases](https://fuse.help/stable/cases.html), some of which are used for regression testing.
 # 
 # Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.
+# 
+# Here's the list of supported use-cases. These can be customized and you will also be able to build your own.
 
-FUSE.test_cases
+methods(FUSE.case_parameters)
 
-# Get initial parameters (`ini`) and actions (`act`) for a given use-case
+# Get initial parameters (`ini`) and actions (`act`) for a given use-case, let's use KDEMO for example
 
 ini, act = FUSE.case_parameters(:KDEMO);
 
-# Modifying [`ini` parameters](https://fuse.help/stable/ini.html).
+# The `ini` data structure contains 0D parameters that will be used to bootstrap the `dd` with plausible data.
+# 
+# The [`ini` parameters](https://fuse.help/stable/ini.html) can be modified.
 
 ini.equilibrium.B0 = 7.8
 ini.equilibrium.R0 = 6.5;
 
-# Modifying [`act` parameters](https://fuse.help/stable/act.html).
+# The `act` data structure contains parameters that define how the actors (ie the models) will behave.
+# 
+# The [`act` parameters](https://fuse.help/stable/act.html) can also be modified.
 
 act.ActorCoreTransport.model = :FluxMatcher;
 
-# Initialize the data dictionary (`dd`) using the 0D parameters.
+# `ini` and `act` can now be used to initialize the data dictionary (`dd`) using the 0D parameters.
 # 
 # **NOTE:** `init()` does not return a self-consistent solution, just a plausible starting point to initialize our simulations!
 
@@ -59,9 +65,152 @@ FUSE.init(dd, ini, act);
 
 # We can `@checkin` and `@checkout` variables with an associated tag.
 # 
-# This is handy to save and restore our progress (we'll use this later).
+# This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we'll use this later).
 
 @checkin :init dd ini act
+
+# ## Running Actors
+
+# Let's now run a series of actors and play around with plotting to get a sense of what each individual actor does.
+
+# Here's how we can restore things back to after the initialization stage (in case we did anything else in between)
+
+@checkout :init dd ini act
+
+# Actors in FUSE can be executed by passing two arguments to them: `dd` and `act`.
+# 
+# Let's start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape.
+# This will be important to ensure the stability of the `ActorStationaryPlasma` that we are going to run next.
+
+FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`
+
+# The `ActorStationaryPlasma` iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution
+
+peq = plot(dd.equilibrium; label="before")
+pcp = plot(dd.core_profiles; color=:gray, label="before")
+FUSE.ActorStationaryPlasma(dd, act);
+
+# we can compare equilibrium before and after the self-consistency loop
+
+plot!(peq, dd.equilibrium; label="after")
+
+# we can compare core_profiles before and after the self-consistency loop
+
+plot!(pcp, dd.core_profiles; label="after")
+
+# here are the sources
+
+plot(dd.core_sources)
+
+# and the flux-matched transport
+
+plot(dd.core_transport)
+
+# HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints
+
+plot(dd.build)
+FUSE.ActorHFSsizing(dd, act);
+plot!(dd.build; cx=false)
+
+# The stresses on the center stack are stored in the `solid_mechanics` IDS
+
+plot(dd.solid_mechanics.center_stack.stress)
+
+# LFS sizing actors change location of the outer TF leg to meet ripple requirements
+
+plot(dd.build)
+FUSE.ActorLFSsizing(dd, act);
+plot!(dd.build; cx=false)
+
+# A custom `show()` method is defined to print the summary of `dd.build.layer`
+
+dd.build.layer
+
+# ActorHFSsizing and ActorLFSsizing only change the layer's thicknesses, so we then need to trigger a build of the 2D cross-sections after them:
+
+FUSE.ActorCXbuild(dd, act);
+plot(dd.build)
+
+# Generate passive structures information (for now the vacuum vessel)
+
+FUSE.ActorPassiveStructures(dd, act)
+plot(dd.pf_passive)
+
+# We can now give the PF coils their final position given the new build
+
+actor = FUSE.ActorPFdesign(dd, act);
+plot(actor) # some actors define their own plot
+
+# With information about both pf_active and pf_passive we can now evaluate vertical stability
+
+FUSE.ActorVerticalStability(dd, act)
+IMAS.freeze(dd.mhd_linear)
+
+# The `ActorNeutronics` calculates the heat flux on the first wall
+
+FUSE.ActorNeutronics(dd, act);
+p = plot(; layout=2, size=(900, 350))
+plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
+plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
+plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
+
+# The `ActorBlanket` will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR
+
+FUSE.ActorBlanket(dd, act);
+print_tree(IMAS.freeze(dd.blanket); maxdepth=5)
+
+# The `ActorDivertors` actor calculates the divertors heat flux
+
+FUSE.ActorDivertors(dd, act);
+print_tree(IMAS.freeze(dd.divertors); maxdepth=4)
+
+# The `ActorBalanceOfPlant` calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle
+
+FUSE.ActorBalanceOfPlant(dd, act);
+IMAS.freeze(dd.balance_of_plant)
+
+# `ActorCosting` will break down the capital and operational costs
+
+FUSE.ActorCosting(dd, act)
+plot(dd.costing)
+
+# Let's checkpoint our results
+
+@checkin :manual dd ini act
+
+# ## Whole facility design
+
+# Here we restore the `:init` checkpoint that we had previously stored. Resetting any changes to `dd`, `ini`, and `act` that we did in the meantime.
+
+@checkout :init dd ini act
+
+# Actors can call other actors, creating workflows.
+# For example, the `ActorWholeFacility` can be used to to get a self-consistent stationary whole facility design.
+
+FUSE.ActorWholeFacility(dd, act);
+
+# Let's check what we got at a glance with the `FUSE.digest(dd)` function:
+
+FUSE.digest(dd)
+
+# Like before we can checkpoint results for later use
+
+@checkin :awf dd ini act
+
+# # Getting into the weeds
+
+# ## Saving and loading data
+
+tutorial_temp_dir = tempdir()
+filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).json")
+
+# When saving data to be shared outside of FUSE, one can set `freeze=true` so that all expressions in the dd are evaluated and saved to file.
+
+IMAS.imas2json(dd, filename; freeze=false, strict=false);
+
+# Load from JSON
+
+dd1 = IMAS.json2imas(filename);
 
 # ## Exploring the data dictionary
 # * FUSE stores data following the IMAS data schema.
@@ -214,148 +363,6 @@ dd.core_profiles.profiles_1d[].conductivity_parallel
 
 print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)
 
-# ## Whole facility design
-
-# Here we restore the `:init` checkpoint that we had previously stored. Resetting any changes to `dd`, `ini`, and `act` that we did in the meantime.
-
-@checkout :init dd ini act
-
-# Actors in FUSE can be executed by passing two arguments to them: `dd` and `act`.
-# Internally, actors can call other actors, creating workflows.
-# For example, the `ActorWholeFacility` can be used to to get a self-consistent stationary whole facility design.
-# The `actors:` print statements with their nested output tell us what actors are calling other actors.
-
-FUSE.ActorWholeFacility(dd, act);
-
-# Let's check what we got at a glance with the `FUSE.digest(dd)` function:
-
-FUSE.digest(dd)
-
-# Like before we can checkpoint results for later use
-
-@checkin :awf dd ini act
-
-# ## Running a custom workflow
-
-# Let's now run a series of actors similar to what `ActorWholeFacility` does
-# and play around with plotting to get a sense of what each individual actor does.
-
-# Let's start again from after the initialization stage
-
-@checkout :init dd ini act
-
-# Let's start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape.
-# This will be important to ensure the stability of the `ActorStationaryPlasma` that we are going to run next.
-
-FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`
-
-# The `ActorStationaryPlasma` iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution
-
-peq = plot(dd.equilibrium; label="before")
-pcp = plot(dd.core_profiles; color=:gray, label="before")
-FUSE.ActorStationaryPlasma(dd, act);
-
-# we can compare equilibrium before and after the self-consistency loop
-
-plot!(peq, dd.equilibrium; label="after")
-
-# we can compare core_profiles before and after the self-consistency loop
-
-plot!(pcp, dd.core_profiles; label="after")
-
-# here are the sources
-
-plot(dd.core_sources)
-
-# and the flux-matched transport
-
-plot(dd.core_transport)
-
-# HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints
-
-plot(dd.build)
-FUSE.ActorHFSsizing(dd, act);
-plot!(dd.build; cx=false)
-
-# The stresses on the center stack are stored in the `solid_mechanics` IDS
-
-plot(dd.solid_mechanics.center_stack.stress)
-
-# LFS sizing actors change location of the outer TF leg to meet ripple requirements
-
-plot(dd.build)
-FUSE.ActorLFSsizing(dd, act);
-plot!(dd.build; cx=false)
-
-# A custom `show()` method is defined to print the summary of `dd.build.layer`
-
-dd.build.layer
-
-# ActorHFSsizing and ActorLFSsizing only change the layer's thicknesses, so we then need to trigger a build of the 2D cross-sections after them:
-
-FUSE.ActorCXbuild(dd, act);
-plot(dd.build)
-
-# Generate passive structures information (for now the vacuum vessel)
-
-FUSE.ActorPassiveStructures(dd, act)
-plot(dd.pf_passive)
-
-# We can now give the PF coils their final position given the new build
-
-actor = FUSE.ActorPFdesign(dd, act);
-plot(actor) # some actors define their own plot
-
-# With information about both pf_active and pf_passive we can now evaluate vertical stability
-
-FUSE.ActorVerticalStability(dd, act)
-IMAS.freeze(dd.mhd_linear)
-
-# The `ActorNeutronics` calculates the heat flux on the first wall
-
-FUSE.ActorNeutronics(dd, act);
-p = plot(; layout=2, size=(900, 350))
-plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
-plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
-plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel="")
-
-# The `ActorBlanket` will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR
-
-FUSE.ActorBlanket(dd, act);
-print_tree(IMAS.freeze(dd.blanket); maxdepth=5)
-
-# The `ActorDivertors` actor calculates the divertors heat flux
-
-FUSE.ActorDivertors(dd, act);
-print_tree(IMAS.freeze(dd.divertors); maxdepth=4)
-
-# The `ActorBalanceOfPlant` calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle
-
-FUSE.ActorBalanceOfPlant(dd, act);
-IMAS.freeze(dd.balance_of_plant)
-
-# `ActorCosting` will break down the capital and operational costs
-
-FUSE.ActorCosting(dd, act)
-plot(dd.costing)
-
-# Let's checkpoint our results
-
-@checkin :manual dd ini act
-
-# ## Saving and loading data
-
-tutorial_temp_dir = tempdir()
-filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).json")
-
-# When saving data to be shared outside of FUSE, one can set `freeze=true` so that all expressions in the dd are evaluated and saved to file.
-
-IMAS.imas2json(dd, filename; freeze=false, strict=false);
-
-# Load from JSON
-
-dd1 = IMAS.json2imas(filename);
-
 # ## Comparing two IDSs
 # We can introduce a change in the `dd1` and spot it with the `diff` function
 
@@ -365,8 +372,9 @@ IMAS.diff(dd.equilibrium, dd1.equilibrium)
 # ## Summary
 # Snapshot of `dd` in 0D quantities (evaluated at `dd.global_time`).
 # 
-# Extract + plots saved to PDF (printed to screen it `filename` is omitted)
+# Extract + plots saved to PDF (printed to screen if `filename` is omitted). NOTE: For PDF creation to work, one may need to install of `DejaVu Sans Mono` font.
 
 filename = joinpath(tutorial_temp_dir, "$(ini.general.casename).pdf")
-FUSE.extract(dd)#, filename)
+display(filename)
+FUSE.digest(dd)#, filename)
 

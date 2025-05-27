@@ -103,7 +103,9 @@ function _step(actor::ActorTGLF)
 
     if par.model ∈ [:TGLFNN, :GKNN]
         if !par.onnx_model
-            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
+            uncertain = eltype(dd) <: IMAS.Measurements.Measurement
+            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; uncertain, par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
+
         elseif par.onnx_model
             actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
                 [
@@ -145,6 +147,7 @@ function _step(actor::ActorTGLF)
                     "OUT_P_ions"
                 ];)
         end
+
     elseif par.model == :TGLF
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
 

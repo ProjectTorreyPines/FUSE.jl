@@ -16,7 +16,9 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
                 dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
                 fw = IMAS.first_wall(dd.wall)
-                IMAS.flux_surfaces(eqt, fw.r, fw.z)
+                if findfirst(:rectangular, eqt.profiles_2d) !== nothing
+                    IMAS.flux_surfaces(eqt, fw.r, fw.z)
+                end
             else
                 init_from = :scalars
             end
@@ -52,7 +54,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         end
 
         # solve equilibrium
-        if !(init_from == :ods && ini.equilibrium.boundary_from == :ods)
+        if !(init_from == :ods && ini.equilibrium.boundary_from == :ods) || findfirst(:rectangular, eqt.profiles_2d) === nothing
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
             ActorEquilibrium(dd, act_copy; ip_from=:pulse_schedule)

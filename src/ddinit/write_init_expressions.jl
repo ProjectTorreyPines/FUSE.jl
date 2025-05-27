@@ -7,7 +7,7 @@ Returns the set of ulocations that always have expressions after running init, f
 """
 function init_expressions(; save::Bool=false)
     all_expr_fields = Vector{OrderedCollections.OrderedSet{String}}()
-    for (testname, (args, kw)) in test_cases
+    for (testname, (args, kw)) in FUSE.use_cases
         @info ("init primary quantities of $testname")
         ini, act = case_parameters(args...; kw...)
         dd = IMAS.dd()

@@ -28,7 +28,6 @@ function case_parameters(
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(pf_passive_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
-        # act.ActorPlasmaLimits.raise_on_breach = false
         if boundary_from == :auto
             boundary_from = :ods
         end
@@ -189,6 +188,11 @@ function case_parameters(
     act.ActorCurrent.model = :SteadyStateCurrent
 
     act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
+
+    Ω = 1.0 / 10E6
+    act.ActorControllerIp.P = Ω * 10.0
+    act.ActorControllerIp.I = Ω * 2.0
+    act.ActorControllerIp.D = 0.0
 
     return ini, act
 end

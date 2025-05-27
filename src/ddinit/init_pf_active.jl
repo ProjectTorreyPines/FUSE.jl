@@ -284,7 +284,7 @@ function init_pf_active!(
     return pf_active
 end
 
-function size_oh_coils(min_z::Float64, max_z::Float64, coils_cleareance::Float64, coils_number::Int, height::Float64=1.0, offset::Float64=0.0)
+function size_oh_coils(min_z::Real, max_z::Real, coils_cleareance::Real, coils_number::Int, height::Real=1.0, offset::Real=0.0)
     @assert 0.0 < height <= 1.0
     @assert -1.0 < offset < 1.0
     Δrail = max_z - min_z
