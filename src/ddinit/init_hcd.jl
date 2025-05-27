@@ -231,7 +231,8 @@ function add_beam_examples!(nbu, name::Symbol)
     elseif name == :nstx
         @ddtime(nbu.beam_current_fraction.data = [0.48, 0.37, 0.15])
         beamlet.position.r = 11.4
-        beamlet.position.z = 1.66
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.6
         beamlet.angle = 0.0
         beamlet.direction = 1
