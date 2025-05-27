@@ -17,9 +17,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorAnalyticPedestal{T<:Real} <: Par
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters ==#
 	model::Switch{Symbol} = Switch{Symbol}([:MAST, :NSTX], "-", "Pedestal width model, w_ped~beta_p,ped^gamma, where gamma=1.0 for :NSTX and 0.5 for :MAST"; default=:MAST)
-    width_coefficient::Entry{T} = Entry{T}("-", "Pedestal width coefficient, C2, w_ped=C2*beta_p,ped^gamma ")
-    height_coefficient::Entry{T} = Entry{T}("-", "Pedestal height coefficient, C1, beta_p,ped=C1*w_ped/IN^1/3 ")
-    #ped_to_core_fraction::Entry{T} = Entry{T}("-", "Ratio of edge (@rho=0.9) to core stored energy [0.05 for L-mode, 0.3 for neg-T plasmas, missing keeps original ratio]")
+    width_coefficient::Entry{T} = Entry{T}("-", "Pedestal width coefficient, C2, w_ped=C2*beta_p,ped^gamma"; default=0.0)
+    height_coefficient::Entry{T} = Entry{T}("-", "Pedestal height coefficient, C1, beta_p,ped=C1*w_ped/IN^1/3"; default=0.0)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -28,14 +27,7 @@ mutable struct ActorAnalyticPedestal{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     #par::FUSEparameters__ActorAnalyticPedestal{P}
 	par::OverrideParameters{P,FUSEparameters__ActorAnalyticPedestal{P}}
-	act::ParametersAllActors{P}
-
-    function ActorAnalyticPedestal(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticPedestal; kw...)
-        logging_actor_init(ActorAnalyticPedestal)
-        par = par(kw...)
-        return new{D,P}(dd, par)
-    end
-    
+	#act::ParametersAllActors{P}
 end
 
 """
@@ -50,6 +42,13 @@ function ActorAnalyticPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+function ActorAnalyticPedestal(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticPedestal; kw...)
+    logging_actor_init(ActorAnalyticPedestal)
+    #par = par(kw...)
+	par = OverrideParameters(par; kw...)
+    return ActorAnalyticPedestal(dd, par)
+end
+
 # Step function
 function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
 
@@ -57,15 +56,41 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
 
-    # Define physical constants
-    amu = 1.660538921 * 1.0e-27 # Atomic mass unit [kg]
-    e_charge = 1.60e-19 # Magnitude of the electron charge [C]
-   
-	#println("\nHello")
+	eqt = dd.equilibrium.time_slice[]
 
-    if par.do_debug
-		# Debug output goes here - WIP
+	IN = (eqt.global_quantities.ip/1e6)/(eqt.boundary.minor_radius*eqt.global_quantities.magnetic_axis.b_field_tor) # Normalised plasma current IN=IP[MA]/(a[m]*BT[T])
+
+	# NSTX like width - w_ped~beta_p,ped^0.5
+	if par.model == :MAST
+        if par.height_coefficient==0.0
+            par.height_coefficient=4.0
+        end
+        if par.width_coefficient==0.0
+            par.width_coefficient=0.11
+        end
+        w_ped = par.height_coefficient^0.8*par.width_coefficient^1.6/IN^0.25 
+        p_ped = 32*par.height_coefficient^1.6*par.width_coefficient^1.2*IN^1.5*eqt.global_quantities.magnetic_axis.b_field_tor^2/(1+eqt.boundary.elongation^2) 
+    # NSTX like width - w_ped~beta_p,ped^1.0
+    elseif par.model == :NSTX
+        if par.height_coefficient==0.0
+            par.height_coefficient=2.0
+        end
+        if par.width_coefficient==0.0
+            par.width_coefficient=0.4
+        end
+        w_ped = par.height_coefficient^4.0*par.width_coefficient^4.0/IN^(4/3) 
+        p_ped = 32*par.height_coefficient^4.0*par.width_coefficient^3.0*IN^(2/3)*eqt.global_quantities.magnetic_axis.b_field_tor^2/(1+eqt.boundary.elongation^2)
+    else
+        error("Undefined model! Model should be one of :MAST, :NSTX")
     end
+
+	print("\nmodel=",par.model)
+	print("\nw_ped=",w_ped)
+	print("\np_ped=",p_ped,"\n")
+
+    #if par.do_debug
+		# Debug output goes here - WIP
+    #end
 
     # Plotting
     if par.do_plot
