@@ -15,10 +15,13 @@ else
     end
 
     include("runtests_warmup.jl")
+
     include("runtests_basics.jl")
-    include("runtests_ini_act.jl")
+
     include("runtests_cases.jl")
+
     include("runtests_actors.jl")
+
     include("runtests_init_expressions.jl")
 
     # Conditionally run extension tests if environment variable is set.

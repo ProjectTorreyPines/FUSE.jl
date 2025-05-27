@@ -8,6 +8,24 @@ for filename in readdir(joinpath(@__DIR__))
     end
 end
 
+const use_cases = Dict()
+use_cases["ITER_ods"] = ([:ITER], Dict(:init_from => :ods))
+use_cases["ITER_scalars"] = ([:ITER], Dict(:init_from => :scalars))
+use_cases["D3D_Hmode"] = ([:D3D, :H_mode], Dict())
+use_cases["D3D_Lmode"] = ([:D3D, :L_mode], Dict())
+use_cases["D3D"] = ([:D3D, :default], Dict())
+use_cases["FPP"] = ([:FPP], Dict())
+use_cases["CAT"] = ([:CAT], Dict())
+use_cases["JET_HDB5"] = ([:HDB5], Dict(:tokamak => :JET, :case => 500))
+use_cases["ARC"] = ([:ARC], Dict())
+use_cases["SPARC"] = ([:SPARC], Dict(:init_from => :ods))
+use_cases["KDEMO"] = ([:KDEMO], Dict())
+use_cases["KDEMO_compact"] = ([:KDEMO_compact], Dict())
+use_cases["DTT"] = ([:DTT], Dict())
+use_cases["EXCITE"] = ([:EXCITE], Dict())
+use_cases["MANTA"] = ([:MANTA], Dict())
+use_cases["UNIT"] = ([:UNIT], Dict())
+
 """
     case_parameters(case::Symbol, args...; kw...)
 

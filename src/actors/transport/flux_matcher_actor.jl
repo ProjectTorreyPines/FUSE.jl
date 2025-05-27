@@ -2,6 +2,8 @@ import NLsolve
 using LinearAlgebra
 import TJLF: InputTJLF
 
+import NonlinearSolve
+
 #= ================ =#
 #  ActorFluxMatcher  #
 #= ================ =#
@@ -115,8 +117,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     err_history = Vector{Vector{Float64}}()
 
     actor.norms = fill(NaN, N_channels)
-    ftol = 1E-4 # relative error
-    xtol = 1E-3 # difference in input array
 
     ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
@@ -132,25 +132,44 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         if par.algorithm == :none
             res = (zero=opt_parameters,)
         elseif par.algorithm == :simple
+            ftol = 1E-2 # relative error
+            xtol = 1E-3 # difference in input array
             res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
         else
-            if par.algorithm == :newton
-                opts = Dict(:method => :newton, :factor => par.step_size)
-            elseif par.algorithm == :anderson
-                opts = Dict(:method => :anderson, :m => 4, :beta => -par.step_size * 0.5)
-            elseif par.algorithm == :trust_region
-                opts = Dict(:method => :trust_region, :factor => par.step_size, :autoscale => true)
+            # 1. In-place residual
+            function f!(F, u, initial_cp1d)
+                return F .= flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog).errors
             end
-            res = NLsolve.nlsolve(
-                z -> flux_match_errors(actor, z, initial_cp1d; z_scaled_history, err_history, prog).errors,
-                opt_parameters;
-                show_trace=false,
-                store_trace=false,
-                extended_trace=false,
-                iterations=par.max_iterations,
-                ftol,
-                xtol,
-                opts...)
+
+            # 2. Problem definition
+            problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, initial_cp1d)
+
+            # 3. Algorithm selection
+            alg = if par.algorithm == :newton
+                NonlinearSolve.NLsolveJL(; method=:newton, factor=par.step_size)
+            elseif par.algorithm == :anderson
+                NonlinearSolve.NLsolveJL(; method=:anderson, m=4, beta=-par.step_size * 0.5)
+            elseif par.algorithm == :trust_region
+                NonlinearSolve.NLsolveJL(; method=:trust_region, factor=par.step_size, autoscale=true)
+            else
+                error("Unsupported algorithm: $(par.algorithm)")
+            end
+
+            # 4. Solve with matching tolerances and iteration limits
+            # NonlinearSolve abstol is meant to be on u, but actually gets
+            #   passed to ftol in NLsolve which is an error on the residual
+            # See https://github.com/SciML/NonlinearSolve.jl/issues/593
+            abstol = 1E-2
+            sol = NonlinearSolve.solve(problem, alg;
+                abstol,
+                maxiters=par.max_iterations,
+                show_trace=Val(false),
+                store_trace=Val(false),
+                verbose=false
+            )
+
+            # Extract the solution vector
+            res = (zero=sol.u,)
         end
 
         flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
@@ -252,7 +271,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         for ion in cp1d.ion
             ion.temperature = cp1d.t_i_average
         end
-        empty!(cp1d, :t_i_average)
+        IMAS.unfreeze!(cp1d, :t_i_average)
 
         # refresh sources with relatex profiles
         IMAS.sources!(dd)
@@ -265,20 +284,20 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # free total densities expressions
-    IMAS.empty!(cp1d.electrons, :density)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     for ion in cp1d.ion
-        IMAS.empty!(ion, :density)
+        IMAS.unfreeze!(ion, :density)
     end
 
     # free pressures expressions
-    IMAS.empty!(cp1d.electrons, :pressure_thermal)
-    IMAS.empty!(cp1d.electrons, :pressure)
+    IMAS.unfreeze!(cp1d.electrons, :pressure_thermal)
+    IMAS.unfreeze!(cp1d.electrons, :pressure)
     for ion in cp1d.ion
-        IMAS.empty!(ion, :pressure_thermal)
-        IMAS.empty!(ion, :pressure)
+        IMAS.unfreeze!(ion, :pressure_thermal)
+        IMAS.unfreeze!(ion, :pressure)
     end
     for field in [:pressure_ion_total, :pressure_thermal, :pressure]
-        IMAS.empty!(cp1d, field)
+        IMAS.unfreeze!(cp1d, field)
     end
 
     return actor
@@ -590,8 +609,10 @@ function flux_match_simple(
     max_iterations = par.max_iterations
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
-        if (i > max_iterations)
-            @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+        if (i > abs(max_iterations))
+            if max_iterations > 0
+                @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+            end
             break
         end
 
@@ -754,11 +775,12 @@ function unpack_z_profiles(
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            cp1d.electrons.density_thermal =
-                IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+            z_ne = z_profiles[counter+1:counter+N]
+            cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
             counter += N
+        else
+            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)[cp_gridpoints]
         end
-        z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)[cp_gridpoints]
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
@@ -770,7 +792,7 @@ function unpack_z_profiles(
     end
 
     # Ensure quasi neutrality if densities are evolved
-    # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs 
+    # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
     for (species, evolve) in evolve_densities
         if evolve == :quasi_neutrality
             IMAS.enforce_quasi_neutrality!(cp1d, species)
@@ -801,12 +823,12 @@ Checks if the evolve_densities dictionary makes sense and return sensible errors
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
     dd_species = [
         :electrons;
-        [Symbol(ion.label) for ion in cp1d.ion];
-        [Symbol(String(ion.label) * "_fast") for ion in cp1d.ion if IMAS.hasdata(ion, :density_fast) && sum(ion.density_fast) > 0.0]
+        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)];
+        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:fast)]
     ]
 
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Not all species $(sort(dd_species)) are accounted for in the evolve_densities : $(sort([i for (i,j) in evolve_densities]))"
+    @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort([i for (i,j) in evolve_densities]))"
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
     if all(evolve == :fixed for (i, evolve) in evolve_densities if evolve != :quasi_neutrality)
@@ -826,8 +848,8 @@ end
 Sets up the evolve_density dict to evolve only ne and keep the rest matching the ne_scale lengths
 """
 function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.core_profiles__profiles_1d)
-    dd_thermal = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
-    dd_fast = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
+    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
     quasi_neutrality_specie = :D
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
@@ -845,11 +867,12 @@ end
 Sets up the evolve_density dict to evolve only ne, quasi_neutrality on main ion (:D or :DT) and fix the rest
 """
 function setup_density_evolution_electron_flux_match_impurities_fixed(cp1d::IMAS.core_profiles__profiles_1d)
-    dd_thermal = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
-    dd_fast = Symbol[specie[2] for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
-    quasi_neutrality_specie = :D
+    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
+    else
+        quasi_neutrality_specie = :D
     end
     return evolve_densities_dict_creation([:electrons]; fixed_species=[dd_thermal..., dd_fast...], quasi_neutrality_specie)
 end
@@ -864,7 +887,7 @@ end
 Sets up the evolve_density dict to keep all species fixed
 """
 function setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
-    all_species = [item[2] for item in IMAS.species(cp1d)]
+    all_species = [specie.name for specie in IMAS.species(cp1d)]
     return evolve_densities_dict_creation(Symbol[]; fixed_species=all_species, quasi_neutrality_specie=false)
 end
 
@@ -880,7 +903,7 @@ function evolve_densities_dict_creation(
     quasi_neutrality_specie::Union{Symbol,Bool}=false)
 
     parse_list = vcat([[sym, :flux_match] for sym in flux_match_species], [[sym, :match_ne_scale] for sym in match_ne_scale_species], [[sym, :fixed] for sym in fixed_species])
-    if isa(quasi_neutrality_specie, Symbol)
+    if typeof(quasi_neutrality_specie) <: Symbol
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
     end
     return Dict(sym => evolve for (sym, evolve) in parse_list)
