@@ -7,8 +7,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolBox{T<:Real} <: ParametersAct
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    # Define parameters in act.ActorSolBox here: - ONLY INPUTS
-    # Syntax is: name::Entry{Type} = Entry{Type}("unit", "Description of parameter"; default = default value)
     Te_t::Entry{T}   = Entry{T}("eV","Input electron temperature at the target"; default = 10.0)
     Ti_t::Entry{T}   = Entry{T}("eV","Input ion temperature at the target"; default = 10.0)
     frac_cond::Entry{T}   = Entry{T}("-","Fraction of power carried by electron conduction"; default = 0.7)
@@ -17,22 +15,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolBox{T<:Real} <: ParametersAct
     κ0_i::Entry{T}   = Entry{T}("-","Coefficient of ion conductivity"; default = 60.0)
     qpar_i::Entry{T}   = Entry{T}("W m^-2","Upstream parallel ion heat flux"; default = 10.0e+09)
     qpar_e::Entry{T}   = Entry{T}("W m^-2","Upstream parallel electron heat flux"; default = 10.0e+09)
-    Γ_i::Entry{T}   = Entry{T}("pcles m^-2 s^-1","Upstream ion particle flux"; default = 1.0e+22)
-    Γ_e::Entry{T}   = Entry{T}("pcles m^-2 s^-1","Upstream electron particle flux"; default =1.0e+22)
+    Γ_i::Entry{T}   = Entry{T}("ptcles m^-2 s^-1","Upstream ion particle flux"; default = 1.0e+23)
+    Γ_e::Entry{T}   = Entry{T}("ptcles m^-2 s^-1","Upstream electron particle flux"; default =1.0e+23)
     mass_ion::Entry{T}   = Entry{T}("kg","Ion mass in multiples of amu"; default = 2.5)
-    recycling_coeff_i::Entry{T}   = Entry{T}("-","Ion particle recycling coefficient"; default = 0.98)
-    recycling_coeff_e::Entry{T}   = Entry{T}("-","Electron particle recycling coefficient"; default = 0.98)
-    # Plot switch
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    recycling_coeff_i::Entry{T}   = Entry{T}("-","Ion particle recycling coefficient"; default = 0.99)
+    recycling_coeff_e::Entry{T}   = Entry{T}("-","Electron particle recycling coefficient"; default = 0.99)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot = false)
+    do_debug   = Entry{Bool}("-","Flag for debugging"; default = false)
 end
 
-# This struct is can be passed around by FUSE - do not want to pass Act around all the time
-# create struct for the actor - INPUTS and anything that should be saved
 mutable struct ActorSolBox{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorSolBox{P}}
-    # insert here the structs or variables that must be passed in the actor while running
-    # i.e. the outputs of the step function must be passed to the finalize function to populate the dd or saved in general
     Te_u::Union{Nothing, Float64} # Electron temperature at the upstream (separatrix) [eV]
     Ti_u::Union{Nothing, Float64} # Ion temperature at the upstream (separatrix) [eV]
     ne_t::Union{Nothing, Float64} # Electron density at the target [pcles m^-2 s^-1]
@@ -44,7 +38,6 @@ mutable struct ActorSolBox{D,P} <: SingleAbstractActor{D,P}
     sol_total_Fx::Union{Nothing, Float64} # Total flux expansion [-]
 end
 
-# define actor and its dispatced functions (leave as is)
 function ActorSolBox(dd::IMAS.dd{D}, par::FUSEparameters__ActorSolBox{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorSolBox)
     par = OverrideParameters(par; kw...)
@@ -54,8 +47,7 @@ end
 """
     ActorSolBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-    Box model for the Scrape-Off layer. It returns plasma parameters at the divertor targets with the heat load deposited at the strike points 
-    (change this description!)
+    0D box model for the scrape-off layer developed by X. Zhang et al. https://doi.org/10.1016/j.nme.2022.101354 .
 """
 # FUSE.ActorSolBox(dd,act) will trigger: Step -> Fianlize 
 function ActorSolBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -67,17 +59,14 @@ end
 
 # Step function
 function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
-    # retrieve variables defined in the struct ActorSolBox
+
+    # Retrieve variables defined in the struct ActorSolBox
     dd = actor.dd
     par = actor.par
 
     # Define physical constants
     amu = 1.660538921 * 1.0e-27 # Atomic mass unit [kg]
     e_charge = 1.60e-19 # Magnitude of the electron charge [C]
-
-    # Write here all your models
-    # To call the act parameters use: par.parameter
-    # Example: par.Te_t,
     
     # Step 1 - get connection length and total flux expansion for the separatrix flux tube between midplane and outer target
 
@@ -121,27 +110,60 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     beta = (actor.sol_total_Fx + 1)/(2.0*actor.sol_total_Fx)
 
     # Target ion density
-    actor.ni_t = beta * (par.Γ_i/(γi*cst))
+    actor.ni_t = beta * (par.Γ_i/(γi*actor.cst))
 
     # Target electron density
-    actor.ne_t = beta * (par.Γ_e/(γe*cst))
+    actor.ne_t = beta * (par.Γ_e/(γe*actor.cst))
 
     # Step 5 - calculate the upstream densities
 
     # Upstream ion density
-    actor.ni_u = ((2.0*ni_t)/(par.frac_mom)) * ((par.Ti_t + par.Te_t)/(actor.Ti_u + actor.Te_u))
+    actor.ni_u = ((2.0*actor.ni_t)/(par.frac_mom)) * ((par.Ti_t + par.Te_t)/(actor.Ti_u + actor.Te_u))
     
     # Upstream electron density
-    actor.ne_u = ((2.0*ne_t)/(par.frac_mom)) * ((par.Ti_t + par.Te_t)/(actor.Ti_u + actor.Te_u))
+    actor.ne_u = ((2.0*actor.ne_t)/(par.frac_mom)) * ((par.Ti_t + par.Te_t)/(actor.Ti_u + actor.Te_u))
 
-    #plot
-    if par.do_plot
-        #probably you will plot something
+    if par.do_debug
+
+        println("\nDebugging")
+
+        println("\nGeometry")
+        println("Connection length (m): ",actor.sol_connection_length)
+        println("Total flux expansion: ",actor.sol_total_Fx)
+
+        println("\nIons")
+        println("[INPUT] - Coefficient of ion conductivity: ",par.κ0_i)
+        println("[INPUT] - Ion particle recycling coefficient: ",par.recycling_coeff_i)
+        println("[INPUT] - Upstream parallel ion heat flux (GW m^-2): ",par.qpar_i*1.0e-09)
+        println("[INPUT] - Upstream ion particle flux (ptcles m^-2 s^-1): ",par.Γ_i)
+        println("[INPUT] - Target ion temperature (eV): ",par.Ti_t)
+        println("Target ion density (ptcls m^-3): ",actor.ni_t)
+        println("Upstream ion temperature (eV): ",actor.Ti_u)
+        println("Upstream ion density (ptcls m^-3): ",actor.ni_u)
+        println("[INPUT] - Ion mass (amu): ",par.mass_ion)
+
+        println("\nElectrons")
+        println("[INPUT] - Coefficient of electron conductivity: ",par.κ0_e)
+        println("[INPUT] - Electron particle recycling coefficient: ",par.recycling_coeff_e)
+        println("[INPUT] - Upstream parallel electron heat flux (GW m^-2): ",par.qpar_e*1.0e-09)
+        println("[INPUT] - Upstream electron particle flux (ptcles m^-2 s^-1): ",par.Γ_e)
+        println("[INPUT] - Target electron temperature (eV): ",par.Te_t)
+        println("Target electron density (ptcls m^-3): ",actor.ne_t)
+        println("Upstream electron temperature (eV): ",actor.Te_u)
+        println("Upstream electron density (ptcls m^-3): ",actor.ne_u)
+
+        println("\nOther quantities")
+        println("Sound speed (km s^-1): ",actor.cst*1.0e-03)
+        println("[INPUT] - frac_cond: ",par.frac_cond)
+        println("[INPUT] - frac_mom: ",par.frac_mom)
+
     end
 
-    # # save output in struct actor to be passed to finalize
-    # # Example:
-    # actor.wall_heat_flux = Float64[] # using the example I used before
+    # Plotting
+    if par.do_plot
+        # Plotting goes here - WIP
+    end
+
     return actor
 end
 
