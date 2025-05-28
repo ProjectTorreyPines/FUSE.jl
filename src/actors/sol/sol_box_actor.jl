@@ -71,10 +71,34 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     # Step 1 - get connection length and total flux expansion for the separatrix flux tube between midplane and outer target
 
     # Trace field lines in the SOL
-    sol = IMAS.sol(dd; levels=1)
+    sol = IMAS.sol(dd; levels=100)
 
-    # The first (and only) traced flux surface in the LFS region is the primary separatrix
-    separatrix = sol[:lfs][1]
+    # We need to decide which flux surface we will take as being representative of the separatrix. We will not use the
+    # exact separatrix here as a) the connection length blows up too close to it, and b) sometimes the flux surface tracing
+    # can wrap back around the plasma when it shoudln't, so we want to be a little bit into the SOL (by 'offset' number of flux surfaces).
+    offset = 3
+
+    # In order to make this assessment, we also need to check how balanced the two xpoints are - if they are quite balanced then even
+    # the last flux tube in the 'near SOL' will actually be right next to the separatrix (which we want to avoid).
+
+    # Get the flux of the primary and secondary separatrices
+    LCFS_psi = sol[:lfs][1].psi
+    LCFS2_psi = sol[:lfs_far][1].psi
+
+    # Check the magnetic balance of the two nulls
+    if abs((LCFS_psi - LCFS2_psi)/LCFS_psi) > 0.025
+
+        # Single null
+        single_null = true
+        separatrix = sol[:lfs][1+offset]
+
+    else
+
+        # (Disconnected) double null
+        single_null = false
+        separatrix = sol[:lfs_far][1+offset]
+
+    end
 
     # Parallel connection length from midplane to target (last point)
     actor.sol_connection_length = separatrix.s[end]
@@ -128,6 +152,13 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
         println("\nDebugging")
 
         println("\nGeometry")
+
+        if single_null
+            println("Single null")
+        else
+            println("Double null")
+        end
+        
         println("Connection length (m): ",actor.sol_connection_length)
         println("Total flux expansion: ",actor.sol_total_Fx)
 
@@ -176,9 +207,20 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
         # Get an array of midplane to outer target connection lengths for a set of
         # flux tubes in the SOL
         sol = IMAS.sol(dd; levels=100)
-        Ntubes = length(sol[:lfs]) # For some reason we don't get quite all of the flux tubes requested above
-        connection_lengths = [sol[:lfs][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
-        psi_vals = [sol[:lfs][i].psi for i in range(start=1,step=1,length=Ntubes)]
+
+        if single_null
+
+            Ntubes = length(sol[:lfs])
+            connection_lengths = [sol[:lfs][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
+            psi_vals = [sol[:lfs][i].psi for i in range(start=1,step=1,length=Ntubes)]
+
+        else
+
+            Ntubes = length(sol[:lfs_far])
+            connection_lengths = [sol[:lfs_far][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
+            psi_vals = [sol[:lfs_far][i].psi for i in range(start=1,step=1,length=Ntubes)]
+
+        end
 
         # Plot
         p1 = plot(; layout=1, size=(500,700))
