@@ -20,8 +20,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolBox{T<:Real} <: ParametersAct
     mass_ion::Entry{T}   = Entry{T}("kg","Ion mass in multiples of amu"; default = 2.5)
     recycling_coeff_i::Entry{T}   = Entry{T}("-","Ion particle recycling coefficient"; default = 0.99)
     recycling_coeff_e::Entry{T}   = Entry{T}("-","Electron particle recycling coefficient"; default = 0.99)
+    do_debug::Entry{Bool} = Entry{Bool}("-","Flag for debugging"; default = true)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot = false)
-    do_debug   = Entry{Bool}("-","Flag for debugging"; default = false)
 end
 
 mutable struct ActorSolBox{D,P} <: SingleAbstractActor{D,P}
