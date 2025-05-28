@@ -157,7 +157,7 @@ function prepare_facit(actor::ActorNeoclassical)
     invaspct = eqt.boundary.minor_radius / eqt.boundary.geometric_axis.r
     B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
     R0 = eqt.boundary.geometric_axis.r
-    qmag = -facit_interpolate(eqt.profiles_1d.q, eqt.profiles_1d.rho_tor_norm, rho)
+    qmag = abs.(facit_interpolate(eqt.profiles_1d.q, eqt.profiles_1d.rho_tor_norm, rho))
     FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.rho_tor_norm, rho)
     psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor, rho)
     dpsidx = IMAS.gradient(rho, psi)
