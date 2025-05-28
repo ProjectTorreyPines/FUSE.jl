@@ -161,7 +161,35 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
 
     # Plotting
     if par.do_plot
-        # Plotting goes here - WIP
+
+        # Extract the R, Z of the flux surface (separatrix) trace from outer midplane to target
+        sep_r = separatrix.r
+        sep_z = separatrix.z
+        sep_con_len = separatrix.s
+        N = length(sep_con_len)
+        index_0 = separatrix.midplane_index
+        lower_outer_target = dd.divertors.divertor[1].target[1].tile[1].surface_outline
+        indeces = [i for i in range(start=1,step=1,length=N) if i>=index_0]
+        sep_r_plot = [sep_r[i] for i in range(start=1,step=1,length=N) if i>=index_0]
+        sep_z_plot = [sep_z[i] for i in range(start=1,step=1,length=N) if i>=index_0]
+
+        # Get an array of midplane to outer target connection lengths for a set of
+        # flux tubes in the SOL
+        sol = IMAS.sol(dd; levels=100)
+        Ntubes = length(sol[:lfs]) # For some reason we don't get quite all of the flux tubes requested above
+        connection_lengths = [sol[:lfs][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
+        psi_vals = [sol[:lfs][i].psi for i in range(start=1,step=1,length=Ntubes)]
+
+        # Plot
+        p1 = plot(; layout=1, size=(500,700))
+        plot!(p1, sol; colorbar_entry=false, color=:grays, xlabel="R (m)", ylabel="Z (m)", title="Connection length: "*string(round(actor.sol_connection_length,digits=2))*" m")
+        plot!(p1, sep_r_plot, sep_z_plot;  linewidth=2, color=:red, label="Flux tube")
+        plot!(p1, lower_outer_target.r,lower_outer_target.z, linewidth=2, color=:blue, label="Outer target")
+        p2 = plot(; layout=1, size=(1000,700))
+        plot!(p2, psi_vals,connection_lengths; legend=false, xlabel="ψ", ylabel="L (m)")
+        p = plot(p1,p2,layout=(1,2))
+        display(p)
+
     end
 
     return actor
