@@ -49,7 +49,7 @@ function _step(actor::ActorNeutralFueling)
     IMAS.new_source(source, source.identifier.index, "gas", cp1d.grid.rho_tor_norm, cp1d.grid.volume, cp1d.grid.area; electrons_particles=Sneut)
 
     # fill ion particle source from the wall, assuming equal number or particles from all hydrogenic species
-    hydrogenic_ion_list = [ion for ion in cp1d.ion if ion.element[1].z_n == 1 && !ismissing(ion, :density_thermal) && sum(ion.density_thermal)>0.0]
+    hydrogenic_ion_list = [ion for ion in cp1d.ion if ion.element[1].z_n == 1 && !ismissing(ion, :density_thermal) && sum(ion.density_thermal) > 0.0]
     cs1d = source.profiles_1d[]
     resize!(cs1d.ion, length(hydrogenic_ion_list))
     for (cs1d_ion, ion) in zip(cs1d.ion, hydrogenic_ion_list)
@@ -93,22 +93,22 @@ function g0(x::Float64)::Float64
 end
 
 g0f1(x) = (9.9995058e-1 + x * (7.7628443e+2 + x * (-4.3649686e+3 + x * 6.1480022e+4))) /
-            (1.0 + x * 7.8621464e+2)
+          (1.0 + x * 7.8621464e+2)
 
 g0f2(x) = (9.9703418e-1 + x * (7.7783588e+1 + x * (3.9012546e+2 + x * (-8.9205431e+2 + x * 1.0037943e+3)))) /
-            (1.0 + x * (8.4398466e+1 + x * 7.1649574e+2))
+          (1.0 + x * (8.4398466e+1 + x * 7.1649574e+2))
 
 g0f3(x) = (9.7552510e-1 + x * (7.0647154 + x * (-4.0953920 + x * (9.0556774e-1 - x * 5.8788928e-2)))) /
-            (1.0 + x * (1.1344206e+1 + x * 1.5956867e+1))
+          (1.0 + x * (1.1344206e+1 + x * 1.5956867e+1))
 
 g0f4(x) = (8.4513992e-1 + x * (-2.2811875e-1 + x * (2.5926818e-2 + x * (-1.4549910e-3 + x * 3.3570582e-5)))) /
-            (1.0 + x * (2.0520190 + x * (6.1145865e-1 + x * 1.2572764e-1)))
+          (1.0 + x * (2.0520190 + x * (6.1145865e-1 + x * 1.2572764e-1)))
 
 g0f5(x) = (1.9937501e-3 + x * (-3.2073160e-4 + x * (1.7925104e-5 - x * 3.4571807e-7))) /
-            (1.0 + x * (-3.3316230e-1 + x * 3.6461690e-2))
+          (1.0 + x * (-3.3316230e-1 + x * 3.6461690e-2))
 
 g0f6(x) = (-2.4903487e-7 + x * 7.3163546e-9) /
-            (1.0 + x * (-3.2915104e-1 + x * (4.3949080e-2 + x * (-2.9908526e-3 + x * (1.0457349e-4 - x * 1.5316628e-6)))))
+          (1.0 + x * (-3.2915104e-1 + x * (4.3949080e-2 + x * (-2.9908526e-3 + x * (1.0457349e-4 - x * 1.5316628e-6)))))
 
 
 
@@ -126,7 +126,7 @@ function cxr(x::Real)
     dum = 0.2530205e-4 - tc * 0.8230751e-6
     tc = -0.1841757e2 + tc * (0.528295 - tc * (0.2200477 - tc * (0.9750192e-1 - tc *
                                                                                 (0.1749183e-1 - tc * (0.4954298e-3 +
-                                                                                                        tc * (0.2174910e-3 - tc * dum))))))
+                                                                                                      tc * (0.2174910e-3 - tc * dum))))))
     return exp(tc)
 end
 
@@ -142,61 +142,19 @@ function eir(x::Real)
     ta = log(x) + 6.9077553
     ta = (-0.3173850e2 +
           ta * (0.1143818e2 - ta * (0.3833998e1 - ta * (0.7046692 - ta
-                                                                          *
-                                                                          (0.7431486e-1 - ta * (0.4153749e-2 - ta * 0.9486967e-4))))))
+                                                                    *
+                                                                    (0.7431486e-1 - ta * (0.4153749e-2 - ta * 0.9486967e-4))))))
     return exp(ta)
 end
 
 """
-    nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Float64)
+    nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64})
 
-This function solves the 1 species integral equation with the
-Gauss-Seidel iteration technique.
+This function solves the 1 species integral equation
 """
-function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
-    f1 = zeros(nr)
-    pn1 = zeros(nr)
-    maxit = 100
-    tol = 1.0e-4
-
-    # Set up factor with diagonal term, and initial guess
-    for i in 1:nr
-        f1[i] = 1.0 / (1.0 - k11[i, i])
-        pn1[i] = sn1[i]
-    end
-
-    f1[1]=0 # reduce numerical peaking in core.
-
-    # Now iterate until the solution converges
-    del = 0.0
-    for it in 1:maxit
-        del = 0.0
-        for i in 1:nr
-            tn1 = sn1[i]
-
-            for j in 1:nr
-                if j == i
-                    continue
-                end
-                tn1 += k11[j, i] * pn1[j]
-            end
-
-            tn1 *= f1[i]
-            del1 = 0.0
-            if pn1[i] != 0.0
-                del1 = abs((tn1 - pn1[i]) / pn1[i])
-            elseif tn1 != 0.0
-                del1 = 1.0
-            end
-            del = max(del, del1)
-            pn1[i] = tn1
-        end
-        if del < tol
-            return pn1
-        end
-    end
-    display(plot(pn1))
-    return error("Could not solve for neutral density: error is $(del) Vs requested $(tol)")
+function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64})
+    A = I - k11
+    return A' \ sn1
 end
 
 """
@@ -402,7 +360,7 @@ function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__prof
     @. k11 = b1 / vth / sqrt(π) * k11
 
     cm3_to_m3 = 1e6
-    fn11 = nuslv1(h, k11, nr) .* cm3_to_m3
+    fn11 = nuslv1(h, k11) .* cm3_to_m3
     sione = @. fn11 * eir(Te) * ne
 
     correction = (trapz(volume, ni) / τp) / trapz(volume, sione / cm3_to_m3)
