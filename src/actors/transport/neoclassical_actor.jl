@@ -10,10 +10,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T<:Real} <: Paramet
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model_bulk::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar], "-", "Neoclassical model to run for bulk"; default=:hirshmansigmar)
-    model_impurities::Switch{Symbol} = Switch{Symbol}([:facit, :hirshmansigmar], "-", "Neoclassical model to run for impurities"; default=:facit)
-    facit_full_geometry::Entry{Bool} = Entry{Bool}("-", "Use full geometry (true) or circular approximation (false)"; default=true)
-    facit_rotation_model::Entry{Int} = Entry{Int}("-", "Rotation model to use in FACIT"; default=0, check=x -> @assert 0 ≤ x ≤ 2 "rotation_model options are 0, 1, or 2")
+    model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar_facit], "-", "Neoclassical model to run"; default=:hirshmansigmar_facit)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.25:0.1:0.85)
 end
 
@@ -23,7 +20,7 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     input_neos::Vector{<:NEO.InputNEO}
     flux_solutions::Vector{<:GACODE.FluxSolution}
     equilibrium_geometry::Union{NEO.EquilibriumGeometry,Missing}
-    facit_output::Union{NEO.FACIToutput,Missing}
+    facit_output::Union{Vector{NEO.FACIToutput},Missing}
 end
 
 """
@@ -57,15 +54,15 @@ function _step(actor::ActorNeoclassical)
     cp1d = dd.core_profiles.profiles_1d[]
     rho_cp = cp1d.grid.rho_tor_norm
 
-    if par.model_bulk == :changhinton
+    if par.model == :changhinton
         actor.flux_solutions = [NEO.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
 
-    elseif par.model_bulk == :neo
+    elseif par.model == :neo
         gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
         actor.input_neos = [NEO.InputNEO(eqt, cp1d, i) for (idx, i) in enumerate(gridpoint_cps)]
         actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)
 
-    elseif par.model_bulk == :hirshmansigmar
+    elseif par.model == :hirshmansigmar_facit
         gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
         if ismissing(actor.equilibrium_geometry) || actor.equilibrium_geometry.time != eqt.time
             actor.equilibrium_geometry = NEO.get_equilibrium_geometry(eqt, cp1d)#, gridpoint_cps)
@@ -73,10 +70,28 @@ function _step(actor::ActorNeoclassical)
         parameter_matrices = NEO.get_plasma_profiles(eqt, cp1d)
         actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry), gridpoint_cps)
         
-        if par.model_impurities == :facit 
-            fj0 = prepare_facit(actor)
-            actor.facit_output = NEO.compute_transport(fj0)
-        end 
+        facit_rotation_model = 0
+        facit_full_geometry = true # customize these depending on Zimp
+        # impurity fluxes with FACIT
+        if length(cp1d.ion) == 2
+            species1 = cp1d.ion[1]
+            species2 = cp1d.ion[end]
+            facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
+            actor.facit_output = [NEO.compute_transport(facit_input)]
+        elseif length(cp1d.ion) > 2 
+            all_outputs = []
+            for i in 1:length(cp1d.ion)-1
+                for j in i+1:length(cp1d.ion)
+                    species1 = cp1d.ion[i]
+                    species2 = cp1d.ion[j]
+                
+                    facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
+                    output = NEO.compute_transport(facit_input)
+                    push!(all_outputs, output)
+                end
+            end
+            actor.facit_output = all_outputs
+        end
     end
 
     return actor
@@ -98,34 +113,40 @@ function _finalize(actor::ActorNeoclassical)
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
-    if par.model_bulk == :changhinton
+    if par.model == :changhinton
         model.identifier.name = "Chang-Hinton"
         GACODE.flux_gacode_to_imas((:ion_energy_flux,), actor.flux_solutions, m1d, eqt, cp1d)
 
-    elseif par.model_bulk == :neo
+    elseif par.model == :neo
         model.identifier.name = "NEO"
         GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
-    elseif par.model_bulk == :hirshmansigmar
-        model.identifier.name = "Hirshman-Sigmar"
+    elseif par.model == :hirshmansigmar_facit
+        model.identifier.name = "Hirshman-Sigmar + FACIT"
         GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
-        if par.model_impurities == :facit
+        hs_index = findfirst(model -> model.identifier.name == "Hirshman-Sigmar + FACIT", dd.core_transport.model)
+        if length(cp1d.ion) == 2
             # interpolate onto the same grid as hirshman sigmar 
-            flux_rho_transport = IMAS.interp1d(actor.facit_output.rho, actor.facit_output.Flux_z).(par.rho_transport)
-            hs_index = findfirst(model -> model.identifier.name == "Hirshman-Sigmar", dd.core_transport.model)
-            dd.core_transport.model[hs_index].identifier.name = "Hirshman-Sigmar + FACIT"
+            flux_rho_transport = IMAS.interp1d(actor.facit_output[1].rho, actor.facit_output[1].Flux_z).(par.rho_transport)
             dd.core_transport.model[hs_index].profiles_1d[].ion[end].particles.flux = flux_rho_transport
+        elseif length(cp1d.ion) == 3
+            flux_first_impurity = IMAS.interp1d(actor.facit_output[1].rho, actor.facit_output[1].Flux_z).(par.rho_transport)
+            dd.core_transport.model[hs_index].profiles_1d[].ion[2].particles.flux = flux_first_impurity
+        
+            flux_second_impurity = IMAS.interp1d(actor.facit_output[2].rho, (actor.facit_output[2].Flux_z .+ actor.facit_output[3].Flux_z)).(par.rho_transport)
+            dd.core_transport.model[hs_index].profiles_1d[].ion[3].particles.flux = flux_second_impurity
+                
+        else 
+            @warn "Implement finalize for more than 3 ions"
         end
+        
     end
 
     return actor
 end
 
-function prepare_facit(actor::ActorNeoclassical)
-    dd = actor.dd
-    par = actor.par
-
+function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geometry::Bool, species1::IMAS.core_profiles__profiles_1d___ion{Float64}, species2::IMAS.core_profiles__profiles_1d___ion{Float64})
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
     rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm) ./ 1e2 
@@ -137,14 +158,14 @@ function prepare_facit(actor::ActorNeoclassical)
 
     rho = rmin ./ a
     theta = collect(range(0, 2π, length = length(rho)))
-    Zimp = cp1d.ion[end].z_ion
-    Aimp = cp1d.ion[end].element[1].a
-    Zi = cp1d.ion[1].z_ion
-    Ai = cp1d.ion[1].element[1].a
-    Ti = facit_interpolate(cp1d.ion[1].temperature, cp1d.grid.rho_tor_norm, rho)
-    ne = facit_interpolate(cp1d.electrons.density, cp1d.grid.rho_tor_norm, rho)
-    Ni = facit_interpolate(cp1d.ion[1].density, cp1d.grid.rho_tor_norm, rho)
-    Nimp = facit_interpolate(cp1d.ion[end].density, cp1d.grid.rho_tor_norm, rho)
+    Zimp = species2.z_ion
+    Aimp = species2.element[1].a 
+    Zi = species1.z_ion 
+    Ai = species1.element[1].a 
+
+    Ti = facit_interpolate(species1.temperature, cp1d.grid.rho_tor_norm, rho)
+    Ni = facit_interpolate(species1.density, cp1d.grid.rho_tor_norm, rho)
+    Nimp = facit_interpolate(species2.density, cp1d.grid.rho_tor_norm, rho)
     Mi_core = 0.35
     Mi_edge = 0.05
 
@@ -167,7 +188,7 @@ function prepare_facit(actor::ActorNeoclassical)
     ZV = Z
 
     fj0 = NEO.FACITinput(rho, Zimp, Aimp, Zi, Ai, Ti, Ni, Nimp, Machi, Zeff, gradTi, gradNi, gradNimp, invaspct, B0, R0, qmag; 
-        fsaout = true, rotation_model = par.facit_rotation_model, full_geom = par.facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
+        fsaout = false, rotation_model = facit_rotation_model, full_geom = facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
     
     return fj0
 end
@@ -195,7 +216,14 @@ function prepare_R_Z(dd::IMAS.dd, rho::Vector{Float64}, theta::Vector{Float64})
     interp_psi = rho_geom_to_psi(surfaces)
     target_psi = interp_psi.(rho)
 
-    interp_f = Interpolations.LinearInterpolation(eqt.profiles_1d.psi, eqt.profiles_1d.f; extrapolation_bc=Interpolations.Line())
+    sortf = sortperm(eqt.profiles_1d.f)
+    f_sorted = eqt.profiles_1d.f[sortf]
+
+    sortpsi = sortperm(eqt.profiles_1d.psi)
+    psi_sorted = eqt.profiles_1d.psi[sortpsi]
+
+    interp_f = Interpolations.LinearInterpolation(psi_sorted, f_sorted; extrapolation_bc=Interpolations.Line())
+
     target_f = interp_f.(target_psi)
 
     eqt2d = findfirst(:rectangular, eqt.profiles_2d)
