@@ -24,9 +24,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal at each iteration"; default=true)
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
-    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=500)
+    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=-1)
     algorithm::Switch{Symbol} =
-        Switch{Symbol}([:broyden, :anderson, :newton, :trust_region, :simple, :none], "-", "Optimizing algorithm used for the flux matching"; default=:broyden)
+        Switch{Symbol}([:polyalg, :broyden, :anderson, :simple, :old_anderson, :none], "-", "Optimizing algorithm used for the flux matching"; default=:broyden)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -44,6 +44,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     )
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
+    show_trace::Entry{Bool} = Entry{Bool}("-", "Show convergence trace of nonlinear solver"; default=false)
 end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
@@ -155,14 +156,17 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             problem = NonlinearSolve.NonlinearProblem(f!, opt_parameters, initial_cp1d)
 
             # 3. Algorithm selection
-            alg = if par.algorithm == :newton
-                NonlinearSolve.NLsolveJL(; method=:newton, factor=par.step_size)
-
-            elseif par.algorithm == :anderson
+            alg = if par.algorithm == :old_anderson
                 NonlinearSolve.NLsolveJL(; method=:anderson, m=4, beta=-par.step_size * 0.5)
 
-            elseif par.algorithm == :trust_region
-                NonlinearSolve.NLsolveJL(; method=:trust_region, factor=par.step_size, autoscale=true)
+            elseif par.algorithm == :anderson
+                NonlinearSolve.FixedPointAccelerationJL(
+                    algorithm = :Anderson,
+                    m         = 5,                        # history length
+                    dampening = -par.step_size * 0.5,
+                    condition_number_threshold = 1e8,
+                    replace_invalids          = :ReplaceVector
+                )
 
             elseif par.algorithm == :broyden
                 alg = NonlinearSolve.Broyden(;
@@ -176,49 +180,20 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                     init_jacobian=Val(:true_jacobian),
                     autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff()
                 )
+            elseif par.algorithm == :polyalg
+                # Default NonlinearSolve algorithm
+                NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
 
             else
                 error("Unsupported algorithm: $(par.algorithm)")
             end
 
-            # fu0 = similar(opt_parameters)
-            # f!(fu0, opt_parameters, initial_cp1d)
-
-            # # --- replicate NonlinearSolve’s default α ------------------------------------
-            # α_default = max(norm(opt_parameters), 1) / (2 * norm(fu0))
-
-            # alg = NonlinearSolve.TrustRegion(
-            #     initial_trust_radius = par.step_size,   # plays the same role as “factor”
-            #     max_trust_radius     = 50 * par.step_size,
-            #     step_threshold       = 1e-6,
-            #     autodiff             = NonlinearSolve.ADTypes.AutoFiniteDiff(),
-            # )
-            # fallback = NonlinearSolve.FixedPointAccelerationJL(
-            #     algorithm = :Anderson,
-            #     m         = 4,                        # history length
-            #     condition_number_threshold = 1e8,     # skip extrapolation if ill-conditioned
-            #     replace_invalids          = :ReplaceVector,
-            # )
-            # fallback = NonlinearSolve.DFSane(
-            #     sigma_min = 1e-10,
-            #     sigma_max = 1e10,
-            #     M = 10               # non-monotone window
-            # )
-            # fallback = NonlinearSolve.RobustMultiNewton(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
-            # fallback = alg = NonlinearSolve.Broyden(
-            #     linesearch  = NonlinearSolve.LineSearch.BackTracking(
-            #         c_1  = 1e-4,   # Armijo parameter
-            #         ρ_hi = 0.5,    # shrink factor
-            #         order = 2,      # model order
-            #         autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff(),
-            #         maxstep = 1000.,
-            #     ),
-            #     update_rule   = Val(:good_broyden),
-            #     init_jacobian = Val(:true_jacobian),
-            #     autodiff      = NonlinearSolve.ADTypes.AutoFiniteDiff(),
-            # )
-            # alg = NonlinearSolve.NonlinearSolvePolyAlgorithm((fallback, alg))
-            # alg = NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
+            if par.max_iterations > 0
+                max_iterations = par.max_iterations
+            else
+                # Default for gradient methods 20, otherwise 500
+                max_iterations = (par.algorithm in (:broyden, :polyalg)) ? 15 : 500
+            end
 
             # 4. Solve with matching tolerances and iteration limits
             # NonlinearSolve abstol is meant to be on u, but actually gets
@@ -227,8 +202,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             abstol = 1E-2
             sol = NonlinearSolve.solve(problem, alg;
                 abstol,
-                maxiters=par.max_iterations,
-                show_trace=Val(false),
+                maxiters=max_iterations,
+                show_trace=Val(par.show_trace),
                 store_trace=Val(false),
                 verbose=false
             )
