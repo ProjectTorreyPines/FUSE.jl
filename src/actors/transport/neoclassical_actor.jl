@@ -73,29 +73,23 @@ function _step(actor::ActorNeoclassical)
         facit_rotation_model = 0
         facit_full_geometry = true # customize these depending on Zimp
         # impurity fluxes with FACIT
-        if length(cp1d.ion) == 2
-            species1 = cp1d.ion[1]
-            species2 = cp1d.ion[end]
-            facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
-            actor.facit_output = [NEO.compute_transport(facit_input)]
-        elseif length(cp1d.ion) > 2 
-            outputs_dict = Dict{String, NEO.FACIToutput}()
+      
+        outputs_dict = Dict{String, NEO.FACIToutput}()
 
-            for i in 1:length(cp1d.ion)-1
-                for j in i+1:length(cp1d.ion)
-                    species1 = cp1d.ion[i]
-                    species2 = cp1d.ion[j]
+        for i in 1:length(cp1d.ion)-1
+            for j in i+1:length(cp1d.ion)
+                species1 = cp1d.ion[i]
+                species2 = cp1d.ion[j]
 
-                    key = species1.label * "+" * species2.label
-                    facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
-                    output = NEO.compute_transport(facit_input)
+                key = species1.label * "+" * species2.label
+                facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
+                output = NEO.compute_transport(facit_input)
 
-                    outputs_dict[key] = output
-                end
+                outputs_dict[key] = output
             end
-
-            actor.facit_output = outputs_dict
         end
+
+        actor.facit_output = outputs_dict
     end
 
     return actor
@@ -130,31 +124,25 @@ function _finalize(actor::ActorNeoclassical)
         GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
         hs_index = findfirst(model -> model.identifier.name == "Hirshman-Sigmar + FACIT", dd.core_transport.model)
-        if length(cp1d.ion) == 2
-            # interpolate onto the same grid as hirshman sigmar 
-            flux_rho_transport = IMAS.interp1d(actor.facit_output[1].rho, actor.facit_output[1].Flux_z).(par.rho_transport)
-            dd.core_transport.model[hs_index].profiles_1d[].ion[end].particles.flux = flux_rho_transport
-        elseif length(cp1d.ion) > 2
-            flux_by_species = Dict{String, Vector{Float64}}()
+  
+        flux_by_species = Dict{String, Vector{Float64}}()
 
-            for (key, result) in actor.facit_output
-                first_label, second_label = split(key, "+")
-                if haskey(flux_by_species, second_label)
-                    flux_by_species[second_label] .+= result.Flux_z
-                else
-                    flux_by_species[second_label] = copy(result.Flux_z)
-                end
+        for (key, result) in actor.facit_output
+            first_label, second_label = split(key, "+")
+            if haskey(flux_by_species, second_label)
+                flux_by_species[second_label] .+= result.Flux_z
+            else
+                flux_by_species[second_label] = copy(result.Flux_z)
             end
+        end
 
-            rho = first(values(actor.facit_output)).rho
-            for (label, total_flux_z) in flux_by_species
-                interpolated_flux = IMAS.interp1d(rho, total_flux_z).(par.rho_transport)
+        rho = first(values(actor.facit_output)).rho
+        for (label, total_flux_z) in flux_by_species
+            interpolated_flux = IMAS.interp1d(rho, total_flux_z).(par.rho_transport)
 
-                for ion in dd.core_transport.model[hs_index].profiles_1d[].ion
-                    if ion.label == label
-                        ion.particles.flux = interpolated_flux
-                        break
-                    end
+            for ion in dd.core_transport.model[hs_index].profiles_1d[].ion
+                if ion.label == label
+                    ion.particles.flux = interpolated_flux
                 end
             end
         end
