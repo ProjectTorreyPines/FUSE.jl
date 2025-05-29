@@ -265,7 +265,13 @@ function prepare(actor::ActorEquilibrium)
         tmp = IMAS.calc_pprime_ffprim_f(psi, gm8, gm9, gm1, r0, b0; pressure, j_tor)
         eqt1d.dpressure_dpsi = IMAS.interp1d(psi, tmp.dpressure_dpsi).(psi0)
         eqt1d.f_df_dpsi = IMAS.interp1d(psi, tmp.f_df_dpsi).(psi0)
-        eqt1d.f = IMAS.interp1d(psi, tmp.f).(psi0)
+        #eqt1d.f = IMAS.interp1d(psi, tmp.f).(psi0)
+        Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
+        Btcenter = eqt.global_quantities.vacuum_toroidal_field.b0
+        fend = Btcenter * Rcenter
+        f2 = 2 * IMAS.cumtrapz(eqt1d.psi, eqt1d.f_df_dpsi)
+        f2 .= f2 .+ - f2[end] .+ fend^2
+        f = sign(fend) .* sqrt.(abs.(f2))
     end
 
     # if available, restore coil currents and magnetic measurements from experiment

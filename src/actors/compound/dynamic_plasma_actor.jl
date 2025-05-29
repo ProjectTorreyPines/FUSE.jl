@@ -68,7 +68,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
         dd,
         act.ActorPedestal,
         act;
-        ip_from=:core_profiles,
+        ip_from=:pulse_schedule,
         βn_from=:core_profiles,
         ne_from=:pulse_schedule,
         zeff_from=:pulse_schedule,
@@ -79,7 +79,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
