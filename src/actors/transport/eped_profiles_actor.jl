@@ -52,7 +52,7 @@ function _step(actor::ActorEPEDprofiles)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, :pulse_schedule, rho_ped)
     zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, :pulse_schedule, rho_ped)
 
-    impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
+    impurity = [ion.element[1].z_n for ion in cp1d.ion if !IMAS.is_hydrogenic(ion)][1]
     zi = sum(impurity) / length(impurity)
     nival = ne_ped * (zeff_ped - 1) / (zi^2 - zi)
     nval = ne_ped - zi * nival
