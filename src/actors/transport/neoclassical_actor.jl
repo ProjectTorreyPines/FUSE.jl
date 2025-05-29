@@ -20,7 +20,7 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     input_neos::Vector{<:NEO.InputNEO}
     flux_solutions::Vector{<:GACODE.FluxSolution}
     equilibrium_geometry::Union{NEO.EquilibriumGeometry,Missing}
-    facit_output::Union{Vector{NEO.FACIToutput},Missing}
+    facit_output::Union{Dict{String, NEO.FACIToutput},Missing}
 end
 
 """
@@ -79,18 +79,22 @@ function _step(actor::ActorNeoclassical)
             facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
             actor.facit_output = [NEO.compute_transport(facit_input)]
         elseif length(cp1d.ion) > 2 
-            all_outputs = []
+            outputs_dict = Dict{String, NEO.FACIToutput}()
+
             for i in 1:length(cp1d.ion)-1
                 for j in i+1:length(cp1d.ion)
                     species1 = cp1d.ion[i]
                     species2 = cp1d.ion[j]
-                
+
+                    key = species1.label * "+" * species2.label
                     facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
                     output = NEO.compute_transport(facit_input)
-                    push!(all_outputs, output)
+
+                    outputs_dict[key] = output
                 end
             end
-            actor.facit_output = all_outputs
+
+            actor.facit_output = outputs_dict
         end
     end
 
@@ -130,17 +134,30 @@ function _finalize(actor::ActorNeoclassical)
             # interpolate onto the same grid as hirshman sigmar 
             flux_rho_transport = IMAS.interp1d(actor.facit_output[1].rho, actor.facit_output[1].Flux_z).(par.rho_transport)
             dd.core_transport.model[hs_index].profiles_1d[].ion[end].particles.flux = flux_rho_transport
-        elseif length(cp1d.ion) == 3
-            flux_first_impurity = IMAS.interp1d(actor.facit_output[1].rho, actor.facit_output[1].Flux_z).(par.rho_transport)
-            dd.core_transport.model[hs_index].profiles_1d[].ion[2].particles.flux = flux_first_impurity
-        
-            flux_second_impurity = IMAS.interp1d(actor.facit_output[2].rho, (actor.facit_output[2].Flux_z .+ actor.facit_output[3].Flux_z)).(par.rho_transport)
-            dd.core_transport.model[hs_index].profiles_1d[].ion[3].particles.flux = flux_second_impurity
-                
-        else 
-            @warn "Implement finalize for more than 3 ions"
+        elseif length(cp1d.ion) > 2
+            flux_by_species = Dict{String, Vector{Float64}}()
+
+            for (key, result) in actor.facit_output
+                first_label, second_label = split(key, "+")
+                if haskey(flux_by_species, second_label)
+                    flux_by_species[second_label] .+= result.Flux_z
+                else
+                    flux_by_species[second_label] = copy(result.Flux_z)
+                end
+            end
+
+            rho = first(values(actor.facit_output)).rho
+            for (label, total_flux_z) in flux_by_species
+                interpolated_flux = IMAS.interp1d(rho, total_flux_z).(par.rho_transport)
+
+                for ion in dd.core_transport.model[hs_index].profiles_1d[].ion
+                    if ion.label == label
+                        ion.particles.flux = interpolated_flux
+                        break
+                    end
+                end
+            end
         end
-        
     end
 
     return actor
