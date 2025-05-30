@@ -881,7 +881,7 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
     ]
 
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort([specie for (specie, evolve) in evolve_densities]) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort([specie for (ispecie,j) in evolve_densities]))"
+    @assert sort([specie for (specie, evolve) in evolve_densities]) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
     if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
