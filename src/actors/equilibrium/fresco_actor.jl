@@ -103,8 +103,8 @@ function _finalize(actor::ActorFRESCO)
 
     Npsi = length(eqt1d.psi)
     eqt1d.psi = range(canvas.Ψaxis, canvas.Ψbnd, Npsi)
-    eqt1d.dpressure_dpsi = FRESCO.Pprime(canvas, profile, eqt1d.psi_norm)
-    eqt1d.f_df_dpsi = FRESCO.FFprime(canvas, profile, eqt1d.psi_norm)
+    eqt1d.dpressure_dpsi = FRESCO.Pprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm)
+    eqt1d.f_df_dpsi = FRESCO.FFprime.(Ref(canvas), Ref(profile), eqt1d.psi_norm)
 
     @ddtime(eq.vacuum_toroidal_field.b0 = eqt.global_quantities.vacuum_toroidal_field.b0)
     eq.vacuum_toroidal_field.r0 = eqt.global_quantities.vacuum_toroidal_field.r0

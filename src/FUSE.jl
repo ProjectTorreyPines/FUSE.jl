@@ -1,7 +1,7 @@
 module FUSE
 
 using IMAS
-import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
+import IMAS: heaviside, pulse, ramp, trap, gaus, beta, sequence
 import IMASutils: mirror_bound, argmin_abs, trapz
 import Plots
 using Plots
@@ -196,7 +196,7 @@ include("test_cases.jl")
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
+export IMAS, @ddtime, help, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 

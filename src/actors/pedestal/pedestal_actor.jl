@@ -59,7 +59,7 @@ function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::ParametersAllActors; kw...)
+function ActorPedestal(dd::IMAS.dd{D}, par::FUSEparameters__ActorPedestal{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorPedestal)
     par = OverrideParameters(par; kw...)
     eped_actor =
@@ -67,7 +67,7 @@ function ActorPedestal(dd::IMAS.dd, par::FUSEparameters__ActorPedestal, act::Par
     wped_actor =
         ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d())
+    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}())
     actor.replay_actor = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -191,6 +191,8 @@ function _finalize(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     summary_ped = dd.summary.local.pedestal
     rho = cp1d.grid.rho_tor_norm
 
+    IMAS.enforce_quasi_neutrality!(cp1d, :electrons)
+
     position = 1 - IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
     @ddtime summary_ped.position.rho_tor_norm = position
     @ddtime summary_ped.n_e.value = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(position)
@@ -235,16 +237,17 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     # density pedestal width to match the existing temperature pedestal width
     w_ped = IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
 
-    ne_ped_old = IMAS.get_from(dd, Val{:ne_ped}, :core_profiles, rho09)
+    ne_old = copy(cp1d.electrons.density_thermal)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * density_factor
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
-    cp1d.electrons.density_thermal = IMAS.ped_height_at_09(rho, ne, ne_ped)
+    cp1d.electrons.density_thermal = ne = IMAS.ped_height_at_09(rho, ne, ne_ped)
+    ratio = ne ./ ne_old
 
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
-            ni_ped_old = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ni_ped = ni_ped_old / ne_ped_old * ne_ped
+            ion.density_thermal = ion.density_thermal .* ratio
+            ni_ped = IMAS.interp1d(rho, ion.density_thermal).(rho09)
             ion.density_thermal[end] = ni_ped / 4.0
             ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
@@ -254,7 +257,9 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     #NOTE: Zeff can change after a pedestal actor is run, even though actors like EPED and WPED only operate on the temperature profiles.
     # This is because in FUSE the calculation of Zeff is temperature dependent.
     zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) * zeff_factor
-    return IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
+    IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
+
+    return nothing
 end
 
 """

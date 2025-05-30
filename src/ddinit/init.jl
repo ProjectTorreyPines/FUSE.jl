@@ -242,6 +242,9 @@ function init!(
             IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
         end
 
+        # setup ActorReplay
+        act.ActorReplay.replay_dd = dd1
+
         return dd
     end
 end
