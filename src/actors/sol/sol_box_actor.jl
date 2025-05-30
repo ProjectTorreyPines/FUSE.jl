@@ -20,7 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolBox{T<:Real} <: ParametersAct
     mass_ion::Entry{T}   = Entry{T}("kg","Ion mass in multiples of amu"; default = 2.5)
     recycling_coeff_i::Entry{T}   = Entry{T}("-","Ion particle recycling coefficient"; default = 0.99)
     recycling_coeff_e::Entry{T}   = Entry{T}("-","Electron particle recycling coefficient"; default = 0.99)
-    do_debug::Entry{Bool} = Entry{Bool}("-","Flag for debugging"; default = true)
+    do_debug::Entry{Bool} = Entry{Bool}("-","Flag for debugging"; default = false)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot = false)
 end
 
@@ -252,7 +252,7 @@ function _finalize(actor::ActorSolBox)
     # for just a single flux tube, only 1 point in these 1D radial profiles will be
     # populated
 
-    # @ddtime(dd.edge_profiles.profiles_1d.electrons.density = [actor.ne_u])
+    dd.edge_profiles.profiles_1d[].electrons.density[1] = actor.ne_u
 
     # For now, I am only populating the electron density, as this is what will act as a
     # boundary condition for when FUSE solves core transport. In reality, FUSE will actually

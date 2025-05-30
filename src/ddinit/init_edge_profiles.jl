@@ -45,8 +45,14 @@ function init_edge_profiles!(
 
     ep1d = resize!(ep.profiles_1d)
 
-    # WIP
-    println("Initialising edge profiles - WIP")
+    # Initialising edge profiles - WIP
+
+    # grid
+    # For now, we only initialise values at the separatrix, where ρpol_norm = 1
+    ep1d.grid.rho_pol_norm = [1.0]
+
+    # electrons
+    ep1d.electrons.density = [1.0e+20]
 
     return ep
 end
