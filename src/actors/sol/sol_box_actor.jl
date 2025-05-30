@@ -253,6 +253,7 @@ function _finalize(actor::ActorSolBox)
     # populated
 
     dd.edge_profiles.profiles_1d[].electrons.density[1] = actor.ne_u
+    dd.edge_profiles.profiles_1d[].electrons.temperature[1] = actor.Te_u
 
     # For now, I am only populating the electron density, as this is what will act as a
     # boundary condition for when FUSE solves core transport. In reality, FUSE will actually

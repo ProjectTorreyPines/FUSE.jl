@@ -51,8 +51,13 @@ function init_edge_profiles!(
     # For now, we only initialise values at the separatrix, where ρpol_norm = 1
     ep1d.grid.rho_pol_norm = [1.0]
 
-    # electrons
+    # electrons - values should be set in a more meaningful way. For now, these are all just placeholders.
+
+    # density [m^-3]
     ep1d.electrons.density = [1.0e+20]
+
+    # temperature [eV]
+    ep1d.electrons.temperature = [500.0]
 
     return ep
 end
