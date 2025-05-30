@@ -158,7 +158,7 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
         else
             println("Double null")
         end
-        
+
         println("Connection length (m): ",actor.sol_connection_length)
         println("Total flux expansion: ",actor.sol_total_Fx)
 
@@ -241,5 +241,22 @@ end
 function _finalize(actor::ActorSolBox)
     # Finalization after computation is done in step
     # (Probably populate dd; for details of dd: https://fuse.help/dev/dd.html)
+
+    # Retrieve variables defined in the struct ActorSolBox
+    dd = actor.dd
+    par = actor.par
+
+    # The below is still a work in progress
+
+    # We will populate the edge_profiles IDS - profiles_1d, and, as this model is
+    # for just a single flux tube, only 1 point in these 1D radial profiles will be
+    # populated
+
+    # @ddtime(dd.edge_profiles.profiles_1d.electrons.density = [actor.ne_u])
+
+    # For now, I am only populating the electron density, as this is what will act as a
+    # boundary condition for when FUSE solves core transport. In reality, FUSE will actually
+    # use the pedestal top density, which can be calculated as something like 4 x the separatrix density.
+
     return actor
 end

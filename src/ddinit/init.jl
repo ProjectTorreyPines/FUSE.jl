@@ -43,6 +43,7 @@ function init!(
         # always empty non-hardware IDSs
         empty!(dd.equilibrium)
         empty!(dd.core_profiles)
+        empty!(dd.edge_profiles)
         empty!(dd.core_sources)
         empty!(dd.summary)
 
@@ -114,6 +115,15 @@ function init!(
             init_core_profiles!(dd, ini, act, dd1)
             if do_plot
                 display(plot(dd.core_profiles; legend=:bottomleft))
+            end
+        end
+
+        # initialize edge profiles
+        if !initialize_hardware || !ismissing(ini.edge_profiles) || !isempty(dd1.edge_profiles)
+            verbose && @info "INIT: init_edge_profiles"
+            init_edge_profiles!(dd, ini, act, dd1)
+            if do_plot
+                display(plot(dd.edge_profiles; legend=:bottomleft))
             end
         end
 
@@ -235,11 +245,12 @@ function init!(
             end
         end
 
-        # trim core_profiles data before the first equilibrium since things are really not robust against that
+        # trim core_profiles and edge_profiles data before the first equilibrium since things are really not robust against that
         # also trim other IDSs not to go past equilibrium.time[end]
         if dd.equilibrium.time[1] != dd.equilibrium.time[end]
             IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]))
             IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
+            IMAS.trim_time!(dd.edge_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
         end
 
         # setup ActorReplay
