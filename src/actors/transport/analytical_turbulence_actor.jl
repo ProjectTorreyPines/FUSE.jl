@@ -9,7 +9,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorAnalyticTurbulence{T<:Real} <: P
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:GyroBohm,:BgB], "-", "Analytic transport model"; default=:GyroBohm)
-    αBgB::Entry{T} = Entry{T}("-", "Scale factor for BgB transport"; default=0.2)
+    αBgB::Entry{T} = Entry{T}("-", "Scale factor for BgB transport"; default=0.15)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute fluxes on"; default=0.25:0.1:0.85)
 end
 
@@ -61,11 +61,10 @@ function _step(actor::ActorAnalyticTurbulence)
         rho_eq = eqt1d.rho_tor_norm
     
         q_profile = IMAS.interp1d(rho_eq, eqt1d.q).(rho_cp)
-
         rmin = GACODE.r_min_core_profiles(eqt1d, rho_cp)
         Te = cp1d.electrons.temperature
         dlntedr = .-IMAS.calc_z(rmin, Te, :backward)
-        ne = cp1d.electrons.density_thermal #./ IMAS.cgs.m³_to_cm³
+        ne = cp1d.electrons.density_thermal
         dlnnedr = .-IMAS.calc_z(rmin, ne, :backward)
 
         Ti = cp1d.ion[1].temperature
@@ -74,7 +73,7 @@ function _step(actor::ActorAnalyticTurbulence)
 
         Q_GB = GACODE.gyrobohm_energy_flux(cp1d,eqt)
         Γ_GB = GACODE.gyrobohm_particle_flux(cp1d,eqt)
-        rho_s = GACODE.rho_s(cp1d,eqt)/IMAS.cgs.m_to_cm# *1e-2
+        rho_s = GACODE.rho_s(cp1d,eqt)/IMAS.cgs.m_to_cm
 
         dpe = @. ne*IMAS.mks.e*Te*(dlntedr .+ dlnnedr) 
         dpi = @. ne*IMAS.mks.e*Ti*(dlntidr .+ dlnnedr) / zeff
