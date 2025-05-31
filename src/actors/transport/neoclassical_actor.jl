@@ -70,8 +70,7 @@ function _step(actor::ActorNeoclassical)
         parameter_matrices = NEO.get_plasma_profiles(eqt, cp1d)
         actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry), gridpoint_cps)
         
-        facit_rotation_model = 0
-        facit_full_geometry = true # customize these depending on Zimp
+        facit_full_geometry = true 
         # impurity fluxes with FACIT
       
         outputs_dict = Dict{String, NEO.FACIToutput}()
@@ -80,6 +79,15 @@ function _step(actor::ActorNeoclassical)
             for j in i+1:length(cp1d.ion)
                 species1 = cp1d.ion[i]
                 species2 = cp1d.ion[j]
+
+                z = species2.element[1].z_n
+                if z ≤ 16
+                    facit_rotation_model = 0
+                elseif 17 ≤ z ≤ 28
+                    facit_rotation_model = 1
+                else
+                    facit_rotation_model = 2
+                end
 
                 key = species1.label * "+" * species2.label
                 facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
