@@ -56,31 +56,34 @@ function _step(actor::ActorAnalyticTurbulence)
     elseif actor.par.model == :BgB
         A1  = 1.0
         A2 = 0.3
+        αgB = 5e-6
+        αB = 2e-4
     
         rho_cp = cp1d.grid.rho_tor_norm
         rho_eq = eqt1d.rho_tor_norm
-    
+        
+        bax = eqt.global_quantities.magnetic_axis.b_field_tor
         q_profile = IMAS.interp1d(rho_eq, eqt1d.q).(rho_cp)
         rmin = GACODE.r_min_core_profiles(eqt1d, rho_cp)
         Te = cp1d.electrons.temperature
-        dlntedr = .-IMAS.calc_z(rmin, Te, :backward)
+        dlntedr = .-IMAS.calc_z(rho_cp, Te, :backward)
         ne = cp1d.electrons.density_thermal
-        dlnnedr = .-IMAS.calc_z(rmin, ne, :backward)
+        dlnnedr = .-IMAS.calc_z(rho_cp, ne, :backward)
 
         Ti = cp1d.ion[1].temperature
         zeff = cp1d.zeff
-        dlntidr = .-IMAS.calc_z(rmin, Ti, :backward)
+        dlntidr = .-IMAS.calc_z(rho_cp, Ti, :backward)
 
         Q_GB = GACODE.gyrobohm_energy_flux(cp1d,eqt)
         Γ_GB = GACODE.gyrobohm_particle_flux(cp1d,eqt)
-        rho_s = GACODE.rho_s(cp1d,eqt)/IMAS.cgs.m_to_cm
 
         dpe = @. ne*IMAS.mks.e*Te*(dlntedr .+ dlnnedr) 
         dpi = @. ne*IMAS.mks.e*Ti*(dlntidr .+ dlnnedr) / zeff
-        χeB = @.  (Te/abs(b0)) * rmin[end] *  (dlntedr .+ dlnnedr) * q_profile^2
-        χeGB = @. (Te/abs(b0)) * abs(rho_s) * rmin[end] * dlntedr 
+        χeB = @.  αB * rmin[end] * q_profile^2 / abs(bax) * Te * (dlntedr .+ dlnnedr)
+        χeGB = @. αgB * sqrt(Te/bax^2) * Te * dlntedr 
+
         χe = @. actor.par.αBgB * (0.01*χeB+50.0*χeGB)
-        χi = @. actor.par.αBgB * (0.001*χeB+1.0*χeGB)
+        χi = @. actor.par.αBgB * (0.002*χeB+0.5*χeGB)
         Γe = @. (A1+(A2-A1)*rho_cp)*χe*χi/(χe+χi) * dlnnedr  * ne
         gridpoint_cp = [argmin_abs(cp1d.grid.rho_tor_norm, ρ) for ρ in par.rho_transport]
 
