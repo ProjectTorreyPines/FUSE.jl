@@ -272,6 +272,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
         beamlet.position.r = 4.0 
         beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 1.486
         beamlet.angle = 0.0
         beamlet.direction = 1
@@ -279,6 +280,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
         beamlet.position.r = 4.0
         beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 1.720
         beamlet.angle = 0.0
         beamlet.direction = 1
@@ -286,6 +288,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
         beamlet.position.r = 4.0
         beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 1.245
         beamlet.angle = 0.0
         beamlet.direction = 1

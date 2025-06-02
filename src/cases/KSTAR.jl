@@ -40,7 +40,7 @@ function case_parameters(::Type{Val{:KSTAR}}; init_from::Symbol)
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.3
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.Te_core = 1000.
+    ini.core_profiles.Te_core = 2000.
     ini.core_profiles.Te_ped = 300.0
     ini.core_profiles.Te_sep = 40.0
     ini.core_profiles.Te_shaping = 1.8
