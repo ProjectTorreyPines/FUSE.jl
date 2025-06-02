@@ -68,6 +68,45 @@ function _setup(study::StudyMultiObjectiveOptimizer)
 
     parallel_environment(sty.server, sty.n_workers)
 
+    function check_matching(requirement::Symbol, constraint_functions::Vector{Symbol})
+    check_vector = Union{Symbol,Nothing}[]
+        for cf in constraint_functions
+            if contains(String(cf), String(requirement)) 
+                match = requirement
+            elseif contains(String(cf), "coil_j") && contains(String(requirement), "coil_j") 
+                match = requirement
+            elseif contains(String(cf), "coil_stress") && contains(String(requirement), "coil_stress")
+                match = requirement
+            else 
+                match = nothing
+            end
+            push!(check_vector, match)
+        end
+    return check_vector
+    end
+
+    set_requirements = Symbol[]
+    for fld in fieldnames(typeof(study.ini.requirements))
+        if fld == :_parent || fld == :_name
+            continue
+        end
+        req = getfield(study.ini.requirements, fld)
+        
+        if !ismissing(req.value)
+            push!(set_requirements, fld)
+        end 
+    end
+    cfs = Symbol[]
+    for cf in study.constraint_functions
+        push!(cfs, cf.name)
+    end
+
+    for req in set_requirements
+        check_vector = check_matching(req, cfs)
+        if all(x -> x isa Nothing, check_vector)
+            @warn "You have set some ini.requirements without setting the corresponding constraint functions: $req"
+        end
+    end
 
     # import FUSE and IJulia on workers
     if isdefined(Main, :IJulia)
