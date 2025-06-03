@@ -91,95 +91,47 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     itp_ti = fit2d(Val(:t_i), dd; transform=sqrt)
 
     # Te
-    if false
-        index = [IMAS.hasdata(cp1d.electrons, :temperature) for cp1d in dd1.core_profiles.profiles_1d]
-        min_k_orig = findfirst(index)
-        for (k, time0) in enumerate(par.time_basis)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
-            dd.core_profiles.profiles_1d[k].electrons.temperature = dd1.core_profiles.profiles_1d[k_orig].electrons.temperature
-        end
-    else
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd.core_profiles.profiles_1d[k]
-            data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            cp1d.electrons.temperature = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
-        end
+    for (k, time0) in enumerate(par.time_basis)
+        cp1d = dd.core_profiles.profiles_1d[k]
+        data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        cp1d.electrons.temperature = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # ne
-    if false
-        index = [IMAS.hasdata(cp1d.electrons, :density_thermal) for cp1d in dd1.core_profiles.profiles_1d]
-        min_k_orig = findfirst(index)
-        for (k, time0) in enumerate(par.time_basis)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
-            dd.core_profiles.profiles_1d[k].electrons.density_thermal = dd1.core_profiles.profiles_1d[k_orig].electrons.density_thermal
-        end
-    else
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd.core_profiles.profiles_1d[k]
-            data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            cp1d.electrons.density_thermal = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
-        end
+    for (k, time0) in enumerate(par.time_basis)
+        cp1d = dd.core_profiles.profiles_1d[k]
+        data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        cp1d.electrons.density_thermal = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # zeff
-    if false
-        index = [!IMAS.ismissing(cp1d, :zeff) for cp1d in dd1.core_profiles.profiles_1d]
-        min_k_orig = findfirst(index)
-        for (k, time0) in enumerate(par.time_basis)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
-            dd.core_profiles.profiles_1d[k].zeff = dd1.core_profiles.profiles_1d[k_orig].zeff
-        end
-    else
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd.core_profiles.profiles_1d[k]
-            data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2.0 .+ 1.0
-            cp1d.zeff = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
-        end
+    for (k, time0) in enumerate(par.time_basis)
+        cp1d = dd.core_profiles.profiles_1d[k]
+        data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2.0 .+ 1.0
+        cp1d.zeff = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # ni
-    if false
-        index = [IMAS.hasdata(cp1d.ion[1], :density_thermal) for cp1d in dd1.core_profiles.profiles_1d]
-        min_k_orig = findfirst(index)
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd.core_profiles.profiles_1d[k]
-            bulk_ion = cp1d.ion[1]
-            imp_ion = cp1d.ion[2]
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
-            bulk_ion.density_thermal = dd1.core_profiles.profiles_1d[k_orig].ion[1].density_thermal
-            imp_ion.density_thermal = dd1.core_profiles.profiles_1d[k_orig].ion[2].density_thermal
-        end
-    else
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd.core_profiles.profiles_1d[k]
-            bulk_ion = cp1d.ion[1]
-            imp_ion = cp1d.ion[2]
+    for (k, time0) in enumerate(par.time_basis)
+        cp1d = dd.core_profiles.profiles_1d[k]
+        bulk_ion = cp1d.ion[1]
+        imp_ion = cp1d.ion[2]
 
-            data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            n_i = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        n_i = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
 
-            bulk_ion.density_thermal = zero(rho_tor_norm)
-            imp_ion.density_thermal = n_i
-        end
+        bulk_ion.density_thermal = zero(rho_tor_norm)
+        imp_ion.density_thermal = n_i
     end
 
     # ti
-    if false
-        for (k, time0) in enumerate(par.time_basis)
-            for (ki, ion) in enumerate(dd.core_profiles.profiles_1d[k].ion)
-                dd.core_profiles.profiles_1d[k].ion[ki].temperature = dd1.core_profiles.profiles_1d[k].ion[ki].temperature
-            end
-        end
-    else
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd.core_profiles.profiles_1d[k]
-            data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            ti = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
-            for ion in cp1d.ion
-                ion.temperature = ti
-            end
+    for (k, time0) in enumerate(par.time_basis)
+        cp1d = dd.core_profiles.profiles_1d[k]
+        data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        ti = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        for ion in cp1d.ion
+            ion.temperature = ti
         end
     end
 
@@ -199,8 +151,9 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # #     end
     # # end
 
-    # dd.thomson_scattering = dd1.thomson_scattering
-    # dd.charge_exchange = dd1.charge_exchange
+    # restore the original raw data
+    dd.thomson_scattering = dd1.thomson_scattering
+    dd.charge_exchange = dd1.charge_exchange
 
     return actor
 end
