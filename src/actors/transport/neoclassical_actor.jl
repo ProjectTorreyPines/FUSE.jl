@@ -72,7 +72,6 @@ function _step(actor::ActorNeoclassical)
         
         facit_full_geometry = true 
         # impurity fluxes with FACIT
-      
         outputs_dict = Dict{String, NEO.FACIToutput}()
 
         for i in 1:length(cp1d.ion)-1
@@ -81,10 +80,8 @@ function _step(actor::ActorNeoclassical)
                 species2 = cp1d.ion[j]
 
                 z = species2.element[1].z_n
-                if z ≤ 16
+                if z ≤ 18
                     facit_rotation_model = 0
-                elseif 17 ≤ z ≤ 28
-                    facit_rotation_model = 1
                 else
                     facit_rotation_model = 2
                 end
