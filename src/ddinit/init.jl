@@ -17,7 +17,6 @@ end
         do_plot::Bool=false,
         initialize_hardware::Bool=true,
         initialize_pulse_schedule::Bool=true,
-        restore_expressions::Bool=true,
         verbose::Bool=false)
 
 Initialize `dd` starting from `ini` and `act` parameters
@@ -55,13 +54,15 @@ function init!(
         # set the dd.global time to when simulation starts
         dd.global_time = ini.time.simulation_start
 
-        # load ods once if needed
-        verbose && @info "INIT: ini_from_ods"
-        dd1 = ini_from_ods!(ini; restore_expressions)
+        # load ods once
+        verbose && @info "INIT: load_ods"
+        dd1 = set_ini_act_from_ods!(ini, act)
 
-        # Makes `ini` and `act` self-consistent and consistent with one another
-        verbose && @info "INIT: consistent_ini_act"
-        consistent_ini_act!(ini, act)
+        # Here we delete fields from the ODS for which we know FUSE has expressions for.
+        # Besides ensuring consistency, this is done because some FUSE workflows in fact expect certain fields to be expressions!
+        if restore_expressions
+            FUSE.restore_init_expressions!(dd1; verbose=false)
+        end
 
         # initialize pulse_schedule
         ps_was_set = false
@@ -116,6 +117,18 @@ function init!(
             end
         end
 
+        # initialize build
+        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
+            verbose && @info "INIT: init_build"
+            init_build!(dd, ini, act, dd1)
+            if do_plot
+                plot(dd.equilibrium; cx=true, color=:gray)
+                plot!(dd.build; equilibrium=false, pf_active=false)
+                display(plot!(dd.build; cx=false))
+                display(dd.build.layer)
+            end
+        end
+
         # initialize core sources and HCD
         if (
             !initialize_hardware || !isempty(ini.ec_launcher) || !isempty(ini.pellet_launcher) || !isempty(ini.ic_antenna) || !isempty(ini.lh_antenna) || !isempty(ini.nb_unit) ||
@@ -146,7 +159,7 @@ function init!(
                             scale -> scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, ini.hcd.power_scaling_cost_function),
                             0.0,
                             100,
-                            Optim.GoldenSection();
+                            Optim.Brent();
                             abs_tol=1E-3
                         )
                     actor_logging(dd, old_logging)
@@ -168,18 +181,6 @@ function init!(
         verbose && @info "INIT: init_currents"
         init_currents!(dd, ini, act, dd1)
 
-        # initialize build
-        if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
-            verbose && @info "INIT: init_build"
-            init_build!(dd, ini, act, dd1)
-            if do_plot
-                plot(dd.equilibrium; cx=true, color=:gray)
-                plot!(dd.build; equilibrium=false, pf_active=false)
-                display(plot!(dd.build; cx=false))
-                display(dd.build.layer)
-            end
-        end
-
         # initialize oh and pf coils
         n_coils = [length(layer.coils_inside) for layer in dd.build.layer if !ismissing(layer, :coils_inside)]
         if initialize_hardware && !isempty(n_coils)
@@ -194,10 +195,12 @@ function init!(
         end
 
         # pf_passive
-        if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
-            dd.pf_passive = deepcopy(dd1.pf_passive)
-        else
-            FUSE.ActorPassiveStructures(dd, act)
+        if !isempty(dd.build.layer)
+            if ini.general.init_from == :ods && !isempty(dd1.pf_passive.loop)
+                dd.pf_passive = deepcopy(dd1.pf_passive)
+            else
+                FUSE.ActorPassiveStructures(dd, act)
+            end
         end
 
         # initialize balance of plant
@@ -213,13 +216,13 @@ function init!(
         init_missing_from_ods!(dd, ini, act, dd1)
 
         # add strike point information to pulse_schedule
-        if ps_was_set
+        fw = IMAS.first_wall(dd.wall)
+        if !isempty(fw.r) && ps_was_set
             RXX = []
             ZXX = []
             for eqt in dd.equilibrium.time_slice
-                fw = IMAS.first_wall(dd.wall)
-                psi_first_open = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true).first_open
-                Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_first_open)
+                psi_boundaries = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true)
+                Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
                 push!(RXX, Rxx)
                 push!(ZXX, Zxx)
             end
@@ -227,17 +230,20 @@ function init!(
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, N)
             for k in 1:N
-                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
-                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k<=length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
+                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
+                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
             end
         end
 
         # trim core_profiles data before the first equilibrium since things are really not robust against that
         # also trim other IDSs not to go past equilibrium.time[end]
         if dd.equilibrium.time[1] != dd.equilibrium.time[end]
-            IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]));
-            IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]));
+            IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]))
+            IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
         end
+
+        # setup ActorReplay
+        act.ActorReplay.replay_dd = dd1
 
         return dd
     end
@@ -290,53 +296,4 @@ function init(case::Symbol; do_plot::Bool=false, kw...)
     dd = IMAS.dd()
     init(dd, ini, act; do_plot=do_plot)
     return dd, ini, act
-end
-
-"""
-    consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-
-Makes `ini` and `act` self-consistent and consistent with one another
-
-NOTE: operates in place
-"""
-function consistent_ini_act!(ini::ParametersAllInits, act::ParametersAllActors)
-    if !isempty(ini.ec_launcher)
-        if isempty(act.ActorSimpleEC.actuator)
-            resize!(act.ActorSimpleEC.actuator, length(ini.ec_launcher))
-        else
-            @assert length(act.ActorSimpleEC.actuator) == length(ini.ec_launcher) "length(act.ActorSimpleEC.actuator) = $(length(act.ActorSimpleEC.actuator)) must be equal to length(ini.ec_launcher)=$(length(ini.ec_launcher))"
-        end
-    end
-
-    if !isempty(ini.ic_antenna)
-        if isempty(act.ActorSimpleIC.actuator)
-            resize!(act.ActorSimpleIC.actuator, length(ini.ic_antenna))
-        else
-            @assert length(act.ActorSimpleIC.actuator) == length(ini.ic_antenna) "length(act.ActorSimpleIC.actuator) = $(length(act.ActorSimpleIC.actuator)) must be equal to length(ini.ic_antenna)=$(length(ini.ic_antenna))"
-        end
-    end
-
-    if !isempty(ini.lh_antenna)
-        if isempty(act.ActorSimpleLH.actuator)
-            resize!(act.ActorSimpleLH.actuator, length(ini.lh_antenna))
-        else
-            @assert length(act.ActorSimpleLH.actuator) == length(ini.lh_antenna) "length(act.ActorSimpleLH.actuator) = $(length(act.ActorSimpleLH.actuator)) must be equal to length(ini.lh_antenna)=$(length(ini.lh_antenna))"
-        end
-    end
-
-    if !isempty(ini.nb_unit)
-        if isempty(act.ActorSimpleNB.actuator)
-            resize!(act.ActorSimpleNB.actuator, length(ini.nb_unit))
-        else
-            @assert length(act.ActorSimpleNB.actuator) == length(ini.nb_unit) "length(act.ActorSimpleNB.actuator) = $(length(act.ActorSimpleNB.actuator)) must be equal to length(ini.nb_unit)=$(length(ini.nb_unit))"
-        end
-    end
-
-    if !isempty(ini.pellet_launcher)
-        if isempty(act.ActorSimplePL.actuator)
-            resize!(act.ActorSimplePL.actuator, length(ini.pellet_launcher))
-        else
-            @assert length(act.ActorSimplePL.actuator) == length(ini.pellet_launcher) "length(act.ActorSimplePL.actuator) = $(length(act.ActorSimplePL.actuator)) must be equal to length(ini.pellet_launcher)=$(length(ini.pellet_launcher))"
-        end
-    end
 end

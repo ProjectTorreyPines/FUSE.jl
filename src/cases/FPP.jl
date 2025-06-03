@@ -3,7 +3,7 @@
 
 GA's FPP design
 """
-function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -95,7 +95,7 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     end
 
     ini.requirements.power_electric_net = 2.0e8
-    ini.requirements.flattop_duration = 18000.0
+    ini.requirements.flattop_duration = missing # let the optimizer figure out maximum flattop duration
     ini.requirements.coil_j_margin = 0.2
     ini.requirements.tritium_breeding_ratio = 1.1
 
@@ -105,8 +105,6 @@ function case_parameters(::Type{Val{:FPP}}; flux_matcher::Bool=false)::Tuple{Par
     act.ActorPFactive.strike_points_weight = 0.01
 
     act.ActorLFSsizing.maintenance = :vertical
-
-    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
 
     if !flux_matcher
         act.ActorCoreTransport.model = :none

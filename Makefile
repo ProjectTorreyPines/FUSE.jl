@@ -1,5 +1,5 @@
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
-JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
+JULIA_DIR ?= $(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia))
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -12,16 +12,16 @@ ifdef GITHUB_HEAD_REF
     FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
 else
     ifdef GITHUB_REF
-		# On GitHub for push events and others
-		FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
-	else
-		# For local machine
-		FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
-	endif
+       # On GitHub for push events and others
+       FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+    else
+       # For local machine
+       FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
+    endif
 endif
 
-GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic IMAS IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol IMAS IMASdd IMASutils MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TroyonBetaNN VacuumFields
+GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TORBEAM TroyonBetaNN VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
 FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
@@ -31,6 +31,14 @@ endif
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 FUSE_PACKAGES_ALL := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_ALL)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
+
+# ANSI color codes
+RESET=\033[0m
+BOLD=\033[1m
+BLUE=\033[34m
+RED=\033[31m
+GREEN=\033[32m
+PURPLE=\033[35m
 
 # use command line interface for git to work nicely with private repos
 export JULIA_PKG_USE_CLI_GIT := true
@@ -44,6 +52,7 @@ endif
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	@echo $(JULIA_PKG_DEVDIR)/$(1)
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull 2>&1 | sed 's/^/$(1): /'; fi
 endef
 
@@ -88,6 +97,9 @@ CHEASE:
 CoordinateConventions:
 	$(call clone_pull_repo,$@)
 
+EGGO:
+	$(call clone_pull_repo,$@)
+
 EPEDNN:
 	$(call clone_pull_repo,$@)
 
@@ -103,6 +115,12 @@ FusionMaterials:
 FuseExchangeProtocol:
 	$(call clone_pull_repo,$@)
 
+GACODE:
+	$(call clone_pull_repo,$@)
+
+HelpPlots:
+	$(call clone_pull_repo,$@)
+
 IMAS:
 	$(call clone_pull_repo,$@)
 
@@ -113,9 +131,6 @@ IMASutils:
 	$(call clone_pull_repo,$@)
 
 MXHEquilibrium:
-	$(call clone_pull_repo,$@)
-
-MeshTools:
 	$(call clone_pull_repo,$@)
 
 MillerExtendedHarmonic:
@@ -143,6 +158,9 @@ TGLFNN:
 	$(call clone_pull_repo,$@)
 
 TJLF:
+	$(call clone_pull_repo,$@)
+
+TORBEAM:
 	$(call clone_pull_repo,$@)
 
 TroyonBetaNN:
@@ -359,9 +377,9 @@ daily_example_ci_commit:
 endif
 
 # @devs
-delete_dev_branch: error_missing_repo_var
+delete_remote_branch: error_missing_repo_var error_missing_branch_var
 # delete `dev` branch on GitHub for a repo
-	@cd ../$(repo) && git push origin --delete dev
+	@cd ../$(repo) && git push origin --delete $(branch)
 
 # @devs
 deps_tree:
@@ -386,7 +404,7 @@ deps_tree:
 
 # @devs
 deps_dag:
-# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
+# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages (install dot with `brew install graphviz`)
 	@julia -e' ;\
 	fuse_packages = $(FUSE_PACKAGES_ALL);\
 	println(fuse_packages);\
@@ -565,18 +583,17 @@ error_not_on_master_branch: error_missing_repo_var
 	fi
 
 # @devs
-feature_or_master:
+feature_or_master: error_missing_branch_var
 # checks if on the packages remote GitHub repos there is a branch with the same name of the local FUSE branch
-	@echo "Local branch is \`$(FUSE_LOCAL_BRANCH)\`"
 	@julia -e ';\
 	$(feature_or_master_julia);\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = sort!(["FUSE"; $(FUSE_PACKAGES_ALL)]);\
 	for package in fuse_packages;\
-		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
-        if branch == "master";\
+		branch_name = feature_or_master(package, "$(branch)");\
+        if branch_name == "master";\
             println("    $$(package)");\
         else;\
-            println(">>> $$(package) @ $$(branch)");\
+            println(">>> $$(package) @ $$(branch_name)");\
         end;\
 	end'
 
@@ -603,14 +620,13 @@ help_user:
 	@FILTER="user" make help_common
 
 header:
-	@printf "\n"
-	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m╔════╝\033[0m\n"
-	@printf "  \033[1;31m█████\033[1;30m╗  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m███████\033[1;30m╗\033[1;31m█████\033[1;30m╗  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
-	@printf "   Project  Torrey  Pines  (PTP)\n"
+	@echo "    $(BOLD)$(GREEN)_$(RESET)  __               $(BOLD)$(PURPLE)_$(RESET) $(BOLD)$(BLUE)_$(RESET)"
+	@echo "   $(BOLD)$(GREEN)(_)$(RESET)/ _|             $(BOLD)$(PURPLE)(_$(RESET)$(BOLD)$(BLUE)(_)$(RESET)"
+	@echo "  $(BOLD)$(RED)(_)$(RESET)| |_ _   _ ___  _$(BOLD)$(BLUE)(_$(RESET)$(BOLD)$(PURPLE)(_)$(RESET)    Documentation: https://fuse.help"
+	@echo "     |  _| | | / __|/ _ \\"
+	@echo "    $(BOLD)$(RED)_$(RESET)| | | |_| \\__ \\  __/"
+	@echo "   $(BOLD)$(RED)(_)$(RESET)_|  \\__'_|___/\\___|$(BOLD)$(BLUE)_$(RESET)"
+	@echo "  $(BOLD)$(GREEN)(_(_)$(RESET)                 $(BOLD)$(BLUE)(_)$(RESET)"
 
 # Update Makefile targets
 sort_targets:
@@ -902,8 +918,8 @@ install_IJulia:
 	'
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter nbextension list
 	jupyter labextension list
+	jupyter nbextension list
 
 # @user
 install_examples:

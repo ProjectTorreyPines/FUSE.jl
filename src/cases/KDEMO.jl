@@ -1,7 +1,7 @@
 """
     case_parameters(:KDEMO)
 """
-function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:KDEMO}})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -88,15 +88,12 @@ function case_parameters(::Type{Val{:KDEMO}})::Tuple{ParametersAllInits,Paramete
     #### ACT ####
 
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
-    act.ActorFluxMatcher.rho_transport = 0.2:0.05:0.8
-
-    act.ActorPlasmaLimits.raise_on_breach = false
-
+    act.ActorFluxMatcher.rho_transport = 0.3:.1:0.8
     return ini, act
 end
 
 
-function case_parameters(::Type{Val{:KDEMO_compact}})::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:KDEMO_compact}})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -180,8 +177,6 @@ function case_parameters(::Type{Val{:KDEMO_compact}})::Tuple{ParametersAllInits,
     #### ACT ####
 
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
-
-    act.ActorPlasmaLimits.raise_on_breach = false
 
     return ini, act
 end

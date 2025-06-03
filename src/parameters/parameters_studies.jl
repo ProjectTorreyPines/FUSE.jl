@@ -21,6 +21,8 @@ function study_common_parameters(; kw...)
         return Entry{Bool}("-", "Releases the workers after running the study"; default)
     elseif name == :save_dd
         return Entry{Bool}("-", "Save dd of the study to save folder"; default)
+    elseif name == :database_policy
+        return Switch{Symbol}([:separate_folders, :single_hdf5], "-", "Data storage policy: 'separate_folders' stores each case in a separate folder, while 'single_hdf5' merges all cases into a single HDF5 file"; default)
     else
         error("There is no study_common_parameter named `$name`")
     end
@@ -81,7 +83,7 @@ end
 Checks the selected file_save_mode and creates the folder accordingly
 """
 function check_and_create_file_save_mode(sty)
-    @assert !ismissing(getproperty(sty, :save_folder, missing)) "Make sure sty.save_folder = $(sty.save_folder) is set"
+    @assert !isempty(sty.save_folder) "Make sure sty.save_folder = $(sty.save_folder) is set"
     if sty.file_save_mode == :safe_write
         if isdir(sty.save_folder)
             @assert isempty(readdir((sty.save_folder))) "$(sty.save_folder) isn't empty, change sty.file_save_mode or point to a new save folder"

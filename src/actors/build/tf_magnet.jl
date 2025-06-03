@@ -23,7 +23,7 @@ function tf_maximum_J_B!(bd::IMAS.build; coil_j_margin::Float64)
         # do not use relative error here. Absolute error tells optimizer to lower currentDensityTF if critical_j==0
         return abs(critical_j - currentDensityTF * (1.0 + coil_j_margin))
     end
-    res = Optim.optimize(max_J_TF, 0.0, 1E9, Optim.GoldenSection(); rel_tol=1E-3)
+    res = Optim.optimize(max_J_TF, 0.0, 1E9, Optim.Brent(); rel_tol=1E-3)
 
     # tf maximum current and field
     bd.tf.max_j = abs(res.minimizer[1])

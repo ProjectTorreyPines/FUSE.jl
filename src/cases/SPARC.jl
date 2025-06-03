@@ -3,7 +3,7 @@
 
 CFS/MIT SPARC design
 """
-function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "SPARC"

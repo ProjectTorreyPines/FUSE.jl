@@ -13,7 +13,7 @@ function case_parameters(
     init_from::Symbol,
     boundary_from::Symbol=:auto,
     ne_setting::Symbol=:ne_ped,
-    time_dependent::Bool=false)::Tuple{ParametersAllInits,ParametersAllActors}
+    time_dependent::Bool=false)
 
     ini = ParametersInits()
     act = ParametersActors()
@@ -28,7 +28,6 @@ function case_parameters(
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(pf_passive_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
-        # act.ActorPlasmaLimits.raise_on_breach = false
         if boundary_from == :auto
             boundary_from = :ods
         end
@@ -132,10 +131,16 @@ function case_parameters(
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    resize!(ini.nb_unit, 1)
-    ini.nb_unit[1].power_launched = 33.4e6
+    resize!(ini.nb_unit, 2)
+    ini.nb_unit[1].power_launched = 16.7e6
     ini.nb_unit[1].beam_energy = 1e6
-    ini.nb_unit[1].toroidal_angle = 20.0 * deg
+    ini.nb_unit[1].beam_mass = 2.0
+    ini.nb_unit[1].template_beam = :iter_onaxis
+
+    ini.nb_unit[2].power_launched = 16.7e6
+    ini.nb_unit[2].beam_energy = 1e6
+    ini.nb_unit[2].beam_mass = 2.0
+    ini.nb_unit[2].template_beam = :iter_offaxis
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6
@@ -183,6 +188,11 @@ function case_parameters(
     act.ActorCurrent.model = :SteadyStateCurrent
 
     act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
+
+    Ω = 1.0 / 10E6
+    act.ActorControllerIp.P = Ω * 10.0
+    act.ActorControllerIp.I = Ω * 2.0
+    act.ActorControllerIp.D = 0.0
 
     return ini, act
 end

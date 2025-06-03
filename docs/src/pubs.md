@@ -3,7 +3,15 @@
 ### References
 
 * 📜 **[ArXiv preprint publication](https://arxiv.org/abs/2409.05894)**
-* 🎤 **[Overview presentation](https://tinyurl.com/FUSEslideDeck)**
+* 🎤 **[Latest presentation](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)**
+
+### 2025 US-TTF
+
+* 📊 **Slendebroek** [Examining the impacts of power-exhaust solutions on core performance with FUSE](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_US-TTF/slendebroek_US-TTF.pdf)
+
+### 2025 D3D 
+
+* 🎤 **Meneghini** [FUSE: an open-source framework for tokamak power plant design and operations](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)
 
 ### 2024 Code Camp
 

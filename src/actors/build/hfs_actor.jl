@@ -13,7 +13,7 @@ end
 
 mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorHFSsizing{P}
+    par::OverrideParameters{P,FUSEparameters__ActorHFSsizing{P}}
     act::ParametersAllActors{P}
     stresses_actor::ActorStresses{D,P}
     fluxswing_actor::ActorFluxSwing{D,P}
@@ -46,7 +46,7 @@ end
 
 function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::ParametersAllActors; kw...)
     logging_actor_init(ActorHFSsizing)
-    par = act.ActorHFSsizing(kw...)
+    par = OverrideParameters(par; kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)
     stresses_actor = ActorStresses(dd, act.ActorStresses)
     return ActorHFSsizing(dd, par, act, stresses_actor, fluxswing_actor)
@@ -93,51 +93,57 @@ function _step(actor::ActorHFSsizing)
         finalize(step(actor.fluxswing_actor))
         finalize(step(actor.stresses_actor))
 
-        # OH currents and stresses
-        # if operate_oh_at_j_crit then coil_j_margin will be blown
-        # then it makes more sense to constrain over the flattop duration
-        if (dd.requirements.coil_j_margin >= 0) && !actor.fluxswing_actor.par.operate_oh_at_j_crit
-            c_joh = dd.build.oh.critical_j / dd.build.oh.max_j - (1.0 + dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
+        # c_XXX are done such that <0 is OK, and >0 is BAD
+
+        # OH currents
+        if dd.requirements.coil_j_margin >= 0
+            c_joh = (1.0 + dd.requirements.coil_j_margin) - dd.build.oh.critical_j / dd.build.oh.max_j # we want max_j to be coil_j_margin% below critical_j
+            c_joh += 1.0 / (0.1 + dd.build.oh.critical_j) # critical_j can go to 0.0! stay away from current quench conditions
         else
             c_joh = 0.0
         end
 
-        if (dd.requirements.coil_stress_margin >= 0)
-            c_soh = cs.properties.yield_strength.oh / maximum(cs.stress.vonmises.oh) - (1.0 + dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
-        else
-            c_soh = 0.0
-        end
-
-        # TF currents and stresses
-        if (dd.requirements.coil_j_margin >= 0)
-            c_jtf = dd.build.tf.critical_j / dd.build.tf.max_j - (1.0 + dd.requirements.coil_j_margin) # we want max_j to be coil_j_margin% below critical_j
+        # TF currents
+        if dd.requirements.coil_j_margin >= 0
+            c_jtf = (1.0 + dd.requirements.coil_j_margin) - dd.build.tf.critical_j / dd.build.tf.max_j # we want max_j to be coil_j_margin% below critical_j
+            c_jtf += 1.0 / (0.1 + dd.build.tf.critical_j) # critical_j can go to 0.0! stay away from current quench conditions
         else
             c_jtf = 0.0
         end
 
-        if (dd.requirements.coil_stress_margin >= 0)
-            c_stf = cs.properties.yield_strength.tf / maximum(cs.stress.vonmises.tf) - (1.0 + dd.requirements.coil_stress_margin) # we want stress to be coil_stress_margin% below yield_strength
+        # OH stresses
+        if dd.requirements.coil_stress_margin >= 0
+            c_soh = (1.0 + dd.requirements.coil_stress_margin) - cs.properties.yield_strength.oh / maximum(cs.stress.vonmises.oh) # we want stress to be coil_stress_margin% below yield_strength
+        else
+            c_soh = 0.0
+        end
+
+        # OH stresses
+        if dd.requirements.coil_stress_margin >= 0
+            c_stf = (1.0 + dd.requirements.coil_stress_margin) - cs.properties.yield_strength.tf / maximum(cs.stress.vonmises.tf) # we want stress to be coil_stress_margin% below yield_strength
         else
             c_stf = 0.0
         end
 
         # plug stresses
         if (dd.requirements.coil_stress_margin >= 0) && !ismissing(cs.stress.vonmises, :pl)
-            c_spl = cs.properties.yield_strength.pl / maximum(cs.stress.vonmises.pl) - (1.0 + dd.requirements.coil_stress_margin)
+            c_spl = (1.0 + dd.requirements.coil_stress_margin) - cs.properties.yield_strength.pl / maximum(cs.stress.vonmises.pl) # we want stress to be coil_stress_margin% below yield_strength
         else
             c_spl = 0.0
         end
 
         # flattop
         if (dd.requirements.coil_j_margin >= 0) && !ismissing(dd.requirements, :flattop_duration)
-            c_flt = dd.build.oh.flattop_duration / dd.requirements.flattop_duration - (1.0 + dd.requirements.coil_j_margin)
+            c_flt = (1.0 + dd.requirements.coil_j_margin) - dd.build.oh.flattop_duration / dd.requirements.flattop_duration
+            c_flt_abs = 0.0
         else
             c_flt = 0.0
+            c_flt_abs = - dd.build.oh.flattop_duration
         end
 
         # margins
         margins = [c_joh, c_soh, c_jtf, c_stf, c_spl, c_flt]
-        c_mgn = norm(margins) * 10.0
+        c_mgn = norm(max.(margins, 0.0))
         c_Δmn = (maximum(margins) - minimum(margins))^2
 
         # want smallest possible TF and OH
@@ -165,7 +171,7 @@ function _step(actor::ActorHFSsizing)
         push!(C_ΔMG, c_Δmn)
 
         # total cost and constraints
-        return norm([c_scs, c_mgn, c_Δmn]), [max(0.0, -c_joh), max(0.0, -c_soh), max(0.0, -c_flt), max(0.0, -c_jtf), max(0.0, -c_stf), max(0.0, -c_spl)], [0.0]
+        return norm([c_scs, c_mgn, c_Δmn]) + c_flt_abs, [maximum(max.(0.0, margins))], [0.0]
     end
 
     # initialize
@@ -202,12 +208,12 @@ function _step(actor::ActorHFSsizing)
     try
         if nose
             bounds = (
-                [0.1, 0.1, 0.1, 0.1, 0.0],
-                [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1, 0.9])
+                [0.01, 0.01, 0.1, 0.1, 0.01],
+                [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1, 0.99])
         else
             bounds = (
-                [0.1, 0.1, 0.1, 0.1],
-                [0.9, 0.9, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
+                [0.01, 0.01, 0.1, 0.1],
+                [0.99, 0.99, 1.0 - dd.build.oh.technology.fraction_void - 0.1, 1.0 - dd.build.tf.technology.fraction_void - 0.1])
         end
 
         options = Metaheuristics.Options(; seed=1, iterations=100)
@@ -263,8 +269,10 @@ function _step(actor::ActorHFSsizing)
         @show dd.build.tf.max_b_field * TFhfs.end_radius / R0
         println()
         @show dd.build.oh.flattop_duration
-        @show dd.requirements.flattop_duration
-        @show dd.build.oh.flattop_duration / dd.requirements.flattop_duration
+        if !ismissing(dd.requirements, :flattop_duration)
+            @show dd.requirements.flattop_duration
+            @show dd.build.oh.flattop_duration / dd.requirements.flattop_duration
+        end
         println()
         @show dd.build.oh.max_j
         @show dd.build.oh.critical_j
@@ -326,7 +334,13 @@ function _step(actor::ActorHFSsizing)
             "TF cannot achieve requested B0 ($target_B0 [T] instead of $max_B0 [T])",
             par.error_on_performance,
             success)
-        if actor.fluxswing_actor.par.operate_oh_at_j_crit
+        if ismissing(dd.requirements, :flattop_duration)
+            success = assert_conditions(
+                dd.build.oh.flattop_duration > 0.0,
+                "OH cannot achieve flattop ($(dd.build.oh.flattop_duration) [s])",
+                par.error_on_performance,
+                success)
+        else
             success = assert_conditions(
                 dd.build.oh.flattop_duration > dd.requirements.flattop_duration,
                 "OH cannot achieve requested flattop ($(dd.build.oh.flattop_duration) [s] insted of $(dd.requirements.flattop_duration) [s])",

@@ -78,7 +78,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :core_profiles
     plasma_mode::Switch{Symbol} = Switch{Symbol}([:H_mode, :L_mode], "-", "Plasma configuration"; default=:H_mode)
-    w_ped::Entry{T} = Entry{T}("-", "Pedestal width expressed in fraction of ψₙ"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
+    w_ped::Entry{T} = Entry{T}("-", "Pedestal full width expressed in fraction of rho_tor_norm (NOTE: different from EPED 1/2 width as fraction of psi)"; default=0.05, check=x -> @assert x > 0.0 "must be: w_ped > 0.0")
     ne_value::Entry{T} = Entry{T}("-", "Value based on setup method"; check=x -> @assert x > 0.0 "must be > 0.0")
     ne_setting::Switch{Symbol} = Switch{Symbol}([:ne_ped, :ne_line, :greenwald_fraction, :greenwald_fraction_ped], "-", "Way to set the electron density")
     ne_sep_to_ped_ratio::Entry{T} =
@@ -121,7 +121,11 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     power_launched::Entry{T} = Entry{T}("W", "Beam power"; check=x -> @assert x >= 0.0 "must be: power_launched >= 0.0")
     beam_energy::Entry{T} = Entry{T}("eV", "Beam energy"; check=x -> @assert x >= 0.0 "must be: beam_energy >= 0.0")
     beam_mass::Entry{T} = Entry{T}("AU", "Beam mass"; default=2.0, check=x -> @assert x >= 1.0 "must be: beam_mass >= 1.0")
-    toroidal_angle::Entry{T} = Entry{T}("rad", "Toroidal angle of injection"; check=x -> @assert (-pi / 2 <= x <= pi / 2) "must_be: -pi/2 <= toroidal_angle <= pi/2")
+    normalized_tangency_radius::Entry{T} = Entry{T}("-", "Tangency radius normalized to major radius "; default=0.6, check=x -> @assert x < 2.0 "must be: beam_mass >= 1.0")
+    beam_current_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Beam current fraction"; default=[0.8, 0.15, 0.05], check=x -> @assert sum(x) <= 1.0)
+    current_direction::Switch{Symbol} = Switch{Symbol}([:co, :counter], "-", "Direction of beam current relative to plasma current"; default=:co)
+    offaxis::Entry{Bool} = Entry{Bool}("-", "Injection neutral beam off axis"; default=false)
+    template_beam::Switch{Symbol} = Switch{Symbol}([:none, :d3d_co, :d3d_counter, :d3d_offaxis, :nstx, :mast_onaxis, :mast_offaxis, :iter_onaxis, :iter_offaxis], "-", "Template beam setup"; default=:none)
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
@@ -205,7 +209,7 @@ Base.@kwdef mutable struct FUSEparameters__build_layer{T} <: ParametersInit{T}
     name::Entry{String} = Entry{String}("-", "Name of the layer")
     thickness::Entry{Float64} =
         Entry{Float64}("-", "Relative thickness of the layer (layers actual thickness is scaled to match plasma R0)"; check=x -> @assert x >= 0.0 "must be: thickness >= 0.0")
-    material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.all_materials(), "-", "Material of the layer")
+    material::Switch{Symbol} = Switch{Symbol}(FusionMaterials.ALL_MATERIALS, "-", "Material of the layer")
     coils_inside::Entry{Union{Int,Vector{Int}}} = Entry{Union{Int,Vector{Int}}}(
         "-",
         "List of coils within this layer";
@@ -246,6 +250,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     beta_normal::Entry{T} = Entry{T}(IMAS.requirements, :beta_normal; check=x -> @assert x >= 0.0 "must be: βn >= 0.0")
     Psol_R::Entry{T} = Entry{T}(IMAS.requirements, :Psol_R; check=x -> @assert x >= 0.0 "must be: Psol/R >= 0.0")
     q95::Entry{T} = Entry{T}(IMAS.requirements, :q95; check=x -> @assert x >= 0.0 "must be: q95 >= 0.0")
+    qmin::Entry{T} = Entry{T}(IMAS.requirements, :qmin; check=x -> @assert x >= 0.0 "must be: qmin >= 0.0")
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin; default=0.4, check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; default=0.2, check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
 end
@@ -619,7 +624,7 @@ function load_ods(filenames::Vector{<:AbstractString}; error_on_missing_coordina
     dd = IMAS.dd()
     for filename in filenames
         filename = replace(filename, r"^__FUSE__" => __FUSE__)
-        dd1 = IMAS.json2imas(filename; error_on_missing_coordinates)
+        dd1 = IMAS.file2imas(filename; error_on_missing_coordinates)
         merge!(dd, dd1)
     end
     IMAS.last_global_time(dd)
@@ -696,9 +701,9 @@ end
 Plots ini time dependent time traces including plasma boundary
 """
 @recipe function plot_ini(ini::ParametersAllInits; time0=global_time(ini), cx=false)
-    id = IMAS.plot_help_id(ini)
-    IMAS.assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
-    IMAS.assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
+    id = recipe_dispatch(ini)
+    assert_type_and_record_argument(id, Float64, "Time to plot"; time0)
+    assert_type_and_record_argument(id, Bool, "Plot only cross section"; cx)
 
     # count number of time-dependent parameters
     if !cx

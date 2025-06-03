@@ -1,5 +1,6 @@
 using LaTeXStrings
 import JSON
+import GACODE
 
 #= ================= =#
 #  StudyTGLFdb  #
@@ -40,8 +41,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
 end
 
-mutable struct StudyTGLFdb <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyTGLFdb
+mutable struct StudyTGLFdb{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T, FUSEparameters__ParametersStudyTGLFdb{T}}
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{Union{String,Symbol}},Missing}
@@ -61,7 +62,7 @@ function TGLF_dataframe()
 end
 
 function StudyTGLFdb(sty, act; kw...)
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyTGLFdb(sty, act, missing, missing)
     return setup(study)
 end
@@ -221,7 +222,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     ct1d_tglf = dd.core_transport.model[1].profiles_1d[]
     ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport; time0=dd.global_time)
 
-    qybro_bohms = [IMAS.gyrobohm_energy_flux(cp1d, eqt), IMAS.gyrobohm_particle_flux(cp1d, eqt), IMAS.gyrobohm_momentum_flux(cp1d, eqt)]
+    qybro_bohms = [GACODE.gyrobohm_energy_flux(cp1d, eqt), GACODE.gyrobohm_particle_flux(cp1d, eqt), GACODE.gyrobohm_momentum_flux(cp1d, eqt)]
     rho_cp = cp1d.grid.rho_tor_norm
 
     IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport)

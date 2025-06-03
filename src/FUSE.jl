@@ -1,12 +1,12 @@
-__precompile__(true)
-
 module FUSE
 
 using IMAS
 using HDF5
-import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
+import IMAS: heaviside, pulse, ramp, trap, gaus, beta, sequence
+import IMASutils: mirror_bound, argmin_abs, trapz
 import Plots
 using Plots
+using HelpPlots
 using Printf
 using InteractiveUtils
 import LinearAlgebra
@@ -43,7 +43,6 @@ include("parameters.jl")
 #  CASES  #
 #= ===== =#
 include(joinpath("cases", "_toksys.jl"))
-include(joinpath("cases", "_test_cases.jl"))
 include(joinpath("cases", "_cases.jl"))
 
 #= ======= =#
@@ -56,9 +55,9 @@ include("experiments.jl")
 #  DDINIT  #
 #= ====== =#
 include(joinpath("parameters", "parameters_inits.jl"))
+include(joinpath("parameters", "ini_from_ods.jl"))
 
 include(joinpath("ddinit", "init.jl"))
-include(joinpath("ddinit", "init_from_ods.jl"))
 include(joinpath("ddinit", "init_pulse_schedule.jl"))
 include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
@@ -80,9 +79,10 @@ include("actors.jl")
 include(joinpath("actors", "noop_actor.jl"))
 include(joinpath("actors", "replay_actor.jl"))
 
-include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
-include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
+include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
+include(joinpath("actors", "equilibrium", "eggo_actor.jl"))
+include(joinpath("actors", "equilibrium", "chease_actor.jl"))
 include(joinpath("actors", "equilibrium", "equilibrium_actor.jl"))
 
 include(joinpath("actors", "pf", "pf_active_utils.jl"))
@@ -102,18 +102,21 @@ include(joinpath("actors", "build", "cx_actor.jl"))
 include(joinpath("actors", "nuclear", "blanket_actor.jl"))
 include(joinpath("actors", "nuclear", "neutronics_actor.jl"))
 
+include(joinpath("actors", "control", "ip_control.jl"))
+
 include(joinpath("actors", "current", "qed_actor.jl"))
 include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 include(joinpath("actors", "current", "current_actor.jl"))
 
 include(joinpath("actors", "hcd", "simple_common.jl"))
-include(joinpath("actors", "hcd", "ec_simple_actor.jl"))
+include(joinpath("actors", "hcd", "ec", "ec_simple_actor.jl"))
+include(joinpath("actors", "hcd", "ec", "torbeam_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "nb_simple_actor.jl"))
-include(joinpath("actors", "hcd", "pellet_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
-include(joinpath("actors", "hcd", "nbi", "nbi_actor.jl"))
+include(joinpath("actors", "hcd", "pl_simple_actor.jl"))
+include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
@@ -123,6 +126,7 @@ include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
+include(joinpath("actors", "transport", "analytical_turbulence_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
@@ -143,8 +147,6 @@ include(joinpath("actors", "costing", "costing_utils.jl"))
 include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
-
-include(joinpath("actors", "control", "ip_control.jl"))
 
 include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
@@ -187,10 +189,15 @@ include("utils_end.jl")
 #= ========== =#
 include("precompile.jl")
 
+#= ===== =#
+#  TESTS  #
+#= ===== =#
+include("test_cases.jl")
+
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, @findall
+export IMAS, @ddtime, help, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 
