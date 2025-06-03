@@ -11,7 +11,9 @@ function case_parameters(::Type{Val{:MASTU}}; init_from::Symbol)
     if init_from == :ods
         machine_ods = joinpath("__FUSE__", "sample", "MASTU_machine.json")
         ini.ods.filename = "$(machine_ods)"
-        ActorPFactive.green_model = :point
+        act.ActorCXbuild.rebuild_wall = false
+        act.ActorWholeFacility.update_build = false
+        act.ActorPFactive.green_model = :quad
         act.ActorVerticalStability.model = false # throws an error
     end
 
@@ -20,28 +22,29 @@ function case_parameters(::Type{Val{:MASTU}}; init_from::Symbol)
     ini.equilibrium.ϵ = 0.665
     ini.equilibrium.κ = 2.36
     ini.equilibrium.B0 = -0.55
-    ini.equilibrium.MXH_params = [0.836,
-      0.03,
-      0.66,
-      2.39,
-     -0.01,
-     -0.04,
-      0.006,
-      0.036,
-     -0.009,
-      0.38,
-      0.0964,
-     -0.0897,
-     -0.0044]
+    ini.equilibrium.MXH_params = [ 0.836657977635524,
+    0.030050802044432556,
+    0.63,
+    2.387934019358035,
+   -0.013993514162178618,
+   -0.039461808063185284,
+    0.006318252601694065,
+    0.03583566475663035,
+   -0.009081835797973238,
+    0.38023377812105613,
+    0.0963984614906691,
+   -0.08967694186743654,
+   -0.004389730106586556
+  ]
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 0.8e6
-    ini.equilibrium.xpoints = :lower
+    ini.equilibrium.xpoints = :upper
     
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.37
     ini.core_profiles.ne_shaping = 0.9
     ini.core_profiles.Te_core = 1e3
-    ini.core_profiles.Te_ped = 300.0
+    ini.core_profiles.Te_ped = 100.0
     ini.core_profiles.Te_sep = 35.0
     ini.core_profiles.Te_shaping = 1.8
     ini.core_profiles.Ti_Te_ratio = 1.0
