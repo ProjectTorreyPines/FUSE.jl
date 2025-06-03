@@ -3,6 +3,7 @@ __precompile__(true)
 module FUSE
 
 using IMAS
+using HDF5
 import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
 import Plots
 using Plots

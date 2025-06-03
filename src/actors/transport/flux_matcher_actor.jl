@@ -1,6 +1,7 @@
 import NLsolve
 using LinearAlgebra
 import TJLF: InputTJLF
+using HDF5
 
 #= ================ =#
 #  ActorFluxMatcher  #
@@ -34,8 +35,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     save_input_tglf_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder at the last iteration"; default="")
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
     norms::Entry{Vector{Float64}} = Entry{Vector{Float64}}("-", "Relative normalization of different channels")
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
-    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
+    do_plot::Entry{Bool} = act_common_parameters(; do_plot=true)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=true)
 end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
@@ -123,9 +124,9 @@ function _step(actor::ActorFluxMatcher)
             res = NLsolve.nlsolve(
                 z -> flux_match_errors(actor, z, initial_cp1d, initial_summary_ped; z_scaled_history, err_history, prog).errors,
                 z_init_scaled;
-                show_trace=false,
+                show_trace=true,
                 store_trace=false,
-                extended_trace=false,
+                extended_trace=true,
                 iterations=par.max_iterations,
                 ftol,
                 xtol,
@@ -148,20 +149,38 @@ function _step(actor::ActorFluxMatcher)
 
     # plotting of the channels that have been evolved
     if par.do_plot
-        plot()
-        for (ch, profiles_path) in enumerate(profiles_paths)
-            title = profiles_title(cp1d, profiles_path)
-            plot!(vcat(map(x -> errors_by_channel(x, N_radii, N_channels), err_history)...)[:, ch]; label=title)
-        end
-        display(
-            plot!(vcat(map(norm, err_history)...);
-                color=:black,
-                lw=0.5,
-                yscale=:log10,
-                ylabel="Log₁₀ of convergence errror",
-                xlabel="Iterations",
-                label=@sprintf("total [error = %.3e]", (minimum(map(norm, err_history))))))
+        path1234 = "/home/ubuntu/work/Fusion-AI/julia_profile_tests/randomplot/"
+        # File path
+        h5file = joinpath(path1234, "tester.h5")
 
+        # Save to HDF5
+        h5open(h5file, "w") do file
+            
+        
+            plot()
+            for (ch, profiles_path) in enumerate(profiles_paths)
+                title = profiles_title(cp1d, profiles_path)
+                plot!(vcat(map(x -> errors_by_channel(x, N_radii, N_channels), err_history)...)[:, ch]; label=title)
+                file[title] = vcat(map(x -> errors_by_channel(x, N_radii, N_channels), err_history)...)[:, ch]  # Store as a single dataset
+            end
+            # display(
+            #     plot!(vcat(map(norm, err_history)...);
+            #         color=:black,
+            #         lw=0.5,
+            #         yscale=:log10,
+            #         ylabel="Log₁₀ of convergence errror",
+            #         xlabel="Iterations",
+            #         label=@sprintf("total [error = %.3e]", (minimum(map(norm, err_history))))))
+            savefig(
+                plot!(vcat(map(norm, err_history)...);
+                    color=:black,
+                    lw=0.5,
+                    yscale=:log10,
+                    ylabel="Log₁₀ of convergence errror",
+                    xlabel="Iterations",
+                    label=@sprintf("total [error = %.3e]", (minimum(map(norm, err_history))))), joinpath(path1234, "1.png"))
+            file["dataset1"] = vcat(map(norm, err_history)...)  # Store as a single dataset
+        end
         channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
         data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), N_channels))
         p = plot()
@@ -171,7 +190,8 @@ function _step(actor::ActorFluxMatcher)
                 plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label=title)
             end
         end
-        display(p)
+        savefig(p, joinpath(path1234, "2.png"))
+        # display(p)
 
         p = plot(; layout=(N_channels, 2), size=(1000, 300 * N_channels))
         tot_fluxes = IMAS.total_fluxes(dd.core_transport, cp1d, par.rho_transport; time0=dd.global_time)
@@ -208,7 +228,8 @@ function _step(actor::ActorFluxMatcher)
                 plot!(; subplot=2 * ch, ylim=[0, Inf])
             end
         end
-        display(p)
+        # display(p)
+        savefig(p, joinpath(path1234, "3.png"))
     end
 
     # final relaxation of profiles
