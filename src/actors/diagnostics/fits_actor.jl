@@ -43,8 +43,9 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     stage[:orig] = dd1 = deepcopy(dd)
 
     par = (time_average_window=0.025, spatial_average_smoothing=0.2, rho_grid=101, time_basis=dd.core_profiles.time)
-    rho_tor_norm = range(0.0, 1.0, par.rho_grid)
 
+    rho_tor_norm = range(0.0, 1.0, par.rho_grid)
+    rho_tor_norm12 = 0.05:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
     smooth1 = 1.0
     smooth2 = par.spatial_average_smoothing
 
@@ -81,8 +82,6 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         IMAS.ion_element!(imp_ion, :C)
     end
     dd.core_profiles.time = par.time_basis
-
-    rho_tor_norm12 = 0.05:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
 
     # get space-time dependent data and return interpolators
     itp_te = IMAS.fit2d(Val(:t_e), dd; transform=sqrt)

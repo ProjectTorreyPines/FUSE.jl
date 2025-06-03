@@ -1,15 +1,21 @@
 """
-    case_parameters(::Type{Val{:D3D}}, shot::Int)
+    case_parameters(::Type{Val{:D3D}}, shot::Int;
+        new_impurity_match_power_rad::Symbol=:none,
+        fit_profiles::Bool=false, 
+        EFIT_tree::String="EFIT02",
+        PROFILES_tree::String="ZIPFIT01",
+        CER_analysis_type::String="CERAUTO",
+        omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
+        omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
+        omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
+        use_local_cache::Bool=false
+    )
 
 DIII-D from experimental shot
-
-NOTE: calls `python` with `import omas` package to use DIII-D IMAS mappings defined there.
-Use `ENV['OMAS_PYTHON']` to set which python executable to use.
 """
-function case_parameters(
-    ::Type{Val{:D3D}},
-    shot::Int;
+function case_parameters(::Type{Val{:D3D}}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
+    fit_profiles::Bool=false, 
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
@@ -186,7 +192,7 @@ function case_parameters(
 
     # sanitize dd
     for nbu in dd1.nbi.unit
-        nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data, dims=2)
+        nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
         nbu.beam_power_fraction.time = [0.0]
     end
 
@@ -197,7 +203,10 @@ function case_parameters(
     # add flux_surfaces information to experimental dd
     IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
 
-    #FUSE.ActorFitProfiles(dd1,act)
+    # profile fitting starting from diagnostic measurements
+    if fit_profiles
+        ActorFitProfiles(dd1, act)
+    end
 
     # add rotation information if missing
     for cp1d in dd1.core_profiles.profiles_1d
@@ -232,7 +241,7 @@ function case_parameters(
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, scenario::AbstractString)
+    case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
 
 DIII-D from ods file
 """
@@ -328,7 +337,7 @@ end
 """
     case_parameters(::Type{Val{:D3D_machine}})
 
-Base DIII-D parameters for machine
+Base DIII-D machine parameters that are then extended by the other `case_parameters(:D3D, ...)` functions
 """
 function case_parameters(::Type{Val{:D3D_machine}})
     ini = ParametersInits()
