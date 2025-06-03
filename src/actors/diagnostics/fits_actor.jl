@@ -56,8 +56,8 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     # use the same time-basis
     for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
-        tg = IMAS.time_dependent_data(experimental_ids)
-        times_coords = Dict{IMAS.IDS,IMAS.IMASdd.Coordinate}()
+        tg = IMAS.time_dependent_leaves(experimental_ids)
+        times_coords = Dict{IMAS.IDS,IMAS.Coordinate}()
         for group in values(tg)
             for leaf in group
                 data = IMAS.smooth_by_convolution(leaf.ids, leaf.field, par.time_basis; window_size=par.time_average_window)
@@ -84,31 +84,32 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     rho_tor_norm12 = 0.05:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
 
-    itp_te = fit2d(Val(:t_e), dd; transform=sqrt)
-    itp_ne = fit2d(Val(:n_e), dd; transform=sqrt)
-    itp_zeff = fit2d(Val(:zeff), dd; transform=x -> sqrt(max(x, 1.0) - 1.0))
-    itp_nimp = fit2d(Val(:n_i_over_n_e), dd; transform=sqrt)
-    itp_ti = fit2d(Val(:t_i), dd; transform=sqrt)
+    # get space-time dependent data and return interpolators
+    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=sqrt)
+    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=sqrt)
+    itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> sqrt(max(x, 1.0) - 1.0))
+    itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=sqrt)
+    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=sqrt)
 
     # Te
     for (k, time0) in enumerate(par.time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-        cp1d.electrons.temperature = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.temperature = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # ne
     for (k, time0) in enumerate(par.time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-        cp1d.electrons.density_thermal = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # zeff
     for (k, time0) in enumerate(par.time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2.0 .+ 1.0
-        cp1d.zeff = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.zeff = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # ni
@@ -119,7 +120,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
         data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
         data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-        n_i = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        n_i = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
         imp_ion.density_thermal = n_i
@@ -129,7 +130,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     for (k, time0) in enumerate(par.time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-        ti = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        ti = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
         for ion in cp1d.ion
             ion.temperature = ti
         end
@@ -157,160 +158,3 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     return actor
 end
-
-function fit2d(what::Any, dd::IMAS.dd{T}; transform::F=x -> x) where {T<:Real,F}
-    # get data
-    time, rho, data = FUSE.getdata(what, dd)
-
-    # remove any NaN
-    index = .!isnan.(rho) .&& .!isnan.(data)
-    if sum(.!index) != length(data)
-        time = @views time[index]
-        rho = @views rho[index]
-        data = @views data[index]
-    end
-
-    return IMAS.NaturalNeighbours.interpolate(rho, time, transform.(data))
-end
-
-function fit1d(rho, data, rho_tor_norm; smooth1::Float64, smooth2::Float64)
-    # linearize space
-    result = IMAS.smooth_by_convolution(IMAS.Measurements.value.(data); xi=rho, xo=rho_tor_norm, window_size=smooth1)
-    g = abs.(IMAS.gradient(rho_tor_norm, result) ./ result)
-    g .= IMAS.cumtrapz(rho_tor_norm, g)
-    rho_inverse = @. (g - g[1]) / (g[end] - g[1]) * (rho_tor_norm[end] - rho_tor_norm[1]) + rho_tor_norm[1]
-    rho_linearized = IMAS.interp1d(rho_tor_norm, rho_inverse).(rho)
-
-    result = IMAS.smooth_by_convolution(data; xi=rho_linearized, xo=rho_inverse, window_size=smooth2)
-
-    return (rho=rho, data=data, fit=result, rho_tor_norm=rho_tor_norm, rho_linearized=rho_linearized)
-end
-
-function getdata(what_val::Union{Val{:t_i},Val{:n_i_over_n_e},Val{:zeff}}, dd::IMAS.dd{T}) where {T<:Real}
-    what = typeof(what_val).parameters[1]
-    cer = dd.charge_exchange
-
-    data = T[]
-    data_σ = T[]
-    time = T[]
-    chr = T[]
-    chz = T[]
-    for ch in cer.channel
-        if what == :zeff
-            ch_data = getproperty(ch, what)
-        else
-            ch_data = getproperty(ch.ion[1], what)
-        end
-        append!(data, getproperty(ch_data, :data))
-        if IMAS.hasdata(ch_data, :data_σ)
-            append!(data_σ, getproperty(ch_data, :data_σ))
-        end
-        append!(time, getproperty(ch_data, :time))
-        append!(chr, ch.position.r.data)
-        append!(chz, ch.position.z.data)
-    end
-
-    time0 = unique(time)
-    rho = chz .* 0.0
-    for time0 in unique(time)
-        i = IMAS.nearest_causal_time(dd.equilibrium.time, time0; bounds_error=false).index
-        eqt = dd.equilibrium.time_slice[i]
-        r, z, RHO_interpolant = IMAS.ρ_interpolant(eqt)
-        index = time .== time0
-        rho[index] = RHO_interpolant.(chr[index], chz[index])
-    end
-
-    if isempty(data_σ)
-        return (time=time, rho=rho, data=data)
-    else
-        return (time=time, rho=rho, data=IMAS.Measurements.measurement.(data, data_σ))
-    end
-end
-
-
-function getdata(what_val::Union{Val{:t_e},Val{:n_e}}, dd::IMAS.dd{T}) where {T<:Real}
-    what = typeof(what_val).parameters[1]
-    ts = dd.thomson_scattering
-
-    data = T[]
-    data_σ = T[]
-    time = T[]
-    chr = T[]
-    chz = T[]
-    for ch in ts.channel
-        ch_data = getproperty(ch, what)
-        _data = getproperty(ch_data, :data)
-        append!(data, _data)
-        if IMAS.hasdata(ch_data, :data_σ)
-            append!(data_σ, getproperty(ch_data, :data_σ))
-        end
-        append!(time, getproperty(ch_data, :time))
-        append!(chr, fill(ch.position.r, size(_data)))
-        append!(chz, fill(ch.position.z, size(_data)))
-    end
-
-    time0 = unique(time)
-    rho = chz .* 0.0
-    for time0 in unique(time)
-        i = IMAS.nearest_causal_time(dd.equilibrium.time, time0; bounds_error=false).index
-        eqt = dd.equilibrium.time_slice[i]
-        r, z, RHO_interpolant = IMAS.ρ_interpolant(eqt)
-        index = time .== time0
-        rho[index] = RHO_interpolant.(chr[index], chz[index])
-    end
-
-    if isempty(data_σ)
-        return (time=time, rho=rho, data=data)
-    else
-        return (time=time, rho=rho, data=IMAS.Measurements.measurement.(data, data_σ))
-    end
-end
-
-function getdata(what_val::Union{Val{:t_e},Val{:n_e}}, dd::IMAS.dd{T}, time0::Float64) where {T<:Real}
-    what = typeof(what_val).parameters[1]
-    ts = dd.thomson_scattering
-
-    eqt = dd.equilibrium.time_slice[time0]
-    r, z, RHO_interpolant = IMAS.ρ_interpolant(eqt)
-    first = :nan
-    last = :nan
-    data = [IMAS.get_time_array(getproperty(ch, what), :data, time0, :linear; first, last) for ch in ts.channel]
-    data_σ = [IMAS.get_time_array(getproperty(ch, what), :data_σ, time0, :linear; first, last) for ch in ts.channel if IMAS.hasdata(getproperty(ch, what), :data_σ)]
-    rho = [RHO_interpolant(ch.position.r, ch.position.z) for ch in ts.channel]
-
-    if isempty(data_σ)
-        return rho, data
-    else
-        return rho, IMAS.Measurements.measurement.(data, data_σ)
-    end
-end
-
-function getdata(what_val::Union{Val{:t_i},Val{:n_i_over_n_e},Val{:zeff}}, dd::IMAS.dd{T}, time0::Float64) where {T<:Real}
-    what = typeof(what_val).parameters[1]
-    cer = dd.charge_exchange
-
-    eqt = dd.equilibrium.time_slice[time0]
-    r, z, RHO_interpolant = IMAS.ρ_interpolant(eqt)
-    first = :nan
-    last = :nan
-
-    if what == :zeff
-        data = T[IMAS.get_time_array(getproperty(ch, what), :data, time0, :linear; first, last) for ch in cer.channel]
-        data_σ = T[IMAS.get_time_array(getproperty(ch, what), :data_σ, time0, :linear; first, last) for ch in cer.channel if IMAS.hasdata(getproperty(ch, what), :data_σ)]
-    else
-        data = T[IMAS.get_time_array(getproperty(ch.ion[1], what), :data, time0, :linear; first, last) for ch in cer.channel]
-        data_σ =
-            T[IMAS.get_time_array(getproperty(ch.ion[1], what), :data_σ, time0, :linear; first, last) for ch in cer.channel if IMAS.hasdata(getproperty(ch.ion[1], what), :data_σ)]
-    end
-    rho = [
-        RHO_interpolant(IMAS.get_time_array(ch.position.r, :data, time0, :linear; first, last), IMAS.get_time_array(ch.position.z, :data, time0, :linear; first, last)) for
-        ch in cer.channel
-    ]
-
-    if isempty(data_σ)
-        return rho, data
-    else
-        return rho, IMAS.Measurements.measurement.(data, data_σ)
-    end
-end
-
