@@ -192,8 +192,8 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
     R0 = eqt.boundary.geometric_axis.r
     qmag = abs.(facit_interpolate(eqt.profiles_1d.q, eqt.profiles_1d.rho_tor_norm, rho))
-    FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.rho_tor_norm, rho)
-    psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor, rho)
+    psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor_norm, rho)
+    FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.psi, psi)
     dpsidx = IMAS.gradient(rho, psi)
 
     R, Z = FUSE.prepare_R_Z(dd, rho, theta)
