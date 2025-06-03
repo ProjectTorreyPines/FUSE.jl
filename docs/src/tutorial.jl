@@ -63,6 +63,10 @@ act.ActorCoreTransport.model = :FluxMatcher;
 dd = IMAS.dd() # an empty dd
 FUSE.init(dd, ini, act);
 
+# Let's see what we got
+
+plot(dd.build)
+
 # We can `@checkin` and `@checkout` variables with an associated tag.
 # 
 # This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we'll use this later).
@@ -88,6 +92,9 @@ FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesi
 
 peq = plot(dd.equilibrium; label="before")
 pcp = plot(dd.core_profiles; color=:gray, label="before")
+act.ActorFluxMatcher.verbose = true
+act.ActorFluxMatcher.algorithm = :anderson
+#act.ActorFluxMatcher.step_size = 0.1
 FUSE.ActorStationaryPlasma(dd, act);
 
 # we can compare equilibrium before and after the self-consistency loop
@@ -282,7 +289,9 @@ dd.global_time
 
 # For the sake of demonstrating handling of time, let's add a new time_slice to the equilibrium.
 # 
-# NOTE: time dependent arrays of structures can be resized with `resize!(ids, time0::Float64)` in addition to the usual `resize!(ids, n::Int)`.
+# **NOTE:** in addition to the usual `resize!(ids, n::Int)`, time dependent arrays of structures can be resized with:
+# * `resize!(ids)` which will add a time-slice at the current global time (this is what you want to use in most cases)
+# * `resize!(ids, time0)` which will add a time-slice at `time0` seconds
 
 # resize the time dependent array of structure
 resize!(dd.equilibrium.time_slice, 1.0);
@@ -315,7 +324,7 @@ eqt.time
 
 # ... or at the current `dd.global_time` by leaving the square brackets empty []
 # 
-# NOTE: __This is what you want to use in most situations that involve arrays of structures!__
+# **NOTE:** using `[]` is what you want to use in most situations that involve time-dependent arrays of structures!
 
 dd.global_time = 0.0
 eqt = dd.equilibrium.time_slice[]
