@@ -40,175 +40,167 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     stage = actor.stage
 
-    par = (time_average_window=0.1, spatial_average_smoothing=0.1, rho_grid=101, time_basis=dd.equilibrium.time)
+    stage[:orig] = dd1 = deepcopy(dd)
+
+    par = (time_average_window=0.025, spatial_average_smoothing=0.2, rho_grid=101, time_basis=dd.core_profiles.time)
     rho_tor_norm = range(0.0, 1.0, par.rho_grid)
 
-    dd0 = IMAS.dd{D}()
-    dd0.global_time = sum(extrema(par.time_basis)) / 2.0
-    dd0.equilibrium = dd.equilibrium
-    dd0.thomson_scattering = deepcopy(dd.thomson_scattering)
-    dd0.charge_exchange = deepcopy(dd.charge_exchange)
+    smooth1 = 1.0
+    smooth2 = par.spatial_average_smoothing
 
     # identify outliers on raw data
-    stage[:outliers] = dd0
-    tg = IMAS.time_groups(dd0; min_channels=5)
-    IMAS.adaptive_outlier_removal!(tg)
+    for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
+        tg = IMAS.time_groups(experimental_ids; min_channels=5)
+        IMAS.adaptive_outlier_removal!(tg)
+    end
 
     # use the same time-basis
-    stage[:retimed] = dd1 = dd0
-    dd1.equilibrium = IMAS.equilibrium{D}()
-    tg = IMAS.time_dependent_data(dd1)
-    times_coords = Dict{IMAS.IDS,IMAS.IMASdd.Coordinate}()
-    for group in values(tg)
-        for leaf in group
-            data = IMAS.smooth_by_convolution(leaf.ids, leaf.field, par.time_basis; window_size=par.time_average_window)
-            setproperty!(leaf.ids, leaf.field, data)
-            time_coord = IMAS.time_coordinate(leaf.ids, leaf.field)
-            times_coords[time_coord.ids] = time_coord
+    for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
+        tg = IMAS.time_dependent_data(experimental_ids)
+        times_coords = Dict{IMAS.IDS,IMAS.IMASdd.Coordinate}()
+        for group in values(tg)
+            for leaf in group
+                data = IMAS.smooth_by_convolution(leaf.ids, leaf.field, par.time_basis; window_size=par.time_average_window)
+                setproperty!(leaf.ids, leaf.field, data)
+                time_coord = IMAS.time_coordinate(leaf.ids, leaf.field)
+                times_coords[time_coord.ids] = time_coord
+            end
+        end
+        for time_coord in values(times_coords)
+            setproperty!(time_coord.ids, time_coord.field, par.time_basis)
         end
     end
-    for time_coord in values(times_coords)
-        setproperty!(time_coord.ids, time_coord.field, par.time_basis)
-    end
-    dd1.equilibrium = dd.equilibrium
 
     # fitting
+    empty!(dd.core_profiles)
     for time0 in par.time_basis
-        cp1d = resize!(dd1.core_profiles.profiles_1d, time0)
+        cp1d = resize!(dd.core_profiles.profiles_1d, time0)
         cp1d.grid.rho_tor_norm = rho_tor_norm
+        bulk_ion, imp_ion = resize!(cp1d.ion, 2)
+        IMAS.ion_element!(bulk_ion, :D)
+        IMAS.ion_element!(imp_ion, :C)
     end
-    dd1.core_profiles.time = par.time_basis
+    dd.core_profiles.time = par.time_basis
 
-    rho_tor_norm12 = range(0.0, 1.2, Int(ceil(par.rho_grid * 1.2)))
+    rho_tor_norm12 = 0.05:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
+
+    itp_te = fit2d(Val(:t_e), dd; transform=sqrt)
+    itp_ne = fit2d(Val(:n_e), dd; transform=sqrt)
+    itp_zeff = fit2d(Val(:zeff), dd; transform=x -> sqrt(max(x, 1.0) - 1.0))
+    itp_nimp = fit2d(Val(:n_i_over_n_e), dd; transform=sqrt)
+    itp_ti = fit2d(Val(:t_i), dd; transform=sqrt)
 
     # Te
-    # task1 = Threads.@spawn begin
-    if true
-        index = [IMAS.hasdata(cp1d.electrons, :temperature) for cp1d in dd.core_profiles.profiles_1d]
+    if false
+        index = [IMAS.hasdata(cp1d.electrons, :temperature) for cp1d in dd1.core_profiles.profiles_1d]
         min_k_orig = findfirst(index)
         for (k, time0) in enumerate(par.time_basis)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
-            dd1.core_profiles.profiles_1d[k].electrons.temperature = dd.core_profiles.profiles_1d[k_orig].electrons.temperature
+            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
+            dd.core_profiles.profiles_1d[k].electrons.temperature = dd1.core_profiles.profiles_1d[k_orig].electrons.temperature
         end
     else
-        itp = fit2d(Val(:t_e), dd1; transform=sqrt)
         for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd1.core_profiles.profiles_1d[k]
-            data = itp.(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            cp1d.electrons.temperature = smooth_with_edge(rho_tor_norm12, data, rho_tor_norm; smooth1=0.5, smooth2=par.spatial_average_smoothing).fit
+            cp1d = dd.core_profiles.profiles_1d[k]
+            data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+            cp1d.electrons.temperature = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
         end
     end
-    # end
 
     # ne
-    # task2 = Threads.@spawn begin
-    if true
-        index = [IMAS.hasdata(cp1d.electrons, :density_thermal) for cp1d in dd.core_profiles.profiles_1d]
+    if false
+        index = [IMAS.hasdata(cp1d.electrons, :density_thermal) for cp1d in dd1.core_profiles.profiles_1d]
         min_k_orig = findfirst(index)
         for (k, time0) in enumerate(par.time_basis)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
-            dd1.core_profiles.profiles_1d[k].electrons.density_thermal = dd.core_profiles.profiles_1d[k_orig].electrons.density_thermal
+            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
+            dd.core_profiles.profiles_1d[k].electrons.density_thermal = dd1.core_profiles.profiles_1d[k_orig].electrons.density_thermal
         end
     else
-        itp = itp_ne = fit2d(Val(:n_e), dd1; transform=sqrt)
         for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd1.core_profiles.profiles_1d[k]
-            data = itp.(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            cp1d.electrons.density_thermal = smooth_with_edge(rho_tor_norm12, data, rho_tor_norm; smooth1=0.5, smooth2=par.spatial_average_smoothing).fit
+            cp1d = dd.core_profiles.profiles_1d[k]
+            data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+            cp1d.electrons.density_thermal = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
         end
     end
-    # end
 
-    # # zeff
-    # # task3 = Threads.@spawn begin
-    # if true
-    #     index = [!IMAS.ismissing(cp1d, :zeff) for cp1d in dd.core_profiles.profiles_1d]
-    #     min_k_orig = findfirst(index)
-    #     for (k, time0) in enumerate(par.time_basis)
-    #         k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
-    #         dd1.core_profiles.profiles_1d[k].zeff = dd.core_profiles.profiles_1d[k_orig].zeff
-    #     end
-    # else
-    #     itp = fit2d(Val(:zeff), dd1; transform=x -> sqrt(max(x, 1.0) - 1.0))
-    #     for (k, time0) in enumerate(par.time_basis)
-    #         cp1d = dd1.core_profiles.profiles_1d[k]
-    #         data = itp.(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2.0 .+ 1.0
-    #         cp1d.zeff = smooth_with_edge(rho_tor_norm12, data, rho_tor_norm; smooth1=0.5, smooth2=par.spatial_average_smoothing).fit
-    #     end
-    # end
-    # # end
+    # zeff
+    if false
+        index = [!IMAS.ismissing(cp1d, :zeff) for cp1d in dd1.core_profiles.profiles_1d]
+        min_k_orig = findfirst(index)
+        for (k, time0) in enumerate(par.time_basis)
+            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
+            dd.core_profiles.profiles_1d[k].zeff = dd1.core_profiles.profiles_1d[k_orig].zeff
+        end
+    else
+        for (k, time0) in enumerate(par.time_basis)
+            cp1d = dd.core_profiles.profiles_1d[k]
+            data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2.0 .+ 1.0
+            cp1d.zeff = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        end
+    end
+
+    # ni
+    if false
+        index = [IMAS.hasdata(cp1d.ion[1], :density_thermal) for cp1d in dd1.core_profiles.profiles_1d]
+        min_k_orig = findfirst(index)
+        for (k, time0) in enumerate(par.time_basis)
+            cp1d = dd.core_profiles.profiles_1d[k]
+            bulk_ion = cp1d.ion[1]
+            imp_ion = cp1d.ion[2]
+            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
+            bulk_ion.density_thermal = dd1.core_profiles.profiles_1d[k_orig].ion[1].density_thermal
+            imp_ion.density_thermal = dd1.core_profiles.profiles_1d[k_orig].ion[2].density_thermal
+        end
+    else
+        for (k, time0) in enumerate(par.time_basis)
+            cp1d = dd.core_profiles.profiles_1d[k]
+            bulk_ion = cp1d.ion[1]
+            imp_ion = cp1d.ion[2]
+
+            data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+            data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+            n_i = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+
+            bulk_ion.density_thermal = zero(rho_tor_norm)
+            imp_ion.density_thermal = n_i
+        end
+    end
 
     # ti
-    # task4 = Threads.@spawn begin
-    if true
-        index = [!IMAS.ismissing(cp1d, :t_i_average) for cp1d in dd.core_profiles.profiles_1d]
-        min_k_orig = findfirst(index)
+    if false
         for (k, time0) in enumerate(par.time_basis)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
-            dd1.core_profiles.profiles_1d[k].t_i_average = dd.core_profiles.profiles_1d[k_orig].t_i_average
+            for (ki, ion) in enumerate(dd.core_profiles.profiles_1d[k].ion)
+                dd.core_profiles.profiles_1d[k].ion[ki].temperature = dd1.core_profiles.profiles_1d[k].ion[ki].temperature
+            end
         end
     else
-        itp = fit2d(Val(:t_i), dd1; transform=sqrt)
         for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd1.core_profiles.profiles_1d[k]
-            data = itp.(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            cp1d.t_i_average = smooth_with_edge(rho_tor_norm12, data, rho_tor_norm; smooth1=0.5, smooth2=par.spatial_average_smoothing).fit
+            cp1d = dd.core_profiles.profiles_1d[k]
+            data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+            ti = fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+            for ion in cp1d.ion
+                ion.temperature = ti
+            end
         end
     end
-    # end
 
-    # wait(task1)
-    # wait(task2)
-    # wait(task3)
-    # wait(task4)
+    # quasi neutrality
+    for (k, time0) in enumerate(par.time_basis)
+        cp1d = dd.core_profiles.profiles_1d[k]
+        IMAS.enforce_quasi_neutrality!(cp1d, :D)
+    end
 
     # rotation
-    # task5 = Threads.@spawn begin
-    if true
-        index = [IMAS.hasdata(cp1d.ion[1], :density_thermal) for cp1d in dd.core_profiles.profiles_1d]
-        min_k_orig = findfirst(index)
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd1.core_profiles.profiles_1d[k]
-            bulk_ion, imp_ion = resize!(cp1d.ion, 2)
-            IMAS.ion_element!(bulk_ion, :D)
-            IMAS.ion_element!(imp_ion, :C)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
-            bulk_ion.density_thermal = dd.core_profiles.profiles_1d[k_orig].ion[1].density_thermal
-            imp_ion.density_thermal = dd.core_profiles.profiles_1d[k_orig].ion[2].density_thermal
-            bulk_ion.temperature = dd.core_profiles.profiles_1d[k_orig].t_i_average
-            imp_ion.temperature = dd.core_profiles.profiles_1d[k_orig].t_i_average
-        end
-    else
-        itp = fit2d(Val(:n_i_over_n_e), dd1; transform=sqrt)
-        for (k, time0) in enumerate(par.time_basis)
-            cp1d = dd1.core_profiles.profiles_1d[k]
-            data = itp.(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-            data .*= itp_ne.(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+    # # index = [IMAS.hasdata(cp1d, :rotation_frequency_tor_sonic) for cp1d in dd1.core_profiles.profiles_1d]
+    # # min_k_orig = findfirst(index)
+    # # if min_k_orig !== nothing
+    # #     for (k, time0) in enumerate(par.time_basis)
+    # #         k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
+    # #         dd.core_profiles.profiles_1d[k].rotation_frequency_tor_sonic = dd1.core_profiles.profiles_1d[k_orig].rotation_frequency_tor_sonic
+    # #     end
+    # # end
 
-            n_i = smooth_with_edge(rho_tor_norm12, data, rho_tor_norm; smooth1=0.5, smooth2=par.spatial_average_smoothing).fit
-
-            bulk_ion, imp_ion = resize!(cp1d.ion, 2)
-            IMAS.ion_element!(bulk_ion, :D)
-            IMAS.ion_element!(imp_ion, :C)
-            bulk_ion.density_thermal = zero(rho_tor_norm)
-            bulk_ion.temperature = cp1d.t_i_average
-            imp_ion.density_thermal = n_i
-            imp_ion.temperature = cp1d.t_i_average
-            IMAS.enforce_quasi_neutrality!(cp1d, :D)
-        end
-    end
-    # end
-
-    index = [IMAS.hasdata(cp1d, :rotation_frequency_tor_sonic) for cp1d in dd.core_profiles.profiles_1d]
-    min_k_orig = findfirst(index)
-    if min_k_orig !== nothing
-        for (k, time0) in enumerate(par.time_basis)
-            k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
-            dd1.core_profiles.profiles_1d[k].rotation_frequency_tor_sonic = dd.core_profiles.profiles_1d[k_orig].rotation_frequency_tor_sonic
-        end
-    end
-
-    dd.core_profiles = dd1.core_profiles
+    # dd.thomson_scattering = dd1.thomson_scattering
+    # dd.charge_exchange = dd1.charge_exchange
 
     return actor
 end
@@ -218,7 +210,7 @@ function fit2d(what::Any, dd::IMAS.dd{T}; transform::F=x -> x) where {T<:Real,F}
     time, rho, data = FUSE.getdata(what, dd)
 
     # remove any NaN
-    index = .!isnan.(data)
+    index = .!isnan.(rho) .&& .!isnan.(data)
     if sum(.!index) != length(data)
         time = @views time[index]
         rho = @views rho[index]
@@ -228,60 +220,17 @@ function fit2d(what::Any, dd::IMAS.dd{T}; transform::F=x -> x) where {T<:Real,F}
     return IMAS.NaturalNeighbours.interpolate(rho, time, transform.(data))
 end
 
-function smooth_with_edge(rho, data, rho_tor_norm; smooth1::Float64, smooth2::Float64) where {T<:Real}
+function fit1d(rho, data, rho_tor_norm; smooth1::Float64, smooth2::Float64)
     # linearize space
     result = IMAS.smooth_by_convolution(IMAS.Measurements.value.(data); xi=rho, xo=rho_tor_norm, window_size=smooth1)
-    g = abs.(IMAS.gradient(rho_tor_norm, result))
-    g .= cumsum(g)
-    g .= cumsum(g)
+    g = abs.(IMAS.gradient(rho_tor_norm, result) ./ result)
+    g .= IMAS.cumtrapz(rho_tor_norm, g)
     rho_inverse = @. (g - g[1]) / (g[end] - g[1]) * (rho_tor_norm[end] - rho_tor_norm[1]) + rho_tor_norm[1]
     rho_linearized = IMAS.interp1d(rho_tor_norm, rho_inverse).(rho)
 
-    #rho_linearized, data = symmetrize(rho_linearized, data, :even)
     result = IMAS.smooth_by_convolution(data; xi=rho_linearized, xo=rho_inverse, window_size=smooth2)
 
     return (rho=rho, data=data, fit=result, rho_tor_norm=rho_tor_norm, rho_linearized=rho_linearized)
-end
-
-function fit1d(what::Any, dd::IMAS.dd{T}, time0::Float64, rho_tor_norm::AbstractVector{T}; smooth1::Float64, smooth2::Float64) where {T<:Real}
-    # get data
-    rho, data = getdata(what, dd, time0)
-
-    # remove any NaN
-    index = .!isnan.(rho) .&& .!isnan.(data)
-
-    if sum(.!index) == length(data)
-        return (rho=rho, data=data, fit=rho_tor_norm .* NaN, rho_tor_norm=rho_tor_norm, rho_linearized=rho)
-    else
-        rho = rho[index]
-        data = data[index]
-    end
-
-    # sort by rho
-    index = sortperm(rho)
-    data .= data[index]
-    rho .= rho[index]
-
-    # linearize space
-    result = IMAS.smooth_by_convolution(IMAS.Measurements.value.(data); xi=rho, xo=rho_tor_norm, window_size=smooth1, no_nan=true)
-    g = abs.(IMAS.gradient(rho_tor_norm, result))
-    g .= cumsum(g)
-    g .= cumsum(g)
-    rho_inverse = @. (g - g[1]) / (g[end] - g[1]) * (rho_tor_norm[end] - rho_tor_norm[1]) + rho_tor_norm[1]
-    rho_linearized = IMAS.interp1d(rho_tor_norm, rho_inverse).(rho)
-
-    #rho_linearized, data = symmetrize(rho_linearized, data, :even)
-    result = IMAS.smooth_by_convolution(data; xi=rho_linearized, xo=rho_inverse, window_size=smooth2, interpolate=10, no_nan=true)
-
-    return (rho=rho, data=data, fit=result, rho_tor_norm=rho_tor_norm, rho_linearized=rho_linearized)
-end
-
-function fit1d(what::Val{:n_imp}, dd::IMAS.dd{T}, time0::Float64, rho_tor_norm::AbstractVector{T}; smooth1::Float64, smooth2::Float64) where {T<:Real}
-    n_i_over_n_e = fit1d(Val(:n_i_over_n_e), dd, time0, rho_tor_norm; smooth1, smooth2)
-    ne = dd.core_profiles.profiles_1d[time0].electrons.density_thermal
-    result = ne .* n_i_over_n_e.fit
-    data = n_i_over_n_e.data .* IMAS.interp1d(rho_tor_norm, ne).(n_i_over_n_e.rho) / 6.0
-    return (rho=n_i_over_n_e.rho, data=data, fit=result, rho_tor_norm=rho_tor_norm, rho_linearized=n_i_over_n_e.rho_linearized)
 end
 
 function getdata(what_val::Union{Val{:t_i},Val{:n_i_over_n_e},Val{:zeff}}, dd::IMAS.dd{T}) where {T<:Real}
@@ -412,14 +361,3 @@ function getdata(what_val::Union{Val{:t_i},Val{:n_i_over_n_e},Val{:zeff}}, dd::I
     end
 end
 
-function symmetrize(rho, data, symmetry)
-    @assert symmetry in (:none, :even, :odd)
-    if symmetry == :even
-        rho = [-reverse(rho); rho]
-        data = [reverse(data); data]
-    elseif symmetry == :odd
-        rho = [-reverse(rho); rho]
-        data = [-reverse(data); data]
-    end
-    return rho, data
-end
