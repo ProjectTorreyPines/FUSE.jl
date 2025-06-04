@@ -38,7 +38,7 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     ped_actor::Union{ActorWPED{D,P},ActorEPED{D,P},ActorAnalyticPedestal{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     wped_actor::ActorWPED{D,P}
     eped_actor::ActorEPED{D,P}
-	analytic_actor::ActorAnalyticPedestal{D,P}
+    analytic_actor::ActorAnalyticPedestal{D,P}
     replay_actor::Union{ActorReplay{D,P},ActorNoOperation{D,P}}
     noop_actor::ActorNoOperation{D,P}
     state::Vector{Symbol}
@@ -67,7 +67,7 @@ function ActorPedestal(dd::IMAS.dd{D}, par::FUSEparameters__ActorPedestal{P}, ac
         ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     wped_actor =
         ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
-	analytic_actor =
+    analytic_actor =
         ActorAnalyticPedestal(dd, act.ActorAnalyticPedestal; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     noop = ActorNoOperation(dd, act.ActorNoOperation)   
 	actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, analytic_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}())
