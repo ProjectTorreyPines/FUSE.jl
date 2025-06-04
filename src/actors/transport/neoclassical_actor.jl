@@ -174,6 +174,8 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     Ai = species1.element[1].a 
 
     Ti = facit_interpolate(species1.temperature, cp1d.grid.rho_tor_norm, rho)
+    Te = facit_interpolate(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, rho)
+    Te_Ti = Te ./ Ti
     Ni = facit_interpolate(species1.density, cp1d.grid.rho_tor_norm, rho)
     Nimp = facit_interpolate(species2.density, cp1d.grid.rho_tor_norm, rho)
 
@@ -202,7 +204,7 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     ZV = Z
 
     fj0 = NEO.FACITinput(rho, Zimp, Aimp, Zi, Ai, Ti, Ni, Nimp, Machi, Zeff, gradTi, gradNi, gradNimp, invaspct, B0, R0, qmag; 
-        fsaout = false, rotation_model = facit_rotation_model, full_geom = facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
+        fsaout = false, rotation_model = facit_rotation_model, Te_Ti = Te_Ti, full_geom = facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
     
     return fj0
 end
