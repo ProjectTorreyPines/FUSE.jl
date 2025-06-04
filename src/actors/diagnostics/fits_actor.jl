@@ -43,7 +43,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # parameters and switches
     time_basis = getproperty(dd, par.time_basis_ids).time
     rho_tor_norm = range(0.0, 1.0, par.rho_grid)
-    rho_tor_norm12 = 0.05:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
+    rho_tor_norm12 = 0.1:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
     smooth1 = 1.0
     smooth2 = par.rho_averaging
 
@@ -88,30 +88,30 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     dd.core_profiles.time = time_basis
 
     # get space-time dependent data and return interpolators
-    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=sqrt)
-    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=sqrt)
-    itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> sqrt(max(x, 1.0) - 1.0))
-    itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=sqrt)
-    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=sqrt)
+    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
+    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
+    itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
+    itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=abs)
+    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=abs)
 
     # fit Te
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
         cp1d.electrons.temperature = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # fit ne
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
         cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
     # fit Zeff
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2.0 .+ 1.0
+        data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .+ 1.0
         cp1d.zeff = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
@@ -121,8 +121,8 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         bulk_ion = cp1d.ion[1]
         imp_ion = cp1d.ion[2]
 
-        data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
-        data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
+        data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
         n_i = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
@@ -132,7 +132,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # fit Ti
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .^ 2
+        data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
         ti = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
         for ion in cp1d.ion
             ion.temperature = ti
