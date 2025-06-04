@@ -51,7 +51,6 @@ function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::Param
     basis_functions_1d, bf1d_itp = EGGO.get_basis_functions_1d(model_name)
     coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=false)
     green[:ggridfc] = VacuumFields.Green_table(green[:rgrid],green[:zgrid], coils)
-
     return ActorEGGO(dd, par, act, green, basis_functions, basis_functions_1d,bf1d_itp,coils, NNmodel)
 end
 
@@ -73,14 +72,12 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     pp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi).(psi_norm) * 2π
     ffp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi).(psi_norm) * 2π
     pp_fit, ffp_fit = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d)
-    coeff_max = 0.1
+    coeff_max = 1.0
     pp_index = findfirst(x -> x > coeff_max || x<-1*coeff_max, pp_fit[2:end]) 
     ffp_index = findfirst(x -> x > coeff_max || x<-1*coeff_max, ffp_fit[2:end]) 
     pp_index = isnothing(pp_index) ? length(pp_fit) : pp_index
     ffp_index = isnothing(ffp_index) ? length(ffp_fit)  : ffp_index
-
     #@show(Ip_pp,Ip_ffp)
-    #pp_index = 4
     #ffp_index = 6
     pp_fit*=0.0
     ffp_fit*=0.0
@@ -88,13 +85,10 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     # make actual prediction
     Ip_target = eqt.global_quantities.ip
 
-    #else
-    #    reshape(transpose(green[:ggridfc]), 1, green[:nfsum]); dims=2) 
     Jt, psirz, Ip = EGGO.predict_model_from_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z, pp_fit, ffp_fit, actor.NNmodel, actor.green, actor.basis_functions,actor.coils,Ip_target)
-
     # average out EGGO solution with previous time slice(s)
     # until EGGO becomes a bit more robust
-    n = 0 # number of time slices to average
+    n = 2 # number of time slices to average
     i = IMAS.index(eqt)
     if i > n
         d = 1.0
@@ -110,7 +104,7 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     end
 
     # pp' and ff' that were actually used in EGGO
-    Ψaxis,Raxis,Zaxis,Ψbnd,ffp,pp = EGGO.get_ΨaxisΨbndffppp(psirz, actor.green, actor.basis_functions,actor.basis_functions_1d, actor.bf1d_itp, wall, pp_fit, ffp_fit,Ip_target)    
+    Ψaxis,Raxis,Zaxis,Ψbnd,ffp,pp = EGGO.get_ΨaxisΨbndffppp(psirz, actor.green, actor.basis_functions,actor.basis_functions_1d, actor.bf1d_itp, wall, pp_fit, ffp_fit)    
 
     # ff' and p' edge offsets
     b0 = eqt.global_quantities.vacuum_toroidal_field.b0
