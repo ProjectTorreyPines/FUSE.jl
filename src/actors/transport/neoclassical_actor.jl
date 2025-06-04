@@ -176,10 +176,15 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     Ti = facit_interpolate(species1.temperature, cp1d.grid.rho_tor_norm, rho)
     Ni = facit_interpolate(species1.density, cp1d.grid.rho_tor_norm, rho)
     Nimp = facit_interpolate(species2.density, cp1d.grid.rho_tor_norm, rho)
-    Mi_core = 0.35
-    Mi_edge = 0.05
 
-    Machi = (Mi_core - Mi_edge) * (1 .- rho.^2) .+ Mi_edge
+    if facit_rotation_model == 0
+        Machi = zeros(length(rho))
+    else 
+        Vphi = cp1d.rotation_frequency_tor_sonic
+        vth_i = sqrt.(2 .* Ti .* IMAS.mks.e ./ (Ai * IMAS.mks.m_p))
+        Machi = Vphi ./ vth_i
+    end
+
     Zeff = facit_interpolate(cp1d.zeff, cp1d.grid.rho_tor_norm, rho)
     gradTi = IMAS.gradient(rho .* a, Ti)
     gradNi = IMAS.gradient(rho .* a, Ni)
@@ -192,7 +197,6 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor_norm, rho)
     FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.psi, psi)
     dpsidx = IMAS.gradient(rho, psi)
-
     R, Z = FUSE.prepare_R_Z(dd, rho, theta)
     RV = R
     ZV = Z
