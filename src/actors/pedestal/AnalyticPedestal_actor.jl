@@ -55,8 +55,6 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
 
 	IN = (eqt.global_quantities.ip/1e6)/(eqt.boundary.minor_radius*eqt.global_quantities.magnetic_axis.b_field_tor) # Normalised plasma current IN=IP[MA]/(a[m]*BT[T])
 
-	println(par.height_coefficient)
-
 	# NSTX like width - w_ped~beta_p,ped^0.5
 	if par.model == :MAST
         if par.height_coefficient==0.0
