@@ -77,8 +77,6 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     ffp_index = findfirst(x -> x > coeff_max || x<-1*coeff_max, ffp_fit[2:end]) 
     pp_index = isnothing(pp_index) ? length(pp_fit) : pp_index
     ffp_index = isnothing(ffp_index) ? length(ffp_fit)  : ffp_index
-    #@show(Ip_pp,Ip_ffp)
-    #ffp_index = 6
     pp_fit*=0.0
     ffp_fit*=0.0
     pp_fit[1:pp_index], ffp_fit[1:ffp_index] = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d,pp_index,ffp_index)
