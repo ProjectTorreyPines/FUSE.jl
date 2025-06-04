@@ -435,7 +435,7 @@ deps_dag:
 			for subdep in AbstractTrees.children(uuid) ;\
 				subdep_info = get(Pkg.dependencies(), subdep, nothing) ;\
 				if subdep_info !== nothing ;\
-					push!(edges, (dep.name, subdep_info.name)) ;\
+					push!(edges, (subdep_info.name, dep.name)) ;\
 					collect_edges(subdep, edges) ;\
 				end ;\
 			end ;\
@@ -447,7 +447,7 @@ deps_dag:
 	end ;\
 	open("docs/src/deps.dot", "w") do io ;\
 		write(io, "digraph G {\n") ;\
-		write(io, "rankdir=LR;\n");\
+		write(io, "rankdir=RL;\n");\
 		write(io, "ranksep=0.4;\n");\
 		write(io, "nodesep=0.1;\n");\
 		write(io, "splines=true;\n");\
