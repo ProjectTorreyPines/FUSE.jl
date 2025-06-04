@@ -51,7 +51,7 @@ function test_case(::Val{:CAT}, dd::IMAS.dd)
 end
 
 function test_case(::Val{:JET_HDB5}, dd::IMAS.dd)
-    ini, act = case_parameters(:HDB5; tokamak=:JET, case=500)
+    ini, act = case_parameters(:HDB5; tokamak=:JET, database_case=500)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)

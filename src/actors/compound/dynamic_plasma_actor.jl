@@ -399,6 +399,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     plot_Te = plot()
     if dd1 !== nothing
         plot!(dd1.core_profiles.profiles_1d[time0].electrons, :temperature; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
+        if IMAS.hasdata(dd1.thomson_scattering)
+            plot!(dd1.thomson_scattering, :t_e; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
+        end
     end
     if dd !== dd1
         plot!(cp1d.electrons, :temperature; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
@@ -409,6 +412,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     plot_Ti = plot()
     if dd1 !== nothing
         plot!(dd1.core_profiles.profiles_1d[time0], :t_i_average; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
+        if IMAS.hasdata(dd1.charge_exchange)
+            plot!(dd1.charge_exchange, :t_i; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
+        end
     end
     if dd !== dd1
         plot!(cp1d, :t_i_average; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
@@ -424,6 +430,12 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     plot_n = plot()
     if dd1 !== nothing
         plot!(dd1.core_profiles.profiles_1d[time0]; color=:black, only=2)
+        if IMAS.hasdata(dd1.thomson_scattering)
+            plot!(dd1.thomson_scattering, :n_e; time0, lw=2.0, xlabel="", ylabel="", label="")
+        end
+        if IMAS.hasdata(dd1.charge_exchange)
+            plot!(dd1.charge_exchange, :n_imp; time0, lw=2.0, xlabel="", ylabel="", label="", normalization=dd1.core_profiles.profiles_1d[time0].ion[2].element[1].z_n)
+        end
     end
     if dd !== dd1
         plot!(cp1d; only=2, lw=2.0, legend=:left)

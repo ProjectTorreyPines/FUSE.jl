@@ -1,17 +1,24 @@
 """
-    case_parameters(::Type{Val{:D3D}}, shot::Int)
+    case_parameters(::Type{Val{:D3D}}, shot::Int;
+        new_impurity_match_power_rad::Symbol=:none,
+        fit_profiles::Bool=false, 
+        EFIT_tree::String="EFIT02",
+        PROFILES_tree::String="ZIPFIT01",
+        CER_analysis_type::String="CERAUTO",
+        omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
+        omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
+        omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
+        use_local_cache::Bool=false
+    )
 
 DIII-D from experimental shot
-
-NOTE: calls `python` with `import omas` package to use DIII-D IMAS mappings defined there.
-Use `ENV['OMAS_PYTHON']` to set which python executable to use.
 """
-function case_parameters(
-    ::Type{Val{:D3D}},
-    shot::Int;
+function case_parameters(::Type{Val{:D3D}}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
+    fit_profiles::Bool=false, 
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
+    CER_analysis_type::String="CERAUTO",
     omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
     omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
     omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
@@ -76,6 +83,12 @@ function case_parameters(
 
         printe("- Fetching magnetic probes data")
         d3d.magnetics_probes_data(ods, $shot)
+
+        printe("- Fetching Thomson scattering data")
+        d3d.thomson_scattering_data(ods, $shot)
+
+        printe("- Fetching charge exchange data")
+        d3d.charge_exchange_data(ods, $shot, analysis_type="$(CER_analysis_type)")
 
         printe("- Fetching summary data")
         d3d.summary(ods, $shot)
@@ -177,6 +190,12 @@ function case_parameters(
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
+    # sanitize dd
+    for nbu in dd1.nbi.unit
+        nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
+        nbu.beam_power_fraction.time = [0.0]
+    end
+
     # set time basis
     tt = dd1.equilibrium.time
     ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
@@ -184,8 +203,12 @@ function case_parameters(
     # add flux_surfaces information to experimental dd
     IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
 
-    # add missing rotation information
-    ini.core_profiles.rot_core = 5E3
+    # profile fitting starting from diagnostic measurements
+    if fit_profiles
+        ActorFitProfiles(dd1, act; time_averaging=0.05, rho_averaging=0.25, time_basis_ids=:equilibrium)
+    end
+
+    # add rotation information if missing
     for cp1d in dd1.core_profiles.profiles_1d
         if ismissing(cp1d, :rotation_frequency_tor_sonic)
             cp1d.rotation_frequency_tor_sonic =
@@ -200,6 +223,7 @@ function case_parameters(
         dd1.core_sources = dd1_core_sources_old
     end
 
+    # by default match line averaged density
     ini.core_profiles.ne_setting = :ne_line
     act.ActorPedestal.density_match = :ne_line
 
@@ -217,7 +241,7 @@ function case_parameters(
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, scenario::AbstractString)
+    case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
 
 DIII-D from ods file
 """
@@ -313,7 +337,7 @@ end
 """
     case_parameters(::Type{Val{:D3D_machine}})
 
-Base DIII-D parameters for machine
+Base DIII-D machine parameters that are then extended by the other `case_parameters(:D3D, ...)` functions
 """
 function case_parameters(::Type{Val{:D3D_machine}})
     ini = ParametersInits()
@@ -353,6 +377,8 @@ function case_parameters(::Type{Val{:D3D_machine}})
 
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
+
+    ini.core_profiles.rot_core = 5E3
 
     #### ACT ####
 
