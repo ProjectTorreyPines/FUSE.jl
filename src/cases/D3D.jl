@@ -205,7 +205,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 
     # profile fitting starting from diagnostic measurements
     if fit_profiles
-        ActorFitProfiles(dd1, act; time_averaging=0.025, rho_averaging=0.15)
+        ActorFitProfiles(dd1, act; time_averaging=0.05, rho_averaging=0.25, time_basis_ids=:equilibrium)
     end
 
     # add rotation information if missing
