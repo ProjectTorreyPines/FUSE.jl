@@ -466,6 +466,12 @@ function flux_match_errors(
         end
     end
 
+    if actor.actor_ct.par.turbulence_model == :TGLFNN && actor.actor_ct.par.onnx_model && !par.find_widths && !isempty(err_history)
+        for input_tglf in actor.actor_ct.actor_turb.input_tglfs
+            input_tglf.FIND_WIDTH = false
+        end
+    end
+
     # evaluate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 

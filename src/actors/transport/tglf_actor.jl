@@ -73,9 +73,10 @@ function _step(actor::ActorTGLF)
         input_tglf = input_tglfs[k]
         if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
             if par.onnx_model
+                print(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 temp_input_tjlf = InputTJLF{Float64}(input_tglf.NS, nky)
-                temp_input_tjlf.WIDTH_SPECTRUM .= 1.65
+                temp_input_tjlf.WIDTH_SPECTRUM .= 0.0
                 temp_input_tjlf.FIND_WIDTH = true # first case should find the widths
                 update_input_tjlf!(temp_input_tjlf, input_tglf)
                 satParams = TJLF.get_sat_params(temp_input_tjlf)

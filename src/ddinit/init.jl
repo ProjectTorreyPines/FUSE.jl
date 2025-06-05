@@ -292,8 +292,19 @@ Initialize `dd`, `ini`, `act` based on a given use-case.
 Returns a tuple with `dd`, `ini`, `act`.
 """
 function init(case::Symbol; do_plot::Bool=false, kw...)
-    ini, act = case_parameters(case; kw...)
+    print(case, do_plot, kw)
+    kw_dict = Dict(kw)  # convert immutable Pairs to mutable Dict
+
+    if case == :D3D && haskey(kw_dict, :scenario)
+        scenario = pop!(kw_dict, :scenario)
+        ini, act = case_parameters(Val{case}, scenario)  # <-- correct dispatch
+    else
+        ini, act = case_parameters(Val{case}; kw...)     # fallback for other overloads
+    end
+
     dd = IMAS.dd()
     init(dd, ini, act; do_plot=do_plot)
     return dd, ini, act
 end
+
+
