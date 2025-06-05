@@ -10,7 +10,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorEGGO{T<:Real} <: ParametersActor
     _time::Float64 = NaN
     #== actor parameters ==#
     model::Entry{Symbol} = Entry{Symbol}("-", "Neural network model to be used")
-    use_vacuumfield_green =  Entry{Bool}("-", "Use Vacuum Fields green's function tables";default=true)
+    use_vacuumfield_green =  Entry{Bool}("-", "Use Vacuum Fields green's function tables";default=false)
+    nb_reduce =  Entry{Real}("-", "parameter to reduce constrained boundary points";default=4)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing EGGO solve"; default=false)
@@ -24,7 +25,7 @@ mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
     basis_functions::Dict
     basis_functions_1d::Dict
     bf1d_itp::Dict
-    coils::Vector{VacuumFields.GS_IMAS_pf_active__coil{Float64, Float64}}
+    coils::Vector{<:VacuumFields.AbstractCoil}
     NNmodel::Dict
 end
 
@@ -43,14 +44,13 @@ end
 function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorEGGO)
     par = OverrideParameters(par; kw...)
-
     model_name = :d3d_efit01efit02cake02
     green = EGGO.get_greens_function_tables(model_name)
     basis_functions = EGGO.get_basis_functions(model_name)
     NNmodel = EGGO.get_model(model_name)
     basis_functions_1d, bf1d_itp = EGGO.get_basis_functions_1d(model_name)
-    coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=false)
-    green[:ggridfc] = VacuumFields.Green_table(green[:rgrid],green[:zgrid], coils)
+    coils = VacuumFields.MultiCoils(dd.pf_active)
+    green[:ggridfc_vf] = VacuumFields.Green_table(green[:rgrid],green[:zgrid], coils)
     return ActorEGGO(dd, par, act, green, basis_functions, basis_functions_1d,bf1d_itp,coils, NNmodel)
 end
 
@@ -82,13 +82,17 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     pp_fit[1:pp_index], ffp_fit[1:ffp_index] = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d,pp_index,ffp_index)
     # make actual prediction
     Ip_target = eqt.global_quantities.ip
+    Rb_target = eqt.boundary.outline.r[1:actor.par.nb_reduce:end]
+    Zb_target =  eqt.boundary.outline.z[1:actor.par.nb_reduce:end]
+    Rb_target[end] = Rb_target[1]
+    Zb_target[end] = Zb_target[1]
 
-    Jt, psirz, Ip = EGGO.predict_model_from_boundary(eqt.boundary.outline.r, eqt.boundary.outline.z, pp_fit, ffp_fit, actor.NNmodel, actor.green, actor.basis_functions,actor.coils,Ip_target)
+    _, psirz, _ = EGGO.predict_model_from_boundary(Rb_target,Zb_target, pp_fit, ffp_fit, actor.NNmodel, actor.green, actor.basis_functions,actor.coils,Ip_target,actor.par.use_vacuumfield_green)
     # average out EGGO solution with previous time slice(s)
     # until EGGO becomes a bit more robust
-    n = 2 # number of time slices to average
+    n = 0 # number of time slices to average
     i = IMAS.index(eqt)
-    if i > n
+     if i > n
         d = 1.0
         for k in 1:n
             eqt0 = dd.equilibrium.time_slice[i-k]
@@ -102,7 +106,7 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     end
 
     # pp' and ff' that were actually used in EGGO
-    Ψaxis,Raxis,Zaxis,Ψbnd,ffp,pp = EGGO.get_ΨaxisΨbndffppp(psirz, actor.green, actor.basis_functions,actor.basis_functions_1d, actor.bf1d_itp, wall, pp_fit, ffp_fit)    
+    Ψaxis,Raxis,Zaxis,Ψbnd,ffp,pp = EGGO.get_ΨaxisΨbndffppp(psirz, actor.green, actor.basis_functions,actor.basis_functions_1d, actor.bf1d_itp, wall, pp_fit, ffp_fit)#,Ip_target)    
 
     # ff' and p' edge offsets
     b0 = eqt.global_quantities.vacuum_toroidal_field.b0
