@@ -1,0 +1,3874 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · FUSE</title><meta name="title" content="Tutorial · FUSE"/><meta property="og:title" content="Tutorial · FUSE"/><meta property="twitter:title" content="Tutorial · FUSE"/><meta name="description" content="Documentation for FUSE."/><meta property="og:description" content="Documentation for FUSE."/><meta property="twitter:description" content="Documentation for FUSE."/><script async src="https://www.googletagmanager.com/gtag/js?id=G-65D8V8C8VQ"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-65D8V8C8VQ', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script><link href="assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="index.html"><img class="docs-light-only" src="assets/logo.svg" alt="FUSE logo"/><img class="docs-dark-only" src="assets/logo-dark.svg" alt="FUSE logo"/></a><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Main</a></li><li><span class="tocitem">Learn</span><ul><li class="is-active"><a class="tocitem" href="tutorial.html">Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Basic-concepts"><span>Basic concepts</span></a></li><li class="toplevel"><a class="tocitem" href="#Let&#39;s-get-started!"><span>Let&#39;s get started!</span></a></li><li><a class="tocitem" href="#Starting-from-a-use-case"><span>Starting from a use-case</span></a></li><li><a class="tocitem" href="#Running-Actors"><span>Running Actors</span></a></li><li><a class="tocitem" href="#Whole-facility-design"><span>Whole facility design</span></a></li><li class="toplevel"><a class="tocitem" href="#Getting-into-the-weeds"><span>Getting into the weeds</span></a></li><li><a class="tocitem" href="#Saving-and-loading-data"><span>Saving and loading data</span></a></li><li><a class="tocitem" href="#Exploring-the-data-dictionary"><span>Exploring the data dictionary</span></a></li><li><a class="tocitem" href="#Plotting-data-from-dd"><span>Plotting data from <code>dd</code></span></a></li><li><a class="tocitem" href="#Working-with-time-series"><span>Working with time series</span></a></li><li><a class="tocitem" href="#Expressions-in-dd"><span>Expressions in <code>dd</code></span></a></li><li><a class="tocitem" href="#Comparing-two-IDSs"><span>Comparing two IDSs</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li></ul></li><li><a class="tocitem" href="examples.html">Examples</a></li><li><a class="tocitem" href="pubs.html">Publications</a></li></ul></li><li><a class="tocitem" href="cases.html">Use Cases</a></li><li><span class="tocitem">Actors</span><ul><li><a class="tocitem" href="actors.html">List of actors</a></li><li><a class="tocitem" href="act.html">act parameters</a></li></ul></li><li><span class="tocitem">Initialization</span><ul><li><a class="tocitem" href="inits.html">Init routines</a></li><li><a class="tocitem" href="ini.html">ini parameters</a></li></ul></li><li><a class="tocitem" href="dd.html">Data Structure</a></li><li><span class="tocitem">Development</span><ul><li><a class="tocitem" href="deps.html">Ecosystem</a></li><li><a class="tocitem" href="develop.html">Contributing</a></li></ul></li><li><span class="tocitem">Install</span><ul><li><a class="tocitem" href="install.html">Install FUSE</a></li><li><a class="tocitem" href="install_saga.html">on SAGA</a></li><li><a class="tocitem" href="install_omega.html">on OMEGA</a></li></ul></li><li><span class="tocitem">License</span><ul><li><a class="tocitem" href="license.html">License</a></li><li><a class="tocitem" href="notice.html">Notice</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Learn</a></li><li class="is-active"><a href="tutorial.html">Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="tutorial.html">Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/ProjectTorreyPines/FUSE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/docs/src/tutorial.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="FUSE-Introductory-Tutorial"><a class="docs-heading-anchor" href="#FUSE-Introductory-Tutorial">FUSE Introductory Tutorial</a><a id="FUSE-Introductory-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#FUSE-Introductory-Tutorial" title="Permalink"></a></h1><p>Download this tutorial from the <a href="https://github.com/ProjectTorreyPines/FuseExamples/blob/master/tutorial.ipynb">FuseExamples repository</a></p><h2 id="Basic-concepts"><a class="docs-heading-anchor" href="#Basic-concepts">Basic concepts</a><a id="Basic-concepts-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-concepts" title="Permalink"></a></h2><p>To make sense of this tutorial, you&#39;ll need to know the following organization concepts of FUSE:</p><ol><li><strong>📂 Data storage</strong>: All data is stored in the <code>dd</code> structure, which follows the ITER IMAS ontology.</li><li><strong>🧠 Actors</strong>: The core components of FUSE simulations are physics and engineering actors.</li><li><strong>🕹️ Control</strong>: Actor functionality is governed by <code>act</code> parameters.</li><li><strong>🚀 Initialization</strong>: The data structure can be initialized from 0D <code>ini</code> parameters.</li><li><strong>🔧 Use cases</strong>: FUSE includes templates for various machines (e.g., FPP, ITER, ARC).</li><li><strong>🔄 Workflows</strong>: Self-contained studies and optimizations are conducted via workflows, typically involving multiple FUSE simulations.</li><li><strong>🌍 Interoperability</strong>: FUSE interfaces with existing modeling tools like OMFIT/OMAS and the IMAS ecosystem.</li></ol><p>A diagram illustrating these concepts is provided below: <img src="attachment:5ff4862c-b856-485b-9649-02fec5bdd0d7.png" alt="image.png"/></p><h1 id="Let&#39;s-get-started!"><a class="docs-heading-anchor" href="#Let&#39;s-get-started!">Let&#39;s get started!</a><a id="Let&#39;s-get-started!-1"></a><a class="docs-heading-anchor-permalink" href="#Let&#39;s-get-started!" title="Permalink"></a></h1><hr/><p><strong>NOTE</strong>: Julia is a Just In Time (JIT) programming language. The first time something is executed it will take longer because of the compilation process. Subsequent calls the the same code will be blazingly fast.</p><hr/><p>Import the necessary packages</p><pre><code class="language-julia hljs">using Plots # for plotting
+using FUSE # this will also import IMAS in the current namespace</code></pre><h2 id="Starting-from-a-use-case"><a class="docs-heading-anchor" href="#Starting-from-a-use-case">Starting from a use-case</a><a id="Starting-from-a-use-case-1"></a><a class="docs-heading-anchor-permalink" href="#Starting-from-a-use-case" title="Permalink"></a></h2><p>FUSE comes with some predefined <a href="https://fuse.help/stable/cases.html">use-cases</a>, some of which are used for regression testing.</p><p>Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.</p><p>Here&#39;s the list of supported use-cases. These can be customized and you will also be able to build your own.</p><pre><code class="language-julia hljs">methods(FUSE.case_parameters)</code></pre># 22 methods for generic function <b>case_parameters</b> from [35mFUSE[39m:<ul><li> case_parameters(::<b>Type{Val{:HDB5}}</b>; <i>tokamak, case, database_case, shot, verbose</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/HDB5.jl#L9" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/HDB5.jl:9</a></li> <li> case_parameters(::<b>Type{Val{:D3D_machine}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L342" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:342</a></li> <li> case_parameters(::<b>Type{Val{:FIRST}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/FIRST.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/FIRST.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:SPARC}}</b>; <i>init_from, flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/SPARC.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/SPARC.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:ARC}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/ARC.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/ARC.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:CAT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/CAT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/CAT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:UNIT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/UNIT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/UNIT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:DTT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/DTT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/DTT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:EXCITE}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/EXCITE.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/EXCITE.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:KDEMO_compact}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/KDEMO.jl#L96" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/KDEMO.jl:96</a></li> <li> case_parameters(::<b>Type{Val{:KDEMO}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/KDEMO.jl#L4" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/KDEMO.jl:4</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, scenario::<b>Symbol</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L286" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:286</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, shot::<b>Int64</b>; <i>new_impurity_match_power_rad, fit_profiles, EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root, use_local_cache</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L16" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:16</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, dd::<b>IMASdd.dd</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L265" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:265</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, ods_file::<b>AbstractString</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L248" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:248</a></li> <li> case_parameters(::<b>Type{Val{:FPP}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/FPP.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/FPP.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:MANTA}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/MANTA.jl#L10" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/MANTA.jl:10</a></li> <li> case_parameters(::<b>Type{Val{:ITER}}</b>; <i>init_from, boundary_from, ne_setting, time_dependent</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/ITER.jl#L11" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/ITER.jl:11</a></li> <li> case_parameters(::<b>Type{Val{:STEP}}</b>; <i>init_from, pf_from</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/STEP.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/STEP.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:baby_MANTA}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/baby_MANTA.jl#L4" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/baby_MANTA.jl:4</a></li> <li> case_parameters(case::<b>Symbol</b>, args...; <i>kw...</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/_cases.jl#L36" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/_cases.jl:36</a></li> <li> case_parameters(data_row::<b>DataFrames.DataFrameRow</b>; <i>verbose</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/HDB5.jl#L18" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/HDB5.jl:18</a></li> </ul><p>Get initial parameters (<code>ini</code>) and actions (<code>act</code>) for a given use-case, let&#39;s use KDEMO for example</p><pre><code class="language-julia hljs">ini, act = FUSE.case_parameters(:KDEMO);</code></pre><p>The <code>ini</code> data structure contains 0D parameters that will be used to bootstrap the <code>dd</code> with plausible data.</p><p>The <a href="https://fuse.help/stable/ini.html"><code>ini</code> parameters</a> can be modified.</p><pre><code class="language-julia hljs">ini.equilibrium.B0 = 7.8
+ini.equilibrium.R0 = 6.5;</code></pre><p>The <code>act</code> data structure contains parameters that define how the actors (ie the models) will behave.</p><p>The <a href="https://fuse.help/stable/act.html"><code>act</code> parameters</a> can also be modified.</p><pre><code class="language-julia hljs">act.ActorCoreTransport.model = :FluxMatcher;</code></pre><p><code>ini</code> and <code>act</code> can now be used to initialize the data dictionary (<code>dd</code>) using the 0D parameters.</p><p><strong>NOTE:</strong> <code>init()</code> does not return a self-consistent solution, just a plausible starting point to initialize our simulations!</p><pre><code class="language-julia hljs">dd = IMAS.dd() # an empty dd
+FUSE.init(dd, ini, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Equilibrium
+actors:  TEQUILA
+actors: CXbuild
+actors: HCD
+actors:  SimpleEC
+actors:  SimpleIC
+actors:  NeutralFueling
+actors: Current
+actors:  QED
+actors: PassiveStructures</code></pre><p>Let&#39;s see what we got</p><pre><code class="language-julia hljs">plot(dd.build)</code></pre><img src="tutorial-8b10fe0c.svg" alt="Example block output"/><p>We can <code>@checkin</code> and <code>@checkout</code> variables with an associated tag.</p><p>This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we&#39;ll use this later).</p><pre><code class="language-julia hljs">@checkin :init dd ini act</code></pre><h2 id="Running-Actors"><a class="docs-heading-anchor" href="#Running-Actors">Running Actors</a><a id="Running-Actors-1"></a><a class="docs-heading-anchor-permalink" href="#Running-Actors" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors and play around with plotting to get a sense of what each individual actor does.</p><p>Here&#39;s how we can restore things back to after the initialization stage (in case we did anything else in between)</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>.</p><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
+pcp = plot(dd.core_profiles; color=:gray, label=&quot;before&quot;)
+act.ActorFluxMatcher.verbose = true
+act.ActorFluxMatcher.algorithm = :anderson
+#act.ActorFluxMatcher.step_size = 0.1
+FUSE.ActorStationaryPlasma(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: StationaryPlasma
+actors:  --------------- 1/5
+actors:  HCD
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Current
+actors:   QED
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+Calls: 2    Time: 0:00:31
+            error: 2.3990655883311294
+     Pfusion [MW]: 625.5073877402575
+        Ti0 [keV]: 26.81872466823371
+        Te0 [keV]: 26.818724668233845
+   ne0 [10²⁰ m⁻³]: 0.863020035800083
+
+
+
+
+Calls: 3    Time: 0:00:37
+            error: 2.460334446755991
+     Pfusion [MW]: 626.4690881598666
+        Ti0 [keV]: 26.87895288484474
+        Te0 [keV]: 26.848885412296067
+   ne0 [10²⁰ m⁻³]: 0.8630379255892732
+
+
+
+
+Calls: 4    Time: 0:00:37
+            error: 2.082969763991257
+     Pfusion [MW]: 624.0451760509436
+        Ti0 [keV]: 26.513206182214894
+        Te0 [keV]: 26.66215981377799
+   ne0 [10²⁰ m⁻³]: 0.8656497911271261
+
+
+
+
+Calls: 5    Time: 0:00:37
+            error: 1.6419647774217294
+     Pfusion [MW]: 624.6560993686559
+        Ti0 [keV]: 26.025456279952245
+        Te0 [keV]: 26.396942009029534
+   ne0 [10²⁰ m⁻³]: 0.8724590633172666
+
+
+
+
+Calls: 12    Time: 0:00:37
+            error: 0.5210261430249787
+     Pfusion [MW]: 398.25895699135447
+        Ti0 [keV]: 17.34404361010054
+        Te0 [keV]: 20.359055799064347
+   ne0 [10²⁰ m⁻³]: 0.8569366112246112
+
+
+
+
+Calls: 19    Time: 0:00:37
+            error: 0.3121628683909638
+     Pfusion [MW]: 360.66707717340336
+        Ti0 [keV]: 15.236040881386062
+        Te0 [keV]: 18.15043450891324
+   ne0 [10²⁰ m⁻³]: 0.8559939383250321
+
+
+
+
+Calls: 25    Time: 0:00:37
+            error: 0.23518694875678275
+     Pfusion [MW]: 355.1523850705596
+        Ti0 [keV]: 14.607899335014302
+        Te0 [keV]: 17.364619148439186
+   ne0 [10²⁰ m⁻³]: 0.8587830460013565
+
+
+
+
+Calls: 31    Time: 0:00:37
+            error: 0.22489308070143998
+     Pfusion [MW]: 361.81985770654717
+        Ti0 [keV]: 14.880114877933773
+        Te0 [keV]: 17.466915327677565
+   ne0 [10²⁰ m⁻³]: 0.8594059544030233
+
+
+
+
+Calls: 37    Time: 0:00:38
+            error: 0.22221818187838588
+     Pfusion [MW]: 344.7298220720086
+        Ti0 [keV]: 14.549510503296776
+        Te0 [keV]: 17.29486140686376
+   ne0 [10²⁰ m⁻³]: 0.8607718071429699
+
+
+
+
+Calls: 43    Time: 0:00:38
+            error: 0.2108126433968746
+     Pfusion [MW]: 350.695336786637
+        Ti0 [keV]: 14.943497830826333
+        Te0 [keV]: 17.34807595159222
+   ne0 [10²⁰ m⁻³]: 0.8597073412108858
+
+
+
+
+Calls: 50    Time: 0:00:38
+            error: 0.21026315836952253
+     Pfusion [MW]: 354.1039182258576
+        Ti0 [keV]: 15.088710670870626
+        Te0 [keV]: 17.372233000445632
+   ne0 [10²⁰ m⁻³]: 0.8592131628514661
+
+
+
+
+Calls: 57    Time: 0:00:38
+            error: 0.16346583468021267
+     Pfusion [MW]: 340.9179636680827
+        Ti0 [keV]: 15.727758993830893
+        Te0 [keV]: 17.15480433150659
+   ne0 [10²⁰ m⁻³]: 0.8509112357096599
+
+
+
+
+Calls: 64    Time: 0:00:38
+            error: 0.15026715479871772
+     Pfusion [MW]: 338.98452239434596
+        Ti0 [keV]: 15.668105717696
+        Te0 [keV]: 17.088025118648236
+   ne0 [10²⁰ m⁻³]: 0.8460571949222018
+
+
+
+
+Calls: 70    Time: 0:00:38
+            error: 0.14456434218131706
+     Pfusion [MW]: 332.5874555335781
+        Ti0 [keV]: 15.492267034154462
+        Te0 [keV]: 17.043977166874683
+   ne0 [10²⁰ m⁻³]: 0.8457318094678984
+
+
+
+
+Calls: 76    Time: 0:00:38
+            error: 0.13826697338983174
+     Pfusion [MW]: 325.87998099748864
+        Ti0 [keV]: 15.40022793281967
+        Te0 [keV]: 16.983734023313705
+   ne0 [10²⁰ m⁻³]: 0.8439685635115081
+
+
+
+
+Calls: 81    Time: 0:00:38
+            error: 0.13583417171521248
+     Pfusion [MW]: 323.74733581951915
+        Ti0 [keV]: 15.362649783432543
+        Te0 [keV]: 16.978868676088265
+   ne0 [10²⁰ m⁻³]: 0.8438924187196615
+
+
+
+
+Calls: 88    Time: 0:00:39
+            error: 0.12788912197004418
+     Pfusion [MW]: 315.8327329676227
+        Ti0 [keV]: 15.35172194836176
+        Te0 [keV]: 16.953403192851507
+   ne0 [10²⁰ m⁻³]: 0.8385790623961807
+
+
+
+
+Calls: 95    Time: 0:00:39
+            error: 0.1212890064656769
+     Pfusion [MW]: 312.82925802879197
+        Ti0 [keV]: 15.565600589610595
+        Te0 [keV]: 16.98489744208635
+   ne0 [10²⁰ m⁻³]: 0.8313937524397546
+
+
+
+
+Calls: 101    Time: 0:00:39
+            error: 0.1151951966896826
+     Pfusion [MW]: 315.22226456837666
+        Ti0 [keV]: 15.632761718847961
+        Te0 [keV]: 16.99691869302837
+   ne0 [10²⁰ m⁻³]: 0.8318777572499739
+
+
+
+
+Calls: 107    Time: 0:00:39
+            error: 0.09012231451788223
+     Pfusion [MW]: 304.348463065941
+        Ti0 [keV]: 15.611642205518852
+        Te0 [keV]: 16.92174798107618
+   ne0 [10²⁰ m⁻³]: 0.8273265102534435
+
+
+
+
+Calls: 113    Time: 0:00:39
+            error: 0.08946402527833698
+     Pfusion [MW]: 302.3356264376034
+        Ti0 [keV]: 15.581821136120192
+        Te0 [keV]: 16.894361736106184
+   ne0 [10²⁰ m⁻³]: 0.8270730416331735
+
+
+
+
+Calls: 120    Time: 0:00:39
+            error: 0.08346484608806291
+     Pfusion [MW]: 291.57208663450353
+        Ti0 [keV]: 15.541155031032677
+        Te0 [keV]: 16.849137333539293
+   ne0 [10²⁰ m⁻³]: 0.825460618101951
+
+
+
+
+Calls: 127    Time: 0:00:39
+            error: 0.076979292055157
+     Pfusion [MW]: 284.3407585412294
+        Ti0 [keV]: 15.456239956271224
+        Te0 [keV]: 16.747307985608913
+   ne0 [10²⁰ m⁻³]: 0.8222095492400682
+
+
+
+
+Calls: 134    Time: 0:00:39
+            error: 0.05184452675909379
+     Pfusion [MW]: 275.3915894349539
+        Ti0 [keV]: 15.301513228628382
+        Te0 [keV]: 16.449911060082822
+   ne0 [10²⁰ m⁻³]: 0.8176077778105434
+
+
+
+
+Calls: 140    Time: 0:00:39
+            error: 0.04821761775002311
+     Pfusion [MW]: 271.99157163502775
+        Ti0 [keV]: 15.300153462601147
+        Te0 [keV]: 16.418558012444553
+   ne0 [10²⁰ m⁻³]: 0.8160102702121839
+
+
+
+
+Calls: 146    Time: 0:00:40
+            error: 0.042861133253420114
+     Pfusion [MW]: 269.09170183073167
+        Ti0 [keV]: 15.31481645463753
+        Te0 [keV]: 16.375543480685884
+   ne0 [10²⁰ m⁻³]: 0.8153118657851754
+
+
+
+
+Calls: 150    Time: 0:00:40
+            error: 0.04018003797471726
+     Pfusion [MW]: 267.0280648969136
+        Ti0 [keV]: 15.330873504509398
+        Te0 [keV]: 16.336036465219184
+   ne0 [10²⁰ m⁻³]: 0.8145802362962864
+
+
+
+
+Calls: 156    Time: 0:00:40
+            error: 0.027233711168170596
+     Pfusion [MW]: 266.08671978223134
+        Ti0 [keV]: 15.49179509148547
+        Te0 [keV]: 16.34846211833127
+   ne0 [10²⁰ m⁻³]: 0.8085117018716422
+
+
+
+
+Calls: 163    Time: 0:00:40
+            error: 0.02493213020688662
+     Pfusion [MW]: 266.7204381366945
+        Ti0 [keV]: 15.561154272382447
+        Te0 [keV]: 16.382933380547716
+   ne0 [10²⁰ m⁻³]: 0.8073034665422473
+
+
+
+
+Calls: 169    Time: 0:00:40
+            error: 0.020982569709862866
+     Pfusion [MW]: 269.5474495137202
+        Ti0 [keV]: 15.6212860738174
+        Te0 [keV]: 16.5055713536027
+   ne0 [10²⁰ m⁻³]: 0.8078914058761878
+
+
+
+
+Calls: 169    Time: 0:00:40
+            error: 0.020982569709862866
+     Pfusion [MW]: 269.5474495137202
+        Ti0 [keV]: 15.6212860738174
+        Te0 [keV]: 16.5055713536027
+   ne0 [10²⁰ m⁻³]: 0.8078914058761878
+actors:  Current
+actors:   QED
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 1/5 @ 670.31%
+actors:  HCD
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Current
+actors:   QED
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+Calls: 6    Time: 0:00:00
+            error: 2.486916762742642
+     Pfusion [MW]: 432.27858248760214
+        Ti0 [keV]: 17.2188316313188
+        Te0 [keV]: 24.287710199975198
+   ne0 [10²⁰ m⁻³]: 0.8697047318755309
+
+
+
+
+Calls: 12    Time: 0:00:00
+            error: 1.8104307674206945
+     Pfusion [MW]: 414.73328888809743
+        Ti0 [keV]: 16.782518623400627
+        Te0 [keV]: 22.300008667082505
+   ne0 [10²⁰ m⁻³]: 0.8785056375768
+
+
+
+
+Calls: 18    Time: 0:00:00
+            error: 0.7803752633660187
+     Pfusion [MW]: 408.888580989956
+        Ti0 [keV]: 16.486727628828294
+        Te0 [keV]: 15.519453629361072
+   ne0 [10²⁰ m⁻³]: 0.8926209627676467
+
+
+
+
+Calls: 24    Time: 0:00:00
+            error: 1.7244987321468064
+     Pfusion [MW]: 441.4252066783347
+        Ti0 [keV]: 16.766350826223654
+        Te0 [keV]: 22.633891429184306
+   ne0 [10²⁰ m⁻³]: 0.9231995644626657
+
+
+
+
+Calls: 30    Time: 0:00:00
+            error: 0.5556372442887771
+     Pfusion [MW]: 434.7642657026113
+        Ti0 [keV]: 16.659275232866857
+        Te0 [keV]: 16.402193150314833
+   ne0 [10²⁰ m⁻³]: 0.9246658249531788
+
+
+
+
+Calls: 36    Time: 0:00:00
+            error: 1.9915449647512082
+     Pfusion [MW]: 446.68362187956865
+        Ti0 [keV]: 16.87526664880452
+        Te0 [keV]: 23.46642173041946
+   ne0 [10²⁰ m⁻³]: 0.9397223654637924
+
+
+
+
+Calls: 42    Time: 0:00:00
+            error: 1.9352543837752427
+     Pfusion [MW]: 443.83336093937453
+        Ti0 [keV]: 16.88154078964907
+        Te0 [keV]: 23.634126289084083
+   ne0 [10²⁰ m⁻³]: 0.938944831690902
+
+
+
+
+Calls: 48    Time: 0:00:00
+            error: 0.495174734896797
+     Pfusion [MW]: 435.4935051615855
+        Ti0 [keV]: 16.72315742402456
+        Te0 [keV]: 16.792011347142328
+   ne0 [10²⁰ m⁻³]: 0.9310130522197231
+
+
+
+
+Calls: 54    Time: 0:00:01
+            error: 1.8478432951805461
+     Pfusion [MW]: 440.0051641058739
+        Ti0 [keV]: 16.752346155182266
+        Te0 [keV]: 23.032875500089883
+   ne0 [10²⁰ m⁻³]: 0.9378041701093222
+
+
+
+
+Calls: 60    Time: 0:00:01
+            error: 0.4128594311223357
+     Pfusion [MW]: 441.79312872623916
+        Ti0 [keV]: 16.807011461742505
+        Te0 [keV]: 16.915847216762845
+   ne0 [10²⁰ m⁻³]: 0.9406913521302327
+
+
+
+
+Calls: 66    Time: 0:00:01
+            error: 1.9166521790734783
+     Pfusion [MW]: 447.19981670300274
+        Ti0 [keV]: 16.955064712509174
+        Te0 [keV]: 23.3487021814672
+   ne0 [10²⁰ m⁻³]: 0.9434328548413856
+
+
+
+
+Calls: 72    Time: 0:00:01
+            error: 1.9289231051738729
+     Pfusion [MW]: 445.7298147134269
+        Ti0 [keV]: 16.904575983486804
+        Te0 [keV]: 23.281487383021567
+   ne0 [10²⁰ m⁻³]: 0.942408253005703
+
+
+
+
+Calls: 78    Time: 0:00:01
+            error: 0.4641551752419536
+     Pfusion [MW]: 438.3237498053366
+        Ti0 [keV]: 16.78938107021893
+        Te0 [keV]: 16.7250938902324
+   ne0 [10²⁰ m⁻³]: 0.9369497436769785
+
+
+
+
+Calls: 84    Time: 0:00:01
+            error: 2.0016480579797995
+     Pfusion [MW]: 451.7459088088227
+        Ti0 [keV]: 17.05074198014411
+        Te0 [keV]: 23.684711288001413
+   ne0 [10²⁰ m⁻³]: 0.9453952066970573
+
+
+
+
+Calls: 90    Time: 0:00:01
+            error: 1.8743136521768164
+     Pfusion [MW]: 443.94909431665945
+        Ti0 [keV]: 16.938779896232653
+        Te0 [keV]: 23.289569269323096
+   ne0 [10²⁰ m⁻³]: 0.9395445689429688
+
+
+
+
+Calls: 96    Time: 0:00:01
+            error: 0.4783030808166635
+     Pfusion [MW]: 432.9852288587426
+        Ti0 [keV]: 16.75587781816273
+        Te0 [keV]: 16.741526869431716
+   ne0 [10²⁰ m⁻³]: 0.932238677713923
+
+
+
+
+Calls: 100    Time: 0:00:02
+            error: 2.1413827028579795
+     Pfusion [MW]: 458.1529475544223
+        Ti0 [keV]: 17.214031896877223
+        Te0 [keV]: 24.125562729160382
+   ne0 [10²⁰ m⁻³]: 0.9481333310555641
+
+
+
+
+Calls: 106    Time: 0:00:02
+            error: 0.4419157415311468
+     Pfusion [MW]: 432.45822626335786
+        Ti0 [keV]: 16.742725735205994
+        Te0 [keV]: 16.465676125932966
+   ne0 [10²⁰ m⁻³]: 0.9311019677240134
+
+
+
+
+Calls: 112    Time: 0:00:02
+            error: 2.384563655043189
+     Pfusion [MW]: 468.76505427615234
+        Ti0 [keV]: 17.372790116467545
+        Te0 [keV]: 24.2828838744888
+   ne0 [10²⁰ m⁻³]: 0.9547811766326116
+
+
+
+
+Calls: 118    Time: 0:00:02
+            error: 2.3436001985294146
+     Pfusion [MW]: 462.6980848855369
+        Ti0 [keV]: 17.260262918241796
+        Te0 [keV]: 23.89916803360526
+   ne0 [10²⁰ m⁻³]: 0.9506347846012795
+
+
+
+
+Calls: 124    Time: 0:00:02
+            error: 0.35674056982114183
+     Pfusion [MW]: 447.36652412090683
+        Ti0 [keV]: 17.04372530821504
+        Te0 [keV]: 16.94946096887866
+   ne0 [10²⁰ m⁻³]: 0.936626621691849
+
+
+
+
+Calls: 130    Time: 0:00:02
+            error: 0.37848679520241507
+     Pfusion [MW]: 441.1183314424549
+        Ti0 [keV]: 16.924489821139524
+        Te0 [keV]: 16.677634731954697
+   ne0 [10²⁰ m⁻³]: 0.9323733828924844
+
+
+
+
+Calls: 134    Time: 0:00:02
+            error: 0.33693108564419777
+     Pfusion [MW]: 444.41732767166764
+        Ti0 [keV]: 16.995258098891068
+        Te0 [keV]: 16.866937202230346
+   ne0 [10²⁰ m⁻³]: 0.9341816325010476
+
+
+
+
+Calls: 140    Time: 0:00:02
+            error: 2.5379087774564586
+     Pfusion [MW]: 462.09578061468767
+        Ti0 [keV]: 17.340562637356204
+        Te0 [keV]: 24.334034759095072
+   ne0 [10²⁰ m⁻³]: 0.9434822625431942
+
+
+
+
+Calls: 146    Time: 0:00:02
+            error: 0.27008158670165794
+     Pfusion [MW]: 450.46141711819484
+        Ti0 [keV]: 17.1332331743452
+        Te0 [keV]: 17.179224215729803
+   ne0 [10²⁰ m⁻³]: 0.9365387749296061
+
+
+
+
+Calls: 152    Time: 0:00:02
+            error: 0.35259409517893386
+     Pfusion [MW]: 439.87293643333993
+        Ti0 [keV]: 16.92313251638796
+        Te0 [keV]: 16.707984576945535
+   ne0 [10²⁰ m⁻³]: 0.9309790527049038
+
+
+
+
+Calls: 158    Time: 0:00:03
+            error: 2.471162631571089
+     Pfusion [MW]: 459.6525317007899
+        Ti0 [keV]: 17.221069353412577
+        Te0 [keV]: 24.165786364133375
+   ne0 [10²⁰ m⁻³]: 0.944900882336492
+
+
+
+
+Calls: 164    Time: 0:00:03
+            error: 0.28655952338032803
+     Pfusion [MW]: 444.51080837075165
+        Ti0 [keV]: 16.97908272777841
+        Te0 [keV]: 16.950033200891017
+   ne0 [10²⁰ m⁻³]: 0.9351636630209439
+
+
+
+
+Calls: 170    Time: 0:00:03
+            error: 2.3618327318253196
+     Pfusion [MW]: 453.9507443182534
+        Ti0 [keV]: 17.12620898173177
+        Te0 [keV]: 23.822010062719773
+   ne0 [10²⁰ m⁻³]: 0.9413836135492684
+
+
+
+
+Calls: 180    Time: 0:00:03
+            error: 2.3673908256307308
+     Pfusion [MW]: 453.6679796822122
+        Ti0 [keV]: 17.148109814294717
+        Te0 [keV]: 23.937287402903237
+   ne0 [10²⁰ m⁻³]: 0.9385570296547215
+
+
+
+
+Calls: 187    Time: 0:00:03
+            error: 0.304152996684002
+     Pfusion [MW]: 443.99671996810497
+        Ti0 [keV]: 16.95540247535867
+        Te0 [keV]: 16.711973301483102
+   ne0 [10²⁰ m⁻³]: 0.9339518667532885
+
+
+
+
+Calls: 193    Time: 0:00:03
+            error: 2.1942052672299894
+     Pfusion [MW]: 448.5463960823727
+        Ti0 [keV]: 17.042702719037035
+        Te0 [keV]: 23.479398953187697
+   ne0 [10²⁰ m⁻³]: 0.9345782935350633
+
+
+
+
+Calls: 199    Time: 0:00:03
+            error: 0.3475340835589524
+     Pfusion [MW]: 438.87887010423185
+        Ti0 [keV]: 16.880643246066537
+        Te0 [keV]: 16.567627838911953
+   ne0 [10²⁰ m⁻³]: 0.9299422058419193
+
+
+
+
+Calls: 205    Time: 0:00:03
+            error: 2.1863452171665094
+     Pfusion [MW]: 448.5074237367737
+        Ti0 [keV]: 17.024833536647044
+        Te0 [keV]: 23.421819953984112
+   ne0 [10²⁰ m⁻³]: 0.9371700539492391
+
+
+
+
+Calls: 209    Time: 0:00:04
+            error: 2.3468936616762544
+     Pfusion [MW]: 450.9343665830232
+        Ti0 [keV]: 17.066118452484087
+        Te0 [keV]: 23.639232212101284
+   ne0 [10²⁰ m⁻³]: 0.9392316960342014
+
+
+
+
+Calls: 215    Time: 0:00:04
+            error: 0.2913888707180812
+     Pfusion [MW]: 435.6847190232908
+        Ti0 [keV]: 16.83549256809597
+        Te0 [keV]: 16.613919609222442
+   ne0 [10²⁰ m⁻³]: 0.9283394854787363
+
+
+
+
+Calls: 221    Time: 0:00:04
+            error: 0.20134975857278978
+     Pfusion [MW]: 447.0935089872379
+        Ti0 [keV]: 16.994335383474287
+        Te0 [keV]: 17.139908414196224
+   ne0 [10²⁰ m⁻³]: 0.9385961241080027
+
+
+
+
+Calls: 227    Time: 0:00:04
+            error: 2.5297060023337177
+     Pfusion [MW]: 453.1687976980336
+        Ti0 [keV]: 17.075510334380066
+        Te0 [keV]: 24.056477468520516
+   ne0 [10²⁰ m⁻³]: 0.9433769776668851
+
+
+
+
+Calls: 233    Time: 0:00:04
+            error: 0.25221381552125455
+     Pfusion [MW]: 436.74138289698595
+        Ti0 [keV]: 16.810812175744676
+        Te0 [keV]: 16.567186640490657
+   ne0 [10²⁰ m⁻³]: 0.931634263030038
+
+
+
+
+Calls: 239    Time: 0:00:04
+            error: 0.20778513165497783
+     Pfusion [MW]: 438.4148595643069
+        Ti0 [keV]: 16.81185742783013
+        Te0 [keV]: 16.69448489320107
+   ne0 [10²⁰ m⁻³]: 0.934315776344922
+
+
+
+
+Calls: 244    Time: 0:00:04
+            error: 0.1568684305183706
+     Pfusion [MW]: 439.0604993301725
+        Ti0 [keV]: 16.81855377370538
+        Te0 [keV]: 16.863343524581754
+   ne0 [10²⁰ m⁻³]: 0.9352989641889436
+
+
+
+
+Calls: 250    Time: 0:00:04
+            error: 0.1358191838967416
+     Pfusion [MW]: 439.1569557121469
+        Ti0 [keV]: 16.812204412918348
+        Te0 [keV]: 16.950098153721978
+   ne0 [10²⁰ m⁻³]: 0.9356930646448597
+
+
+
+
+Calls: 256    Time: 0:00:04
+            error: 2.587147924147725
+     Pfusion [MW]: 436.48357056666896
+        Ti0 [keV]: 16.7691014210656
+        Te0 [keV]: 23.648616143523352
+   ne0 [10²⁰ m⁻³]: 0.9324122782011834
+
+
+
+
+Calls: 262    Time: 0:00:05
+            error: 0.18186811460068342
+     Pfusion [MW]: 425.78520019152813
+        Ti0 [keV]: 16.58211402866072
+        Te0 [keV]: 16.37786585241479
+   ne0 [10²⁰ m⁻³]: 0.9272852227658369
+
+
+
+
+Calls: 268    Time: 0:00:05
+            error: 0.11164019613993076
+     Pfusion [MW]: 423.6690149362751
+        Ti0 [keV]: 16.542641880509198
+        Te0 [keV]: 16.55337740787876
+   ne0 [10²⁰ m⁻³]: 0.9245245206213882
+
+
+
+
+Calls: 273    Time: 0:00:05
+            error: 0.10074422285451175
+     Pfusion [MW]: 424.52655830523935
+        Ti0 [keV]: 16.552939073723092
+        Te0 [keV]: 16.596593513605338
+   ne0 [10²⁰ m⁻³]: 0.9257568523076962
+
+
+
+
+Calls: 279    Time: 0:00:05
+            error: 0.09440428175374184
+     Pfusion [MW]: 424.0822660790005
+        Ti0 [keV]: 16.551464086113718
+        Te0 [keV]: 16.612230946492193
+   ne0 [10²⁰ m⁻³]: 0.9274500521821638
+
+
+
+
+Calls: 285    Time: 0:00:05
+            error: 0.09319721031364489
+     Pfusion [MW]: 423.4861853448689
+        Ti0 [keV]: 16.550406196617182
+        Te0 [keV]: 16.594557152109964
+   ne0 [10²⁰ m⁻³]: 0.9275057601285043
+
+
+
+
+Calls: 291    Time: 0:00:05
+            error: 2.4676990612137986
+     Pfusion [MW]: 423.00981430578645
+        Ti0 [keV]: 16.5975656837667
+        Te0 [keV]: 23.036564694470478
+   ne0 [10²⁰ m⁻³]: 0.9286239575036956
+
+
+
+
+Calls: 297    Time: 0:00:05
+            error: 2.2359860297376906
+     Pfusion [MW]: 409.4224437744409
+        Ti0 [keV]: 16.41191963083472
+        Te0 [keV]: 22.020989770941615
+   ne0 [10²⁰ m⁻³]: 0.9354712433687095
+
+
+
+
+Calls: 303    Time: 0:00:05
+            error: 0.238963125410532
+     Pfusion [MW]: 406.3474116476732
+        Ti0 [keV]: 16.364897513054895
+        Te0 [keV]: 15.632719410642713
+   ne0 [10²⁰ m⁻³]: 0.9317698488840273
+
+
+
+
+Calls: 309    Time: 0:00:05
+            error: 0.2938006504863778
+     Pfusion [MW]: 401.7484664032166
+        Ti0 [keV]: 16.178732013948437
+        Te0 [keV]: 15.219995595142528
+   ne0 [10²⁰ m⁻³]: 0.9257798307312666
+
+
+
+
+Calls: 315    Time: 0:00:06
+            error: 0.17750537632077049
+     Pfusion [MW]: 408.01965158256314
+        Ti0 [keV]: 16.363956572477612
+        Te0 [keV]: 15.70576720798651
+   ne0 [10²⁰ m⁻³]: 0.9280122856317261
+
+
+
+
+Calls: 321    Time: 0:00:06
+            error: 0.11938770662943939
+     Pfusion [MW]: 413.5095563144084
+        Ti0 [keV]: 16.418502408883295
+        Te0 [keV]: 16.121970287236426
+   ne0 [10²⁰ m⁻³]: 0.9227217759236065
+
+
+
+
+Calls: 327    Time: 0:00:06
+            error: 0.10055972624794159
+     Pfusion [MW]: 414.91626305991815
+        Ti0 [keV]: 16.46246508851593
+        Te0 [keV]: 16.24843328445255
+   ne0 [10²⁰ m⁻³]: 0.924075048826085
+
+
+
+
+Calls: 333    Time: 0:00:06
+            error: 0.0879423535960144
+     Pfusion [MW]: 415.8781656570195
+        Ti0 [keV]: 16.491775810188297
+        Te0 [keV]: 16.346823762652832
+   ne0 [10²⁰ m⁻³]: 0.9251041870277894
+
+
+
+
+Calls: 339    Time: 0:00:06
+            error: 0.08441303720160442
+     Pfusion [MW]: 416.0922306254965
+        Ti0 [keV]: 16.504715813081773
+        Te0 [keV]: 16.360553995921755
+   ne0 [10²⁰ m⁻³]: 0.9261553929454535
+
+
+
+
+Calls: 344    Time: 0:00:06
+            error: 0.08068365492143034
+     Pfusion [MW]: 416.70434551544736
+        Ti0 [keV]: 16.53561489334615
+        Te0 [keV]: 16.423205893141947
+   ne0 [10²⁰ m⁻³]: 0.927240801886173
+
+
+
+
+Calls: 350    Time: 0:00:06
+            error: 2.559421097308852
+     Pfusion [MW]: 420.2065125378109
+        Ti0 [keV]: 16.5970665316835
+        Te0 [keV]: 23.064363826111894
+   ne0 [10²⁰ m⁻³]: 0.9302264925828468
+
+
+
+
+Calls: 356    Time: 0:00:06
+            error: 0.10059695110884549
+     Pfusion [MW]: 415.2680284155529
+        Ti0 [keV]: 16.506373368132884
+        Te0 [keV]: 16.289489394322167
+   ne0 [10²⁰ m⁻³]: 0.9273809140401591
+
+
+
+
+Calls: 362    Time: 0:00:06
+            error: 0.07886579462920512
+     Pfusion [MW]: 415.8419291712185
+        Ti0 [keV]: 16.602482599741066
+        Te0 [keV]: 16.486045436536976
+   ne0 [10²⁰ m⁻³]: 0.9274973708276163
+
+
+
+
+Calls: 368    Time: 0:00:07
+            error: 0.07613803118294882
+     Pfusion [MW]: 415.9800532139113
+        Ti0 [keV]: 16.650366753006505
+        Te0 [keV]: 16.555822775645456
+   ne0 [10²⁰ m⁻³]: 0.927699399787981
+
+
+
+
+Calls: 374    Time: 0:00:07
+            error: 0.07568640786806631
+     Pfusion [MW]: 415.91155974850864
+        Ti0 [keV]: 16.68154625355745
+        Te0 [keV]: 16.58125228115534
+   ne0 [10²⁰ m⁻³]: 0.9279145627677576
+
+
+
+
+Calls: 380    Time: 0:00:07
+            error: 0.0756573564082006
+     Pfusion [MW]: 415.94069434900354
+        Ti0 [keV]: 16.682655530577552
+        Te0 [keV]: 16.580076018565496
+   ne0 [10²⁰ m⁻³]: 0.9279707380072745
+
+
+
+
+Calls: 385    Time: 0:00:07
+            error: 0.07556774483497682
+     Pfusion [MW]: 415.95912702765344
+        Ti0 [keV]: 16.698162774023288
+        Te0 [keV]: 16.59311489692726
+   ne0 [10²⁰ m⁻³]: 0.9280978348355836
+
+
+
+
+Calls: 391    Time: 0:00:07
+            error: 0.07522158648242505
+     Pfusion [MW]: 416.13421377849437
+        Ti0 [keV]: 16.75250591483956
+        Te0 [keV]: 16.651808038556887
+   ne0 [10²⁰ m⁻³]: 0.9285803591035342
+
+
+
+
+Calls: 397    Time: 0:00:07
+            error: 2.456749910010932
+     Pfusion [MW]: 419.0353673612546
+        Ti0 [keV]: 16.978279450336185
+        Te0 [keV]: 23.561862281993534
+   ne0 [10²⁰ m⁻³]: 0.9321330594250686
+
+
+
+
+Calls: 403    Time: 0:00:07
+            error: 0.25151836130645655
+     Pfusion [MW]: 409.04438727356404
+        Ti0 [keV]: 17.29351808773047
+        Te0 [keV]: 16.731457817572494
+   ne0 [10²⁰ m⁻³]: 0.9313925433206385
+
+
+
+
+Calls: 409    Time: 0:00:07
+            error: 0.11891455547701313
+     Pfusion [MW]: 412.7313958166511
+        Ti0 [keV]: 17.267172309727762
+        Te0 [keV]: 17.052217376146793
+   ne0 [10²⁰ m⁻³]: 0.9311629223719825
+
+
+
+
+Calls: 415    Time: 0:00:07
+            error: 0.08868154650358455
+     Pfusion [MW]: 416.13915091131435
+        Ti0 [keV]: 17.414508322127702
+        Te0 [keV]: 17.354074422456815
+   ne0 [10²⁰ m⁻³]: 0.9335198060964899
+
+
+
+
+Calls: 421    Time: 0:00:08
+            error: 0.23554935928365062
+     Pfusion [MW]: 408.53249116732167
+        Ti0 [keV]: 16.427780749870692
+        Te0 [keV]: 16.165407300104036
+   ne0 [10²⁰ m⁻³]: 0.9223427097798047
+
+
+
+
+Calls: 427    Time: 0:00:08
+            error: 0.11702460362209678
+     Pfusion [MW]: 411.14463570695057
+        Ti0 [keV]: 16.185092746525207
+        Te0 [keV]: 15.992696867624351
+   ne0 [10²⁰ m⁻³]: 0.9218180291225057
+
+
+
+
+Calls: 433    Time: 0:00:08
+            error: 0.08246848288560737
+     Pfusion [MW]: 415.0342092800007
+        Ti0 [keV]: 16.668809641501152
+        Te0 [keV]: 16.56724751759834
+   ne0 [10²⁰ m⁻³]: 0.9280909878487679
+
+
+
+
+Calls: 439    Time: 0:00:08
+            error: 0.07605593127886888
+     Pfusion [MW]: 416.5914613362228
+        Ti0 [keV]: 16.896239719923845
+        Te0 [keV]: 16.825478272311013
+   ne0 [10²⁰ m⁻³]: 0.9307145327121851
+
+
+
+
+Calls: 445    Time: 0:00:08
+            error: 2.502251376679737
+     Pfusion [MW]: 421.34835265824046
+        Ti0 [keV]: 17.799891410259896
+        Te0 [keV]: 24.616867868291532
+   ne0 [10²⁰ m⁻³]: 0.9413767147309782
+
+
+
+
+Calls: 451    Time: 0:00:08
+            error: 0.15473690124388892
+     Pfusion [MW]: 410.5982684407865
+        Ti0 [keV]: 17.400210731177417
+        Te0 [keV]: 16.931025962164515
+   ne0 [10²⁰ m⁻³]: 0.9325921175151606
+
+
+
+
+Calls: 457    Time: 0:00:08
+            error: 2.3704148030549512
+     Pfusion [MW]: 418.66101205748583
+        Ti0 [keV]: 17.820229266812106
+        Te0 [keV]: 24.60734575875873
+   ne0 [10²⁰ m⁻³]: 0.9384071142971766
+
+
+
+
+Calls: 463    Time: 0:00:08
+            error: 0.23880858408623834
+     Pfusion [MW]: 412.0220754204299
+        Ti0 [keV]: 17.597261352258155
+        Te0 [keV]: 17.08854978452246
+   ne0 [10²⁰ m⁻³]: 0.9363066645914151
+
+
+
+
+Calls: 469    Time: 0:00:09
+            error: 0.10675506542287688
+     Pfusion [MW]: 417.70977830175826
+        Ti0 [keV]: 18.04841555934332
+        Te0 [keV]: 17.852988267350078
+   ne0 [10²⁰ m⁻³]: 0.9394846713376164
+
+
+
+
+Calls: 475    Time: 0:00:09
+            error: 2.5696192761249885
+     Pfusion [MW]: 422.67746643110394
+        Ti0 [keV]: 18.324018352243804
+        Te0 [keV]: 25.477009331523792
+   ne0 [10²⁰ m⁻³]: 0.9432781263664439
+
+
+
+
+Calls: 481    Time: 0:00:09
+            error: 0.1708308994530179
+     Pfusion [MW]: 413.3938271262756
+        Ti0 [keV]: 18.618441146548147
+        Te0 [keV]: 18.186897534910447
+   ne0 [10²⁰ m⁻³]: 0.9386691349728551
+
+
+
+
+Calls: 487    Time: 0:00:09
+            error: 2.3422616617317655
+     Pfusion [MW]: 417.6136640035833
+        Ti0 [keV]: 18.408217044598366
+        Te0 [keV]: 25.368826380118662
+   ne0 [10²⁰ m⁻³]: 0.9398708234003738
+
+
+
+
+Calls: 493    Time: 0:00:09
+            error: 0.26961881004232713
+     Pfusion [MW]: 402.73104896376185
+        Ti0 [keV]: 18.461277497674054
+        Te0 [keV]: 17.532513202939775
+   ne0 [10²⁰ m⁻³]: 0.9326371343016958
+
+
+
+
+Calls: 499    Time: 0:00:09
+            error: 0.12174169849549539
+     Pfusion [MW]: 413.8262562995225
+        Ti0 [keV]: 18.085730379063904
+        Te0 [keV]: 17.70452873373239
+   ne0 [10²⁰ m⁻³]: 0.9365901114978938
+
+
+
+
+Calls: 502    Time: 0:00:09
+            error: 2.73608107775736
+     Pfusion [MW]: 424.4303064033887
+        Ti0 [keV]: 17.30701474285715
+        Te0 [keV]: 24.616411904161982
+   ne0 [10²⁰ m⁻³]: 0.8515582208410367
+actors:  Current
+actors:   QED
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 2/5 @ 751.18%
+actors:  HCD
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Current
+actors:   QED
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+Calls: 7    Time: 0:00:00
+            error: 1.0074705758156122
+     Pfusion [MW]: 449.1765071997941
+        Ti0 [keV]: 17.367218145111103
+        Te0 [keV]: 18.37997062575307
+   ne0 [10²⁰ m⁻³]: 0.8868404926292387
+
+
+
+
+Calls: 14    Time: 0:00:00
+            error: 1.2673674310804706
+     Pfusion [MW]: 437.77524723737423
+        Ti0 [keV]: 16.196647733032886
+        Te0 [keV]: 17.64055450290603
+   ne0 [10²⁰ m⁻³]: 0.9471229242721947
+
+
+
+
+Calls: 21    Time: 0:00:00
+            error: 0.6489812451950447
+     Pfusion [MW]: 408.747125531919
+        Ti0 [keV]: 15.518874928196649
+        Te0 [keV]: 17.050919653026543
+   ne0 [10²⁰ m⁻³]: 0.9464043676000058
+
+
+
+
+Calls: 28    Time: 0:00:00
+            error: 0.5206600291283141
+     Pfusion [MW]: 407.8938889047539
+        Ti0 [keV]: 15.59755579259106
+        Te0 [keV]: 17.01463366086433
+   ne0 [10²⁰ m⁻³]: 0.9377446065730496
+
+
+
+
+Calls: 35    Time: 0:00:00
+            error: 0.4364639682197872
+     Pfusion [MW]: 386.57173375285447
+        Ti0 [keV]: 15.039579585893776
+        Te0 [keV]: 16.366887943148093
+   ne0 [10²⁰ m⁻³]: 0.942281179380686
+
+
+
+
+Calls: 42    Time: 0:00:00
+            error: 0.2984756464295979
+     Pfusion [MW]: 361.7090541482042
+        Ti0 [keV]: 14.785444562530232
+        Te0 [keV]: 15.312180172610546
+   ne0 [10²⁰ m⁻³]: 0.9212012292093195
+
+
+
+
+Calls: 48    Time: 0:00:00
+            error: 0.27488824817473806
+     Pfusion [MW]: 359.5804388501294
+        Ti0 [keV]: 14.807703467795987
+        Te0 [keV]: 15.064780288426364
+   ne0 [10²⁰ m⁻³]: 0.918152051890619
+
+
+
+
+Calls: 54    Time: 0:00:00
+            error: 0.23174101824949736
+     Pfusion [MW]: 365.19897773427596
+        Ti0 [keV]: 15.193832219387739
+        Te0 [keV]: 15.048282173670342
+   ne0 [10²⁰ m⁻³]: 0.9098771270592164
+
+
+
+
+Calls: 61    Time: 0:00:01
+            error: 0.21351002186866222
+     Pfusion [MW]: 363.9036209742093
+        Ti0 [keV]: 15.385097633270066
+        Te0 [keV]: 14.986833209577778
+   ne0 [10²⁰ m⁻³]: 0.9052006609015439
+
+
+
+
+Calls: 68    Time: 0:00:01
+            error: 0.20956215205359835
+     Pfusion [MW]: 363.5581495569783
+        Ti0 [keV]: 15.515557768424
+        Te0 [keV]: 14.934340363673778
+   ne0 [10²⁰ m⁻³]: 0.9028131285809124
+
+
+
+
+Calls: 75    Time: 0:00:01
+            error: 0.17554755805264766
+     Pfusion [MW]: 363.7738825491354
+        Ti0 [keV]: 15.689577900091395
+        Te0 [keV]: 15.060127229023195
+   ne0 [10²⁰ m⁻³]: 0.910163694721127
+
+
+
+
+Calls: 81    Time: 0:00:01
+            error: 0.16829623904690633
+     Pfusion [MW]: 362.0930308614553
+        Ti0 [keV]: 15.817278427402048
+        Te0 [keV]: 15.181605467459192
+   ne0 [10²⁰ m⁻³]: 0.9106444361163228
+
+
+
+
+Calls: 87    Time: 0:00:01
+            error: 1.0073604171466233
+     Pfusion [MW]: 179.79937727364515
+        Ti0 [keV]: 12.156609663871643
+        Te0 [keV]: 15.283549112364348
+   ne0 [10²⁰ m⁻³]: 0.9077245136417048
+
+
+
+
+Calls: 91    Time: 0:00:01
+            error: 1.0346497923301887
+     Pfusion [MW]: 176.1247411504259
+        Ti0 [keV]: 12.08681517233781
+        Te0 [keV]: 15.336428675718162
+   ne0 [10²⁰ m⁻³]: 0.9073942060975748
+
+
+
+
+Calls: 98    Time: 0:00:01
+            error: 0.1745291734967977
+     Pfusion [MW]: 361.31580987374906
+        Ti0 [keV]: 15.75628342428618
+        Te0 [keV]: 15.271989940735937
+   ne0 [10²⁰ m⁻³]: 0.9088050783139234
+
+
+
+
+Calls: 105    Time: 0:00:01
+            error: 1.138451315516994
+     Pfusion [MW]: 161.97208576422625
+        Ti0 [keV]: 11.772112289988474
+        Te0 [keV]: 15.514359946829769
+   ne0 [10²⁰ m⁻³]: 0.905784080682166
+
+
+
+
+Calls: 112    Time: 0:00:01
+            error: 0.9940120483328608
+     Pfusion [MW]: 186.69923206534804
+        Ti0 [keV]: 12.238641752080808
+        Te0 [keV]: 15.384645665441814
+   ne0 [10²⁰ m⁻³]: 0.9114153615841247
+
+
+
+
+Calls: 118    Time: 0:00:02
+            error: 1.1400262336262674
+     Pfusion [MW]: 161.7847082031816
+        Ti0 [keV]: 11.738938426967747
+        Te0 [keV]: 15.491830996297633
+   ne0 [10²⁰ m⁻³]: 0.9086832813692849
+
+
+
+
+Calls: 124    Time: 0:00:02
+            error: 1.199468673446655
+     Pfusion [MW]: 156.31031586301535
+        Ti0 [keV]: 11.59508604865253
+        Te0 [keV]: 15.663071170785443
+   ne0 [10²⁰ m⁻³]: 0.910381213563497
+
+
+
+
+Calls: 130    Time: 0:00:02
+            error: 1.0645139248316742
+     Pfusion [MW]: 170.11014708053426
+        Ti0 [keV]: 11.946194848150547
+        Te0 [keV]: 15.34167566485286
+   ne0 [10²⁰ m⁻³]: 0.9054227197365432
+
+
+
+
+Calls: 137    Time: 0:00:02
+            error: 0.19401769648241746
+     Pfusion [MW]: 360.62454593850293
+        Ti0 [keV]: 15.84800742442495
+        Te0 [keV]: 15.05869780175787
+   ne0 [10²⁰ m⁻³]: 0.9012181072830117
+
+
+
+
+Calls: 144    Time: 0:00:02
+            error: 0.18041092967742878
+     Pfusion [MW]: 363.35685517836595
+        Ti0 [keV]: 15.782838195810033
+        Te0 [keV]: 15.16943019531
+   ne0 [10²⁰ m⁻³]: 0.9066654059176456
+
+
+
+
+Calls: 151    Time: 0:00:02
+            error: 0.9722948587085614
+     Pfusion [MW]: 190.78654614264005
+        Ti0 [keV]: 12.332194395862839
+        Te0 [keV]: 15.384383391161514
+   ne0 [10²⁰ m⁻³]: 0.9110265336428647
+
+
+
+
+Calls: 157    Time: 0:00:02
+            error: 0.16500021874119097
+     Pfusion [MW]: 362.3764537485176
+        Ti0 [keV]: 15.81259647796899
+        Te0 [keV]: 15.249660747832959
+   ne0 [10²⁰ m⁻³]: 0.9075955607888967
+
+
+
+
+Calls: 162    Time: 0:00:02
+            error: 0.1567960946511035
+     Pfusion [MW]: 362.8503826415649
+        Ti0 [keV]: 15.83380653751628
+        Te0 [keV]: 15.296030307004989
+   ne0 [10²⁰ m⁻³]: 0.9078179941885516
+
+
+
+
+Calls: 169    Time: 0:00:02
+            error: 0.15251211174173598
+     Pfusion [MW]: 364.22077437226045
+        Ti0 [keV]: 15.871718518591614
+        Te0 [keV]: 15.335854406662973
+   ne0 [10²⁰ m⁻³]: 0.9078808832988388
+
+
+
+
+Calls: 176    Time: 0:00:03
+            error: 1.1209965793075658
+     Pfusion [MW]: 168.4432693745067
+        Ti0 [keV]: 11.913966612682215
+        Te0 [keV]: 15.740104847153718
+   ne0 [10²⁰ m⁻³]: 0.9140116546425684
+
+
+
+
+Calls: 183    Time: 0:00:03
+            error: 1.0481236419985902
+     Pfusion [MW]: 177.10426064213172
+        Ti0 [keV]: 12.095176463407103
+        Te0 [keV]: 15.613747055526124
+   ne0 [10²⁰ m⁻³]: 0.9113889830265948
+
+
+
+
+Calls: 189    Time: 0:00:03
+            error: 1.103864913861637
+     Pfusion [MW]: 168.25938770275886
+        Ti0 [keV]: 11.924928383720173
+        Te0 [keV]: 15.707920001339017
+   ne0 [10²⁰ m⁻³]: 0.9126479327085812
+
+
+
+
+Calls: 195    Time: 0:00:03
+            error: 1.0279484573862372
+     Pfusion [MW]: 180.6522595818538
+        Ti0 [keV]: 12.16336624632837
+        Te0 [keV]: 15.577279199418518
+   ne0 [10²⁰ m⁻³]: 0.9111407630175864
+
+
+
+
+Calls: 200    Time: 0:00:03
+            error: 0.166823485392446
+     Pfusion [MW]: 364.5233914244207
+        Ti0 [keV]: 15.895147874492176
+        Te0 [keV]: 15.32443350932012
+   ne0 [10²⁰ m⁻³]: 0.9055891880404092
+
+
+
+
+Calls: 207    Time: 0:00:03
+            error: 0.17513544081697527
+     Pfusion [MW]: 363.9618076670607
+        Ti0 [keV]: 15.864901859994939
+        Te0 [keV]: 15.292908036186423
+   ne0 [10²⁰ m⁻³]: 0.9045071486675649
+
+
+
+
+Calls: 214    Time: 0:00:03
+            error: 1.037620496571917
+     Pfusion [MW]: 174.97141441603097
+        Ti0 [keV]: 12.07500150528104
+        Te0 [keV]: 15.576379497431423
+   ne0 [10²⁰ m⁻³]: 0.9060876742665595
+
+
+
+
+Calls: 220    Time: 0:00:03
+            error: 1.118372880576725
+     Pfusion [MW]: 168.5680729057023
+        Ti0 [keV]: 11.906432305291313
+        Te0 [keV]: 15.745498621561667
+   ne0 [10²⁰ m⁻³]: 0.9102910947090946
+
+
+
+
+Calls: 226    Time: 0:00:03
+            error: 1.0492995487853558
+     Pfusion [MW]: 173.09370051007224
+        Ti0 [keV]: 12.036476737317193
+        Te0 [keV]: 15.58404201543059
+   ne0 [10²⁰ m⁻³]: 0.9078291530521505
+
+
+
+
+Calls: 232    Time: 0:00:04
+            error: 1.143964455449744
+     Pfusion [MW]: 160.8679740177806
+        Ti0 [keV]: 11.819464719862097
+        Te0 [keV]: 15.765326645456387
+   ne0 [10²⁰ m⁻³]: 0.9099980574753679
+
+
+
+
+Calls: 238    Time: 0:00:04
+            error: 1.1640235532576275
+     Pfusion [MW]: 158.38063442463968
+        Ti0 [keV]: 11.778251184401343
+        Te0 [keV]: 15.84126948550312
+   ne0 [10²⁰ m⁻³]: 0.9101549905193091
+
+
+
+
+Calls: 245    Time: 0:00:04
+            error: 0.9860688725483078
+     Pfusion [MW]: 176.27067486173402
+        Ti0 [keV]: 12.167265063980306
+        Te0 [keV]: 15.398990740463871
+   ne0 [10²⁰ m⁻³]: 0.9060381251485128
+
+
+
+
+Calls: 252    Time: 0:00:04
+            error: 0.9137358805739918
+     Pfusion [MW]: 186.77646828908203
+        Ti0 [keV]: 12.405274744240366
+        Te0 [keV]: 15.261508998101709
+   ne0 [10²⁰ m⁻³]: 0.9046702454759711
+
+
+
+
+Calls: 258    Time: 0:00:04
+            error: 0.20377205310387417
+     Pfusion [MW]: 365.60111728826996
+        Ti0 [keV]: 16.000594273102436
+        Te0 [keV]: 15.0520927690765
+   ne0 [10²⁰ m⁻³]: 0.9006502186261326
+
+
+
+
+Calls: 264    Time: 0:00:04
+            error: 0.9735156293173413
+     Pfusion [MW]: 181.62592085114224
+        Ti0 [keV]: 12.242286486401857
+        Te0 [keV]: 15.403351548090003
+   ne0 [10²⁰ m⁻³]: 0.9078488782798589
+
+
+
+
+Calls: 269    Time: 0:00:04
+            error: 0.1788963719811767
+     Pfusion [MW]: 365.0747329961032
+        Ti0 [keV]: 16.014164564103012
+        Te0 [keV]: 15.086209158692247
+   ne0 [10²⁰ m⁻³]: 0.9013291203115044
+
+
+
+
+Calls: 276    Time: 0:00:04
+            error: 0.8841988884358263
+     Pfusion [MW]: 192.3174446858999
+        Ti0 [keV]: 12.453429406614106
+        Te0 [keV]: 15.353037368738194
+   ne0 [10²⁰ m⁻³]: 0.9068455977582592
+
+
+
+
+Calls: 283    Time: 0:00:05
+            error: 0.1816032221739443
+     Pfusion [MW]: 364.55772899584605
+        Ti0 [keV]: 15.988719498219181
+        Te0 [keV]: 15.093020928620104
+   ne0 [10²⁰ m⁻³]: 0.9012093482763587
+
+
+
+
+Calls: 290    Time: 0:00:05
+            error: 0.9018817650297105
+     Pfusion [MW]: 191.6180966391539
+        Ti0 [keV]: 12.430225755275798
+        Te0 [keV]: 15.400376681542344
+   ne0 [10²⁰ m⁻³]: 0.9076871771542816
+
+
+
+
+Calls: 296    Time: 0:00:05
+            error: 0.9050707161985744
+     Pfusion [MW]: 190.64800293041176
+        Ti0 [keV]: 12.409405061000086
+        Te0 [keV]: 15.40346063676259
+   ne0 [10²⁰ m⁻³]: 0.9078324603743758
+
+
+
+
+Calls: 302    Time: 0:00:05
+            error: 1.0145333343137943
+     Pfusion [MW]: 179.22760766516114
+        Ti0 [keV]: 12.148635888086055
+        Te0 [keV]: 15.601617152293175
+   ne0 [10²⁰ m⁻³]: 0.9099617557180953
+
+
+
+
+Calls: 308    Time: 0:00:05
+            error: 0.9794680011783747
+     Pfusion [MW]: 185.04308564138674
+        Ti0 [keV]: 12.262136460551977
+        Te0 [keV]: 15.55191414562468
+   ne0 [10²⁰ m⁻³]: 0.9098507488514334
+
+
+
+
+Calls: 315    Time: 0:00:05
+            error: 1.0282145502076794
+     Pfusion [MW]: 178.03061948066903
+        Ti0 [keV]: 12.115596005187925
+        Te0 [keV]: 15.64119256647333
+   ne0 [10²⁰ m⁻³]: 0.9097317557482658
+
+
+
+
+Calls: 322    Time: 0:00:05
+            error: 0.9802401182926652
+     Pfusion [MW]: 183.44780015270686
+        Ti0 [keV]: 12.231261492677744
+        Te0 [keV]: 15.540674824235605
+   ne0 [10²⁰ m⁻³]: 0.9091300629015537
+
+
+
+
+Calls: 328    Time: 0:00:05
+            error: 0.17825670531389168
+     Pfusion [MW]: 363.34170484787836
+        Ti0 [keV]: 15.906990861178672
+        Te0 [keV]: 15.263818632559639
+   ne0 [10²⁰ m⁻³]: 0.9048411863841086
+
+
+
+
+Calls: 334    Time: 0:00:05
+            error: 1.0132034217311348
+     Pfusion [MW]: 179.34364157354676
+        Ti0 [keV]: 12.151544280772784
+        Te0 [keV]: 15.599929834281
+   ne0 [10²⁰ m⁻³]: 0.9093025881463896
+
+
+
+
+Calls: 339    Time: 0:00:06
+            error: 1.0560992765236656
+     Pfusion [MW]: 174.75476654315338
+        Ti0 [keV]: 12.04986786561001
+        Te0 [keV]: 15.693817081326028
+   ne0 [10²⁰ m⁻³]: 0.9099801535905683
+
+
+
+
+Calls: 346    Time: 0:00:06
+            error: 1.034477695893683
+     Pfusion [MW]: 176.99208094135497
+        Ti0 [keV]: 12.09906056269173
+        Te0 [keV]: 15.65522118365883
+   ne0 [10²⁰ m⁻³]: 0.9095260532538194
+
+
+
+
+Calls: 353    Time: 0:00:06
+            error: 1.056580980871285
+     Pfusion [MW]: 175.14194429491346
+        Ti0 [keV]: 12.05384248100026
+        Te0 [keV]: 15.672159013600517
+   ne0 [10²⁰ m⁻³]: 0.9110373243969353
+
+
+
+
+Calls: 360    Time: 0:00:06
+            error: 0.9634272969705672
+     Pfusion [MW]: 184.53791008542228
+        Ti0 [keV]: 12.267483323459812
+        Te0 [keV]: 15.515100022706477
+   ne0 [10²⁰ m⁻³]: 0.9082985817609034
+
+
+
+
+Calls: 366    Time: 0:00:06
+            error: 1.002120941920664
+     Pfusion [MW]: 179.76866345906353
+        Ti0 [keV]: 12.174824025666892
+        Te0 [keV]: 15.575316185615003
+   ne0 [10²⁰ m⁻³]: 0.9083249980949311
+
+
+
+
+Calls: 372    Time: 0:00:06
+            error: 0.8461994502915288
+     Pfusion [MW]: 198.44726435914725
+        Ti0 [keV]: 12.55942139762991
+        Te0 [keV]: 15.368231029011618
+   ne0 [10²⁰ m⁻³]: 0.9046795353406344
+
+
+
+
+Calls: 377    Time: 0:00:06
+            error: 1.06437774829487
+     Pfusion [MW]: 173.4316170742385
+        Ti0 [keV]: 12.035812584692296
+        Te0 [keV]: 15.675491456108032
+   ne0 [10²⁰ m⁻³]: 0.9098705106958849
+
+
+
+
+Calls: 384    Time: 0:00:06
+            error: 1.0839088808099688
+     Pfusion [MW]: 171.62329072140244
+        Ti0 [keV]: 11.982067839252991
+        Te0 [keV]: 15.705931417484539
+   ne0 [10²⁰ m⁻³]: 0.9114455935159784
+
+
+
+
+Calls: 391    Time: 0:00:06
+            error: 1.002660900645611
+     Pfusion [MW]: 180.1936824210512
+        Ti0 [keV]: 12.18621462261187
+        Te0 [keV]: 15.597060872483478
+   ne0 [10²⁰ m⁻³]: 0.9084897189340401
+
+
+
+
+Calls: 397    Time: 0:00:07
+            error: 1.0101298459474688
+     Pfusion [MW]: 178.67439309564983
+        Ti0 [keV]: 12.192741001180256
+        Te0 [keV]: 15.584942093125372
+   ne0 [10²⁰ m⁻³]: 0.906778138902156
+
+
+
+
+Calls: 403    Time: 0:00:07
+            error: 0.15211442626589597
+     Pfusion [MW]: 363.8718111957457
+        Ti0 [keV]: 16.052231852340746
+        Te0 [keV]: 15.365189550048699
+   ne0 [10²⁰ m⁻³]: 0.9033894943413394
+
+
+
+
+Calls: 408    Time: 0:00:07
+            error: 1.010261136813764
+     Pfusion [MW]: 179.53180144197347
+        Ti0 [keV]: 12.199370091461502
+        Te0 [keV]: 15.57916627245872
+   ne0 [10²⁰ m⁻³]: 0.9087975816342078
+
+
+
+
+Calls: 415    Time: 0:00:07
+            error: 0.9785507532998549
+     Pfusion [MW]: 183.39599334573285
+        Ti0 [keV]: 12.280357593759025
+        Te0 [keV]: 15.555716650068844
+   ne0 [10²⁰ m⁻³]: 0.90823640240645
+
+
+
+
+Calls: 422    Time: 0:00:07
+            error: 0.9370857355111785
+     Pfusion [MW]: 187.47338920634823
+        Ti0 [keV]: 12.390476505153373
+        Te0 [keV]: 15.481210887698886
+   ne0 [10²⁰ m⁻³]: 0.9064627777518405
+
+
+
+
+Calls: 429    Time: 0:00:07
+            error: 0.16656079919222525
+     Pfusion [MW]: 366.7258596684054
+        Ti0 [keV]: 16.140618473931333
+        Te0 [keV]: 15.259208513885238
+   ne0 [10²⁰ m⁻³]: 0.9029072177273874
+
+
+
+
+Calls: 435    Time: 0:00:07
+            error: 0.9254809635385708
+     Pfusion [MW]: 188.30967518288438
+        Ti0 [keV]: 12.455975603668481
+        Te0 [keV]: 15.482116650279938
+   ne0 [10²⁰ m⁻³]: 0.9072915215144322
+
+
+
+
+Calls: 441    Time: 0:00:07
+            error: 0.8499652066410818
+     Pfusion [MW]: 195.63878630692332
+        Ti0 [keV]: 12.65338135242203
+        Te0 [keV]: 15.377364650817672
+   ne0 [10²⁰ m⁻³]: 0.9037828860398992
+
+
+
+
+Calls: 445    Time: 0:00:07
+            error: 0.7888916685096931
+     Pfusion [MW]: 201.8912878838429
+        Ti0 [keV]: 12.817813382501766
+        Te0 [keV]: 15.29608316234848
+   ne0 [10²⁰ m⁻³]: 0.9013353107791799
+
+
+
+
+Calls: 452    Time: 0:00:08
+            error: 0.9758710711795053
+     Pfusion [MW]: 182.25581757011165
+        Ti0 [keV]: 12.325058195986895
+        Te0 [keV]: 15.603359712514072
+   ne0 [10²⁰ m⁻³]: 0.9078077619825994
+
+
+
+
+Calls: 459    Time: 0:00:08
+            error: 0.1653185847897295
+     Pfusion [MW]: 365.0551461158477
+        Ti0 [keV]: 16.191256896772956
+        Te0 [keV]: 15.358959432788135
+   ne0 [10²⁰ m⁻³]: 0.9011340201556317
+
+
+
+
+Calls: 465    Time: 0:00:08
+            error: 0.9389716852690609
+     Pfusion [MW]: 186.27780601499913
+        Ti0 [keV]: 12.41727788463237
+        Te0 [keV]: 15.525619039104356
+   ne0 [10²⁰ m⁻³]: 0.9064737322047868
+
+
+
+
+Calls: 471    Time: 0:00:08
+            error: 0.9720054026026443
+     Pfusion [MW]: 180.97956646653302
+        Ti0 [keV]: 12.324387600369151
+        Te0 [keV]: 15.595793490047434
+   ne0 [10²⁰ m⁻³]: 0.906232628102897
+
+
+
+
+Calls: 477    Time: 0:00:08
+            error: 0.9341650388265528
+     Pfusion [MW]: 183.57994535347697
+        Ti0 [keV]: 12.42852068785909
+        Te0 [keV]: 15.555553146997214
+   ne0 [10²⁰ m⁻³]: 0.9051952747676867
+
+
+
+
+Calls: 484    Time: 0:00:08
+            error: 0.8701113262381707
+     Pfusion [MW]: 188.09178034074085
+        Ti0 [keV]: 12.600594388423342
+        Te0 [keV]: 15.502468819223543
+   ne0 [10²⁰ m⁻³]: 0.9018245035796096
+
+
+
+
+Calls: 491    Time: 0:00:08
+            error: 0.2142684304068191
+     Pfusion [MW]: 366.0202893751758
+        Ti0 [keV]: 16.393267757827836
+        Te0 [keV]: 15.248921934656684
+   ne0 [10²⁰ m⁻³]: 0.8963473207650489
+
+
+
+
+Calls: 498    Time: 0:00:08
+            error: 0.22188661703241444
+     Pfusion [MW]: 366.4434156035561
+        Ti0 [keV]: 16.47593724821059
+        Te0 [keV]: 15.301134374126695
+   ne0 [10²⁰ m⁻³]: 0.8964421059430446
+
+
+
+
+Calls: 502    Time: 0:00:08
+            error: 2.1409147488121265
+     Pfusion [MW]: 419.52569001859524
+        Ti0 [keV]: 17.58007972271616
+        Te0 [keV]: 18.34771371504535
+   ne0 [10²⁰ m⁻³]: 0.8263187056233802
+actors:  Current
+actors:   QED
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 3/5 @ 389.13%
+actors:  HCD
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Current
+actors:   QED
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+Calls: 7    Time: 0:00:00
+            error: 1.0801250110163347
+     Pfusion [MW]: 770.6029173852103
+        Ti0 [keV]: 21.137609122518384
+        Te0 [keV]: 20.114193262467086
+   ne0 [10²⁰ m⁻³]: 0.9318578564700049
+
+
+
+
+Calls: 14    Time: 0:00:00
+            error: 0.9253378216603909
+     Pfusion [MW]: 780.4116207264842
+        Ti0 [keV]: 20.275954225783558
+        Te0 [keV]: 20.489087448605396
+   ne0 [10²⁰ m⁻³]: 0.9779893713344956
+
+
+
+
+Calls: 20    Time: 0:00:00
+            error: 0.7898779896510326
+     Pfusion [MW]: 782.2445076194995
+        Ti0 [keV]: 19.484816098878408
+        Te0 [keV]: 20.594609118083888
+   ne0 [10²⁰ m⁻³]: 1.0173795273947612
+
+
+
+
+Calls: 26    Time: 0:00:00
+            error: 1.0863662563347636
+     Pfusion [MW]: 327.1197605508801
+        Ti0 [keV]: 13.110303158730465
+        Te0 [keV]: 19.46852638958365
+   ne0 [10²⁰ m⁻³]: 1.009340845272515
+
+
+
+
+Calls: 32    Time: 0:00:00
+            error: 0.5797431895430222
+     Pfusion [MW]: 288.2096896413394
+        Ti0 [keV]: 13.296845559118946
+        Te0 [keV]: 15.743445596185037
+   ne0 [10²⁰ m⁻³]: 0.9340436587725925
+
+
+
+
+Calls: 38    Time: 0:00:00
+            error: 0.37567745375586953
+     Pfusion [MW]: 274.43895507876385
+        Ti0 [keV]: 13.766217919915771
+        Te0 [keV]: 13.822433380946212
+   ne0 [10²⁰ m⁻³]: 0.883477829710866
+
+
+
+
+Calls: 44    Time: 0:00:00
+            error: 0.28308584166256623
+     Pfusion [MW]: 278.46453572632794
+        Ti0 [keV]: 14.690021733651111
+        Te0 [keV]: 13.49629270622003
+   ne0 [10²⁰ m⁻³]: 0.8762587081818397
+
+
+
+
+Calls: 50    Time: 0:00:00
+            error: 0.23541284817052416
+     Pfusion [MW]: 282.90883955360727
+        Ti0 [keV]: 14.973959447756291
+        Te0 [keV]: 14.081221420796153
+   ne0 [10²⁰ m⁻³]: 0.8907719569294511
+
+
+
+
+Calls: 56    Time: 0:00:01
+            error: 0.19859088080756626
+     Pfusion [MW]: 287.1808181910925
+        Ti0 [keV]: 15.455856274425226
+        Te0 [keV]: 14.491474922504837
+   ne0 [10²⁰ m⁻³]: 0.8920079460366273
+
+
+
+
+Calls: 62    Time: 0:00:01
+            error: 0.1750595677631184
+     Pfusion [MW]: 288.08298761749654
+        Ti0 [keV]: 15.86533095296619
+        Te0 [keV]: 14.72427874410443
+   ne0 [10²⁰ m⁻³]: 0.8846641372718261
+
+
+
+
+Calls: 68    Time: 0:00:01
+            error: 0.16269642423077255
+     Pfusion [MW]: 288.882582851857
+        Ti0 [keV]: 16.227184402652693
+        Te0 [keV]: 14.897271636254757
+   ne0 [10²⁰ m⁻³]: 0.879446697914699
+
+
+
+
+Calls: 74    Time: 0:00:01
+            error: 0.1537533543202663
+     Pfusion [MW]: 287.8139700121554
+        Ti0 [keV]: 16.489223596041732
+        Te0 [keV]: 15.193246507046577
+   ne0 [10²⁰ m⁻³]: 0.8777779693144531
+
+
+
+
+Calls: 80    Time: 0:00:01
+            error: 0.14920949541410636
+     Pfusion [MW]: 287.5357759889593
+        Ti0 [keV]: 16.6998220616586
+        Te0 [keV]: 15.42415674762092
+   ne0 [10²⁰ m⁻³]: 0.8789847120281071
+
+
+
+
+Calls: 86    Time: 0:00:01
+            error: 0.14232916180729202
+     Pfusion [MW]: 287.4025176553224
+        Ti0 [keV]: 16.950299987475972
+        Te0 [keV]: 15.687041549369674
+   ne0 [10²⁰ m⁻³]: 0.8794067465384241
+
+
+
+
+Calls: 92    Time: 0:00:01
+            error: 0.13434739169385393
+     Pfusion [MW]: 288.2510120227122
+        Ti0 [keV]: 17.445654495127787
+        Te0 [keV]: 16.043051013421234
+   ne0 [10²⁰ m⁻³]: 0.8795732624198525
+
+
+
+
+Calls: 98    Time: 0:00:01
+            error: 0.13057806732133456
+     Pfusion [MW]: 289.02133483990315
+        Ti0 [keV]: 17.840816661693417
+        Te0 [keV]: 16.312826141148868
+   ne0 [10²⁰ m⁻³]: 0.8792650115953213
+
+
+
+
+Calls: 104    Time: 0:00:02
+            error: 0.1266369518352403
+     Pfusion [MW]: 290.83033980809824
+        Ti0 [keV]: 18.353711110129215
+        Te0 [keV]: 16.835981456400333
+   ne0 [10²⁰ m⁻³]: 0.8801432098747348
+
+
+
+
+Calls: 110    Time: 0:00:02
+            error: 0.1225684073344888
+     Pfusion [MW]: 294.61252063587017
+        Ti0 [keV]: 18.809824982307454
+        Te0 [keV]: 17.559053906499212
+   ne0 [10²⁰ m⁻³]: 0.8857487055487363
+
+
+
+
+Calls: 116    Time: 0:00:02
+            error: 0.12009408374423969
+     Pfusion [MW]: 295.74290705802633
+        Ti0 [keV]: 19.005034942178973
+        Te0 [keV]: 17.829275810788044
+   ne0 [10²⁰ m⁻³]: 0.8867509807237122
+
+
+
+
+Calls: 122    Time: 0:00:02
+            error: 0.1168929911285042
+     Pfusion [MW]: 297.69805477608526
+        Ti0 [keV]: 19.225232514925363
+        Te0 [keV]: 18.217192582611187
+   ne0 [10²⁰ m⁻³]: 0.8889354199058678
+
+
+
+
+Calls: 128    Time: 0:00:02
+            error: 0.11473960163309582
+     Pfusion [MW]: 299.20524649312557
+        Ti0 [keV]: 19.34912871665441
+        Te0 [keV]: 18.49079788024082
+   ne0 [10²⁰ m⁻³]: 0.890915912917304
+
+
+
+
+Calls: 133    Time: 0:00:02
+            error: 0.11017024110767401
+     Pfusion [MW]: 302.0063928978365
+        Ti0 [keV]: 19.44200909366272
+        Te0 [keV]: 18.91936650471794
+   ne0 [10²⁰ m⁻³]: 0.8951189600889605
+
+
+
+
+Calls: 139    Time: 0:00:02
+            error: 0.09027668546121621
+     Pfusion [MW]: 313.21948146400507
+        Ti0 [keV]: 19.81231590236581
+        Te0 [keV]: 20.22721747144733
+   ne0 [10²⁰ m⁻³]: 0.9134741425895538
+
+
+
+
+Calls: 145    Time: 0:00:02
+            error: 0.07894489320845717
+     Pfusion [MW]: 319.4088127842377
+        Ti0 [keV]: 19.810174016836136
+        Te0 [keV]: 20.7480277098434
+   ne0 [10²⁰ m⁻³]: 0.9237541175286437
+
+
+
+
+Calls: 151    Time: 0:00:02
+            error: 0.07592731194593733
+     Pfusion [MW]: 321.7322626798946
+        Ti0 [keV]: 19.72715735086356
+        Te0 [keV]: 20.85555690038279
+   ne0 [10²⁰ m⁻³]: 0.927860907637366
+
+
+
+
+Calls: 157    Time: 0:00:03
+            error: 0.07166380798808007
+     Pfusion [MW]: 323.96088593870843
+        Ti0 [keV]: 19.709081880615166
+        Te0 [keV]: 21.017621653605993
+   ne0 [10²⁰ m⁻³]: 0.9318121775673976
+
+
+
+
+Calls: 163    Time: 0:00:03
+            error: 0.06943079390909007
+     Pfusion [MW]: 327.04185133015153
+        Ti0 [keV]: 19.711116739633162
+        Te0 [keV]: 21.255777337902746
+   ne0 [10²⁰ m⁻³]: 0.9371414585577895
+
+
+
+
+Calls: 168    Time: 0:00:03
+            error: 0.05833095104547462
+     Pfusion [MW]: 330.6269948036246
+        Ti0 [keV]: 19.702996706059427
+        Te0 [keV]: 21.506464263051676
+   ne0 [10²⁰ m⁻³]: 0.9446175917618889
+
+
+
+
+Calls: 174    Time: 0:00:03
+            error: 0.05668131469564338
+     Pfusion [MW]: 332.3896052154816
+        Ti0 [keV]: 19.68754204217258
+        Te0 [keV]: 21.632159773736625
+   ne0 [10²⁰ m⁻³]: 0.9482896570311359
+
+
+
+
+Calls: 180    Time: 0:00:03
+            error: 0.05063121581726338
+     Pfusion [MW]: 335.0734584821222
+        Ti0 [keV]: 19.673434893173397
+        Te0 [keV]: 21.760221117016417
+   ne0 [10²⁰ m⁻³]: 0.9549340963577249
+
+
+
+
+Calls: 186    Time: 0:00:03
+            error: 0.050092125967495044
+     Pfusion [MW]: 335.15293515039673
+        Ti0 [keV]: 19.683338581723206
+        Te0 [keV]: 21.75857112719227
+   ne0 [10²⁰ m⁻³]: 0.9552749280665761
+
+
+
+
+Calls: 192    Time: 0:00:03
+            error: 0.04930424446875239
+     Pfusion [MW]: 334.83427371861876
+        Ti0 [keV]: 19.69031530620297
+        Te0 [keV]: 21.737963494442397
+   ne0 [10²⁰ m⁻³]: 0.9548993305900734
+
+
+
+
+Calls: 198    Time: 0:00:03
+            error: 0.04607892422251538
+     Pfusion [MW]: 335.2193244821557
+        Ti0 [keV]: 19.697850872920956
+        Te0 [keV]: 21.767277712046145
+   ne0 [10²⁰ m⁻³]: 0.9562344575026848
+
+
+
+
+Calls: 204    Time: 0:00:03
+            error: 0.045735112190854604
+     Pfusion [MW]: 335.20644570199215
+        Ti0 [keV]: 19.700779190117224
+        Te0 [keV]: 21.767406065527418
+   ne0 [10²⁰ m⁻³]: 0.9563086537847306
+
+
+
+
+Calls: 210    Time: 0:00:04
+            error: 0.0425850790191695
+     Pfusion [MW]: 334.4998668232591
+        Ti0 [keV]: 19.70737998548327
+        Te0 [keV]: 21.726023191969826
+   ne0 [10²⁰ m⁻³]: 0.9548207738998794
+
+
+
+
+Calls: 216    Time: 0:00:04
+            error: 0.03922688748014953
+     Pfusion [MW]: 333.527231739929
+        Ti0 [keV]: 19.716235868188857
+        Te0 [keV]: 21.675000063353878
+   ne0 [10²⁰ m⁻³]: 0.952772202416583
+
+
+
+
+Calls: 222    Time: 0:00:04
+            error: 0.02981088314510548
+     Pfusion [MW]: 331.81482478738496
+        Ti0 [keV]: 19.739482912595232
+        Te0 [keV]: 21.613386068641315
+   ne0 [10²⁰ m⁻³]: 0.9483956864336246
+
+
+
+
+Calls: 228    Time: 0:00:04
+            error: 0.02797937210845984
+     Pfusion [MW]: 331.1412539608199
+        Ti0 [keV]: 19.75012953874029
+        Te0 [keV]: 21.599091656268133
+   ne0 [10²⁰ m⁻³]: 0.9466363941258525
+
+
+
+
+Calls: 234    Time: 0:00:04
+            error: 0.024174070377911163
+     Pfusion [MW]: 330.36496166237936
+        Ti0 [keV]: 19.774475134169098
+        Te0 [keV]: 21.579658080164904
+   ne0 [10²⁰ m⁻³]: 0.9451917540926092
+
+
+
+
+Calls: 240    Time: 0:00:04
+            error: 0.02055625446553249
+     Pfusion [MW]: 330.02021014230394
+        Ti0 [keV]: 19.802233658901425
+        Te0 [keV]: 21.584813929123197
+   ne0 [10²⁰ m⁻³]: 0.945015443963099
+
+
+
+
+Calls: 245    Time: 0:00:04
+            error: 0.019438692754303818
+     Pfusion [MW]: 329.8024969049062
+        Ti0 [keV]: 19.81818014483839
+        Te0 [keV]: 21.5864450910151
+   ne0 [10²⁰ m⁻³]: 0.9448921442908726
+actors:  Current
+actors:   QED
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 4/5 @ 335.64%
+actors:  HCD
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Current
+actors:   QED
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+Calls: 7    Time: 0:00:00
+            error: 1.1263122456753816
+     Pfusion [MW]: 245.05095594455457
+        Ti0 [keV]: 18.591640194485727
+        Te0 [keV]: 20.07677228275709
+   ne0 [10²⁰ m⁻³]: 0.9225480141609185
+
+
+
+
+Calls: 13    Time: 0:00:00
+            error: 0.5920832966175442
+     Pfusion [MW]: 234.51535914383823
+        Ti0 [keV]: 17.8252448225708
+        Te0 [keV]: 19.131309050944388
+   ne0 [10²⁰ m⁻³]: 0.9133077491045312
+
+
+
+
+Calls: 20    Time: 0:00:00
+            error: 0.36960899785398676
+     Pfusion [MW]: 225.95450582812714
+        Ti0 [keV]: 17.181278430374025
+        Te0 [keV]: 18.283722865409178
+   ne0 [10²⁰ m⁻³]: 0.9025504014880502
+
+
+
+
+Calls: 26    Time: 0:00:00
+            error: 0.2882965833409467
+     Pfusion [MW]: 220.19843542421233
+        Ti0 [keV]: 16.69434576900108
+        Te0 [keV]: 17.61957063126859
+   ne0 [10²⁰ m⁻³]: 0.8929870746382274
+
+
+
+
+Calls: 32    Time: 0:00:00
+            error: 0.1894138139852378
+     Pfusion [MW]: 219.31704510178875
+        Ti0 [keV]: 16.444197113236
+        Te0 [keV]: 17.176602531662095
+   ne0 [10²⁰ m⁻³]: 0.8905376250763053
+
+
+
+
+Calls: 38    Time: 0:00:00
+            error: 0.1686537646628362
+     Pfusion [MW]: 220.30606931740354
+        Ti0 [keV]: 16.434582899952517
+        Te0 [keV]: 17.093800355370757
+   ne0 [10²⁰ m⁻³]: 0.8906894471461092
+
+
+
+
+Calls: 44    Time: 0:00:00
+            error: 0.1639602165364196
+     Pfusion [MW]: 220.86960408396615
+        Ti0 [keV]: 16.458920157902856
+        Te0 [keV]: 17.103164537949645
+   ne0 [10²⁰ m⁻³]: 0.8909241878916976
+
+
+
+
+Calls: 51    Time: 0:00:00
+            error: 0.16286174920941648
+     Pfusion [MW]: 221.44724992192153
+        Ti0 [keV]: 16.489137690815923
+        Te0 [keV]: 17.1195391784889
+   ne0 [10²⁰ m⁻³]: 0.8910031987942254
+
+
+
+
+Calls: 58    Time: 0:00:01
+            error: 0.16238360749778677
+     Pfusion [MW]: 221.83160500299215
+        Ti0 [keV]: 16.498437299512403
+        Te0 [keV]: 17.105160478859503
+   ne0 [10²⁰ m⁻³]: 0.8905380660040463
+
+
+
+
+Calls: 65    Time: 0:00:01
+            error: 0.15704138902580778
+     Pfusion [MW]: 228.69145083427978
+        Ti0 [keV]: 16.795422148093106
+        Te0 [keV]: 17.260889816767897
+   ne0 [10²⁰ m⁻³]: 0.8893507226695658
+
+
+
+
+Calls: 71    Time: 0:00:01
+            error: 0.15177598525011143
+     Pfusion [MW]: 238.49223667175943
+        Ti0 [keV]: 17.21601794676971
+        Te0 [keV]: 17.527501813662887
+   ne0 [10²⁰ m⁻³]: 0.8882834184277706
+
+
+
+
+Calls: 77    Time: 0:00:01
+            error: 0.1452396185784923
+     Pfusion [MW]: 241.4337483342316
+        Ti0 [keV]: 17.38330623662151
+        Te0 [keV]: 17.73722663170534
+   ne0 [10²⁰ m⁻³]: 0.8887992212492395
+
+
+
+
+Calls: 83    Time: 0:00:01
+            error: 0.14190886358860078
+     Pfusion [MW]: 246.00766100882677
+        Ti0 [keV]: 17.58226884460564
+        Te0 [keV]: 17.918108514801787
+   ne0 [10²⁰ m⁻³]: 0.8889083854945076
+
+
+
+
+Calls: 90    Time: 0:00:01
+            error: 0.13618107158156575
+     Pfusion [MW]: 252.77543983005853
+        Ti0 [keV]: 17.698475894199316
+        Te0 [keV]: 17.991971558709256
+   ne0 [10²⁰ m⁻³]: 0.8887337553448804
+
+
+
+
+Calls: 97    Time: 0:00:01
+            error: 0.13275254955133026
+     Pfusion [MW]: 253.97158903659403
+        Ti0 [keV]: 17.650039730911157
+        Te0 [keV]: 17.927646873901665
+   ne0 [10²⁰ m⁻³]: 0.8888634769107923
+
+
+
+
+Calls: 104    Time: 0:00:01
+            error: 0.12939620572671587
+     Pfusion [MW]: 251.5135318115371
+        Ti0 [keV]: 17.62004689722686
+        Te0 [keV]: 17.951507075299588
+   ne0 [10²⁰ m⁻³]: 0.8892621251065912
+
+
+
+
+Calls: 110    Time: 0:00:01
+            error: 0.11938260186611527
+     Pfusion [MW]: 251.78392622426503
+        Ti0 [keV]: 17.480157908374398
+        Te0 [keV]: 17.90764064247513
+   ne0 [10²⁰ m⁻³]: 0.890380738863377
+
+
+
+
+Calls: 116    Time: 0:00:02
+            error: 0.11351630307611976
+     Pfusion [MW]: 257.5428363893034
+        Ti0 [keV]: 17.54792524626399
+        Te0 [keV]: 17.984804054326535
+   ne0 [10²⁰ m⁻³]: 0.8913694619240816
+
+
+
+
+Calls: 122    Time: 0:00:02
+            error: 0.10489324924869504
+     Pfusion [MW]: 258.2665343166381
+        Ti0 [keV]: 17.461508352959164
+        Te0 [keV]: 18.0027629372548
+   ne0 [10²⁰ m⁻³]: 0.8920915555109724
+
+
+
+
+Calls: 129    Time: 0:00:02
+            error: 0.1048798751714113
+     Pfusion [MW]: 254.73634724824572
+        Ti0 [keV]: 17.337422742991425
+        Te0 [keV]: 17.99777048314428
+   ne0 [10²⁰ m⁻³]: 0.8920653352912666
+
+
+
+
+Calls: 136    Time: 0:00:02
+            error: 0.09671280567778727
+     Pfusion [MW]: 258.0100066974072
+        Ti0 [keV]: 17.521450132746164
+        Te0 [keV]: 18.111766604194006
+   ne0 [10²⁰ m⁻³]: 0.8916474068686691
+
+
+
+
+Calls: 143    Time: 0:00:02
+            error: 0.09050821586187378
+     Pfusion [MW]: 260.7698624487177
+        Ti0 [keV]: 17.611761937286992
+        Te0 [keV]: 18.195558095491315
+   ne0 [10²⁰ m⁻³]: 0.8923811512436903
+
+
+
+
+Calls: 149    Time: 0:00:02
+            error: 0.09063633426310448
+     Pfusion [MW]: 263.16629976216143
+        Ti0 [keV]: 17.698810778380153
+        Te0 [keV]: 18.338091742026233
+   ne0 [10²⁰ m⁻³]: 0.893520212001406
+
+
+
+
+Calls: 155    Time: 0:00:02
+            error: 0.09056567532748287
+     Pfusion [MW]: 263.4371488731223
+        Ti0 [keV]: 17.708543400666294
+        Te0 [keV]: 18.36684382928999
+   ne0 [10²⁰ m⁻³]: 0.8937254766236886
+
+
+
+
+Calls: 161    Time: 0:00:02
+            error: 0.08718997883908297
+     Pfusion [MW]: 263.14604389344856
+        Ti0 [keV]: 17.69363707588375
+        Te0 [keV]: 18.324131496373354
+   ne0 [10²⁰ m⁻³]: 0.8933413341423926
+
+
+
+
+Calls: 168    Time: 0:00:03
+            error: 0.08924998186381301
+     Pfusion [MW]: 263.02885209021395
+        Ti0 [keV]: 17.69273453495716
+        Te0 [keV]: 18.341253091127026
+   ne0 [10²⁰ m⁻³]: 0.8932448629162205
+
+
+
+
+Calls: 175    Time: 0:00:03
+            error: 0.08826782439411295
+     Pfusion [MW]: 262.79750238526236
+        Ti0 [keV]: 17.678559345866695
+        Te0 [keV]: 18.32012288200555
+   ne0 [10²⁰ m⁻³]: 0.8929799844982412
+
+
+
+
+Calls: 181    Time: 0:00:03
+            error: 0.08544026111659384
+     Pfusion [MW]: 262.6737483329259
+        Ti0 [keV]: 17.67014959623414
+        Te0 [keV]: 18.297520515406443
+   ne0 [10²⁰ m⁻³]: 0.8930859428243153
+
+
+
+
+Calls: 187    Time: 0:00:03
+            error: 0.08761497972088213
+     Pfusion [MW]: 262.98771249272255
+        Ti0 [keV]: 17.686023280062603
+        Te0 [keV]: 18.334017929471607
+   ne0 [10²⁰ m⁻³]: 0.8931738954770714
+
+
+
+
+Calls: 193    Time: 0:00:03
+            error: 0.0935015415100457
+     Pfusion [MW]: 262.7173095968456
+        Ti0 [keV]: 17.697892603148006
+        Te0 [keV]: 18.407659909644753
+   ne0 [10²⁰ m⁻³]: 0.8934489936116741
+
+
+
+
+Calls: 200    Time: 0:00:03
+            error: 0.08852873491253421
+     Pfusion [MW]: 260.14459026182305
+        Ti0 [keV]: 17.61018079664285
+        Te0 [keV]: 18.2858977419758
+   ne0 [10²⁰ m⁻³]: 0.8930241260202261
+
+
+
+
+Calls: 207    Time: 0:00:03
+            error: 0.08698876196954444
+     Pfusion [MW]: 261.82217661044757
+        Ti0 [keV]: 17.66404554322604
+        Te0 [keV]: 18.337029511327856
+   ne0 [10²⁰ m⁻³]: 0.8933462699834016
+
+
+
+
+Calls: 214    Time: 0:00:03
+            error: 0.08776600505885974
+     Pfusion [MW]: 260.13005570851954
+        Ti0 [keV]: 17.60741631082258
+        Te0 [keV]: 18.292788107803982
+   ne0 [10²⁰ m⁻³]: 0.893364721894339
+
+
+
+
+Calls: 220    Time: 0:00:03
+            error: 0.08461266273033335
+     Pfusion [MW]: 262.0281510127189
+        Ti0 [keV]: 17.670568344168768
+        Te0 [keV]: 18.341648053184684
+   ne0 [10²⁰ m⁻³]: 0.8934016725016709
+
+
+
+
+Calls: 226    Time: 0:00:04
+            error: 0.08731644655461589
+     Pfusion [MW]: 257.8844574266819
+        Ti0 [keV]: 17.545165218219495
+        Te0 [keV]: 18.254537290774536
+   ne0 [10²⁰ m⁻³]: 0.8931877405354102
+
+
+
+
+Calls: 232    Time: 0:00:04
+            error: 0.08393415153532066
+     Pfusion [MW]: 261.86270040622264
+        Ti0 [keV]: 17.66525328158307
+        Te0 [keV]: 18.340304455423937
+   ne0 [10²⁰ m⁻³]: 0.8934600363330008
+
+
+
+
+Calls: 239    Time: 0:00:04
+            error: 0.08774678139663684
+     Pfusion [MW]: 260.852420056853
+        Ti0 [keV]: 17.6450605030242
+        Te0 [keV]: 18.34907622656479
+   ne0 [10²⁰ m⁻³]: 0.8936092501645301
+
+
+
+
+Calls: 246    Time: 0:00:04
+            error: 0.08430540653933558
+     Pfusion [MW]: 259.8525070998128
+        Ti0 [keV]: 17.60668096176973
+        Te0 [keV]: 18.29207891567955
+   ne0 [10²⁰ m⁻³]: 0.8931255218423695
+
+
+
+
+Calls: 253    Time: 0:00:04
+            error: 0.08306277340756034
+     Pfusion [MW]: 261.15419839347516
+        Ti0 [keV]: 17.64269836642981
+        Te0 [keV]: 18.309353541489312
+   ne0 [10²⁰ m⁻³]: 0.8930928672361242
+
+
+
+
+Calls: 259    Time: 0:00:04
+            error: 0.08497087801092552
+     Pfusion [MW]: 262.27626395844476
+        Ti0 [keV]: 17.6839072840507
+        Te0 [keV]: 18.35697618465501
+   ne0 [10²⁰ m⁻³]: 0.8933162700041073
+
+
+
+
+Calls: 265    Time: 0:00:04
+            error: 0.09362871901915833
+     Pfusion [MW]: 259.70017481874163
+        Ti0 [keV]: 17.617038209337196
+        Te0 [keV]: 18.325952848187928
+   ne0 [10²⁰ m⁻³]: 0.8932581255322378
+
+
+
+
+Calls: 270    Time: 0:00:04
+            error: 0.09384041835064363
+     Pfusion [MW]: 260.99687394261804
+        Ti0 [keV]: 17.65993931056647
+        Te0 [keV]: 18.362589459216593
+   ne0 [10²⁰ m⁻³]: 0.8934697174561138
+
+
+
+
+Calls: 277    Time: 0:00:04
+            error: 0.09014721414182121
+     Pfusion [MW]: 260.4829139935258
+        Ti0 [keV]: 17.629934148557346
+        Te0 [keV]: 18.316806778350927
+   ne0 [10²⁰ m⁻³]: 0.8929316216910251
+
+
+
+
+Calls: 284    Time: 0:00:05
+            error: 0.08663618560907185
+     Pfusion [MW]: 261.3476614466408
+        Ti0 [keV]: 17.652208817986025
+        Te0 [keV]: 18.33628938541136
+   ne0 [10²⁰ m⁻³]: 0.893452799505903
+
+
+
+
+Calls: 290    Time: 0:00:05
+            error: 0.0902353738053086
+     Pfusion [MW]: 259.35365281942194
+        Ti0 [keV]: 17.595114317202984
+        Te0 [keV]: 18.30709160935841
+   ne0 [10²⁰ m⁻³]: 0.8934486429510369
+
+
+
+
+Calls: 296    Time: 0:00:05
+            error: 0.08846959169578959
+     Pfusion [MW]: 262.38647349292563
+        Ti0 [keV]: 17.677328632329527
+        Te0 [keV]: 18.37167079314853
+   ne0 [10²⁰ m⁻³]: 0.8938976462384477
+
+
+
+
+Calls: 302    Time: 0:00:05
+            error: 0.08577642363229317
+     Pfusion [MW]: 261.9580847941293
+        Ti0 [keV]: 17.686525436731145
+        Te0 [keV]: 18.346318169530065
+   ne0 [10²⁰ m⁻³]: 0.8929710084989881
+
+
+
+
+Calls: 309    Time: 0:00:05
+            error: 0.0848897824058336
+     Pfusion [MW]: 261.968763908551
+        Ti0 [keV]: 17.69215741317185
+        Te0 [keV]: 18.34283362626465
+   ne0 [10²⁰ m⁻³]: 0.8929097724038977
+
+
+
+
+Calls: 316    Time: 0:00:05
+            error: 0.08306334799255856
+     Pfusion [MW]: 260.22215249996844
+        Ti0 [keV]: 17.659412906660155
+        Te0 [keV]: 18.30300089856035
+   ne0 [10²⁰ m⁻³]: 0.8923217059845205
+
+
+
+
+Calls: 323    Time: 0:00:05
+            error: 0.07868297606641153
+     Pfusion [MW]: 261.34031941519066
+        Ti0 [keV]: 17.72927521936618
+        Te0 [keV]: 18.306389342176125
+   ne0 [10²⁰ m⁻³]: 0.8917158745230467
+
+
+
+
+Calls: 329    Time: 0:00:05
+            error: 0.07410325058169373
+     Pfusion [MW]: 262.7957725079723
+        Ti0 [keV]: 17.774645521175874
+        Te0 [keV]: 18.329722249810303
+   ne0 [10²⁰ m⁻³]: 0.8920494124244938
+
+
+
+
+Calls: 335    Time: 0:00:05
+            error: 0.07054509342681735
+     Pfusion [MW]: 265.14230624089066
+        Ti0 [keV]: 17.872797068517396
+        Te0 [keV]: 18.368705883151073
+   ne0 [10²⁰ m⁻³]: 0.8918381747672981
+
+
+
+
+Calls: 339    Time: 0:00:06
+            error: 0.07059703836621208
+     Pfusion [MW]: 263.3541189485925
+        Ti0 [keV]: 17.807392332604593
+        Te0 [keV]: 18.342336934916343
+   ne0 [10²⁰ m⁻³]: 0.8920421180332501
+
+
+
+
+Calls: 346    Time: 0:00:06
+            error: 0.06935612907538345
+     Pfusion [MW]: 264.47777361776804
+        Ti0 [keV]: 17.849559096308102
+        Te0 [keV]: 18.359842019957142
+   ne0 [10²⁰ m⁻³]: 0.891893379239753
+
+
+
+
+Calls: 353    Time: 0:00:06
+            error: 0.06920231278513149
+     Pfusion [MW]: 263.24740623719003
+        Ti0 [keV]: 17.831067547195552
+        Te0 [keV]: 18.352362935431778
+   ne0 [10²⁰ m⁻³]: 0.891796822424072
+
+
+
+
+Calls: 360    Time: 0:00:06
+            error: 0.06805443548482955
+     Pfusion [MW]: 265.5541281687414
+        Ti0 [keV]: 17.919843437133903
+        Te0 [keV]: 18.39006954831674
+   ne0 [10²⁰ m⁻³]: 0.8917443920941673
+
+
+
+
+Calls: 366    Time: 0:00:06
+            error: 0.0686753371446734
+     Pfusion [MW]: 265.34722724201174
+        Ti0 [keV]: 17.924148047715285
+        Te0 [keV]: 18.40206815524353
+   ne0 [10²⁰ m⁻³]: 0.8919523412455291
+
+
+
+
+Calls: 372    Time: 0:00:06
+            error: 0.06761973997718648
+     Pfusion [MW]: 264.6821300681522
+        Ti0 [keV]: 17.897908324434113
+        Te0 [keV]: 18.38774529605124
+   ne0 [10²⁰ m⁻³]: 0.8917220403758064
+
+
+
+
+Calls: 376    Time: 0:00:06
+            error: 0.06760603116555126
+     Pfusion [MW]: 265.29187020181996
+        Ti0 [keV]: 17.92757389445111
+        Te0 [keV]: 18.403006321944016
+   ne0 [10²⁰ m⁻³]: 0.8917399895295479
+
+
+
+
+Calls: 383    Time: 0:00:06
+            error: 0.06679229719388544
+     Pfusion [MW]: 264.1589682620518
+        Ti0 [keV]: 17.881439420794855
+        Te0 [keV]: 18.385917982380526
+   ne0 [10²⁰ m⁻³]: 0.8916635672934496
+
+
+
+
+Calls: 389    Time: 0:00:06
+            error: 0.06782191881269535
+     Pfusion [MW]: 263.6082939397575
+        Ti0 [keV]: 17.856240938489282
+        Te0 [keV]: 18.37506366165827
+   ne0 [10²⁰ m⁻³]: 0.8917086267133616
+
+
+
+
+Calls: 396    Time: 0:00:07
+            error: 0.06623158967514278
+     Pfusion [MW]: 265.6268673898953
+        Ti0 [keV]: 17.943012408080392
+        Te0 [keV]: 18.41194749624036
+   ne0 [10²⁰ m⁻³]: 0.8915162150354592
+
+
+
+
+Calls: 402    Time: 0:00:07
+            error: 0.06635474871849835
+     Pfusion [MW]: 264.80274933758005
+        Ti0 [keV]: 17.90764162278822
+        Te0 [keV]: 18.398111168211255
+   ne0 [10²⁰ m⁻³]: 0.8916006261992697
+
+
+
+
+Calls: 408    Time: 0:00:07
+            error: 0.06915869017793459
+     Pfusion [MW]: 262.78967575567674
+        Ti0 [keV]: 17.81982845459801
+        Te0 [keV]: 18.367159937309385
+   ne0 [10²⁰ m⁻³]: 0.8919394451132235
+
+
+
+
+Calls: 414    Time: 0:00:07
+            error: 0.06657250007665828
+     Pfusion [MW]: 264.4931723319327
+        Ti0 [keV]: 17.892702735778375
+        Te0 [keV]: 18.399934073087824
+   ne0 [10²⁰ m⁻³]: 0.8918139489190293
+
+
+
+
+Calls: 421    Time: 0:00:07
+            error: 0.06638278793117633
+     Pfusion [MW]: 265.2448925276111
+        Ti0 [keV]: 17.923744622493704
+        Te0 [keV]: 18.414330402899445
+   ne0 [10²⁰ m⁻³]: 0.8917018465275874
+
+
+
+
+Calls: 428    Time: 0:00:07
+            error: 0.0669996980828393
+     Pfusion [MW]: 265.8995415158479
+        Ti0 [keV]: 17.950075470438772
+        Te0 [keV]: 18.41999303949273
+   ne0 [10²⁰ m⁻³]: 0.8916730961680114
+
+
+
+
+Calls: 434    Time: 0:00:07
+            error: 0.06609944866002725
+     Pfusion [MW]: 266.8969255030939
+        Ti0 [keV]: 17.996104086289463
+        Te0 [keV]: 18.44266433910971
+   ne0 [10²⁰ m⁻³]: 0.8914947889086426
+
+
+
+
+Calls: 440    Time: 0:00:07
+            error: 0.06640829702034583
+     Pfusion [MW]: 266.45607167992597
+        Ti0 [keV]: 17.976443081239744
+        Te0 [keV]: 18.434280684510835
+   ne0 [10²⁰ m⁻³]: 0.8914560696227238
+
+
+
+
+Calls: 446    Time: 0:00:08
+            error: 0.0666363529436516
+     Pfusion [MW]: 265.10483304098847
+        Ti0 [keV]: 17.92147572696608
+        Te0 [keV]: 18.41540166501261
+   ne0 [10²⁰ m⁻³]: 0.8916398987628945
+
+
+
+
+Calls: 453    Time: 0:00:08
+            error: 0.06718255067132126
+     Pfusion [MW]: 264.8821892582366
+        Ti0 [keV]: 17.914495355780968
+        Te0 [keV]: 18.415784040921483
+   ne0 [10²⁰ m⁻³]: 0.8915883612254629
+
+
+
+
+Calls: 460    Time: 0:00:08
+            error: 0.06572902542647309
+     Pfusion [MW]: 266.58044600422073
+        Ti0 [keV]: 17.981042289941843
+        Te0 [keV]: 18.4353087900369
+   ne0 [10²⁰ m⁻³]: 0.8914451139285152
+
+
+
+
+Calls: 467    Time: 0:00:08
+            error: 0.06566880299697164
+     Pfusion [MW]: 267.00616916465793
+        Ti0 [keV]: 17.998975451211344
+        Te0 [keV]: 18.439760846571865
+   ne0 [10²⁰ m⁻³]: 0.8913580041866322
+
+
+
+
+Calls: 473    Time: 0:00:08
+            error: 0.07341043066255831
+     Pfusion [MW]: 261.494629263593
+        Ti0 [keV]: 17.774604067321476
+        Te0 [keV]: 18.357004942087407
+   ne0 [10²⁰ m⁻³]: 0.8918622421475075
+
+
+
+
+Calls: 479    Time: 0:00:08
+            error: 0.06763024356160754
+     Pfusion [MW]: 264.86817939113683
+        Ti0 [keV]: 17.912663443932658
+        Te0 [keV]: 18.410652404658887
+   ne0 [10²⁰ m⁻³]: 0.8914760236641112
+
+
+
+
+Calls: 485    Time: 0:00:08
+            error: 0.06646231540675797
+     Pfusion [MW]: 266.0215674419673
+        Ti0 [keV]: 17.961677096887907
+        Te0 [keV]: 18.424497814701137
+   ne0 [10²⁰ m⁻³]: 0.8914352718741717
+
+
+
+
+Calls: 492    Time: 0:00:08
+            error: 0.0663981085594877
+     Pfusion [MW]: 264.24345009269956
+        Ti0 [keV]: 17.889977929952323
+        Te0 [keV]: 18.39716994532791
+   ne0 [10²⁰ m⁻³]: 0.8915773923550764
+
+
+
+
+Calls: 499    Time: 0:00:08
+            error: 0.06549263249887899
+     Pfusion [MW]: 264.9746532887197
+        Ti0 [keV]: 17.92013358660374
+        Te0 [keV]: 18.406591531729017
+   ne0 [10²⁰ m⁻³]: 0.8913892422943601
+
+
+
+
+Calls: 502    Time: 0:00:08
+            error: 1.9793026275159227
+     Pfusion [MW]: 249.77028818878435
+        Ti0 [keV]: 18.78599559882655
+        Te0 [keV]: 20.305192929159382
+   ne0 [10²⁰ m⁻³]: 0.9228154255855444
+actors:  Current
+actors:   QED
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 5/5 @ 288.36%
+┌ Warning: Max number of iterations (5) has been reached with convergence error of (1)[0.335, 0.376, 0.195, 0.168, 0.144](5) compared to threshold of 0.05
+└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:206</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-2772fe2d.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-556f93c9.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-91c5ee19.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-5e69ff46.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
+FUSE.ActorHFSsizing(dd, act);
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-d0c5e64f.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-b943dad1.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
+FUSE.ActorLFSsizing(dd, act);
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-99bd6063.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame
+ Row │ group   details                            type      ΔR          R_start   R_end     material      area        volume     shape
+     │<span class="sgr90"> String  String                             String    Float64     Float64   Float64   String        Float64     Float64    String
+─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ in                                                   1.31217      0.0       1.31217  steel          20.151       99.3829  rectangle
+   2 │ in                                         oh        0.305208     1.31217   1.61737  nb3sn           6.99039     80.9117  rectangle
+   3 │ hfs                                        tf        1.68065      1.61737   3.29802  nb3sn_kdemo    43.1067     893.261   convex hull
+   4 │ hfs     gap tf vacuum vessel                         0.0          3.29802   3.29802  vacuum          7.5053     494.646   double ellipse
+   5 │ hfs     vacuum  outer                      vessel    0.0983016    3.29802   3.39632  steel           3.07657    125.573   negative offset
+   6 │ hfs     gap water                                    0.147452     3.39632   3.54377  water           4.50098    183.828   negative offset
+   7 │ hfs     vacuum  inner                      vessel    0.0983016    3.54377   3.64208  steel           2.92474    119.53    negative offset
+   8 │ hfs     gap high temp shield vacuum vess…            0.00983016   3.64208   3.65191  vacuum          0.289134    11.8201  negative offset
+   9 │ hfs     high temp                          shield    0.196603     3.65191   3.84851  steel           5.65513    231.326   negative offset
+  10 │ hfs                                        blanket   0.373546     3.84851   4.22205  lithium_lead   21.3676     976.313   negative offset
+  11 │ hfs     first                              wall      0.0196603    4.22205   4.24172  tungsten        1.01228     33.5894  offset
+  12 │ lhfs                                       plasma    4.51651      4.24172   8.75822  plasma         32.1581    1253.39
+  13 │ lfs     first                              wall      0.0196603    8.75822   8.77788  tungsten        1.01228     33.5894  offset
+  14 │ lfs                                        blanket   1.17962      8.77788   9.9575   lithium_lead   21.3676     976.313   negative offset
+  15 │ lfs     high temp                          shield    0.196603     9.9575   10.1541   steel           5.65513    231.326   negative offset
+  16 │ lfs     gap high temp shield vacuum vess…            0.044173    10.1541   10.1983   vacuum          0.289134    11.8201  negative offset
+  17 │ lfs     vacuum  inner                      vessel    0.0983016   10.1983   10.2966   steel           2.92474    119.53    negative offset
+  18 │ lfs     gap water                                    0.147452    10.2966   10.444    water           4.50098    183.828   negative offset
+  19 │ lfs     vacuum  outer                      vessel    0.0983016   10.444    10.5423   steel           3.07657    125.573   negative offset
+  20 │ lfs     gap tf vacuum vessel                         0.7756      10.5423   11.3179   vacuum          7.5053     494.646   double ellipse
+  21 │ lfs                                        tf        1.68065     11.3179   12.9986   nb3sn_kdemo    43.1067     893.261   convex hull
+  22 │ out                                                  1.96603      0.0      14.9646   vacuum        164.962     8444.86
+  23 │ out                                        cryostat  0.0983016    0.0      15.0629   steel           4.88694    311.924   silo</span></span></code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
+plot(dd.build)</code></pre><img src="tutorial-f42de154.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
+plot(dd.pf_passive)</code></pre><img src="tutorial-6bc0b86a.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
+plot(actor) # some actors define their own plot</code></pre><img src="tutorial-b14cf4a0.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
+IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">mhd_linear [DETACHED]</span>
+├─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
+└─ <span class="sgr1">time_slice</span>
+   └─ <span class="sgr1">1</span>
+      ├─ time<span class="sgr31"> ➡ 0<span class="sgr1"> [s]</span></span>
+      └─ <span class="sgr1">toroidal_mode</span>
+         ├─ <span class="sgr1">1</span>
+         │  ├─ n_tor<span class="sgr31"> ➡ </span><span class="sgr33">0</span>
+         │  ├─ <span class="sgr1">perturbation_type</span>
+         │  │  ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Vertical stability margin &gt; 0.15 for stability&quot;</span>
+         │  │  └─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;m_s&quot;</span>
+         │  └─ stability_metric<span class="sgr31"> ➡ 0.136198</span>
+         └─ <span class="sgr1">2</span>
+            ├─ n_tor<span class="sgr31"> ➡ </span><span class="sgr33">0</span>
+            ├─ <span class="sgr1">perturbation_type</span>
+            │  ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Normalized vertical growth rate &lt; 10 for stability&quot;</span>
+            │  └─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;γτ&quot;</span>
+            └─ stability_metric<span class="sgr31"> ➡ 9.07122</span>
+</code></pre><p>The <code>ActorNeutronics</code> calculates the heat flux on the first wall</p><pre><code class="language-julia hljs">FUSE.ActorNeutronics(dd, act);
+p = plot(; layout=2, size=(900, 350))
+plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
+plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
+plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-549e2fca.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
+print_tree(IMAS.freeze(dd.blanket); maxdepth=5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Blanket
+blanket [DETACHED]
+├─ module
+│  └─ 1
+│     ├─ layer
+│     │  ├─ 1
+│     │  │  ├─ material ➡ &quot;tungsten&quot;
+│     │  │  ├─ midplane_thickness ➡ 0.0199562 [m]
+│     │  │  └─ name ➡ &quot;lfs first wall&quot;
+│     │  ├─ 2
+│     │  │  ├─ material ➡ &quot;lithium-lead: Li6/7=90.000%&quot;
+│     │  │  ├─ midplane_thickness ➡ 1.27706 [m]
+│     │  │  └─ name ➡ &quot;lfs blanket&quot;
+│     │  └─ 3
+│     │     ├─ material ➡ &quot;steel&quot;
+│     │     ├─ midplane_thickness ➡ 0.0988684 [m]
+│     │     └─ name ➡ &quot;lfs high temp shield&quot;
+│     ├─ name ➡ &quot;blanket&quot;
+│     └─ time_slice
+│        └─ 1
+│           ├─ peak_escape_flux ➡ 172886 [W/m^2]
+│           ├─ peak_wall_flux ➡ 829571 [W/m^2]
+│           ├─ power_incident_neutrons ➡ 8.82242e+06 [W]
+│           ├─ power_incident_radiated ➡ 0 [W]
+│           ├─ power_thermal_extracted ➡ 1.05869e+07 [W]
+│           ├─ power_thermal_neutrons ➡ 1.05869e+07 [W]
+│           ├─ power_thermal_radiated ➡ 0 [W]
+│           ├─ time ➡ 0 [s]
+│           └─ tritium_breeding_ratio ➡ 1.6465
+├─ time ➡ [0] [s]
+└─ tritium_breeding_ratio ➡ [0.0726976]</code></pre><p>The <code>ActorDivertors</code> actor calculates the divertors heat flux</p><pre><code class="language-julia hljs">FUSE.ActorDivertors(dd, act);
+print_tree(IMAS.freeze(dd.divertors); maxdepth=4)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Divertors
+divertors [DETACHED]
+├─ divertor
+│  └─ 1
+│     ├─ power_black_body
+│     │  ├─ data ➡ [0] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_conducted
+│     │  ├─ data ➡ [1.1646e+08] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_convected
+│     │  ├─ data ➡ [0] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_currents
+│     │  ├─ data ➡ [0] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_incident
+│     │  ├─ data ➡ [3.37314e+07] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_neutrals
+│     │  ├─ data ➡ [0] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_radiated
+│     │  ├─ data ➡ [0] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_recombination_neutrals
+│     │  ├─ data ➡ [0] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_recombination_plasma
+│     │  ├─ data ➡ [0] [W]
+│     │  └─ time ➡ [0] [s]
+│     ├─ power_thermal_extracted
+│     │  ├─ data ➡ [3.37314e+07] [W]
+│     │  └─ time ➡ [0] [s]
+│     └─ target
+│        ├─ 1
+│        │  ⋮
+│        │
+│        └─ 2
+│           ⋮
+│
+└─ time ➡ [0] [s]</code></pre><p>The <code>ActorBalanceOfPlant</code> calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle</p><pre><code class="language-julia hljs">FUSE.ActorBalanceOfPlant(dd, act);
+IMAS.freeze(dd.balance_of_plant)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">balance_of_plant [DETACHED]</span>
+├─ Q_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.122714]</span>
+├─ power_electric_net<span class="sgr31"> ➡ </span><span class="sgr32">[-1.27206e+08]<span class="sgr1"> [W]</span></span>
+├─ <span class="sgr1">power_electric_plant_operation</span>
+│  ├─ <span class="sgr1">system</span>
+│  │  ├─ <span class="sgr1">1</span>
+│  │  │  ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">1</span>
+│  │  │  ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;HCD&quot;</span>
+│  │  │  ├─ power<span class="sgr31"> ➡ </span><span class="sgr32">[1e+08]<span class="sgr1"> [W]</span></span>
+│  │  │  └─ <span class="sgr1">subsystem</span>
+│  │  │     ├─ <span class="sgr1">1</span>
+│  │  │     │  ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">1</span>
+│  │  │     │  ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;nbi&quot;</span>
+│  │  │     │  └─ power<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [W]</span></span>
+│  │  │     ├─ <span class="sgr1">2</span>
+│  │  │     │  ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">2</span>
+│  │  │     │  ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;ec_launchers&quot;</span>
+│  │  │     │  └─ power<span class="sgr31"> ➡ </span><span class="sgr32">[5e+07]<span class="sgr1"> [W]</span></span>
+│  │  │     ├─ <span class="sgr1">3</span>
+│  │  │     │  ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">3</span>
+│  │  │     │  ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;ic_antennas&quot;</span>
+│  │  │     │  └─ power<span class="sgr31"> ➡ </span><span class="sgr32">[5e+07]<span class="sgr1"> [W]</span></span>
+│  │  │     └─ <span class="sgr1">4</span>
+│  │  │        ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">4</span>
+│  │  │        ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;lh_antennas&quot;</span>
+│  │  │        └─ power<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [W]</span></span>
+│  │  ├─ <span class="sgr1">2</span>
+│  │  │  ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">3</span>
+│  │  │  ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;cryostat&quot;</span>
+│  │  │  └─ power<span class="sgr31"> ➡ </span><span class="sgr32">[3e+07]<span class="sgr1"> [W]</span></span>
+│  │  ├─ <span class="sgr1">3</span>
+│  │  │  ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">4</span>
+│  │  │  ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;tritium_handling&quot;</span>
+│  │  │  └─ power<span class="sgr31"> ➡ </span><span class="sgr32">[1.5e+07]<span class="sgr1"> [W]</span></span>
+│  │  └─ <span class="sgr1">4</span>
+│  │     ├─ index<span class="sgr31"> ➡ </span><span class="sgr33">6</span>
+│  │     ├─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;pf_active&quot;</span>
+│  │     └─ power<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [W]</span></span>
+│  └─ total_power<span class="sgr31"> ➡ </span><span class="sgr32">[1.45e+08]<span class="sgr1"> [W]</span></span>
+├─ <span class="sgr1">power_plant</span>
+│  ├─ <span class="sgr1">heat_load</span>
+│  │  ├─ breeder<span class="sgr31"> ➡ </span><span class="sgr32">[1.05869e+07]<span class="sgr1"> [W]</span></span>
+│  │  ├─ divertor<span class="sgr31"> ➡ </span><span class="sgr32">[3.37314e+07]<span class="sgr1"> [W]</span></span>
+│  │  └─ wall<span class="sgr31"> ➡ </span><span class="sgr32">[3.40134e+07]<span class="sgr1"> [W]</span></span>
+│  ├─ power_cycle_type<span class="sgr31"> ➡ </span><span class="sgr35">&quot;rankine&quot;</span>
+│  ├─ power_electric_generated<span class="sgr31"> ➡ </span><span class="sgr32">[1.77935e+07]<span class="sgr1"> [W]</span></span>
+│  └─ total_heat_supplied<span class="sgr31"> ➡ </span><span class="sgr32">[7.83318e+07]<span class="sgr1"> [W]</span></span>
+├─ thermal_efficiency_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.227156]</span>
+└─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
+</code></pre><p><code>ActorCosting</code> will break down the capital and operational costs</p><pre><code class="language-julia hljs">FUSE.ActorCosting(dd, act)
+plot(dd.costing)</code></pre><img src="tutorial-3fa79856.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
+actors:  PFdesign
+actors:  StationaryPlasma
+actors:   --------------- 1/5
+actors:   HCD
+actors:    SimpleEC
+actors:    SimpleIC
+actors:    NeutralFueling
+actors:   Current
+actors:    QED
+actors:   Pedestal
+actors:    EPED
+actors:   CoreTransport
+actors:    FluxMatcher
+actors:   Current
+actors:    QED
+actors:   Equilibrium
+actors:    TEQUILA
+actors:   --------------- 1/5 @ 667.53%
+actors:   HCD
+actors:    SimpleEC
+actors:    SimpleIC
+actors:    NeutralFueling
+actors:   Current
+actors:    QED
+actors:   Pedestal
+actors:    EPED
+actors:   CoreTransport
+actors:    FluxMatcher
+actors:   Current
+actors:    QED
+actors:   Equilibrium
+actors:    TEQUILA
+actors:   --------------- 2/5 @ 649.71%
+actors:   HCD
+actors:    SimpleEC
+actors:    SimpleIC
+actors:    NeutralFueling
+actors:   Current
+actors:    QED
+actors:   Pedestal
+actors:    EPED
+actors:   CoreTransport
+actors:    FluxMatcher
+actors:   Current
+actors:    QED
+actors:   Equilibrium
+actors:    TEQUILA
+actors:   --------------- 3/5 @ 320.42%
+actors:   HCD
+actors:    SimpleEC
+actors:    SimpleIC
+actors:    NeutralFueling
+actors:   Current
+actors:    QED
+actors:   Pedestal
+actors:    EPED
+actors:   CoreTransport
+actors:    FluxMatcher
+actors:   Current
+actors:    QED
+actors:   Equilibrium
+actors:    TEQUILA
+actors:   --------------- 4/5 @ 388.67%
+actors:   HCD
+actors:    SimpleEC
+actors:    SimpleIC
+actors:    NeutralFueling
+actors:   Current
+actors:    QED
+actors:   Pedestal
+actors:    EPED
+actors:   CoreTransport
+actors:    FluxMatcher
+actors:   Current
+actors:    QED
+actors:   Equilibrium
+actors:    TEQUILA
+actors:   --------------- 5/5 @ 610.66%
+┌ Warning: Max number of iterations (5) has been reached with convergence error of (1)[0.334, 0.325, 0.16, 0.194, 0.305](5) compared to threshold of 0.05
+└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:206
+actors:  HFSsizing
+actors:   FluxSwing
+actors:   Stresses
+actors:  LFSsizing
+actors:  CXbuild
+actors:  PFdesign
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  CXbuild
+actors:  Neutronics
+actors:  Blanket
+actors:  CXbuild
+actors:  PassiveStructures
+actors:  Divertors
+actors:  PlasmaLimits
+actors:   VerticalStability
+actors:   TroyonBetaNN
+actors:  BalanceOfPlant
+actors:   ThermalPlant
+actors:   PowerNeeds
+actors:  Costing
+actors:   CostingARIES</code></pre><p>Let&#39;s check what we got at a glance with the <code>FUSE.digest(dd)</code> function:</p><pre><code class="language-julia hljs">FUSE.digest(dd)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GEOMETRY                                EQUILIBRIUM                             TEMPERATURES
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+R0 → 6.5 [m]                            B0 → 7.8 [T]                            Te0 → 22.7 [keV]
+a → 2.01 [m]                            ip → 12.7 [MA]                          Ti0 → 20.3 [keV]
+1/ϵ → 3.24                              q95 → 6.2                               &lt;Te&gt; → 9.38 [keV]
+κ → 2                                   &lt;Bpol&gt; → 0.801 [T]                      &lt;Ti&gt; → 8.33 [keV]
+δ → 0.588                               βpol_MHD → 0.853                        Te0/&lt;Te&gt; → 2.42
+ζ → -0.0136                             βtor_MHD → 0.00943                      Ti0/&lt;Ti&gt; → 2.43
+Volume → 928 [m³]                       βn_MHD → 1.15
+Surface → 754 [m²]
+
+DENSITIES                               PRESSURES                               TRANSPORT
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+ne0 → 9.68e+19 [m⁻³]                    P0 → 0.632 [MPa]                        τe → 2.41 [s]
+ne_ped → 6.89e+19 [m⁻³]                 &lt;P&gt; → 0.227 [MPa]                       τe_exp → 1.85 [s]
+ne_line → 8.56e+19 [m⁻³]                P0/&lt;P&gt; → 2.78                           H98y2 → 0.923
+&lt;ne&gt; → 7.71e+19 [m⁻³]                   βn → 1.15                               H98y2_exp → 0.849
+ne0/&lt;ne&gt; → 1.26                         βn_th → 1.15                            Hds03 → 0.679
+fGW → 0.852                                                                     Hds03_exp → 0.602
+zeff_ped → 2                                                                    τα_thermalization → 1 [s]
+&lt;zeff&gt; → 2                                                                      τα_slowing_down → 1.24 [s]
+impurities → DT Ne20 He4
+
+SOURCES                                 EXHAUST                                 CURRENTS
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+Pec → 50 [MW]                           Psol → 131 [MW]                         ip_bs_aux_ohm → 13.1 [MA]
+rho0_ec → 0.56 [MW]                     PLH → 136 [MW]                          ip_ni → 5.73 [MA]
+Pnbi → NaN [MW]                         Bpol_omp → 1.12 [T]                     ip_bs → 3.3 [MA]
+Enbi1 → NaN [MeV]                       λq → 0.963 [mm]                         ip_aux → 2.43 [MA]
+Pic → 50 [MW]                           qpol → 2.55e+03 [MW/m²]                 ip_ohm → 7.35 [MA]
+Plh → NaN [MW]                          qpar → 1.38e+04 [MW/m²]                 ejima → 0.4
+Paux_tot → 100 [MW]                     P/R0 → 20.2 [MW/m]                      flattop → 0.7 [Hours]
+Pα → 71.2 [MW]                          PB/R0 → 158 [MW T/m]
+Pohm → 0.526 [MW]                       PBp/R0 → 16.2 [MW T/m]
+Pheat → 172 [MW]                        PBϵ/R0q95 → 7.85 [MW T/m]
+Prad_tot → -40.4 [MW]                   neutrons_peak → 0.473 [MW/m²]
+
+BOP                                     BUILD                                   COSTING
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+Pfusion → 356 [MW]                      PF_material → nb3sn                     capital_cost → 6.87 [$B]
+Qfusion → 3.56                          TF_material → nb3sn_kdemo               levelized_CoE → Inf [$/kWh]
+thermal_cycle_type → rankine            OH_material → nb3sn                     TF_of_total → 17.2 [%]
+thermal_efficiency_plant → 22.7 [%]     TF_max_b → 15.4 [T]                     BOP_of_total → 1.94 [%]
+thermal_efficiency_cycle → NaN [%]      OH_max_b → 16 [T]                       blanket_of_total → 20.7 [%]
+power_electric_generated → 21.6 [MW]    TF_j_margin → 6.71                      cryostat_of_total → 2.98 [%]
+Pelectric_net → -123 [MW]               OH_j_margin → 1.44
+Qplant → 0.149                          TF_stress_margin → 3.02
+TBR → 0.0714                            OH_stress_margin → 1.23
+
+@ time = 0.0 [s]
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+GKS: could not find font middle.ttf
+​
+​
+​</code></pre><p>Like before we can checkpoint results for later use</p><pre><code class="language-julia hljs">@checkin :awf dd ini act</code></pre><h1 id="Getting-into-the-weeds"><a class="docs-heading-anchor" href="#Getting-into-the-weeds">Getting into the weeds</a><a id="Getting-into-the-weeds-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-into-the-weeds" title="Permalink"></a></h1><h2 id="Saving-and-loading-data"><a class="docs-heading-anchor" href="#Saving-and-loading-data">Saving and loading data</a><a id="Saving-and-loading-data-1"></a><a class="docs-heading-anchor-permalink" href="#Saving-and-loading-data" title="Permalink"></a></h2><pre><code class="language-julia hljs">tutorial_temp_dir = tempdir()
+filename = joinpath(tutorial_temp_dir, &quot;$(ini.general.casename).json&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;/tmp/K-DEMO.json&quot;</code></pre><p>When saving data to be shared outside of FUSE, one can set <code>freeze=true</code> so that all expressions in the dd are evaluated and saved to file.</p><pre><code class="language-julia hljs">IMAS.imas2json(dd, filename; freeze=false, strict=false);</code></pre><p>Load from JSON</p><pre><code class="language-julia hljs">dd1 = IMAS.json2imas(filename);</code></pre><h2 id="Exploring-the-data-dictionary"><a class="docs-heading-anchor" href="#Exploring-the-data-dictionary">Exploring the data dictionary</a><a id="Exploring-the-data-dictionary-1"></a><a class="docs-heading-anchor-permalink" href="#Exploring-the-data-dictionary" title="Permalink"></a></h2><ul><li>FUSE stores data following the IMAS data schema.</li><li>The root of the data structure is <code>dd</code>, which stands for &quot;Data Dictionary&quot;.</li><li>More details are available in the <a href="https://fuse.help/stable/dd.html">documentation</a>.</li></ul><p>Display part of the equilibrium data in <code>dd</code></p><pre><code class="language-julia hljs">dd.equilibrium.time_slice[1].boundary</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">boundary</span>
+├─ elongation<span class="sgr31"> ➡ 1.999</span>
+├─ elongation_lower<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ elongation_upper<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ <span class="sgr1">geometric_axis</span>
+│  ├─ r<span class="sgr31"> ➡ 6.49997<span class="sgr1"> [m]</span></span>
+│  └─ z<span class="sgr31"> ➡ 0.0133353<span class="sgr1"> [m]</span></span>
+├─ minor_radius<span class="sgr31"> ➡ 2.00734<span class="sgr1"> [m]</span></span>
+├─ <span class="sgr1">outline</span>
+│  ├─ r<span class="sgr31"> ➡ </span><span class="sgr32">243-element Vector{Float64}<span class="sgr1"> [m]</span></span>
+│  │      <span class="sgr32"><span class="sgr1">min:</span></span>4.52   <span class="sgr32"><span class="sgr1">avg:</span></span>6.25   <span class="sgr32"><span class="sgr1">max:</span></span>8.49
+│  └─ z<span class="sgr31"> ➡ </span><span class="sgr32">243-element Vector{Float64}<span class="sgr1"> [m]</span></span>
+│         <span class="sgr32"><span class="sgr1">min:</span></span>-4.11   <span class="sgr32"><span class="sgr1">avg:</span></span>-0.0561   <span class="sgr32"><span class="sgr1">max:</span></span>3.9
+├─ ovality<span class="sgr31"> ➡ 0.00572603</span>
+├─ squareness<span class="sgr31"> ➡ -0.0135544</span>
+├─ squareness_lower_inner<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ squareness_lower_outer<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ squareness_upper_inner<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ squareness_upper_outer<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ <span class="sgr1">strike_point</span>
+│  ├─ <span class="sgr1">1</span>
+│  │  ├─ last_closed_flux_surface_gap<span class="sgr31"> ➡ 1.11839e-08<span class="sgr1"> [m]</span></span>
+│  │  ├─ r<span class="sgr31"> ➡ 4.21757<span class="sgr1"> [m]</span></span>
+│  │  └─ z<span class="sgr31"> ➡ -4.50673<span class="sgr1"> [m]</span></span>
+│  └─ <span class="sgr1">2</span>
+│     ├─ last_closed_flux_surface_gap<span class="sgr31"> ➡ 1.11839e-08<span class="sgr1"> [m]</span></span>
+│     ├─ r<span class="sgr31"> ➡ 5.50972<span class="sgr1"> [m]</span></span>
+│     └─ z<span class="sgr31"> ➡ -5.06671<span class="sgr1"> [m]</span></span>
+├─ tilt<span class="sgr31"> ➡ -0.00162958</span>
+├─ triangularity<span class="sgr31"> ➡ 0.587596</span>
+├─ triangularity_lower<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ triangularity_upper<span class="sgr31"> ➡ </span><span class="sgr34">Function</span>
+├─ twist<span class="sgr31"> ➡ 0.00165424</span>
+└─ <span class="sgr1">x_point</span>
+   ├─ <span class="sgr1">1</span>
+   │  ├─ r<span class="sgr31"> ➡ 5.10128<span class="sgr1"> [m]</span></span>
+   │  └─ z<span class="sgr31"> ➡ -4.11739<span class="sgr1"> [m]</span></span>
+   └─ <span class="sgr1">2</span>
+      ├─ r<span class="sgr31"> ➡ 4.86929<span class="sgr1"> [m]</span></span>
+      └─ z<span class="sgr31"> ➡ 4.33575<span class="sgr1"> [m]</span></span>
+</code></pre><p>this can be done up to a certain depth with <code>print_tree</code></p><pre><code class="language-julia hljs">print_tree(dd.equilibrium.time_slice[1].boundary; maxdepth=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">boundary
+├─ elongation ➡ 1.999
+├─ elongation_lower ➡ Function
+├─ elongation_upper ➡ Function
+├─ geometric_axis
+│  ⋮
+│
+├─ minor_radius ➡ 2.00734 [m]
+├─ outline
+│  ⋮
+│
+├─ ovality ➡ 0.00572603
+├─ squareness ➡ -0.0135544
+├─ squareness_lower_inner ➡ Function
+├─ squareness_lower_outer ➡ Function
+├─ squareness_upper_inner ➡ Function
+├─ squareness_upper_outer ➡ Function
+├─ strike_point
+│  ⋮
+│
+├─ tilt ➡ -0.00162958
+├─ triangularity ➡ 0.587596
+├─ triangularity_lower ➡ Function
+├─ triangularity_upper ➡ Function
+├─ twist ➡ 0.00165424
+└─ x_point
+   ⋮</code></pre><h2 id="Plotting-data-from-dd"><a class="docs-heading-anchor" href="#Plotting-data-from-dd">Plotting data from <code>dd</code></a><a id="Plotting-data-from-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-data-from-dd" title="Permalink"></a></h2><p>FUSE uses <code>Plots.jl</code> recipes for visualizing data from <code>dd</code>.</p><p>This allows different plots to be shown when calling <code>plot()</code> on different items in the data structure.</p><p>Learn more about Plots.jl <a href="https://docs.juliaplots.org">here</a></p><p>For example plotting the equilibrium...</p><pre><code class="language-julia hljs">plot(dd.equilibrium)</code></pre><img src="tutorial-3f9f72fe.svg" alt="Example block output"/><p>...or the core profiles</p><pre><code class="language-julia hljs">plot(dd.core_profiles)</code></pre><img src="tutorial-34395b51.svg" alt="Example block output"/><p>Whant to know what arguments can be passed? use <code>help_plot()</code> function</p><pre><code class="language-julia hljs">help_plot(dd.equilibrium; core_profiles_overlay=true, levels_in=21, levels_out=5, show_secondary_separatrix=true, coordinate=:rho_tor_norm)</code></pre><img src="tutorial-b21a9572.svg" alt="Example block output"/><p>These plots can be composed by calling <code>plot!()</code> instead of <code>plot()</code></p><pre><code class="language-julia hljs">plot(dd.equilibrium; color=:gray, cx=true)
+plot!(dd.build.layer)
+plot!(dd.pf_active)
+plot!(dd.pf_passive)
+plot!(dd.pulse_schedule.position_control; color=:red)</code></pre><img src="tutorial-3de20ebb.svg" alt="Example block output"/><p>Plotting an array...</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1].pressure_thermal)</code></pre><img src="tutorial-20000e4c.svg" alt="Example block output"/><p>...is different from plotting a field from the IDS (which plots the quantity against its coordinate and with units)</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)</code></pre><img src="tutorial-e0fbf8ed.svg" alt="Example block output"/><p>Customizing plot attributes:</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label=&quot;&quot;, linewidth=2, color=:red, labelfontsize=25)</code></pre><img src="tutorial-17f7b410.svg" alt="Example block output"/><p>Use <code>findall(ids, r&quot;...&quot;)</code> to search for certain fields. In Julia, string starting with <code>r</code> are regular expressions.</p><pre><code class="language-julia hljs">findall(dd, r&quot;\.psi&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[1] <span class="sgr31">dd</span>.core_profiles.profiles_1d[1].grid.<span class="sgr32"><span class="sgr1">psi_norm</span></span> [101-element Vector{Float64}] (<span class="sgr34">min:</span>0, <span class="sgr34">avg:</span>0.508, <span class="sgr34">max:</span>1)
+[2] <span class="sgr31">dd</span>.core_profiles.profiles_1d[1].grid.<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [101-element Vector{Float64}] (<span class="sgr34">min:</span>-82, <span class="sgr34">avg:</span>-41, <span class="sgr34">max:</span>-1.23)
+[3] <span class="sgr31">dd</span>.equilibrium.time_slice[1].global_quantities.<span class="sgr32"><span class="sgr1">psi_boundary</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [Float64] (<span class="sgr34">all:</span>-0.76)
+[4] <span class="sgr31">dd</span>.equilibrium.time_slice[1].global_quantities.<span class="sgr32"><span class="sgr1">psi_axis</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [Float64] (<span class="sgr34">all:</span>-68.8)
+[5] <span class="sgr31">dd</span>.equilibrium.time_slice[1].profiles_1d.<span class="sgr32"><span class="sgr1">psi_norm</span></span> [129-element Vector{Float64}] (<span class="sgr34">min:</span>0, <span class="sgr34">avg:</span>0.5, <span class="sgr34">max:</span>1)
+[6] <span class="sgr31">dd</span>.equilibrium.time_slice[1].profiles_1d.<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [129-element Vector{Float64}] (<span class="sgr34">min:</span>-68.8, <span class="sgr34">avg:</span>-34.8, <span class="sgr34">max:</span>-0.76)
+[7] <span class="sgr31">dd</span>.equilibrium.time_slice[1].profiles_2d[1].<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [31×13 Matrix{Float64}] (<span class="sgr34">min:</span>-0.0395, <span class="sgr34">avg:</span>0.641, <span class="sgr34">max:</span>6.67)
+[8] <span class="sgr31">dd</span>.equilibrium.time_slice[1].profiles_2d[2].<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [66×129 Matrix{Float64}] (<span class="sgr34">min:</span>-68.8, <span class="sgr34">avg:</span>17.6, <span class="sgr34">max:</span>166)
+</code></pre><p><code>findall(ids, r&quot;...&quot;)</code> can be combined with <code>plot()</code> to plot multiple fields</p><pre><code class="language-julia hljs">plot(findall(dd, r&quot;\.psi&quot;))</code></pre><img src="tutorial-ef0e4e38.svg" alt="Example block output"/><h2 id="Working-with-time-series"><a class="docs-heading-anchor" href="#Working-with-time-series">Working with time series</a><a id="Working-with-time-series-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-time-series" title="Permalink"></a></h2><p>The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.</p><p>Each <code>dd</code> has a <code>global_time</code> attribute, which is used throughout FUSE and IMAS to indicate the time at which things should be operate.</p><pre><code class="language-julia hljs">dd.global_time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>For the sake of demonstrating handling of time, let&#39;s add a new time_slice to the equilibrium.</p><p><strong>NOTE:</strong> in addition to the usual <code>resize!(ids, n::Int)</code>, time dependent arrays of structures can be resized with:</p><ul><li><code>resize!(ids)</code> which will add a time-slice at the current global time (this is what you want to use in most cases)</li><li><code>resize!(ids, time0)</code> which will add a time-slice at <code>time0</code> seconds</li></ul><p>resize the time dependent array of structure</p><pre><code class="language-julia hljs">resize!(dd.equilibrium.time_slice, 1.0);</code></pre><p>let&#39;s just populate it with the data from the previous time slice</p><pre><code class="language-julia hljs">dd.equilibrium.time_slice[2] = deepcopy(dd.equilibrium.time_slice[1]);
+dd.equilibrium.time_slice[2].time = 1.0</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0</code></pre><p>Here we see that equilibrium has mulitiple time_slices</p><pre><code class="language-julia hljs">dd.equilibrium.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
+ 0.0
+ 1.0</code></pre><p>We can access time-dependent arrays of structures via integer index...</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[2]
+eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0</code></pre><p>...or at a given time, by passing the time as a floating point number (in seconds)</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[1.0]
+eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0</code></pre><p>NOTE: If we ask a time that is not exactly in the arrays of structures, we&#39;ll get the closest (causal!) time-slice</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[0.9]
+eqt.time
+
+eqt = dd.equilibrium.time_slice[1.1]
+eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0</code></pre><p>... or at the current <code>dd.global_time</code> by leaving the square brackets empty []</p><p><strong>NOTE:</strong> using <code>[]</code> is what you want to use in most situations that involve time-dependent arrays of structures!</p><pre><code class="language-julia hljs">dd.global_time = 0.0
+eqt = dd.equilibrium.time_slice[]
+eqt.time
+
+dd.global_time = 1.0
+eqt = dd.equilibrium.time_slice[]
+eqt.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0</code></pre><p>What we described above was for time-dependent arrays of structures.</p><p>The other place where time comes in, is when dealing with time-dependent arrays of data.</p><p>In this case, we can use the <code>@ddtime</code> macro to manipulate these time-dependent arrays at <code>dd.global_time</code>.</p><p>NOTE: Also in this case, <code>@ddtime</code> will operate on the closest (causal!) time point</p><pre><code class="language-julia hljs">dd.equilibrium.vacuum_toroidal_field.b0
+
+dd.global_time = 1.0
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0 = 10.0)
+dd.equilibrium.vacuum_toroidal_field.b0
+
+dd.global_time = 0.0
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0)
+
+dd.global_time = 1.0
+@ddtime(dd.equilibrium.vacuum_toroidal_field.b0)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">10.0</code></pre><h2 id="Expressions-in-dd"><a class="docs-heading-anchor" href="#Expressions-in-dd">Expressions in <code>dd</code></a><a id="Expressions-in-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Expressions-in-dd" title="Permalink"></a></h2><p>Some fields in the data dictionary are expressions (ie. Functions). For example <code>dd.core_profiles.profiles_1d[].pressure</code> is dynamically calculated as the product of thermal densities and temperature with addition of fast ions contributions</p><pre><code class="language-julia hljs">dd.global_time = 0.0
+print_tree(dd.core_profiles.profiles_1d[]; maxdepth=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1
+├─ conductivity_parallel ➡ Function [ohm^-1.m^-1]
+├─ electrons
+│  ⋮
+│
+├─ grid
+│  ⋮
+│
+├─ ion
+│  ⋮
+│
+├─ j_bootstrap ➡ 101-element Vector{Float64} [A/m^2]
+│                min:435   avg:1.18e+05   max:5.52e+05
+├─ j_non_inductive ➡ 101-element Vector{Float64} [A/m^2]
+│                    min:5.73e+03   avg:3.64e+05   max:7.8e+05
+├─ j_ohmic ➡ 101-element Vector{Float64} [A/m^2]
+│            min:1.23e+03   avg:4.33e+05   max:7.02e+05
+├─ j_tor ➡ 101-element Vector{Float64} [A/m^2]
+│          min:8.31e+03   avg:7.81e+05   max:1.47e+06
+├─ j_total ➡ 101-element Vector{Float64} [A/m^2]
+│            min:9.52e+03   avg:7.97e+05   max:1.48e+06
+├─ neutral
+│  ⋮
+│
+├─ pressure ➡ Function [Pa]
+├─ pressure_ion_total ➡ Function [Pa]
+├─ pressure_parallel ➡ Function [Pa]
+├─ pressure_perpendicular ➡ Function [Pa]
+├─ pressure_thermal ➡ Function [Pa]
+├─ rotation_frequency_tor_sonic ➡ 101-element Vector{Float64} [s^-1]
+│                                 all:0
+├─ t_i_average ➡ Function [eV]
+├─ time ➡ 0 [s]
+└─ zeff ➡ 101-element Vector{Float64}
+          all:2</code></pre><p>accessing a dynamic expression, automatically evaluates it</p><pre><code class="language-julia hljs">dd.core_profiles.profiles_1d[].conductivity_parallel</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">101-element Vector{Float64}:
+      2.1345099423807533e9
+      2.0789023063751361e9
+      2.0057048620269926e9
+      1.9297140470319033e9
+      1.8525843430816445e9
+      1.7747642966194918e9
+      1.6966938817629392e9
+      1.6446528377877278e9
+      1.5925480490165672e9
+      1.5435918683181458e9
+      ⋮
+      8.68612624450622e7
+      7.11063774322032e7
+      5.555205701690625e7
+      4.131188052626363e7
+      2.9111271671391677e7
+      1.9177133809503958e7
+      1.135260205588438e7
+      5.226553766516172e6
+ 762465.751670691</code></pre><p>In addition to evaluating expressions by accessing them, expressions in the tree can be evaluated using <code>IMAS.freeze(ids)</code></p><p>NOTE: <code>IMAS.freeze(ids, field::Symbol)</code> works on a single field and <code>IMAS.refreeze!(ids, field)</code> forces re-evaluation of an expression. Also, <code>IMAS.empty!(ids, field::Symbol)</code> can be used to revert a frozen field back into an expression.</p><pre><code class="language-julia hljs">print_tree(IMAS.freeze(dd.core_profiles.profiles_1d[1]); maxdepth=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">profiles_1d [DETACHED]
+├─ conductivity_parallel ➡ 101-element Vector{Float64} [ohm^-1.m^-1]
+│                          min:7.62e+05   avg:5.97e+08   max:2.13e+09
+├─ electrons
+│  ⋮
+│
+├─ grid
+│  ⋮
+│
+├─ ion
+│  ⋮
+│
+├─ j_bootstrap ➡ 101-element Vector{Float64} [A/m^2]
+│                min:435   avg:1.18e+05   max:5.52e+05
+├─ j_non_inductive ➡ 101-element Vector{Float64} [A/m^2]
+│                    min:5.73e+03   avg:3.64e+05   max:7.8e+05
+├─ j_ohmic ➡ 101-element Vector{Float64} [A/m^2]
+│            min:1.23e+03   avg:4.33e+05   max:7.02e+05
+├─ j_tor ➡ 101-element Vector{Float64} [A/m^2]
+│          min:8.31e+03   avg:7.81e+05   max:1.47e+06
+├─ j_total ➡ 101-element Vector{Float64} [A/m^2]
+│            min:9.52e+03   avg:7.97e+05   max:1.48e+06
+├─ neutral
+│  ⋮
+│
+├─ pressure ➡ 101-element Vector{Float64} [Pa]
+│             min:485   avg:3.17e+05   max:6.32e+05
+├─ pressure_ion_total ➡ 101-element Vector{Float64} [Pa]
+│                       min:232   avg:1.39e+05   max:2.8e+05
+├─ pressure_parallel ➡ 101-element Vector{Float64} [Pa]
+│                      min:162   avg:1.06e+05   max:2.11e+05
+├─ pressure_perpendicular ➡ 101-element Vector{Float64} [Pa]
+│                           min:162   avg:1.06e+05   max:2.11e+05
+├─ pressure_thermal ➡ 101-element Vector{Float64} [Pa]
+│                     min:485   avg:3.17e+05   max:6.32e+05
+├─ rotation_frequency_tor_sonic ➡ 101-element Vector{Float64} [s^-1]
+│                                 all:0
+├─ t_i_average ➡ 101-element Vector{Float64} [eV]
+│                min:94.5   avg:1.1e+04   max:2.03e+04
+├─ time ➡ 0 [s]
+└─ zeff ➡ 101-element Vector{Float64}
+          all:2</code></pre><h2 id="Comparing-two-IDSs"><a class="docs-heading-anchor" href="#Comparing-two-IDSs">Comparing two IDSs</a><a id="Comparing-two-IDSs-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-two-IDSs" title="Permalink"></a></h2><p>We can introduce a change in the <code>dd1</code> and spot it with the <code>diff</code> function</p><pre><code class="language-julia hljs">dd1.equilibrium.time_slice[1].time = -100.0
+IMAS.diff(dd.equilibrium, dd1.equilibrium)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Dict{String, String} with 3 entries:
+  &quot;time&quot;                     =&gt; &quot;length:  2 --  1&quot;
+  &quot;vacuum_toroidal_field.b0&quot; =&gt; &quot;length:  2 --  1&quot;
+  &quot;time_slice&quot;               =&gt; &quot;length:  2 --  1&quot;</code></pre><h2 id="Summary"><a class="docs-heading-anchor" href="#Summary">Summary</a><a id="Summary-1"></a><a class="docs-heading-anchor-permalink" href="#Summary" title="Permalink"></a></h2><p>Snapshot of <code>dd</code> in 0D quantities (evaluated at <code>dd.global_time</code>).</p><p>Extract + plots saved to PDF (printed to screen if <code>filename</code> is omitted). NOTE: For PDF creation to work, one may need to install of <code>DejaVu Sans Mono</code> font.</p><pre><code class="language-julia hljs">filename = joinpath(tutorial_temp_dir, &quot;$(ini.general.casename).pdf&quot;)
+display(filename)
+FUSE.digest(dd)#, filename)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">GEOMETRY                                EQUILIBRIUM                             TEMPERATURES
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+R0 → 6.5 [m]                            B0 → 7.8 [T]                            Te0 → 22.7 [keV]
+a → 2.01 [m]                            ip → 12.7 [MA]                          Ti0 → 20.3 [keV]
+1/ϵ → 3.24                              q95 → 6.2                               &lt;Te&gt; → 9.38 [keV]
+κ → 2                                   &lt;Bpol&gt; → 0.801 [T]                      &lt;Ti&gt; → 8.33 [keV]
+δ → 0.588                               βpol_MHD → 0.853                        Te0/&lt;Te&gt; → 2.42
+ζ → -0.0136                             βtor_MHD → 0.00943                      Ti0/&lt;Ti&gt; → 2.43
+Volume → 928 [m³]                       βn_MHD → 1.15
+Surface → 754 [m²]
+
+DENSITIES                               PRESSURES                               TRANSPORT
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+ne0 → 9.68e+19 [m⁻³]                    P0 → 0.632 [MPa]                        τe → 2.41 [s]
+ne_ped → 6.89e+19 [m⁻³]                 &lt;P&gt; → 0.227 [MPa]                       τe_exp → 1.85 [s]
+ne_line → 8.56e+19 [m⁻³]                P0/&lt;P&gt; → 2.78                           H98y2 → 0.923
+&lt;ne&gt; → 7.71e+19 [m⁻³]                   βn → 1.15                               H98y2_exp → 0.849
+ne0/&lt;ne&gt; → 1.26                         βn_th → 1.15                            Hds03 → 0.679
+fGW → 0.852                                                                     Hds03_exp → 0.602
+zeff_ped → 2                                                                    τα_thermalization → 1 [s]
+&lt;zeff&gt; → 2                                                                      τα_slowing_down → 1.24 [s]
+impurities → DT Ne20 He4
+
+SOURCES                                 EXHAUST                                 CURRENTS
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+Pec → 50 [MW]                           Psol → 131 [MW]                         ip_bs_aux_ohm → 13.1 [MA]
+rho0_ec → 0.56 [MW]                     PLH → 136 [MW]                          ip_ni → 5.73 [MA]
+Pnbi → NaN [MW]                         Bpol_omp → 1.12 [T]                     ip_bs → 3.3 [MA]
+Enbi1 → NaN [MeV]                       λq → 0.963 [mm]                         ip_aux → 2.43 [MA]
+Pic → 50 [MW]                           qpol → 2.55e+03 [MW/m²]                 ip_ohm → 7.35 [MA]
+Plh → NaN [MW]                          qpar → 1.38e+04 [MW/m²]                 ejima → 0.4
+Paux_tot → 100 [MW]                     P/R0 → 20.2 [MW/m]                      flattop → 0.7 [Hours]
+Pα → 71.2 [MW]                          PB/R0 → 158 [MW T/m]
+Pohm → 0.526 [MW]                       PBp/R0 → 16.2 [MW T/m]
+Pheat → 172 [MW]                        PBϵ/R0q95 → 7.85 [MW T/m]
+Prad_tot → -40.4 [MW]                   neutrons_peak → 0.473 [MW/m²]
+
+BOP                                     BUILD                                   COSTING
+────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
+Pfusion → 356 [MW]                      PF_material → nb3sn                     capital_cost → 6.87 [$B]
+Qfusion → 3.56                          TF_material → nb3sn_kdemo               levelized_CoE → Inf [$/kWh]
+thermal_cycle_type → rankine            OH_material → nb3sn                     TF_of_total → 17.2 [%]
+thermal_efficiency_plant → 22.7 [%]     TF_max_b → 15.4 [T]                     BOP_of_total → 1.94 [%]
+thermal_efficiency_cycle → NaN [%]      OH_max_b → 16 [T]                       blanket_of_total → 20.7 [%]
+power_electric_generated → 21.6 [MW]    TF_j_margin → 6.71                      cryostat_of_total → 2.98 [%]
+Pelectric_net → -123 [MW]               OH_j_margin → 1.44
+Qplant → 0.149                          TF_stress_margin → 3.02
+TBR → 0.0714                            OH_stress_margin → 1.23
+
+@ time = 0.0 [s]
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​
+​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Main</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Thursday 5 June 2025 00:45">Thursday 5 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
