@@ -7,7 +7,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFitProfiles{T<:Real} <: Paramete
     _time::Float64 = NaN
     #== actor parameters ==#
     time_averaging::Entry{Float64} = Entry{Float64}("s", "Time averaging window")
-    rho_averaging::Entry{Float64} = Entry{Float64}("", "rho averaging window")
+    rho_averaging::Entry{Float64} = Entry{Float64}("-", "rho averaging window")
     rho_grid::Entry{Int} = Entry{Int}("-", "Number of points in rho"; default=101)
     time_basis_ids::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Time basis to use"; default=:core_profiles)
     #== display and debugging parameters ==#
