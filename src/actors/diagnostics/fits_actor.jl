@@ -90,7 +90,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # get space-time dependent data and return interpolators
     itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
     itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
-    itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
+    # itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
     itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=abs)
     itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=abs)
 
@@ -108,12 +108,12 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
-    # fit Zeff
-    for (k, time0) in enumerate(time_basis)
-        cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .+ 1.0
-        cp1d.zeff = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
-    end
+    # # fit Zeff
+    # for (k, time0) in enumerate(time_basis)
+    #     cp1d = dd.core_profiles.profiles_1d[k]
+    #     data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .+ 1.0
+    #     cp1d.zeff = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+    # end
 
     # fit ni
     for (k, time0) in enumerate(time_basis)
