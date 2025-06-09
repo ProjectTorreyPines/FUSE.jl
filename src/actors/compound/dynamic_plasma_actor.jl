@@ -301,6 +301,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     aggregate_radiation::Bool=true,
     aggregate_hcd::Bool=true,
     dd1::Union{Nothing,IMAS.DD}=nothing,
+    size=(2000, 1000),
     kw...)
 
     cp1d = dd.core_profiles.profiles_1d[time0]
@@ -337,12 +338,12 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     plot!(; ylabel="", xlabel="")
 
     # Ip and Vloop
-    plot_ip_vloop = plot(; title="Ip [MA] - Vloop [mV]")
+    plot_ip = plot(; title="Ip [MA] - Vloop [mV]")
     if !ismissing(dd.pulse_schedule.flux_control, :time)
         plot!(dd.pulse_schedule.flux_control.time,
             dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
             seriestype=:time,
-            color=:gray,
+            color=:black,
             label="Ip reference [MA]",
             lw=2.0,
             ls=:dash,
@@ -371,29 +372,35 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     # )
     plot!([NaN], [NaN]; color=:red, label="Vloop [mV]", lw=2.0)
     vline!([time0]; label="", color=:gray)
-    if IMAS.controller(dd.controllers, "ip") !== nothing
-        time, data = IMAS.vloop_time(dd.controllers)
+    #plot_vloop = plot!(twinx())[2]
+
+    tx = twinx()
+    if dd1 !== nothing
+        time, data = IMAS.vloop_time(dd1.core_profiles, dd1.equilibrium; method=:mean)
         plot!(
-            twinx(),
+            tx,
             time,
             data .* 1E3;
             seriestype=:time,
-            color=:red,
-            label="",
-            lw=2.0
-        )
-    else
-        time, data = IMAS.vloop_time(dd.core_profiles, dd.equilibrium)#; method=:edge)
-        plot!(
-            twinx(),
-            time,
-            data .* 1E3;
-            seriestype=:time,
-            color=:red,
+            color=:black,
             label="",
             lw=2.0
         )
     end
+    if IMAS.controller(dd.controllers, "ip") !== nothing
+        time, data = IMAS.vloop_time(dd.controllers)
+    else
+        time, data = IMAS.vloop_time(dd.core_profiles, dd.equilibrium; method=:mean)
+    end
+    plot!(
+        tx,
+        time,
+        data .* 1E3;
+        seriestype=:time,
+        color=:red,
+        label="",
+        lw=2.0
+    )
 
     # core_profiles electrons temperatures
     plot_Te = plot()
@@ -566,15 +573,12 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
 
     l = @layout grid(3, 5)
     kw = Dict(kw...)
-    if :size ∉ keys(kw)
-        kw[:size] = (2000, 1000)
-    end
     mm = Plots.Measures.mm
     p = plot(
-        plot_eq_cx, plot_ip_vloop, plot_Te, plot_Ti, plot_n,
+        plot_eq_cx, plot_ip, plot_Te, plot_Ti, plot_n,
         plot_eq_top, plot_j, plot_Qe, plot_Qi, plot_Ga,
         plot_hcd, plot_q, plot_trQe, plot_trQi, plot_trGa,
-        ; layout=l, left_margin=0 * mm, bottom_margin=0 * mm, kw...)
+        ; layout=l, left_margin=0 * mm, bottom_margin=0 * mm, size, kw...)
 
     return p
 end
