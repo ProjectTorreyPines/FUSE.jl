@@ -1,9 +1,9 @@
 #= ===================== =#
-#       ActorSolBox       #
+#       ActorSOLBox       #
 #= ===================== =#
 
-# Part of act structure (act.ActorSolBox here)
-Base.@kwdef mutable struct FUSEparameters__ActorSolBox{T<:Real} <: ParametersActor{T}
+# Part of act structure (act.ActorSOLBox here)
+Base.@kwdef mutable struct FUSEparameters__ActorSOLBox{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
@@ -24,9 +24,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorSolBox{T<:Real} <: ParametersAct
     do_plot::Entry{Bool} = act_common_parameters(; do_plot = false)
 end
 
-mutable struct ActorSolBox{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorSOLBox{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::OverrideParameters{P,FUSEparameters__ActorSolBox{P}}
+    par::OverrideParameters{P,FUSEparameters__ActorSOLBox{P}}
     Te_u::Union{Nothing, Float64} # Electron temperature at the upstream (separatrix) [eV]
     Ti_u::Union{Nothing, Float64} # Ion temperature at the upstream (separatrix) [eV]
     ne_t::Union{Nothing, Float64} # Electron density at the target [pcles m^-2 s^-1]
@@ -34,33 +34,33 @@ mutable struct ActorSolBox{D,P} <: SingleAbstractActor{D,P}
     ne_u::Union{Nothing, Float64} # Electron density at the upstream (separatrix) [pcles m^-2 s^-1]
     ni_u::Union{Nothing, Float64} # Ion density at the upstream (separatrix) [pcles m^-2 s^-1]
     cst::Union{Nothing, Float64} # Sound speed at the sheath entrance [m s^-1]
-    sol_connection_length::Union{Nothing, Float64} # Parallel connection length [m]
-    sol_total_Fx::Union{Nothing, Float64} # Total flux expansion [-]
+    SOL_connection_length::Union{Nothing, Float64} # Parallel connection length [m]
+    SOL_total_Fx::Union{Nothing, Float64} # Total flux expansion [-]
 end
 
-function ActorSolBox(dd::IMAS.dd{D}, par::FUSEparameters__ActorSolBox{P}; kw...) where {D<:Real,P<:Real}
-    logging_actor_init(ActorSolBox)
+function ActorSOLBox(dd::IMAS.dd{D}, par::FUSEparameters__ActorSOLBox{P}; kw...) where {D<:Real,P<:Real}
+    logging_actor_init(ActorSOLBox)
     par = OverrideParameters(par; kw...)
-    return ActorSolBox(dd, par, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing) # should be the same number of inputs as struct above
+    return ActorSOLBox(dd, par, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing) # should be the same number of inputs as struct above
 end
 
 """
-    ActorSolBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
     0D box model for the scrape-off layer developed by X. Zhang et al. https://doi.org/10.1016/j.nme.2022.101354 .
 """
-# FUSE.ActorSolBox(dd,act) will trigger: Step -> Fianlize 
-function ActorSolBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorSolBox(dd, act.ActorSolBox; kw...)
+# FUSE.ActorSOLBox(dd,act) will trigger: Step -> Fianlize 
+function ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSOLBox(dd, act.ActorSOLBox; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
 # Step function
-function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
+function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
 
-    # Retrieve variables defined in the struct ActorSolBox
+    # Retrieve variables defined in the struct ActorSOLBox
     dd = actor.dd
     par = actor.par
 
@@ -71,7 +71,7 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     # Step 1 - get connection length and total flux expansion for the separatrix flux tube between midplane and outer target
 
     # Trace field lines in the SOL
-    sol = IMAS.sol(dd; levels=100)
+    SOL = IMAS.sol(dd; levels=100)
 
     # We need to decide which flux surface we will take as being representative of the separatrix. We will not use the
     # exact separatrix here as a) the connection length blows up too close to it, and b) sometimes the flux surface tracing
@@ -82,29 +82,29 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     # the last flux tube in the 'near SOL' will actually be right next to the separatrix (which we want to avoid).
 
     # Get the flux of the primary and secondary separatrices
-    LCFS_psi = sol[:lfs][1].psi
-    LCFS2_psi = sol[:lfs_far][1].psi
+    LCFS_psi = SOL[:lfs][1].psi
+    LCFS2_psi = SOL[:lfs_far][1].psi
 
     # Check the magnetic balance of the two nulls
     if abs((LCFS_psi - LCFS2_psi)/LCFS_psi) > 0.025
 
         # Single null
         single_null = true
-        separatrix = sol[:lfs][1+offset]
+        separatrix = SOL[:lfs][1+offset]
 
     else
 
         # (Disconnected) double null
         single_null = false
-        separatrix = sol[:lfs_far][1+offset]
+        separatrix = SOL[:lfs_far][1+offset]
 
     end
 
     # Parallel connection length from midplane to target (last point)
-    actor.sol_connection_length = separatrix.s[end]
+    actor.SOL_connection_length = separatrix.s[end]
 
     # Total flux expansion from midplane to target (last point)
-    actor.sol_total_Fx = separatrix.total_flux_expansion[end]
+    actor.SOL_total_Fx = separatrix.total_flux_expansion[end]
 
     # Step 2 - calculate the sound speed
     actor.cst = sqrt(e_charge*(par.Te_t + par.Ti_t)/(par.mass_ion*amu))
@@ -112,7 +112,7 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     # Step 3 - calculate the upstream temperature(s)
 
     # Intermediate variable. Calculate once for reduced computation.
-    alpha = par.frac_cond*1.75*actor.sol_connection_length*(1.0-0.5*(actor.sol_total_Fx - 1.0))
+    alpha = par.frac_cond*1.75*actor.SOL_connection_length*(1.0-0.5*(actor.SOL_total_Fx - 1.0))
 
     # Upstream ion temperature
     actor.Ti_u = ( (par.Ti_t)^(7.0/2.0) + alpha*(par.qpar_i/par.κ0_i) )^(2.0/7.0)
@@ -131,7 +131,7 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
     γe = 1.0 - par.recycling_coeff_e
 
     # Intermediate variable. Calculate once for reduced computation.
-    beta = (actor.sol_total_Fx + 1)/(2.0*actor.sol_total_Fx)
+    beta = (actor.SOL_total_Fx + 1)/(2.0*actor.SOL_total_Fx)
 
     # Target ion density
     actor.ni_t = beta * (par.Γ_i/(γi*actor.cst))
@@ -159,8 +159,8 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
             println("Double null")
         end
 
-        println("Connection length (m): ",actor.sol_connection_length)
-        println("Total flux expansion: ",actor.sol_total_Fx)
+        println("Connection length (m): ",actor.SOL_connection_length)
+        println("Total flux expansion: ",actor.SOL_total_Fx)
 
         println("\nIons")
         println("[INPUT] - Coefficient of ion conductivity: ",par.κ0_i)
@@ -206,25 +206,25 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
 
         # Get an array of midplane to outer target connection lengths for a set of
         # flux tubes in the SOL
-        sol = IMAS.sol(dd; levels=100)
+        SOL = IMAS.sol(dd; levels=100)
 
         if single_null
 
-            Ntubes = length(sol[:lfs])
-            connection_lengths = [sol[:lfs][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
-            psi_vals = [sol[:lfs][i].psi for i in range(start=1,step=1,length=Ntubes)]
+            Ntubes = length(SOL[:lfs])
+            connection_lengths = [SOL[:lfs][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
+            psi_vals = [SOL[:lfs][i].psi for i in range(start=1,step=1,length=Ntubes)]
 
         else
 
-            Ntubes = length(sol[:lfs_far])
-            connection_lengths = [sol[:lfs_far][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
-            psi_vals = [sol[:lfs_far][i].psi for i in range(start=1,step=1,length=Ntubes)]
+            Ntubes = length(SOL[:lfs_far])
+            connection_lengths = [SOL[:lfs_far][i].s[end] for i in range(start=1,step=1,length=Ntubes)]
+            psi_vals = [SOL[:lfs_far][i].psi for i in range(start=1,step=1,length=Ntubes)]
 
         end
 
         # Plot
         p1 = plot(; layout=1, size=(500,700))
-        plot!(p1, sol; colorbar_entry=false, color=:grays, xlabel="R (m)", ylabel="Z (m)", title="Connection length: "*string(round(actor.sol_connection_length,digits=2))*" m")
+        plot!(p1, SOL; colorbar_entry=false, color=:grays, xlabel="R (m)", ylabel="Z (m)", title="Connection length: "*string(round(actor.SOL_connection_length,digits=2))*" m")
         plot!(p1, sep_r_plot, sep_z_plot;  linewidth=2, color=:red, label="Flux tube")
         plot!(p1, lower_outer_target.r,lower_outer_target.z, linewidth=2, color=:blue, label="Outer target")
         p2 = plot(; layout=1, size=(1000,700))
@@ -238,11 +238,11 @@ function _step(actor::ActorSolBox{D,P}) where {D<:Real, P<:Real}
 end
 
 # Finalize function
-function _finalize(actor::ActorSolBox)
+function _finalize(actor::ActorSOLBox)
     # Finalization after computation is done in step
     # (Probably populate dd; for details of dd: https://fuse.help/dev/dd.html)
 
-    # Retrieve variables defined in the struct ActorSolBox
+    # Retrieve variables defined in the struct ActorSOLBox
     dd = actor.dd
     par = actor.par
 
