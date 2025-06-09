@@ -27,7 +27,7 @@ end
 """
     ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the Fixed boundary equilibrium solver EGGO
+Runs the ML-based free boundary equilibrium solver EGGO
 """
 function ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEGGO(dd, act.ActorEGGO, act; kw...)
@@ -49,11 +49,6 @@ function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::Param
     return ActorEGGO(dd, par, act, green, basis_functions, basis_functions_1d, NNmodel)
 end
 
-"""
-    _step(actor::ActorEGGO)
-
-Runs EGGO on the r_z boundary, equilibrium pressure and equilibrium j_tor
-"""
 function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
 
