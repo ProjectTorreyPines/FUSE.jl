@@ -49,7 +49,7 @@ function _step(actor::ActorNeutralFueling)
     IMAS.new_source(source, source.identifier.index, "gas", cp1d.grid.rho_tor_norm, cp1d.grid.volume, cp1d.grid.area; electrons_particles=Sneut)
 
     # fill ion particle source from the wall, assuming equal number or particles from all hydrogenic species
-    hydrogenic_ion_list = [ion for ion in cp1d.ion if ion.element[1].z_n == 1 && !ismissing(ion, :density_thermal) && sum(ion.density_thermal)>0.0]
+    hydrogenic_ion_list = [ion for ion in cp1d.ion if IMAS.is_hydrogenic(ion) && !ismissing(ion, :density_thermal) && sum(ion.density_thermal) > 0.0]
     cs1d = source.profiles_1d[]
     resize!(cs1d.ion, length(hydrogenic_ion_list))
     for (cs1d_ion, ion) in zip(cs1d.ion, hydrogenic_ion_list)
@@ -70,24 +70,6 @@ end
 Interpolation of G function (Equation 12 in Burrel et al.) pulled from onetwo. Used where QuadGK calculation is slow
 """
 function g0(x::Float64)::Float64
-    g0f1(x) = (9.9995058e-1 + x * (7.7628443e+2 + x * (-4.3649686e+3 + x * 6.1480022e+4))) /
-              (1.0 + x * 7.8621464e+2)
-
-    g0f2(x) = (9.9703418e-1 + x * (7.7783588e+1 + x * (3.9012546e+2 + x * (-8.9205431e+2 + x * 1.0037943e+3)))) /
-              (1.0 + x * (8.4398466e+1 + x * 7.1649574e+2))
-
-    g0f3(x) = (9.7552510e-1 + x * (7.0647154 + x * (-4.0953920 + x * (9.0556774e-1 - x * 5.8788928e-2)))) /
-              (1.0 + x * (1.1344206e+1 + x * 1.5956867e+1))
-
-    g0f4(x) = (8.4513992e-1 + x * (-2.2811875e-1 + x * (2.5926818e-2 + x * (-1.4549910e-3 + x * 3.3570582e-5)))) /
-              (1.0 + x * (2.0520190 + x * (6.1145865e-1 + x * 1.2572764e-1)))
-
-    g0f5(x) = (1.9937501e-3 + x * (-3.2073160e-4 + x * (1.7925104e-5 - x * 3.4571807e-7))) /
-              (1.0 + x * (-3.3316230e-1 + x * 3.6461690e-2))
-
-    g0f6(x) = (-2.4903487e-7 + x * 7.3163546e-9) /
-              (1.0 + x * (-3.2915104e-1 + x * (4.3949080e-2 + x * (-2.9908526e-3 + x * (1.0457349e-4 - x * 1.5316628e-6)))))
-
     # Conditional logic
     if x > 8.0
         if x > 15.0
@@ -110,9 +92,28 @@ function g0(x::Float64)::Float64
     end
 end
 
+g0f1(x) = (9.9995058e-1 + x * (7.7628443e+2 + x * (-4.3649686e+3 + x * 6.1480022e+4))) /
+          (1.0 + x * 7.8621464e+2)
+
+g0f2(x) = (9.9703418e-1 + x * (7.7783588e+1 + x * (3.9012546e+2 + x * (-8.9205431e+2 + x * 1.0037943e+3)))) /
+          (1.0 + x * (8.4398466e+1 + x * 7.1649574e+2))
+
+g0f3(x) = (9.7552510e-1 + x * (7.0647154 + x * (-4.0953920 + x * (9.0556774e-1 - x * 5.8788928e-2)))) /
+          (1.0 + x * (1.1344206e+1 + x * 1.5956867e+1))
+
+g0f4(x) = (8.4513992e-1 + x * (-2.2811875e-1 + x * (2.5926818e-2 + x * (-1.4549910e-3 + x * 3.3570582e-5)))) /
+          (1.0 + x * (2.0520190 + x * (6.1145865e-1 + x * 1.2572764e-1)))
+
+g0f5(x) = (1.9937501e-3 + x * (-3.2073160e-4 + x * (1.7925104e-5 - x * 3.4571807e-7))) /
+          (1.0 + x * (-3.3316230e-1 + x * 3.6461690e-2))
+
+g0f6(x) = (-2.4903487e-7 + x * 7.3163546e-9) /
+          (1.0 + x * (-3.2915104e-1 + x * (4.3949080e-2 + x * (-2.9908526e-3 + x * (1.0457349e-4 - x * 1.5316628e-6)))))
+
+
 
 """
-    cxr(x::Vector{Float64})
+    cxr(x::Real)
 
 This function calculates the charge exchange rate for hydrogen atoms interacting with protons in units of cm**3/s.
 x is in units of keV for 1.0e-3 .le. x .le. 100, the the formula is taken from the paper by r.l. freeman and e.m. jones
@@ -120,82 +121,40 @@ clm-r 137 culham laboratory 1974 for x.lt.1.0e-3, a rate coefficient derived fro
 over the approximate cross section, sigma=0.6937e-14*(1.0-0.155*LOG10 (e/1ev))**2 is used.  this cross section is
 an approximation to that given by Riviere, Nuclear Fusion 11,363(1971).
 """
-function cxr(x::Vector{Float64})
-    tc = log.(x) .+ 6.9077553
-    dum = 0.2530205e-4 .- tc .* 0.8230751e-6
-    tc = -0.1841757e2 .+ tc .* (0.528295 .- tc .* (0.2200477 .- tc .* (0.9750192e-1 .- tc .*
-                                                                                       (0.1749183e-1 .- tc .* (0.4954298e-3 .+
-                                                                                                               tc .* (0.2174910e-3 .- tc .* dum))))))
-    return exp.(tc)
+function cxr(x::Real)
+    tc = log(x) + 6.9077553
+    dum = 0.2530205e-4 - tc * 0.8230751e-6
+    tc = -0.1841757e2 + tc * (0.528295 - tc * (0.2200477 - tc * (0.9750192e-1 - tc *
+                                                                                (0.1749183e-1 - tc * (0.4954298e-3 +
+                                                                                                      tc * (0.2174910e-3 - tc * dum))))))
+    return exp(tc)
 end
 
 """
-    eir(x::Vector{Float64})
+    eir(x::Real)
 
 This function calculates the ionization rate of atomic hydrogen by ele
 impact in units of cm**3/s.  x is in units of keV
 the formula is taken from the paper by r.l. freeman and e.m. jones
 clm-r 137 culham laboratory 1974
 """
-function eir(x::Vector{Float64})
-    ta = log.(x) .+ 6.9077553
-    ta = (-0.3173850e2 .+
-          ta .* (0.1143818e2 .- ta .* (0.3833998e1 .- ta .* (0.7046692 .- ta
-                                                                          .*
-                                                                          (0.7431486e-1 .- ta .* (0.4153749e-2 .- ta .* 0.9486967e-4))))))
-    return exp.(ta)
+function eir(x::Real)
+    ta = log(x) + 6.9077553
+    ta = (-0.3173850e2 +
+          ta * (0.1143818e2 - ta * (0.3833998e1 - ta * (0.7046692 - ta
+                                                                    *
+                                                                    (0.7431486e-1 - ta * (0.4153749e-2 - ta * 0.9486967e-4))))))
+    return exp(ta)
 end
 
 """
-    nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Float64)
+    nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64})
 
-This function solves the 1 species integral equation with the
-Gauss-Seidel iteration technique.
+This function solves the 1 species integral equation
 """
-function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64}, nr::Int)
-    f1 = zeros(nr)
-    pn1 = zeros(nr)
-    maxit = 200
-    tol = 1.0e-4
-
-    # Set up factor with diagonal term, and initial guess
-    for i in 1:nr
-        f1[i] = 1.0 / (1.0 - k11[i, i])
-        pn1[i] = sn1[i]
-    end
-    
-    #f1[1]=0 # reduce numerical peaking in core. 
-
-    # Now iterate until the solution converges
-    del = 0.0
-    for it in 1:maxit
-        del = 0.0
-        for i in 1:nr
-            tn1 = sn1[i]
-
-            for j in 1:nr
-                if j == i
-                    continue
-                end
-                tn1 += k11[j, i] * pn1[j]
-            end
-
-            tn1 *= f1[i]
-            del1 = 0.0
-            if pn1[i] != 0.0
-                del1 = abs((tn1 - pn1[i]) / pn1[i])
-            elseif tn1 != 0.0
-                del1 = 1.0
-            end
-            del = max(del, del1)
-            pn1[i] = tn1
-        end
-        if del < tol
-            return pn1
-        end
-    end
-    display(plot(pn1))
-    return error("Could not solve for neutral density: error is $(del) Vs requested $(tol)")
+function nuslv1(sn1::Vector{Float64}, k11::Matrix{Float64})
+    A = I - k11
+    return A' \ sn1
 end
 
 """
@@ -203,7 +162,7 @@ end
 
 This function calculates K matrix of equation 11 in Burrel 1977
 """
-function get_At(r::Vector{Float64}, n::Int, r0::Float64, odelr::Float64, ra::Vector{Float64}, nra::Int, a1::Vector{Float64})
+function get_At(r::AbstractVector{Float64}, n::Int, r0::Float64, odelr::Float64, ra::Vector{Float64}, nra::Int, a1::Vector{Float64})
     nram1 = nra - 1
 
     function a1f(i::Int, rdum::Float64)
@@ -322,18 +281,14 @@ function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__prof
     ni = cp1d.ion[1].density / 1e6
     mi = cp1d.ion[1].element[1].a
     kappa = eqt.profiles_1d.elongation[end]
-    amin = 0.5 .* (eqt.profiles_1d.r_outboard[end] - eqt.profiles_1d.r_inboard[end])
-    raneut = sqrt.(kappa) .* amin
+    amin = 0.5 * (eqt.profiles_1d.r_outboard[end] - eqt.profiles_1d.r_inboard[end])
     rhoa = eqt.profiles_1d.rho_tor[end]
-    ratef = raneut / rhoa
-    eionr = ratef .* eir(Te)
-    eirate = eir(Te) .* ne
 
-    vth = 1e2 .* sqrt.(2 * IMAS.mks.e * (Te * 1e3) ./ (mi * IMAS.mks.m_p))
+    vth = @. 1e2 * sqrt(2 * IMAS.mks.e * (Te * 1e3) / (mi * IMAS.mks.m_p))
 
-    a1 = ne .* eionr .+ ni .* cxr(Te / mi)
-    b1 = ni .* cxr(Te / mi)
-    vwall = 100.0 * sqrt.(2.0 * IMAS.mks.e * T_wall ./ (mi * IMAS.mks.m_p))
+    a1 = @. ne * (sqrt(kappa) * amin / rhoa) * eir(Te) + ni * cxr(Te / mi)
+    b1 = @. ni * cxr(Te / mi)
+    vwall = @. 100.0 * sqrt(2.0 * IMAS.mks.e * T_wall / (mi * IMAS.mks.m_p))
 
     flux1 = IMAS.trapz(surface, ni) / τp
     swall = 2.0 * flux1 / vwall
@@ -359,7 +314,7 @@ function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__prof
 
         for k in 1:nt
             r0 = r[i] * sint[k]
-            atrr01[i:nr, k] .= get_At(r[i:nr], nr - i + 1, r0, odelr, ra, nra, a1)
+            @views atrr01[i:nr, k] .= get_At(r[i:nr], nr - i + 1, r0, odelr, ra, nra, a1)
             atar01[i, k] = atrr01[nr, k]
         end
 
@@ -375,39 +330,38 @@ function neucg(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__prof
 
     #G(x, n) = 2.0 / sqrt(π) * QuadGK.quadgk(η -> η^n * exp(-η^2 - x / η), 0.0, Inf)[1]
     # Change of variable: η = t / (1 - t), maps (0, 1) to (0, ∞) and set custom precision
-    function G(x, n)
+    function G1(x)
         integrand(t) = begin
-            η = t / (1 - t)
-            jac = 1 / (1 - t)^2
-            η^n * exp(-η^2 - x / η) * jac
+            ntm1 = 1 - t
+            η = t / ntm1
+            jac = 1 / (ntm1 * ntm1)
+            η * exp(-η * η - x / η) * jac
         end
-        return 2.0 / sqrt(π) * QuadGK.quadgk(integrand, 0.0, 1.0;rtol=1e-6, atol=1e-12)[1]
+        return 2.0 / sqrt(π) * QuadGK.quadgk(integrand, 0.0, 1.0; rtol=1e-6, atol=1e-12)[1]
     end
 
     G1h = zeros(nr, nt)
     Ap = zeros(nr, nt)
     Am = zeros(nr, nt)
     h = zeros(nr)
-    for (ir, rr) in enumerate(rho)
-        for (it, tt) in enumerate(theta)
+    for ir in eachindex(rho)
+        for it in eachindex(theta)
             Ap[ir, it] = abs.(atrr01[ir, it] + atar01[ir, it])
             Am[ir, it] = abs.(atrr01[ir, it] - atar01[ir, it])
-            G1h[ir, it] = G(Ap[ir, it] / vwall, 1) + G(Am[ir, it] / vwall, 1)
+            G1h[ir, it] = G1(Ap[ir, it] / vwall) + G1(Am[ir, it] / vwall)
         end
     end
 
-    for (ir, rr) in enumerate(rho)
-        h[ir] = swall * IMAS.trapz(theta, G1h[ir, :])
+    for ir in eachindex(rho)
+        @views h[ir] = swall * IMAS.trapz(theta, G1h[ir, :])
     end
 
     k11 = get_K_matrix(atrr01, vth, r, nr, theta, nt, sint)
-    k11 = b1 ./ vth ./ sqrt(π) .* k11
-
-    pn11 = nuslv1(h, k11, nr)
+    @. k11 = b1 / vth / sqrt(π) * k11
 
     cm3_to_m3 = 1e6
-    fn11 = pn11 * cm3_to_m3
-    sione = fn11 .* eirate
+    fn11 = nuslv1(h, k11) .* cm3_to_m3
+    sione = @. fn11 * eir(Te) * ne
 
     correction = (trapz(volume, ni) / τp) / trapz(volume, sione / cm3_to_m3)
 

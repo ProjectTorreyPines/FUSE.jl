@@ -68,7 +68,9 @@ function _step(actor::ActorNeoclassical)
             actor.equilibrium_geometry = NEO.get_equilibrium_geometry(eqt, cp1d)#, gridpoint_cps)
         end
         parameter_matrices = NEO.get_plasma_profiles(eqt, cp1d)
-        actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry), gridpoint_cps)
+        rho_s = GACODE.rho_s(cp1d, eqt)
+        rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm)
+        actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry; rho_s, rmin), gridpoint_cps)
         
         facit_full_geometry = true 
         # impurity fluxes with FACIT

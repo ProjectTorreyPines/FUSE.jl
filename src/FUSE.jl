@@ -1,7 +1,7 @@
 module FUSE
 
 using IMAS
-import IMAS: step, pulse, ramp, trap, gaus, beta, sequence
+import IMAS: heaviside, pulse, ramp, trap, gaus, beta, sequence
 import IMASutils: mirror_bound, argmin_abs, trapz
 import Plots
 using Plots
@@ -42,7 +42,6 @@ include("parameters.jl")
 #  CASES  #
 #= ===== =#
 include(joinpath("cases", "_toksys.jl"))
-include(joinpath("cases", "_test_cases.jl"))
 include(joinpath("cases", "_cases.jl"))
 
 #= ======= =#
@@ -102,9 +101,13 @@ include(joinpath("actors", "build", "cx_actor.jl"))
 include(joinpath("actors", "nuclear", "blanket_actor.jl"))
 include(joinpath("actors", "nuclear", "neutronics_actor.jl"))
 
+include(joinpath("actors", "control", "ip_control.jl"))
+
 include(joinpath("actors", "current", "qed_actor.jl"))
 include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 include(joinpath("actors", "current", "current_actor.jl"))
+
+include(joinpath("actors", "diagnostics", "fits_actor.jl"))
 
 include(joinpath("actors", "hcd", "simple_common.jl"))
 include(joinpath("actors", "hcd", "ec", "ec_simple_actor.jl"))
@@ -145,8 +148,6 @@ include(joinpath("actors", "costing", "costing_utils.jl"))
 include(joinpath("actors", "costing", "sheffield_costing_actor.jl"))
 include(joinpath("actors", "costing", "aries_costing_actor.jl"))
 include(joinpath("actors", "costing", "costing_actor.jl"))
-
-include(joinpath("actors", "control", "ip_control.jl"))
 
 include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
@@ -189,10 +190,15 @@ include("utils_end.jl")
 #= ========== =#
 include("precompile.jl")
 
+#= ===== =#
+#  TESTS  #
+#= ===== =#
+include("test_cases.jl")
+
 #= ====== =#
 #= EXPORT =#
 #= ====== =#
-export IMAS, @ddtime, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
+export IMAS, @ddtime, help, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
 
