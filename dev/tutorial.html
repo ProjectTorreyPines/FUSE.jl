@@ -4,7 +4,7 @@
   gtag('js', new Date());
   gtag('config', 'G-65D8V8C8VQ', {'page_path': location.pathname + location.search + location.hash});
 </script><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script><link href="assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="index.html"><img class="docs-light-only" src="assets/logo.svg" alt="FUSE logo"/><img class="docs-dark-only" src="assets/logo-dark.svg" alt="FUSE logo"/></a><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Main</a></li><li><span class="tocitem">Learn</span><ul><li class="is-active"><a class="tocitem" href="tutorial.html">Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Basic-concepts"><span>Basic concepts</span></a></li><li class="toplevel"><a class="tocitem" href="#Let&#39;s-get-started!"><span>Let&#39;s get started!</span></a></li><li><a class="tocitem" href="#Starting-from-a-use-case"><span>Starting from a use-case</span></a></li><li><a class="tocitem" href="#Running-Actors"><span>Running Actors</span></a></li><li><a class="tocitem" href="#Whole-facility-design"><span>Whole facility design</span></a></li><li class="toplevel"><a class="tocitem" href="#Getting-into-the-weeds"><span>Getting into the weeds</span></a></li><li><a class="tocitem" href="#Saving-and-loading-data"><span>Saving and loading data</span></a></li><li><a class="tocitem" href="#Exploring-the-data-dictionary"><span>Exploring the data dictionary</span></a></li><li><a class="tocitem" href="#Plotting-data-from-dd"><span>Plotting data from <code>dd</code></span></a></li><li><a class="tocitem" href="#Working-with-time-series"><span>Working with time series</span></a></li><li><a class="tocitem" href="#Expressions-in-dd"><span>Expressions in <code>dd</code></span></a></li><li><a class="tocitem" href="#Comparing-two-IDSs"><span>Comparing two IDSs</span></a></li><li><a class="tocitem" href="#Summary"><span>Summary</span></a></li></ul></li><li><a class="tocitem" href="examples.html">Examples</a></li><li><a class="tocitem" href="pubs.html">Publications</a></li></ul></li><li><a class="tocitem" href="cases.html">Use Cases</a></li><li><span class="tocitem">Actors</span><ul><li><a class="tocitem" href="actors.html">List of actors</a></li><li><a class="tocitem" href="act.html">act parameters</a></li></ul></li><li><span class="tocitem">Initialization</span><ul><li><a class="tocitem" href="inits.html">Init routines</a></li><li><a class="tocitem" href="ini.html">ini parameters</a></li></ul></li><li><a class="tocitem" href="dd.html">Data Structure</a></li><li><span class="tocitem">Development</span><ul><li><a class="tocitem" href="deps.html">Ecosystem</a></li><li><a class="tocitem" href="develop.html">Contributing</a></li></ul></li><li><span class="tocitem">Install</span><ul><li><a class="tocitem" href="install.html">Install FUSE</a></li><li><a class="tocitem" href="install_saga.html">on SAGA</a></li><li><a class="tocitem" href="install_omega.html">on OMEGA</a></li></ul></li><li><span class="tocitem">License</span><ul><li><a class="tocitem" href="license.html">License</a></li><li><a class="tocitem" href="notice.html">Notice</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Learn</a></li><li class="is-active"><a href="tutorial.html">Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="tutorial.html">Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/ProjectTorreyPines/FUSE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/docs/src/tutorial.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="FUSE-Introductory-Tutorial"><a class="docs-heading-anchor" href="#FUSE-Introductory-Tutorial">FUSE Introductory Tutorial</a><a id="FUSE-Introductory-Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#FUSE-Introductory-Tutorial" title="Permalink"></a></h1><p>Download this tutorial from the <a href="https://github.com/ProjectTorreyPines/FuseExamples/blob/master/tutorial.ipynb">FuseExamples repository</a></p><h2 id="Basic-concepts"><a class="docs-heading-anchor" href="#Basic-concepts">Basic concepts</a><a id="Basic-concepts-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-concepts" title="Permalink"></a></h2><p>To make sense of this tutorial, you&#39;ll need to know the following organization concepts of FUSE:</p><ol><li><strong>📂 Data storage</strong>: All data is stored in the <code>dd</code> structure, which follows the ITER IMAS ontology.</li><li><strong>🧠 Actors</strong>: The core components of FUSE simulations are physics and engineering actors.</li><li><strong>🕹️ Control</strong>: Actor functionality is governed by <code>act</code> parameters.</li><li><strong>🚀 Initialization</strong>: The data structure can be initialized from 0D <code>ini</code> parameters.</li><li><strong>🔧 Use cases</strong>: FUSE includes templates for various machines (e.g., FPP, ITER, ARC).</li><li><strong>🔄 Workflows</strong>: Self-contained studies and optimizations are conducted via workflows, typically involving multiple FUSE simulations.</li><li><strong>🌍 Interoperability</strong>: FUSE interfaces with existing modeling tools like OMFIT/OMAS and the IMAS ecosystem.</li></ol><p>A diagram illustrating these concepts is provided below: <img src="attachment:5ff4862c-b856-485b-9649-02fec5bdd0d7.png" alt="image.png"/></p><h1 id="Let&#39;s-get-started!"><a class="docs-heading-anchor" href="#Let&#39;s-get-started!">Let&#39;s get started!</a><a id="Let&#39;s-get-started!-1"></a><a class="docs-heading-anchor-permalink" href="#Let&#39;s-get-started!" title="Permalink"></a></h1><hr/><p><strong>NOTE</strong>: Julia is a Just In Time (JIT) programming language. The first time something is executed it will take longer because of the compilation process. Subsequent calls the the same code will be blazingly fast.</p><hr/><p>Import the necessary packages</p><pre><code class="language-julia hljs">using Plots # for plotting
-using FUSE # this will also import IMAS in the current namespace</code></pre><h2 id="Starting-from-a-use-case"><a class="docs-heading-anchor" href="#Starting-from-a-use-case">Starting from a use-case</a><a id="Starting-from-a-use-case-1"></a><a class="docs-heading-anchor-permalink" href="#Starting-from-a-use-case" title="Permalink"></a></h2><p>FUSE comes with some predefined <a href="https://fuse.help/stable/cases.html">use-cases</a>, some of which are used for regression testing.</p><p>Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.</p><p>Here&#39;s the list of supported use-cases. These can be customized and you will also be able to build your own.</p><pre><code class="language-julia hljs">methods(FUSE.case_parameters)</code></pre># 22 methods for generic function <b>case_parameters</b> from [35mFUSE[39m:<ul><li> case_parameters(::<b>Type{Val{:HDB5}}</b>; <i>tokamak, case, database_case, shot, verbose</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/HDB5.jl#L9" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/HDB5.jl:9</a></li> <li> case_parameters(::<b>Type{Val{:D3D_machine}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L342" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:342</a></li> <li> case_parameters(::<b>Type{Val{:FIRST}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/FIRST.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/FIRST.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:SPARC}}</b>; <i>init_from, flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/SPARC.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/SPARC.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:ARC}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/ARC.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/ARC.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:CAT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/CAT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/CAT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:UNIT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/UNIT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/UNIT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:DTT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/DTT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/DTT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:EXCITE}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/EXCITE.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/EXCITE.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:KDEMO_compact}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/KDEMO.jl#L96" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/KDEMO.jl:96</a></li> <li> case_parameters(::<b>Type{Val{:KDEMO}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/KDEMO.jl#L4" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/KDEMO.jl:4</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, scenario::<b>Symbol</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L286" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:286</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, shot::<b>Int64</b>; <i>new_impurity_match_power_rad, fit_profiles, EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root, use_local_cache</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L16" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:16</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, dd::<b>IMASdd.dd</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L265" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:265</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, ods_file::<b>AbstractString</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/D3D.jl#L248" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:248</a></li> <li> case_parameters(::<b>Type{Val{:FPP}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/FPP.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/FPP.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:MANTA}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/MANTA.jl#L10" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/MANTA.jl:10</a></li> <li> case_parameters(::<b>Type{Val{:ITER}}</b>; <i>init_from, boundary_from, ne_setting, time_dependent</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/ITER.jl#L11" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/ITER.jl:11</a></li> <li> case_parameters(::<b>Type{Val{:STEP}}</b>; <i>init_from, pf_from</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/STEP.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/STEP.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:baby_MANTA}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/baby_MANTA.jl#L4" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/baby_MANTA.jl:4</a></li> <li> case_parameters(case::<b>Symbol</b>, args...; <i>kw...</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/_cases.jl#L36" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/_cases.jl:36</a></li> <li> case_parameters(data_row::<b>DataFrames.DataFrameRow</b>; <i>verbose</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/768493ebb7e39d9e40ae447e77fe15967e868e9c//src/cases/HDB5.jl#L18" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/HDB5.jl:18</a></li> </ul><p>Get initial parameters (<code>ini</code>) and actions (<code>act</code>) for a given use-case, let&#39;s use KDEMO for example</p><pre><code class="language-julia hljs">ini, act = FUSE.case_parameters(:KDEMO);</code></pre><p>The <code>ini</code> data structure contains 0D parameters that will be used to bootstrap the <code>dd</code> with plausible data.</p><p>The <a href="https://fuse.help/stable/ini.html"><code>ini</code> parameters</a> can be modified.</p><pre><code class="language-julia hljs">ini.equilibrium.B0 = 7.8
+using FUSE # this will also import IMAS in the current namespace</code></pre><h2 id="Starting-from-a-use-case"><a class="docs-heading-anchor" href="#Starting-from-a-use-case">Starting from a use-case</a><a id="Starting-from-a-use-case-1"></a><a class="docs-heading-anchor-permalink" href="#Starting-from-a-use-case" title="Permalink"></a></h2><p>FUSE comes with some predefined <a href="https://fuse.help/stable/cases.html">use-cases</a>, some of which are used for regression testing.</p><p>Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.</p><p>Here&#39;s the list of supported use-cases. These can be customized and you will also be able to build your own.</p><pre><code class="language-julia hljs">methods(FUSE.case_parameters)</code></pre># 22 methods for generic function <b>case_parameters</b> from [35mFUSE[39m:<ul><li> case_parameters(::<b>Type{Val{:HDB5}}</b>; <i>tokamak, case, database_case, shot, verbose</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/HDB5.jl#L9" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/HDB5.jl:9</a></li> <li> case_parameters(::<b>Type{Val{:D3D_machine}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/D3D.jl#L342" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:342</a></li> <li> case_parameters(::<b>Type{Val{:FIRST}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/FIRST.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/FIRST.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:SPARC}}</b>; <i>init_from, flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/SPARC.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/SPARC.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:ARC}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/ARC.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/ARC.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:CAT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/CAT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/CAT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:UNIT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/UNIT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/UNIT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:DTT}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/DTT.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/DTT.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:EXCITE}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/EXCITE.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/EXCITE.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:KDEMO_compact}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/KDEMO.jl#L96" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/KDEMO.jl:96</a></li> <li> case_parameters(::<b>Type{Val{:KDEMO}}</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/KDEMO.jl#L4" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/KDEMO.jl:4</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, scenario::<b>Symbol</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/D3D.jl#L286" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:286</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, shot::<b>Int64</b>; <i>new_impurity_match_power_rad, fit_profiles, EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root, use_local_cache</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/D3D.jl#L16" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:16</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, dd::<b>IMASdd.dd</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/D3D.jl#L265" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:265</a></li> <li> case_parameters(::<b>Type{Val{:D3D}}</b>, ods_file::<b>AbstractString</b>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/D3D.jl#L248" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/D3D.jl:248</a></li> <li> case_parameters(::<b>Type{Val{:FPP}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/FPP.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/FPP.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:MANTA}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/MANTA.jl#L10" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/MANTA.jl:10</a></li> <li> case_parameters(::<b>Type{Val{:ITER}}</b>; <i>init_from, boundary_from, ne_setting, time_dependent</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/ITER.jl#L11" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/ITER.jl:11</a></li> <li> case_parameters(::<b>Type{Val{:STEP}}</b>; <i>init_from, pf_from</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/STEP.jl#L6" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/STEP.jl:6</a></li> <li> case_parameters(::<b>Type{Val{:baby_MANTA}}</b>; <i>flux_matcher</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/baby_MANTA.jl#L4" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/baby_MANTA.jl:4</a></li> <li> case_parameters(case::<b>Symbol</b>, args...; <i>kw...</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/_cases.jl#L36" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/_cases.jl:36</a></li> <li> case_parameters(data_row::<b>DataFrames.DataFrameRow</b>; <i>verbose</i>) in FUSE at <a href="https://github.com/ProjectTorreyPines/FUSE.jl/tree/930086b642b1c983e989ce203c3a411f35e260bf//src/cases/HDB5.jl#L18" target="_blank">/home/runner/work/FUSE.jl/FUSE.jl/src/cases/HDB5.jl:18</a></li> </ul><p>Get initial parameters (<code>ini</code>) and actions (<code>act</code>) for a given use-case, let&#39;s use KDEMO for example</p><pre><code class="language-julia hljs">ini, act = FUSE.case_parameters(:KDEMO);</code></pre><p>The <code>ini</code> data structure contains 0D parameters that will be used to bootstrap the <code>dd</code> with plausible data.</p><p>The <a href="https://fuse.help/stable/ini.html"><code>ini</code> parameters</a> can be modified.</p><pre><code class="language-julia hljs">ini.equilibrium.B0 = 7.8
 ini.equilibrium.R0 = 6.5;</code></pre><p>The <code>act</code> data structure contains parameters that define how the actors (ie the models) will behave.</p><p>The <a href="https://fuse.help/stable/act.html"><code>act</code> parameters</a> can also be modified.</p><pre><code class="language-julia hljs">act.ActorCoreTransport.model = :FluxMatcher;</code></pre><p><code>ini</code> and <code>act</code> can now be used to initialize the data dictionary (<code>dd</code>) using the 0D parameters.</p><p><strong>NOTE:</strong> <code>init()</code> does not return a self-consistent solution, just a plausible starting point to initialize our simulations!</p><pre><code class="language-julia hljs">dd = IMAS.dd() # an empty dd
 FUSE.init(dd, ini, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Equilibrium
 actors:  TEQUILA
@@ -15,7 +15,7 @@ actors:  SimpleIC
 actors:  NeutralFueling
 actors: Current
 actors:  QED
-actors: PassiveStructures</code></pre><p>Let&#39;s see what we got</p><pre><code class="language-julia hljs">plot(dd.build)</code></pre><img src="tutorial-aeea3a7a.svg" alt="Example block output"/><p>We can <code>@checkin</code> and <code>@checkout</code> variables with an associated tag.</p><p>This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we&#39;ll use this later).</p><pre><code class="language-julia hljs">@checkin :init dd ini act</code></pre><h2 id="Running-Actors"><a class="docs-heading-anchor" href="#Running-Actors">Running Actors</a><a id="Running-Actors-1"></a><a class="docs-heading-anchor-permalink" href="#Running-Actors" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors and play around with plotting to get a sense of what each individual actor does.</p><p>Here&#39;s how we can restore things back to after the initialization stage (in case we did anything else in between)</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>.</p><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
+actors: PassiveStructures</code></pre><p>Let&#39;s see what we got</p><pre><code class="language-julia hljs">plot(dd.build)</code></pre><img src="tutorial-24c6c1bd.svg" alt="Example block output"/><p>We can <code>@checkin</code> and <code>@checkout</code> variables with an associated tag.</p><p>This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we&#39;ll use this later).</p><pre><code class="language-julia hljs">@checkin :init dd ini act</code></pre><h2 id="Running-Actors"><a class="docs-heading-anchor" href="#Running-Actors">Running Actors</a><a id="Running-Actors-1"></a><a class="docs-heading-anchor-permalink" href="#Running-Actors" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors and play around with plotting to get a sense of what each individual actor does.</p><p>Here&#39;s how we can restore things back to after the initialization stage (in case we did anything else in between)</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>.</p><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
 pcp = plot(dd.core_profiles; color=:gray, label=&quot;before&quot;)
 act.ActorFluxMatcher.verbose = true
 act.ActorFluxMatcher.algorithm = :anderson
@@ -32,7 +32,7 @@ actors:  Pedestal
 actors:   EPED
 actors:  CoreTransport
 actors:   FluxMatcher
-Calls: 2    Time: 0:00:32
+Calls: 2    Time: 0:00:35
             error: 2.3990655883311294
      Pfusion [MW]: 625.5073877402575
         Ti0 [keV]: 26.81872466823371
@@ -42,7 +42,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 3    Time: 0:00:38
+Calls: 3    Time: 0:00:41
             error: 2.460334446755991
      Pfusion [MW]: 626.4690881598666
         Ti0 [keV]: 26.87895288484474
@@ -52,7 +52,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 4    Time: 0:00:38
+Calls: 4    Time: 0:00:42
             error: 2.082969763991257
      Pfusion [MW]: 624.0451760509436
         Ti0 [keV]: 26.513206182214894
@@ -62,7 +62,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 11    Time: 0:00:38
+Calls: 11    Time: 0:00:42
             error: 0.5870214973515363
      Pfusion [MW]: 415.86303301416984
         Ti0 [keV]: 18.016596687525716
@@ -72,97 +72,107 @@ actors:   FluxMatcher
 
 
 
-Calls: 18    Time: 0:00:38
-            error: 0.3198467781357541
-     Pfusion [MW]: 360.8501602428367
-        Ti0 [keV]: 15.236168944312482
-        Te0 [keV]: 18.158654949056547
-   ne0 [10²⁰ m⁻³]: 0.8558859882354761
+Calls: 17    Time: 0:00:42
+            error: 0.33781421188995336
+     Pfusion [MW]: 360.38483620447926
+        Ti0 [keV]: 15.417648356651148
+        Te0 [keV]: 18.414537966553862
+   ne0 [10²⁰ m⁻³]: 0.8553402604477245
 
 
 
 
-Calls: 24    Time: 0:00:39
-            error: 0.2341766811667835
-     Pfusion [MW]: 362.3575587804521
-        Ti0 [keV]: 14.775696514402629
-        Te0 [keV]: 17.42073348017505
-   ne0 [10²⁰ m⁻³]: 0.8581421068414934
+Calls: 23    Time: 0:00:42
+            error: 0.23742760538982935
+     Pfusion [MW]: 369.44777706674193
+        Ti0 [keV]: 14.938004570507292
+        Te0 [keV]: 17.480338518823007
+   ne0 [10²⁰ m⁻³]: 0.8574010314008133
 
 
 
 
-Calls: 31    Time: 0:00:39
-            error: 0.22489308070143998
-     Pfusion [MW]: 361.81985770654717
-        Ti0 [keV]: 14.880114877933773
-        Te0 [keV]: 17.466915327677565
-   ne0 [10²⁰ m⁻³]: 0.8594059544030233
+Calls: 28    Time: 0:00:42
+            error: 0.2349734486560471
+     Pfusion [MW]: 348.77812980892486
+        Ti0 [keV]: 14.488944129484365
+        Te0 [keV]: 17.325843801477887
+   ne0 [10²⁰ m⁻³]: 0.8596668113432784
 
 
 
 
-Calls: 38    Time: 0:00:39
-            error: 0.22041016655495926
-     Pfusion [MW]: 347.40199881835474
-        Ti0 [keV]: 14.63767203174134
-        Te0 [keV]: 17.33677532230706
-   ne0 [10²⁰ m⁻³]: 0.8602541497619813
+Calls: 35    Time: 0:00:42
+            error: 0.22197567757417774
+     Pfusion [MW]: 345.68826819862363
+        Ti0 [keV]: 14.565885939173281
+        Te0 [keV]: 17.315681292349446
+   ne0 [10²⁰ m⁻³]: 0.8604944683982197
 
 
 
 
-Calls: 45    Time: 0:00:39
-            error: 0.2100921930146516
-     Pfusion [MW]: 352.1836126248634
-        Ti0 [keV]: 15.021763173888468
-        Te0 [keV]: 17.349876569323914
-   ne0 [10²⁰ m⁻³]: 0.8595909202631056
+Calls: 42    Time: 0:00:43
+            error: 0.21210410134837684
+     Pfusion [MW]: 350.32078651061005
+        Ti0 [keV]: 14.882083829257837
+        Te0 [keV]: 17.338106619750562
+   ne0 [10²⁰ m⁻³]: 0.8598042096053394
 
 
 
 
-Calls: 51    Time: 0:00:39
-            error: 0.20488986603936202
-     Pfusion [MW]: 348.9950186134826
-        Ti0 [keV]: 15.038773783777117
-        Te0 [keV]: 17.306408407826368
-   ne0 [10²⁰ m⁻³]: 0.859475434836268
+Calls: 48    Time: 0:00:43
+            error: 0.2106740717543345
+     Pfusion [MW]: 351.9870982945032
+        Ti0 [keV]: 15.030828847498897
+        Te0 [keV]: 17.34269056150977
+   ne0 [10²⁰ m⁻³]: 0.8596532931024365
 
 
 
 
-Calls: 57    Time: 0:00:39
-            error: 0.16346583468021267
-     Pfusion [MW]: 340.9179636680827
-        Ti0 [keV]: 15.727758993830893
-        Te0 [keV]: 17.15480433150659
-   ne0 [10²⁰ m⁻³]: 0.8509112357096599
+Calls: 54    Time: 0:00:43
+            error: 0.183113720980009
+     Pfusion [MW]: 347.1100528078759
+        Ti0 [keV]: 15.383291015081683
+        Te0 [keV]: 17.18984775564493
+   ne0 [10²⁰ m⁻³]: 0.8578743029375232
 
 
 
 
-Calls: 62    Time: 0:00:39
-            error: 0.1559719929217895
-     Pfusion [MW]: 337.38815640606106
-        Ti0 [keV]: 15.735935966732397
-        Te0 [keV]: 17.151063313163483
-   ne0 [10²⁰ m⁻³]: 0.8465886461297887
+Calls: 60    Time: 0:00:43
+            error: 0.16029141904260016
+     Pfusion [MW]: 336.83870615941373
+        Ti0 [keV]: 15.773894106975543
+        Te0 [keV]: 17.153047345511002
+   ne0 [10²⁰ m⁻³]: 0.847889345459819
 
 
 
 
-Calls: 69    Time: 0:00:39
-            error: 0.14905710046761458
-     Pfusion [MW]: 334.9690652117021
-        Ti0 [keV]: 15.513532297192256
-        Te0 [keV]: 17.058083842865898
-   ne0 [10²⁰ m⁻³]: 0.8465335800477481
+Calls: 64    Time: 0:00:43
+            error: 0.15026715479871772
+     Pfusion [MW]: 338.98452239434596
+        Ti0 [keV]: 15.668105717696
+        Te0 [keV]: 17.088025118648236
+   ne0 [10²⁰ m⁻³]: 0.8460571949222018
 
 
 
 
-Calls: 76    Time: 0:00:40
+Calls: 70    Time: 0:00:43
+            error: 0.14456434218131706
+     Pfusion [MW]: 332.5874555335781
+        Ti0 [keV]: 15.492267034154462
+        Te0 [keV]: 17.043977166874683
+   ne0 [10²⁰ m⁻³]: 0.8457318094678984
+
+
+
+
+Calls: 76    Time: 0:00:43
             error: 0.13826697338983174
      Pfusion [MW]: 325.87998099748864
         Ti0 [keV]: 15.40022793281967
@@ -172,157 +182,167 @@ actors:   FluxMatcher
 
 
 
-Calls: 83    Time: 0:00:40
-            error: 0.13532675965520266
-     Pfusion [MW]: 324.88880685833345
-        Ti0 [keV]: 15.406324698086184
-        Te0 [keV]: 16.988976703586058
-   ne0 [10²⁰ m⁻³]: 0.8439650265600487
+Calls: 82    Time: 0:00:43
+            error: 0.13575621794378598
+     Pfusion [MW]: 324.6107143619913
+        Ti0 [keV]: 15.384138230031672
+        Te0 [keV]: 16.984263778026442
+   ne0 [10²⁰ m⁻³]: 0.8440103542326591
 
 
 
 
-Calls: 89    Time: 0:00:40
-            error: 0.12387148321775522
-     Pfusion [MW]: 316.05607021786903
-        Ti0 [keV]: 15.458065869155599
-        Te0 [keV]: 16.971065050322053
-   ne0 [10²⁰ m⁻³]: 0.836646032212216
+Calls: 88    Time: 0:00:43
+            error: 0.12788912197004418
+     Pfusion [MW]: 315.8327329676227
+        Ti0 [keV]: 15.35172194836176
+        Te0 [keV]: 16.953403192851507
+   ne0 [10²⁰ m⁻³]: 0.8385790623961807
 
 
 
 
-Calls: 95    Time: 0:00:40
-            error: 0.1212890064656769
-     Pfusion [MW]: 312.82925802879197
-        Ti0 [keV]: 15.565600589610595
-        Te0 [keV]: 16.98489744208635
-   ne0 [10²⁰ m⁻³]: 0.8313937524397546
+Calls: 94    Time: 0:00:44
+            error: 0.12069855898859604
+     Pfusion [MW]: 313.0593918345482
+        Ti0 [keV]: 15.572733821774806
+        Te0 [keV]: 16.98645401690047
+   ne0 [10²⁰ m⁻³]: 0.831333355524693
 
 
 
 
-Calls: 102    Time: 0:00:40
-            error: 0.11328327974284591
-     Pfusion [MW]: 312.7163394253776
-        Ti0 [keV]: 15.595429522279323
-        Te0 [keV]: 16.9799588593428
-   ne0 [10²⁰ m⁻³]: 0.8311682542094412
+Calls: 99    Time: 0:00:44
+            error: 0.11788398698831595
+     Pfusion [MW]: 316.68948192223826
+        Ti0 [keV]: 15.683084848359483
+        Te0 [keV]: 17.019866888703696
+   ne0 [10²⁰ m⁻³]: 0.8317731411098402
 
 
 
 
-Calls: 108    Time: 0:00:40
-            error: 0.09055850906043754
-     Pfusion [MW]: 302.6282805284343
-        Ti0 [keV]: 15.607246023095964
-        Te0 [keV]: 16.92391825403984
-   ne0 [10²⁰ m⁻³]: 0.8267458070729702
+Calls: 105    Time: 0:00:44
+            error: 0.09768343117833297
+     Pfusion [MW]: 306.96394856619986
+        Ti0 [keV]: 15.560685232292403
+        Te0 [keV]: 16.936262463817634
+   ne0 [10²⁰ m⁻³]: 0.8290045435730252
 
 
 
 
-Calls: 115    Time: 0:00:40
-            error: 0.0852101461613712
-     Pfusion [MW]: 295.88929004864707
-        Ti0 [keV]: 15.574002860394794
-        Te0 [keV]: 16.879918691324576
-   ne0 [10²⁰ m⁻³]: 0.8269422691383072
+Calls: 111    Time: 0:00:44
+            error: 0.09072341151245394
+     Pfusion [MW]: 299.9194110699015
+        Ti0 [keV]: 15.582112567416932
+        Te0 [keV]: 16.89849206333847
+   ne0 [10²⁰ m⁻³]: 0.8256264670482432
 
 
 
 
-Calls: 121    Time: 0:00:40
-            error: 0.08313044380153796
-     Pfusion [MW]: 290.6844372195624
-        Ti0 [keV]: 15.530802748068737
-        Te0 [keV]: 16.841159665802596
-   ne0 [10²⁰ m⁻³]: 0.8250280075820643
+Calls: 117    Time: 0:00:44
+            error: 0.08531395716265894
+     Pfusion [MW]: 294.60789875170434
+        Ti0 [keV]: 15.558696510669986
+        Te0 [keV]: 16.864470876113327
+   ne0 [10²⁰ m⁻³]: 0.8268595536563692
 
 
 
 
-Calls: 127    Time: 0:00:40
-            error: 0.076979292055157
-     Pfusion [MW]: 284.3407585412294
-        Ti0 [keV]: 15.456239956271224
-        Te0 [keV]: 16.747307985608913
-   ne0 [10²⁰ m⁻³]: 0.8222095492400682
+Calls: 123    Time: 0:00:44
+            error: 0.08006415827857563
+     Pfusion [MW]: 286.0914457669608
+        Ti0 [keV]: 15.498530684342116
+        Te0 [keV]: 16.799403672393986
+   ne0 [10²⁰ m⁻³]: 0.8239592030829954
 
 
 
 
-Calls: 132    Time: 0:00:41
-            error: 0.05759536248862276
-     Pfusion [MW]: 277.7135230128457
-        Ti0 [keV]: 15.326141637097113
-        Te0 [keV]: 16.514279052638862
-   ne0 [10²⁰ m⁻³]: 0.8183142280664506
+Calls: 129    Time: 0:00:44
+            error: 0.0675006038673876
+     Pfusion [MW]: 281.6095570216207
+        Ti0 [keV]: 15.391909195130875
+        Te0 [keV]: 16.638554263107427
+   ne0 [10²⁰ m⁻³]: 0.8203963213077601
 
 
 
 
-Calls: 139    Time: 0:00:41
-            error: 0.04840910409622276
-     Pfusion [MW]: 272.4225389120548
-        Ti0 [keV]: 15.295967610127644
-        Te0 [keV]: 16.415673045856284
-   ne0 [10²⁰ m⁻³]: 0.8162705681636835
+Calls: 134    Time: 0:00:44
+            error: 0.05184452675909379
+     Pfusion [MW]: 275.3915894349539
+        Ti0 [keV]: 15.301513228628382
+        Te0 [keV]: 16.449911060082822
+   ne0 [10²⁰ m⁻³]: 0.8176077778105434
 
 
 
 
-Calls: 145    Time: 0:00:41
-            error: 0.04451897508514611
-     Pfusion [MW]: 270.32485560186615
-        Ti0 [keV]: 15.320532183558466
-        Te0 [keV]: 16.4051659327563
-   ne0 [10²⁰ m⁻³]: 0.8158174592765288
+Calls: 140    Time: 0:00:45
+            error: 0.04821761775002311
+     Pfusion [MW]: 271.99157163502775
+        Ti0 [keV]: 15.300153462601147
+        Te0 [keV]: 16.418558012444553
+   ne0 [10²⁰ m⁻³]: 0.8160102702121839
 
 
 
 
-Calls: 151    Time: 0:00:41
-            error: 0.03742451431918818
-     Pfusion [MW]: 266.32047069264917
-        Ti0 [keV]: 15.354884941255557
-        Te0 [keV]: 16.326744278107146
-   ne0 [10²⁰ m⁻³]: 0.8131819218876775
+Calls: 146    Time: 0:00:45
+            error: 0.042861133253420114
+     Pfusion [MW]: 269.09170183073167
+        Ti0 [keV]: 15.31481645463753
+        Te0 [keV]: 16.375543480685884
+   ne0 [10²⁰ m⁻³]: 0.8153118657851754
 
 
 
 
-Calls: 157    Time: 0:00:41
-            error: 0.0267411833862603
-     Pfusion [MW]: 266.0519150256099
-        Ti0 [keV]: 15.506955509754786
-        Te0 [keV]: 16.349457153213727
-   ne0 [10²⁰ m⁻³]: 0.8080834484023279
+Calls: 152    Time: 0:00:45
+            error: 0.03520278476489394
+     Pfusion [MW]: 266.07003455819194
+        Ti0 [keV]: 15.382291538719274
+        Te0 [keV]: 16.332085864434337
+   ne0 [10²⁰ m⁻³]: 0.8119538121488395
 
 
 
 
-Calls: 163    Time: 0:00:41
-            error: 0.02493213020688662
-     Pfusion [MW]: 266.7204381366945
-        Ti0 [keV]: 15.561154272382447
-        Te0 [keV]: 16.382933380547716
-   ne0 [10²⁰ m⁻³]: 0.8073034665422473
+Calls: 158    Time: 0:00:45
+            error: 0.026396575826971014
+     Pfusion [MW]: 266.05048568296553
+        Ti0 [keV]: 15.516752318455211
+        Te0 [keV]: 16.34993456265718
+   ne0 [10²⁰ m⁻³]: 0.8078492912807324
 
 
 
 
-Calls: 169    Time: 0:00:41
-            error: 0.020982569709862866
-     Pfusion [MW]: 269.5474495137202
-        Ti0 [keV]: 15.6212860738174
-        Te0 [keV]: 16.5055713536027
-   ne0 [10²⁰ m⁻³]: 0.8078914058761878
+Calls: 164    Time: 0:00:45
+            error: 0.02396829976880554
+     Pfusion [MW]: 267.37941323335616
+        Ti0 [keV]: 15.574308321174914
+        Te0 [keV]: 16.41029018543541
+   ne0 [10²⁰ m⁻³]: 0.8074909457240989
 
 
 
 
-Calls: 169    Time: 0:00:42
+Calls: 168    Time: 0:00:45
+            error: 0.020942399678879457
+     Pfusion [MW]: 269.55823812172156
+        Ti0 [keV]: 15.621429034162576
+        Te0 [keV]: 16.50575558282851
+   ne0 [10²⁰ m⁻³]: 0.8079024486260117
+
+
+
+
+Calls: 169    Time: 0:00:46
             error: 0.020982569709862866
      Pfusion [MW]: 269.5474495137202
         Ti0 [keV]: 15.6212860738174
@@ -343,132 +363,142 @@ actors:  Pedestal
 actors:   EPED
 actors:  CoreTransport
 actors:   FluxMatcher
-Calls: 2    Time: 0:00:00
-            error: 2.73608107775736
-     Pfusion [MW]: 424.4303064033887
-        Ti0 [keV]: 17.30701474285715
-        Te0 [keV]: 24.616411904161982
-   ne0 [10²⁰ m⁻³]: 0.8515582208410367
+Calls: 6    Time: 0:00:00
+            error: 2.486916762742642
+     Pfusion [MW]: 432.27858248760214
+        Ti0 [keV]: 17.2188316313188
+        Te0 [keV]: 24.287710199975198
+   ne0 [10²⁰ m⁻³]: 0.8697047318755309
 
 
 
 
-Calls: 8    Time: 0:00:00
-            error: 2.273374886215728
-     Pfusion [MW]: 414.02913670651805
-        Ti0 [keV]: 17.01184146264112
-        Te0 [keV]: 23.256359115454973
-   ne0 [10²⁰ m⁻³]: 0.8572770554965407
+Calls: 11    Time: 0:00:00
+            error: 1.9287996307024984
+     Pfusion [MW]: 425.0860934006473
+        Ti0 [keV]: 16.933993667025813
+        Te0 [keV]: 23.053632368379198
+   ne0 [10²⁰ m⁻³]: 0.8852992238808519
 
 
 
 
-Calls: 14    Time: 0:00:00
-            error: 0.9197079882607486
-     Pfusion [MW]: 407.07534699615
-        Ti0 [keV]: 16.62549897951201
-        Te0 [keV]: 15.968162740894822
-   ne0 [10²⁰ m⁻³]: 0.8775374710525593
+Calls: 17    Time: 0:00:00
+            error: 0.8892557933533562
+     Pfusion [MW]: 395.8618098273468
+        Ti0 [keV]: 16.33490510072804
+        Te0 [keV]: 14.84759964855814
+   ne0 [10²⁰ m⁻³]: 0.8813977135567903
 
 
 
 
-Calls: 20    Time: 0:00:00
-            error: 0.6340259644723657
-     Pfusion [MW]: 427.18697255343346
-        Ti0 [keV]: 16.645828923730093
-        Te0 [keV]: 16.28903777223983
-   ne0 [10²⁰ m⁻³]: 0.9106646701164439
+Calls: 23    Time: 0:00:00
+            error: 1.7032258283275767
+     Pfusion [MW]: 440.205133040644
+        Ti0 [keV]: 16.74638620457204
+        Te0 [keV]: 22.530205806198722
+   ne0 [10²⁰ m⁻³]: 0.9229104214820628
 
 
 
 
-Calls: 26    Time: 0:00:00
-            error: 0.5949636005365134
-     Pfusion [MW]: 433.6493461383602
-        Ti0 [keV]: 16.65651967577715
-        Te0 [keV]: 16.385483378314525
-   ne0 [10²⁰ m⁻³]: 0.9196833135838971
+Calls: 29    Time: 0:00:00
+            error: 0.6152132322853562
+     Pfusion [MW]: 430.62377529781986
+        Ti0 [keV]: 16.57244690040326
+        Te0 [keV]: 16.017977055832255
+   ne0 [10²⁰ m⁻³]: 0.9201963532901792
 
 
 
 
-Calls: 31    Time: 0:00:00
-            error: 0.5198973661923382
-     Pfusion [MW]: 437.6408846064412
-        Ti0 [keV]: 16.71299267841783
-        Te0 [keV]: 16.64719676541896
-   ne0 [10²⁰ m⁻³]: 0.9280713819757517
+Calls: 34    Time: 0:00:00
+            error: 1.8937597946882976
+     Pfusion [MW]: 444.8364573560851
+        Ti0 [keV]: 16.830420028608245
+        Te0 [keV]: 23.151828203863925
+   ne0 [10²⁰ m⁻³]: 0.9368583119938103
 
 
 
 
-Calls: 36    Time: 0:00:00
-            error: 1.9915449647512082
-     Pfusion [MW]: 446.68362187956865
-        Ti0 [keV]: 16.87526664880452
-        Te0 [keV]: 23.46642173041946
-   ne0 [10²⁰ m⁻³]: 0.9397223654637924
+Calls: 39    Time: 0:00:00
+            error: 0.5057707450805239
+     Pfusion [MW]: 432.7894716390094
+        Ti0 [keV]: 16.68637662575825
+        Te0 [keV]: 16.509450663865856
+   ne0 [10²⁰ m⁻³]: 0.927591070383848
 
 
 
 
-Calls: 42    Time: 0:00:00
-            error: 1.9352543837752427
-     Pfusion [MW]: 443.83336093937453
-        Ti0 [keV]: 16.88154078964907
-        Te0 [keV]: 23.634126289084083
-   ne0 [10²⁰ m⁻³]: 0.938944831690902
+Calls: 44    Time: 0:00:00
+            error: 2.0147625471921433
+     Pfusion [MW]: 445.48688005135426
+        Ti0 [keV]: 16.91828909316398
+        Te0 [keV]: 23.883414053457777
+   ne0 [10²⁰ m⁻³]: 0.9406537288742279
 
 
 
 
-Calls: 48    Time: 0:00:01
-            error: 0.495174734896797
-     Pfusion [MW]: 435.4935051615855
-        Ti0 [keV]: 16.72315742402456
-        Te0 [keV]: 16.792011347142328
-   ne0 [10²⁰ m⁻³]: 0.9310130522197231
+Calls: 49    Time: 0:00:01
+            error: 0.47879651903499726
+     Pfusion [MW]: 436.29088891404285
+        Ti0 [keV]: 16.72591507924184
+        Te0 [keV]: 16.801487882961457
+   ne0 [10²⁰ m⁻³]: 0.9324138179137876
 
 
 
 
-Calls: 54    Time: 0:00:01
-            error: 1.8478432951805461
-     Pfusion [MW]: 440.0051641058739
-        Ti0 [keV]: 16.752346155182266
-        Te0 [keV]: 23.032875500089883
-   ne0 [10²⁰ m⁻³]: 0.9378041701093222
+Calls: 55    Time: 0:00:01
+            error: 0.45742940427032713
+     Pfusion [MW]: 439.1645593893303
+        Ti0 [keV]: 16.75051943622047
+        Te0 [keV]: 16.902779021464593
+   ne0 [10²⁰ m⁻³]: 0.9368386077078423
 
 
 
 
-Calls: 60    Time: 0:00:01
-            error: 0.4128594311223357
-     Pfusion [MW]: 441.79312872623916
-        Ti0 [keV]: 16.807011461742505
-        Te0 [keV]: 16.915847216762845
-   ne0 [10²⁰ m⁻³]: 0.9406913521302327
+Calls: 61    Time: 0:00:01
+            error: 0.40130974402476044
+     Pfusion [MW]: 442.87735249134136
+        Ti0 [keV]: 16.848069028817527
+        Te0 [keV]: 16.93750709741426
+   ne0 [10²⁰ m⁻³]: 0.9409123512625099
 
 
 
 
-Calls: 65    Time: 0:00:01
-            error: 0.38813416074955
-     Pfusion [MW]: 444.85160753062223
-        Ti0 [keV]: 16.922017607340305
-        Te0 [keV]: 16.97860456207421
-   ne0 [10²⁰ m⁻³]: 0.9415519284852657
+Calls: 67    Time: 0:00:01
+            error: 1.9543944472132104
+     Pfusion [MW]: 448.9957634048401
+        Ti0 [keV]: 16.984712721223413
+        Te0 [keV]: 23.45268774612898
+   ne0 [10²⁰ m⁻³]: 0.9449049615634081
 
 
 
 
-Calls: 71    Time: 0:00:01
-            error: 0.4129533907114461
-     Pfusion [MW]: 443.27821864331725
-        Ti0 [keV]: 16.87057596363302
-        Te0 [keV]: 16.985103953458378
-   ne0 [10²⁰ m⁻³]: 0.9399455080022927
+Calls: 72    Time: 0:00:01
+            error: 1.9289231051738729
+     Pfusion [MW]: 445.7298147134269
+        Ti0 [keV]: 16.904575983486804
+        Te0 [keV]: 23.281487383021567
+   ne0 [10²⁰ m⁻³]: 0.942408253005703
+
+
+
+
+Calls: 77    Time: 0:00:01
+            error: 1.9605029475375455
+     Pfusion [MW]: 447.07504679081273
+        Ti0 [keV]: 16.95543336334706
+        Te0 [keV]: 23.376232182238013
+   ne0 [10²⁰ m⁻³]: 0.9433594373031348
 
 
 
@@ -483,42 +513,42 @@ actors:   FluxMatcher
 
 
 
-Calls: 89    Time: 0:00:01
-            error: 0.446931432592455
-     Pfusion [MW]: 437.48119376697804
-        Ti0 [keV]: 16.794211882720486
-        Te0 [keV]: 16.808917684802914
-   ne0 [10²⁰ m⁻³]: 0.936180136901824
+Calls: 88    Time: 0:00:01
+            error: 0.4695368218972801
+     Pfusion [MW]: 434.093816294829
+        Ti0 [keV]: 16.71428135741767
+        Te0 [keV]: 16.689816235366596
+   ne0 [10²⁰ m⁻³]: 0.9345382884214545
 
 
 
 
-Calls: 95    Time: 0:00:01
-            error: 1.9270205354268837
-     Pfusion [MW]: 443.64883183902515
-        Ti0 [keV]: 16.951287352992665
-        Te0 [keV]: 23.366729602071974
-   ne0 [10²⁰ m⁻³]: 0.9390424858837526
+Calls: 94    Time: 0:00:02
+            error: 2.1785288338641626
+     Pfusion [MW]: 459.3074983395007
+        Ti0 [keV]: 17.23532670899739
+        Te0 [keV]: 24.150403050119188
+   ne0 [10²⁰ m⁻³]: 0.948748672892028
 
 
 
 
-Calls: 101    Time: 0:00:02
-            error: 2.2410696567033423
-     Pfusion [MW]: 463.4646195434933
-        Ti0 [keV]: 17.309095662197837
-        Te0 [keV]: 24.399961702604028
-   ne0 [10²⁰ m⁻³]: 0.9514121707441741
+Calls: 100    Time: 0:00:02
+            error: 2.1413827028579795
+     Pfusion [MW]: 458.1529475544223
+        Ti0 [keV]: 17.214031896877223
+        Te0 [keV]: 24.125562729160382
+   ne0 [10²⁰ m⁻³]: 0.9481333310555641
 
 
 
 
-Calls: 107    Time: 0:00:02
-            error: 0.3967704498181872
-     Pfusion [MW]: 440.3094065515969
-        Ti0 [keV]: 16.882106449684215
-        Te0 [keV]: 16.727122168363728
-   ne0 [10²⁰ m⁻³]: 0.9363988833656312
+Calls: 106    Time: 0:00:02
+            error: 0.4419157415311468
+     Pfusion [MW]: 432.45822626335786
+        Ti0 [keV]: 16.742725735205994
+        Te0 [keV]: 16.465676125932966
+   ne0 [10²⁰ m⁻³]: 0.9311019677240134
 
 
 
@@ -533,57 +563,57 @@ actors:   FluxMatcher
 
 
 
-Calls: 117    Time: 0:00:02
-            error: 2.2452547564217493
-     Pfusion [MW]: 457.32880502511557
-        Ti0 [keV]: 17.173101205556993
-        Te0 [keV]: 23.62866040640168
-   ne0 [10²⁰ m⁻³]: 0.9467772199801939
+Calls: 116    Time: 0:00:02
+            error: 2.1941559159095507
+     Pfusion [MW]: 456.36835917499207
+        Ti0 [keV]: 17.15976597390365
+        Te0 [keV]: 23.57049656502185
+   ne0 [10²⁰ m⁻³]: 0.9460451403876244
 
 
 
 
-Calls: 123    Time: 0:00:02
-            error: 0.37850839719423457
-     Pfusion [MW]: 445.1334556254211
-        Ti0 [keV]: 17.0002458031237
-        Te0 [keV]: 16.854234094384307
-   ne0 [10²⁰ m⁻³]: 0.9352807355129013
+Calls: 121    Time: 0:00:02
+            error: 0.4098777685705405
+     Pfusion [MW]: 442.13816936492117
+        Ti0 [keV]: 16.943028659313015
+        Te0 [keV]: 16.726077474030777
+   ne0 [10²⁰ m⁻³]: 0.9334394776704854
 
 
 
 
-Calls: 129    Time: 0:00:02
-            error: 2.4712994678004114
-     Pfusion [MW]: 461.21075541748286
-        Ti0 [keV]: 17.279365694474865
-        Te0 [keV]: 24.077444296418616
-   ne0 [10²⁰ m⁻³]: 0.9457956845912703
+Calls: 127    Time: 0:00:02
+            error: 2.3661972877063016
+     Pfusion [MW]: 458.8843909778254
+        Ti0 [keV]: 17.248075128147
+        Te0 [keV]: 23.958056593028825
+   ne0 [10²⁰ m⁻³]: 0.9437807600524747
 
 
 
 
-Calls: 135    Time: 0:00:02
-            error: 0.29837807890324186
-     Pfusion [MW]: 447.8995272204215
-        Ti0 [keV]: 17.069971419075202
-        Te0 [keV]: 17.03408290267577
-   ne0 [10²⁰ m⁻³]: 0.935703087830796
+Calls: 133    Time: 0:00:02
+            error: 0.3866187872683371
+     Pfusion [MW]: 440.1725919992714
+        Ti0 [keV]: 16.90443219679032
+        Te0 [keV]: 16.664865765042727
+   ne0 [10²⁰ m⁻³]: 0.9322784597645196
 
 
 
 
-Calls: 141    Time: 0:00:02
-            error: 0.3229702276411319
-     Pfusion [MW]: 445.0311035016774
-        Ti0 [keV]: 17.021322557164027
-        Te0 [keV]: 16.896100993119873
-   ne0 [10²⁰ m⁻³]: 0.9335638041443067
+Calls: 139    Time: 0:00:02
+            error: 2.50555776606311
+     Pfusion [MW]: 461.5901972285544
+        Ti0 [keV]: 17.337351581382737
+        Te0 [keV]: 24.29586028071673
+   ne0 [10²⁰ m⁻³]: 0.9428037690627111
 
 
 
 
-Calls: 145    Time: 0:00:02
+Calls: 145    Time: 0:00:03
             error: 0.27237392662992727
      Pfusion [MW]: 450.72173725268664
         Ti0 [keV]: 17.136875799192005
@@ -603,122 +633,132 @@ actors:   FluxMatcher
 
 
 
-Calls: 157    Time: 0:00:03
-            error: 2.424858622642566
-     Pfusion [MW]: 458.1433824418038
-        Ti0 [keV]: 17.208033127299178
-        Te0 [keV]: 24.132475909550617
-   ne0 [10²⁰ m⁻³]: 0.9434944971033413
+Calls: 155    Time: 0:00:03
+            error: 0.30259665272050784
+     Pfusion [MW]: 444.35172762292757
+        Ti0 [keV]: 16.978064762404998
+        Te0 [keV]: 16.885925750465564
+   ne0 [10²⁰ m⁻³]: 0.9347699230817106
 
 
 
 
-Calls: 163    Time: 0:00:03
-            error: 0.310067913793783
-     Pfusion [MW]: 441.27956457174054
-        Ti0 [keV]: 16.92690026343016
-        Te0 [keV]: 16.812028474039632
-   ne0 [10²⁰ m⁻³]: 0.9330401989884428
+Calls: 161    Time: 0:00:03
+            error: 0.3471174714834444
+     Pfusion [MW]: 440.57433065783295
+        Ti0 [keV]: 16.91416677161109
+        Te0 [keV]: 16.76843146560056
+   ne0 [10²⁰ m⁻³]: 0.9326250524472017
 
 
 
 
-Calls: 169    Time: 0:00:03
-            error: 2.354587954550229
-     Pfusion [MW]: 454.9805443441346
-        Ti0 [keV]: 17.14606814604174
-        Te0 [keV]: 23.891384604910435
-   ne0 [10²⁰ m⁻³]: 0.9419028628678705
+Calls: 167    Time: 0:00:03
+            error: 2.2368645025408074
+     Pfusion [MW]: 451.01431109597354
+        Ti0 [keV]: 17.082542315131633
+        Te0 [keV]: 23.69624495964908
+   ne0 [10²⁰ m⁻³]: 0.9392990027175535
 
 
 
 
-Calls: 175    Time: 0:00:03
-            error: 0.33278776533510473
-     Pfusion [MW]: 434.83311041332115
-        Ti0 [keV]: 16.855423840442572
-        Te0 [keV]: 16.649094756768456
-   ne0 [10²⁰ m⁻³]: 0.9273030819330411
+Calls: 173    Time: 0:00:03
+            error: 0.33412320297026177
+     Pfusion [MW]: 436.4511490319359
+        Ti0 [keV]: 16.883117854356463
+        Te0 [keV]: 16.713648512771684
+   ne0 [10²⁰ m⁻³]: 0.9282751354391431
 
 
 
 
-Calls: 180    Time: 0:00:03
-            error: 2.3673908256307308
-     Pfusion [MW]: 453.6679796822122
-        Ti0 [keV]: 17.148109814294717
-        Te0 [keV]: 23.937287402903237
-   ne0 [10²⁰ m⁻³]: 0.9385570296547215
+Calls: 179    Time: 0:00:03
+            error: 2.2809560277123766
+     Pfusion [MW]: 450.46116693434897
+        Ti0 [keV]: 17.098979180984514
+        Te0 [keV]: 23.77218540080843
+   ne0 [10²⁰ m⁻³]: 0.9365839391408067
 
 
 
 
-Calls: 186    Time: 0:00:03
-            error: 0.32092050370985153
-     Pfusion [MW]: 444.5200870443628
-        Ti0 [keV]: 16.958772319897456
-        Te0 [keV]: 16.692780834680388
-   ne0 [10²⁰ m⁻³]: 0.9347882372053354
+Calls: 185    Time: 0:00:03
+            error: 0.33280574786469264
+     Pfusion [MW]: 444.03397038842866
+        Ti0 [keV]: 16.940560401988787
+        Te0 [keV]: 16.581299074846086
+   ne0 [10²⁰ m⁻³]: 0.9349064696056179
 
 
 
 
-Calls: 192    Time: 0:00:03
-            error: 0.2730421728248053
-     Pfusion [MW]: 445.7766926710632
-        Ti0 [keV]: 17.002701550168513
-        Te0 [keV]: 16.938396545629306
-   ne0 [10²⁰ m⁻³]: 0.9331789011006177
+Calls: 190    Time: 0:00:03
+            error: 0.2731753421997094
+     Pfusion [MW]: 447.3519779169723
+        Ti0 [keV]: 17.023633936472336
+        Te0 [keV]: 16.987886277433823
+   ne0 [10²⁰ m⁻³]: 0.9347462274725976
 
 
 
 
-Calls: 199    Time: 0:00:03
-            error: 0.3475340835589524
-     Pfusion [MW]: 438.87887010423185
-        Ti0 [keV]: 16.880643246066537
-        Te0 [keV]: 16.567627838911953
-   ne0 [10²⁰ m⁻³]: 0.9299422058419193
+Calls: 195    Time: 0:00:04
+            error: 2.3002673565350507
+     Pfusion [MW]: 451.7422125927284
+        Ti0 [keV]: 17.084165388118
+        Te0 [keV]: 23.607044151308138
+   ne0 [10²⁰ m⁻³]: 0.9368839277935233
 
 
 
 
-Calls: 205    Time: 0:00:04
-            error: 2.1863452171665094
-     Pfusion [MW]: 448.5074237367737
-        Ti0 [keV]: 17.024833536647044
-        Te0 [keV]: 23.421819953984112
-   ne0 [10²⁰ m⁻³]: 0.9371700539492391
+Calls: 201    Time: 0:00:04
+            error: 0.3373410042937187
+     Pfusion [MW]: 438.0105877691512
+        Ti0 [keV]: 16.87490713680606
+        Te0 [keV]: 16.59317868176574
+   ne0 [10²⁰ m⁻³]: 0.929500625157093
 
 
 
 
-Calls: 211    Time: 0:00:04
-            error: 0.3342535160044361
-     Pfusion [MW]: 437.5681527859588
-        Ti0 [keV]: 16.85128140035195
-        Te0 [keV]: 16.475879646611354
-   ne0 [10²⁰ m⁻³]: 0.9292817030212573
+Calls: 207    Time: 0:00:04
+            error: 2.286749926471144
+     Pfusion [MW]: 450.6615031587133
+        Ti0 [keV]: 17.05937767277171
+        Te0 [keV]: 23.57220768888994
+   ne0 [10²⁰ m⁻³]: 0.9389355919681954
 
 
 
 
-Calls: 216    Time: 0:00:04
-            error: 0.2722739387389064
-     Pfusion [MW]: 437.52696510461817
-        Ti0 [keV]: 16.870291286951954
-        Te0 [keV]: 16.709250840390226
-   ne0 [10²⁰ m⁻³]: 0.9297538863612909
+Calls: 213    Time: 0:00:04
+            error: 0.3080210271218036
+     Pfusion [MW]: 437.05155595509245
+        Ti0 [keV]: 16.84733169153862
+        Te0 [keV]: 16.545025898890298
+   ne0 [10²⁰ m⁻³]: 0.9290900882360289
 
 
 
 
-Calls: 222    Time: 0:00:04
-            error: 0.1950184739266851
-     Pfusion [MW]: 446.51827934503905
-        Ti0 [keV]: 16.98517046747892
-        Te0 [keV]: 17.108944948580007
-   ne0 [10²⁰ m⁻³]: 0.938014041681544
+Calls: 218    Time: 0:00:04
+            error: 0.23145830556345603
+     Pfusion [MW]: 442.4912825683552
+        Ti0 [keV]: 16.941113797264503
+        Te0 [keV]: 16.928510670952026
+   ne0 [10²⁰ m⁻³]: 0.9341791520177842
+
+
+
+
+Calls: 223    Time: 0:00:04
+            error: 2.2884590469152513
+     Pfusion [MW]: 447.41885364893676
+        Ti0 [keV]: 16.99677687650473
+        Te0 [keV]: 23.716466198623998
+   ne0 [10²⁰ m⁻³]: 0.9388435606021117
 
 
 
@@ -753,7 +793,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 246    Time: 0:00:04
+Calls: 246    Time: 0:00:05
             error: 0.14303261308980028
      Pfusion [MW]: 439.22007314895285
         Ti0 [keV]: 16.816168389576816
@@ -763,7 +803,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 252    Time: 0:00:04
+Calls: 252    Time: 0:00:05
             error: 0.12935395126658303
      Pfusion [MW]: 437.6676110140865
         Ti0 [keV]: 16.79008161446324
@@ -773,192 +813,202 @@ actors:   FluxMatcher
 
 
 
-Calls: 258    Time: 0:00:05
-            error: 0.2071516812025104
-     Pfusion [MW]: 427.0238578040731
-        Ti0 [keV]: 16.598101060986078
-        Te0 [keV]: 16.421249535911553
-   ne0 [10²⁰ m⁻³]: 0.928283784880962
+Calls: 257    Time: 0:00:05
+            error: 2.6341327019124896
+     Pfusion [MW]: 437.6346071167957
+        Ti0 [keV]: 16.78564783944982
+        Te0 [keV]: 23.69869335461838
+   ne0 [10²⁰ m⁻³]: 0.933293728928798
 
 
 
 
-Calls: 264    Time: 0:00:05
-            error: 0.1444789633497633
-     Pfusion [MW]: 423.65191731318
-        Ti0 [keV]: 16.543052779374168
-        Te0 [keV]: 16.415532781256243
-   ne0 [10²⁰ m⁻³]: 0.9251798737657528
+Calls: 262    Time: 0:00:05
+            error: 0.18186811460068342
+     Pfusion [MW]: 425.78520019152813
+        Ti0 [keV]: 16.58211402866072
+        Te0 [keV]: 16.37786585241479
+   ne0 [10²⁰ m⁻³]: 0.9272852227658369
 
 
 
 
-Calls: 270    Time: 0:00:05
-            error: 0.10519578456796264
-     Pfusion [MW]: 423.94534087785667
-        Ti0 [keV]: 16.546193568934747
-        Te0 [keV]: 16.57291095398832
-   ne0 [10²⁰ m⁻³]: 0.92483319344841
+Calls: 267    Time: 0:00:05
+            error: 0.11402858170848794
+     Pfusion [MW]: 423.3838558215761
+        Ti0 [keV]: 16.538348102494403
+        Te0 [keV]: 16.527505743380317
+   ne0 [10²⁰ m⁻³]: 0.9243920961517099
 
 
 
 
-Calls: 276    Time: 0:00:05
-            error: 0.0965402211664809
-     Pfusion [MW]: 424.4835173599529
-        Ti0 [keV]: 16.552411523708358
-        Te0 [keV]: 16.60906664512251
-   ne0 [10²⁰ m⁻³]: 0.9269161037510035
+Calls: 273    Time: 0:00:05
+            error: 0.10074422285451175
+     Pfusion [MW]: 424.52655830523935
+        Ti0 [keV]: 16.552939073723092
+        Te0 [keV]: 16.596593513605338
+   ne0 [10²⁰ m⁻³]: 0.9257568523076962
 
 
 
 
-Calls: 282    Time: 0:00:05
-            error: 0.09377579964694699
-     Pfusion [MW]: 423.6576103550284
-        Ti0 [keV]: 16.550644155879034
-        Te0 [keV]: 16.60805549895388
-   ne0 [10²⁰ m⁻³]: 0.9274085871452445
+Calls: 279    Time: 0:00:05
+            error: 0.09440428175374184
+     Pfusion [MW]: 424.0822660790005
+        Ti0 [keV]: 16.551464086113718
+        Te0 [keV]: 16.612230946492193
+   ne0 [10²⁰ m⁻³]: 0.9274500521821638
 
 
 
 
-Calls: 286    Time: 0:00:05
-            error: 0.09328061008181493
-     Pfusion [MW]: 423.4885823033566
-        Ti0 [keV]: 16.550595261117675
-        Te0 [keV]: 16.593436252621522
-   ne0 [10²⁰ m⁻³]: 0.9274758072318793
+Calls: 285    Time: 0:00:05
+            error: 0.09319721031364489
+     Pfusion [MW]: 423.4861853448689
+        Ti0 [keV]: 16.550406196617182
+        Te0 [keV]: 16.594557152109964
+   ne0 [10²⁰ m⁻³]: 0.9275057601285043
 
 
 
 
-Calls: 292    Time: 0:00:05
-            error: 2.5198204242810176
-     Pfusion [MW]: 423.8617505601406
-        Ti0 [keV]: 16.609658771471445
-        Te0 [keV]: 23.088280253362758
-   ne0 [10²⁰ m⁻³]: 0.9294691118648467
+Calls: 290    Time: 0:00:05
+            error: 2.4153576851805028
+     Pfusion [MW]: 422.3324266919428
+        Ti0 [keV]: 16.580959789507872
+        Te0 [keV]: 23.003383457925167
+   ne0 [10²⁰ m⁻³]: 0.9279821278274709
 
 
 
 
-Calls: 298    Time: 0:00:05
-            error: 0.32273591504227295
-     Pfusion [MW]: 405.85684289313207
-        Ti0 [keV]: 16.316849746220342
-        Te0 [keV]: 15.584818655306604
-   ne0 [10²⁰ m⁻³]: 0.9338807926219777
+Calls: 295    Time: 0:00:06
+            error: 2.5538756131409004
+     Pfusion [MW]: 414.62114533525437
+        Ti0 [keV]: 16.61407517268512
+        Te0 [keV]: 22.486863700909293
+   ne0 [10²⁰ m⁻³]: 0.9348781545989462
 
 
 
 
-Calls: 304    Time: 0:00:05
-            error: 2.144211526635556
-     Pfusion [MW]: 407.14227634444177
-        Ti0 [keV]: 16.388427955407934
-        Te0 [keV]: 21.798734951448637
-   ne0 [10²⁰ m⁻³]: 0.9323254971912349
+Calls: 300    Time: 0:00:06
+            error: 0.3289391865708849
+     Pfusion [MW]: 404.6919349663785
+        Ti0 [keV]: 16.291316213494024
+        Te0 [keV]: 15.506241389753226
+   ne0 [10²⁰ m⁻³]: 0.9323323021847608
 
 
 
 
-Calls: 310    Time: 0:00:06
-            error: 0.27819502572677385
-     Pfusion [MW]: 402.2926903092932
-        Ti0 [keV]: 16.20421732211827
-        Te0 [keV]: 15.269525968141163
-   ne0 [10²⁰ m⁻³]: 0.9263582062617879
+Calls: 306    Time: 0:00:06
+            error: 2.2536058264147565
+     Pfusion [MW]: 409.34381035434046
+        Ti0 [keV]: 16.423327394786032
+        Te0 [keV]: 21.92212281583767
+   ne0 [10²⁰ m⁻³]: 0.9336587546398418
 
 
 
 
-Calls: 316    Time: 0:00:06
-            error: 0.159383146936025
-     Pfusion [MW]: 409.48729653614015
-        Ti0 [keV]: 16.370889718912785
-        Te0 [keV]: 15.809485532994797
-   ne0 [10²⁰ m⁻³]: 0.9262690072061239
+Calls: 312    Time: 0:00:06
+            error: 0.24708764642849493
+     Pfusion [MW]: 403.63701424891315
+        Ti0 [keV]: 16.25795188903078
+        Te0 [keV]: 15.382481025025696
+   ne0 [10²⁰ m⁻³]: 0.9274573353566896
 
 
 
 
-Calls: 320    Time: 0:00:06
-            error: 0.12070054438542495
-     Pfusion [MW]: 412.9529759171469
-        Ti0 [keV]: 16.413914993639683
-        Te0 [keV]: 16.084837529650322
-   ne0 [10²⁰ m⁻³]: 0.9231339101943102
+Calls: 318    Time: 0:00:06
+            error: 0.1305779311536341
+     Pfusion [MW]: 411.80381636940825
+        Ti0 [keV]: 16.398723588297223
+        Te0 [keV]: 15.991404517150851
+   ne0 [10²⁰ m⁻³]: 0.9241778328522182
 
 
 
 
-Calls: 326    Time: 0:00:06
-            error: 0.10736203361137342
-     Pfusion [MW]: 414.504505345513
-        Ti0 [keV]: 16.448977039320706
-        Te0 [keV]: 16.207921831277304
-   ne0 [10²⁰ m⁻³]: 0.9236569210797684
+Calls: 323    Time: 0:00:06
+            error: 0.11852365941509407
+     Pfusion [MW]: 413.822081650554
+        Ti0 [keV]: 16.42612703617359
+        Te0 [keV]: 16.150368912169608
+   ne0 [10²⁰ m⁻³]: 0.9225348724462796
 
 
 
 
-Calls: 332    Time: 0:00:06
-            error: 0.08848928620719834
-     Pfusion [MW]: 415.85166022971504
-        Ti0 [keV]: 16.489114513848843
-        Te0 [keV]: 16.34280737485565
-   ne0 [10²⁰ m⁻³]: 0.9248998988337068
+Calls: 328    Time: 0:00:06
+            error: 0.0960754932378994
+     Pfusion [MW]: 415.1712113418298
+        Ti0 [keV]: 16.473065693424576
+        Te0 [keV]: 16.275306435212944
+   ne0 [10²⁰ m⁻³]: 0.924519662033156
 
 
 
 
-Calls: 338    Time: 0:00:06
-            error: 0.08667282601854286
-     Pfusion [MW]: 415.8633195328621
-        Ti0 [keV]: 16.494717405465458
-        Te0 [keV]: 16.343629345181995
-   ne0 [10²⁰ m⁻³]: 0.9255712464839952
+Calls: 333    Time: 0:00:06
+            error: 0.0879423535960144
+     Pfusion [MW]: 415.8781656570195
+        Ti0 [keV]: 16.491775810188297
+        Te0 [keV]: 16.346823762652832
+   ne0 [10²⁰ m⁻³]: 0.9251041870277894
 
 
 
 
-Calls: 344    Time: 0:00:06
-            error: 0.08068365492143034
-     Pfusion [MW]: 416.70434551544736
-        Ti0 [keV]: 16.53561489334615
-        Te0 [keV]: 16.423205893141947
-   ne0 [10²⁰ m⁻³]: 0.927240801886173
+Calls: 339    Time: 0:00:07
+            error: 0.08441303720160442
+     Pfusion [MW]: 416.0922306254965
+        Ti0 [keV]: 16.504715813081773
+        Te0 [keV]: 16.360553995921755
+   ne0 [10²⁰ m⁻³]: 0.9261553929454535
 
 
 
 
-Calls: 350    Time: 0:00:06
-            error: 2.559421097308852
-     Pfusion [MW]: 420.2065125378109
-        Ti0 [keV]: 16.5970665316835
-        Te0 [keV]: 23.064363826111894
-   ne0 [10²⁰ m⁻³]: 0.9302264925828468
+Calls: 345    Time: 0:00:07
+            error: 0.08022456833124518
+     Pfusion [MW]: 416.76501720699287
+        Ti0 [keV]: 16.540424662253336
+        Te0 [keV]: 16.432295536587773
+   ne0 [10²⁰ m⁻³]: 0.927334206070871
 
 
 
 
-Calls: 355    Time: 0:00:06
-            error: 0.11067862852082515
-     Pfusion [MW]: 414.94967223222983
-        Ti0 [keV]: 16.485380689871267
-        Te0 [keV]: 16.234420759696686
-   ne0 [10²⁰ m⁻³]: 0.9273171607021691
+Calls: 351    Time: 0:00:07
+            error: 0.1918377904988286
+     Pfusion [MW]: 411.25754299235723
+        Ti0 [keV]: 16.29240945476808
+        Te0 [keV]: 15.745074452837324
+   ne0 [10²⁰ m⁻³]: 0.9255341397719902
 
 
 
 
-Calls: 361    Time: 0:00:07
-            error: 0.08036045345604378
-     Pfusion [MW]: 415.77252037360415
-        Ti0 [keV]: 16.587493260978913
-        Te0 [keV]: 16.4621731820229
-   ne0 [10²⁰ m⁻³]: 0.9274319637269101
+Calls: 357    Time: 0:00:07
+            error: 0.09342525457847625
+     Pfusion [MW]: 415.4886565516499
+        Ti0 [keV]: 16.522437594454082
+        Te0 [keV]: 16.331343308678957
+   ne0 [10²⁰ m⁻³]: 0.9274072208708787
+
+
+
+
+Calls: 362    Time: 0:00:07
+            error: 0.07886579462920512
+     Pfusion [MW]: 415.8419291712185
+        Ti0 [keV]: 16.602482599741066
+        Te0 [keV]: 16.486045436536976
+   ne0 [10²⁰ m⁻³]: 0.9274973708276163
 
 
 
@@ -973,47 +1023,47 @@ actors:   FluxMatcher
 
 
 
-Calls: 373    Time: 0:00:07
-            error: 0.07570058327553252
-     Pfusion [MW]: 415.91758889336694
-        Ti0 [keV]: 16.678690035441345
-        Te0 [keV]: 16.578217696370523
-   ne0 [10²⁰ m⁻³]: 0.9278985649682407
+Calls: 372    Time: 0:00:07
+            error: 0.07572256006476447
+     Pfusion [MW]: 415.9172722946492
+        Ti0 [keV]: 16.6782642743618
+        Te0 [keV]: 16.578266717019073
+   ne0 [10²⁰ m⁻³]: 0.92789120004244
 
 
 
 
-Calls: 379    Time: 0:00:07
-            error: 0.07566117808973095
-     Pfusion [MW]: 415.94195350755757
-        Ti0 [keV]: 16.681444452030263
-        Te0 [keV]: 16.579715566193688
-   ne0 [10²⁰ m⁻³]: 0.9279560321551268
+Calls: 378    Time: 0:00:07
+            error: 0.0756721652922283
+     Pfusion [MW]: 415.9281431106447
+        Ti0 [keV]: 16.68249219337621
+        Te0 [keV]: 16.58175370285473
+   ne0 [10²⁰ m⁻³]: 0.9279476814768838
 
 
 
 
-Calls: 385    Time: 0:00:07
-            error: 0.07556774483497682
-     Pfusion [MW]: 415.95912702765344
-        Ti0 [keV]: 16.698162774023288
-        Te0 [keV]: 16.59311489692726
-   ne0 [10²⁰ m⁻³]: 0.9280978348355836
+Calls: 384    Time: 0:00:07
+            error: 0.07560868518220085
+     Pfusion [MW]: 415.9276845305133
+        Ti0 [keV]: 16.69667868265192
+        Te0 [keV]: 16.591082731936815
+   ne0 [10²⁰ m⁻³]: 0.9280744069285677
 
 
 
 
-Calls: 389    Time: 0:00:07
-            error: 0.0754627666224545
-     Pfusion [MW]: 416.050499820443
-        Ti0 [keV]: 16.70995402615412
-        Te0 [keV]: 16.608204892239897
-   ne0 [10²⁰ m⁻³]: 0.928220583658388
+Calls: 390    Time: 0:00:08
+            error: 0.0754085251519997
+     Pfusion [MW]: 416.0571386055833
+        Ti0 [keV]: 16.72486331555789
+        Te0 [keV]: 16.622984730607847
+   ne0 [10²⁰ m⁻³]: 0.9283237615682141
 
 
 
 
-Calls: 395    Time: 0:00:07
+Calls: 395    Time: 0:00:08
             error: 2.3390286270882363
      Pfusion [MW]: 416.7268367736677
         Ti0 [keV]: 16.904173387170072
@@ -1023,177 +1073,187 @@ actors:   FluxMatcher
 
 
 
-Calls: 401    Time: 0:00:07
-            error: 0.3042672217972089
-     Pfusion [MW]: 408.2366720671511
-        Ti0 [keV]: 17.30500527130656
-        Te0 [keV]: 16.679388152611367
-   ne0 [10²⁰ m⁻³]: 0.9311804679721186
+Calls: 400    Time: 0:00:08
+            error: 2.847157367136224
+     Pfusion [MW]: 425.63922473889517
+        Ti0 [keV]: 17.155483683943302
+        Te0 [keV]: 24.089803993147967
+   ne0 [10²⁰ m⁻³]: 0.9380588678712913
 
 
 
 
-Calls: 407    Time: 0:00:07
-            error: 0.14535870472135956
-     Pfusion [MW]: 411.179843398524
-        Ti0 [keV]: 17.16412405513617
-        Te0 [keV]: 16.842095109963235
-   ne0 [10²⁰ m⁻³]: 0.9302586662429616
+Calls: 405    Time: 0:00:08
+            error: 0.1895695550924693
+     Pfusion [MW]: 409.9283467016082
+        Ti0 [keV]: 17.36895563111241
+        Te0 [keV]: 16.886362098848807
+   ne0 [10²⁰ m⁻³]: 0.9318212224027238
 
 
 
 
-Calls: 413    Time: 0:00:08
-            error: 0.09399385850791846
-     Pfusion [MW]: 415.4959818044477
-        Ti0 [keV]: 17.428207976370434
-        Te0 [keV]: 17.345302493753497
-   ne0 [10²⁰ m⁻³]: 0.933299064520769
+Calls: 411    Time: 0:00:08
+            error: 0.10894160712116498
+     Pfusion [MW]: 414.3674930080149
+        Ti0 [keV]: 17.426279756790585
+        Te0 [keV]: 17.292010574787444
+   ne0 [10²⁰ m⁻³]: 0.932886333547426
 
 
 
 
-Calls: 419    Time: 0:00:08
-            error: 2.4978101938382498
-     Pfusion [MW]: 418.9002700691027
-        Ti0 [keV]: 17.425782103734328
-        Te0 [keV]: 24.239174854709535
-   ne0 [10²⁰ m⁻³]: 0.9356324229252302
+Calls: 417    Time: 0:00:08
+            error: 2.385527149978563
+     Pfusion [MW]: 416.94918617020346
+        Ti0 [keV]: 17.40459135036894
+        Te0 [keV]: 24.120297378366754
+   ne0 [10²⁰ m⁻³]: 0.9341519131451959
 
 
 
 
-Calls: 424    Time: 0:00:08
-            error: 0.1683534631854527
-     Pfusion [MW]: 409.0218038332876
-        Ti0 [keV]: 16.340267703380245
-        Te0 [keV]: 16.07104240491049
-   ne0 [10²⁰ m⁻³]: 0.9218862762720114
+Calls: 423    Time: 0:00:08
+            error: 0.1913734401978852
+     Pfusion [MW]: 408.3722465063295
+        Ti0 [keV]: 16.397024743760454
+        Te0 [keV]: 16.105995642711022
+   ne0 [10²⁰ m⁻³]: 0.9219793153633162
 
 
 
 
-Calls: 430    Time: 0:00:08
-            error: 0.09134893887032809
-     Pfusion [MW]: 413.5882801781928
-        Ti0 [keV]: 16.508644464018982
-        Te0 [keV]: 16.37362356301188
-   ne0 [10²⁰ m⁻³]: 0.9259100615977063
+Calls: 429    Time: 0:00:08
+            error: 0.09764427083693958
+     Pfusion [MW]: 412.77083384595784
+        Ti0 [keV]: 16.40113856539141
+        Te0 [keV]: 16.250137602832076
+   ne0 [10²⁰ m⁻³]: 0.92452268453094
 
 
 
 
-Calls: 436    Time: 0:00:08
-            error: 0.07867555669613747
-     Pfusion [MW]: 415.93377155024876
-        Ti0 [keV]: 16.769699591075334
-        Te0 [keV]: 16.68842968498921
-   ne0 [10²⁰ m⁻³]: 0.929400332686831
+Calls: 434    Time: 0:00:08
+            error: 0.08185361331916155
+     Pfusion [MW]: 415.4105749718503
+        Ti0 [keV]: 16.725245990383105
+        Te0 [keV]: 16.62734311728759
+   ne0 [10²⁰ m⁻³]: 0.9288128546360266
 
 
 
 
-Calls: 442    Time: 0:00:08
-            error: 2.476123771017257
-     Pfusion [MW]: 419.2921622873701
-        Ti0 [keV]: 17.03697053499846
-        Te0 [keV]: 23.68145342803308
-   ne0 [10²⁰ m⁻³]: 0.9335673598553332
+Calls: 439    Time: 0:00:09
+            error: 0.07605593127886888
+     Pfusion [MW]: 416.5914613362228
+        Ti0 [keV]: 16.896239719923845
+        Te0 [keV]: 16.825478272311013
+   ne0 [10²⁰ m⁻³]: 0.9307145327121851
 
 
 
 
-Calls: 448    Time: 0:00:08
-            error: 0.1864155708812512
-     Pfusion [MW]: 407.5985389759803
-        Ti0 [keV]: 17.10192275994788
-        Te0 [keV]: 16.521230288515554
-   ne0 [10²⁰ m⁻³]: 0.9294807411567223
+Calls: 445    Time: 0:00:09
+            error: 2.502251376679737
+     Pfusion [MW]: 421.34835265824046
+        Ti0 [keV]: 17.799891410259896
+        Te0 [keV]: 24.616867868291532
+   ne0 [10²⁰ m⁻³]: 0.9413767147309782
 
 
 
 
-Calls: 453    Time: 0:00:08
-            error: 0.11342833157972967
-     Pfusion [MW]: 414.5169108022971
-        Ti0 [keV]: 17.649566230124456
-        Te0 [keV]: 17.34505479310529
-   ne0 [10²⁰ m⁻³]: 0.9357358162069702
+Calls: 451    Time: 0:00:09
+            error: 0.15473690124388892
+     Pfusion [MW]: 410.5982684407865
+        Ti0 [keV]: 17.400210731177417
+        Te0 [keV]: 16.931025962164515
+   ne0 [10²⁰ m⁻³]: 0.9325921175151606
 
 
 
 
-Calls: 459    Time: 0:00:08
-            error: 2.481118486441401
-     Pfusion [MW]: 420.74420203255175
-        Ti0 [keV]: 17.891853729658575
-        Te0 [keV]: 24.802096132858956
-   ne0 [10²⁰ m⁻³]: 0.94010773582419
+Calls: 457    Time: 0:00:09
+            error: 2.3704148030549512
+     Pfusion [MW]: 418.66101205748583
+        Ti0 [keV]: 17.820229266812106
+        Te0 [keV]: 24.60734575875873
+   ne0 [10²⁰ m⁻³]: 0.9384071142971766
 
 
 
 
-Calls: 465    Time: 0:00:09
-            error: 0.17218931692231382
-     Pfusion [MW]: 414.40649092565866
-        Ti0 [keV]: 17.852429571993266
-        Te0 [keV]: 17.474948696754453
-   ne0 [10²⁰ m⁻³]: 0.9378239041893671
+Calls: 463    Time: 0:00:09
+            error: 0.23880858408623834
+     Pfusion [MW]: 412.0220754204299
+        Ti0 [keV]: 17.597261352258155
+        Te0 [keV]: 17.08854978452246
+   ne0 [10²⁰ m⁻³]: 0.9363066645914151
 
 
 
 
-Calls: 471    Time: 0:00:09
-            error: 2.3542957230645154
-     Pfusion [MW]: 418.7250098753545
-        Ti0 [keV]: 18.137449610421275
-        Te0 [keV]: 25.035997550576212
-   ne0 [10²⁰ m⁻³]: 0.9399932290776652
+Calls: 468    Time: 0:00:09
+            error: 0.11816537304604677
+     Pfusion [MW]: 417.0582534209344
+        Ti0 [keV]: 18.05604528122177
+        Te0 [keV]: 17.823582321018566
+   ne0 [10²⁰ m⁻³]: 0.9393393964495366
 
 
 
 
-Calls: 477    Time: 0:00:09
-            error: 0.2718814108004361
-     Pfusion [MW]: 415.09142796965426
-        Ti0 [keV]: 18.70526950942133
-        Te0 [keV]: 18.316710376967063
-   ne0 [10²⁰ m⁻³]: 0.9400852743706914
+Calls: 473    Time: 0:00:09
+            error: 2.5000771055613784
+     Pfusion [MW]: 421.711541895923
+        Ti0 [keV]: 18.242340951971524
+        Te0 [keV]: 25.354366242060912
+   ne0 [10²⁰ m⁻³]: 0.9422329550418839
 
 
 
 
-Calls: 483    Time: 0:00:09
-            error: 0.13427231203878334
-     Pfusion [MW]: 414.74063686556434
-        Ti0 [keV]: 18.52372365490545
-        Te0 [keV]: 18.195369598844024
-   ne0 [10²⁰ m⁻³]: 0.9388565781471649
+Calls: 478    Time: 0:00:09
+            error: 0.25081100996718897
+     Pfusion [MW]: 414.85940973063316
+        Ti0 [keV]: 18.68374097022827
+        Te0 [keV]: 18.29236321644414
+   ne0 [10²⁰ m⁻³]: 0.9398437782597766
 
 
 
 
-Calls: 489    Time: 0:00:09
-            error: 2.460117555172089
-     Pfusion [MW]: 419.76401066855794
-        Ti0 [keV]: 18.40956728792925
-        Te0 [keV]: 25.467055297509567
-   ne0 [10²⁰ m⁻³]: 0.9414616074210861
+Calls: 484    Time: 0:00:09
+            error: 0.1221828603915757
+     Pfusion [MW]: 415.469446954981
+        Ti0 [keV]: 18.540008453585607
+        Te0 [keV]: 18.261526955671187
+   ne0 [10²⁰ m⁻³]: 0.9391675154748607
 
 
 
 
-Calls: 495    Time: 0:00:09
-            error: 0.22148844774716228
-     Pfusion [MW]: 405.8339544943308
-        Ti0 [keV]: 18.352649301872187
-        Te0 [keV]: 17.592986861714575
-   ne0 [10²⁰ m⁻³]: 0.9336459041801417
+Calls: 490    Time: 0:00:10
+            error: 2.503540028359664
+     Pfusion [MW]: 420.42004815266006
+        Ti0 [keV]: 18.412865949401873
+        Te0 [keV]: 25.49737130037932
+   ne0 [10²⁰ m⁻³]: 0.9419960658741863
 
 
 
 
-Calls: 501    Time: 0:00:09
+Calls: 496    Time: 0:00:10
+            error: 0.20574649118676044
+     Pfusion [MW]: 406.9310205964503
+        Ti0 [keV]: 18.31389876960546
+        Te0 [keV]: 17.61381174410018
+   ne0 [10²⁰ m⁻³]: 0.9340192054864123
+
+
+
+
+Calls: 501    Time: 0:00:10
             error: 2.2838595172309066
      Pfusion [MW]: 415.88204710669703
         Ti0 [keV]: 18.10207779676051
@@ -1203,7 +1263,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 502    Time: 0:00:09
+Calls: 502    Time: 0:00:10
             error: 2.73608107775736
      Pfusion [MW]: 424.4303064033887
         Ti0 [keV]: 17.30701474285715
@@ -1224,42 +1284,52 @@ actors:  Pedestal
 actors:   EPED
 actors:  CoreTransport
 actors:   FluxMatcher
-Calls: 7    Time: 0:00:00
-            error: 1.0074705758156122
-     Pfusion [MW]: 449.1765071997941
-        Ti0 [keV]: 17.367218145111103
-        Te0 [keV]: 18.37997062575307
-   ne0 [10²⁰ m⁻³]: 0.8868404926292387
+Calls: 6    Time: 0:00:00
+            error: 1.1804170005171961
+     Pfusion [MW]: 439.4187177501992
+        Ti0 [keV]: 17.36150535364219
+        Te0 [keV]: 18.3379796585309
+   ne0 [10²⁰ m⁻³]: 0.8722315704490644
 
 
 
 
-Calls: 14    Time: 0:00:00
-            error: 1.2673674310804706
-     Pfusion [MW]: 437.77524723737423
-        Ti0 [keV]: 16.196647733032886
-        Te0 [keV]: 17.64055450290603
-   ne0 [10²⁰ m⁻³]: 0.9471229242721947
+Calls: 12    Time: 0:00:00
+            error: 1.2537885214976026
+     Pfusion [MW]: 440.17345901026476
+        Ti0 [keV]: 16.292352556789236
+        Te0 [keV]: 17.753719782571775
+   ne0 [10²⁰ m⁻³]: 0.9442321667131092
 
 
 
 
-Calls: 21    Time: 0:00:00
-            error: 0.6489812451950447
-     Pfusion [MW]: 408.747125531919
-        Ti0 [keV]: 15.518874928196649
-        Te0 [keV]: 17.050919653026543
-   ne0 [10²⁰ m⁻³]: 0.9464043676000058
+Calls: 19    Time: 0:00:00
+            error: 0.7579814742934706
+     Pfusion [MW]: 410.0216811263535
+        Ti0 [keV]: 15.533708921371838
+        Te0 [keV]: 17.04594685885583
+   ne0 [10²⁰ m⁻³]: 0.9480898774998178
 
 
 
 
-Calls: 28    Time: 0:00:00
-            error: 0.5206600291283141
-     Pfusion [MW]: 407.8938889047539
-        Ti0 [keV]: 15.59755579259106
-        Te0 [keV]: 17.01463366086433
-   ne0 [10²⁰ m⁻³]: 0.9377446065730496
+Calls: 25    Time: 0:00:00
+            error: 0.5617856315180519
+     Pfusion [MW]: 408.25537637103804
+        Ti0 [keV]: 15.622011641435794
+        Te0 [keV]: 17.027818171371262
+   ne0 [10²⁰ m⁻³]: 0.9369208658210809
+
+
+
+
+Calls: 31    Time: 0:00:00
+            error: 0.47589609451254916
+     Pfusion [MW]: 394.2921161116527
+        Ti0 [keV]: 15.216152622152224
+        Te0 [keV]: 16.6034298475161
+   ne0 [10²⁰ m⁻³]: 0.9420943701898298
 
 
 
@@ -1284,32 +1354,32 @@ actors:   FluxMatcher
 
 
 
-Calls: 48    Time: 0:00:00
-            error: 0.27488824817473806
-     Pfusion [MW]: 359.5804388501294
-        Ti0 [keV]: 14.807703467795987
-        Te0 [keV]: 15.064780288426364
-   ne0 [10²⁰ m⁻³]: 0.918152051890619
+Calls: 49    Time: 0:00:00
+            error: 0.2666253381215719
+     Pfusion [MW]: 359.14215551872
+        Ti0 [keV]: 14.85903493746511
+        Te0 [keV]: 15.001899387104736
+   ne0 [10²⁰ m⁻³]: 0.9154286493980546
 
 
 
 
-Calls: 54    Time: 0:00:00
-            error: 0.23174101824949736
-     Pfusion [MW]: 365.19897773427596
-        Ti0 [keV]: 15.193832219387739
-        Te0 [keV]: 15.048282173670342
-   ne0 [10²⁰ m⁻³]: 0.9098771270592164
+Calls: 55    Time: 0:00:00
+            error: 0.23003582417572568
+     Pfusion [MW]: 365.33764356005275
+        Ti0 [keV]: 15.227776008157193
+        Te0 [keV]: 15.03971594525551
+   ne0 [10²⁰ m⁻³]: 0.9089194119079346
 
 
 
 
-Calls: 60    Time: 0:00:01
-            error: 0.21945299547953334
-     Pfusion [MW]: 363.9317812338027
-        Ti0 [keV]: 15.307985432627234
-        Te0 [keV]: 15.012916819391792
-   ne0 [10²⁰ m⁻³]: 0.9062974329695286
+Calls: 61    Time: 0:00:01
+            error: 0.21351002186866222
+     Pfusion [MW]: 363.9036209742093
+        Ti0 [keV]: 15.385097633270066
+        Te0 [keV]: 14.986833209577778
+   ne0 [10²⁰ m⁻³]: 0.9052006609015439
 
 
 
@@ -1324,67 +1394,77 @@ actors:   FluxMatcher
 
 
 
-Calls: 74    Time: 0:00:01
-            error: 0.17923185965225985
-     Pfusion [MW]: 364.317281314476
-        Ti0 [keV]: 15.676162174323927
-        Te0 [keV]: 15.030788181989635
-   ne0 [10²⁰ m⁻³]: 0.9095951421806743
+Calls: 71    Time: 0:00:01
+            error: 0.1889899975845556
+     Pfusion [MW]: 363.71051501677766
+        Ti0 [keV]: 15.565803899698395
+        Te0 [keV]: 14.985467635879486
+   ne0 [10²⁰ m⁻³]: 0.9065699848818161
 
 
 
 
-Calls: 80    Time: 0:00:01
-            error: 0.16999194076785487
-     Pfusion [MW]: 362.22372231520006
-        Ti0 [keV]: 15.77497156107663
-        Te0 [keV]: 15.157641309459214
-   ne0 [10²⁰ m⁻³]: 0.9112361310861024
+Calls: 77    Time: 0:00:01
+            error: 0.17105722437339713
+     Pfusion [MW]: 362.7612034340414
+        Ti0 [keV]: 15.731213666201894
+        Te0 [keV]: 15.114032512048787
+   ne0 [10²⁰ m⁻³]: 0.9107962676611217
 
 
 
 
-Calls: 86    Time: 0:00:01
-            error: 1.0077842081751398
-     Pfusion [MW]: 179.50216414774965
-        Ti0 [keV]: 12.15131087826904
-        Te0 [keV]: 15.275238914505396
-   ne0 [10²⁰ m⁻³]: 0.9079166115725557
+Calls: 83    Time: 0:00:01
+            error: 0.9354784492420235
+     Pfusion [MW]: 191.3613617124519
+        Ti0 [keV]: 12.390644323061892
+        Te0 [keV]: 15.205909451842276
+   ne0 [10²⁰ m⁻³]: 0.9097144311695384
 
 
 
 
-Calls: 90    Time: 0:00:01
-            error: 1.0242015572271164
-     Pfusion [MW]: 177.6084699808892
-        Ti0 [keV]: 12.120539997391923
-        Te0 [keV]: 15.320630051099563
-   ne0 [10²⁰ m⁻³]: 0.9073204876891131
+Calls: 89    Time: 0:00:01
+            error: 0.9665032278363912
+     Pfusion [MW]: 187.48505311231074
+        Ti0 [keV]: 12.321996320980402
+        Te0 [keV]: 15.295723221288023
+   ne0 [10²⁰ m⁻³]: 0.9077991276574235
 
 
 
 
-Calls: 97    Time: 0:00:01
-            error: 0.17461204930483357
-     Pfusion [MW]: 361.70259373599066
-        Ti0 [keV]: 15.751495875125531
-        Te0 [keV]: 15.26973871350151
-   ne0 [10²⁰ m⁻³]: 0.9090443559747154
+Calls: 95    Time: 0:00:01
+            error: 0.17684043942684474
+     Pfusion [MW]: 361.7540982335114
+        Ti0 [keV]: 15.758499931149792
+        Te0 [keV]: 15.268025270156814
+   ne0 [10²⁰ m⁻³]: 0.9082202749735485
 
 
 
 
-Calls: 104    Time: 0:00:01
-            error: 1.1869207842268272
-     Pfusion [MW]: 155.26777165273538
-        Ti0 [keV]: 11.634513583488475
-        Te0 [keV]: 15.60376704269083
-   ne0 [10²⁰ m⁻³]: 0.9064057328778123
+Calls: 100    Time: 0:00:01
+            error: 0.939535521478233
+     Pfusion [MW]: 193.9224325946867
+        Ti0 [keV]: 12.414634707800134
+        Te0 [keV]: 15.317558783901156
+   ne0 [10²⁰ m⁻³]: 0.9091282390685557
 
 
 
 
-Calls: 111    Time: 0:00:01
+Calls: 105    Time: 0:00:01
+            error: 1.138451315516994
+     Pfusion [MW]: 161.97208576422625
+        Ti0 [keV]: 11.772112289988474
+        Te0 [keV]: 15.514359946829769
+   ne0 [10²⁰ m⁻³]: 0.905784080682166
+
+
+
+
+Calls: 111    Time: 0:00:02
             error: 0.16776731907492357
      Pfusion [MW]: 361.41320484191124
         Ti0 [keV]: 15.739224073787673
@@ -1424,72 +1504,82 @@ actors:   FluxMatcher
 
 
 
-Calls: 136    Time: 0:00:02
-            error: 0.22481324522191912
-     Pfusion [MW]: 361.57878543671853
-        Ti0 [keV]: 15.818250792194553
-        Te0 [keV]: 14.83868604887701
-   ne0 [10²⁰ m⁻³]: 0.8955208725822092
+Calls: 135    Time: 0:00:02
+            error: 1.0550655608259094
+     Pfusion [MW]: 174.4130382336424
+        Ti0 [keV]: 12.035149083270191
+        Te0 [keV]: 15.416397757387553
+   ne0 [10²⁰ m⁻³]: 0.9053581061425979
 
 
 
 
-Calls: 143    Time: 0:00:02
-            error: 1.2784889511276987
-     Pfusion [MW]: 147.1215787752494
-        Ti0 [keV]: 11.423154819478324
-        Te0 [keV]: 15.92357641668509
-   ne0 [10²⁰ m⁻³]: 0.9099495806628689
+Calls: 141    Time: 0:00:02
+            error: 1.282007058945531
+     Pfusion [MW]: 146.50341217910116
+        Ti0 [keV]: 11.4257020072329
+        Te0 [keV]: 15.943495824588378
+   ne0 [10²⁰ m⁻³]: 0.9102957820950641
 
 
 
 
-Calls: 149    Time: 0:00:02
-            error: 0.9672238190573834
-     Pfusion [MW]: 191.5738725114766
-        Ti0 [keV]: 12.347703264370256
-        Te0 [keV]: 15.368499591926197
-   ne0 [10²⁰ m⁻³]: 0.9114457502906763
+Calls: 148    Time: 0:00:02
+            error: 0.16231425473635136
+     Pfusion [MW]: 362.9826566637795
+        Ti0 [keV]: 15.811468197735332
+        Te0 [keV]: 15.254027350568848
+   ne0 [10²⁰ m⁻³]: 0.9091236701296392
 
 
 
 
-Calls: 155    Time: 0:00:02
-            error: 0.16489361906924196
-     Pfusion [MW]: 362.6784475852283
-        Ti0 [keV]: 15.819079300913229
-        Te0 [keV]: 15.255881066079116
-   ne0 [10²⁰ m⁻³]: 0.9078298517660949
+Calls: 154    Time: 0:00:02
+            error: 0.16511780999754933
+     Pfusion [MW]: 362.3506751757265
+        Ti0 [keV]: 15.810541965463312
+        Te0 [keV]: 15.264352371062117
+   ne0 [10²⁰ m⁻³]: 0.9079015278108946
 
 
 
 
-Calls: 161    Time: 0:00:02
-            error: 0.15967255098608202
-     Pfusion [MW]: 362.5150870040517
-        Ti0 [keV]: 15.818603543814538
-        Te0 [keV]: 15.297073362301067
-   ne0 [10²⁰ m⁻³]: 0.9085955809033175
+Calls: 160    Time: 0:00:02
+            error: 0.16128720325393747
+     Pfusion [MW]: 362.139162921195
+        Ti0 [keV]: 15.81085171452464
+        Te0 [keV]: 15.29534079057267
+   ne0 [10²⁰ m⁻³]: 0.9086210760952693
 
 
 
 
-Calls: 168    Time: 0:00:02
-            error: 0.15264236425496883
-     Pfusion [MW]: 364.2090409572194
-        Ti0 [keV]: 15.87064868306668
-        Te0 [keV]: 15.336361757562505
-   ne0 [10²⁰ m⁻³]: 0.9078678134277229
+Calls: 166    Time: 0:00:03
+            error: 0.1536013231948603
+     Pfusion [MW]: 363.81987376075006
+        Ti0 [keV]: 15.863014219543881
+        Te0 [keV]: 15.333610409953428
+   ne0 [10²⁰ m⁻³]: 0.9074359704459288
 
 
 
 
-Calls: 175    Time: 0:00:03
-            error: 1.073458269348093
-     Pfusion [MW]: 175.60829021039444
-        Ti0 [keV]: 12.057883548494953
-        Te0 [keV]: 15.654814246494915
-   ne0 [10²⁰ m⁻³]: 0.912957000656274
+Calls: 172    Time: 0:00:03
+            error: 0.9603970802221005
+     Pfusion [MW]: 191.49512507597532
+        Ti0 [keV]: 12.400935035740824
+        Te0 [keV]: 15.483827114482047
+   ne0 [10²⁰ m⁻³]: 0.9107917711598444
+
+
+
+
+Calls: 176    Time: 0:00:03
+            error: 1.1209965793075658
+     Pfusion [MW]: 168.4432693745067
+        Ti0 [keV]: 11.913966612682215
+        Te0 [keV]: 15.740104847153718
+   ne0 [10²⁰ m⁻³]: 0.9140116546425684
 
 
 
@@ -1504,67 +1594,67 @@ actors:   FluxMatcher
 
 
 
-Calls: 188    Time: 0:00:03
-            error: 1.0644158862654276
-     Pfusion [MW]: 172.85960804537925
-        Ti0 [keV]: 12.020923944784926
-        Te0 [keV]: 15.618902624071858
-   ne0 [10²⁰ m⁻³]: 0.9114001285596854
+Calls: 189    Time: 0:00:03
+            error: 1.103864913861637
+     Pfusion [MW]: 168.25938770275886
+        Ti0 [keV]: 11.924928383720173
+        Te0 [keV]: 15.707920001339017
+   ne0 [10²⁰ m⁻³]: 0.9126479327085812
 
 
 
 
-Calls: 194    Time: 0:00:03
-            error: 1.0150424114403145
-     Pfusion [MW]: 183.1996744886968
-        Ti0 [keV]: 12.219163940811184
-        Te0 [keV]: 15.563267481585447
-   ne0 [10²⁰ m⁻³]: 0.9115309481915858
+Calls: 195    Time: 0:00:03
+            error: 1.0279484573862372
+     Pfusion [MW]: 180.6522595818538
+        Ti0 [keV]: 12.16336624632837
+        Te0 [keV]: 15.577279199418518
+   ne0 [10²⁰ m⁻³]: 0.9111407630175864
 
 
 
 
-Calls: 199    Time: 0:00:03
-            error: 0.1890703245802069
-     Pfusion [MW]: 363.93130552263665
-        Ti0 [keV]: 15.819323988609781
-        Te0 [keV]: 15.17219817726495
-   ne0 [10²⁰ m⁻³]: 0.9022360931974563
+Calls: 201    Time: 0:00:03
+            error: 0.9144961327952429
+     Pfusion [MW]: 194.23664650735006
+        Ti0 [keV]: 12.473115949088152
+        Te0 [keV]: 15.417024427839076
+   ne0 [10²⁰ m⁻³]: 0.907690071811271
 
 
 
 
-Calls: 206    Time: 0:00:03
-            error: 1.0888009079087673
-     Pfusion [MW]: 167.07622967660154
-        Ti0 [keV]: 11.915362095031261
-        Te0 [keV]: 15.68775683281263
-   ne0 [10²⁰ m⁻³]: 0.9089930949120092
+Calls: 207    Time: 0:00:03
+            error: 0.17513544081697527
+     Pfusion [MW]: 363.9618076670607
+        Ti0 [keV]: 15.864901859994939
+        Te0 [keV]: 15.292908036186423
+   ne0 [10²⁰ m⁻³]: 0.9045071486675649
 
 
 
 
-Calls: 213    Time: 0:00:03
-            error: 1.1519144524614444
-     Pfusion [MW]: 162.13438284808436
-        Ti0 [keV]: 11.797705747675415
-        Te0 [keV]: 15.817683414144216
-   ne0 [10²⁰ m⁻³]: 0.9107214938763036
+Calls: 211    Time: 0:00:04
+            error: 1.1279938165169667
+     Pfusion [MW]: 166.25064210063493
+        Ti0 [keV]: 11.87215868710903
+        Te0 [keV]: 15.738933497101078
+   ne0 [10²⁰ m⁻³]: 0.9108358096892336
 
 
 
 
-Calls: 219    Time: 0:00:03
-            error: 1.0938481599467602
-     Pfusion [MW]: 170.99128158124472
-        Ti0 [keV]: 11.965049523034695
-        Te0 [keV]: 15.68884970462852
-   ne0 [10²⁰ m⁻³]: 0.9096853777626644
+Calls: 218    Time: 0:00:04
+            error: 0.9648621033971048
+     Pfusion [MW]: 189.03029673198444
+        Ti0 [keV]: 12.347993139860248
+        Te0 [keV]: 15.526330534904718
+   ne0 [10²⁰ m⁻³]: 0.9078723820182285
 
 
 
 
-Calls: 225    Time: 0:00:03
+Calls: 225    Time: 0:00:04
             error: 0.1619529209968568
      Pfusion [MW]: 362.3142120542817
         Ti0 [keV]: 15.912954620964793
@@ -1574,22 +1664,22 @@ actors:   FluxMatcher
 
 
 
-Calls: 230    Time: 0:00:04
-            error: 1.1986573116685353
-     Pfusion [MW]: 154.3275662013722
-        Ti0 [keV]: 11.731089430472986
-        Te0 [keV]: 15.967415701965072
-   ne0 [10²⁰ m⁻³]: 0.9093896882784827
+Calls: 232    Time: 0:00:04
+            error: 1.143964455449744
+     Pfusion [MW]: 160.8679740177806
+        Ti0 [keV]: 11.819464719862097
+        Te0 [keV]: 15.765326645456387
+   ne0 [10²⁰ m⁻³]: 0.9099980574753679
 
 
 
 
-Calls: 237    Time: 0:00:04
-            error: 1.1340756719631022
-     Pfusion [MW]: 162.1927592753377
-        Ti0 [keV]: 11.837390584764174
-        Te0 [keV]: 15.742790960392306
-   ne0 [10²⁰ m⁻³]: 0.9100266727771669
+Calls: 238    Time: 0:00:04
+            error: 1.1640235532576275
+     Pfusion [MW]: 158.38063442463968
+        Ti0 [keV]: 11.778251184401343
+        Te0 [keV]: 15.84126948550312
+   ne0 [10²⁰ m⁻³]: 0.9101549905193091
 
 
 
@@ -1604,102 +1694,112 @@ actors:   FluxMatcher
 
 
 
-Calls: 251    Time: 0:00:04
-            error: 0.17899471228199892
-     Pfusion [MW]: 365.41815888137256
-        Ti0 [keV]: 16.08621112174066
-        Te0 [keV]: 15.197407244267605
-   ne0 [10²⁰ m⁻³]: 0.9030250877454431
+Calls: 248    Time: 0:00:04
+            error: 1.130768022035779
+     Pfusion [MW]: 160.61764353708392
+        Ti0 [keV]: 11.831619229480317
+        Te0 [keV]: 15.749111734801343
+   ne0 [10²⁰ m⁻³]: 0.9086520905359465
 
 
 
 
-Calls: 257    Time: 0:00:04
-            error: 1.1025170741957426
-     Pfusion [MW]: 163.05803316782755
-        Ti0 [keV]: 11.910500300126406
-        Te0 [keV]: 15.620013136959132
-   ne0 [10²⁰ m⁻³]: 0.9060434817145445
+Calls: 254    Time: 0:00:04
+            error: 1.1142933753806594
+     Pfusion [MW]: 161.30268089787597
+        Ti0 [keV]: 11.882512040277495
+        Te0 [keV]: 15.650059972153706
+   ne0 [10²⁰ m⁻³]: 0.9069610227062344
 
 
 
 
-Calls: 263    Time: 0:00:04
-            error: 0.9628885519423529
-     Pfusion [MW]: 182.7120060651701
-        Ti0 [keV]: 12.2709260036245
-        Te0 [keV]: 15.377891172567091
-   ne0 [10²⁰ m⁻³]: 0.9076110768763802
+Calls: 260    Time: 0:00:04
+            error: 0.17044104624424639
+     Pfusion [MW]: 366.09547047300725
+        Ti0 [keV]: 16.039197295556235
+        Te0 [keV]: 15.21983955473539
+   ne0 [10²⁰ m⁻³]: 0.9041495869969812
 
 
 
 
-Calls: 268    Time: 0:00:04
-            error: 0.18106519246313976
-     Pfusion [MW]: 364.8494660775119
-        Ti0 [keV]: 16.007019715375474
-        Te0 [keV]: 15.065461861490364
-   ne0 [10²⁰ m⁻³]: 0.900916075067598
+Calls: 267    Time: 0:00:05
+            error: 1.0060716594507617
+     Pfusion [MW]: 178.39374604331027
+        Ti0 [keV]: 12.157071818238968
+        Te0 [keV]: 15.485558703343486
+   ne0 [10²⁰ m⁻³]: 0.9085778153013143
 
 
 
 
-Calls: 275    Time: 0:00:04
-            error: 0.8803793942167379
-     Pfusion [MW]: 192.98842419876394
-        Ti0 [keV]: 12.469809330414975
-        Te0 [keV]: 15.342656501400874
-   ne0 [10²⁰ m⁻³]: 0.9066339410353267
+Calls: 273    Time: 0:00:05
+            error: 0.16073274187090306
+     Pfusion [MW]: 364.9889313962824
+        Ti0 [keV]: 15.994193548130976
+        Te0 [keV]: 15.24695788408833
+   ne0 [10²⁰ m⁻³]: 0.904494253202643
 
 
 
 
-Calls: 282    Time: 0:00:05
-            error: 0.18006112095375987
-     Pfusion [MW]: 364.3578455349598
-        Ti0 [keV]: 15.98221946809249
-        Te0 [keV]: 15.095678249294101
-   ne0 [10²⁰ m⁻³]: 0.9009411888338063
+Calls: 279    Time: 0:00:05
+            error: 0.8985750897776902
+     Pfusion [MW]: 190.17066214884977
+        Ti0 [keV]: 12.40177471478654
+        Te0 [keV]: 15.393663967651097
+   ne0 [10²⁰ m⁻³]: 0.9072993496271486
 
 
 
 
-Calls: 288    Time: 0:00:05
-            error: 0.15103211563391788
-     Pfusion [MW]: 364.39042378975864
-        Ti0 [keV]: 15.97227789015772
-        Te0 [keV]: 15.383305973144166
-   ne0 [10²⁰ m⁻³]: 0.9071096066619947
+Calls: 283    Time: 0:00:05
+            error: 0.1816032221739443
+     Pfusion [MW]: 364.55772899584605
+        Ti0 [keV]: 15.988719498219181
+        Te0 [keV]: 15.093020928620104
+   ne0 [10²⁰ m⁻³]: 0.9012093482763587
 
 
 
 
-Calls: 294    Time: 0:00:05
-            error: 0.14764305323827617
-     Pfusion [MW]: 364.12220485058845
-        Ti0 [keV]: 15.973273299810577
-        Te0 [keV]: 15.43033307072382
-   ne0 [10²⁰ m⁻³]: 0.907981871945766
+Calls: 289    Time: 0:00:05
+            error: 0.1498674493436556
+     Pfusion [MW]: 364.58197799238303
+        Ti0 [keV]: 15.97820032506517
+        Te0 [keV]: 15.383587516626966
+   ne0 [10²⁰ m⁻³]: 0.9073604484335669
 
 
 
 
-Calls: 299    Time: 0:00:05
-            error: 0.9591873032760968
-     Pfusion [MW]: 184.77485886227694
-        Ti0 [keV]: 12.276873052506891
-        Te0 [keV]: 15.494818367651432
-   ne0 [10²⁰ m⁻³]: 0.9089321573799508
+Calls: 295    Time: 0:00:05
+            error: 0.14793131549340513
+     Pfusion [MW]: 364.2110637896248
+        Ti0 [keV]: 15.975704741709626
+        Te0 [keV]: 15.428170657213377
+   ne0 [10²⁰ m⁻³]: 0.9080192897637451
 
 
 
 
-Calls: 306    Time: 0:00:05
-            error: 0.8801193386471361
-     Pfusion [MW]: 198.6762028991875
-        Ti0 [keV]: 12.546932281629942
-        Te0 [keV]: 15.408320399920443
-   ne0 [10²⁰ m⁻³]: 0.908914437033391
+Calls: 301    Time: 0:00:05
+            error: 0.9956171212673538
+     Pfusion [MW]: 181.18799679849758
+        Ti0 [keV]: 12.19193490206829
+        Te0 [keV]: 15.56656006260772
+   ne0 [10²⁰ m⁻³]: 0.9095766809924853
+
+
+
+
+Calls: 307    Time: 0:00:05
+            error: 0.9392903957348876
+     Pfusion [MW]: 190.43291196850092
+        Ti0 [keV]: 12.374548655927551
+        Te0 [keV]: 15.487798607407283
+   ne0 [10²⁰ m⁻³]: 0.9095272231927898
 
 
 
@@ -1714,42 +1814,42 @@ actors:   FluxMatcher
 
 
 
-Calls: 319    Time: 0:00:05
-            error: 0.18542463463397132
-     Pfusion [MW]: 363.9404573261514
-        Ti0 [keV]: 15.888664306023891
-        Te0 [keV]: 15.222566600611447
-   ne0 [10²⁰ m⁻³]: 0.9051472269030518
+Calls: 317    Time: 0:00:05
+            error: 0.8066409204985645
+     Pfusion [MW]: 204.73815480902587
+        Ti0 [keV]: 12.68676571300501
+        Te0 [keV]: 15.306454769601276
+   ne0 [10²⁰ m⁻³]: 0.9054185364192313
 
 
 
 
-Calls: 325    Time: 0:00:05
-            error: 1.0237874729752612
-     Pfusion [MW]: 178.7344491680438
-        Ti0 [keV]: 12.125042564813684
-        Te0 [keV]: 15.63175168129744
-   ne0 [10²⁰ m⁻³]: 0.9094480005854665
+Calls: 324    Time: 0:00:06
+            error: 1.0265630587994188
+     Pfusion [MW]: 178.05912109615937
+        Ti0 [keV]: 12.115071910840562
+        Te0 [keV]: 15.632542419737328
+   ne0 [10²⁰ m⁻³]: 0.9095643747886278
 
 
 
 
-Calls: 331    Time: 0:00:05
-            error: 0.8891556575052173
-     Pfusion [MW]: 193.06543685512827
-        Ti0 [keV]: 12.455521635814286
-        Te0 [keV]: 15.383050945335347
-   ne0 [10²⁰ m⁻³]: 0.9068283138985419
+Calls: 330    Time: 0:00:06
+            error: 0.801383051194079
+     Pfusion [MW]: 203.507590380667
+        Ti0 [keV]: 12.678199924394722
+        Te0 [keV]: 15.255878001383989
+   ne0 [10²⁰ m⁻³]: 0.9051562935618251
 
 
 
 
-Calls: 335    Time: 0:00:06
-            error: 0.1567159862088412
-     Pfusion [MW]: 361.81874935274516
-        Ti0 [keV]: 15.923406620446633
-        Te0 [keV]: 15.525661326106233
-   ne0 [10²⁰ m⁻³]: 0.9074528823273436
+Calls: 336    Time: 0:00:06
+            error: 0.9753132064474184
+     Pfusion [MW]: 182.94319355501548
+        Ti0 [keV]: 12.233535132124477
+        Te0 [keV]: 15.5676603430936
+   ne0 [10²⁰ m⁻³]: 0.9083099476523968
 
 
 
@@ -1764,82 +1864,92 @@ actors:   FluxMatcher
 
 
 
-Calls: 349    Time: 0:00:06
-            error: 0.14788444556532615
-     Pfusion [MW]: 363.28944395202126
-        Ti0 [keV]: 15.956823280394921
-        Te0 [keV]: 15.489193931813055
-   ne0 [10²⁰ m⁻³]: 0.9079338817313934
+Calls: 347    Time: 0:00:06
+            error: 0.1740476099896533
+     Pfusion [MW]: 362.0914489343898
+        Ti0 [keV]: 15.89131750685546
+        Te0 [keV]: 15.317037091713502
+   ne0 [10²⁰ m⁻³]: 0.90496917886543
 
 
 
 
-Calls: 355    Time: 0:00:06
-            error: 0.833004607715573
-     Pfusion [MW]: 198.97891790003425
-        Ti0 [keV]: 12.580970508346477
-        Te0 [keV]: 15.336912194879002
-   ne0 [10²⁰ m⁻³]: 0.9053005267353672
+Calls: 352    Time: 0:00:06
+            error: 1.0362756943184408
+     Pfusion [MW]: 176.8647238964999
+        Ti0 [keV]: 12.097774053317124
+        Te0 [keV]: 15.632946986136922
+   ne0 [10²⁰ m⁻³]: 0.9104037335878261
 
 
 
 
-Calls: 361    Time: 0:00:06
-            error: 0.9962958372691437
-     Pfusion [MW]: 180.73750998158258
-        Ti0 [keV]: 12.18789134293823
-        Te0 [keV]: 15.565157613743118
-   ne0 [10²⁰ m⁻³]: 0.9087649047398731
+Calls: 358    Time: 0:00:06
+            error: 0.16278683110627745
+     Pfusion [MW]: 362.5721628455847
+        Ti0 [keV]: 15.926973699547927
+        Te0 [keV]: 15.365394805789949
+   ne0 [10²⁰ m⁻³]: 0.9057658865677715
 
 
 
 
-Calls: 367    Time: 0:00:06
-            error: 1.0380948152408531
-     Pfusion [MW]: 176.06599955346954
-        Ti0 [keV]: 12.08952339755457
-        Te0 [keV]: 15.643622205816149
-   ne0 [10²⁰ m⁻³]: 0.9094140963866189
+Calls: 364    Time: 0:00:06
+            error: 0.15655180070327368
+     Pfusion [MW]: 362.3158603974954
+        Ti0 [keV]: 15.950237444945689
+        Te0 [keV]: 15.476520473353398
+   ne0 [10²⁰ m⁻³]: 0.9062924774143611
 
 
 
 
-Calls: 374    Time: 0:00:06
-            error: 0.9711173606817115
-     Pfusion [MW]: 183.46301787500497
-        Ti0 [keV]: 12.249158182226044
-        Te0 [keV]: 15.53787506213762
-   ne0 [10²⁰ m⁻³]: 0.9075411929320649
+Calls: 370    Time: 0:00:06
+            error: 0.9778967016647524
+     Pfusion [MW]: 183.31563259495525
+        Ti0 [keV]: 12.24404802446885
+        Te0 [keV]: 15.555549885934992
+   ne0 [10²⁰ m⁻³]: 0.9065360943854541
 
 
 
 
-Calls: 380    Time: 0:00:06
-            error: 0.15353335400862947
-     Pfusion [MW]: 362.7421439515126
-        Ti0 [keV]: 15.960482860042564
-        Te0 [keV]: 15.452093659338082
-   ne0 [10²⁰ m⁻³]: 0.906444121177854
+Calls: 376    Time: 0:00:07
+            error: 1.041836244953531
+     Pfusion [MW]: 175.77562140307774
+        Ti0 [keV]: 12.086819951103703
+        Te0 [keV]: 15.642980477536604
+   ne0 [10²⁰ m⁻³]: 0.9091503312899193
 
 
 
 
-Calls: 387    Time: 0:00:06
-            error: 0.16346968938906278
-     Pfusion [MW]: 361.82719503731875
-        Ti0 [keV]: 15.978479736928575
-        Te0 [keV]: 15.478952586889799
-   ne0 [10²⁰ m⁻³]: 0.9044397122632348
+Calls: 382    Time: 0:00:07
+            error: 1.0315496670999127
+     Pfusion [MW]: 176.74924123348367
+        Ti0 [keV]: 12.103112035329055
+        Te0 [keV]: 15.610279266667144
+   ne0 [10²⁰ m⁻³]: 0.9095908970042915
 
 
 
 
-Calls: 393    Time: 0:00:07
-            error: 1.0811859328347395
-     Pfusion [MW]: 171.9407415620364
-        Ti0 [keV]: 11.997500235929623
-        Te0 [keV]: 15.717223411113881
-   ne0 [10²⁰ m⁻³]: 0.9105456978226255
+Calls: 386    Time: 0:00:07
+            error: 0.1615032026428536
+     Pfusion [MW]: 361.8384545752474
+        Ti0 [keV]: 15.97042395469201
+        Te0 [keV]: 15.47463361897792
+   ne0 [10²⁰ m⁻³]: 0.9047484729866914
+
+
+
+
+Calls: 392    Time: 0:00:07
+            error: 1.0372126907529378
+     Pfusion [MW]: 176.41791984970354
+        Ti0 [keV]: 12.103989240065284
+        Te0 [keV]: 15.644039722822638
+   ne0 [10²⁰ m⁻³]: 0.9094158091238445
 
 
 
@@ -1854,22 +1964,22 @@ actors:   FluxMatcher
 
 
 
-Calls: 403    Time: 0:00:07
-            error: 0.15211442626589597
-     Pfusion [MW]: 363.8718111957457
-        Ti0 [keV]: 16.052231852340746
-        Te0 [keV]: 15.365189550048699
-   ne0 [10²⁰ m⁻³]: 0.9033894943413394
+Calls: 405    Time: 0:00:07
+            error: 0.9189003705118645
+     Pfusion [MW]: 188.94191688124565
+        Ti0 [keV]: 12.432958736466063
+        Te0 [keV]: 15.424073281669948
+   ne0 [10²⁰ m⁻³]: 0.9055126134059415
 
 
 
 
-Calls: 410    Time: 0:00:07
-            error: 0.17144901563091877
-     Pfusion [MW]: 363.59807065553366
-        Ti0 [keV]: 16.069455695818196
-        Te0 [keV]: 15.23305761462406
-   ne0 [10²⁰ m⁻³]: 0.9000834770308388
+Calls: 411    Time: 0:00:07
+            error: 0.1594334864903793
+     Pfusion [MW]: 363.66213079136253
+        Ti0 [keV]: 16.041488235951388
+        Te0 [keV]: 15.310280199212352
+   ne0 [10²⁰ m⁻³]: 0.902404450448759
 
 
 
@@ -1884,27 +1994,27 @@ actors:   FluxMatcher
 
 
 
-Calls: 423    Time: 0:00:07
-            error: 0.9772027256536276
-     Pfusion [MW]: 183.3400778464913
-        Ti0 [keV]: 12.284216575789802
-        Te0 [keV]: 15.549767802786961
-   ne0 [10²⁰ m⁻³]: 0.9079656293895979
+Calls: 421    Time: 0:00:07
+            error: 0.14756378738663486
+     Pfusion [MW]: 363.90671088705466
+        Ti0 [keV]: 16.046947141688605
+        Te0 [keV]: 15.4345695404185
+   ne0 [10²⁰ m⁻³]: 0.9049945705752009
 
 
 
 
-Calls: 429    Time: 0:00:07
-            error: 0.16656079919222525
-     Pfusion [MW]: 366.7258596684054
-        Ti0 [keV]: 16.140618473931333
-        Te0 [keV]: 15.259208513885238
-   ne0 [10²⁰ m⁻³]: 0.9029072177273874
+Calls: 428    Time: 0:00:08
+            error: 0.1708672249139437
+     Pfusion [MW]: 366.32309045811087
+        Ti0 [keV]: 16.13475096878657
+        Te0 [keV]: 15.24383122150433
+   ne0 [10²⁰ m⁻³]: 0.9020334459634133
 
 
 
 
-Calls: 435    Time: 0:00:07
+Calls: 435    Time: 0:00:08
             error: 0.9254809635385708
      Pfusion [MW]: 188.30967518288438
         Ti0 [keV]: 12.455975603668481
@@ -1914,92 +2024,112 @@ actors:   FluxMatcher
 
 
 
-Calls: 442    Time: 0:00:07
-            error: 0.8726730173326948
-     Pfusion [MW]: 193.1858854878303
-        Ti0 [keV]: 12.592334208140512
-        Te0 [keV]: 15.41316751115428
-   ne0 [10²⁰ m⁻³]: 0.9045583739315126
+Calls: 441    Time: 0:00:08
+            error: 0.8499652066410818
+     Pfusion [MW]: 195.63878630692332
+        Ti0 [keV]: 12.65338135242203
+        Te0 [keV]: 15.377364650817672
+   ne0 [10²⁰ m⁻³]: 0.9037828860398992
 
 
 
 
-Calls: 449    Time: 0:00:08
-            error: 0.14599632188631204
-     Pfusion [MW]: 366.0259119412736
-        Ti0 [keV]: 16.179592805266452
-        Te0 [keV]: 15.486314898354197
-   ne0 [10²⁰ m⁻³]: 0.905329335693612
+Calls: 447    Time: 0:00:08
+            error: 0.8540075877245354
+     Pfusion [MW]: 195.2265844668612
+        Ti0 [keV]: 12.645878865397597
+        Te0 [keV]: 15.407325043625868
+   ne0 [10²⁰ m⁻³]: 0.9033364416134485
 
 
 
 
-Calls: 456    Time: 0:00:08
-            error: 0.246459808549515
-     Pfusion [MW]: 366.2262578555106
-        Ti0 [keV]: 16.249291823242515
-        Te0 [keV]: 14.930028863270763
-   ne0 [10²⁰ m⁻³]: 0.8929384479253156
+Calls: 453    Time: 0:00:08
+            error: 0.9798154168905882
+     Pfusion [MW]: 181.75870871000245
+        Ti0 [keV]: 12.315902951780673
+        Te0 [keV]: 15.619658214221682
+   ne0 [10²⁰ m⁻³]: 0.9077573599499907
 
 
 
 
-Calls: 462    Time: 0:00:08
-            error: 0.9155468918823065
-     Pfusion [MW]: 188.38432998914917
-        Ti0 [keV]: 12.474561893191407
-        Te0 [keV]: 15.472846402078483
-   ne0 [10²⁰ m⁻³]: 0.905537423156442
+Calls: 457    Time: 0:00:08
+            error: 0.20489716985512074
+     Pfusion [MW]: 366.0857591969558
+        Ti0 [keV]: 16.22434450002822
+        Te0 [keV]: 15.1049816704207
+   ne0 [10²⁰ m⁻³]: 0.8969537196808965
 
 
 
 
-Calls: 468    Time: 0:00:08
-            error: 0.1631407382627806
-     Pfusion [MW]: 365.8219707397457
-        Ti0 [keV]: 16.200801453578993
-        Te0 [keV]: 15.342384322764913
-   ne0 [10²⁰ m⁻³]: 0.9018878135572979
+Calls: 463    Time: 0:00:08
+            error: 0.9356983792722217
+     Pfusion [MW]: 186.5586410713115
+        Ti0 [keV]: 12.4241747661422
+        Te0 [keV]: 15.510397271337768
+   ne0 [10²⁰ m⁻³]: 0.9063349978649354
 
 
 
 
-Calls: 479    Time: 0:00:08
-            error: 0.9477800719270606
-     Pfusion [MW]: 181.02588660351776
-        Ti0 [keV]: 12.393922715502443
-        Te0 [keV]: 15.601772382490724
-   ne0 [10²⁰ m⁻³]: 0.9044970465337158
+Calls: 469    Time: 0:00:08
+            error: 0.8763792338528529
+     Pfusion [MW]: 191.21092681385096
+        Ti0 [keV]: 12.572305980671464
+        Te0 [keV]: 15.42813142156115
+   ne0 [10²⁰ m⁻³]: 0.9032486237115404
 
 
 
 
-Calls: 486    Time: 0:00:08
-            error: 0.9178843139329532
-     Pfusion [MW]: 183.8705633032393
-        Ti0 [keV]: 12.480372641716638
-        Te0 [keV]: 15.589296176468144
-   ne0 [10²⁰ m⁻³]: 0.90331256754597
+Calls: 475    Time: 0:00:08
+            error: 0.8522223298852849
+     Pfusion [MW]: 194.03354416283014
+        Ti0 [keV]: 12.64136893770878
+        Te0 [keV]: 15.39644225360973
+   ne0 [10²⁰ m⁻³]: 0.9030322762080764
 
 
 
 
-Calls: 492    Time: 0:00:08
-            error: 0.22058732048069796
-     Pfusion [MW]: 366.2923054519235
-        Ti0 [keV]: 16.416154835133305
-        Te0 [keV]: 15.236493320884964
-   ne0 [10²⁰ m⁻³]: 0.8960781381707976
+Calls: 481    Time: 0:00:09
+            error: 0.9989926906067715
+     Pfusion [MW]: 176.93021300427347
+        Ti0 [keV]: 12.269911625727227
+        Te0 [keV]: 15.696084442813923
+   ne0 [10²⁰ m⁻³]: 0.9067454121739446
 
 
 
 
-Calls: 498    Time: 0:00:08
-            error: 0.22188661703241444
-     Pfusion [MW]: 366.4434156035561
-        Ti0 [keV]: 16.47593724821059
-        Te0 [keV]: 15.301134374126695
-   ne0 [10²⁰ m⁻³]: 0.8964421059430446
+Calls: 487    Time: 0:00:09
+            error: 0.9283006567279105
+     Pfusion [MW]: 182.28757653805124
+        Ti0 [keV]: 12.457679952376433
+        Te0 [keV]: 15.622700694541006
+   ne0 [10²⁰ m⁻³]: 0.9034724867973876
+
+
+
+
+Calls: 491    Time: 0:00:09
+            error: 0.2142684304068191
+     Pfusion [MW]: 366.0202893751758
+        Ti0 [keV]: 16.393267757827836
+        Te0 [keV]: 15.248921934656684
+   ne0 [10²⁰ m⁻³]: 0.8963473207650489
+
+
+
+
+Calls: 497    Time: 0:00:09
+            error: 0.21995684651551214
+     Pfusion [MW]: 366.23990253414354
+        Ti0 [keV]: 16.460719800256076
+        Te0 [keV]: 15.295030876171273
+   ne0 [10²⁰ m⁻³]: 0.8963141273555276
 
 
 
@@ -2035,12 +2165,12 @@ actors:   FluxMatcher
 
 
 
-Calls: 12    Time: 0:00:00
-            error: 0.9481661862880858
-     Pfusion [MW]: 780.983304752233
-        Ti0 [keV]: 20.437729200538328
-        Te0 [keV]: 20.441348629151985
-   ne0 [10²⁰ m⁻³]: 0.9708428846495047
+Calls: 13    Time: 0:00:00
+            error: 0.9332929722921474
+     Pfusion [MW]: 780.1217332886814
+        Ti0 [keV]: 20.344064828059107
+        Te0 [keV]: 20.47845780182331
+   ne0 [10²⁰ m⁻³]: 0.9744170980026987
 
 
 
@@ -2065,47 +2195,47 @@ actors:   FluxMatcher
 
 
 
-Calls: 31    Time: 0:00:00
-            error: 0.630243281253214
-     Pfusion [MW]: 291.1021749863105
-        Ti0 [keV]: 13.221933388859414
-        Te0 [keV]: 16.175024538997693
-   ne0 [10²⁰ m⁻³]: 0.945694661401499
+Calls: 30    Time: 0:00:00
+            error: 0.7066560975511577
+     Pfusion [MW]: 297.3744383511752
+        Ti0 [keV]: 13.174813352280777
+        Te0 [keV]: 16.79547717517373
+   ne0 [10²⁰ m⁻³]: 0.9597788190255353
 
 
 
 
-Calls: 35    Time: 0:00:00
-            error: 0.4329443442251527
-     Pfusion [MW]: 274.7246652019985
-        Ti0 [keV]: 13.533996973286934
-        Te0 [keV]: 14.346046839281321
-   ne0 [10²⁰ m⁻³]: 0.8971793327386778
+Calls: 36    Time: 0:00:00
+            error: 0.4037898971798232
+     Pfusion [MW]: 275.19344196778263
+        Ti0 [keV]: 13.657573520297232
+        Te0 [keV]: 14.121726031061398
+   ne0 [10²⁰ m⁻³]: 0.8903826945102717
 
 
 
 
-Calls: 41    Time: 0:00:00
-            error: 0.2955517409018971
-     Pfusion [MW]: 275.9607463758533
-        Ti0 [keV]: 14.400285973752009
-        Te0 [keV]: 13.631064495335739
-   ne0 [10²⁰ m⁻³]: 0.8776617812234677
+Calls: 42    Time: 0:00:00
+            error: 0.29236167367276167
+     Pfusion [MW]: 276.0734876557596
+        Ti0 [keV]: 14.485596472561332
+        Te0 [keV]: 13.579450237877836
+   ne0 [10²⁰ m⁻³]: 0.8766424906783767
 
 
 
 
-Calls: 47    Time: 0:00:00
-            error: 0.26006577605997105
-     Pfusion [MW]: 279.2597159515532
-        Ti0 [keV]: 14.741930172556195
-        Te0 [keV]: 13.66629137883016
-   ne0 [10²⁰ m⁻³]: 0.8819345350357969
+Calls: 48    Time: 0:00:00
+            error: 0.2468888215964311
+     Pfusion [MW]: 280.8499246530677
+        Ti0 [keV]: 14.857865074662506
+        Te0 [keV]: 13.84074913732964
+   ne0 [10²⁰ m⁻³]: 0.8856954062559433
 
 
 
 
-Calls: 53    Time: 0:00:00
+Calls: 53    Time: 0:00:01
             error: 0.22309503798923955
      Pfusion [MW]: 285.4409419067774
         Ti0 [keV]: 15.203384176840071
@@ -2115,182 +2245,192 @@ actors:   FluxMatcher
 
 
 
-Calls: 59    Time: 0:00:01
-            error: 0.17750074182737471
-     Pfusion [MW]: 288.5038605800058
-        Ti0 [keV]: 15.837634683657024
-        Te0 [keV]: 14.708628807938876
-   ne0 [10²⁰ m⁻³]: 0.885837063872788
+Calls: 58    Time: 0:00:01
+            error: 0.18180641051942426
+     Pfusion [MW]: 287.2984694915217
+        Ti0 [keV]: 15.646524835864758
+        Te0 [keV]: 14.61372987284278
+   ne0 [10²⁰ m⁻³]: 0.8879129917729772
 
 
 
 
-Calls: 64    Time: 0:00:01
-            error: 0.17013315306698568
-     Pfusion [MW]: 288.8862296061518
-        Ti0 [keV]: 16.015496029770084
-        Te0 [keV]: 14.76989385259271
-   ne0 [10²⁰ m⁻³]: 0.8829111796570651
+Calls: 63    Time: 0:00:01
+            error: 0.17183766910911458
+     Pfusion [MW]: 288.57199409555494
+        Ti0 [keV]: 15.957998598151832
+        Te0 [keV]: 14.752734588797617
+   ne0 [10²⁰ m⁻³]: 0.8835565098178593
 
 
 
 
-Calls: 69    Time: 0:00:01
-            error: 0.16223573117672452
-     Pfusion [MW]: 288.97723619374716
-        Ti0 [keV]: 16.25582096323056
-        Te0 [keV]: 14.916852530668399
-   ne0 [10²⁰ m⁻³]: 0.8791842072460063
+Calls: 68    Time: 0:00:01
+            error: 0.16269642423077255
+     Pfusion [MW]: 288.882582851857
+        Ti0 [keV]: 16.227184402652693
+        Te0 [keV]: 14.897271636254757
+   ne0 [10²⁰ m⁻³]: 0.879446697914699
 
 
 
 
-Calls: 75    Time: 0:00:01
-            error: 0.1513472457559571
-     Pfusion [MW]: 287.7510097462243
-        Ti0 [keV]: 16.54800260270779
-        Te0 [keV]: 15.258223806117014
-   ne0 [10²⁰ m⁻³]: 0.8783197132082176
+Calls: 74    Time: 0:00:01
+            error: 0.1537533543202663
+     Pfusion [MW]: 287.8139700121554
+        Ti0 [keV]: 16.489223596041732
+        Te0 [keV]: 15.193246507046577
+   ne0 [10²⁰ m⁻³]: 0.8777779693144531
 
 
 
 
-Calls: 81    Time: 0:00:01
-            error: 0.1482650488965502
-     Pfusion [MW]: 287.4837665120071
-        Ti0 [keV]: 16.721646757116208
-        Te0 [keV]: 15.461117600738282
-   ne0 [10²⁰ m⁻³]: 0.879256375535859
+Calls: 80    Time: 0:00:01
+            error: 0.14920949541410636
+     Pfusion [MW]: 287.5357759889593
+        Ti0 [keV]: 16.6998220616586
+        Te0 [keV]: 15.42415674762092
+   ne0 [10²⁰ m⁻³]: 0.8789847120281071
 
 
 
 
-Calls: 87    Time: 0:00:01
-            error: 0.14138520134705765
-     Pfusion [MW]: 287.39778303581414
-        Ti0 [keV]: 17.037231426980803
-        Te0 [keV]: 15.764267593974942
-   ne0 [10²⁰ m⁻³]: 0.8792184565737688
+Calls: 86    Time: 0:00:01
+            error: 0.14232916180729202
+     Pfusion [MW]: 287.4025176553224
+        Ti0 [keV]: 16.950299987475972
+        Te0 [keV]: 15.687041549369674
+   ne0 [10²⁰ m⁻³]: 0.8794067465384241
 
 
 
 
-Calls: 93    Time: 0:00:01
-            error: 0.13335561790490252
-     Pfusion [MW]: 288.25698789744933
-        Ti0 [keV]: 17.52970723646814
-        Te0 [keV]: 16.09141602830606
-   ne0 [10²⁰ m⁻³]: 0.8792258617843982
+Calls: 91    Time: 0:00:01
+            error: 0.1362841651027941
+     Pfusion [MW]: 288.10951290734045
+        Ti0 [keV]: 17.34120296743019
+        Te0 [keV]: 15.979082968411106
+   ne0 [10²⁰ m⁻³]: 0.8797018060060964
 
 
 
 
-Calls: 99    Time: 0:00:01
-            error: 0.13015727586315173
-     Pfusion [MW]: 289.17151411845003
-        Ti0 [keV]: 17.884376038598194
-        Te0 [keV]: 16.353311877646288
-   ne0 [10²⁰ m⁻³]: 0.8793081486249485
+Calls: 96    Time: 0:00:01
+            error: 0.13142247554700573
+     Pfusion [MW]: 288.7201459219526
+        Ti0 [keV]: 17.77366956179501
+        Te0 [keV]: 16.251077624191012
+   ne0 [10²⁰ m⁻³]: 0.8789885412541207
 
 
 
 
-Calls: 104    Time: 0:00:02
-            error: 0.1266369518352403
-     Pfusion [MW]: 290.83033980809824
-        Ti0 [keV]: 18.353711110129215
-        Te0 [keV]: 16.835981456400333
-   ne0 [10²⁰ m⁻³]: 0.8801432098747348
+Calls: 101    Time: 0:00:02
+            error: 0.1286047560858888
+     Pfusion [MW]: 289.8450236222647
+        Ti0 [keV]: 18.058878680536694
+        Te0 [keV]: 16.538091464997656
+   ne0 [10²⁰ m⁻³]: 0.8797269762438679
 
 
 
 
-Calls: 110    Time: 0:00:02
-            error: 0.1225684073344888
-     Pfusion [MW]: 294.61252063587017
-        Ti0 [keV]: 18.809824982307454
-        Te0 [keV]: 17.559053906499212
-   ne0 [10²⁰ m⁻³]: 0.8857487055487363
+Calls: 107    Time: 0:00:02
+            error: 0.1238818755892711
+     Pfusion [MW]: 293.2320287016987
+        Ti0 [keV]: 18.577249402874905
+        Te0 [keV]: 17.231234784102842
+   ne0 [10²⁰ m⁻³]: 0.8842579834278005
 
 
 
 
-Calls: 116    Time: 0:00:02
-            error: 0.12009408374423969
-     Pfusion [MW]: 295.74290705802633
-        Ti0 [keV]: 19.005034942178973
-        Te0 [keV]: 17.829275810788044
-   ne0 [10²⁰ m⁻³]: 0.8867509807237122
+Calls: 113    Time: 0:00:02
+            error: 0.12077352762821436
+     Pfusion [MW]: 295.33518790831937
+        Ti0 [keV]: 18.966671514280783
+        Te0 [keV]: 17.75190092445564
+   ne0 [10²⁰ m⁻³]: 0.8862058314898855
 
 
 
 
-Calls: 122    Time: 0:00:02
-            error: 0.1168929911285042
-     Pfusion [MW]: 297.69805477608526
-        Ti0 [keV]: 19.225232514925363
-        Te0 [keV]: 18.217192582611187
-   ne0 [10²⁰ m⁻³]: 0.8889354199058678
+Calls: 119    Time: 0:00:02
+            error: 0.11968378029263312
+     Pfusion [MW]: 295.89232320168577
+        Ti0 [keV]: 19.024835398907097
+        Te0 [keV]: 17.87048831407977
+   ne0 [10²⁰ m⁻³]: 0.8868349688159378
 
 
 
 
-Calls: 128    Time: 0:00:02
-            error: 0.11473960163309582
-     Pfusion [MW]: 299.20524649312557
-        Ti0 [keV]: 19.34912871665441
-        Te0 [keV]: 18.49079788024082
-   ne0 [10²⁰ m⁻³]: 0.890915912917304
+Calls: 124    Time: 0:00:02
+            error: 0.11560251324587006
+     Pfusion [MW]: 300.04053455789295
+        Ti0 [keV]: 19.45663979978863
+        Te0 [keV]: 18.670271414174014
+   ne0 [10²⁰ m⁻³]: 0.8917127089274185
 
 
 
 
-Calls: 133    Time: 0:00:02
-            error: 0.11017024110767401
-     Pfusion [MW]: 302.0063928978365
-        Ti0 [keV]: 19.44200909366272
-        Te0 [keV]: 18.91936650471794
-   ne0 [10²⁰ m⁻³]: 0.8951189600889605
+Calls: 129    Time: 0:00:02
+            error: 0.1143307136294419
+     Pfusion [MW]: 299.69589393716757
+        Ti0 [keV]: 19.389152925535857
+        Te0 [keV]: 18.575565215441035
+   ne0 [10²⁰ m⁻³]: 0.891616457837054
 
 
 
 
-Calls: 138    Time: 0:00:02
-            error: 0.09163939769597705
-     Pfusion [MW]: 312.2855489195508
-        Ti0 [keV]: 19.789637855221535
-        Te0 [keV]: 20.138402826125528
-   ne0 [10²⁰ m⁻³]: 0.9118885179788814
+Calls: 134    Time: 0:00:02
+            error: 0.10078929771951962
+     Pfusion [MW]: 306.9732142572338
+        Ti0 [keV]: 19.630059359118974
+        Te0 [keV]: 19.55364063799905
+   ne0 [10²⁰ m⁻³]: 0.9031067794654847
 
 
 
 
-Calls: 144    Time: 0:00:02
-            error: 0.0799229070208689
-     Pfusion [MW]: 318.6176041279539
-        Ti0 [keV]: 19.818471453350984
-        Te0 [keV]: 20.687740312712215
-   ne0 [10²⁰ m⁻³]: 0.9225055684247075
+Calls: 139    Time: 0:00:02
+            error: 0.09027668546121621
+     Pfusion [MW]: 313.21948146400507
+        Ti0 [keV]: 19.81231590236581
+        Te0 [keV]: 20.22721747144733
+   ne0 [10²⁰ m⁻³]: 0.9134741425895538
 
 
 
 
-Calls: 150    Time: 0:00:02
-            error: 0.0760357676880892
-     Pfusion [MW]: 321.6040747685736
-        Ti0 [keV]: 19.736093956860948
-        Te0 [keV]: 20.85502828478412
-   ne0 [10²⁰ m⁻³]: 0.9276042072964258
+Calls: 145    Time: 0:00:02
+            error: 0.07894489320845717
+     Pfusion [MW]: 319.4088127842377
+        Ti0 [keV]: 19.810174016836136
+        Te0 [keV]: 20.7480277098434
+   ne0 [10²⁰ m⁻³]: 0.9237541175286437
 
 
 
 
-Calls: 156    Time: 0:00:03
-            error: 0.0726883291377577
-     Pfusion [MW]: 323.5684709113612
-        Ti0 [keV]: 19.6994417700052
-        Te0 [keV]: 20.975941051324146
-   ne0 [10²⁰ m⁻³]: 0.9311186073768262
+Calls: 151    Time: 0:00:03
+            error: 0.07592731194593733
+     Pfusion [MW]: 321.7322626798946
+        Ti0 [keV]: 19.72715735086356
+        Te0 [keV]: 20.85555690038279
+   ne0 [10²⁰ m⁻³]: 0.927860907637366
+
+
+
+
+Calls: 157    Time: 0:00:03
+            error: 0.07166380798808007
+     Pfusion [MW]: 323.96088593870843
+        Ti0 [keV]: 19.709081880615166
+        Te0 [keV]: 21.017621653605993
+   ne0 [10²⁰ m⁻³]: 0.9318121775673976
 
 
 
@@ -2305,122 +2445,132 @@ actors:   FluxMatcher
 
 
 
-Calls: 168    Time: 0:00:03
-            error: 0.05833095104547462
-     Pfusion [MW]: 330.6269948036246
-        Ti0 [keV]: 19.702996706059427
-        Te0 [keV]: 21.506464263051676
-   ne0 [10²⁰ m⁻³]: 0.9446175917618889
+Calls: 167    Time: 0:00:03
+            error: 0.05991444902996001
+     Pfusion [MW]: 329.48971068682766
+        Ti0 [keV]: 19.70438287982629
+        Te0 [keV]: 21.421282463122555
+   ne0 [10²⁰ m⁻³]: 0.9423924907241508
 
 
 
 
-Calls: 173    Time: 0:00:03
-            error: 0.056612719339323055
-     Pfusion [MW]: 332.42539844302183
-        Ti0 [keV]: 19.68999056047178
-        Te0 [keV]: 21.63425928665577
-   ne0 [10²⁰ m⁻³]: 0.9483464127952115
+Calls: 172    Time: 0:00:03
+            error: 0.05651412371621927
+     Pfusion [MW]: 332.241841220757
+        Ti0 [keV]: 19.690820783023927
+        Te0 [keV]: 21.622193735826887
+   ne0 [10²⁰ m⁻³]: 0.9479989822506921
 
 
 
 
-Calls: 179    Time: 0:00:03
-            error: 0.05119363792429417
-     Pfusion [MW]: 334.92943390630063
-        Ti0 [keV]: 19.670585157350935
-        Te0 [keV]: 21.753429131258116
-   ne0 [10²⁰ m⁻³]: 0.9545678819190087
+Calls: 178    Time: 0:00:03
+            error: 0.051688926849616464
+     Pfusion [MW]: 334.56565247392666
+        Ti0 [keV]: 19.672476901123705
+        Te0 [keV]: 21.736265746499026
+   ne0 [10²⁰ m⁻³]: 0.953660282404333
 
 
 
 
-Calls: 185    Time: 0:00:03
-            error: 0.05001104832384367
-     Pfusion [MW]: 335.0937997400082
-        Ti0 [keV]: 19.683300584414248
-        Te0 [keV]: 21.754600407205594
-   ne0 [10²⁰ m⁻³]: 0.9551836879397629
+Calls: 184    Time: 0:00:03
+            error: 0.0499938658578074
+     Pfusion [MW]: 335.161317818699
+        Ti0 [keV]: 19.68186641492479
+        Te0 [keV]: 21.759906546123023
+   ne0 [10²⁰ m⁻³]: 0.9552924571034023
 
 
 
 
-Calls: 191    Time: 0:00:03
-            error: 0.04971703829295454
-     Pfusion [MW]: 334.89537659580265
-        Ti0 [keV]: 19.68912168634991
-        Te0 [keV]: 21.742824725931555
-   ne0 [10²⁰ m⁻³]: 0.9549167498505721
+Calls: 190    Time: 0:00:03
+            error: 0.049663850534049016
+     Pfusion [MW]: 334.9491422247518
+        Ti0 [keV]: 19.686923473529024
+        Te0 [keV]: 21.74645428270521
+   ne0 [10²⁰ m⁻³]: 0.9550033513824975
 
 
 
 
-Calls: 197    Time: 0:00:03
-            error: 0.046430769535739595
-     Pfusion [MW]: 335.24677530246777
-        Ti0 [keV]: 19.694961096215373
-        Te0 [keV]: 21.76619864416932
-   ne0 [10²⁰ m⁻³]: 0.9562756102226161
+Calls: 195    Time: 0:00:03
+            error: 0.047091215194344706
+     Pfusion [MW]: 335.22380846388864
+        Ti0 [keV]: 19.693406474639733
+        Te0 [keV]: 21.76201146484761
+   ne0 [10²⁰ m⁻³]: 0.9560850073212059
 
 
 
 
-Calls: 203    Time: 0:00:03
-            error: 0.04575240239880662
-     Pfusion [MW]: 335.20858097508665
-        Ti0 [keV]: 19.70077350533951
-        Te0 [keV]: 21.76775871677163
-   ne0 [10²⁰ m⁻³]: 0.9562971388842154
+Calls: 200    Time: 0:00:04
+            error: 0.04588098033509806
+     Pfusion [MW]: 335.2116969398307
+        Ti0 [keV]: 19.699627752211033
+        Te0 [keV]: 21.768122815766127
+   ne0 [10²⁰ m⁻³]: 0.9562678639284984
 
 
 
 
-Calls: 208    Time: 0:00:04
-            error: 0.04451510359804655
-     Pfusion [MW]: 334.93762337494724
-        Ti0 [keV]: 19.70569904990241
-        Te0 [keV]: 21.749862201745362
-   ne0 [10²⁰ m⁻³]: 0.9557536574305745
+Calls: 205    Time: 0:00:04
+            error: 0.04526984934922615
+     Pfusion [MW]: 335.1337921229228
+        Ti0 [keV]: 19.702572769851496
+        Te0 [keV]: 21.761801300220085
+   ne0 [10²⁰ m⁻³]: 0.9561506488774122
 
 
 
 
-Calls: 214    Time: 0:00:04
-            error: 0.04003315783579363
-     Pfusion [MW]: 333.77858155580617
-        Ti0 [keV]: 19.71346075344181
-        Te0 [keV]: 21.689467278058736
-   ne0 [10²⁰ m⁻³]: 0.9533239920447013
+Calls: 210    Time: 0:00:04
+            error: 0.0425850790191695
+     Pfusion [MW]: 334.4998668232591
+        Ti0 [keV]: 19.70737998548327
+        Te0 [keV]: 21.726023191969826
+   ne0 [10²⁰ m⁻³]: 0.9548207738998794
 
 
 
 
-Calls: 220    Time: 0:00:04
-            error: 0.031378646290767906
-     Pfusion [MW]: 332.3151213840436
-        Ti0 [keV]: 19.733081025171863
-        Te0 [keV]: 21.629041660898437
-   ne0 [10²⁰ m⁻³]: 0.9496728080449167
+Calls: 216    Time: 0:00:04
+            error: 0.03922688748014953
+     Pfusion [MW]: 333.527231739929
+        Ti0 [keV]: 19.716235868188857
+        Te0 [keV]: 21.675000063353878
+   ne0 [10²⁰ m⁻³]: 0.952772202416583
 
 
 
 
-Calls: 226    Time: 0:00:04
-            error: 0.02850651860082889
-     Pfusion [MW]: 331.4023764340155
-        Ti0 [keV]: 19.746186576563467
-        Te0 [keV]: 21.60678848716949
-   ne0 [10²⁰ m⁻³]: 0.9472888005292709
+Calls: 222    Time: 0:00:04
+            error: 0.02981088314510548
+     Pfusion [MW]: 331.81482478738496
+        Ti0 [keV]: 19.739482912595232
+        Te0 [keV]: 21.613386068641315
+   ne0 [10²⁰ m⁻³]: 0.9483956864336246
 
 
 
 
-Calls: 232    Time: 0:00:04
-            error: 0.026237277557138814
-     Pfusion [MW]: 330.57147915837913
-        Ti0 [keV]: 19.76299432802722
-        Te0 [keV]: 21.58636628136291
-   ne0 [10²⁰ m⁻³]: 0.9454219732051367
+Calls: 228    Time: 0:00:04
+            error: 0.02797937210845984
+     Pfusion [MW]: 331.1412539608199
+        Ti0 [keV]: 19.75012953874029
+        Te0 [keV]: 21.599091656268133
+   ne0 [10²⁰ m⁻³]: 0.9466363941258525
+
+
+
+
+Calls: 233    Time: 0:00:04
+            error: 0.02488069139949314
+     Pfusion [MW]: 330.45725870765034
+        Ti0 [keV]: 19.769727156939073
+        Te0 [keV]: 21.58292406633332
+   ne0 [10²⁰ m⁻³]: 0.9452934927365351
 
 
 
@@ -2445,7 +2595,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 245    Time: 0:00:04
+Calls: 245    Time: 0:00:05
             error: 0.019438692754303818
      Pfusion [MW]: 329.8024969049062
         Ti0 [keV]: 19.81818014483839
@@ -2496,52 +2646,62 @@ actors:   FluxMatcher
 
 
 
-Calls: 25    Time: 0:00:00
-            error: 0.28284909878849346
-     Pfusion [MW]: 220.95142864531095
-        Ti0 [keV]: 16.748209653369624
-        Te0 [keV]: 17.68737545904809
-   ne0 [10²⁰ m⁻³]: 0.8942624565423624
+Calls: 24    Time: 0:00:00
+            error: 0.3003369573051153
+     Pfusion [MW]: 221.77354521665728
+        Ti0 [keV]: 16.820844147138498
+        Te0 [keV]: 17.78543354431723
+   ne0 [10²⁰ m⁻³]: 0.8955823854619682
 
 
 
 
-Calls: 32    Time: 0:00:00
-            error: 0.1894138139852378
-     Pfusion [MW]: 219.31704510178875
-        Ti0 [keV]: 16.444197113236
-        Te0 [keV]: 17.176602531662095
-   ne0 [10²⁰ m⁻³]: 0.8905376250763053
+Calls: 31    Time: 0:00:00
+            error: 0.19704281317163955
+     Pfusion [MW]: 219.40430580082682
+        Ti0 [keV]: 16.47649503158686
+        Te0 [keV]: 17.23708855124084
+   ne0 [10²⁰ m⁻³]: 0.890960335935335
 
 
 
 
-Calls: 38    Time: 0:00:00
-            error: 0.1686537646628362
-     Pfusion [MW]: 220.30606931740354
-        Ti0 [keV]: 16.434582899952517
-        Te0 [keV]: 17.093800355370757
-   ne0 [10²⁰ m⁻³]: 0.8906894471461092
+Calls: 37    Time: 0:00:00
+            error: 0.16988126383173183
+     Pfusion [MW]: 220.19972530323238
+        Ti0 [keV]: 16.435190501878523
+        Te0 [keV]: 17.100355272859748
+   ne0 [10²⁰ m⁻³]: 0.8906183770117754
 
 
 
 
-Calls: 44    Time: 0:00:00
-            error: 0.1639602165364196
-     Pfusion [MW]: 220.86960408396615
-        Ti0 [keV]: 16.458920157902856
-        Te0 [keV]: 17.103164537949645
-   ne0 [10²⁰ m⁻³]: 0.8909241878916976
+Calls: 43    Time: 0:00:00
+            error: 0.16431759960535813
+     Pfusion [MW]: 220.77839317526397
+        Ti0 [keV]: 16.453508791221033
+        Te0 [keV]: 17.0984675786051
+   ne0 [10²⁰ m⁻³]: 0.8908659974736499
 
 
 
 
-Calls: 54    Time: 0:00:00
-            error: 0.16267991237814955
-     Pfusion [MW]: 221.53239846313505
-        Ti0 [keV]: 16.489273147266992
-        Te0 [keV]: 17.112049916959435
-   ne0 [10²⁰ m⁻³]: 0.8908419466398053
+Calls: 48    Time: 0:00:00
+            error: 0.16315825246007717
+     Pfusion [MW]: 221.1020446107061
+        Ti0 [keV]: 16.474714925921646
+        Te0 [keV]: 17.116908896556907
+   ne0 [10²⁰ m⁻³]: 0.891001795408929
+
+
+
+
+Calls: 55    Time: 0:00:01
+            error: 0.16255885858045985
+     Pfusion [MW]: 221.67548232980002
+        Ti0 [keV]: 16.496825675976826
+        Te0 [keV]: 17.115163786192554
+   ne0 [10²⁰ m⁻³]: 0.8907744219153212
 
 
 
@@ -2586,6 +2746,16 @@ actors:   FluxMatcher
 
 
 
+Calls: 86    Time: 0:00:01
+            error: 0.14006469712144692
+     Pfusion [MW]: 247.305030267673
+        Ti0 [keV]: 17.601537638753047
+        Te0 [keV]: 17.94026184368526
+   ne0 [10²⁰ m⁻³]: 0.888868095545235
+
+
+
+
 Calls: 93    Time: 0:00:01
             error: 0.13488458127136432
      Pfusion [MW]: 255.48315549434986
@@ -2596,12 +2766,12 @@ actors:   FluxMatcher
 
 
 
-Calls: 101    Time: 0:00:01
-            error: 0.13033685581965923
-     Pfusion [MW]: 252.05695253602894
-        Ti0 [keV]: 17.61916102824731
-        Te0 [keV]: 17.932272915426285
-   ne0 [10²⁰ m⁻³]: 0.8891498638373437
+Calls: 100    Time: 0:00:01
+            error: 0.1305758728471109
+     Pfusion [MW]: 252.20281795105112
+        Ti0 [keV]: 17.612231481232108
+        Te0 [keV]: 17.918064758658122
+   ne0 [10²⁰ m⁻³]: 0.8890590100834582
 
 
 
@@ -2616,7 +2786,7 @@ actors:   FluxMatcher
 
 
 
-Calls: 113    Time: 0:00:01
+Calls: 113    Time: 0:00:02
             error: 0.11544361740700032
      Pfusion [MW]: 257.24931187947004
         Ti0 [keV]: 17.56128800168526
@@ -2636,162 +2806,182 @@ actors:   FluxMatcher
 
 
 
-Calls: 126    Time: 0:00:02
-            error: 0.10521647136268544
-     Pfusion [MW]: 252.0384300484314
-        Ti0 [keV]: 17.21605342845093
-        Te0 [keV]: 17.944908272468112
-   ne0 [10²⁰ m⁻³]: 0.8923134752387754
+Calls: 124    Time: 0:00:02
+            error: 0.1032591075559341
+     Pfusion [MW]: 255.27883237533857
+        Ti0 [keV]: 17.32844445348751
+        Te0 [keV]: 17.96992884990287
+   ne0 [10²⁰ m⁻³]: 0.8922986761713204
 
 
 
 
-Calls: 133    Time: 0:00:02
-            error: 0.09850475431514488
-     Pfusion [MW]: 257.02516093311993
-        Ti0 [keV]: 17.466795092657254
-        Te0 [keV]: 18.070459544305244
-   ne0 [10²⁰ m⁻³]: 0.8917650809384537
+Calls: 131    Time: 0:00:02
+            error: 0.10107172863093612
+     Pfusion [MW]: 256.09298675012906
+        Ti0 [keV]: 17.41873771799123
+        Te0 [keV]: 18.04261464438819
+   ne0 [10²⁰ m⁻³]: 0.8918174837762257
 
 
 
 
-Calls: 139    Time: 0:00:02
-            error: 0.0959341625807738
-     Pfusion [MW]: 258.64687621286197
-        Ti0 [keV]: 17.55454460057699
-        Te0 [keV]: 18.13387699032968
-   ne0 [10²⁰ m⁻³]: 0.8915850733634936
+Calls: 138    Time: 0:00:02
+            error: 0.09685002871538556
+     Pfusion [MW]: 258.6492569413249
+        Ti0 [keV]: 17.55645559749555
+        Te0 [keV]: 18.130456700328313
+   ne0 [10²⁰ m⁻³]: 0.8915073829813069
 
 
 
 
-Calls: 145    Time: 0:00:02
-            error: 0.08784462962477702
-     Pfusion [MW]: 262.8864571471009
-        Ti0 [keV]: 17.685161768675982
-        Te0 [keV]: 18.28562438078391
-   ne0 [10²⁰ m⁻³]: 0.8931017454988324
+Calls: 144    Time: 0:00:02
+            error: 0.08836806156229679
+     Pfusion [MW]: 262.30388231913435
+        Ti0 [keV]: 17.665218168285175
+        Te0 [keV]: 18.25047921706709
+   ne0 [10²⁰ m⁻³]: 0.8927634579399787
 
 
 
 
-Calls: 151    Time: 0:00:02
-            error: 0.08952335571801409
-     Pfusion [MW]: 263.11120609219506
-        Ti0 [keV]: 17.69490017030624
-        Te0 [keV]: 18.336742069816854
-   ne0 [10²⁰ m⁻³]: 0.89360695345764
+Calls: 150    Time: 0:00:02
+            error: 0.09039400385893559
+     Pfusion [MW]: 263.2882391504438
+        Ti0 [keV]: 17.701854072191534
+        Te0 [keV]: 18.34632322184023
+   ne0 [10²⁰ m⁻³]: 0.8936495374381362
 
 
 
 
-Calls: 157    Time: 0:00:02
-            error: 0.08885641874586041
-     Pfusion [MW]: 263.30840041329213
-        Ti0 [keV]: 17.69987359003485
-        Te0 [keV]: 18.34332498561557
-   ne0 [10²⁰ m⁻³]: 0.8936737266186825
+Calls: 156    Time: 0:00:02
+            error: 0.09090969183458285
+     Pfusion [MW]: 263.2489875378083
+        Ti0 [keV]: 17.701348528162377
+        Te0 [keV]: 18.367595070333
+   ne0 [10²⁰ m⁻³]: 0.8937806429775383
 
 
 
 
-Calls: 164    Time: 0:00:02
-            error: 0.08861940378705845
-     Pfusion [MW]: 262.8706585454628
-        Ti0 [keV]: 17.686411574747314
-        Te0 [keV]: 18.3367175788205
-   ne0 [10²⁰ m⁻³]: 0.8932484399005575
+Calls: 162    Time: 0:00:02
+            error: 0.08835998798912685
+     Pfusion [MW]: 263.05963172207623
+        Ti0 [keV]: 17.694326432807692
+        Te0 [keV]: 18.3329879916139
+   ne0 [10²⁰ m⁻³]: 0.8934081228613925
 
 
 
 
-Calls: 171    Time: 0:00:03
-            error: 0.09002984327650966
-     Pfusion [MW]: 262.816400973987
-        Ti0 [keV]: 17.68337534901696
-        Te0 [keV]: 18.325628619227405
-   ne0 [10²⁰ m⁻³]: 0.8929971556906622
+Calls: 169    Time: 0:00:03
+            error: 0.08889311954883213
+     Pfusion [MW]: 262.87106858796164
+        Ti0 [keV]: 17.68620026104216
+        Te0 [keV]: 18.329404244349927
+   ne0 [10²⁰ m⁻³]: 0.8930333762222428
 
 
 
 
-Calls: 178    Time: 0:00:03
-            error: 0.08725148356931867
-     Pfusion [MW]: 262.8281076971142
-        Ti0 [keV]: 17.674758184482382
-        Te0 [keV]: 18.302270813592525
-   ne0 [10²⁰ m⁻³]: 0.893067058635034
+Calls: 176    Time: 0:00:03
+            error: 0.08824159417750291
+     Pfusion [MW]: 262.6590000033991
+        Ti0 [keV]: 17.673679398777505
+        Te0 [keV]: 18.318697240646202
+   ne0 [10²⁰ m⁻³]: 0.8930620815445997
 
 
 
 
-Calls: 184    Time: 0:00:03
-            error: 0.0913969707014396
-     Pfusion [MW]: 263.2597208327345
-        Ti0 [keV]: 17.700513953130237
-        Te0 [keV]: 18.384394344488715
-   ne0 [10²⁰ m⁻³]: 0.8934948154889347
+Calls: 182    Time: 0:00:03
+            error: 0.08716738725995478
+     Pfusion [MW]: 262.8304242807968
+        Ti0 [keV]: 17.679923062871406
+        Te0 [keV]: 18.330503679516326
+   ne0 [10²⁰ m⁻³]: 0.8932342427814499
 
 
 
 
-Calls: 190    Time: 0:00:03
-            error: 0.08384574345760493
-     Pfusion [MW]: 262.6036453757422
-        Ti0 [keV]: 17.673127765625047
-        Te0 [keV]: 18.302996648976443
-   ne0 [10²⁰ m⁻³]: 0.8929789883403437
+Calls: 188    Time: 0:00:03
+            error: 0.0871336637996745
+     Pfusion [MW]: 262.6725344962375
+        Ti0 [keV]: 17.67516942238723
+        Te0 [keV]: 18.319698283856347
+   ne0 [10²⁰ m⁻³]: 0.8931101915783993
 
 
 
 
-Calls: 200    Time: 0:00:03
-            error: 0.08852873491253421
-     Pfusion [MW]: 260.14459026182305
-        Ti0 [keV]: 17.61018079664285
-        Te0 [keV]: 18.2858977419758
-   ne0 [10²⁰ m⁻³]: 0.8930241260202261
+Calls: 194    Time: 0:00:03
+            error: 0.09777942442894201
+     Pfusion [MW]: 262.79700774248806
+        Ti0 [keV]: 17.706149762113263
+        Te0 [keV]: 18.433809417909536
+   ne0 [10²⁰ m⁻³]: 0.8935703301405863
 
 
 
 
-Calls: 208    Time: 0:00:03
-            error: 0.08791566093082746
-     Pfusion [MW]: 261.16889641438866
-        Ti0 [keV]: 17.644123636002398
-        Te0 [keV]: 18.32466531645447
-   ne0 [10²⁰ m⁻³]: 0.8933422398558553
+Calls: 199    Time: 0:00:03
+            error: 0.08746151629938961
+     Pfusion [MW]: 260.70000397928374
+        Ti0 [keV]: 17.630347439487856
+        Te0 [keV]: 18.30965886466688
+   ne0 [10²⁰ m⁻³]: 0.893183543561625
 
 
 
 
-Calls: 214    Time: 0:00:03
-            error: 0.08776600505885974
-     Pfusion [MW]: 260.13005570851954
-        Ti0 [keV]: 17.60741631082258
-        Te0 [keV]: 18.292788107803982
-   ne0 [10²⁰ m⁻³]: 0.893364721894339
+Calls: 206    Time: 0:00:03
+            error: 0.09037611980211933
+     Pfusion [MW]: 262.21167763975126
+        Ti0 [keV]: 17.678317989898215
+        Te0 [keV]: 18.36286929563492
+   ne0 [10²⁰ m⁻³]: 0.8933515389462625
 
 
 
 
-Calls: 220    Time: 0:00:03
-            error: 0.08461266273033335
-     Pfusion [MW]: 262.0281510127189
-        Ti0 [keV]: 17.670568344168768
-        Te0 [keV]: 18.341648053184684
-   ne0 [10²⁰ m⁻³]: 0.8934016725016709
+Calls: 213    Time: 0:00:03
+            error: 0.0891170908145463
+     Pfusion [MW]: 262.06983351725074
+        Ti0 [keV]: 17.665916699763187
+        Te0 [keV]: 18.346945986277476
+   ne0 [10²⁰ m⁻³]: 0.8936216285464051
 
 
 
 
-Calls: 226    Time: 0:00:03
-            error: 0.08731644655461589
-     Pfusion [MW]: 257.8844574266819
-        Ti0 [keV]: 17.545165218219495
-        Te0 [keV]: 18.254537290774536
-   ne0 [10²⁰ m⁻³]: 0.8931877405354102
+Calls: 219    Time: 0:00:03
+            error: 0.08611957156346235
+     Pfusion [MW]: 260.3648833365778
+        Ti0 [keV]: 17.619291900461793
+        Te0 [keV]: 18.304006669497735
+   ne0 [10²⁰ m⁻³]: 0.8932855133407722
+
+
+
+
+Calls: 225    Time: 0:00:04
+            error: 0.08785714678912727
+     Pfusion [MW]: 258.0596743734418
+        Ti0 [keV]: 17.550469581724837
+        Te0 [keV]: 18.258553926071645
+   ne0 [10²⁰ m⁻³]: 0.8931700702354344
+
+
+
+
+Calls: 231    Time: 0:00:04
+            error: 0.08498814108510794
+     Pfusion [MW]: 262.61222955084367
+        Ti0 [keV]: 17.686010770547128
+        Te0 [keV]: 18.35578488558745
+   ne0 [10²⁰ m⁻³]: 0.8934502051401216
 
 
 
@@ -2806,237 +2996,247 @@ actors:   FluxMatcher
 
 
 
-Calls: 244    Time: 0:00:04
-            error: 0.08709864791381836
-     Pfusion [MW]: 259.2263527516231
-        Ti0 [keV]: 17.591157759566414
-        Te0 [keV]: 18.29632527730789
-   ne0 [10²⁰ m⁻³]: 0.8933029710846899
+Calls: 243    Time: 0:00:04
+            error: 0.0899078328857243
+     Pfusion [MW]: 259.10899091949614
+        Ti0 [keV]: 17.590614730326667
+        Te0 [keV]: 18.311084487242113
+   ne0 [10²⁰ m⁻³]: 0.893544163116446
 
 
 
 
-Calls: 251    Time: 0:00:04
-            error: 0.08301196778237034
-     Pfusion [MW]: 261.88194373677953
-        Ti0 [keV]: 17.665844523730243
-        Te0 [keV]: 18.32339319696345
-   ne0 [10²⁰ m⁻³]: 0.8930667501036132
+Calls: 250    Time: 0:00:04
+            error: 0.08376404673458761
+     Pfusion [MW]: 262.41673350692673
+        Ti0 [keV]: 17.68451184871923
+        Te0 [keV]: 18.344619819253293
+   ne0 [10²⁰ m⁻³]: 0.8931537403657319
 
 
 
 
-Calls: 257    Time: 0:00:04
-            error: 0.08551341820900735
-     Pfusion [MW]: 261.6182958492488
-        Ti0 [keV]: 17.662668778419217
-        Te0 [keV]: 18.34090818387176
-   ne0 [10²⁰ m⁻³]: 0.8932880977129006
+Calls: 256    Time: 0:00:04
+            error: 0.08526400650471098
+     Pfusion [MW]: 261.5848886524242
+        Ti0 [keV]: 17.66186495676206
+        Te0 [keV]: 18.337047148435385
+   ne0 [10²⁰ m⁻³]: 0.893200417052956
 
 
 
 
-Calls: 263    Time: 0:00:04
-            error: 0.09374641817668435
-     Pfusion [MW]: 259.2330670087049
-        Ti0 [keV]: 17.604471421749118
-        Te0 [keV]: 18.3255203365455
-   ne0 [10²⁰ m⁻³]: 0.8933665837016107
+Calls: 262    Time: 0:00:04
+            error: 0.08954276533387465
+     Pfusion [MW]: 260.7104819147096
+        Ti0 [keV]: 17.64630140547725
+        Te0 [keV]: 18.347041874804308
+   ne0 [10²⁰ m⁻³]: 0.893407405982919
 
 
 
 
-Calls: 270    Time: 0:00:04
-            error: 0.09384041835064363
-     Pfusion [MW]: 260.99687394261804
-        Ti0 [keV]: 17.65993931056647
-        Te0 [keV]: 18.362589459216593
-   ne0 [10²⁰ m⁻³]: 0.8934697174561138
+Calls: 268    Time: 0:00:04
+            error: 0.0941540604457539
+     Pfusion [MW]: 262.8964178752965
+        Ti0 [keV]: 17.713893803905595
+        Te0 [keV]: 18.416370977470514
+   ne0 [10²⁰ m⁻³]: 0.8936776321594849
 
 
 
 
-Calls: 277    Time: 0:00:04
-            error: 0.09014721414182121
-     Pfusion [MW]: 260.4829139935258
-        Ti0 [keV]: 17.629934148557346
-        Te0 [keV]: 18.316806778350927
-   ne0 [10²⁰ m⁻³]: 0.8929316216910251
+Calls: 275    Time: 0:00:04
+            error: 0.08861802019729925
+     Pfusion [MW]: 262.4797064252545
+        Ti0 [keV]: 17.69400105806751
+        Te0 [keV]: 18.359131053291545
+   ne0 [10²⁰ m⁻³]: 0.8931135663666873
 
 
 
 
-Calls: 284    Time: 0:00:05
-            error: 0.08663618560907185
-     Pfusion [MW]: 261.3476614466408
-        Ti0 [keV]: 17.652208817986025
-        Te0 [keV]: 18.33628938541136
-   ne0 [10²⁰ m⁻³]: 0.893452799505903
+Calls: 282    Time: 0:00:05
+            error: 0.09062535371903585
+     Pfusion [MW]: 261.1343735035174
+        Ti0 [keV]: 17.648128082581344
+        Te0 [keV]: 18.341430309581188
+   ne0 [10²⁰ m⁻³]: 0.8935429996416252
 
 
 
 
-Calls: 290    Time: 0:00:05
-            error: 0.0902353738053086
-     Pfusion [MW]: 259.35365281942194
-        Ti0 [keV]: 17.595114317202984
-        Te0 [keV]: 18.30709160935841
-   ne0 [10²⁰ m⁻³]: 0.8934486429510369
+Calls: 289    Time: 0:00:05
+            error: 0.0883268768923075
+     Pfusion [MW]: 260.6063606371404
+        Ti0 [keV]: 17.63005410196993
+        Te0 [keV]: 18.328276716493853
+   ne0 [10²⁰ m⁻³]: 0.8935340501458571
 
 
 
 
-Calls: 296    Time: 0:00:05
-            error: 0.08846959169578959
-     Pfusion [MW]: 262.38647349292563
-        Ti0 [keV]: 17.677328632329527
-        Te0 [keV]: 18.37167079314853
-   ne0 [10²⁰ m⁻³]: 0.8938976462384477
+Calls: 295    Time: 0:00:05
+            error: 0.08671878612323664
+     Pfusion [MW]: 261.8355265340281
+        Ti0 [keV]: 17.66621461613932
+        Te0 [keV]: 18.351532632005398
+   ne0 [10²⁰ m⁻³]: 0.8936404652584454
 
 
 
 
-Calls: 302    Time: 0:00:05
-            error: 0.08577642363229317
-     Pfusion [MW]: 261.9580847941293
-        Ti0 [keV]: 17.686525436731145
-        Te0 [keV]: 18.346318169530065
-   ne0 [10²⁰ m⁻³]: 0.8929710084989881
+Calls: 301    Time: 0:00:05
+            error: 0.08871915109242101
+     Pfusion [MW]: 260.6745790158961
+        Ti0 [keV]: 17.647042389692512
+        Te0 [keV]: 18.32536619530436
+   ne0 [10²⁰ m⁻³]: 0.8929526792250859
 
 
 
 
-Calls: 309    Time: 0:00:05
-            error: 0.0848897824058336
-     Pfusion [MW]: 261.968763908551
-        Ti0 [keV]: 17.69215741317185
-        Te0 [keV]: 18.34283362626465
-   ne0 [10²⁰ m⁻³]: 0.8929097724038977
+Calls: 306    Time: 0:00:05
+            error: 0.08991334007963699
+     Pfusion [MW]: 261.23363510951225
+        Ti0 [keV]: 17.662109905495672
+        Te0 [keV]: 18.341172532689615
+   ne0 [10²⁰ m⁻³]: 0.893234492370552
 
 
 
 
-Calls: 316    Time: 0:00:05
-            error: 0.08306334799255856
-     Pfusion [MW]: 260.22215249996844
-        Ti0 [keV]: 17.659412906660155
-        Te0 [keV]: 18.30300089856035
-   ne0 [10²⁰ m⁻³]: 0.8923217059845205
+Calls: 313    Time: 0:00:05
+            error: 0.08055531235341995
+     Pfusion [MW]: 262.2873144059929
+        Ti0 [keV]: 17.720178981784876
+        Te0 [keV]: 18.336906920366697
+   ne0 [10²⁰ m⁻³]: 0.8924262867608248
 
 
 
 
-Calls: 322    Time: 0:00:05
-            error: 0.07951026441419952
-     Pfusion [MW]: 262.63648031951845
-        Ti0 [keV]: 17.788792141285267
-        Te0 [keV]: 18.338203737717812
-   ne0 [10²⁰ m⁻³]: 0.8913672397253055
+Calls: 320    Time: 0:00:05
+            error: 0.08011431155748318
+     Pfusion [MW]: 262.5860318937055
+        Ti0 [keV]: 17.763301361936467
+        Te0 [keV]: 18.328180838478524
+   ne0 [10²⁰ m⁻³]: 0.8916257538499056
 
 
 
 
-Calls: 328    Time: 0:00:05
-            error: 0.07774482323694429
-     Pfusion [MW]: 261.1932593361746
-        Ti0 [keV]: 17.716053787885958
-        Te0 [keV]: 18.307591388267088
-   ne0 [10²⁰ m⁻³]: 0.8921276215881571
+Calls: 326    Time: 0:00:05
+            error: 0.0857549992328366
+     Pfusion [MW]: 258.7328194283263
+        Ti0 [keV]: 17.625937396715003
+        Te0 [keV]: 18.27177373290883
+   ne0 [10²⁰ m⁻³]: 0.8921125959086618
 
 
 
 
-Calls: 334    Time: 0:00:05
-            error: 0.07225586635176616
-     Pfusion [MW]: 265.0819814438233
-        Ti0 [keV]: 17.869067203517478
-        Te0 [keV]: 18.370700314787662
-   ne0 [10²⁰ m⁻³]: 0.8918720419346845
+Calls: 332    Time: 0:00:06
+            error: 0.07193723168686175
+     Pfusion [MW]: 264.83774651165083
+        Ti0 [keV]: 17.858369873346437
+        Te0 [keV]: 18.36290753586252
+   ne0 [10²⁰ m⁻³]: 0.8917935209911727
 
 
 
 
-Calls: 341    Time: 0:00:06
-            error: 0.07271901538692746
-     Pfusion [MW]: 262.3268348211802
-        Ti0 [keV]: 17.762020949688036
-        Te0 [keV]: 18.32778826375103
-   ne0 [10²⁰ m⁻³]: 0.8922184341801366
+Calls: 338    Time: 0:00:06
+            error: 0.06954376185891484
+     Pfusion [MW]: 263.84307932068896
+        Ti0 [keV]: 17.82363584111631
+        Te0 [keV]: 18.34820745620487
+   ne0 [10²⁰ m⁻³]: 0.8920110213929955
 
 
 
 
-Calls: 348    Time: 0:00:06
-            error: 0.06997557972895904
-     Pfusion [MW]: 263.13117148897646
-        Ti0 [keV]: 17.802475503789072
-        Te0 [keV]: 18.33900506854256
-   ne0 [10²⁰ m⁻³]: 0.8919196648495751
+Calls: 343    Time: 0:00:06
+            error: 0.07218168472057758
+     Pfusion [MW]: 262.6344534911609
+        Ti0 [keV]: 17.773519651240765
+        Te0 [keV]: 18.33306621234341
+   ne0 [10²⁰ m⁻³]: 0.8922314706215366
 
 
 
 
-Calls: 355    Time: 0:00:06
-            error: 0.06819678445099205
-     Pfusion [MW]: 263.85228991653025
-        Ti0 [keV]: 17.85595671857371
-        Te0 [keV]: 18.364397695382912
-   ne0 [10²⁰ m⁻³]: 0.8917841668360882
+Calls: 350    Time: 0:00:06
+            error: 0.0686069412176062
+     Pfusion [MW]: 263.77114085509123
+        Ti0 [keV]: 17.84105433928214
+        Te0 [keV]: 18.353578591015566
+   ne0 [10²⁰ m⁻³]: 0.8917557248840731
 
 
 
 
-Calls: 361    Time: 0:00:06
-            error: 0.0684873334533829
-     Pfusion [MW]: 265.593975767028
-        Ti0 [keV]: 17.92158334844304
-        Te0 [keV]: 18.390853793929413
-   ne0 [10²⁰ m⁻³]: 0.8917137224740525
+Calls: 356    Time: 0:00:06
+            error: 0.06815872388298515
+     Pfusion [MW]: 264.14040222068496
+        Ti0 [keV]: 17.870903113770705
+        Te0 [keV]: 18.37091808943141
+   ne0 [10²⁰ m⁻³]: 0.8917957614394234
 
 
 
 
-Calls: 367    Time: 0:00:06
-            error: 0.06812017822067404
-     Pfusion [MW]: 265.3053673019819
-        Ti0 [keV]: 17.925840282110233
-        Te0 [keV]: 18.405794249456527
-   ne0 [10²⁰ m⁻³]: 0.8919682341645182
+Calls: 362    Time: 0:00:06
+            error: 0.0686430228421338
+     Pfusion [MW]: 264.5465495476294
+        Ti0 [keV]: 17.891378942894537
+        Te0 [keV]: 18.389220865808394
+   ne0 [10²⁰ m⁻³]: 0.8919647419755691
 
 
 
 
-Calls: 373    Time: 0:00:06
-            error: 0.06767692732829005
-     Pfusion [MW]: 264.8841868603231
-        Ti0 [keV]: 17.909043516382457
-        Te0 [keV]: 18.396199465199835
-   ne0 [10²⁰ m⁻³]: 0.8917522403158142
+Calls: 368    Time: 0:00:06
+            error: 0.06785250562249935
+     Pfusion [MW]: 265.17299093083375
+        Ti0 [keV]: 17.91971953864593
+        Te0 [keV]: 18.401263785885316
+   ne0 [10²⁰ m⁻³]: 0.8919376161103192
 
 
 
 
-Calls: 380    Time: 0:00:06
-            error: 0.06627672792604619
-     Pfusion [MW]: 265.8080210409878
-        Ti0 [keV]: 17.94996289869273
-        Te0 [keV]: 18.413090230839025
-   ne0 [10²⁰ m⁻³]: 0.8916546122918713
+Calls: 374    Time: 0:00:06
+            error: 0.06743409809124061
+     Pfusion [MW]: 264.88048602259954
+        Ti0 [keV]: 17.910553085467956
+        Te0 [keV]: 18.39733484393092
+   ne0 [10²⁰ m⁻³]: 0.8917413601941794
 
 
 
 
-Calls: 387    Time: 0:00:06
-            error: 0.06798554785986043
-     Pfusion [MW]: 263.43879602637736
-        Ti0 [keV]: 17.846087077360746
-        Te0 [keV]: 18.370978877777684
-   ne0 [10²⁰ m⁻³]: 0.8918254486747363
+Calls: 379    Time: 0:00:06
+            error: 0.06707129133685297
+     Pfusion [MW]: 265.9565299576242
+        Ti0 [keV]: 17.95677842195064
+        Te0 [keV]: 18.416267137308626
+   ne0 [10²⁰ m⁻³]: 0.8916333798129602
 
 
 
 
-Calls: 393    Time: 0:00:06
+Calls: 386    Time: 0:00:07
+            error: 0.06973089278830491
+     Pfusion [MW]: 262.3736446617557
+        Ti0 [keV]: 17.80056501573596
+        Te0 [keV]: 18.351829740639836
+   ne0 [10²⁰ m⁻³]: 0.891944315512192
+
+
+
+
+Calls: 393    Time: 0:00:07
             error: 0.06605731946887797
      Pfusion [MW]: 265.53073522753414
         Ti0 [keV]: 17.937005396183835
@@ -3046,22 +3246,22 @@ actors:   FluxMatcher
 
 
 
-Calls: 399    Time: 0:00:07
-            error: 0.06727810702209737
-     Pfusion [MW]: 263.91622657985954
-        Ti0 [keV]: 17.87200601843357
-        Te0 [keV]: 18.385407303365497
-   ne0 [10²⁰ m⁻³]: 0.8916591249030745
+Calls: 400    Time: 0:00:07
+            error: 0.06698077323376972
+     Pfusion [MW]: 264.14737803696306
+        Ti0 [keV]: 17.88079582800606
+        Te0 [keV]: 18.387167932235933
+   ne0 [10²⁰ m⁻³]: 0.8915631413592467
 
 
 
 
-Calls: 405    Time: 0:00:07
-            error: 0.06662069231213105
-     Pfusion [MW]: 264.96914931939324
-        Ti0 [keV]: 17.922003692744948
-        Te0 [keV]: 18.407660397361624
-   ne0 [10²⁰ m⁻³]: 0.8914931311489027
+Calls: 406    Time: 0:00:07
+            error: 0.06646107133140546
+     Pfusion [MW]: 264.1570106021305
+        Ti0 [keV]: 17.88020911773349
+        Te0 [keV]: 18.38902296827479
+   ne0 [10²⁰ m⁻³]: 0.8917163412137883
 
 
 
@@ -3096,107 +3296,127 @@ actors:   FluxMatcher
 
 
 
-Calls: 432    Time: 0:00:07
-            error: 0.06640528579381397
-     Pfusion [MW]: 266.77001632333634
-        Ti0 [keV]: 17.988621346402514
-        Te0 [keV]: 18.435185815383825
-   ne0 [10²⁰ m⁻³]: 0.8915519005402334
+Calls: 433    Time: 0:00:07
+            error: 0.06615765288165978
+     Pfusion [MW]: 266.97868875760963
+        Ti0 [keV]: 17.99734078555271
+        Te0 [keV]: 18.440475208126763
+   ne0 [10²⁰ m⁻³]: 0.8915083669873759
 
 
 
 
-Calls: 438    Time: 0:00:07
-            error: 0.06666679456855784
-     Pfusion [MW]: 265.67268550905084
-        Ti0 [keV]: 17.944386127408293
-        Te0 [keV]: 18.42131829095736
-   ne0 [10²⁰ m⁻³]: 0.8915355140001897
+Calls: 439    Time: 0:00:07
+            error: 0.06640463139318917
+     Pfusion [MW]: 266.0619850471085
+        Ti0 [keV]: 17.961414252491945
+        Te0 [keV]: 18.42860506971465
+   ne0 [10²⁰ m⁻³]: 0.8914754713883868
 
 
 
 
-Calls: 453    Time: 0:00:08
-            error: 0.06718255067132126
-     Pfusion [MW]: 264.8821892582366
-        Ti0 [keV]: 17.914495355780968
-        Te0 [keV]: 18.415784040921483
-   ne0 [10²⁰ m⁻³]: 0.8915883612254629
+Calls: 445    Time: 0:00:08
+            error: 0.06767090388524552
+     Pfusion [MW]: 264.20325574242923
+        Ti0 [keV]: 17.883293582792597
+        Te0 [keV]: 18.399993055741092
+   ne0 [10²⁰ m⁻³]: 0.8917721264157948
 
 
 
 
-Calls: 461    Time: 0:00:08
-            error: 0.06548179343144377
-     Pfusion [MW]: 266.79964522767864
-        Ti0 [keV]: 17.99091810598078
-        Te0 [keV]: 18.439790002077437
-   ne0 [10²⁰ m⁻³]: 0.8914090391123326
+Calls: 449    Time: 0:00:08
+            error: 0.06638111675447092
+     Pfusion [MW]: 266.227276720957
+        Ti0 [keV]: 17.969197336012297
+        Te0 [keV]: 18.434816215590807
+   ne0 [10²⁰ m⁻³]: 0.8914659175976608
 
 
 
 
-Calls: 467    Time: 0:00:08
-            error: 0.06566880299697164
-     Pfusion [MW]: 267.00616916465793
-        Ti0 [keV]: 17.998975451211344
-        Te0 [keV]: 18.439760846571865
-   ne0 [10²⁰ m⁻³]: 0.8913580041866322
+Calls: 456    Time: 0:00:08
+            error: 0.06730346586844461
+     Pfusion [MW]: 265.947786106054
+        Ti0 [keV]: 17.959296254858923
+        Te0 [keV]: 18.432135195238978
+   ne0 [10²⁰ m⁻³]: 0.8914192539724631
 
 
 
 
-Calls: 473    Time: 0:00:08
-            error: 0.07341043066255831
-     Pfusion [MW]: 261.494629263593
-        Ti0 [keV]: 17.774604067321476
-        Te0 [keV]: 18.357004942087407
-   ne0 [10²⁰ m⁻³]: 0.8918622421475075
+Calls: 463    Time: 0:00:08
+            error: 0.06627297399019696
+     Pfusion [MW]: 265.27008982770207
+        Ti0 [keV]: 17.925959547620376
+        Te0 [keV]: 18.413644659569396
+   ne0 [10²⁰ m⁻³]: 0.8915288107009576
 
 
 
 
-Calls: 479    Time: 0:00:08
-            error: 0.06763024356160754
-     Pfusion [MW]: 264.86817939113683
-        Ti0 [keV]: 17.912663443932658
-        Te0 [keV]: 18.410652404658887
-   ne0 [10²⁰ m⁻³]: 0.8914760236641112
+Calls: 469    Time: 0:00:08
+            error: 0.06556503648091731
+     Pfusion [MW]: 266.3101882352765
+        Ti0 [keV]: 17.97363251695011
+        Te0 [keV]: 18.43026074267261
+   ne0 [10²⁰ m⁻³]: 0.8914092295854853
 
 
 
 
-Calls: 486    Time: 0:00:08
-            error: 0.06650140424516528
-     Pfusion [MW]: 266.24946201970846
-        Ti0 [keV]: 17.971884615924324
-        Te0 [keV]: 18.430595238882322
-   ne0 [10²⁰ m⁻³]: 0.8914375201214197
+Calls: 475    Time: 0:00:08
+            error: 0.07882724005457219
+     Pfusion [MW]: 259.70954967318966
+        Ti0 [keV]: 17.699109500684422
+        Te0 [keV]: 18.32858503005558
+   ne0 [10²⁰ m⁻³]: 0.8920907714039225
 
 
 
 
-Calls: 493    Time: 0:00:08
-            error: 0.06561949229186935
-     Pfusion [MW]: 264.78581914059765
-        Ti0 [keV]: 17.913487162777837
-        Te0 [keV]: 18.404329482517774
-   ne0 [10²⁰ m⁻³]: 0.8914400641919884
+Calls: 481    Time: 0:00:08
+            error: 0.06627951512775529
+     Pfusion [MW]: 265.8174403900009
+        Ti0 [keV]: 17.954185700909232
+        Te0 [keV]: 18.42656673697132
+   ne0 [10²⁰ m⁻³]: 0.8914202670913116
 
 
 
 
-Calls: 499    Time: 0:00:08
-            error: 0.06549263249887899
-     Pfusion [MW]: 264.9746532887197
-        Ti0 [keV]: 17.92013358660374
-        Te0 [keV]: 18.406591531729017
-   ne0 [10²⁰ m⁻³]: 0.8913892422943601
+Calls: 485    Time: 0:00:08
+            error: 0.06646231540675797
+     Pfusion [MW]: 266.0215674419673
+        Ti0 [keV]: 17.961677096887907
+        Te0 [keV]: 18.424497814701137
+   ne0 [10²⁰ m⁻³]: 0.8914352718741717
 
 
 
 
-Calls: 502    Time: 0:00:08
+Calls: 492    Time: 0:00:08
+            error: 0.0663981085594877
+     Pfusion [MW]: 264.24345009269956
+        Ti0 [keV]: 17.889977929952323
+        Te0 [keV]: 18.39716994532791
+   ne0 [10²⁰ m⁻³]: 0.8915773923550764
+
+
+
+
+Calls: 498    Time: 0:00:09
+            error: 0.06540663017464658
+     Pfusion [MW]: 265.02199110574566
+        Ti0 [keV]: 17.927276349615802
+        Te0 [keV]: 18.40670202774716
+   ne0 [10²⁰ m⁻³]: 0.8912685256712926
+
+
+
+
+Calls: 502    Time: 0:00:09
             error: 1.9793026275159227
      Pfusion [MW]: 249.77028818878435
         Ti0 [keV]: 18.78599559882655
@@ -3208,11 +3428,11 @@ actors:  Equilibrium
 actors:   TEQUILA
 actors:  --------------- 5/5 @ 288.36%
 ┌ Warning: Max number of iterations (5) has been reached with convergence error of (1)[0.335, 0.376, 0.195, 0.168, 0.144](5) compared to threshold of 0.05
-└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:206</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-b15c65d5.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-776eff88.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-8f14484f.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-d5562c68.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
+└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:206</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-f6f87dca.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-ed57bfdd.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-edccd58d.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language- hljs">plot(dd.core_transport)</code></pre><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorHFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-42082d28.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-681e3cad.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-773d1f77.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-ae0c829a.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorLFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-d70a5524.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-a1037cc0.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame
  Row │ group   details                            type      ΔR          R_start   R_end     material      area        volume     shape
      │<span class="sgr90"> String  String                             String    Float64     Float64   Float64   String        Float64     Float64    String
 ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -3239,9 +3459,9 @@ plot!(dd.build; cx=false)</code></pre><img src="tutorial-d70a5524.svg" alt="Exam
   21 │ lfs                                        tf        1.68065     11.3179   12.9986   nb3sn_kdemo    43.1067     893.261   convex hull
   22 │ out                                                  1.96603      0.0      14.9646   vacuum        164.962     8444.86
   23 │ out                                        cryostat  0.0983016    0.0      15.0629   steel           4.88694    311.924   silo</span></span></code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
-plot(dd.build)</code></pre><img src="tutorial-3a68c2cb.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
-plot(dd.pf_passive)</code></pre><img src="tutorial-387158ed.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
-plot(actor) # some actors define their own plot</code></pre><img src="tutorial-2a49e650.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
+plot(dd.build)</code></pre><img src="tutorial-8cb9c03f.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
+plot(dd.pf_passive)</code></pre><img src="tutorial-d278cc81.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
+plot(actor) # some actors define their own plot</code></pre><img src="tutorial-708fb177.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
 IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">mhd_linear [DETACHED]</span>
 ├─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
 └─ <span class="sgr1">time_slice</span>
@@ -3264,7 +3484,7 @@ IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><c
 p = plot(; layout=2, size=(900, 350))
 plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
 plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
-plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-d89ccad0.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
+plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-38e73416.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
 print_tree(IMAS.freeze(dd.blanket); maxdepth=5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Blanket
 blanket [DETACHED]
 ├─ module
@@ -3388,7 +3608,7 @@ IMAS.freeze(dd.balance_of_plant)</code></pre><pre class="documenter-example-outp
 ├─ thermal_efficiency_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.227156]</span>
 └─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
 </code></pre><p><code>ActorCosting</code> will break down the capital and operational costs</p><pre><code class="language-julia hljs">FUSE.ActorCosting(dd, act)
-plot(dd.costing)</code></pre><img src="tutorial-e108ae0e.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
+plot(dd.costing)</code></pre><img src="tutorial-b951d261.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
 actors:  PFdesign
 actors:  StationaryPlasma
 actors:   --------------- 1/5
@@ -3635,11 +3855,11 @@ filename = joinpath(tutorial_temp_dir, &quot;$(ini.general.casename).json&quot;)
 ├─ triangularity_upper ➡ Function
 ├─ twist ➡ 0.00165424
 └─ x_point
-   ⋮</code></pre><h2 id="Plotting-data-from-dd"><a class="docs-heading-anchor" href="#Plotting-data-from-dd">Plotting data from <code>dd</code></a><a id="Plotting-data-from-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-data-from-dd" title="Permalink"></a></h2><p>FUSE uses <code>Plots.jl</code> recipes for visualizing data from <code>dd</code>.</p><p>This allows different plots to be shown when calling <code>plot()</code> on different items in the data structure.</p><p>Learn more about Plots.jl <a href="https://docs.juliaplots.org">here</a></p><p>For example plotting the equilibrium...</p><pre><code class="language-julia hljs">plot(dd.equilibrium)</code></pre><img src="tutorial-4ac2edaf.svg" alt="Example block output"/><p>...or the core profiles</p><pre><code class="language-julia hljs">plot(dd.core_profiles)</code></pre><img src="tutorial-f6092b64.svg" alt="Example block output"/><p>Whant to know what arguments can be passed? use <code>help_plot()</code> function</p><pre><code class="language-julia hljs">help_plot(dd.equilibrium; core_profiles_overlay=true, levels_in=21, levels_out=5, show_secondary_separatrix=true, coordinate=:rho_tor_norm)</code></pre><img src="tutorial-f975a162.svg" alt="Example block output"/><p>These plots can be composed by calling <code>plot!()</code> instead of <code>plot()</code></p><pre><code class="language-julia hljs">plot(dd.equilibrium; color=:gray, cx=true)
+   ⋮</code></pre><h2 id="Plotting-data-from-dd"><a class="docs-heading-anchor" href="#Plotting-data-from-dd">Plotting data from <code>dd</code></a><a id="Plotting-data-from-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting-data-from-dd" title="Permalink"></a></h2><p>FUSE uses <code>Plots.jl</code> recipes for visualizing data from <code>dd</code>.</p><p>This allows different plots to be shown when calling <code>plot()</code> on different items in the data structure.</p><p>Learn more about Plots.jl <a href="https://docs.juliaplots.org">here</a></p><p>For example plotting the equilibrium...</p><pre><code class="language-julia hljs">plot(dd.equilibrium)</code></pre><img src="tutorial-00d0e4db.svg" alt="Example block output"/><p>...or the core profiles</p><pre><code class="language-julia hljs">plot(dd.core_profiles)</code></pre><img src="tutorial-85f94e5a.svg" alt="Example block output"/><p>Whant to know what arguments can be passed? use <code>help_plot()</code> function</p><pre><code class="language-julia hljs">help_plot(dd.equilibrium; core_profiles_overlay=true, levels_in=21, levels_out=5, show_secondary_separatrix=true, coordinate=:rho_tor_norm)</code></pre><img src="tutorial-e4b57b9c.svg" alt="Example block output"/><p>These plots can be composed by calling <code>plot!()</code> instead of <code>plot()</code></p><pre><code class="language-julia hljs">plot(dd.equilibrium; color=:gray, cx=true)
 plot!(dd.build.layer)
 plot!(dd.pf_active)
 plot!(dd.pf_passive)
-plot!(dd.pulse_schedule.position_control; color=:red)</code></pre><img src="tutorial-aa70bd53.svg" alt="Example block output"/><p>Plotting an array...</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1].pressure_thermal)</code></pre><img src="tutorial-c6a152d1.svg" alt="Example block output"/><p>...is different from plotting a field from the IDS (which plots the quantity against its coordinate and with units)</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)</code></pre><img src="tutorial-95aa0afa.svg" alt="Example block output"/><p>Customizing plot attributes:</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label=&quot;&quot;, linewidth=2, color=:red, labelfontsize=25)</code></pre><img src="tutorial-a662c3fd.svg" alt="Example block output"/><p>Use <code>findall(ids, r&quot;...&quot;)</code> to search for certain fields. In Julia, string starting with <code>r</code> are regular expressions.</p><pre><code class="language-julia hljs">findall(dd, r&quot;\.psi&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[1] <span class="sgr31">dd</span>.core_profiles.profiles_1d[1].grid.<span class="sgr32"><span class="sgr1">psi_norm</span></span> [101-element Vector{Float64}] (<span class="sgr34">min:</span>0, <span class="sgr34">avg:</span>0.508, <span class="sgr34">max:</span>1)
+plot!(dd.pulse_schedule.position_control; color=:red)</code></pre><img src="tutorial-6fe799e4.svg" alt="Example block output"/><p>Plotting an array...</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1].pressure_thermal)</code></pre><img src="tutorial-3d429089.svg" alt="Example block output"/><p>...is different from plotting a field from the IDS (which plots the quantity against its coordinate and with units)</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal)</code></pre><img src="tutorial-eb6f2777.svg" alt="Example block output"/><p>Customizing plot attributes:</p><pre><code class="language-julia hljs">plot(dd.core_profiles.profiles_1d[1], :pressure_thermal; label=&quot;&quot;, linewidth=2, color=:red, labelfontsize=25)</code></pre><img src="tutorial-52357215.svg" alt="Example block output"/><p>Use <code>findall(ids, r&quot;...&quot;)</code> to search for certain fields. In Julia, string starting with <code>r</code> are regular expressions.</p><pre><code class="language-julia hljs">findall(dd, r&quot;\.psi&quot;)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[1] <span class="sgr31">dd</span>.core_profiles.profiles_1d[1].grid.<span class="sgr32"><span class="sgr1">psi_norm</span></span> [101-element Vector{Float64}] (<span class="sgr34">min:</span>0, <span class="sgr34">avg:</span>0.508, <span class="sgr34">max:</span>1)
 [2] <span class="sgr31">dd</span>.core_profiles.profiles_1d[1].grid.<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [101-element Vector{Float64}] (<span class="sgr34">min:</span>-82, <span class="sgr34">avg:</span>-41, <span class="sgr34">max:</span>-1.23)
 [3] <span class="sgr31">dd</span>.equilibrium.time_slice[1].global_quantities.<span class="sgr32"><span class="sgr1">psi_boundary</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [Float64] (<span class="sgr34">all:</span>-0.76)
 [4] <span class="sgr31">dd</span>.equilibrium.time_slice[1].global_quantities.<span class="sgr32"><span class="sgr1">psi_axis</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [Float64] (<span class="sgr34">all:</span>-68.8)
@@ -3647,7 +3867,7 @@ plot!(dd.pulse_schedule.position_control; color=:red)</code></pre><img src="tuto
 [6] <span class="sgr31">dd</span>.equilibrium.time_slice[1].profiles_1d.<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [129-element Vector{Float64}] (<span class="sgr34">min:</span>-68.8, <span class="sgr34">avg:</span>-34.8, <span class="sgr34">max:</span>-0.76)
 [7] <span class="sgr31">dd</span>.equilibrium.time_slice[1].profiles_2d[1].<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [31×13 Matrix{Float64}] (<span class="sgr34">min:</span>-0.0395, <span class="sgr34">avg:</span>0.641, <span class="sgr34">max:</span>6.67)
 [8] <span class="sgr31">dd</span>.equilibrium.time_slice[1].profiles_2d[2].<span class="sgr32"><span class="sgr1">psi</span></span><span class="sgr1"><span class="sgr34"> [Wb]</span></span> [66×129 Matrix{Float64}] (<span class="sgr34">min:</span>-68.8, <span class="sgr34">avg:</span>17.6, <span class="sgr34">max:</span>166)
-</code></pre><p><code>findall(ids, r&quot;...&quot;)</code> can be combined with <code>plot()</code> to plot multiple fields</p><pre><code class="language-julia hljs">plot(findall(dd, r&quot;\.psi&quot;))</code></pre><img src="tutorial-e1df164f.svg" alt="Example block output"/><h2 id="Working-with-time-series"><a class="docs-heading-anchor" href="#Working-with-time-series">Working with time series</a><a id="Working-with-time-series-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-time-series" title="Permalink"></a></h2><p>The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.</p><p>Each <code>dd</code> has a <code>global_time</code> attribute, which is used throughout FUSE and IMAS to indicate the time at which things should be operate.</p><pre><code class="language-julia hljs">dd.global_time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>For the sake of demonstrating handling of time, let&#39;s add a new time_slice to the equilibrium.</p><p><strong>NOTE:</strong> in addition to the usual <code>resize!(ids, n::Int)</code>, time dependent arrays of structures can be resized with:</p><ul><li><code>resize!(ids)</code> which will add a time-slice at the current global time (this is what you want to use in most cases)</li><li><code>resize!(ids, time0)</code> which will add a time-slice at <code>time0</code> seconds</li></ul><p>resize the time dependent array of structure</p><pre><code class="language-julia hljs">resize!(dd.equilibrium.time_slice, 1.0);</code></pre><p>let&#39;s just populate it with the data from the previous time slice</p><pre><code class="language-julia hljs">dd.equilibrium.time_slice[2] = deepcopy(dd.equilibrium.time_slice[1]);
+</code></pre><p><code>findall(ids, r&quot;...&quot;)</code> can be combined with <code>plot()</code> to plot multiple fields</p><pre><code class="language-julia hljs">plot(findall(dd, r&quot;\.psi&quot;))</code></pre><img src="tutorial-56d6bba2.svg" alt="Example block output"/><h2 id="Working-with-time-series"><a class="docs-heading-anchor" href="#Working-with-time-series">Working with time series</a><a id="Working-with-time-series-1"></a><a class="docs-heading-anchor-permalink" href="#Working-with-time-series" title="Permalink"></a></h2><p>The IMAS data structure supports time-dependent data, and IMAS.jl provides ways to handle time data efficiently.</p><p>Each <code>dd</code> has a <code>global_time</code> attribute, which is used throughout FUSE and IMAS to indicate the time at which things should be operate.</p><pre><code class="language-julia hljs">dd.global_time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">0.0</code></pre><p>For the sake of demonstrating handling of time, let&#39;s add a new time_slice to the equilibrium.</p><p><strong>NOTE:</strong> in addition to the usual <code>resize!(ids, n::Int)</code>, time dependent arrays of structures can be resized with:</p><ul><li><code>resize!(ids)</code> which will add a time-slice at the current global time (this is what you want to use in most cases)</li><li><code>resize!(ids, time0)</code> which will add a time-slice at <code>time0</code> seconds</li></ul><p>resize the time dependent array of structure</p><pre><code class="language-julia hljs">resize!(dd.equilibrium.time_slice, 1.0);</code></pre><p>let&#39;s just populate it with the data from the previous time slice</p><pre><code class="language-julia hljs">dd.equilibrium.time_slice[2] = deepcopy(dd.equilibrium.time_slice[1]);
 dd.equilibrium.time_slice[2].time = 1.0</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1.0</code></pre><p>Here we see that equilibrium has mulitiple time_slices</p><pre><code class="language-julia hljs">dd.equilibrium.time</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2-element Vector{Float64}:
  0.0
  1.0</code></pre><p>We can access time-dependent arrays of structures via integer index...</p><pre><code class="language-julia hljs">eqt = dd.equilibrium.time_slice[2]
@@ -3851,4 +4071,4 @@ TBR → 0.0714                            OH_stress_margin → 1.23
 ​
 ​
 ​
-​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Main</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.12.0 on <span class="colophon-date" title="Tuesday 10 June 2025 03:05">Tuesday 10 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="index.html">« Main</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.12.0 on <span class="colophon-date" title="Wednesday 11 June 2025 03:06">Wednesday 11 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
