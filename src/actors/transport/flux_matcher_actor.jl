@@ -101,6 +101,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     IMAS.sources!(dd)
+    IMAS.refreeze!(cp1d, :j_ohmic)
+    IMAS.refreeze!(cp1d, :j_non_inductive)
 
     if !isinf(par.Δt)
         # "∂/∂t" is to account to changes in the profiles that
@@ -296,6 +298,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         display(p)
     end
+
+    IMAS.unfreeze!(cp1d, :j_ohmic)
+    IMAS.unfreeze!(cp1d, :j_non_inductive)
 
     # final relaxation of profiles
     if par.relax < 1.0
