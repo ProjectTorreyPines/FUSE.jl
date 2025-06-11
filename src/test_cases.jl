@@ -184,12 +184,14 @@ function test_ini_act_save_load(dd::IMAS.DD, ini::ParametersAllInits, act::Param
         ini.general.dd = missing
         SimulationParameters.par2hdf(ini, joinpath(tmpdir, "ini.h5"))
         ini2 = SimulationParameters.hdf2par(joinpath(tmpdir, "ini.h5"), ParametersInits())
+        rm(tmpdir; force=true, recursive=true)
     end
 
     Test.@testset "act_hdf5" begin
         tmpdir = mktempdir()
         SimulationParameters.par2hdf(act, joinpath(tmpdir, "act.h5"))
         act2 = SimulationParameters.hdf2par(joinpath(tmpdir, "act.h5"), ParametersActors())
+        rm(tmpdir; force=true, recursive=true)
     end
 
     return (ini=ini, act=act)

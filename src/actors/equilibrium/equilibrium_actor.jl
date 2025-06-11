@@ -222,6 +222,7 @@ function prepare(actor::ActorEquilibrium)
     # NOTE: we use get_time_array(...,:constant) instead of @ddtime because x-points can suddenly jump
     if !isempty(getproperty(pc, :x_point, []))
         n = 0
+        empty!(eqt.boundary.x_point)
         for k in eachindex(pc.x_point)
             rx = IMAS.get_time_array(pc.x_point[k].r, :reference, :constant)
             zx = IMAS.get_time_array(pc.x_point[k].z, :reference, :constant)
@@ -238,6 +239,7 @@ function prepare(actor::ActorEquilibrium)
     # NOTE: we use get_time_array(...,:constant) instead of @ddtime because strike-points can suddenly jump
     if !isempty(getproperty(pc, :strike_point, []))
         n = 0
+        empty!(eqt.boundary.strike_point)
         for k in eachindex(pc.strike_point)
             rs = IMAS.get_time_array(pc.strike_point[k].r, :reference, :constant)
             zs = IMAS.get_time_array(pc.strike_point[k].z, :reference, :constant)
