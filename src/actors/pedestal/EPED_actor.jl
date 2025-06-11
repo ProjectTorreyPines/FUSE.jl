@@ -89,7 +89,13 @@ function _finalize(actor::ActorEPED)
     cp1d = dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm
 
-    impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
+    # NOTE: EPED uses 1/2 width as fraction of psi_norm instead FUSE, IMAS, and the Hmode_profiles functions use the full width as a function of rho_tor_norm
+    from_ped_to_full_width = 2.0
+    position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
+    w_ped = 1.0 - position
+    old_t_i_ped = IMAS.interp1d(rho, cp1d.t_i_average).(position)
+
+    impurity = [IMAS.avgZ(ion.element[1].z_n, old_t_i_ped) for ion in cp1d.ion if !IMAS.is_hydrogenic(ion)][1]
     zi = sum(impurity) / length(impurity)
     @assert actor.inputs.zeffped <= zi
     nival = actor.inputs.neped * 1e19 * (actor.inputs.zeffped - 1) / (zi^2 - zi)
@@ -98,13 +104,8 @@ function _finalize(actor::ActorEPED)
     tped = (actor.pped * 1e6) / nsum / IMAS.mks.e
 
     Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
-
-    # NOTE: EPED uses 1/2 width as fraction of psi_norm instead FUSE, IMAS, and the Hmode_profiles functions use the full width as a function of rho_tor_norm
-    from_ped_to_full_width = 2.0
     t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
     t_i_average = t_e * Ti_over_Te
-    position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
-    w_ped = 1.0 - position
 
     # Change the last point of the temperatures profiles since
     # The rest of the profile will be taken care by the blend_core_edge_Hmode() function

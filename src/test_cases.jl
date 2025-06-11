@@ -51,7 +51,7 @@ function test_case(::Val{:CAT}, dd::IMAS.dd)
 end
 
 function test_case(::Val{:JET_HDB5}, dd::IMAS.dd)
-    ini, act = case_parameters(:HDB5; tokamak=:JET, case=500)
+    ini, act = case_parameters(:HDB5; tokamak=:JET, database_case=500)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
@@ -184,12 +184,14 @@ function test_ini_act_save_load(dd::IMAS.DD, ini::ParametersAllInits, act::Param
         ini.general.dd = missing
         SimulationParameters.par2hdf(ini, joinpath(tmpdir, "ini.h5"))
         ini2 = SimulationParameters.hdf2par(joinpath(tmpdir, "ini.h5"), ParametersInits())
+        rm(tmpdir; force=true, recursive=true)
     end
 
     Test.@testset "act_hdf5" begin
         tmpdir = mktempdir()
         SimulationParameters.par2hdf(act, joinpath(tmpdir, "act.h5"))
         act2 = SimulationParameters.hdf2par(joinpath(tmpdir, "act.h5"), ParametersActors())
+        rm(tmpdir; force=true, recursive=true)
     end
 
     return (ini=ini, act=act)

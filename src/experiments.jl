@@ -23,6 +23,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
     rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
     index09 = argmin_abs(rho, 0.9)
     time = dd.core_profiles.time
+    ps_time = dd.pulse_schedule.density_control.time
 
     # density timescale
     ne = [IMAS.ne_line(dd.equilibrium.time_slice[cp1d.time], cp1d) for cp1d in dd.core_profiles.profiles_1d]
@@ -177,6 +178,13 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
         end
 
         display(p)
+    end
+
+    if time != ps_time
+        ne_L = IMAS.interp1d(time, ne_L).(ps_time)
+        ne_H = IMAS.interp1d(time, ne_H).(ps_time)
+        zeff_L = IMAS.interp1d(time, zeff_L).(ps_time)
+        zeff_H = IMAS.interp1d(time, zeff_H).(ps_time)
     end
 
     return (time=time, tau_n=tau_n, tau_t=tau_t,

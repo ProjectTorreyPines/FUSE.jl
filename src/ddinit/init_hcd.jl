@@ -231,7 +231,7 @@ function add_beam_examples!(nbu, name::Symbol)
     elseif name == :nstx
         @ddtime(nbu.beam_current_fraction.data = [0.48, 0.37, 0.15])
         beamlet.position.r = 11.4
-        beamlet.position.z = 1.66
+        beamlet.position.z = 0.0
         beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.6
         beamlet.angle = 0.0
@@ -267,6 +267,30 @@ function add_beam_examples!(nbu, name::Symbol)
         beamlet.position.phi = 0.0
         beamlet.tangency_radius = 5.3
         beamlet.angle = 0.0582
+        beamlet.direction = 1
+    elseif name == :kstar_nb1
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
+        beamlet.position.r = 4.0 
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 1.486
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :kstar_nb2
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
+        beamlet.position.r = 4.0
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 1.720
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :kstar_nb3
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
+        beamlet.position.r = 4.0
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 1.245
+        beamlet.angle = 0.0
         beamlet.direction = 1
     end
 end

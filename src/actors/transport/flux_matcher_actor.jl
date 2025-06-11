@@ -17,7 +17,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =
         Entry{Union{AbstractDict,Symbol}}(
             "-",
-            "Densities `:fixed`, or electron flux-match and rest match ne scale `:flux_match`, or Dict to specify which species are `:flux_match`, kept `:fixed`, used to enforce `:quasi_neutrality`, or scaled to `:match_ne_scale`";
+            """
+            * `:fixed`: no density evolution
+            * `:flux_match:` electron flux-match and ions match ne scale while keeping quasi-neutrality, giving a flat zeff
+            * `:zeff:` electron flux-match and ions scaled to keep zeff constant while keeping quasi-neutrality
+            * Dict to specify which species are `:flux_match`, kept `:fixed`, used to enforce `:quasi_neutrality`, or scaled to `:match_ne_scale`""";
             default=:flux_match
         )
     evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
@@ -97,6 +101,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     IMAS.sources!(dd)
+    IMAS.refreeze!(cp1d, :j_ohmic)
+    IMAS.refreeze!(cp1d, :j_non_inductive)
 
     if !isinf(par.Δt)
         # "∂/∂t" is to account to changes in the profiles that
@@ -160,12 +166,12 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 NonlinearSolve.NLsolveJL(; method=:anderson, m=4, beta=-par.step_size * 0.5)
 
             elseif par.algorithm == :anderson
-                NonlinearSolve.FixedPointAccelerationJL(
-                    algorithm = :Anderson,
-                    m         = 5,                        # history length
-                    dampening = -par.step_size * 0.5,
-                    condition_number_threshold = 1e8,
-                    replace_invalids          = :ReplaceVector
+                NonlinearSolve.FixedPointAccelerationJL(;
+                    algorithm=:Anderson,
+                    m=5,                        # history length
+                    dampening=-par.step_size * 0.5,
+                    condition_number_threshold=1e8,
+                    replace_invalids=:ReplaceVector
                 )
 
             elseif par.algorithm == :broyden
@@ -182,7 +188,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 )
             elseif par.algorithm == :polyalg
                 # Default NonlinearSolve algorithm
-                NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff())
+                NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff())
 
             else
                 error("Unsupported algorithm: $(par.algorithm)")
@@ -292,6 +298,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         display(p)
     end
+
+    IMAS.unfreeze!(cp1d, :j_ohmic)
+    IMAS.unfreeze!(cp1d, :j_non_inductive)
 
     # final relaxation of profiles
     if par.relax < 1.0
@@ -695,14 +704,16 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
         return setup_density_evolution_fixed(cp1d)
     elseif par.evolve_densities == :flux_match
         return setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d)
+    elseif par.evolve_densities == :zeff
+        return setup_density_evolution_electron_flux_match_fixed_zeff(cp1d)
     elseif typeof(par.evolve_densities) <: AbstractDict{Symbol,Symbol}
         for (k, v) in par.evolve_densities
-            @assert v in (:quasi_neutrality, :match_ne_scale, :fixed, :flux_match) "evolve_density `:$(k) => :$(v)` is not allowed. Choose one of [:quasi_neutrality, :match_ne_scale, :fixed, :flux_match]"
+            @assert v in (:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match) "evolve_density `:$(k) => :$(v)` is not allowed. Choose one of [:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match]"
         end
         return par.evolve_densities
     else
         error(
-            "act.ActorFluxMatcher.evolve_densities cannot be `$(repr(par.evolve_densities))`. Use `:fixed`, `:flux_match` or a dictionary specifiying [:quasi_neutrality, :match_ne_scale, :fixed, :flux_match] for each specie"
+            "act.ActorFluxMatcher.evolve_densities cannot be `$(repr(par.evolve_densities))`. Use `:fixed`, `:flux_match` or a dictionary specifiying [:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match] for each specie"
         )
     end
 end
@@ -793,6 +804,11 @@ function unpack_z_profiles(
     N = length(par.rho_transport)
     counter = 0
 
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    if any(evolve_densities[Symbol(ion.label)] == :zeff for ion in cp1d.ion)
+        old_zeff = cp1d.zeff
+    end
+
     if par.evolve_Te == :flux_match
         cp1d.electrons.temperature = IMAS.profile_from_z_transport(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
         counter += N
@@ -812,7 +828,6 @@ function unpack_z_profiles(
         counter += N
     end
 
-    evolve_densities = evolve_densities_dictionary(cp1d, par)
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
             z_ne = z_profiles[counter+1:counter+N]
@@ -822,7 +837,10 @@ function unpack_z_profiles(
             z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)[cp_gridpoints]
         end
         for ion in cp1d.ion
-            if evolve_densities[Symbol(ion.label)] == :flux_match
+            if evolve_densities[Symbol(ion.label)] == :zeff
+                IMAS.scale_ion_densities_to_target_zeff!(cp1d, old_zeff)
+                break
+            elseif evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
@@ -868,15 +886,18 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
     ]
 
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort([i for (i, evolve) in evolve_densities]) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort([i for (i,j) in evolve_densities]))"
+    @assert sort([specie for (specie, evolve) in evolve_densities]) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
-    if all(evolve == :fixed for (i, evolve) in evolve_densities if evolve != :quasi_neutrality)
-        txt = "No more than one species can be set to :quasi_neutrality"
-        @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
-    elseif any(evolve == :flux_match for (i, evolve) in evolve_densities)
+    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+        txt = "When flux_matching densities, either none or all ion species must be :zeff"
+        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+    elseif all(evolve == :fixed for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
+        txt = "When flux_matching densities, no more than one species can be set to :quasi_neutrality"
+        @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
+    elseif any(evolve == :flux_match for (specie, evolve) in evolve_densities)
         txt = "When flux_matching densities, one an only one species must be set to :quasi_neutrality"
-        @assert length([i for (i, evolve) in evolve_densities if evolve == :quasi_neutrality]) == 1 txt
+        @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) == 1 txt
     else
         error("Invalid evolve_densities = $(evolve_densities)")
     end
@@ -897,10 +918,6 @@ function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.co
     return evolve_densities_dict_creation([:electrons]; fixed_species=dd_fast, match_ne_scale_species=dd_thermal, quasi_neutrality_specie)
 end
 
-function setup_density_evolution_electron_flux_match_rest_ne_scale(dd::IMAS.dd)
-    return setup_density_evolution_electron_flux_match_rest_ne_scale(dd.core_profiles.profiles_1d[])
-end
-
 """
     setup_density_evolution_electron_flux_match_impurities_fixed(cp1d::IMAS.core_profiles__profiles_1d)
 
@@ -917,10 +934,6 @@ function setup_density_evolution_electron_flux_match_impurities_fixed(cp1d::IMAS
     return evolve_densities_dict_creation([:electrons]; fixed_species=[dd_thermal..., dd_fast...], quasi_neutrality_specie)
 end
 
-function setup_density_evolution_electron_flux_match_impurities_fixed(dd::IMAS.dd)
-    return setup_density_evolution_electron_flux_match_impurities_fixed(dd.core_profiles.profiles_1d[])
-end
-
 """
     setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
 
@@ -929,6 +942,20 @@ Sets up the evolve_density dict to keep all species fixed
 function setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
     all_species = [specie.name for specie in IMAS.species(cp1d)]
     return evolve_densities_dict_creation(Symbol[]; fixed_species=all_species, quasi_neutrality_specie=false)
+end
+
+"""
+    setup_density_evolution_electron_flux_match_fixed_zeff(cp1d::IMAS.core_profiles__profiles_1d)
+
+Sets up the evolve_density dict to evolve only ne, and scale ion species in such a way to keep Zeff fixed
+"""
+function setup_density_evolution_electron_flux_match_fixed_zeff(cp1d::IMAS.core_profiles__profiles_1d)
+    evolve_density = Dict{Symbol,Symbol}()
+    evolve_density[:electrons] = :flux_match
+    for ion_name in IMAS.species(cp1d; only_electrons_ions=:ions)
+        evolve_density[ion_name.name] = :zeff
+    end
+    return evolve_density
 end
 
 """
