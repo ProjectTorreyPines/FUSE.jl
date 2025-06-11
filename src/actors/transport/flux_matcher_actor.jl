@@ -327,11 +327,11 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.time_derivative_source!(dd)
     end
 
-    # free total densities expressions
-    IMAS.unfreeze!(cp1d.electrons, :density)
-    for ion in cp1d.ion
-        IMAS.unfreeze!(ion, :density)
-    end
+    # # free total densities expressions
+    # IMAS.unfreeze!(cp1d.electrons, :density)
+    # for ion in cp1d.ion
+    #     IMAS.unfreeze!(ion, :density)
+    # end
 
     # free pressures expressions
     IMAS.unfreeze!(cp1d.electrons, :pressure_thermal)
