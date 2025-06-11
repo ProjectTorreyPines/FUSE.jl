@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorSOLBox{T<:Real} <: ParametersAct
     mass_ion::Entry{T}   = Entry{T}("kg","Ion mass in multiples of amu"; default = 2.5)
     recycling_coeff_i::Entry{T}   = Entry{T}("-","Ion particle recycling coefficient"; default = 0.99)
     recycling_coeff_e::Entry{T}   = Entry{T}("-","Electron particle recycling coefficient"; default = 0.99)
-    λ_mm::Entry{T}   = Entry{T}("mm","Width of the flux tube"; default = nothing)
+    λ_mm::Entry{T}   = Entry{T}("mm","Width of the flux tube"; default = Inf)
     do_debug::Entry{Bool} = Entry{Bool}("-","Flag for debugging"; default = false)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot = false)
 end
@@ -90,9 +90,9 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
     Bp = IMAS.Bp(PSI_interpolant, r_omp, z_omp) # r and z component of B
     Bt = abs.(B0 .* R0 ./ r_omp)                # toroidal component of B
     B = sqrt.(Bp .^ 2 + Bt .^ 2)                # total magnetic field B
-
-    if isnothing(par.λ_mm)
-
+    
+    if par.λ_mm == Inf
+        
         # Take λ as twice λq as predicted by Eich's Bpol scaling
         par.λ_mm = 2.0*0.63*(Bp^-1.19)
 
@@ -121,7 +121,7 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
 
     # We need to decide which flux surface we will take as being representative of the separatrix. We will not use the
     # exact separatrix here as a) the connection length blows up too close to it, and b) sometimes the flux surface tracing
-    # can wrap back around the plasma when it shoudln't, so we want to be a little bit into the SOL (by 'offset' number of flux surfaces).
+    # can wrap back around the plasma when it shouldn't, so we want to be a little bit into the SOL (by 'offset' number of flux surfaces).
     offset = 3
 
     # In order to make this assessment, we also need to check how balanced the two xpoints are - if they are quite balanced then even

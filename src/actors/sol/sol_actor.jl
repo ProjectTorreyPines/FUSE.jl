@@ -37,9 +37,7 @@ function ActorSOL(dd::IMAS.dd, par::FUSEparameters__ActorSOL, act::ParametersAll
     actor = ActorSOL(dd, par, act, noop)
 
     if par.model == :box
-        # I feel like I don't quite fully understand how parameters that all actors share are being
-        # passed around. There should be an act passed to ActorSOLBox, I think. This doesn't seem to work, yet.
-        actor.SOL_actor = ActorSOLBox(dd, act.ActorSOLBox)#, act)
+        actor.SOL_actor = ActorSOLBox(dd, act.ActorSOLBox)
     elseif par.model == :replay
         actor.SOL_actor = ActorReplay(dd, act.ActorReplay, actor)
     end
