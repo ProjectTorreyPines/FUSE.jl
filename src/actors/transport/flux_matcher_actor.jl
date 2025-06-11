@@ -216,12 +216,12 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             res = (zero=sol.u,)
         end
 
-        flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
-
     finally
 
         actor_logging(dd, old_logging)
     end
+
+    res = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
 
     # evaluate profiles at the best-matching gradients
     actor.error = norm(out.errors)
@@ -319,6 +319,16 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         # refresh sources with relatex profiles
         IMAS.sources!(dd)
+
+        # Ensure quasi neutrality if densities are evolved
+        # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
+        evolve_densities = evolve_densities_dictionary(cp1d, par)
+        for (species, evolve) in evolve_densities
+            if evolve == :quasi_neutrality
+                IMAS.enforce_quasi_neutrality!(cp1d, species)
+                break
+            end
+        end
     end
 
     # remove the temporary `∂/∂t implicit` term and update the full `∂/∂t` term
@@ -326,12 +336,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         deleteat!(dd.core_sources.source, :time_derivative, "identifier.name" => "∂/∂t implicit")
         IMAS.time_derivative_source!(dd)
     end
-
-    # # free total densities expressions
-    # IMAS.unfreeze!(cp1d.electrons, :density)
-    # for ion in cp1d.ion
-    #     IMAS.unfreeze!(ion, :density)
-    # end
 
     # free pressures expressions
     IMAS.unfreeze!(cp1d.electrons, :pressure_thermal)
