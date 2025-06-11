@@ -102,7 +102,7 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
     λ =  par.λ_mm*1.0e-03
 
     # Calculate the parallel area of the separatrix flux tube between midplane and outer target
-    A_par = (2.0 * pi * r_omp *  λ * (B/Bp))
+    A_par = (2.0 * pi * r_omp *  λ * (Bp/B))
 
     # Calculate the power and particle flux densities for both ions and electrons
     actor.qpar_e = power_electrons / A_par
