@@ -21,6 +21,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorAnalyticPedestal{T<:Real} <: Par
 	model::Switch{Symbol} = Switch{Symbol}([:MAST, :NSTX], "-", "Pedestal width model, w_ped~beta_p,ped^gamma, where gamma=1.0 for :NSTX and 0.5 for :MAST"; default=:MAST)
     width_coefficient::Entry{T} = Entry{T}("-", "Pedestal width coefficient, C2, w_ped=C2*beta_p,ped^gamma"; default=0.0)
     height_coefficient::Entry{T} = Entry{T}("-", "Pedestal height coefficient, C1, beta_p,ped=C1*w_ped/IN^1/3"; default=0.0)
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width is scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -55,14 +56,39 @@ end
 function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
+    eqt = dd.equilibrium.time_slice[]
 
+    w_ped_ne = IMAS.pedestal_tanh_width_half_maximum(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
+
+    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9
+    # the conversion from ne_ped09 to ne_ped with w_ped is based on this
+    # peaked density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, w_ped_ne)[90] ∼ 0.828
+    # flat density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 0.0, 1.0, 0.05)[90] ∼ 0.866
+    rho09 = 0.9
+    tanh_width_to_09_factor = 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.5, 1.0, w_ped_ne)[90]
+    ne09 = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
+    neped = ne09 * tanh_width_to_09_factor
+    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09)
+    βn = IMAS.get_from(dd, Val{:βn}, par.βn_from)
+    ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+    Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
+
+    R = (eqt.profiles_1d.r_outboard[end-1] + eqt.profiles_1d.r_inboard[end-1]) / 2.0
+    a = (eqt.profiles_1d.r_outboard[end-1] - eqt.profiles_1d.r_inboard[end-1]) / 2.0
+    κ = eqt.profiles_1d.elongation[end-1]
+
+    actor.inputs.a = a
+    @assert !isnan(βn)
+    actor.inputs.bt = Bt
+    actor.inputs.ip = abs(ip) / 1e6
+    actor.inputs.kappa = κ
+    actor.inputs.neped = neped / 1e19
+    actor.inputs.r = R
+    actor.inputs.zeffped = zeffped
 	eqt = dd.equilibrium.time_slice[]
 
-    #ip = IMAS.get_from(dd, Val{:ip}, ip_from)
-
-	#printlin(ip)
-
-	IN = (eqt.global_quantities.ip/1e6)/(eqt.boundary.minor_radius*eqt.global_quantities.magnetic_axis.b_field_tor) # Normalised plasma current IN=IP[MA]/(a[m]*BT[T])
+	IN = (ip/1e6)/(a*Bt) # Normalized plasma current IN=IP[MA]/(a[m]*BT[T])
 
 	# NSTX like width - w_ped~beta_p,ped^0.5
 	if par.model == :MAST
@@ -88,10 +114,6 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
         error("Undefined model! Model should be one of :MAST, :NSTX")
     end
 
-	print("\nmodel=",par.model)
-	print("\nw_ped=",actor.wped)
-	print("\np_ped=",actor.pped,"\n")
-
     #if par.do_debug
 		# Debug output goes here - WIP
     #end
@@ -111,37 +133,9 @@ end
 Writes results to dd.summary.local.pedestal and updates core_profiles
 """
 function _finalize(actor::ActorAnalyticPedestal)
-#,ne_from::Symbol,
- #   zeff_from::Symbol,
-  #  βn_from::Symbol,
-   # ip_from::Symbol)
-
-    println("\nin finalize")
-
+    # zeff, neped, pped
     dd = actor.dd
     par = actor.par
-
-    #inputs = EPEDNN.InputEPED()
-
-    #println(inputs.neped)
-
-    cp1d = dd.core_profiles.profiles_1d[]
-    eqt = dd.equilibrium.time_slice[]
-
-    w_ped_ne = IMAS.pedestal_tanh_width_half_maximum(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
-
-    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9
-    # the conversion from ne_ped09 to ne_ped with w_ped is based on this
-    # peaked density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, w_ped_ne)[90] ∼ 0.828
-    # flat density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 0.0, 1.0, 0.05)[90] ∼ 0.866
-    rho09 = 0.9
-    tanh_width_to_09_factor = 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.5, 1.0, w_ped_ne)[90]
-    ne09 = IMAS.get_from(dd, Val{:ne_ped}, ne_from, rho09)
-    neped = ne09 * tanh_width_to_09_factor
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, rho09)
-    βn = IMAS.get_from(dd, Val{:βn}, βn_from)
-    ip = IMAS.get_from(dd, Val{:ip}, ip_from)
-    Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
     cp1d = dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm
@@ -156,15 +150,11 @@ function _finalize(actor::ActorAnalyticPedestal)
 
     Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
 
-	# !!!!!!!!! CHECK what does Sergei's model assume????? !!!!!!!!!!
-    #par.ped_factor = 1.0 # fudge
-
     # NOTE: EPED uses 1/2 width as fraction of psi_norm instead FUSE, IMAS, and the Hmode_profiles functions use the full width as a function of rho_tor_norm
-    #from_ped_to_full_width = 2.0
-    from_ped_to_full_width = 1.0
-    t_e = 2.0 * tped / (1.0 + Ti_over_Te)  # * par.ped_factor
+    from_ped_to_full_width = 2.0
+    t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
     t_i_average = t_e * Ti_over_Te
-    position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width) #* sqrt(par.ped_factor))
+    position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
     w_ped = 1.0 - position
 
     # Change the last point of the temperatures profiles since
@@ -185,42 +175,5 @@ function _finalize(actor::ActorAnalyticPedestal)
         end
     end
 
-    println("\nneped=",actor.inputs.neped)
-    println("\nnsum=",nsum)
-    println("\ntped=",tped)
-    println("\nTe_ped=",t_e)
-    println("\nTi_ped=",t_i_average)
-
     return actor
-end
-
-function run_analytic(
-    dd::IMAS.dd;
-    ne_from::Symbol,
-    zeff_from::Symbol,
-    βn_from::Symbol,
-    ip_from::Symbol)
-
-    cp1d = dd.core_profiles.profiles_1d[]
-    eqt = dd.equilibrium.time_slice[]
-
-    w_ped_ne = IMAS.pedestal_tanh_width_half_maximum(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
-
-    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9
-    # the conversion from ne_ped09 to ne_ped with w_ped is based on this
-    # peaked density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, w_ped_ne)[90] ∼ 0.828
-    # flat density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 0.0, 1.0, 0.05)[90] ∼ 0.866
-    rho09 = 0.9
-    tanh_width_to_09_factor = 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.5, 1.0, w_ped_ne)[90]
-    ne09 = IMAS.get_from(dd, Val{:ne_ped}, ne_from, rho09)
-    neped = ne09 * tanh_width_to_09_factor
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, rho09)
-    βn = IMAS.get_from(dd, Val{:βn}, βn_from)
-    ip = IMAS.get_from(dd, Val{:ip}, ip_from)
-    Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
-
-    IN = (ip/1e6)/(eqt.boundary.minor_radius*Bt) # Normalised plasma current IN=IP[MA]/(a[m]*BT[T])
-
-
-
 end
