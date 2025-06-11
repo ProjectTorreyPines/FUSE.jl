@@ -132,6 +132,6 @@ using FUSE.SimulationParameters.Distributions
     end
 
     if isdir(study.sty.save_folder)
-        rm(study.sty.save_folder; recursive=true)
+        rm(study.sty.save_folder; force=true, recursive=true)
     end
 end
