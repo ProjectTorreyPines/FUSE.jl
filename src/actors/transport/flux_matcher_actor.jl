@@ -134,7 +134,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         opt_parameters = [1.0; z_init_scaled]
     end
 
-    out = try
+    res = try
         if par.algorithm == :none
             res = (zero=opt_parameters,)
 
@@ -221,7 +221,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         actor_logging(dd, old_logging)
     end
 
-    res = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
 
     # evaluate profiles at the best-matching gradients
     actor.error = norm(out.errors)
