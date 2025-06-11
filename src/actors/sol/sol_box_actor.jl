@@ -13,13 +13,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorSOLBox{T<:Real} <: ParametersAct
     frac_mom::Entry{T}   = Entry{T}("-","Fraction of momentum lost due to collisions with neutrals, atomic processes and viscous forces"; default = 0.5)
     κ0_e::Entry{T}   = Entry{T}("-","Coefficient of electron conductivity"; default = 2000.0)
     κ0_i::Entry{T}   = Entry{T}("-","Coefficient of ion conductivity"; default = 60.0)
-    qpar_i::Entry{T}   = Entry{T}("W m^-2","Upstream parallel ion heat flux"; default = 10.0e+09)
-    qpar_e::Entry{T}   = Entry{T}("W m^-2","Upstream parallel electron heat flux"; default = 10.0e+09)
-    Γ_i::Entry{T}   = Entry{T}("ptcles m^-2 s^-1","Upstream ion particle flux"; default = 1.0e+23)
-    Γ_e::Entry{T}   = Entry{T}("ptcles m^-2 s^-1","Upstream electron particle flux"; default =1.0e+23)
     mass_ion::Entry{T}   = Entry{T}("kg","Ion mass in multiples of amu"; default = 2.5)
     recycling_coeff_i::Entry{T}   = Entry{T}("-","Ion particle recycling coefficient"; default = 0.99)
     recycling_coeff_e::Entry{T}   = Entry{T}("-","Electron particle recycling coefficient"; default = 0.99)
+    λ_mm::Entry{T}   = Entry{T}("mm","Width of the flux tube"; default = nothing)
     do_debug::Entry{Bool} = Entry{Bool}("-","Flag for debugging"; default = false)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot = false)
 end
@@ -27,6 +24,10 @@ end
 mutable struct ActorSOLBox{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorSOLBox{P}}
+    qpar_i::Union{Nothing, Float64} # Upstream parallel ion heat flux [W m^-2]
+    qpar_e::Union{Nothing, Float64} # Upstream parallel electron heat flux [W m^-2]
+    Γ_i::Union{Nothing, Float64} # Upstream ion particle flux [ptcles m^-2 s^-1]
+    Γ_e::Union{Nothing, Float64}  # Upstream electron particle flux [ptcles m^-2 s^-1]
     Te_u::Union{Nothing, Float64} # Electron temperature at the upstream (separatrix) [eV]
     Ti_u::Union{Nothing, Float64} # Ion temperature at the upstream (separatrix) [eV]
     ne_t::Union{Nothing, Float64} # Electron density at the target [pcles m^-2 s^-1]
@@ -41,7 +42,7 @@ end
 function ActorSOLBox(dd::IMAS.dd{D}, par::FUSEparameters__ActorSOLBox{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorSOLBox)
     par = OverrideParameters(par; kw...)
-    return ActorSOLBox(dd, par, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing) # should be the same number of inputs as struct above
+    return ActorSOLBox(dd, par, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing) # should be the same number of inputs as struct above
 end
 
 """
@@ -64,11 +65,56 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
 
+    # Step 1 - get the parallel heat and particles fluxes for ions and electrons
+
+    # Retrieve the total ion and electron sources (power and particles)
+    total_source = IMAS.total_sources(dd.core_sources,dd.core_profiles.profiles_1d[],time0=0.0)
+
+    # Retrieve Psol and the particles per second across the separatrix, for both ions and electrons
+    power_ions = total_source.total_ion_power_inside[end]
+    power_electrons = total_source.electrons.power_inside[end]
+    particles_ions_electrons = total_source.electrons.particles_inside[end] # Same for ions and electrons due to quasineutrality
+
+    # Get the R,Z coordinates of the outer midplane (R = R0 + a)
+    eqt = dd.equilibrium.time_slice[]
+    r_omp = eqt.profiles_1d.r_outboard[end]
+    z_omp = eqt.global_quantities.magnetic_axis.z
+
+    # Get the reference R coordinate and toroidal field
+    R0, B0 = eqt.global_quantities.vacuum_toroidal_field.r0, eqt.global_quantities.vacuum_toroidal_field.b0
+
+    eqt2d = findfirst(:rectangular,eqt.profiles_2d)
+
+    # Get the magnetic field at outer midplane
+    _, _, PSI_interpolant = IMAS.ψ_interpolant(eqt2d)
+    Bp = IMAS.Bp(PSI_interpolant, r_omp, z_omp) # r and z component of B
+    Bt = abs.(B0 .* R0 ./ r_omp)                # toroidal component of B
+    B = sqrt.(Bp .^ 2 + Bt .^ 2)                # total magnetic field B
+
+    if isnothing(par.λ_mm)
+
+        # Take λ as twice λq as predicted by Eich's Bpol scaling
+        par.λ_mm = 2.0*0.63*(Bp^-1.19)
+
+    end
+
+    # Convert flux tube width mm -> m
+    λ =  par.λ_mm*1.0e-03
+
+    # Calculate the parallel area of the separatrix flux tube between midplane and outer target
+    A_par = (2.0 * pi * r_omp *  λ * (B/Bp))
+
+    # Calculate the power and particle flux densities for both ions and electrons
+    actor.qpar_e = power_electrons / A_par
+    actor.qpar_i = power_ions / A_par
+    actor.Γ_e = particles_ions_electrons / A_par
+    actor.Γ_i = actor.Γ_e # quasineutrality
+
     # Define physical constants
     amu = 1.660538921 * 1.0e-27 # Atomic mass unit [kg]
     e_charge = 1.60e-19 # Magnitude of the electron charge [C]
     
-    # Step 1 - get connection length and total flux expansion for the separatrix flux tube between midplane and outer target
+    # Step 2 - get connection length and total flux expansion for the flux tube
 
     # Trace field lines in the SOL
     SOL = IMAS.sol(dd; levels=100)
@@ -106,21 +152,21 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
     # Total flux expansion from midplane to target (last point)
     actor.SOL_total_Fx = separatrix.total_flux_expansion[end]
 
-    # Step 2 - calculate the sound speed
+    # Step 3 - calculate the sound speed
     actor.cst = sqrt(e_charge*(par.Te_t + par.Ti_t)/(par.mass_ion*amu))
 
-    # Step 3 - calculate the upstream temperature(s)
+    # Step 4 - calculate the upstream temperature(s)
 
     # Intermediate variable. Calculate once for reduced computation.
     alpha = par.frac_cond*1.75*actor.SOL_connection_length*(1.0-0.5*(actor.SOL_total_Fx - 1.0))
 
     # Upstream ion temperature
-    actor.Ti_u = ( (par.Ti_t)^(7.0/2.0) + alpha*(par.qpar_i/par.κ0_i) )^(2.0/7.0)
+    actor.Ti_u = ( (par.Ti_t)^(7.0/2.0) + alpha*(actor.qpar_i/par.κ0_i) )^(2.0/7.0)
     
     # Upstream electron temperature
-    actor.Te_u = ( (par.Te_t)^(7.0/2.0) + alpha*(par.qpar_e/par.κ0_e) )^(2.0/7.0)
+    actor.Te_u = ( (par.Te_t)^(7.0/2.0) + alpha*(actor.qpar_e/par.κ0_e) )^(2.0/7.0)
 
-    # Step 4 - calculate the target densities
+    # Step 5 - calculate the target densities
 
     # Calculate the particle transmission coefficients
 
@@ -134,12 +180,12 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
     beta = (actor.SOL_total_Fx + 1)/(2.0*actor.SOL_total_Fx)
 
     # Target ion density
-    actor.ni_t = beta * (par.Γ_i/(γi*actor.cst))
+    actor.ni_t = beta * (actor.Γ_i/(γi*actor.cst))
 
     # Target electron density
-    actor.ne_t = beta * (par.Γ_e/(γe*actor.cst))
+    actor.ne_t = beta * (actor.Γ_e/(γe*actor.cst))
 
-    # Step 5 - calculate the upstream densities
+    # Step 6 - calculate the upstream densities
 
     # Upstream ion density
     actor.ni_u = ((2.0*actor.ni_t)/(par.frac_mom)) * ((par.Ti_t + par.Te_t)/(actor.Ti_u + actor.Te_u))
@@ -165,8 +211,8 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
         println("\nIons")
         println("[INPUT] - Coefficient of ion conductivity: ",par.κ0_i)
         println("[INPUT] - Ion particle recycling coefficient: ",par.recycling_coeff_i)
-        println("[INPUT] - Upstream parallel ion heat flux (GW m^-2): ",par.qpar_i*1.0e-09)
-        println("[INPUT] - Upstream ion particle flux (ptcles m^-2 s^-1): ",par.Γ_i)
+        println("Upstream parallel ion heat flux (GW m^-2): ",actor.qpar_i*1.0e-09)
+        println("Upstream ion particle flux (ptcles m^-2 s^-1): ",actor.Γ_i)
         println("[INPUT] - Target ion temperature (eV): ",par.Ti_t)
         println("Target ion density (ptcls m^-3): ",actor.ni_t)
         println("Upstream ion temperature (eV): ",actor.Ti_u)
@@ -176,8 +222,8 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
         println("\nElectrons")
         println("[INPUT] - Coefficient of electron conductivity: ",par.κ0_e)
         println("[INPUT] - Electron particle recycling coefficient: ",par.recycling_coeff_e)
-        println("[INPUT] - Upstream parallel electron heat flux (GW m^-2): ",par.qpar_e*1.0e-09)
-        println("[INPUT] - Upstream electron particle flux (ptcles m^-2 s^-1): ",par.Γ_e)
+        println("Upstream parallel electron heat flux (GW m^-2): ",actor.qpar_e*1.0e-09)
+        println("Upstream electron particle flux (ptcles m^-2 s^-1): ",actor.Γ_e)
         println("[INPUT] - Target electron temperature (eV): ",par.Te_t)
         println("Target electron density (ptcls m^-3): ",actor.ne_t)
         println("Upstream electron temperature (eV): ",actor.Te_u)
@@ -187,6 +233,7 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real, P<:Real}
         println("Sound speed (km s^-1): ",actor.cst*1.0e-03)
         println("[INPUT] - frac_cond: ",par.frac_cond)
         println("[INPUT] - frac_mom: ",par.frac_mom)
+        println("λ (mm): ",par.λ_mm)
 
     end
 
