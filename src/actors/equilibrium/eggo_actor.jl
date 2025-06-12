@@ -63,18 +63,11 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     # prepare inputs
     wall = Dict{Symbol,Vector{Float64}}()
     wall[:rlim], wall[:zlim] = IMAS.first_wall(dd.wall)
-    psi_norm = collect(range(0.0, 1.0, actor.green[:nw]))
+    psi_norm = range(0.0, 1.0, actor.green[:nw])
     pp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi).(psi_norm) * 2π
     ffp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi).(psi_norm) * 2π
     pp_fit, ffp_fit = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d)
-    coeff_max = 1.0
-    pp_index = findfirst(x -> x > coeff_max || x < -1 * coeff_max, pp_fit[2:end])
-    ffp_index = findfirst(x -> x > coeff_max || x < -1 * coeff_max, ffp_fit[2:end])
-    pp_index = isnothing(pp_index) ? length(pp_fit) : pp_index
-    ffp_index = isnothing(ffp_index) ? length(ffp_fit) : ffp_index
-    pp_fit *= 0.0
-    ffp_fit *= 0.0
-    pp_fit[1:pp_index], ffp_fit[1:ffp_index] = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d, pp_index, ffp_index)
+
     # make actual prediction
     Ip_target = eqt.global_quantities.ip
     Rb_target = eqt.boundary.outline.r[1:actor.par.nb_reduce:end]
