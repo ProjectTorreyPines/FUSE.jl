@@ -234,27 +234,40 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     # plotting of the channels that have been evolved
     if par.do_plot
-        plot()
-        for (ch, profiles_path) in enumerate(profiles_paths)
-            title = profiles_title(cp1d, profiles_path)
-            plot!(vcat(map(x -> errors_by_channel(x, N_radii, N_channels), err_history)...)[:, ch]; label=title)
+        if ismissing(par, :scale_turbulence_law)
+            specials = String[]
+        else
+            specials = String["scale_turbulence_law"]
         end
-        display(
-            plot!(vcat(map(norm, err_history)...);
-                color=:black,
-                lw=0.5,
-                yscale=:log10,
-                ylabel="Log₁₀ of convergence errror",
-                xlabel="Iterations",
-                label=@sprintf("total [error = %.3e]", (minimum(map(norm, err_history))))))
+        N_specials = length(specials)
+
+        p = plot()
+        normed_errors = vcat(map(norm, err_history)...)
+        plot!(
+            normed_errors;
+            color=:black,
+            lw=2.0,
+            yscale=:log10,
+            ylabel="Convergence errror",
+            xlabel="Iterations",
+            label=@sprintf("total [error = %.3e]", (minimum(normed_errors)))
+        )
+        for sp in 1:N_specials
+            plot!(vcat(map(x -> errors_by_channel(abs.(x), N_radii, N_channels, N_specials).specials, err_history)...)[:, sp]; label=specials[sp])
+        end
+        for (ch, profiles_path) in enumerate(profiles_paths)
+            label = profiles_title(cp1d, profiles_path)
+            plot!(vcat(map(x -> errors_by_channel(x, N_radii, N_channels, N_specials).radii_channels, err_history)...)[:, ch]; label)
+        end
+        display(p)
 
         channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
-        data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), N_channels))
+        data = reshape(channels_evolution, (length(err_history), N_radii, N_channels))
         p = plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
-            title = profiles_title(cp1d, profiles_path)
+            label = profiles_title(cp1d, profiles_path)
             for kr in 1:length(par.rho_transport)
-                plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label=title)
+                plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label)
             end
         end
         display(p)
@@ -264,7 +277,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time)
         model_type = IMAS.name_2_index(dd.core_transport.model)
         for (ch, (profiles_path, fluxes_path)) in enumerate(zip(profiles_paths, fluxes_paths))
-            title = IMAS.p2i(collect(map(string, fluxes_path)))
             plot!(
                 IMAS.goto(total_source1d, fluxes_path[1:end-1]),
                 Val(fluxes_path[end]);
@@ -375,8 +387,8 @@ function profiles_title(cp1d, profiles_path)
     end
 end
 
-function errors_by_channel(errors::Vector{Float64}, N_radii::Int, N_channels::Int)
-    return mapslices(norm, reshape(errors, (N_radii, N_channels)); dims=1)
+function errors_by_channel(errors::Vector{Float64}, N_radii::Int, N_channels::Int, N_specials::Int)
+    return (specials=errors[1+N_specials], radii_channels=mapslices(norm, reshape(errors[1+N_specials:end], (N_radii, N_channels)); dims=1))
 end
 
 """
