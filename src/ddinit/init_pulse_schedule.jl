@@ -272,14 +272,13 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     IMAS.set_time_array(pc.x_point[2].z, :reference, time0, zxl)
 
     # from MXHboundary to pr,pz
-    pr = mxhb.r_boundary
-    pz = mxhb.z_boundary
+    pr, pz = IMAS.resample_plasma_boundary(mxhb.r_boundary, mxhb.z_boundary; n_points=100)
     if isempty(mxhb.RX)
         # boundary without x-points
         mxh = mxhb.mxh
     else
         # boundary with x-points parametrized with MXH
-        mxh = IMAS.MXH(IMAS.resample_plasma_boundary(pr, pz; n_points=100)..., 2)
+        mxh = IMAS.MXH(pr, pz, 2)
     end
 
     # scalars from mxh
