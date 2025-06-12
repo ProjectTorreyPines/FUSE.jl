@@ -39,7 +39,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     )
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
-    scale_turbulence_law::Switch{Symbol} = Switch{Symbol}([:h98, :ds03], "-", "Scale turbulent transport to achieve a desired confinement law")
+    scale_turbulence_law::Switch{Symbol} =
+        Switch{Symbol}([:h98, :ds03], "-", "Scale turbulent transport to achieve a desired confinement law: NOTE: scale law evaluated with include_radiation=false")
     scale_turbulence_value::Entry{Float64} = Entry{Float64}(
         "-",
         "Scale turbulent transport to achieve a desired confinement value for the `scale_turbulence_law`";
@@ -476,8 +477,11 @@ function flux_match_errors(
     # scale turbulent fluxes, if par.scale_turbulence_law is set
     if !ismissing(par, :scale_turbulence_law)
         m1d = dd.core_transport.model[:anomalous].profiles_1d[]
-        m1d.total_ion_energy.flux .*= turbulence_scale
-        m1d.electrons.energy.flux .*= turbulence_scale
+        for leaf in AbstractTrees.Leaves(m1d)
+            if leaf.field == :flux
+                getproperty(leaf.ids, leaf.field) .*= turbulence_scale
+            end
+        end
     end
 
     # get transport fluxes and sources
@@ -507,17 +511,17 @@ function flux_match_errors(
 
     # add error toward achieving desired scaling law value
     if !ismissing(par, :scale_turbulence_law)
-        tau_th = IMAS.tau_e_thermal(dd; include_radiation=true)
+        tau_th = IMAS.tau_e_thermal(dd; include_radiation=false)
         if par.scale_turbulence_law == :h98
-            tauH = IMAS.tau_e_h98(dd; include_radiation=true)
+            tauH = IMAS.tau_e_h98(dd; include_radiation=false)
         elseif par.scale_turbulence_law == :ds03
-            tauH = IMAS.tau_e_ds03(dd; include_radiation=true)
+            tauH = IMAS.tau_e_ds03(dd; include_radiation=false)
         else
             error("act.ActorFluxMatcher.scale_turbulence_law=$(par.scale_turbulence_law) not recognized: valid options are :h98 or :ds03")
         end
         H_value = tau_th / tauH
         H_target = par.scale_turbulence_value
-        errors = [(H_value - H_target) / H_target; errors]
+        errors = [(H_value - H_target) / H_target * nrho; errors]
     end
 
     # update error history
@@ -663,6 +667,7 @@ function flux_match_simple(
         z_init_scaled = opt_parameters
     else
         turbulence_scale = opt_parameters[1]
+        @assert turbulence_scale == 1.0
         z_init_scaled = @views opt_parameters[2:end]
     end
 
@@ -685,7 +690,7 @@ function flux_match_simple(
         if ismissing(par, :scale_turbulence_law)
             targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         else
-            turbulence_scale += errors[1] / 10.0
+            turbulence_scale += errors[1] * step_size
             targets, fluxes, errors =
                 flux_match_errors(actor, [turbulence_scale; scale_z_profiles(zprofiles)], initial_cp1d; z_scaled_history, err_history, prog)
         end
@@ -990,6 +995,7 @@ function evolve_densities_dict_creation(
     if typeof(quasi_neutrality_specie) <: Symbol
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
     end
+
     return Dict(sym => evolve for (sym, evolve) in parse_list)
 end
 
