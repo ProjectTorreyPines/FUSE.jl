@@ -162,7 +162,7 @@ function _finalize(actor::ActorAnalyticPedestal)
     Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
 
     # NOTE: EPED uses 1/2 width as fraction of psi_norm instead FUSE, IMAS, and the Hmode_profiles functions use the full width as a function of rho_tor_norm
-    from_ped_to_full_width = 2.0
+    from_ped_to_full_width = 1.0
     t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
     t_i_average = t_e * Ti_over_Te
     position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
