@@ -18,9 +18,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorAnalyticPedestal{T<:Real} <: Par
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters ==#
-	model::Switch{Symbol} = Switch{Symbol}([:MAST, :NSTX], "-", "Pedestal width model, w_ped~beta_p,ped^gamma, where gamma=1.0 for :NSTX and 0.5 for :MAST"; default=:MAST)
+    model::Switch{Symbol} = Switch{Symbol}([:MAST, :NSTX], "-", "Pedestal width model, w_ped~beta_p,ped^gamma, where gamma=1.0 for :NSTX and 0.5 for :MAST"; default=:MAST)
     width_coefficient::Entry{T} = Entry{T}("-", "Pedestal width coefficient, C2, w_ped=C2*beta_p,ped^gamma"; default=0.0)
-    height_coefficient::Entry{T} = Entry{T}("-", "Pedestal height coefficient, C1, beta_p,ped=C1*w_ped/IN^1/3"; default=0.0)
+    height_coefficient::Entry{T} = Entry{T}("-", "Pedestal height coefficient, C1, beta_p,ped=C1*w_ped^(3/4)/IN^(1/3)"; default=0.0)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width is scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -28,7 +28,7 @@ end
 
 mutable struct ActorAnalyticPedestal{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-	par::OverrideParameters{P,FUSEparameters__ActorAnalyticPedestal{P}}
+    par::OverrideParameters{P,FUSEparameters__ActorAnalyticPedestal{P}}
     inputs::EPEDNN.InputEPED # CHECK - have made it work with this but not sure this is the correct approach?
     wped::Union{Missing,Real} # pedestal width  CHECK WHAT DEFINITION IS BEING USED HERE!!!. using EPED definition (1/2 width as fraction of psi_norm)
     pped::Union{Missing,Real} # pedestal height CHECK, It hink this model is in kPA!!!! using EPED units (MPa)
@@ -48,7 +48,7 @@ end
 
 function ActorAnalyticPedestal(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticPedestal; kw...)
     logging_actor_init(ActorAnalyticPedestal)
-	par = OverrideParameters(par; kw...)
+    par = OverrideParameters(par; kw...)
     return ActorAnalyticPedestal(dd, par, EPEDNN.InputEPED(), missing, missing)
 end
 
@@ -86,14 +86,15 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
     actor.inputs.neped = neped / 1e19
     actor.inputs.r = R
     actor.inputs.zeffped = zeffped
-	eqt = dd.equilibrium.time_slice[]
+    eqt = dd.equilibrium.time_slice[]
 
-	IN = (ip/1e6)/(a*Bt) # Normalized plasma current IN=IP[MA]/(a[m]*BT[T])
+    IN = (ip/1e6)/(a*Bt) # Normalized plasma current IN=IP[MA]/(a[m]*BT[T])
 
-	# NSTX like width - w_ped~beta_p,ped^0.5
+    # NSTX like width - w_ped~beta_p,ped^0.5
     lpol = dd.equilibrium.time_slice[].global_quantities.length_pol
     Bp = IMAS.mks.μ_0*ip/lpol
-	if par.model == :MAST
+    # MAST like width - w_ped~beta_p,ped^0.5
+    if par.model == :MAST
         if par.height_coefficient==0.0
             par.height_coefficient=4.0
         end
@@ -106,7 +107,7 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
         #actor.wped = par.height_coefficient^0.8*par.width_coefficient^1.6/IN^0.25 
         #actor.pped = (1/1000.)*32*par.height_coefficient^1.6*par.width_coefficient^1.2*IN^1.5*actor.inputs.bt^2/(1+actor.inputs.kappa^2) 
         #@show(actor.pped)
-        # NSTX like width - w_ped~beta_p,ped^1.0
+    # NSTX like width - w_ped~beta_p,ped^1.0
     elseif par.model == :NSTX
         if par.height_coefficient==0.0
             par.height_coefficient=2.0
@@ -125,7 +126,7 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
     #@show(actor.pped)
 
     #if par.do_debug
-		# Debug output goes here - WIP
+        # Debug output goes here - WIP
     #end
 
     # Plotting
