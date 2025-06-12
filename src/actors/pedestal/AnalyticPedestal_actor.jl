@@ -104,9 +104,6 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
 
         betap_ped = (par.height_coefficient^(8/5) * par.width_coefficient^(6/5)) / IN^(8/15)
         actor.wped  = (par.height_coefficient^(4/5) * par.width_coefficient^(8/5)) / IN^(4/15)
-        #actor.wped = par.height_coefficient^0.8*par.width_coefficient^1.6/IN^0.25 
-        #actor.pped = (1/1000.)*32*par.height_coefficient^1.6*par.width_coefficient^1.2*IN^1.5*actor.inputs.bt^2/(1+actor.inputs.kappa^2) 
-        #@show(actor.pped)
     # NSTX like width - w_ped~beta_p,ped^1.0
     elseif par.model == :NSTX
         if par.height_coefficient==0.0
@@ -117,17 +114,10 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
         end
         betap_ped = (par.height_coefficient^4 * par.width_coefficient^3) / IN^(4/3)
         actor.wped = par.height_coefficient^4.0*par.width_coefficient^4.0/IN^(4/3) 
-        #actor.pped = (1/1000.)*32*par.height_coefficient^4.0*par.width_coefficient^3.0*IN^(2/3)*actor.inputs.bt^2/(1+actor.inputs.kappa^2)
-        #@show(actor.pped)
     else
         error("Undefined model! Model should be one of :MAST, :NSTX")
     end
     actor.pped = 1e-6*betap_ped*Bp^2/2/IMAS.mks.μ_0
-    #@show(actor.pped)
-
-    #if par.do_debug
-        # Debug output goes here - WIP
-    #end
 
     # Plotting
     if par.do_plot
