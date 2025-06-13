@@ -170,9 +170,9 @@ end
 
 function test_case(case::Symbol, dd::IMAS.dd)
     dd, ini, act = test_case(Val(case), dd::IMAS.dd)
-    @assert typeof(dd)::IMAS.dd
-    @assert typeof(ini)::ParametersAllInits
-    @assert typeof(act)::ParametersAllActors
+    @assert typeof(dd) <: IMAS.dd
+    @assert typeof(ini) <: ParametersAllInits
+    @assert typeof(act) <: ParametersAllActors
     return (dd=dd, ini=ini, act=act)
 end
 
