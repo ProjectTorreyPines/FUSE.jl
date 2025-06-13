@@ -21,6 +21,7 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
+    actor_sol::ActorSOL{D,P}
 end
 
 """
@@ -82,7 +83,9 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq)
+    actor_sol = ActorSOL(dd, act.ActorSOL, act)
+
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_sol)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -133,6 +136,23 @@ function _step(actor::ActorStationaryPlasma)
         # unless `par.max_iterations==1` we want to iterate at least twice to ensure consistency between equilibrium and profiles
         while length(total_error) < 2 || (total_error[end] > par.convergence_error)
 
+            # We want the pedestal actor to take its density value from the edge profiles only after 1 iteration has been completed
+            if length(total_error) < 1
+
+                actor.actor_ped.par.ne_from = :pulse_schedule
+                actor.actor_tr.tr_actor.actor_ped.par.ne_from = :pulse_schedule
+
+            else
+
+                actor.actor_ped.par.ne_from = :edge_profiles
+                actor.actor_tr.tr_actor.actor_ped.par.ne_from = :edge_profiles
+
+                # run SOL actor to get updated edge electron density
+                ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_sol))
+                finalize(step(actor.actor_sol))
+
+            end            
+            
             # get current and pressure profiles before updating them
             j_tor_before = cp1d.j_tor
             pressure_before = cp1d.pressure
@@ -151,7 +171,7 @@ function _step(actor::ActorStationaryPlasma)
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
-
+            
             # run transport actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
             finalize(step(actor.actor_tr))
