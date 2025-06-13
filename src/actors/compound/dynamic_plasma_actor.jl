@@ -68,7 +68,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
         dd,
         act.ActorPedestal,
         act;
-        ip_from=:core_profiles,
+        ip_from=:pulse_schedule,
         βn_from=:core_profiles,
         ne_from=:pulse_schedule,
         zeff_from=:pulse_schedule,
@@ -79,7 +79,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
-    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
+    actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
@@ -324,7 +324,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
         plot!(; xlim=[0.0, maximum(out.r)], ylim=extrema(out.z))
     end
     for cw in dd.waves.coherent_wave
-        plot!(cw.beam_tracing[time0]; time0, alpha=0.5, label="")
+        if !isempty(cw.beam_tracing) && time0 >= cw.beam_tracing[1].time
+            plot!(cw.beam_tracing[time0]; time0, alpha=0.5, label="")
+        end
     end
     plot!(; title="Time = $(@sprintf("%.4f", time0)) [s]", ylabel="", xlabel="")
 
@@ -332,13 +334,15 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     plot_eq_top = plot(; framestyle=:origin, guidefontalign=:bottom)
     plot!(dd.equilibrium.time_slice[time0]; cx=true, top=true)
     for cw in dd.waves.coherent_wave
-        plot!(cw.beam_tracing[time0]; alpha=0.5, top=true)
+        if !isempty(cw.beam_tracing) && time0 >= cw.beam_tracing[1].time
+            plot!(cw.beam_tracing[time0]; alpha=0.5, top=true)
+        end
     end
     plot!(dd.wall; top=true)
     plot!(; ylabel="", xlabel="")
 
     # Ip and Vloop
-    plot_ip = plot(; title="Ip [MA] - Vloop [mV]")
+    plot_ip = plot(; title="Ip [MA] - Vloop [V]")
     if !ismissing(dd.pulse_schedule.flux_control, :time)
         plot!(dd.pulse_schedule.flux_control.time,
             dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
@@ -370,17 +374,17 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     #     label="Ip  [MA]",
     #     lw=2.0
     # )
-    plot!([NaN], [NaN]; color=:red, label="Vloop [mV]", lw=2.0)
+    plot!([NaN], [NaN]; color=:red, label="Vloop [V]", lw=2.0)
     vline!([time0]; label="", color=:gray)
     #plot_vloop = plot!(twinx())[2]
 
     tx = twinx()
     if dd1 !== nothing
-        time, data = IMAS.vloop_time(dd1.core_profiles, dd1.equilibrium; method=:mean)
+        time, data = IMAS.vloop_time(dd1.core_profiles, dd1.equilibrium; method=:area)
         plot!(
             tx,
             time,
-            data .* 1E3;
+            data;
             seriestype=:time,
             color=:black,
             label="",
@@ -390,12 +394,12 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     if IMAS.controller(dd.controllers, "ip") !== nothing
         time, data = IMAS.vloop_time(dd.controllers)
     else
-        time, data = IMAS.vloop_time(dd.core_profiles, dd.equilibrium; method=:mean)
+        time, data = IMAS.vloop_time(dd.core_profiles, dd.equilibrium; method=:area)
     end
     plot!(
         tx,
         time,
-        data .* 1E3;
+        data;
         seriestype=:time,
         color=:red,
         label="",
@@ -427,11 +431,6 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
         plot!(cp1d, :t_i_average; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
     end
     plot!(title="Ions temperature [KeV]", xlabel="", ylabel="", label="")
-
-    # link Te and Ti ylims
-    maxT_ylim = maximum(vcat(ylims(plot_Ti)..., ylims(plot_Te)...))
-    plot!(plot_Ti; ylim=(0.0, maxT_ylim))
-    plot!(plot_Te; ylim=(0.0, maxT_ylim))
 
     # core_profiles densities
     plot_n = plot()
