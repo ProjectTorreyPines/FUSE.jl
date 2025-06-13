@@ -95,7 +95,7 @@ exe_file = joinpath(env_dir, "fuse")
 write(exe_file, fuse_banner * fuse_exe)
 chmod(exe_file, 0o555)
 
-#=
+
 println()
 println("### Create module file")
 module_file = joinpath(ENV["FUSE_HOME"], "modules", "fuse", fuse_env * ".lua")
@@ -108,12 +108,8 @@ Module for julia with FUSE $fuse_env sysimage
 Automatically created by FUSE install script:
   `julia <FUSE.jl git repo>/deploy/perlmutter/install_fuse_environment.jl`
 Maintainers: B.C. Lyons, lyonsbc@fusion.gat.com
-             C.M. Clark, clarkm@fusion.gat.com
 Physics Officers: O.M. Meneghini, meneghini@fusion.gat.com
                   B.C. Lyons, lyonsbc@fusion.gat.com
-Known technical debt:
-The first time a custom Jupyter kernel is used, it may hang.
-Restarting (sometimes twice) normally resolves the issue.
 ]])
 
 """
@@ -124,4 +120,4 @@ base = read(joinpath(@__DIR__, "base.lua"), String)
 base = replace(base, """setenv("JULIA_CPU_TARGET", "generic")""" => """setenv("JULIA_CPU_TARGET", "$cpu_target")""")
 
 write(module_file, header * base)
-=#
+
