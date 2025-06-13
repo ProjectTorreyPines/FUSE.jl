@@ -10,9 +10,8 @@ import Distributed: pmap
         tokamak::Union{String,Symbol}=:all,
         n_samples_per_tokamak::Union{Integer,Symbol}=10,
         save_directory::String="",
-        plot_database=true,
-        verbose=false,
-        act=missing)
+        verbose::Bool=false,
+        act::Union{ParametersAllActors,Missing}=missing)
 
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
@@ -20,9 +19,8 @@ function workflow_HDB5_validation(;
     tokamak::Union{String,Symbol}=:all,
     n_samples_per_tokamak::Union{Integer,Symbol}=10,
     save_directory::String="",
-    plot_database=true,
-    verbose=false,
-    act=missing)
+    verbose::Bool=false,
+    act::Union{ParametersAllActors,Missing}=missing)
 
     # load HDB5 database
     run_df = load_hdb5(tokamak)
@@ -49,23 +47,19 @@ function workflow_HDB5_validation(;
         run_df[k, :] = data_rows[k]
     end
 
-    failed_df = filter(:TAUTH_fuse => isnan, run_df)
+    fail_df = filter(:TAUTH_fuse => isnan, run_df)
     run_df = filter(:TAUTH_fuse => !isnan, run_df)
 
-    println("Failed runs: $(length(failed_df.TOK)) out of $(length(failed_df.TOK) + length(run_df.TOK))")
+    println("Failed runs: $(length(fail_df.TOK)) out of $(length(fail_df.TOK) + length(run_df.TOK))")
     println("Mean Relative error $(MRE = round(100 * mean_relative_error(run_df[:, :TAUTH], run_df[:, :TAUTH_fuse]), digits=2))%")
 
     # save all input data as well as predicted tau to CSV file
     if !isempty(save_directory)
         CSV.write(joinpath(save_directory, "dataframe_$(Dates.now()).csv"), run_df)
-        CSV.write(joinpath(save_directory, "failed_runs_dataframe_$(Dates.now()).csv"), failed_df)
+        CSV.write(joinpath(save_directory, "failed_runs_dataframe_$(Dates.now()).csv"), fail_df)
     end
 
-    if plot_database
-        plot_τ_regression(run_df)
-    end
-
-    return run_df, failed_df
+    return (run_df=run_df, fail_df=fail_df)
 end
 
 function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing}=missing; verbose::Bool=false)
@@ -78,7 +72,7 @@ function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing
         actor_logging(dd, verbose)
         init!(dd, ini, act)
         ActorStationaryPlasma(dd, act)
-        data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
+        data_row[:TAUTH_fuse] = @ddtime(dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""
     catch e
