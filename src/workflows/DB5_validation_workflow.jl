@@ -1,6 +1,6 @@
 import Random
 import DataFrames
-import CSV
+import Serialize
 import Dates
 import Distributed
 import Distributed: pmap
@@ -53,10 +53,11 @@ function workflow_HDB5_validation(;
     println("Failed runs: $(length(fail_df.TOK)) out of $(length(fail_df.TOK) + length(run_df.TOK))")
     println("Mean Relative error $(MRE = round(100 * mean_relative_error(run_df[:, :TAUTH], run_df[:, :TAUTH_fuse]), digits=2))%")
 
-    # save all input data as well as predicted tau to CSV file
+    # save all input data as well as predicted tau to JLS file
     if !isempty(save_directory)
-        CSV.write(joinpath(save_directory, "dataframe_$(Dates.now()).csv"), run_df)
-        CSV.write(joinpath(save_directory, "failed_runs_dataframe_$(Dates.now()).csv"), fail_df)
+        filename = "HDB5_runs_dataframe_$(Dates.now())"
+        Serialize.serialize(joinpath(save_directory, "$(filename).jls"), run_df)
+        Serialize.serialize(joinpath(save_directory, "$(filename)_failed.jls"), fail_df)
     end
 
     return (run_df=run_df, fail_df=fail_df)
@@ -129,13 +130,22 @@ function plot_τ_regression(dataframe::DataFrames.DataFrame)
 end
 
 """
+    load_hdb5(filename::String)
+
+Load h5db from as JLS file
+"""
+function load_hdb5(filename::String)
+    return Serialize.deserialize(filename)
+end
+
+"""
     plot_τ_regression(filename::String)
 
-Plot regression of `\$name` and `\$(name)_fuse` data stored in a given CSV file
+Plot τe regression from data stored in a given JLS file
 """
 function plot_τ_regression(filename::String)
-    dataframe = CSV.read(filename, DataFrames.DataFrame)
-    return plot_τ_regression(dataframe)
+    plot_τ_regression(load_hdb5(filename))
+    return dataframe
 end
 
 function R_squared(x, y)
