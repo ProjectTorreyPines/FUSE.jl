@@ -66,7 +66,7 @@ function _step(actor::ActorQED)
 
     # initialize QED
     # we must reinitialize to update the equilibrium metrics
-    actor.QO = QED.qed_init_from_imas(dd, par.qmin_desired; uniform_rho=501)
+    actor.QO = QED.initialize(dd, par.qmin_desired; uniform_rho=501)
 
     if par.Nt == 0
         # only initialize, nothing to do
