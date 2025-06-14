@@ -338,7 +338,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
             plot!(cw.beam_tracing[time0]; alpha=0.5, top=true)
         end
     end
-    plot!(dd.wall; top=true)
+    if !isempty(dd.wall)
+        plot!(dd.wall; top=true)
+    end
     plot!(; ylabel="", xlabel="")
 
     # Ip and Vloop
@@ -417,7 +419,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     if dd !== dd1
         plot!(cp1d.electrons, :temperature; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
     end
-    plot!(title="Electrons temperature [KeV]", xlabel="", ylabel="", label="")
+    plot!(; title="Electrons temperature [KeV]", xlabel="", ylabel="", label="")
 
     # core_profiles ions temperatures
     plot_Ti = plot()
@@ -430,7 +432,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     if dd !== dd1
         plot!(cp1d, :t_i_average; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
     end
-    plot!(title="Ions temperature [KeV]", xlabel="", ylabel="", label="")
+    plot!(; title="Ions temperature [KeV]", xlabel="", ylabel="", label="")
 
     # core_profiles densities
     plot_n = plot()
@@ -446,7 +448,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     if dd !== dd1
         plot!(cp1d; only=2, lw=2.0, legend=:left)
     end
-    plot!(title="Densities [m⁻³]", xlabel="", ylabel="", label="", legend_foreground_color=:transparent)
+    plot!(; title="Densities [m⁻³]", xlabel="", ylabel="", label="", legend_foreground_color=:transparent)
 
     # ========
 
@@ -536,9 +538,14 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     if dd1 !== nothing
         plot!(dd1.equilibrium.time_slice[time0].profiles_1d, :q; color=:black, coordinate=:rho_tor_norm, label="Experiment q")
     end
+    sinq = sign(sum(dd.equilibrium.time_slice[time0].profiles_1d.q))
     plot!(dd.equilibrium.time_slice[time0].profiles_1d, :q; lw=2.0, coordinate=:rho_tor_norm, label="Modeled q")
-    hline!([-1]; label="", ls=:dash, color=:black)
-    plot!(; ylim=(-5, 0))
+    hline!([sinq * 1]; label="", ls=:dash, color=:black)
+    if sinq > 0
+        plot!(; ylim=(0, 5))
+    else
+        plot!(; ylim=(-5, 0))
+    end
 
     # hcd
     plot_hcd = plot(; title="Injected power [MW]")
