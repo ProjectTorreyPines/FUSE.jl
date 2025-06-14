@@ -73,13 +73,9 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     Zs = range(minimum(fw_z) - ΔZ / 20, maximum(fw_z) + ΔZ / 20, par.nZ)
 
     # reuse green table if possible
-    if actor.canvas !== nothing
-        Green_table = actor.canvas._Gvac
-    else
-        Green_table = D[;;;]
-    end
+    gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table = actor.canvas.Green_table)
 
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points)
+    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points, gt_kw...)
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
