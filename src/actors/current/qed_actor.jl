@@ -158,31 +158,3 @@ function _step(actor::ActorQED)
 
     return actor
 end
-
-# utils
-"""
-    η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
-
-returns
-
-  - resistivity profile using Jardin's model for stationary sawteeth changes the plasma resistivity to raise q>1
-
-  - non-inductive profile with flattening of the current inside of the inversion radius
-"""
-function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
-
-    rho = cp1d.grid.rho_tor_norm
-    η = 1.0 ./ cp1d.conductivity_parallel
-
-    if rho_qdes > 0.0
-        # flattened current resistivity as per Jardin's model
-        icp_qdes = argmin_abs(rho, rho_qdes)
-        η[1:icp_qdes] .= η[icp_qdes]
-
-        # flatten non-inductive current contribution
-        width = min(rho_qdes / 4, 0.05)
-        j_non_inductive = IMAS.flatten_profile!(copy(j_non_inductive), rho, cp1d.grid.area, rho_qdes, width)
-    end
-
-    return QED.η_FE(rho, η; use_log), j_non_inductive
-end
