@@ -1,6 +1,6 @@
 import Random
 import DataFrames
-import CSV
+import Serialization
 import Dates
 import Distributed
 import Distributed: pmap
@@ -53,10 +53,11 @@ function workflow_HDB5_validation(;
     println("Failed runs: $(length(fail_df.TOK)) out of $(length(fail_df.TOK) + length(run_df.TOK))")
     println("Mean Relative error $(MRE = round(100 * mean_relative_error(run_df[:, :TAUTH], run_df[:, :TAUTH_fuse]), digits=2))%")
 
-    # save all input data as well as predicted tau to CSV file
+    # save all input data as well as predicted tau to JLS file
     if !isempty(save_directory)
-        CSV.write(joinpath(save_directory, "dataframe_$(Dates.now()).csv"), run_df)
-        CSV.write(joinpath(save_directory, "failed_runs_dataframe_$(Dates.now()).csv"), fail_df)
+        filename = "HDB5_runs_dataframe_$(Dates.now())"
+        Serialization.serialize(joinpath(save_directory, "$(filename).jls"), run_df)
+        Serialization.serialize(joinpath(save_directory, "$(filename)_failed.jls"), fail_df)
     end
 
     return (run_df=run_df, fail_df=fail_df)
@@ -89,11 +90,13 @@ function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing
 end
 
 """
-    plot_τ_regression(dataframe::DataFrames.DataFrame)
+    plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
 
 Plot HDB5 validation workflow stored in a given dataframe
+
+kw arguments are passed to the plot
 """
-function plot_τ_regression(dataframe::DataFrames.DataFrame)
+function plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
     x_name = "TAUTH"
     y_name = "TAUTH_fuse"
     xlabel = "Experiments τ_e"
@@ -107,9 +110,6 @@ function plot_τ_regression(dataframe::DataFrames.DataFrame)
     MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
 
     p = plot(; palette=:tab10, aspect_ratio=:equal)
-    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]]; linestyle=:dash, label="±50%", legend=:topleft, color=:black)
-    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
-    plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
     plot!(
         dataframe[:, x_name],
         dataframe[:, y_name];
@@ -121,21 +121,34 @@ function plot_τ_regression(dataframe::DataFrames.DataFrame)
         xlim=x_ylim,
         xlabel=xlabel,
         ylabel=ylabel,
-        title="mean relative error = $MRE% for $(length(dataframe[:, x_name])) cases"
+        title="mean relative error = $MRE% for $(length(dataframe[:, x_name])) cases",
+        kw...
     )
+    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]]; linestyle=:dash, label="±50%", legend=:topleft, color=:black)
+    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
+    plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
 
     println("R² = $(R²), mean_relative_error = $MRE)")
     return p
 end
 
 """
+    load_hdb5(filename::String)
+
+Load h5db from as JLS file
+"""
+function load_hdb5(filename::String)
+    return Serialization.deserialize(filename)
+end
+
+"""
     plot_τ_regression(filename::String)
 
-Plot regression of `\$name` and `\$(name)_fuse` data stored in a given CSV file
+Plot τe regression from data stored in a given JLS file
 """
-function plot_τ_regression(filename::String)
-    dataframe = CSV.read(filename, DataFrames.DataFrame)
-    return plot_τ_regression(dataframe)
+function plot_τ_regression(filename::String; kw...)
+    dataframe = load_hdb5(filename)
+    return plot_τ_regression(dataframe; kw...)
 end
 
 function R_squared(x, y)

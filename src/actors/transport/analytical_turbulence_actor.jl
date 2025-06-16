@@ -10,6 +10,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorAnalyticTurbulence{T<:Real} <: P
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:GyroBohm, :BgB], "-", "Analytic transport model"; default=:GyroBohm)
     αBgB::Entry{T} = Entry{T}("-", "Scale factor for BgB transport"; default=0.01)
+    χeB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of Bohm component in χe. χe=αBgB*(χeB_coefficient*χeB+χeGB_coefficient*χeGB)"; default=0.01)
+    χeGB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of gyro-Bohm component in χe. χe=αBgB*(χeB_coefficient*χeB+χeGB_coefficient*χeGB)"; default=50.0)
+    χiB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of Bohm component in χi. χi=αBgB*(χiB_coefficient*χiB+χiGB_coefficient*χiGB)"; default=0.001)
+    χiGB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of gyro-Bohm component in χi. χi=αBgB*(χiB_coefficient*χiB+χiGB_coefficient*χiGB)"; default=1.0)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute fluxes on"; default=0.25:0.1:0.85)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -89,9 +93,10 @@ function _step(actor::ActorAnalyticTurbulence)
         χiB = 2.0 * χeB
         χiGB = 0.5 * χeGB
 
-        χe = @. actor.par.αBgB * (0.01 * χeB + 50.0 * χeGB)
-        χi = @. actor.par.αBgB * (0.001 * χiB + χiGB)
+        χe = @. actor.par.αBgB * (actor.par.χeB_coefficient * χeB + actor.par.χeGB_coefficient * χeGB) 
+        χi = @. actor.par.αBgB * (actor.par.χiB_coefficient * χiB + actor.par.χiGB_coefficient * χiGB)
         Γe = @. (A1 + (A2 - A1) * rho_cp) * χe * χi / (χe + χi) * dlnnedr * ne
+
         gridpoint_cp = [argmin_abs(cp1d.grid.rho_tor_norm, ρ) for ρ in par.rho_transport]
 
         actor.flux_solutions = [
