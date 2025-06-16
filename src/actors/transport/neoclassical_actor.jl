@@ -187,6 +187,8 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
         Vphi = cp1d.rotation_frequency_tor_sonic
         vth_i = sqrt.(2 .* Ti .* IMAS.mks.e ./ (Ai * IMAS.mks.m_p))
         Machi = Vphi ./ vth_i
+        threshold = 1e-15
+        Machi[abs.(Machi) .< threshold] .= 0.0 # no negative values in Machi
     end
 
     Zeff = facit_interpolate(cp1d.zeff, cp1d.grid.rho_tor_norm, rho)
@@ -197,7 +199,13 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     invaspct = eqt.boundary.minor_radius / eqt.boundary.geometric_axis.r
     B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
     R0 = eqt.boundary.geometric_axis.r
-    qmag = abs.(facit_interpolate(eqt.profiles_1d.q, eqt.profiles_1d.rho_tor_norm, rho))
+
+    psi_pol = eqt.profiles_1d.psi  
+    psi_pol_over_2pi = psi_pol ./ (2π)
+    psi_new = IMAS.interp1d(eqt.profiles_1d.rho_tor_norm, psi_pol_over_2pi).(rmin)
+    d_polfluxov2pi_d_rmin = IMAS.gradient(rmin, psi_new)
+    qmag = abs.(rmin .* B0 ./ d_polfluxov2pi_d_rmin)
+
     psi = facit_interpolate(eqt.profiles_1d.psi, eqt.profiles_1d.rho_tor_norm, rho)
     FV = facit_interpolate(eqt.profiles_1d.f, eqt.profiles_1d.psi, psi)
     dpsidx = IMAS.gradient(rho, psi)
@@ -206,7 +214,7 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     ZV = Z
 
     fj0 = NeoclassicalTransport.FACITinput(rho, Zimp, Aimp, Zi, Ai, Ti, Ni, Nimp, Machi, Zeff, gradTi, gradNi, gradNimp, invaspct, B0, R0, qmag; 
-        fsaout = false, rotation_model = facit_rotation_model, Te_Ti = Te_Ti, full_geom = facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
+        fsaout = true, rotation_model = facit_rotation_model, Te_Ti = Te_Ti, full_geom = facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
     
     return fj0
 end
