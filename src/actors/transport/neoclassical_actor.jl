@@ -205,7 +205,7 @@ function prepare_facit(dd::IMAS.dd, facit_rotation_model::Int, facit_full_geomet
     RV = R
     ZV = Z
 
-    fj0 = NEO.FACITinput(rho, Zimp, Aimp, Zi, Ai, Ti, Ni, Nimp, Machi, Zeff, gradTi, gradNi, gradNimp, invaspct, B0, R0, qmag; 
+    fj0 = NeoclassicalTransport.FACITinput(rho, Zimp, Aimp, Zi, Ai, Ti, Ni, Nimp, Machi, Zeff, gradTi, gradNi, gradNimp, invaspct, B0, R0, qmag; 
         fsaout = false, rotation_model = facit_rotation_model, Te_Ti = Te_Ti, full_geom = facit_full_geometry, theta = theta, RV = RV, FV = FV, ZV = ZV, BV = missing, JV = missing, dpsidx = dpsidx, nat_asym = true)
     
     return fj0
