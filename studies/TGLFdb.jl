@@ -41,8 +41,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
 end
 
-mutable struct StudyTGLFdb <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyTGLFdb
+mutable struct StudyTGLFdb{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T, FUSEparameters__ParametersStudyTGLFdb{T}}
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{Union{String,Symbol}},Missing}
@@ -62,7 +62,7 @@ function TGLF_dataframe()
 end
 
 function StudyTGLFdb(sty, act; kw...)
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyTGLFdb(sty, act, missing, missing)
     return setup(study)
 end
@@ -209,7 +209,7 @@ end
 function save_inputtglfs(actor_transport, output_dir, name, item)
     rho_transport = actor_transport.tr_actor.actor_ct.par.rho_transport
     for k in 1:length(rho_transport)
-        TGLFNN.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(item)"))
+        TurbulentTransport.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(item)"))
     end
 end
 

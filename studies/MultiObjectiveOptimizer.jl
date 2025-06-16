@@ -36,8 +36,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:single_hdf5)
 end
 
-mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyMultiObjectiveOptimizer
+mutable struct StudyMultiObjectiveOptimizer{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T, FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T}}
     ini::ParametersAllInits
     act::ParametersAllActors
     constraint_functions::Vector{IMAS.ConstraintFunction}
@@ -56,7 +56,7 @@ function StudyMultiObjectiveOptimizer(
     objective_functions::Vector{IMAS.ObjectiveFunction};
     kw...
 )
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
     return setup(study)
 end
@@ -102,7 +102,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
                 println("Running $max_gens_per_iteration generations ($i / $steps)")
                 gens = max_gens_per_iteration
                 if i == steps && mod(sty.number_of_generations, max_gens_per_iteration) != 0
-                    gens = mod(gen, max_gens_per_iteration)
+                    gens = mod(sty.restart_workers_after_n_generations, max_gens_per_iteration)
                 end
                 sty.restart_workers_after_n_generations = 0
                 sty.release_workers_after_run = false

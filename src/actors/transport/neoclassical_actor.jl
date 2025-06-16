@@ -1,4 +1,4 @@
-import NEO
+import NeoclassicalTransport
 import GACODE
 import Interpolations
 import MillerExtendedHarmonic
@@ -17,10 +17,10 @@ end
 mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorNeoclassical{P}}
-    input_neos::Vector{<:NEO.InputNEO}
+    input_neos::Vector{<:NeoclassicalTransport.InputNEO}
     flux_solutions::Vector{<:GACODE.FluxSolution}
-    equilibrium_geometry::Union{NEO.EquilibriumGeometry,Missing}
-    facit_output::Union{Dict{String, NEO.FACIToutput},Missing}
+    equilibrium_geometry::Union{NeoclassicalTransport.EquilibriumGeometry,Missing}
+    facit_output::Union{Dict{String, NeoclassicalTransport.FACIToutput},Missing}
 end
 
 """
@@ -38,7 +38,7 @@ end
 function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
     logging_actor_init(ActorNeoclassical)
     par = OverrideParameters(par; kw...)
-    return ActorNeoclassical(dd, par, NEO.InputNEO[], GACODE.FluxSolution[], missing, missing)
+    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution[], missing, missing)
 end
 
 """
@@ -55,24 +55,26 @@ function _step(actor::ActorNeoclassical)
     rho_cp = cp1d.grid.rho_tor_norm
 
     if par.model == :changhinton
-        actor.flux_solutions = [NEO.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
+        actor.flux_solutions = [NeoclassicalTransport.changhinton(eqt, cp1d, rho, 1) for rho in par.rho_transport]
 
     elseif par.model == :neo
         gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
-        actor.input_neos = [NEO.InputNEO(eqt, cp1d, i) for (idx, i) in enumerate(gridpoint_cps)]
-        actor.flux_solutions = asyncmap(input_neo -> NEO.run_neo(input_neo), actor.input_neos)
+        actor.input_neos = [NeoclassicalTransport.InputNEO(eqt, cp1d, i) for (idx, i) in enumerate(gridpoint_cps)]
+        actor.flux_solutions = asyncmap(input_neo -> NeoclassicalTransport.run_neo(input_neo), actor.input_neos)
 
     elseif par.model == :hirshmansigmar_facit
         gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
         if ismissing(actor.equilibrium_geometry) || actor.equilibrium_geometry.time != eqt.time
-            actor.equilibrium_geometry = NEO.get_equilibrium_geometry(eqt, cp1d)#, gridpoint_cps)
+            actor.equilibrium_geometry = NeoclassicalTransport.get_equilibrium_geometry(eqt, cp1d)#, gridpoint_cps)
         end
-        parameter_matrices = NEO.get_plasma_profiles(eqt, cp1d)
-        actor.flux_solutions = map(gridpoint_cp -> NEO.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry), gridpoint_cps)
+        parameter_matrices = NeoclassicalTransport.get_plasma_profiles(eqt, cp1d)
+        rho_s = GACODE.rho_s(cp1d, eqt)
+        rmin = GACODE.r_min_core_profiles(eqt.profiles_1d, cp1d.grid.rho_tor_norm)
+        actor.flux_solutions = map(gridpoint_cp -> NeoclassicalTransport.hirshmansigmar(gridpoint_cp, eqt, cp1d, parameter_matrices, actor.equilibrium_geometry; rho_s, rmin), gridpoint_cps)
         
         facit_full_geometry = true 
         # impurity fluxes with FACIT
-        outputs_dict = Dict{String, NEO.FACIToutput}()
+        outputs_dict = Dict{String, NeoclassicalTransport.FACIToutput}()
 
         for i in 1:length(cp1d.ion)-1
             for j in i+1:length(cp1d.ion)
@@ -88,13 +90,13 @@ function _step(actor::ActorNeoclassical)
 
                 key = species1.label * "+" * species2.label
                 facit_input = prepare_facit(dd, facit_rotation_model, facit_full_geometry, species1, species2)
-                output = NEO.compute_transport(facit_input)
+                output = NeoclassicalTransport.compute_transport(facit_input)
 
                 outputs_dict[key] = output
             end
         end
 
-        actor.facit_output = outputs_dict
+        actor.facit_output = outputs_dict        
     end
 
     return actor
