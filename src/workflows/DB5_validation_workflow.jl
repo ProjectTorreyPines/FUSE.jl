@@ -1,6 +1,6 @@
 import Random
 import DataFrames
-import Serialize
+import Serialization
 import Dates
 import Distributed
 import Distributed: pmap
@@ -56,8 +56,8 @@ function workflow_HDB5_validation(;
     # save all input data as well as predicted tau to JLS file
     if !isempty(save_directory)
         filename = "HDB5_runs_dataframe_$(Dates.now())"
-        Serialize.serialize(joinpath(save_directory, "$(filename).jls"), run_df)
-        Serialize.serialize(joinpath(save_directory, "$(filename)_failed.jls"), fail_df)
+        Serialization.serialize(joinpath(save_directory, "$(filename).jls"), run_df)
+        Serialization.serialize(joinpath(save_directory, "$(filename)_failed.jls"), fail_df)
     end
 
     return (run_df=run_df, fail_df=fail_df)
@@ -135,7 +135,7 @@ end
 Load h5db from as JLS file
 """
 function load_hdb5(filename::String)
-    return Serialize.deserialize(filename)
+    return Serialization.deserialize(filename)
 end
 
 """
