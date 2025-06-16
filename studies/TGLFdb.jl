@@ -209,7 +209,7 @@ end
 function save_inputtglfs(actor_transport, output_dir, name, item)
     rho_transport = actor_transport.tr_actor.actor_ct.par.rho_transport
     for k in 1:length(rho_transport)
-        TGLFNN.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(item)"))
+        TurbulentTransport.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(item)"))
     end
 end
 

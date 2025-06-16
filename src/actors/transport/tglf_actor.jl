@@ -1,5 +1,5 @@
-import TGLFNN
-import TGLFNN: InputTGLF, InputQLGYRO, InputTJLF, InputCGYRO
+import TurbulentTransport
+import TurbulentTransport: InputTGLF, InputQLGYRO, InputTJLF, InputCGYRO
 import TJLF
 import GACODE
 
@@ -17,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     tglfnn_model::Entry{String} = Entry{String}(
         "-",
         "Use a user specified TGLF-NN model stored in TGLFNN/models";
-        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(TGLFNN.available_models(),"\"\n  \""))\""
+        check=x -> @assert x in TurbulentTransport.available_models() "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(TurbulentTransport.available_models(),"\"\n  \""))\""
     )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
@@ -101,10 +101,10 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
     if par.model ∈ [:TGLFNN, :GKNN]
         if !par.onnx_model
             uncertain = eltype(dd) <: IMAS.Measurements.Measurement
-            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; uncertain, par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
+            actor.flux_solutions = TurbulentTransport.run_tglfnn(actor.input_tglfs; uncertain, par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
 
         elseif par.onnx_model
-            actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
+            actor.flux_solutions = TurbulentTransport.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
                 [
                     "RLTS_3",
                     "KAPPA_LOC",
@@ -146,7 +146,7 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
         end
 
     elseif par.model == :TGLF
-        actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
+        actor.flux_solutions = TurbulentTransport.run_tglf(actor.input_tglfs)
 
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
@@ -203,7 +203,7 @@ Common save method for all the various input types
 """
 function save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF, InputTJLF}, filename::String)
     if input isa InputCGYRO || input isa InputQLGYRO || input isa InputTGLF
-        return TGLFNN.save(input, filename)
+        return TurbulentTransport.save(input, filename)
     elseif input isa InputTJLF
         return TJLF.save(input, filename)
     else
