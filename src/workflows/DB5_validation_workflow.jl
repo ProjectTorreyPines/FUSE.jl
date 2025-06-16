@@ -90,11 +90,13 @@ function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing
 end
 
 """
-    plot_τ_regression(dataframe::DataFrames.DataFrame)
+    plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
 
 Plot HDB5 validation workflow stored in a given dataframe
+
+kw arguments are passed to the plot
 """
-function plot_τ_regression(dataframe::DataFrames.DataFrame)
+function plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
     x_name = "TAUTH"
     y_name = "TAUTH_fuse"
     xlabel = "Experiments τ_e"
@@ -108,9 +110,6 @@ function plot_τ_regression(dataframe::DataFrames.DataFrame)
     MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
 
     p = plot(; palette=:tab10, aspect_ratio=:equal)
-    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]]; linestyle=:dash, label="±50%", legend=:topleft, color=:black)
-    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
-    plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
     plot!(
         dataframe[:, x_name],
         dataframe[:, y_name];
@@ -122,8 +121,12 @@ function plot_τ_regression(dataframe::DataFrames.DataFrame)
         xlim=x_ylim,
         xlabel=xlabel,
         ylabel=ylabel,
-        title="mean relative error = $MRE% for $(length(dataframe[:, x_name])) cases"
+        title="mean relative error = $MRE% for $(length(dataframe[:, x_name])) cases",
+        kw...
     )
+    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]]; linestyle=:dash, label="±50%", legend=:topleft, color=:black)
+    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
+    plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
 
     println("R² = $(R²), mean_relative_error = $MRE)")
     return p
@@ -143,9 +146,9 @@ end
 
 Plot τe regression from data stored in a given JLS file
 """
-function plot_τ_regression(filename::String)
-    plot_τ_regression(load_hdb5(filename))
-    return dataframe
+function plot_τ_regression(filename::String; kw...)
+    dataframe = load_hdb5(filename)
+    return plot_τ_regression(dataframe; kw...)
 end
 
 function R_squared(x, y)
