@@ -111,7 +111,7 @@ function _step(actor::ActorQED)
                 rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
             end
 
-            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
+            η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
@@ -136,7 +136,7 @@ function _step(actor::ActorQED)
         # current fully relaxes, and the second time we change the resisitivity to keep q>1
         rho_qdes = -1.0
         for _ in (1, 2)
-            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
+            η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.steady_state(actor.QO, η_jardin; Vedge, Ip)
