@@ -37,7 +37,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
 end
 
 mutable struct StudyMultiObjectiveOptimizer{T<:Real} <: AbstractStudy
-    sty::OverrideParameters{T, FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T}}
+    sty::OverrideParameters{T,FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T}}
     ini::ParametersAllInits
     act::ParametersAllActors
     constraint_functions::Vector{IMAS.ConstraintFunction}
@@ -67,7 +67,6 @@ function _setup(study::StudyMultiObjectiveOptimizer)
     check_and_create_file_save_mode(sty)
 
     parallel_environment(sty.server, sty.n_workers)
-
 
     # import FUSE and IJulia on workers
     if isdefined(Main, :IJulia)
@@ -138,17 +137,14 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
-
-        state = workflow_multiobjective_optimization(
+        study.state = workflow_multiobjective_optimization(
             study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
             optimization_parameters..., generation_offset=study.generation, database_policy=sty.database_policy,
-            number_of_generations = sty.number_of_generations, population_size = sty.population_size)
-
-        study.state = state
+            number_of_generations=sty.number_of_generations, population_size=sty.population_size)
 
         save_optimization(
             joinpath(sty.save_folder, "optimization_state.bson"),
-            state,
+            study.state,
             study.ini,
             study.act,
             study.objective_functions,
@@ -231,7 +227,6 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
 
         unique!(merged_df)
         sort!(merged_df, "gparent")
-
 
         io_buffer = IOBuffer()
         CSV.write(io_buffer, merged_df)

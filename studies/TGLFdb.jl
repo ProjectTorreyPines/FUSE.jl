@@ -42,7 +42,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
 end
 
 mutable struct StudyTGLFdb{T<:Real} <: AbstractStudy
-    sty::OverrideParameters{T, FUSEparameters__ParametersStudyTGLFdb{T}}
+    sty::OverrideParameters{T,FUSEparameters__ParametersStudyTGLFdb{T}}
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{Union{String,Symbol}},Missing}
@@ -127,7 +127,6 @@ function _run(study::StudyTGLFdb)
         open("$(sty.save_folder)/data_frame_$(item).json", "w") do f
             return write(f, json_data)
         end
-
     end
 
     # Release workers after run
@@ -135,6 +134,7 @@ function _run(study::StudyTGLFdb)
         Distributed.rmprocs(Distributed.workers())
         @info "released workers"
     end
+
     return study
 end
 
@@ -304,7 +304,6 @@ end
 
 
 function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
-
     if study.act.ActorTGLF.electromagnetic
         EM_contribution = :EM
     else
@@ -317,7 +316,6 @@ function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
 end
 
 function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
-
     x = df[!, "$(quantity)_exp"]
     y = df[!, "$(quantity)"]
 
