@@ -28,14 +28,14 @@ This function calls all other `FUSE.init...` functions in FUSE
 Modifies `ini` and `act` in place
 """
 function init!(
-    dd::IMAS.dd,
+    dd::IMAS.dd{T},
     ini::ParametersAllInits,
     act::ParametersAllActors;
     do_plot::Bool=false,
     initialize_hardware::Bool=true,
     initialize_pulse_schedule::Bool=true,
     restore_expressions::Bool=true,
-    verbose::Bool=false)
+    verbose::Bool=false) where {T<:Real}
 
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
@@ -228,11 +228,15 @@ function init!(
         # add strike point information to pulse_schedule
         fw = IMAS.first_wall(dd.wall)
         if !isempty(fw.r) && ps_was_set
-            RXX = []
-            ZXX = []
+            RXX = Vector{T}[]
+            ZXX = Vector{T}[]
             for eqt in dd.equilibrium.time_slice
-                psi_boundaries = (last_closed=eqt.boundary.psi, first_open=eqt.boundary_separatrix.psi)
-                Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
+                if eqt.global_quantities.ip == 0.0
+                    Rxx, Zxx = T[], T[]
+                else
+                    psi_boundaries = (last_closed=eqt.boundary.psi, first_open=eqt.boundary_separatrix.psi)
+                    Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
+                end
                 push!(RXX, Rxx)
                 push!(ZXX, Zxx)
             end
@@ -240,8 +244,8 @@ function init!(
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, N)
             for k in 1:N
-                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
-                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
+                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Rxx) ? Rxx[k] : T(NaN) for Rxx in RXX], :constant).(pc.time)
+                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Zxx) ? Zxx[k] : T(NaN) for Zxx in ZXX], :constant).(pc.time)
             end
         end
 
