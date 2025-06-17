@@ -172,6 +172,10 @@ include("optimization.jl")
 #  STUDIES  #
 #= ======= =#
 include(joinpath("parameters", "parameters_studies.jl"))
+include("studies.jl")
+include(joinpath("studies", "database_generator.jl"))
+include(joinpath("studies", "multi_objective_optimization.jl"))
+include(joinpath("studies", "TGLF_database.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
