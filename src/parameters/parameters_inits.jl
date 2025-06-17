@@ -109,6 +109,11 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     ITB::FUSEparameters__ITB{T} = FUSEparameters__ITB{T}()
 end
 
+Base.@kwdef mutable struct FUSEparameters__edge_profiles{T} <: ParametersInit{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :edge_profiles
+end
+
 Base.@kwdef mutable struct FUSEparameters__pf_active{T} <: ParametersInit{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :pf_active
@@ -276,6 +281,7 @@ mutable struct ParametersInits{T<:Real} <: ParametersAllInits{T}
     ods::FUSEparameters__ods{T}
     equilibrium::FUSEparameters__equilibrium{T}
     core_profiles::FUSEparameters__core_profiles{T}
+    edge_profiles::FUSEparameters__edge_profiles{T}
     pf_active::FUSEparameters__pf_active{T}
     rampup::FUSEparameters__rampup{T}
     nb_unit::ParametersVector{FUSEparameters__nb_unit{T}}
@@ -301,6 +307,7 @@ function ParametersInits{T}() where {T<:Real}
         FUSEparameters__ods{T}(),
         FUSEparameters__equilibrium{T}(),
         FUSEparameters__core_profiles{T}(),
+        FUSEparameters__edge_profiles{T}(),
         FUSEparameters__pf_active{T}(),
         FUSEparameters__rampup{T}(),
         ParametersVector{FUSEparameters__nb_unit{T}}(),
