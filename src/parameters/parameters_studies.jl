@@ -60,8 +60,11 @@ function setup(study::AbstractStudy)
 end
 
 function analyze(study::AbstractStudy; kw...)
-    # here you can add timing info and more
     return _analyze(study; kw...)
+end
+
+function _analyze(study::AbstractStudy; kw...)
+    return study
 end
 
 function run(study::T, args...; kw...) where {T<:AbstractStudy}

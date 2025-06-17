@@ -137,22 +137,6 @@ function _run(study::StudyDatabaseGenerator)
 end
 
 """
-    _analyze(study::StudyDatabaseGenerator)
-
-Example of analyze plots to display after the run feel free to change this method for your needs
-"""
-function _analyze(study::StudyDatabaseGenerator; extract::Bool=true, re_extract::Bool=false)
-    if extract
-        extract_results(study; re_extract)
-    end
-    df = study.dataframe
-    display(histogram(df.Te0; xlabel="Te0 [keV]", ylabel="Number of simulations per bin", legend=false))
-    display(histogram(df.Ti0; xlabel="Ti0 [keV]", ylabel="Number of simulations per bin", legend=false))
-    display(histogram(df.ne0; xlabel="ne0 [m⁻³]]", ylabel="Number of simulations per bin", legend=false))
-    return study
-end
-
-"""
     run_case(study::AbstractStudy, item::String)
 
 Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)

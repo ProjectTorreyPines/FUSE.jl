@@ -7,10 +7,9 @@ import GACODE
 #= ================= =#
 
 """
-study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
 """
 function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
-
     sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
     act = ParametersActors()
 
@@ -282,10 +281,9 @@ function preparse_input(database_folder)
         delete!(json_data["equilibrium"], "code")
 
         time = json_data["equilibrium"]["time"][1]
-        timea = [time]
 
         json_data["core_profiles"]["profiles_1d"][1]["time"] = time
-        json_data["core_profiles"]["time"] = timea
+        json_data["core_profiles"]["time"] = [time]
         json_data["dataset_description"] = Dict("data_entry" => Dict("pulse" => pulse, "machine" => machine))
 
         for source in keys(json_data["core_sources"]["source"])

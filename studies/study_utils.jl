@@ -2,6 +2,7 @@
     extract_results(simulations_path::String)
 
 Extracts informatation from all the simulation results in simulations_path and returns them inside a dataframe (This is done safely in parallel and with checkpoints)
+
 Note : If you want to speed up this process incrase the number of threads
 """
 function extract_results(simulations_path::String)

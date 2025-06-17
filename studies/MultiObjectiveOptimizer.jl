@@ -247,7 +247,9 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
     return merged_df
 end
 
-
+"""
+    _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
+"""
 function _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
     if extract_results
         extract_results(study)
@@ -262,10 +264,11 @@ end
     filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
 
 Filters the dataframe to the constraints you pass.
-Common usage will be df_filtered = FUSE.filter_outputs(df, constraint_list)
+
+Common usage will be `df_filtered = FUSE.filter_outputs(df, constraint_list)`
 """
 function filter_outputs(outputs::DataFrame, constraint_symbols::Vector{Symbol})
-    n = length(outputs.Pelectric_net)
+    n = nrow(outputs)
     constraint_values = [outputs[i, key] for key in constraint_symbols, i in 1:n]
     all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:, i]), 1:n)
     return outputs[all_constraint_idxs, :]
