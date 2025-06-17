@@ -16,7 +16,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: Parame
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
     time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=false)
     #== display and debugging parameters ==#
-    verbose::Entry{Bool} = Entry{Bool}("-", "Verbose"; default=false)
+    verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}

@@ -25,7 +25,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
         Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
     save_input_tglfs_to_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder"; default="")
-    debug::Entry{Bool} = Entry{Bool}("-", "Save additional information when saving input_tglfs to folder"; default=false)
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
@@ -91,9 +90,6 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
         if isdir(par.save_input_tglfs_to_folder)
             name = lowercase(string(par.model))
             save(actor.input_tglfs[k] ,joinpath(par.save_input_tglfs_to_folder, "input.$(name)_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])"))
-            if par.debug && par.model == :TJLF
-                save(actor.input_tglfs[k] ,joinpath(par.save_input_tglfs_to_folder, "input.$(name)_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])_for_debugging"))
-            end
         end
 
     end
