@@ -39,8 +39,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     )
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf)
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
-    scale_turbulence_law::Switch{Symbol} =
-        Switch{Symbol}([:h98, :ds03], "-", "Scale turbulent transport to achieve a desired confinement law: NOTE: scale law evaluated with include_radiation=false")
+    scale_turbulence_law::Switch{Symbol} = Switch{Symbol}([:h98, :ds03], "-", "Scale turbulent transport to achieve a desired confinement law")
     scale_turbulence_value::Entry{Float64} = Entry{Float64}(
         "-",
         "Scale turbulent transport to achieve a desired confinement value for the `scale_turbulence_law`";
@@ -137,7 +136,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         opt_parameters = [1.0; z_init_scaled]
     end
 
-    res = try
+    out = try
         if par.algorithm == :none
             res = (zero=opt_parameters,)
 
@@ -219,12 +218,12 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             res = (zero=sol.u,)
         end
 
+        flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+
     finally
 
         actor_logging(dd, old_logging)
     end
-
-    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
 
     # evaluate profiles at the best-matching gradients
     actor.error = norm(out.errors)
@@ -235,40 +234,27 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     # plotting of the channels that have been evolved
     if par.do_plot
-        if ismissing(par, :scale_turbulence_law)
-            specials = String[]
-        else
-            specials = String["scale_turbulence_law"]
-        end
-        N_specials = length(specials)
-
-        p = plot()
-        normed_errors = vcat(map(norm, err_history)...)
-        plot!(
-            normed_errors;
-            color=:black,
-            lw=2.0,
-            yscale=:log10,
-            ylabel="Convergence errror",
-            xlabel="Iterations",
-            label=@sprintf("total [error = %.3e]", (minimum(normed_errors)))
-        )
-        for sp in 1:N_specials
-            plot!(vcat(map(x -> errors_by_channel(abs.(x), N_radii, N_channels, N_specials).specials, err_history)...)[:, sp]; label=specials[sp])
-        end
+        plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
-            label = profiles_title(cp1d, profiles_path)
-            plot!(vcat(map(x -> errors_by_channel(x, N_radii, N_channels, N_specials).radii_channels, err_history)...)[:, ch]; label)
+            title = profiles_title(cp1d, profiles_path)
+            plot!(vcat(map(x -> errors_by_channel(x, N_radii, N_channels), err_history)...)[:, ch]; label=title)
         end
-        display(p)
+        display(
+            plot!(vcat(map(norm, err_history)...);
+                color=:black,
+                lw=0.5,
+                yscale=:log10,
+                ylabel="Log₁₀ of convergence errror",
+                xlabel="Iterations",
+                label=@sprintf("total [error = %.3e]", (minimum(map(norm, err_history))))))
 
         channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
-        data = reshape(channels_evolution, (length(err_history), N_radii, N_channels))
+        data = reshape(channels_evolution, (length(err_history), length(par.rho_transport), N_channels))
         p = plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
-            label = profiles_title(cp1d, profiles_path)
+            title = profiles_title(cp1d, profiles_path)
             for kr in 1:length(par.rho_transport)
-                plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label)
+                plot!(data[:, kr, ch]; ylabel="Inverse scale length [m⁻¹]", xlabel="Iterations", primary=kr == 1, lw=kr, label=title)
             end
         end
         display(p)
@@ -278,6 +264,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time)
         model_type = IMAS.name_2_index(dd.core_transport.model)
         for (ch, (profiles_path, fluxes_path)) in enumerate(zip(profiles_paths, fluxes_paths))
+            title = IMAS.p2i(collect(map(string, fluxes_path)))
             plot!(
                 IMAS.goto(total_source1d, fluxes_path[1:end-1]),
                 Val(fluxes_path[end]);
@@ -337,22 +324,18 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         # refresh sources with relatex profiles
         IMAS.sources!(dd)
-
-        # Ensure quasi neutrality if densities are evolved
-        # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
-        evolve_densities = evolve_densities_dictionary(cp1d, par)
-        for (species, evolve) in evolve_densities
-            if evolve == :quasi_neutrality
-                IMAS.enforce_quasi_neutrality!(cp1d, species)
-                break
-            end
-        end
     end
 
     # remove the temporary `∂/∂t implicit` term and update the full `∂/∂t` term
     if !isinf(par.Δt)
         deleteat!(dd.core_sources.source, :time_derivative, "identifier.name" => "∂/∂t implicit")
         IMAS.time_derivative_source!(dd)
+    end
+
+    # free total densities expressions
+    IMAS.unfreeze!(cp1d.electrons, :density)
+    for ion in cp1d.ion
+        IMAS.unfreeze!(ion, :density)
     end
 
     # free pressures expressions
@@ -388,8 +371,8 @@ function profiles_title(cp1d, profiles_path)
     end
 end
 
-function errors_by_channel(errors::Vector{Float64}, N_radii::Int, N_channels::Int, N_specials::Int)
-    return (specials=errors[1+N_specials], radii_channels=mapslices(norm, reshape(errors[1+N_specials:end], (N_radii, N_channels)); dims=1))
+function errors_by_channel(errors::Vector{Float64}, N_radii::Int, N_channels::Int)
+    return mapslices(norm, reshape(errors, (N_radii, N_channels)); dims=1)
 end
 
 """
@@ -477,11 +460,8 @@ function flux_match_errors(
     # scale turbulent fluxes, if par.scale_turbulence_law is set
     if !ismissing(par, :scale_turbulence_law)
         m1d = dd.core_transport.model[:anomalous].profiles_1d[]
-        for leaf in AbstractTrees.Leaves(m1d)
-            if leaf.field == :flux
-                getproperty(leaf.ids, leaf.field) .*= turbulence_scale
-            end
-        end
+        m1d.total_ion_energy.flux .*= turbulence_scale
+        m1d.electrons.energy.flux .*= turbulence_scale
     end
 
     # get transport fluxes and sources
@@ -511,17 +491,17 @@ function flux_match_errors(
 
     # add error toward achieving desired scaling law value
     if !ismissing(par, :scale_turbulence_law)
-        tau_th = IMAS.tau_e_thermal(dd; include_radiation=false)
+        tau_th = IMAS.tau_e_thermal(dd; include_radiation=true)
         if par.scale_turbulence_law == :h98
-            tauH = IMAS.tau_e_h98(dd; include_radiation=false)
+            tauH = IMAS.tau_e_h98(dd; include_radiation=true)
         elseif par.scale_turbulence_law == :ds03
-            tauH = IMAS.tau_e_ds03(dd; include_radiation=false)
+            tauH = IMAS.tau_e_ds03(dd; include_radiation=true)
         else
             error("act.ActorFluxMatcher.scale_turbulence_law=$(par.scale_turbulence_law) not recognized: valid options are :h98 or :ds03")
         end
         H_value = tau_th / tauH
         H_target = par.scale_turbulence_value
-        errors = [(H_value - H_target) / H_target * nrho; errors]
+        errors = [(H_value - H_target) / H_target; errors]
     end
 
     # update error history
@@ -667,7 +647,6 @@ function flux_match_simple(
         z_init_scaled = opt_parameters
     else
         turbulence_scale = opt_parameters[1]
-        @assert turbulence_scale == 1.0
         z_init_scaled = @views opt_parameters[2:end]
     end
 
@@ -690,7 +669,7 @@ function flux_match_simple(
         if ismissing(par, :scale_turbulence_law)
             targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         else
-            turbulence_scale += errors[1] * step_size
+            turbulence_scale += errors[1] / 10.0
             targets, fluxes, errors =
                 flux_match_errors(actor, [turbulence_scale; scale_z_profiles(zprofiles)], initial_cp1d; z_scaled_history, err_history, prog)
         end
@@ -902,8 +881,8 @@ Checks if the evolve_densities dictionary makes sense and return sensible errors
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
     dd_species = [
         :electrons;
-        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)];
-        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:fast, return_zero_densities=true)]
+        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)];
+        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:fast)]
     ]
 
     # Check if evolve_densities contains all of dd thermal species
@@ -930,13 +909,12 @@ end
 Sets up the evolve_density dict to evolve only ne and keep the rest matching the ne_scale lengths
 """
 function setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.core_profiles__profiles_1d)
-    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)]
-    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast, return_zero_densities=true)]
+    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
     quasi_neutrality_specie = :D
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
     end
-
     return evolve_densities_dict_creation([:electrons]; fixed_species=dd_fast, match_ne_scale_species=dd_thermal, quasi_neutrality_specie)
 end
 
@@ -946,8 +924,8 @@ end
 Sets up the evolve_density dict to evolve only ne, quasi_neutrality on main ion (:D or :DT) and fix the rest
 """
 function setup_density_evolution_electron_flux_match_impurities_fixed(cp1d::IMAS.core_profiles__profiles_1d)
-    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)]
-    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast, return_zero_densities=true)]
+    dd_thermal = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal)]
+    dd_fast = Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:fast)]
     if :DT ∈ dd_thermal
         quasi_neutrality_specie = :DT
     else
@@ -962,7 +940,7 @@ end
 Sets up the evolve_density dict to keep all species fixed
 """
 function setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
-    all_species = [specie.name for specie in IMAS.species(cp1d; return_zero_densities=true)]
+    all_species = [specie.name for specie in IMAS.species(cp1d)]
     return evolve_densities_dict_creation(Symbol[]; fixed_species=all_species, quasi_neutrality_specie=false)
 end
 
@@ -974,7 +952,7 @@ Sets up the evolve_density dict to evolve only ne, and scale ion species in such
 function setup_density_evolution_electron_flux_match_fixed_zeff(cp1d::IMAS.core_profiles__profiles_1d)
     evolve_density = Dict{Symbol,Symbol}()
     evolve_density[:electrons] = :flux_match
-    for ion_name in IMAS.species(cp1d; only_electrons_ions=:ions, return_zero_densities=true)
+    for ion_name in IMAS.species(cp1d; only_electrons_ions=:ions)
         evolve_density[ion_name.name] = :zeff
     end
     return evolve_density
@@ -995,7 +973,6 @@ function evolve_densities_dict_creation(
     if typeof(quasi_neutrality_specie) <: Symbol
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
     end
-
     return Dict(sym => evolve for (sym, evolve) in parse_list)
 end
 

@@ -97,7 +97,7 @@ function _step(actor::ActorCostingARIES)
     end
     # LH
     c = 0.0
-    for hcd in dd.lh_antennas.antenna
+    for hcd in dd.ic_antennas.antenna
         c += cost_direct_capital_ARIES(hcd, da)
     end
     if c > 0.0

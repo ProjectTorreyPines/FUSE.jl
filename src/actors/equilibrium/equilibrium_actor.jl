@@ -262,21 +262,12 @@ function prepare(actor::ActorEquilibrium)
     # calculate pressure and j_tor using geometry from previous iteration
     # this is for equilibrium codes that cannot solve directly from pressure and current
     if past_time_slice
-        psin = @. (psi-psi[1])/(psi[end]-psi[1])
-        psin0 = @. (psi0-psi0[1])/(psi0[end]-psi0[1])
-
-        pressure = IMAS.interp1d(psin0, eqt1d.pressure).(psin)
-        j_tor = IMAS.interp1d(psin0, eqt1d.j_tor).(psin)
+        pressure = IMAS.interp1d(psi0, eqt1d.pressure).(psi)
+        j_tor = IMAS.interp1d(psi0, eqt1d.j_tor).(psi)
         tmp = IMAS.calc_pprime_ffprim_f(psi, gm8, gm9, gm1, r0, b0; pressure, j_tor)
-        eqt1d.dpressure_dpsi = IMAS.interp1d(psin, tmp.dpressure_dpsi).(psin0)
-        eqt1d.f_df_dpsi = IMAS.interp1d(psin, tmp.f_df_dpsi).(psin0)
-        #eqt1d.f = IMAS.interp1d(psi, tmp.f).(psi0)
-        Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
-        Btcenter = eqt.global_quantities.vacuum_toroidal_field.b0
-        fend = Btcenter * Rcenter
-        f2 = 2 * IMAS.cumtrapz(eqt1d.psi, eqt1d.f_df_dpsi)
-        f2 .= f2 .+ - f2[end] .+ fend^2
-        f = sign(fend) .* sqrt.(abs.(f2))
+        eqt1d.dpressure_dpsi = IMAS.interp1d(psi, tmp.dpressure_dpsi).(psi0)
+        eqt1d.f_df_dpsi = IMAS.interp1d(psi, tmp.f_df_dpsi).(psi0)
+        eqt1d.f = IMAS.interp1d(psi, tmp.f).(psi0)
     end
 
     # if available, restore coil currents and magnetic measurements from experiment
