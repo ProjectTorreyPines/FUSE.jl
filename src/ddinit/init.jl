@@ -221,7 +221,7 @@ function init!(
             RXX = []
             ZXX = []
             for eqt in dd.equilibrium.time_slice
-                psi_boundaries = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true)
+                psi_boundaries = (last_closed=eqt.boundary.psi, first_open=eqt.boundary_separatrix.psi)
                 Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
                 push!(RXX, Rxx)
                 push!(ZXX, Zxx)
