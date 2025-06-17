@@ -17,11 +17,11 @@ function init_edge_profiles!(dd::IMAS.dd{T}, ini::ParametersAllInits, act::Param
         end
 
         if init_from == :scalars
-            cp1d = dd.core_profiles_profiles_1d[]
-            ep1d = resize!(ep.profiles_1d)
+            cp1d = dd.core_profiles.profiles_1d[]
+            ep1d = resize!(dd.edge_profiles.profiles_1d)
 
             # For now, we only Initialize values at the separatrix, where ρpol_norm = 1
-            ep1d.grid.rho_pol_norm = one(T)
+            ep1d.grid.rho_pol_norm = [one(T)]
 
             # density
             ep1d.electrons.density = [cp1d.electrons.density[end]]

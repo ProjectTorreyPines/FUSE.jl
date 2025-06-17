@@ -119,7 +119,7 @@ function init!(
         end
 
         # initialize edge profiles
-        if !initialize_hardware || !ismissing(ini.edge_profiles) || !isempty(dd1.edge_profiles)
+        if !initialize_hardware || !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.edge_profiles)
             verbose && @info "INIT: init_edge_profiles"
             init_edge_profiles!(dd, ini, act, dd1)
             if do_plot
