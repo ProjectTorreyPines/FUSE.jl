@@ -149,7 +149,7 @@ function setup_ec(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slic
             @ddtime(ecb.launching_position.z = maximum(fw.z))
         else
             @ddtime(ecb.launching_position.r = maximum(eqt.boundary.outline.r))
-            @ddtime(ecb.launching_position.z = maximum(eqt.boundary.outline.z[index]))
+            @ddtime(ecb.launching_position.z = maximum(eqt.boundary.outline.z))
         end
     end
     if ismissing(ecb.launching_position, :phi)
