@@ -15,6 +15,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
             if !isempty(dd1.equilibrium.time_slice) && ini.equilibrium.boundary_from == :ods
                 dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
+                eqt.global_quantities.free_boundary = Int(!isempty(eqt.boundary, :x_point))
                 fw = IMAS.first_wall(dd.wall)
                 if findfirst(:rectangular, eqt.profiles_2d) !== nothing
                     IMAS.flux_surfaces(eqt, fw.r, fw.z)
