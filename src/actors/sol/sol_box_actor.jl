@@ -12,7 +12,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorSOLBox{T<:Real} <: ParametersAct
     frac_mom::Entry{T} = Entry{T}("-", "Fraction of momentum lost due to collisions with neutrals, atomic processes and viscous forces"; default=0.5)
     κ0_e::Entry{T} = Entry{T}("-", "Coefficient of electron conductivity"; default=2000.0)
     κ0_i::Entry{T} = Entry{T}("-", "Coefficient of ion conductivity"; default=60.0)
-    mass_ion::Entry{T} = Entry{T}("amu", "Ion mass"; default=2.5)
     recycling_coeff_i::Entry{T} = Entry{T}("-", "Ion particle recycling coefficient"; default=0.99)
     recycling_coeff_e::Entry{T} = Entry{T}("-", "Electron particle recycling coefficient"; default=0.99)
     λq::Entry{T} = Entry{T}("m", "Width of the flux tube"; default=Inf)
@@ -122,7 +121,7 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     solbox.κ0_i = par.κ0_i
     solbox.recycling_coeff_i = par.recycling_coeff_i
     solbox.Ti_t = par.Ti_t
-    solbox.mass_ion = par.mass_ion
+    solbox.mass_ion = IMAS.A_effective(cp1d)
     solbox.κ0_e = par.κ0_e
     solbox.recycling_coeff_e = par.recycling_coeff_e
     solbox.Te_t = par.Te_t
