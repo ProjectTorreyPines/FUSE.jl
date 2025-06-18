@@ -30,17 +30,17 @@ Base.@kwdef mutable struct SOLBox{T<:Real}
     Te_t::T = T(NaN) # Input electron temperature at the target [eV]
     frac_cond::T = T(NaN) # Fraction of power carried by electron conduction
     frac_mom::T = T(NaN) # Fraction of momentum lost due to collisions with neutrals, atomic processes and viscous forces
-    λq::T = T(NaN) # Width of the flux tube
+    λq::T = T(NaN) # Width of the flux tube [m]
     qpar_i::T = T(NaN) # Upstream parallel ion heat flux [W m^-2]
     qpar_e::T = T(NaN) # Upstream parallel electron heat flux [W m^-2]
     Γ_i::T = T(NaN) # Upstream ion particle flux [ptcles m^-2 s^-1]
     Γ_e::T = T(NaN)  # Upstream electron particle flux [ptcles m^-2 s^-1]
     Te_u::T = T(NaN) # Electron temperature at the upstream (separatrix) [eV]
     Ti_u::T = T(NaN) # Ion temperature at the upstream (separatrix) [eV]
-    ne_t::T = T(NaN) # Electron density at the target [pcles m^-2 s^-1]
-    ni_t::T = T(NaN) # Ion density at the target [pcles m^-2 s^-1]
-    ne_u::T = T(NaN) # Electron density at the upstream (separatrix) [pcles m^-2 s^-1]
-    ni_u::T = T(NaN) # Ion density at the upstream (separatrix) [pcles m^-2 s^-1]
+    ne_t::T = T(NaN) # Electron density at the target [ptcles m^-2 s^-1]
+    ni_t::T = T(NaN) # Ion density at the target [ptcles m^-2 s^-1]
+    ne_u::T = T(NaN) # Electron density at the upstream (separatrix) [ptcles m^-2 s^-1]
+    ni_u::T = T(NaN) # Ion density at the upstream (separatrix) [ptcles m^-2 s^-1]
     cst::T = T(NaN) # Sound speed at the sheath entrance [m s^-1]
     SOL_connection_length::T = T(NaN) # Parallel connection length [m]
     SOL_total_Fx::T = T(NaN) # Total flux expansion [-]
@@ -150,12 +150,12 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     # Get the magnetic field at outer midplane
     eqt2d = findfirst(:rectangular, eqt.profiles_2d)
     _, _, PSI_interpolant = IMAS.ψ_interpolant(eqt2d)
-    Bp = IMAS.Bp(PSI_interpolant, r_omp, z_omp) # r and z component of B
+    Bp = IMAS.Bp(PSI_interpolant, r_omp, z_omp) # poloidal component of B
     Bt = abs.(B0 .* R0 ./ r_omp)                # toroidal component of B
     B = sqrt.(Bp .^ 2 + Bt .^ 2)                # total magnetic field B
 
     if solbox.λq == Inf
-        # Take λq as twice λq as predicted by Eich's Bpol scaling
+        # Take λq as twice λq as predicted by Eich's #15 scaling (NF 53 093031)
         solbox.λq = 2.0 * IMAS.widthSOL_eich(eqt, Psol)
     end
 
@@ -220,10 +220,10 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
 
     # Calculate the particle transmission coefficients
 
-    # Ion recycling coefficient
+    # Ion particle transmission coefficient
     γi = 1.0 - solbox.recycling_coeff_i
 
-    # Electron recycling coefficient
+    # Electron particle transmission coefficient
     γe = 1.0 - solbox.recycling_coeff_e
 
     # Intermediate variable. Calculate once for reduced computation.
