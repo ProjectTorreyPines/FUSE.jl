@@ -99,8 +99,8 @@ kw arguments are passed to the plot
 function plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
     x_name = "TAUTH"
     y_name = "TAUTH_fuse"
-    xlabel = "Experiments τ_e"
-    ylabel = "FUSE τ_e"
+    xlabel = "Experiments τₑ"
+    ylabel = "FUSE τₑ"
     x_ylim = [5e-3, 1e1]
 
     dataframe = dataframe[DataFrames.completecases(dataframe), :]
@@ -121,11 +121,13 @@ function plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
         xlim=x_ylim,
         xlabel=xlabel,
         ylabel=ylabel,
-        title="mean relative error = $MRE% for $(length(dataframe[:, x_name])) cases",
+        title="$(length(dataframe[:, x_name])) cases",
         kw...
     )
-    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]]; linestyle=:dash, label="±50%", legend=:topleft, color=:black)
-    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
+
+    off = sqrt(MRE / 100)
+    plot!([x_ylim[1], x_ylim[2]], [off * x_ylim[1], off * x_ylim[2]]; linestyle=:dash, label="±$(MRE)%", legend=:topleft, color=:black)
+    plot!([off * x_ylim[1], off * x_ylim[2]], [x_ylim[1], x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
     plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
 
     println("R² = $(R²), mean_relative_error = $MRE)")

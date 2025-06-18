@@ -196,7 +196,8 @@ function _step(actor::ActorStationaryPlasma)
                 logging(
                     Logging.Info,
                     :actors,
-                    " "^workflow_depth(actor.dd) * "--------------- $(length(total_error))/$(par.max_iterations) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
+                    " "^workflow_depth(actor.dd) *
+                    "--------------- $(length(total_error))/$(par.max_iterations) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
                 )
             end
 
@@ -241,7 +242,7 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
-        ("                 max(zeff)", maximum(cp1d.zeff)),
+        ("                 max(zeff)", maximum(cp1d.zeff))
     ]
     return tuple(tmp...)
 end

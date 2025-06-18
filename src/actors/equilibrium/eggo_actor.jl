@@ -116,6 +116,8 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     # fill out eqt quantities
     EGGO.fill_eqt(eqt, psirz, actor.green, wall, pp, ffp, b0, r0, pend, Ψbnd, Ψaxis, Raxis, Zaxis)
 
+    eqt.global_quantities.free_boundary = 1 # free boundary
+
     return actor
 end
 

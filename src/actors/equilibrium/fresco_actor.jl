@@ -125,5 +125,7 @@ function _finalize(actor::ActorFRESCO)
         VacuumFields.set_current_per_turn!(icoil, VacuumFields.current_per_turn(mcoil))
     end
 
+    eqt.global_quantities.free_boundary = 1 # free boundary
+
     return actor
 end
