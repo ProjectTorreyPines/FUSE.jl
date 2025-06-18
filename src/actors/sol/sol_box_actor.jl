@@ -133,11 +133,12 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     # Step 1 - get the parallel heat and particles fluxes for ions and electrons
 
     # Retrieve the total ion and electron sources (power and particles)
-    total_source = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time)
+    total_source = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:power_inside, :total_ion_power_inside, :particles_inside])
 
     # Retrieve Psol and the particles per second across the separatrix, for both ions and electrons
     power_ions = total_source.total_ion_power_inside[end]
     power_electrons = total_source.electrons.power_inside[end]
+    Psol = power_ions + power_electrons
     particles_ions_electrons = total_source.electrons.particles_inside[end] # Same for ions and electrons due to quasineutrality
 
     # Get the R,Z coordinates of the outer midplane (R = R0 + a)
@@ -156,7 +157,7 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
 
     if solbox.λq == Inf
         # Take λq as twice λq as predicted by Eich's Bpol scaling
-        solbox.λq = 2.0 * 0.63 * (Bp^-1.19) * 1E-3
+        solbox.λq = 2.0 * IMAS.widthSOL_eich(eqt, Psol)
     end
 
     # Calculate the parallel area of the separatrix flux tube between midplane and outer target
@@ -171,7 +172,7 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     # Step 2 - get connection length and total flux expansion for the flux tube
 
     # Trace field lines in the SOL
-    SOL = IMAS.sol(dd; levels=100)
+    SOL = IMAS.sol(eqt, dd.wall; levels=100)
 
     # We need to decide which flux surface we will take as being representative of the separatrix. We will not use the
     # exact separatrix here as a) the connection length blows up too close to it, and b) sometimes the flux surface tracing
@@ -186,11 +187,10 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     LCFS2_psi = SOL[:lfs_far][1].psi
 
     # Check the magnetic balance of the two nulls
-    if abs((LCFS_psi - LCFS2_psi) / LCFS_psi) > 0.025
+    if abs((LCFS_psi - LCFS2_psi) / (abs(LCFS_psi) + abs(LCFS2_psi))) > 0.025
         # Single null
         solbox.single_null = true
         separatrix = SOL[:lfs][1+offset]
-
     else
         # (Disconnected) double null
         solbox.single_null = false
@@ -251,24 +251,16 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     # Plotting
     if par.do_plot
         # Extract the R, Z of the flux surface (separatrix) trace from outer midplane to target
-        N = length(separatrix.s)
         lower_outer_target = dd.divertors.divertor[1].target[1].tile[1].surface_outline
-        sep_r_plot = [separatrix.r[i] for i in 1:N if i >= separatrix.midplane_index]
-        sep_z_plot = [separatrix.z[i] for i in 1:N if i >= separatrix.midplane_index]
+        sep_r_plot = separatrix.r[separatrix.midplane_index:end]
+        sep_z_plot = separatrix.z[separatrix.midplane_index:end]
 
-        # Get an array of midplane to outer target connection lengths for a set of
-        # flux tubes in the SOL
-        SOL = IMAS.sol(dd; levels=100)
-
-        if single_null
-            Ntubes = length(SOL[:lfs])
-            connection_lengths = [SOL[:lfs][i].s[end] for i in 1:Ntubes]
-            psi_vals = [SOL[:lfs][i].psi for i in 1:Ntubes]
-
+        if solbox.single_null
+            connection_lengths = [lfs.s[end] for lfs in SOL[:lfs]]
+            psi_vals = [lfs.psi for lfs in SOL[:lfs]]
         else
-            Ntubes = length(SOL[:lfs_far])
-            connection_lengths = [SOL[:lfs_far][i].s[end] for i in 1:Ntubes]
-            psi_vals = [SOL[:lfs_far][i].psi for i in 1:Ntubes]
+            connection_lengths = [lfs_far.s[end] for lfs_far in SOL[:lfs_far]]
+            psi_vals = [lfs_far.psi for lfs_far in SOL[:lfs_far]]
         end
 
         # Plot
