@@ -47,7 +47,7 @@ function ActorCurrent(dd::IMAS.dd, par::FUSEparameters__ActorCurrent, act::Param
     if par.model == :SteadyStateCurrent
         actor.jt_actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; par.ip_from)
     elseif par.model == :QED
-        actor.jt_actor = ActorQED(dd, act.ActorQED; par.ip_from, par.vloop_from)
+        actor.jt_actor = ActorQED(dd, act.ActorQED, act; par.ip_from, par.vloop_from)
     elseif par.model == :replay
         actor.jt_actor = ActorReplay(dd, act.ActorReplay, actor)
     end

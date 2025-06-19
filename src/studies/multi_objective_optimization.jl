@@ -36,8 +36,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimize
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:single_hdf5)
 end
 
-mutable struct StudyMultiObjectiveOptimizer <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyMultiObjectiveOptimizer
+mutable struct StudyMultiObjectiveOptimizer{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T,FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T}}
     ini::ParametersAllInits
     act::ParametersAllActors
     constraint_functions::Vector{IMAS.ConstraintFunction}
@@ -56,7 +56,7 @@ function StudyMultiObjectiveOptimizer(
     objective_functions::Vector{IMAS.ObjectiveFunction};
     kw...
 )
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
     return setup(study)
 end
@@ -67,7 +67,6 @@ function _setup(study::StudyMultiObjectiveOptimizer)
     check_and_create_file_save_mode(sty)
 
     parallel_environment(sty.server, sty.n_workers)
-
 
     # import FUSE and IJulia on workers
     if isdefined(Main, :IJulia)
@@ -102,7 +101,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
                 println("Running $max_gens_per_iteration generations ($i / $steps)")
                 gens = max_gens_per_iteration
                 if i == steps && mod(sty.number_of_generations, max_gens_per_iteration) != 0
-                    gens = mod(gen, max_gens_per_iteration)
+                    gens = mod(sty.restart_workers_after_n_generations, max_gens_per_iteration)
                 end
                 sty.restart_workers_after_n_generations = 0
                 sty.release_workers_after_run = false
@@ -138,17 +137,14 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
-
-        state = workflow_multiobjective_optimization(
+        study.state = workflow_multiobjective_optimization(
             study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
             optimization_parameters..., generation_offset=study.generation, database_policy=sty.database_policy,
-            number_of_generations = sty.number_of_generations, population_size = sty.population_size)
-
-        study.state = state
+            number_of_generations=sty.number_of_generations, population_size=sty.population_size)
 
         save_optimization(
             joinpath(sty.save_folder, "optimization_state.bson"),
-            state,
+            study.state,
             study.ini,
             study.act,
             study.objective_functions,
@@ -232,7 +228,6 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
         unique!(merged_df)
         sort!(merged_df, "gparent")
 
-
         io_buffer = IOBuffer()
         CSV.write(io_buffer, merged_df)
         csv_text = String(take!(io_buffer))
@@ -252,7 +247,9 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
     return merged_df
 end
 
-
+"""
+    _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
+"""
 function _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
     if extract_results
         extract_results(study)
@@ -267,10 +264,11 @@ end
     filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
 
 Filters the dataframe to the constraints you pass.
-Common usage will be df_filtered = FUSE.filter_outputs(df, constraint_list)
+
+Common usage will be `df_filtered = FUSE.filter_outputs(df, constraint_list)`
 """
 function filter_outputs(outputs::DataFrame, constraint_symbols::Vector{Symbol})
-    n = length(outputs.Pelectric_net)
+    n = nrow(outputs)
     constraint_values = [outputs[i, key] for key in constraint_symbols, i in 1:n]
     all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:, i]), 1:n)
     return outputs[all_constraint_idxs, :]

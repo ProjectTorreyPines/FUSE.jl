@@ -79,16 +79,23 @@ function _step(actor::ActorSimpleEC)
             t_intersect = 1.0
             power_launched = 0.0
         end
-        x, y, z, r = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))
-        rho_0 = RHO_interpolant.(r[end], z[end])
+        # Xs, Ys, Zs, Rs = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, 10.0, 100))
+        # plot(eqt;cx=true,coordinate=:rho_tor_norm)
+        # plot!(resonance_layer.r, resonance_layer.z)
+        # plot!(Rs,Zs)
+        # display(plot!())
+        Xs, Ys, Zs, Rs = IMAS.pencil_beam([launch_r, 0.0, launch_z], angle_pol, angle_tor, range(0.0, t_intersect, 100))
+        rho_0 = RHO_interpolant.(Rs[end], Zs[end])
 
         # save ray trajectory to dd
         coherent_wave = resize!(dd.waves.coherent_wave, "identifier.antenna_name" => ecb.name; wipe=false)
         beam_tracing = resize!(coherent_wave.beam_tracing)
         beam = resize!(beam_tracing.beam, 1)[1]
-        beam.length = cumsum(sqrt.(IMAS.gradient(x) .^ 2 .+ IMAS.gradient(y) .^ 2 .+ IMAS.gradient(z) .^ 2))
-        beam.position.r = r
-        beam.position.z = z
+        beam.length = IMAS.arc_length(Xs, Ys, Zs)
+        beam.position.r = Rs
+        beam.position.z = Zs
+        beam.position.phi = atan.(Ys,Xs)
+        beam.power_initial = power_launched
 
         @ddtime(ecb.power_launched.data = power_launched)
 
@@ -126,7 +133,7 @@ end
 
 # ============
 
-function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, par::_FUSEparameters__ActorSimpleECactuator)
+function setup_ec(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, wall::IMAS.wall, par::_FUSEparameters__ActorSimpleECactuator)
     # Estimate operating frequency and mode
     if ismissing(ecb.frequency, :data)
         resonance = IMAS.ech_resonance(eqt)
@@ -138,13 +145,11 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
     if ismissing(ecb.launching_position, :r) || ismissing(ecb.launching_position, :z)
         fw = IMAS.first_wall(wall)
         if !isempty(fw.r)
-            index = argmax(fw.r .+ fw.z)
-            @ddtime(ecb.launching_position.r = fw.r[index])
-            @ddtime(ecb.launching_position.z = fw.z[index])
+            @ddtime(ecb.launching_position.r = maximum(fw.r))
+            @ddtime(ecb.launching_position.z = maximum(fw.z))
         else
-            index = argmax(eqt.boundary.outline.r .+ eqt.boundary.outline.z)
-            @ddtime(ecb.launching_position.r = eqt.boundary.outline.r[index])
-            @ddtime(ecb.launching_position.z = eqt.boundary.outline.z[index])
+            @ddtime(ecb.launching_position.r = maximum(eqt.boundary.outline.r))
+            @ddtime(ecb.launching_position.z = maximum(eqt.boundary.outline.z))
         end
     end
     if ismissing(ecb.launching_position, :phi)
@@ -160,7 +165,7 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
         @ddtime(ecb.spot.size = [0.0172, 0.0172])
     end
     # aiming based on rho0
-    if (ismissing(ecb, :steering_angle_tor) || ismissing(ecb, :steering_angle_pol)) && !ismissing(par, :rho_0)
+    if (ismissing(ecb, :steering_angle_tor) || ismissing(ecb, :steering_angle_pol)) || !ismissing(par, :rho_0)
         launch_r = @ddtime(ecb.launching_position.r)
         launch_z = @ddtime(ecb.launching_position.z)
         resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecb))
@@ -169,6 +174,6 @@ function setup(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slice, 
         index = resonance_layer.z .> eqt.global_quantities.magnetic_axis.z
         sub_index = argmin_abs(rho_resonance_layer[index], par.rho_0)
         @ddtime(ecb.steering_angle_tor = 0.0)
-        @ddtime(ecb.steering_angle_pol = atan(resonance_layer.r[index][sub_index] - launch_r, resonance_layer.z[index][sub_index] - launch_z) + pi / 2)
+        @ddtime(ecb.steering_angle_pol = atan((resonance_layer.z[index][sub_index] - launch_z) / (resonance_layer.r[index][sub_index] - launch_r)))
     end
 end

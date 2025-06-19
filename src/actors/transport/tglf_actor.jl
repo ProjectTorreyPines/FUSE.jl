@@ -1,7 +1,6 @@
-import TGLFNN
-import TGLFNN: InputTGLF
+import TurbulentTransport
+import TurbulentTransport: InputTGLF, InputQLGYRO, InputTJLF, InputCGYRO
 import TJLF
-import TJLF: InputTJLF
 import GACODE
 
 #= ========= =#
@@ -18,7 +17,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     tglfnn_model::Entry{String} = Entry{String}(
         "-",
         "Use a user specified TGLF-NN model stored in TGLFNN/models";
-        check=x -> @assert x in TGLFNN.available_models() "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(TGLFNN.available_models(),"\"\n  \""))\""
+        check=x -> @assert x in TurbulentTransport.available_models() "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(TurbulentTransport.available_models(),"\"\n  \""))\""
     )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
@@ -26,7 +25,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
         Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
     save_input_tglfs_to_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder"; default="")
-    debug::Entry{Bool} = Entry{Bool}("-", "Save additional information when saving input_tglfs to folder"; default=false)
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
@@ -64,7 +62,7 @@ end
 
 Runs TGLF actor to evaluate the turbulence flux on a vector of gridpoints
 """
-function _step(actor::ActorTGLF)
+function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
     par = actor.par
     dd = actor.dd
 
@@ -75,12 +73,10 @@ function _step(actor::ActorTGLF)
             actor.input_tglfs[k] = input_tglf
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
-                nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
-                actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
-                actor.input_tglfs[k].WIDTH_SPECTRUM .= 1.65
-                actor.input_tglfs[k].FIND_WIDTH = true # first case should find the widths
+                actor.input_tglfs[k] = InputTJLF{D}(input_tglf)
+            else
+                TJLF.update_input_tjlf!(actor.input_tglfs[k], input_tglf)
             end
-            update_input_tjlf!(actor.input_tglfs[k], input_tglf)
         end
 
         # Overwrite TGLF / TJLF parameters with the custom parameters mask
@@ -94,18 +90,17 @@ function _step(actor::ActorTGLF)
         if isdir(par.save_input_tglfs_to_folder)
             name = lowercase(string(par.model))
             save(actor.input_tglfs[k] ,joinpath(par.save_input_tglfs_to_folder, "input.$(name)_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])"))
-            if par.debug && par.model == :TJLF
-                save(actor.input_tglfs[k] ,joinpath(par.save_input_tglfs_to_folder, "input.$(name)_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])_for_debugging"))
-            end
         end
 
     end
 
     if par.model ∈ [:TGLFNN, :GKNN]
         if !par.onnx_model
-            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
+            uncertain = eltype(dd) <: IMAS.Measurements.Measurement
+            actor.flux_solutions = TurbulentTransport.run_tglfnn(actor.input_tglfs; uncertain, par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
+
         elseif par.onnx_model
-            actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
+            actor.flux_solutions = TurbulentTransport.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
                 [
                     "RLTS_3",
                     "KAPPA_LOC",
@@ -145,8 +140,9 @@ function _step(actor::ActorTGLF)
                     "OUT_P_ions"
                 ];)
         end
+
     elseif par.model == :TGLF
-        actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
+        actor.flux_solutions = TurbulentTransport.run_tglf(actor.input_tglfs)
 
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
@@ -190,74 +186,6 @@ function model_filename(par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}})
     return filename
 end
 
-"""
-    update_input_tjlf!(input_tglf::InputTGLF)
-
-Modifies an InputTJLF from a InputTGLF
-"""
-function update_input_tjlf!(input_tjlf::InputTJLF, input_tglf::InputTGLF)
-    input_tjlf.NWIDTH = 21
-
-    for fieldname in fieldnames(typeof(input_tglf))
-        if occursin(r"\d", String(fieldname)) || fieldname == :_Qgb # species parameter
-            continue
-        end
-        setfield!(input_tjlf, fieldname, getfield(input_tglf, fieldname))
-    end
-
-    for i in 1:input_tglf.NS
-        input_tjlf.ZS[i] = getfield(input_tglf, Symbol("ZS_", i))
-        input_tjlf.AS[i] = getfield(input_tglf, Symbol("AS_", i))
-        input_tjlf.MASS[i] = getfield(input_tglf, Symbol("MASS_", i))
-        input_tjlf.RLNS[i] = getfield(input_tglf, Symbol("RLNS_", i))
-        input_tjlf.RLTS[i] = getfield(input_tglf, Symbol("RLTS_", i))
-        input_tjlf.TAUS[i] = getfield(input_tglf, Symbol("TAUS_", i))
-        input_tjlf.VPAR[i] = getfield(input_tglf, Symbol("VPAR_", i))
-        input_tjlf.VPAR_SHEAR[i] = getfield(input_tglf, Symbol("VPAR_SHEAR_", i))
-    end
-
-    # Defaults
-    input_tjlf.KY = 0.3
-    input_tjlf.ALPHA_E = 1.0
-    input_tjlf.ALPHA_P = 1.0
-    input_tjlf.XNU_FACTOR = 1.0
-    input_tjlf.DEBYE_FACTOR = 1.0
-    input_tjlf.RLNP_CUTOFF = 18.0
-    input_tjlf.WIDTH = 1.65
-    input_tjlf.WIDTH_MIN = 0.3
-    input_tjlf.BETA_LOC = 0.0
-    input_tjlf.KX0_LOC = 1.0
-    input_tjlf.PARK = 1.0
-    input_tjlf.GHAT = 1.0
-    input_tjlf.GCHAT = 1.0
-    input_tjlf.WD_ZERO = 0.1
-    input_tjlf.LINSKER_FACTOR = 0.0
-    input_tjlf.GRADB_FACTOR = 0.0
-    input_tjlf.FILTER = 2.0
-    input_tjlf.THETA_TRAPPED = 0.7
-    input_tjlf.ETG_FACTOR = 1.25
-    input_tjlf.DAMP_PSI = 0.0
-    input_tjlf.DAMP_SIG = 0.0
-
-    input_tjlf.FIND_EIGEN = true
-    input_tjlf.NXGRID = 16
-
-    input_tjlf.ADIABATIC_ELEC = false
-    input_tjlf.VPAR_MODEL = 0
-    input_tjlf.NEW_EIKONAL = true
-    input_tjlf.USE_BISECTION = true
-    input_tjlf.USE_INBOARD_DETRAPPED = false
-    input_tjlf.IFLUX = true
-    input_tjlf.IBRANCH = -1
-    input_tjlf.KX0_LOC = 0.0
-    input_tjlf.ALPHA_ZF = -1
-
-    # check converison
-    TJLF.checkInput(input_tjlf)
-
-    return input_tjlf
-end
-
 function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF})
     for field_name in fieldnames(typeof(input))
         println(io, " $field_name = $(getfield(input,field_name))")
@@ -265,14 +193,14 @@ function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF}
 end
 
 """
-    save(input::Union{TGLFNN.InputCGYRO, TGLFNN.InputQLGYRO,  TGLFNN.InputTGLF, }, filename::String)
+    save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF, }, filename::String)
 
-Common save method for all the various inputTGLF types
+Common save method for all the various input types
 """
-function save(input::Union{TGLFNN.InputCGYRO, TGLFNN.InputQLGYRO,  TGLFNN.InputTGLF, TJLF.InputTJLF}, filename::String)
-    if input isa TGLFNN.InputCGYRO || input isa TGLFNN.InputQLGYRO || input isa TGLFNN.InputTGLF
-        return TGLFNN.save(input, filename)
-    elseif input isa TJLF.InputTJLF
+function save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF, InputTJLF}, filename::String)
+    if input isa InputCGYRO || input isa InputQLGYRO || input isa InputTGLF
+        return TurbulentTransport.save(input, filename)
+    elseif input isa InputTJLF
         return TJLF.save(input, filename)
     else
         error("Unsupported input type")

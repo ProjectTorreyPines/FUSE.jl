@@ -125,7 +125,7 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     beam_current_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Beam current fraction"; default=[0.8, 0.15, 0.05], check=x -> @assert sum(x) <= 1.0)
     current_direction::Switch{Symbol} = Switch{Symbol}([:co, :counter], "-", "Direction of beam current relative to plasma current"; default=:co)
     offaxis::Entry{Bool} = Entry{Bool}("-", "Injection neutral beam off axis"; default=false)
-    template_beam::Switch{Symbol} = Switch{Symbol}([:none, :d3d_co, :d3d_counter, :d3d_offaxis, :nstx, :mast_onaxis, :mast_offaxis, :iter_onaxis, :iter_offaxis], "-", "Template beam setup"; default=:none)
+    template_beam::Switch{Symbol} = Switch{Symbol}([:none, :d3d_co, :d3d_counter, :d3d_offaxis, :nstx, :mast_onaxis, :mast_offaxis, :iter_onaxis, :iter_offaxis,:kstar_nb1,:kstar_nb2,:kstar_nb3], "-", "Template beam setup"; default=:none)
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
@@ -250,6 +250,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     beta_normal::Entry{T} = Entry{T}(IMAS.requirements, :beta_normal; check=x -> @assert x >= 0.0 "must be: βn >= 0.0")
     Psol_R::Entry{T} = Entry{T}(IMAS.requirements, :Psol_R; check=x -> @assert x >= 0.0 "must be: Psol/R >= 0.0")
     q95::Entry{T} = Entry{T}(IMAS.requirements, :q95; check=x -> @assert x >= 0.0 "must be: q95 >= 0.0")
+    qmin::Entry{T} = Entry{T}(IMAS.requirements, :qmin; check=x -> @assert x >= 0.0 "must be: qmin >= 0.0")
     coil_j_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_j_margin; default=0.4, check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
     coil_stress_margin::Entry{T} = Entry{T}(IMAS.requirements, :coil_stress_margin; default=0.2, check=x -> @assert x >= 0.0 "must be: coil_j_margin >= 0.0")
 end

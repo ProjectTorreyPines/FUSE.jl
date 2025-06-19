@@ -1,12 +1,17 @@
 # FUSE.jl
 
-FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for the integrated design of Fusion Power Plants (FPP). Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
+FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for integrated simulations of fusion devices.
+Originally developed by General Atomics, FUSE is now publicly available under the [Apache 2.0 license](https://fuse.help/dev/notice.html).
+
+The figure below is a sneakpeak of the models implemented in FUSE:
+[![FUSE capabilities](https://raw.githubusercontent.com/ProjectTorreyPines/FUSE_extra_files/refs/heads/master/carousel.jpg)](https://raw.githubusercontent.com/ProjectTorreyPines/FUSE_extra_files/refs/heads/master/carousel.jpg)
 
 ## Resources
 
 Here are some key resources for getting started with FUSE:
 
 * 📚 **[Online documentation](https://fuse.help)**
+* 🎓 **[Intro tutorial](https://fuse.help/dev/tutorial.html)**
 * 🎤 **[Recent presentation](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)**
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**

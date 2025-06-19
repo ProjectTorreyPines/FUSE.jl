@@ -98,6 +98,7 @@ function case_parameters(::Type{Val{:DTT}})
 
     #### ACT ####
     act.ActorPFdesign.symmetric = true
+    act.ActorPFactive.x_points_weight = 0.025
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 

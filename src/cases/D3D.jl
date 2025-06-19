@@ -1,19 +1,28 @@
 """
-    case_parameters(::Type{Val{:D3D}}, shot::Int)
+    case_parameters(::Type{Val{:D3D}}, shot::Int;
+        new_impurity_match_power_rad::Symbol=:none,
+        fit_profiles::Bool=false, 
+        EFIT_tree::String="EFIT02",
+        PROFILES_tree::String="ZIPFIT01",
+        CER_analysis_type::String="CERAUTO",
+        omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
+        omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
+        omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
+        use_local_cache::Bool=false
+    )
 
 DIII-D from experimental shot
-
-NOTE: calls `python` with `import omas` package to use DIII-D IMAS mappings defined there.
-Use `ENV['OMAS_PYTHON']` to set which python executable to use.
 """
-function case_parameters(
-    ::Type{Val{:D3D}},
-    shot::Int;
+function case_parameters(::Type{Val{:D3D}}, shot::Int;
+    new_impurity_match_power_rad::Symbol=:none,
+    fit_profiles::Bool=false, 
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
+    CER_analysis_type::String="CERAUTO",
     omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
     omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
-    omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas")
+    omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
+    use_local_cache::Bool=false
 )
     ini, act = case_parameters(Val{:D3D_machine})
     ini.general.casename = "D3D $shot"
@@ -34,10 +43,12 @@ function case_parameters(
         local_path = remote_path
     else
         local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
-        if isdir(local_path)
+        if isdir(local_path) && !use_local_cache
             rm(local_path; recursive=true)
         end
-        mkdir(local_path)
+        if !isdir(local_path)
+            mkdir(local_path)
+        end
     end
 
     # remote omas script
@@ -72,6 +83,15 @@ function case_parameters(
 
         printe("- Fetching magnetic probes data")
         d3d.magnetics_probes_data(ods, $shot)
+
+        printe("- Fetching Thomson scattering data")
+        d3d.thomson_scattering_data(ods, $shot)
+
+        printe("- Fetching charge exchange data")
+        d3d.charge_exchange_data(ods, $shot, analysis_type="$(CER_analysis_type)")
+
+        printe("- Fetching summary data")
+        d3d.summary(ods, $shot)
 
         printe("- Fetching equilibrium data")
         with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
@@ -161,29 +181,49 @@ function case_parameters(
     @info("Remote D3D data fetching for shot $shot")
     @info("Path on OMEGA: $remote_path")
     @info("Path on Localhost: $local_path")
-    Base.run(`bash $local_path/local_driver.sh`)
+    if !isfile(joinpath(local_path, filename)) || !use_local_cache
+        Base.run(`bash $local_path/local_driver.sh`)
+    end
 
     # load experimental ods
     ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
-    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
+    ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
+
+    # sanitize dd
+    for nbu in dd1.nbi.unit
+        nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
+        nbu.beam_power_fraction.time = [0.0]
+    end
 
     # set time basis
-    tt = ini.general.dd.equilibrium.time
+    tt = dd1.equilibrium.time
     ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
 
     # add flux_surfaces information to experimental dd
-    IMAS.flux_surfaces(ini.general.dd.equilibrium, IMAS.first_wall(ini.general.dd.wall)...)
+    IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
 
-    # add missing rotation information
-    ini.core_profiles.rot_core = 5E3
-    for cp1d in ini.general.dd.core_profiles.profiles_1d
+    # profile fitting starting from diagnostic measurements
+    if fit_profiles
+        ActorFitProfiles(dd1, act; time_averaging=0.05, rho_averaging=0.25, time_basis_ids=:equilibrium)
+    end
+
+    # add rotation information if missing
+    for cp1d in dd1.core_profiles.profiles_1d
         if ismissing(cp1d, :rotation_frequency_tor_sonic)
             cp1d.rotation_frequency_tor_sonic =
                 IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
         end
     end
 
+    # add impurity to match total radiation
+    if new_impurity_match_power_rad !== :none
+        dd1_core_sources_old = deepcopy(dd1.core_sources)
+        IMAS.new_impurity_radiation!(dd1, new_impurity_match_power_rad, dd1.summary.time, dd1.summary.global_quantities.power_radiated_inside_lcfs.value)
+        dd1.core_sources = dd1_core_sources_old
+    end
+
+    # by default match line averaged density
     ini.core_profiles.ne_setting = :ne_line
     act.ActorPedestal.density_match = :ne_line
 
@@ -201,7 +241,7 @@ function case_parameters(
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, scenario::AbstractString)
+    case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
 
 DIII-D from ods file
 """
@@ -297,7 +337,7 @@ end
 """
     case_parameters(::Type{Val{:D3D_machine}})
 
-Base DIII-D parameters for machine
+Base DIII-D machine parameters that are then extended by the other `case_parameters(:D3D, ...)` functions
 """
 function case_parameters(::Type{Val{:D3D_machine}})
     ini = ParametersInits()
@@ -338,7 +378,11 @@ function case_parameters(::Type{Val{:D3D_machine}})
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
 
+    ini.core_profiles.rot_core = 5E3
+
     #### ACT ####
+
+    act.ActorEquilibrium.model = :FRESCO
 
     act.ActorPFdesign.symmetric = true
 
@@ -348,9 +392,12 @@ function case_parameters(::Type{Val{:D3D_machine}})
 
     act.ActorFluxMatcher.evolve_pedestal = false
 
-    act.ActorPlasmaLimits.raise_on_breach = false
-
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+
+    Ω = 1.0 / 1E6
+    act.ActorControllerIp.P = Ω * 100.0
+    act.ActorControllerIp.I = Ω * 20.0
+    act.ActorControllerIp.D = 0.0
 
     # average pedestal height, not peak
     act.ActorEPED.ped_factor = 0.8

@@ -14,7 +14,7 @@ function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         ps_ecb.name = ecb.name
         ecb.available_launch_power = maximum(ps_ecb.power_launched.reference)
         # Launcher setup
-        setup(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[idx])
+        setup_ec(ecb, eqt, dd.wall, act.ActorSimpleEC.actuator[idx])
         # Efficiencies
         ecb.efficiency.conversion = ini_ecb.efficiency_conversion
         ecb.efficiency.transmission = ini_ecb.efficiency_transmission
@@ -101,6 +101,7 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 
             beamlet.position.r = eqt.profiles_1d.r_outboard[end] * 1.1
             beamlet.position.z = 0.0
+            beamlet.position.phi = range(0, 2pi, length(dd.nbi.unit) + 1)[idx]
             beamlet.tangency_radius = ini_nbu.normalized_tangency_radius * 0.5 * (eqt.profiles_1d.r_inboard[end] + eqt.profiles_1d.r_outboard[end])
 
             if ini_nbu.current_direction == :co
@@ -128,7 +129,6 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         # Efficiencies
         nbu.efficiency.conversion = ini_nbu.efficiency_conversion
         nbu.efficiency.transmission = ini_nbu.efficiency_transmission
-
     end
     return dd
 end
@@ -208,6 +208,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
         beamlet.position.r = 8.2
         beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 1.0
         beamlet.angle = 0.0
         beamlet.direction = 1
@@ -215,6 +216,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
         beamlet.position.r = 8.2
         beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.9
         beamlet.angle = 0.0
         beamlet.direction = -1
@@ -222,13 +224,15 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
         beamlet.position.r = 8.2
         beamlet.position.z = 1.66
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.9
         beamlet.angle = -0.28
         beamlet.direction = 1
     elseif name == :nstx
         @ddtime(nbu.beam_current_fraction.data = [0.48, 0.37, 0.15])
         beamlet.position.r = 11.4
-        beamlet.position.z = 1.66
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.6
         beamlet.angle = 0.0
         beamlet.direction = 1
@@ -236,6 +240,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.69, 0.18, 0.13])
         beamlet.position.r = 7.08
         beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.705
         beamlet.angle = 0.0
         beamlet.direction = 1
@@ -243,6 +248,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [0.69, 0.18, 0.13])
         beamlet.position.r = 7.06
         beamlet.position.z = 0.65
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.705
         beamlet.angle = 0.0
         beamlet.direction = 1
@@ -250,6 +256,7 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [1.0, 0.0, 0.0])
         beamlet.position.r = 14.0 # CHECK POSITION!
         beamlet.position.z = 0.5
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 5.3
         beamlet.angle = 0.0402
         beamlet.direction = 1
@@ -257,8 +264,33 @@ function add_beam_examples!(nbu, name::Symbol)
         @ddtime(nbu.beam_current_fraction.data = [1.0, 0.0, 0.0])
         beamlet.position.r = 14.0 # CHECK POSITION!
         beamlet.position.z = 0.5
+        beamlet.position.phi = 0.0
         beamlet.tangency_radius = 5.3
         beamlet.angle = 0.0582
+        beamlet.direction = 1
+    elseif name == :kstar_nb1
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
+        beamlet.position.r = 4.0 
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 1.486
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :kstar_nb2
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
+        beamlet.position.r = 4.0
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 1.720
+        beamlet.angle = 0.0
+        beamlet.direction = 1
+    elseif name == :kstar_nb3
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
+        beamlet.position.r = 4.0
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 1.245
+        beamlet.angle = 0.0
         beamlet.direction = 1
     end
 end

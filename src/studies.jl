@@ -1,7 +1,78 @@
+#= ======= =#
+#  studies  #
+#= ======= =#
+
+"""
+    name(study::AbstractStudy)
+
+Returns the name of the study as a string
+"""
+function name(study::AbstractStudy)
+    return string(split(string(typeof(study)), ".")[end])
+end
+
+function study_parameters(study::Symbol; kw...)
+    if length(methods(study_parameters, (Type{Val{study}},))) == 0
+        error("study `$study` does not exist.\nPossible options are:\n\n$(join(["$method" for method in methods(study_parameters)],"\n"))")
+    end
+    return study_parameters(Val{study}; kw...)
+end
+
+function setup(study::AbstractStudy)
+    return _setup(study)
+end
+
+function analyze(study::AbstractStudy; kw...)
+    return _analyze(study; kw...)
+end
+
+function _analyze(study::AbstractStudy; kw...)
+    return study
+end
+
+function run(study::T, args...; kw...) where {T<:AbstractStudy}
+    timer_name = name(study)
+    TimerOutputs.reset_timer!(timer_name)
+    TimerOutputs.@timeit timer timer_name begin
+        TimerOutputs.reset_timer!(timer_name)
+        memory_time_tag("study $(name(study)) - @start")
+        wf = _run(study, args...; kw...)
+        memory_time_tag("study $(name(study)) - @finish")
+    end
+    return wf
+end
+
+"""
+    check_and_create_file_save_mode(sty)
+
+Checks the selected file_save_mode and creates the folder accordingly
+"""
+function check_and_create_file_save_mode(sty)
+    @assert !isempty(sty.save_folder) "Make sure sty.save_folder = $(sty.save_folder) is set"
+    if sty.file_save_mode == :safe_write
+        if isdir(sty.save_folder)
+            @assert isempty(readdir((sty.save_folder))) "$(sty.save_folder) isn't empty, change sty.file_save_mode or point to a new save folder"
+        else
+            @assert !isfile(sty.save_folder) "$(sty.save_folder) can't be a file"
+            mkdir(sty.save_folder)
+        end
+    elseif sty.file_save_mode == :overwrite
+        rm(sty.save_folder; force=true, recursive=true)
+        mkdir(sty.save_folder)
+    elseif sty.file_save_mode == :append
+        # this is fine
+    end
+end
+
+# ========= #
+# utilities #
+# ========= #
+
 """
     extract_results(simulations_path::String)
 
 Extracts informatation from all the simulation results in simulations_path and returns them inside a dataframe (This is done safely in parallel and with checkpoints)
+
 Note : If you want to speed up this process incrase the number of threads
 """
 function extract_results(simulations_path::String)
