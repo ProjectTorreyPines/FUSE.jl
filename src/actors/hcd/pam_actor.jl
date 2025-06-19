@@ -17,15 +17,14 @@ end
 
 mutable struct ActorPAM{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPAM{P}
-    outputs::Union{PAM.Pellet,Vector{<:PAM.Pellet}}
+    par::OverrideParameters{P,FUSEparameters__ActorPAM{P}}
+    function ActorPAM(dd::IMAS.dd{D}, par::FUSEparameters__ActorPAM{P}; kw...) where {D<:Real,P<:Real}
+        logging_actor_init(ActorPAM)
+        par = OverrideParameters(par; kw...)
+        return new{D,P}(dd, par)
+    end
 end
 
-function ActorPAM(dd::IMAS.dd{D}, par::FUSEparameters__ActorPAM{P}; kw...) where {D<:Real,P<:Real}
-    logging_actor_init(ActorPAM)
-    par = par(kw...)
-    return ActorPAM{D,P}(dd, par, PAM.Pellet[])
-end
 
 """
     ActorPAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -37,8 +36,8 @@ Estimates the Pellet particle direction, ablation rate, density source depositio
     Reads data in `pellet`, `pulse_schedule`, `equilibrium`, and stores data in `pellet`
 """
 function ActorPAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorPAM(kw...)
-    actor = ActorPAM(dd, par)
+   # par = act.ActorPAM(kw...)
+    actor = ActorPAM(dd, act.ActorPAM; kw...)
     step(actor)
     finalize(actor)
     return actor
