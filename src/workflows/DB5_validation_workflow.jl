@@ -101,34 +101,45 @@ function plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
     y_name = "TAUTH_fuse"
     xlabel = "Experiments τₑ"
     ylabel = "FUSE τₑ"
-    x_ylim = [5e-3, 1e1]
+    x_ylim = [2.5e-4, 1e1]
 
     dataframe = dataframe[DataFrames.completecases(dataframe), :]
     dataframe = filter(row -> row[y_name] > 0.0 && isfinite(row[y_name]), dataframe)
+
+    all_toks = unique(dataframe.TOK)
+    # all_toks = ["JET", "AUG", "D3D", "NSTX", "JT60U", "CMOD"]
+    dataframe = filter(row -> row["TOK"] in all_toks, dataframe)
 
     R² = round(R_squared(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
     MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
 
     p = plot(; palette=:tab10, aspect_ratio=:equal)
-    plot!(
-        dataframe[:, x_name],
-        dataframe[:, y_name];
-        seriestype=:scatter,
-        group=dataframe.TOK,
-        xscale=:log10,
-        yscale=:log10,
-        ylim=x_ylim,
-        xlim=x_ylim,
-        xlabel=xlabel,
-        ylabel=ylabel,
-        title="$(length(dataframe[:, x_name])) cases",
-        kw...
-    )
-
     off = sqrt(MRE / 100)
-    plot!([x_ylim[1], x_ylim[2]], [off * x_ylim[1], off * x_ylim[2]]; linestyle=:dash, label="±$(MRE)%", legend=:topleft, color=:black)
-    plot!([off * x_ylim[1], off * x_ylim[2]], [x_ylim[1], x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
-    plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
+    plot!(p, [x_ylim[1], x_ylim[2]], [off * x_ylim[1], off * x_ylim[2]]; linestyle=:dash, label="±$(MRE)% MRE ($(nrow(dataframe)) cases)", legend=:topleft, color=:black)
+    plot!(p, [off * x_ylim[1], off * x_ylim[2]], [x_ylim[1], x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
+    plot!(p, [x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
+
+    colors = Dict("JET" => :red, "D3D" => :blue, "NSTX" => :purple, "JT60U" => :black, "ASDEX" => :green, "AUG" => :green, "CMOD" => :orange)
+    for tok in all_toks
+        index = dataframe.TOK .== tok
+        plot!(p,
+            dataframe[index, x_name],
+            dataframe[index, y_name];
+            seriestype=:scatter,
+            group=dataframe.TOK[index],
+            color=colors[tok],
+            xscale=:log10,
+            yscale=:log10,
+            ylim=x_ylim,
+            xlim=x_ylim,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            markersize=2.0, markerstrokewidth=0.0,
+            legend_foreground_color=:transparent,
+            legend_background_color=:transparent,
+            kw...
+        )
+    end
 
     println("R² = $(R²), mean_relative_error = $MRE)")
     return p
