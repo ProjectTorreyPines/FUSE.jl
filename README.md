@@ -1,3 +1,5 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ProjectTorreyPines/FUSE.jl)
+
 # FUSE.jl
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for integrated simulations of fusion devices.
@@ -41,7 +43,7 @@ FUSE is entirely written in Julia and is structured around the following core co
 6. **🔄 Studies**: Studies pre-bake commonly used functionalities, typically involving multiple FUSE simulations (eg. database generation or multi objective optimizations).
 7. **🌍 Interoperability**: FUSE interfaces via `dd` with existing modeling tools like OMFIT/OMAS and the IMAS ecosystem.
 
-A diagram illustrating these concepts is provided below:  
+A diagram illustrating these concepts is provided below:
 ![FUSE Diagram](./docs/src/assets/FUSE.svg)
 
 ## Usage Example
