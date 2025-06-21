@@ -15,7 +15,7 @@ DIII-D from experimental shot
 """
 function case_parameters(::Type{Val{:D3D}}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
-    fit_profiles::Bool=false, 
+    fit_profiles::Bool=false,
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
@@ -37,8 +37,9 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         remote_omfit_root = omega_omfit_root
     end
     remote_host = "$(omega_user)@omega.gat.com"
+    phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root))
     remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
-    filename = "D3D_$shot.h5"
+    filename = "D3D_$(shot)_$(phash).h5"
     if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
         local_path = remote_path
     else
