@@ -185,10 +185,6 @@ function case_parameters(
 
     act.ActorWholeFacility.update_build = false
 
-    act.ActorCurrent.model = :SteadyStateCurrent
-
-    act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
-
     Ω = 1.0 / 10E6
     act.ActorControllerIp.P = Ω * 10.0
     act.ActorControllerIp.I = Ω * 2.0

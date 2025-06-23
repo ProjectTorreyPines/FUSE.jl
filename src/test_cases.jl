@@ -133,8 +133,6 @@ function test_case(::Val{:ITER_time}, dd::IMAS.dd; verbose::Bool=false)
     act.ActorStationaryPlasma.convergence_error = 2E-2
     act.ActorStationaryPlasma.max_iterations = 1
 
-    act.ActorSteadyStateCurrent.current_relaxation_radius = 0.2
-
     act.ActorFluxMatcher.verbose = verbose
     act.ActorFluxMatcher.relax = 0.5
 
