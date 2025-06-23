@@ -88,7 +88,7 @@ macro checkin(key, vars...)
 
     # Save all the variables in the `vars` list under the provided key using their names
     return quote
-        @assert typeof($key) <: Symbol "`@checkin chk :what var1 var2` was deprecated in favor of `@checkin :what var1 var2`"
+        @assert typeof($key) <: Symbol "`use `@checkin :what var1 var2 ...`"
         d = getfield(checkpoint, :history)
         if $key in keys(d)
             dict = Dict(k => v for (k, v) in pairs(d[$key]))

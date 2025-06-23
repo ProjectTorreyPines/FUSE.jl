@@ -15,7 +15,7 @@ DIII-D from experimental shot
 """
 function case_parameters(::Type{Val{:D3D}}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
-    fit_profiles::Bool=false, 
+    fit_profiles::Bool=false,
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
@@ -37,8 +37,9 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         remote_omfit_root = omega_omfit_root
     end
     remote_host = "$(omega_user)@omega.gat.com"
+    phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root))
     remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
-    filename = "D3D_$shot.h5"
+    filename = "D3D_$(shot)_$(phash).h5"
     if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
         local_path = remote_path
     else
@@ -49,6 +50,14 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         if !isdir(local_path)
             mkdir(local_path)
         end
+    end
+
+    # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
+    if contains(EFIT_tree, "USER")
+        efit_shot = parse(Int, "$(shot)$(EFIT_tree[5:end])")
+        EFIT_tree = "EFIT"
+    else
+        efit_shot = shot
     end
 
     # remote omas script
@@ -94,7 +103,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         d3d.summary(ods, $shot)
 
         printe("- Fetching equilibrium data")
-        with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
+        with ods.open('d3d', $efit_shot, options={'EFIT_tree': '$EFIT_tree'}):
             for k in range(len(ods["equilibrium.time"])):
                 ods["equilibrium.time_slice"][k]["time"]
                 ods["equilibrium.time_slice"][k]["global_quantities.ip"]
@@ -235,6 +244,8 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 
     for actuator in act.ActorSimpleEC.actuator
         actuator.rho_0 = missing
+        actuator.ηcd_scale = 0.2 # based on comparisons with TORAY for shot 156905
+        actuator.width = 0.05
     end
 
     return ini, act
