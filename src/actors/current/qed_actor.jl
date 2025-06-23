@@ -88,6 +88,7 @@ function _step(actor::ActorQED)
             Ni = par.Nt
         end
 
+        i_qdes = nothing
         for time0 in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
@@ -121,6 +122,9 @@ function _step(actor::ActorQED)
             eqt.profiles_1d.q =  1.0 ./ actor.QO.ι.(eqt.profiles_1d.rho_tor_norm)
 #            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
         end
+        if i_qdes !== nothing
+            IMAS.sawteeth_source!(dd, cp1d.grid.rho_tor_norm[i_qdes])
+        end
 
     elseif par.Δt == Inf
         # steady state solution
@@ -151,6 +155,7 @@ function _step(actor::ActorQED)
                 break
             end
             rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
+            IMAS.sawteeth_source!(dd, rho_qdes)
         end
     else
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
@@ -243,19 +248,4 @@ function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_induct
     end
 
     return QED.η_FE(rho, η; use_log), j_non_inductive
-end
-
-"""
-    η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
-
-returns the resistivity profile as a function of rho_tor_norm
-
-    - `use_log=true`: Cubic finite element interpolation on a log scale
-
-    - `use_log=false` Cubic finite element interpolation on a linear scale
-"""
-function η_imas(cp1d::IMAS.core_profiles__profiles_1d; use_log::Bool=true)
-    rho = cp1d.grid.rho_tor_norm
-    η = 1.0 ./ cp1d.conductivity_parallel
-    return QED.η_FE(rho, η; use_log)
 end
