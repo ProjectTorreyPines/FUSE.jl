@@ -3,6 +3,7 @@
 @assert ("FUSE_ENVIRONMENT" in keys(ENV)) "Error: Must define FUSE_ENVIRONMENT environment variable"
 fuse_env = ENV["FUSE_ENVIRONMENT"]
 env_dir = joinpath(ENV["FUSE_HOME"], "environments", fuse_env)
+install_dir = ENV["FUSE_INSTALL_DIR"]
 cpu_target = ENV["JULIA_CPU_TARGET"]
 
 import Pkg
@@ -34,18 +35,18 @@ println("    ", packages)
 
 println()
 println("### Setup new environment")
-Pkg.activate(env_dir)
+Pkg.activate(install_dir)
 Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT"]; packages])
 Pkg.build("IJulia")
 
 println()
 println("### Freeze Project and Manifest to read only")
-chmod(joinpath(env_dir, "Project.toml"),  0o444)
-chmod(joinpath(env_dir, "Manifest.toml"), 0o444)
+chmod(joinpath(install_dir, "Project.toml"),  0o444)
+chmod(joinpath(install_dir, "Manifest.toml"), 0o444)
 
 println()
 println("### Create precompile script")
-precompile_execution_file = joinpath(env_dir, "precompile_script.jl")
+precompile_execution_file = joinpath(install_dir, "precompile_script.jl")
 precompile_cmds = """
 using FUSE, EFIT, $pkgs_using
 include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
@@ -56,7 +57,7 @@ chmod(precompile_execution_file, 0o444)
 
 println()
 println("### Precompile FUSE sys image")
-sysimage_path = joinpath(env_dir, "sys_fuse.so")
+sysimage_path = joinpath(install_dir, "sys_fuse.so")
 create_sysimage(["FUSE"]; sysimage_path, precompile_execution_file, cpu_target)
 chmod(sysimage_path, 0o555)
 
@@ -91,14 +92,14 @@ ${BOLD}${GREEN}(_(_)${RESET}                 ${BOLD}${BLUE}(_)${RESET}  |       
 
 """
 fuse_exe = "JULIA_PROJECT=$env_dir julia -i --banner=no --sysimage=$(env_dir)/sys_fuse.so \$@"
-exe_file = joinpath(env_dir, "fuse")
+exe_file = joinpath(install_dir, "fuse")
 write(exe_file, fuse_banner * fuse_exe)
 chmod(exe_file, 0o555)
 
 
 println()
 println("### Create module file")
-module_file = joinpath(ENV["FUSE_HOME"], "modules", "fuse", fuse_env * ".lua")
+module_file = joinpath(install_dir, fuse_env * ".lua")
 header = """
 local basedir = "/global/common/software/m3739/perlmutter/fuse"
 local fuse_env = "$fuse_env"
