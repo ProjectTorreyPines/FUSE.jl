@@ -313,7 +313,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
         error("Cluster `$cluster` is unknown. Use `localhost` or add `$cluster` to the FUSE.parallel_environment")
     end
 
-    return println("Working with $(Distributed.nprocs()-1) workers on $(gethostname())")
+    return println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")
 end
 
 """

@@ -1,5 +1,5 @@
-import TGLFNN
-import TGLFNN: InputQLGYRO, InputCGYRO
+import TurbulentTransport
+import TurbulentTransport: InputQLGYRO, InputCGYRO
 import GACODE
 
 #= =========== =#
@@ -62,7 +62,7 @@ function _step(actor::ActorQLGYRO)
     ix_cp = [argmin_abs(cp1d.grid.rho_tor_norm, rho) for rho in par.rho_transport]
 
     for (k, gridpoint_cp) in enumerate(ix_cp)
-        actor.input_qlgyros[k] = TGLFNN.InputQLGYRO()
+        actor.input_qlgyros[k] = TurbulentTransport.InputQLGYRO()
 
         actor.input_qlgyros[k].N_PARALLEL = par.nky * par.cpu_per_ky
         actor.input_qlgyros[k].N_RUNS = 1
@@ -87,7 +87,7 @@ function _step(actor::ActorQLGYRO)
         actor.input_cgyros[k].FREQ_TOL = 0.01
     end
 
-    actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
+    actor.flux_solutions = TurbulentTransport.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
 
     return actor
 end

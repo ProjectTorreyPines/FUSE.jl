@@ -149,7 +149,7 @@ function setup_ec(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slic
             @ddtime(ecb.launching_position.z = maximum(fw.z))
         else
             @ddtime(ecb.launching_position.r = maximum(eqt.boundary.outline.r))
-            @ddtime(ecb.launching_position.z = maximum(eqt.boundary.outline.z[index]))
+            @ddtime(ecb.launching_position.z = maximum(eqt.boundary.outline.z))
         end
     end
     if ismissing(ecb.launching_position, :phi)
@@ -165,7 +165,7 @@ function setup_ec(ecb::IMAS.ec_launchers__beam, eqt::IMAS.equilibrium__time_slic
         @ddtime(ecb.spot.size = [0.0172, 0.0172])
     end
     # aiming based on rho0
-    if (ismissing(ecb, :steering_angle_tor) || ismissing(ecb, :steering_angle_pol)) && !ismissing(par, :rho_0)
+    if (ismissing(ecb, :steering_angle_tor) || ismissing(ecb, :steering_angle_pol)) || !ismissing(par, :rho_0)
         launch_r = @ddtime(ecb.launching_position.r)
         launch_z = @ddtime(ecb.launching_position.z)
         resonance_layer = IMAS.ech_resonance_layer(eqt, IMAS.frequency(ecb))

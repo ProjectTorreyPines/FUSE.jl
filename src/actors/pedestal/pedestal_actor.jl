@@ -176,7 +176,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
                 ion.temperature = Ti_now
             end
         end
-
     end
 
     actor.previous_time = dd.global_time

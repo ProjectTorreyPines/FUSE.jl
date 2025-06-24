@@ -94,8 +94,9 @@ function case_parameters(data_row::DataFrames.DataFrameRow; verbose::Bool=true)
 
     #### ACT ####
 
-    # the shaping in the database only does up to triangularity
-    act.ActorTEQUILA.number_of_MXH_harmonics = 1
+    # the shaping in the database only does up to triangularity, however
+    # shapes with x-points require more harmonics to be properly described
+    act.ActorTEQUILA.number_of_MXH_harmonics = 4
     act.ActorTEQUILA.free_boundary = false
 
     act.ActorPedestal.density_match = :ne_line

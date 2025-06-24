@@ -63,8 +63,8 @@ chmod(sysimage_path, 0o555)
 println()
 println("### Create IJulia kernels")
 import IJulia
-IJulia.installkernel("FUSE: Julia $VERSION - 1 Thread",  "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"1"))
-IJulia.installkernel("FUSE: Julia $VERSION - 8 Threads", "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"8"))
+IJulia.installkernel("Julia-$VERSION FUSE-$fuse_env 1-Thread",  "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"1"))
+IJulia.installkernel("Julia-$VERSION FUSE-$fuse_env 8-Threads", "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"8"))
 
 println()
 println("### Create fuse executable")
