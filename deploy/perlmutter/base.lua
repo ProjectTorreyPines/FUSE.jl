@@ -12,7 +12,23 @@ setenv("FUSE_ENVIRONMENT", fuse_env)
 -- We put the user depot first so their own packages get installed there,
 --   then the FUSE environment's depot after so it can find packages for the
 --   precompiled sysimage
-setenv("JULIA_DEPOT_PATH", base_depot .. ":")
+
+local home       = os.getenv("HOME")                  -- user’s home directory
+local user_depot = os.getenv("JULIA_DEPOT_PATH")      -- current value (may be nil)
+
+if not user_depot then
+   -- case 1:  JULIA_DEPOT_PATH is unset, so use default HOME user depot
+   setenv("JULIA_DEPOT_PATH", home .. "/.julia:" .. base_depot .. ":")
+elseif user_depot:sub(-1) == ":" then
+   -- case 2: JULIA_DEPOT_PATH ends with “:”, so append base_depot after it
+   --         Already ends in ":", so need to append a ":" in between
+   setenv("JULIA_DEPOT_PATH", user_depot .. base_depot .. ":")
+else
+   LmodError(
+      "Cannot parse existing JULIA_DEPOT_PATH=" .. user_depot .. "\n" ..
+      "It must be unset or end with ':'."
+   )
+end
 
 -- The FUSE sysimage enviornment is the last place julia looks for packages
 --   when a user does `using <package>`, but this allows Julia to automatically
