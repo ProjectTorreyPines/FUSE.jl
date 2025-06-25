@@ -53,7 +53,7 @@ function ActorAnalyticPedestal(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticPe
 end
 
 # Step function
-function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
+function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
@@ -88,36 +88,36 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real, P<:Real}
     actor.inputs.zeffped = zeffped
     eqt = dd.equilibrium.time_slice[]
 
-    IN = (ip/1e6)/(a*Bt) # Normalized plasma current IN=IP[MA]/(a[m]*BT[T])
+    IN = (ip / 1e6) / (a * Bt) # Normalized plasma current IN=IP[MA]/(a[m]*BT[T])
 
     # NSTX like width - w_ped~beta_p,ped^0.5
     lpol = dd.equilibrium.time_slice[].global_quantities.length_pol
-    Bp = IMAS.mks.μ_0*ip/lpol
+    Bp = IMAS.mks.μ_0 * ip / lpol
     # MAST like width - w_ped~beta_p,ped^0.5
     if par.model == :MAST
-        if par.height_coefficient==0.0
-            par.height_coefficient=4.0
+        if par.height_coefficient == 0.0
+            par.height_coefficient = 4.0
         end
-        if par.width_coefficient==0.0
-            par.width_coefficient=0.11
+        if par.width_coefficient == 0.0
+            par.width_coefficient = 0.11
         end
 
-        betap_ped = (par.height_coefficient^(8/5) * par.width_coefficient^(6/5)) / IN^(8/15)
-        actor.wped  = (par.height_coefficient^(4/5) * par.width_coefficient^(8/5)) / IN^(4/15)
-    # NSTX like width - w_ped~beta_p,ped^1.0
+        betap_ped = (par.height_coefficient^(8 / 5) * par.width_coefficient^(6 / 5)) / IN^(8 / 15)
+        actor.wped = (par.height_coefficient^(4 / 5) * par.width_coefficient^(8 / 5)) / IN^(4 / 15)
+        # NSTX like width - w_ped~beta_p,ped^1.0
     elseif par.model == :NSTX
-        if par.height_coefficient==0.0
-            par.height_coefficient=2.0
+        if par.height_coefficient == 0.0
+            par.height_coefficient = 2.0
         end
-        if par.width_coefficient==0.0
-            par.width_coefficient=0.4
+        if par.width_coefficient == 0.0
+            par.width_coefficient = 0.4
         end
-        betap_ped = (par.height_coefficient^4 * par.width_coefficient^3) / IN^(4/3)
-        actor.wped = par.height_coefficient^4.0*par.width_coefficient^4.0/IN^(4/3) 
+        betap_ped = (par.height_coefficient^4 * par.width_coefficient^3) / IN^(4 / 3)
+        actor.wped = par.height_coefficient^4.0 * par.width_coefficient^4.0 / IN^(4 / 3)
     else
         error("Undefined model! Model should be one of :MAST, :NSTX")
     end
-    actor.pped = 1e-6*betap_ped*Bp^2/2/IMAS.mks.μ_0
+    actor.pped = 1e-6 * betap_ped * Bp^2 / 2 / IMAS.mks.μ_0
 
     # Plotting
     if par.do_plot
