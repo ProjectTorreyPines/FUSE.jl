@@ -1,5 +1,5 @@
 #!/bin/bash -v
-source /usr/share/lmod/lmod/init/bash
+command -v module >/dev/null 2>&1 || source /usr/share/lmod/lmod/init/bash
 module load julia/1.11.4
 
 basedir="/global/common/software/m3739/perlmutter/fuse"
