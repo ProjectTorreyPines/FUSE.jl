@@ -40,6 +40,13 @@ setenv("JULIA_CC", "gcc -O3")
 -- This lets the compiled sysimage work on login and worker nodes
 setenv("JULIA_CPU_TARGET", "generic")
 
-prepend_path("JUPYTER_PATH", envdir .. "/.jupyter")
+-- symbolic link kernels
+local kernsrc = envdir .. "/.jupyter/kernels"
+local kerndst = home  .. "/.local/share/jupyter/kernels"
+execute{
+	cmd ="mkdir -p " .. kerndst .. " && ln -sf " .. kernsrc .."/* " .. kerndst,
+	modeA = {"load"}
+}
+
 
 prepend_path("PATH", envdir)

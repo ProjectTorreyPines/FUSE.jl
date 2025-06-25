@@ -63,9 +63,26 @@ chmod(sysimage_path, 0o555)
 
 println()
 println("### Create IJulia kernels")
+module_folder = joinpath(ENV["FUSE_HOME"], "modules")
+wrapper = """
+#!/bin/bash
+command -v module >/dev/null 2>&1 || source /usr/share/lmod/lmod/init/bash
+module use $module_folder
+module load fuse/$fuse_env
+exec julia "\$@"
+"""
+println(wrapper)
+wrap_file = joinpath(install_dir, "fuse_kernel.sh")
+write(wrap_file, wrapper)
+chmod(wrap_file, 0o555)
+
 import IJulia
-IJulia.installkernel("Julia-$VERSION FUSE-$fuse_env 1-Thread",  "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"1"))
-IJulia.installkernel("Julia-$VERSION FUSE-$fuse_env 8-Threads", "--sysimage=$sysimage_path"; env=Dict("JULIA_NUM_THREADS"=>"8"))
+IJulia.installkernel("Julia FUSE-$fuse_env 1-Thread",  "--sysimage=$sysimage_path";
+                     julia = `$(joinpath(env_dir, "fuse_kernel.sh"))`,
+                     env=Dict("JULIA_NUM_THREADS"=>"1"))
+IJulia.installkernel("Julia FUSE-$fuse_env 8-Threads", "--sysimage=$sysimage_path";
+                     julia = `$(joinpath(env_dir, "fuse_kernel.sh"))`,
+                     env=Dict("JULIA_NUM_THREADS"=>"8"))
 
 println()
 println("### Create fuse executable")
