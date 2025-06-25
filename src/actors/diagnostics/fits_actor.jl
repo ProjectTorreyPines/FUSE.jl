@@ -43,7 +43,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # parameters and switches
     time_basis = getproperty(dd, par.time_basis_ids).time
     rho_tor_norm = range(0.0, 1.0, par.rho_grid)
-    rho_tor_norm12 = 0.0:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
+    rho_tor_norm12 = 0.1:(rho_tor_norm[2]-rho_tor_norm[1]):1.2
     smooth1 = 0.1
     smooth2 = par.rho_averaging
 
