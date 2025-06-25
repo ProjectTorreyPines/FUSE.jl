@@ -119,9 +119,11 @@ function _step(actor::ActorQED)
 
             cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
             cp1d.j_non_inductive = flattened_j_non_inductive
-            eqt.profiles_1d.q =  1.0 ./ actor.QO.ι.(eqt.profiles_1d.rho_tor_norm)
-#            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
         end
+
+        # sources with hysteresis sawteeth flattening
+        qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+        i_qdes = findlast(qval .< par.qmin_desired * 1.1)
         if i_qdes !== nothing
             IMAS.sawteeth_source!(dd, cp1d.grid.rho_tor_norm[i_qdes])
         end
@@ -155,7 +157,12 @@ function _step(actor::ActorQED)
                 break
             end
             rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
-            IMAS.sawteeth_source!(dd, rho_qdes)
+
+            # sources with hysteresis sawteeth flattening
+            i_qdes = findlast(qval .< par.qmin_desired * 1.1)
+            if i_qdes !== nothing
+                IMAS.sawteeth_source!(dd, cp1d.grid.rho_tor_norm[i_qdes])
+            end
         end
     else
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
@@ -170,7 +177,7 @@ end
 
 Setup QED from data in IMAS `dd`
 """
-function qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
+function qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing,Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
 
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
