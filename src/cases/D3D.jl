@@ -60,6 +60,14 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         efit_shot = shot
     end
 
+    # to get user OMFIT_PROFS use (shot, OMFIT_PROFS001) to get (shot001, OMFIT_PROFS)
+    if contains(PROFILES_tree, "OMFIT_PROFS")
+        prof_shot = parse(Int, "$(shot)$(PROFILES_tree[12:end])")
+        PROFILES_tree = "OMFIT_PROFS"
+    else
+        prof_shot = shot
+    end
+
     # remote omas script
     omas_py = """
         import time
@@ -78,7 +86,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         # d3d.nbi_active_hardware(ods, $shot)
 
         printe("- Fetching core_profiles data")
-        d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
+        d3d.core_profiles_profile_1d(ods, $prof_shot, PROFILES_tree="$(PROFILES_tree)")
 
         printe("- Fetching wall data")
         d3d.wall(ods, $shot)
