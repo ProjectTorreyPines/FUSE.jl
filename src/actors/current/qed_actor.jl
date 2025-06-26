@@ -63,6 +63,7 @@ function _step(actor::ActorQED)
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
     # no ohmic, no sawteeth, no time dependent
     j_non_inductive = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, exclude_indexes=[7, 409, 701], fields=[:j_parallel]).j_parallel
+    conductivity_parallel = cp1d.conductivity_parallel
 
     # initialize QED
     # we must reinitialize to update the equilibrium metrics
@@ -112,7 +113,7 @@ function _step(actor::ActorQED)
                 rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
             end
 
-            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
+            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, conductivity_parallel, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
@@ -142,7 +143,7 @@ function _step(actor::ActorQED)
         # current fully relaxes, and the second time we change the resisitivity to keep q>1
         rho_qdes = -1.0
         for _ in (1, 2)
-            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
+            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, conductivity_parallel, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.steady_state(actor.QO, η_jardin; Vedge, Ip)
@@ -221,7 +222,7 @@ function qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing,Real}=nothi
         else
             rho_qdes = eqt.profiles_1d.rho_tor_norm[i_qdes]
         end
-        _, j_non_inductive = η_JBni_sawteeth(cp1d, cp1d.j_non_inductive, rho_qdes)
+        _, j_non_inductive = η_JBni_sawteeth(cp1d, cp1d.conductivity_parallel, cp1d.j_non_inductive, rho_qdes)
         ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, j_non_inductive)
     end
 
@@ -239,10 +240,10 @@ returns
 
   - non-inductive profile with flattening of the current inside of the inversion radius
 """
-function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
+function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, conductivity_parallel::Vector{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
 
     rho = cp1d.grid.rho_tor_norm
-    η = 1.0 ./ cp1d.conductivity_parallel
+    η = 1.0 ./ conductivity_parallel
 
     if rho_qdes > 0.0
         # flattened current resistivity as per Jardin's model
