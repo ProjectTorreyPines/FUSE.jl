@@ -31,23 +31,23 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 
     
     if omfit_host == "localhost"
-        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omega_omfit_root, omega_omas_root))
+        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omfit_root, omas_root))
         filename = "D3D_$(shot)_$(phash).h5"
         local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
     else
         # Resolve omega username using the ssh config
-        omfit_user = read(`ssh -G $omfit_host | grep "user `, String)
+        omfit_user = read(`ssh -G $omfit_host "|" grep "user "`, String)
         omfit_host = "$omfit_user$omfit_host"
-        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root))
+        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omfit_root, omas_root))
         remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*omega_user*"/d3d_data/$shot")
         filename = "D3D_$(shot)_$(phash).h5"
         local_path = joinpath(tempdir(), "$(omfit_user)_D3D_$(shot)")
-        if isdir(local_path) && !use_local_cache
-            rm(local_path; recursive=true)
-        end
-        if !isdir(local_path)
-            mkdir(local_path)
-        end
+    end
+    if isdir(local_path) && !use_local_cache
+        rm(local_path; recursive=true)
+    end
+    if !isdir(local_path)
+        mkdir(local_path)
     end
 
     # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
@@ -146,10 +146,10 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         open(omas_sh, "w") do io
             return write(io, setup_block*omas_block)
         end
-        run(`chmod +x $omfit_sh`)
-        run(`chmod +x $omas_sh`)
-        task1 = @spawn run(`$omfit_sh`)
-        task2 = @spawn run(`$omas_sh`)
+        Base.run(`chmod +x $omfit_sh`)
+        Base.run(`chmod +x $omas_sh`)
+        task1 = @spawn Base.run(`$omfit_sh`)
+        task2 = @spawn Base.run(`$omas_sh`)
         wait(task1)
         wait(task2)
     else
