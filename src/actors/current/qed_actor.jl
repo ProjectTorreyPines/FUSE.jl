@@ -122,12 +122,10 @@ function _step(actor::ActorQED)
             cp1d.j_non_inductive = flattened_j_non_inductive
         end
 
-        # sources with hysteresis sawteeth flattening
+        # sources with hysteresis of sawteeth flattening
         qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
         i_qdes = findlast(qval .< par.qmin_desired * 1.1)
-        if i_qdes !== nothing
-            IMAS.sawteeth_source!(dd, cp1d.grid.rho_tor_norm[i_qdes])
-        end
+        IMAS.sawteeth_source!(dd, i_qdes)
 
     elseif par.Δt == Inf
         # steady state solution
@@ -158,13 +156,13 @@ function _step(actor::ActorQED)
                 break
             end
             rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
-
-            # sources with hysteresis sawteeth flattening
-            i_qdes = findlast(qval .< par.qmin_desired * 1.1)
-            if i_qdes !== nothing
-                IMAS.sawteeth_source!(dd, cp1d.grid.rho_tor_norm[i_qdes])
-            end
         end
+
+        # sources with hysteresis of sawteeth flattening
+        qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+        i_qdes = findlast(qval .< par.qmin_desired * 1.1)
+        IMAS.sawteeth_source!(dd, i_qdes)
+
     else
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
     end
@@ -179,7 +177,6 @@ end
 Setup QED from data in IMAS `dd`
 """
 function qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing,Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
-
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
@@ -241,7 +238,6 @@ returns
   - non-inductive profile with flattening of the current inside of the inversion radius
 """
 function η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, conductivity_parallel::Vector{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
-
     rho = cp1d.grid.rho_tor_norm
     η = 1.0 ./ conductivity_parallel
 
