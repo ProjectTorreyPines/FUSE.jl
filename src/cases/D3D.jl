@@ -1,3 +1,5 @@
+using Distributed
+
 """
     case_parameters(::Type{Val{:D3D}}, shot::Int;
         new_impurity_match_power_rad::Symbol=:none,
@@ -19,31 +21,27 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
-    omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
-    omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
-    omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
+    omfit_host::String=get(ENV, "FUSE_OMFIT_HOST", "omega.gat.com"),
+    omfit_root::String=get(ENV, "FUSE_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
+    omas_root::String=get(ENV, "FUSE_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
     use_local_cache::Bool=false
 )
     ini, act = case_parameters(Val{:D3D_machine})
     ini.general.casename = "D3D $shot"
 
-    # variables used for data fetching
-    remote_omas_root = "\$OMAS_ROOT"
-    if !isempty(omega_omas_root)
-        remote_omas_root = omega_omas_root
-    end
-    remote_omfit_root = "\$OMFIT_ROOT"
-    if !isempty(omega_omfit_root)
-        remote_omfit_root = omega_omfit_root
-    end
-    remote_host = "$(omega_user)@omega.gat.com"
-    phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root))
-    remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
-    filename = "D3D_$(shot)_$(phash).h5"
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
-        local_path = remote_path
+    
+    if omfit_host == "localhost"
+        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omega_omfit_root, omega_omas_root))
+        filename = "D3D_$(shot)_$(phash).h5"
+        local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
     else
-        local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
+        # Resolve omega username using the ssh config
+        omfit_user = read(`ssh -G $omfit_host | grep "user `, String)
+        omfit_host = "$omfit_user$omfit_host"
+        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root))
+        remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*omega_user*"/d3d_data/$shot")
+        filename = "D3D_$(shot)_$(phash).h5"
+        local_path = joinpath(tempdir(), "$(omfit_user)_D3D_$(shot)")
         if isdir(local_path) && !use_local_cache
             rm(local_path; recursive=true)
         end
@@ -127,46 +125,65 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
     open(joinpath(local_path, "omas_data_fetch.py"), "w") do io
         return write(io, omas_py)
     end
-
-    # remote bash/slurm script
-    remote_slurm = """#!/bin/bash -l
-        #SBATCH --job-name=fetch_d3d_omas
-        #SBATCH --partition=short
-        #SBATCH --cpus-per-task=1
-        #SBATCH --ntasks=2
-        #SBATCH --output=$remote_path/%j.out
-        #SBATCH --error=$remote_path/%j.err
-        #SBATCH --wait
-
-        # Load any required modules
+    if omfit_host == "localhost"
+        setup_block = """#!/bin/bash -l
         module purge
-        module load omfit/unstable
-
-        echo "Starting parallel tasks..." >&2
-
-        # Run both tasks in parallel
-        cd $remote_path
-        export PYTHONPATH=$(remote_omas_root):\$PYTHONPATH
-
-        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
-
-        python -u omas_data_fetch.py
-
-        echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
-        wait
-        echo "Transfering data from remote" >&2
+        module load omfit
+        cd $local_path
+        export PYTHONPATH=$(omas_root):\$PYTHONPATH
         """
-    open(joinpath(local_path, "remote_slurm.sh"), "w") do io
-        return write(io, remote_slurm)
-    end
-
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
-        # local driver script
-        local_driver = """
-            #!/bin/bash
-            module load omfit; cd $remote_path && bash remote_slurm.sh
-            """
+        omfit_block = """
+        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null &
+        """
+        omas_block = """
+        python -u omas_data_fetch.py
+        """
+        omfit_sh = joinpath(local_path, "omfit.sh")
+        open(omfit_sh, "w") do io
+            return write(io, setup_block*omfit_block)
+        end
+        omas_sh = joinpath(local_path, "omas.sh")
+        open(omas_sh, "w") do io
+            return write(io, setup_block*omas_block)
+        end
+        run(`chmod +x $omfit_sh`)
+        run(`chmod +x $omas_sh`)
+        task1 = @spawn run(`$omfit_sh`)
+        task2 = @spawn run(`$omas_sh`)
+        wait(task1)
+        wait(task2)
     else
+        # remote bash/slurm script
+        remote_slurm = """#!/bin/bash -l
+            #SBATCH --job-name=fetch_d3d_omas
+            #SBATCH --partition=short
+            #SBATCH --cpus-per-task=1
+            #SBATCH --ntasks=2
+            #SBATCH --output=$remote_path/%j.out
+            #SBATCH --error=$remote_path/%j.err
+            #SBATCH --wait
+
+            # Load any required modules
+            module purge
+            module load omfit/unstable
+
+            echo "Starting parallel tasks..." >&2
+
+            # Run both tasks in parallel
+            cd $remote_path
+            export PYTHONPATH=$(omas_root):\$PYTHONPATH
+
+            python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+
+            python -u omas_data_fetch.py
+
+            echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
+            wait
+            echo "Transfering data from remote" >&2
+            """
+        open(joinpath(local_path, "remote_slurm.sh"), "w") do io
+            return write(io, remote_slurm)
+        end
         # local driver script
         local_driver = """
             #!/bin/bash
@@ -181,19 +198,19 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
             # Retrieve results using rsync
             $(downsync_command(remote_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
         """
-    end
-    open(joinpath(local_path, "local_driver.sh"), "w") do io
-        return write(io, local_driver)
-    end
+    
+        open(joinpath(local_path, "local_driver.sh"), "w") do io
+            return write(io, local_driver)
+        end
 
-    # run data fetching
-    @info("Remote D3D data fetching for shot $shot")
-    @info("Path on OMEGA: $remote_path")
-    @info("Path on Localhost: $local_path")
-    if !isfile(joinpath(local_path, filename)) || !use_local_cache
-        Base.run(`bash $local_path/local_driver.sh`)
+        # run data fetching
+        @info("Remote D3D data fetching for shot $shot")
+        @info("Path on OMEGA: $remote_path")
+        @info("Path on Localhost: $local_path")
+        if !isfile(joinpath(local_path, filename)) || !use_local_cache
+            Base.run(`bash $local_path/local_driver.sh`)
+        end
     end
-
     # load experimental ods
     ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
