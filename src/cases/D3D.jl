@@ -36,10 +36,20 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
     else
         # Resolve omega username using the ssh config
-        omfit_user = read(`ssh -G $omfit_host "|" grep "user "`, String)
-        omfit_host = "$omfit_user$omfit_host"
-        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omfit_root, omas_root))
-        remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*omega_user*"/d3d_data/$shot")
+        output = read(`ssh -G $omfit_host`, String)
+        omfit_user = nothing
+        for line in split(output, '\n')
+            if startswith(line, "user ")
+                omfit_user = strip(split(line, ' ', limit=2)[2])
+                break
+            end
+        end
+        if isnothing(omfit_user)
+            throw(ErrorException("Need to add omega.gat.com to ~/.ssh"))
+        end
+        omfit_host = "$omfit_user@$omfit_host"
+        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omfit_user, omfit_root, omas_root))
+        remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*omfit_user*"/d3d_data/$shot")
         filename = "D3D_$(shot)_$(phash).h5"
         local_path = joinpath(tempdir(), "$(omfit_user)_D3D_$(shot)")
     end
@@ -189,14 +199,14 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
             #!/bin/bash
 
             # Use rsync to create directory if it doesn't exist and copy the script
-            $(ssh_command(remote_host, "\"mkdir -p $remote_path\""))
-            $(upsync_command(remote_host, ["$(local_path)/remote_slurm.sh", "$(local_path)/omas_data_fetch.py"], remote_path))
+            $(ssh_command(omfit_host, "\"mkdir -p $remote_path\""))
+            $(upsync_command(omfit_host, ["$(local_path)/remote_slurm.sh", "$(local_path)/omas_data_fetch.py"], remote_path))
 
             # Execute script remotely
-            $(ssh_command(remote_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
+            $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
 
             # Retrieve results using rsync
-            $(downsync_command(remote_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
+            $(downsync_command(omfit_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
         """
     
         open(joinpath(local_path, "local_driver.sh"), "w") do io
