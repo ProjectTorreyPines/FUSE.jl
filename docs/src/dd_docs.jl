@@ -24,7 +24,7 @@ for name in sort!(collect(fieldnames(IMAS.dd)))
             """## $basename
             ```@example
             using IMASdd # hide
-            IMASdd.$name{Float64} # hide
+            IMASdd.help(IMASdd.$name{Float64}) # hide
             ```\n"""
         )
     end

@@ -100,8 +100,6 @@ function case_parameters(::Type{Val{:EXCITE}})
 
     #### ACT ####
 
-    act.ActorPlasmaLimits.models = [:q95_gt_2, :κ_controllability]
-
     act.ActorFluxSwing.operate_oh_at_j_crit = true
 
     act.ActorEquilibrium.model = :TEQUILA

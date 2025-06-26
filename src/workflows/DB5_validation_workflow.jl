@@ -1,6 +1,6 @@
 import Random
 import DataFrames
-import CSV
+import Serialization
 import Dates
 import Distributed
 import Distributed: pmap
@@ -10,10 +10,8 @@ import Distributed: pmap
         tokamak::Union{String,Symbol}=:all,
         n_samples_per_tokamak::Union{Integer,Symbol}=10,
         save_directory::String="",
-        show_dd_plots=false,
-        plot_database=true,
-        verbose=false,
-        act=missing)
+        verbose::Bool=false,
+        act::Union{ParametersAllActors,Missing}=missing)
 
 Runs n_samples of the HDB5 database (https://osf.io/593q6) and stores results in save_directory
 """
@@ -21,10 +19,8 @@ function workflow_HDB5_validation(;
     tokamak::Union{String,Symbol}=:all,
     n_samples_per_tokamak::Union{Integer,Symbol}=10,
     save_directory::String="",
-    show_dd_plots=false,
-    plot_database=true,
-    verbose=false,
-    act=missing)
+    verbose::Bool=false,
+    act::Union{ParametersAllActors,Missing}=missing)
 
     # load HDB5 database
     run_df = load_hdb5(tokamak)
@@ -46,40 +42,38 @@ function workflow_HDB5_validation(;
     run_df[:, "error_message"] = ["" for i in 1:n_cases]
 
     # Run workflow_simple_stationary_plasma on each of the selected case
-    data_rows = ProgressMeter.@showprogress pmap(row -> run_HDB5_from_data_row(row, act, verbose, show_dd_plots), [run_df[k, :] for k in 1:n_cases])
-
-    for k in 1:length(data_rows)
+    data_rows = ProgressMeter.@showprogress pmap(data_row -> run_HDB5_from_data_row(data_row, act; verbose), [run_df[k, :] for k in 1:n_cases])
+    for k in 1:n_cases
         run_df[k, :] = data_rows[k]
     end
 
-    failed_df = filter(:TAUTH_fuse => isnan, run_df)
+    fail_df = filter(:TAUTH_fuse => isnan, run_df)
     run_df = filter(:TAUTH_fuse => !isnan, run_df)
 
-    println("Failed runs: $(length(failed_df.TOK)) out of $(length(run_df.TOK))")
+    println("Failed runs: $(length(fail_df.TOK)) out of $(length(fail_df.TOK) + length(run_df.TOK))")
     println("Mean Relative error $(MRE = round(100 * mean_relative_error(run_df[:, :TAUTH], run_df[:, :TAUTH_fuse]), digits=2))%")
 
-    # save all input data as well as predicted tau to CSV file
+    # save all input data as well as predicted tau to JLS file
     if !isempty(save_directory)
-        CSV.write(joinpath(save_directory, "dataframe_$(Dates.now()).csv"), run_df)
-        CSV.write(joinpath(save_directory, "failed_runs_dataframe_$(Dates.now()).csv"), failed_df)
+        filename = "HDB5_runs_dataframe_$(Dates.now())"
+        Serialization.serialize(joinpath(save_directory, "$(filename).jls"), run_df)
+        Serialization.serialize(joinpath(save_directory, "$(filename)_failed.jls"), fail_df)
     end
 
-    if plot_database
-        plot_x_y_regression(run_df, "TAUTH")
-    end
-
-    return run_df, failed_df
+    return (run_df=run_df, fail_df=fail_df)
 end
 
-function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing}=missing, verbose::Bool=false, do_plot::Bool=false)
+function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing}=missing; verbose::Bool=false)
     try
-        ini, ACT = case_parameters(data_row)
+        ini, ACT = case_parameters(data_row; verbose)
         if ismissing(act)
             act = ACT
         end
-        dd = init(ini, act)
+        dd = IMAS.dd()
+        actor_logging(dd, verbose)
+        init!(dd, ini, act)
         ActorStationaryPlasma(dd, act)
-        data_row[:TAUTH_fuse] = @ddtime (dd.summary.global_quantities.tau_energy.value)
+        data_row[:TAUTH_fuse] = @ddtime(dd.summary.global_quantities.tau_energy.value)
         data_row[:T0_fuse] = dd.core_profiles.profiles_1d[].electrons.temperature[1]
         data_row[:error_message] = ""
     catch e
@@ -88,57 +82,86 @@ function run_HDB5_from_data_row(data_row, act::Union{ParametersAllActors,Missing
         data_row[:error_message] = "$e"
         if isa(e, InterruptException)
             rethrow(e)
+        elseif verbose
+            @error repr(e)
         end
     end
     return data_row
 end
 
 """
-    plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
+    plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
 
-Plot regression of `\$name` and `\$(name)_fuse` data stored in a given dataframe
+Plot HDB5 validation workflow stored in a given dataframe
+
+kw arguments are passed to the plot
 """
-function plot_x_y_regression(dataframe::DataFrames.DataFrame, name::Union{String,Symbol}="TAUTH")
-    x_name = name
-    y_name = "$(name)_fuse"
-    if x_name == "TAUTH"
-        x_ylim = [5e-3, 1e1]
-    else
-        x_ylim = [minimum(abs, dataframe[:, x_name]) / 1e1, maximum(dataframe[:, x_name]) * 1e1]
-    end
+function plot_τ_regression(dataframe::DataFrames.DataFrame; kw...)
+    x_name = "TAUTH"
+    y_name = "TAUTH_fuse"
+    xlabel = "Experiments τₑ"
+    ylabel = "FUSE τₑ"
+    x_ylim = [2.5e-4, 1e1]
+
     dataframe = dataframe[DataFrames.completecases(dataframe), :]
-    dataframe = filter(row -> row["$(name)_fuse"] > 0.0, dataframe)
+    dataframe = filter(row -> row[y_name] > 0.0 && isfinite(row[y_name]), dataframe)
+
+    all_toks = unique(dataframe.TOK)
+    # all_toks = ["JET", "AUG", "D3D", "NSTX", "JT60U", "CMOD"]
+    dataframe = filter(row -> row["TOK"] in all_toks, dataframe)
 
     R² = round(R_squared(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
     MRE = round(100 * mean_relative_error(dataframe[:, x_name], dataframe[:, y_name]); digits=2)
-    p = plot(
-        dataframe[:, x_name],
-        dataframe[:, y_name];
-        seriestype=:scatter,
-        xaxis=:log,
-        yaxis=:log,
-        ylim=x_ylim,
-        xlim=x_ylim,
-        xlabel=x_name,
-        ylabel=y_name,
-        label="mean_relative_error = $MRE % for N = $(length(dataframe[:, x_name]))"
-    )
-    plot!([0.5 * x_ylim[1], 0.5 * x_ylim[2]], [2 * x_ylim[1], 2 * x_ylim[2]]; linestyle=:dash, label="+50%")
-    plot!([2 * x_ylim[1], 2 * x_ylim[2]], [0.5 * x_ylim[1], 0.5 * x_ylim[2]]; linestyle=:dash, label="-50%", legend=:topleft)
-    display(plot!([x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing))
+
+    p = plot(; palette=:tab10, aspect_ratio=:equal)
+    off = sqrt(MRE / 100)
+    plot!(p, [x_ylim[1], x_ylim[2]], [off * x_ylim[1], off * x_ylim[2]]; linestyle=:dash, label="±$(MRE)% MRE ($(nrow(dataframe)) cases)", legend=:topleft, color=:black)
+    plot!(p, [off * x_ylim[1], off * x_ylim[2]], [x_ylim[1], x_ylim[2]]; linestyle=:dash, color=:black, primary=false)
+    plot!(p, [x_ylim[1], x_ylim[2]], [x_ylim[1], x_ylim[2]]; label=nothing, color=:black)
+
+    colors = Dict("JET" => :red, "D3D" => :blue, "NSTX" => :purple, "JT60U" => :black, "ASDEX" => :green, "AUG" => :green, "CMOD" => :orange)
+    for tok in all_toks
+        index = dataframe.TOK .== tok
+        plot!(p,
+            dataframe[index, x_name],
+            dataframe[index, y_name];
+            seriestype=:scatter,
+            group=dataframe.TOK[index],
+            color=colors[tok],
+            xscale=:log10,
+            yscale=:log10,
+            ylim=x_ylim,
+            xlim=x_ylim,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            markersize=2.0, markerstrokewidth=0.0,
+            legend_foreground_color=:transparent,
+            legend_background_color=:transparent,
+            kw...
+        )
+    end
 
     println("R² = $(R²), mean_relative_error = $MRE)")
     return p
 end
 
 """
-    plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
+    load_hdb5(filename::String)
 
-Plot regression of `\$name` and `\$(name)_fuse` data stored in a given CSV file
+Load h5db from as JLS file
 """
-function plot_x_y_regression(filename::String, name::Union{String,Symbol}="TAUTH")
-    dataframe = CSV.read(filename, DataFrames.DataFrame)
-    return plot_x_y_regression(dataframe, name)
+function load_hdb5(filename::String)
+    return Serialization.deserialize(filename)
+end
+
+"""
+    plot_τ_regression(filename::String)
+
+Plot τe regression from data stored in a given JLS file
+"""
+function plot_τ_regression(filename::String; kw...)
+    dataframe = load_hdb5(filename)
+    return plot_τ_regression(dataframe; kw...)
 end
 
 function R_squared(x, y)

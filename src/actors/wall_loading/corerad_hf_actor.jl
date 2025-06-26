@@ -53,12 +53,11 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
 
     # Parameters for heat flux due to core radiarion
     total_rad_source1d = IMAS.total_radiation_sources(dd.core_sources, cp1d; time0=dd.global_time)
-    psi = cp1d.grid.psi
     source_1d = -total_rad_source1d.electrons.energy # minus sign because loss for dd.core_sources
     Prad_core = -total_rad_source1d.electrons.power_inside[end]
 
     # Compute the heat flux due to the core radiation - q_core_rad - W/m2
-    q_core_rad = IMAS.core_radiation_heat_flux(eqt, psi, source_1d, par.N, Rwall, Zwall, Prad_core)
+    q_core_rad = IMAS.core_radiation_heat_flux(eqt, cp1d.grid.psi_norm, source_1d, par.N, Rwall, Zwall, Prad_core)
 
     HF = IMAS.WallHeatFlux{D}(; r=Rwall, z=Zwall, q_core_rad, s)
     actor.wall_heat_flux = HF

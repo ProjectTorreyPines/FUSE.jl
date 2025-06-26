@@ -176,7 +176,7 @@ function init_core_profiles!(
     bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
     # 1. DT
     IMAS.ion_element!(bulk_ion, bulk)
-    @assert bulk_ion.element[1].z_n == 1.0 "Bulk ion `$bulk` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
+    @assert IMAS.is_hydrogenic(bulk_ion) "Bulk ion `$bulk` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
     # 2. Impurity
     IMAS.ion_element!(imp_ion, impurity)
     # 3. He

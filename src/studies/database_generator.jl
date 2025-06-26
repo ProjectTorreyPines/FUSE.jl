@@ -14,7 +14,6 @@ It's also possible to run the database generator on Vector of `ini`s and `act`s.
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
-
     sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
     act = ParametersActors()
 
@@ -45,7 +44,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
 end
 
 mutable struct StudyDatabaseGenerator{T<:Real} <: AbstractStudy
-    sty::OverrideParameters{T, FUSEparameters__ParametersStudyDatabaseGenerator{T}}
+    sty::OverrideParameters{T,FUSEparameters__ParametersStudyDatabaseGenerator{T}}
     ini::Union{ParametersAllInits,Vector{<:ParametersAllInits}}
     act::Union{ParametersAllActors,Vector{<:ParametersAllActors}}
     dataframe::Union{DataFrame,Missing}
@@ -133,23 +132,6 @@ function _run(study::StudyDatabaseGenerator)
         @info "released workers"
     end
 
-    return study
-end
-
-
-"""
-    _analyze(study::StudyDatabaseGenerator)
-
-Example of analyze plots to display after the run feel free to change this method for your needs
-"""
-function _analyze(study::StudyDatabaseGenerator; extract::Bool=true, re_extract::Bool=false)
-    if extract
-        extract_results(study; re_extract)
-    end
-    df = study.dataframe
-    display(histogram(df.Te0; xlabel="Te0 [keV]", ylabel="Number of simulations per bin", legend=false))
-    display(histogram(df.Ti0; xlabel="Ti0 [keV]", ylabel="Number of simulations per bin", legend=false))
-    display(histogram(df.ne0; xlabel="ne0 [m⁻³]]", ylabel="Number of simulations per bin", legend=false))
     return study
 end
 
@@ -263,19 +245,18 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
         df[!, :gparent] = fill(parent_group, nrow(df))
         df[!, :status] = fill("success", nrow(df))
         df[!, :worker_id] = fill(myid, nrow(df))
-        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+        df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
-        save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io;
-        timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io; timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
         if !isdir(tmp_csv_folder)
             mkdir(tmp_csv_folder)
         end
-        csv_filepath =joinpath(tmp_csv_folder, "extract_success_pid$(getpid()).csv")
+        csv_filepath = joinpath(tmp_csv_folder, "extract_success_pid$(getpid()).csv")
         if isfile(csv_filepath)
-            CSV.write(csv_filepath, df, append=true, header=false)
+            CSV.write(csv_filepath, df; append=true, header=false)
         else
             CSV.write(csv_filepath, df)
         end
@@ -288,27 +269,26 @@ function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
 
         df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
         df[!, :worker_id] = fill(myid, nrow(df))
-        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+        df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
         # save empty dd and error to directory
-        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
-            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
         if !isdir(tmp_csv_folder)
             mkdir(tmp_csv_folder)
         end
-        csv_filepath =joinpath(tmp_csv_folder, "extract_fail_pid$(getpid()).csv")
+        csv_filepath = joinpath(tmp_csv_folder, "extract_fail_pid$(getpid()).csv")
         if isfile(csv_filepath)
-            CSV.write(csv_filepath, df, append=true, header=false)
+            CSV.write(csv_filepath, df; append=true, header=false)
         else
             CSV.write(csv_filepath, df)
         end
 
         return df
-    finally
 
+    finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
         close(tmp_log_io)
