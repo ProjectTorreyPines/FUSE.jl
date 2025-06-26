@@ -90,9 +90,9 @@ function _step(actor::ActorStationaryPlasma)
     par = actor.par
 
     if par.do_plot
-        pe = plot(dd.equilibrium; color=:gray, label=" (before)", coordinate=:rho_tor_norm)
-        pp = plot(dd.core_profiles; color=:gray, label=" (before)")
-        ps = plot(dd.core_sources; color=:gray, label=" (before)")
+        pe = plot(dd.equilibrium; color=:gray, label="", coordinate=:rho_tor_norm)
+        pp = plot(dd.core_profiles; color=:gray, label="")
+        ps = plot(dd.core_sources; color=:gray, label="")
 
         println("initial")
         @printf("Jtor0  = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[], :j_tor, [0.0])[1] / 1e6)
@@ -169,7 +169,6 @@ function _step(actor::ActorStationaryPlasma)
             dj2 = (k, x) -> (j_tor[k] .- j_tor_before[k])^2
             j2 = (k, x) -> j_tor_before[k]^2
             error_jtor = trapz(cp1d.grid.area, dj2) / trapz(cp1d.grid.area, j2)
-
             pressure = cp1d.pressure
             dp2 = (k, x) -> (pressure[k] .- pressure_before[k])^2
             p2 = (k, x) -> pressure_before[k]^2
@@ -177,9 +176,9 @@ function _step(actor::ActorStationaryPlasma)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
-                plot!(pe, dd.equilibrium; coordinate=:rho_tor_norm, label="i=$(length(total_error))")
-                plot!(pp, dd.core_profiles; label="i=$(length(total_error))")
-                plot!(ps, dd.core_sources; label="i=$(length(total_error))")
+                plot!(pe, dd.equilibrium; label="", coordinate=:rho_tor_norm)
+                plot!(pp, dd.core_profiles; label="", legend=nothing)
+                plot!(ps, dd.core_sources; label="", legend=nothing)
 
                 @printf("\n")
                 @printf(" Jtor0 = %.2f MA m²\n", cp1d.j_tor[1] / 1e6)
@@ -189,6 +188,8 @@ function _step(actor::ActorStationaryPlasma)
                 @printf("ne_ped = %.2e m⁻³\n", @ddtime(dd.summary.local.pedestal.n_e.value))
                 @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
                 @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
+                @printf(" ϵ jtor = %.4f\n", error_jtor)
+                @printf(" ϵ pres = %.4f\n", error_pressure)
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
