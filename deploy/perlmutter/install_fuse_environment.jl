@@ -77,10 +77,10 @@ write(wrap_file, wrapper)
 chmod(wrap_file, 0o555)
 
 import IJulia
-IJulia.installkernel("Julia FUSE-$fuse_env 1-Thread",  "--sysimage=$sysimage_path";
+IJulia.installkernel("Julia FUSE-$fuse_env 1 Thread(s)",  "--sysimage=$sysimage_path";
                      julia = `$(joinpath(env_dir, "fuse_kernel.sh"))`,
                      env=Dict("JULIA_NUM_THREADS"=>"1"))
-IJulia.installkernel("Julia FUSE-$fuse_env 8-Threads", "--sysimage=$sysimage_path";
+IJulia.installkernel("Julia FUSE-$fuse_env 8 Thread(s)", "--sysimage=$sysimage_path";
                      julia = `$(joinpath(env_dir, "fuse_kernel.sh"))`,
                      env=Dict("JULIA_NUM_THREADS"=>"8"))
 
