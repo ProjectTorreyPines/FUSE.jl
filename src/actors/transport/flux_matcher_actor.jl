@@ -220,13 +220,19 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
 
     finally
-
         actor_logging(dd, old_logging)
     end
 
-    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    # detect cases where all optimization calls failed
+    if par.algorithm != :none && isempty(err_history)
+        flux_match_errors(actor, opt_parameters, initial_cp1d)
+        error("FluxMatcher failed")
+    end
 
     # evaluate profiles at the best-matching gradients
+    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+
+    # statistics
     actor.error = norm(out.errors)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
