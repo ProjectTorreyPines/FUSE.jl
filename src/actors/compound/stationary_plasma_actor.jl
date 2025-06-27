@@ -146,10 +146,6 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
             finalize(step(actor.actor_hc))
 
-            # evolve j_ohmic (because hcd has changed non-inductive current drive)
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-            finalize(step(actor.actor_jt))
-
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
@@ -158,7 +154,7 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
             finalize(step(actor.actor_tr))
 
-            # evolve j_ohmic (because transport and pedestal have updated my bootstrap)
+            # evolve j_ohmic
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
