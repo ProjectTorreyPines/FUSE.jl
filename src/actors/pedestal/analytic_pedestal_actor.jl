@@ -1,4 +1,4 @@
-import EPEDNN # CHECK. Currently using this to get some parameters but not sure if this is needed or not
+import EPEDNN
 
 #= ===================== =#
 #  ActorAnalyticPedestal  #
@@ -29,9 +29,9 @@ end
 mutable struct ActorAnalyticPedestal{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorAnalyticPedestal{P}}
-    inputs::EPEDNN.InputEPED # CHECK - have made it work with this but not sure this is the correct approach?
-    wped::Union{Missing,Real} # pedestal width  CHECK WHAT DEFINITION IS BEING USED HERE!!!. using EPED definition (1/2 width as fraction of psi_norm)
-    pped::Union{Missing,Real} # pedestal height CHECK, It hink this model is in kPA!!!! using EPED units (MPa)
+    inputs::EPEDNN.InputEPED
+    wped::Union{Missing,Real}
+    pped::Union{Missing,Real}
 end
 
 """
