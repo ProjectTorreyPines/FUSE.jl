@@ -14,6 +14,11 @@ setenv("FUSE_ENVIRONMENT", fuse_env)
 --   precompiled sysimage
 setenv("JULIA_DEPOT_PATH", base_depot .. ":")
 
+-- Environment variables for data fetching
+setenv("FUSE_OMFIT_HOST", "localhost")
+setenv("FUSE_OMFIT_ROOT", "/global/common/software/m3739/perlmutter/OMFIT-CAKE")
+setenv("FUSE_OMAS_ROOT", "/global/common/software/m3739/perlmutter/FUSE_OMAS")
+
 -- The FUSE sysimage enviornment is the last place julia looks for packages
 --   when a user does `using <package>`, but this allows Julia to automatically
 --   find FUSE, Plots, and IJulia.
