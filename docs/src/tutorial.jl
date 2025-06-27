@@ -92,7 +92,7 @@ FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesi
 
 peq = plot(dd.equilibrium; label="before")
 pcp = plot(dd.core_profiles; color=:gray, label="before")
-act.ActorFluxMatcher.verbose = true
+#act.ActorFluxMatcher.verbose = true
 act.ActorFluxMatcher.algorithm = :anderson
 #act.ActorFluxMatcher.step_size = 0.1
 FUSE.ActorStationaryPlasma(dd, act);
