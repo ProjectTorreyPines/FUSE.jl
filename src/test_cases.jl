@@ -1,5 +1,15 @@
 using Test
 
+function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
+    # speedup the tests
+    act.ActorStationaryPlasma.max_iterations = 2
+    # use full model for ActorThermalPlant if environmental variable `FUSE_WITH_EXTENSIONS` is set
+    if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+        act.ActorThermalPlant.model = :network
+    end
+    return (ini=ini, act=act)
+end
+
 function test_case(::Val{:ITER_ods}, dd::IMAS.dd)
     ini, act = case_parameters(:ITER; init_from=:ods)
     ini_act_tests_customizations!(ini, act)
@@ -133,8 +143,6 @@ function test_case(::Val{:ITER_time}, dd::IMAS.dd; verbose::Bool=false)
     act.ActorStationaryPlasma.convergence_error = 2E-2
     act.ActorStationaryPlasma.max_iterations = 1
 
-    act.ActorSteadyStateCurrent.current_relaxation_radius = 0.2
-
     act.ActorFluxMatcher.verbose = verbose
     act.ActorFluxMatcher.relax = 0.5
 
@@ -181,16 +189,6 @@ function available_test_cases()
 end
 
 # ================ #
-
-function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
-    # speedup the tests
-    act.ActorStationaryPlasma.max_iterations = 2
-    # use full model for ActorThermalPlant if environmental variable `FUSE_WITH_EXTENSIONS` is set
-    if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
-        act.ActorThermalPlant.model = :network
-    end
-    return (ini=ini, act=act)
-end
 
 function test_ini_act_save_load(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors)
     Test.@testset "init" begin
