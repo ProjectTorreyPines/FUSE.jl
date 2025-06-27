@@ -120,13 +120,15 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     ProgressMeter.ijulia_behavior(:clear)
+    was_logging = actor_logging(dd)
+    is_logging = was_logging && !(par.verbose && !par.do_plot)
+    actor_logging(dd, is_logging)
     prog = ProgressMeter.Progress((par.max_iterations + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
-    islogging = actor_logging(dd)
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
 
-        if islogging
+        if is_logging
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iterations)")
         end
 
@@ -193,7 +195,7 @@ function _step(actor::ActorStationaryPlasma)
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
-            if islogging
+            if is_logging
                 logging(
                     Logging.Info,
                     :actors,
@@ -205,7 +207,7 @@ function _step(actor::ActorStationaryPlasma)
             callback(actor, :iteration_end; total_error)
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iterations)
-                if islogging
+                if is_logging
                     @warn "Max number of iterations ($(par.max_iterations)) has been reached with convergence error of (1)$(collect(map(x->round(x,digits = 3),total_error)))($(length(total_error))) compared to threshold of $(par.convergence_error)"
                 end
                 break
@@ -218,6 +220,7 @@ function _step(actor::ActorStationaryPlasma)
         if typeof(actor.actor_eq) <: ActorCHEASE
             actor.actor_eq.eq_actor.par = orig_par_chease
         end
+        actor_logging(dd, was_logging)
     end
     ProgressMeter.finish!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor))
 
