@@ -67,6 +67,12 @@ FUSE.init(dd, ini, act);
 
 plot(dd.build)
 
+plot(dd.equilibrium)
+
+plot(dd.core_profiles)
+
+plot(dd.core_sources)
+
 # We can `@checkin` and `@checkout` variables with an associated tag.
 # 
 # This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we'll use this later).
