@@ -1,8 +1,7 @@
 using FUSE
 
-shot = ARGS[1]
-use_local_cache = false
-ini, act = FUSE.case_parameters(:D3D, shot; fit_profiles=true, use_local_cache) #NBI with balanced torque
+shot =  parse(Int64,ARGS[1])
+ini, act = FUSE.case_parameters(:D3D, shot; fit_profiles=true) #NBI with balanced torque
 
 ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
 dd = IMAS.dd()

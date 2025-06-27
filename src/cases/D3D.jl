@@ -79,7 +79,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null &
         """
         omas_block = """
-        python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/omas_data.h5 d3d $shot EFIT02 ZIPFIT01
+        python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/$filename d3d $shot EFIT02 ZIPFIT01
         """
         omfit_sh = joinpath(local_path, "omfit.sh")
         open(omfit_sh, "w") do io
