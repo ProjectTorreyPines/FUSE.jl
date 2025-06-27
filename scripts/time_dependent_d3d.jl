@@ -55,4 +55,8 @@ act.ActorDynamicPlasma.ip_controller = false
 act.ActorDynamicPlasma.time_derivatives_sources = true
 
 actor = FUSE.ActorDynamicPlasma(dd, act; verbose=false)
-IMAS.imas2h5i(dd, "fuse_time_dependent_$shot.h5")
+result_path = get(ENV, "FUSE_RESULT_ARCHIVE", "")
+if length(result_path) > 0
+    Base.run(`mkdir -p $result_path`)
+end
+IMAS.imas2h5i(dd, joinpath(result_path,"fuse_time_dependent_$shot.h5"))
