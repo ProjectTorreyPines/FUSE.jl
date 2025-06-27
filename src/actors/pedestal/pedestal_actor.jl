@@ -21,7 +21,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     )
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :replay, :none, :analytic], "-", "Pedestal model to use"; default=:EPED)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
     #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("s", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("s", "pedestal density LH transition tanh evolution time (95% of full transition)")

@@ -123,13 +123,13 @@ include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
 include(joinpath("actors", "pedestal", "WPED_actor.jl"))
-include(joinpath("actors", "pedestal", "AnalyticPedestal_actor.jl"))
+include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
-include(joinpath("actors", "transport", "analytical_turbulence_actor.jl"))
+include(joinpath("actors", "transport", "analytic_turbulence_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
