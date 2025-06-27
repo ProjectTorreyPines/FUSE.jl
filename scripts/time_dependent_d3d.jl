@@ -1,6 +1,8 @@
 using FUSE
 
 shot =  parse(Int64,ARGS[1])
+workers = prase(Int64, ARGS[2])
+FUSE.parallel_environment("localhost", workers)
 ini, act = FUSE.case_parameters(:D3D, shot; fit_profiles=true) #NBI with balanced torque
 
 ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
