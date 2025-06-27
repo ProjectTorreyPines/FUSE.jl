@@ -63,6 +63,7 @@ function _step(actor::ActorQED)
     B0 = eqt.global_quantities.vacuum_toroidal_field.b0
     # no ohmic, no sawteeth, no time dependent
     j_non_inductive = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, exclude_indexes=[7, 409, 701], fields=[:j_parallel]).j_parallel
+    conductivity_parallel = cp1d.conductivity_parallel
 
     # initialize QED
     # we must reinitialize to update the equilibrium metrics
@@ -88,6 +89,7 @@ function _step(actor::ActorQED)
             Ni = par.Nt
         end
 
+        i_qdes = nothing
         for time0 in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
                 Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0)
@@ -111,16 +113,19 @@ function _step(actor::ActorQED)
                 rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
             end
 
-            η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
+            η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, conductivity_parallel, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
 
             cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
             cp1d.j_non_inductive = flattened_j_non_inductive
-            eqt.profiles_1d.q =  1.0 ./ actor.QO.ι.(eqt.profiles_1d.rho_tor_norm)
-#            @ddtime(dd.core_profiles.global_quantities.ip = QED.Ip(actor.QO))
         end
+
+        # sources with hysteresis of sawteeth flattening
+        qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+        i_qdes = findlast(qval .< par.qmin_desired * 1.1)
+        IMAS.sawteeth_source!(dd, i_qdes)
 
     elseif par.Δt == Inf
         # steady state solution
@@ -136,7 +141,7 @@ function _step(actor::ActorQED)
         # current fully relaxes, and the second time we change the resisitivity to keep q>1
         rho_qdes = -1.0
         for _ in (1, 2)
-            η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes)
+            η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, conductivity_parallel, j_non_inductive, rho_qdes)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.steady_state(actor.QO, η_jardin; Vedge, Ip)
@@ -152,6 +157,12 @@ function _step(actor::ActorQED)
             end
             rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
         end
+
+        # sources with hysteresis of sawteeth flattening
+        qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+        i_qdes = findlast(qval .< par.qmin_desired * 1.1)
+        IMAS.sawteeth_source!(dd, i_qdes)
+
     else
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
     end
