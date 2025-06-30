@@ -1,15 +1,15 @@
 using FUSE
 using Distributed
 using ArgParse
-args = ArgParseSettings()
+s = ArgParseSettings()
 @add_arg_table s begin
     "shot"
         help = "Shot number"
-        arg_type = Integer
+        arg_type = Int
         required = true
     "workers"    
         help = "Number of extra workers. Default is serial, i.e. 0"
-        arg_type = Integer
+        arg_type = Int
         default = 0
     "--EFIT_TREE"
         help = "Source of LCFS shape"
@@ -33,7 +33,8 @@ args = ArgParseSettings()
         default = ""
  
 end
-FUSE.parallel_environment("localhost", args["shot"])
+args = parse_args(s)
+FUSE.parallel_environment("localhost", args["workers"])
 @everywhere using FUSE
 ini, act = FUSE.case_parameters(:D3D, args["shot"]; fit_profiles=true,
                                 EFIT_tree=args["EFIT_TREE"], PROFILES_tree=args["PROFILES_TREE"],

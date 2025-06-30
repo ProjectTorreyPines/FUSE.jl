@@ -84,10 +84,10 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/$filename d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type
         """
         if length(EFIT_run_id) >0
-            omas_block += "  --EFIT_RUN_ID $EFIT_run_id"
+            omas_block *= "  --EFIT_RUN_ID $EFIT_run_id"
         end
         if length(PROFILES_run_id) >0
-            omas_block += "  --PROFILES_RUN_ID $PROFILES_run_id"
+            omas_block *= "  --PROFILES_RUN_ID $PROFILES_run_id"
         end
         omfit_sh = joinpath(local_path, "omfit.sh")
         open(omfit_sh, "w") do io
