@@ -81,8 +81,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null &
         """
         omas_block = """
-        python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/$filename d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type
-        """
+        python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/$filename d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"""
         if length(EFIT_run_id) >0
             omas_block *= "  --EFIT_RUN_ID $EFIT_run_id"
         end
@@ -99,10 +98,9 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         end
         Base.run(`chmod +x $omfit_sh`)
         Base.run(`chmod +x $omas_sh`)
-        task1 = @spawn Base.run(`$omfit_sh`)
-        task2 = @spawn Base.run(`$omas_sh`)
-        wait(task1)
-        wait(task2)
+        task = @spawn Base.run(`$omfit_sh`)
+        Base.run(`$omas_sh`)
+        wait(task)
     else
         # remote bash/slurm script
         remote_slurm = """#!/bin/bash -l
