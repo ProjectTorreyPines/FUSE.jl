@@ -14,7 +14,7 @@ s = ArgParseSettings()
     "--PROFILES_TREE"
         help = "Source of profile data"
         arg_type = String
-        default = "ZIPTFIT01"
+        default = "ZIPFIT01"
     "--CER_ANALYSIS_TYPE"
         help = "CER analysis type, either CERQUICK, CERAUTO, CERFAST"
         arg_type = String
