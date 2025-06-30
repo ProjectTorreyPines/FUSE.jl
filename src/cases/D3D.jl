@@ -21,6 +21,8 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
+    EFIT_run_id::Integer=0,
+    PROFILES_run_id::Integer=0,
     omfit_host::String=get(ENV, "FUSE_OMFIT_HOST", "omega.gat.com"),
     omfit_root::String=get(ENV, "FUSE_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
     omas_root::String=get(ENV, "FUSE_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
@@ -79,7 +81,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null &
         """
         omas_block = """
-        python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/omas_data.h5 d3d $shot EFIT02 ZIPFIT01
+        python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/omas_data.h5 d3d $shot $EFIT_tree $PROFILES_tree --EFIT_RUN_ID $EFIT_run_id --PROFILES_RUN_ID $PROFILES_run_id --CER_ANALYSIS_TYPE=$CER_analysis_type
         """
         omfit_sh = joinpath(local_path, "omfit.sh")
         open(omfit_sh, "w") do io
