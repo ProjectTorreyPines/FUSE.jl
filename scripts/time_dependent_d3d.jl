@@ -22,15 +22,15 @@ args = ArgParseSettings()
     "--CER_ANALYSIS_TYPE"
         help = "CER analysis type, either CERQUICK, CERAUTO, CERFAST"
         arg_type = String
-        default = nothing
+        default = "CERQUICK"
     "--EFIT_RUN_ID"
         help = "Run ID for EFIT Tree, only last two digits"
-        arg_type = Integer
-        default = 0
+        arg_type = String
+        default = ""
     "--PROFILES_RUN_ID"
         help = "Run ID for OMFIT_PROFS Tree, only last three digits"
-        arg_type = Integer
-        default = 0
+        arg_type = String
+        default = ""
  
 end
 FUSE.parallel_environment("localhost", args["shot"])
