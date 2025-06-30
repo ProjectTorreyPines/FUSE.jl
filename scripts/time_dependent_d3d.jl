@@ -7,10 +7,6 @@ s = ArgParseSettings()
         help = "Shot number"
         arg_type = Int
         required = true
-    "workers"    
-        help = "Number of extra workers. Default is serial, i.e. 0"
-        arg_type = Int
-        default = 0
     "--EFIT_TREE"
         help = "Source of LCFS shape"
         arg_type = String
@@ -34,7 +30,7 @@ s = ArgParseSettings()
  
 end
 args = parse_args(s)
-FUSE.parallel_environment("localhost", args["workers"])
+FUSE.parallel_environment("localhost", 1) # Get one extra worker for OMAS fecthing
 @everywhere using FUSE
 ini, act = FUSE.case_parameters(:D3D, args["shot"]; fit_profiles=true,
                                 EFIT_tree=args["EFIT_TREE"], PROFILES_tree=args["PROFILES_TREE"],
