@@ -1,10 +1,44 @@
 using FUSE
 using Distributed
-shot =  parse(Int64,ARGS[1])
-workers = parse(Int64, ARGS[2])
-FUSE.parallel_environment("localhost", workers)
+using ArgParse
+args = ArgParseSettings()
+@add_arg_table s begin
+    "shot"
+        help = "Shot number"
+        arg_type = Integer
+        required = true
+    "workers"    
+        help = "Number of extra workers. Default is serial, i.e. 0"
+        arg_type = Integer
+        default = 0
+    "--EFIT_TREE"
+        help = "Source of LCFS shape"
+        arg_type = String
+        default = "EFIT02"
+    "--PROFILES_TREE"
+        help = "Source of profile data"
+        arg_type = String
+        default = "ZIPTFIT01"
+    "--CER_ANALYSIS_TYPE"
+        help = "CER analysis type, either CERQUICK, CERAUTO, CERFAST"
+        arg_type = String
+        default = nothing
+    "--EFIT_RUN_ID"
+        help = "Run ID for EFIT Tree, only last two digits"
+        arg_type = Integer
+        default = 0
+    "--PROFILES_RUN_ID"
+        help = "Run ID for OMFIT_PROFS Tree, only last three digits"
+        arg_type = Integer
+        default = 0
+ 
+end
+FUSE.parallel_environment("localhost", args["shot"])
 @everywhere using FUSE
-ini, act = FUSE.case_parameters(:D3D, shot; fit_profiles=true) #NBI with balanced torque
+ini, act = FUSE.case_parameters(:D3D, args["shot"]; fit_profiles=true,
+                                EFIT_tree=args["EFIT_TREE"], PROFILES_tree=args["PROFILES_TREE"],
+                                CER_analysis_type=args["CER_ANALYSIS_TYPE"], EFIT_run_id=args["EFIT_RUN_ID"],
+                                PROFILES_run_id=args["PROFILES_RUN_ID"])
 
 ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
 dd = IMAS.dd()
