@@ -78,7 +78,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         export PYTHONPATH=$(omas_root):\$PYTHONPATH
         """
         omfit_block = """
-        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null &
+        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null
         """
         omas_block = """
         python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/$filename d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"""
