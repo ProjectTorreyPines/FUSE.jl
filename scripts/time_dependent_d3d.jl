@@ -93,4 +93,4 @@ result_path = get(ENV, "FUSE_RESULT_ARCHIVE", "")
 if length(result_path) > 0
     Base.run(`mkdir -p $result_path`)
 end
-IMAS.imas2h5i(dd, joinpath(result_path,"fuse_time_dependent_$(args["shot"])).h5"))
+IMAS.imas2h5i(dd, joinpath(result_path,"fuse_time_dependent_$(args["shot"]).h5"))
