@@ -22,6 +22,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
     model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
+    apply_pedestal_density_tanh::Entry{Bool} = Entry{Bool}("-", "Apply tanh-shaped density profile in pedestal region"; default=true)
+
     #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("s", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("s", "pedestal density LH transition tanh evolution time (95% of full transition)")
@@ -281,7 +283,9 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     if par.density_match == :ne_ped
-        pedestal_density_tanh(dd, par; density_factor, zeff_factor)
+        if par.apply_pedestal_density_tanh
+            pedestal_density_tanh(dd, par; density_factor, zeff_factor)
+        end 
         finalize(step(actor.ped_actor))
 
     elseif par.density_match == :ne_line
@@ -291,8 +295,10 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
 
         # run pedestal model on scaled density
         par.ne_from = :core_profiles
-        pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor)
-
+        if par.apply_pedestal_density_tanh
+            pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor)
+        end
+        
         try
             # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
             # we can do this because EPED and WPED only operate on temperature profiles
