@@ -41,7 +41,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the final solution"; default=1.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= relax <= 1.0")
     scale_turbulence_law::Switch{Symbol} =
         Switch{Symbol}([:h98, :ds03], "-", "Scale turbulent transport to achieve a desired confinement law: NOTE: scale law evaluated with include_radiation=false")
-    scale_turbulence_value::Entry{Float64} = Entry{Float64}(
+    scale_turbulence_value::Entry{T} = Entry{T}(
         "-",
         "Scale turbulent transport to achieve a desired confinement value for the `scale_turbulence_law`";
         default=1.0,
@@ -58,8 +58,8 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_ped::ActorPedestal{D,P}
-    norms::Vector{Float64}
-    error::Float64
+    norms::Vector{D}
+    error::D
 end
 
 """
@@ -88,7 +88,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    return ActorFluxMatcher(dd, par, act, actor_ct, actor_ped, Float64[], Inf)
+    return ActorFluxMatcher(dd, par, act, actor_ct, actor_ped, T[], T(Inf))
 end
 
 """
@@ -120,10 +120,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     z_init, profiles_paths, fluxes_paths = pack_z_profiles(cp1d, par)
     z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping using NLsolve
     N_radii = length(par.rho_transport)
-    N_channels = Int(floor(length(z_init) / N_radii))
+    N_channels = round(Int, length(z_init) / N_radii, RoundDown)
 
-    z_scaled_history = Vector{NTuple{length(z_init),Float64}}()
-    err_history = Vector{Vector{Float64}}()
+    z_scaled_history = Vector{NTuple{length(z_init),D}}()
+    err_history = Vector{Vector{D}}()
 
     actor.norms = fill(NaN, N_channels)
 
@@ -394,7 +394,7 @@ function profiles_title(cp1d, profiles_path)
     end
 end
 
-function errors_by_channel(errors::Vector{Float64}, N_radii::Int, N_channels::Int, N_specials::Int)
+function errors_by_channel(errors::Vector{T}, N_radii::Int, N_channels::Int, N_specials::Int) where {T<:Real}
     return (specials=errors[1+N_specials], radii_channels=mapslices(norm, reshape(errors[1+N_specials:end], (N_radii, N_channels)); dims=1))
 end
 
@@ -413,24 +413,24 @@ end
 
 """
     flux_match_errors(
-        actor::ActorFluxMatcher,
-        z_profiles_scaled::Vector{<:Real},
-        initial_cp1d::IMAS.core_profiles__profiles_1d,
+        actor::ActorFluxMatcher{D,P},
+        opt_parameters::Vector{<:Real},
+        initial_cp1d::IMAS.core_profiles__profiles_1d;
         z_scaled_history::Vector=[],
-        err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
-        prog::Any=nothing)
+        err_history::Vector{Vector{D}}=Vector{Vector{D}}(),
+        prog::Any=nothing) where {D<:Real,P<:Real}
 
 Update the profiles, evaluates neoclassical and turbulent fluxes, sources (ie target fluxes), and returns named tuple with (targets, fluxes, errors)
 
 NOTE: flux matching is done in physical units
 """
 function flux_match_errors(
-    actor::ActorFluxMatcher,
+    actor::ActorFluxMatcher{D,P},
     opt_parameters::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d;
     z_scaled_history::Vector=[],
-    err_history::Vector{Vector{Float64}}=Vector{Vector{Float64}}(),
-    prog::Any=nothing)
+    err_history::Vector{Vector{D}}=Vector{Vector{D}}(),
+    prog::Any=nothing) where {D<:Real,P<:Real}
 
     dd = actor.dd
     par = actor.par
@@ -547,7 +547,7 @@ Evaluates the flux_matching targets for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+function flux_match_targets(dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_source = resize!(dd.core_sources.source, :total; wipe=false)
@@ -555,7 +555,7 @@ function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameter
     IMAS.total_sources!(total_source1d, dd.core_sources, cp1d; time0=dd.global_time, fields=[:total_ion_power_inside, :power_inside, :particles_inside, :torque_tor_inside])
     cs_gridpoints = [argmin_abs(total_source1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
-    targets = Float64[]
+    targets = D[]
 
     if par.evolve_Te == :flux_match
         target = total_source1d.electrons.power_inside[cs_gridpoints] ./ total_source1d.grid.surface[cs_gridpoints]
@@ -590,20 +590,20 @@ function flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameter
 end
 
 """
-    flux_match_fluxes(dd::IMAS.dd{T}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {T<:Real, P<:Real}
+    flux_match_fluxes(dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
 
 Evaluates the flux_matching fluxes for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_fluxes(dd::IMAS.dd{T}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {T<:Real,P<:Real}
+function flux_match_fluxes(dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_flux = resize!(dd.core_transport.model, :combined; wipe=false)
     total_flux1d = resize!(total_flux.profiles_1d; wipe=false)
     IMAS.total_fluxes!(total_flux1d, dd.core_transport, cp1d, par.rho_transport; time0=dd.global_time)
 
-    fluxes = T[]
+    fluxes = D[]
 
     if par.evolve_Te == :flux_match
         flux = total_flux1d.electrons.energy.flux
@@ -644,26 +644,26 @@ end
 
 """
     flux_match_simple(
-        actor::ActorFluxMatcher,
-        z_init::Vector{<:Real},
+        actor::ActorFluxMatcher{D,P},
+        opt_parameters::Vector{<:Real},
         initial_cp1d::IMAS.core_profiles__profiles_1d,
         z_scaled_history::Vector,
-        err_history::Vector{Vector{Float64}},
+        err_history::Vector{Vector{D}},
         ftol::Float64,
         xtol::Float64,
-        prog::Any)
+        prog::Any) where {D<:Real,P<:Real}
 
 Updates zprofiles based on TGYRO simple algorithm
 """
 function flux_match_simple(
-    actor::ActorFluxMatcher,
+    actor::ActorFluxMatcher{D,P},
     opt_parameters::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     z_scaled_history::Vector,
-    err_history::Vector{Vector{Float64}},
+    err_history::Vector{Vector{D}},
     ftol::Float64,
     xtol::Float64,
-    prog::Any)
+    prog::Any) where {D<:Real,P<:Real}
 
     par = actor.par
 
@@ -712,7 +712,7 @@ function flux_match_simple(
     end
 end
 
-function progress_ActorFluxMatcher(dd::IMAS.dd, error::Float64)
+function progress_ActorFluxMatcher(dd::IMAS.dd, error::Real)
     cp1d = dd.core_profiles.profiles_1d[]
     out = Tuple{String,Float64}[]
     push!(out, ("         error", error))
@@ -746,16 +746,16 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
 end
 
 """
-    pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+    pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
 
 Packs the z_profiles based on evolution parameters
 
 NOTE: the order for packing and unpacking is always: [Te, Ti, Rotation, ne, nis...]
 """
-function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
-    z_profiles = Float64[]
+    z_profiles = D[]
     profiles_paths = []
     fluxes_paths = []
 
@@ -1006,11 +1006,11 @@ function evolve_densities_dict_creation(
 end
 
 """
-    check_output_fluxes(output::Vector{Float64}, what::String)
+    check_output_fluxes(output::Vector{<:Real}, what::String)
 
 Checks if there are any NaNs in the output
 """
-function check_output_fluxes(output::Vector{Float64}, what::String)
+function check_output_fluxes(output::Vector{<:Real}, what::String)
     @assert !any(isnan, output) "The transport flux is NaN check your transport model fluxes in dd.core_transport ($(what)): $(output)"
 end
 

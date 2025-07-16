@@ -84,7 +84,7 @@ function workflow_multiobjective_optimization(
 
     if length(objective_functions) == 1
         D = length(opt_ini)
-        K = Int(floor(N / D))
+        K = round(Int, N/D, RoundDown)
         algorithm = Metaheuristics.ECA(; N, K, options)
 
     else
