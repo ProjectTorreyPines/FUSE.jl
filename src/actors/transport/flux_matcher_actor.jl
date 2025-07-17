@@ -125,7 +125,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     z_scaled_history = Vector{NTuple{length(z_init),D}}()
     err_history = Vector{Vector{D}}()
 
-    actor.norms = fill(NaN, N_channels)
+    actor.norms = fill(D(NaN), N_channels)
 
     ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
@@ -169,7 +169,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             elseif par.algorithm == :anderson
                 NonlinearSolve.FixedPointAccelerationJL(;
                     algorithm=:Anderson,
-                    m=5,                        # history length
+                    m=5, # history length
                     dampening=-par.step_size * 0.5,
                     condition_number_threshold=1e8,
                     replace_invalids=:ReplaceVector
@@ -179,8 +179,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 alg = NonlinearSolve.Broyden(;
                     linesearch=NonlinearSolve.LineSearch.BackTracking(;
                         c_1=1e-4,   # Armijo parameter
-                        ρ_hi=0.5,    # shrink factor
-                        order=2,      # model order
+                        ρ_hi=0.5,   # shrink factor
+                        order=2,    # model order
                         autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff()
                     ),
                     update_rule=Val(:good_broyden),
@@ -195,11 +195,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 error("Unsupported algorithm: $(par.algorithm)")
             end
 
-            if par.max_iterations > 0
+            # Default for gradient methods 20, otherwise 500
+            if par.max_iterations >= 0
                 max_iterations = par.max_iterations
+            elseif par.algorithm in (:broyden, :polyalg)
+                max_iterations = 15
             else
-                # Default for gradient methods 20, otherwise 500
-                max_iterations = (par.algorithm in (:broyden, :polyalg)) ? 15 : 500
+                max_iterations = 500
             end
 
             # 4. Solve with matching tolerances and iteration limits
@@ -207,7 +209,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             #   passed to ftol in NLsolve which is an error on the residual
             # See https://github.com/SciML/NonlinearSolve.jl/issues/593
             abstol = 1E-2
-            sol = NonlinearSolve.solve(problem, alg;
+            sol = NonlinearSolve.solve(
+                problem, alg;
                 abstol,
                 maxiters=max_iterations,
                 show_trace=Val(par.show_trace),
