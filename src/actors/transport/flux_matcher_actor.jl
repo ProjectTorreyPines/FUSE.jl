@@ -502,7 +502,7 @@ function flux_match_errors(
     errors = similar(fluxes)
     for (inorm, norm0) in enumerate(actor.norms)
         index = (inorm-1)*nrho+1:inorm*nrho
-        if norm0 === NaN
+        if isnan(norm0)
             # this sets the norm to be the based on the average of the fluxes and targets
             # actor.norm is only used if the targets are zero
             actor.norms[inorm] = norm0 = (norm(fluxes[index] .* surface0) + norm(targets[index] .* surface0)) / 2.0
