@@ -1,37 +1,21 @@
 Base.@kwdef mutable struct ODEparams
-    sim_time::Union{Vector{Float64},Missing} = missing # simulation time vector
+    sim_time::Vector{Float64} = Float64[]# simulation time vector
     saturation_param::Float64 = 0.2 # controls nonlinear island saturation
-    error_field::Union{Float64, Missing} = missing # Set this when control_type is NOT :EF
-    DeltaW::Union{Float64, Missing} = missing # intrinsic stability of RW mode
-    stability_index::Union{Float64, Missing} = missing # intrinsic stability of the mode: Delta'
+    error_field::Float64 = 0.5 # Set this when control_type is NOT :EF
+    DeltaW::Float64 = 0.0 # intrinsic stability of RW mode
+    stability_index::Float64 = 0.0 # intrinsic stability of the mode: Delta'
     layer_width::Float64 = 1.e-3 # linear layer width from tearing theory, ususally ~1 mm
-    rat_surface::Union{Float64, Missing} = missing # q=2 surface location in dimensionless units"; default=0.67)
-    res_wall::Union{Float64, Missing} = missing # Resistive wall location in dimensionless units"; default=1.0)
-    control_surf::Float64    # Control surface location in dimensionless units"; default=1.25)
-    rat_index::Int64         # index of the q=2 surface in the rho_tor_norm profile
-    mu::Float64               # shear modulus
-    Inertia::Float64          # moment of inertia of the layer
+    rat_surface::Float64 = 0.67 # q=2 surface location in dimensionless units"; default=0.67)
+    res_wall::Float64 = 1.0  # Resistive wall location in dimensionless units"; default=1.0)
+    control_surf::Float64 = 1.25    # Control surface location in dimensionless units"; default=1.25)
+    rat_index::Int64 = 50        # index of the q=2 surface in the rho_tor_norm profile
+    mu::Float64 = 0.1              # shear modulus
+    Inertia::Float64 = 0.1          # moment of inertia of the layer
     #alpha_upper::Float64 = 0.6
     #alpha_lower::Float64 = 0.1
     # keep adding default and magic things
 end
 
-function ODEparams(time0::Float64, tfinal::Float64, time_steps::Int64; 
-                   saturation_param::Float64=0.2,
-                   error_field::Float64=0.5,
-                   mu::Float64=0.1,
-                   Inertia::Float64=0.1
-                   )
-    sim_time = collect(range(time0, tfinal, length=time_steps))
-    DeltaW=0.
-    stability_index=0.
-    layer_width=1.e-3
-    rat_surface=0.67
-    res_wall=1.0
-    control_surf=1.25
-    rat_index=80
-    return ODEparams(sim_time, saturation_param, error_field, DeltaW, stability_index, layer_width,rat_surface, res_wall, control_surf, rat_index,mu,Inertia)
-end
 
 #= ================= =#
 #  ActorLockingProbability  #
@@ -97,25 +81,15 @@ function _step(actor::ActorLocking)
     par = actor.par
 
     # actor.ode_params :: nothing
-    actor.ode_params = ODEparams(dd.global_time,par.t_final, par.time_steps)
+    actor.ode_params = ODEparams(;)
+        #dd.global_time,par.t_final, par.time_steps)
     #pressure = dd.equilibrium.time_slice[].pressure
-    
-    # pyton : print , julia : println
-    actor.ode_params.sim_time 
-    
-    # find the normalized radius of the q=2 surface
-    q_prof = dd.equilibrium.time_slice[].profiles_1d.q
-    println(q_prof[10])
-    rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
-    actor.ode_params.rat_surface, actor.ode_params.rat_index = find_q2_surface(q_prof, rho, par.q_surf)
-    println(actor.ode_params.rat_surface)
 
-    actor.ode_params = calculate_inductances(dd, par, actor.ode_params)
+    actor.ode_params = set_up_ode_params(dd, par, actor.ode_params)
+    #actor.ode_params = calculate_inductances(dd, par, actor.ode_params)
     
-    actor.ode_params = set_phys_params(dd, par, actor.ode_params)
+    #actor.ode_params = set_phys_params(dd, par, actor.ode_params)
 
-    lims = dd.limits ## or dd.mhd
-    
     
     return actor
 end
@@ -125,17 +99,56 @@ function _finalize(actor::ActorLocking)
     return actor
 end
 
-function ode_time_step(ode_params)
-    t_now = ode_params.sim_time .^2
+function set_up_ode_params(dd, par, ode_params)
+    """
+    Initialize the ODE parameters for the locking actor.
+    
+    Args:
+        dd: IMAS data structure
+        par: Parameters for the simulation
+    Returns:
+        ode_params: Initialized ODE parameters
+    """
+    
+    #ode_params = ODEparams
+    ode_params.sim_time = set_sim_time(dd.global_time, par.t_final, par.time_steps)
+    
+    # find the normalized radius of the q=2 surface
+    q_prof = dd.equilibrium.time_slice[].profiles_1d.q
+    rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
+    ode_params.rat_surface, ode_params.rat_index = find_q2_surface(q_prof, rho, par.q_surf)
+    println(ode_params.rat_surface, ode_params.rat_index)
+
+    # Set physical parameters in dimensionless form
+    ode_params.stability_index, ode_params.DeltaW = calculate_inductances(dd, par, ode_params)
+
+    #set_phys_params(dd, par, ODEparams(;sim_time, rat_surface=rat_surf, rat_index=rat_index))
+
+    # Prepare control parameters based on the control type
+    #ode_params = prepare_control_parameters(par.control_type, ode_params, par)
+
+    return ode_params #ODEparams(;sim_time, rat_surface=rat_surf,rat_index,stability_index=Deltat, DeltaW=Deltaw)
 end
+
+function set_sim_time(time0::Float64, tfinal::Float64, time_steps::Int64) 
+    """
+    initialize time for the ODE integration
+    """
+    sim_time = collect(range(time0, tfinal, length=time_steps))
+    
+    return sim_time
+end
+
 
 function find_q2_surface(q_prof, rho, rat_surface)
     """
     Find the location of the q=2 surface given the q profile
     """
 
+    # Interpolate rho(q) to find the q=2 surface
+    # Use absolute values to ensure we find the correct surface
     rho_interp = IMAS.interp1d(abs.(q_prof), rho)
-    rho_rat = rho_interp.(2.0)  # Interpolate to find the rho at q=2
+    rho_rat = rho_interp.(2.0)  
     rat_indx = findfirst(x-> x > rat_surface, abs.(q_prof))
     println("Found q=2 surface at: ", rho_rat)
     return rho_rat, rat_indx
@@ -161,10 +174,10 @@ function calculate_inductances(dd, par, ode_params)
     DeltaW = DeltaWr - DeltaWl
     Deltat = par.RPRW_stability_index + l21 * l12 / DeltaW
 
-    ode_params.DeltaW = DeltaW
-    ode_params.stability_index = Deltat
+    #ode_params.DeltaW = DeltaW
+    #ode_params.stability_index = Deltat
     
-    return ode_params
+    return Deltat, DeltaW
 end
 
 function set_phys_params(dd, par, ode_params)
@@ -180,7 +193,6 @@ function set_phys_params(dd, par, ode_params)
     """
 
     # Define some constants
-    # **** NOTE ***: n_dens to be replaced with dd.equilibrium.time_slice[] INFO
     #      Also NEED Zeff
     mu0_val = 4*pi*1.e-7  # Physical constant
     mass_ion = 1.67e-27  # kg, mass of ion (approx. for deuterium)
