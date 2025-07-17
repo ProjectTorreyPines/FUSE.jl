@@ -74,7 +74,7 @@ function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, act::ParametersAllActors; kw...)
+function ActorFluxMatcher(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxMatcher{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFluxMatcher)
     par = OverrideParameters(par; kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
@@ -88,7 +88,7 @@ function ActorFluxMatcher(dd::IMAS.dd, par::FUSEparameters__ActorFluxMatcher, ac
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    return ActorFluxMatcher(dd, par, act, actor_ct, actor_ped, T[], T(Inf))
+    return ActorFluxMatcher(dd, par, act, actor_ct, actor_ped, D[], D(Inf))
 end
 
 """
