@@ -752,7 +752,7 @@ Packs the z_profiles based on evolution parameters
 
 NOTE: the order for packing and unpacking is always: [Te, Ti, Rotation, ne, nis...]
 """
-function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
+function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
     z_profiles = D[]
@@ -760,21 +760,21 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     fluxes_paths = []
 
     if par.evolve_Te == :flux_match
-        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order)[cp_gridpoints]
+        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward)[cp_gridpoints]
         append!(z_profiles, z_Te)
         push!(profiles_paths, (:electrons, :temperature))
         push!(fluxes_paths, (:electrons, :energy))
     end
 
     if par.evolve_Ti == :flux_match
-        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :third_order)[cp_gridpoints]
+        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward)[cp_gridpoints]
         append!(z_profiles, z_Ti)
         push!(profiles_paths, (:t_i_average,))
         push!(fluxes_paths, (:total_ion_energy,))
     end
 
     if par.evolve_rotation == :flux_match
-        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :third_order)[cp_gridpoints]
+        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
         append!(z_profiles, z_rot)
         push!(profiles_paths, (:rotation_frequency_tor_sonic,))
         push!(fluxes_paths, (:momentum_tor,))
@@ -784,14 +784,14 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     if !isempty(evolve_densities)
         check_evolve_densities(cp1d, evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)[cp_gridpoints]
+            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
             append!(z_profiles, z_ne)
             push!(profiles_paths, (:electrons, :density_thermal))
             push!(fluxes_paths, (:electrons, :particles))
         end
         for (k, ion) in enumerate(cp1d.ion)
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :third_order)[cp_gridpoints]
+                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :backward)[cp_gridpoints]
                 append!(z_profiles, z_ni)
                 push!(profiles_paths, (:ion, k, :density_thermal))
                 push!(fluxes_paths, [:ion, k, :particles])
@@ -861,7 +861,7 @@ function unpack_z_profiles(
             cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
             counter += N
         else
-            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order)[cp_gridpoints]
+            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :zeff
