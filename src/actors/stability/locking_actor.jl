@@ -11,6 +11,8 @@ Base.@kwdef mutable struct ODEparams
     rat_index::Int64 = 50        # index of the q=2 surface in the rho_tor_norm profile
     mu::Float64 = 0.1              # shear modulus
     Inertia::Float64 = 0.1          # moment of inertia of the layer
+    Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
+    Control2::Vector{Float64} = Float64[] # control parameter 2,
     #alpha_upper::Float64 = 0.6
     #alpha_lower::Float64 = 0.1
     # keep adding default and magic things
@@ -44,7 +46,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "Scale for magnetic perturbations, usually ~10Gauss"; default=1.e-3)
     t0::Entry{Float64} = Entry{Float64}(
         "seconds", 
-        "Time scale for the integration , usually TM/RW growth rate"; default=1.e3)
+        "Time scale for the integration , usually TM/RW growth rate"; default=1.e-3)
     r0::Entry{Float64} = Entry{Float64}(
         "meter", 
         "Length scale for the integration , usually minor radius"; default=1.)
@@ -85,11 +87,9 @@ function _step(actor::ActorLocking)
         #dd.global_time,par.t_final, par.time_steps)
     #pressure = dd.equilibrium.time_slice[].pressure
 
-    actor.ode_params = set_up_ode_params(dd, par, actor.ode_params)
+    actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
     #actor.ode_params = calculate_inductances(dd, par, actor.ode_params)
     
-    #actor.ode_params = set_phys_params(dd, par, actor.ode_params)
-
     
     return actor
 end
@@ -99,7 +99,7 @@ function _finalize(actor::ActorLocking)
     return actor
 end
 
-function set_up_ode_params(dd, par, ode_params)
+function set_up_ode_params!(dd, par, ode_params)
     """
     Initialize the ODE parameters for the locking actor.
     
@@ -119,10 +119,11 @@ function set_up_ode_params(dd, par, ode_params)
     ode_params.rat_surface, ode_params.rat_index = find_q2_surface(q_prof, rho, par.q_surf)
     println(ode_params.rat_surface, ode_params.rat_index)
 
-    # Set physical parameters in dimensionless form
-    ode_params.stability_index, ode_params.DeltaW = calculate_inductances(dd, par, ode_params)
+    # calculate the stability indices
+    ode_params.stability_index, ode_params.DeltaW = calculate_stability_index(dd, par, ode_params)
 
-    #set_phys_params(dd, par, ODEparams(;sim_time, rat_surface=rat_surf, rat_index=rat_index))
+    # Set physical parameters in dimensionless form
+    ode_params.mu, ode_params.Inertia = set_phys_params(dd, par, ode_params)
 
     # Prepare control parameters based on the control type
     #ode_params = prepare_control_parameters(par.control_type, ode_params, par)
@@ -154,7 +155,7 @@ function find_q2_surface(q_prof, rho, rat_surface)
     return rho_rat, rat_indx
 end
 
-function calculate_inductances(dd, par, ode_params)
+function calculate_stability_index(dd, par, ode_params)
     rt = ode_params.rat_surface  
     rw = ode_params.res_wall
     rc = ode_params.control_surf
@@ -174,9 +175,6 @@ function calculate_inductances(dd, par, ode_params)
     DeltaW = DeltaWr - DeltaWl
     Deltat = par.RPRW_stability_index + l21 * l12 / DeltaW
 
-    #ode_params.DeltaW = DeltaW
-    #ode_params.stability_index = Deltat
-    
     return Deltat, DeltaW
 end
 
@@ -199,7 +197,9 @@ function set_phys_params(dd, par, ode_params)
 
     rt = ode_params.rat_surface
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
-    mass_dens = mass_ion * dd.core_profiles.profiles_1d[1].ion[1].density_thermal[83]
+    mass_dens = mass_ion * dd.core_profiles.profiles_1d[1].ion[1].density_thermal
+    rho_interp = IMAS.interp1d(rho, mass_dens)
+    mass_dens_atq2 = rho_interp(rt)  # Get the mass density at the q=2 surface
     #Zeff = dd.core_profiles.profiles_1d.zeff[40]
  
     # Set all the scales
@@ -208,22 +208,20 @@ function set_phys_params(dd, par, ode_params)
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     # approximate core rotation
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic[10]
-
     # Calculate the drag coefficient in SI
     muSI = par.NBItorque / rot_core
-    
     # Calculate first the moment of inertia in the layer  
-    inertia = (2*π)^2 * mass_dens * R0 * rt^3 * ode_params.layer_width
+    inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
 
     # Set the dimensionless quantities
-    ode_params.mu = muSI / (U0 * par.t0)
-    ode_params.Inertia = inertia / (U0 * par.t0^2)
+    mu = muSI / (U0 * par.t0)
+    Inertia = inertia / (U0 * par.t0^2)
 
-    return ode_params
+    return mu, Inertia
 end
 
 
-function prepare_control_parameters(control_type::Symbol, ode_params::ODEparams, par::FUSEparameters__ActorLocking)
+function set_control_parameters(control_type::Symbol, ode_params::ODEparams, par::FUSEparameters__ActorLocking)
     """
     Prepare the control parameters based on the control type.
     
@@ -236,14 +234,16 @@ function prepare_control_parameters(control_type::Symbol, ode_params::ODEparams,
     """
 
     Om0Vals = range(1.0e-2, par.Omega0_max, length=par.N) |> collect
+    Om0s = repeat(Om0Vals, 1, par.M)
+    Control1 = vec(Om0s)
 
+    # Initialize the other control parameter based on the control type
     if control_type == :EF
         Eps = par.eps
         EpsUp = par.MaxErrorField
         psiWvals = range(1e-2, EpsUp, length=par.M) |> collect
-        Om0s = repeat(Om0Vals, 1, par.M)
         Wflux = repeat(psiWvals', par.N, 1)
-        par.Control2 = vec(Wflux')
+        Control2 = vec(Wflux')
 
         ode_params.error_field = par.b0 * 1.e-3  # Example value for error field
     elseif control_type == :StabIndex
@@ -252,7 +252,7 @@ function prepare_control_parameters(control_type::Symbol, ode_params::ODEparams,
         ode_params.saturation_param = par.NL_saturation_ON ? 0.2 : 0.0
     end
     
-    return ode_params
+    return Control1, Control2
 end
 
 
