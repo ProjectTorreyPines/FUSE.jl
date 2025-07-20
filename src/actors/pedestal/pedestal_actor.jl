@@ -22,8 +22,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
     model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
-    apply_pedestal_density_tanh::Entry{Bool} = Entry{Bool}("-", "Apply tanh-shaped density profile in pedestal region"; default=true)
-
     #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("s", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("s", "pedestal density LH transition tanh evolution time (95% of full transition)")
@@ -242,21 +240,36 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     # Throughout FUSE, the "pedestal" values are defined at rho=0.9
     rho09 = 0.9
 
+    # Preserve user's desired sep-to-ped ratio from ini parameters
+    current_ne_ped = IMAS.interp1d(rho, cp1d.electrons.density_thermal)(rho09)
+    current_ne_sep = cp1d.electrons.density_thermal[end]
+    user_sep_to_ped_ratio = current_ne_sep / current_ne_ped
+
     # density pedestal width to match the existing temperature pedestal width
     w_ped = IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
 
     ne_old = copy(cp1d.electrons.density_thermal)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * density_factor
-    cp1d.electrons.density_thermal[end] = ne_ped / 4.0
+    
+    # Use user's ratio instead of hardcoded /4.0
+    cp1d.electrons.density_thermal[end] = ne_ped * user_sep_to_ped_ratio
+    
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = ne = IMAS.ped_height_at_09(rho, ne, ne_ped)
     ratio = ne ./ ne_old
 
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
+            # Preserve user's ion ratio instead of always 25% of ne_ped
+            current_ni_ped = IMAS.interp1d(rho, ion.density_thermal)(rho09)
+            current_ni_sep = ion.density_thermal[end]
+            ion_user_sep_to_ped_ratio = current_ni_sep / current_ni_ped
+            
             ion.density_thermal = ion.density_thermal .* ratio
             ni_ped = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ion.density_thermal[end] = ni_ped / 4.0
+            
+            ion.density_thermal[end] = ni_ped * ion_user_sep_to_ped_ratio
+            
             ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
@@ -283,9 +296,7 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     if par.density_match == :ne_ped
-        if par.apply_pedestal_density_tanh
-            pedestal_density_tanh(dd, par; density_factor, zeff_factor)
-        end 
+        pedestal_density_tanh(dd, par; density_factor, zeff_factor)
         finalize(step(actor.ped_actor))
 
     elseif par.density_match == :ne_line
@@ -295,10 +306,8 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
 
         # run pedestal model on scaled density
         par.ne_from = :core_profiles
-        if par.apply_pedestal_density_tanh
-            pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor)
-        end
-        
+        pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor)
+
         try
             # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
             # we can do this because EPED and WPED only operate on temperature profiles
