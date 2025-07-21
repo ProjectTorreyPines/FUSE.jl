@@ -41,6 +41,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     max_tor_rot::Entry{Float64} = Entry{Float64}(
         "2pi*Hertz", 
         "Maximum angular rotation rate observed in the shot")
+    MaxErrorField::Entry{Float64} = Entry{Float64}(
+        "Tesla*meter", 
+        "Maximum error field perturbation for control, usually ~10 Gauss.meter"; default=1e-3)
     b0::Entry{Float64} = Entry{Float64}(
         "Tesla", 
         "Scale for magnetic perturbations, usually ~10Gauss"; default=1.e-3)
@@ -126,7 +129,7 @@ function set_up_ode_params!(dd, par, ode_params)
     ode_params.mu, ode_params.Inertia = set_phys_params(dd, par, ode_params)
 
     # Prepare control parameters based on the control type
-    #ode_params = prepare_control_parameters(par.control_type, ode_params, par)
+    ode_params.Control1, ode_params.Control2 = set_control_parameters(dd, ode_params, par)
 
     return ode_params #ODEparams(;sim_time, rat_surface=rat_surf,rat_index,stability_index=Deltat, DeltaW=Deltaw)
 end
@@ -221,7 +224,7 @@ function set_phys_params(dd, par, ode_params)
 end
 
 
-function set_control_parameters(control_type::Symbol, ode_params::ODEparams, par::FUSEparameters__ActorLocking)
+function set_control_parameters(dd, ode_params::ODEparams, par) 
     """
     Prepare the control parameters based on the control type.
     
@@ -233,19 +236,33 @@ function set_control_parameters(control_type::Symbol, ode_params::ODEparams, par
         ode_params: Updated ODE parameters with control settings
     """
 
-    Om0Vals = range(1.0e-2, par.Omega0_max, length=par.N) |> collect
-    Om0s = repeat(Om0Vals, 1, par.M)
+    control_type = par.control_type
+    N = par.grid_size
+    M = par.grid_size
+
+    # figure out the rotation rate at the q=2 surface
+    rt = ode_params.rat_surface
+    rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
+    rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
+    rot_interp = IMAS.interp1d(rho, rot_core)
+    Omega0 = rot_interp(rt) * 2 * π * par.t0 # Convert to
+    println("dimensionless Omega0 at q=2 surface: ", Omega0)
+
+    Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
+    Om0s = repeat(Om0Vals, 1, M)
     Control1 = vec(Om0s)
+
+    EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
+    println("Eps: ", Eps)
 
     # Initialize the other control parameter based on the control type
     if control_type == :EF
-        Eps = par.eps
-        EpsUp = par.MaxErrorField
-        psiWvals = range(1e-2, EpsUp, length=par.M) |> collect
-        Wflux = repeat(psiWvals', par.N, 1)
+  
+        psiWvals = range(1e-2, EpsUp, length=M) |> collect
+        Wflux = repeat(psiWvals', N, 1)
         Control2 = vec(Wflux')
 
-        ode_params.error_field = par.b0 * 1.e-3  # Example value for error field
+        ode_params.error_field = 0.5  # Example value for error field
     elseif control_type == :StabIndex
         ode_params.stability_index = par.RPRW_stability_index
     elseif control_type == :SatParam
