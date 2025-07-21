@@ -46,13 +46,13 @@ function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
+function ActorTGLF(dd::IMAS.dd{T}, par::FUSEparameters__ActorTGLF; kw...) where {T<:Real}
     logging_actor_init(ActorTGLF)
     par = OverrideParameters(par; kw...)
     if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
-        input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTGLF{T}}(undef, length(par.rho_transport))
     elseif par.model == :TJLF
-        input_tglfs = Vector{InputTJLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTJLF{T}}(undef, length(par.rho_transport))
     end
     return ActorTGLF(dd, par, input_tglfs, GACODE.FluxSolution[])
 end

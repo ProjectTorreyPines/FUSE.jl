@@ -122,7 +122,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     N_radii = length(par.rho_transport)
     N_channels = round(Int, length(z_init) / N_radii, RoundDown)
 
-    z_scaled_history = Vector{NTuple{length(z_init),D}}()
+    z_scaled_history = []
     err_history = Vector{Vector{D}}()
 
     actor.norms = fill(D(NaN), N_channels)
@@ -135,6 +135,11 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         opt_parameters = z_init_scaled
     else
         opt_parameters = [1.0; z_init_scaled]
+    end
+
+    autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff()
+    if typeof(dd).parameters[1] <: ForwardDiff.Dual
+        autodiff = NonlinearSolve.ADTypes.AutoForwardDiff()
     end
 
     res = try
@@ -181,15 +186,16 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                         c_1=1e-4,   # Armijo parameter
                         ρ_hi=0.5,   # shrink factor
                         order=2,    # model order
-                        autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff()
+                        autodiff
                     ),
                     update_rule=Val(:good_broyden),
                     init_jacobian=Val(:true_jacobian),
-                    autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff()
+                    autodiff
                 )
+
             elseif par.algorithm == :polyalg
                 # Default NonlinearSolve algorithm
-                NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff=NonlinearSolve.ADTypes.AutoFiniteDiff())
+                NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff)
 
             else
                 error("Unsupported algorithm: $(par.algorithm)")
@@ -718,14 +724,14 @@ end
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Real)
     cp1d = dd.core_profiles.profiles_1d[]
     out = Tuple{String,Float64}[]
-    push!(out, ("         error", error))
+    push!(out, ("         error", IMAS.force_float64(error)))
     pfus = IMAS.fusion_power(cp1d)
     if pfus > 1E3
         push!(out, ("  Pfusion [MW]", pfus / 1E6))
     end
-    push!(out, ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3))
-    push!(out, ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3))
-    push!(out, ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20))
+    push!(out, ("     Ti0 [keV]", IMAS.force_float64(cp1d.t_i_average[1] / 1E3)))
+    push!(out, ("     Te0 [keV]", IMAS.force_float64(cp1d.electrons.temperature[1] / 1E3)))
+    push!(out, ("ne0 [10²⁰ m⁻³]", IMAS.force_float64(cp1d.electrons.density_thermal[1] / 1E20)))
     return out
 end
 
