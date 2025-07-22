@@ -246,7 +246,7 @@ function set_control_parameters(dd, ode_params::ODEparams, par)
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
     Omega0 = rot_interp(rt) * 2 * π * par.t0 # Convert to
-    println("dimensionless Omega0 at q=2 surface, WHAT!: ", Omega0)
+    println("dimensionless Omega0 at q=2 surface: ", Omega0)
 
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
     Om0s = repeat(Om0Vals, 1, M)
