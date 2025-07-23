@@ -13,6 +13,9 @@ Base.@kwdef mutable struct ODEparams
     Inertia::Float64 = 0.1          # moment of inertia of the layer
     Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
     Control2::Vector{Float64} = Float64[] # control parameter 2,
+    l12::Float64 = nothing        # mutual inductance between rational surface and RW
+    l21::Float64 = nothing        # mutual inductance between RW and rational surface
+    l32::Float64 = nothing        # mutual inductance between the control surface and RW
     #alpha_upper::Float64 = 0.6
     #alpha_lower::Float64 = 0.1
     # keep adding default and magic things
@@ -123,7 +126,7 @@ function set_up_ode_params!(dd, par, ode_params)
     println(ode_params.rat_surface, ode_params.rat_index)
 
     # calculate the stability indices
-    ode_params.stability_index, ode_params.DeltaW = calculate_stability_index(dd, par, ode_params)
+    ode_params.stability_index, ode_params.DeltaW, l12, l21, l32 = calculate_stability_index(dd, par, ode_params)
 
     # Set physical parameters in dimensionless form
     ode_params.mu, ode_params.Inertia = set_phys_params(dd, par, ode_params)
@@ -169,16 +172,16 @@ function calculate_stability_index(dd, par, ode_params)
     rat32 = (rc / rw)^m0
     rat23 = rat32^(-1)
 
-    l12 = (2 * m0 / rw) / (rat21 - rat12)
-    l21 = (2 * m0 / rt) / (rat21 - rat12)
-    l32 = (2 * m0 / rw) / (rat32 - rat23)
+    ode_params.l12 = (2 * m0 / rw) / (rat21 - rat12)
+    ode_params.l21 = (2 * m0 / rt) / (rat21 - rat12)
+    ode_params.l32 = (2 * m0 / rw) / (rat32 - rat23)
 
     DeltaWl = (m0 / rw) * (rat21 + rat12) / (rat21 - rat12)
     DeltaWr = -(m0 / rw) * (rat32 + rat23) / (rat32 - rat23)
-    DeltaW = DeltaWr - DeltaWl
-    Deltat = par.RPRW_stability_index + l21 * l12 / DeltaW
+    ode_params.DeltaW = DeltaWr - DeltaWl
+    ode_params.Deltat = par.RPRW_stability_index + l21 * l12 / DeltaW
 
-    return Deltat, DeltaW
+    return ode_params
 end
 
 function set_phys_params(dd, par, ode_params)
@@ -252,24 +255,46 @@ function set_control_parameters(dd, ode_params::ODEparams, par)
     Om0s = repeat(Om0Vals, 1, M)
     Control1 = vec(Om0s)
 
-    EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
-    println("WHAT Eps: ", EpsUp)
+    
 
     # Initialize the other control parameter based on the control type
     if control_type == :EF
-  
+        EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
         psiWvals = range(1e-2, EpsUp, length=M) |> collect
         Wflux = repeat(psiWvals', N, 1)
         Control2 = vec(Wflux')
 
-        ode_params.error_field = 0.5  # Example value for error field
     elseif control_type == :StabIndex
+        ode_params.error_field = 0.5  # Example value for error field
         ode_params.stability_index = par.RPRW_stability_index
     elseif control_type == :SatParam
-        ode_params.saturation_param = par.NL_saturation_ON ? 0.2 : 0.0
+        psiWvals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
+        Wflux = repeat(psiWvals', N, 1)
+        Control2 = vec(Wflux')
+        #ode_params.saturation_param = Control2
     end
     
     return Control1, Control2
 end
 
+function calculate_bifurcation_bounds(ode_params::ODEparams, par)
+    """
+    Calculate the bifurcation boundaries analytically
+    Note: Output will NOT be correct if NLsatON is true
+    """
+    Om0s = ode_params.Control1
+    p = -Om0s
+    m0 = par.n_mode
+    mu = ode_params.mu
+    DeltatRW = par.DeltatRW
+    DeltaW = ode_params.DeltaW
+    rt = ode_params.rat_surface
+    l21 = sys.l21
+    l12 = sys.l12
+    l32 = sys.l32
+
+    Deltat = DeltatRW + l21 * l12 / DeltaW
+
+    return nothing
+end
 
