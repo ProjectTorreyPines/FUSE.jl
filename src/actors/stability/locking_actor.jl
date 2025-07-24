@@ -13,9 +13,9 @@ Base.@kwdef mutable struct ODEparams
     Inertia::Float64 = 0.1          # moment of inertia of the layer
     Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
     Control2::Vector{Float64} = Float64[] # control parameter 2,
-    l12::Float64 = nothing        # mutual inductance between rational surface and RW
-    l21::Float64 = nothing        # mutual inductance between RW and rational surface
-    l32::Float64 = nothing        # mutual inductance between the control surface and RW
+    l12::Float64 = 1.0        # mutual inductance between rational surface and RW
+    l21::Float64 = 1.0        # mutual inductance between RW and rational surface
+    l32::Float64 = 1.0        # mutual inductance between the control surface and RW
     #alpha_upper::Float64 = 0.6
     #alpha_lower::Float64 = 0.1
     # keep adding default and magic things
@@ -90,7 +90,7 @@ function _step(actor::ActorLocking)
 
     # actor.ode_params :: nothing
     actor.ode_params = ODEparams(;)
-        #dd.global_time,par.t_final, par.time_steps)
+    #dd.global_time,par.t_final, par.time_steps)
     #pressure = dd.equilibrium.time_slice[].pressure
 
     actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
@@ -125,8 +125,8 @@ function set_up_ode_params!(dd, par, ode_params)
     ode_params.rat_surface, ode_params.rat_index = find_q2_surface(q_prof, rho, par.q_surf)
     println(ode_params.rat_surface, ode_params.rat_index)
 
-    # calculate the stability indices
-    ode_params.stability_index, ode_params.DeltaW, l12, l21, l32 = calculate_stability_index(dd, par, ode_params)
+    # calculate the stability indices and mutual inductances
+    ode_params = calculate_stability_index(dd, par, ode_params)
 
     # Set physical parameters in dimensionless form
     ode_params.mu, ode_params.Inertia = set_phys_params(dd, par, ode_params)
@@ -179,7 +179,7 @@ function calculate_stability_index(dd, par, ode_params)
     DeltaWl = (m0 / rw) * (rat21 + rat12) / (rat21 - rat12)
     DeltaWr = -(m0 / rw) * (rat32 + rat23) / (rat32 - rat23)
     ode_params.DeltaW = DeltaWr - DeltaWl
-    ode_params.Deltat = par.RPRW_stability_index + l21 * l12 / DeltaW
+    ode_params.stability_index = par.RPRW_stability_index + ode_params.l21 * ode_params.l12 / ode_params.DeltaW
 
     return ode_params
 end
@@ -286,14 +286,33 @@ function calculate_bifurcation_bounds(ode_params::ODEparams, par)
     p = -Om0s
     m0 = par.n_mode
     mu = ode_params.mu
-    DeltatRW = par.DeltatRW
+    DeltatRW = par.RPRW_stability_index
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
-    l21 = sys.l21
-    l12 = sys.l12
-    l32 = sys.l32
+    l21 = ode_params.l21
+    l12 = ode_params.l12
+    l32 = ode_params.l32
 
     Deltat = DeltatRW + l21 * l12 / DeltaW
+
+    if lowercase(par.control_type) in ["eps", "ef"]
+        Eps = ode_params.Control2
+    else
+        Eps = ode_params.error_field
+    end
+
+
+    if par.RPRW_stability_index !== nothing
+        RWon = true
+    end
+
+    if RWon
+        q = (DeltatRW / m0)^2 .+ rt * (l32 * l21 * Eps / DeltaW).^2 / (m0 * mu)
+        r = -Om0s * DeltatRW^2 / m0^2
+    else
+        q = (Deltat / m0)^2 + (l21 * Eps).^2 / mu
+        r = -Om0s * Deltat^2 / m0^2
+    end
 
     return nothing
 end
