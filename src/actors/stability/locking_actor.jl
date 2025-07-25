@@ -94,8 +94,8 @@ function _step(actor::ActorLocking)
     #pressure = dd.equilibrium.time_slice[].pressure
 
     actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
-    #actor.ode_params = calculate_inductances(dd, par, actor.ode_params)
     
+    D = calculate_bifurcation_bounds(dd, par, actor.ode_params)
     
     return actor
 end
@@ -105,7 +105,7 @@ function _finalize(actor::ActorLocking)
     return actor
 end
 
-function set_up_ode_params!(dd, par, ode_params)
+function set_up_ode_params!(dd, par, ode_params::ODEparams)
     """
     Initialize the ODE parameters for the locking actor.
     
@@ -123,19 +123,47 @@ function set_up_ode_params!(dd, par, ode_params)
     q_prof = dd.equilibrium.time_slice[].profiles_1d.q
     rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
     ode_params.rat_surface, ode_params.rat_index = find_q2_surface(q_prof, rho, par.q_surf)
-    println(ode_params.rat_surface, ode_params.rat_index)
+    println(ode_params.rat_surface,)
 
     # calculate the stability indices and mutual inductances
-    ode_params = calculate_stability_index(dd, par, ode_params)
+    ode_params = calculate_stability_index!(dd, par, ode_params)
 
     # Set physical parameters in dimensionless form
-    ode_params.mu, ode_params.Inertia = set_phys_params(dd, par, ode_params)
+    ode_params = set_phys_params!(dd, par, ode_params)
 
     # Prepare control parameters based on the control type
-    ode_params.Control1, ode_params.Control2 = set_control_parameters(dd, ode_params, par)
+    ode_params = set_control_parameters!(dd, par, ode_params)
 
     return ode_params #ODEparams(;sim_time, rat_surface=rat_surf,rat_index,stability_index=Deltat, DeltaW=Deltaw)
 end
+
+function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
+    plt = contour(X, Y, Z; linewidth=2)
+    display(plt)   # explicitly display
+    return plt
+end
+
+using Plots
+
+function make_contour(C1::AbstractArray, C2::AbstractArray, D::AbstractMatrix, levels::Vector{Float64})
+    # Determine target shape
+    m, n = size(D)
+
+    # If C1 and C2 are vectors, try to reshape them
+    if ndims(C1) == 1 
+        C1 = unique(C1)
+    end
+    if ndims(C2) == 1 
+        C2 = unique(C2)
+    end
+
+    # Create the contour plot
+    plt = contour(C2, C1, D; levels=levels, c=:black, linewidth=2)
+    display(plt)  # show plot
+    
+    return plt
+end
+
 
 function set_sim_time(time0::Float64, tfinal::Float64, time_steps::Int64) 
     """
@@ -147,7 +175,7 @@ function set_sim_time(time0::Float64, tfinal::Float64, time_steps::Int64)
 end
 
 
-function find_q2_surface(q_prof, rho, rat_surface)
+function find_q2_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surface::Float64)
     """
     Find the location of the q=2 surface given the q profile
     """
@@ -161,7 +189,7 @@ function find_q2_surface(q_prof, rho, rat_surface)
     return rho_rat, rat_indx
 end
 
-function calculate_stability_index(dd, par, ode_params)
+function calculate_stability_index!(dd::IMAS.DD, par, ode_params::ODEparams)
     rt = ode_params.rat_surface  
     rw = ode_params.res_wall
     rc = ode_params.control_surf
@@ -178,13 +206,14 @@ function calculate_stability_index(dd, par, ode_params)
 
     DeltaWl = (m0 / rw) * (rat21 + rat12) / (rat21 - rat12)
     DeltaWr = -(m0 / rw) * (rat32 + rat23) / (rat32 - rat23)
+
     ode_params.DeltaW = DeltaWr - DeltaWl
     ode_params.stability_index = par.RPRW_stability_index + ode_params.l21 * ode_params.l12 / ode_params.DeltaW
 
     return ode_params
 end
 
-function set_phys_params(dd, par, ode_params)
+function set_phys_params!(dd, par, ode_params::ODEparams)
     """
     Set the physical parameters in dimensionless form
     
@@ -220,14 +249,14 @@ function set_phys_params(dd, par, ode_params)
     inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
 
     # Set the dimensionless quantities
-    mu = muSI / (U0 * par.t0)
-    Inertia = inertia / (U0 * par.t0^2)
+    ode_params.mu = muSI / (U0 * par.t0)
+    ode_params.Inertia = inertia / (U0 * par.t0^2)
 
-    return mu, Inertia
+    return ode_params
 end
 
 
-function set_control_parameters(dd, ode_params::ODEparams, par) 
+function set_control_parameters!(dd, par, ode_params::ODEparams) 
     """
     Prepare the control parameters based on the control type.
     
@@ -254,9 +283,9 @@ function set_control_parameters(dd, ode_params::ODEparams, par)
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
     Om0s = repeat(Om0Vals, 1, M)
     Control1 = vec(Om0s)
+    ode_params.Control1 = Control1
 
     
-
     # Initialize the other control parameter based on the control type
     if control_type == :EF
         EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
@@ -274,14 +303,20 @@ function set_control_parameters(dd, ode_params::ODEparams, par)
         #ode_params.saturation_param = Control2
     end
     
-    return Control1, Control2
+    ode_params.Control2 = Control2
+
+    return ode_params
 end
 
-function calculate_bifurcation_bounds(ode_params::ODEparams, par)
+function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     """
     Calculate the bifurcation boundaries analytically
     Note: Output will NOT be correct if NLsatON is true
     """
+
+    N = par.grid_size
+    M = par.grid_size
+
     Om0s = ode_params.Control1
     p = -Om0s
     m0 = par.n_mode
@@ -295,7 +330,7 @@ function calculate_bifurcation_bounds(ode_params::ODEparams, par)
 
     Deltat = DeltatRW + l21 * l12 / DeltaW
 
-    if lowercase(par.control_type) in ["eps", "ef"]
+    if par.control_type == :"EF"
         Eps = ode_params.Control2
     else
         Eps = ode_params.error_field
@@ -314,6 +349,17 @@ function calculate_bifurcation_bounds(ode_params::ODEparams, par)
         r = -Om0s * Deltat^2 / m0^2
     end
 
-    return nothing
+    a = -(p.^2) / 3.0 .+ q
+    b = 2.0 * p.^3 / 27.0 - q .* p / 3.0 .+ r
+    D = b.^2 / 4 + a.^3 / 27
+
+    bifurcation_bounds = reshape(D, M, N)'
+
+    C1 = reshape(ode_params.Control1, M, N)
+    C2 = reshape(ode_params.Control2, M, N)
+
+    make_contour(C2, C1, bifurcation_bounds, [0.0])
+
+    return bifurcation_bounds
 end
 
