@@ -104,9 +104,6 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         printe("- Fetching magnetic probes data")
         d3d.magnetics_probes_data(ods, $shot)
 
-        printe("- Fetching magnetic weight data")
-        d3d.magnetics_weights(ods, $shot)
-
         printe("- Fetching Thomson scattering data")
         d3d.thomson_scattering_data(ods, $shot)
 
