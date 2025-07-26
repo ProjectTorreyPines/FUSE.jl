@@ -100,10 +100,6 @@ function _step(actor::ActorLocking)
     return actor
 end
 
-function _finalize(actor::ActorLocking)
-    print("WHAT?")
-    return actor
-end
 
 function set_up_ode_params!(dd, par, ode_params::ODEparams)
     """
@@ -138,12 +134,22 @@ function set_up_ode_params!(dd, par, ode_params::ODEparams)
 end
 
 function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
-    plt = contour(X, Y, Z; linewidth=2)
+    # Determine target shape
+    m, n = size(Z)
+
+    # If C1 and C2 are vectors, try to reshape them
+    if ndims(X) == 1 
+        X = unique(X)
+    end
+    if ndims(Y) == 1 
+        Y = unique(Y)
+    end
+
+    plt = contour(Y, X, Z; linewidth=2)
     display(plt)   # explicitly display
     return plt
 end
 
-using Plots
 
 function make_contour(C1::AbstractArray, C2::AbstractArray, D::AbstractMatrix, levels::Vector{Float64})
     # Determine target shape
@@ -160,7 +166,7 @@ function make_contour(C1::AbstractArray, C2::AbstractArray, D::AbstractMatrix, l
     # Create the contour plot
     plt = contour(C2, C1, D; levels=levels, c=:black, linewidth=2)
     display(plt)  # show plot
-    
+
     return plt
 end
 
@@ -277,7 +283,7 @@ function set_control_parameters!(dd, par, ode_params::ODEparams)
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
-    Omega0 = rot_interp(rt) * 2 * π * par.t0 # Convert to
+    Omega0 = 10#rot_interp(rt) * 2 * π * par.t0 # Convert to
     println("dimensionless Omega0 at q=2 surface: ", Omega0)
 
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
@@ -289,20 +295,19 @@ function set_control_parameters!(dd, par, ode_params::ODEparams)
     # Initialize the other control parameter based on the control type
     if control_type == :EF
         EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
-        psiWvals = range(1e-2, EpsUp, length=M) |> collect
-        Wflux = repeat(psiWvals', N, 1)
-        Control2 = vec(Wflux')
+        Control2_vals = range(1e-2, EpsUp, length=M) |> collect
 
     elseif control_type == :StabIndex
         ode_params.error_field = 0.5  # Example value for error field
-        ode_params.stability_index = par.RPRW_stability_index
+        Control2_vals = range(DeltaLow, DeltaUp, length=M) |> collect
+        
     elseif control_type == :SatParam
-        psiWvals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
-        Wflux = repeat(psiWvals', N, 1)
-        Control2 = vec(Wflux')
+        Control2_vals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
+        
         #ode_params.saturation_param = Control2
     end
     
+    Control2 = vec(repeat(Control2_vals', N, 1)')
     ode_params.Control2 = Control2
 
     return ode_params
@@ -328,19 +333,19 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     l12 = ode_params.l12
     l32 = ode_params.l32
 
-    Deltat = DeltatRW + l21 * l12 / DeltaW
-
-    if par.control_type == :"EF"
+    if par.control_type == :EF
         Eps = ode_params.Control2
-    else
+        Deltat = ode_params.stability_index
+    elseif par.control_type == :Stab
         Eps = ode_params.error_field
+        Deltat = ode_params.Control2
     end
-
+    
 
     if par.RPRW_stability_index !== nothing
         RWon = true
     end
-
+    println(RWon)
     if RWon
         q = (DeltatRW / m0)^2 .+ rt * (l32 * l21 * Eps / DeltaW).^2 / (m0 * mu)
         r = -Om0s * DeltatRW^2 / m0^2
@@ -355,10 +360,9 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
 
     bifurcation_bounds = reshape(D, M, N)'
 
-    C1 = reshape(ode_params.Control1, M, N)
-    C2 = reshape(ode_params.Control2, M, N)
+    #make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds, [0.0])
+    make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds)
 
-    make_contour(C2, C1, bifurcation_bounds, [0.0])
 
     return bifurcation_bounds
 end
