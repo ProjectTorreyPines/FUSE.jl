@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: Parame
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
-    time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=false)
+    time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=true)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -100,13 +100,14 @@ function _step(actor::ActorDynamicPlasma)
     # remove time dependent data after global_time
     IMAS.trim_time!(actor.dd, (-Inf, dd.global_time); trim_pulse_schedule=false)
 
-    substeps_per_2loop = 9
+    substeps_per_2loop = 8
     ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     try
-        for (kk, time0) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
+        # NOTE: δt is a full step, some actors are called every 1/2 step
+        for (kk, time0) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2, we start with 1
             progr = (prog, t0, t1, phase)
 
@@ -121,6 +122,8 @@ function _step(actor::ActorDynamicPlasma)
 
             if phase == 1
                 substep(actor, Val{:evolve_j_ohmic}, kk == 1 ? δt / 2 : δt; progr)
+
+                substep(actor, Val{:run_hcd}, kk == 1 ? δt / 2 : δt; progr)
             else
                 substep(actor, Val{:run_pedestal}, kk == 1 ? δt / 2 : δt; progr)
 
@@ -129,8 +132,6 @@ function _step(actor::ActorDynamicPlasma)
             end
 
             substep(actor, Val{:run_equilibrium}, δt / 2; progr)
-
-            substep(actor, Val{:run_hcd}, δt / 2; progr)
 
             substep(actor, Val{:run_pf_active}, δt / 2; progr)
         end
@@ -571,11 +572,11 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     # # inverse scale lengths
     # max_scale = 5
     # subplot = 14
-    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order); lw=2.0)
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward); lw=2.0)
     # subplot = 15
-    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :third_order); ylim=(-max_scale, max_scale), lw=2.0)
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward); ylim=(-max_scale, max_scale), lw=2.0)
     # subplot = 16
-    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order); ylim=(-max_scale, max_scale), lw=2.0)
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward); ylim=(-max_scale, max_scale), lw=2.0)
 
     l = @layout grid(3, 5)
     kw = Dict(kw...)

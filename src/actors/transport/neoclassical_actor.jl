@@ -16,7 +16,7 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorNeoclassical{P}}
     input_neos::Vector{<:NeoclassicalTransport.InputNEO}
-    flux_solutions::Vector{<:GACODE.FluxSolution}
+    flux_solutions::Vector{GACODE.FluxSolution{D}}
     equilibrium_geometry::Union{NeoclassicalTransport.EquilibriumGeometry,Missing}
 end
 
@@ -32,10 +32,10 @@ function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
+function ActorNeoclassical(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeoclassical{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorNeoclassical)
     par = OverrideParameters(par; kw...)
-    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution[], missing)
+    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing)
 end
 
 """

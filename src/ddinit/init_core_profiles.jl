@@ -43,12 +43,6 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
             end
         end
 
-        if ini.core_profiles.ne_setting in (:ne_ped, :greenwald_fraction_ped)
-            @assert act.ActorPedestal.density_match == :ne_ped "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_ped"
-        else
-            @assert act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line"
-        end
-
         if !isempty(dd.equilibrium.time_slice)
             equil = dd.equilibrium.time_slice[]
         else

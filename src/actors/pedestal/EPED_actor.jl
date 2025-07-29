@@ -175,7 +175,7 @@ function run_EPED!(
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
-    m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
+    m = round(Int, IMAS.A_effective(cp1d) * 2.0, RoundNearest) / 2.0
     if !(m == 2.0 || m == 2.5)
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end

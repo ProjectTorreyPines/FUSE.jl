@@ -123,6 +123,12 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             end
         end
 
+        if ini.core_profiles.ne_setting in (:ne_ped, :greenwald_fraction_ped)
+            @assert act.ActorPedestal.density_match == :ne_ped "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_ped"
+        else
+            @assert act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line"
+        end
+
         # EC
         if init_from == :ods && IMAS.hasdata(ps1.ec)
             ps.ec = deepcopy(ps1.ec)

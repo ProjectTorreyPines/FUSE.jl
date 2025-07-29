@@ -1,25 +1,50 @@
 """
-    LH_analysis(dd::IMAS.dd, transition_start::Float64=0.0, tau_n::Float64=0.4, tau_t::Float64=tau_n; do_plot::Bool=true)
+    LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, do_plot::Bool=true)
 
-This function takes the experimental data and returns time traces for the H-mode electron density and Zeff time traces
-that would go in pulse_schedule. It also returns scalar factors `ne_L_over_H` and `zeff_L_over_H` that can be used to
-obtain the L-mode traces by multiplying the H-mode traces.
+Analyze L-H mode transitions in tokamak plasma data and generate smooth time traces for electron density and effective charge (Zeff).
 
-Named tuple with:
+This function processes experimental data to detect L-mode to H-mode transitions and creates smoothed time traces suitable for pulse schedule applications. It can either auto-detect transitions based on pedestal structure or power threshold scaling, or use a manually specified transition time.
 
-  - `time::Vector{Float64}`: Time vector from core profiles.
-  - `tau_n::Float64`: Duration [s] of the density transition.
-  - `tau_t::Float64`: Duration [s] of the temperature transition.
-  - `mode_transitions::Dict{Float64,Symbol}`: Dictionary of key transition times with labels `:L_mode` and `:H_mode`.
-  - `ne_L::Vector{Float64}`: Smoothed L-mode line-averaged electron density.
-  - `ne_H::Vector{Float64}`: Smoothed H-mode line-averaged electron density.
-  - `ne_L_over_H::Float64`: Ratio of L-mode to H-mode density values.
-  - `zeff_L::Vector{Float64}`: Smoothed L-mode Zeff.
-  - `zeff_H::Vector{Float64}`: Smoothed H-mode Zeff.
-  - `zeff_L_over_H::Float64`: Ratio of L-mode to H-mode Zeff values.
-  - `W_ped_to_core_fraction::Float64`: Average ratio of pedestal to core stored energy during the L-mode phase.
+# Arguments
+- `dd::IMAS.dd`: IMAS data dictionary containing experimental tokamak data
+- `scale_LH::Real=0.0`: L-H power threshold scaling factor. If 0.0, auto-detects based on pedestal structure. If >0.0, uses power threshold method
+- `transition_start::Real=0.0`: Manual transition start time [s]. If 0.0, uses auto-detected time. If <0.0, treats entire discharge as single mode
+- `tau_n::Real=0.3`: Duration [s] of the density transition from L-mode to H-mode
+- `tau_t::Real=tau_n * 0.5`: Duration [s] of the temperature transition from L-mode to H-mode  
+- `do_plot::Bool=true`: Whether to generate diagnostic plots showing the analysis results
+
+# Returns
+A named tuple containing:
+- `time::Vector{Float64}`: Time vector from core profiles
+- `tau_n::Float64`: Duration [s] of the density transition
+- `tau_t::Float64`: Duration [s] of the temperature transition  
+- `mode_transitions::Dict{Float64,Symbol}`: Dictionary mapping transition times to mode labels (`:L_mode`, `:H_mode`)
+- `ne_L::Vector{Float64}`: Smoothed L-mode line-averaged electron density [m⁻³]
+- `ne_H::Vector{Float64}`: Smoothed H-mode line-averaged electron density [m⁻³]
+- `ne_L_over_H::Float64`: Ratio of L-mode to H-mode density values
+- `zeff_L::Vector{Float64}`: Smoothed L-mode effective charge
+- `zeff_H::Vector{Float64}`: Smoothed H-mode effective charge
+- `zeff_L_over_H::Float64`: Ratio of L-mode to H-mode Zeff values
+- `W_ped_to_core_fraction::Float64`: Average ratio of pedestal to core stored energy during L-mode phase
+
+# Method Details
+The function performs the following analysis steps:
+1. Extracts electron density, temperature, and Zeff profiles from core_profiles data
+2. Detects L-H mode transitions using either:
+   - Pedestal structure analysis (when `scale_LH=0.0`)
+   - Power threshold scaling (when `scale_LH>0.0`)
+3. Applies smoothing filters based on transition timescales
+4. Generates separate L-mode and H-mode traces through interpolation
+5. Calculates scaling factors for converting between modes
+6. Optionally creates diagnostic plots showing the analysis results
+
+# Notes
+- If `transition_start < 0.0` or no transitions are detected, returns identical L-mode and H-mode traces
+- The function interpolates results to match the pulse_schedule time base if different from core_profiles time base
+- Diagnostic plots show density, Zeff, temperature evolution and L-H power threshold analysis
+- The smoothing uses low-pass filtering based on the transition timescales
 """
-function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0, tau_n::Real=0.4, tau_t::Real=tau_n * 0.75, do_plot::Bool=true)
+function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, do_plot::Bool=true)
     rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
     index09 = argmin_abs(rho, 0.9)
     time = dd.core_profiles.time
@@ -44,26 +69,33 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
     injected_power = IMAS.total_power(dd.pulse_schedule, time; tau_smooth=time[2] - time[1])
     scaling_power = [IMAS.scaling_L_to_H_power(dd; time0) for time0 in time]
 
-    # LH detection
-    is_H_mask = [false for time0 in time]
-
     # function to take the ratio of pedestal to core stored energy
     ped_to_core(W) = W[2] / W[1]
 
-    # auto-detect mode transitions
+    # LH detection
     mode_transitions = Dict{Float64,Symbol}()
     mode_transitions[0.0] = :L_mode
-    n = 1 # maximum number of H-mode transitions allowed
-    for k in eachindex(time)
-        if k == 1 || (n > 0 && is_H_mask[k-1] == true && injected_power[k] < scaling_power[k] * scale_LH * 1.1)
-            is_H_mask[k] = false
-        elseif n > 0 && is_H_mask[k-1] == false && injected_power[k] > scaling_power[k] * scale_LH * 0.9
-            is_H_mask[k] = true
-            n -= 1
-        else
-            is_H_mask[k] = is_H_mask[k-1]
+    if scale_LH == 0.0
+        # auto-detect mode transitions based on pedestal structure
+        is_H_mask = [IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure) for cp1d in dd.core_profiles.profiles_1d]
+        is_H_mask = [is_H_mask[2:end]; is_H_mask[end]]
+    else
+        # auto-detect mode transitions based on LH-power threshold
+        is_H_mask = Bool[false for time0 in time]
+        n = 1 # maximum number of H-mode transitions allowed
+        for k in eachindex(time)
+            if k == 1 || (n > 0 && is_H_mask[k-1] == true && injected_power[k] < scaling_power[k] * scale_LH * 1.1)
+                is_H_mask[k] = false
+            elseif n > 0 && is_H_mask[k-1] == false && injected_power[k] > scaling_power[k] * scale_LH * 0.9
+                is_H_mask[k] = true
+                n -= 1
+            else
+                is_H_mask[k] = is_H_mask[k-1]
+            end
         end
     end
+
+    # from array to dictionary
     for (h_start, h_end) in get_true_ranges(is_H_mask)
         mode_transitions[time[h_start]] = :H_mode
         if h_end < length(time)
@@ -83,7 +115,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
             transition_start = sort!(collect(keys(mode_transitions)))[2]
         elseif transition_start > 0.0
             mode_transitions[transition_start] = :H_mode
-            is_H_mask = [false for time0 in time]
+            is_H_mask = Bool[false for time0 in time]
             is_H_mask[time.>=transition_start] .= true
         end
         smoothed_H_mask =
@@ -166,7 +198,16 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
 
         # L-H power threshold based on scaling law
         subplot = 4
-        plot!(; title="L-H power thresold (no radiation)", subplot, xlabel="Time [s]", link=:x, legend_position=:bottomright, xlim=(0.0, Inf), ylim=(0, Inf), background_color_legend)
+        plot!(;
+            title="L-H power thresold (no radiation)",
+            subplot,
+            xlabel="Time [s]",
+            link=:x,
+            legend_position=:bottomright,
+            xlim=(0.0, Inf),
+            ylim=(0, Inf),
+            background_color_legend
+        )
         plot!(time, injected_power ./ scaling_power; label="Power / Power threshold", lw=2, subplot)
         if transition_start >= 0.0
             vline!([transition_start, temperature_transition_end, density_transition_end]; label="Transition times", subplot)
@@ -194,8 +235,8 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=1.0, transition_start::Real=0.0
         W_ped_to_core_fraction=W_ped_to_core_fraction)
 end
 
-function get_true_ranges(mask)
-    ranges = []
+function get_true_ranges(mask::Vector{Bool})
+    ranges = Tuple{Int,Int}[]
     i = 1
     while i <= length(mask)
         if mask[i]

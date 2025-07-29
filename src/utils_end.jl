@@ -199,7 +199,7 @@ function IMAS.extract(
             xtr = extract(DD[1], xtract)
             tmp = Dict()
             for (xkey, xfun) in xtr
-                if xfun.value === NaN
+                if isnan(xfun.value)
                     delete!(xtract, xkey)
                 else
                     tmp[xfun.name] = xfun.value
