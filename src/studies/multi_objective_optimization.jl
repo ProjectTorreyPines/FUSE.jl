@@ -61,27 +61,71 @@ function StudyMultiObjectiveOptimizer(
     return setup(study)
 end
 
+# Helper function for safe worker cleanup (only targets distributed workers)
+function cleanup_workers(study::StudyMultiObjectiveOptimizer)
+    current_workers = Distributed.workers()
+    if !isempty(current_workers)
+        try
+            @info "Cleaning up $(length(current_workers)) distributed workers (PIDs: $current_workers)..."
+            Distributed.rmprocs(current_workers)
+            @info "Distributed workers successfully cleaned up"
+        catch e
+            @warn "Failed to clean up workers: $e"
+            # Force kill if cleanup fails
+            try
+                for pid in current_workers
+                    Distributed.rmprocs(pid; waitfor=0)
+                end
+            catch
+                @warn "Force cleanup also failed - you may need to manually kill worker processes"
+            end
+        end
+    else
+        @info "No distributed workers to clean up"
+    end
+end
+
 function _setup(study::StudyMultiObjectiveOptimizer)
     sty = study.sty
 
-    check_and_create_file_save_mode(sty)
+    try
+        check_and_create_file_save_mode(sty)
+        
+        # CLEAN STARTUP - Use our helper function to clean any existing workers
+        cleanup_workers(study)
+        
+        # Now set up exactly what we need
+        parallel_environment(sty.server, sty.n_workers)
+        
+        # Verify we got what we expected
+        actual_workers = length(Distributed.workers())
+        if actual_workers != sty.n_workers
+            error("Expected $(sty.n_workers) workers but got $actual_workers")
+        end
+        
+        @info "Successfully set up $actual_workers fresh workers"
 
-    parallel_environment(sty.server, sty.n_workers)
-
-    # import FUSE and IJulia on workers
-    if isdefined(Main, :IJulia)
-        code = """
-        using Distributed
-        @everywhere import FUSE
-        @everywhere import IJulia
-        """
-    else
-        code = """
-        using Distributed
-        @everywhere import FUSE
-        """
+        # Import packages on workers
+        if isdefined(Main, :IJulia)
+            code = """
+            using Distributed
+            @everywhere import FUSE
+            @everywhere import IJulia
+            """
+        else
+            code = """
+            using Distributed
+            @everywhere import FUSE
+            """
+        end
+        Base.include_string(Main, code)
+        
+    catch e
+        @error "Setup failed: $(string(e))"
+        cleanup_workers(study)
+        rethrow(e)
     end
-    Base.include_string(Main, code)
+    
     return study
 end
 
@@ -96,75 +140,94 @@ function _run(study::StudyMultiObjectiveOptimizer)
         max_gens_per_iteration = sty.restart_workers_after_n_generations
         steps = Int(ceil(sty.number_of_generations / max_gens_per_iteration))
         sty_bkp = deepcopy(sty)
-        for i in 1:steps
-            try
-                println("Running $max_gens_per_iteration generations ($i / $steps)")
-                gens = max_gens_per_iteration
-                if i == steps && mod(sty.number_of_generations, max_gens_per_iteration) != 0
-                    gens = mod(sty.restart_workers_after_n_generations, max_gens_per_iteration)
-                end
-                sty.restart_workers_after_n_generations = 0
-                sty.release_workers_after_run = false
-                sty.file_save_mode = :append
-                sty.number_of_generations = gens
+        
+        try
+            for i in 1:steps
+                try
+                    println("Running $max_gens_per_iteration generations ($i / $steps)")
+                    gens = max_gens_per_iteration
+                    if i == steps && mod(sty.number_of_generations, max_gens_per_iteration) != 0
+                        gens = mod(sty.restart_workers_after_n_generations, max_gens_per_iteration)
+                    end
+                    sty.restart_workers_after_n_generations = 0
+                    sty.release_workers_after_run = false
+                    sty.file_save_mode = :append
+                    sty.number_of_generations = gens
 
-                if study.state !== nothing
-                    study.state = load_optimization(joinpath(sty.save_folder, "results.jls")).state
-                    study.generation += study.state.iteration
+                    if study.state !== nothing
+                        study.state = load_optimization(joinpath(sty.save_folder, "results.jls")).state
+                        study.generation += study.state.iteration
+                    end
+                    run(study)
+                    
+                catch e
+                    @error "Error occurred in step $i: $(string(e))"
+                    if isa(e, InterruptException)
+                        @info "Interrupted - cleaning up workers before exit"
+                        cleanup_workers(study)
+                        rethrow(e)
+                    else
+                        # For any other error, clean workers and stop execution
+                        @error "Optimization failed - cleaning workers and stopping execution"
+                        cleanup_workers(study)
+                        rethrow(e)  # This will stop the script!
+                    end
+                finally
+                    # Restore original parameters
+                    sty.restart_workers_after_n_generations = sty_bkp.restart_workers_after_n_generations
+                    sty.release_workers_after_run = sty_bkp.release_workers_after_run
+                    sty.file_save_mode = sty_bkp.file_save_mode
                 end
-                run(study)
-            catch e
-                if isa(e, InterruptException)
-                    rethrow(e)
-                end
-                @warn "error occured in step $i \n $(string(e))"
-            finally
-                sty.restart_workers_after_n_generations = sty_bkp.restart_workers_after_n_generations
-                sty.release_workers_after_run = sty_bkp.release_workers_after_run
-                sty.file_save_mode = sty_bkp.file_save_mode
             end
+        finally
+            # Always cleanup workers at the end, regardless of what happened
+            cleanup_workers(study)
         end
-        Distributed.rmprocs(Distributed.workers())
-        @info "released workers"
 
     else
-        setup(study)
-        optimization_parameters = Dict(
-            :N => sty.population_size,
-            :iterations => sty.number_of_generations,
-            :continue_state => study.state,
-            :save_folder => sty.save_folder)
+        # Single run without restarts
+        try
+            # Workers already set up in constructor - no need to setup again
+            optimization_parameters = Dict(
+                :N => sty.population_size,
+                :iterations => sty.number_of_generations,
+                :continue_state => study.state,
+                :save_folder => sty.save_folder)
 
-        @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
+            @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
-        study.state = workflow_multiobjective_optimization(
-            study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
-            optimization_parameters..., generation_offset=study.generation, sty.database_policy,
-            sty.number_of_generations, sty.population_size)
+            study.state = workflow_multiobjective_optimization(
+                study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
+                optimization_parameters..., generation_offset=study.generation, database_policy=sty.database_policy,
+                number_of_generations=sty.number_of_generations, population_size=sty.population_size)
 
-        save_optimization(
-            joinpath(sty.save_folder, "optimization_state.bson"),
-            study.state,
-            study.ini,
-            study.act,
-            study.objective_functions,
-            study.constraint_functions)
+            save_optimization(
+                joinpath(sty.save_folder, "optimization_state.bson"),
+                study.state,
+                study.ini,
+                study.act,
+                study.objective_functions,
+                study.constraint_functions)
 
-        if study.sty.database_policy == :separate_folders
-            analyze(study; extract_results=true)
-        else
-            study.dataframe = _merge_tmp_study_files(sty.save_folder; cleanup=true)
-            analyze(study; extract_results=false)
+            if study.sty.database_policy == :separate_folders
+                analyze(study; extract_results=true)
+            else
+                study.dataframe = _merge_tmp_study_files(sty.save_folder; cleanup=true)
+                analyze(study; extract_results=false)
+            end
+
+        catch e
+            @error "Optimization failed: $(string(e))"
+            rethrow(e)
+        finally
+            # Always cleanup workers if requested or on error
+            if sty.release_workers_after_run
+                cleanup_workers(study)
+            end
         end
-
-        # Release workers after run
-        if sty.release_workers_after_run
-            Distributed.rmprocs(Distributed.workers())
-            @info "released workers"
-        end
-
-        return study
     end
+    
+    return study
 end
 
 function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false)
