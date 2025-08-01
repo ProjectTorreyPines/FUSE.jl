@@ -651,7 +651,15 @@ install_PyCall:
 	'
 
 # @devs
-install_ci_add:
+install_ci_master:
+	julia --project=@. -e ';\
+	using Pkg;\
+	Pkg.instantiate();\
+	Pkg.add("Test");\
+	Pkg.status()'
+
+# @devs
+install_ci_dev:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
 	julia --project=@. -e ';\

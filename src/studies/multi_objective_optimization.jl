@@ -139,8 +139,8 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
         study.state = workflow_multiobjective_optimization(
             study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
-            optimization_parameters..., generation_offset=study.generation, database_policy=sty.database_policy,
-            number_of_generations=sty.number_of_generations, population_size=sty.population_size)
+            optimization_parameters..., generation_offset=study.generation, sty.database_policy,
+            sty.number_of_generations, sty.population_size)
 
         save_optimization(
             joinpath(sty.save_folder, "optimization_state.bson"),
