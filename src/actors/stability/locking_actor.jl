@@ -36,7 +36,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     grid_size::Entry{Int} = Entry{Int}("-", "grid resolution for control space"; default=100)
     t_final::Entry{Float64} = Entry{Float64}("-", "Final integration time in units of tearing time (~ms)")
     time_steps::Entry{Int} = Entry{Int}("-", "number of time steps for the ODE integration"; default=200)
-    control_type::Switch{Symbol} = Switch{Symbol}([:EF, :StabIndex, :SatParam], # EF: error field
+    control_type::Switch{Symbol} = Switch{Symbol}([:EF, :LinStab, :NLsaturation], # EF: error field
         "-",                                                           # StabIndex: vary stability_index,
         "Use a user specified Control case to run the locking models") # SatParam: vary NL saturation
     NL_saturation_ON::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=true)
@@ -153,7 +153,7 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
 end
 
 
-function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, levels::Vector{Float64})
+function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, levels::Vector{Float64}, control_type)
     # Determine target shape
     m, n = size(Z)
 
@@ -165,9 +165,17 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, lev
         Y = unique(Y)
     end
 
+    if control_type==:EF
+        xlabel = "Error Field"
+    elseif control_type==:LinStab
+        xlabel = "Linear Stability"
+    elseif control_type==:NLsaturation
+        xlabel = "NL saturation"
+    end
+
     ## Create the contour plot
     #pythonplot()
-    plt = contour(X, Y, Z; levels=levels, linewidth=2)
+    plt = contour(X, Y, Z; levels=levels, linewidth=2, xlabel=xlabel, ylabel="Normalized Torque")
     #plt.xlabel("Control1")
     display(plt)  # show plot
 
@@ -199,7 +207,7 @@ function find_q2_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surf
     return rho_rat
 end
 
-function calculate_stability_index!(dd::IMAS.DD, par, ode_params::ODEparams)
+function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
     rt = ode_params.rat_surface  
     rw = ode_params.res_wall
     rc = ode_params.control_surf
@@ -287,7 +295,7 @@ function set_control_parameters!(dd, par, ode_params::ODEparams)
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
-    Omega0 = 10#rot_interp(rt) * 2 * π * par.t0 # Convert to
+    Omega0 = rot_interp(rt) * 2 * π * par.t0 # Convert to
     println("dimensionless Omega0 at q=2 surface: ", Omega0)
 
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
@@ -301,11 +309,11 @@ function set_control_parameters!(dd, par, ode_params::ODEparams)
         EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
         Control2_vals = range(1e-2, EpsUp, length=M) |> collect
 
-    elseif control_type == :StabIndex
+    elseif control_type == :LinStab
         ode_params.error_field = 0.5  # Example value for error field
         Control2_vals = range(DeltaLow, DeltaUp, length=M) |> collect
         
-    elseif control_type == :SatParam
+    elseif control_type == :NLsaturation
         Control2_vals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
         
         #ode_params.saturation_param = Control2
@@ -368,20 +376,67 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     # remaining coefficients
     a = -(Y.^2) / 3.0 .+ q
     b = 2.0 * (-Y).^3 / 27.0 - q .* (-Y) / 3.0 .+ r
-    D = b.^2 / 4 + a.^3 / 27
-
-    
-    bifurcation_bounds = D 
+    bifurcation_bounds = b.^2 / 4 + a.^3 / 27 
     bifurcation_bounds = reshape(bifurcation_bounds, M, N)
-    #pythonplot()
-    #plt=contour(unique(X), unique(Y), bifurcation_bounds, levels=10)
-    #display(plt)
     
-    
-    make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds, [0.0, 1e-10])
+    make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds, [0.0, 1e-10], par.control_type)
     #make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds)
 
 
     return bifurcation_bounds
 end
 
+function rhsRW!(dydt, y, ode_params::ODEparams, t::Vector{Float64}, input1::Float64, input2::Float64)
+    """
+    Right hand side of the coupled ODE system with RW
+    
+    Args:
+        dydt: Output derivatives
+        y: State vector [psiMag, theta, Omega, psiW, thW]
+        sys: LockingSystem instance
+        t: Time
+        input1: First control parameter
+        input2: Second control parameter (Om0)
+    """
+    psi, theta, Om, psiW, thW = y
+    
+    m0 = par.n_mode
+    mu = ode_params.mu
+    DeltatRW = par.RPRW_stability_index
+    DeltaW = ode_params.DeltaW
+    deltat = ode_params.stability_index
+    rt = ode_params.rat_surface
+    l21 = ode_params.l21
+    l12 = ode_params.l12
+    l32 = ode_params.l32
+    l21 = sys.l21
+    l12 = sys.l12
+    l32 = sys.l32
+    Tt_Tw = sys.Tt_Tw
+    alpha = sys.alpha
+    errF = sys.eps
+    mu = sys.mu
+    m0 = sys.m0
+    I = sys.I
+    
+    control_type = par.control_type
+    
+    # Set control parameter based on type
+    if control_type==:NLsaturation
+        alpha = input1
+    elseif control_type==:EF
+        errF = input1
+    elseif control_type==:StabIndex
+        deltat = input1
+    end
+    
+    Om0 = input2
+    
+    dydt[1] = deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
+    dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
+    dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
+    dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
+    dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
+    
+    return nothing
+end
