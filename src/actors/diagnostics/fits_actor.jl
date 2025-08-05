@@ -62,7 +62,6 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # disregard divertor thomson (D3D specific! need to generalize)
     for (k,ch) in reverse!(collect(enumerate(dd.thomson_scattering.channel)))
         if contains(lowercase(ch.name), "divertor")
-            @show k
             popat!(dd.thomson_scattering.channel, k)
         end
     end
@@ -161,6 +160,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
         # scale raw data in thomson_scattering IDS
         scale = res.minimizer
+        @info "Thomson subsystems scaled by interferometer: $scale"
         for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
             for chnum in ts_subsystems_mapper[subsystem]
                 dd.thomson_scattering.channel[chnum].n_e.data .*= scale[kch]
