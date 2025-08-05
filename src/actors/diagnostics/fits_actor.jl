@@ -47,16 +47,24 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     smooth1 = 0.1
     smooth2 = par.rho_averaging
 
-    # set aside original raw data, since we'll be overwriting it internally 
-    dd1 = IMAS.dd{D}()
-    for field in (:thomson_scattering, :charge_exchange)
-        setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
-    end
+    # # set aside original raw data, since we'll be overwriting it internally 
+    # dd1 = IMAS.dd{D}()
+    # for field in (:thomson_scattering, :charge_exchange)
+    #     setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
+    # end
 
     # identify outliers on raw data
     for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
         tg = IMAS.time_groups(experimental_ids; min_channels=5)
         IMAS.adaptive_outlier_removal!(tg)
+    end
+
+    # disregard divertor thomson (D3D specific! need to generalize)
+    for (k,ch) in reverse!(collect(enumerate(dd.thomson_scattering.channel)))
+        if contains(lowercase(ch.name), "divertor")
+            @show k
+            popat!(dd.thomson_scattering.channel, k)
+        end
     end
 
     # use the same time-basis
@@ -87,21 +95,81 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
     dd.core_profiles.time = time_basis
 
-    # get space-time dependent data and return interpolators
-    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
-    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
-    # itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
-    itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=abs)
-    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=abs)
-
     # fit Te
-    for (k, time0) in enumerate(time_basis)
-        cp1d = dd.core_profiles.profiles_1d[k]
+    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
+    for (kt, time0) in enumerate(time_basis)
+        cp1d = dd.core_profiles.profiles_1d[kt]
         data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
         cp1d.electrons.temperature = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
+    # scale thomson scattering density based on interferometer measurements
+    if !isempty(dd.interferometer.channel)
+        n_points = 101
+        interferometer_calibration_times = time_basis[1:2:end]
+
+        # identify thomson scattering subsystems
+        ts_subsystems_mapper = Dict{String,Vector{Int}}()
+        for (kch, ch) in enumerate(dd.thomson_scattering.channel)
+            subsystem_name = IMAS.extract_subsystem_from_channel_name(ch.name)
+            if subsystem_name ∉ keys(ts_subsystems_mapper)
+                ts_subsystems_mapper[subsystem_name] = Int[]
+            end
+            push!(ts_subsystems_mapper[subsystem_name], kch)
+        end
+
+        # interpolate experimental measurements at calibration times
+        experiments =
+            [IMAS.linear_interp1d(ch_data.n_e_line_average.time, ch_data.n_e_line_average.data).(interferometer_calibration_times) for ch_data in dd.interferometer.channel]
+
+        # evaluate rho,ne at the calibration times for each thomson scattering channel
+        itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
+        nes = Vector{D}[]
+        chρs = Vector{D}[]
+        chr = D[ch.position.r for ch in dd.thomson_scattering.channel]
+        chz = D[ch.position.z for ch in dd.thomson_scattering.channel]
+        for time0 in interferometer_calibration_times
+            i = IMAS.nearest_causal_time(dd.equilibrium.time, time0; bounds_error=false).index
+            eqt = dd.equilibrium.time_slice[i]
+            r, z, RHO_interpolant = IMAS.ρ_interpolant(eqt)
+            ρ = RHO_interpolant.(chr, chz)
+            data = itp_ne(ρ, range(time0, time0, length(ρ)))
+            push!(chρs, ρ)
+            push!(nes, data)
+        end
+
+        # optimization scales density for groups of thomson scattering channels
+        function cost(scale)
+            scale = abs.(scale)
+            data = deepcopy(nes)
+            c = Float64[]
+            for (kt, time0) in enumerate(interferometer_calibration_times)
+                for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
+                    data[kt][ts_subsystems_mapper[subsystem]] .*= scale[kch]
+                end
+                eqt = dd.equilibrium.time_slice[time0]
+                index = sortperm(chρs[kt])
+                for (kch, ch) in enumerate(dd.interferometer.channel)
+                    density_thermal = IMAS.line_average(eqt, data[kt][index], chρs[kt][index], ch.line_of_sight; n_points)
+                    simulation = density_thermal.line_average
+                    push!(c, norm((experiments[kch][kt] .- simulation) ./ experiments[kch][kt]))
+                end
+            end
+            return norm(c)
+        end
+        res = Optim.optimize(cost, fill(1.0, length(ts_subsystems_mapper)), Optim.NelderMead())
+
+        # scale raw data in thomson_scattering IDS
+        scale = res.minimizer
+        for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
+            for chnum in ts_subsystems_mapper[subsystem]
+                dd.thomson_scattering.channel[chnum].n_e.data .*= scale[kch]
+            end
+        end
+    end
+
     # fit ne
+    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
@@ -109,6 +177,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # # fit Zeff
+    # itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
     # for (k, time0) in enumerate(time_basis)
     #     cp1d = dd.core_profiles.profiles_1d[k]
     #     data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .+ 1.0
@@ -116,6 +185,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # end
 
     # fit ni
+    itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=abs)
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         bulk_ion = cp1d.ion[1]
@@ -130,6 +200,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # fit Ti
+    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=abs)
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
@@ -146,19 +217,19 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # # rotation
-    # index = [IMAS.hasdata(cp1d, :rotation_frequency_tor_sonic) for cp1d in dd1.core_profiles.profiles_1d]
+    # index = [IMAS.hasdata(cp1d, :rotation_frequency_tor_sonic) for cp1d in dd.core_profiles.profiles_1d]
     # min_k_orig = findfirst(index)
     # if min_k_orig !== nothing
     #     for (k, time0) in enumerate(time_basis)
-    #         k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd1.core_profiles.time, time0; bounds_error=false).index)
-    #         dd.core_profiles.profiles_1d[k].rotation_frequency_tor_sonic = dd1.core_profiles.profiles_1d[k_orig].rotation_frequency_tor_sonic
+    #         k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
+    #         dd.core_profiles.profiles_1d[k].rotation_frequency_tor_sonic = dd.core_profiles.profiles_1d[k_orig].rotation_frequency_tor_sonic
     #     end
     # end
 
     # restore the original raw data
-    for field in (:thomson_scattering, :charge_exchange)
-        setproperty!(dd, field, getproperty(dd1, field))
-    end
+    # for field in (:thomson_scattering, :charge_exchange)
+    #     setproperty!(dd, field, getproperty(dd1, field))
+    # end
 
     return actor
 end
