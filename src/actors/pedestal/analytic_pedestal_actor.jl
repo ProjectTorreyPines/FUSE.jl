@@ -120,7 +120,6 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real,P<:Real}
     elseif par.model == :hiped_MASTU
         actor.pped, actor.wped = pedestal_poloidal_βn(dd)
         actor.pped *= 1e-6  # EPED units
-        @show actor.pped, actor.wped
     end
 
     return actor
