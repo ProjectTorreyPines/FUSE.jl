@@ -22,11 +22,10 @@ import Pkg
 
 println("### Setup main environment for installer")
 Pkg.activate()
-Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
 Pkg.Registry.add("General")
+Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
 Pkg.add("PackageCompiler")
 Pkg.update()
-Pkg.instantiate()
 using PackageCompiler
 
 println("\n### Parse PTP packages from Makefile")
@@ -61,7 +60,33 @@ end
 
 println("\n### Setup new environment")
 Pkg.activate(env_dir)
-Pkg.add([["FUSE", "Plots", "EFIT"]; packages])
+
+# ------------------------------------------------------------------
+# 1) Add FUSE first so its compat bounds pin the exact versions of
+#    all of its internal dependencies.
+# ------------------------------------------------------------------
+Pkg.add(Pkg.PackageSpec(name="FUSE", version=fuse_env))
+Pkg.instantiate()                     # resolve & download deps
+
+# ------------------------------------------------------------------
+# 2) Add user‑facing extras *after* FUSE, preserving the versions
+#    chosen above so the solver can’t downgrade or replace FUSE.
+# ------------------------------------------------------------------
+for extra in ["Plots", "EFIT"]
+    Pkg.add(Pkg.PackageSpec(name=extra); preserve=Pkg.PRESERVE_ALL)
+end
+
+# ------------------------------------------------------------------
+# 3) Optionally bring in any additional packages listed in the
+#    Makefile, again preserving the manifest selected by FUSE.
+#    These are required only so that the later precompile script
+#    `using FUSE, EFIT, $pkgs_using` succeeds.
+# ------------------------------------------------------------------
+for pkg in packages
+    Pkg.add(Pkg.PackageSpec(name=pkg); preserve=Pkg.PRESERVE_ALL)
+end
+
+Pkg.instantiate()         # final pass to make sure everything is consistent
 
 println("\n### Freeze Project and Manifest to read only")
 chmod(joinpath(env_dir, "Project.toml"),  0o444)
