@@ -8,13 +8,15 @@ export http_proxy="http://203.230.124.39:4128"
 export https_proxy="http://203.230.124.39:4128"
 export no_proxy="localhost,127.0.0.1,*.hpc.nfri.re.k"
 
-# User installation directories
-basedir="/scratch/yoom/fuse"
-module_dir="/scratch/yoom/fuse/modulefiles"
+# User installation directories - use environment variables with fallback defaults
+basedir="${FUSE_HOME:-/scratch/yoom/fuse}"
+module_dir="${FUSE_MODULE_DIR:-/scratch/yoom/fuse/modulefiles}"
 
-# Get latest FUSE version
+# Get FUSE version - use environment variable with fallback default
+fuse_env="${FUSE_ENVIRONMENT:-latest}" # Hardcoded because the api.github.com is not accessible due to network constraints on Kairos
+
+# The following will fetch the latest release dynamically (currently not working due to network constraints).
 # fuse_env=$(curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releases/latest | jq -r .name)
-fuse_env="v0.8.10"
 
 envdir="$basedir/environments/$fuse_env"
 
