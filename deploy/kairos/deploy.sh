@@ -2,6 +2,25 @@
 
 # Load required modules
 module load julia
+module load gcc
+
+# Check if modules are loaded and display versions
+echo "Checking module availability and versions..."
+
+if ! command -v julia &> /dev/null; then
+    echo "ERROR: Julia module not loaded or not available"
+    exit 1
+fi
+
+if ! command -v gcc &> /dev/null; then
+    echo "ERROR: GCC module not loaded or not available"
+    exit 1
+fi
+
+echo "Julia version: $(julia --version)"
+echo "GCC version: $(gcc --version | head -n1)"
+echo "All required modules loaded successfully"
+echo ""
 
 # Kairos-specific proxy configuration
 export http_proxy="http://203.230.124.39:4128"
