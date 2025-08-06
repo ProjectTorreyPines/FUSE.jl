@@ -31,8 +31,10 @@ export no_proxy="localhost,127.0.0.1,*.hpc.nfri.re.k"
 basedir="${FUSE_HOME:-/scratch/yoom/fuse}"
 module_dir="${FUSE_MODULE_DIR:-/scratch/yoom/fuse/modulefiles}"
 
-# Get FUSE version - use environment variable with fallback default
-fuse_env="${FUSE_ENVIRONMENT:-latest}" # Hardcoded because the api.github.com is not accessible due to network constraints on Kairos
+# Get FUSE version - use environment variable with fallback to Project.toml version
+scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+project_version=$(grep '^version = ' "$scriptdir/../../Project.toml" | sed 's/version = "\(.*\)"/v\1/')
+fuse_env="${FUSE_ENVIRONMENT:-$project_version}" # Falls back to version from Project.toml if FUSE_ENVIRONMENT not set
 
 # The following will fetch the latest release dynamically (currently not working due to network constraints).
 # fuse_env=$(curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releases/latest | jq -r .name)
@@ -51,15 +53,16 @@ export FUSE_ENVIRONMENT="$fuse_env"
 export JULIA_DEPOT_PATH="$envdir/.julia:"
 export JULIA_PKG_USE_CLI_GIT=1
 export JULIA_SSL_NO_VERIFY_HOSTS="*"
-export JULIA_DOWNLOADS_TIMEOUT=120
-# Git configuration for proxy environment
-git config --global http.postBuffer 524288000
-git config --global http.lowSpeedLimit 1000
-git config --global http.lowSpeedTime 600
+export JULIA_DOWNLOADS_TIMEOUT=600  # 10 minutes timeout
+# Git configuration for proxy environment and network instability
+git config --global http.postBuffer 1048576000  # 1GB buffer
 git config --global core.compression 0
 git config --global http.version HTTP/1.1
 git config --global http.proxy "http://203.230.124.39:4128"
 git config --global https.proxy "http://203.230.124.39:4128"
+git config --global pack.windowMemory 256m      # Reduce memory usage
+git config --global pack.packSizeLimit 2g       # 2GB pack limit
+git config --global http.maxRequestBuffer 100m  # 100MB request buffer
 export JULIA_CC="gcc -O3"
 export JULIA_NUM_THREADS=1
 
@@ -69,8 +72,6 @@ export JULIA_CPU_TARGET="generic;cascadelake,-xsaveopt,-rdrnd,clone_all"
 
 # Export module directory for Julia script
 export KAIROS_MODULE_DIR="$module_dir"
-
-scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 julia "$scriptdir/install_fuse_environment.jl"
 
