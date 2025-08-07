@@ -28,8 +28,8 @@ export https_proxy="http://203.230.124.39:4128"
 export no_proxy="localhost,127.0.0.1,*.hpc.nfri.re.k"
 
 # User installation directories - use environment variables with fallback defaults
-basedir="${FUSE_HOME:-/scratch/yoom/fuse}"
-module_dir="${FUSE_MODULE_DIR:-/scratch/yoom/fuse/modulefiles}"
+basedir="${FUSE_HOME:-/scratch/$USER/fuse}"
+module_dir="${FUSE_MODULE_DIR:-/scratch/$USER/fuse/modulefiles}"
 
 # Get FUSE version - use environment variable with fallback to Project.toml version
 scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
