@@ -172,6 +172,24 @@ if isfile(base_tcl_path) && isdir(dirname(module_dir))
         customized_content = replace(customized_content, "__FUSE_HOME_PATH__" => base_dir)
         customized_content = replace(customized_content, "generic" => cpu_target)
         
+        # Replace module version placeholders with actual versions
+        julia_version = get(ENV, "JULIA_MODULE_VERSION", "")
+        gcc_version = get(ENV, "GCC_MODULE_VERSION", "")
+        
+        if !isempty(julia_version)
+            customized_content = replace(customized_content, "__JULIA_VERSION__" => julia_version)
+            println("Using Julia module version: $julia_version")
+        else
+            println("Warning: JULIA_MODULE_VERSION not found, keeping placeholder")
+        end
+        
+        if !isempty(gcc_version)
+            customized_content = replace(customized_content, "__GCC_VERSION__" => gcc_version)
+            println("Using GCC module version: $gcc_version")
+        else
+            println("Warning: GCC_MODULE_VERSION not found, keeping placeholder")
+        end
+        
         write(module_file, customized_content)
         chmod(module_file, 0o644)
         println("Module file created: $module_file")

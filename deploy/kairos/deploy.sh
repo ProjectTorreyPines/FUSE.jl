@@ -73,6 +73,18 @@ export JULIA_CPU_TARGET="generic;cascadelake,-xsaveopt,-rdrnd,clone_all"
 # Export module directory for Julia script
 export KAIROS_MODULE_DIR="$module_dir"
 
+# Capture loaded module versions for template substitution
+echo "Capturing module versions for template..."
+julia_version=$(module list julia 2>&1 | grep -oP 'julia/\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+gcc_version=$(module list gcc 2>&1 | grep -oP 'gcc/\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+
+echo "Julia version: $julia_version"
+echo "GCC version: $gcc_version"
+
+# Store versions for later use in template processing
+export JULIA_MODULE_VERSION="$julia_version"
+export GCC_MODULE_VERSION="$gcc_version"
+
 julia "$scriptdir/install_fuse_environment.jl"
 
 unset http_proxy
