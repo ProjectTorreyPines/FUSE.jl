@@ -2,7 +2,7 @@
 
 # Load required modules
 module load julia
-module load gcc
+module load gcc/12.1.0
 
 # Check if modules are loaded and display versions
 echo "Checking module availability and versions..."
