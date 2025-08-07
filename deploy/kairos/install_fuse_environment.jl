@@ -107,28 +107,6 @@ sysimage_path = joinpath(env_dir, "sys_fuse.so")
 create_sysimage(["FUSE"]; sysimage_path, precompile_execution_file, cpu_target)
 chmod(sysimage_path, 0o555)
 
-# println("\n### Create IJulia kernels")
-# # Create kernel wrapper script for module loading
-# kernel_wrapper = joinpath(env_dir, "fuse_kernel.sh")
-# wrapper_content = """
-# #!/bin/bash
-# # FUSE kernel wrapper for Kairos
-# command -v module >/dev/null 2>&1 || source /usr/share/lmod/lmod/init/bash
-# module use $module_dir
-# module load fuse/$fuse_env
-# exec julia "\$@"
-# """
-# write(kernel_wrapper, wrapper_content)
-# chmod(kernel_wrapper, 0o755)
-
-# import IJulia
-# IJulia.installkernel("Julia FUSE-$fuse_env 1 Thread",  "--sysimage=$sysimage_path";
-#     julia=`$kernel_wrapper`, env=Dict("JULIA_NUM_THREADS"=>"1"))
-# IJulia.installkernel("Julia FUSE-$fuse_env 4 Threads", "--sysimage=$sysimage_path";
-#     julia=`$kernel_wrapper`, env=Dict("JULIA_NUM_THREADS"=>"4"))
-# IJulia.installkernel("Julia FUSE-$fuse_env 8 Threads", "--sysimage=$sysimage_path";
-#     julia=`$kernel_wrapper`, env=Dict("JULIA_NUM_THREADS"=>"8"))
-
 println("\n### Create fuse executable")
 fuse_banner = raw"""
 #!/bin/bash
