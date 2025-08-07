@@ -82,6 +82,10 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         printe("- Fetching Thomson scattering data")
         d3d.thomson_scattering_data(ods, $shot)
 
+        printe("- Fetching interferometer data")
+        d3d.interferometer_hardware(ods, $shot)
+        d3d.interferometer_data(ods, $shot)
+
         printe("- Fetching charge exchange data")
         d3d.charge_exchange_data(ods, $shot, analysis_type="$(CER_analysis_type)")
 
