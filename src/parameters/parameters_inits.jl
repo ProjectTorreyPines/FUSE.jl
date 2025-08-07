@@ -125,7 +125,7 @@ Base.@kwdef mutable struct FUSEparameters__nb_unit{T} <: ParametersInit{T}
     beam_current_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Beam current fraction"; default=[0.8, 0.15, 0.05], check=x -> @assert sum(x) <= 1.0)
     current_direction::Switch{Symbol} = Switch{Symbol}([:co, :counter], "-", "Direction of beam current relative to plasma current"; default=:co)
     offaxis::Entry{Bool} = Entry{Bool}("-", "Injection neutral beam off axis"; default=false)
-    template_beam::Switch{Symbol} = Switch{Symbol}([:none, :d3d_co, :d3d_counter, :d3d_offaxis, :nstx, :mast_onaxis, :mast_offaxis, :iter_onaxis, :iter_offaxis], "-", "Template beam setup"; default=:none)
+    template_beam::Switch{Symbol} = Switch{Symbol}([:none, :d3d_co, :d3d_counter, :d3d_offaxis, :nstx, :mast_onaxis, :mast_offaxis, :iter_onaxis, :iter_offaxis,:kstar_nb1,:kstar_nb2,:kstar_nb3], "-", "Template beam setup"; default=:none)
     efficiency_conversion::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :conversion; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_conversion > 0.0")
     efficiency_transmission::Entry{T} = Entry{T}(IMAS.nbi__unit___efficiency, :transmission; default=1.0, check=x -> @assert x > 0.0 "must be: efficiency_transmission > 0.0")
 end
@@ -714,8 +714,8 @@ Plots ini time dependent time traces including plasma boundary
             end
         end
         layout := @layout [N + 1]
-        w = max(600, Int(ceil(300 * sqrt(N))))
-        h = max(400, Int(ceil(200 * sqrt(N))))
+        w = max(600, round(Int, 300 * sqrt(N), RoundUp))
+        h = max(400, round(Int, 200 * sqrt(N), RoundUp))
         size --> (w, h)
     end
 

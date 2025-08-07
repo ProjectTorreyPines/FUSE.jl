@@ -138,7 +138,6 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
     act = actor.act
     ψbound = actor.ψbound
 
-    free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     eqt1d = eqt.profiles_1d
@@ -199,7 +198,7 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
 
     if ismissing(par, :R)
         Rdim = (1.1 + divertor_size) * a # divertor_size% bigger than the plasma, but a no bigger than R0
-        nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+        nr_grid = round(Int, nz_grid * Rdim / Zdim, RoundUp)
         Rgrid = range(R0 - min(Rdim, R0), R0 + Rdim, nr_grid)
     else
         Rgrid = par.R
@@ -213,7 +212,8 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
     eq2d.grid_type.index = 1
     eq2d.psi = fill(Inf, (length(eq2d.grid.dim1), length(eq2d.grid.dim2)))
 
-    if free_boundary
+    eqt.global_quantities.free_boundary = Int(par.free_boundary)
+    if par.free_boundary
         # Boundary control points
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
@@ -239,7 +239,6 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
         VacuumFields.update_currents!(dd.pf_active.coil, coils; active_only=true)
 
         pf_current_limits(dd.pf_active, dd.build)
-
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain

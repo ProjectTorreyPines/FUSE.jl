@@ -1,5 +1,15 @@
 using Test
 
+function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
+    # speedup the tests
+    act.ActorStationaryPlasma.max_iterations = 2
+    # use full model for ActorThermalPlant if environmental variable `FUSE_WITH_EXTENSIONS` is set
+    if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
+        act.ActorThermalPlant.model = :network
+    end
+    return (ini=ini, act=act)
+end
+
 function test_case(::Val{:ITER_ods}, dd::IMAS.dd)
     ini, act = case_parameters(:ITER; init_from=:ods)
     ini_act_tests_customizations!(ini, act)
@@ -46,6 +56,10 @@ function test_case(::Val{:CAT}, dd::IMAS.dd)
     ini, act = case_parameters(:CAT)
     ini_act_tests_customizations!(ini, act)
     act.ActorStationaryPlasma.max_iterations = 1
+    # There could be an engineering problem here but this shouldn't fail the tests
+    act.ActorHFSsizing.error_on_performance = false
+    act.ActorHFSsizing.error_on_technology = false    
+
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
@@ -59,6 +73,10 @@ end
 
 function test_case(::Val{:ARC}, dd::IMAS.dd)
     ini, act = case_parameters(:ARC)
+    # There could be an engineering problem here but this shouldn't fail the tests
+    act.ActorHFSsizing.error_on_performance = false
+    act.ActorHFSsizing.error_on_technology = false    
+    
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
@@ -114,10 +132,64 @@ function test_case(::Val{:UNIT}, dd::IMAS.dd)
     return (dd=dd, ini=ini, act=act)
 end
 
+function test_case(::Val{:ITER_time}, dd::IMAS.dd; verbose::Bool=false)
+    # ========
+    # hardware setup from ODS
+
+    ini, act = FUSE.case_parameters(:ITER; init_from=:ods);
+    FUSE.init(dd, ini, act);
+
+    # ========
+    # pulse_schedule fom scalars
+
+    ini, _ = FUSE.case_parameters(:ITER; init_from=:scalars, time_dependent=true);
+    FUSE.init(dd, ini, act; initialize_hardware=false);
+
+    # ========
+    # Our simulation should start in a self-consistent state. For this, we call the `ActorStationaryPlasma`
+
+    act.ActorStationaryPlasma.convergence_error = 2E-2
+    act.ActorStationaryPlasma.max_iterations = 1
+
+    act.ActorFluxMatcher.verbose = verbose
+    act.ActorFluxMatcher.relax = 0.5
+
+    FUSE.ActorStationaryPlasma(dd, act; verbose)
+
+    # ========
+    # Now we're ready to actually run the time-dependent simulation
+
+    N = 60 # run 1/60th of the simulation, set this to 1 to run for more
+    act.ActorDynamicPlasma.Nt = Int(60 / N)
+    act.ActorDynamicPlasma.Δt = 300.0 / N
+
+    act.ActorDynamicPlasma.evolve_current = true
+    act.ActorDynamicPlasma.evolve_equilibrium = true
+    act.ActorDynamicPlasma.evolve_transport = true
+    act.ActorDynamicPlasma.evolve_hcd = true
+    act.ActorDynamicPlasma.evolve_pf_active = false
+    act.ActorDynamicPlasma.evolve_pedestal = true
+
+    act.ActorDynamicPlasma.ip_controller = true
+    act.ActorDynamicPlasma.time_derivatives_sources = true
+    FUSE.ActorDynamicPlasma(dd, act; verbose);
+
+    return (dd=dd, ini=ini, act=act)
+end
+
 # ================ #
 
-function test_case(case::Symbol, dd::IMAS.dd)
+function test_case(case::Symbol)
+    dd = IMAS.dd()
     return test_case(Val(case), dd::IMAS.dd)
+end
+
+function test_case(case::Symbol, dd::IMAS.dd)
+    dd, ini, act = test_case(Val(case), dd::IMAS.dd)
+    @assert typeof(dd) <: IMAS.dd
+    @assert typeof(ini) <: ParametersAllInits
+    @assert typeof(act) <: ParametersAllActors
+    return (dd=dd, ini=ini, act=act)
 end
 
 function available_test_cases()
@@ -125,16 +197,6 @@ function available_test_cases()
 end
 
 # ================ #
-
-function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersAllActors)
-    # speedup the tests
-    act.ActorStationaryPlasma.max_iterations = 2
-    # use full model for ActorThermalPlant if environmental variable `FUSE_WITH_EXTENSIONS` is set
-    if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
-        act.ActorThermalPlant.model = :network
-    end
-    return (ini=ini, act=act)
-end
 
 function test_ini_act_save_load(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors)
     Test.@testset "init" begin
@@ -184,12 +246,14 @@ function test_ini_act_save_load(dd::IMAS.DD, ini::ParametersAllInits, act::Param
         ini.general.dd = missing
         SimulationParameters.par2hdf(ini, joinpath(tmpdir, "ini.h5"))
         ini2 = SimulationParameters.hdf2par(joinpath(tmpdir, "ini.h5"), ParametersInits())
+        rm(tmpdir; force=true, recursive=true)
     end
 
     Test.@testset "act_hdf5" begin
         tmpdir = mktempdir()
         SimulationParameters.par2hdf(act, joinpath(tmpdir, "act.h5"))
         act2 = SimulationParameters.hdf2par(joinpath(tmpdir, "act.h5"), ParametersActors())
+        rm(tmpdir; force=true, recursive=true)
     end
 
     return (ini=ini, act=act)

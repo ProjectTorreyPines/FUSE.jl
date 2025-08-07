@@ -80,7 +80,11 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 if ismissing(ini.rampup, :ends_at)
                     init_pulse_schedule_postion_control(ps.position_control, mxhb, time0)
                 else
-                    wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.minor_radius, ini.build.plasma_gap)
+                    if isempty(dd.wall)
+                        wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.minor_radius, ini.build.plasma_gap)
+                    else
+                        wr = wall_radii(IMAS.first_wall(dd.wall)..., mxhb.mxh.Z0)
+                    end
                     mxh_bore, mxh_lim2div = limited_to_diverted(0.75, mxhb, wr.r_hfs, wr.r_lfs, ini.rampup.side)
                     if time0 <= 0.0
                         init_pulse_schedule_postion_control(ps.position_control, mxh_bore, time0)
@@ -117,6 +121,12 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
             elseif ini.core_profiles.ne_setting == :greenwald_fraction
                 dd.pulse_schedule.density_control.n_e_greenwald_fraction.reference = data.ne_value
             end
+        end
+
+        if ini.core_profiles.ne_setting in (:ne_ped, :greenwald_fraction_ped)
+            @assert act.ActorPedestal.density_match == :ne_ped "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_ped"
+        else
+            @assert act.ActorPedestal.density_match == :ne_line "ini.core_profiles.ne_setting=:$(ini.core_profiles.ne_setting) requires act.ActorPedestal.density_match=:ne_line"
         end
 
         # EC
@@ -272,14 +282,13 @@ function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_c
     IMAS.set_time_array(pc.x_point[2].z, :reference, time0, zxl)
 
     # from MXHboundary to pr,pz
-    pr = mxhb.r_boundary
-    pz = mxhb.z_boundary
+    pr, pz = IMAS.resample_plasma_boundary(mxhb.r_boundary, mxhb.z_boundary; n_points=100)
     if isempty(mxhb.RX)
         # boundary without x-points
         mxh = mxhb.mxh
     else
         # boundary with x-points parametrized with MXH
-        mxh = IMAS.MXH(IMAS.resample_plasma_boundary(pr, pz; n_points=100)..., 2)
+        mxh = IMAS.MXH(pr, pz, 2)
     end
 
     # scalars from mxh

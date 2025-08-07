@@ -90,9 +90,9 @@ function _step(actor::ActorStationaryPlasma)
     par = actor.par
 
     if par.do_plot
-        pe = plot(dd.equilibrium; color=:gray, label=" (before)", coordinate=:rho_tor_norm)
-        pp = plot(dd.core_profiles; color=:gray, label=" (before)")
-        ps = plot(dd.core_sources; color=:gray, label=" (before)")
+        pe = plot(dd.equilibrium; color=:gray, label="", coordinate=:rho_tor_norm)
+        pp = plot(dd.core_profiles; color=:gray, label="")
+        ps = plot(dd.core_sources; color=:gray, label="")
 
         println("initial")
         @printf("Jtor0  = %.2f MA/m²\n", getproperty(dd.core_profiles.profiles_1d[], :j_tor, [0.0])[1] / 1e6)
@@ -120,13 +120,15 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     ProgressMeter.ijulia_behavior(:clear)
+    was_logging = actor_logging(dd)
+    is_logging = was_logging && !(par.verbose && !par.do_plot)
+    actor_logging(dd, is_logging)
     prog = ProgressMeter.Progress((par.max_iterations + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
-    old_logging = actor_logging(dd, !(par.verbose && !par.do_plot))
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
 
-        if !(par.verbose && !par.do_plot)
+        if is_logging
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iterations)")
         end
 
@@ -144,10 +146,6 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
             finalize(step(actor.actor_hc))
 
-            # evolve j_ohmic (because hcd has changed non-inductive current drive)
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-            finalize(step(actor.actor_jt))
-
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
@@ -156,7 +154,7 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
             finalize(step(actor.actor_tr))
 
-            # evolve j_ohmic (because transport and pedestal have updated my bootstrap)
+            # evolve j_ohmic
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
 
@@ -169,7 +167,6 @@ function _step(actor::ActorStationaryPlasma)
             dj2 = (k, x) -> (j_tor[k] .- j_tor_before[k])^2
             j2 = (k, x) -> j_tor_before[k]^2
             error_jtor = trapz(cp1d.grid.area, dj2) / trapz(cp1d.grid.area, j2)
-
             pressure = cp1d.pressure
             dp2 = (k, x) -> (pressure[k] .- pressure_before[k])^2
             p2 = (k, x) -> pressure_before[k]^2
@@ -177,9 +174,9 @@ function _step(actor::ActorStationaryPlasma)
             push!(total_error, sqrt(error_jtor + error_pressure) / 2.0)
 
             if par.do_plot
-                plot!(pe, dd.equilibrium; coordinate=:rho_tor_norm, label="i=$(length(total_error))")
-                plot!(pp, dd.core_profiles; label="i=$(length(total_error))")
-                plot!(ps, dd.core_sources; label="i=$(length(total_error))")
+                plot!(pe, dd.equilibrium; label="", coordinate=:rho_tor_norm)
+                plot!(pp, dd.core_profiles; label="", legend=nothing)
+                plot!(ps, dd.core_sources; label="", legend=nothing)
 
                 @printf("\n")
                 @printf(" Jtor0 = %.2f MA m²\n", cp1d.j_tor[1] / 1e6)
@@ -189,21 +186,26 @@ function _step(actor::ActorStationaryPlasma)
                 @printf("ne_ped = %.2e m⁻³\n", @ddtime(dd.summary.local.pedestal.n_e.value))
                 @printf("Te_ped = %.2e eV\n", @ddtime(dd.summary.local.pedestal.t_e.value))
                 @printf(" ρ_ped = %.4f\n", @ddtime(dd.summary.local.pedestal.position.rho_tor_norm))
+                @printf(" ϵ jtor = %.4f\n", error_jtor)
+                @printf(" ϵ pres = %.4f\n", error_pressure)
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
-            if !(par.verbose && !par.do_plot)
+            if is_logging
                 logging(
                     Logging.Info,
                     :actors,
-                    " "^workflow_depth(actor.dd) * "--------------- $(length(total_error))/$(par.max_iterations) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
+                    " "^workflow_depth(actor.dd) *
+                    "--------------- $(length(total_error))/$(par.max_iterations) @ $(@sprintf("%3.2f",100*total_error[end]/par.convergence_error))%"
                 )
             end
 
             callback(actor, :iteration_end; total_error)
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iterations)
-                @warn "Max number of iterations ($(par.max_iterations)) has been reached with convergence error of (1)$(collect(map(x->round(x,digits = 3),total_error)))($(length(total_error))) compared to threshold of $(par.convergence_error)"
+                if is_logging
+                    @warn "Max number of iterations ($(par.max_iterations)) has been reached with convergence error of (1)$(collect(map(x->round(x,digits = 3),total_error)))($(length(total_error))) compared to threshold of $(par.convergence_error)"
+                end
                 break
             elseif par.max_iterations == 1
                 break
@@ -214,7 +216,7 @@ function _step(actor::ActorStationaryPlasma)
         if typeof(actor.actor_eq) <: ActorCHEASE
             actor.actor_eq.eq_actor.par = orig_par_chease
         end
-        actor_logging(dd, old_logging)
+        actor_logging(dd, was_logging)
     end
     ProgressMeter.finish!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor))
 
@@ -240,7 +242,7 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
-        ("                 max(zeff)", maximum(cp1d.zeff)),
+        ("                 max(zeff)", maximum(cp1d.zeff))
     ]
     return tuple(tmp...)
 end

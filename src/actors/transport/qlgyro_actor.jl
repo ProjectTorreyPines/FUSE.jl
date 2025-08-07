@@ -1,5 +1,5 @@
-import TGLFNN
-import TGLFNN: InputQLGYRO, InputCGYRO
+import TurbulentTransport
+import TurbulentTransport: InputQLGYRO, InputCGYRO
 import GACODE
 
 #= =========== =#
@@ -24,9 +24,9 @@ end
 mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorQLGYRO{P}}
-    input_qlgyros::Vector{<:InputQLGYRO}
-    input_cgyros::Vector{<:InputCGYRO}
-    flux_solutions::Vector{<:GACODE.FluxSolution}
+    input_qlgyros::Vector{InputQLGYRO}
+    input_cgyros::Vector{InputCGYRO}
+    flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
@@ -41,12 +41,12 @@ function ActorQLGYRO(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorQLGYRO(dd::IMAS.dd, par::FUSEparameters__ActorQLGYRO; kw...)
+function ActorQLGYRO(dd::IMAS.dd{D}, par::FUSEparameters__ActorQLGYRO{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorQLGYRO)
     par = OverrideParameters(par; kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
     input_CGYROs = Vector{InputCGYRO}(undef, length(par.rho_transport))
-    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, GACODE.FluxSolution[])
+    return ActorQLGYRO(dd, par, input_QLGYROs, input_CGYROs, GACODE.FluxSolution{D}[])
 end
 
 """
@@ -62,7 +62,7 @@ function _step(actor::ActorQLGYRO)
     ix_cp = [argmin_abs(cp1d.grid.rho_tor_norm, rho) for rho in par.rho_transport]
 
     for (k, gridpoint_cp) in enumerate(ix_cp)
-        actor.input_qlgyros[k] = TGLFNN.InputQLGYRO()
+        actor.input_qlgyros[k] = TurbulentTransport.InputQLGYRO()
 
         actor.input_qlgyros[k].N_PARALLEL = par.nky * par.cpu_per_ky
         actor.input_qlgyros[k].N_RUNS = 1
@@ -87,7 +87,7 @@ function _step(actor::ActorQLGYRO)
         actor.input_cgyros[k].FREQ_TOL = 0.01
     end
 
-    actor.flux_solutions = TGLFNN.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
+    actor.flux_solutions = TurbulentTransport.run_qlgyro(actor.input_qlgyros, actor.input_cgyros)
 
     return actor
 end

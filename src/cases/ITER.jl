@@ -31,15 +31,14 @@ function case_parameters(
         if boundary_from == :auto
             boundary_from = :ods
         end
-        act.ActorEquilibrium.model = :FRESCO
     else
         ini.equilibrium.B0 = -5.3
         act.ActorCXbuild.rebuild_wall = true
         if boundary_from == :auto
             boundary_from = :MXH_params
         end
-        act.ActorEquilibrium.model = :TEQUILA
     end
+    act.ActorEquilibrium.model = :FRESCO
 
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = boundary_from
@@ -170,7 +169,7 @@ function case_parameters(
         ini.rampup.diverted_at = rampup_ends * 0.8
 
         ini.equilibrium.pressure_core = t -> ramp(t / rampup_ends) .^ 2 * 0.643e6
-        ini.equilibrium.ip = t -> ramp(t / rampup_ends) * 14E6 + ramp((t - 100) / 100) * 1E6
+        ini.equilibrium.ip = t -> ramp(t / rampup_ends) * 13E6 + ramp((t - 100) / 100) * 2E6
 
         ini.nb_unit[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 16.7e6
         ini.ec_launcher[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 10E6
@@ -184,10 +183,6 @@ function case_parameters(
     act.ActorTGLF.tglfnn_model = "sat1_em_iter"
 
     act.ActorWholeFacility.update_build = false
-
-    act.ActorCurrent.model = :SteadyStateCurrent
-
-    act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
 
     Ω = 1.0 / 10E6
     act.ActorControllerIp.P = Ω * 10.0

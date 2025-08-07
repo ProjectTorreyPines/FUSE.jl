@@ -62,6 +62,7 @@ include(joinpath("ddinit", "init_equilibrium.jl"))
 include(joinpath("ddinit", "init_build.jl"))
 include(joinpath("ddinit", "init_balance_of_plant.jl"))
 include(joinpath("ddinit", "init_core_profiles.jl"))
+include(joinpath("ddinit", "init_edge_profiles.jl"))
 include(joinpath("ddinit", "init_hcd.jl"))
 include(joinpath("ddinit", "init_core_sources.jl"))
 include(joinpath("ddinit", "init_currents.jl"))
@@ -120,6 +121,7 @@ include(joinpath("actors", "hcd", "pl_simple_actor.jl"))
 include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
+include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
 include(joinpath("actors", "pedestal", "WPED_actor.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
@@ -127,7 +129,7 @@ include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
-include(joinpath("actors", "transport", "analytical_turbulence_actor.jl"))
+include(joinpath("actors", "transport", "analytic_turbulence_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
@@ -152,6 +154,9 @@ include(joinpath("actors", "costing", "costing_actor.jl"))
 include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
 
+include(joinpath("actors", "sol", "sol_box_actor.jl"))
+include(joinpath("actors", "sol", "sol_actor.jl"))
+
 # NOTE: compound actors should be defined last
 include(joinpath("actors", "compound", "stationary_plasma_actor.jl"))
 include(joinpath("actors", "compound", "dynamic_plasma_actor.jl"))
@@ -168,6 +173,10 @@ include("optimization.jl")
 #  STUDIES  #
 #= ======= =#
 include(joinpath("parameters", "parameters_studies.jl"))
+include("studies.jl")
+include(joinpath("studies", "database_generator.jl"))
+include(joinpath("studies", "multi_objective_optimization.jl"))
+include(joinpath("studies", "TGLF_database.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
