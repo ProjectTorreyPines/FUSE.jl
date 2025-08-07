@@ -1,4 +1,4 @@
-using DelimitedFiles
+import DifferentialEquations
 
 Base.@kwdef mutable struct ODEparams
     sim_time::Vector{Float64} = Float64[]# simulation time vector
@@ -18,6 +18,8 @@ Base.@kwdef mutable struct ODEparams
     l12::Float64 = 1.0        # mutual inductance between rational surface and RW
     l21::Float64 = 1.0        # mutual inductance between RW and rational surface
     l32::Float64 = 1.0        # mutual inductance between the control surface and RW
+    Taut_Tauw::Float64 = 1.0  # ratio of tearing time to wall time
+    hyper_cube_dims::Vector{Float64} = [1., 1., 1.] # dimensions of the initial condtion hypercube
     #alpha_upper::Float64 = 0.6
     #alpha_lower::Float64 = 0.1
     # keep adding default and magic things
@@ -43,9 +45,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
         "Stability index of the system (set to Neg. value for now)"; default=-0.5)
-    max_tor_rot::Entry{Float64} = Entry{Float64}(
-        "2pi*Hertz", 
-        "Maximum angular rotation rate observed in the shot")
     MaxErrorField::Entry{Float64} = Entry{Float64}(
         "Tesla*meter", 
         "Maximum error field perturbation for control, usually ~10 Gauss.meter"; default=1e-3)
@@ -85,6 +84,7 @@ function ActorLocking(dd::IMAS.dd, act::ParametersAllActors; kw...)
     finalize(actor)
     return actor
 end
+
 
 function _step(actor::ActorLocking)
     dd = actor.dd
@@ -262,6 +262,9 @@ function set_phys_params!(dd::IMAS.DD, par, ode_params::ODEparams)
     # approximate core rotation
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic[10]
     # Calculate the drag coefficient in SI
+    #cp1d = dd.core_profiles.profiles_1d[]
+    #total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:torque_tor_inside])
+    #dd.core_sources.source[15].global_quantities[1].torque_tor
     muSI = par.NBItorque / rot_core
     # Calculate first the moment of inertia in the layer  
     inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
@@ -274,7 +277,7 @@ function set_phys_params!(dd::IMAS.DD, par, ode_params::ODEparams)
 end
 
 
-function set_control_parameters!(dd, par, ode_params::ODEparams) 
+function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams) 
     """
     Prepare the control parameters based on the control type.
     
@@ -386,7 +389,7 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     return bifurcation_bounds
 end
 
-function rhsRW!(dydt, y, ode_params::ODEparams, t::Vector{Float64}, input1::Float64, input2::Float64)
+function rhsRW!(dydt::Vector{Float64}, y::Vector{Float64}, ode_params::ODEparams, t::Vector{Float64}, input1::Float64, input2::Float64, control_type::String)
     """
     Right hand side of the coupled ODE system with RW
     
@@ -409,15 +412,11 @@ function rhsRW!(dydt, y, ode_params::ODEparams, t::Vector{Float64}, input1::Floa
     l21 = ode_params.l21
     l12 = ode_params.l12
     l32 = ode_params.l32
-    l21 = sys.l21
-    l12 = sys.l12
-    l32 = sys.l32
-    Tt_Tw = sys.Tt_Tw
-    alpha = sys.alpha
-    errF = sys.eps
-    mu = sys.mu
-    m0 = sys.m0
-    I = sys.I
+    Tt_Tw = ode_params.Taut_Tauw
+    alpha = ode_params.saturation_param
+    errF = ode_params.error_field
+    mu = ode_params.mu
+    I = ode_params.Inertia
     
     control_type = par.control_type
     
@@ -438,5 +437,24 @@ function rhsRW!(dydt, y, ode_params::ODEparams, t::Vector{Float64}, input1::Floa
     dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
     dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
     
+    return nothing
+end
+
+function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, Om0::Float64=1.0)
+    if task == "solveRW"
+        # Initial conditions: [psiMag, theta, Om, psiW, thetaW]
+        y0 = [
+            rand() * (ode_params.hyper_cube_dims[1] - 0.001) + 0.001,  # Random between 0.1 and f0
+            rand() * 2π - π,                    # Random between -π and π
+            rand() * (ode_params.hyper_cube_dims[2] - 0.001) + 0.001, # Random between 0.1 and rot
+            rand() * (ode_params.hyper_cube_dims[3] - 0.001) + 0.001,  # Random between 0.1 and fW
+            rand() * 2π - π                     # Random between -π and π
+         ]
+        
+        # Create ODE problem
+        tspan = (0.0, par.tfinal)
+        p = (par, eps, Om0)  # Parameters
+
+    end
     return nothing
 end
