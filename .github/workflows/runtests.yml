@@ -126,11 +126,21 @@ jobs:
 
       - name: 'Install (without extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'false'
-        run: make install_ci_add NO_FUSE_EXTENSION=true
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            make install_ci_master NO_FUSE_EXTENSION=true
+          else
+            make install_ci_dev NO_FUSE_EXTENSION=true
+          fi
 
       - name: 'Install (with extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'true'
-        run: make install_ci_add
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            make install_ci_master
+          else
+            make install_ci_dev
+          fi
 
       # Save Manifest.toml
       - name: 'Save Manifest.toml'

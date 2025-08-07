@@ -714,8 +714,8 @@ Plots ini time dependent time traces including plasma boundary
             end
         end
         layout := @layout [N + 1]
-        w = max(600, Int(ceil(300 * sqrt(N))))
-        h = max(400, Int(ceil(200 * sqrt(N))))
+        w = max(600, round(Int, 300 * sqrt(N), RoundUp))
+        h = max(400, round(Int, 200 * sqrt(N), RoundUp))
         size --> (w, h)
     end
 
