@@ -1,15 +1,15 @@
 using LaTeXStrings
 import JSON
+import GACODE
 
 #= ================= =#
 #  StudyTGLFdb  #
 #= ================= =#
 
 """
-study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
 """
 function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
-
     sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
     act = ParametersActors()
 
@@ -40,8 +40,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
 end
 
-mutable struct StudyTGLFdb <: AbstractStudy
-    sty::FUSEparameters__ParametersStudyTGLFdb
+mutable struct StudyTGLFdb{T<:Real} <: AbstractStudy
+    sty::OverrideParameters{T,FUSEparameters__ParametersStudyTGLFdb{T}}
     act::ParametersAllActors
     dataframes_dict::Union{Dict{String,DataFrame},Missing}
     iterator::Union{Vector{Union{String,Symbol}},Missing}
@@ -61,7 +61,7 @@ function TGLF_dataframe()
 end
 
 function StudyTGLFdb(sty, act; kw...)
-    sty = sty(kw...)
+    sty = OverrideParameters(sty; kw...)
     study = StudyTGLFdb(sty, act, missing, missing)
     return setup(study)
 end
@@ -126,7 +126,6 @@ function _run(study::StudyTGLFdb)
         open("$(sty.save_folder)/data_frame_$(item).json", "w") do f
             return write(f, json_data)
         end
-
     end
 
     # Release workers after run
@@ -134,6 +133,7 @@ function _run(study::StudyTGLFdb)
         Distributed.rmprocs(Distributed.workers())
         @info "released workers"
     end
+
     return study
 end
 
@@ -208,7 +208,7 @@ end
 function save_inputtglfs(actor_transport, output_dir, name, item)
     rho_transport = actor_transport.tr_actor.actor_ct.par.rho_transport
     for k in 1:length(rho_transport)
-        TGLFNN.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(item)"))
+        TurbulentTransport.save(actor_transport.tr_actor.actor_ct.actor_turb.input_tglfs[k], joinpath(output_dir, "input.tglf_$(name)_$(k)_$(item)"))
     end
 end
 
@@ -221,7 +221,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     ct1d_tglf = dd.core_transport.model[1].profiles_1d[]
     ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport; time0=dd.global_time)
 
-    qybro_bohms = [IMAS.gyrobohm_energy_flux(cp1d, eqt), IMAS.gyrobohm_particle_flux(cp1d, eqt), IMAS.gyrobohm_momentum_flux(cp1d, eqt)]
+    qybro_bohms = [GACODE.gyrobohm_energy_flux(cp1d, eqt), GACODE.gyrobohm_particle_flux(cp1d, eqt), GACODE.gyrobohm_momentum_flux(cp1d, eqt)]
     rho_cp = cp1d.grid.rho_tor_norm
 
     IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport)
@@ -281,10 +281,9 @@ function preparse_input(database_folder)
         delete!(json_data["equilibrium"], "code")
 
         time = json_data["equilibrium"]["time"][1]
-        timea = [time]
 
         json_data["core_profiles"]["profiles_1d"][1]["time"] = time
-        json_data["core_profiles"]["time"] = timea
+        json_data["core_profiles"]["time"] = [time]
         json_data["dataset_description"] = Dict("data_entry" => Dict("pulse" => pulse, "machine" => machine))
 
         for source in keys(json_data["core_sources"]["source"])
@@ -303,7 +302,6 @@ end
 
 
 function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
-
     if study.act.ActorTGLF.electromagnetic
         EM_contribution = :EM
     else
@@ -316,7 +314,6 @@ function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
 end
 
 function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
-
     x = df[!, "$(quantity)_exp"]
     y = df[!, "$(quantity)"]
 

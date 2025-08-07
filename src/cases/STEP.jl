@@ -102,7 +102,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
         # 1. DT
         IMAS.ion_element!(bulk_ion, ini.core_profiles.bulk)
-        @assert bulk_ion.element[1].z_n == 1.0 "Bulk ion `$(ini.core_profiles.bulk)` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
+        @assert IMAS.is_hydrogenic(bulk_ion) "Bulk ion `$(ini.core_profiles.bulk)` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
         # 2. Impurity
         IMAS.ion_element!(imp_ion, ini.core_profiles.impurity)
         # 3. He
@@ -110,7 +110,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
         # pedestal
         summary = dd.summary
-        @ddtime summary.local.pedestal.n_e.value = cp1d.electrons.density_thermal[argmin(abs.(rho .- (1 - ini.core_profiles.w_ped)))]
+        @ddtime summary.local.pedestal.n_e.value = cp1d.electrons.density_thermal[argmin_abs(rho, (1 - ini.core_profiles.w_ped))]
         @ddtime summary.local.pedestal.position.rho_tor_norm = 1 - ini.core_profiles.w_ped
         @ddtime summary.local.pedestal.zeff.value = ini.core_profiles.zeff
 

@@ -11,7 +11,7 @@ end
 
 mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorWholeFacility{P}
+    par::OverrideParameters{P,FUSEparameters__ActorWholeFacility{P}}
     act::ParametersAllActors
     StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
     StabilityLimits::Union{Nothing,ActorPlasmaLimits{D,P}}
@@ -66,7 +66,7 @@ end
 
 function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
     logging_actor_init(ActorWholeFacility)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     return ActorWholeFacility(dd, par, act,
         nothing,

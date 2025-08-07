@@ -15,7 +15,7 @@ end
 
 mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPFdesign{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPFdesign{P}}
     act::ParametersAllActors{P}
     actor_pf::ActorPFactive{D,P}
 end
@@ -37,7 +37,7 @@ end
 
 function ActorPFdesign(dd::IMAS.dd, par::FUSEparameters__ActorPFdesign, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPFdesign)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     actor_pf = ActorPFactive(dd, act.ActorPFactive; par.update_equilibrium)
     return ActorPFdesign(dd, par, act, actor_pf)
 end
@@ -91,7 +91,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                 end
 
                 coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
-                cost_currents = norm((coil.current for coil in coils)) / eqt.global_quantities.ip
+                cost_currents = norm((coil.current_per_turn * coil.turns for coil in coils)) / eqt.global_quantities.ip
 
                 cost = norm((actor.actor_pf.cost, 0.1 * cost_spacing))^2 * (1 .+ cost_currents)
 

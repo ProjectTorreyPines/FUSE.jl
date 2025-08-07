@@ -200,6 +200,18 @@ function wall_radii(R0::Float64, a::Float64, plasma_gap_fraction::Float64)
     return (r_hfs=r_hfs, r_lfs=r_lfs)
 end
 
+"""
+    wall_radii(pr::Vector{Float64}, pz::Vector{Float64}, Z0::Real)
+
+Returns the hfs and lfs radii of the wall at a given Z0
+"""
+function wall_radii(pr::Vector{Float64}, pz::Vector{Float64}, Z0::Real)
+    indexes, crossings = IMAS.intersection(pr, pz, [0.0, 100.0], [Z0, Z0])
+    r_hfs = min(crossings[1][1], crossings[2][1])
+    r_lfs = max(crossings[1][1], crossings[2][1])
+    return (r_hfs=r_hfs, r_lfs=r_lfs)
+end
+
 function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
     bd = dd.build
     for (k, layer) in enumerate(bd.layer)

@@ -28,19 +28,17 @@ function case_parameters(
         equilibrium_ods = joinpath("__FUSE__", "sample", "ITER_equilibrium_ods.json")
         ini.ods.filename = "$(wall_ods),$(pf_active_ods),$(pf_passive_ods),$(equilibrium_ods)"
         act.ActorCXbuild.rebuild_wall = false
-        # act.ActorPlasmaLimits.raise_on_breach = false
         if boundary_from == :auto
             boundary_from = :ods
         end
-        act.ActorEquilibrium.model = :FRESCO
     else
         ini.equilibrium.B0 = -5.3
         act.ActorCXbuild.rebuild_wall = true
         if boundary_from == :auto
             boundary_from = :MXH_params
         end
-        act.ActorEquilibrium.model = :TEQUILA
     end
+    act.ActorEquilibrium.model = :FRESCO
 
     ini.equilibrium.xpoints = :lower
     ini.equilibrium.boundary_from = boundary_from
@@ -132,10 +130,16 @@ function case_parameters(
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
-    resize!(ini.nb_unit, 1)
-    ini.nb_unit[1].power_launched = 33.4e6
+    resize!(ini.nb_unit, 2)
+    ini.nb_unit[1].power_launched = 16.7e6
     ini.nb_unit[1].beam_energy = 1e6
-    ini.nb_unit[1].toroidal_angle = 20.0 * deg
+    ini.nb_unit[1].beam_mass = 2.0
+    ini.nb_unit[1].template_beam = :iter_onaxis
+
+    ini.nb_unit[2].power_launched = 16.7e6
+    ini.nb_unit[2].beam_energy = 1e6
+    ini.nb_unit[2].beam_mass = 2.0
+    ini.nb_unit[2].template_beam = :iter_offaxis
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6
@@ -165,7 +169,7 @@ function case_parameters(
         ini.rampup.diverted_at = rampup_ends * 0.8
 
         ini.equilibrium.pressure_core = t -> ramp(t / rampup_ends) .^ 2 * 0.643e6
-        ini.equilibrium.ip = t -> ramp(t / rampup_ends) * 14E6 + ramp((t - 100) / 100) * 1E6
+        ini.equilibrium.ip = t -> ramp(t / rampup_ends) * 13E6 + ramp((t - 100) / 100) * 2E6
 
         ini.nb_unit[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 16.7e6
         ini.ec_launcher[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 10E6
@@ -180,9 +184,10 @@ function case_parameters(
 
     act.ActorWholeFacility.update_build = false
 
-    act.ActorCurrent.model = :SteadyStateCurrent
-
-    act.ActorSteadyStateCurrent.current_relaxation_radius = 0.7
+    Ω = 1.0 / 10E6
+    act.ActorControllerIp.P = Ω * 10.0
+    act.ActorControllerIp.I = Ω * 2.0
+    act.ActorControllerIp.D = 0.0
 
     return ini, act
 end

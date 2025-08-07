@@ -15,7 +15,7 @@ end
 
 mutable struct ActorCHEASE{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCHEASE{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCHEASE{P}}
     act::ParametersAllActors{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
@@ -34,7 +34,7 @@ end
 
 function ActorCHEASE(dd::IMAS.dd{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCHEASE)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorCHEASE(dd, par, act, nothing)
 end
 
@@ -97,9 +97,12 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
     par = actor.par
     act = actor.act
 
+    eq = dd.equilibrium
+    eqt = eq.time_slice[]
+
     # convert from fixed to free boundary equilibrium
+    eqt.global_quantities.free_boundary = Int(par.free_boundary)
     if par.free_boundary
-        eqt = dd.equilibrium.time_slice[]
 
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         ψbound = 0.0
@@ -120,16 +123,18 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
         push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_cps[1].weight))
 
         # Coils locations
-        coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model, zero_currents=true)
+        coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)
 
         # from fixed boundary to free boundary via VacuumFields
         psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         actor.chease.gfile.psirz .= psi_free_rz'
+
+        VacuumFields.update_currents!(dd.pf_active.coil, coils; active_only=true)
     end
 
     # Convert gEQDSK data to IMAS
     try
-        gEQDSK2IMAS(actor.chease.gfile, dd.equilibrium)
+        gEQDSK2IMAS(actor.chease.gfile, eq)
     catch e
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)

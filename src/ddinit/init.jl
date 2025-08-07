@@ -28,14 +28,14 @@ This function calls all other `FUSE.init...` functions in FUSE
 Modifies `ini` and `act` in place
 """
 function init!(
-    dd::IMAS.dd,
+    dd::IMAS.dd{T},
     ini::ParametersAllInits,
     act::ParametersAllActors;
     do_plot::Bool=false,
     initialize_hardware::Bool=true,
     initialize_pulse_schedule::Bool=true,
     restore_expressions::Bool=true,
-    verbose::Bool=false)
+    verbose::Bool=false) where {T<:Real}
 
     TimerOutputs.reset_timer!("init")
     TimerOutputs.@timeit timer "init" begin
@@ -43,6 +43,7 @@ function init!(
         # always empty non-hardware IDSs
         empty!(dd.equilibrium)
         empty!(dd.core_profiles)
+        empty!(dd.edge_profiles)
         empty!(dd.core_sources)
         empty!(dd.summary)
 
@@ -117,6 +118,15 @@ function init!(
             end
         end
 
+        # initialize edge profiles
+        if !initialize_hardware || !ismissing(ini.core_profiles, :bulk) || !isempty(dd1.edge_profiles)
+            verbose && @info "INIT: init_edge_profiles"
+            init_edge_profiles!(dd, ini, act, dd1)
+            if do_plot
+                display(plot(dd.edge_profiles; legend=:bottomleft))
+            end
+        end
+
         # initialize build
         if initialize_hardware && (!isempty(ini.build.layers) || !isempty(dd1.build))
             verbose && @info "INIT: init_build"
@@ -159,7 +169,7 @@ function init!(
                             scale -> scale_power_tau_cost(scale; dd, ps, ini, ps0, ini0, ini.hcd.power_scaling_cost_function),
                             0.0,
                             100,
-                            Optim.GoldenSection();
+                            Optim.Brent();
                             abs_tol=1E-3
                         )
                     actor_logging(dd, old_logging)
@@ -218,11 +228,15 @@ function init!(
         # add strike point information to pulse_schedule
         fw = IMAS.first_wall(dd.wall)
         if !isempty(fw.r) && ps_was_set
-            RXX = []
-            ZXX = []
+            RXX = Vector{T}[]
+            ZXX = Vector{T}[]
             for eqt in dd.equilibrium.time_slice
-                psi_boundaries = IMAS.find_psi_boundary(eqt, fw.r, fw.z; raise_error_on_not_open=true)
-                Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
+                if eqt.global_quantities.ip == 0.0
+                    Rxx, Zxx = T[], T[]
+                else
+                    psi_boundaries = (last_closed=eqt.boundary.psi, first_open=eqt.boundary_separatrix.psi)
+                    Rxx, Zxx, _ = IMAS.find_strike_points(eqt, fw.r, fw.z, psi_boundaries.last_closed, psi_boundaries.first_open)
+                end
                 push!(RXX, Rxx)
                 push!(ZXX, Zxx)
             end
@@ -230,17 +244,21 @@ function init!(
             pc = dd.pulse_schedule.position_control
             resize!(pc.strike_point, N)
             for k in 1:N
-                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Rxx) ? Rxx[k] : NaN for Rxx in RXX], :constant).(pc.time)
-                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Zxx) ? Zxx[k] : NaN for Zxx in ZXX], :constant).(pc.time)
+                pc.strike_point[k].r.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Rxx) ? Rxx[k] : T(NaN) for Rxx in RXX], :constant).(pc.time)
+                pc.strike_point[k].z.reference = IMAS.interp1d(dd.equilibrium.time, [k <= length(Zxx) ? Zxx[k] : T(NaN) for Zxx in ZXX], :constant).(pc.time)
             end
         end
 
-        # trim core_profiles data before the first equilibrium since things are really not robust against that
+        # trim core_profiles and edge_profiles data before the first equilibrium since things are really not robust against that
         # also trim other IDSs not to go past equilibrium.time[end]
         if dd.equilibrium.time[1] != dd.equilibrium.time[end]
             IMAS.trim_time!(dd, (-Inf, dd.equilibrium.time[end]))
             IMAS.trim_time!(dd.core_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
+            IMAS.trim_time!(dd.edge_profiles, (dd.equilibrium.time[1], dd.equilibrium.time[end]))
         end
+
+        # setup ActorReplay
+        act.ActorReplay.replay_dd = dd1
 
         return dd
     end

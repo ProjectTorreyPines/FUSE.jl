@@ -11,13 +11,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPEDprofiles{T<:Real} <: Paramet
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core")
 end
 
-mutable struct ActorEPEDprofiles{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorEPEDprofiles{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEPEDprofiles{P}
-    function ActorEPEDprofiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorEPEDprofiles{P}; kw...) where {D<:Real,P<:Real}
+    par::OverrideParameters{P,FUSEparameters__ActorEPEDprofiles{P}}
+    act::ParametersAllActors{P}
+    function ActorEPEDprofiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorEPEDprofiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorEPEDprofiles)
-        par = par(kw...)
-        return new{D,P}(dd, par)
+        par = OverrideParameters(par; kw...)
+        return new{D,P}(dd, par, act)
     end
 end
 
@@ -39,11 +40,13 @@ end
     _step(actor::ActorEPEDprofiles)
 """
 function _step(actor::ActorEPEDprofiles)
-    par = actor.par
     dd = actor.dd
+    par = actor.par
+    act = actor.act
+
     cp1d = dd.core_profiles.profiles_1d[]
 
-    sol = run_EPED(dd; ne_from=:pulse_schedule, zeff_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule, only_powerlaw=false, warn_nn_train_bounds=false)
+    sol = run_EPED(dd; ne_from=:pulse_schedule, zeff_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule, act.ActorEPED.only_powerlaw, act.ActorEPED.warn_nn_train_bounds)
     pped = sol.pressure.GH.H
     wped = sol.width.GH.H
 
@@ -52,7 +55,7 @@ function _step(actor::ActorEPEDprofiles)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, :pulse_schedule, rho_ped)
     zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, :pulse_schedule, rho_ped)
 
-    impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
+    impurity = [ion.element[1].z_n for ion in cp1d.ion if !IMAS.is_hydrogenic(ion)][1]
     zi = sum(impurity) / length(impurity)
     nival = ne_ped * (zeff_ped - 1) / (zi^2 - zi)
     nval = ne_ped - zi * nival

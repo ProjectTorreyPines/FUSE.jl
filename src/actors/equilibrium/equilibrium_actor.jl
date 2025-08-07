@@ -18,7 +18,7 @@ end
 
 mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEquilibrium{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEquilibrium{P}}
     act::ParametersAllActors{P}
     eq_actor::Union{Nothing,ActorTEQUILA{D,P},ActorFRESCO{D,P},ActorEGGO{D,P},ActorCHEASE{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
@@ -37,7 +37,7 @@ end
 
 function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
     actor = ActorEquilibrium(dd, par, act, noop)
@@ -148,6 +148,7 @@ Prepare `dd.equilibrium` to run equilibrium actors
 function prepare(actor::ActorEquilibrium)
     dd = actor.dd
     par = actor.par
+    act = actor.act
 
     ps = dd.pulse_schedule
     pc = ps.position_control
@@ -156,14 +157,14 @@ function prepare(actor::ActorEquilibrium)
     if par.j_p_from == :core_profiles
         @assert !isempty(dd.core_profiles.time)
         cp1d = dd.core_profiles.profiles_1d[]
-        index = cp1d.grid.psi_norm .> 0.05
+        index = cp1d.grid.psi_norm .> 0.02
         psi0 = cp1d.grid.psi
         rho_tor_norm0 = cp1d.grid.rho_tor_norm
         rho_pol_norm_sqrt0 = vcat(-reverse(sqrt.(cp1d.grid.psi_norm[index])), sqrt.(cp1d.grid.psi_norm[index]))
         j_tor0 = vcat(reverse(cp1d.j_tor[index]), cp1d.j_tor[index])
         pressure0 = vcat(reverse(cp1d.pressure[index]), cp1d.pressure[index])
-        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     elseif par.j_p_from == :equilibrium
         @assert !isempty(dd.equilibrium.time)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
@@ -172,8 +173,8 @@ function prepare(actor::ActorEquilibrium)
         rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
-        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :cubic)
-        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :cubic)
+        j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
+        p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     else
         @assert par.j_p_from in (:core_profiles, :equilibrium)
     end
@@ -221,6 +222,7 @@ function prepare(actor::ActorEquilibrium)
     # NOTE: we use get_time_array(...,:constant) instead of @ddtime because x-points can suddenly jump
     if !isempty(getproperty(pc, :x_point, []))
         n = 0
+        empty!(eqt.boundary.x_point)
         for k in eachindex(pc.x_point)
             rx = IMAS.get_time_array(pc.x_point[k].r, :reference, :constant)
             zx = IMAS.get_time_array(pc.x_point[k].z, :reference, :constant)
@@ -237,6 +239,7 @@ function prepare(actor::ActorEquilibrium)
     # NOTE: we use get_time_array(...,:constant) instead of @ddtime because strike-points can suddenly jump
     if !isempty(getproperty(pc, :strike_point, []))
         n = 0
+        empty!(eqt.boundary.strike_point)
         for k in eachindex(pc.strike_point)
             rs = IMAS.get_time_array(pc.strike_point[k].r, :reference, :constant)
             zs = IMAS.get_time_array(pc.strike_point[k].z, :reference, :constant)
@@ -259,22 +262,45 @@ function prepare(actor::ActorEquilibrium)
     # calculate pressure and j_tor using geometry from previous iteration
     # this is for equilibrium codes that cannot solve directly from pressure and current
     if past_time_slice
-        pressure = IMAS.interp1d(psi0, eqt1d.pressure).(psi)
-        j_tor = IMAS.interp1d(psi0, eqt1d.j_tor).(psi)
+        psin = @. (psi-psi[1])/(psi[end]-psi[1])
+        psin0 = @. (psi0-psi0[1])/(psi0[end]-psi0[1])
+
+        pressure = IMAS.interp1d(psin0, eqt1d.pressure).(psin)
+        j_tor = IMAS.interp1d(psin0, eqt1d.j_tor).(psin)
         tmp = IMAS.calc_pprime_ffprim_f(psi, gm8, gm9, gm1, r0, b0; pressure, j_tor)
-        eqt1d.dpressure_dpsi = IMAS.interp1d(psi, tmp.dpressure_dpsi).(psi0)
-        eqt1d.f_df_dpsi = IMAS.interp1d(psi, tmp.f_df_dpsi).(psi0)
-        eqt1d.f = IMAS.interp1d(psi, tmp.f).(psi0)
+        eqt1d.dpressure_dpsi = IMAS.interp1d(psin, tmp.dpressure_dpsi).(psin0)
+        eqt1d.f_df_dpsi = IMAS.interp1d(psin, tmp.f_df_dpsi).(psin0)
+        #eqt1d.f = IMAS.interp1d(psi, tmp.f).(psi0)
+        Rcenter = eqt.global_quantities.vacuum_toroidal_field.r0
+        Btcenter = eqt.global_quantities.vacuum_toroidal_field.b0
+        fend = Btcenter * Rcenter
+        f2 = 2 * IMAS.cumtrapz(eqt1d.psi, eqt1d.f_df_dpsi)
+        f2 .= f2 .+ - f2[end] .+ fend^2
+        f = sign(fend) .* sqrt.(abs.(f2))
     end
 
-    # if sign(maximum(eqt1d.j_tor)) != sign(minimum(eqt1d.j_tor))
-    #     j_tor = eqt1d.j_tor
-    #     s = sign(sum(j_tor))
-    #     j_tor = s .* j_tor
-    #     min_j = sum(j_tor[j_tor.>0.0]) / length(j_tor) / 100.0
-    #     j_tor[j_tor.<=min_j] .= min_j
-    #     eqt1d.j_tor = s .* j_tor
-    # end
+    # if available, restore coil currents and magnetic measurements from experiment
+    # these may be needed if equilibrium solver is run in reconstruction mode.
+    # The equilibrium solvers will overwritte the coil currents,
+    # and the synthetic diagnostics will overwrite the magnetics and flux loops
+    if !ismissing(act.ActorReplay, :replay_dd)
+        if !isempty(act.ActorReplay.replay_dd.pf_active.coil)
+            act.ActorReplay.replay_dd.global_time = dd.global_time
+            for (coil, replay_coil) in zip(dd.pf_active.coil, act.ActorReplay.replay_dd.pf_active.coil)
+                @ddtime(coil.current.data = @ddtime(replay_coil.current.data))
+            end
+        end
+        if !isempty(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
+            for (probe, replay_probe) in zip(dd.magnetics.b_field_pol_probe, act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
+                @ddtime(probe.field.data = @ddtime(replay_probe.field.data))
+            end
+        end
+        if !isempty(act.ActorReplay.replay_dd.magnetics.flux_loop)
+            for (loop, replay_loop) in zip(dd.magnetics.flux_loop, act.ActorReplay.replay_dd.magnetics.flux_loop)
+                @ddtime(loop.flux.data = @ddtime(replay_loop.flux.data))
+            end
+        end
+    end
 
     return dd
 end

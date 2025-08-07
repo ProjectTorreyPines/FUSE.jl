@@ -21,7 +21,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF TORBEAM TroyonBetaNN VacuumFields
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NeoclassicalTransport NNeutronics QED RABBIT SimulationParameters TEQUILA TJLF TORBEAM TroyonBetaNN TurbulentTransport VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
 FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
@@ -31,6 +31,14 @@ endif
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 FUSE_PACKAGES_ALL := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_ALL)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
+
+# ANSI color codes
+RESET=\033[0m
+BOLD=\033[1m
+BLUE=\033[34m
+RED=\033[31m
+GREEN=\033[32m
+PURPLE=\033[35m
 
 # use command line interface for git to work nicely with private repos
 export JULIA_PKG_USE_CLI_GIT := true
@@ -107,6 +115,9 @@ FusionMaterials:
 FuseExchangeProtocol:
 	$(call clone_pull_repo,$@)
 
+GACODE:
+	$(call clone_pull_repo,$@)
+
 HelpPlots:
 	$(call clone_pull_repo,$@)
 
@@ -125,7 +136,7 @@ MXHEquilibrium:
 MillerExtendedHarmonic:
 	$(call clone_pull_repo,$@)
 
-NEO:
+NeoclassicalTransport:
 	$(call clone_pull_repo,$@)
 
 NNeutronics:
@@ -143,7 +154,7 @@ SimulationParameters:
 TEQUILA:
 	$(call clone_pull_repo,$@)
 
-TGLFNN:
+TurbulentTransport:
 	$(call clone_pull_repo,$@)
 
 TJLF:
@@ -366,9 +377,9 @@ daily_example_ci_commit:
 endif
 
 # @devs
-delete_dev_branch: error_missing_repo_var
+delete_remote_branch: error_missing_repo_var error_missing_branch_var
 # delete `dev` branch on GitHub for a repo
-	@cd ../$(repo) && git push origin --delete dev
+	@cd ../$(repo) && git push origin --delete $(branch)
 
 # @devs
 deps_tree:
@@ -393,7 +404,7 @@ deps_tree:
 
 # @devs
 deps_dag:
-# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages
+# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages (install dot with `brew install graphviz`)
 	@julia -e' ;\
 	fuse_packages = $(FUSE_PACKAGES_ALL);\
 	println(fuse_packages);\
@@ -424,7 +435,7 @@ deps_dag:
 			for subdep in AbstractTrees.children(uuid) ;\
 				subdep_info = get(Pkg.dependencies(), subdep, nothing) ;\
 				if subdep_info !== nothing ;\
-					push!(edges, (dep.name, subdep_info.name)) ;\
+					push!(edges, (subdep_info.name, dep.name)) ;\
 					collect_edges(subdep, edges) ;\
 				end ;\
 			end ;\
@@ -436,7 +447,7 @@ deps_dag:
 	end ;\
 	open("docs/src/deps.dot", "w") do io ;\
 		write(io, "digraph G {\n") ;\
-		write(io, "rankdir=LR;\n");\
+		write(io, "rankdir=RL;\n");\
 		write(io, "ranksep=0.4;\n");\
 		write(io, "nodesep=0.1;\n");\
 		write(io, "splines=true;\n");\
@@ -572,18 +583,17 @@ error_not_on_master_branch: error_missing_repo_var
 	fi
 
 # @devs
-feature_or_master:
+feature_or_master: error_missing_branch_var
 # checks if on the packages remote GitHub repos there is a branch with the same name of the local FUSE branch
-	@echo "Local branch is \`$(FUSE_LOCAL_BRANCH)\`"
 	@julia -e ';\
 	$(feature_or_master_julia);\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = sort!(["FUSE"; $(FUSE_PACKAGES_ALL)]);\
 	for package in fuse_packages;\
-		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
-        if branch == "master";\
+		branch_name = feature_or_master(package, "$(branch)");\
+        if branch_name == "master";\
             println("    $$(package)");\
         else;\
-            println(">>> $$(package) @ $$(branch)");\
+            println(">>> $$(package) @ $$(branch_name)");\
         end;\
 	end'
 
@@ -610,14 +620,13 @@ help_user:
 	@FILTER="user" make help_common
 
 header:
-	@printf "\n"
-	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m╔════╝\033[0m\n"
-	@printf "  \033[1;31m█████\033[1;30m╗  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m███████\033[1;30m╗\033[1;31m█████\033[1;30m╗  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
-	@printf "   Project  Torrey  Pines  (PTP)\n"
+	@echo "    $(BOLD)$(GREEN)_$(RESET)  __               $(BOLD)$(PURPLE)_$(RESET) $(BOLD)$(BLUE)_$(RESET)"
+	@echo "   $(BOLD)$(GREEN)(_)$(RESET)/ _|             $(BOLD)$(PURPLE)(_$(RESET)$(BOLD)$(BLUE)(_)$(RESET)"
+	@echo "  $(BOLD)$(RED)(_)$(RESET)| |_ _   _ ___  _$(BOLD)$(BLUE)(_$(RESET)$(BOLD)$(PURPLE)(_)$(RESET)    Documentation: https://fuse.help"
+	@echo "     |  _| | | / __|/ _ \\"
+	@echo "    $(BOLD)$(RED)_$(RESET)| | | |_| \\__ \\  __/"
+	@echo "   $(BOLD)$(RED)(_)$(RESET)_|  \\__'_|___/\\___|$(BOLD)$(BLUE)_$(RESET)"
+	@echo "  $(BOLD)$(GREEN)(_(_)$(RESET)                 $(BOLD)$(BLUE)(_)$(RESET)"
 
 # Update Makefile targets
 sort_targets:
@@ -642,7 +651,15 @@ install_PyCall:
 	'
 
 # @devs
-install_ci_add:
+install_ci_master:
+	julia --project=@. -e ';\
+	using Pkg;\
+	Pkg.instantiate();\
+	Pkg.add("Test");\
+	Pkg.status()'
+
+# @devs
+install_ci_dev:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
 	julia --project=@. -e ';\

@@ -88,7 +88,7 @@ macro checkin(key, vars...)
 
     # Save all the variables in the `vars` list under the provided key using their names
     return quote
-        @assert typeof($key) <: Symbol "`@checkin chk :what var1 var2` was deprecated in favor of `@checkin :what var1 var2`"
+        @assert typeof($key) <: Symbol "`use `@checkin :what var1 var2 ...`"
         d = getfield(checkpoint, :history)
         if $key in keys(d)
             dict = Dict(k => v for (k, v) in pairs(d[$key]))
@@ -199,7 +199,7 @@ function IMAS.extract(
             xtr = extract(DD[1], xtract)
             tmp = Dict()
             for (xkey, xfun) in xtr
-                if xfun.value === NaN
+                if isnan(xfun.value)
                     delete!(xtract, xkey)
                 else
                     tmp[xfun.name] = xfun.value
@@ -445,7 +445,7 @@ function save_database(
         end
         HDF5.write(fid, target_group, data)
         attr = HDF5.attrs(fid[target_group])
-        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
+        return attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
     end
 
     mode = isfile(h5_filename) ? "r+" : "w"
@@ -486,7 +486,7 @@ function save_database(
         end
 
         if dd !== nothing
-            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, verbose)
+            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, show_warnings=verbose)
         end
 
         if act !== nothing
@@ -1270,7 +1270,6 @@ function get_julia_process_memory_usage()
     return mem_bytes::Int
 end
 
-
 """
     save(memtrace::MemTrace, filename::String="memtrace.txt")
 
@@ -1520,5 +1519,42 @@ function compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
     finally
         # Restore the original environment
         Pkg.activate(original_env)
+    end
+end
+
+# === #
+# SSH #
+# === #
+const ssh_exe = "ssh -o StrictHostKeyChecking=no"
+
+"""
+    ssh_command(remote_host::AbstractString, remote_command::AbstractString; extra_flags::AbstractString="")
+
+Generate ssh command string for executing remote_command on remote_host
+"""
+function ssh_command(remote_host::AbstractString, remote_command::AbstractString; extra_flags::AbstractString="")
+    return "$ssh_exe $extra_flags $remote_host $remote_command"
+end
+
+"""
+    upsync_command(remote_host::AbstractString, local_files::AbstractVector{<:AbstractString}, remote_dir::AbstractString; extra_flags::AbstractString="")
+
+Generate rsync command string for uploading local_files to remote_dir on remote_host
+"""
+function upsync_command(remote_host::AbstractString, local_files::AbstractVector{<:AbstractString}, remote_dir::AbstractString; extra_flags::AbstractString="")
+    return "rsync $extra_flags -az -e '$(ssh_exe)' $(join(local_files," ")) $(remote_host):$(remote_dir) >&2"
+end
+
+"""
+    downsync_command(remote_host::AbstractString, remote_files::AbstractVector{<:AbstractString}, local_dir::AbstractString; extra_flags::AbstractString="")
+
+Generate rsync command string for downloading remote_files to local_dir from remote_host
+"""
+function downsync_command(remote_host::AbstractString, remote_files::AbstractVector{<:AbstractString}, local_dir::AbstractString; extra_flags::AbstractString="")
+    # rsync works a bit different on MACs
+    if Sys.isapple()
+        return "rsync $extra_flags -az -e '$(ssh_exe)' $(remote_host):\"$(join(remote_files," "))\" $(local_dir) >&2"
+    else
+        return "rsync $extra_flags -az -e '$(ssh_exe)' $(remote_host):$(join(remote_files," :")) $(local_dir) >&2"
     end
 end

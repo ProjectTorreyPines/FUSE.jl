@@ -18,10 +18,10 @@ end
 
 mutable struct ActorSimplePL{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorSimplePL{P}
+    par::OverrideParameters{P,FUSEparameters__ActorSimplePL{P}}
     function ActorSimplePL(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePL{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimplePL)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end

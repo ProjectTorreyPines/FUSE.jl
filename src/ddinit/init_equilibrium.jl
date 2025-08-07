@@ -15,8 +15,11 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
             if !isempty(dd1.equilibrium.time_slice) && ini.equilibrium.boundary_from == :ods
                 dd.equilibrium = deepcopy(dd1.equilibrium)
                 eqt = dd.equilibrium.time_slice[]
+                eqt.global_quantities.free_boundary = Int(!isempty(eqt.boundary, :x_point))
                 fw = IMAS.first_wall(dd.wall)
-                IMAS.flux_surfaces(eqt, fw.r, fw.z)
+                if findfirst(:rectangular, eqt.profiles_2d) !== nothing
+                    IMAS.flux_surfaces(eqt, fw.r, fw.z)
+                end
             else
                 init_from = :scalars
             end
@@ -52,7 +55,7 @@ function init_equilibrium!(dd::IMAS.dd, ini::ParametersAllInits, act::Parameters
         end
 
         # solve equilibrium
-        if !(init_from == :ods && ini.equilibrium.boundary_from == :ods)
+        if !(init_from == :ods && ini.equilibrium.boundary_from == :ods) || findfirst(:rectangular, eqt.profiles_2d) === nothing
             act_copy = deepcopy(act)
             act_copy.ActorCHEASE.rescale_eq_to_ip = true
             ActorEquilibrium(dd, act_copy; ip_from=:pulse_schedule)
@@ -109,6 +112,7 @@ function field_null_surface!(pc::IMAS.pulse_schedule__position_control, eq::IMAS
 
     # set B0 and psi_boundary for equilibrium time slice at t=-Inf
     eq.vacuum_toroidal_field.b0[1] = @ddtime(eq.vacuum_toroidal_field.b0)
+    eqb.global_quantities.ip = 0.0
     eqb.global_quantities.psi_boundary = ψp_constant
     eqb.profiles_1d.psi = [ψp_constant]
     eqb.boundary.outline.r = pr

@@ -25,7 +25,7 @@ end
 
 mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorTEQUILA{P}
+    par::OverrideParameters{P,FUSEparameters__ActorTEQUILA{P}}
     act::ParametersAllActors{P}
     shot::Union{Nothing,TEQUILA.Shot}
     ψbound::D
@@ -47,7 +47,7 @@ end
 
 function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])
 end
 
@@ -131,18 +131,13 @@ function _step(actor::ActorTEQUILA)
 end
 
 # finalize by converting TEQUILA shot to dd.equilibrium
-function _finalize(actor::ActorTEQUILA)
-    try
-        tequila2imas(actor.shot, actor.dd, actor.par, actor.act; actor.ψbound)
-    catch e
-        display(plot(actor.shot))
-        rethrow(e)
-    end
-    return actor
-end
+function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
+    shot = actor.shot
+    dd = actor.dd
+    par = actor.par
+    act = actor.act
+    ψbound = actor.ψbound
 
-function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA, act::ParametersAllActors; ψbound::D) where {D<:Real}
-    free_boundary = par.free_boundary
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     eqt1d = eqt.profiles_1d
@@ -203,7 +198,7 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
 
     if ismissing(par, :R)
         Rdim = (1.1 + divertor_size) * a # divertor_size% bigger than the plasma, but a no bigger than R0
-        nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+        nr_grid = round(Int, nz_grid * Rdim / Zdim, RoundUp)
         Rgrid = range(R0 - min(Rdim, R0), R0 + Rdim, nr_grid)
     else
         Rgrid = par.R
@@ -217,12 +212,13 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
     eq2d.grid_type.index = 1
     eq2d.psi = fill(Inf, (length(eq2d.grid.dim1), length(eq2d.grid.dim2)))
 
-    if free_boundary
+    eqt.global_quantities.free_boundary = Int(par.free_boundary)
+    if par.free_boundary
         # Boundary control points
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
 
         # Flux control points
-        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia,  iso_cps[1].weight)
+        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, iso_cps[1].weight)
         flux_cps = VacuumFields.FluxControlPoint[mag]
         strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
         strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
@@ -234,14 +230,15 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_cps[1].weight))
 
         # Coils locations
-        coils = VacuumFields.IMAS_pf_active__coils(dd; act.ActorPFactive.green_model, zero_currents=true)
+        coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)
 
         # from fixed boundary to free boundary via VacuumFields
         psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         eq2d.psi .= psi_free_rz'
 
-        pf_current_limits(dd.pf_active, dd.build)
+        VacuumFields.update_currents!(dd.pf_active.coil, coils; active_only=true)
 
+        pf_current_limits(dd.pf_active, dd.build)
     else
         # to work with a closed boundary equilibrium for now we need
         # ψ outside of the CLFS to grow out until it touches the computation domain
@@ -253,4 +250,5 @@ function tequila2imas(shot::TEQUILA.Shot, dd::IMAS.dd{D}, par::FUSEparameters__A
         eqt1d.psi .+= ψbound
     end
 
+    return actor
 end

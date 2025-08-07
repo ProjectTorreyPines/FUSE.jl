@@ -15,7 +15,7 @@ end
 
 mutable struct ActorVerticalStability{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorVerticalStability{P}
+    par::OverrideParameters{P,FUSEparameters__ActorVerticalStability{P}}
     act::ParametersAllActors{P}
     stability_margin::D
     normalized_growth_rate::D
@@ -28,8 +28,7 @@ end
 Compute vertical stability metrics
 """
 function ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorVerticalStability(kw...)
-    actor = ActorVerticalStability(dd, par, act)
+    actor = ActorVerticalStability(dd, act.ActorVerticalStability, act; kw...)
     step(actor)
     finalize(actor)
     return actor
@@ -37,7 +36,7 @@ end
 
 function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorVerticalStability)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     return ActorVerticalStability(dd, par, act, D(NaN), D(NaN), VacuumFields.MultiCoil[])
 end
 
@@ -59,7 +58,9 @@ function _step(actor::ActorVerticalStability)
     end
 
     active_coils = VacuumFields.IMAS_pf_active__coils(dd; actor.act.ActorPFactive.green_model)
-    if all(VacuumFields.current(coil) == 0.0 for coil in active_coils)
+    # BCL 4/24/25: Could use MultiCoils, but would need to account for default resistances like IMAS_pf_active__coils
+    # active_coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)
+    if all(VacuumFields.current_per_turn(coil) == 0.0 for coil in active_coils)
         @warn "Active coils have no current. Can't compute vertical stability metrics"
         return actor
     end
