@@ -167,24 +167,43 @@ function init_core_profiles!(
 
     # Set ions:
     cp1d.zeff = ones(ngrid) .* zeff
-    bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
-    # 1. DT
-    IMAS.ion_element!(bulk_ion, bulk)
-    @assert IMAS.is_hydrogenic(bulk_ion) "Bulk ion `$bulk` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
-    # 2. Impurity
+
+    # 1. and or 2. bulk ions
+    if bulk == :DT
+        nions = 4
+        D_ion, T_ion, imp_ion, he_ion = resize!(cp1d.ion, nions)
+        IMAS.ion_element!(D_ion, :D)
+        IMAS.ion_element!(T_ion, :T)
+    else
+        nions = 3
+        bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, nions)
+        IMAS.ion_element!(bulk_ion, bulk)
+        @assert IMAS.is_hydrogenic(bulk_ion) "Bulk ion `$bulk` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
+    end
+
+    shift = bulk == :DT ? 1 : 0
+
+    # 2+shift. Impurity
     IMAS.ion_element!(imp_ion, impurity)
-    # 3. He
+    # 3+shift. He
     IMAS.ion_element!(he_ion, :He4)
 
     # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
-    niFraction = zeros(3)
-    # DT == 1
-    # Imp == 2
-    # He == 3
+    niFraction = zeros(nions)
+    # DT == 1,2
+    # Imp == 2 + shift
+    # He == 3 + shift
+
     zimp = imp_ion.element[1].z_n
-    niFraction[3] = helium_fraction
-    niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
-    niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
+    niFraction[3+shift] = helium_fraction
+
+    niFraction[1] = (zimp - zeff + 4 * niFraction[3+shift] - 2 * zimp * niFraction[3+shift]) / (zimp - 1)
+    niFraciton_bulk = niFraction[1]
+    if bulk == :DT
+        niFraction[1] = 0.5 * niFraciton_bulk
+        niFraction[2] = 0.5 * niFraciton_bulk
+    end
+    niFraction[2+shift] = (zeff - niFraciton_bulk - 4 * niFraction[3+shift]) / zimp^2
     @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
     ni_core = 0.0
     for i in eachindex(cp1d.ion)
@@ -192,8 +211,8 @@ function init_core_profiles!(
         ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
     end
     # remove He if not present
-    if sum(niFraction[3]) == 0.0
-        deleteat!(cp1d.ion, 3)
+    if sum(niFraction[3+shift]) == 0.0
+        deleteat!(cp1d.ion, 3 + shift)
     end
 
     # temperatures
