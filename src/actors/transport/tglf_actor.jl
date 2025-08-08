@@ -46,7 +46,7 @@ function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTGLF(dd::IMAS.dd{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real,P<:Real}
+function ActorTGLF(dd::IMAS.dd{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real}
     logging_actor_init(ActorTGLF)
     par = OverrideParameters(par; kw...)
     if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
