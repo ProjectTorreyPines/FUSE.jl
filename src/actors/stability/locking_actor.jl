@@ -1,4 +1,4 @@
-import DifferentialEquations
+import DifferentialEquations as DiffEqs
 
 Base.@kwdef mutable struct ODEparams
     sim_time::Vector{Float64} = Float64[]# simulation time vector
@@ -97,8 +97,10 @@ function _step(actor::ActorLocking)
 
     actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
     
-    D = calculate_bifurcation_bounds(dd, par, actor.ode_params)
-    
+    bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
+
+    sols = solve_ODEs(par, actor.ode_params, "solveRW", 5., 0.5)
+    plt = plot(sols[1]);display(plt)
     return actor
 end
 
@@ -389,7 +391,7 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     return bifurcation_bounds
 end
 
-function rhsRW!(dydt::Vector{Float64}, y::Vector{Float64}, ode_params::ODEparams, t::Vector{Float64}, input1::Float64, input2::Float64, control_type::String)
+function rhsRW!(dydt, y, t, input1::Float64, input2::Float64, ode_params::ODEparams, control_type::Symbol)
     """
     Right hand side of the coupled ODE system with RW
     
@@ -403,11 +405,11 @@ function rhsRW!(dydt::Vector{Float64}, y::Vector{Float64}, ode_params::ODEparams
     """
     psi, theta, Om, psiW, thW = y
     
-    m0 = par.n_mode
+    m0 = 1#par.n_mode
     mu = ode_params.mu
-    DeltatRW = par.RPRW_stability_index
+    DeltatRW = -0.1#par.RPRW_stability_index
     DeltaW = ode_params.DeltaW
-    deltat = ode_params.stability_index
+    Deltat = ode_params.stability_index
     rt = ode_params.rat_surface
     l21 = ode_params.l21
     l12 = ode_params.l12
@@ -418,7 +420,7 @@ function rhsRW!(dydt::Vector{Float64}, y::Vector{Float64}, ode_params::ODEparams
     mu = ode_params.mu
     I = ode_params.Inertia
     
-    control_type = par.control_type
+    #control_type = :EF
     
     # Set control parameter based on type
     if control_type==:NLsaturation
@@ -426,12 +428,12 @@ function rhsRW!(dydt::Vector{Float64}, y::Vector{Float64}, ode_params::ODEparams
     elseif control_type==:EF
         errF = input1
     elseif control_type==:StabIndex
-        deltat = input1
+        Deltat = input1
     end
     
     Om0 = input2
     
-    dydt[1] = deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
+    dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
     dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
     dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
     dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
@@ -441,6 +443,16 @@ function rhsRW!(dydt::Vector{Float64}, y::Vector{Float64}, ode_params::ODEparams
 end
 
 function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, Om0::Float64=1.0)
+    
+    control_type = par.control_type
+    tfinal = par.t_final
+    DeltatRW = par.RPRW_stability_index
+    DeltaW = ode_params.DeltaW
+    Deltat = ode_params.stability_index
+    l21 = ode_params.l21
+    l12 = ode_params.l12
+    l32 = ode_params.l32
+
     if task == "solveRW"
         # Initial conditions: [psiMag, theta, Om, psiW, thetaW]
         y0 = [
@@ -452,9 +464,40 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
          ]
         
         # Create ODE problem
-        tspan = (0.0, par.tfinal)
-        p = (par, eps, Om0)  # Parameters
+        tspan = (0.0, par.t_final)
+        p = (ode_params, eps, Om0)  # Parameters
 
+        # Define ODE function for DifferentialEquations.jl
+        function ode_func!(dydt, y, p, t)
+            ode_params, eps, Om0 = p
+            rhsRW!(dydt, y, t, eps, Om0, ode_params, control_type)
+        end
+
+        prob = DifferentialEquations.ODEProblem(ode_func!, y0, tspan, p)
+        sol = DiffEqs.solve(prob, DifferentialEquations.Tsit5(), reltol=1e-9)
+        
+        # Extract final solution
+        final_sol = sol.u[end]
+        final_sol[2] = mod(final_sol[2], 2π)  # Normalize phase
+        final_sol[5] = mod(final_sol[5], 2π)  # Normalize phase
+
+
+        println("Raw sol = ", final_sol)
+
+        # Normalized solutions
+        psiN = final_sol[1] * (Deltat * DeltaW - l12 * l21) / (l32 * l21 * eps)
+        psiwN = final_sol[4] * (Deltat * DeltaW - l12 * l21) / (l32 * abs(Deltat) * eps)
+        
+        println("Normalized psit, psiW, Omt = ", psiN, ", ", psiwN, ", ", final_sol[3]/Om0)
+
+    elseif task == "solve"
+        # Implement 3rd order system solution
+        println("3rd order system solution not yet implemented")
+        return nothing
+    else
+        throw(ArgumentError("Unknown task: $task"))
     end
-    return nothing
+
+    
+    return sol.u
 end
