@@ -100,7 +100,7 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
             actor.flux_solutions = TurbulentTransport.run_tglfnn(actor.input_tglfs; uncertain, par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
 
         elseif par.onnx_model
-            actor.flux_solutions = TurbulentTransport.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
+            sols32 = TurbulentTransport.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
                 [
                     "RLTS_3",
                     "KAPPA_LOC",
@@ -138,7 +138,20 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
                     "OUT_Q_elec",
                     "OUT_Q_ions",
                     "OUT_P_ions"
-                ];)
+                ]; intra_threads=1, inter_threads=1)
+                n = length(sols32)
+                fs64 = Vector{GACODE.FluxSolution{Float64}}(undef, n)
+                @inbounds for i in 1:n
+                    s = sols32[i]
+                    f1 = Float64(getfield(s, 1))
+                    f2 = Float64(getfield(s, 2))
+                    f3 = Float64(getfield(s, 3))
+                    f4raw = getfield(s, 4)
+                    f4 = isa(f4raw, AbstractArray) ? Float64.(f4raw) : Float64(f4raw)
+                    f5 = Float64(getfield(s, 5))
+                    fs64[i] = GACODE.FluxSolution{Float64}(f1, f2, f3, f4, f5)
+                end
+                actor.flux_solutions = fs64
         end
 
     elseif par.model == :TGLF
