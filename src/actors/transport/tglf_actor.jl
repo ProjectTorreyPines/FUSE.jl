@@ -193,16 +193,19 @@ function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF}
 end
 
 """
-    save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF, }, filename::String)
+    save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF}, filename::String)
 
 Common save method for all the various input types
 """
-function save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF, InputTJLF}, filename::String)
-    if input isa InputCGYRO || input isa InputQLGYRO || input isa InputTGLF
-        return TurbulentTransport.save(input, filename)
-    elseif input isa InputTJLF
-        return TJLF.save(input, filename)
-    else
-        error("Unsupported input type")
-    end
+function save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF}, filename::String)
+    return TurbulentTransport.save(input, filename)
+end
+
+"""
+    save(input::InputTJLF, filename::String)
+
+Common save method for all the various input types
+"""
+function save(input::InputTJLF, filename::String)
+    return TJLF.save(input, filename)
 end
