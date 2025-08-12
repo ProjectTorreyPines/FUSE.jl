@@ -127,12 +127,12 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         local_path = remote_path
     else
         local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
-        if isdir(local_path) && !use_local_cache
-            rm(local_path; recursive=true)
-        end
-        if !isdir(local_path)
-            mkdir(local_path)
-        end
+    end
+    if isdir(local_path) && !use_local_cache
+        rm(local_path; recursive=true)
+    end
+    if !isdir(local_path)
+        mkdir(local_path)
     end
 
     # remote omas script
