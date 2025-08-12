@@ -166,9 +166,9 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         cd $remote_path
         export PYTHONPATH=$(remote_omas_root):\$PYTHONPATH
 
-        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" 2>&1 > "$remote_path/omfit_log.txt" &
 
-        python -u omas_data_fetch.py
+        python -u omas_data_fetch.py 2>&1 | tee "$remote_path/omas_log.txt"
 
         echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
         wait
