@@ -138,7 +138,7 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
                     "OUT_Q_elec",
                     "OUT_Q_ions",
                     "OUT_P_ions"
-                ]; intra_threads=1, inter_threads=1)
+                ]; intra_threads=10, inter_threads=1)
                 n = length(sols32)
                 fs64 = Vector{GACODE.FluxSolution{Float64}}(undef, n)
                 @inbounds for i in 1:n
