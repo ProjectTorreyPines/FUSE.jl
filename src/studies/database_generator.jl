@@ -136,6 +136,18 @@ function _run(study::StudyDatabaseGenerator)
 end
 
 """
+    _analyze(study::StudyDatabaseGenerator; extract::Bool=true)
+
+Analyze the database generator study results by extracting results if requested
+"""
+function _analyze(study::StudyDatabaseGenerator; extract::Bool=true)
+    if extract
+        extract_results(study)
+    end
+    return study
+end
+
+"""
     run_case(study::AbstractStudy, item::String)
 
 Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
