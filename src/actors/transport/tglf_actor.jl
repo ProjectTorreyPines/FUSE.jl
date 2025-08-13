@@ -30,8 +30,8 @@ end
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}
-    input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
-    flux_solutions::Vector{<:GACODE.FluxSolution}
+    input_tglfs::Union{Vector{InputTGLF{D}},Vector{InputTJLF{D}}}
+    flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
@@ -46,15 +46,15 @@ function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
+function ActorTGLF(dd::IMAS.dd{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real}
     logging_actor_init(ActorTGLF)
     par = OverrideParameters(par; kw...)
     if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
-        input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTGLF{D}}(undef, length(par.rho_transport))
     elseif par.model == :TJLF
-        input_tglfs = Vector{InputTJLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTJLF{D}}(undef, length(par.rho_transport))
     end
-    return ActorTGLF(dd, par, input_tglfs, GACODE.FluxSolution[])
+    return ActorTGLF(dd, par, input_tglfs, GACODE.FluxSolution{D}[])
 end
 
 """
@@ -147,7 +147,7 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
         actor.flux_solutions =
-            [GACODE.FluxSolution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
+            [GACODE.FluxSolution{D}(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
     end
 
     return actor

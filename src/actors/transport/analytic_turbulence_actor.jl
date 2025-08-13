@@ -21,7 +21,7 @@ end
 mutable struct ActorAnalyticTurbulence{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorAnalyticTurbulence{P}}
-    flux_solutions::Vector{<:GACODE.FluxSolution}
+    flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
@@ -36,10 +36,10 @@ function ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorAnalyticTurbulence(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticTurbulence; kw...)
+function ActorAnalyticTurbulence(dd::IMAS.dd{D}, par::FUSEparameters__ActorAnalyticTurbulence{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorAnalyticTurbulence)
     par = OverrideParameters(par; kw...)
-    return ActorAnalyticTurbulence(dd, par, GACODE.FluxSolution[])
+    return ActorAnalyticTurbulence(dd, par, GACODE.FluxSolution{D}[])
 end
 
 """
@@ -47,7 +47,7 @@ end
 
 Runs analytic turbulent transport model on a vector of gridpoints
 """
-function _step(actor::ActorAnalyticTurbulence)
+function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
@@ -56,8 +56,8 @@ function _step(actor::ActorAnalyticTurbulence)
     eqt1d = eqt.profiles_1d
 
     if actor.par.model == :GyroBohm
-        flux_solution = GACODE.FluxSolution(1.0, 1.0, 1.0, [1.0 for ion in cp1d.ion], 1.0)
-        actor.flux_solutions = GACODE.FluxSolution[flux_solution for irho in par.rho_transport]
+        flux_solution = GACODE.FluxSolution{D}(1.0, 1.0, 1.0, [1.0 for ion in cp1d.ion], 1.0)
+        actor.flux_solutions = GACODE.FluxSolution{D}[flux_solution for irho in par.rho_transport]
 
     elseif actor.par.model == :BgB
         A1 = 1.0
@@ -100,7 +100,7 @@ function _step(actor::ActorAnalyticTurbulence)
         gridpoint_cp = [argmin_abs(cp1d.grid.rho_tor_norm, ρ) for ρ in par.rho_transport]
 
         actor.flux_solutions = [
-            GACODE.FluxSolution(
+            GACODE.FluxSolution{D}(
                 χe[irho] * dpe[irho] / Q_GB[irho] / vprime_miller[irho],
                 χi[irho] * dpi[irho] / Q_GB[irho] / vprime_miller[irho],
                 Γe[irho] / Γ_GB[irho] / vprime_miller[irho],
