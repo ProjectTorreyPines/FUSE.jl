@@ -25,11 +25,7 @@ Configure the following environment variables before installation:
 **Note:** Currently, you need to checkout the `deploy/kairos` branch. Once this branch is merged into the main repository, you can clone without specifying the branch.
 
 ```bash
-# Current requirement - use deploy/kairos branch
-git clone -b deploy/kairos https://github.com/ProjectTorreyPines/FUSE.jl.git
-
-# After merge (future) - just clone the repository
-# git clone https://github.com/ProjectTorreyPines/FUSE.jl.git
+git clone https://github.com/ProjectTorreyPines/FUSE.jl.git
 
 cd FUSE.jl/deploy/kairos
 ```
