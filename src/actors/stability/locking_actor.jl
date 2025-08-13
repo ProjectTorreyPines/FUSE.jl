@@ -100,7 +100,7 @@ function _step(actor::ActorLocking)
     bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
     sols = solve_ODEs(par, actor.ode_params, "solveRW", 5., 0.5)
-    plt = plot(sols[1]);display(plt)
+    
     return actor
 end
 
@@ -301,7 +301,7 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
     Omega0 = rot_interp(rt) * 2 * π * par.t0 # Convert to
-    println("dimensionless Omega0 at q=2 surface: ", Omega0)
+    println("Dimensionless Omega0 at q=2 surface: ", Omega0)
 
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
     Om0s = repeat(Om0Vals, 1, M)
@@ -465,6 +465,7 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
         
         # Create ODE problem
         tspan = (0.0, par.t_final)
+        dt = ode_params.sim_time[2] - ode_params.sim_time[1]
         p = (ode_params, eps, Om0)  # Parameters
 
         # Define ODE function for DifferentialEquations.jl
@@ -473,16 +474,18 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
             rhsRW!(dydt, y, t, eps, Om0, ode_params, control_type)
         end
 
-        prob = DifferentialEquations.ODEProblem(ode_func!, y0, tspan, p)
-        sol = DiffEqs.solve(prob, DifferentialEquations.Tsit5(), reltol=1e-9)
+        prob = DiffEqs.ODEProblem(ode_func!, y0, tspan, p)
+        sol = DiffEqs.solve(prob, DiffEqs.Tsit5(), saveat=dt, reltol=1e-9)
         
         # Extract final solution
+        println(size(sol.u[:,1]))
         final_sol = sol.u[end]
         final_sol[2] = mod(final_sol[2], 2π)  # Normalize phase
         final_sol[5] = mod(final_sol[5], 2π)  # Normalize phase
 
-
         println("Raw sol = ", final_sol)
+
+        plt = plot(sol.u);display(plt)
 
         # Normalized solutions
         psiN = final_sol[1] * (Deltat * DeltaW - l12 * l21) / (l32 * l21 * eps)
