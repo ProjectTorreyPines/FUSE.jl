@@ -4,15 +4,15 @@ This guide explains how to use the FUSE environment on Kairos HPC system.
 
 ## Module Usage
 
-FUSE is currently installed in a local user account. The system administrators will soon install an official system-wide version.
+FUSE is now officially installed system-wide on Kairos HPC system.
 
-### Current Usage (Local Installation)
+### Standard Usage
 
-To use the current local installation:
+To use FUSE:
 
 ```bash
-# Add the local module path
-module use /scratch/yoom/fuse/modulefiles
+# Add the module path
+module use /opt/nfri/glib/modulefiles
 
 # Load FUSE module
 module load fuse
@@ -23,18 +23,6 @@ fuse
 
 The `fuse` command will start a Julia REPL with FUSE preloaded. Initial startup takes ~10 seconds.
 
-### Future Usage (System-wide Installation)
-
-Once administrators install FUSE system-wide, the usage will be simplified:
-
-```bash
-# FUSE module will be available without adding custom paths
-module load fuse
-
-# Start FUSE-optimized Julia REPL
-fuse
-```
-
 ## Working with FUSE
 
 ### Quick Start Example
@@ -42,12 +30,13 @@ fuse
 The FUSE environment comes with a precompiled system image, providing fast execution with minimal compilation time:
 
 ```julia
-yoom@kairos1:~/FUSE> module load fuse
+yoom@kairos1:~> module use /opt/nfri/glib/modulefiles
+yoom@kairos1:~> module load fuse
 FUSE v0.8.10 environment loaded
 Documentation: https://fuse.help
 To start: fuse
 
-yoom@kairos1:~/FUSE> fuse
+yoom@kairos1:~> fuse
   _  __               _ _
  (_)/ _|             (_(_) |  Documentation: https://fuse.help
 (_)| |_ _   _ ___  _(_(_)  |

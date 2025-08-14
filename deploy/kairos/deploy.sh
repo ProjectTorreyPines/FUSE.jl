@@ -1,8 +1,11 @@
 #!/bin/bash
 
 # Load required modules
+module use /opt/nfri/glib/modulefiles
+module purge
+module load PrgEnv-gnu
+module swap gcc/8.3.0 gcc/12.1.0
 module load julia
-module load gcc/12.1.0
 
 # Check if modules are loaded and display versions
 echo "Checking module availability and versions..."
@@ -28,8 +31,8 @@ export https_proxy="http://203.230.124.39:4128"
 export no_proxy="localhost,127.0.0.1,*.hpc.nfri.re.k"
 
 # User installation directories - use environment variables with fallback defaults
-basedir="${FUSE_HOME:-/scratch/$USER/fuse}"
-module_dir="${FUSE_MODULE_DIR:-/scratch/$USER/fuse/modulefiles}"
+basedir="${FUSE_HOME:-/opt/nfri/glib/fuse}"
+module_dir="${FUSE_MODULE_DIR:-/opt/nfri/glib/modulefiles}"
 
 # Get FUSE version - use environment variable with fallback to Project.toml version
 scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

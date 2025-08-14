@@ -15,8 +15,8 @@ Configure the following environment variables before installation:
 
 | Variable | Description | Default Value |
 |----------|-------------|---------------|
-| `FUSE_HOME` | Base directory for FUSE installation | `/scratch/yoom/fuse` |
-| `FUSE_MODULE_DIR` | Directory for module files | `/scratch/yoom/fuse/modulefiles` |
+| `FUSE_HOME` | Base directory for FUSE installation | `/opt/nfri/glib/fuse` |
+| `FUSE_MODULE_DIR` | Directory for module files | `/opt/nfri/glib/modulefiles` |
 | `FUSE_ENVIRONMENT` | FUSE version/environment name (optional) | Auto-detected from Project.toml (latest release, currently v0.8.10) |
 
 ## Installation Steps

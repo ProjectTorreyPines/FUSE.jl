@@ -6,10 +6,14 @@ export http_proxy="http://203.230.124.39:4128"
 export https_proxy="http://203.230.124.39:4128"
 export no_proxy="localhost,127.0.0.1,*.hpc.nfri.re.k"
 
-# ===== Required environment variables =========================================
-# JULIA_VERSION         e.g. 1.11.6
-# JULIA_INSTALL_PREFIX  e.g. /opt/julia         (final dir: $JULIA_INSTALL_PREFIX/julia-$JULIA_VERSION)
-# JULIA_MODULE_DIR      e.g. /opt/modulefiles   (modulefile: $JULIA_MODULE_DIR/julia/$JULIA_VERSION)
+# ===== Default values (can be overridden via environment variables) ===========
+# To override, set environment variables before running this script:
+#   export JULIA_VERSION=1.11.6
+#   export JULIA_INSTALL_PREFIX=/custom/path
+#   export JULIA_MODULE_DIR=/custom/modules
+export JULIA_VERSION=${JULIA_VERSION:-1.11.6}
+export JULIA_INSTALL_PREFIX=${JULIA_INSTALL_PREFIX:-/opt/nfri/glib/julia}
+export JULIA_MODULE_DIR=${JULIA_MODULE_DIR:-/opt/nfri/glib/modulefiles}
 
 need_var() { [[ -n "${!1:-}" ]] || { echo "ERROR: $1 must be set"; exit 1; }; }
 need_bin() { command -v "$1" >/dev/null 2>&1 || { echo "ERROR: '$1' not found"; exit 1; }; }
