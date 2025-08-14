@@ -55,8 +55,8 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     # identify outliers on raw data
     for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
-        tg = IMAS.time_groups(experimental_ids; min_channels=5)
-        IMAS.adaptive_outlier_removal!(tg)
+        tg = IMAS.time_groups(experimental_ids)
+        IMAS.adaptive_outlier_removal!(tg; min_channels=5)
     end
 
     # disregard divertor thomson (D3D specific! need to generalize)
