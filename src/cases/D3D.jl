@@ -172,7 +172,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 
         echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
         wait
-        echo "Transfering data from remote" >&2
+        echo "Transfering data from the remote" >&2
         """
     open(joinpath(local_path, "remote_slurm.sh"), "w") do io
         return write(io, remote_slurm)
