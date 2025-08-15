@@ -215,7 +215,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             #   passed to ftol in NLsolve which is an error on the residual
             # See https://github.com/SciML/NonlinearSolve.jl/issues/593
             abstol = 1E-2
-            sol = NonlinearSolve.solve(
+            NonlinearSolve.solve(
                 problem, alg;
                 abstol,
                 maxiters=max_iterations,
@@ -224,8 +224,17 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 verbose=false
             )
 
+            # NonlinearSolve returns the first value if the optimization was not successful
+            # but we want it to return the best solution, even if the optimization did not
+            # reach the desired tolerance
+            if norm(err_history[end]) == norm(err_history[1])
+                pop!(err_history)
+                pop!(z_scaled_history)
+            end
+
             # Extract the solution vector
-            res = (zero=sol.u,)
+            k = argmin(map(norm, err_history))
+            res = (zero=collect(z_scaled_history[k]),)
         end
 
     finally
