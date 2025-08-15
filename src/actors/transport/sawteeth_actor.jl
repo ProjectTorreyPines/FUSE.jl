@@ -38,12 +38,19 @@ function _step(actor::ActorSawteeth)
     cp1d = dd.core_profiles.profiles_1d[]
 
     # update core_sources and core_profiles with sawteeth
+
     i_qdes = findlast(cp1d.q .<  1.0)
     if i_qdes !== nothing
         rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
         IMAS.sawteeth_source!(dd, rho_qdes)
-        IMAS.sawteeth_profiles!(cp1d, rho_qdes)
     end
+
+    # # sawteeth_profiles! must have slightly higher q to avoid big jumps in bootstrap current
+    # i_qdes = findlast(cp1d.q .<  1.1)
+    # if i_qdes !== nothing
+    #     rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
+    #     IMAS.sawteeth_profiles!(cp1d, rho_qdes)
+    # end
 
     return actor
 end
