@@ -142,6 +142,15 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         autodiff = NonlinearSolve.ADTypes.AutoForwardDiff()
     end
 
+    # Default for gradient methods 20, otherwise 500
+    if par.max_iterations >= 0
+        max_iterations = par.max_iterations
+    elseif par.algorithm in (:broyden, :polyalg)
+        max_iterations = 15
+    else
+        max_iterations = 500
+    end
+
     res = try
         if par.algorithm == :none
             res = (zero=opt_parameters,)
@@ -149,7 +158,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         elseif par.algorithm == :simple
             ftol = 1E-2 # relative error
             xtol = 1E-3 # difference in input array
-            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, ftol, xtol, prog)
+            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, max_iterations, ftol, xtol, prog)
 
         else
             # 1. In-place residual
@@ -201,15 +210,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 error("Unsupported algorithm: $(par.algorithm)")
             end
 
-            # Default for gradient methods 20, otherwise 500
-            if par.max_iterations >= 0
-                max_iterations = par.max_iterations
-            elseif par.algorithm in (:broyden, :polyalg)
-                max_iterations = 15
-            else
-                max_iterations = 500
-            end
-
             # 4. Solve with matching tolerances and iteration limits
             # NonlinearSolve abstol is meant to be on u, but actually gets
             #   passed to ftol in NLsolve which is an error on the residual
@@ -234,7 +234,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
             # Extract the solution vector
             k = argmin(map(norm, err_history))
-            res = (zero=collect(z_scaled_history[k]),)
+            res = (zero=z_scaled_history[k],)
         end
 
     finally
@@ -455,14 +455,13 @@ function flux_match_errors(
     cp1d = dd.core_profiles.profiles_1d[]
 
     if ismissing(par, :scale_turbulence_law)
-        z_profiles_scaled = opt_parameters
+        z_profiles_scaled = deepcopy(opt_parameters)
     else
         turbulence_scale = opt_parameters[1]
-        z_profiles_scaled = @views opt_parameters[2:end]
+        z_profiles_scaled = deepcopy(opt_parameters[2:end])
     end
 
     # unscale z_profiles
-    push!(z_scaled_history, Tuple(z_profiles_scaled))
     z_profiles = unscale_z_profiles(z_profiles_scaled)
 
     # restore profiles at initial conditions
@@ -548,7 +547,8 @@ function flux_match_errors(
         errors = [(H_value - H_target) / H_target * nrho; errors]
     end
 
-    # update error history
+    # update history
+    push!(z_scaled_history, z_profiles_scaled)
     push!(err_history, errors)
 
     return (targets=targets, fluxes=fluxes, errors=errors)
@@ -667,6 +667,7 @@ end
         initial_cp1d::IMAS.core_profiles__profiles_1d,
         z_scaled_history::Vector,
         err_history::Vector{Vector{D}},
+        max_iterations::Int,
         ftol::Float64,
         xtol::Float64,
         prog::Any) where {D<:Real,P<:Real}
@@ -679,6 +680,7 @@ function flux_match_simple(
     initial_cp1d::IMAS.core_profiles__profiles_1d,
     z_scaled_history::Vector,
     err_history::Vector{Vector{D}},
+    max_iterations::Int,
     ftol::Float64,
     xtol::Float64,
     prog::Any) where {D<:Real,P<:Real}
@@ -700,7 +702,6 @@ function flux_match_simple(
     ferror = norm(errors)
     xerror = Inf
     step_size = par.step_size
-    max_iterations = par.max_iterations
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
         if (i > abs(max_iterations))
@@ -724,9 +725,9 @@ function flux_match_simple(
     end
 
     if ismissing(par, :scale_turbulence_law)
-        return (zero=collect(z_scaled_history[argmin(map(norm, err_history))]),)
+        return (zero=z_scaled_history[argmin(map(norm, err_history))],)
     else
-        return (zero=[turbulence_scale; collect(z_scaled_history[argmin(map(norm, err_history))])],)
+        return (zero=[turbulence_scale; z_scaled_history[argmin(map(norm, err_history))]],)
     end
 end
 
