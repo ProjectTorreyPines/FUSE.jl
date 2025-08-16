@@ -142,7 +142,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         autodiff = NonlinearSolve.ADTypes.AutoForwardDiff()
     end
 
-    # Default for gradient methods 20, otherwise 500
+    # Different defaults for gradient-based methods
     if par.max_iterations >= 0
         max_iterations = par.max_iterations
     elseif par.algorithm in (:broyden, :polyalg)
