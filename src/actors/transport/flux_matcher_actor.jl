@@ -28,7 +28,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal at each iteration"; default=true)
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
-    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=-1)
+    max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=0)
     algorithm::Switch{Symbol} =
         Switch{Symbol}([:polyalg, :broyden, :anderson, :simple, :old_anderson, :none], "-", "Optimizing algorithm used for the flux matching"; default=:broyden)
     step_size::Entry{T} = Entry{T}(
@@ -143,8 +143,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # Different defaults for gradient-based methods
-    if par.max_iterations >= 0
-        max_iterations = par.max_iterations
+    if par.max_iterations != 0
+        max_iterations = abs(par.max_iterations)
     elseif par.algorithm in (:broyden, :polyalg)
         max_iterations = 15
     else
@@ -704,10 +704,10 @@ function flux_match_simple(
     step_size = par.step_size
     while (ferror > ftol) || (xerror .> xtol)
         i += 1
-        if (i > abs(max_iterations))
-            if max_iterations > 0
-                @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
-            end
+        if (i > max_iterations)
+            # if max_iterations > 0
+            #     @info "Unable to flux-match within $(max_iterations) iterations (aerr) = $(ferror) (ftol=$ftol) (xerr) = $(xerror) (xtol = $xtol)"
+            # end
             break
         end
 
