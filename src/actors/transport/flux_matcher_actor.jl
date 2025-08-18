@@ -102,8 +102,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     IMAS.sources!(dd)
+    # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_ohmic)
     IMAS.refreeze!(cp1d, :j_non_inductive)
+    # freeze rotation_frequency_tor_sonic if we are evolving rotation
+    if par.evolve_rotation == :flux_match
+        IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
+    end
 
     if !isinf(par.Δt)
         # "∂/∂t" is to account to changes in the profiles that
@@ -383,6 +388,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     IMAS.unfreeze!(cp1d.electrons, :pressure_thermal)
     IMAS.unfreeze!(cp1d.electrons, :pressure)
     for ion in cp1d.ion
+        IMAS.unfreeze!(ion, :rotation_frequency_tor)
         IMAS.unfreeze!(ion, :pressure_thermal)
         IMAS.unfreeze!(ion, :pressure)
     end
@@ -793,8 +799,16 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     end
 
     if par.evolve_rotation == :flux_match
-        z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
-        append!(z_profiles, z_rot)
+        # Use TGYRO approach: evolve normalized rotation shear f_rot = (dω/dr) / w0_norm
+        w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
+        
+        # Calculate rotation shear dω/dr
+        dw_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic)[cp_gridpoints]
+        
+        # Convert to normalized rotation shear f_rot
+        f_rot = dw_dr ./ w0_norm
+        
+        append!(z_profiles, f_rot)
         push!(profiles_paths, (:rotation_frequency_tor_sonic,))
         push!(fluxes_paths, (:momentum_tor,))
     end
@@ -869,8 +883,22 @@ function unpack_z_profiles(
     end
 
     if par.evolve_rotation == :flux_match
-        cp1d.rotation_frequency_tor_sonic =
-            IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+        # Use TGYRO approach: convert normalized rotation shear back to rotation frequency
+        w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
+        
+        # Get normalized rotation shear f_rot from z_profiles
+        f_rot_evolved = z_profiles[counter+1:counter+N]
+        
+        # Convert to rotation shear: dω/dr = f_rot * w0_norm
+        dw_dr_evolved = f_rot_evolved .* w0_norm
+        
+        # Use the new profile_from_rotation_shear_transport function
+        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_rotation_shear_transport(
+            cp1d.rotation_frequency_tor_sonic,
+            cp1d.grid.rho_tor_norm,
+            cp_rho_transport,
+            dw_dr_evolved
+        )
         counter += N
     end
 
@@ -1059,4 +1087,17 @@ function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_
     end
     to_cp1d.rotation_frequency_tor_sonic .= cp1d.rotation_frequency_tor_sonic
     return to_cp1d
+end
+
+"""
+    calculate_w0_norm(cp1d::IMAS.core_profiles__profiles_1d)
+
+Calculate TGYRO normalization frequency w0_norm = cs/R₀ where:
+
+    cs = sound speed at axis = √(kB*Te(0)/md) 
+"""
+function calculate_w0_norm(Te_axis)
+    cs_axis = sqrt(IMAS.mks.k_B * Te_axis / IMAS.mks.m_d)  # sound speed at axis
+    R0 = 1.0 # 1 [m]
+    return cs_axis / R0
 end
