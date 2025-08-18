@@ -82,8 +82,33 @@ function _run(study::StudyOptimizerNN)
     end 
 
     # this originally was the filtered df, need to filter for the constraints 
-    inputs = hcat(df.R0, df.B0, df.ip, df.δ, df.fGW, df.Pec, df.Pic, df."<zeff>", df.κ, df.a)
-    outputs = hcat(df.q95, df.capital_cost, df.Pelectric_net)
+
+    filtered_df = filter(:q95 => x -> 0 <= x <= 8, df);
+
+    TOL = 1e-2
+
+    δ     = filtered_df.δ
+    zeff  = filtered_df."<zeff>"
+    Psol  = filtered_df.Psol
+    PLH   = filtered_df.PLH
+    R0    = filtered_df.R0
+    q95   = filtered_df.q95
+    TBR   = filtered_df.TBR
+    Pelectric = filtered_df.Pelectric_net
+
+    delta_mask =((δ .> 0.0) .& (δ .< 0.7))
+    zeff_mask  = (zeff .> 1.5) .& (zeff .< 2.5)
+    psol_PLH_mask = (Psol ./ PLH) .> 1.1
+    q95_mask = q95 .> 3.0
+    tbr_mask = TBR .> 1.1
+    Pelectric_mask = Pelectric .> 200
+
+    combined_mask = delta_mask .& zeff_mask .& psol_PLH_mask .& tbr_mask .& Pelectric_mask
+
+    filtered_df.meets_constraints = Int.(combined_mask)
+
+    inputs = hcat(filtered_df.R0, filtered_df.B0, filtered_df.ip, filtered_df.δ, filtered_df.fGW, filtered_df.Pec, filtered_df.Pic, filtered_df."<zeff>", filtered_df.κ, filtered_df.a)
+    outputs = hcat(filtered_df.q95, filtered_df.capital_cost, filtered_df.Pelectric_net)
 
     valid_rows = map(is_valid_row, eachrow(inputs)) .& map(is_valid_row, eachrow(outputs)) 
     
@@ -183,16 +208,32 @@ function is_valid_row(row)
     all(x -> isfinite(x) && !ismissing(x), row)
 end
 
-function calculate_output_variations(interpolator_outputs)
-    # Get the range (max - min) for each output column
-    q95_range = maximum(interpolator_outputs[:, 1]) - minimum(interpolator_outputs[:, 1])
-    cost_range = maximum(interpolator_outputs[:, 2]) - minimum(interpolator_outputs[:, 2])
-    pelectric_range = maximum(interpolator_outputs[:, 3]) - minimum(interpolator_outputs[:, 3])
+function calculate_output_variations(interpolator_outputs, classifier_outputs)
+    # Filter for feasible cases only
+    feasible_mask = classifier_outputs .== 1
     
-    # Calculate baseline as the first value (or you could use middle value)
-    q95_baseline = interpolator_outputs[1, 1]
-    cost_baseline = interpolator_outputs[1, 2]  
-    pelectric_baseline = interpolator_outputs[1, 3]
+    if sum(feasible_mask) == 0
+        # No feasible cases found
+        println("Warning: No feasible cases found for this parameter variation")
+        return 0.0, 0.0, 0.0
+    elseif sum(feasible_mask) == 1
+        # Only one feasible case, no variation to calculate
+        println("Warning: Only one feasible case found, no variation to calculate")
+        return 0.0, 0.0, 0.0
+    end
+    
+    # Get only the feasible outputs
+    feasible_outputs = interpolator_outputs[feasible_mask, :]
+    
+    # Get the range (max - min) for each output column among feasible cases
+    q95_range = maximum(feasible_outputs[:, 1]) - minimum(feasible_outputs[:, 1])
+    cost_range = maximum(feasible_outputs[:, 2]) - minimum(feasible_outputs[:, 2])
+    pelectric_range = maximum(feasible_outputs[:, 3]) - minimum(feasible_outputs[:, 3])
+    
+    # Calculate baseline as the first feasible value
+    q95_baseline = feasible_outputs[1, 1]
+    cost_baseline = feasible_outputs[1, 2]  
+    pelectric_baseline = feasible_outputs[1, 3]
     
     q95_percent_var = (q95_range / abs(q95_baseline)) * 100
     cost_percent_var = (cost_range / abs(cost_baseline)) * 100
@@ -210,11 +251,17 @@ function run_sensitivity_analysis(study, input_params, idx_base)
         # Run your existing sensitivity function
         test_vals, interpolator_outputs, classifier_outputs = constrained_sensitivity2(study, param, idx_base)
         
-        # Calculate variations
-        q95_var, cost_var, pelectric_var = calculate_output_variations(interpolator_outputs)
+        # Calculate variations (now filtered by feasibility)
+        q95_var, cost_var, pelectric_var = calculate_output_variations(interpolator_outputs, classifier_outputs)
         
         # Calculate total sensitivity (sum of absolute variations)
         total_sensitivity = abs(q95_var) + abs(cost_var) + abs(pelectric_var)
+        
+        # Count feasible cases for reference
+        n_feasible = sum(classifier_outputs .== 1)
+        n_total = length(classifier_outputs)
+        
+        println("  -> $n_feasible/$n_total cases were feasible")
         
         # Store results
         push!(results, (
@@ -223,7 +270,10 @@ function run_sensitivity_analysis(study, input_params, idx_base)
             cost_variation = cost_var,
             pelectric_variation = pelectric_var,
             total_sensitivity = total_sensitivity,
-            interpolator_outputs = interpolator_outputs  # Store for reference if needed
+            n_feasible = n_feasible,
+            n_total = n_total,
+            interpolator_outputs = interpolator_outputs,  # Store for reference if needed
+            classifier_outputs = classifier_outputs
         ))
     end
     
@@ -235,7 +285,7 @@ end
 
 function display_sensitivity_results(results)
     n_params = length(results)
-    data = Matrix{Any}(undef, n_params, 5)
+    data = Matrix{Any}(undef, n_params, 6)
     
     for (i, result) in enumerate(results)
         data[i, 1] = result.parameter
@@ -243,14 +293,15 @@ function display_sensitivity_results(results)
         data[i, 3] = round(result.cost_variation, digits=2)
         data[i, 4] = round(result.pelectric_variation, digits=2)
         data[i, 5] = round(result.total_sensitivity, digits=2)
+        data[i, 6] = "$(result.n_feasible)/$(result.n_total)"
     end
     
-    header = ["Parameter", "q95 Variation (%)", "Cost Variation (%)", "P_electric Variation (%)", "Total Sensitivity (%)"]
+    header = ["Parameter", "q95 Variation (%)", "Cost Variation (%)", "P_electric Variation (%)", "Total Sensitivity (%)", "Feasible Cases"]
     
     pretty_table(data; 
                 header = header,
                 header_crayon = crayon"bold blue",
-                alignment = [:l, :r, :r, :r, :r],
+                alignment = [:l, :r, :r, :r, :r, :c],
                 formatters = ft_printf("%.2f", [2,3,4,5]))
     
     return data
@@ -259,7 +310,7 @@ end
 # Main function to run everything
 function complete_sensitivity_analysis(study, idx_base)
     # Define your input parameters
-    input_params = ["R0", "B0", "ip", "δ", "fGW", "Pec", "Pic", "zeff", "kappa", "minor radius"] # should be sty.input_params instead 
+    input_params = ["R0", "B0", "ip", "δ", "fGW", "Pec", "Pic", "zeff", "kappa", "minor radius"]
     
     println("="^80)
     println("RUNNING SENSITIVITY ANALYSIS")
