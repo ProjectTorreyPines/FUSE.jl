@@ -131,7 +131,7 @@ end
 # instead of idx_base, user should be able to select the design with params closest to
 # some chosen value then vary around that 
 
-function constrained_sensitivity2(study::StudyOptimizerNN, input_label::String, idx_base::Int)
+function constrained_sensitivity(study::StudyOptimizerNN, input_label::String, idx_base::Int)
     sty = study.sty
 
     interpolator_nn_inputs  = study.interpolator_nn_inputs
@@ -249,7 +249,7 @@ function run_sensitivity_analysis(study, input_params, idx_base)
         println("Running sensitivity analysis for: $param")
         
         # Run your existing sensitivity function
-        test_vals, interpolator_outputs, classifier_outputs = constrained_sensitivity2(study, param, idx_base)
+        test_vals, interpolator_outputs, classifier_outputs = constrained_sensitivity(study, param, idx_base)
         
         # Calculate variations (now filtered by feasibility)
         q95_var, cost_var, pelectric_var = calculate_output_variations(interpolator_outputs, classifier_outputs)
