@@ -14,6 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    ne_sep_from::Switch{Symbol} = switch_get_from(:ne_sep, default=:core_profiles)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     mode_transitions::Entry{Dict{Float64,Symbol}} = Entry{Dict{Float64,Symbol}}(
         "s",
@@ -240,18 +241,14 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     # Throughout FUSE, the "pedestal" values are defined at rho=0.9
     rho09 = 0.9
 
-    # Preserve user's desired sep-to-ped ratio from ini parameters
-    current_ne_ped = IMAS.interp1d(rho, cp1d.electrons.density_thermal)(rho09)
-    current_ne_sep = cp1d.electrons.density_thermal[end]
-    user_sep_to_ped_ratio = current_ne_sep / current_ne_ped
-
     # density pedestal width to match the existing temperature pedestal width
     w_ped = IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
 
     ne_old = copy(cp1d.electrons.density_thermal)
     ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * density_factor
-    
-    # Use user's ratio instead of hardcoded /4.0
+    ne_sep = IMAS.get_from(dd, Val{:ne_sep}, par.ne_sep_from) * density_factor
+    user_sep_to_ped_ratio = ne_sep / ne_ped
+
     cp1d.electrons.density_thermal[end] = ne_ped * user_sep_to_ped_ratio
     
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
@@ -260,16 +257,9 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
 
     for ion in cp1d.ion
         if !ismissing(ion, :density_thermal)
-            # Preserve user's ion ratio instead of always 25% of ne_ped
-            current_ni_ped = IMAS.interp1d(rho, ion.density_thermal)(rho09)
-            current_ni_sep = ion.density_thermal[end]
-            ion_user_sep_to_ped_ratio = current_ni_sep / current_ni_ped
-            
             ion.density_thermal = ion.density_thermal .* ratio
             ni_ped = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            
-            ion.density_thermal[end] = ni_ped * ion_user_sep_to_ped_ratio
-            
+            ion.density_thermal[end] = ni_ped * user_sep_to_ped_ratio
             ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end

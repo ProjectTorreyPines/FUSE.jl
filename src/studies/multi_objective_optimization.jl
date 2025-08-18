@@ -61,7 +61,11 @@ function StudyMultiObjectiveOptimizer(
     return setup(study)
 end
 
-# Helper function for safe worker cleanup (only targets distributed workers)
+"""
+    cleanup_workers(study::StudyMultiObjectiveOptimizer)
+
+Helper function for safe worker cleanup (only targets distributed workers)
+"""
 function cleanup_workers(study::StudyMultiObjectiveOptimizer)
     current_workers = Distributed.workers()
     if !isempty(current_workers)

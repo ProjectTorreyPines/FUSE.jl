@@ -920,14 +920,17 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)];
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:fast, return_zero_densities=true)]
     ]
-
+    
+    # Filter out electrons_fast from evolve_densities keys 
+    evolve_species = filter(s -> s != :electrons_fast, collect(keys(evolve_densities)))
+    
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort([specie for (specie, evolve) in evolve_densities]) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
-
-    # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
-    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+    @assert sort(evolve_species) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
+    
+    
+    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
         txt = "When flux_matching densities, either none or all ion species must be :zeff"
-        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
     elseif all(evolve == :fixed for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
         txt = "When flux_matching densities, no more than one species can be set to :quasi_neutrality"
         @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt

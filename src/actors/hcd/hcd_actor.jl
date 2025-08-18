@@ -133,6 +133,11 @@ function _step(actor::ActorHCD)
     # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
     IMAS.sources!(dd)
 
+    # Eq. solver is having a difficult time converging when fast particles are present
+    
+    # IMAS.fast_particles_profiles!(dd)
+    # IMAS.enforce_quasi_neutrality!(dd, :electrons)
+
     return actor
 end
 
