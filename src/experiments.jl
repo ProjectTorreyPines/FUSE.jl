@@ -77,8 +77,15 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
     mode_transitions[0.0] = :L_mode
     if scale_LH == 0.0
         # auto-detect mode transitions based on pedestal structure
-        is_H_mask = [IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure) for cp1d in dd.core_profiles.profiles_1d]
+        threshold = 0.4
+        is_H_mask = [IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure; threshold) for cp1d in dd.core_profiles.profiles_1d]
         is_H_mask = [is_H_mask[2:end]; is_H_mask[end]]
+        if is_H_mask[1]
+            @warn "First time slice detected as a H-mode!"
+            cp1d = dd.core_profiles.profiles_1d[1]
+            IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure; do_plot=true, threshold)
+        end
+
     else
         # auto-detect mode transitions based on LH-power threshold
         is_H_mask = Bool[false for time0 in time]
@@ -110,6 +117,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
         ne_L_over_H = 1.0
         zeff_L_over_H = 1.0
         transition_start = -1.0
+
     else
         if transition_start == 0.0
             transition_start = sort!(collect(keys(mode_transitions)))[2]
