@@ -465,6 +465,20 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     end
     plot!(; title="Densities [m⁻³]", xlabel="", ylabel="", label="", legend_foreground_color=:transparent)
 
+    # core_profiles rotation
+    plot_rotation = plot()
+    if dd1 !== nothing
+        if !ismissing(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic)
+            plot!(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
+        end
+    end
+    if dd !== dd1
+        if !ismissing(cp1d, :rotation_frequency_tor_sonic)
+            plot!(cp1d, :rotation_frequency_tor_sonic; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
+        end
+    end
+    plot!(; title="Rotation frequency [kHz]", xlabel="", ylabel="", label="")
+
     # ========
 
     # core_sources
@@ -581,7 +595,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     plot_trGa = plot()
     plot!(dd.core_transport; time0, only=3, legend=:topleft, legend_foreground_color=:transparent)
     plot_trPi = plot()
-    plot!(dd.core_transport; time0, only=3, legend=:topleft, legend_foreground_color=:transparent)
+    plot!(dd.core_transport; time0, only=4, legend=:topleft, legend_foreground_color=:transparent)
 
     # # inverse scale lengths
     # max_scale = 5
@@ -592,13 +606,13 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     # subplot = 16
     # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward); ylim=(-max_scale, max_scale), lw=2.0)
 
-    l = @layout grid(3, 5)
+    l = @layout grid(3, 6)
     kw = Dict(kw...)
     mm = Plots.Measures.mm
     p = plot(
-        plot_eq_cx, plot_ip, plot_Te, plot_Ti, plot_n,
-        plot_eq_top, plot_j, plot_Qe, plot_Qi, plot_Ga,
-        plot_hcd, plot_q, plot_trQe, plot_trQi, plot_trGa,
+        plot_eq_cx, plot_ip, plot_Te, plot_Ti, plot_n, plot_rotation,
+        plot_eq_top, plot_j, plot_Qe, plot_Qi, plot_Ga, plot_Pi,
+        plot_hcd, plot_q, plot_trQe, plot_trQi, plot_trGa, plot_trPi,
         ; layout=l, left_margin=0 * mm, bottom_margin=0 * mm, size, kw...)
 
     return p
