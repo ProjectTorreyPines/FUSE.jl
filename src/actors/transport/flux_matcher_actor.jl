@@ -12,8 +12,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     _name::Symbol = :not_set
     _time::Float64 = NaN
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.25:0.1:0.85)
-    evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Ion temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
-    evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Electron temperature `:flux_match` or keep `:fixed`"; default=:flux_match)
+    evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Ion temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
+    evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Electron temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =
         Entry{Union{AbstractDict,Symbol}}(
             "-",
@@ -21,10 +21,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
             * `:fixed`: no density evolution
             * `:flux_match:` electron flux-match and ions match ne scale while keeping quasi-neutrality, giving a flat zeff
             * `:zeff:` electron flux-match and ions scaled to keep zeff constant while keeping quasi-neutrality
-            * Dict to specify which species are `:flux_match`, kept `:fixed`, used to enforce `:quasi_neutrality`, or scaled to `:match_ne_scale`""";
+            * `:replay:` replay densities from replay_dd
+            * Dict to specify which species are `:flux_match`, kept `:fixed`, used to enforce `:quasi_neutrality`, scaled to `:match_ne_scale`, or `:replay`""";
             default=:flux_match
         )
-    evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed], "-", "Rotation `:flux_match` or keep `:fixed`"; default=:fixed)
+    evolve_rotation::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Rotation `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:fixed)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal at each iteration"; default=true)
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
@@ -57,6 +58,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}
     act::ParametersAllActors{P}
     actor_ct::ActorFluxCalculator{D,P}
+    actor_replay::ActorReplay{D,P}
     actor_ped::ActorPedestal{D,P}
     norms::Vector{D}
     error::D
@@ -78,6 +80,7 @@ function ActorFluxMatcher(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxMatcher{
     logging_actor_init(ActorFluxMatcher)
     par = OverrideParameters(par; kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
+    actor_replay = ActorReplay(dd, act.ActorReplay, ActorNoOperation(dd, act.ActorNoOperation))
     actor_ped = ActorPedestal(
         dd,
         act.ActorPedestal,
@@ -88,7 +91,9 @@ function ActorFluxMatcher(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    return ActorFluxMatcher(dd, par, act, actor_ct, actor_ped, D[], D(Inf))
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf))
+    actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
+    return actor
 end
 
 """
@@ -101,14 +106,18 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
+    # Apply replay profiles if any evolve options are set to :replay
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    if par.evolve_Te == :replay || par.evolve_Ti == :replay || par.evolve_rotation == :replay || 
+                 (!isempty(evolve_densities) && any(evolve == :replay for (_, evolve) in evolve_densities))
+        finalize(step(actor.actor_replay))
+    end
+
     IMAS.sources!(dd)
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_ohmic)
     IMAS.refreeze!(cp1d, :j_non_inductive)
-    # freeze rotation_frequency_tor_sonic if we are evolving rotation
-    if par.evolve_rotation == :flux_match
-        IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
-    end
+    IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
 
     if !isinf(par.Δt)
         # "∂/∂t" is to account to changes in the profiles that
@@ -369,7 +378,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         # Ensure quasi neutrality if densities are evolved
         # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
-        evolve_densities = evolve_densities_dictionary(cp1d, par)
         for (species, evolve) in evolve_densities
             if evolve == :quasi_neutrality
                 IMAS.enforce_quasi_neutrality!(cp1d, species)
@@ -758,14 +766,16 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
         return setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d)
     elseif par.evolve_densities == :zeff
         return setup_density_evolution_electron_flux_match_fixed_zeff(cp1d)
+    elseif par.evolve_densities == :replay
+        return setup_density_evolution_replay(cp1d)
     elseif typeof(par.evolve_densities) <: AbstractDict{Symbol,Symbol}
         for (k, v) in par.evolve_densities
-            @assert v in (:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match) "evolve_density `:$(k) => :$(v)` is not allowed. Choose one of [:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match]"
+            @assert v in (:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match, :replay) "evolve_density `:$(k) => :$(v)` is not allowed. Choose one of [:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match, :replay]"
         end
         return par.evolve_densities
     else
         error(
-            "act.ActorFluxMatcher.evolve_densities cannot be `$(repr(par.evolve_densities))`. Use `:fixed`, `:flux_match` or a dictionary specifiying [:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match] for each specie"
+            "act.ActorFluxMatcher.evolve_densities cannot be `$(repr(par.evolve_densities))`. Use `:fixed`, `:flux_match`, `:replay` or a dictionary specifiying [:quasi_neutrality, :match_ne_scale, :fixed, :zeff, :flux_match, :replay] for each specie"
         )
     end
 end
@@ -966,8 +976,8 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
     if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
         txt = "When flux_matching densities, either none or all ion species must be :zeff"
         @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
-    elseif all(evolve == :fixed for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
-        txt = "When flux_matching densities, no more than one species can be set to :quasi_neutrality"
+    elseif all(evolve in (:fixed, :replay) for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
+        txt = "When using fixed/replay densities, no more than one species can be set to :quasi_neutrality"
         @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
     elseif any(evolve == :flux_match for (specie, evolve) in evolve_densities)
         txt = "When flux_matching densities, one an only one species must be set to :quasi_neutrality"
@@ -1034,17 +1044,33 @@ function setup_density_evolution_electron_flux_match_fixed_zeff(cp1d::IMAS.core_
 end
 
 """
-    evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector; quasi_neutrality_specie::Union{Symbol,Bool}=false)
+    setup_density_evolution_replay(cp1d::IMAS.core_profiles__profiles_1d)
 
-Create the density_evolution dict based on input vectors: flux_match_species, fixed_species, match_ne_scale_species, quasi_neutrality_specie
+Sets up the evolve_density dict to replay all species from replay_dd
+"""
+function setup_density_evolution_replay(cp1d::IMAS.core_profiles__profiles_1d)
+    all_species = [specie.name for specie in IMAS.species(cp1d; return_zero_densities=true)]
+    return evolve_densities_dict_creation(Symbol[]; replay_species=all_species, quasi_neutrality_specie=false)
+end
+
+"""
+    evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector, replay_species::Vector; quasi_neutrality_specie::Union{Symbol,Bool}=false)
+
+Create the density_evolution dict based on input vectors: flux_match_species, fixed_species, match_ne_scale_species, replay_species, quasi_neutrality_specie
 """
 function evolve_densities_dict_creation(
     flux_match_species::Vector;
     fixed_species::Vector{Symbol}=Symbol[],
     match_ne_scale_species::Vector{Symbol}=Symbol[],
+    replay_species::Vector{Symbol}=Symbol[],
     quasi_neutrality_specie::Union{Symbol,Bool}=false)
 
-    parse_list = vcat([[sym, :flux_match] for sym in flux_match_species], [[sym, :match_ne_scale] for sym in match_ne_scale_species], [[sym, :fixed] for sym in fixed_species])
+    parse_list = vcat(
+        [[sym, :flux_match] for sym in flux_match_species], 
+        [[sym, :match_ne_scale] for sym in match_ne_scale_species], 
+        [[sym, :fixed] for sym in fixed_species],
+        [[sym, :replay] for sym in replay_species]
+    )
     if typeof(quasi_neutrality_specie) <: Symbol
         parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
     end
@@ -1100,4 +1126,70 @@ function calculate_w0_norm(Te_axis)
     cs_axis = sqrt(IMAS.mks.k_B * Te_axis / IMAS.mks.m_d)  # sound speed at axis
     R0 = 1.0 # 1 [m]
     return cs_axis / R0
+end
+
+"""
+    _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IMAS.dd)
+
+Replay profiles from replay_dd to current dd for channels set to :replay
+"""
+function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IMAS.dd)
+    dd = actor.dd
+    par = actor.par
+    
+    time0 = dd.global_time
+    cp1d = dd.core_profiles.profiles_1d[time0]
+    replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
+    rho = cp1d.grid.rho_tor_norm
+    
+    # Get the transport grid boundary for blending
+    rho_nml = par.rho_transport[end]
+    rho_ped = par.rho_transport[end]
+    
+    # Replay electron temperature if set to :replay
+    if par.evolve_Te == :replay
+        cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
+    end
+    
+    # Replay ion temperature if set to :replay  
+    if par.evolve_Ti == :replay
+        Ti_replay = IMAS.blend_core_edge(replay_cp1d.t_i_average, cp1d.t_i_average, rho, rho_nml, rho_ped)
+        for ion in cp1d.ion
+            ion.temperature = Ti_replay
+        end
+    end
+    
+    # Replay rotation if set to :replay
+    if par.evolve_rotation == :replay
+        cp1d.rotation_frequency_tor_sonic = replay_cp1d.rotation_frequency_tor_sonic
+    end
+    
+    # Handle density replays
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    if !isempty(evolve_densities)
+        # Replay electron density if set to :replay
+        if evolve_densities[:electrons] == :replay
+            cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+        end
+        
+        # Replay ion densities if set to :replay
+        for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+            ion_symbol = Symbol(ion.label)
+            if haskey(evolve_densities, ion_symbol) && evolve_densities[ion_symbol] == :replay
+                if !ismissing(ion, :density_thermal)
+                    ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+                end
+            end
+        end
+        
+        # Ensure quasi neutrality if needed
+        for (species, evolve) in evolve_densities
+            if evolve == :quasi_neutrality
+                IMAS.enforce_quasi_neutrality!(cp1d, species)
+                break
+            end
+        end
+    end
+    
+    return replay_actor
 end

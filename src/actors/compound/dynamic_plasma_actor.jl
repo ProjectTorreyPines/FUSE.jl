@@ -477,7 +477,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
             plot!(cp1d, :rotation_frequency_tor_sonic; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
         end
     end
-    plot!(; title="Rotation frequency [kHz]", xlabel="", ylabel="", label="")
+    plot!(; title="Sonic Rotation [Krad/s]", xlabel="", ylabel="", label="")
 
     # ========
 

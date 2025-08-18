@@ -80,6 +80,7 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
     rho_nml = actor.act.ActorFluxMatcher.rho_transport[end]
     rho_ped = actor.act.ActorFluxMatcher.rho_transport[end]
 
+    # densities
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :density_thermal)
@@ -88,12 +89,16 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
     end
     IMAS.scale_ion_densities_to_target_zeff!(cp1d, replay_cp1d.zeff)
 
+    # temperatures
     cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :temperature)
             ion.temperature = IMAS.blend_core_edge(replay_ion.temperature, ion.temperature, rho, rho_nml, rho_ped)
         end
     end
+
+    # rotation
+    cp1d.rotation_frequency_tor_sonic = replay_cp1d.rotation_frequency_tor_sonic
 
     return replay_actor
 end
