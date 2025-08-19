@@ -194,7 +194,7 @@ function optimization_engine(
             dd = actor.dd
         end
 
-        df = DataFrame(IMAS.extract(dd, :all))
+        df = DataFrame(FUSE.IMAS.extract(dd, :all))
         df[!, :dir] = [relpath(".", original_dir)]
         df[!, :gen] = fill(generation, nrow(df))
         df[!, :case] = fill(case_index, nrow(df))
@@ -203,7 +203,7 @@ function optimization_engine(
         df[!, :Ncase] = fill(population_size, nrow(df))
         df[!, :status] = fill("success", nrow(df))
         df[!, :worker_id] = fill(myid, nrow(df))
-        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+        df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
         # save simulation data
         save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
@@ -247,7 +247,7 @@ function optimization_engine(
         df[!, :Ncase] = fill(population_size, nrow(df))
         df[!, :status] = fill("fail", nrow(df))
         df[!, :worker_id] = fill(Distributed.myid(), nrow(df))
-        df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
+        df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
         # save empty dd and error to directory
         save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
@@ -300,7 +300,7 @@ function _optimization_engine(
     save_folder::AbstractString,
     generation::Int,
     save_dd::Bool;
-    case_index::Union{Nothing, Int}=nothing,
+    case_index::Union{Nothing,Int}=nothing,
     kw...)
 
     database_policy = get(kw, :database_policy, :single_hdf5)
@@ -347,8 +347,20 @@ function optimization_engine(
     # parallel evaluation of a generation
     ProgressMeter.next!(p)
     tmp = Distributed.pmap(
-        (k,x) -> _optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, p.counter + generation_offset, save_dd; case_index=k, kw...),
-        1:size(X,1),
+        (k, x) -> _optimization_engine(
+            ini,
+            act,
+            actor_or_workflow,
+            x,
+            objective_functions,
+            constraint_functions,
+            save_folder,
+            p.counter + generation_offset,
+            save_dd;
+            case_index=k,
+            kw...
+        ),
+        1:size(X, 1),
         [X[k, :] for k in 1:size(X)[1]]
     )
     F = zeros(size(X)[1], length(tmp[1][1]))
