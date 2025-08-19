@@ -1,4 +1,5 @@
 import DifferentialEquations as DiffEqs
+import Distributed as Dist
 
 Base.@kwdef mutable struct ODEparams
     #sim_time::Vector{Float64} = Float64[]# simulation time vector
