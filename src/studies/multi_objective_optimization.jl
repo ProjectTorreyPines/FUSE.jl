@@ -138,7 +138,7 @@ function _run(study::StudyMultiObjectiveOptimizer)
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
         study.state = workflow_multiobjective_optimization(
-            study.ini, study.act, ActorStationaryPlasma, study.objective_functions, study.constraint_functions;
+            study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
             optimization_parameters..., generation_offset=study.generation, database_policy=sty.database_policy,
             number_of_generations=sty.number_of_generations, population_size=sty.population_size)
 
