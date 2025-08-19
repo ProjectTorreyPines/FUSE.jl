@@ -21,6 +21,7 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
+    actor_saw::ActorSawteeth{D,P}
 end
 
 """
@@ -82,7 +83,9 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq)
+    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_saw)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -123,7 +126,7 @@ function _step(actor::ActorStationaryPlasma)
     was_logging = actor_logging(dd)
     is_logging = was_logging && !(par.verbose && !par.do_plot)
     actor_logging(dd, is_logging)
-    prog = ProgressMeter.Progress((par.max_iterations + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.Progress((par.max_iterations + 1) * 6 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
@@ -157,6 +160,10 @@ function _step(actor::ActorStationaryPlasma)
             # evolve j_ohmic
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
+
+            # run sawteeth actor
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_saw))
+            finalize(step(actor.actor_saw))
 
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))

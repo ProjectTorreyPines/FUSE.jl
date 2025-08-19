@@ -815,7 +815,7 @@ status:
 		elif [ "$$latest_tag" = "(no tag)" ]; then \
 			commit_info="(no tag)"; \
 		fi; \
-		line_text=`printf "%25s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
+		line_text=`printf "%26s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
 		line_length=`echo "$$line_text" | wc -c | tr -d ' '`; \
 		padding=$$((term_width - line_length)); \
 		printf "$$color%s%*s$$reset\n" "$$line_text" $$padding ""; \

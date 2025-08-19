@@ -69,10 +69,7 @@ function _step(actor::ActorQED)
     # we must reinitialize to update the equilibrium metrics
     actor.QO = QED.initialize(dd, par.qmin_desired; uniform_rho=501)
 
-    if par.Nt == 0
-        # only initialize, nothing to do
-
-    elseif par.Δt > 0.0 && par.Δt < Inf
+    if par.Δt > 0.0 && par.Δt < Inf
         # current diffusion
         t0 = dd.global_time - par.Δt
         t1 = dd.global_time
@@ -120,14 +117,6 @@ function _step(actor::ActorQED)
             actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
         end
 
-        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-        cp1d.j_non_inductive = flattened_j_non_inductive
-
-        # sources with hysteresis of sawteeth flattening
-        qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
-        i_qdes = findlast(qval .< par.qmin_desired * 1.1)
-        IMAS.sawteeth_source!(dd, i_qdes)
-
     elseif par.Δt == Inf
         # steady state solution
         if par.solve_for == :ip
@@ -159,16 +148,14 @@ function _step(actor::ActorQED)
                 end
             end
         end
-
-        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-        cp1d.j_non_inductive = flattened_j_non_inductive
-
-        # update sources with sawteeth
-        IMAS.sawteeth_source!(dd, rho_qdes)
-
     else
+
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
     end
+
+    cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+    cp1d.j_non_inductive = flattened_j_non_inductive
+    cp1d.q = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
 
     return actor
 end

@@ -29,6 +29,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_pf::ActorPFactive{D,P}
+    actor_saw::ActorSawteeth{D,P}
 end
 
 """
@@ -83,7 +84,9 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf)
+    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf, actor_saw)
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -100,7 +103,7 @@ function _step(actor::ActorDynamicPlasma)
     # remove time dependent data after global_time
     IMAS.trim_time!(actor.dd, (-Inf, dd.global_time); trim_pulse_schedule=false)
 
-    substeps_per_2loop = 8
+    substeps_per_2loop = 9
     ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
@@ -130,6 +133,8 @@ function _step(actor::ActorDynamicPlasma)
                 substep(actor, Val{:run_transport}, kk == 1 ? δt / 2 : δt; progr)
                 IMAS.time_derivative_source!(dd)
             end
+
+            substep(actor, Val{:run_sawteeth}, δt / 2; progr)
 
             substep(actor, Val{:run_equilibrium}, δt / 2; progr)
 
@@ -247,6 +252,15 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_hcd}}, δt::Float64;
     if par.evolve_hcd
         finalize(step(actor.actor_hc))
     end
+end
+
+function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_sawteeth}}, δt::Float64; progr=nothing, kw...)
+    # run sawteeth actor
+    if progr !== nothing
+        prog, t0, t1, phase = progr
+        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_saw, phase))
+    end
+    finalize(step(actor.actor_saw))
 end
 
 function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_pf_active}}, δt::Float64; progr=nothing, kw...)
