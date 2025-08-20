@@ -259,7 +259,6 @@ function get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{F
                 k11[j, i] = sum1p
                 k11[i, j] = sum1r
             end
-
         end
     end
     return k11

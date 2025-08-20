@@ -249,7 +249,8 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
-        ("                 max(zeff)", maximum(cp1d.zeff))
+        ("                 max(zeff)", maximum(cp1d.zeff)),
+        ("               ω0 [krad/s]", cp1d.rotation_frequency_tor_sonic[1] / 1E3)
     ]
     return tuple(tmp...)
 end

@@ -21,10 +21,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     )
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pressure edge model"; default=:EPED)
+    rotation_model::Switch{Symbol} = Switch{Symbol}([:linear, :replay, :none], "-", "Rotation edge model"; default=:none)
     #== L to H and H to L transition model ==#
-    tau_t::Entry{T} = Entry{T}("s", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
-    tau_n::Entry{T} = Entry{T}("s", "pedestal density LH transition tanh evolution time (95% of full transition)")
+    tau_t::Entry{T} = Entry{T}("s", "Edge temperature LH transition tanh evolution time (95% of full transition)")
+    tau_n::Entry{T} = Entry{T}("s", "Edge density LH transition tanh evolution time (95% of full transition)")
     density_ratio_L_over_H::Entry{T} = Entry{T}("-", "n_Lmode / n_Hmode")
     zeff_ratio_L_over_H::Entry{T} = Entry{T}("-", "zeff_Lmode / zeff_Hmode")
     #== display and debugging parameters ==#
@@ -197,14 +198,32 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             end
         end
 
-        # rotation with zero boundary condition
-        rho = cp1d.grid.rho_tor_norm
-        inml = IMAS.argmin_abs(rho, par.rho_ped)
-        rotation_edge = similar(rho)
-        dωdr = IMAS.gradient(rho, -cp1d.rotation_frequency_tor_sonic; method=:backward)[inml]
-        rotation_edge = (1.0 .- rho) * dωdr
-        rotation_edge[1:inml-1] = cp1d.rotation_frequency_tor_sonic[1:inml-1] .- cp1d.rotation_frequency_tor_sonic[inml] .+ rotation_edge[inml]
-        cp1d.rotation_frequency_tor_sonic = rotation_edge
+        if par.rotation_model == :linear
+            # linear pedestal rotation with zero boundary condition at the edge
+            rho = cp1d.grid.rho_tor_norm
+            i_nml = IMAS.argmin_abs(rho, par.rho_nml)
+            i_ped = IMAS.argmin_abs(rho, par.rho_ped)
+            ω_core = IMAS.freeze!(cp1d.ion[1], :rotation_frequency_tor)
+            if i_nml == i_ped
+                dωdr_nml = IMAS.gradient(rho, -ω_core; method=:backward)[i_nml]
+            else
+                dωdr_nml = (ω_core[i_nml] - ω_core[i_ped]) / (rho[i_ped] - rho[i_nml])
+            end
+            ω_edge_linear = (1.0 .- rho) * dωdr_nml
+            ω_core[i_nml+1:end] = ω_edge_linear[i_nml+1:end]
+            ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge_linear[i_nml]
+            for ion in cp1d.ion
+                ion.rotation_frequency_tor = ω_core
+            end
+            IMAS.ωtor2sonic!(cp1d)
+
+        elseif par.rotation_model == :replay
+            time0 = dd.global_time
+            rho = cp1d.grid.rho_tor_norm
+            replay_cp1d = actor.replay_actor.replay_dd.core_profiles.profiles_1d[time0]
+            cp1d.rotation_frequency_tor_sonic =
+                IMAS.blend_core_edge(cp1d.rotation_frequency_tor_sonic, replay_cp1d.rotation_frequency_tor_sonic, rho, par.rho_nml, par.rho_ped; method=:shift)
+        end
 
     end
 
