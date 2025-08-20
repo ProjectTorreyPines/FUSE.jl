@@ -100,9 +100,10 @@ function _step(actor::ActorLocking)
     
     bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
-    sols = solve_ODEs(par, actor.ode_params, "solveRW", 5., 0.5)
+    task = "solveRW"  #MAKE this an ODEparam or param
+    sols = solve_ODEs(par, actor.ode_params, task, 5., 0.5)
 
-    all_sols = solve_system(actor)
+    all_sols = solve_system(actor, task)
     
     return actor
 end
@@ -492,7 +493,7 @@ function make_initial_condition(dims::Vector{Float64}, task::String)
     end
 end
 
-function solve_system(actor::ActorLocking)
+function solve_system(actor::ActorLocking, task::String)
     par = actor.par
     ode_params = actor.ode_params
 
@@ -508,7 +509,7 @@ function solve_system(actor::ActorLocking)
     # Create ODE problem
     tspan = (0.0, t_final)
     dt = t_final/100.
-    p = (ode_params, eps, Om0)  # Parameters
+    
 
     # --- pick correct RHS once
     rhs! = make_rhs_function(task)
@@ -520,13 +521,14 @@ function solve_system(actor::ActorLocking)
     end
 
     # ---- Build a template problem once (dummy y0)
-    y0_dummy = make_initial_conditions(ode_params.hyper_cube_dims, task)
-    prob_template = DiffEqs.ODEProblem(ode_func!, y0_dummy, tspan, p)
+    y0_dummy = make_initial_condition(ode_params.hyper_cube_dims, task)
+    prob_template = DiffEqs.ODEProblem(ode_func!, y0_dummy, tspan, (ode_params, 0.1, 0.1))
 
     # ---- Define worker solve (runs on each worker)
     @everywhere function SolveODE_RW(inputs, prob_template, task, ode_params)
         control1, control2 = inputs
         y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
+        p = (ode_params, control1, control2)
         prob = DiffEqs.remake(prob_template; u0=y0)
         return DiffEqs.solve(prob, DiffEqs.Tsit5(), reltol=1e-9)
     end
