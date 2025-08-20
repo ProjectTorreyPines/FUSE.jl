@@ -1,5 +1,5 @@
 import DifferentialEquations as DiffEqs
-import Distributed as Dist
+using Distributed
 
 Base.@kwdef mutable struct ODEparams
     #sim_time::Vector{Float64} = Float64[]# simulation time vector
@@ -101,6 +101,8 @@ function _step(actor::ActorLocking)
     bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
     sols = solve_ODEs(par, actor.ode_params, "solveRW", 5., 0.5)
+
+    all_sols = solve_system(actor)
     
     return actor
 end
@@ -415,8 +417,8 @@ function control_adjustments(ode_params::ODEparams, Control1::Float64, control_t
 end
 
 "Right-hand side for RW system"
-function rhs_RW!(dydt, y, t, eps, Om0, ode_params::ODEparams, control_type::Symbol)
-    m0 = 1
+function rhs_RW!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+    m0 = n_mode
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
     l21 = ode_params.l21
@@ -438,8 +440,8 @@ function rhs_RW!(dydt, y, t, eps, Om0, ode_params::ODEparams, control_type::Symb
 end
 
 "Right-hand side for basic system"
-function rhs_basic!(dydt, y, t, eps, Om0, ode_params::ODEparams, control_type::Symbol)
-    m0 = 1
+function rhs_basic!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+    m0 = n_mode
     rt = ode_params.rat_surface
     l21 = ode_params.l21
     mu = ode_params.mu
@@ -465,67 +467,80 @@ function make_rhs_function(task::String)
     end
 end
 
-function ode_rhs!(dydt, y, t, input1::Float64, input2::Float64, ode_params::ODEparams, control_type::Symbol, task::String)
-    """
-    Right hand side of the coupled ODE system with RW
+function make_initial_condition(dims::Vector{Float64}, task::String)
     
-    Args:
-        dydt: Output derivatives
-        y: State vector [psiMag, theta, Omega, psiW, thW]
-        sys: LockingSystem instance
-        t: Time
-        input1: First control parameter
-        input2: Second control parameter (Om0)
-    """
-    
-    m0 = 1#par.n_mode
-    DeltaW = ode_params.DeltaW
-    Deltat = ode_params.stability_index
-    rt = ode_params.rat_surface
-    l21 = ode_params.l21
-    l12 = ode_params.l12
-    l32 = ode_params.l32
-    Tt_Tw = ode_params.Taut_Tauw
-    alpha = ode_params.saturation_param
-    errF = ode_params.error_field
-    mu = ode_params.mu
-    I = ode_params.Inertia
-    
-    
-    # Set control parameter based on type
-    if control_type==:NLsaturation
-        alpha = input1
-    elseif control_type==:EF
-        errF = input1
-    elseif control_type==:StabIndex
-        Deltat = input1
-    end
-    
-    Om0 = input2
-
     if task == "solveRW"
-        psi, theta, Om, psiW, thW = y
-    
-        dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
-        dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
-        dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
-        dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
-        dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
-    
+        # 5D system
+        return [
+            rand() * (dims[1] - 0.001) + 0.001,   # y1
+            rand() * 2π - π,                      # y2
+            rand() * (dims[2] - 0.001) + 0.001,   # y3
+            rand() * (dims[3] - 0.001) + 0.001,   # y4
+            rand() * 2π - π                       # y5
+        ]
+
     elseif task == "solve"
-        psi, theta, Om = y
+        # 3D system
+        return [
+            rand() * (dims[1] - 0.001) + 0.001,   # y1
+            rand() * 2π - π,                      # y2
+            rand() * (dims[2] - 0.001) + 0.001    # y3
+        ]
+
+    else
+        error("Unknown task: $task")
+    end
+end
+
+function solve_system(actor::ActorLocking)
+    par = actor.par
+    ode_params = actor.ode_params
+
+    n = par.n_mode
+    control_type = par.control_type
+    t_final = par.t_final
     
-        dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * errF * cos(theta)
-        dydt[2] = -m0 * Om - l21 * errF * sin(theta) / psi
-        dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (Om0 - Om)) / I
+    # Get the control params
+    control1 = ode_params.Control1
+    control2 = ode_params.Control2
+
+
+    # Create ODE problem
+    tspan = (0.0, t_final)
+    dt = t_final/100.
+    p = (ode_params, eps, Om0)  # Parameters
+
+    # --- pick correct RHS once
+    rhs! = make_rhs_function(task)
     
+    # Define ODE function for DifferentialEquations.jl
+    function ode_func!(dydt, y, p, t)
+        ode_params, control1, control2 = p
+        rhs!(dydt, y, t, control1, control2, ode_params, n, control_type)
     end
 
-    return dydt
+    # ---- Build a template problem once (dummy y0)
+    y0_dummy = make_initial_conditions(ode_params.hyper_cube_dims, task)
+    prob_template = DiffEqs.ODEProblem(ode_func!, y0_dummy, tspan, p)
+
+    # ---- Define worker solve (runs on each worker)
+    @everywhere function SolveODE_RW(inputs, prob_template, task, ode_params)
+        control1, control2 = inputs
+        y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
+        prob = DiffEqs.remake(prob_template; u0=y0)
+        return DiffEqs.solve(prob, DiffEqs.Tsit5(), reltol=1e-9)
+    end
+
+    inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
+    sols = pmap(inp -> SolveODE_RW(inp, prob_template, task, ode_params), inp)
+
+    return sols
 end
+
 
 function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, Om0::Float64=1.0)
     
+    n = par.n_mode
     control_type = par.control_type
     t_final = par.t_final
     DeltaW = ode_params.DeltaW
@@ -538,26 +553,22 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
     tspan = (0.0, t_final)
     dt = t_final/100.
     p = (ode_params, eps, Om0)  # Parameters
+    
+    # --- pick correct RHS once
+    rhs! = make_rhs_function(task)
+    y0   = make_initial_condition(ode_params.hyper_cube_dims, task)
 
     # Define ODE function for DifferentialEquations.jl
     function ode_func!(dydt, y, p, t)
         ode_params, eps, Om0 = p
-        ode_rhs!(dydt, y, t, eps, Om0, ode_params, control_type, task)
+        rhs!(dydt, y, t, eps, Om0, ode_params, n, control_type)
     end
+
+    prob = DiffEqs.ODEProblem(ode_func!, y0, tspan, p)
+    sol = DiffEqs.solve(prob, DiffEqs.Tsit5(), saveat=dt, reltol=1e-9)
 
     if task == "solveRW"
         # Initial conditions: [psiMag, theta, Om, psiW, thetaW]
-        y0 = [
-            rand() * (ode_params.hyper_cube_dims[1] - 0.001) + 0.001,  # Random between 0.1 and f0
-            rand() * 2π - π,                    # Random between -π and π
-            rand() * (ode_params.hyper_cube_dims[2] - 0.001) + 0.001, # Random between 0.1 and rot
-            rand() * (ode_params.hyper_cube_dims[3] - 0.001) + 0.001,  # Random between 0.1 and fW
-            rand() * 2π - π                     # Random between -π and π
-         ]
-        
-        
-        prob = DiffEqs.ODEProblem(ode_func!, y0, tspan, p)
-        sol = DiffEqs.solve(prob, DiffEqs.Tsit5(), saveat=dt, reltol=1e-9)
         
         # Extract final solution
         final_sol = sol.u[end]
@@ -582,12 +593,7 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
         #     rhs!(dydt, y, t, eps, Om0, ode_params, control_type)
         # end
 
-        y0 = [
-            rand() * (ode_params.hyper_cube_dims[1] - 0.001) + 0.001,  # Random between 0.1 and f0
-            rand() * 2π - π,                    # Random between -π and π
-            rand() * (ode_params.hyper_cube_dims[2] - 0.001) + 0.001 # Random between 0.1 and rot
-                
-        ]
+        
         # Implement 3rd order system solution
         println("3rd order system solution not yet implemented")
         return nothing
