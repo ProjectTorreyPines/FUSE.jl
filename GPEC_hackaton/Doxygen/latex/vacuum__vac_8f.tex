@@ -1,0 +1,194 @@
+\doxysection{/\+Users/jaebeomcho/\+Desktop/code/\+GPEC\+\_\+hackaton/\+GPEC/vacuum/vacuum\+\_\+vac.f File Reference}
+\hypertarget{vacuum__vac_8f}{}\label{vacuum__vac_8f}\index{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_vac.f@{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_vac.f}}
+\doxysubsubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_ae425135acd66921ff45abfd2c3dc8674}{vaccal}}
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_aa404f64a4c88666db41c5d8e0bf053fd}{kernel}} (xobs, zobs, xsce, zsce, grdgre, gren, j1, j2, isgn, iopw, iops, ischk)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_ae26e943b8fedada8ed652a912ad84a78}{mateig}} (zvec, work, work1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_abfde20568c6847eb09ab57314ec9f74d}{mateig2}} (zvec, nd, msiz, zwk, work0, work, work1, l1, l2, ff1, lcone, jobid1, nout1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a8a1dcc36cab36c73bc2128b8975b482a}{arrays}}
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a2a1713afd7068b87fc97b8f173d4255f}{wwall}} (nqnqnq, xwal1, zwal1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a3d19223ccb5a18a820c7cb77907b0797}{d3dwall}} (xwall, ywall, mthh, iomod, iotty1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_ac3bb02eebcf804effbd8b77fd9ea8dd3}{d3dvesl}} (r0, z0, a0, e0, ar, az, nval, zst, r, z, npts, ier)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_ab5e14648b6fcc46a8ea04bc048582403}{eqarcw}} (xin, zin, xout, zout, ell, thgr, thlag, mw1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a03fe88061e1d909dcbfda8e587894307}{gatonorm}} (vacin, gatovac\+\_\+, nd, rgato\+\_\+, mfel\+\_\+, mth\+\_\+, qa1\+\_\+, twopi\+\_\+)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a757db66c90ea618423b08fc5a181028f}{adjustb}} (betin, betout, a\+\_\+, bw\+\_\+, cw\+\_\+, dw\+\_\+, xmaj\+\_\+, plrad\+\_\+, ishape\+\_\+)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_aa4013825765856a20f9693d6761fd49e}{fouran}} (gij, gil, cs, m00, l00)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a057493303f70bcac1bc2ed02c8665c4b}{foranv}} (gil, gll, cs, m00, l00)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a42e13f1dcf71b47a73e7fa9618276977}{foura2}} (gij, m01, m02, gil, m00)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_aa4fe16cc92aa4e3be3c337a92c46627b}{fanal}} (fth, nt, flc, fls, l1, l2, pi, ddt)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a2330fb00d92a037ccba8daf09d666744}{fanal1}} (gi, ndi1, ndi2, mi1, gor, goi, ndo1, ndo2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_aa4c48d00c1ad4fb8c587245d3a4b823f}{felang}} (gij, gil, cs, m00, l00)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a6a507c8a7aeee4da7bb9aa3db78484ff}{felanv}} (gil, gll, cs, m00, l00)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a93997912d561f78bfdeefef61868720e}{fotofi}} (vin, vout, scnlth, wrk1, wrk2, iopsc)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a7bd78caa6c4c53661b702f85606e865e}{orchek}} (wrkr, wrki, wrkrt, wrkit, wrko1, wrko2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_ae7efd8e4393e4e7973cf53f16d8ba3ca}{tmat}} (sil, tll, iop)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_a7f46d7ca8ff5f9441ad57bc1ab97b57d}{wtopest}} (vacpstr, vacpsti, xwal\+\_\+, zwal\+\_\+)
+\item 
+subroutine \mbox{\hyperlink{vacuum__vac_8f_afb02c1f789fe4495c88f78bc4cfc09e3}{savewall}} (wcentr, xwal1, zwal1)
+\end{DoxyCompactItemize}
+
+
+\label{doc-func-members}
+\Hypertarget{vacuum__vac_8f_doc-func-members}
+\doxysubsection{Function/\+Subroutine Documentation}
+\Hypertarget{vacuum__vac_8f_a757db66c90ea618423b08fc5a181028f}\index{vacuum\_vac.f@{vacuum\_vac.f}!adjustb@{adjustb}}
+\index{adjustb@{adjustb}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{adjustb()}{adjustb()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a757db66c90ea618423b08fc5a181028f} 
+subroutine adjustb (\begin{DoxyParamCaption}\item[{}]{betin}{, }\item[{}]{betout}{, }\item[{}]{a\+\_\+}{, }\item[{}]{bw\+\_\+}{, }\item[{}]{cw\+\_\+}{, }\item[{}]{dw\+\_\+}{, }\item[{}]{xmaj\+\_\+}{, }\item[{}]{plrad\+\_\+}{, }\item[{}]{ishape\+\_\+}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a8a1dcc36cab36c73bc2128b8975b482a}\index{vacuum\_vac.f@{vacuum\_vac.f}!arrays@{arrays}}
+\index{arrays@{arrays}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{arrays()}{arrays()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a8a1dcc36cab36c73bc2128b8975b482a} 
+subroutine arrays}
+
+\Hypertarget{vacuum__vac_8f_ac3bb02eebcf804effbd8b77fd9ea8dd3}\index{vacuum\_vac.f@{vacuum\_vac.f}!d3dvesl@{d3dvesl}}
+\index{d3dvesl@{d3dvesl}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{d3dvesl()}{d3dvesl()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_ac3bb02eebcf804effbd8b77fd9ea8dd3} 
+subroutine d3dvesl (\begin{DoxyParamCaption}\item[{}]{r0}{, }\item[{}]{z0}{, }\item[{}]{a0}{, }\item[{}]{e0}{, }\item[{dimension(nval)}]{ar}{, }\item[{dimension(nval)}]{az}{, }\item[{}]{nval}{, }\item[{}]{zst}{, }\item[{dimension (npts)}]{r}{, }\item[{dimension (npts)}]{z}{, }\item[{}]{npts}{, }\item[{}]{ier}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a3d19223ccb5a18a820c7cb77907b0797}\index{vacuum\_vac.f@{vacuum\_vac.f}!d3dwall@{d3dwall}}
+\index{d3dwall@{d3dwall}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{d3dwall()}{d3dwall()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a3d19223ccb5a18a820c7cb77907b0797} 
+subroutine d3dwall (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xwall}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{ywall}{, }\item[{}]{mthh}{, }\item[{}]{iomod}{, }\item[{}]{iotty1}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_ab5e14648b6fcc46a8ea04bc048582403}\index{vacuum\_vac.f@{vacuum\_vac.f}!eqarcw@{eqarcw}}
+\index{eqarcw@{eqarcw}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{eqarcw()}{eqarcw()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_ab5e14648b6fcc46a8ea04bc048582403} 
+subroutine eqarcw (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xout}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zout}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{ell}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{thgr}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{thlag}{, }\item[{}]{mw1}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_aa4fe16cc92aa4e3be3c337a92c46627b}\index{vacuum\_vac.f@{vacuum\_vac.f}!fanal@{fanal}}
+\index{fanal@{fanal}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{fanal()}{fanal()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_aa4fe16cc92aa4e3be3c337a92c46627b} 
+subroutine fanal (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{fth}{, }\item[{}]{nt}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{flc}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{fls}{, }\item[{}]{l1}{, }\item[{}]{l2}{, }\item[{}]{pi}{, }\item[{}]{ddt}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a2330fb00d92a037ccba8daf09d666744}\index{vacuum\_vac.f@{vacuum\_vac.f}!fanal1@{fanal1}}
+\index{fanal1@{fanal1}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{fanal1()}{fanal1()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a2330fb00d92a037ccba8daf09d666744} 
+subroutine fanal1 (\begin{DoxyParamCaption}\item[{dimension(ndi1,ndi2)}]{gi}{, }\item[{}]{ndi1}{, }\item[{}]{ndi2}{, }\item[{}]{mi1}{, }\item[{dimension(ndo1,ndo2)}]{gor}{, }\item[{dimension(ndo1,ndo2)}]{goi}{, }\item[{}]{ndo1}{, }\item[{}]{ndo2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_aa4c48d00c1ad4fb8c587245d3a4b823f}\index{vacuum\_vac.f@{vacuum\_vac.f}!felang@{felang}}
+\index{felang@{felang}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{felang()}{felang()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_aa4c48d00c1ad4fb8c587245d3a4b823f} 
+subroutine felang (\begin{DoxyParamCaption}\item[{dimension(nths,nths)}]{gij}{, }\item[{dimension(nths2,nfm2)}]{gil}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{cs}{, }\item[{}]{m00}{, }\item[{}]{l00}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a6a507c8a7aeee4da7bb9aa3db78484ff}\index{vacuum\_vac.f@{vacuum\_vac.f}!felanv@{felanv}}
+\index{felanv@{felanv}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{felanv()}{felanv()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a6a507c8a7aeee4da7bb9aa3db78484ff} 
+subroutine felanv (\begin{DoxyParamCaption}\item[{dimension(nths2,nfm2)}]{gil}{, }\item[{dimension(nfm,nfm)}]{gll}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{cs}{, }\item[{}]{m00}{, }\item[{}]{l00}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a057493303f70bcac1bc2ed02c8665c4b}\index{vacuum\_vac.f@{vacuum\_vac.f}!foranv@{foranv}}
+\index{foranv@{foranv}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{foranv()}{foranv()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a057493303f70bcac1bc2ed02c8665c4b} 
+subroutine foranv (\begin{DoxyParamCaption}\item[{dimension(nths2,nfm2)}]{gil}{, }\item[{dimension(nfm,nfm)}]{gll}{, }\item[{dimension(nths,nfm)}]{cs}{, }\item[{}]{m00}{, }\item[{}]{l00}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a93997912d561f78bfdeefef61868720e}\index{vacuum\_vac.f@{vacuum\_vac.f}!fotofi@{fotofi}}
+\index{fotofi@{fotofi}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{fotofi()}{fotofi()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a93997912d561f78bfdeefef61868720e} 
+subroutine fotofi (\begin{DoxyParamCaption}\item[{dimension(nfm,nfm)}]{vin}{, }\item[{dimension(nfm,nfm)}]{vout}{, }\item[{dimension(nths,nfm)}]{scnlth}{, }\item[{dimension(nfm,nfm)}]{wrk1}{, }\item[{dimension(nfm,nfm)}]{wrk2}{, }\item[{}]{iopsc}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a42e13f1dcf71b47a73e7fa9618276977}\index{vacuum\_vac.f@{vacuum\_vac.f}!foura2@{foura2}}
+\index{foura2@{foura2}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{foura2()}{foura2()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a42e13f1dcf71b47a73e7fa9618276977} 
+subroutine foura2 (\begin{DoxyParamCaption}\item[{dimension(nths2,nths2)}]{gij}{, }\item[{}]{m01}{, }\item[{}]{m02}{, }\item[{dimension(nths,nths)}]{gil}{, }\item[{}]{m00}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_aa4013825765856a20f9693d6761fd49e}\index{vacuum\_vac.f@{vacuum\_vac.f}!fouran@{fouran}}
+\index{fouran@{fouran}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{fouran()}{fouran()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_aa4013825765856a20f9693d6761fd49e} 
+subroutine fouran (\begin{DoxyParamCaption}\item[{real(r8), dimension(nths,nths)}]{gij}{, }\item[{real(r8), dimension(nths2,nfm2)}]{gil}{, }\item[{real(r8), dimension(nths,nfm)}]{cs}{, }\item[{}]{m00}{, }\item[{}]{l00}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a03fe88061e1d909dcbfda8e587894307}\index{vacuum\_vac.f@{vacuum\_vac.f}!gatonorm@{gatonorm}}
+\index{gatonorm@{gatonorm}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{gatonorm()}{gatonorm()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a03fe88061e1d909dcbfda8e587894307} 
+subroutine gatonorm (\begin{DoxyParamCaption}\item[{dimension(nd,nd)}]{vacin}{, }\item[{dimension(nd,nd)}]{gatovac\+\_\+}{, }\item[{}]{nd}{, }\item[{}]{rgato\+\_\+}{, }\item[{}]{mfel\+\_\+}{, }\item[{}]{mth\+\_\+}{, }\item[{}]{qa1\+\_\+}{, }\item[{}]{twopi\+\_\+}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_aa404f64a4c88666db41c5d8e0bf053fd}\index{vacuum\_vac.f@{vacuum\_vac.f}!kernel@{kernel}}
+\index{kernel@{kernel}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{kernel()}{kernel()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_aa404f64a4c88666db41c5d8e0bf053fd} 
+subroutine kernel (\begin{DoxyParamCaption}\item[{real(r8), dimension(\+:), intent(in)}]{xobs}{, }\item[{real(r8), dimension(\+:), intent(in)}]{zobs}{, }\item[{real(r8), dimension(\+:), intent(in)}]{xsce}{, }\item[{real(r8), dimension(\+:), intent(in)}]{zsce}{, }\item[{real(r8), dimension(\+:,\+:), intent(out)}]{grdgre}{, }\item[{real(r8), dimension(\+:,\+:), intent(out), target}]{gren}{, }\item[{integer, intent(in)}]{j1}{, }\item[{integer, intent(in)}]{j2}{, }\item[{integer, intent(in)}]{isgn}{, }\item[{integer, intent(in)}]{iopw}{, }\item[{integer, intent(in)}]{iops}{, }\item[{integer, intent(in)}]{ischk}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_ae26e943b8fedada8ed652a912ad84a78}\index{vacuum\_vac.f@{vacuum\_vac.f}!mateig@{mateig}}
+\index{mateig@{mateig}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{mateig()}{mateig()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_ae26e943b8fedada8ed652a912ad84a78} 
+subroutine mateig (\begin{DoxyParamCaption}\item[{dimension(nfm,nfm)}]{zvec}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{work}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{work1}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_abfde20568c6847eb09ab57314ec9f74d}\index{vacuum\_vac.f@{vacuum\_vac.f}!mateig2@{mateig2}}
+\index{mateig2@{mateig2}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{mateig2()}{mateig2()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_abfde20568c6847eb09ab57314ec9f74d} 
+subroutine mateig2 (\begin{DoxyParamCaption}\item[{dimension(nd,nd)}]{zvec}{, }\item[{}]{nd}{, }\item[{}]{msiz}{, }\item[{dimension(nd,nd)}]{zwk}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{work0}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{work}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{work1}{, }\item[{}]{l1}{, }\item[{}]{l2}{, }\item[{}]{ff1}{, }\item[{}]{lcone}{, }\item[{character(\texorpdfstring{$\ast$}{*})}]{jobid1}{, }\item[{}]{nout1}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a7bd78caa6c4c53661b702f85606e865e}\index{vacuum\_vac.f@{vacuum\_vac.f}!orchek@{orchek}}
+\index{orchek@{orchek}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{orchek()}{orchek()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a7bd78caa6c4c53661b702f85606e865e} 
+subroutine orchek (\begin{DoxyParamCaption}\item[{dimension(nfm,nfm)}]{wrkr}{, }\item[{dimension(nfm,nfm)}]{wrki}{, }\item[{dimension(nfm,nfm)}]{wrkrt}{, }\item[{dimension(nfm,nfm)}]{wrkit}{, }\item[{dimension(nfm,nfm)}]{wrko1}{, }\item[{dimension(nfm,nfm)}]{wrko2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_afb02c1f789fe4495c88f78bc4cfc09e3}\index{vacuum\_vac.f@{vacuum\_vac.f}!savewall@{savewall}}
+\index{savewall@{savewall}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{savewall()}{savewall()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_afb02c1f789fe4495c88f78bc4cfc09e3} 
+subroutine savewall (\begin{DoxyParamCaption}\item[{real(r8)}]{wcentr}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xwal1}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zwal1}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_ae7efd8e4393e4e7973cf53f16d8ba3ca}\index{vacuum\_vac.f@{vacuum\_vac.f}!tmat@{tmat}}
+\index{tmat@{tmat}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{tmat()}{tmat()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_ae7efd8e4393e4e7973cf53f16d8ba3ca} 
+subroutine tmat (\begin{DoxyParamCaption}\item[{dimension(nths,nfm)}]{sil}{, }\item[{dimension(nfm,nfm)}]{tll}{, }\item[{}]{iop}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_ae425135acd66921ff45abfd2c3dc8674}\index{vacuum\_vac.f@{vacuum\_vac.f}!vaccal@{vaccal}}
+\index{vaccal@{vaccal}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{vaccal()}{vaccal()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_ae425135acd66921ff45abfd2c3dc8674} 
+subroutine vaccal}
+
+\Hypertarget{vacuum__vac_8f_a7f46d7ca8ff5f9441ad57bc1ab97b57d}\index{vacuum\_vac.f@{vacuum\_vac.f}!wtopest@{wtopest}}
+\index{wtopest@{wtopest}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{wtopest()}{wtopest()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a7f46d7ca8ff5f9441ad57bc1ab97b57d} 
+subroutine wtopest (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vacpstr}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vacpsti}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xwal\+\_\+}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zwal\+\_\+}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__vac_8f_a2a1713afd7068b87fc97b8f173d4255f}\index{vacuum\_vac.f@{vacuum\_vac.f}!wwall@{wwall}}
+\index{wwall@{wwall}!vacuum\_vac.f@{vacuum\_vac.f}}
+\doxysubsubsection{\texorpdfstring{wwall()}{wwall()}}
+{\footnotesize\ttfamily \label{vacuum__vac_8f_a2a1713afd7068b87fc97b8f173d4255f} 
+subroutine wwall (\begin{DoxyParamCaption}\item[{}]{nqnqnq}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xwal1}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zwal1}{}\end{DoxyParamCaption})}
+

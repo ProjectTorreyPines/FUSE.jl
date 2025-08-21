@@ -1,0 +1,82 @@
+\doxysection{/\+Users/jaebeomcho/\+Desktop/code/\+GPEC\+\_\+hackaton/\+GPEC/vacuum/vacuum\+\_\+sprk2.f File Reference}
+\hypertarget{vacuum__sprk2_8f}{}\label{vacuum__sprk2_8f}\index{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_sprk2.f@{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_sprk2.f}}
+\doxysubsubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_ae8cc68c5c604314304df08a8fb19b6ad}{testvec}}
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_aa902b13aadfb893a03f3566762a719f9}{vecpot}} (xobs, zobs, nobs, xsce, zsce, xscp, zscp, nsce, isg, phi, axrl, axil, azrl, azil)
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_ac9de472d5428b88869125e6b4db296e2}{grchi}} (xobs, zobs, nobs, xsce, zsce, xscp, zscp, ns, isg, creal, cimag, cdriv, sdriv, ip, ipm, cpwr1, cpwi1, dchxr, dchxi, dchzr, dchzi)
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_a8a48db735234dba6476772b33099d36c}{diff5}} (fin, h, df5)
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_a03daa726a1e497d5d07ae4a5e6dbddaf}{difspl}} (nsp, the, xin, xout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_a5f3cf1fa89f3343ca1160447b2157896}{matwrtn}} (a, maxj1, maxj2, l1, l2, jmax1, jmax2, jn1, jn2, label, nout1, nout2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_a9b3880af7d7799128cae34bdc501f1df}{matwrt9}} (a, maxj1, maxj2, l1, l2, label, nout1, nout2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_adeb1b170137f01dafbe31446404cf4d8}{mtrans}} (a, nd, n)
+\item 
+subroutine \mbox{\hyperlink{vacuum__sprk2_8f_ac28c5e0814b041adaaa9cb69ba91dfc3}{mtransr}} (a, nd1, nd2, n1, n2, b)
+\end{DoxyCompactItemize}
+
+
+\label{doc-func-members}
+\Hypertarget{vacuum__sprk2_8f_doc-func-members}
+\doxysubsection{Function/\+Subroutine Documentation}
+\Hypertarget{vacuum__sprk2_8f_a8a48db735234dba6476772b33099d36c}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!diff5@{diff5}}
+\index{diff5@{diff5}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{diff5()}{diff5()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_a8a48db735234dba6476772b33099d36c} 
+subroutine diff5 (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{fin}{, }\item[{}]{h}{, }\item[{}]{df5}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__sprk2_8f_a03daa726a1e497d5d07ae4a5e6dbddaf}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!difspl@{difspl}}
+\index{difspl@{difspl}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{difspl()}{difspl()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_a03daa726a1e497d5d07ae4a5e6dbddaf} 
+subroutine difspl (\begin{DoxyParamCaption}\item[{}]{nsp}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{the}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__sprk2_8f_ac9de472d5428b88869125e6b4db296e2}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!grchi@{grchi}}
+\index{grchi@{grchi}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{grchi()}{grchi()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_ac9de472d5428b88869125e6b4db296e2} 
+subroutine grchi (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xobs}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zobs}{, }\item[{}]{nobs}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xsce}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zsce}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xscp}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zscp}{, }\item[{}]{ns}{, }\item[{}]{isg}{, }\item[{dimension(nths,nfm)}]{creal}{, }\item[{dimension(nths,nfm)}]{cimag}{, }\item[{dimension(nths,nfm)}]{cdriv}{, }\item[{dimension(nths,nfm)}]{sdriv}{, }\item[{}]{ip}{, }\item[{}]{ipm}{, }\item[{dimension(nths,nfm)}]{cpwr1}{, }\item[{dimension(nths,nfm)}]{cpwi1}{, }\item[{dimension(nths,nfm)}]{dchxr}{, }\item[{dimension(nths,nfm)}]{dchxi}{, }\item[{dimension(nths,nfm)}]{dchzr}{, }\item[{dimension(nths,nfm)}]{dchzi}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__sprk2_8f_a9b3880af7d7799128cae34bdc501f1df}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!matwrt9@{matwrt9}}
+\index{matwrt9@{matwrt9}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{matwrt9()}{matwrt9()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_a9b3880af7d7799128cae34bdc501f1df} 
+subroutine matwrt9 (\begin{DoxyParamCaption}\item[{dimension ( maxj1, maxj2 )}]{a}{, }\item[{}]{maxj1}{, }\item[{}]{maxj2}{, }\item[{}]{l1}{, }\item[{}]{l2}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{label}{, }\item[{}]{nout1}{, }\item[{}]{nout2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__sprk2_8f_a5f3cf1fa89f3343ca1160447b2157896}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!matwrtn@{matwrtn}}
+\index{matwrtn@{matwrtn}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{matwrtn()}{matwrtn()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_a5f3cf1fa89f3343ca1160447b2157896} 
+subroutine matwrtn (\begin{DoxyParamCaption}\item[{dimension ( maxj1, maxj2 )}]{a}{, }\item[{}]{maxj1}{, }\item[{}]{maxj2}{, }\item[{}]{l1}{, }\item[{}]{l2}{, }\item[{}]{jmax1}{, }\item[{}]{jmax2}{, }\item[{}]{jn1}{, }\item[{}]{jn2}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{label}{, }\item[{}]{nout1}{, }\item[{}]{nout2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__sprk2_8f_adeb1b170137f01dafbe31446404cf4d8}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!mtrans@{mtrans}}
+\index{mtrans@{mtrans}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{mtrans()}{mtrans()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_adeb1b170137f01dafbe31446404cf4d8} 
+subroutine mtrans (\begin{DoxyParamCaption}\item[{dimension(nd,nd)}]{a}{, }\item[{}]{nd}{, }\item[{}]{n}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__sprk2_8f_ac28c5e0814b041adaaa9cb69ba91dfc3}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!mtransr@{mtransr}}
+\index{mtransr@{mtransr}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{mtransr()}{mtransr()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_ac28c5e0814b041adaaa9cb69ba91dfc3} 
+subroutine mtransr (\begin{DoxyParamCaption}\item[{dimension(nd1,nd2)}]{a}{, }\item[{}]{nd1}{, }\item[{}]{nd2}{, }\item[{}]{n1}{, }\item[{}]{n2}{, }\item[{dimension(nd2,nd1)}]{b}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__sprk2_8f_ae8cc68c5c604314304df08a8fb19b6ad}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!testvec@{testvec}}
+\index{testvec@{testvec}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{testvec()}{testvec()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_ae8cc68c5c604314304df08a8fb19b6ad} 
+subroutine testvec}
+
+\Hypertarget{vacuum__sprk2_8f_aa902b13aadfb893a03f3566762a719f9}\index{vacuum\_sprk2.f@{vacuum\_sprk2.f}!vecpot@{vecpot}}
+\index{vecpot@{vecpot}!vacuum\_sprk2.f@{vacuum\_sprk2.f}}
+\doxysubsubsection{\texorpdfstring{vecpot()}{vecpot()}}
+{\footnotesize\ttfamily \label{vacuum__sprk2_8f_aa902b13aadfb893a03f3566762a719f9} 
+subroutine vecpot (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xobs}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zobs}{, }\item[{}]{nobs}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xsce}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zsce}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xscp}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{zscp}{, }\item[{}]{nsce}{, }\item[{}]{isg}{, }\item[{}]{phi}{, }\item[{dimension(nths,nfm)}]{axrl}{, }\item[{dimension(nths,nfm)}]{axil}{, }\item[{dimension(nths,nfm)}]{azrl}{, }\item[{dimension(nths,nfm)}]{azil}{}\end{DoxyParamCaption})}
+

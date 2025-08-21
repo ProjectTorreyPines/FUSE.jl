@@ -1,0 +1,168 @@
+\doxysection{/\+Users/jaebeomcho/\+Desktop/code/\+GPEC\+\_\+hackaton/\+GPEC/vacuum/bzio.c File Reference}
+\hypertarget{bzio_8c}{}\label{bzio_8c}\index{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/bzio.c@{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/bzio.c}}
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$fcntl.\+h$>$}\newline
+{\ttfamily \#include $<$sys/stat.\+h$>$}\newline
+{\ttfamily \#include $<$sys/types.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+\doxysubsubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \mbox{\hyperlink{bzio_8c_a4c8b6e3f5b517ddc1b9f9670ea0ead8f}{WORD\+\_\+\+LENGTH}}~8      /\texorpdfstring{$\ast$}{*} word length is 8 bytes \texorpdfstring{$\ast$}{*}/
+\item 
+\#define \mbox{\hyperlink{bzio_8c_a22a256eba8ad678cd6deb27b93aafa78}{MAXOPFILES}}~100
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+int \mbox{\hyperlink{bzio_8c_aea3f351037a2aff65a70dafafbca42de}{zop\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}name, int \texorpdfstring{$\ast$}{*}nsize, int \texorpdfstring{$\ast$}{*}idisk, int \texorpdfstring{$\ast$}{*}icode, int \texorpdfstring{$\ast$}{*}ilab, int \texorpdfstring{$\ast$}{*}name\+\_\+length)
+\item 
+int \mbox{\hyperlink{bzio_8c_aafd07b4fbf06711315251897c0aa190e}{zcl\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc)
+\item 
+int \mbox{\hyperlink{bzio_8c_ae53ff268ad47fecb8a9c781a55a0d565}{zwr\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\item 
+int \mbox{\hyperlink{bzio_8c_a7b4a21dc294f2fe1572396ebd5a14afc}{zrd\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\item 
+int \mbox{\hyperlink{bzio_8c_ace50586e1695caba2e4b849c4fb63be8}{ZOP\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}name, int \texorpdfstring{$\ast$}{*}nsize, int \texorpdfstring{$\ast$}{*}idisk, int \texorpdfstring{$\ast$}{*}icode, int \texorpdfstring{$\ast$}{*}ilab, int \texorpdfstring{$\ast$}{*}name\+\_\+length)
+\item 
+int \mbox{\hyperlink{bzio_8c_a76bb287eaae630f1d69d5104baa0388a}{ZCL\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc)
+\item 
+int \mbox{\hyperlink{bzio_8c_ab1a119e4a5560bab3e0fa446706c0700}{ZWR\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\item 
+int \mbox{\hyperlink{bzio_8c_a05c487db15fe2207f756b8364b06e94f}{ZRD\+\_\+}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\item 
+int \mbox{\hyperlink{bzio_8c_afb89ff14949f87bedb1c2cdd53b6fd55}{zop}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}name, int \texorpdfstring{$\ast$}{*}nsize, int \texorpdfstring{$\ast$}{*}idisk, int \texorpdfstring{$\ast$}{*}icode, int \texorpdfstring{$\ast$}{*}ilab, int \texorpdfstring{$\ast$}{*}name\+\_\+length)
+\item 
+int \mbox{\hyperlink{bzio_8c_aa86717878dec14058f9016f863b6f798}{zcl}} (int \texorpdfstring{$\ast$}{*}ioc)
+\item 
+int \mbox{\hyperlink{bzio_8c_af185b72556616f80f4de8c5ea1a56adb}{zwr}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\item 
+int \mbox{\hyperlink{bzio_8c_ac1b60b1e01331d1a3f4dea77beb59ef9}{zrd}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\item 
+int \mbox{\hyperlink{bzio_8c_a4449047677eb8c6b80aaf87ee81d0497}{ZOP}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}name, int \texorpdfstring{$\ast$}{*}nsize, int \texorpdfstring{$\ast$}{*}idisk, int \texorpdfstring{$\ast$}{*}icode, int \texorpdfstring{$\ast$}{*}ilab, int \texorpdfstring{$\ast$}{*}name\+\_\+length)
+\item 
+int \mbox{\hyperlink{bzio_8c_a3a9efd844ae3a9a44cd15374015f34cf}{ZCL}} (int \texorpdfstring{$\ast$}{*}ioc)
+\item 
+int \mbox{\hyperlink{bzio_8c_a3c915fa7cfcf817380f2e3a132b19b7e}{ZWR}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\item 
+int \mbox{\hyperlink{bzio_8c_ae3e516f85e39dae3691b4b8ebc080fa6}{ZRD}} (int \texorpdfstring{$\ast$}{*}ioc, char \texorpdfstring{$\ast$}{*}a, int \texorpdfstring{$\ast$}{*}nwords, int \texorpdfstring{$\ast$}{*}adres, int \texorpdfstring{$\ast$}{*}lgivup, int \texorpdfstring{$\ast$}{*}irr)
+\end{DoxyCompactItemize}
+
+
+\label{doc-define-members}
+\Hypertarget{bzio_8c_doc-define-members}
+\doxysubsection{Macro Definition Documentation}
+\Hypertarget{bzio_8c_a22a256eba8ad678cd6deb27b93aafa78}\index{bzio.c@{bzio.c}!MAXOPFILES@{MAXOPFILES}}
+\index{MAXOPFILES@{MAXOPFILES}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{MAXOPFILES}{MAXOPFILES}}
+{\footnotesize\ttfamily \label{bzio_8c_a22a256eba8ad678cd6deb27b93aafa78} 
+\#define MAXOPFILES~100}
+
+\Hypertarget{bzio_8c_a4c8b6e3f5b517ddc1b9f9670ea0ead8f}\index{bzio.c@{bzio.c}!WORD\_LENGTH@{WORD\_LENGTH}}
+\index{WORD\_LENGTH@{WORD\_LENGTH}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{WORD\_LENGTH}{WORD\_LENGTH}}
+{\footnotesize\ttfamily \label{bzio_8c_a4c8b6e3f5b517ddc1b9f9670ea0ead8f} 
+\#define WORD\+\_\+\+LENGTH~8      /\texorpdfstring{$\ast$}{*} word length is 8 bytes \texorpdfstring{$\ast$}{*}/}
+
+
+
+\label{doc-func-members}
+\Hypertarget{bzio_8c_doc-func-members}
+\doxysubsection{Function Documentation}
+\Hypertarget{bzio_8c_a3a9efd844ae3a9a44cd15374015f34cf}\index{bzio.c@{bzio.c}!ZCL@{ZCL}}
+\index{ZCL@{ZCL}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZCL()}{ZCL()}}
+{\footnotesize\ttfamily \label{bzio_8c_a3a9efd844ae3a9a44cd15374015f34cf} 
+int ZCL (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_aa86717878dec14058f9016f863b6f798}\index{bzio.c@{bzio.c}!zcl@{zcl}}
+\index{zcl@{zcl}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zcl()}{zcl()}}
+{\footnotesize\ttfamily \label{bzio_8c_aa86717878dec14058f9016f863b6f798} 
+int zcl (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_a76bb287eaae630f1d69d5104baa0388a}\index{bzio.c@{bzio.c}!ZCL\_@{ZCL\_}}
+\index{ZCL\_@{ZCL\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZCL\_()}{ZCL\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_a76bb287eaae630f1d69d5104baa0388a} 
+int ZCL\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_aafd07b4fbf06711315251897c0aa190e}\index{bzio.c@{bzio.c}!zcl\_@{zcl\_}}
+\index{zcl\_@{zcl\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zcl\_()}{zcl\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_aafd07b4fbf06711315251897c0aa190e} 
+int zcl\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_a4449047677eb8c6b80aaf87ee81d0497}\index{bzio.c@{bzio.c}!ZOP@{ZOP}}
+\index{ZOP@{ZOP}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZOP()}{ZOP()}}
+{\footnotesize\ttfamily \label{bzio_8c_a4449047677eb8c6b80aaf87ee81d0497} 
+int ZOP (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{name}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nsize}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{idisk}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{icode}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{ilab}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{name\+\_\+length}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_afb89ff14949f87bedb1c2cdd53b6fd55}\index{bzio.c@{bzio.c}!zop@{zop}}
+\index{zop@{zop}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zop()}{zop()}}
+{\footnotesize\ttfamily \label{bzio_8c_afb89ff14949f87bedb1c2cdd53b6fd55} 
+int zop (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{name}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nsize}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{idisk}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{icode}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{ilab}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{name\+\_\+length}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_ace50586e1695caba2e4b849c4fb63be8}\index{bzio.c@{bzio.c}!ZOP\_@{ZOP\_}}
+\index{ZOP\_@{ZOP\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZOP\_()}{ZOP\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_ace50586e1695caba2e4b849c4fb63be8} 
+int ZOP\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{name}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nsize}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{idisk}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{icode}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{ilab}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{name\+\_\+length}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_aea3f351037a2aff65a70dafafbca42de}\index{bzio.c@{bzio.c}!zop\_@{zop\_}}
+\index{zop\_@{zop\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zop\_()}{zop\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_aea3f351037a2aff65a70dafafbca42de} 
+int zop\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{name}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nsize}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{idisk}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{icode}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{ilab}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{name\+\_\+length}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_ae3e516f85e39dae3691b4b8ebc080fa6}\index{bzio.c@{bzio.c}!ZRD@{ZRD}}
+\index{ZRD@{ZRD}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZRD()}{ZRD()}}
+{\footnotesize\ttfamily \label{bzio_8c_ae3e516f85e39dae3691b4b8ebc080fa6} 
+int ZRD (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_ac1b60b1e01331d1a3f4dea77beb59ef9}\index{bzio.c@{bzio.c}!zrd@{zrd}}
+\index{zrd@{zrd}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zrd()}{zrd()}}
+{\footnotesize\ttfamily \label{bzio_8c_ac1b60b1e01331d1a3f4dea77beb59ef9} 
+int zrd (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_a05c487db15fe2207f756b8364b06e94f}\index{bzio.c@{bzio.c}!ZRD\_@{ZRD\_}}
+\index{ZRD\_@{ZRD\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZRD\_()}{ZRD\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_a05c487db15fe2207f756b8364b06e94f} 
+int ZRD\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_a7b4a21dc294f2fe1572396ebd5a14afc}\index{bzio.c@{bzio.c}!zrd\_@{zrd\_}}
+\index{zrd\_@{zrd\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zrd\_()}{zrd\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_a7b4a21dc294f2fe1572396ebd5a14afc} 
+int zrd\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_a3c915fa7cfcf817380f2e3a132b19b7e}\index{bzio.c@{bzio.c}!ZWR@{ZWR}}
+\index{ZWR@{ZWR}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZWR()}{ZWR()}}
+{\footnotesize\ttfamily \label{bzio_8c_a3c915fa7cfcf817380f2e3a132b19b7e} 
+int ZWR (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_af185b72556616f80f4de8c5ea1a56adb}\index{bzio.c@{bzio.c}!zwr@{zwr}}
+\index{zwr@{zwr}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zwr()}{zwr()}}
+{\footnotesize\ttfamily \label{bzio_8c_af185b72556616f80f4de8c5ea1a56adb} 
+int zwr (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_ab1a119e4a5560bab3e0fa446706c0700}\index{bzio.c@{bzio.c}!ZWR\_@{ZWR\_}}
+\index{ZWR\_@{ZWR\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{ZWR\_()}{ZWR\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_ab1a119e4a5560bab3e0fa446706c0700} 
+int ZWR\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+
+\Hypertarget{bzio_8c_ae53ff268ad47fecb8a9c781a55a0d565}\index{bzio.c@{bzio.c}!zwr\_@{zwr\_}}
+\index{zwr\_@{zwr\_}!bzio.c@{bzio.c}}
+\doxysubsubsection{\texorpdfstring{zwr\_()}{zwr\_()}}
+{\footnotesize\ttfamily \label{bzio_8c_ae53ff268ad47fecb8a9c781a55a0d565} 
+int zwr\+\_\+ (\begin{DoxyParamCaption}\item[{int \texorpdfstring{$\ast$}{*}}]{ioc}{, }\item[{char \texorpdfstring{$\ast$}{*}}]{a}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{nwords}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{adres}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{lgivup}{, }\item[{int \texorpdfstring{$\ast$}{*}}]{irr}{}\end{DoxyParamCaption})}
+

@@ -1,0 +1,301 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.14.0" xml:lang="en-US">
+  <compounddef id="vacuum__penn_8f" kind="file" language="Fortran">
+    <compoundname>vacuum_penn.f</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="vacuum__penn_8f_1a99d617d3e011bcdf9ae604b016697a8e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine date_time</definition>
+        <argsstring>(date_array, datex, timex)</argsstring>
+        <name>date_time</name>
+        <param>
+          <type>integer, dimension(*)</type>
+          <defname>date_array</defname>
+        </param>
+        <param>
+          <type>character*(*)</type>
+          <defname>datex</defname>
+        </param>
+        <param>
+          <type>character*(*)</type>
+          <defname>timex</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" line="19" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" bodystart="20" bodyend="25"/>
+      </memberdef>
+      <memberdef kind="function" id="vacuum__penn_8f_1a5800879dd9e6eea4e4db89294ccf4353" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine cleanup</definition>
+        <argsstring></argsstring>
+        <name>cleanup</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" line="30" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" bodystart="31" bodyend="38"/>
+      </memberdef>
+      <memberdef kind="function" id="vacuum__penn_8f_1a1480c173314acf32f51cc0832cc064f2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine shellb</definition>
+        <argsstring></argsstring>
+        <name>shellb</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" line="43" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" bodystart="44" bodyend="47"/>
+      </memberdef>
+      <memberdef kind="function" id="vacuum__penn_8f_1a2317a63642b77f9aa9a6640fc66fd145" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine gelimb</definition>
+        <argsstring>(copmat, nfm, uvpwr, nfm1, jmax1, jmax2, uvpw0, nfm2, wrki, ifail)</argsstring>
+        <name>gelimb</name>
+        <param>
+          <type>real(r8), dimension(jmax1,jmax1)</type>
+          <defname>copmat</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>nfm</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(nfm2,jmax2)</type>
+          <defname>uvpwr</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>nfm1</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>jmax1</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>jmax2</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(nfm2,jmax2)</type>
+          <defname>uvpw0</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>nfm2</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(*)</type>
+          <defname>wrki</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>ifail</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" line="65" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" bodystart="67" bodyend="75"/>
+      </memberdef>
+      <memberdef kind="function" id="vacuum__penn_8f_1a2555a076fff8aa3542e6582f6447b9fb" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine skipeof</definition>
+        <argsstring>(iva, iva1)</argsstring>
+        <name>skipeof</name>
+        <param>
+          <type>iva</type>
+          <defname>iva</defname>
+        </param>
+        <param>
+          <type>iva1</type>
+          <defname>iva1</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" line="80" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" bodystart="81" bodyend="84"/>
+      </memberdef>
+      <memberdef kind="function" id="vacuum__penn_8f_1afa1e72cf7ec8c5fb9c0d4666ea76a5e1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine timedate</definition>
+        <argsstring>(ntim, ndat, mach, nsfx)</argsstring>
+        <name>timedate</name>
+        <param>
+          <type>ntim</type>
+          <defname>ntim</defname>
+        </param>
+        <param>
+          <type>ndat</type>
+          <defname>ndat</defname>
+        </param>
+        <param>
+          <type>mach</type>
+          <defname>mach</defname>
+        </param>
+        <param>
+          <type>nsfx</type>
+          <defname>nsfx</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" line="89" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" bodystart="90" bodyend="93"/>
+      </memberdef>
+      <memberdef kind="function" id="vacuum__penn_8f_1ac5b55ebbfbd5a8e6900b15b9d9264ff1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine userinfo</definition>
+        <argsstring>(nuser, nacct, ndrop, nsfx)</argsstring>
+        <name>userinfo</name>
+        <param>
+          <type>nuser</type>
+          <defname>nuser</defname>
+        </param>
+        <param>
+          <type>nacct</type>
+          <defname>nacct</defname>
+        </param>
+        <param>
+          <type>ndrop</type>
+          <defname>ndrop</defname>
+        </param>
+        <param>
+          <type>nsfx</type>
+          <defname>nsfx</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" line="98" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f" bodystart="99" bodyend="102"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="2"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>file<sp/>vacuum_penn.f.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="3"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>local<sp/>routines<sp/>for<sp/>penning.lanl.gov<sp/>HP<sp/>735.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="4"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="5"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="6"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>code<sp/>organization.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="7"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="8"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>1.<sp/>date_time</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="9"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>2.<sp/>cleanup</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="10"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>3.<sp/>shellb</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="11"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>4.<sp/>gelima</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="12"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>5.<sp/>gelimb</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="13"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>6.<sp/>skipeof</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>7.<sp/>timedate</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>8.<sp/>userinfo</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>1.<sp/>date_time.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">subroutine<sp/></highlight><highlight class="normal"><ref refid="vacuum__penn_8f_1a99d617d3e011bcdf9ae604b016697a8e" kindref="member">date_time</ref>(date_array,datex,timex)</highlight></codeline>
+<codeline lineno="20"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">use<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">only</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="21"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>real(r8)</highlight><highlight class="normal"><sp/>(a-h,o-z)</highlight></codeline>
+<codeline lineno="22"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>integer<sp/>(i-n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">integer</highlight><highlight class="normal"><sp/>date_array(*)</highlight></codeline>
+<codeline lineno="24"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">character*(*)</highlight><highlight class="normal"><sp/>datex,timex</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">end</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>2.<sp/>cleanup.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">subroutine<sp/></highlight><highlight class="normal"><ref refid="vacuum__penn_8f_1a5800879dd9e6eea4e4db89294ccf4353" kindref="member">cleanup</ref></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">use<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">only</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>real(r8)</highlight><highlight class="normal"><sp/>(a-h,o-z)</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>integer<sp/>(i-n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">call<sp/></highlight><highlight class="normal">system(</highlight><highlight class="stringliteral">&apos;rm<sp/>-f<sp/>modovmc&apos;</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">call<sp/></highlight><highlight class="normal">system(</highlight><highlight class="stringliteral">&apos;rm<sp/>-f<sp/>pestotv&apos;</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">call<sp/></highlight><highlight class="normal">system(</highlight><highlight class="stringliteral">&apos;rm<sp/>-f<sp/>vacdcon&apos;</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">call<sp/></highlight><highlight class="normal">system(</highlight><highlight class="stringliteral">&apos;rm<sp/>-f<sp/>mscvac.out&apos;</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">end</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="40"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>3.<sp/>shellb.<sp/></highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="43"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">subroutine<sp/></highlight><highlight class="normal"><ref refid="vacuum__penn_8f_1a1480c173314acf32f51cc0832cc064f2" kindref="member">shellb</ref></highlight></codeline>
+<codeline lineno="44"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">use<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">only</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>real(r8)</highlight><highlight class="normal"><sp/>(a-h,o-z)</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>integer<sp/>(i-n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="48"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">end</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>4.<sp/>gelima.<sp/>presently<sp/>unused.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="51"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="52"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>subroutine<sp/>gelima(copmat,nfm,uvpr,nfm1,jmax1,jmax2,uvp0,nfm2,</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="53"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>wrki,waa,nfm3,wbb,nfm4,ifail)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="54"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>use<sp/>local_mod,<sp/>only:<sp/>r8</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>implicit<sp/>real(r8)<sp/>(a-h,o-z)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>implicit<sp/>integer<sp/>(i-n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>integer<sp/>ipiv(jmax1),info</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>call<sp/>dgetrf(jmax1,jmax1,copmat,nfm,ipiv,info)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>call<sp/>dgetrs(&apos;N&apos;,jmax1,jmax12evp0,copmat,nfm,ipiv,uvpr,nfm1,info)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/>end</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="62"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="63"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>5.<sp/>gelimb.<sp/>Solves<sp/>AX=B<sp/>for<sp/>A=copmat,<sp/>B=uvpw0</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">subroutine<sp/></highlight><highlight class="normal"><ref refid="vacuum__penn_8f_1a2317a63642b77f9aa9a6640fc66fd145" kindref="member">gelimb</ref>(copmat,nfm,uvpwr,nfm1,jmax1,jmax2,uvpw0,</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>nfm2,wrki,ifail)</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">use<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">only</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>real</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">dimension(jmax1,jmax1)</highlight><highlight class="normal"><sp/>::<sp/>copmat</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>real</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">dimension(nfm2,jmax2)</highlight><highlight class="normal"><sp/>::<sp/>uvpwr,uvpw0</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>real</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">dimension(*)</highlight><highlight class="normal"><sp/>::<sp/>wrki</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">integer</highlight><highlight class="normal"><sp/>::<sp/>nfm,<sp/>nfm1,<sp/>nfm2,<sp/>jmax1,<sp/>jmax2,<sp/>ifail,<sp/>info</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">integer</highlight><highlight class="normal">,<sp/></highlight><highlight class="keywordtype">dimension(jmax1)</highlight><highlight class="normal"><sp/>::<sp/>ipiv</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">call<sp/></highlight><highlight class="normal">dgetrf(jmax1,jmax1,copmat,nfm,ipiv,info)</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">call<sp/></highlight><highlight class="normal">dgetrs(</highlight><highlight class="stringliteral">&apos;N&apos;</highlight><highlight class="normal">,jmax1,jmax2,copmat,nfm,ipiv,uvpw0,nfm2,info)</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="76"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">end</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="77"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>6.<sp/>skipeof.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">subroutine<sp/></highlight><highlight class="normal"><ref refid="vacuum__penn_8f_1a2555a076fff8aa3542e6582f6447b9fb" kindref="member">skipeof</ref>(iva,iva1)</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">use<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">only</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>real(r8)</highlight><highlight class="normal"><sp/>(a-h,o-z)</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>integer<sp/>(i-n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="85"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">end</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="86"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="87"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>7.<sp/>timedate.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="88"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="89"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">subroutine<sp/></highlight><highlight class="normal"><ref refid="vacuum__penn_8f_1afa1e72cf7ec8c5fb9c0d4666ea76a5e1" kindref="member">timedate</ref>(ntim,ndat,mach,nsfx)</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">use<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">only</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>real(r8)</highlight><highlight class="normal"><sp/>(a-h,o-z)</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>integer<sp/>(i-n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">end</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="95"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>8.<sp/>userinfo.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">subroutine<sp/></highlight><highlight class="normal"><ref refid="vacuum__penn_8f_1ac5b55ebbfbd5a8e6900b15b9d9264ff1" kindref="member">userinfo</ref>(nuser,nacct,ndrop,nsfx)</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">use<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">only</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>real(r8)</highlight><highlight class="normal"><sp/>(a-h,o-z)</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">implicit<sp/>integer<sp/>(i-n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">end</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_penn.f"/>
+  </compounddef>
+</doxygen>

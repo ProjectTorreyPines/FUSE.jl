@@ -1,0 +1,66 @@
+\doxysection{/\+Users/jaebeomcho/\+Desktop/code/\+GPEC\+\_\+hackaton/\+GPEC/vacuum/vacuum\+\_\+penn.f File Reference}
+\hypertarget{vacuum__penn_8f}{}\label{vacuum__penn_8f}\index{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_penn.f@{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_penn.f}}
+\doxysubsubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine \mbox{\hyperlink{vacuum__penn_8f_a99d617d3e011bcdf9ae604b016697a8e}{date\+\_\+time}} (date\+\_\+array, datex, timex)
+\item 
+subroutine \mbox{\hyperlink{vacuum__penn_8f_a5800879dd9e6eea4e4db89294ccf4353}{cleanup}}
+\item 
+subroutine \mbox{\hyperlink{vacuum__penn_8f_a1480c173314acf32f51cc0832cc064f2}{shellb}}
+\item 
+subroutine \mbox{\hyperlink{vacuum__penn_8f_a2317a63642b77f9aa9a6640fc66fd145}{gelimb}} (copmat, nfm, uvpwr, nfm1, jmax1, jmax2, uvpw0, nfm2, wrki, ifail)
+\item 
+subroutine \mbox{\hyperlink{vacuum__penn_8f_a2555a076fff8aa3542e6582f6447b9fb}{skipeof}} (iva, iva1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__penn_8f_afa1e72cf7ec8c5fb9c0d4666ea76a5e1}{timedate}} (ntim, ndat, mach, nsfx)
+\item 
+subroutine \mbox{\hyperlink{vacuum__penn_8f_ac5b55ebbfbd5a8e6900b15b9d9264ff1}{userinfo}} (nuser, nacct, ndrop, nsfx)
+\end{DoxyCompactItemize}
+
+
+\label{doc-func-members}
+\Hypertarget{vacuum__penn_8f_doc-func-members}
+\doxysubsection{Function/\+Subroutine Documentation}
+\Hypertarget{vacuum__penn_8f_a5800879dd9e6eea4e4db89294ccf4353}\index{vacuum\_penn.f@{vacuum\_penn.f}!cleanup@{cleanup}}
+\index{cleanup@{cleanup}!vacuum\_penn.f@{vacuum\_penn.f}}
+\doxysubsubsection{\texorpdfstring{cleanup()}{cleanup()}}
+{\footnotesize\ttfamily \label{vacuum__penn_8f_a5800879dd9e6eea4e4db89294ccf4353} 
+subroutine cleanup}
+
+\Hypertarget{vacuum__penn_8f_a99d617d3e011bcdf9ae604b016697a8e}\index{vacuum\_penn.f@{vacuum\_penn.f}!date\_time@{date\_time}}
+\index{date\_time@{date\_time}!vacuum\_penn.f@{vacuum\_penn.f}}
+\doxysubsubsection{\texorpdfstring{date\_time()}{date\_time()}}
+{\footnotesize\ttfamily \label{vacuum__penn_8f_a99d617d3e011bcdf9ae604b016697a8e} 
+subroutine date\+\_\+time (\begin{DoxyParamCaption}\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{date\+\_\+array}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{datex}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{timex}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__penn_8f_a2317a63642b77f9aa9a6640fc66fd145}\index{vacuum\_penn.f@{vacuum\_penn.f}!gelimb@{gelimb}}
+\index{gelimb@{gelimb}!vacuum\_penn.f@{vacuum\_penn.f}}
+\doxysubsubsection{\texorpdfstring{gelimb()}{gelimb()}}
+{\footnotesize\ttfamily \label{vacuum__penn_8f_a2317a63642b77f9aa9a6640fc66fd145} 
+subroutine gelimb (\begin{DoxyParamCaption}\item[{real(r8), dimension(jmax1,jmax1)}]{copmat}{, }\item[{integer}]{nfm}{, }\item[{real(r8), dimension(nfm2,jmax2)}]{uvpwr}{, }\item[{integer}]{nfm1}{, }\item[{integer}]{jmax1}{, }\item[{integer}]{jmax2}{, }\item[{real(r8), dimension(nfm2,jmax2)}]{uvpw0}{, }\item[{integer}]{nfm2}{, }\item[{real(r8), dimension(\texorpdfstring{$\ast$}{*})}]{wrki}{, }\item[{integer}]{ifail}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__penn_8f_a1480c173314acf32f51cc0832cc064f2}\index{vacuum\_penn.f@{vacuum\_penn.f}!shellb@{shellb}}
+\index{shellb@{shellb}!vacuum\_penn.f@{vacuum\_penn.f}}
+\doxysubsubsection{\texorpdfstring{shellb()}{shellb()}}
+{\footnotesize\ttfamily \label{vacuum__penn_8f_a1480c173314acf32f51cc0832cc064f2} 
+subroutine shellb}
+
+\Hypertarget{vacuum__penn_8f_a2555a076fff8aa3542e6582f6447b9fb}\index{vacuum\_penn.f@{vacuum\_penn.f}!skipeof@{skipeof}}
+\index{skipeof@{skipeof}!vacuum\_penn.f@{vacuum\_penn.f}}
+\doxysubsubsection{\texorpdfstring{skipeof()}{skipeof()}}
+{\footnotesize\ttfamily \label{vacuum__penn_8f_a2555a076fff8aa3542e6582f6447b9fb} 
+subroutine skipeof (\begin{DoxyParamCaption}\item[{}]{iva}{, }\item[{}]{iva1}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__penn_8f_afa1e72cf7ec8c5fb9c0d4666ea76a5e1}\index{vacuum\_penn.f@{vacuum\_penn.f}!timedate@{timedate}}
+\index{timedate@{timedate}!vacuum\_penn.f@{vacuum\_penn.f}}
+\doxysubsubsection{\texorpdfstring{timedate()}{timedate()}}
+{\footnotesize\ttfamily \label{vacuum__penn_8f_afa1e72cf7ec8c5fb9c0d4666ea76a5e1} 
+subroutine timedate (\begin{DoxyParamCaption}\item[{}]{ntim}{, }\item[{}]{ndat}{, }\item[{}]{mach}{, }\item[{}]{nsfx}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__penn_8f_ac5b55ebbfbd5a8e6900b15b9d9264ff1}\index{vacuum\_penn.f@{vacuum\_penn.f}!userinfo@{userinfo}}
+\index{userinfo@{userinfo}!vacuum\_penn.f@{vacuum\_penn.f}}
+\doxysubsubsection{\texorpdfstring{userinfo()}{userinfo()}}
+{\footnotesize\ttfamily \label{vacuum__penn_8f_ac5b55ebbfbd5a8e6900b15b9d9264ff1} 
+subroutine userinfo (\begin{DoxyParamCaption}\item[{}]{nuser}{, }\item[{}]{nacct}{, }\item[{}]{ndrop}{, }\item[{}]{nsfx}{}\end{DoxyParamCaption})}
+

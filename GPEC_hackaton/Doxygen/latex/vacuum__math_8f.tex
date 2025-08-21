@@ -1,0 +1,178 @@
+\doxysection{/\+Users/jaebeomcho/\+Desktop/code/\+GPEC\+\_\+hackaton/\+GPEC/vacuum/vacuum\+\_\+math.f File Reference}
+\hypertarget{vacuum__math_8f}{}\label{vacuum__math_8f}\index{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_math.f@{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_math.f}}
+\doxysubsubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a2b8ebc3b53e222029e55d059f7031707}{spl1d1}} (n, x, f, w, iop, ij, a, b, c)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a585840294379a6c605e8203a5452391c}{spl1d2}} (n, x, f, w, ij, y, tab)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a1ab03643aeeefecc302581b5efa37b04}{search}} (xbar, x, n, i, mflag)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a9e6934c063c38c8cbad0e5f53784df23}{searchx}} (xbar, x, n, i, mflag)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a9ccbda69d013c99d4d370d518663bbf6}{green}}
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a05e522e40595dfb409ec2a8f5039fb08}{aleg}} (x, nloc, pm, pn, pp, aleg0, aleg1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a0d841a90f0c80c2b837f08d3f545afad}{trans}} (vecin, mthin, vecout, mth)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a31cf32592c13d35627677d4f38d47284}{transdx}} (vecin, mthin, vecout, mth, dx0)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_ae762bf70e7293657ceb92b19d26d6a38}{transdxx}} (vecin, mthin, vecout, mth, dx0, dx1)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a00d8a3741c31dc287a98da99966f0d0f}{smooth0}} (g, n)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a95d6299d5e879551bb81974a7b12273e}{smooth}} (g, n)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a2d563e24e1148bd8d8099a95745444be}{lagp}} (ax, af, m, nl, x, f, df, iop, iper)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a16dd63fc226077c6bcc2bf2e905dc25d}{shft}} (i0, i, axi, ax, m, dax)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a69360d5020c8f76e220078a6df8f1974}{lagpe4}} (f0, m, x, f, df, iop)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_acd7c81721c3e6d67491d64385289d059}{lag}} (ax, af, m, nl, x, f, df, iop)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a5f4c1b389643d31dacee4cb7a128fe0f}{eigen}} (a, r, n, mv)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a5e2652985d8e87fa8ae07d33cb238b45}{mult}} (a, b, c, ndim, ndim2, m, l)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_aec1159c449c67fe66eedd7ebd601791e}{matmul1}} (a, b, nda, ndb, n, c, ndc)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_adaac275ccf84fe84ae315ca09c875435}{matmul3}} (a, b, nda, ndb, la, lb, lc, c, ndc)
+\item 
+subroutine \mbox{\hyperlink{vacuum__math_8f_a048b2e0f6decfe8c08e9d39f692b49c5}{indef4}} (f, fin, dx, n1, n2, defint, iend)
+\item 
+function \mbox{\hyperlink{vacuum__math_8f_ab634f3ab83b0eebf60dc9b3e6b6b2119}{atan2m}} (z, x)
+\end{DoxyCompactItemize}
+
+
+\label{doc-func-members}
+\Hypertarget{vacuum__math_8f_doc-func-members}
+\doxysubsection{Function/\+Subroutine Documentation}
+\Hypertarget{vacuum__math_8f_a05e522e40595dfb409ec2a8f5039fb08}\index{vacuum\_math.f@{vacuum\_math.f}!aleg@{aleg}}
+\index{aleg@{aleg}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{aleg()}{aleg()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a05e522e40595dfb409ec2a8f5039fb08} 
+subroutine aleg (\begin{DoxyParamCaption}\item[{real(r8), intent(in)}]{x}{, }\item[{integer, intent(in)}]{nloc}{, }\item[{real(r8), intent(out)}]{pm}{, }\item[{real(r8), intent(out)}]{pn}{, }\item[{real(r8), intent(out)}]{pp}{, }\item[{real(r8), intent(out)}]{aleg0}{, }\item[{real(r8), intent(out)}]{aleg1}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_ab634f3ab83b0eebf60dc9b3e6b6b2119}\index{vacuum\_math.f@{vacuum\_math.f}!atan2m@{atan2m}}
+\index{atan2m@{atan2m}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{atan2m()}{atan2m()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_ab634f3ab83b0eebf60dc9b3e6b6b2119} 
+function atan2m (\begin{DoxyParamCaption}\item[{}]{z}{, }\item[{}]{x}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a5f4c1b389643d31dacee4cb7a128fe0f}\index{vacuum\_math.f@{vacuum\_math.f}!eigen@{eigen}}
+\index{eigen@{eigen}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{eigen()}{eigen()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a5f4c1b389643d31dacee4cb7a128fe0f} 
+subroutine eigen (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{a}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{r}{, }\item[{}]{n}{, }\item[{}]{mv}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a9ccbda69d013c99d4d370d518663bbf6}\index{vacuum\_math.f@{vacuum\_math.f}!green@{green}}
+\index{green@{green}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{green()}{green()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a9ccbda69d013c99d4d370d518663bbf6} 
+subroutine green}
+
+\Hypertarget{vacuum__math_8f_a048b2e0f6decfe8c08e9d39f692b49c5}\index{vacuum\_math.f@{vacuum\_math.f}!indef4@{indef4}}
+\index{indef4@{indef4}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{indef4()}{indef4()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a048b2e0f6decfe8c08e9d39f692b49c5} 
+subroutine indef4 (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{f}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{fin}{, }\item[{}]{dx}{, }\item[{}]{n1}{, }\item[{}]{n2}{, }\item[{}]{defint}{, }\item[{}]{iend}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_acd7c81721c3e6d67491d64385289d059}\index{vacuum\_math.f@{vacuum\_math.f}!lag@{lag}}
+\index{lag@{lag}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{lag()}{lag()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_acd7c81721c3e6d67491d64385289d059} 
+subroutine lag (\begin{DoxyParamCaption}\item[{real(r8), dimension(\texorpdfstring{$\ast$}{*}), intent(in)}]{ax}{, }\item[{real(r8), dimension(\texorpdfstring{$\ast$}{*}), intent(in)}]{af}{, }\item[{integer, intent(in)}]{m}{, }\item[{integer, intent(in)}]{nl}{, }\item[{real(r8)}]{x}{, }\item[{real(r8), intent(out)}]{f}{, }\item[{real(r8), intent(out)}]{df}{, }\item[{integer, intent(in)}]{iop}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a2d563e24e1148bd8d8099a95745444be}\index{vacuum\_math.f@{vacuum\_math.f}!lagp@{lagp}}
+\index{lagp@{lagp}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{lagp()}{lagp()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a2d563e24e1148bd8d8099a95745444be} 
+subroutine lagp (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{ax}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{af}{, }\item[{}]{m}{, }\item[{}]{nl}{, }\item[{}]{x}{, }\item[{}]{f}{, }\item[{}]{df}{, }\item[{}]{iop}{, }\item[{}]{iper}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a69360d5020c8f76e220078a6df8f1974}\index{vacuum\_math.f@{vacuum\_math.f}!lagpe4@{lagpe4}}
+\index{lagpe4@{lagpe4}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{lagpe4()}{lagpe4()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a69360d5020c8f76e220078a6df8f1974} 
+subroutine lagpe4 (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{f0}{, }\item[{}]{m}{, }\item[{}]{x}{, }\item[{}]{f}{, }\item[{}]{df}{, }\item[{}]{iop}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_aec1159c449c67fe66eedd7ebd601791e}\index{vacuum\_math.f@{vacuum\_math.f}!matmul1@{matmul1}}
+\index{matmul1@{matmul1}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{matmul1()}{matmul1()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_aec1159c449c67fe66eedd7ebd601791e} 
+subroutine matmul1 (\begin{DoxyParamCaption}\item[{dimension(nda,nda)}]{a}{, }\item[{dimension(ndb,ndb)}]{b}{, }\item[{}]{nda}{, }\item[{}]{ndb}{, }\item[{}]{n}{, }\item[{dimension(ndc,ndc)}]{c}{, }\item[{}]{ndc}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_adaac275ccf84fe84ae315ca09c875435}\index{vacuum\_math.f@{vacuum\_math.f}!matmul3@{matmul3}}
+\index{matmul3@{matmul3}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{matmul3()}{matmul3()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_adaac275ccf84fe84ae315ca09c875435} 
+subroutine matmul3 (\begin{DoxyParamCaption}\item[{dimension(nda,nda)}]{a}{, }\item[{dimension(ndb,ndb)}]{b}{, }\item[{}]{nda}{, }\item[{}]{ndb}{, }\item[{}]{la}{, }\item[{}]{lb}{, }\item[{}]{lc}{, }\item[{dimension(ndc,ndc)}]{c}{, }\item[{}]{ndc}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a5e2652985d8e87fa8ae07d33cb238b45}\index{vacuum\_math.f@{vacuum\_math.f}!mult@{mult}}
+\index{mult@{mult}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{mult()}{mult()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a5e2652985d8e87fa8ae07d33cb238b45} 
+subroutine mult (\begin{DoxyParamCaption}\item[{dimension(ndim,ndim)}]{a}{, }\item[{dimension(ndim,ndim2)}]{b}{, }\item[{dimension(ndim,ndim2)}]{c}{, }\item[{}]{ndim}{, }\item[{}]{ndim2}{, }\item[{}]{m}{, }\item[{}]{l}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a1ab03643aeeefecc302581b5efa37b04}\index{vacuum\_math.f@{vacuum\_math.f}!search@{search}}
+\index{search@{search}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{search()}{search()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a1ab03643aeeefecc302581b5efa37b04} 
+subroutine search (\begin{DoxyParamCaption}\item[{}]{xbar}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{x}{, }\item[{}]{n}{, }\item[{}]{i}{, }\item[{}]{mflag}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a9e6934c063c38c8cbad0e5f53784df23}\index{vacuum\_math.f@{vacuum\_math.f}!searchx@{searchx}}
+\index{searchx@{searchx}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{searchx()}{searchx()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a9e6934c063c38c8cbad0e5f53784df23} 
+subroutine searchx (\begin{DoxyParamCaption}\item[{integer}]{xbar}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{x}{, }\item[{}]{n}{, }\item[{}]{i}{, }\item[{}]{mflag}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a16dd63fc226077c6bcc2bf2e905dc25d}\index{vacuum\_math.f@{vacuum\_math.f}!shft@{shft}}
+\index{shft@{shft}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{shft()}{shft()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a16dd63fc226077c6bcc2bf2e905dc25d} 
+subroutine shft (\begin{DoxyParamCaption}\item[{}]{i0}{, }\item[{}]{i}{, }\item[{}]{axi}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{ax}{, }\item[{}]{m}{, }\item[{}]{dax}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a95d6299d5e879551bb81974a7b12273e}\index{vacuum\_math.f@{vacuum\_math.f}!smooth@{smooth}}
+\index{smooth@{smooth}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{smooth()}{smooth()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a95d6299d5e879551bb81974a7b12273e} 
+subroutine smooth (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{g}{, }\item[{}]{n}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a00d8a3741c31dc287a98da99966f0d0f}\index{vacuum\_math.f@{vacuum\_math.f}!smooth0@{smooth0}}
+\index{smooth0@{smooth0}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{smooth0()}{smooth0()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a00d8a3741c31dc287a98da99966f0d0f} 
+subroutine smooth0 (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{g}{, }\item[{}]{n}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a2b8ebc3b53e222029e55d059f7031707}\index{vacuum\_math.f@{vacuum\_math.f}!spl1d1@{spl1d1}}
+\index{spl1d1@{spl1d1}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{spl1d1()}{spl1d1()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a2b8ebc3b53e222029e55d059f7031707} 
+subroutine spl1d1 (\begin{DoxyParamCaption}\item[{}]{n}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{x}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{f}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{w}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{iop}{, }\item[{}]{ij}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{a}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{b}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{c}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a585840294379a6c605e8203a5452391c}\index{vacuum\_math.f@{vacuum\_math.f}!spl1d2@{spl1d2}}
+\index{spl1d2@{spl1d2}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{spl1d2()}{spl1d2()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a585840294379a6c605e8203a5452391c} 
+subroutine spl1d2 (\begin{DoxyParamCaption}\item[{}]{n}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{x}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{f}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{w}{, }\item[{}]{ij}{, }\item[{}]{y}{, }\item[{dimension(3)}]{tab}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a0d841a90f0c80c2b837f08d3f545afad}\index{vacuum\_math.f@{vacuum\_math.f}!trans@{trans}}
+\index{trans@{trans}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{trans()}{trans()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a0d841a90f0c80c2b837f08d3f545afad} 
+subroutine trans (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vecin}{, }\item[{}]{mthin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vecout}{, }\item[{}]{mth}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_a31cf32592c13d35627677d4f38d47284}\index{vacuum\_math.f@{vacuum\_math.f}!transdx@{transdx}}
+\index{transdx@{transdx}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{transdx()}{transdx()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_a31cf32592c13d35627677d4f38d47284} 
+subroutine transdx (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vecin}{, }\item[{}]{mthin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vecout}{, }\item[{}]{mth}{, }\item[{}]{dx0}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__math_8f_ae762bf70e7293657ceb92b19d26d6a38}\index{vacuum\_math.f@{vacuum\_math.f}!transdxx@{transdxx}}
+\index{transdxx@{transdxx}!vacuum\_math.f@{vacuum\_math.f}}
+\doxysubsubsection{\texorpdfstring{transdxx()}{transdxx()}}
+{\footnotesize\ttfamily \label{vacuum__math_8f_ae762bf70e7293657ceb92b19d26d6a38} 
+subroutine transdxx (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vecin}{, }\item[{}]{mthin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vecout}{, }\item[{}]{mth}{, }\item[{}]{dx0}{, }\item[{}]{dx1}{}\end{DoxyParamCaption})}
+

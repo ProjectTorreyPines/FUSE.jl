@@ -1,0 +1,322 @@
+\doxysection{/\+Users/jaebeomcho/\+Desktop/code/\+GPEC\+\_\+hackaton/\+GPEC/vacuum/vacuum\+\_\+ut.f File Reference}
+\hypertarget{vacuum__ut_8f}{}\label{vacuum__ut_8f}\index{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_ut.f@{/Users/jaebeomcho/Desktop/code/GPEC\_hackaton/GPEC/vacuum/vacuum\_ut.f}}
+\doxysubsubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_abd283c9c85ccd23819e5611356f15387}{errmes}} (nout, mesage)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ac579a60a8a475a84a96ee579a61f7e63}{wrtout}} (nsrf, vec, wvec, m1, m2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_aaee075adb3dde1a94acd0b85876629f8}{vecwrt}} (mm, vec, wvec, m1, m2, nout1, nout2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a17e089de2ea48a9710f3cff78e2a44b7}{writg1}} (string, seps, iseps, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ac08649e267cd446639aeb71d21b86240}{errnc}} (mesage, nrcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a197d4035b7f34d1471a655f9fc608278}{nwopn}} (cdfid, file, nrw, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a658840895c08786a871ec0b511f87d0a}{nwinq}} (cdfid, ndims, nvars, ngatts, recid, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a23cd8f580aaf163f8f55b15773e72140}{nwdid}} (cdfid, dimnam, ndid, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a9d83bcd4bf3f265860273ad4f910b4b0}{nwdinq}} (cdfid, dimid, dimnam, dimsiz, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a4422ba65bf4ad7b4b2a5e650e7f92e8e}{nwvid}} (cdfid, varnam, vid, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ab9e38293fa15a3d8c09a30a6c83151d5}{nwvinq}} (cdfid, vid, varnam, vartyp, nvdims, vdims, nvatts, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a453c8c5ab5755f83fd2afc214cf0b87b}{nwvg1i}} (cdfid, vid, vindx, nd, val1, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a66095b575c5eb9af0d66a24d29535452}{nwvgt1}} (cdfid, vid, vindx, nd, val1, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a8d9b0ca5db197ce1c5aa1b4a326f2ea1}{nwvg1c}} (cdfid, vid, vindx, nd, chval, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a5c62afcf12f29857809accbaaa547456}{nwvgti}} (cdfid, vid, start, count, nd, val0, vals, rcode, nd1, nd2, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a515b0b8486d75f11706f83e7bee6739f}{nwvgt}} (cdfid, vid, start, count, nd, val0, vals, nd1, nd2, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_af2148595ab7c1f3a63ecae2fa9d86e4c}{nwvgtc}} (cdfid, vid, start, count, nd, string, lenstr, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a2bf70dab87b25da89c974f685156f799}{nwainq}} (cdfid, vid, attnam, attype, attlen, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a02a4a93fda91eba5f2b4ee809dfe748d}{nwagtc}} (cdfid, vid, attnam, astrng, attlen, maxa1, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ad4ecbfa0d9dd18c99621725284b0295b}{nwagt}} (cdfid, vid, attnam, attval, attlen, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a9e40e2122510b84ada32e07f8f948341}{nwanam}} (cdfid, vid, n, attnam, rcode, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a59a50d9e1439df6d7c7560e8a44ebe35}{writn1}} (mesage, n, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_acc08891798b6aa17bbea9b07be3603b1}{writnn}} (mesage, n, nd, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ad5729106772bf5f096ed4c1b2c5b9d35}{writa1}} (mesage, string1, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_afbbb29cd0f3f4388b6243fb645b2f4f2}{writv1}} (mesage, a, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_acd9f4dda9be5021f63f7026702a0e28e}{writis}} (mesage, a, nd1, nd2, nw, nd, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a6ccf2449e7bd49d16a811bc272060cf6}{writvs}} (mesage, a, nd1, nd2, nw, nd, nout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ae810ca0ca80f0daa1033fc4b79da3e25}{vfrmt1}} (n, field1, fmt)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a468265f9f5769e26bb0d4c967b2a74f7}{vfrmt2}} (n, field1, fmt)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a8543bef093f26da2cb114e4ef2574b5f}{vfrmt3}} (n, field1, fmt)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ac6bff2859cc3a36077719408084e188b}{bounds}} (x1, z1, n1, n2, xmin, xmax, zmin, zmax)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_af49b14984e9b75a53a51b47c7bf8dbd8}{boundsi}} (x1, z1, n1, n2, xmin, xmax, zmin, zmax, ixn, ixx, izn, izx)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ad11008231f8cdea51664c2fd86c2cf22}{macopy}} (ain, ndin, aout, ndout)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a9fb2302e94a7d8b6ea8ee91a1c559843}{matwrt}} (a, maxj1, maxj2, jmax1, jmax2, label)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a5e82bc43603b99996d0dead2c0921025}{vacasym}} (vacin, nd, nnj, label, nout1, nout2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a45cab09f9c2f5251219c882f91ab58db}{masym0}} (vacin, nd, nnj, n1, n2, n10, n20, label, nout1, nout2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_ae132407099ca20aabed4450877f6dfeb}{vacasymi}} (vacin, nd, nnj, label, nout1, nout2)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a05001272ddc6606a326a7cf458ac132b}{msctimer}} (nout, mesage)
+\item 
+subroutine \mbox{\hyperlink{vacuum__ut_8f_a3f9653ea579f88d75698626c5ce70e73}{shftpi}} (xin, fin, xout, fout, n)
+\end{DoxyCompactItemize}
+
+
+\label{doc-func-members}
+\Hypertarget{vacuum__ut_8f_doc-func-members}
+\doxysubsection{Function/\+Subroutine Documentation}
+\Hypertarget{vacuum__ut_8f_ac6bff2859cc3a36077719408084e188b}\index{vacuum\_ut.f@{vacuum\_ut.f}!bounds@{bounds}}
+\index{bounds@{bounds}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{bounds()}{bounds()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ac6bff2859cc3a36077719408084e188b} 
+subroutine bounds (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{x1}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{z1}{, }\item[{}]{n1}{, }\item[{}]{n2}{, }\item[{}]{xmin}{, }\item[{}]{xmax}{, }\item[{}]{zmin}{, }\item[{}]{zmax}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_af49b14984e9b75a53a51b47c7bf8dbd8}\index{vacuum\_ut.f@{vacuum\_ut.f}!boundsi@{boundsi}}
+\index{boundsi@{boundsi}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{boundsi()}{boundsi()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_af49b14984e9b75a53a51b47c7bf8dbd8} 
+subroutine boundsi (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{x1}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{z1}{, }\item[{}]{n1}{, }\item[{}]{n2}{, }\item[{}]{xmin}{, }\item[{}]{xmax}{, }\item[{}]{zmin}{, }\item[{}]{zmax}{, }\item[{}]{ixn}{, }\item[{}]{ixx}{, }\item[{}]{izn}{, }\item[{}]{izx}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_abd283c9c85ccd23819e5611356f15387}\index{vacuum\_ut.f@{vacuum\_ut.f}!errmes@{errmes}}
+\index{errmes@{errmes}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{errmes()}{errmes()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_abd283c9c85ccd23819e5611356f15387} 
+subroutine errmes (\begin{DoxyParamCaption}\item[{}]{nout}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ac08649e267cd446639aeb71d21b86240}\index{vacuum\_ut.f@{vacuum\_ut.f}!errnc@{errnc}}
+\index{errnc@{errnc}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{errnc()}{errnc()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ac08649e267cd446639aeb71d21b86240} 
+subroutine errnc (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{, }\item[{}]{nrcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ad11008231f8cdea51664c2fd86c2cf22}\index{vacuum\_ut.f@{vacuum\_ut.f}!macopy@{macopy}}
+\index{macopy@{macopy}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{macopy()}{macopy()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ad11008231f8cdea51664c2fd86c2cf22} 
+subroutine macopy (\begin{DoxyParamCaption}\item[{dimension(ndin,ndin)}]{ain}{, }\item[{}]{ndin}{, }\item[{dimension(ndout,ndout)}]{aout}{, }\item[{}]{ndout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a45cab09f9c2f5251219c882f91ab58db}\index{vacuum\_ut.f@{vacuum\_ut.f}!masym0@{masym0}}
+\index{masym0@{masym0}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{masym0()}{masym0()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a45cab09f9c2f5251219c882f91ab58db} 
+subroutine masym0 (\begin{DoxyParamCaption}\item[{dimension(nd,nd)}]{vacin}{, }\item[{}]{nd}{, }\item[{}]{nnj}{, }\item[{}]{n1}{, }\item[{}]{n2}{, }\item[{}]{n10}{, }\item[{}]{n20}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{label}{, }\item[{}]{nout1}{, }\item[{}]{nout2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a9fb2302e94a7d8b6ea8ee91a1c559843}\index{vacuum\_ut.f@{vacuum\_ut.f}!matwrt@{matwrt}}
+\index{matwrt@{matwrt}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{matwrt()}{matwrt()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a9fb2302e94a7d8b6ea8ee91a1c559843} 
+subroutine matwrt (\begin{DoxyParamCaption}\item[{dimension ( maxj1, maxj2 )}]{a}{, }\item[{}]{maxj1}{, }\item[{}]{maxj2}{, }\item[{}]{jmax1}{, }\item[{}]{jmax2}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{label}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a05001272ddc6606a326a7cf458ac132b}\index{vacuum\_ut.f@{vacuum\_ut.f}!msctimer@{msctimer}}
+\index{msctimer@{msctimer}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{msctimer()}{msctimer()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a05001272ddc6606a326a7cf458ac132b} 
+subroutine msctimer (\begin{DoxyParamCaption}\item[{}]{nout}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ad4ecbfa0d9dd18c99621725284b0295b}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwagt@{nwagt}}
+\index{nwagt@{nwagt}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwagt()}{nwagt()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ad4ecbfa0d9dd18c99621725284b0295b} 
+subroutine nwagt (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{attnam}{, }\item[{}]{attval}{, }\item[{integer}]{attlen}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a02a4a93fda91eba5f2b4ee809dfe748d}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwagtc@{nwagtc}}
+\index{nwagtc@{nwagtc}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwagtc()}{nwagtc()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a02a4a93fda91eba5f2b4ee809dfe748d} 
+subroutine nwagtc (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{attnam}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{astrng}{, }\item[{integer}]{attlen}{, }\item[{}]{maxa1}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a2bf70dab87b25da89c974f685156f799}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwainq@{nwainq}}
+\index{nwainq@{nwainq}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwainq()}{nwainq()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a2bf70dab87b25da89c974f685156f799} 
+subroutine nwainq (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{attnam}{, }\item[{integer}]{attype}{, }\item[{integer}]{attlen}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a9e40e2122510b84ada32e07f8f948341}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwanam@{nwanam}}
+\index{nwanam@{nwanam}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwanam()}{nwanam()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a9e40e2122510b84ada32e07f8f948341} 
+subroutine nwanam (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{}]{n}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{attnam}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a23cd8f580aaf163f8f55b15773e72140}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwdid@{nwdid}}
+\index{nwdid@{nwdid}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwdid()}{nwdid()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a23cd8f580aaf163f8f55b15773e72140} 
+subroutine nwdid (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{dimnam}{, }\item[{}]{ndid}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a9d83bcd4bf3f265860273ad4f910b4b0}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwdinq@{nwdinq}}
+\index{nwdinq@{nwdinq}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwdinq()}{nwdinq()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a9d83bcd4bf3f265860273ad4f910b4b0} 
+subroutine nwdinq (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{dimid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{dimnam}{, }\item[{integer}]{dimsiz}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a658840895c08786a871ec0b511f87d0a}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwinq@{nwinq}}
+\index{nwinq@{nwinq}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwinq()}{nwinq()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a658840895c08786a871ec0b511f87d0a} 
+subroutine nwinq (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{}]{ndims}{, }\item[{}]{nvars}{, }\item[{}]{ngatts}{, }\item[{integer}]{recid}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a197d4035b7f34d1471a655f9fc608278}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwopn@{nwopn}}
+\index{nwopn@{nwopn}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwopn()}{nwopn()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a197d4035b7f34d1471a655f9fc608278} 
+subroutine nwopn (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{file}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{nrw}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a8d9b0ca5db197ce1c5aa1b4a326f2ea1}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvg1c@{nwvg1c}}
+\index{nwvg1c@{nwvg1c}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvg1c()}{nwvg1c()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a8d9b0ca5db197ce1c5aa1b4a326f2ea1} 
+subroutine nwvg1c (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{vindx}{, }\item[{}]{nd}{, }\item[{character}]{chval}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a453c8c5ab5755f83fd2afc214cf0b87b}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvg1i@{nwvg1i}}
+\index{nwvg1i@{nwvg1i}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvg1i()}{nwvg1i()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a453c8c5ab5755f83fd2afc214cf0b87b} 
+subroutine nwvg1i (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{vindx}{, }\item[{}]{nd}{, }\item[{integer}]{val1}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a515b0b8486d75f11706f83e7bee6739f}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvgt@{nwvgt}}
+\index{nwvgt@{nwvgt}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvgt()}{nwvgt()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a515b0b8486d75f11706f83e7bee6739f} 
+subroutine nwvgt (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{start}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{count}{, }\item[{}]{nd}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{val0}{, }\item[{dimension(nd1,nd2)}]{vals}{, }\item[{}]{nd1}{, }\item[{}]{nd2}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a66095b575c5eb9af0d66a24d29535452}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvgt1@{nwvgt1}}
+\index{nwvgt1@{nwvgt1}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvgt1()}{nwvgt1()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a66095b575c5eb9af0d66a24d29535452} 
+subroutine nwvgt1 (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{vindx}{, }\item[{}]{nd}{, }\item[{}]{val1}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_af2148595ab7c1f3a63ecae2fa9d86e4c}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvgtc@{nwvgtc}}
+\index{nwvgtc@{nwvgtc}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvgtc()}{nwvgtc()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_af2148595ab7c1f3a63ecae2fa9d86e4c} 
+subroutine nwvgtc (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{start}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{count}{, }\item[{}]{nd}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{string}{, }\item[{}]{lenstr}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a5c62afcf12f29857809accbaaa547456}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvgti@{nwvgti}}
+\index{nwvgti@{nwvgti}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvgti()}{nwvgti()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a5c62afcf12f29857809accbaaa547456} 
+subroutine nwvgti (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{start}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{count}{, }\item[{}]{nd}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{val0}{, }\item[{integer, dimension(nd1,nd2)}]{vals}{, }\item[{integer}]{rcode}{, }\item[{}]{nd1}{, }\item[{}]{nd2}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a4422ba65bf4ad7b4b2a5e650e7f92e8e}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvid@{nwvid}}
+\index{nwvid@{nwvid}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvid()}{nwvid()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a4422ba65bf4ad7b4b2a5e650e7f92e8e} 
+subroutine nwvid (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{varnam}{, }\item[{integer}]{vid}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ab9e38293fa15a3d8c09a30a6c83151d5}\index{vacuum\_ut.f@{vacuum\_ut.f}!nwvinq@{nwvinq}}
+\index{nwvinq@{nwvinq}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{nwvinq()}{nwvinq()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ab9e38293fa15a3d8c09a30a6c83151d5} 
+subroutine nwvinq (\begin{DoxyParamCaption}\item[{integer}]{cdfid}{, }\item[{integer}]{vid}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{varnam}{, }\item[{integer}]{vartyp}{, }\item[{}]{nvdims}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{vdims}{, }\item[{}]{nvatts}{, }\item[{integer}]{rcode}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a3f9653ea579f88d75698626c5ce70e73}\index{vacuum\_ut.f@{vacuum\_ut.f}!shftpi@{shftpi}}
+\index{shftpi@{shftpi}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{shftpi()}{shftpi()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a3f9653ea579f88d75698626c5ce70e73} 
+subroutine shftpi (\begin{DoxyParamCaption}\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{fin}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{xout}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{fout}{, }\item[{}]{n}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a5e82bc43603b99996d0dead2c0921025}\index{vacuum\_ut.f@{vacuum\_ut.f}!vacasym@{vacasym}}
+\index{vacasym@{vacasym}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{vacasym()}{vacasym()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a5e82bc43603b99996d0dead2c0921025} 
+subroutine vacasym (\begin{DoxyParamCaption}\item[{dimension(nd,nd)}]{vacin}{, }\item[{}]{nd}{, }\item[{}]{nnj}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{label}{, }\item[{}]{nout1}{, }\item[{}]{nout2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ae132407099ca20aabed4450877f6dfeb}\index{vacuum\_ut.f@{vacuum\_ut.f}!vacasymi@{vacasymi}}
+\index{vacasymi@{vacasymi}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{vacasymi()}{vacasymi()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ae132407099ca20aabed4450877f6dfeb} 
+subroutine vacasymi (\begin{DoxyParamCaption}\item[{dimension(nd,nd)}]{vacin}{, }\item[{}]{nd}{, }\item[{}]{nnj}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{label}{, }\item[{}]{nout1}{, }\item[{}]{nout2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_aaee075adb3dde1a94acd0b85876629f8}\index{vacuum\_ut.f@{vacuum\_ut.f}!vecwrt@{vecwrt}}
+\index{vecwrt@{vecwrt}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{vecwrt()}{vecwrt()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_aaee075adb3dde1a94acd0b85876629f8} 
+subroutine vecwrt (\begin{DoxyParamCaption}\item[{}]{mm}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vec}{, }\item[{}]{wvec}{, }\item[{}]{m1}{, }\item[{}]{m2}{, }\item[{}]{nout1}{, }\item[{}]{nout2}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ae810ca0ca80f0daa1033fc4b79da3e25}\index{vacuum\_ut.f@{vacuum\_ut.f}!vfrmt1@{vfrmt1}}
+\index{vfrmt1@{vfrmt1}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{vfrmt1()}{vfrmt1()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ae810ca0ca80f0daa1033fc4b79da3e25} 
+subroutine vfrmt1 (\begin{DoxyParamCaption}\item[{}]{n}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{field1}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{fmt}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a468265f9f5769e26bb0d4c967b2a74f7}\index{vacuum\_ut.f@{vacuum\_ut.f}!vfrmt2@{vfrmt2}}
+\index{vfrmt2@{vfrmt2}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{vfrmt2()}{vfrmt2()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a468265f9f5769e26bb0d4c967b2a74f7} 
+subroutine vfrmt2 (\begin{DoxyParamCaption}\item[{}]{n}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{field1}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{fmt}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a8543bef093f26da2cb114e4ef2574b5f}\index{vacuum\_ut.f@{vacuum\_ut.f}!vfrmt3@{vfrmt3}}
+\index{vfrmt3@{vfrmt3}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{vfrmt3()}{vfrmt3()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a8543bef093f26da2cb114e4ef2574b5f} 
+subroutine vfrmt3 (\begin{DoxyParamCaption}\item[{}]{n}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{field1}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{fmt}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ad5729106772bf5f096ed4c1b2c5b9d35}\index{vacuum\_ut.f@{vacuum\_ut.f}!writa1@{writa1}}
+\index{writa1@{writa1}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{writa1()}{writa1()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ad5729106772bf5f096ed4c1b2c5b9d35} 
+subroutine writa1 (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{string1}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a17e089de2ea48a9710f3cff78e2a44b7}\index{vacuum\_ut.f@{vacuum\_ut.f}!writg1@{writg1}}
+\index{writg1@{writg1}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{writg1()}{writg1()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a17e089de2ea48a9710f3cff78e2a44b7} 
+subroutine writg1 (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{string}{, }\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{seps}{, }\item[{}]{iseps}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_acd9f4dda9be5021f63f7026702a0e28e}\index{vacuum\_ut.f@{vacuum\_ut.f}!writis@{writis}}
+\index{writis@{writis}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{writis()}{writis()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_acd9f4dda9be5021f63f7026702a0e28e} 
+subroutine writis (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{, }\item[{integer, dimension(nd1,nd2)}]{a}{, }\item[{}]{nd1}{, }\item[{}]{nd2}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nw}{, }\item[{}]{nd}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a59a50d9e1439df6d7c7560e8a44ebe35}\index{vacuum\_ut.f@{vacuum\_ut.f}!writn1@{writn1}}
+\index{writn1@{writn1}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{writn1()}{writn1()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a59a50d9e1439df6d7c7560e8a44ebe35} 
+subroutine writn1 (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{, }\item[{}]{n}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_acc08891798b6aa17bbea9b07be3603b1}\index{vacuum\_ut.f@{vacuum\_ut.f}!writnn@{writnn}}
+\index{writnn@{writnn}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{writnn()}{writnn()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_acc08891798b6aa17bbea9b07be3603b1} 
+subroutine writnn (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{n}{, }\item[{}]{nd}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_afbbb29cd0f3f4388b6243fb645b2f4f2}\index{vacuum\_ut.f@{vacuum\_ut.f}!writv1@{writv1}}
+\index{writv1@{writv1}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{writv1()}{writv1()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_afbbb29cd0f3f4388b6243fb645b2f4f2} 
+subroutine writv1 (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{, }\item[{}]{a}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_a6ccf2449e7bd49d16a811bc272060cf6}\index{vacuum\_ut.f@{vacuum\_ut.f}!writvs@{writvs}}
+\index{writvs@{writvs}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{writvs()}{writvs()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_a6ccf2449e7bd49d16a811bc272060cf6} 
+subroutine writvs (\begin{DoxyParamCaption}\item[{character\texorpdfstring{$\ast$}{*}(\texorpdfstring{$\ast$}{*})}]{mesage}{, }\item[{dimension(nd1,nd2)}]{a}{, }\item[{}]{nd1}{, }\item[{}]{nd2}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{nw}{, }\item[{}]{nd}{, }\item[{integer, dimension(\texorpdfstring{$\ast$}{*})}]{nout}{}\end{DoxyParamCaption})}
+
+\Hypertarget{vacuum__ut_8f_ac579a60a8a475a84a96ee579a61f7e63}\index{vacuum\_ut.f@{vacuum\_ut.f}!wrtout@{wrtout}}
+\index{wrtout@{wrtout}!vacuum\_ut.f@{vacuum\_ut.f}}
+\doxysubsubsection{\texorpdfstring{wrtout()}{wrtout()}}
+{\footnotesize\ttfamily \label{vacuum__ut_8f_ac579a60a8a475a84a96ee579a61f7e63} 
+subroutine wrtout (\begin{DoxyParamCaption}\item[{}]{nsrf}{, }\item[{dimension(\texorpdfstring{$\ast$}{*})}]{vec}{, }\item[{}]{wvec}{, }\item[{}]{m1}{, }\item[{}]{m2}{}\end{DoxyParamCaption})}
+
