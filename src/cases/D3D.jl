@@ -1,5 +1,5 @@
 """
-    case_parameters(::Type{Val{:D3D}}, shot::Int;
+    case_parameters(::Val{:D3D}, shot::Int;
         new_impurity_match_power_rad::Symbol=:none,
         fit_profiles::Bool=false, 
         EFIT_tree::String="EFIT02",
@@ -13,7 +13,7 @@
 
 DIII-D from experimental shot
 """
-function case_parameters(::Type{Val{:D3D}}, shot::Int;
+function case_parameters(::Val{:D3D}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
     fit_profiles::Bool=false,
     EFIT_tree::String="EFIT02",
@@ -24,7 +24,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
     omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
     use_local_cache::Bool=false
 )
-    ini, act = case_parameters(Val{:D3D_machine})
+    ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
 
     # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
@@ -270,12 +270,12 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
+    case_parameters(::Val{:D3D}, ods_file::AbstractString)
 
 DIII-D from ods file
 """
-function case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
-    ini, act = case_parameters(Val{:D3D_machine})
+function case_parameters(::Val{:D3D}, ods_file::AbstractString)
+    ini, act = case_parameters(Val(:D3D_machine))
 
     ini.general.casename = "D3D $ods_file"
     ini.ods.filename = "$(ini.ods.filename),$(ods_file)"
@@ -287,12 +287,12 @@ function case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
+    case_parameters(::Val{:D3D}, dd::IMAS.dd)
 
 DIII-D from dd file
 """
-function case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
-    ini, act = case_parameters(Val{:D3D_machine})
+function case_parameters(::Val{:D3D}, dd::IMAS.dd)
+    ini, act = case_parameters(Val(:D3D_machine))
 
     ini.general.casename = "D3D from dd"
 
@@ -308,11 +308,11 @@ function case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
+    case_parameters(::Val{:D3D}, scenario::Symbol)
 
 DIII-D from sample cases
 """
-function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
+function case_parameters(::Val{:D3D}, scenario::Symbol)
     filenames = Dict(
         :H_mode => "$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))",
         :L_mode => "$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))",
@@ -364,11 +364,11 @@ function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
 end
 
 """
-    case_parameters(::Type{Val{:D3D_machine}})
+    case_parameters(::Val{:D3D_machine})
 
 Base DIII-D machine parameters that are then extended by the other `case_parameters(:D3D, ...)` functions
 """
-function case_parameters(::Type{Val{:D3D_machine}})
+function case_parameters(::Val{:D3D_machine})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -434,7 +434,7 @@ function case_parameters(::Type{Val{:D3D_machine}})
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:D3D}})
+function TraceCAD(::Val{:D3D})
     x_length = 3.7727
     x_offset = -0.0303
     y_offset = -0.0303

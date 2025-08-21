@@ -3,7 +3,7 @@
 
 CFS/MIT SPARC design
 """
-function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::Bool=false)
+function case_parameters(::Val{:SPARC}; init_from::Symbol, flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "SPARC"
@@ -100,7 +100,7 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:SPARC}})
+function TraceCAD(::Val{:SPARC})
     x_length = 4.66
     x_offset = -0.58
     y_offset = 0.29

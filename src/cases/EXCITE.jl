@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:EXCITE}})
+    case_parameters(::Val{:EXCITE})
 
 GA EXCITE design
 """
-function case_parameters(::Type{Val{:EXCITE}})
+function case_parameters(::Val{:EXCITE})
     ini = ParametersInits()
     act = ParametersActors()
 

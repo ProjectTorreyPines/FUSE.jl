@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
+    case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
 
 UKAEA STEP design
 """
-function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
+function case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
     @assert init_from in (:scalars, :ods)
     @assert pf_from in (:scalars, :ods)
 
