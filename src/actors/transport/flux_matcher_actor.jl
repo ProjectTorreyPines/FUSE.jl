@@ -930,10 +930,9 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)];
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:fast, return_zero_densities=true)]
     ]
-    
-    # Filter out electrons_fast from evolve_densities keys 
-    evolve_species = filter(s -> s != :electrons_fast, collect(keys(evolve_densities)))
-    
+    if !ismissing(cp1d.electrons, :density_fast)
+        push!(dd_species, :electrons_fast)
+    end
     # Check if evolve_densities contains all of dd thermal species
     @assert sort(evolve_species) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
     
