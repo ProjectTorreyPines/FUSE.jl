@@ -110,7 +110,7 @@ struct TraceCAD
 end
 
 function TraceCAD(device::Symbol)
-    return TraceCAD(Val{device})
+    return TraceCAD(Val(device))
 end
 
 """

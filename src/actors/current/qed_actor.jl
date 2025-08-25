@@ -90,7 +90,7 @@ function _step(actor::ActorQED)
         flattened_j_non_inductive = j_non_inductive
         for tt in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
-                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tt + δt)
+                Ip = IMAS.get_from(dd, Val(:ip), par.ip_from; time0=tt + δt)
                 Vedge = nothing
             else
                 # run Ip controller if vloop_from == :controllers__ip
@@ -98,7 +98,7 @@ function _step(actor::ActorQED)
                     finalize(step(actor.ip_controller; time0=tt + δt))
                 end
                 Ip = nothing
-                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tt + δt)
+                Vedge = IMAS.get_from(dd, Val(:vloop), par.vloop_from; time0=tt + δt)
             end
 
             # check where q<1 based on the the q-profile at the previous
@@ -120,11 +120,11 @@ function _step(actor::ActorQED)
     elseif par.Δt == Inf
         # steady state solution
         if par.solve_for == :ip
-            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+            Ip = IMAS.get_from(dd, Val(:ip), par.ip_from)
             Vedge = nothing
         else
             Ip = nothing
-            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
+            Vedge = IMAS.get_from(dd, Val(:vloop), par.vloop_from)
         end
 
         # fist try full relaxation

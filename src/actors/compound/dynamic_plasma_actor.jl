@@ -121,24 +121,24 @@ function _step(actor::ActorDynamicPlasma)
             # For dd.core_profiles we thus create a new time slice
             # at the 1/2 steps which is then retimed at the 2/2 steps.
             dd.global_time = time0 # this is the --end-- time, the one we are working on
-            substep(actor, Val{:time_advance}, δt / 2; progr, retime_core_profiles=(phase == 2))
+            substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
 
             if phase == 1
-                substep(actor, Val{:evolve_j_ohmic}, kk == 1 ? δt / 2 : δt; progr)
+                substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
 
-                substep(actor, Val{:run_hcd}, kk == 1 ? δt / 2 : δt; progr)
+                substep(actor, Val(:run_hcd), kk == 1 ? δt / 2 : δt; progr)
             else
-                substep(actor, Val{:run_pedestal}, kk == 1 ? δt / 2 : δt; progr)
+                substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
 
-                substep(actor, Val{:run_transport}, kk == 1 ? δt / 2 : δt; progr)
+                substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
                 IMAS.time_derivative_source!(dd)
             end
 
-            substep(actor, Val{:run_sawteeth}, δt / 2; progr)
+            substep(actor, Val(:run_sawteeth), δt / 2; progr)
 
-            substep(actor, Val{:run_equilibrium}, δt / 2; progr)
+            substep(actor, Val(:run_equilibrium), δt / 2; progr)
 
-            substep(actor, Val{:run_pf_active}, δt / 2; progr)
+            substep(actor, Val(:run_pf_active), δt / 2; progr)
         end
 
     finally
@@ -150,7 +150,7 @@ end
 
 function substep(
     actor::ActorDynamicPlasma,
-    ::Type{Val{:time_advance}},
+    ::Val{:time_advance},
     δt::Float64;
     progr=nothing,
     retime_equilibrium::Bool=false,
@@ -176,7 +176,7 @@ function substep(
     end
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:evolve_j_ohmic}}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:evolve_j_ohmic}, δt::Float64; progr=nothing, kw...)
     par = actor.par
     # evolve j_ohmic
     if progr !== nothing
@@ -199,7 +199,7 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:evolve_j_ohmic}}, δt::F
     end
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_pedestal}}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:run_pedestal}, δt::Float64; progr=nothing, kw...)
     par = actor.par
     # run pedestal actor
     if progr !== nothing
@@ -211,7 +211,7 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_pedestal}}, δt::Flo
     end
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_transport}}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:run_transport}, δt::Float64; progr=nothing, kw...)
     par = actor.par
     # run transport actor
     if progr !== nothing
@@ -230,7 +230,7 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_transport}}, δt::Fl
     end
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_equilibrium}}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:run_equilibrium}, δt::Float64; progr=nothing, kw...)
     par = actor.par
     # run equilibrium actor
     if progr !== nothing
@@ -242,7 +242,7 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_equilibrium}}, δt::
     end
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_hcd}}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:run_hcd}, δt::Float64; progr=nothing, kw...)
     par = actor.par
     # run HCD actor
     if progr !== nothing
@@ -254,7 +254,7 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_hcd}}, δt::Float64;
     end
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_sawteeth}}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:run_sawteeth}, δt::Float64; progr=nothing, kw...)
     # run sawteeth actor
     if progr !== nothing
         prog, t0, t1, phase = progr
@@ -263,7 +263,7 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_sawteeth}}, δt::Flo
     return finalize(step(actor.actor_saw))
 end
 
-function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_pf_active}}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:run_pf_active}, δt::Float64; progr=nothing, kw...)
     par = actor.par
     # run pf_active actor
     if progr !== nothing
@@ -283,7 +283,7 @@ function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractAc
         ("      end time", t1),
         ("          time", dd.global_time),
         ("         stage", "$(name(actor)) ($phase/2)"),
-        ("       Ip [MA]", IMAS.get_from(dd, Val{:ip}, :core_profiles) / 1E6),
+        ("       Ip [MA]", IMAS.get_from(dd, Val(:ip), :core_profiles) / 1E6),
         ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),

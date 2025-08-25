@@ -66,11 +66,11 @@ function _step(actor::ActorAnalyticPedestal{D,P}) where {D<:Real,P<:Real}
     # flat density profile: 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.0, 1.0, 0.05)[90] ∼ 0.866
     rho09 = 0.9
     tanh_width_to_09_factor = 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.5, 1.0, w_ped_ne)[90]
-    ne09 = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09)
+    ne09 = IMAS.get_from(dd, Val(:ne_ped), par.ne_from, rho09)
     neped = ne09 * tanh_width_to_09_factor
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09)
-    βn = IMAS.get_from(dd, Val{:βn}, par.βn_from)
-    ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+    zeffped = IMAS.get_from(dd, Val(:zeff_ped), par.zeff_from, rho09)
+    βn = IMAS.get_from(dd, Val(:βn), par.βn_from)
+    ip = IMAS.get_from(dd, Val(:ip), par.ip_from)
     Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
     R = (eqt.profiles_1d.r_outboard[end-1] + eqt.profiles_1d.r_inboard[end-1]) / 2.0

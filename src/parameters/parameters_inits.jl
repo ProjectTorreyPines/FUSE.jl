@@ -397,7 +397,7 @@ function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, fie
         allowed_materials = FusionMaterials.supported_material_list(layer_type)
 
         if val ∉ allowed_materials
-            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+            error("`$val` is not an allowed material for `$(pretty_layer_type)` layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
         end
     end
 

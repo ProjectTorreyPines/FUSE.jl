@@ -4,11 +4,11 @@ import Serialization
 #= ============================ =#
 
 """
-    study_parameters(::Type{Val{:MultiObjectiveOptimizer}})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
+    study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
 
 Generates a database of dds from ini and act based on ranges specified in ini
 """
-function study_parameters(::Type{Val{:MultiObjectiveOptimizer}})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
+function study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
     sty = FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
     act = ParametersActors()
 
