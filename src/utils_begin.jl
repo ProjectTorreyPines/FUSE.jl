@@ -151,17 +151,21 @@ end
 # parallel #
 # ======== #
 """
-    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
+    parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
 
 Start multiprocessing environment
 
   - kw arguments are passed to the Distributed.addprocs
-  - nworkers == 0 uses as many workers as the number of available CPUs
+  - nworkers == -1 uses as many workers as the number of available CPUs
+  - nworkers == 0 uses no worker nodes
   - cpus_per_task can be used to control memory usage
   - memory_usage_fraction is the fraction of peak memory that can be used
 """
-function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
-    if cluster == "omega"
+function parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
+    if nworkers == 0
+        #pass
+
+    elseif cluster == "omega"
     	if occursin("omega", gethostname())
             gigamem_per_node = 512
             cpus_per_node = 128
