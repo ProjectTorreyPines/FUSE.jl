@@ -1,4 +1,5 @@
-import DifferentialEquations as DiffEqs
+using DifferentialEquations
+#import DifferentialEquations as DiffEqs
 using Distributed
 
 Base.@kwdef mutable struct ODEparams
@@ -103,7 +104,17 @@ function _step(actor::ActorLocking)
     task = "solveRW"  #MAKE this an ODEparam or param
     sols = solve_ODEs(par, actor.ode_params, task, 5., 0.5)
 
-    all_sols = solve_system(actor, task)
+    #all_sols = solve_system(actor, task)
+    #control1 = actor.ode_params.Control1
+    #control2 = actor.ode_params.Control2
+    #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
+    #inputs = vec(inputs)  # flatten
+
+    ## run distributed ODE solves
+    #results = pmap(inputs) do (eps, Om0)
+    #    solve_ODEs(par, ode_params, "LockingTask", eps, Om0)
+    #end
+    
     
     return actor
 end
@@ -317,7 +328,6 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     Control1 = vec(Om0s)
     ode_params.Control1 = Control1
 
-    
     # Initialize the other control parameter based on the control type
     if control_type == :EF
         EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
@@ -418,7 +428,7 @@ function control_adjustments(ode_params::ODEparams, Control1::Float64, control_t
 end
 
 "Right-hand side for RW system"
-function rhs_RW!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
     m0 = n_mode
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
@@ -493,50 +503,35 @@ function make_initial_condition(dims::Vector{Float64}, task::String)
     end
 end
 
-function solve_system(actor::ActorLocking, task::String)
-    par = actor.par
-    ode_params = actor.ode_params
-
-    n = par.n_mode
-    control_type = par.control_type
-    t_final = par.t_final
-    
-    # Get the control params
-    control1 = ode_params.Control1
-    control2 = ode_params.Control2
-
-
-    # Create ODE problem
-    tspan = (0.0, t_final)
-    dt = t_final/100.
-    
-
-    # --- pick correct RHS once
-    rhs! = make_rhs_function(task)
-    
-    # Define ODE function for DifferentialEquations.jl
-    function ode_func!(dydt, y, p, t)
-        ode_params, control1, control2 = p
-        rhs!(dydt, y, t, control1, control2, ode_params, n, control_type)
-    end
-
-    # ---- Build a template problem once (dummy y0)
-    y0_dummy = make_initial_condition(ode_params.hyper_cube_dims, task)
-    prob_template = DiffEqs.ODEProblem(ode_func!, y0_dummy, tspan, (ode_params, 0.1, 0.1))
-
-    # ---- Define worker solve (runs on each worker)
-    @everywhere function SolveODE_RW(inputs, prob_template, task, ode_params)
-        control1, control2 = inputs
+function make_problem_factory(prob_template, ode_params, task, dt)
+    return function(input)
+        eps, Om0 = input
         y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
-        p = (ode_params, control1, control2)
-        prob = DiffEqs.remake(prob_template; u0=y0)
-        return DiffEqs.solve(prob, DiffEqs.Tsit5(), reltol=1e-9)
+        p = (ode_params, eps, Om0)
+        prob = remake(prob_template; u0=y0, p=p)
+        solve(prob, Tsit5(); saveat=dt, reltol=1e-9)
     end
+end
 
-    inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
-    sols = pmap(inp -> SolveODE_RW(inp, prob_template, task, ode_params), inp)
 
-    return sols
+## ---- Define worker solve (runs on each worker)
+#@everywhere function SolveODE_RW(inputs, prob_template, task, ode_params)
+#    control1, control2 = inputs
+#    y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
+#    println(y0)
+#    p = (ode_params, control1, control2)
+#    prob = DiffEqs.remake(prob_template; u0=y0)
+#    return DiffEqs.solve(prob, DiffEqs.Tsit5(), reltol=1e-9)
+#end
+
+
+function make_ode_func(rhs!)
+    return function (du, u, p, t)
+        # p must match this tuple layout:
+        # (ode_params, eps, Om0, n, control_type)
+        X1, X2, ode_params, n_mode, control_type = p
+        rhs!(du, u, t, X1, X2, ode_params, n_mode, control_type)
+    end
 end
 
 
@@ -554,20 +549,24 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
     # Create ODE problem
     tspan = (0.0, t_final)
     dt = t_final/100.
-    p = (ode_params, eps, Om0)  # Parameters
+    #p = (ode_params, eps, Om0)  # Parameters
+    p = (eps, Om0, ode_params, n, control_type)
     
     # --- pick correct RHS once
     rhs! = make_rhs_function(task)
-    y0   = make_initial_condition(ode_params.hyper_cube_dims, task)
-
+    ode_rhs! = make_ode_func(rhs!)                  # wraps it to f!(du,u,p,t)
+    
+    # choose the inifial condition
+    y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
+    
     # Define ODE function for DifferentialEquations.jl
-    function ode_func!(dydt, y, p, t)
-        ode_params, eps, Om0 = p
-        rhs!(dydt, y, t, eps, Om0, ode_params, n, control_type)
-    end
+    #function ode_func!(dydt, y, p, t)
+    #    ode_params, eps, Om0 = p
+    #    rhs!(dydt, y, t, eps, Om0, ode_params, n, control_type)
+    #end
 
-    prob = DiffEqs.ODEProblem(ode_func!, y0, tspan, p)
-    sol = DiffEqs.solve(prob, DiffEqs.Tsit5(), saveat=dt, reltol=1e-9)
+    prob = ODEProblem(ode_rhs!, y0, tspan, p)
+    sol = solve(prob, Tsit5(), saveat=dt, reltol=1e-9)
 
     if task == "solveRW"
         # Initial conditions: [psiMag, theta, Om, psiW, thetaW]
@@ -607,3 +606,34 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
     return sol.u
 end
 
+function solve_system(actor::ActorLocking, task::String)
+    par = actor.par
+    ode_params = actor.ode_params
+
+    n = par.n_mode
+    control_type = par.control_type
+    t_final = par.t_final
+    
+    # Get the control params
+    control1 = ode_params.Control1
+    control2 = ode_params.Control2
+
+
+    # Create ODE problem
+    tspan = (0.0, t_final)
+    dt = t_final/100.
+    
+    # --- pick correct RHS once
+    rhs! = make_rhs_function(task)
+    
+    # ---- Build a template problem once (dummy y0)
+    y0_dummy = make_initial_condition(ode_params.hyper_cube_dims, task)
+    prob_template = ODEProblem(ode_func!, y0_dummy, tspan, (ode_params, 0.1, 0.1))
+
+    # Run distributed solve
+    results = pmap(SolveODE_RW, inputs)
+
+    return results
+    #sols = pmap(inp -> SolveODE_RW(inp, prob_template, task, ode_params), inp)
+    # return prob_template
+end
