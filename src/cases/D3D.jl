@@ -318,7 +318,7 @@ function case_parameters(::Val{:D3D}, scenario::Symbol)
         :L_mode => "$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))",
         :default => "$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
 
-    ini, act = case_parameters(Val{:D3D}, filenames[scenario])
+    ini, act = case_parameters(Val(:D3D), filenames[scenario])
     ini.general.casename = "D3D $scenario"
 
     if isempty(ini.general.dd.core_sources)
