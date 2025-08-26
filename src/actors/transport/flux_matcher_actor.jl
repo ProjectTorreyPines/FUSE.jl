@@ -29,6 +29,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=-1)
+    xtol::Entry{T} = Entry{T}("-", "Tolerance on the solution vector"; default=1E-3, check=x -> @assert x > 0.0 "must be: xtol > 0.0")
     algorithm::Switch{Symbol} =
         Switch{Symbol}([:polyalg, :broyden, :anderson, :simple_trust, :trust, :simple, :old_anderson, :custom, :none], "-", "Optimizing algorithm used for the flux matching"; default=:simple)
     custom_algorithm::Entry{Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}} =
@@ -158,9 +159,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             res = (zero=opt_parameters,)
 
         elseif par.algorithm == :simple
-            ftol = 1E-2 # relative error
-            xtol = 1E-3 # difference in input array
-            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, max_iterations, ftol, xtol, prog)
+            ftol = Inf # always use xtol condition as in NonlinearSolve.jl
+            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, max_iterations, ftol, par.xtol, prog)
 
         else
             # 1. In-place residual
@@ -226,7 +226,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # NonlinearSolve abstol is meant to be on u, but actually gets
             #   passed to ftol in NLsolve which is an error on the residual
             # See https://github.com/SciML/NonlinearSolve.jl/issues/593
-            abstol = 1E-2
+            abstol = par.xtol
+
             NonlinearSolve.solve(
                 problem, alg;
                 abstol,
