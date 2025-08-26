@@ -18,6 +18,7 @@
     "core_profiles.profiles_1d[:].ion[:].pressure_fast_parallel",
     "core_profiles.profiles_1d[:].ion[:].pressure_fast_perpendicular",
     "core_profiles.profiles_1d[:].ion[:].pressure_thermal",
+    "core_profiles.profiles_1d[:].ion[:].rotation_frequency_tor",
     "core_profiles.profiles_1d[:].pressure",
     "core_profiles.profiles_1d[:].pressure_ion_total",
     "core_profiles.profiles_1d[:].pressure_parallel",
