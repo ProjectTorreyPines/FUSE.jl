@@ -221,8 +221,13 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             time0 = dd.global_time
             rho = cp1d.grid.rho_tor_norm
             replay_cp1d = actor.replay_actor.replay_dd.core_profiles.profiles_1d[time0]
-            cp1d.rotation_frequency_tor_sonic =
-                IMAS.blend_core_edge(cp1d.rotation_frequency_tor_sonic, replay_cp1d.rotation_frequency_tor_sonic, rho, par.rho_nml, par.rho_ped; method=:shift)
+            i_nml = IMAS.argmin_abs(rho, par.rho_nml)
+            i_ped = IMAS.argmin_abs(rho, par.rho_ped)
+            ω_core = IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
+            ω_edge_linear = replay_cp1d.rotation_frequency_tor_sonic
+            ω_core[i_nml+1:end] = ω_edge_linear[i_nml+1:end]
+            ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge_linear[i_nml]
+            cp1d.rotation_frequency_tor_sonic = ω_core
         end
 
     end

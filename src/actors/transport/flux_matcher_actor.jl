@@ -1163,7 +1163,12 @@ function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IM
     
     # Replay rotation if set to :replay
     if par.evolve_rotation == :replay
-        cp1d.rotation_frequency_tor_sonic = IMAS.blend_core_edge(replay_cp1d.rotation_frequency_tor_sonic, cp1d.rotation_frequency_tor_sonic, rho, rho_nml, rho_ped)
+        i_nml = IMAS.argmin_abs(rho, rho_nml)
+        ω_core = deepcopy(replay_cp1d.rotation_frequency_tor_sonic)
+        ω_edge = IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
+        ω_core[i_nml+1:end] = ω_edge[i_nml+1:end]
+        ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge[i_nml]
+        cp1d.rotation_frequency_tor_sonic = ω_core
     end
     
     # Handle density replays
