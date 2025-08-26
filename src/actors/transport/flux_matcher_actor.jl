@@ -31,7 +31,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=-1)
     xtol::Entry{T} = Entry{T}("-", "Tolerance on the solution vector"; default=1E-3, check=x -> @assert x > 0.0 "must be: xtol > 0.0")
     algorithm::Switch{Symbol} =
-        Switch{Symbol}([:polyalg, :broyden, :anderson, :simple_trust, :trust, :simple, :old_anderson, :custom, :none], "-", "Optimizing algorithm used for the flux matching"; default=:simple)
+        Switch{Symbol}([:polyalg, :broyden, :anderson, :simple_trust, :trust, :simple, :old_anderson, :custom, :none], "-", "Optimizing algorithm used for the flux matching"; default=:simple_trust)
     custom_algorithm::Entry{Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}} =
         Entry{Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}}("-", "User-defined custom solver from NonlinearSolve"; default=nothing)
     step_size::Entry{T} = Entry{T}(
