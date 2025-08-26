@@ -30,7 +30,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=-1)
     algorithm::Switch{Symbol} =
-        Switch{Symbol}([:polyalg, :broyden, :anderson, :simple, :old_anderson, :none], "-", "Optimizing algorithm used for the flux matching"; default=:simple)
+        Switch{Symbol}([:polyalg, :broyden, :anderson, :simple_trust, :trust, :simple, :old_anderson, :custom, :none], "-", "Optimizing algorithm used for the flux matching"; default=:simple)
+    custom_algorithm::Entry{Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}} =
+        Entry{Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}}("-", "User-defined custom solver from NonlinearSolve"; default=nothing)
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -145,8 +147,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # Different defaults for gradient-based methods
     if par.max_iterations >= 0
         max_iterations = par.max_iterations
-    elseif par.algorithm in (:broyden, :polyalg)
-        max_iterations = 15
+    elseif par.algorithm in (:trust, :simple_trust, :broyden, :polyalg)
+        max_iterations = 50
     else
         max_iterations = 500
     end
@@ -190,7 +192,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 )
 
             elseif par.algorithm == :broyden
-                alg = NonlinearSolve.Broyden(;
+                NonlinearSolve.Broyden(;
                     linesearch=NonlinearSolve.LineSearch.BackTracking(;
                         c_1=1e-4,   # Armijo parameter
                         ρ_hi=0.5,   # shrink factor
@@ -202,9 +204,19 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                     autodiff
                 )
 
+            elseif par.algorithm == :trust
+                NonlinearSolve.TrustRegion(; autodiff)
+
+            elseif par.algorithm == :simple_trust
+                NonlinearSolve.SimpleTrustRegion(; autodiff)
+
             elseif par.algorithm == :polyalg
                 # Default NonlinearSolve algorithm
                 NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff)
+
+            elseif par.algorithm == :custom
+                isnothing(par.custom_algorithm) && error("When algorithm=:custom, custom_algorithm must be set to a NonlinearSolve algorithm")
+                par.custom_algorithm
 
             else
                 error("Unsupported algorithm: $(par.algorithm)")
@@ -925,9 +937,9 @@ end
 Checks if the evolve_densities dictionary makes sense and return sensible errors if this is not the case
 """
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
-    dd_species = 
+    dd_species =
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
-    
+
     # Check if evolve_densities contains all of dd thermal species
     @assert sort!([specie for (specie, evolve) in evolve_densities]) == sort!(dd_species) "Mismatch: dd species $(sort!(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
 
