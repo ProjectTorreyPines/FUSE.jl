@@ -27,31 +27,6 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
     ini, act = case_parameters(Val{:D3D_machine})
     ini.general.casename = "D3D $shot"
 
-    # variables used for data fetching
-    remote_omas_root = "\$OMAS_ROOT"
-    if !isempty(omega_omas_root)
-        remote_omas_root = omega_omas_root
-    end
-    remote_omfit_root = "\$OMFIT_ROOT"
-    if !isempty(omega_omfit_root)
-        remote_omfit_root = omega_omfit_root
-    end
-    remote_host = "$(omega_user)@omega.gat.com"
-    phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root))
-    remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
-    filename = "D3D_$(shot)_$(phash).h5"
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
-        local_path = remote_path
-    else
-        local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
-        if isdir(local_path) && !use_local_cache
-            rm(local_path; recursive=true)
-        end
-        if !isdir(local_path)
-            mkdir(local_path)
-        end
-    end
-
     # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
     if contains(EFIT_tree, "USER")
         efit_shot = parse(Int, "$(shot)$(EFIT_tree[5:end])")
@@ -60,8 +35,16 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         efit_shot = shot
     end
 
-    # remote omas script
-    omas_py = """
+    # to get user OMFIT_PROFS use (shot, OMFIT_PROFS001) to get (shot001, OMFIT_PROFS)
+    if contains(PROFILES_tree, "OMFIT_PROFS")
+        prof_shot = parse(Int, "$(shot)$(PROFILES_tree[12:end])")
+        PROFILES_tree = "OMFIT_PROFS"
+    else
+        prof_shot = shot
+    end
+
+    # omas fetching script
+    omas_fetching = """
         import time
         import omas
         from omas.omas_utils import printe
@@ -78,7 +61,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         # d3d.nbi_active_hardware(ods, $shot)
 
         printe("- Fetching core_profiles data")
-        d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
+        d3d.core_profiles_profile_1d(ods, $prof_shot, PROFILES_tree="$(PROFILES_tree)")
 
         printe("- Fetching wall data")
         d3d.wall(ods, $shot)
@@ -86,6 +69,9 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         printe("- Fetching coils data")
         d3d.pf_active_hardware(ods, $shot)
         d3d.pf_active_coil_current_data(ods, $shot)
+
+        printe("- Fetching magnetic hardware data")
+        d3d.magnetics_hardware(ods, $shot)
 
         printe("- Fetching flux loops data")
         d3d.magnetics_floops_data(ods, $shot)
@@ -95,6 +81,10 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 
         printe("- Fetching Thomson scattering data")
         d3d.thomson_scattering_data(ods, $shot)
+
+        printe("- Fetching interferometer data")
+        d3d.interferometer_hardware(ods, $shot)
+        d3d.interferometer_data(ods, $shot)
 
         printe("- Fetching charge exchange data")
         d3d.charge_exchange_data(ods, $shot, analysis_type="$(CER_analysis_type)")
@@ -118,7 +108,35 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
                 ods["equilibrium.vacuum_toroidal_field.b0"]
 
         printe(f"Data fetched via OMAS in {time.time()-tic:.2f} [s]")
+        """
 
+    # variables used for data fetching
+    remote_omas_root = "\$OMAS_ROOT"
+    if !isempty(omega_omas_root)
+        remote_omas_root = omega_omas_root
+    end
+    remote_omfit_root = "\$OMFIT_ROOT"
+    if !isempty(omega_omfit_root)
+        remote_omfit_root = omega_omfit_root
+    end
+    remote_host = "$(omega_user)@omega.gat.com"
+    phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root, omas_fetching))
+    remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
+    filename = "D3D_$(shot)_$(phash).h5"
+    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+        local_path = remote_path
+    else
+        local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
+    end
+    if isdir(local_path) && !use_local_cache
+        rm(local_path; recursive=true)
+    end
+    if !isdir(local_path)
+        mkdir(local_path)
+    end
+
+    # remote omas script
+    omas_py = omas_fetching * """
         printe("Saving ODS to $filename", end="")
         tic = time.time()
         ods.save("$filename")
@@ -148,13 +166,13 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         cd $remote_path
         export PYTHONPATH=$(remote_omas_root):\$PYTHONPATH
 
-        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" 2>&1 > "$remote_path/omfit_log.txt" &
 
-        python -u omas_data_fetch.py
+        python -u omas_data_fetch.py 2>&1 | tee "$remote_path/omas_log.txt"
 
         echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
         wait
-        echo "Transfering data from remote" >&2
+        echo "Transfering data from the remote" >&2
         """
     open(joinpath(local_path, "remote_slurm.sh"), "w") do io
         return write(io, remote_slurm)

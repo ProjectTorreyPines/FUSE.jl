@@ -14,7 +14,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorDynamicPlasma{T<:Real} <: Parame
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
-    time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=false)
+    time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=true)
     #== display and debugging parameters ==#
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -29,6 +29,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_pf::ActorPFactive{D,P}
+    actor_saw::ActorSawteeth{D,P}
 end
 
 """
@@ -83,7 +84,9 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf)
+    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf, actor_saw)
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -106,7 +109,8 @@ function _step(actor::ActorDynamicPlasma)
     old_logging = actor_logging(dd, false)
 
     try
-        for (kk, time0) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end]) # NOTE: δt is a full step, some actors are called every 1/2 step
+        # NOTE: δt is a full step, some actors are called every 1/2 step
+        for (kk, time0) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
             phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2, we start with 1
             progr = (prog, t0, t1, phase)
 
@@ -121,6 +125,8 @@ function _step(actor::ActorDynamicPlasma)
 
             if phase == 1
                 substep(actor, Val{:evolve_j_ohmic}, kk == 1 ? δt / 2 : δt; progr)
+
+                substep(actor, Val{:run_hcd}, kk == 1 ? δt / 2 : δt; progr)
             else
                 substep(actor, Val{:run_pedestal}, kk == 1 ? δt / 2 : δt; progr)
 
@@ -128,9 +134,9 @@ function _step(actor::ActorDynamicPlasma)
                 IMAS.time_derivative_source!(dd)
             end
 
-            substep(actor, Val{:run_equilibrium}, δt / 2; progr)
+            substep(actor, Val{:run_sawteeth}, δt / 2; progr)
 
-            substep(actor, Val{:run_hcd}, δt / 2; progr)
+            substep(actor, Val{:run_equilibrium}, δt / 2; progr)
 
             substep(actor, Val{:run_pf_active}, δt / 2; progr)
         end
@@ -246,6 +252,15 @@ function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_hcd}}, δt::Float64;
     if par.evolve_hcd
         finalize(step(actor.actor_hc))
     end
+end
+
+function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_sawteeth}}, δt::Float64; progr=nothing, kw...)
+    # run sawteeth actor
+    if progr !== nothing
+        prog, t0, t1, phase = progr
+        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_saw, phase))
+    end
+    finalize(step(actor.actor_saw))
 end
 
 function substep(actor::ActorDynamicPlasma, ::Type{Val{:run_pf_active}}, δt::Float64; progr=nothing, kw...)
@@ -571,11 +586,11 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     # # inverse scale lengths
     # max_scale = 5
     # subplot = 14
-    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :third_order); lw=2.0)
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward); lw=2.0)
     # subplot = 15
-    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :third_order); ylim=(-max_scale, max_scale), lw=2.0)
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward); ylim=(-max_scale, max_scale), lw=2.0)
     # subplot = 16
-    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :third_order); ylim=(-max_scale, max_scale), lw=2.0)
+    # plot!(cp1d.grid.rho_tor_norm, -IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward); ylim=(-max_scale, max_scale), lw=2.0)
 
     l = @layout grid(3, 5)
     kw = Dict(kw...)

@@ -11,7 +11,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorEPEDprofiles{T<:Real} <: Paramet
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core")
 end
 
-mutable struct ActorEPEDprofiles{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorEPEDprofiles{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorEPEDprofiles{P}}
     act::ParametersAllActors{P}

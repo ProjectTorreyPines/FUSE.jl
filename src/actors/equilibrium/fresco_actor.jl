@@ -8,7 +8,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersAct
     _name::Symbol = :not_set
     _time::Float64 = NaN
     #== actor parameters ==#
-    control::Switch{Symbol} = Switch{Symbol}([:vertical, :shape], "-", "Vertical control algorithm to be used"; default=:shape)
+    control::Switch{Symbol} = Switch{Symbol}([:vertical, :shape, :magnetics], "-", "Vertical control algorithm to be used"; default=:shape)
     number_of_iterations::Entry{Tuple{Int,Int}} = Entry{Tuple{Int,Int}}("-", "Number of outer and inner iterations"; default=(100, 3))
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
@@ -73,13 +73,9 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     Zs = range(minimum(fw_z) - ΔZ / 20, maximum(fw_z) + ΔZ / 20, par.nZ)
 
     # reuse green table if possible
-    if actor.canvas !== nothing
-        Green_table = actor.canvas._Gvac
-    else
-        Green_table = D[;;;]
-    end
+    gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table = actor.canvas.Green_table)
 
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points)
+    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points, gt_kw...)
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 

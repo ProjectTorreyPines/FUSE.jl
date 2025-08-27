@@ -83,13 +83,18 @@ end
 Writes results to dd.summary.local.pedestal and updates core_profiles
 """
 function _finalize(actor::ActorEPED)
+    return __finalize(actor)
+end
+
+function __finalize(actor::Union{ActorEPED,ActorAnalyticPedestal})
     dd = actor.dd
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm
 
-    # NOTE: EPED uses 1/2 width as fraction of psi_norm instead FUSE, IMAS, and the Hmode_profiles functions use the full width as a function of rho_tor_norm
+    # NOTE: Standard EPED uses 1/2 width as fraction of psi_norm
+    #       Instead FUSE, IMAS and the Hmode_profiles functions use the full width as a function of rho_tor_norm.
     from_ped_to_full_width = 2.0
     position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
     w_ped = 1.0 - position
@@ -170,7 +175,7 @@ function run_EPED!(
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
-    m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
+    m = round(Int, IMAS.A_effective(cp1d) * 2.0, RoundNearest) / 2.0
     if !(m == 2.0 || m == 2.5)
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end

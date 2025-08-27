@@ -6,7 +6,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: Parame
     _name::Symbol = :not_set
     _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
@@ -36,7 +35,7 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     actor = ActorCoreTransport(dd, par, act, noop)
 
     if par.model == :FluxMatcher
-        actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
+        actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act)
     elseif par.model == :EPEDProfiles
         actor.tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
     elseif par.model == :replay

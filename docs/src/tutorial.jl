@@ -67,6 +67,12 @@ FUSE.init(dd, ini, act);
 
 plot(dd.build)
 
+plot(dd.equilibrium)
+
+plot(dd.core_profiles)
+
+plot(dd.core_sources)
+
 # We can `@checkin` and `@checkout` variables with an associated tag.
 # 
 # This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we'll use this later).
@@ -92,7 +98,7 @@ FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesi
 
 peq = plot(dd.equilibrium; label="before")
 pcp = plot(dd.core_profiles; color=:gray, label="before")
-act.ActorFluxMatcher.verbose = true
+#act.ActorFluxMatcher.verbose = true
 act.ActorFluxMatcher.algorithm = :anderson
 #act.ActorFluxMatcher.step_size = 0.1
 FUSE.ActorStationaryPlasma(dd, act);
