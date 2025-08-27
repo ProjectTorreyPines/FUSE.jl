@@ -462,7 +462,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
                 plot!(dd1.thomson_scattering, :n_e; time0, lw=2.0, xlabel="", ylabel="", label="")
             end
             if IMAS.hasdata(dd1.charge_exchange)
-                plot!(dd1.charge_exchange, :n_imp; time0, lw=2.0, xlabel="", ylabel="", label="", normalization=dd1.core_profiles.profiles_1d[time0].ion[2].element[1].z_n)
+                plot!(dd1.charge_exchange, :n_imp; time0, lw=2.0, xlabel="", ylabel="", label="", normalization=dd1.core_profiles.profiles_1d[time0].ion[2].element[1].z_n, primary=false)
             end
         end
         if dd !== dd1
