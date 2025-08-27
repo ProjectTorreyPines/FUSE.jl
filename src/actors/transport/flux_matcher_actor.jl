@@ -30,8 +30,16 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     evolve_plasma_sources::Entry{Bool} = Entry{Bool}("-", "Update the plasma sources at each iteration"; default=true)
     find_widths::Entry{Bool} = Entry{Bool}("-", "Runs turbulent transport actor TJLF finding widths after first iteration"; default=true)
     max_iterations::Entry{Int} = Entry{Int}("-", "Maximum optimizer iterations"; default=0)
+    xtol::Entry{T} = Entry{T}("-", "Tolerance on the solution vector"; default=1E-3, check=x -> @assert x > 0.0 "must be: xtol > 0.0")
     algorithm::Switch{Symbol} =
-        Switch{Symbol}([:polyalg, :broyden, :anderson, :simple, :old_anderson, :none], "-", "Optimizing algorithm used for the flux matching"; default=:broyden)
+        Switch{Symbol}(
+            [:basic_polyalg, :polyalg, :broyden, :anderson, :simple_trust, :trust, :simple, :old_anderson, :custom, :none],
+            "-",
+            "Optimizing algorithm used for the flux matching";
+            default=:basic_polyalg
+        )
+    custom_algorithm::Entry{NonlinearSolve.AbstractNonlinearSolveAlgorithm} =
+        Entry{NonlinearSolve.AbstractNonlinearSolveAlgorithm}("-", "User-defined custom solver from NonlinearSolve")
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -159,8 +167,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # Different defaults for gradient-based methods
     if par.max_iterations != 0
         max_iterations = abs(par.max_iterations)
-    elseif par.algorithm in (:broyden, :polyalg)
-        max_iterations = 15
+    elseif par.algorithm in (:trust, :simple_trust, :broyden, :polyalg)
+        max_iterations = 50
     else
         max_iterations = 500
     end
@@ -170,9 +178,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             res = (zero=opt_parameters,)
 
         elseif par.algorithm == :simple
-            ftol = 1E-2 # relative error
-            xtol = 1E-3 # difference in input array
-            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, max_iterations, ftol, xtol, prog)
+            ftol = Inf # always use xtol condition as in NonlinearSolve.jl
+            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, max_iterations, ftol, par.xtol, prog)
 
         else
             # 1. In-place residual
@@ -192,7 +199,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
             # 3. Algorithm selection
             alg = if par.algorithm == :old_anderson
-                NonlinearSolve.NLsolveJL(; method=:anderson, m=4, beta=-par.step_size * 0.5)
+                NonlinearSolve.NLsolveJL(; method=:anderson, m=4, beta=-par.step_size * 5)
 
             elseif par.algorithm == :anderson
                 NonlinearSolve.FixedPointAccelerationJL(;
@@ -204,21 +211,25 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 )
 
             elseif par.algorithm == :broyden
-                alg = NonlinearSolve.Broyden(;
-                    linesearch=NonlinearSolve.LineSearch.BackTracking(;
-                        c_1=1e-4,   # Armijo parameter
-                        ρ_hi=0.5,   # shrink factor
-                        order=2,    # model order
-                        autodiff
-                    ),
-                    update_rule=Val(:good_broyden),
-                    init_jacobian=Val(:true_jacobian),
-                    autodiff
-                )
+                NonlinearSolve.Broyden(; autodiff)
+
+            elseif par.algorithm == :trust
+                NonlinearSolve.TrustRegion(; autodiff)
+
+            elseif par.algorithm == :simple_trust
+                NonlinearSolve.SimpleTrustRegion(; autodiff)
+
+            elseif par.algorithm === :basic_polyalg
+                NonlinearSolve.NonlinearSolvePolyAlgorithm((NonlinearSolve.Broyden(; autodiff),
+                    NonlinearSolve.SimpleTrustRegion(; autodiff)))
 
             elseif par.algorithm == :polyalg
                 # Default NonlinearSolve algorithm
                 NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff)
+
+            elseif par.algorithm == :custom
+                ismissing(par.custom_algorithm) && error("custom_algorithm must be set to a NonlinearSolve algorithm for algorithm=:custom")
+                par.custom_algorithm
 
             else
                 error("Unsupported algorithm: $(par.algorithm)")
@@ -228,7 +239,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # NonlinearSolve abstol is meant to be on u, but actually gets
             #   passed to ftol in NLsolve which is an error on the residual
             # See https://github.com/SciML/NonlinearSolve.jl/issues/593
-            abstol = 1E-2
+            abstol = par.xtol
+
             NonlinearSolve.solve(
                 problem, alg;
                 abstol,
@@ -963,16 +975,11 @@ end
 Checks if the evolve_densities dictionary makes sense and return sensible errors if this is not the case
 """
 function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_densities::AbstractDict)
-    dd_species = [
-        :electrons;
-        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:thermal, return_zero_densities=true)];
-        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:ions, only_thermal_fast=:fast, return_zero_densities=true)]
-    ]
-    if !ismissing(cp1d.electrons, :density_fast)
-        push!(dd_species, :electrons_fast)
-    end
+    dd_species =
+        Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
+
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort([specie for (specie, evolve) in evolve_densities]) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
+    @assert sort!([specie for (specie, evolve) in evolve_densities]) == sort!(dd_species) "Mismatch: dd species $(sort!(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
     if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
