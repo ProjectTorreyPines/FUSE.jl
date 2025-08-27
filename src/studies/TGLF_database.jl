@@ -10,19 +10,7 @@ import GACODE
     study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
 """
 function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
-    sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
-    act = ParametersActors()
-
-    # Change act for the default TGLFdb run
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorTGLF.warn_nn_train_bounds = false
-
-    # finalize 
-    set_new_base!(sty)
-    set_new_base!(act)
-
-    return sty, act
+    return FUSEparameters__ParametersStudyTGLFdb{Real}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}
@@ -60,14 +48,9 @@ function TGLF_dataframe()
         Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
 end
 
-function StudyTGLFdb(sty, act; kw...)
+function StudyTGLFdb(sty::ParametersStudy, act::ParametersAllActors; kw...)
     sty = OverrideParameters(sty; kw...)
     study = StudyTGLFdb(sty, act, missing, missing)
-    return setup(study)
-end
-
-function _setup(study::StudyTGLFdb)
-    sty = study.sty
 
     @assert !ismissing(getproperty(sty, :database_folder, missing)) "Specify the database_folder in sty"
     @assert !ismissing(readdir(sty.database_folder)) "There are no input cases in $(sty.database_folder)"
@@ -137,12 +120,7 @@ function _run(study::StudyTGLFdb)
     return study
 end
 
-function _analyze(study::StudyTGLFdb)
-    plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
-    return study
-end
-
-function preprocess_dd(filename)
+function preprocess_dd(filename::AbstractString)
     dd = IMAS.json2imas(filename; verbose=false)
 
     cp1d = dd.core_profiles.profiles_1d[]
@@ -156,7 +134,7 @@ function preprocess_dd(filename)
     return dd
 end
 
-function run_case(filename, study, item)
+function run_case(filename::AbstractString, study::StudyTGLFdb, item)
     act = study.act
     sty = study.sty
 
@@ -200,7 +178,7 @@ function run_case(filename, study, item)
     end
 end
 
-function workflow_actor(dd, act)
+function workflow_actor(dd::IMAS.dd, act::ParametersAllActors)
     # Actors to run on the input dd
 
     actor_transport = ActorCoreTransport(dd, act)
@@ -304,8 +282,7 @@ function preparse_input(database_folder)
     end
 end
 
-
-function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
+function plot_xy_wth_hist2d(study::StudyTGLFdb; quantity::Symbol=:WTH, save_fig::Bool=false, save_path::AbstarctString="")
     if study.act.ActorTGLF.electromagnetic
         EM_contribution = :EM
     else
@@ -317,7 +294,7 @@ function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
     end
 end
 
-function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
+function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::AbstarctString)
     x = df[!, "$(quantity)_exp"]
     y = df[!, "$(quantity)"]
 
