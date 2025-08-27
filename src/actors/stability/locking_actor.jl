@@ -1,5 +1,6 @@
 #import DifferentialEquations as DiffEqs
 using Distributed
+addprocs(2)
 @everywhere begin
     using DifferentialEquations
 
@@ -132,6 +133,8 @@ using Distributed
             rhs!(du, u, t, X1, X2, ode_params, n_mode, control_type)
         end
     end
+
+end
 #function make_problem_factory(prob_template, ode_params, task, dt)
 #    return function(input)
 #        eps, Om0 = input
@@ -143,10 +146,9 @@ using Distributed
 #end
 
 
-end
-#= ================= =#
+#================== =#
 #  ActorLockingProbability  #
-#= ================= =#
+#================== =#
 Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
