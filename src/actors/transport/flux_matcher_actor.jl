@@ -32,8 +32,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
     xtol::Entry{T} = Entry{T}("-", "Tolerance on the solution vector"; default=1E-3, check=x -> @assert x > 0.0 "must be: xtol > 0.0")
     algorithm::Switch{Symbol} =
         Switch{Symbol}([:polyalg, :broyden, :anderson, :simple_trust, :trust, :simple, :old_anderson, :custom, :none], "-", "Optimizing algorithm used for the flux matching"; default=:simple_trust)
-    custom_algorithm::Entry{Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}} =
-        Entry{Union{Nothing, NonlinearSolve.AbstractNonlinearSolveAlgorithm}}("-", "User-defined custom solver from NonlinearSolve"; default=nothing)
+    custom_algorithm::Entry{NonlinearSolve.AbstractNonlinearSolveAlgorithm} =
+        Entry{NonlinearSolve.AbstractNonlinearSolveAlgorithm}("-", "User-defined custom solver from NonlinearSolve")
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -215,7 +215,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 NonlinearSolve.FastShortcutNonlinearPolyalg(; autodiff)
 
             elseif par.algorithm == :custom
-                isnothing(par.custom_algorithm) && error("When algorithm=:custom, custom_algorithm must be set to a NonlinearSolve algorithm")
+                ismissing(par.custom_algorithm) && error("custom_algorithm must be set to a NonlinearSolve algorithm for algorithm=:custom")
                 par.custom_algorithm
 
             else
