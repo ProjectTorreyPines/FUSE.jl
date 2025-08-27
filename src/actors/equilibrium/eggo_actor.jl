@@ -10,8 +10,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorEGGO{T<:Real} <: ParametersActor
     _time::Float64 = NaN
     #== actor parameters ==#
     model::Entry{Symbol} = Entry{Symbol}("-", "Neural network model to be used")
-    use_vacuumfield_green = Entry{Bool}("-", "Use Vacuum Fields green's function tables"; default=false)
-    nb_reduce = Entry{Real}("-", "parameter to reduce constrained boundary points"; default=4)
+    use_vacuumfield_green::Entry{Bool} = Entry{Bool}("-", "Use Vacuum Fields green's function tables"; default=false)
+    decimate_boundary::Entry{Int} = Entry{Int}("-", "Parameter to decimate number of boundary points"; default=4)
+    timeslice_average::Entry{Int} = Entry{Int}("-", "Number of time slices to average"; default=0)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing EGGO solve"; default=false)
@@ -56,6 +57,7 @@ end
 
 function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
+    par = actor.par
 
     eqt = dd.equilibrium.time_slice[]
     eqt1d = eqt.profiles_1d
@@ -70,8 +72,8 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
 
     # make actual prediction
     Ip_target = eqt.global_quantities.ip
-    Rb_target = eqt.boundary.outline.r[1:actor.par.nb_reduce:end]
-    Zb_target = eqt.boundary.outline.z[1:actor.par.nb_reduce:end]
+    Rb_target = eqt.boundary.outline.r[1:par.decimate_boundary:end]
+    Zb_target = eqt.boundary.outline.z[1:par.decimate_boundary:end]
     Rb_target[end] = Rb_target[1]
     Zb_target[end] = Zb_target[1]
 
@@ -85,12 +87,12 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
         actor.basis_functions,
         actor.coils,
         Ip_target,
-        actor.par.use_vacuumfield_green
+        par.use_vacuumfield_green
     )
 
     # average out EGGO solution with previous time slice(s)
     # until EGGO becomes a bit more robust
-    n = 0 # number of time slices to average
+    n = par.timeslice_average # number of time slices to average
     i = IMAS.index(eqt)
     if i > n
         d = 1.0
