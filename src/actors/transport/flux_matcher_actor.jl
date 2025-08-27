@@ -192,17 +192,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 )
 
             elseif par.algorithm == :broyden
-                NonlinearSolve.Broyden(;
-                    linesearch=NonlinearSolve.LineSearch.BackTracking(;
-                        c_1=1e-4,   # Armijo parameter
-                        ρ_hi=0.5,   # shrink factor
-                        order=2,    # model order
-                        autodiff
-                    ),
-                    update_rule=Val(:good_broyden),
-                    init_jacobian=Val(:true_jacobian),
-                    autodiff
-                )
+                NonlinearSolve.Broyden(; autodiff)
 
             elseif par.algorithm == :trust
                 NonlinearSolve.TrustRegion(; autodiff)
