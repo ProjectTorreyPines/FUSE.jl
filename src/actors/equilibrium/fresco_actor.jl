@@ -115,8 +115,8 @@ function _finalize(actor::ActorFRESCO)
     eqt1d.pressure .+= pend .- eqt1d.pressure[end]
 
     eq2d.grid_type.index = 1
-    eq2d.grid.dim1 = collect(range(canvas.Rs[1], canvas.Rs[end], Npsi))
-    eq2d.grid.dim2 = collect(range(canvas.Zs[1], canvas.Zs[end], Npsi))
+    eq2d.grid.dim1 = canvas.Rs
+    eq2d.grid.dim2 = canvas.Zs
     FRESCO.update_interpolation!(canvas)
     eq2d.psi = [canvas._Ψitp(r, z) for r in eq2d.grid.dim1, z in eq2d.grid.dim2]
 
