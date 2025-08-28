@@ -10,6 +10,7 @@ Simple approach:
 
 using JSON
 using Dates
+using Base.Threads
 
 """
     extract_all_actors(src_dir::String, knowledge_dir::String="knowledge")
@@ -17,7 +18,7 @@ using Dates
 Extract knowledge for all FUSE actors using Claude analysis.
 Creates individual JSON files and combined knowledge base.
 """
-function extract_all_actors(src_dir::String, knowledge_dir::String="knowledge"; limit=nothing)
+function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="knowledge"; batch_size=8, limit=nothing)
     actors_src_dir = joinpath(src_dir, "actors")
     actors_kb_dir = joinpath(knowledge_dir, "actors")
     
@@ -25,9 +26,11 @@ function extract_all_actors(src_dir::String, knowledge_dir::String="knowledge"; 
         error("Actors source directory not found: $actors_src_dir")
     end
     
-    println("🔍 Extracting FUSE Actor Knowledge...")
+    println("🚀 Extracting FUSE Actor Knowledge (Parallel Batches)...")
     println("Source: $actors_src_dir")
     println("Output: $actors_kb_dir")
+    println("Batch size: $batch_size concurrent requests")
+    println("Available threads: $(Threads.nthreads())")
     
     # Ensure output directory exists
     mkpath(actors_kb_dir)
@@ -48,38 +51,73 @@ function extract_all_actors(src_dir::String, knowledge_dir::String="knowledge"; 
     all_actors = Dict()
     categories = Dict()
     
-    # Process each actor
-    for (i, (actor_file, category)) in enumerate(actor_files)
-        println("[$i/$(length(actor_files))] Processing $(basename(actor_file))...")
+    # Create batches
+    batches = [actor_files[i:min(i+batch_size-1, end)] 
+              for i in 1:batch_size:length(actor_files)]
+    println("Processing in $(length(batches)) batches")
+    
+    # Process batches
+    total_processed = 0
+    for (batch_num, batch) in enumerate(batches)
+        batch_start = total_processed + 1
+        batch_end = total_processed + length(batch)
+        println("\n📦 Batch $batch_num/$(length(batches)): Processing actors [$batch_start-$batch_end]")
         
-        try
-            # Analyze with Claude
-            actor_data = analyze_actor_with_claude(actor_file, category, schema_path)
-            
+        # Start parallel tasks for this batch
+        tasks = []
+        for (actor_file, category) in batch
+            task = Threads.@spawn begin
+                try
+                    analyze_actor_with_claude(actor_file, category, schema_path)
+                catch e
+                    Dict("error" => "Task failed: $e", "file" => actor_file)
+                end
+            end
+            push!(tasks, (task, actor_file, category))
+        end
+        
+        # Wait for all tasks in batch to complete and collect results
+        batch_results = []
+        for (i, (task, actor_file, category)) in enumerate(tasks)
+            actor_data = fetch(task)
+            push!(batch_results, (actor_data, actor_file, category))
+            print("✓")  # Progress indicator
+            flush(stdout)
+        end
+        
+        # Process results from this batch
+        for (actor_data, actor_file, category) in batch_results
             if haskey(actor_data, "error")
                 @warn "Failed to analyze $(basename(actor_file)): $(actor_data["error"])"
                 continue
             end
             
-            # Save individual JSON file
-            save_individual_actor_json(actor_data, actor_file, actors_src_dir, actors_kb_dir)
-            
-            # Track for combined knowledge base
-            actor_name = actor_data["name"]
-            all_actors[actor_name] = actor_data
-            
-            # Track categories
-            if !haskey(categories, category)
-                categories[category] = []
+            try
+                # Save individual JSON file
+                save_individual_actor_json(actor_data, actor_file, actors_src_dir, actors_kb_dir)
+                
+                # Track for combined knowledge base
+                actor_name = actor_data["name"]
+                all_actors[actor_name] = actor_data
+                
+                # Track categories
+                if !haskey(categories, category)
+                    categories[category] = []
+                end
+                push!(categories[category], actor_name)
+                
+            catch e
+                @warn "Error saving $(basename(actor_file)): $e"
             end
-            push!(categories[category], actor_name)
-            
-        catch e
-            @warn "Error processing $(basename(actor_file)): $e"
         end
         
-        # Small delay to be nice to Claude
-        sleep(0.5)
+        total_processed += length(batch)
+        println("\n   Completed: $total_processed/$(length(actor_files)) actors")
+        
+        # Small delay between batches to be nice to Claude API
+        if batch_num < length(batches)
+            sleep(1.0)
+        end
     end
     
     # Generate combined knowledge base
@@ -91,12 +129,17 @@ function extract_all_actors(src_dir::String, knowledge_dir::String="knowledge"; 
         JSON.print(io, knowledge_base, 2)
     end
     
-    println("✅ Extraction complete!")
+    println("\n✅ Parallel extraction complete!")
     println("Individual actors: $actors_kb_dir")
     println("Combined knowledge base: $kb_path")
     println("Processed $(length(all_actors)) actors across $(length(categories)) categories")
     
     return knowledge_base
+end
+
+# Keep original sequential version for comparison
+function extract_all_actors(src_dir::String, knowledge_dir::String="knowledge"; limit=nothing)
+    return extract_all_actors_parallel(src_dir, knowledge_dir; batch_size=1, limit=limit)
 end
 
 """
@@ -268,9 +311,15 @@ Extract knowledge using default paths (assumes running from knowledge/ directory
 """
 # Test function for a few actors
 function test_extraction()
-    extract_all_actors("../src", ".", limit=3)
+    extract_all_actors_parallel("../src", ".", limit=3, batch_size=3)
 end
 
+# Parallel extraction with default batch size
+function extract_fuse_knowledge_parallel()
+    extract_all_actors_parallel("../src", ".")
+end
+
+# Sequential extraction (for comparison)
 function extract_fuse_knowledge()
     extract_all_actors("../src", ".")
 end
