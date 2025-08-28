@@ -14,20 +14,7 @@ It's also possible to run the database generator on Vector of `ini`s and `act`s.
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
-    sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
-    act = ParametersActors()
-
-    # Change act for the default DatabaseGenerator run
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorTGLF.warn_nn_train_bounds = false
-    act.ActorFluxMatcher.evolve_rotation = :fixed
-
-    # finalize
-    set_new_base!(sty)
-    set_new_base!(act)
-
-    return sty, act
+    return FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:Real} <: ParametersStudy{T}
@@ -66,11 +53,6 @@ function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersA
         sty.n_simulations = length(inis)
     end
     study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
-    return setup(study)
-end
-
-function _setup(study::StudyDatabaseGenerator)
-    sty = study.sty
 
     check_and_create_file_save_mode(sty)
 
@@ -105,7 +87,7 @@ function _run(study::StudyDatabaseGenerator)
 
     if study.sty.database_policy == :separate_folders
         FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
-        analyze(study; extract=true)
+        extract_results(study)
 
     elseif study.sty.database_policy == :single_hdf5
 
@@ -120,8 +102,6 @@ function _run(study::StudyDatabaseGenerator)
             end, iterator)
 
         study.dataframe = _merge_tmp_study_files(study.sty.save_folder; cleanup=true)
-
-        analyze(study; extract=false)
     else
         error("DatabaseGenerator should never be here: database_policy must be either `:separate_folders` or `:single_hdf5`")
     end
@@ -132,18 +112,6 @@ function _run(study::StudyDatabaseGenerator)
         @info "released workers"
     end
 
-    return study
-end
-
-"""
-    _analyze(study::StudyDatabaseGenerator; extract::Bool=true)
-
-Analyze the database generator study results by extracting results if requested
-"""
-function _analyze(study::StudyDatabaseGenerator; extract::Bool=true)
-    if extract
-        extract_results(study)
-    end
     return study
 end
 
