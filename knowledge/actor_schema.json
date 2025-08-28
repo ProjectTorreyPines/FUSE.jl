@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FUSE Actor Knowledge Schema",
+  "description": "Schema for individual FUSE actor analysis",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Actor class name (e.g., 'ActorStationaryPlasma')"
+    },
+    "category": {
+      "type": "string", 
+      "description": "Domain category (equilibrium, transport, build, heating, etc.)"
+    },
+    "hierarchy": {
+      "type": "string",
+      "enum": ["single", "compound"],
+      "description": "Whether this is a single actor or compound actor"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of what this actor does"
+    },
+    "physics_domain": {
+      "type": "string",
+      "description": "Physics/engineering domain this actor operates in"
+    },
+    "data_inputs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "IMAS data paths that this actor reads from"
+    },
+    "data_outputs": {
+      "type": "array", 
+      "items": {"type": "string"},
+      "description": "IMAS data paths that this actor writes to"
+    },
+    "sub_actors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "optional": {"type": "boolean"}
+        },
+        "required": ["name", "optional"]
+      },
+      "description": "Sub-actors for compound actors (empty for single actors)"
+    },
+    "key_parameters": {
+      "type": "object",
+      "additionalProperties": {"type": "string"},
+      "description": "Important parameters and their descriptions"
+    },
+    "usage_notes": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Important usage notes, warnings, or best practices"
+    }
+  },
+  "required": [
+    "name",
+    "category", 
+    "hierarchy",
+    "description",
+    "physics_domain",
+    "data_inputs",
+    "data_outputs",
+    "sub_actors",
+    "key_parameters",
+    "usage_notes"
+  ]
+}

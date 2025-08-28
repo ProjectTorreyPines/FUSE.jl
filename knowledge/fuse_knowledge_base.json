@@ -1,0 +1,2345 @@
+{
+  "actors": {
+    "ActorFRESCO": {
+      "data_outputs": [
+        "equilibrium.time_slice.global_quantities.magnetic_axis",
+        "equilibrium.time_slice.global_quantities.psi_boundary",
+        "equilibrium.time_slice.global_quantities.psi_axis",
+        "equilibrium.time_slice.profiles_1d.dpressure_dpsi",
+        "equilibrium.time_slice.profiles_1d.f_df_dpsi",
+        "equilibrium.time_slice.profiles_1d.f",
+        "equilibrium.time_slice.profiles_2d.psi",
+        "equilibrium.vacuum_toroidal_field",
+        "pf_active.coil.current",
+        "equilibrium.time_slice.global_quantities.free_boundary"
+      ],
+      "name": "ActorFRESCO",
+      "physics_domain": "MHD equilibrium reconstruction",
+      "sub_actors": [],
+      "data_inputs": [
+        "wall.description_2d",
+        "pf_active.coil",
+        "equilibrium.time_slice.profiles_1d.psi",
+        "equilibrium.time_slice.profiles_1d.psi_norm",
+        "equilibrium.time_slice.profiles_1d.pressure",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field"
+      ],
+      "usage_notes": [
+        "Requires wall information or pf_active coil data to define first wall boundaries",
+        "Reuses Green's function table when possible for computational efficiency",
+        "Updates both equilibrium data and pf_active coil currents after solving",
+        "Sets free_boundary flag to 1 after successful equilibrium calculation",
+        "Debug mode available for troubleshooting convergence issues"
+      ],
+      "key_parameters": {
+        "number_of_iterations": "Number of outer and inner iterations for solver convergence",
+        "relax": "Relaxation factor for Picard iterations",
+        "nR": "Grid resolution along R direction",
+        "nZ": "Grid resolution along Z direction",
+        "active_x_points": "List of active x-points in equilibrium solver",
+        "control": "Vertical control algorithm (vertical, shape, or magnetics)",
+        "fixed_grid": "Grid type for fixing pressure and current (psi_norm or rho_tor_norm)",
+        "tolerance": "Convergence tolerance for terminating iterations"
+      },
+      "category": "equilibrium",
+      "description": "Fixed boundary equilibrium solver using the FRESCO package to solve for plasma equilibrium given pressure and current density profiles",
+      "hierarchy": "compound"
+    },
+    "ActorPowerNeeds": {
+      "data_outputs": [
+        "balance_of_plant.power_electric_plant_operation.system",
+        "balance_of_plant.time"
+      ],
+      "name": "ActorPowerNeeds",
+      "physics_domain": "Balance of plant electrical systems and power distribution",
+      "sub_actors": [],
+      "data_inputs": [
+        "nbi.unit.power_launched",
+        "ec_launchers.beam.power_launched",
+        "ic_antennas.antenna.power_launched",
+        "lh_antennas.antenna.power_launched",
+        "balance_of_plant.power_plant.power_electric_generated",
+        "global_time"
+      ],
+      "usage_notes": [
+        "Stores data in dd.balance_of_plant.power_electric_plant_operation",
+        "Model :thermal_power_fraction uses simple fraction of gross electrical power",
+        "Model :EU_DEMO uses fixed DEMO 2017 values for cryostat (30MW), tritium handling (15MW)",
+        "Model :FUSE provides self-consistent pumping calculations",
+        "Calculates electrical needs for heating and current drive systems (NBI, EC, IC, LH)",
+        "PF active power currently returns 0.0 but should not be constant"
+      ],
+      "key_parameters": {
+        "model": "Power plant electrical needs model selection (:thermal_power_fraction, :EU_DEMO, :FUSE)",
+        "thermal_power_fraction": "Fraction of gross electrical power for thermal cycle (when model is :thermal_power_fraction)"
+      },
+      "category": "balance_plant",
+      "description": "Power needs actor that calculates the needed power to operate the plant",
+      "hierarchy": "single"
+    },
+    "ActorPedestal": {
+      "data_outputs": [
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.electrons.density_thermal",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.ion.density_thermal",
+        "core_profiles.profiles_1d.rotation_frequency_tor_sonic",
+        "summary.local.pedestal",
+        "summary.global_quantities.h_mode.value"
+      ],
+      "name": "ActorPedestal",
+      "physics_domain": "Edge plasma physics and pedestal modeling",
+      "sub_actors": [
+        {
+          "name": "ActorWPED",
+          "optional": false
+        },
+        {
+          "name": "ActorEPED",
+          "optional": false
+        },
+        {
+          "name": "ActorAnalyticPedestal",
+          "optional": false
+        },
+        {
+          "name": "ActorReplay",
+          "optional": true
+        },
+        {
+          "name": "ActorNoOperation",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "core_profiles.profiles_1d",
+        "equilibrium.time_slice",
+        "pulse_schedule",
+        "summary.global_quantities"
+      ],
+      "usage_notes": [
+        "Dynamic model requires ne_from = :pulse_schedule and advancing global time",
+        "EPED and WPED models only operate on temperature profiles",
+        "L-H transitions can be specified manually or determined automatically based on conditions",
+        "Density pedestal width is matched to existing temperature pedestal width",
+        "Quasi-neutrality is enforced after pedestal evaluation",
+        "For dynamic model, density and zeff factors change during L-H transitions"
+      ],
+      "key_parameters": {
+        "rho_ped": "Defines rho at which the pedestal region starts",
+        "rotation_model": "Rotation edge model (linear, replay, none)",
+        "tau_n": "Edge density LH transition tanh evolution time",
+        "mode_transitions": "Times at which plasma transitions between L-mode and H-mode",
+        "model": "Pressure edge model selection (EPED, WPED, dynamic, analytic, replay, none)",
+        "rho_nml": "Defines rho at which the no man's land region starts",
+        "density_match": "Matching density based on ne_ped or line averaged density",
+        "tau_t": "Edge temperature LH transition tanh evolution time",
+        "T_ratio_pedestal": "Ratio of ion to electron temperatures",
+        "Te_sep": "Separatrix electron temperature"
+      },
+      "category": "pedestal",
+      "description": "Evaluates the pedestal boundary condition (height and width) for plasma edge profiles",
+      "hierarchy": "compound"
+    },
+    "ActorPFdesign": {
+      "data_outputs": [
+        "dd.pf_active"
+      ],
+      "name": "ActorPFdesign",
+      "physics_domain": "Poloidal Field Coil Design and Optimization",
+      "sub_actors": [
+        {
+          "name": "ActorPFactive",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "dd.equilibrium.time_slice",
+        "dd.build",
+        "dd.requirements.coil_j_margin",
+        "dd.pf_active"
+      ],
+      "usage_notes": [
+        "Manipulates data in dd.pf_active",
+        "Uses optimization to find coil currents that satisfy boundary and flux/saddle constraints in least-square sense",
+        "Optimal model includes cost functions for coil spacing and current magnitude",
+        "Can enforce up-down symmetry in coil placement",
+        "Automatically sizes PF coils based on required currents and tolerance margins"
+      ],
+      "key_parameters": {
+        "symmetric": "Force PF coils location to be up-down symmetric",
+        "model": "Coil placement strategy (:none, :uniform, :optimal)",
+        "verbose": "Enable verbose output during optimization",
+        "reset_rails": "Reset PF coils rails",
+        "do_plot": "Enable plotting of results",
+        "update_equilibrium": "Overwrite target equilibrium with the one that the coils can actually make"
+      },
+      "category": "pf",
+      "description": "Optimize PF coil locations to achieve desired equilibrium",
+      "hierarchy": "compound"
+    },
+    "ActorPlasmaLimits": {
+      "data_outputs": [
+        "dd.limits.model"
+      ],
+      "name": "ActorPlasmaLimits",
+      "physics_domain": "Plasma stability and operational limits",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.limits.model"
+      ],
+      "usage_notes": [
+        "Actor evaluates multiple limit models specified in the models parameter",
+        "Reports both failed and passed stability rules with percentage thresholds",
+        "Can be configured to either warn or error on limit breaches via raise_on_breach parameter",
+        "Limit models are dynamically evaluated by name - unknown models will raise UndefVarError",
+        "Results include rounded percentage values and descriptive identifiers for each limit"
+      ],
+      "key_parameters": {
+        "verbose": "Enable detailed output of limit evaluation results",
+        "models": "Vector of limit model names to evaluate (default uses supported_limit_models)",
+        "raise_on_breach": "Boolean flag to raise error when operational limits are breached (default: false)"
+      },
+      "category": "stability",
+      "description": "Evaluates plasma operational limits using configurable stability models and reports limit breaches",
+      "hierarchy": "compound"
+    },
+    "ActorEPEDprofiles": {
+      "data_outputs": [
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.electrons.density_thermal",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.ion.density_thermal",
+        "core_sources"
+      ],
+      "name": "ActorEPEDprofiles",
+      "physics_domain": "Plasma transport and pedestal physics",
+      "sub_actors": [],
+      "data_inputs": [
+        "core_profiles.profiles_1d",
+        "pulse_schedule",
+        "equilibrium"
+      ],
+      "usage_notes": [
+        "Uses EPED model to calculate pedestal pressure and width",
+        "Preserves ion-to-electron density ratios when updating profiles",
+        "Will error if resulting temperature or density profiles become negative",
+        "Automatically updates core_sources after profile modifications",
+        "Relies on pulse_schedule for pedestal density and Zeff values"
+      ],
+      "key_parameters": {
+        "Te_shaping": "Shaping coefficient for the temperature profile",
+        "T_ratio_core": "Ion to electron temperature ratio in the core",
+        "ne_shaping": "Shaping coefficient for the density profile",
+        "T_ratio_pedestal": "Ion to electron temperature ratio in the pedestal"
+      },
+      "category": "transport",
+      "description": "Updates pedestal height and width and blends with core profiles defined by shaping factors without changing on-axis plasma profile values",
+      "hierarchy": "compound"
+    },
+    "ActorCosting": {
+      "data_outputs": [
+        "dd.costing"
+      ],
+      "name": "ActorCosting",
+      "physics_domain": "Economic and financial modeling",
+      "sub_actors": [
+        {
+          "name": "ActorCostingSheffield",
+          "optional": true
+        },
+        {
+          "name": "ActorCostingARIES",
+          "optional": true
+        }
+      ],
+      "data_inputs": [
+        "dd.costing.construction_start_year",
+        "dd.costing.future.inflation_rate",
+        "dd.costing.plant_lifetime",
+        "dd.costing.availability",
+        "dd.costing.future.learning.hts.production_increase",
+        "dd.costing.future.learning.hts.learning_rate"
+      ],
+      "usage_notes": [
+        "Stores data in dd.costing",
+        "Uses either Sheffield or ARIES costing model based on model parameter",
+        "Production increase must be >= 0.0",
+        "Learning rate must be between 0.0 and 1.0",
+        "Automatically clears existing costing data before running"
+      ],
+      "key_parameters": {
+        "future_inflation_rate": "Predicted average rate of future inflation",
+        "production_increase": "Factor by which production of ReBCO multiplies per year",
+        "model": "Costing model selection (ARIES or Sheffield)",
+        "plant_lifetime": "Lifetime of the plant in years",
+        "learning_rate": "Learning rate for ReBCO technology production",
+        "availability": "Availability fraction of the plant",
+        "construction_start_year": "Year that plant construction begins"
+      },
+      "category": "costing",
+      "description": "Estimates the cost of building, operating, and recommissioning the fusion power plant",
+      "hierarchy": "compound"
+    },
+    "ActorStresses": {
+      "data_outputs": [
+        "dd.solid_mechanics.center_stack.stress",
+        "dd.solid_mechanics.center_stack.displacement",
+        "dd.solid_mechanics.center_stack.grid"
+      ],
+      "name": "ActorStresses",
+      "physics_domain": "Structural mechanics and stress analysis",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.equilibrium.vacuum_toroidal_field.b0",
+        "dd.build.layer",
+        "dd.build.oh.max_b_field",
+        "dd.build.tf.technology.fraction_steel",
+        "dd.build.oh.technology.fraction_steel",
+        "dd.build.tf.nose_hfs_fraction",
+        "dd.solid_mechanics.center_stack.bucked",
+        "dd.solid_mechanics.center_stack.noslip",
+        "dd.solid_mechanics.center_stack.plug",
+        "dd.solid_mechanics.center_stack.properties"
+      ],
+      "usage_notes": [
+        "Solves radial and hoop stresses in TF coil, OH coil, and center plug using Leuer 1D solid mechanics equations",
+        "Supports various boundary conditions: free standing, bucked, and with/without center plug",
+        "Applies structural composition fractions to get effective stress on structural materials",
+        "Keeps worst case scenario based on Von Mises stresses when run multiple times",
+        "Based on derivations in Engineering Physics Note by Jim Leuer (Dec. 17, 2017)"
+      ],
+      "key_parameters": {
+        "do_plot": "Flag to display stress plot after calculation",
+        "n_points": "Number of radial grid points for stress calculation (default: 101)"
+      },
+      "category": "build",
+      "description": "Estimates mechanical stresses on the center stack using 1D solid mechanics equations",
+      "hierarchy": "single"
+    },
+    "ActorCostingSheffield": {
+      "data_outputs": [
+        "dd.costing.cost_direct_capital",
+        "dd.costing.cost_operations",
+        "dd.costing.levelized_CoE"
+      ],
+      "name": "ActorCostingSheffield",
+      "physics_domain": "Economic analysis and cost estimation",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.build",
+        "dd.ec_launchers.beam",
+        "dd.ic_antennas.antenna",
+        "dd.lh_antennas.antenna",
+        "dd.nbi.unit",
+        "dd.neutronics.time_slice",
+        "dd.balance_of_plant",
+        "dd.equilibrium.time_slice"
+      ],
+      "usage_notes": [
+        "Based on Sheffield and Milora FS&T 70 (2016) methodology",
+        "Calculates direct capital costs for all major reactor systems",
+        "Includes yearly operational and fuel costs with replacement schedules",
+        "Computes levelized cost of electricity (LCOE)",
+        "Uses dollar adjustment for inflation correction across different assessment years",
+        "Assumes 20% of first wall area is covered by divertor",
+        "Results are stored and sorted by cost magnitude"
+      ],
+      "key_parameters": {
+        "capitalize_divertor": "Include first divertor cost in direct capital (default: true)",
+        "blanket_fluence_lifetime": "Blanket lifetime fluence (default: 15±2 MW*yr/m²)",
+        "fixed_charge_rate": "Constant dollar fixed charge rate (default: 0.08±0.01)",
+        "capitalize_blanket": "Include first blanket cost in direct capital (default: true)",
+        "divertor_fluence_lifetime": "Divertor lifetime fluence (default: 10±2 MW*yr/m²)",
+        "construction_lead_time": "Duration of construction (default: 10±2 years)"
+      },
+      "category": "costing",
+      "description": "Estimates fusion reactor costing based on Sheffield and Milora methodology from Fusion Science & Technology 70 (2016)",
+      "hierarchy": "single"
+    },
+    "ActorCHEASE": {
+      "data_outputs": [
+        "equilibrium.time_slice.global_quantities.free_boundary",
+        "equilibrium.time_slice.global_quantities.magnetic_axis.r",
+        "equilibrium.time_slice.global_quantities.magnetic_axis.z",
+        "equilibrium.time_slice.global_quantities.ip",
+        "equilibrium.time_slice.profiles_1d.psi",
+        "equilibrium.time_slice.profiles_1d.q",
+        "equilibrium.time_slice.profiles_1d.pressure",
+        "equilibrium.time_slice.profiles_1d.dpressure_dpsi",
+        "equilibrium.time_slice.profiles_1d.f",
+        "equilibrium.time_slice.profiles_1d.f_df_dpsi",
+        "equilibrium.time_slice.profiles_2d.grid.dim1",
+        "equilibrium.time_slice.profiles_2d.grid.dim2",
+        "equilibrium.time_slice.profiles_2d.psi",
+        "equilibrium.vacuum_toroidal_field.b0",
+        "equilibrium.vacuum_toroidal_field.r0",
+        "pf_active.coil"
+      ],
+      "name": "ActorCHEASE",
+      "physics_domain": "Magnetohydrodynamic equilibrium",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice.boundary.outline.r",
+        "equilibrium.time_slice.boundary.outline.z",
+        "equilibrium.time_slice.profiles_1d.psi_norm",
+        "equilibrium.time_slice.profiles_1d.j_tor",
+        "equilibrium.time_slice.profiles_1d.pressure",
+        "equilibrium.time_slice.global_quantities.ip",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field.b0",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field.r0",
+        "equilibrium.time_slice.boundary.geometric_axis.r",
+        "equilibrium.time_slice.boundary.geometric_axis.z",
+        "equilibrium.time_slice.boundary.strike_point",
+        "equilibrium.time_slice.boundary.x_point",
+        "pf_active.coil",
+        "build"
+      ],
+      "usage_notes": [
+        "Requires boundary outline, pressure profile, and toroidal current density profile as inputs",
+        "Can convert fixed boundary solutions to free boundary using VacuumFields integration",
+        "Handles COCOS coordinate system conversion from CHEASE output (COCOS 1) to IMAS (COCOS 11)",
+        "Includes error handling with diagnostic plots for boundary, pressure, and current profiles",
+        "Updates PF coil currents when converting to free boundary equilibrium"
+      ],
+      "key_parameters": {
+        "clear_workdir": "Clean the temporary workdir for CHEASE",
+        "free_boundary": "Convert fixed boundary equilibrium to free boundary one",
+        "rescale_eq_to_ip": "Scale equilibrium to match plasma current Ip"
+      },
+      "category": "equilibrium",
+      "description": "Fixed boundary equilibrium solver that uses CHEASE to compute MHD equilibrium from boundary, pressure, and current density profiles",
+      "hierarchy": "compound"
+    },
+    "ActorWholeFacility": {
+      "data_outputs": [
+        "dd.build",
+        "dd.equilibrium",
+        "dd.pf_active",
+        "dd.pf_passive",
+        "dd.neutronics",
+        "dd.blanket",
+        "dd.divertors",
+        "dd.balance_of_plant",
+        "dd.costing"
+      ],
+      "name": "ActorWholeFacility",
+      "physics_domain": "Whole facility simulation and optimization",
+      "sub_actors": [
+        {
+          "name": "ActorStationaryPlasma",
+          "optional": true
+        },
+        {
+          "name": "ActorPlasmaLimits",
+          "optional": true
+        },
+        {
+          "name": "ActorFluxSwing",
+          "optional": true
+        },
+        {
+          "name": "ActorStresses",
+          "optional": true
+        },
+        {
+          "name": "ActorHFSsizing",
+          "optional": true
+        },
+        {
+          "name": "ActorLFSsizing",
+          "optional": true
+        },
+        {
+          "name": "ActorCXbuild",
+          "optional": true
+        },
+        {
+          "name": "ActorPFdesign",
+          "optional": true
+        },
+        {
+          "name": "ActorPFactive",
+          "optional": true
+        },
+        {
+          "name": "ActorPassiveStructures",
+          "optional": true
+        },
+        {
+          "name": "ActorVerticalStability",
+          "optional": true
+        },
+        {
+          "name": "ActorNeutronics",
+          "optional": true
+        },
+        {
+          "name": "ActorBlanket",
+          "optional": true
+        },
+        {
+          "name": "ActorDivertors",
+          "optional": true
+        },
+        {
+          "name": "ActorBalanceOfPlant",
+          "optional": true
+        },
+        {
+          "name": "ActorCosting",
+          "optional": true
+        }
+      ],
+      "data_inputs": [
+        "dd.build.layer",
+        "dd.pf_active",
+        "dd.equilibrium"
+      ],
+      "usage_notes": [
+        "Stores data in dd",
+        "Skips engineering/costing actors if build is missing",
+        "PFdesign optimizes coil locations before plasma calculations",
+        "Iterative build optimization with coil repositioning",
+        "Strike points weight is temporarily modified during build updates",
+        "Blanket optimization requires CX build regeneration"
+      ],
+      "key_parameters": {
+        "update_build": "Optimize tokamak build (default: true)",
+        "update_plasma": "Run plasma related actors (default: true)"
+      },
+      "category": "compound",
+      "description": "Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant",
+      "hierarchy": "compound"
+    },
+    "ActorNoOperation": {
+      "data_outputs": [],
+      "name": "ActorNoOperation",
+      "physics_domain": "utility",
+      "sub_actors": [],
+      "data_inputs": [],
+      "usage_notes": [
+        "This actor doesn't perform any operations",
+        "Useful for disabling models without removing them from the workflow",
+        "The _step and _finalize methods return the actor unchanged"
+      ],
+      "key_parameters": {},
+      "category": "uncategorized",
+      "description": "A no-operation actor that performs no actions - useful for turning off models",
+      "hierarchy": "single"
+    },
+    "ActorCoreRadHeatFlux": {
+      "data_outputs": [
+        "wall_heat_flux"
+      ],
+      "name": "ActorCoreRadHeatFlux",
+      "physics_domain": "Core radiation transport and wall heat loading",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.equilibrium.time_slice",
+        "dd.core_profiles.profiles_1d",
+        "dd.core_sources",
+        "dd.wall"
+      ],
+      "usage_notes": [
+        "Uses Monte Carlo photon tracing with specified number of photons",
+        "Computes wall mesh with SOL intersections for accurate heat flux calculation",
+        "Negative sign applied to core_sources energy as it represents power loss",
+        "Wall mesh construction can merge existing dd.wall geometry",
+        "Produces both 1D curvilinear and 2D spatial heat flux distributions"
+      ],
+      "key_parameters": {
+        "levels": "Number of SOL levels or specific psi levels for mesh construction (default: 20)",
+        "step": "Discretization step for default wall mesh in meters (default: 0.1)",
+        "N": "Number of launched photons for Monte Carlo calculation (default: 100000)",
+        "r": "Vector of r positions at outer midplane for boundary conditions",
+        "q": "Vector of parallel power density at outer midplane (W/m²)",
+        "do_plot": "Enable plotting of results",
+        "merge_wall": "Whether to merge dd.wall in mesh for heat flux calculation (default: true)"
+      },
+      "category": "wall_loading",
+      "description": "Computes the heat flux on the wall due to core radiation using photon tracing",
+      "hierarchy": "single"
+    },
+    "ActorPassiveStructures": {
+      "data_outputs": [
+        "pf_passive",
+        "pf_passive.loop",
+        "pf_passive.loop.element.geometry.outline"
+      ],
+      "name": "ActorPassiveStructures",
+      "physics_domain": "Poloidal field system and passive structures modeling",
+      "sub_actors": [],
+      "data_inputs": [
+        "build.layer",
+        "build.layer.material",
+        "build.layer.outline"
+      ],
+      "usage_notes": [
+        "Requires vessel layers to be defined in build.layer with type _vessel_",
+        "Uses electrical conductivity from outermost build layer material, defaults to steel if missing",
+        "Does not account for toroidal breaks, heterogeneous materials, or water vacuum vessels",
+        "Warns if no vessel found and cannot compute vertical stability metrics",
+        "Creates quadrilateral elements between inner and outer vessel layers",
+        "Automatically determines resistivity from material properties at 273.15K"
+      ],
+      "key_parameters": {
+        "wall_precision": "Precision for making wall quadrilaterals (default: 1.0)",
+        "min_n_segments": "Minimum number of quadrilaterals (default: 15)",
+        "do_plot": "Display plotting output (default: false)"
+      },
+      "category": "pf",
+      "description": "Populates pf_passive IDS based on the vacuum vessel layer(s) by creating passive conducting loops from vessel geometry",
+      "hierarchy": "single"
+    },
+    "ActorLFSsizing": {
+      "data_outputs": [
+        "build.layer"
+      ],
+      "name": "ActorLFSsizing",
+      "physics_domain": "Tokamak mechanical design and construction",
+      "sub_actors": [],
+      "data_inputs": [
+        "build.layer",
+        "build.tf.ripple",
+        "build.tf.coils_n"
+      ],
+      "usage_notes": [
+        "Manipulates radial build information in dd.build.layer",
+        "Calculates TF leg radius based on required TF field ripple constraints",
+        "Accounts for vacuum port geometry requirements for maintenance access",
+        "Resizes vacuum gap between vessel and plasma to accommodate TF coil positioning",
+        "New TF radius is determined by the maximum of ripple and maintenance constraints"
+      ],
+      "key_parameters": {
+        "pol_modularity": "Number of poloidal modules of each toroidal blanket sector (1 or 2)",
+        "tor_modularity": "Number of toroidal modules of blanket normalized to number of TF coils",
+        "verbose": "Enable verbose output",
+        "maintenance": "Scheme for installation/removal of in-vessel components (vertical, horizontal, or none)",
+        "do_plot": "Enable plotting of radial build"
+      },
+      "category": "build",
+      "description": "Resizes the Low Field Side of the tokamak radial build by adjusting the outer TF leg location to satisfy ripple and maintenance port requirements",
+      "hierarchy": "single"
+    },
+    "ActorCXbuild": {
+      "data_outputs": [
+        "build.layer.outline",
+        "build.structure",
+        "wall",
+        "divertors.divertor"
+      ],
+      "name": "ActorCXbuild",
+      "physics_domain": "Mechanical engineering and tokamak geometry construction",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "build",
+        "wall",
+        "pulse_schedule.position_control",
+        "pf_active",
+        "divertors"
+      ],
+      "usage_notes": [
+        "Manipulates data in dd.build",
+        "Automatically rebuilds wall from equilibrium if wall data is missing or rebuild_wall=true",
+        "Generates layer outlines, divertor regions, blanket regions, and maintenance ports",
+        "Requires equilibrium time slice data to determine plasma boundary and magnetic axis",
+        "Can account for PF coil obstructions when layers_aware_of_pf_coils=true"
+      ],
+      "key_parameters": {
+        "rebuild_wall": "Rebuild wall based on equilibrium, even if dd.wall is already filled",
+        "layers_aware_of_pf_coils": "Build layers are aware of pf_active coils",
+        "divertor_lfs_size_fraction": "Divertor size on the low-field-side as fraction of plasma minor radius",
+        "n_points": "Number of points used for cross-sectional outlines",
+        "divertor_hfs_size_fraction": "Divertor size on the high-field-side as fraction of plasma minor radius"
+      },
+      "category": "build",
+      "description": "Generates the 2D cross section of the tokamak build including walls, divertors, blankets, and maintenance ports",
+      "hierarchy": "compound"
+    },
+    "ActorNeutronics": {
+      "data_outputs": [
+        "neutronics.first_wall.r",
+        "neutronics.first_wall.z",
+        "neutronics.time_slice.wall_loading.flux_r",
+        "neutronics.time_slice.wall_loading.flux_z",
+        "neutronics.time_slice.wall_loading.power"
+      ],
+      "name": "ActorNeutronics",
+      "physics_domain": "Neutronics and radiation transport",
+      "sub_actors": [],
+      "data_inputs": [
+        "core_profiles.profiles_1d",
+        "equilibrium.time_slice",
+        "wall"
+      ],
+      "usage_notes": [
+        "Calculates neutron flux from D-T and D-D fusion reactions",
+        "Power is renormalized to match total fusion neutron power",
+        "Wall geometry is resampled and reordered to be clockwise for COCOS=11",
+        "Results stored in dd.neutronics data structure"
+      ],
+      "key_parameters": {
+        "N": "Number of neutron particles to simulate (default: 100000)",
+        "do_plot": "Whether to generate diagnostic plots"
+      },
+      "category": "nuclear",
+      "description": "Estimates neutron wall loading by simulating neutron transport from fusion reactions to the first wall",
+      "hierarchy": "single"
+    },
+    "ActorCoreTransport": {
+      "data_outputs": [
+        "core_profiles.profiles_1d.electrons.density_thermal",
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.ion.density_thermal",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.rotation_frequency_tor_sonic"
+      ],
+      "name": "ActorCoreTransport",
+      "physics_domain": "plasma transport",
+      "sub_actors": [
+        {
+          "name": "ActorFluxMatcher",
+          "optional": true
+        },
+        {
+          "name": "ActorEPEDprofiles",
+          "optional": true
+        },
+        {
+          "name": "ActorReplay",
+          "optional": true
+        },
+        {
+          "name": "ActorNoOperation",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "core_profiles.profiles_1d.grid.rho_tor_norm",
+        "core_profiles.profiles_1d.electrons.density_thermal",
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.ion.density_thermal",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.rotation_frequency_tor_sonic",
+        "core_profiles.profiles_1d.zeff",
+        "global_time"
+      ],
+      "usage_notes": [
+        "Acts as a dispatcher for different core transport models",
+        "Default transport model is FluxMatcher",
+        "For replay mode, blends core profiles with edge profiles using core-edge blending",
+        "Ion densities are scaled to match target Zeff in replay mode",
+        "Rotation profile is directly copied from replay data"
+      ],
+      "key_parameters": {
+        "model": "Switch parameter to select transport model: FluxMatcher, EPEDProfiles, replay, or none"
+      },
+      "category": "transport",
+      "description": "Provides a common interface to run multiple core transport actors with selectable transport models",
+      "hierarchy": "compound"
+    },
+    "ActorSimpleEC": {
+      "data_outputs": [
+        "waves.coherent_wave",
+        "core_sources.source",
+        "ec_launchers.beam.power_launched"
+      ],
+      "name": "ActorSimpleEC",
+      "physics_domain": "Electron cyclotron resonance heating and current drive",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "core_profiles.profiles_1d",
+        "ec_launchers.beam",
+        "pulse_schedule.ec",
+        "wall"
+      ],
+      "usage_notes": [
+        "Current drive efficiency based on GASC model from Tonon's paper",
+        "Uses vacuum ray tracing for beam trajectory calculation",
+        "Automatically sets up EC beam parameters if missing (frequency, launch position, steering angles)",
+        "Warning issued if ECH beam does not intersect resonance layer",
+        "Power deposition modeled as Gaussian profile"
+      ],
+      "key_parameters": {
+        "rho_0": "Desired radial location of the deposition profile (default: 0.5)",
+        "width": "Desired width of the deposition profile (default: 0.025)",
+        "ηcd_scale": "Scaling factor for nominal current drive efficiency (default: 1.0)"
+      },
+      "category": "ec",
+      "description": "Estimates electron cyclotron (EC) heating power deposition and current drive using Gaussian profile approximation",
+      "hierarchy": "single"
+    },
+    "ActorParticleHeatFlux": {
+      "data_outputs": [
+        "dd.wall.heat_flux"
+      ],
+      "name": "ActorParticleHeatFlux",
+      "physics_domain": "plasma-wall interaction and heat loading",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.equilibrium",
+        "dd.edge_profiles",
+        "dd.wall"
+      ],
+      "usage_notes": [
+        "Uses same wall meshing approach as ActorCoreRadHeatFlux",
+        "Computes both perpendicular and parallel components of particle heat flux",
+        "Requires proper SOL definition through levels parameter",
+        "Wall mesh includes intersections with SOL field lines",
+        "Finalization step is work in progress for populating dd structure"
+      ],
+      "key_parameters": {
+        "levels": "Number of SOL levels or psi levels for SOL construction",
+        "step": "Step size for discretization of default wall mesh (m)",
+        "r": "Vector of r at outer midplane (m)",
+        "q": "Vector of parallel power density at outer midplane (W/m^2)",
+        "do_plot": "Enable plotting of heat flux results",
+        "merge_wall": "Whether to merge dd.wall in mesh for heat flux calculation"
+      },
+      "category": "wall_loading",
+      "description": "Computes the heat flux on the wall due to charged particles in the plasma",
+      "hierarchy": "single"
+    },
+    "ActorAnalyticTurbulence": {
+      "data_outputs": [
+        "core_transport.model.profiles_1d.grid_flux.rho_tor_norm",
+        "core_transport.model.profiles_1d.electrons.energy.flux",
+        "core_transport.model.profiles_1d.ions.energy.flux",
+        "core_transport.model.profiles_1d.electrons.particles.flux",
+        "core_transport.model.profiles_1d.ions.particles.flux",
+        "core_transport.model.profiles_1d.momentum.flux"
+      ],
+      "name": "ActorAnalyticTurbulence",
+      "physics_domain": "Turbulent transport modeling",
+      "sub_actors": [],
+      "data_inputs": [
+        "core_profiles.profiles_1d.grid.rho_tor_norm",
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.electrons.density_thermal",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.zeff",
+        "equilibrium.time_slice.profiles_1d.rho_tor_norm",
+        "equilibrium.time_slice.profiles_1d.q",
+        "equilibrium.time_slice.global_quantities.magnetic_axis.b_field_tor"
+      ],
+      "usage_notes": [
+        "GyroBohm model provides unit flux solutions normalized to gyro-Bohm scaling",
+        "BgB model combines Bohm and gyro-Bohm components with empirical coefficients",
+        "Transport coefficients are computed only at specified rho_transport grid points",
+        "Results are written to core_transport.model with anomalous transport identifier"
+      ],
+      "key_parameters": {
+        "χeGB_coefficient": "Coefficient for gyro-Bohm component in electron thermal diffusivity",
+        "model": "Transport model selection: GyroBohm or BgB",
+        "αBgB": "Scale factor for BgB transport model",
+        "rho_transport": "Radial grid points (rho_tor_norm) where transport coefficients are computed",
+        "χeB_coefficient": "Coefficient for Bohm component in electron thermal diffusivity",
+        "χiGB_coefficient": "Coefficient for gyro-Bohm component in ion thermal diffusivity",
+        "χiB_coefficient": "Coefficient for Bohm component in ion thermal diffusivity"
+      },
+      "category": "transport",
+      "description": "Evaluates analytic turbulence models for transport calculations using GyroBohm or BgB models",
+      "hierarchy": "single"
+    },
+    "ActorQLGYRO": {
+      "data_outputs": [
+        "core_transport.model.profiles_1d.grid_flux.rho_tor_norm",
+        "core_transport.model.profiles_1d.flux.electron_energy",
+        "core_transport.model.profiles_1d.flux.ion_energy",
+        "core_transport.model.profiles_1d.flux.electron_particle",
+        "core_transport.model.profiles_1d.flux.ion_particle",
+        "core_transport.model.profiles_1d.flux.momentum"
+      ],
+      "name": "ActorQLGYRO",
+      "physics_domain": "Turbulent transport and gyrokinetic modeling",
+      "sub_actors": [],
+      "data_inputs": [
+        "core_profiles.profiles_1d.grid.rho_tor_norm",
+        "equilibrium.time_slice"
+      ],
+      "usage_notes": [
+        "Requires GACODE and TurbulentTransport packages",
+        "Computationally expensive - uses parallel processing across ky modes",
+        "Results written to core_transport with identifier 'QLGYRO'",
+        "Uses gyrokinetic simulations for first-principles turbulence modeling",
+        "Default radial range covers 0.25 to 0.85 in normalized toroidal flux"
+      ],
+      "key_parameters": {
+        "rho_transport": "Radial locations for flux calculations",
+        "lump_ions": "Whether to lump fuel species and impurities together",
+        "cpu_per_ky": "Number of CPUs per ky mode for parallel computation",
+        "nky": "Number of ky modes to simulate",
+        "sat_rule": "Saturation rule for turbulence (sat1, sat2, or sat3)",
+        "ky": "Maximum ky wavenumber for turbulence calculation",
+        "delta_t": "CGYRO simulation time step size",
+        "n_field": "Number of fields (1:phi, 2:phi+apar, 3:phi+apar+bpar)",
+        "max_time": "Maximum simulation time in units of a/cs"
+      },
+      "category": "transport",
+      "description": "Evaluates QLGYRO predicted turbulent transport fluxes using gyrokinetic simulations",
+      "hierarchy": "single"
+    },
+    "ActorThermalPlant": {
+      "data_outputs": [
+        "balance_of_plant.thermal_efficiency_plant",
+        "balance_of_plant.power_plant.total_heat_supplied",
+        "balance_of_plant.power_plant.power_electric_generated"
+      ],
+      "name": "ActorThermalPlant",
+      "physics_domain": "Balance of plant thermal cycle modeling",
+      "sub_actors": [
+        {
+          "name": "ActorNoOperation",
+          "optional": true
+        },
+        {
+          "name": "ActorThermalSystemModels",
+          "optional": true
+        }
+      ],
+      "data_inputs": [
+        "balance_of_plant.power_plant.heat_load.breeder",
+        "balance_of_plant.power_plant.heat_load.divertor",
+        "balance_of_plant.power_plant.heat_load.wall",
+        "balance_of_plant.power_plant.power_cycle_type"
+      ],
+      "usage_notes": [
+        "Requires breeder heat load to be non-zero, otherwise clears balance_of_plant data",
+        "Three operational modes: fixed efficiency, surrogate model, or detailed thermal system models",
+        "Surrogate mode uses BalanceOfPlantSurrogate package for efficiency calculations",
+        "Network mode requires ThermalSystemModels extension to be loaded",
+        "Automatically selects sub-actor based on model parameter"
+      ],
+      "key_parameters": {
+        "model": "Power plant heat cycle efficiency model selection (fixed_plant_efficiency, network, surrogate)",
+        "verbose": "Enable verbose logging",
+        "do_plot": "Enable plotting output",
+        "fixed_plant_efficiency": "Overall thermal cycle efficiency when using fixed model (default 0.35, range 0.0-1.0)"
+      },
+      "category": "balance_plant",
+      "description": "Provides a common interface to run different thermal plant actors, calculating plant thermal efficiency and electrical power generation from heat loads",
+      "hierarchy": "compound"
+    },
+    "ActorSimpleNB": {
+      "data_outputs": [
+        "dd.core_sources",
+        "dd.waves.coherent_wave"
+      ],
+      "name": "ActorSimpleNB",
+      "physics_domain": "Neutral Beam Injection heating and current drive",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.nbi",
+        "dd.pulse_schedule",
+        "dd.equilibrium.time_slice",
+        "dd.core_profiles.profiles_1d"
+      ],
+      "usage_notes": [
+        "Uses pencil beam approximation for NBI deposition calculations",
+        "Accounts for banana orbit effects and fast ion thermalization",
+        "Requires equilibrium data and core plasma profiles",
+        "Calculates electron and ion heating, particle sources, momentum deposition, and current drive",
+        "Beam power is smoothed based on NBI thermalization time"
+      ],
+      "key_parameters": {
+        "smoothing_width": "Width of the deposition profile for spatial smoothing (default: 0.12)",
+        "banana_shift_fraction": "Shift factor for banana orbit effects (default: 0.5)"
+      },
+      "category": "nbi",
+      "description": "Calculates NBI ion/electron energy deposition, particle source, rotation and current drive source with a pencil beam model",
+      "hierarchy": "single"
+    },
+    "ActorFluxCalculator": {
+      "data_outputs": [],
+      "name": "ActorFluxCalculator",
+      "physics_domain": "plasma transport and turbulence modeling",
+      "sub_actors": [
+        {
+          "name": "ActorTGLF",
+          "optional": true
+        },
+        {
+          "name": "ActorQLGYRO",
+          "optional": true
+        },
+        {
+          "name": "ActorAnalyticTurbulence",
+          "optional": true
+        },
+        {
+          "name": "ActorNeoclassical",
+          "optional": true
+        },
+        {
+          "name": "ActorNoOperation",
+          "optional": true
+        }
+      ],
+      "data_inputs": [],
+      "usage_notes": [
+        "Acts as a unified interface for different transport models",
+        "Can run turbulence and neoclassical transport models independently or together",
+        "Uses ActorNoOperation when models are disabled",
+        "Automatically configures sub-actors with the same transport grid"
+      ],
+      "key_parameters": {
+        "neoclassical_model": "Neoclassical model selection: neoclassical or none (default: neoclassical)",
+        "rho_transport": "Radial transport grid points (default: 0.25:0.1:0.85)",
+        "turbulence_model": "Turbulence model selection: TGLF, QLGYRO, analytic, or none (default: TGLF)"
+      },
+      "category": "transport",
+      "description": "Provides a common interface to run multiple transport model actors for turbulent and neoclassical transport calculations",
+      "hierarchy": "compound"
+    },
+    "ActorHFSsizing": {
+      "data_outputs": [
+        "dd.build.layer",
+        "dd.build.oh.technology.fraction_steel",
+        "dd.build.tf.technology.fraction_steel",
+        "dd.build.tf.nose_hfs_fraction",
+        "dd.build.oh.critical_j",
+        "dd.build.oh.max_j",
+        "dd.build.oh.flattop_duration",
+        "dd.build.tf.critical_j",
+        "dd.build.tf.max_j",
+        "dd.build.tf.max_b_field"
+      ],
+      "name": "ActorHFSsizing",
+      "physics_domain": "Tokamak radial build optimization and mechanical engineering",
+      "sub_actors": [
+        {
+          "name": "ActorStresses",
+          "optional": false
+        },
+        {
+          "name": "ActorFluxSwing",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "dd.build.layer",
+        "dd.equilibrium.time_slice",
+        "dd.requirements.coil_j_margin",
+        "dd.requirements.coil_stress_margin",
+        "dd.requirements.flattop_duration",
+        "dd.solid_mechanics.center_stack",
+        "dd.build.oh.technology.fraction_void",
+        "dd.build.tf.technology.fraction_void"
+      ],
+      "usage_notes": [
+        "Manipulates radial build information in dd.build.layer",
+        "Uses metaheuristic optimization (ECA algorithm) to find optimal center stack dimensions",
+        "Checks technology constraints (critical currents, stresses) and performance requirements (B-field, flattop)",
+        "Optimization considers TF coil thickness, OH coil thickness, steel fractions, and TF nose thickness",
+        "Requires proper setup of requirements margins for coil current and stress limits",
+        "Can operate in bucked or unbucked TF coil configurations"
+      ],
+      "key_parameters": {
+        "error_on_technology": "Error if build stresses and current limits are not met",
+        "error_on_performance": "Error if requested Bt and flattop duration are not met",
+        "verbose": "Enable verbose output during optimization",
+        "do_plot": "Enable plotting of build optimization results"
+      },
+      "category": "build",
+      "description": "Resizes the High Field Side of the tokamak radial build, changing the radial build of the center stack (plug, OH, and TF) accounting for stresses, superconductors critical currents, flux swing, and field requirements",
+      "hierarchy": "compound"
+    },
+    "ActorStationaryPlasma": {
+      "data_outputs": [
+        "equilibrium",
+        "core_profiles",
+        "core_sources",
+        "core_transport"
+      ],
+      "name": "ActorStationaryPlasma",
+      "physics_domain": "Plasma equilibrium and transport",
+      "sub_actors": [
+        {
+          "name": "ActorCoreTransport",
+          "optional": false
+        },
+        {
+          "name": "ActorPedestal",
+          "optional": false
+        },
+        {
+          "name": "ActorHCD",
+          "optional": false
+        },
+        {
+          "name": "ActorCurrent",
+          "optional": false
+        },
+        {
+          "name": "ActorEquilibrium",
+          "optional": false
+        },
+        {
+          "name": "ActorSawteeth",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "pulse_schedule",
+        "core_profiles",
+        "equilibrium"
+      ],
+      "usage_notes": [
+        "Iterates between transport, equilibrium, current drive and pedestal calculations until convergence",
+        "Convergence is based on relative changes in current and pressure profiles",
+        "Minimum of 2 iterations performed unless max_iterations=1",
+        "Warning issued if max iterations reached without convergence",
+        "Updates equilibrium grids before each iteration",
+        "Sets infinite time step for time-dependent actors (QED, FluxMatcher)"
+      ],
+      "key_parameters": {
+        "max_iterations": "Maximum number of transport-equilibrium iterations (default: 5)",
+        "verbose": "Enable verbose output during iterations",
+        "convergence_error": "Convergence error threshold for relative change in current and pressure profiles (default: 5E-2)",
+        "do_plot": "Enable plotting during iterations"
+      },
+      "category": "compound",
+      "description": "Compound actor that iteratively solves for self-consistent stationary plasma solution by running transport, equilibrium, current drive, and pedestal actors",
+      "hierarchy": "compound"
+    },
+    "ActorHCD": {
+      "data_outputs": [
+        "ec_launcher",
+        "ic_antenna",
+        "lh_antenna",
+        "nbi",
+        "pellet",
+        "core_sources.source"
+      ],
+      "name": "ActorHCD",
+      "physics_domain": "Heating, Current Drive, and Neutral Fueling systems",
+      "sub_actors": [
+        {
+          "name": "ec_actor",
+          "optional": false
+        },
+        {
+          "name": "ic_actor",
+          "optional": false
+        },
+        {
+          "name": "lh_actor",
+          "optional": false
+        },
+        {
+          "name": "nb_actor",
+          "optional": false
+        },
+        {
+          "name": "pellet_actor",
+          "optional": false
+        },
+        {
+          "name": "neutral_actor",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "pulse_schedule.ec.beam",
+        "pulse_schedule.ic.antenna",
+        "pulse_schedule.lh.antenna",
+        "pulse_schedule.nbi.unit",
+        "pulse_schedule.pellet.launcher",
+        "ec_launchers.beam",
+        "ic_antennas.antenna",
+        "lh_antennas.antenna",
+        "nbi.unit",
+        "pellets.launcher",
+        "equilibrium.time_slice",
+        "wall"
+      ],
+      "usage_notes": [
+        "Neutral actor must be executed last since it relies on tau_e_thermal calculation which depends on HCD sources",
+        "Calls IMAS.sources!(dd) to ensure sources are consistent when exiting the actor",
+        "Validates that pulse schedule lengths match hardware configuration lengths",
+        "Sets up EC launcher hardware details for ECsimple and TORBEAM models",
+        "Each sub-actor can be configured to use simple models, advanced models, replay mode, or no operation"
+      ],
+      "key_parameters": {
+        "lh_model": "LH source actor to run (LHsimple, replay, none)",
+        "pellet_model": "Pellet source actor to run (PLsimple, replay, none)",
+        "ic_model": "IC source actor to run (ICsimple, replay, none)",
+        "ec_model": "EC source actor to run (ECsimple, TORBEAM, replay, none)",
+        "nb_model": "NB source actor to run (NBsimple, RABBIT, replay, none)",
+        "neutral_model": "Neutral source actor to run (NEUCG, replay, none)"
+      },
+      "category": "hcd",
+      "description": "Provides a common interface to run Heating, Current Drive, and Neutral Fueling actors",
+      "hierarchy": "compound"
+    },
+    "ActorQED": {
+      "data_outputs": [
+        "dd.core_profiles.profiles_1d[].j_total",
+        "dd.core_profiles.profiles_1d[].j_non_inductive",
+        "dd.core_profiles.profiles_1d[].q"
+      ],
+      "name": "ActorQED",
+      "physics_domain": "Current diffusion and q-profile evolution",
+      "sub_actors": [
+        {
+          "name": "ActorControllerIp",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "dd.equilibrium.time_slice[].global_quantities.vacuum_toroidal_field.b0",
+        "dd.core_sources",
+        "dd.core_profiles.profiles_1d[].grid.rho_tor_norm",
+        "dd.global_time"
+      ],
+      "usage_notes": [
+        "Actor operates at dd.global_time - time advance must be done outside of the actor",
+        "Requires equilibrium metrics and reinitializes QED solver each step",
+        "Can operate in steady state (Δt=Inf) or time-dependent modes",
+        "Automatically handles q-profile constraints by modifying resistivity",
+        "Excludes ohmic heating, sawteeth, and time-dependent sources from j_non_inductive calculation"
+      ],
+      "key_parameters": {
+        "vloop_from": "Source for loop voltage data",
+        "solve_for": "Whether to solve for plasma current (ip) or loop voltage (vloop)",
+        "qmin_desired": "Minimum magnitude of q-profile to maintain",
+        "ip_from": "Source for plasma current data",
+        "Δt": "Time step for evolution (Inf for steady state)",
+        "Nt": "Number of time steps during evolution"
+      },
+      "category": "current",
+      "description": "Evolves the plasma current using the QED current diffusion solver",
+      "hierarchy": "compound"
+    },
+    "ActorPFactive": {
+      "data_outputs": [
+        "pf_active",
+        "equilibrium.time_slice.profiles_2d.psi"
+      ],
+      "name": "ActorPFactive",
+      "physics_domain": "Poloidal field coil control and plasma shaping",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "pulse_schedule.position_control",
+        "pf_active.coil",
+        "build.oh.technology",
+        "build.pf_active.technology",
+        "wall"
+      ],
+      "usage_notes": [
+        "Manipulates data in dd.pf_active",
+        "Uses VacuumFields.jl for coil Green function calculations",
+        "Supports both field null configurations and plasma solutions",
+        "Automatically determines optimal regularization parameter if not set",
+        "Can optionally update the input equilibrium with achievable coil solution",
+        "Evaluates current limits based on build constraints"
+      ],
+      "key_parameters": {
+        "strike_points_weight": "Weight given to strike-point constraints",
+        "green_model": "Model used for the coils Green function calculations",
+        "x_points_weight": "Weight given to x-point constraints",
+        "update_equilibrium": "Overwrite target equilibrium with the one that the coils can actually make",
+        "λ_regularize": "Regularization parameter for optimization"
+      },
+      "category": "pf",
+      "description": "Finds optimal coil currents to match equilibrium boundary shape using least-squares optimization",
+      "hierarchy": "single"
+    },
+    "ActorNeoclassical": {
+      "data_outputs": [
+        "core_transport.model"
+      ],
+      "name": "ActorNeoclassical",
+      "physics_domain": "Neoclassical transport theory",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "core_profiles.profiles_1d"
+      ],
+      "usage_notes": [
+        "Chang-Hinton model only computes ion energy flux",
+        "NEO model computes electron/ion energy flux, particle flux, and momentum flux",
+        "Hirshman-Sigmar model computes electron/ion energy and particle fluxes",
+        "Equilibrium geometry is cached for Hirshman-Sigmar to improve performance",
+        "Uses asyncmap for parallel NEO calculations",
+        "Results are written to core_transport.model with neoclassical identifier"
+      ],
+      "key_parameters": {
+        "model": "Neoclassical model to use (:changhinton, :neo, or :hirshmansigmar)",
+        "rho_transport": "Normalized toroidal flux coordinates where transport fluxes are computed"
+      },
+      "category": "transport",
+      "description": "Evaluates neoclassical transport fluxes using various models (Chang-Hinton, NEO, Hirshman-Sigmar)",
+      "hierarchy": "single"
+    },
+    "ActorFluxSwing": {
+      "data_outputs": [
+        "dd.build.flux_swing.rampup",
+        "dd.build.flux_swing.flattop",
+        "dd.build.flux_swing.pf",
+        "dd.build.tf",
+        "dd.build.oh"
+      ],
+      "name": "ActorFluxSwing",
+      "physics_domain": "Electromagnetic systems and coil design",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.requirements",
+        "dd.equilibrium.time_slice",
+        "dd.core_profiles.profiles_1d",
+        "dd.core_profiles.global_quantities.ejima"
+      ],
+      "usage_notes": [
+        "Depending on operate_oh_at_j_crit setting, either evaluates OH current limits to determine flattop duration, or calculates currents needed for specified flattop duration",
+        "OH flux consumption includes rampup estimate based on Ejima coefficient, flattop consumption, and vertical field from PF coils",
+        "Stores results in dd.build.flux_swing, dd.build.tf, and dd.build.oh"
+      ],
+      "key_parameters": {
+        "operate_oh_at_j_crit": "If true, operates OH at current limit and derives flattop duration. If false, evaluates currents needed for specified flattop duration"
+      },
+      "category": "build",
+      "description": "Calculates OH coil flux swing requirements for plasma operation including rampup, flattop, and vertical field contributions",
+      "hierarchy": "single"
+    },
+    "ActorWPED": {
+      "data_outputs": [
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.ion.temperature"
+      ],
+      "name": "ActorWPED",
+      "physics_domain": "Edge plasma temperature profile optimization",
+      "sub_actors": [],
+      "data_inputs": [
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.grid.rho_tor_norm"
+      ],
+      "usage_notes": [
+        "Uses optimization to find temperature profiles that match energy ratio targets",
+        "Requires rho_nml < rho_ped constraint",
+        "Te_sep must be > 0",
+        "Changes temperature profiles at the edge to match pedestal energy fraction"
+      ],
+      "key_parameters": {
+        "rho_ped": "Defines rho at which the pedestal region starts",
+        "ped_to_core_fraction": "Ratio of edge (@rho=0.9) to core stored energy",
+        "rho_nml": "Defines rho at which the no man's land region starts",
+        "T_ratio_pedestal": "Ratio of ion to electron temperatures",
+        "Te_sep": "Separatrix electron temperature"
+      },
+      "category": "pedestal",
+      "description": "Finds the temperature profile at the edge to match the ped_to_core_fraction of stored energy",
+      "hierarchy": "single"
+    },
+    "ActorSimplePL": {
+      "data_outputs": [
+        "dd.core_sources"
+      ],
+      "name": "ActorSimplePL",
+      "physics_domain": "Pellet injection and particle fueling",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.pellet_launchers",
+        "dd.pulse_schedule",
+        "dd.equilibrium.time_slice",
+        "dd.core_profiles.profiles_1d",
+        "dd.pellets.launcher"
+      ],
+      "usage_notes": [
+        "Reads pellet launcher configuration and pulse schedule to calculate particle deposition",
+        "Supports multiple pellet shapes: spherical, cylindrical, and rectangular",
+        "Uses beta function profile for particle deposition with configurable peak location and width",
+        "Material density and atomic weight data sourced from PAM model within OMFIT",
+        "Automatically handles multiple pellet launchers if present in the configuration"
+      ],
+      "key_parameters": {
+        "shape": "Pellet shape (spherical, cylindrical, rectangular)",
+        "rho_0": "Desired radial location of the deposition profile (default: 0.5)",
+        "frequency": "Pellet injection frequency from pulse schedule",
+        "width": "Desired width of the deposition profile (default: 0.25)",
+        "size": "Pellet dimensions based on shape",
+        "species": "Pellet material species (DT, D, T, C, Ne)"
+      },
+      "category": "hcd",
+      "description": "Estimates pellet particle deposition into the plasma core",
+      "hierarchy": "single"
+    },
+    "ActorVerticalStability": {
+      "data_outputs": [
+        "mhd_linear.time_slice.toroidal_mode"
+      ],
+      "name": "ActorVerticalStability",
+      "physics_domain": "MHD stability and control",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "pf_active",
+        "pf_passive"
+      ],
+      "usage_notes": [
+        "Requires active coils to have non-zero current to compute stability metrics",
+        "All coils (active and passive) must have valid positive resistance for normalized growth rate calculation",
+        "Stability margin > 0.15 indicates stability",
+        "Normalized vertical growth rate < 10 indicates stability",
+        "Uses VacuumFields package for stability calculations"
+      ],
+      "key_parameters": {
+        "model": "Turn on/off model of vertical stability",
+        "do_plot": "Display passive structures considered for vertical stability"
+      },
+      "category": "stability",
+      "description": "Computes vertical stability metrics including stability margin and normalized growth rate for plasma equilibrium",
+      "hierarchy": "compound"
+    },
+    "ActorEquilibrium": {
+      "data_outputs": [
+        "equilibrium.time_slice",
+        "equilibrium.time_slice.profiles_1d",
+        "equilibrium.time_slice.profiles_2d",
+        "equilibrium.time_slice.boundary",
+        "equilibrium.time_slice.global_quantities"
+      ],
+      "name": "ActorEquilibrium",
+      "physics_domain": "Magnetohydrodynamic equilibrium calculation",
+      "sub_actors": [
+        {
+          "name": "ActorTEQUILA",
+          "optional": true
+        },
+        {
+          "name": "ActorFRESCO",
+          "optional": true
+        },
+        {
+          "name": "ActorEGGO",
+          "optional": true
+        },
+        {
+          "name": "ActorCHEASE",
+          "optional": true
+        },
+        {
+          "name": "ActorReplay",
+          "optional": true
+        },
+        {
+          "name": "ActorNoOperation",
+          "optional": true
+        }
+      ],
+      "data_inputs": [
+        "equilibrium",
+        "core_profiles.profiles_1d",
+        "pulse_schedule.position_control",
+        "wall",
+        "pf_active.coil",
+        "magnetics.b_field_pol_probe",
+        "magnetics.flux_loop"
+      ],
+      "usage_notes": [
+        "Clears and initializes equilibrium time slice before running selected sub-actor",
+        "Can symmetrize equilibrium if requested and number of X-points is even",
+        "Automatically adds flux surfaces information using first wall data",
+        "Supports both self-consistent iterations (from core_profiles) and re-solving with different solver (from equilibrium)",
+        "Restores experimental coil currents and magnetic measurements when using replay mode"
+      ],
+      "key_parameters": {
+        "vacuum_r0_b0_from": "Source for vacuum toroidal field parameters",
+        "model": "Switch between equilibrium solvers: TEQUILA, FRESCO, EGGO, CHEASE, replay, or none",
+        "j_p_from": "Source for current density and pressure profiles (equilibrium or core_profiles)",
+        "ip_from": "Source for plasma current",
+        "symmetrize": "Force equilibrium up-down symmetry with respect to magnetic axis"
+      },
+      "category": "equilibrium",
+      "description": "Provides a common interface to run different equilibrium actors (TEQUILA, FRESCO, EGGO, CHEASE, replay, or none)",
+      "hierarchy": "compound"
+    },
+    "ActorDivertors": {
+      "data_outputs": [
+        "divertors.divertor[].target[].power_conducted.data",
+        "divertors.divertor[].target[].power_convected.data",
+        "divertors.divertor[].target[].power_incident.data",
+        "divertors.divertor[].target[].two_point_model[].sol_heat_decay_length",
+        "divertors.divertor[].target[].flux_expansion.data",
+        "divertors.divertor[].target[].wetted_area.data",
+        "divertors.divertor[].target[].tilt_angle_tor.data",
+        "divertors.divertor[].target[].tilt_angle_pol.data",
+        "divertors.divertor[].target[].power_flux_peak.data",
+        "divertors.divertor[].power_thermal_extracted.data"
+      ],
+      "name": "ActorDivertors",
+      "physics_domain": "Boundary plasma physics and divertor heat flux modeling",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "core_profiles.profiles_1d",
+        "core_sources",
+        "wall",
+        "divertors"
+      ],
+      "usage_notes": [
+        "Stores data in dd.divertors",
+        "Uses BoundaryPlasmaModels for heat flux calculations",
+        "Calculates heat flux on both inner and outer strike points",
+        "Requires equilibrium and core profiles data to be available",
+        "Updates divertor totals from individual target calculations"
+      ],
+      "key_parameters": {
+        "heat_flux_model": "Divertor heat flux model (lengyel or stangeby)",
+        "heat_spread_factor": "Heat flux expansion factor in private flux region (>= 1.0)",
+        "impurities": "Vector of impurity species",
+        "impurities_fraction": "Vector of impurity fractions",
+        "thermal_power_extraction_efficiency": "Fraction of thermal power carried out by coolant at divertor interface"
+      },
+      "category": "divertors",
+      "description": "Evaluates divertor loading and deposited power on divertor targets",
+      "hierarchy": "single"
+    },
+    "ActorSteadyStateCurrent": {
+      "data_outputs": [
+        "core_profiles.profiles_1d.j_total"
+      ],
+      "name": "ActorSteadyStateCurrent",
+      "physics_domain": "Current drive and plasma current evolution",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "core_profiles.profiles_1d.conductivity_parallel",
+        "core_profiles.profiles_1d.j_non_inductive",
+        "core_profiles.profiles_1d.grid.rho_tor_norm"
+      ],
+      "usage_notes": [
+        "The fundamental quantity being solved is j_total in dd.core_profiles.profiles_1d[]",
+        "Uses conductivity from dd.core_profiles to calculate steady state ohmic current",
+        "Can handle floating plasma current when non-inductive current exceeds target",
+        "Supports gradual relaxation from initial to fully relaxed ohmic current profile"
+      ],
+      "key_parameters": {
+        "allow_floating_plasma_current": "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip",
+        "current_relaxation_radius": "Radial position at which the artificial ohmic current profile relaxation starts to kick in",
+        "ip_from": "Source for plasma current target value"
+      },
+      "category": "current",
+      "description": "Evolves the ohmic current to steady state using the conductivity from core_profiles",
+      "hierarchy": "single"
+    },
+    "ActorNeutralFueling": {
+      "data_outputs": [
+        "core_profiles.profiles_1d.neutral.density",
+        "core_sources.source.profiles_1d.electrons.particles",
+        "core_sources.source.profiles_1d.ion.particles",
+        "core_sources.source.profiles_1d.ion.particles_inside"
+      ],
+      "name": "ActorNeutralFueling",
+      "physics_domain": "Neutral particle transport and fueling",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice.profiles_1d.elongation",
+        "equilibrium.time_slice.profiles_1d.r_outboard",
+        "equilibrium.time_slice.profiles_1d.r_inboard",
+        "equilibrium.time_slice.profiles_1d.rho_tor",
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.electrons.density",
+        "core_profiles.profiles_1d.ion.density",
+        "core_profiles.profiles_1d.ion.element",
+        "core_profiles.profiles_1d.grid.rho_tor_norm",
+        "core_profiles.profiles_1d.grid.volume",
+        "core_profiles.profiles_1d.grid.area",
+        "core_profiles.profiles_1d.grid.surface"
+      ],
+      "usage_notes": [
+        "Uses the NEUCG model from K. Burrell, Journal of Computational Physics 27.1 (1978): 88-102",
+        "Calculates neutral density and particle sources from wall interactions",
+        "Assumes equal particle contribution from all hydrogenic species",
+        "Requires equilibrium data and core profiles as input",
+        "Particle confinement time is limited to maximum of 10 seconds"
+      ],
+      "key_parameters": {
+        "T_wall": "Wall temperature in eV (default: 10.0 eV)",
+        "τp_over_τe": "Particle confinement time as fraction of energy confinement time (default: 0.5)"
+      },
+      "category": "hcd",
+      "description": "Estimates neutral fueling deposition based on the NEUCG model for tokamak particle balance",
+      "hierarchy": "single"
+    },
+    "ActorFitProfiles": {
+      "data_outputs": [
+        "core_profiles"
+      ],
+      "name": "ActorFitProfiles",
+      "physics_domain": "Experimental data processing and profile fitting",
+      "sub_actors": [],
+      "data_inputs": [
+        "thomson_scattering",
+        "charge_exchange",
+        "interferometer",
+        "equilibrium"
+      ],
+      "usage_notes": [
+        "Performs adaptive outlier removal on experimental data with minimum 5 channels",
+        "Automatically removes divertor Thomson scattering channels (D3D specific)",
+        "Scales Thomson scattering density using interferometer calibration when available",
+        "Enforces quasi-neutrality using deuterium as bulk ion",
+        "Creates profiles for electrons (Te, ne) and ions (Ti, ni, rotation)",
+        "Uses 2D interpolation and 1D fitting with smoothing for profile generation",
+        "Handles both bulk deuterium and carbon impurity ions"
+      ],
+      "key_parameters": {
+        "time_averaging": "Time averaging window in seconds for smoothing experimental data",
+        "time_basis_ids": "Time basis to use - either equilibrium or core_profiles (default core_profiles)",
+        "rho_grid": "Number of points in rho grid (default 101)",
+        "rho_averaging": "Rho averaging window for spatial smoothing"
+      },
+      "category": "diagnostics",
+      "description": "Fits experimental diagnostic data (Thomson scattering, charge exchange, interferometer) to create smooth profiles in core_profiles",
+      "hierarchy": "compound"
+    },
+    "ActorCurrent": {
+      "data_outputs": [
+        "core_profiles.profiles_1d[].j_total",
+        "core_profiles.profiles_1d[].j_ohmic",
+        "core_profiles.profiles_1d[].j_tor",
+        "equilibrium.time_slice[].profiles_1d.j_parallel",
+        "core_sources.source[].profiles_1d.bootstrap",
+        "core_sources.source[].profiles_1d.ohmic"
+      ],
+      "name": "ActorCurrent",
+      "physics_domain": "Current evolution and ohmic heating",
+      "sub_actors": [
+        {
+          "name": "ActorSteadyStateCurrent",
+          "optional": true
+        },
+        {
+          "name": "ActorQED",
+          "optional": true
+        },
+        {
+          "name": "ActorReplay",
+          "optional": true
+        },
+        {
+          "name": "ActorNoOperation",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "core_profiles.profiles_1d[].j_bootstrap",
+        "core_profiles.profiles_1d[].j_non_inductive",
+        "global_time"
+      ],
+      "usage_notes": [
+        "The fundamental quantity being solved is j_total in core_profiles.profiles_1d",
+        "Freezes j_bootstrap and j_non_inductive before updating j_ohmic",
+        "Automatically updates bootstrap and ohmic sources in core_sources",
+        "Different models available: SteadyStateCurrent for equilibrium, QED for time evolution, replay for data playback"
+      ],
+      "key_parameters": {
+        "vloop_from": "Data flow parameter for loop voltage source",
+        "model": "Switch between SteadyStateCurrent, QED, replay, or none models",
+        "ip_from": "Data flow parameter for plasma current source"
+      },
+      "category": "current",
+      "description": "Provides a common interface to run multiple ohmic current evolution actors, solving for j_total in core_profiles",
+      "hierarchy": "compound"
+    },
+    "ActorSOL": {
+      "data_outputs": [],
+      "name": "ActorSOL",
+      "physics_domain": "Scrape-Off Layer plasma physics",
+      "sub_actors": [
+        {
+          "name": "ActorSOLBox",
+          "optional": true
+        },
+        {
+          "name": "ActorReplay",
+          "optional": true
+        },
+        {
+          "name": "ActorNoOperation",
+          "optional": true
+        }
+      ],
+      "data_inputs": [],
+      "usage_notes": [
+        "Acts as a dispatcher that selects and runs one of three possible SOL actors based on the model parameter",
+        "Only one sub-actor is instantiated and executed based on the model selection",
+        "Automatically calls step() and finalize() on the selected sub-actor"
+      ],
+      "key_parameters": {
+        "model": "Switch parameter to select SOL model: :box (SOL box model), :replay (replay previous results), or :none (no operation)"
+      },
+      "category": "sol",
+      "description": "Provides a common interface to run different SOL (Scrape-Off Layer) actors with selectable models",
+      "hierarchy": "compound"
+    },
+    "ActorSimpleIC": {
+      "data_outputs": [
+        "dd.waves.coherent_wave",
+        "dd.core_sources.source",
+        "dd.ic_antennas.antenna.power_launched"
+      ],
+      "name": "ActorSimpleIC",
+      "physics_domain": "Ion cyclotron heating and current drive",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.equilibrium.time_slice",
+        "dd.core_profiles.profiles_1d",
+        "dd.pulse_schedule.ic.antenna",
+        "dd.ic_antennas.antenna"
+      ],
+      "usage_notes": [
+        "Current drive efficiency is based on GASC methodology from G. Tonon's work",
+        "For FPP cases, 80% power to ions is assumed (minority heating)",
+        "Uses gaussian profile for power deposition",
+        "Current drive efficiency depends on electron temperature, Zeff, and toroidal beta"
+      ],
+      "key_parameters": {
+        "rho_0": "Desired radial location of the deposition profile",
+        "width": "Desired width of the deposition profile",
+        "ηcd_scale": "Scaling factor for nominal current drive efficiency"
+      },
+      "category": "hcd",
+      "description": "Estimates ion-cyclotron electron/ion energy deposition and current drive as a gaussian profile",
+      "hierarchy": "single"
+    },
+    "ActorTroyonBetaNN": {
+      "data_outputs": [
+        "mhd_linear.time_slice.toroidal_mode"
+      ],
+      "name": "ActorTroyonBetaNN",
+      "physics_domain": "MHD stability analysis",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice.boundary.triangularity"
+      ],
+      "usage_notes": [
+        "Actor is disabled for negative triangularity plasmas",
+        "Uses predefined neural network models for Troyon beta limit calculations",
+        "Calculates stability metrics for multiple toroidal mode numbers",
+        "Outputs are stored in mhd_linear data structure with perturbation type 'Troyon no-wall'"
+      ],
+      "key_parameters": {
+        "verbose": "Enable verbose output during calculations",
+        "do_plot": "Enable plotting output"
+      },
+      "category": "stability",
+      "description": "Evaluates low-n no-wall ideal MHD stability using neural network-based Troyon beta limits",
+      "hierarchy": "single"
+    },
+    "ActorFluxMatcher": {
+      "data_outputs": [
+        "core_profiles.profiles_1d",
+        "transport_solver_numerics.convergence"
+      ],
+      "name": "ActorFluxMatcher",
+      "physics_domain": "transport and profile evolution",
+      "sub_actors": [
+        {
+          "name": "ActorFluxCalculator",
+          "optional": false
+        },
+        {
+          "name": "ActorReplay",
+          "optional": true
+        },
+        {
+          "name": "ActorPedestal",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "core_profiles.profiles_1d",
+        "core_transport",
+        "core_sources",
+        "pulse_schedule"
+      ],
+      "usage_notes": [
+        "Requires at least one transport actor (neoclassical or turbulent) to be active",
+        "Uses normalized rotation shear following TGYRO approach for rotation evolution",
+        "Supports multiple density evolution strategies including quasi-neutrality enforcement",
+        "Can replay profiles from reference discharge when evolution mode is set to :replay",
+        "Automatically handles pedestal evolution and plasma source updates during iteration",
+        "Provides convergence diagnostics and optional plotting of optimization progress"
+      ],
+      "key_parameters": {
+        "evolve_Te": "Electron temperature evolution mode: flux_match, fixed, or replay",
+        "max_iterations": "Maximum optimizer iterations (0 for algorithm defaults)",
+        "scale_turbulence_law": "Scale turbulent transport to achieve H98 or DS03 confinement",
+        "evolve_rotation": "Rotation evolution mode: flux_match, fixed, or replay",
+        "algorithm": "Nonlinear solver algorithm (basic_polyalg, broyden, anderson, etc.)",
+        "evolve_Ti": "Ion temperature evolution mode: flux_match, fixed, or replay",
+        "rho_transport": "Radial transport grid points for flux matching",
+        "xtol": "Tolerance on solution vector convergence",
+        "Δt": "Time step for evolution (Inf for steady state)",
+        "evolve_densities": "Density evolution strategy for all species"
+      },
+      "category": "transport",
+      "description": "Iteratively adjusts plasma profiles to match transport fluxes with source fluxes using nonlinear optimization",
+      "hierarchy": "compound"
+    },
+    "ActorSOLBox": {
+      "data_outputs": [
+        "edge_profiles.profiles_1d.electrons.density",
+        "edge_profiles.profiles_1d.electrons.temperature"
+      ],
+      "name": "ActorSOLBox",
+      "physics_domain": "Scrape-off layer plasma physics",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice",
+        "core_profiles.profiles_1d",
+        "core_sources",
+        "divertors.divertor.target.tile.surface_outline",
+        "wall"
+      ],
+      "usage_notes": [
+        "Based on the 0D box model by X. Zhang et al. (https://doi.org/10.1016/j.nme.2022.101354)",
+        "Automatically determines single null vs double null configuration based on magnetic balance",
+        "If λq is set to Inf, uses Eich scaling (twice λq predicted by Eich's #15 scaling)",
+        "Calculates upstream plasma parameters from target conditions and parallel transport",
+        "Provides boundary conditions for core transport calculations",
+        "Requires equilibrium, core profiles, and core sources data to be available"
+      ],
+      "key_parameters": {
+        "recycling_coeff_i": "Ion particle recycling coefficient",
+        "κ0_i": "Coefficient of ion conductivity",
+        "Ti_t": "Input ion temperature at the target (eV)",
+        "frac_mom": "Fraction of momentum lost due to collisions with neutrals, atomic processes and viscous forces",
+        "λq": "Width of the flux tube (m)",
+        "Te_t": "Input electron temperature at the target (eV)",
+        "frac_cond": "Fraction of power carried by electron conduction",
+        "κ0_e": "Coefficient of electron conductivity",
+        "recycling_coeff_e": "Electron particle recycling coefficient"
+      },
+      "category": "sol",
+      "description": "0D box model for the scrape-off layer developed by X. Zhang et al. that calculates SOL plasma parameters using parallel heat and particle fluxes",
+      "hierarchy": "single"
+    },
+    "ActorEPED": {
+      "data_outputs": [
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.t_i_average"
+      ],
+      "name": "ActorEPED",
+      "physics_domain": "Plasma pedestal physics and transport barriers",
+      "sub_actors": [],
+      "data_inputs": [
+        "core_profiles.profiles_1d.grid.rho_tor_norm",
+        "core_profiles.profiles_1d.grid.psi_norm",
+        "core_profiles.profiles_1d.electrons.density_thermal",
+        "core_profiles.profiles_1d.electrons.temperature",
+        "core_profiles.profiles_1d.ion.temperature",
+        "core_profiles.profiles_1d.t_i_average",
+        "core_profiles.profiles_1d.pressure_thermal",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field.b0",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field.r0",
+        "equilibrium.time_slice.boundary.geometric_axis.r",
+        "equilibrium.time_slice.boundary.minor_radius",
+        "equilibrium.time_slice.boundary.elongation",
+        "equilibrium.time_slice.boundary.triangularity_upper",
+        "equilibrium.time_slice.boundary.triangularity_lower",
+        "equilibrium.time_slice.profiles_1d.r_outboard",
+        "equilibrium.time_slice.profiles_1d.r_inboard",
+        "equilibrium.time_slice.profiles_1d.elongation",
+        "equilibrium.time_slice.profiles_1d.triangularity_upper",
+        "equilibrium.time_slice.profiles_1d.triangularity_lower"
+      ],
+      "usage_notes": [
+        "EPED-NN is only trained on effective mass m = 2.0 & 2.5",
+        "Uses flux surface inside LCFS rather than LCFS itself to avoid sensitivity issues",
+        "Results can be very sensitive to triangularity parameters δu and δl",
+        "If EPED output pressure is lower than separatrix pressure, uses 1.1 * separatrix pressure",
+        "Pedestal width uses EPED definition (1/2 width as fraction of psi_norm)",
+        "Higher grid resolutions in equilibrium solver help mitigate sensitivity issues"
+      ],
+      "key_parameters": {
+        "rho_ped": "Defines rho at which the pedestal region starts",
+        "only_powerlaw": "Use power-law pedestal fit without NN correction (default true)",
+        "rho_nml": "Defines rho at which the no man's land region starts",
+        "warn_nn_train_bounds": "Raise warnings if querying outside training range (default false)",
+        "T_ratio_pedestal": "Ratio of ion to electron temperatures",
+        "Te_sep": "Separatrix electron temperature (default 80.0)",
+        "ped_factor": "Pedestal height multiplier (width scaled by sqrt of this factor, default 1.0)"
+      },
+      "category": "pedestal",
+      "description": "Evaluates the pedestal boundary condition (height and width) using EPED neural network model",
+      "hierarchy": "single"
+    },
+    "ActorTEQUILA": {
+      "data_outputs": [
+        "equilibrium.vacuum_toroidal_field",
+        "equilibrium.time_slice.boundary.geometric_axis",
+        "equilibrium.time_slice.global_quantities.magnetic_axis",
+        "equilibrium.time_slice.profiles_1d.psi",
+        "equilibrium.time_slice.profiles_1d.pressure",
+        "equilibrium.time_slice.profiles_1d.dpressure_dpsi",
+        "equilibrium.time_slice.profiles_1d.f",
+        "equilibrium.time_slice.profiles_1d.f_df_dpsi",
+        "equilibrium.time_slice.profiles_2d",
+        "equilibrium.time_slice.global_quantities.free_boundary",
+        "pf_active.coil"
+      ],
+      "name": "ActorTEQUILA",
+      "physics_domain": "MHD equilibrium reconstruction and flux surface geometry",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice.profiles_1d.psi_norm",
+        "equilibrium.time_slice.profiles_1d.pressure",
+        "equilibrium.time_slice.profiles_1d.j_tor",
+        "equilibrium.time_slice.profiles_1d.rho_tor_norm",
+        "equilibrium.time_slice.boundary.outline",
+        "equilibrium.time_slice.global_quantities.ip",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field",
+        "equilibrium.time_slice.boundary.strike_point",
+        "equilibrium.time_slice.boundary.x_point",
+        "pf_active.coil",
+        "build"
+      ],
+      "usage_notes": [
+        "Can operate in both fixed boundary and free boundary modes",
+        "Reuses flux surface information when boundary geometry hasn't changed for efficiency",
+        "Handles current density sign consistency with plasma current",
+        "Automatically limits surface curvature and resamples boundary points",
+        "Uses MXH representation for flux surface parametrization",
+        "Integrates with VacuumFields for free boundary conversion",
+        "Boundary ψ value should be set time-dependently based on OH coil flux swing"
+      ],
+      "key_parameters": {
+        "number_of_iterations": "Number of TEQUILA iterations (default: 1000)",
+        "relax": "Relaxation on the Picard iterations (default: 0.25, range: 0.0-1.0)",
+        "free_boundary": "Convert fixed boundary equilibrium to free boundary one",
+        "number_of_fourier_modes": "Number of modes for Fourier decomposition (default: 8)",
+        "number_of_radial_grid_points": "Number of TEQUILA radial grid points (default: 31)",
+        "number_of_MXH_harmonics": "Number of Fourier harmonics in MXH representation of flux surfaces (default: 4)",
+        "fixed_grid": "Fix P and Jt on this rho grid (:poloidal or :toroidal, default: :toroidal)",
+        "tolerance": "Tolerance for terminating iterations (default: 1e-4)"
+      },
+      "category": "equilibrium",
+      "description": "Fixed boundary equilibrium solver using TEQUILA for MHD equilibrium calculations",
+      "hierarchy": "compound"
+    },
+    "ActorEGGO": {
+      "data_outputs": [
+        "equilibrium.time_slice.profiles_2d.psi",
+        "equilibrium.time_slice.global_quantities.free_boundary"
+      ],
+      "name": "ActorEGGO",
+      "physics_domain": "MHD equilibrium and free boundary reconstruction",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice.profiles_1d.psi_norm",
+        "equilibrium.time_slice.profiles_1d.dpressure_dpsi",
+        "equilibrium.time_slice.profiles_1d.f_df_dpsi",
+        "equilibrium.time_slice.global_quantities.ip",
+        "equilibrium.time_slice.boundary.outline.r",
+        "equilibrium.time_slice.boundary.outline.z",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field.b0",
+        "equilibrium.time_slice.global_quantities.vacuum_toroidal_field.r0",
+        "equilibrium.time_slice.profiles_1d.pressure",
+        "wall",
+        "pf_active"
+      ],
+      "usage_notes": [
+        "Requires EGGO and VacuumFields packages to be installed",
+        "Uses neural network model d3d_efit01efit02cake02 by default",
+        "Time slice averaging is implemented to improve EGGO robustness",
+        "Boundary decimation reduces computational load by sampling fewer boundary points",
+        "Sets free_boundary flag to 1 indicating free boundary equilibrium calculation"
+      ],
+      "key_parameters": {
+        "model": "Neural network model to be used for EGGO solver",
+        "timeslice_average": "Number of time slices to average for robustness (default: 0)",
+        "do_plot": "Enable plotting for visualization and debugging",
+        "use_vacuumfield_green": "Use Vacuum Fields green's function tables instead of default",
+        "decimate_boundary": "Parameter to decimate number of boundary points (default: 4)",
+        "debug": "Print debug information during EGGO solve"
+      },
+      "category": "equilibrium",
+      "description": "ML-based free boundary equilibrium solver using EGGO neural network model",
+      "hierarchy": "compound"
+    },
+    "ActorSimpleLH": {
+      "data_outputs": [
+        "dd.waves.coherent_wave",
+        "dd.core_sources.source"
+      ],
+      "name": "ActorSimpleLH",
+      "physics_domain": "Lower-Hybrid current drive and heating",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.lh_antennas",
+        "dd.pulse_schedule.lh",
+        "dd.equilibrium.time_slice",
+        "dd.core_profiles.profiles_1d"
+      ],
+      "usage_notes": [
+        "Current drive efficiency based on GASC formula from G. Tonon paper",
+        "Uses gaussian deposition profile",
+        "Power launched is smoothed with 0.01s averaging time",
+        "Current drive sign follows plasma current direction"
+      ],
+      "key_parameters": {
+        "rho_0": "Desired radial location of the deposition profile",
+        "width": "Desired width of the deposition profile",
+        "ηcd_scale": "Scaling factor for nominal current drive efficiency"
+      },
+      "category": "hcd",
+      "description": "Estimates Lower-Hybrid electron energy deposition and current drive as a gaussian profile",
+      "hierarchy": "single"
+    },
+    "ActorTGLF": {
+      "data_outputs": [
+        "core_transport.model.profiles_1d"
+      ],
+      "name": "ActorTGLF",
+      "physics_domain": "turbulent transport modeling",
+      "sub_actors": [],
+      "data_inputs": [
+        "core_profiles.profiles_1d",
+        "equilibrium.time_slice"
+      ],
+      "usage_notes": [
+        "Default model is TGLFNN with sat1 saturation rule",
+        "Neural network models (TGLFNN, GKNN) provide faster execution than full TGLF",
+        "TJLF is an alternative quasi-linear transport model",
+        "Custom input files can override default parameters",
+        "Electromagnetic effects are included by default",
+        "Warning system for neural network extrapolation beyond training bounds"
+      ],
+      "key_parameters": {
+        "lump_ions": "Combine fuel species (D,T) and impurities together",
+        "electromagnetic": "Whether to use electromagnetic or electrostatic calculations",
+        "model": "Implementation choice: TGLF, TGLFNN, GKNN, or TJLF",
+        "tglfnn_model": "Neural network model selection for TGLFNN",
+        "onnx_model": "Use ONNX neural network model implementation",
+        "sat_rule": "Saturation rule for turbulence: sat0, sat0quench, sat1, sat1geo, sat2, sat3",
+        "rho_transport": "Radial grid points for transport calculations"
+      },
+      "category": "transport",
+      "description": "Evaluates TGLF predicted turbulence transport coefficients and fluxes for fusion plasma simulations",
+      "hierarchy": "single"
+    },
+    "ActorReplay": {
+      "data_outputs": [],
+      "name": "ActorReplay",
+      "physics_domain": "Data replay and simulation reproduction",
+      "sub_actors": [],
+      "data_inputs": [
+        "replay_dd"
+      ],
+      "usage_notes": [
+        "Meant to be used as a specific model in generic actors for replaying past behavior",
+        "Behavior is defined by dispatch on _step and _finalize functions with specific actor types",
+        "Requires replay_dd parameter to specify the data source for replay",
+        "Can wrap any base actor to replay its previous execution"
+      ],
+      "key_parameters": {
+        "replay_dd": "IMAS dd object containing data to replay from",
+        "base_actor": "The underlying actor whose behavior is being replayed"
+      },
+      "category": "uncategorized",
+      "description": "Actor for replaying past behavior from previously stored IMAS data",
+      "hierarchy": "single"
+    },
+    "ActorBalanceOfPlant": {
+      "data_outputs": [
+        "dd.balance_of_plant.time",
+        "dd.balance_of_plant.power_plant.heat_load.breeder",
+        "dd.balance_of_plant.power_plant.heat_load.divertor",
+        "dd.balance_of_plant.power_plant.heat_load.wall"
+      ],
+      "name": "ActorBalanceOfPlant",
+      "physics_domain": "Power plant systems and electrical balance",
+      "sub_actors": [
+        {
+          "name": "ActorThermalPlant",
+          "optional": false
+        },
+        {
+          "name": "ActorPowerNeeds",
+          "optional": false
+        }
+      ],
+      "data_inputs": [
+        "dd.global_time",
+        "dd.blanket.module[].time_slice[].power_thermal_extracted",
+        "dd.divertors.divertor[].power_incident.data",
+        "dd.core_sources"
+      ],
+      "usage_notes": [
+        "Stores data in dd.balance_of_plant",
+        "Calculates heat loads from breeder blanket, divertor, and wall radiation losses",
+        "Coordinates thermal plant and power needs calculations"
+      ],
+      "key_parameters": {},
+      "category": "balance_plant",
+      "description": "Balance of plant actor that estimates the net electrical power output by comparing the balance of plant electrical needs with the electricity generated from the thermal cycle",
+      "hierarchy": "compound"
+    },
+    "ActorTORBEAM": {
+      "data_outputs": [
+        "core_sources.source",
+        "core_profiles.profiles_1d"
+      ],
+      "name": "ActorTORBEAM",
+      "physics_domain": "Electron cyclotron heating and current drive",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium",
+        "core_profiles",
+        "ec_launchers"
+      ],
+      "usage_notes": [
+        "Requires TORBEAM package to be properly installed and configured",
+        "Uses external TORBEAM ray-tracing code for wave propagation calculations",
+        "Automatically calls step() and finalize() when constructed with ParametersAllActors"
+      ],
+      "key_parameters": {
+        "torbeam_params": "TORBEAM simulation parameters controlling wave propagation calculations"
+      },
+      "category": "ec",
+      "description": "TORBEAM electron cyclotron heating and current drive actor that simulates wave propagation and absorption",
+      "hierarchy": "single"
+    },
+    "ActorRABBIT": {
+      "data_outputs": [
+        "core_sources.source",
+        "nbi.unit.power_launched"
+      ],
+      "name": "ActorRABBIT",
+      "physics_domain": "Neutral beam injection physics and fast ion dynamics",
+      "sub_actors": [],
+      "data_inputs": [
+        "equilibrium.time_slice.profiles_1d",
+        "equilibrium.time_slice.profiles_2d",
+        "equilibrium.time_slice.global_quantities",
+        "core_profiles.profiles_1d",
+        "build.layer",
+        "nbi.unit",
+        "pulse_schedule.nbi.unit"
+      ],
+      "usage_notes": [
+        "Requires RABBIT external code to be available",
+        "Handles time evolution by processing equilibrium history over Δt_history period",
+        "Converts FUSE/IMAS data to RABBIT input format including beam geometry and plasma profiles",
+        "Computes electron heating, ion heating, particle deposition, current drive, and torque",
+        "Assumes positive safety factor q for RABBIT compatibility",
+        "Uses toroidal rho inside LCFS, poloidal rho outside for coordinate mapping"
+      ],
+      "key_parameters": {
+        "Δt_history": "Amount of history to include for simulation timespan (s)",
+        "remove_inputs": "Delete RABBIT input files after run (default: true)"
+      },
+      "category": "nbi",
+      "description": "Interface to the RABBIT neutral beam injection code for computing NBI heating, current drive, and particle deposition",
+      "hierarchy": "single"
+    },
+    "ActorBlanket": {
+      "data_outputs": [
+        "dd.blanket.module",
+        "dd.blanket.tritium_breeding_ratio"
+      ],
+      "name": "ActorBlanket",
+      "physics_domain": "neutronics and tritium breeding",
+      "sub_actors": [],
+      "data_inputs": [
+        "dd.build.layer",
+        "dd.equilibrium.time_slice",
+        "dd.neutronics.time_slice",
+        "dd.neutronics.first_wall",
+        "dd.build.structure",
+        "dd.requirements.tritium_breeding_ratio"
+      ],
+      "usage_notes": [
+        "Requires blanket layers to be present in build configuration",
+        "Optimizes layer thicknesses to achieve target TBR while minimizing neutron leakage",
+        "Uses NNeutronics package for neutronics calculations",
+        "Handles both HFS and LFS blanket modules",
+        "Stores results in dd.blanket IDS structure"
+      ],
+      "key_parameters": {
+        "blanket_multiplier": "Neutron thermal power multiplier in blanket (default: 1.2)",
+        "minimum_first_wall_thickness": "Minimum first wall thickness (default: 0.02 m)",
+        "max_Li6_enrichment_fraction": "Maximum allowed Li6 enrichment fraction (default: 0.9)",
+        "thermal_power_extraction_efficiency": "Fraction of thermal power carried out by coolant (default: 1.0)"
+      },
+      "category": "nuclear",
+      "description": "Evaluates blankets tritium breeding ratio (TBR), heat deposition, and neutron leakage",
+      "hierarchy": "compound"
+    }
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "total_actors": 56,
+    "categories": 19,
+    "compound_actors": 26,
+    "generated_at": "2025-08-28T12:00:16.398",
+    "extraction_method": "claude_analysis",
+    "single_actors": 30
+  },
+  "categories": {
+    "costing": [
+      "ActorCosting",
+      "ActorCostingSheffield"
+    ],
+    "build": [
+      "ActorCXbuild",
+      "ActorFluxSwing",
+      "ActorHFSsizing",
+      "ActorLFSsizing",
+      "ActorStresses"
+    ],
+    "divertors": [
+      "ActorDivertors"
+    ],
+    "pedestal": [
+      "ActorEPED",
+      "ActorWPED",
+      "ActorPedestal"
+    ],
+    "current": [
+      "ActorCurrent",
+      "ActorQED",
+      "ActorSteadyStateCurrent"
+    ],
+    "balance_plant": [
+      "ActorBalanceOfPlant",
+      "ActorPowerNeeds",
+      "ActorThermalPlant"
+    ],
+    "transport": [
+      "ActorAnalyticTurbulence",
+      "ActorCoreTransport",
+      "ActorEPEDprofiles",
+      "ActorFluxCalculator",
+      "ActorFluxMatcher",
+      "ActorNeoclassical",
+      "ActorQLGYRO",
+      "ActorTGLF"
+    ],
+    "wall_loading": [
+      "ActorCoreRadHeatFlux",
+      "ActorParticleHeatFlux"
+    ],
+    "sol": [
+      "ActorSOL",
+      "ActorSOLBox"
+    ],
+    "stability": [
+      "ActorPlasmaLimits",
+      "ActorTroyonBetaNN",
+      "ActorVerticalStability"
+    ],
+    "equilibrium": [
+      "ActorCHEASE",
+      "ActorEGGO",
+      "ActorEquilibrium",
+      "ActorFRESCO",
+      "ActorTEQUILA"
+    ],
+    "hcd": [
+      "ActorHCD",
+      "ActorSimpleIC",
+      "ActorSimpleLH",
+      "ActorNeutralFueling",
+      "ActorSimplePL"
+    ],
+    "uncategorized": [
+      "ActorNoOperation",
+      "ActorReplay"
+    ],
+    "diagnostics": [
+      "ActorFitProfiles"
+    ],
+    "nuclear": [
+      "ActorBlanket",
+      "ActorNeutronics"
+    ],
+    "compound": [
+      "ActorStationaryPlasma",
+      "ActorWholeFacility"
+    ],
+    "ec": [
+      "ActorSimpleEC",
+      "ActorTORBEAM"
+    ],
+    "pf": [
+      "ActorPFactive",
+      "ActorPFdesign",
+      "ActorPassiveStructures"
+    ],
+    "nbi": [
+      "ActorSimpleNB",
+      "ActorRABBIT"
+    ]
+  },
+  "hierarchy": {
+    "compound": [
+      "ActorFRESCO",
+      "ActorPedestal",
+      "ActorPFdesign",
+      "ActorPlasmaLimits",
+      "ActorEPEDprofiles",
+      "ActorCosting",
+      "ActorCHEASE",
+      "ActorWholeFacility",
+      "ActorCXbuild",
+      "ActorCoreTransport",
+      "ActorThermalPlant",
+      "ActorFluxCalculator",
+      "ActorHFSsizing",
+      "ActorStationaryPlasma",
+      "ActorHCD",
+      "ActorQED",
+      "ActorVerticalStability",
+      "ActorEquilibrium",
+      "ActorFitProfiles",
+      "ActorCurrent",
+      "ActorSOL",
+      "ActorFluxMatcher",
+      "ActorTEQUILA",
+      "ActorEGGO",
+      "ActorBalanceOfPlant",
+      "ActorBlanket"
+    ],
+    "single": [
+      "ActorPowerNeeds",
+      "ActorStresses",
+      "ActorCostingSheffield",
+      "ActorNoOperation",
+      "ActorCoreRadHeatFlux",
+      "ActorPassiveStructures",
+      "ActorLFSsizing",
+      "ActorNeutronics",
+      "ActorSimpleEC",
+      "ActorParticleHeatFlux",
+      "ActorAnalyticTurbulence",
+      "ActorQLGYRO",
+      "ActorSimpleNB",
+      "ActorPFactive",
+      "ActorNeoclassical",
+      "ActorFluxSwing",
+      "ActorWPED",
+      "ActorSimplePL",
+      "ActorDivertors",
+      "ActorSteadyStateCurrent",
+      "ActorNeutralFueling",
+      "ActorSimpleIC",
+      "ActorTroyonBetaNN",
+      "ActorSOLBox",
+      "ActorEPED",
+      "ActorSimpleLH",
+      "ActorTGLF",
+      "ActorReplay",
+      "ActorTORBEAM",
+      "ActorRABBIT"
+    ]
+  }
+}
