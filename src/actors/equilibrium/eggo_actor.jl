@@ -18,16 +18,18 @@ Base.@kwdef mutable struct FUSEparameters__ActorEGGO{T<:Real} <: ParametersActor
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing EGGO solve"; default=false)
 end
 
+
+
 mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorEGGO{P}}
     act::ParametersAllActors{P}
-    green::Dict
-    basis_functions::Dict
-    basis_functions_1d::Dict
-    bf1d_itp::Dict
+    green::EGGO.GreenFunctionTables{Float64}
+    basis_functions::EGGO.BasisFunctions{Float64}
+    basis_functions_1d::EGGO.BasisFunctions1D{Float64}
+    bf1d_itp::EGGO.BasisFunctions1Dinterp
     coils::Vector{<:VacuumFields.AbstractCoil}
-    NNmodel::Dict
+    NNmodel::EGGO.NeuralNetModel{Float64}
 end
 
 """
@@ -51,7 +53,7 @@ function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::Param
     NNmodel = EGGO.get_model(model_name)
     basis_functions_1d, bf1d_itp = EGGO.get_basis_functions_1d(model_name)
     coils = VacuumFields.MultiCoils(dd.pf_active)
-    green[:ggridfc_vf] = VacuumFields.Green_table(green[:rgrid], green[:zgrid], coils)
+    green.ggridfc_vf = VacuumFields.Green_table(green.rgrid, green.zgrid, coils)
     return ActorEGGO(dd, par, act, green, basis_functions, basis_functions_1d, bf1d_itp, coils, NNmodel)
 end
 
@@ -63,9 +65,9 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     eqt1d = eqt.profiles_1d
 
     # prepare inputs
-    wall = Dict{Symbol,Vector{Float64}}()
-    wall[:rlim], wall[:zlim] = IMAS.first_wall(dd.wall)
-    psi_norm = range(0.0, 1.0, actor.green[:nw])
+    rlim, zlim = IMAS.first_wall(dd.wall)
+    wall = EGGO.Wall(rlim,zlim)
+    psi_norm = range(0.0, 1.0, actor.green.nw)
     pp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi).(psi_norm) * 2π
     ffp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi).(psi_norm) * 2π
     pp_fit, ffp_fit = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d)
