@@ -72,3 +72,6 @@ LocalPreferences.toml
 julia-*.out
 examples/Untitled.ipynb
 tmp.gif
+
+# Generated knowledge base files
+knowledge/actors/
