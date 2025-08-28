@@ -217,6 +217,9 @@ function case_parameters(::Val{:D3D}, shot::Int;
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
+    # simulation starts when both equilibrium and profiles are available
+    ini.time.simulation_start = max(ini.general.dd.equilibrium.time_slice[2].time, ini.general.dd.core_profiles.profiles_1d[2].time)
+
     # sanitize dd
     for nbu in dd1.nbi.unit
         nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
@@ -255,8 +258,6 @@ function case_parameters(::Val{:D3D}, shot::Int;
     act.ActorPedestal.density_match = :ne_line
 
     set_ini_act_from_ods!(ini, act)
-
-    ini.time.simulation_start = missing # to force user selection
 
     #### ACT ####
 
