@@ -183,13 +183,15 @@ function run_postdictive_case!(dd::IMAS.dd, dd_exp::IMAS.dd, device::Symbol, sho
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorFluxMatcher.evolve_rotation = :flux_match
     act.ActorPedestal.rotation_model = :replay
+
     act.ActorFluxMatcher.relax = 0.5
+    act.ActorEGGO.timeslice_average = 4
 
     #act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     # time
     δt = 0.025
-    dd.global_time = ini.general.dd.equilibrium.time_slice[2].time # start_time should be early in the shot, when otherwise ohmic current will be wrong
+    dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
     final_time = ini.general.dd.equilibrium.time[end]
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
     act.ActorDynamicPlasma.Δt = final_time - dd.global_time
