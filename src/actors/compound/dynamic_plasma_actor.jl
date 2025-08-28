@@ -24,7 +24,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     par::OverrideParameters{P,FUSEparameters__ActorDynamicPlasma{P}}
     act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
-    actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
+    actor_ped::ActorPedestal{D,P}
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
