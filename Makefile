@@ -693,6 +693,19 @@ install_playground: .PHONY
 	if [ ! -d "playground" ]; then git clone https://github.com/ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 # @devs
+knowledge: .PHONY
+# Extract FUSE actor knowledge base using Claude analysis
+	@echo "Extracting FUSE actor knowledge base..."
+	@cd knowledge && julia --threads=$(JULIA_NUM_THREADS) -e 'include("extract_knowledge.jl"); extract_fuse_knowledge_parallel()'
+	@echo "Knowledge extraction complete! Check knowledge/fuse_knowledge_base.json"
+
+# @devs
+knowledge_clean: .PHONY
+# Clean up orphaned actor files in knowledge base
+	@echo "Checking for orphaned actor files..."
+	@cd knowledge && julia -e 'include("extract_knowledge.jl"); clean_orphaned_fuse_actors()'
+
+# @devs
 list_open_compats:
 # List compat patches PR on GitHub
 	@$(foreach repo,$(DEV_PACKAGES_MAKEFILE), \
