@@ -120,8 +120,11 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
         end
     end
     
+    # Analyze relationships between actors
+    relationships = analyze_actor_relationships(all_actors)
+    
     # Generate combined knowledge base
-    knowledge_base = create_knowledge_base(all_actors, categories)
+    knowledge_base = create_knowledge_base(all_actors, categories, relationships)
     
     # Save combined knowledge base
     kb_path = joinpath(knowledge_dir, "fuse_knowledge_base.json")
@@ -276,11 +279,176 @@ function save_individual_actor_json(actor_data::Dict, original_file::String, src
 end
 
 """
-    create_knowledge_base(all_actors::Dict, categories::Dict) -> Dict
+    analyze_actor_relationships(all_actors::Dict) -> Dict
 
-Create combined knowledge base from individual actor analyses.
+Analyze relationships between actors based on their data flows, hierarchies, and domains.
 """
-function create_knowledge_base(all_actors::Dict, categories::Dict)
+function analyze_actor_relationships(all_actors::Dict)
+    println("🔗 Analyzing actor relationships...")
+    
+    relationships = Dict(
+        "data_flow_connections" => analyze_data_flow_connections(all_actors),
+        "sub_actor_dependencies" => analyze_sub_actor_dependencies(all_actors), 
+        "physics_domain_groups" => analyze_physics_domain_groups(all_actors),
+        "category_connections" => analyze_category_connections(all_actors)
+    )
+    
+    return relationships
+end
+
+"""
+    analyze_data_flow_connections(all_actors::Dict) -> Dict
+
+Find data flow connections where Actor A's outputs match Actor B's inputs.
+"""
+function analyze_data_flow_connections(all_actors::Dict)
+    connections = Dict()
+    
+    for (actor_a, info_a) in all_actors
+        connections[actor_a] = Dict("feeds_to" => [], "receives_from" => [])
+        
+        for (actor_b, info_b) in all_actors
+            if actor_a == actor_b
+                continue
+            end
+            
+            # Check if A's outputs match B's inputs
+            outputs_a = Set(info_a["data_outputs"])
+            inputs_b = Set(info_b["data_inputs"])
+            
+            # Find overlapping data paths (exact matches or prefix matches)
+            shared_data = []
+            for output in outputs_a
+                for input in inputs_b
+                    if output == input || startswith(input, output) || startswith(output, input)
+                        push!(shared_data, Dict("data_path" => output, "connection_type" => "data_flow"))
+                    end
+                end
+            end
+            
+            if !isempty(shared_data)
+                push!(connections[actor_a]["feeds_to"], Dict("actor" => actor_b, "shared_data" => shared_data))
+                if !haskey(connections, actor_b)
+                    connections[actor_b] = Dict("feeds_to" => [], "receives_from" => [])
+                end
+                push!(connections[actor_b]["receives_from"], Dict("actor" => actor_a, "shared_data" => shared_data))
+            end
+        end
+    end
+    
+    return connections
+end
+
+"""
+    analyze_sub_actor_dependencies(all_actors::Dict) -> Dict
+
+Analyze compound actor → sub-actor relationships.
+"""
+function analyze_sub_actor_dependencies(all_actors::Dict)
+    dependencies = Dict("compound_to_sub" => Dict(), "sub_to_compound" => Dict())
+    
+    for (actor_name, info) in all_actors
+        if info["hierarchy"] == "compound" && !isempty(info["sub_actors"])
+            dependencies["compound_to_sub"][actor_name] = [sa["name"] for sa in info["sub_actors"]]
+            
+            # Build reverse mapping - only for sub-actors that exist in our extracted set
+            for sub_actor in info["sub_actors"]
+                sub_name = sub_actor["name"]
+                
+                # Check if this sub-actor actually exists in our extracted actors
+                if haskey(all_actors, sub_name)
+                    if !haskey(dependencies["sub_to_compound"], sub_name)
+                        dependencies["sub_to_compound"][sub_name] = []
+                    end
+                    push!(dependencies["sub_to_compound"][sub_name], actor_name)
+                else
+                    # Note: Some sub-actors might not be extracted (they might not follow *_actor.jl naming)
+                    @debug "Sub-actor $sub_name referenced by $actor_name not found in extracted actors"
+                end
+            end
+        end
+    end
+    
+    return dependencies
+end
+
+"""
+    analyze_physics_domain_groups(all_actors::Dict) -> Dict
+
+Group actors by physics domain for domain-based relationships.
+"""
+function analyze_physics_domain_groups(all_actors::Dict)
+    domain_groups = Dict()
+    
+    for (actor_name, info) in all_actors
+        domain = info["physics_domain"]
+        if !haskey(domain_groups, domain)
+            domain_groups[domain] = []
+        end
+        push!(domain_groups[domain], actor_name)
+    end
+    
+    return domain_groups
+end
+
+"""
+    analyze_category_connections(all_actors::Dict) -> Dict
+
+Analyze connections between different categories of actors.
+"""
+function analyze_category_connections(all_actors::Dict)
+    category_connections = Dict()
+    
+    # Group actors by category
+    by_category = Dict()
+    for (actor_name, info) in all_actors
+        category = info["category"]
+        if !haskey(by_category, category)
+            by_category[category] = []
+        end
+        push!(by_category[category], actor_name)
+    end
+    
+    # Find inter-category data flow connections
+    for (cat_a, actors_a) in by_category
+        category_connections[cat_a] = Dict()
+        
+        for (cat_b, actors_b) in by_category
+            if cat_a == cat_b
+                continue
+            end
+            
+            connections = 0
+            for actor_a in actors_a
+                for actor_b in actors_b
+                    info_a = all_actors[actor_a]
+                    info_b = all_actors[actor_b]
+                    
+                    # Check for data flow connections
+                    outputs_a = Set(info_a["data_outputs"])
+                    inputs_b = Set(info_b["data_inputs"])
+                    
+                    if !isempty(intersect(outputs_a, inputs_b))
+                        connections += 1
+                    end
+                end
+            end
+            
+            if connections > 0
+                category_connections[cat_a][cat_b] = connections
+            end
+        end
+    end
+    
+    return category_connections
+end
+
+"""
+    create_knowledge_base(all_actors::Dict, categories::Dict, relationships::Dict) -> Dict
+
+Create combined knowledge base from individual actor analyses with relationship data.
+"""
+function create_knowledge_base(all_actors::Dict, categories::Dict, relationships::Dict)
     single_count = count(actor -> actor["hierarchy"] == "single", values(all_actors))
     compound_count = count(actor -> actor["hierarchy"] == "compound", values(all_actors))
     
@@ -299,7 +467,8 @@ function create_knowledge_base(all_actors::Dict, categories::Dict)
         "hierarchy" => Dict(
             "single" => [name for (name, actor) in all_actors if actor["hierarchy"] == "single"],
             "compound" => [name for (name, actor) in all_actors if actor["hierarchy"] == "compound"]
-        )
+        ),
+        "relationships" => relationships
     )
 end
 
