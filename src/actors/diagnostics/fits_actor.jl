@@ -60,7 +60,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # disregard divertor thomson (D3D specific! need to generalize)
-    for (k,ch) in reverse!(collect(enumerate(dd.thomson_scattering.channel)))
+    for (k, ch) in reverse!(collect(enumerate(dd.thomson_scattering.channel)))
         if contains(lowercase(ch.name), "divertor")
             popat!(dd.thomson_scattering.channel, k)
         end
@@ -138,29 +138,37 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
 
         # optimization scales density for groups of thomson scattering channels
-        function cost(scales)
-            scales = abs.(scales)
+        function cost(scales0)
+            scales = abs.(1.0 .+ scales0)
             data = deepcopy(nes)
-            c = Float64[]
+            c_simulated = Float64[]
+            c_continuity = Float64[]
             for (kt, time0) in enumerate(interferometer_calibration_times)
                 for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
                     data[kt][ts_subsystems_mapper[subsystem]] .*= scales[kch]
                 end
                 eqt = dd.equilibrium.time_slice[time0]
                 index = sortperm(chρs[kt])
+
+                # synthetic line average density from Thomson should match measured one from interferometer
                 for (kch, ch) in enumerate(dd.interferometer.channel)
                     density_thermal = IMAS.line_average(eqt, data[kt][index], chρs[kt][index], ch.line_of_sight; n_points)
                     simulation = density_thermal.line_average
-                    push!(c, norm((experiments[kch][kt] .- simulation) ./ experiments[kch][kt]))
+                    push!(c_simulated, norm((experiments[kch][kt] .- simulation) ./ experiments[kch][kt]))
                 end
+
+                # profiles continuity: we want to minimize jumps in the profile
+                tmp = maximum(abs.(diff(data[kt][index]))) / sum(scales)
+                push!(c_continuity, tmp)
             end
-            return norm(c)
+
+            return sqrt(norm(c_simulated)^2 + norm(c_continuity)^2 + norm(scales0)^2)
         end
-        res = Optim.optimize(cost, fill(1.0, length(ts_subsystems_mapper)), Optim.NelderMead())
+        res = Optim.optimize(cost, fill(0.0, length(ts_subsystems_mapper)), Optim.NelderMead())
 
         # scale raw data in thomson_scattering IDS
-        scales = res.minimizer
-        scales_string = join(["$subsystem_name=$(@sprintf("%3.3f",scale))" for (subsystem_name,scale) in zip(keys(ts_subsystems_mapper),scales)], ", ")
+        scales = abs.(1.0 .+ res.minimizer)
+        scales_string = join(["$subsystem_name=$(@sprintf("%3.3f",scale))" for (subsystem_name, scale) in zip(keys(ts_subsystems_mapper), scales)], ", ")
         @info "Thomson subsystems scaled to match interferometer measurements: $scales_string"
         for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
             for chnum in ts_subsystems_mapper[subsystem]
