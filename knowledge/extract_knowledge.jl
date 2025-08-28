@@ -13,12 +13,29 @@ using Dates
 using Base.Threads
 
 """
+    generate_github_url(actor_file::String, src_dir::String) -> String
+
+Generate a GitHub URL for the given actor source file.
+Assumes the FUSE.jl repository structure and master branch.
+"""
+function generate_github_url(actor_file::String, src_dir::String)
+    # Calculate relative path from src directory
+    rel_path = relpath(actor_file, src_dir)
+    
+    # Base GitHub URL for FUSE.jl repository
+    base_url = "https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/src"
+    
+    # Combine to create full URL
+    return joinpath(base_url, rel_path)
+end
+
+"""
     extract_all_actors(src_dir::String, knowledge_dir::String="knowledge")
 
 Extract knowledge for all FUSE actors using Claude analysis.
 Creates individual JSON files and combined knowledge base.
 """
-function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="knowledge"; batch_size=8, limit=nothing)
+function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="knowledge"; batch_size=8, limit=nothing, skip_existing=true)
     actors_src_dir = joinpath(src_dir, "actors")
     actors_kb_dir = joinpath(knowledge_dir, "actors")
     
@@ -41,12 +58,37 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
         error("Schema file not found: $schema_path")
     end
     
-    # Find all actor files
-    actor_files = find_actor_files(actors_src_dir)
+    # Find all actor files (optionally skip those with existing JSON files)
+    actor_files = find_actor_files(actors_src_dir, actors_kb_dir, skip_existing)
     if limit !== nothing
         actor_files = actor_files[1:min(limit, length(actor_files))]
     end
-    println("Found $(length(actor_files)) actor files")
+    
+    if skip_existing && length(actor_files) == 0
+        println("✅ All actor JSON files are up to date! No extraction needed.")
+        
+        # Still generate combined knowledge base from existing files
+        all_actors = Dict()
+        categories = Dict()
+        
+        # Post-processing: Add GitHub URLs to any existing JSON files that don't have them
+        add_source_urls_to_existing_jsons!(src_dir, knowledge_dir)
+        
+        missing_actors = include_existing_actors!(all_actors, categories, actors_kb_dir)
+        relationships = analyze_actor_relationships(all_actors)
+        knowledge_base = create_knowledge_base(all_actors, categories, relationships)
+        
+        kb_path = joinpath(knowledge_dir, "fuse_knowledge_base.json")
+        open(kb_path, "w") do io
+            JSON.print(io, knowledge_base, 2)
+        end
+        
+        println("Updated combined knowledge base: $kb_path")
+        println("Processed $(length(all_actors)) actors across $(length(categories)) categories")
+        return knowledge_base
+    end
+    
+    println("Found $(length(actor_files)) actor files$(skip_existing ? " needing extraction" : "")")
     
     all_actors = Dict()
     categories = Dict()
@@ -68,7 +110,7 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
         for (actor_file, category) in batch
             task = Threads.@spawn begin
                 try
-                    analyze_actor_with_claude_retry(actor_file, category, schema_path)
+                    analyze_actor_with_claude_retry(actor_file, category, schema_path, src_dir)
                 catch e
                     Dict("error" => "Task failed: $e", "file" => actor_file)
                 end
@@ -132,15 +174,18 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
         JSON.print(io, knowledge_base, 2)
     end
     
-    # Check for and recover any missing actors from individual files
-    missing_actors = recover_missing_actors!(all_actors, categories, actors_kb_dir)
+    # Post-processing: Add GitHub URLs to any existing JSON files that don't have them
+    url_updates = add_source_urls_to_existing_jsons!(src_dir, knowledge_dir)
+    
+    # Check for and include any existing actors from individual files not processed in this run
+    missing_actors = include_existing_actors!(all_actors, categories, actors_kb_dir)
     
     # Check for orphaned individual files (JSONs without corresponding source files)
     orphaned_actors = check_orphaned_actors(actors_kb_dir, src_dir)
     
-    if !isempty(missing_actors) || !isempty(orphaned_actors)
+    if !isempty(missing_actors) || !isempty(orphaned_actors) || url_updates > 0
         if !isempty(missing_actors)
-            println("🔧 Recovered $(length(missing_actors)) actors from individual files: $(join(missing_actors, ", "))")
+            println("📂 Included $(length(missing_actors)) existing actors in knowledge base: $(join(missing_actors, ", "))")
         end
         if !isempty(orphaned_actors)
             println("⚠️  Found $(length(orphaned_actors)) orphaned actor files (source deleted/moved): $(join(orphaned_actors, ", "))")
@@ -165,17 +210,18 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
 end
 
 # Keep original sequential version for comparison
-function extract_all_actors(src_dir::String, knowledge_dir::String="knowledge"; limit=nothing)
-    return extract_all_actors_parallel(src_dir, knowledge_dir; batch_size=1, limit=limit)
+function extract_all_actors(src_dir::String, knowledge_dir::String="knowledge"; limit=nothing, skip_existing=true)
+    return extract_all_actors_parallel(src_dir, knowledge_dir; batch_size=1, limit=limit, skip_existing=skip_existing)
 end
 
 """
-    find_actor_files(actors_dir::String) -> Vector{Tuple{String, String}}
+    find_actor_files(actors_dir::String, knowledge_dir::String="", skip_existing::Bool=false) -> Vector{Tuple{String, String}}
 
 Find all *_actor.jl files and determine their categories from directory structure.
+If skip_existing=true and knowledge_dir is provided, filters out files that already have JSON files.
 Returns vector of (filepath, category) tuples.
 """
-function find_actor_files(actors_dir::String)
+function find_actor_files(actors_dir::String, knowledge_dir::String="", skip_existing::Bool=false)
     actor_files = []
     
     for (root, dirs, files) in walkdir(actors_dir)
@@ -188,6 +234,21 @@ function find_actor_files(actors_dir::String)
         for file in files
             if endswith(file, "_actor.jl")
                 filepath = joinpath(root, file)
+                
+                # Check if we should skip files with existing JSON files
+                if skip_existing && !isempty(knowledge_dir)
+                    # Calculate expected JSON file path
+                    rel_path = relpath(filepath, actors_dir)
+                    json_filename = replace(basename(rel_path), ".jl" => ".json")
+                    json_rel_path = joinpath(dirname(rel_path), json_filename)
+                    json_filepath = joinpath(knowledge_dir, json_rel_path)
+                    
+                    # Skip if JSON file already exists
+                    if isfile(json_filepath)
+                        continue
+                    end
+                end
+                
                 push!(actor_files, (filepath, category))
             end
         end
@@ -197,13 +258,13 @@ function find_actor_files(actors_dir::String)
 end
 
 """
-    analyze_actor_with_claude_retry(actor_file::String, category::String, schema_path::String) -> Dict
+    analyze_actor_with_claude_retry(actor_file::String, category::String, schema_path::String, src_dir::String) -> Dict
 
 Use Claude to analyze a single actor file with retry logic.
 """
-function analyze_actor_with_claude_retry(actor_file::String, category::String, schema_path::String; max_retries=1)
+function analyze_actor_with_claude_retry(actor_file::String, category::String, schema_path::String, src_dir::String; max_retries=1)
     for attempt in 1:(max_retries + 1)
-        result = analyze_actor_with_claude(actor_file, category, schema_path)
+        result = analyze_actor_with_claude(actor_file, category, schema_path, src_dir)
         
         if !haskey(result, "error")
             return result
@@ -224,7 +285,7 @@ end
 
 Use Claude to analyze a single actor file and return structured JSON.
 """
-function analyze_actor_with_claude(actor_file::String, category::String, schema_path::String)
+function analyze_actor_with_claude(actor_file::String, category::String, schema_path::String, src_dir::String="../src")
     # Read actor source code
     if !isfile(actor_file)
         return Dict("error" => "File not found: $actor_file")
@@ -284,9 +345,12 @@ Return the JSON object:"""
         # Parse JSON
         actor_data = JSON.parse(json_str)
         
-        # Validate required fields exist
+        # Add GitHub source URL
+        actor_data["source_url"] = generate_github_url(actor_file, src_dir)
+        
+        # Validate required fields exist (including the new source_url)
         required_fields = ["name", "category", "hierarchy", "description", "physics_domain", 
-                          "data_inputs", "data_outputs", "sub_actors", "key_parameters", "usage_notes"]
+                          "data_inputs", "data_outputs", "sub_actors", "key_parameters", "usage_notes", "source_url"]
         for field in required_fields
             if !haskey(actor_data, field)
                 return Dict("error" => "Missing required field: $field")
@@ -491,12 +555,13 @@ function analyze_category_connections(all_actors::Dict)
 end
 
 """
-    recover_missing_actors!(all_actors::Dict, categories::Dict, actors_kb_dir::String) -> Vector{String}
+    include_existing_actors!(all_actors::Dict, categories::Dict, actors_kb_dir::String) -> Vector{String}
 
-Check for actors that exist as individual JSON files but are missing from the combined knowledge base.
-Add any missing actors and return their names.
+Check for actors that exist as individual JSON files but weren't included in the current extraction run.
+Add any such actors to the combined knowledge base and return their names.
+This ensures the combined knowledge base includes all available actor data, not just newly extracted ones.
 """
-function recover_missing_actors!(all_actors::Dict, categories::Dict, actors_kb_dir::String)
+function include_existing_actors!(all_actors::Dict, categories::Dict, actors_kb_dir::String)
     missing_actors = []
     
     # Walk through all individual JSON files
@@ -515,7 +580,7 @@ function recover_missing_actors!(all_actors::Dict, categories::Dict, actors_kb_d
                     
                     # Check if this actor is missing from the combined knowledge base
                     if !haskey(all_actors, actor_name)
-                        @info "Recovering missing actor: $actor_name from $filepath"
+                        @info "Including existing actor in knowledge base: $actor_name from $filepath"
                         
                         # Add to actors
                         all_actors[actor_name] = actor_data
@@ -677,17 +742,22 @@ Extract knowledge using default paths (assumes running from knowledge/ directory
 """
 # Test function for a few actors
 function test_extraction()
-    extract_all_actors_parallel("../src", ".", limit=3, batch_size=3)
+    extract_all_actors_parallel("../src", ".", limit=3, batch_size=3, skip_existing=true)
 end
 
-# Parallel extraction with default batch size
+# Parallel extraction with default batch size (skips existing by default)
 function extract_fuse_knowledge_parallel()
-    extract_all_actors_parallel("../src", ".")
+    extract_all_actors_parallel("../src", ".", skip_existing=true)
 end
 
-# Sequential extraction (for comparison)
+# Sequential extraction (skips existing by default)
 function extract_fuse_knowledge()
-    extract_all_actors("../src", ".")
+    extract_all_actors("../src", ".", skip_existing=true)
+end
+
+# Force re-extraction of all actors (override skip_existing)
+function extract_fuse_knowledge_force()
+    extract_all_actors_parallel("../src", ".", skip_existing=false)
 end
 
 # Utility functions for maintenance
@@ -697,4 +767,75 @@ end
 
 function clean_orphaned_fuse_actors()
     clean_orphaned_actors("actors", "../src")
+end
+
+"""
+    add_source_urls_to_existing_jsons!(src_dir::String, knowledge_dir::String) -> Int
+
+Post-processing step to add GitHub source URLs to existing JSON files that don't have them.
+Returns the number of files updated.
+"""
+function add_source_urls_to_existing_jsons!(src_dir::String, knowledge_dir::String)
+    actors_src_dir = joinpath(src_dir, "actors")
+    actors_kb_dir = joinpath(knowledge_dir, "actors")
+    
+    if !isdir(actors_kb_dir)
+        println("No knowledge directory found at: $actors_kb_dir")
+        return 0
+    end
+    
+    println("🔗 Adding GitHub source URLs to existing JSON files...")
+    updated_count = 0
+    
+    # Walk through all existing JSON files
+    for (root, dirs, files) in walkdir(actors_kb_dir)
+        for file in files
+            if endswith(file, ".json")
+                json_filepath = joinpath(root, file)
+                
+                try
+                    # Read existing JSON
+                    actor_data = JSON.parsefile(json_filepath)
+                    
+                    # Check if source_url field is missing or empty
+                    if !haskey(actor_data, "source_url") || isempty(actor_data["source_url"])
+                        # Find corresponding source file
+                        source_filename = replace(file, ".json" => ".jl")
+                        rel_path = relpath(json_filepath, actors_kb_dir)
+                        source_rel_path = joinpath(dirname(rel_path), source_filename)
+                        source_filepath = joinpath(actors_src_dir, source_rel_path)
+                        
+                        if isfile(source_filepath)
+                            # Generate GitHub URL
+                            github_url = generate_github_url(source_filepath, src_dir)
+                            
+                            # Add source_url field
+                            actor_data["source_url"] = github_url
+                            
+                            # Write updated JSON back to file
+                            open(json_filepath, "w") do io
+                                JSON.print(io, actor_data, 2)
+                            end
+                            
+                            updated_count += 1
+                            println("  ✓ Added URL to $(actor_data["name"]): $github_url")
+                        else
+                            @warn "Source file not found for JSON: $json_filepath (expected: $source_filepath)"
+                        end
+                    end
+                    
+                catch e
+                    @warn "Failed to process JSON file $json_filepath: $e"
+                end
+            end
+        end
+    end
+    
+    println("📂 Updated $updated_count JSON files with GitHub URLs")
+    return updated_count
+end
+
+# Convenience function for post-processing
+function add_fuse_source_urls()
+    add_source_urls_to_existing_jsons!("../src", ".")
 end

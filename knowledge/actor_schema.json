@@ -56,6 +56,10 @@
       "type": "array",
       "items": {"type": "string"},
       "description": "Important usage notes, warnings, or best practices"
+    },
+    "source_url": {
+      "type": "string",
+      "description": "GitHub URL to the source file"
     }
   },
   "required": [
@@ -68,6 +72,7 @@
     "data_outputs",
     "sub_actors",
     "key_parameters",
-    "usage_notes"
+    "usage_notes",
+    "source_url"
   ]
 }
