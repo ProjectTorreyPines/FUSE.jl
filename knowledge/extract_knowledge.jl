@@ -68,7 +68,7 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
         for (actor_file, category) in batch
             task = Threads.@spawn begin
                 try
-                    analyze_actor_with_claude(actor_file, category, schema_path)
+                    analyze_actor_with_claude_retry(actor_file, category, schema_path)
                 catch e
                     Dict("error" => "Task failed: $e", "file" => actor_file)
                 end
@@ -132,6 +132,22 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
         JSON.print(io, knowledge_base, 2)
     end
     
+    # Check for and recover any missing actors from individual files
+    missing_actors = recover_missing_actors!(all_actors, categories, actors_kb_dir)
+    
+    if !isempty(missing_actors)
+        println("🔧 Recovered $(length(missing_actors)) actors from individual files: $(join(missing_actors, ", "))")
+        
+        # Re-analyze relationships with complete actor set
+        relationships = analyze_actor_relationships(all_actors)
+        knowledge_base = create_knowledge_base(all_actors, categories, relationships)
+        
+        # Re-save with complete data
+        open(kb_path, "w") do io
+            JSON.print(io, knowledge_base, 2)
+        end
+    end
+    
     println("\n✅ Parallel extraction complete!")
     println("Individual actors: $actors_kb_dir")
     println("Combined knowledge base: $kb_path")
@@ -170,6 +186,29 @@ function find_actor_files(actors_dir::String)
     end
     
     return actor_files
+end
+
+"""
+    analyze_actor_with_claude_retry(actor_file::String, category::String, schema_path::String) -> Dict
+
+Use Claude to analyze a single actor file with retry logic.
+"""
+function analyze_actor_with_claude_retry(actor_file::String, category::String, schema_path::String; max_retries=1)
+    for attempt in 1:(max_retries + 1)
+        result = analyze_actor_with_claude(actor_file, category, schema_path)
+        
+        if !haskey(result, "error")
+            return result
+        end
+        
+        if attempt <= max_retries
+            @info "Retrying Claude analysis for $(basename(actor_file)) (attempt $(attempt + 1))"
+            sleep(1.0)  # Brief pause before retry
+        end
+    end
+    
+    # All retries failed
+    return Dict("error" => "Claude analysis failed after $(max_retries + 1) attempts")
 end
 
 """
@@ -441,6 +480,55 @@ function analyze_category_connections(all_actors::Dict)
     end
     
     return category_connections
+end
+
+"""
+    recover_missing_actors!(all_actors::Dict, categories::Dict, actors_kb_dir::String) -> Vector{String}
+
+Check for actors that exist as individual JSON files but are missing from the combined knowledge base.
+Add any missing actors and return their names.
+"""
+function recover_missing_actors!(all_actors::Dict, categories::Dict, actors_kb_dir::String)
+    missing_actors = []
+    
+    # Walk through all individual JSON files
+    for (root, dirs, files) in walkdir(actors_kb_dir)
+        category = basename(root)
+        if category == "actors"
+            category = "uncategorized"
+        end
+        
+        for file in files
+            if endswith(file, ".json")
+                filepath = joinpath(root, file)
+                try
+                    actor_data = JSON.parsefile(filepath)
+                    actor_name = actor_data["name"]
+                    
+                    # Check if this actor is missing from the combined knowledge base
+                    if !haskey(all_actors, actor_name)
+                        @info "Recovering missing actor: $actor_name from $filepath"
+                        
+                        # Add to actors
+                        all_actors[actor_name] = actor_data
+                        
+                        # Add to categories
+                        actor_category = actor_data["category"]
+                        if !haskey(categories, actor_category)
+                            categories[actor_category] = []
+                        end
+                        push!(categories[actor_category], actor_name)
+                        
+                        push!(missing_actors, actor_name)
+                    end
+                catch e
+                    @warn "Failed to parse individual JSON file $filepath: $e"
+                end
+            end
+        end
+    end
+    
+    return missing_actors
 end
 
 """

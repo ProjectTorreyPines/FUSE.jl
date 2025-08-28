@@ -93,4 +93,19 @@ Each actor JSON contains:
 - **~8x speed improvement** through batched parallel processing
 - Uses Julia threading for concurrent Claude API calls
 
-Simple, fast, and effective!
+## Error Handling
+
+The system is designed to be robust against Claude API failures:
+
+1. **Retry Logic**: Each actor gets 1 automatic retry if Claude analysis fails
+2. **Individual File Preservation**: Even if Claude fails, any successfully created individual JSONs are preserved
+3. **Automatic Recovery**: After extraction, missing actors are automatically recovered from individual files
+4. **Graceful Degradation**: System continues processing other actors even if some fail
+
+**Example**: If 2 actors fail Claude analysis but their individual JSONs exist, the system will:
+- Complete extraction of remaining 58 actors
+- Automatically detect and recover the 2 missing actors from individual files  
+- Rebuild relationships with the complete 60-actor dataset
+- Report final success: "🔧 Recovered 2 actors from individual files"
+
+Simple, fast, and reliable! 🎯
