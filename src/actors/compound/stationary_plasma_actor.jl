@@ -22,6 +22,7 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_saw::ActorSawteeth{D,P}
+    actor_sol::ActorSOL{D,P}
 end
 
 """
@@ -85,7 +86,9 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_saw)
+    actor_sol = ActorSOL(dd, act.ActorSOL, act)
+
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_saw, actor_sol)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -168,6 +171,10 @@ function _step(actor::ActorStationaryPlasma)
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
             finalize(step(actor.actor_eq))
+
+            # run scrape off layer actor
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_sol))
+            finalize(step(actor.actor_sol))
 
             # evaluate change in current and pressure profiles after the update
             j_tor = cp1d.j_tor
