@@ -135,8 +135,16 @@ function extract_all_actors_parallel(src_dir::String, knowledge_dir::String="kno
     # Check for and recover any missing actors from individual files
     missing_actors = recover_missing_actors!(all_actors, categories, actors_kb_dir)
     
-    if !isempty(missing_actors)
-        println("🔧 Recovered $(length(missing_actors)) actors from individual files: $(join(missing_actors, ", "))")
+    # Check for orphaned individual files (JSONs without corresponding source files)
+    orphaned_actors = check_orphaned_actors(actors_kb_dir, src_dir)
+    
+    if !isempty(missing_actors) || !isempty(orphaned_actors)
+        if !isempty(missing_actors)
+            println("🔧 Recovered $(length(missing_actors)) actors from individual files: $(join(missing_actors, ", "))")
+        end
+        if !isempty(orphaned_actors)
+            println("⚠️  Found $(length(orphaned_actors)) orphaned actor files (source deleted/moved): $(join(orphaned_actors, ", "))")
+        end
         
         # Re-analyze relationships with complete actor set
         relationships = analyze_actor_relationships(all_actors)
@@ -532,6 +540,107 @@ function recover_missing_actors!(all_actors::Dict, categories::Dict, actors_kb_d
 end
 
 """
+    check_orphaned_actors(actors_kb_dir::String, src_dir::String) -> Vector{String}
+
+Find individual JSON files that no longer have corresponding source files.
+This handles cases where source files were moved, renamed, or deleted.
+"""
+function check_orphaned_actors(actors_kb_dir::String, src_dir::String)
+    orphaned_actors = []
+    actors_src_dir = joinpath(src_dir, "actors")
+    
+    # Get all existing source file names (without path)
+    existing_source_files = Set{String}()
+    if isdir(actors_src_dir)
+        for (root, dirs, files) in walkdir(actors_src_dir)
+            for file in files
+                if endswith(file, "_actor.jl")
+                    push!(existing_source_files, file)
+                end
+            end
+        end
+    end
+    
+    # Check each individual JSON file
+    for (root, dirs, files) in walkdir(actors_kb_dir)
+        for file in files
+            if endswith(file, ".json")
+                # Convert JSON filename to expected source filename
+                expected_source = replace(file, ".json" => ".jl")
+                
+                if !in(expected_source, existing_source_files)
+                    filepath = joinpath(root, file)
+                    try
+                        actor_data = JSON.parsefile(filepath)
+                        actor_name = actor_data["name"]
+                        push!(orphaned_actors, actor_name)
+                        @warn "Orphaned actor JSON found: $actor_name (source file $expected_source not found)"
+                    catch e
+                        @warn "Could not parse potentially orphaned JSON file $filepath: $e"
+                    end
+                end
+            end
+        end
+    end
+    
+    return orphaned_actors
+end
+
+"""
+    clean_orphaned_actors(actors_kb_dir::String, src_dir::String; interactive=true) -> Int
+
+Remove orphaned individual JSON files that no longer have corresponding source files.
+Returns the number of files cleaned.
+"""
+function clean_orphaned_actors(actors_kb_dir::String, src_dir::String; interactive=true)
+    orphaned_actors = check_orphaned_actors(actors_kb_dir, src_dir)
+    
+    if isempty(orphaned_actors)
+        println("No orphaned actor files found.")
+        return 0
+    end
+    
+    println("Found $(length(orphaned_actors)) orphaned actor files:")
+    for actor in orphaned_actors
+        println("  - $actor")
+    end
+    
+    if interactive
+        println("\nRemove these orphaned files? (y/N): ")
+        response = strip(readline())
+        if lowercase(response) != "y"
+            println("Cleanup cancelled.")
+            return 0
+        end
+    end
+    
+    # Remove orphaned files
+    removed_count = 0
+    for (root, dirs, files) in walkdir(actors_kb_dir)
+        for file in files
+            if endswith(file, ".json")
+                filepath = joinpath(root, file)
+                try
+                    actor_data = JSON.parsefile(filepath)
+                    actor_name = actor_data["name"]
+                    
+                    if actor_name in orphaned_actors
+                        rm(filepath)
+                        println("🗑️  Removed orphaned file: $filepath")
+                        removed_count += 1
+                    end
+                catch e
+                    @warn "Could not process $filepath during cleanup: $e"
+                end
+            end
+        end
+    end
+    
+    println("✅ Cleaned up $removed_count orphaned actor files.")
+    return removed_count
+end
+
+"""
     create_knowledge_base(all_actors::Dict, categories::Dict, relationships::Dict) -> Dict
 
 Create combined knowledge base from individual actor analyses with relationship data.
@@ -579,4 +688,13 @@ end
 # Sequential extraction (for comparison)
 function extract_fuse_knowledge()
     extract_all_actors("../src", ".")
+end
+
+# Utility functions for maintenance
+function check_orphaned_fuse_actors()
+    check_orphaned_actors("actors", "../src")
+end
+
+function clean_orphaned_fuse_actors()
+    clean_orphaned_actors("actors", "../src")
 end

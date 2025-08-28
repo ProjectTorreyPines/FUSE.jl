@@ -108,4 +108,28 @@ The system is designed to be robust against Claude API failures:
 - Rebuild relationships with the complete 60-actor dataset
 - Report final success: "🔧 Recovered 2 actors from individual files"
 
+## Handling Moved/Deleted Source Files
+
+The system also handles cases where source files are moved, renamed, or deleted:
+
+**Detection**: Automatically identifies orphaned JSON files (individual JSONs without corresponding source files)
+```julia
+# Check for orphaned files
+orphaned = check_orphaned_fuse_actors()
+
+# Clean up orphaned files (with confirmation)
+clean_orphaned_fuse_actors()
+```
+
+**During extraction**: Reports orphaned files but keeps them in the knowledge base
+```
+⚠️ Found 2 orphaned actor files (source deleted/moved): ActorOldFeature, ActorDeprecated
+```
+
+**Workflow**: 
+1. Detects orphaned files during extraction
+2. Includes them in knowledge base (they still contain valuable information)
+3. Reports them for manual review
+4. Provides cleanup tools for maintenance
+
 Simple, fast, and reliable! 🎯
