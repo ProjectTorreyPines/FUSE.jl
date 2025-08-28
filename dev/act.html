@@ -108,7 +108,8 @@
 ├─ <span class="sgr1">ActorEGGO</span>
 │  ├─ <a href='act_details.html#act.ActorEGGO.model'>model</a>
 │  ├─ <a href='act_details.html#act.ActorEGGO.use_vacuumfield_green'>use_vacuumfield_green</a>
-│  ├─ <a href='act_details.html#act.ActorEGGO.nb_reduce'>nb_reduce</a>
+│  ├─ <a href='act_details.html#act.ActorEGGO.decimate_boundary'>decimate_boundary</a>
+│  ├─ <a href='act_details.html#act.ActorEGGO.timeslice_average'>timeslice_average</a>
 │  ├─ <a href='act_details.html#act.ActorEGGO.do_plot'>do_plot</a>
 │  └─ <a href='act_details.html#act.ActorEGGO.debug'>debug</a>
 ├─ <span class="sgr1">ActorEPED</span>
@@ -165,7 +166,9 @@
 │  ├─ <a href='act_details.html#act.ActorFluxMatcher.evolve_plasma_sources'>evolve_plasma_sources</a>
 │  ├─ <a href='act_details.html#act.ActorFluxMatcher.find_widths'>find_widths</a>
 │  ├─ <a href='act_details.html#act.ActorFluxMatcher.max_iterations'>max_iterations</a>
+│  ├─ <a href='act_details.html#act.ActorFluxMatcher.xtol'>xtol</a>
 │  ├─ <a href='act_details.html#act.ActorFluxMatcher.algorithm'>algorithm</a>
+│  ├─ <a href='act_details.html#act.ActorFluxMatcher.custom_algorithm'>custom_algorithm</a>
 │  ├─ <a href='act_details.html#act.ActorFluxMatcher.step_size'>step_size</a>
 │  ├─ <a href='act_details.html#act.ActorFluxMatcher.Δt'>Δt</a>  [s]
 │  ├─ <a href='act_details.html#act.ActorFluxMatcher.relax'>relax</a>
@@ -240,6 +243,7 @@
 │  ├─ <a href='act_details.html#act.ActorPedestal.mode_transitions'>mode_transitions</a>  [s]
 │  ├─ <a href='act_details.html#act.ActorPedestal.density_match'>density_match</a>
 │  ├─ <a href='act_details.html#act.ActorPedestal.model'>model</a>
+│  ├─ <a href='act_details.html#act.ActorPedestal.rotation_model'>rotation_model</a>
 │  ├─ <a href='act_details.html#act.ActorPedestal.tau_t'>tau_t</a>  [s]
 │  ├─ <a href='act_details.html#act.ActorPedestal.tau_n'>tau_n</a>  [s]
 │  ├─ <a href='act_details.html#act.ActorPedestal.density_ratio_L_over_H'>density_ratio_L_over_H</a>
@@ -384,4 +388,4 @@
 └─ <span class="sgr1">ActorWholeFacility</span>
    ├─ <a href='act_details.html#act.ActorWholeFacility.update_plasma'>update_plasma</a>
    └─ <a href='act_details.html#act.ActorWholeFacility.update_build'>update_build</a>
-</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="actors.html">« List of actors</a><a class="docs-footer-nextpage" href="inits.html">Init routines »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 27 August 2025 03:00">Wednesday 27 August 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="actors.html">« List of actors</a><a class="docs-footer-nextpage" href="inits.html">Init routines »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Thursday 28 August 2025 03:03">Thursday 28 August 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
