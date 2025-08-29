@@ -1,7 +1,7 @@
 """
     case_parameters(::Val{:D3D}, shot::Int;
         new_impurity_match_power_rad::Symbol=:none,
-        fit_profiles::Bool=false, 
+        fit_profiles::Bool=true, 
         EFIT_tree::String="EFIT02",
         PROFILES_tree::String="ZIPFIT01",
         CER_analysis_type::String="CERAUTO",
@@ -15,7 +15,7 @@ DIII-D from experimental shot
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
-    fit_profiles::Bool=false,
+    fit_profiles::Bool=true,
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
