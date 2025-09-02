@@ -8,33 +8,18 @@ fuse_env=`curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releas
 
 envdir="$basedir/environments/$fuse_env"
 
-logfile = "$PSCRATCH/fuse_build_logs/$envdir.log"
+logfile="$PSCRATCH/fuse_build_logs/$fuse_env.log"
+
+# Check if log file already exists (indicates previous run)
+if [[ -f "$LOG_FILE" ]]; then
+    exit 1
+fi
+
 if [ -d "$envdir" ]; then
     echo "FUSE $fuse_env already installed in $envdir"
     echo "Exiting"
     exit 0
 fi
-
-installdir="$SCRATCH/fuse/environments/$fuse_env"
-[ -d "$installdir" ] && rm -rf "$installdir"
-
-export FUSE_HOME="$basedir"
-export FUSE_INSTALL_DIR="$installdir"
-export FUSE_ENVIRONMENT="$fuse_env"
-export JULIA_DEPOT_PATH="$installdir/.julia:"
-export JULIA_PKG_USE_CLI_GIT=1
-export JULIA_CC="gcc -O3"
-export JULIA_NUM_THREADS=1
-
-# znver3 for login and cpu & gpu worker nodes,but give generic fallback
-# remove xsaveopt since that's what julia distributions do
-export JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
-export IJULIA_NODEFAULTKERNEL=1
-export JUPYTER_DATA_DIR="$installdir/.jupyter"
-
-scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-srun --nodes 1 --qos regular --time 00:05:00 --constraint cpu --account m3739 --output $logfile julia $scriptdir/install_fuse_environment.jl
 
 send_failure_notification() {
     local exit_code=$1
@@ -59,5 +44,32 @@ send_failure_notification() {
     } | mail -s "Perlmutter FUSE build failure" "$USER"
 }
 
-/bin/cp -r $installdir $envdir
-/bin/cp $installdir/$fuse_env.lua $basedir/modules/fuse
+installdir="$SCRATCH/fuse/environments/$fuse_env"
+[ -d "$installdir" ] && rm -rf "$installdir"
+
+export FUSE_HOME="$basedir"
+export FUSE_INSTALL_DIR="$installdir"
+export FUSE_ENVIRONMENT="$fuse_env"
+export JULIA_DEPOT_PATH="$installdir/.julia:"
+export JULIA_PKG_USE_CLI_GIT=1
+export JULIA_CC="gcc -O3"
+export JULIA_NUM_THREADS=1
+
+# znver3 for login and cpu & gpu worker nodes,but give generic fallback
+# remove xsaveopt since that's what julia distributions do
+export JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+export IJULIA_NODEFAULTKERNEL=1
+export JUPYTER_DATA_DIR="$installdir/.jupyter"
+
+scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+srun --nodes 1 --qos regular --time 04:00:00 --constraint cpu --account m3739 --output $logfile julia $scriptdir/install_fuse_environment.jl
+JULIA_EXIT_CODE=$?
+
+if [[ $JULIA_EXIT_CODE -ne 0 ]]; then
+    send_failure_notification "$JULIA_EXIT_CODE"
+    exit "$JULIA_EXIT_CODE"
+else
+    /bin/cp -r $installdir $envdir
+    /bin/cp $installdir/$fuse_env.lua $basedir/modules/fuse
+fi
