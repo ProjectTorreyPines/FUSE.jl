@@ -8,6 +8,7 @@ fuse_env=`curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releas
 
 envdir="$basedir/environments/$fuse_env"
 
+logfile = "$PSCRATCH/fuse_build_logs/$envdir.log"
 if [ -d "$envdir" ]; then
     echo "FUSE $fuse_env already installed in $envdir"
     echo "Exiting"
@@ -33,7 +34,30 @@ export JUPYTER_DATA_DIR="$installdir/.jupyter"
 
 scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-srun --nodes 1 --qos interactive --time 04:00:00 --constraint cpu --account m3739 julia $scriptdir/install_fuse_environment.jl
+srun --nodes 1 --qos regular --time 00:05:00 --constraint cpu --account m3739 --output $logfile julia $scriptdir/install_fuse_environment.jl
+
+send_failure_notification() {
+    local exit_code=$1
+    
+    echo "Julia process failed with exit code: $exit_code"
+    echo "Sending last 200 lines of log to $RECIPIENT"
+    
+    # Create email body
+    {
+        echo "Subject: Perlmutter FUSE build failure"
+        echo "From: $(whoami)@$(hostname)"
+        echo "To: $USER"
+        echo ""
+        echo "Julia regression test/sysimage build failed with exit code: $exit_code"
+        echo "Timestamp: $(date)"
+        echo "Host: $(hostname)"
+        echo "User: $(whoami)"
+        echo ""
+        echo "Last 200 lines of output:"
+        echo "=========================="
+        tail -n 200 "$logfile"
+    } | mail -s "Perlmutter FUSE build failure" "$USER"
+}
 
 /bin/cp -r $installdir $envdir
 /bin/cp $installdir/$fuse_env.lua $basedir/modules/fuse
