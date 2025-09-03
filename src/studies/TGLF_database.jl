@@ -7,9 +7,9 @@ import GACODE
 #= ================= =#
 
 """
-    study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
 """
-function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
     sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
     act = ParametersActors()
 
@@ -145,8 +145,11 @@ end
 function preprocess_dd(filename)
     dd = IMAS.json2imas(filename; verbose=false)
 
-    dd.summary.local.pedestal.n_e.value = [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
-    dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
+    cp1d = dd.core_profiles.profiles_1d[]
+    value = [interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(0.9)]
+    @ddtime(dd.summary.local.pedestal.n_e.value = value)
+    value = [interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.zeff).(0.9)]
+    @ddtime(dd.summary.local.pedestal.zeff.value = value)
     dd.pulse_schedule.tf.time = dd.summary.time
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = dd.equilibrium.vacuum_toroidal_field.b0
 
@@ -161,8 +164,10 @@ function run_case(filename, study, item)
 
     cp1d = dd.core_profiles.profiles_1d[]
     exp_values = [
-        cp1d.electrons.density_thermal[1], cp1d.electrons.temperature[1],
-        cp1d.ion[1].temperature[1], @ddtime(dd.summary.global_quantities.energy_thermal.value),
+        cp1d.electrons.density_thermal[1],
+        cp1d.electrons.temperature[1],
+        cp1d.ion[1].temperature[1],
+        @ddtime(dd.summary.global_quantities.energy_thermal.value),
         cp1d.rotation_frequency_tor_sonic[1]]
 
     name = split(splitpath(filename)[end], ".")[1]
@@ -289,7 +294,6 @@ function preparse_input(database_folder)
         for source in keys(json_data["core_sources"]["source"])
             json_data["core_sources"]["source"][source]["profiles_1d"][1]["time"] = time
         end
-
 
         json_data["summary"]["time"] = [time]
         json_string = JSON.json(json_data)

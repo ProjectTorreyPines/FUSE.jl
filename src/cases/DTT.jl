@@ -3,7 +3,7 @@
 
 DTT
 """
-function case_parameters(::Type{Val{:DTT}})
+function case_parameters(::Val{:DTT})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -105,7 +105,7 @@ function case_parameters(::Type{Val{:DTT}})
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:DTT}})
+function TraceCAD(::Val{:DTT})
     x_length = 5.6
     x_offset = -0.46
     y_offset = 0.18

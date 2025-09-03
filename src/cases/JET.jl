@@ -3,7 +3,7 @@
 
 JET D-T case
 """
-function case_parameters(::Type{Val{:JET}})
+function case_parameters(::Val{:JET})
     ini = ParametersInits()
     act = ParametersActors()
 

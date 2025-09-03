@@ -3,7 +3,7 @@
 
 CFS/MIT ARC design
 """
-function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)
+function case_parameters(::Val{:ARC}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "ARC"
@@ -96,7 +96,7 @@ function case_parameters(::Type{Val{:ARC}}; flux_matcher::Bool=false)
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:ARC}})
+function TraceCAD(::Val{:ARC})
     x_length = 7.23
     x_offset = 0.57
     y_offset = 0.05

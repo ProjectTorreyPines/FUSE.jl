@@ -5,7 +5,7 @@ import HDF5
 #= ====================== =#
 
 """
-    study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+    study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
 
 Generates a database of dds from `ini` and `act` based on ranges specified in `ini` (i.e. `ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0]`)
 
@@ -13,7 +13,7 @@ It's also possible to run the database generator on Vector of `ini`s and `act`s.
 
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
-function study_parameters(::Type{Val{:DatabaseGenerator}})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+function study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
     sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
     act = ParametersActors()
 
@@ -111,7 +111,7 @@ function _run(study::StudyDatabaseGenerator)
 
         FUSE.ProgressMeter.@showprogress pmap(item -> begin
                 try
-                    run_case(study, item, Val{:hdf5})
+                    run_case(study, item, Val(:hdf5))
                 catch e
                     if isa(e, InterruptException)
                         rethrow(e)  # or handle as needed
@@ -205,7 +205,7 @@ function run_case(study::AbstractStudy, item::Int)
     end
 end
 
-function run_case(study::AbstractStudy, item::Int, ::Type{Val{:hdf5}}; kw...)
+function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
     sty = study.sty
     @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
 

@@ -2,11 +2,11 @@ using DataFrames: DataFrames
 using CSV: CSV
 
 """
-    case_parameters(::Type{Val{:HDB5}}; tokamak::Symbol=:all, case::Int=0, database_case::Int=0)
+    case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=0, database_case::Int=0)
 
 For description of cases/variables see https://osf.io/593q6/
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Symbol=:all, case::Int=1, database_case::Int=0, shot::Int=-1, verbose::Bool=true)
+function case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=1, database_case::Int=0, shot::Int=-1, verbose::Bool=true)
     data = load_hdb5(tokamak; database_case, shot)
     if nrow(data) > 1
         display(data)

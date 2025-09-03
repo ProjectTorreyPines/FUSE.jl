@@ -7,7 +7,7 @@ https://arxiv.org/abs/2405.20243
 
 https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
-function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)
+function case_parameters(::Val{:MANTA}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -103,7 +103,7 @@ function case_parameters(::Type{Val{:MANTA}}; flux_matcher::Bool=false)
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:MANTA}})
+function TraceCAD(::Val{:MANTA})
     x_length = 8.3
     x_offset = -0.4
     y_offset = -0.5

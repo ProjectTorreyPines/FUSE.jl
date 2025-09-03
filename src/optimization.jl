@@ -121,7 +121,7 @@ end
         save_folder::AbstractString,
         generation::Int,
         save_dd::Bool,
-        ::Type{Val{:hdf5}};
+        ::Val{:hdf5};
         case_index::Union{Nothing,Int}=nothing
         )
 
@@ -137,7 +137,7 @@ function optimization_engine(
     save_folder::AbstractString,
     generation::Int,
     save_dd::Bool,
-    ::Type{Val{:hdf5}};
+    ::Val{:hdf5};
     case_index::Union{Nothing,Int}=nothing,
     kw...
 )
@@ -308,7 +308,7 @@ function _optimization_engine(
     if database_policy == :separate_folders
         tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
     elseif database_policy == :single_hdf5
-        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd, Val{:hdf5}; case_index, kw...)
+        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd, Val(:hdf5); case_index, kw...)
     else
         error("database_policy must be `separate_folders` or `:single_hdf5`")
     end

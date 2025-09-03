@@ -217,15 +217,16 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         IMAS.enforce_quasi_neutrality!(cp1d, :D)
     end
 
-    # # rotation
-    # index = [IMAS.hasdata(cp1d, :rotation_frequency_tor_sonic) for cp1d in dd.core_profiles.profiles_1d]
-    # min_k_orig = findfirst(index)
-    # if min_k_orig !== nothing
-    #     for (k, time0) in enumerate(time_basis)
-    #         k_orig = max(min_k_orig, IMAS.nearest_causal_time(dd.core_profiles.time, time0; bounds_error=false).index)
-    #         dd.core_profiles.profiles_1d[k].rotation_frequency_tor_sonic = dd.core_profiles.profiles_1d[k_orig].rotation_frequency_tor_sonic
-    #     end
-    # end
+    # fit ωtor
+    itp_ωtor = IMAS.fit2d(Val(:ω_tor), dd)
+    for (k, time0) in enumerate(time_basis)
+        cp1d = dd.core_profiles.profiles_1d[k]
+        data = itp_ωtor(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
+        ωtor = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        for ion in cp1d.ion
+            ion.rotation_frequency_tor = ωtor
+        end
+    end
 
     # restore the original raw data
     # for field in (:thomson_scattering, :charge_exchange)

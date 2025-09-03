@@ -52,8 +52,8 @@ function _step(actor::ActorEPEDprofiles)
 
     rho_ped = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - sol.width.GH.H)
 
-    ne_ped = IMAS.get_from(dd, Val{:ne_ped}, :pulse_schedule, rho_ped)
-    zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, :pulse_schedule, rho_ped)
+    ne_ped = IMAS.get_from(dd, Val(:ne_ped), :pulse_schedule, rho_ped)
+    zeff_ped = IMAS.get_from(dd, Val(:zeff_ped), :pulse_schedule, rho_ped)
 
     impurity = [ion.element[1].z_n for ion in cp1d.ion if !IMAS.is_hydrogenic(ion)][1]
     zi = sum(impurity) / length(impurity)

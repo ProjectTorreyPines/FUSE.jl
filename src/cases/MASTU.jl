@@ -2,7 +2,7 @@
     case_parameters(:MASTU; init_from::Symbol)
 
 """
-function case_parameters(::Type{Val{:MASTU}}; init_from::Symbol)
+function case_parameters(::Val{:MASTU}; init_from::Symbol)
     ini = FUSE.ParametersInits()
     act = FUSE.ParametersActors()
     ini.general.casename = "MASTU"

@@ -139,37 +139,37 @@ end
 #Sheffield (and GASC)
 
 function cost_direct_capital_Sheffield(item::Symbol, args...; kw...)
-    return cost_direct_capital_Sheffield(Val{item}, args...; kw...)
+    return cost_direct_capital_Sheffield(Val(item), args...; kw...)
 end
 
 function cost_ops_Sheffield(item::Symbol, args...; kw...)
-    return cost_ops_Sheffield(Val{item}, args...; kw...)
+    return cost_ops_Sheffield(Val(item), args...; kw...)
 end
 
 function cost_fuel_Sheffield(item::Symbol, args...; kw...)
-    return cost_fuel_Sheffield(Val{item}, args...; kw...)
+    return cost_fuel_Sheffield(Val(item), args...; kw...)
 end
 
 function cost_operations_Sheffield(item::Symbol, args...; kw...)
-    return cost_operations_Sheffield(Val{item}, args...; kw...)
+    return cost_operations_Sheffield(Val(item), args...; kw...)
 end
 
 function cost_decomissioning_Sheffield(item::Symbol, args...; kw...)
-    return cost_decomissioning_Sheffield(Val{item}, args...; kw...)
+    return cost_decomissioning_Sheffield(Val(item), args...; kw...)
 end
 
 #ARIES
 
 function cost_direct_capital_ARIES(item::Symbol, args...; kw...)
-    return cost_direct_capital_ARIES(Val{item}, args...; kw...)
+    return cost_direct_capital_ARIES(Val(item), args...; kw...)
 end
 
 function cost_operations_ARIES(item::Symbol, args...; kw...)
-    return cost_operations_ARIES(Val{item}, args...; kw...)
+    return cost_operations_ARIES(Val(item), args...; kw...)
 end
 
 function cost_decomissioning_ARIES(item::Symbol, args...; kw...)
-    return cost_decomissioning_ARIES(Val{item}, args...; kw...)
+    return cost_decomissioning_ARIES(Val(item), args...; kw...)
 end
 
 #= ========== =#
