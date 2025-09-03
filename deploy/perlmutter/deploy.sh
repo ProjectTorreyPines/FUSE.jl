@@ -29,14 +29,7 @@ send_failure_notification() {
     
     # Create email body
     {
-        echo "Subject: Perlmutter FUSE build failure"
-        echo "From: $(whoami)@$(hostname)"
-        echo "To: $USER"
-        echo ""
         echo "Julia regression test/sysimage build failed with exit code: $exit_code"
-        echo "Timestamp: $(date)"
-        echo "Host: $(hostname)"
-        echo "User: $(whoami)"
         echo ""
         echo "Last 200 lines of output:"
         echo "=========================="
