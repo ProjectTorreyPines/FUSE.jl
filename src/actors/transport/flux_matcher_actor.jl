@@ -160,7 +160,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff()
-    if typeof(dd).parameters[1] <: ForwardDiff.Dual
+    if D <: ForwardDiff.Dual
         autodiff = NonlinearSolve.ADTypes.AutoForwardDiff()
     end
 
