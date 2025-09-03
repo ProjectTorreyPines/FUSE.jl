@@ -55,6 +55,8 @@ export IJULIA_NODEFAULTKERNEL=1
 export JUPYTER_DATA_DIR="$installdir/.jupyter"
 
 scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# This can be run as a scrontab so we need to clear SLURM environment variables
+unset ${!SLURM_@}
 
 srun --nodes 1 --qos regular --time 04:00:00 --constraint cpu --account m3739 --output $logfile julia $scriptdir/install_fuse_environment.jl
 JULIA_EXIT_CODE=$?
