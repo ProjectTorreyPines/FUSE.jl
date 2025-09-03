@@ -96,6 +96,13 @@ function _step(actor::ActorFluxMatcher)
         actor.norms = actor.norms .* 0.5 .+ flux_match_norms(dd, par) .* 0.5
     end
 
+    # make sure no zeros are in norms
+    #=for i in 1:length(actor.norms)
+        if actor.norms[i] == 0.
+            actor.norms[i] = 1.0
+        end
+    end=#
+
     z_init = pack_z_profiles(cp1d, par)
     z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping
 
@@ -693,6 +700,10 @@ Sets up the evolve_density dict to keep all species fixed
 function setup_density_evolution_fixed(cp1d::IMAS.core_profiles__profiles_1d)
     all_species = [item[2] for item in IMAS.species(cp1d)]
     return evolve_densities_dict_creation(Symbol[]; fixed_species=all_species, quasi_neutrality_specie=false)
+end
+
+function setup_density_evolution_fixed(dd::IMAS.dd)
+    return setup_density_evolution_fixed(dd.core_profiles.profiles_1d[])
 end
 
 """

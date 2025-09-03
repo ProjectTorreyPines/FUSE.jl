@@ -19,6 +19,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor
     custom_input_files::Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}} =
         Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
+    onnx_model::Entry{Bool} = Entry{Bool}("-", "use onnx model"; default=false)
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
@@ -77,24 +78,24 @@ function _step(actor::ActorTGLF)
         input_tglf = InputTGLF(dd, gridpoint_cp, par.sat_rule, par.electromagnetic, par.lump_ions)
         if par.model ∈ [:TGLF, :TGLFNN]
             actor.input_tglfs[k] = input_tglf
-            if par.model == :TGLFNN
-                # TGLF-NN has some difficulty with the sign of rotation / shear
-                actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
-                actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
-            end
+            #if par.model == :TGLFNN
+            #    # TGLF-NN has some difficulty with the sign of rotation / shear
+            #    actor.input_tglfs[k].VPAR_SHEAR_1 = abs(actor.input_tglfs[k].VPAR_SHEAR_1)
+            #    actor.input_tglfs[k].VPAR_1 = abs(actor.input_tglfs[k].VPAR_1)
+            #end
         elseif par.model == :TJLF
             if !isassigned(actor.input_tglfs, k)
                 nky = TJLF.get_ky_spectrum_size(input_tglf.NKY, input_tglf.KYGRID_MODEL)
                 actor.input_tglfs[k] = InputTJLF{Float64}(input_tglf.NS, nky)
-                actor.input_tglfs[k].WIDTH_SPECTRUM .= 0.0
+                actor.input_tglfs[k].WIDTH_SPECTRUM .= 1.65
                 actor.input_tglfs[k].FIND_WIDTH = true # first case should find the widths
             end
             update_input_tjlf!(actor.input_tglfs[k], input_tglf)
         end
 
-        if ϵ > ϵ_D3D
-            actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
-        end
+        #if ϵ > ϵ_D3D
+        #    actor.input_tglfs[k].THETA_TRAPPED = theta_trapped[gridpoint_cp]
+        #end
 
         # Setting up the TJLF / TGLF run with the custom parameter mask (this overwrites all the above)
         if !ismissing(par, :custom_input_files)
@@ -107,7 +108,49 @@ function _step(actor::ActorTGLF)
     end
 
     if par.model == :TGLFNN
-        actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
+        #actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
+        if par.onnx_model == false
+            actor.flux_solutions = TGLFNN.run_tglfnn(actor.input_tglfs; par.warn_nn_train_bounds, model_filename=model_filename(par))
+        elseif par.onnx_model == true
+            actor.flux_solutions = TGLFNN.run_tglfnn_onnx(actor.input_tglfs, par.user_specified_model, [
+                "RLTS_3",
+                "KAPPA_LOC",
+                "ZETA_LOC",
+                "TAUS_3",
+                "VPAR_1",
+                "Q_LOC",
+                "RLNS_1",
+                "TAUS_2",
+                "Q_PRIME_LOC",
+                "P_PRIME_LOC",
+                "ZMAJ_LOC",
+                "VPAR_SHEAR_1",
+                "RLTS_2",
+                "S_DELTA_LOC",
+                "RLTS_1",
+                "RMIN_LOC",
+                "DRMAJDX_LOC",
+                "AS_3",
+                "RLNS_3",
+                "DZMAJDX_LOC",
+                "DELTA_LOC",
+                "S_KAPPA_LOC",
+                "ZEFF",
+                "VEXB_SHEAR",
+                "RMAJ_LOC",
+                "AS_2",
+                "RLNS_2",
+                "S_ZETA_LOC",
+                "BETAE_log10",
+                "XNUE_log10",
+                "DEBYE_log10"
+            ], [
+                "OUT_G_elec",
+                "OUT_Q_elec",
+                "OUT_Q_ions",
+                "OUT_P_ions"
+            ];)
+        end
     elseif par.model == :TGLF
         actor.flux_solutions = TGLFNN.run_tglf(actor.input_tglfs)
     elseif par.model == :TJLF
@@ -130,7 +173,12 @@ function _finalize(actor::ActorTGLF)
     eqt = dd.equilibrium.time_slice[]
 
     model = resize!(dd.core_transport.model, :anomalous; wipe=false)
-    model.identifier.name = string(par.model) * " " * model_filename(par)
+    #model.identifier.name = string(par.model) * " " * model_filename(par)
+    if par.onnx_model == false
+        model.identifier.name = string(par.model) * " " * model_filename(par)
+    elseif par.onnx_model == true
+        model.identifier.name = string(par.model) * " " * "onnx model"
+    end
     m1d = resize!(model.profiles_1d)
     m1d.grid_flux.rho_tor_norm = par.rho_transport
 
