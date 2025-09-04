@@ -103,7 +103,7 @@ using FUSE.SimulationParameters.Distributions
         end
         df1 = CSV.read(joinpath(save_dir, "output.csv"), DataFrame)
 
-        out = FUSE.load_database(joinpath(save_dir, "database.h5"))
+        out = FUSE.load_study_database(joinpath(save_dir, "database.h5"))
         dds2 = out.dds
         inis2 = out.inis
         acts2 = out.acts
