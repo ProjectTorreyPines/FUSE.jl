@@ -21,6 +21,7 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
+    actor_saw::ActorSawteeth{D,P}
 end
 
 """
@@ -82,7 +83,9 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq)
+    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_saw)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -120,13 +123,15 @@ function _step(actor::ActorStationaryPlasma)
     end
 
     ProgressMeter.ijulia_behavior(:clear)
-    prog = ProgressMeter.Progress((par.max_iterations + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
-    islogging = actor_logging(dd)
+    was_logging = actor_logging(dd)
+    is_logging = was_logging && !(par.verbose && !par.do_plot)
+    actor_logging(dd, is_logging)
+    prog = ProgressMeter.Progress((par.max_iterations + 1) * 6 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
 
-        if islogging
+        if is_logging
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "--------------- 1/$(par.max_iterations)")
         end
 
@@ -144,10 +149,6 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
             finalize(step(actor.actor_hc))
 
-            # evolve j_ohmic (because hcd has changed non-inductive current drive)
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
-            finalize(step(actor.actor_jt))
-
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
             finalize(step(actor.actor_ped))
@@ -156,9 +157,13 @@ function _step(actor::ActorStationaryPlasma)
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_tr))
             finalize(step(actor.actor_tr))
 
-            # evolve j_ohmic (because transport and pedestal have updated my bootstrap)
+            # evolve j_ohmic
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
+
+            # run sawteeth actor
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_saw))
+            finalize(step(actor.actor_saw))
 
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
@@ -193,7 +198,7 @@ function _step(actor::ActorStationaryPlasma)
                 @info("Iteration = $(length(total_error)) , convergence error = $(round(total_error[end],digits = 5)), threshold = $(par.convergence_error)")
             end
 
-            if islogging
+            if is_logging
                 logging(
                     Logging.Info,
                     :actors,
@@ -205,7 +210,7 @@ function _step(actor::ActorStationaryPlasma)
             callback(actor, :iteration_end; total_error)
 
             if (total_error[end] > par.convergence_error) && (length(total_error) == par.max_iterations)
-                if islogging
+                if is_logging
                     @warn "Max number of iterations ($(par.max_iterations)) has been reached with convergence error of (1)$(collect(map(x->round(x,digits = 3),total_error)))($(length(total_error))) compared to threshold of $(par.convergence_error)"
                 end
                 break
@@ -218,6 +223,7 @@ function _step(actor::ActorStationaryPlasma)
         if typeof(actor.actor_eq) <: ActorCHEASE
             actor.actor_eq.eq_actor.par = orig_par_chease
         end
+        actor_logging(dd, was_logging)
     end
     ProgressMeter.finish!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor))
 
@@ -239,11 +245,12 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("required convergence error", par.convergence_error),
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
-        ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
+        ("                   Ip [MA]", IMAS.get_from(dd, Val(:ip), :equilibrium) / 1E6),
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
-        ("                 max(zeff)", maximum(cp1d.zeff))
+        ("                 max(zeff)", maximum(cp1d.zeff)),
+        ("               ω0 [krad/s]", cp1d.rotation_frequency_tor_sonic[1] / 1E3)
     ]
     return tuple(tmp...)
 end

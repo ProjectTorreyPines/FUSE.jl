@@ -301,11 +301,11 @@ function cost_direct_capital_ARIES(
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:land}}, land::Real, power_electric_net::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:land}, land::Real, power_electric_net::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital_ARIES(::Type{Val{:land}}, land::Real, power_electric_net::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:land}, land::Real, power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = 2009 #pg. 8, ARIES report
     power_electric_net = power_electric_net / 1E6
     if power_electric_net > 0.0
@@ -317,12 +317,12 @@ function cost_direct_capital_ARIES(::Type{Val{:land}}, land::Real, power_electri
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:buildings}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(
-    ::Type{Val{:buildings}},
+    ::Val{:buildings},
     land::Real,
     building_volume::Real,
     power_electric_generated::Real,
@@ -354,22 +354,22 @@ function cost_direct_capital_ARIES(
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:hot_cell}}, building_volume, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:hot_cell}, building_volume, da::DollarAdjust)
 
 NOTE: https://www.iter.org/mach/HotCell
 """
-function cost_direct_capital_ARIES(::Type{Val{:hot_cell}}, building_volume::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:hot_cell}, building_volume::Real, da::DollarAdjust)
     da.year_assessed = 2009
     cost = 0.34 * 111.661 * (building_volume / 80.0e3)^0.62
     return future_dollars(cost, da)
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:heat_transfer_loop_materials}, power_thermal::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
-function cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:heat_transfer_loop_materials}, power_thermal::Real, da::DollarAdjust)
     da.year_assessed = 2009  # Table 15 ARIES report
     power_thermal = power_thermal / 1E6
     cost = 50.0 * (power_thermal / 2000.0)^0.55 # water
@@ -381,11 +381,11 @@ function cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, p
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
+    cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
+function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
     da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_generated = power_electric_generated / 1E6
@@ -412,11 +412,11 @@ function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, pow
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:fuel_cycle_rad_handling}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
-function cost_direct_capital_ARIES(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:fuel_cycle_rad_handling}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_net = power_electric_net / 1E6
@@ -432,13 +432,13 @@ end
 #  yearly operations cost  #
 #= ====================== =#
 """
-    cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real, da::DollarAdjust)
+    cost_operations_ARIES(::Val{:operation_maintenance}, power_electric_generated::Real, da::DollarAdjust)
 
 Yearly cost for maintenance [\$M/year]
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:operation_maintenance}, power_electric_generated::Real, da::DollarAdjust)
     da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
 
@@ -451,24 +451,24 @@ function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electr
 end
 
 """
-    cost_operations_ARIES(::Type{Val{:tritium_handling}}, da::DollarAdjust)
+    cost_operations_ARIES(::Val{:tritium_handling}, da::DollarAdjust)
 
 Yearly cost for tritium_handling [\$M/year]
 
 !!!!WRONG!!!! Needs estiamte
 """
-function cost_operations_ARIES(::Type{Val{:tritium_handling}}, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:tritium_handling}, da::DollarAdjust)
     da.year_assessed = 2013
     cost = 1.0
     return future_dollars(cost, da)
 end
 
 """
-    cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
+    cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
 
 Yearly cost for blanket replacement [\$M/year]
 """
-function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
     if cost_blanket === nothing
         cost = 0.0
     else
@@ -482,13 +482,13 @@ end
 #  Decomissioning cost  #
 #= =================== =#
 """
-    cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
+    cost_decomissioning_ARIES(::Val{:decom_wild_guess}, plant_lifetime::Real, da::DollarAdjust)
 
 Cost to decommission the plant [\$M]
 
 LIKELY NEEDS FIXING
 """
-function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
+function cost_decomissioning_ARIES(::Val{:decom_wild_guess}, plant_lifetime::Real, da::DollarAdjust)
     da.year_assessed = 2009  # pg. 94 ARIES
     unit_cost = 2.76 # [$M/year] from GASC
     cost = unit_cost * plant_lifetime

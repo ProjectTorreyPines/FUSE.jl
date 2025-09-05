@@ -120,7 +120,7 @@ function electricity(lh_antennas::IMAS.lh_antennas)
 end
 
 function electricity(symbol::Symbol)
-    return electricity(Val{symbol})
+    return electricity(Val(symbol))
 end
 
 #= =================== =#
@@ -128,15 +128,15 @@ end
 #= =================== =#
 
 # Dummy functions values taken from DEMO 2017  https://iopscience.iop.org/article/10.1088/0029-5515/57/1/016011
-function electricity(::Type{Val{:cryostat}})
+function electricity(::Val{:cryostat})
     return 30e6 # We
 end
 
-function electricity(::Type{Val{:tritium_handling}})
+function electricity(::Val{:tritium_handling})
     return 15e6# We
 end
 
-function electricity(::Type{Val{:pf_active}})
+function electricity(::Val{:pf_active})
     return 0.0 # We    (Note this should not be a constant!)
 end
 
@@ -145,5 +145,5 @@ end
 #= =================== =#
 
 function electricity(symbol::Symbol, bop::IMAS.balance_of_plant)
-    return electricity(Val{symbol}, bop)
+    return electricity(Val(symbol), bop)
 end

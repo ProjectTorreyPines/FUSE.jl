@@ -198,7 +198,7 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
 
     if ismissing(par, :R)
         Rdim = (1.1 + divertor_size) * a # divertor_size% bigger than the plasma, but a no bigger than R0
-        nr_grid = Int(ceil(nz_grid * Rdim / Zdim))
+        nr_grid = round(Int, nz_grid * Rdim / Zdim, RoundUp)
         Rgrid = range(R0 - min(Rdim, R0), R0 + Rdim, nr_grid)
     else
         Rgrid = par.R

@@ -180,8 +180,8 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # get ip and b0 before wiping eqt in case ip_from=:equilibrium
-    ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
-    r0, b0 = IMAS.get_from(dd, Val{:vacuum_r0_b0}, actor.par.vacuum_r0_b0_from)
+    ip = IMAS.get_from(dd, Val(:ip), actor.par.ip_from)
+    r0, b0 = IMAS.get_from(dd, Val(:vacuum_r0_b0), actor.par.vacuum_r0_b0_from)
 
     # geometric factors
     past_time_slice = false

@@ -175,7 +175,7 @@ function get_At(r::AbstractVector{Float64}, n::Int, r0::Float64, odelr::Float64,
 
     a1int = 0.0
     singloid = r0 * odelr
-    i = min(Int(round(singloid)) + 1, nram1)
+    i = min(round(Int, singloid) + 1, nram1)
     a11 = a1f(i, r0)
     x1 = 0.0
     at1 = zeros(n)
@@ -259,7 +259,6 @@ function get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{F
                 k11[j, i] = sum1p
                 k11[i, j] = sum1r
             end
-
         end
     end
     return k11

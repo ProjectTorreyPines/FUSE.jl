@@ -30,8 +30,8 @@ end
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}
-    input_tglfs::Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}
-    flux_solutions::Vector{<:GACODE.FluxSolution}
+    input_tglfs::Union{Vector{InputTGLF{D}},Vector{InputTJLF{D}}}
+    flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
@@ -46,15 +46,15 @@ function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorTGLF(dd::IMAS.dd, par::FUSEparameters__ActorTGLF; kw...)
+function ActorTGLF(dd::IMAS.dd{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real}
     logging_actor_init(ActorTGLF)
     par = OverrideParameters(par; kw...)
     if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
-        input_tglfs = Vector{InputTGLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTGLF{D}}(undef, length(par.rho_transport))
     elseif par.model == :TJLF
-        input_tglfs = Vector{InputTJLF}(undef, length(par.rho_transport))
+        input_tglfs = Vector{InputTJLF{D}}(undef, length(par.rho_transport))
     end
-    return ActorTGLF(dd, par, input_tglfs, GACODE.FluxSolution[])
+    return ActorTGLF(dd, par, input_tglfs, GACODE.FluxSolution{D}[])
 end
 
 """
@@ -100,7 +100,7 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
             actor.flux_solutions = TurbulentTransport.run_tglfnn(actor.input_tglfs; uncertain, par.warn_nn_train_bounds, model_filename=model_filename(par), fidelity=par.model)
 
         elseif par.onnx_model
-            actor.flux_solutions = TurbulentTransport.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
+            sols32 = TurbulentTransport.run_tglfnn_onnx(actor.input_tglfs, par.tglfnn_model,
                 [
                     "RLTS_3",
                     "KAPPA_LOC",
@@ -138,7 +138,20 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
                     "OUT_Q_elec",
                     "OUT_Q_ions",
                     "OUT_P_ions"
-                ];)
+                ]; intra_threads=1, inter_threads=1)
+                n = length(sols32)
+                fs64 = Vector{GACODE.FluxSolution{Float64}}(undef, n)
+                @inbounds for i in 1:n
+                    s = sols32[i]
+                    f1 = Float64(getfield(s, 1))
+                    f2 = Float64(getfield(s, 2))
+                    f3 = Float64(getfield(s, 3))
+                    f4raw = getfield(s, 4)
+                    f4 = isa(f4raw, AbstractArray) ? Float64.(f4raw) : Float64(f4raw)
+                    f5 = Float64(getfield(s, 5))
+                    fs64[i] = GACODE.FluxSolution{Float64}(f1, f2, f3, f4, f5)
+                end
+                actor.flux_solutions = fs64
         end
 
     elseif par.model == :TGLF
@@ -147,7 +160,7 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
     elseif par.model == :TJLF
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
         actor.flux_solutions =
-            [GACODE.FluxSolution(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
+            [GACODE.FluxSolution{D}(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
     end
 
     return actor
@@ -193,16 +206,19 @@ function Base.show(io::IO, ::MIME"text/plain", input::Union{InputTGLF,InputTJLF}
 end
 
 """
-    save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF, }, filename::String)
+    save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF}, filename::String)
 
 Common save method for all the various input types
 """
-function save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF, InputTJLF}, filename::String)
-    if input isa InputCGYRO || input isa InputQLGYRO || input isa InputTGLF
-        return TurbulentTransport.save(input, filename)
-    elseif input isa InputTJLF
-        return TJLF.save(input, filename)
-    else
-        error("Unsupported input type")
-    end
+function save(input::Union{InputCGYRO, InputQLGYRO,  InputTGLF}, filename::String)
+    return TurbulentTransport.save(input, filename)
+end
+
+"""
+    save(input::InputTJLF, filename::String)
+
+Common save method for all the various input types
+"""
+function save(input::InputTJLF, filename::String)
+    return TJLF.save(input, filename)
 end

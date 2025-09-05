@@ -21,7 +21,7 @@ if not user_depot then
    setenv("JULIA_DEPOT_PATH", home .. "/.julia:" .. base_depot .. ":")
 elseif user_depot:sub(-1) == ":" then
    -- case 2: JULIA_DEPOT_PATH ends with “:”, so append base_depot after it
-   --         Already ends in ":", so need to append a ":" in between
+   --         Already ends in ":", so no need to append a ":" in between
    setenv("JULIA_DEPOT_PATH", user_depot .. base_depot .. ":")
 else
    LmodError(
