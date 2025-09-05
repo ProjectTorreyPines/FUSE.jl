@@ -651,7 +651,15 @@ install_PyCall:
 	'
 
 # @devs
-install_ci_add:
+install_ci_master:
+	julia --project=@. -e ';\
+	using Pkg;\
+	Pkg.instantiate();\
+	Pkg.add("Test");\
+	Pkg.status()'
+
+# @devs
+install_ci_dev:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
 	julia --project=@. -e ';\
@@ -807,7 +815,7 @@ status:
 		elif [ "$$latest_tag" = "(no tag)" ]; then \
 			commit_info="(no tag)"; \
 		fi; \
-		line_text=`printf "%25s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
+		line_text=`printf "%26s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
 		line_length=`echo "$$line_text" | wc -c | tr -d ' '`; \
 		padding=$$((term_width - line_length)); \
 		printf "$$color%s%*s$$reset\n" "$$line_text" $$padding ""; \

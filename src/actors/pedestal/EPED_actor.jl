@@ -175,7 +175,7 @@ function run_EPED!(
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
-    m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
+    m = round(Int, IMAS.A_effective(cp1d) * 2.0, RoundNearest) / 2.0
     if !(m == 2.0 || m == 2.5)
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
@@ -188,11 +188,11 @@ function run_EPED!(
     # flat density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 0.0, 1.0, 0.05)[90] ∼ 0.866
     rho09 = 0.9
     tanh_width_to_09_factor = 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.5, 1.0, w_ped_ne)[90]
-    ne09 = IMAS.get_from(dd, Val{:ne_ped}, ne_from, rho09)
+    ne09 = IMAS.get_from(dd, Val(:ne_ped), ne_from, rho09)
     neped = ne09 * tanh_width_to_09_factor
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_from, rho09)
-    βn = IMAS.get_from(dd, Val{:βn}, βn_from)
-    ip = IMAS.get_from(dd, Val{:ip}, ip_from)
+    zeffped = IMAS.get_from(dd, Val(:zeff_ped), zeff_from, rho09)
+    βn = IMAS.get_from(dd, Val(:βn), βn_from)
+    ip = IMAS.get_from(dd, Val(:ip), ip_from)
     Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
     # NOTE: EPED results can be very sensitive to δu, δl

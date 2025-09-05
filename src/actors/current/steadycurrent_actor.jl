@@ -49,7 +49,7 @@ function _step(actor::ActorSteadyStateCurrent)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+    ip_target = IMAS.get_from(dd, Val(:ip), par.ip_from)
 
     # update j_ohmic
     relaxed_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, cp1d.conductivity_parallel)

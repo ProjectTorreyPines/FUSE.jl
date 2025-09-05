@@ -91,7 +91,7 @@ macro checkin(key, vars...)
         @assert typeof($key) <: Symbol "`use `@checkin :what var1 var2 ...`"
         d = getfield(checkpoint, :history)
         if $key in keys(d)
-            dict = Dict(k => v for (k, v) in pairs(d[$key]))
+            dict = Dict{Symbol,Any}(k => v for (k, v) in pairs(d[$key]))
         else
             dict = Dict{Symbol,Any}()
         end
@@ -199,7 +199,7 @@ function IMAS.extract(
             xtr = extract(DD[1], xtract)
             tmp = Dict()
             for (xkey, xfun) in xtr
-                if xfun.value === NaN
+                if isnan(xfun.value)
                     delete!(xtract, xkey)
                 else
                     tmp[xfun.name] = xfun.value
