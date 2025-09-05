@@ -67,4 +67,5 @@ if [[ $JULIA_EXIT_CODE -ne 0 ]]; then
 else
     /bin/cp -r $installdir $envdir
     /bin/cp $installdir/$fuse_env.lua $basedir/modules/fuse
+    /bin/ln -s $basedir/modules/fuse/$fuse_env.lua $basedir/modules/fuse/default.lua
 fi
