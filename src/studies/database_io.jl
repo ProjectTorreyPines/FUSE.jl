@@ -13,6 +13,146 @@ mutable struct study_database
 end
 
 
+"""
+    filter(pred::Function, db::study_database)
+
+Return a new `study_database` containing only the rows of `db.df` for which
+`pred(row)` is true, and the corresponding entries from `db.items`.
+
+`pred` is called with a `DataFrameRow` (from `eachrow`). This function does not
+mutate the original `study_database`.
+"""
+function Base.filter(pred::Function, db::study_database; kwargs...)
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    @assert !(:__rownum__ in names(db.df)) "Temporary column collision"
+    # make a shallow copy of the DataFrame and apply the mutating filter!
+    df2 = copy(db.df)
+    df2[!, :__rownum__] = 1:nrow(df2)
+    DataFrames.filter!(pred, df2; kwargs...)
+    inds = df2[!, :__rownum__]
+    DataFrames.select!(df2, DataFrames.Not(:__rownum__))
+    return study_database(df2, db.items[inds])
+end
+
+"""
+    filter!(pred::Function, db::study_database)
+
+In-place filter: keep only rows where `pred(row)` is true and drop the rest
+from both `db.df` and `db.items`. Returns the modified `db`.
+"""
+function Base.filter!(pred::Function, db::study_database; kwargs...)
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    @assert !(:__rownum__ in names(db.df)) "Temporary column collision"
+    db.df[!, :__rownum__] = 1:nrow(db.df)
+    DataFrames.filter!(pred, db.df; kwargs...)
+    inds = db.df[!, :__rownum__]
+    DataFrames.select!(db.df, DataFrames.Not(:__rownum__))
+    db.items = db.items[inds]
+    return db
+end
+
+"""
+    filter(mask::AbstractVector{Bool}, db::study_database)
+
+Return a new `study_database` selecting rows where `mask` is true. `mask` must be
+an `AbstractVector{Bool}` (for example `Vector{Bool}` or `BitVector`). If your mask
+contains `missing` values, coalesce them before calling this function.
+"""
+function Base.filter(mask::AbstractVector{Bool}, db::study_database)
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    @assert length(mask) == nrow(db.df) "Mask length must equal number of rows in df"
+    return study_database(db.df[mask, :], db.items[mask])
+end
+
+"""
+    filter!(mask::AbstractVector{Bool}, db::study_database)
+
+In-place mask filter: keep only rows where `mask` is true. `mask` must be an
+`AbstractVector{Bool}` (e.g. `BitVector`). Returns the modified `db`.
+"""
+function Base.filter!(mask::AbstractVector{Bool}, db::study_database)
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    @assert length(mask) == nrow(db.df) "Mask length must equal number of rows in df"
+    db.df = db.df[mask, :]
+    db.items = db.items[mask]
+    return db
+end
+
+"""
+    subset(db::study_database, args...; kwargs...)
+
+DataFrames-style `subset` dispatch for `study_database` implemented the same
+way as the `filter` wrapper: add temporary row numbers, delegate to
+`DataFrames.subset`, then pick items and remove the temporary column.
+"""
+function DataFrames.subset(db::study_database, args...; kwargs...)
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    @assert !(:__rownum__ in names(db.df)) "Temporary column collision"
+    db.df[!, :__rownum__] = 1:nrow(db.df)
+    df2 = DataFrames.subset(db.df, args...; kwargs...)
+    inds = df2[!, :__rownum__]
+    DataFrames.select!(df2, DataFrames.Not(:__rownum__))
+    items_out = db.items[inds]
+    return study_database(df2, items_out)
+end
+
+"""
+    subset!(db::study_database, args...; kwargs...)
+
+In-place `subset!` for `study_database`. Mutates `db.df` using
+`DataFrames.subset!` and keeps `db.items` aligned by recording row numbers in
+a temporary `:__rownum__` column.
+"""
+function DataFrames.subset!(db::study_database, args...; kwargs...)
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    @assert !(:__rownum__ in names(db.df)) "Temporary column collision"
+    db.df[!, :__rownum__] = 1:nrow(db.df)
+    DataFrames.subset!(db.df, args...; kwargs...)
+    inds = db.df[!, :__rownum__]
+    DataFrames.select!(db.df, DataFrames.Not(:__rownum__))
+    db.items = db.items[inds]
+    return db
+end
+
+
+"""
+    getindex(db::study_database, rows)
+
+Row-only indexing for `study_database`. Supported forms:
+- `db[i]`, `db[1:3]`, `db[[1,4,7]]`, `db[mask::Vector{Bool}]`.
+
+These return a new `study_database` containing the selected rows and the
+corresponding `items`. Two-argument indexing `db[rows, cols]` delegates to the
+inner `DataFrame` and returns whatever `DataFrame` indexing would return.
+"""
+function Base.getindex(db::study_database, i::Integer)
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    inds = i:i
+    return study_database(db.df[inds, :], db.items[collect(inds)])
+end
+
+function Base.getindex(db::study_database, r::AbstractRange{<:Integer})
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    return study_database(db.df[r, :], db.items[collect(r)])
+end
+
+function Base.getindex(db::study_database, idx::AbstractVector{<:Integer})
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    return study_database(db.df[idx, :], db.items[idx])
+end
+
+function Base.getindex(db::study_database, mask::AbstractVector{Bool})
+    @assert nrow(db.df) == length(db.items) "Mismatch between df rows and items length"
+    @assert length(mask) == nrow(db.df) "Mask length must equal number of rows in df"
+    return study_database(db.df[mask, :], db.items[mask])
+end
+
+# Delegate two-argument indexing to the inner DataFrame (returns DataFrame result)
+function Base.getindex(db::study_database, rows, cols)
+    return db.df[rows, cols]
+end
+
+
 function save_study_database(
     savedir::AbstractString,
     parent_group::AbstractString,
@@ -288,7 +428,7 @@ function load_study_database(filename::AbstractString, parent_groups::Vector{<:A
 
     # Load dataframe (from extract)
     df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-    df = subset(df, :gparent => ByRow(x -> x in parent_groups))
+    df = DataFrames.subset(df, :gparent => ByRow(x -> x in parent_groups))
 
     Nparents = length(parent_groups)
 
