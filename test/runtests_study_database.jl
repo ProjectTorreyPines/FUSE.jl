@@ -18,7 +18,7 @@ using FUSE.DataFrames
     dd3.equilibrium.vacuum_toroidal_field.b0 = [0.8]
 
     # --- Create study_database_item (absent fields -> nothing) ---
-    item1 = FUSE.study_database_item(dd = dd1, ini = nothing, act = nothing, log = nothing, timer = nothing, error = nothing)
+    item1 = FUSE.study_database_item(dd = dd1)
     item2 = FUSE.study_database_item(dd = dd2, ini = nothing, act = nothing, log = nothing, timer = nothing, error = nothing)
     item3 = FUSE.study_database_item(dd = dd3, ini = nothing, act = nothing, log = "this is log", timer = nothing, error = "this is error")
     items = [item1, item2, item3]
