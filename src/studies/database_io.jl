@@ -642,3 +642,77 @@ function sample_and_write_study_database(ori_DB_name::AbstractString, sampled_DB
     return sampled_df
 end
 
+
+# ===================== #
+# Equality comparisons  #
+# ===================== #
+
+"""
+    isequal(x::study_database_item, y::study_database_item)
+
+Content-wise comparison of two `study_database_item`s.
+
+Rules:
+- `dd`: uses `isequal` on IMAS.dd if both non-`nothing`; otherwise both must be `nothing`.
+- `ini`/`act`: compares via `SimulationParameters.par2jstr` when both non-`nothing`; otherwise both must be `nothing`.
+- `log`/`timer`/`error`: standard `isequal` on `Union{Nothing,String}`.
+"""
+function Base.isequal(x::study_database_item, y::study_database_item)
+    # dd: trust IMAS.dd equality when present; else both must be nothing
+    dd_eq = (x.dd === nothing || y.dd === nothing) ? (x.dd === y.dd) : (x.dd == y.dd)
+
+    # ini/act: use SimulationParameters.diff-based equality when both present
+    ini_eq = if x.ini === nothing || y.ini === nothing
+        x.ini === y.ini
+    else
+        !SimulationParameters.diff(x.ini, y.ini)
+    end
+
+    act_eq = if x.act === nothing || y.act === nothing
+        x.act === y.act
+    else
+        !SimulationParameters.diff(x.act, y.act)
+    end
+
+    log_eq   = isequal(x.log,   y.log)
+    timer_eq = isequal(x.timer, y.timer)
+    err_eq   = isequal(x.error, y.error)
+
+    return dd_eq && ini_eq && act_eq && log_eq && timer_eq && err_eq
+end
+
+"""
+    ==(x::study_database_item, y::study_database_item)
+
+Defers to `isequal(x, y)` for convenience.
+"""
+Base.:(==)(x::study_database_item, y::study_database_item) = isequal(x, y)
+
+
+"""
+    isequal(x::study_database, y::study_database)
+
+Content-wise comparison of two `study_database`s. Checks DataFrame equality and
+pairwise `items` equality in order.
+"""
+function Base.isequal(x::study_database, y::study_database)
+    if !isequal(x.df, y.df)
+        return false
+    end
+    if length(x.items) != length(y.items)
+        return false
+    end
+    @inbounds for i in eachindex(x.items)
+        if !isequal(x.items[i], y.items[i])
+            return false
+        end
+    end
+    return true
+end
+
+"""
+    ==(x::study_database, y::study_database)
+
+Defers to `isequal(x, y)` for convenience.
+"""
+Base.:(==)(x::study_database, y::study_database) = isequal(x, y)
