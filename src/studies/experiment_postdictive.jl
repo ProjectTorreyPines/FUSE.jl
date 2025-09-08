@@ -98,11 +98,11 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int)
 
         run_postdictive_case(device, shot; sty.fit_profiles, sty.use_local_cache, sty.save_folder)
 
-        # catch error
-        #     if isa(error, InterruptException)
-        #         rethrow(error)
+        # catch e
+        #     if isa(e, InterruptException)
+        #         rethrow(e)
         #     end
-        #     @error "Error in postdictive case for $(device) shot $(shot): $error"
+        #     @error "Error in postdictive case for $(device) shot $(shot): $e"
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
@@ -215,7 +215,18 @@ function run_postdictive_case!(dd::IMAS.dd, dd_exp::IMAS.dd, device::Symbol, sho
     # act.ActorHCD.neutral_model = :none
 
     # Run the simulation
-    FUSE.ActorDynamicPlasma(dd, act; verbose=true)
+    try
+        FUSE.ActorDynamicPlasma(dd, act; verbose=true)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        else
+            @error repr(e)
+        end
+    end
+
+    Nt_OK = (dd.global_time - ini.time.simulation_start) / δt
+    times = range(ini.time.simulation_start, dd.global_time, Nt_OK)
 
     # save simulation data to directory
     if !ismissing(save_folder)

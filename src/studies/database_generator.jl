@@ -158,13 +158,13 @@ function run_case(study::AbstractStudy, item::Int)
         save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
 
         return nothing
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         # save empty dd and error to directory
-        save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
+        save(savedir, nothing, ini, act; error=e, timer=true, freeze=false, overwrite_files=true)
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
@@ -242,9 +242,10 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         end
 
         return df
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
@@ -252,7 +253,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
         # save empty dd and error to directory
-        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"

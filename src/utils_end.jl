@@ -238,7 +238,6 @@ function IMAS.extract(
                 if isa(e, InterruptException)
                     rethrow(e)
                 end
-                continue
             end
             ProgressMeter.next!(p)
         end
@@ -1423,7 +1422,6 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
             if isa(e, InterruptException)
                 rethrow(e)
             end
-            continue
         end
         ProgressMeter.next!(p)
     end
