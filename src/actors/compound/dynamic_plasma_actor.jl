@@ -316,8 +316,9 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     min_power::Float64=0.0,
     aggregate_radiation::Bool=true,
     aggregate_hcd::Bool=true,
+    rotation_quantity::Symbol=:sonic,
     dd1::Union{Nothing,IMAS.DD}=nothing,
-    size=(2000, 1000),
+    size=(1800, 1000),
     kw...)
 
     GC.safepoint()
@@ -365,17 +366,28 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
 
         # Ip and Vloop
         plot_ip = plot(; title="Ip [MA] - Vloop [V]")
-        if !ismissing(dd.pulse_schedule.flux_control, :time)
-            plot!(dd.pulse_schedule.flux_control.time,
-                dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
+        if dd1 === nothing
+            if !ismissing(dd.pulse_schedule.flux_control, :time)
+                plot!(dd.pulse_schedule.flux_control.time,
+                    dd.pulse_schedule.flux_control.i_plasma.reference / 1E6;
+                    seriestype=:time,
+                    color=:black,
+                    label="Ip reference [MA]",
+                    lw=2.0,
+                    ls=:dash,
+                    legend_position=:left,
+                    background_color_legend=Plots.Colors.RGBA(1.0, 1.0, 1.0, 0.6),
+                    legend_foreground_color=:transparent
+                )
+            end
+        else
+            plot!(
+                dd1.core_profiles.time,
+                dd1.core_profiles.global_quantities.ip / 1E6;
+                ylim=extrema(dd1.core_profiles.global_quantities.ip / 1E6),
                 seriestype=:time,
                 color=:black,
-                label="Ip reference [MA]",
-                lw=2.0,
-                ls=:dash,
-                legend_position=:left,
-                background_color_legend=Plots.Colors.RGBA(1.0, 1.0, 1.0, 0.6),
-                legend_foreground_color=:transparent
+                primary=false
             )
         end
         plot!(
@@ -401,18 +413,18 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
         #plot_vloop = plot!(twinx())[2]
 
         tx = twinx()
-        if dd1 !== nothing
-            time, data = IMAS.vloop_time(dd1.core_profiles, dd1.equilibrium; method=:area)
-            plot!(
-                tx,
-                time,
-                data;
-                seriestype=:time,
-                color=:black,
-                label="",
-                lw=2.0
-            )
-        end
+        # if dd1 !== nothing
+        #     time, data = IMAS.vloop_time(dd1.core_profiles, dd1.equilibrium; method=:area)
+        #     plot!(
+        #         tx,
+        #         time,
+        #         data;
+        #         seriestype=:time,
+        #         color=:black,
+        #         label="",
+        #         lw=2.0
+        #     )
+        # end
         if IMAS.controller(dd.controllers, "ip") !== nothing
             time, data = IMAS.vloop_time(dd.controllers)
         else
@@ -431,15 +443,15 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
         # core_profiles electrons temperatures
         plot_Te = plot()
         if dd1 !== nothing
-            plot!(dd1.core_profiles.profiles_1d[time0].electrons, :temperature; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
+            plot!(dd1.core_profiles.profiles_1d[time0].electrons, :temperature; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="Experiment")
             if IMAS.hasdata(dd1.thomson_scattering)
                 plot!(dd1.thomson_scattering, :t_e; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
             end
         end
         if dd !== dd1
-            plot!(cp1d.electrons, :temperature; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
+            plot!(cp1d.electrons, :temperature; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="Simulated")
         end
-        plot!(; title="Electrons temperature [KeV]", xlabel="", ylabel="", label="")
+        plot!(; title="Electrons temperature [KeV]", xlabel="", ylabel="")
 
         # core_profiles ions temperatures
         plot_Ti = plot()
@@ -459,7 +471,7 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
         if dd1 !== nothing
             plot!(dd1.core_profiles.profiles_1d[time0]; color=:black, only=2)
             if IMAS.hasdata(dd1.thomson_scattering)
-                plot!(dd1.thomson_scattering, :n_e; time0, lw=2.0, xlabel="", ylabel="", label="")
+                plot!(dd1.thomson_scattering, :n_e; time0, lw=2.0, xlabel="", ylabel="", label="", primary=false)
             end
             if IMAS.hasdata(dd1.charge_exchange)
                 plot!(dd1.charge_exchange, :n_imp; time0, lw=2.0, xlabel="", ylabel="", label="", normalization=dd1.core_profiles.profiles_1d[time0].ion[2].element[1].z_n, primary=false)
@@ -472,17 +484,34 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
 
         # core_profiles rotation
         plot_rotation = plot()
-        if dd1 !== nothing
-            if !ismissing(dd1.core_profiles.profiles_1d[time0].ion[1], :rotation_frequency_tor)
-                plot!(dd1.core_profiles.profiles_1d[time0].ion[1], :rotation_frequency_tor; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
+        @assert rotation_quantity in (:toroidal, :sonic)
+        if rotation_quantity == :sonic
+            if dd1 !== nothing
+                if !ismissing(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic)
+                    plot!(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
+                end
+                if IMAS.hasdata(dd1.charge_exchange)
+                    plot!(dd1.charge_exchange, :ω_tor; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
+                end
             end
-            if IMAS.hasdata(dd1.charge_exchange)
-                plot!(dd1.charge_exchange, :ω_tor; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
+            if dd !== dd1
+                if !ismissing(cp1d, :rotation_frequency_tor_sonic)
+                    plot!(cp1d, :rotation_frequency_tor_sonic; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
+                end
             end
-        end
-        if dd !== dd1
-            if !ismissing(cp1d.ion[1], :rotation_frequency_tor)
-                plot!(cp1d.ion[1], :rotation_frequency_tor; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
+        else
+            if dd1 !== nothing
+                if !ismissing(dd1.core_profiles.profiles_1d[time0].ion[1], :rotation_frequency_tor)
+                    plot!(dd1.core_profiles.profiles_1d[time0].ion[1], :rotation_frequency_tor; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
+                end
+                if IMAS.hasdata(dd1.charge_exchange)
+                    plot!(dd1.charge_exchange, :ω_tor; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
+                end
+            end
+            if dd !== dd1
+                if !ismissing(cp1d.ion[1], :rotation_frequency_tor)
+                    plot!(cp1d.ion[1], :rotation_frequency_tor; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
+                end
             end
         end
         plot!(; title="Toroidal Rotation [Krad/s]", xlabel="", ylabel="", label="")
