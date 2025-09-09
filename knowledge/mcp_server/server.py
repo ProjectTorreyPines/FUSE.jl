@@ -22,6 +22,8 @@ from fuse_mcp.actor_knowledge import ActorKnowledgeBase
 # Global knowledge base
 kb = None
 relationships_data = None
+usage_guide_content = None
+usage_guide_sections = None
 
 def load_relationships():
     """Load relationships from the unified knowledge base"""
@@ -39,6 +41,174 @@ def load_relationships():
     except Exception as e:
         print(f"Failed to load relationships: {e}")
         relationships_data = {}
+
+def load_usage_guide():
+    """Load FUSE usage guide from how_to_use_fuse.md"""
+    global usage_guide_content, usage_guide_sections
+    import re
+    
+    server_dir = Path(__file__).parent
+    usage_guide_file = server_dir.parent / "how_to_use_fuse.md"
+    
+    try:
+        with open(usage_guide_file, 'r', encoding='utf-8') as f:
+            usage_guide_content = f.read()
+        
+        # Parse sections based on headers
+        usage_guide_sections = parse_markdown_sections(usage_guide_content)
+        print(f"Loaded usage guide with {len(usage_guide_sections)} sections")
+        
+    except Exception as e:
+        print(f"Failed to load usage guide: {e}")
+        usage_guide_content = ""
+        usage_guide_sections = {}
+
+def parse_markdown_sections(content):
+    """Parse markdown content into sections based on headers"""
+    import re
+    
+    sections = {}
+    
+    # Split by ## headers (main sections)
+    parts = re.split(r'^## (.+)$', content, flags=re.MULTILINE)
+    
+    if len(parts) > 1:
+        # First part is usually intro/overview
+        if parts[0].strip():
+            sections["overview"] = parts[0].strip()
+        
+        # Parse main sections
+        for i in range(1, len(parts), 2):
+            if i + 1 < len(parts):
+                section_title = parts[i].strip()
+                section_content = parts[i + 1].strip()
+                
+                # Create key from title (lowercase, replace spaces with underscores)
+                section_key = normalize_topic_key(section_title)
+                sections[section_key] = f"## {section_title}\n\n{section_content}"
+    
+    # Create dynamic aliases based on content analysis
+    sections.update(create_dynamic_aliases(sections))
+    
+    return sections
+
+def normalize_topic_key(title):
+    """Normalize section title to create a clean topic key"""
+    import re
+    return re.sub(r'[^\w\s]', '', title.lower()).replace(' ', '_').replace('__', '_').strip('_')
+
+def create_dynamic_aliases(sections):
+    """Create simple aliases from section titles themselves"""
+    import re
+    aliases = {}
+    
+    for section_key, section_content in sections.items():
+        # Extract title from content
+        title_match = re.search(r'^## (.+)$', section_content, re.MULTILINE)
+        if title_match:
+            title = title_match.group(1)
+            
+            # Create aliases from individual words in the title
+            words = re.findall(r'\b\w+\b', title.lower())
+            for word in words:
+                if len(word) > 3 and word not in aliases and word != section_key:
+                    aliases[word] = section_content
+    
+    return aliases
+
+def get_usage_guide_topics():
+    """Get available topics in the usage guide dynamically from headers"""
+    if not usage_guide_sections:
+        return []
+    
+    # Get main sections by finding keys that start with "##" in their content (original sections)
+    main_topics = []
+    for key, content in usage_guide_sections.items():
+        if content.startswith("##") or content.startswith("# "):
+            main_topics.append(key)
+    
+    return sorted(main_topics)
+
+def get_topic_description(topic_key):
+    """Extract a brief description from the topic's content"""
+    if topic_key not in usage_guide_sections:
+        return "Topic information"
+    
+    content = usage_guide_sections[topic_key]
+    
+    # Extract first line after header as description
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        if line.startswith('##'):
+            # Look for first non-empty line after header
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if lines[j].strip() and not lines[j].startswith('#'):
+                    # Take first sentence or first line, whichever is shorter
+                    desc = lines[j].strip()
+                    if '.' in desc:
+                        desc = desc.split('.')[0] + '.'
+                    return desc[:100] + ('...' if len(desc) > 100 else '')
+    
+    # Fallback: use topic key as description
+    return f"Information about {topic_key.replace('_', ' ')}"
+
+async def handle_usage_guide_tool(arguments: dict):
+    """Handle the get_fuse_usage_guide tool"""
+    if usage_guide_sections is None:
+        return [TextContent(type="text", text="❌ Usage guide not loaded")]
+    
+    topic = arguments.get("topic", "").lower()
+    
+    # If no topic specified, show available topics
+    if not topic:
+        response = "# 📚 FUSE Usage Guide Topics\n\n"
+        response += "Available topics for detailed guidance:\n\n"
+        
+        # Get main topics dynamically
+        main_topics = get_usage_guide_topics()
+        
+        for topic_key in main_topics:
+            description = get_topic_description(topic_key)
+            response += f"• **{topic_key}**: {description}\n"
+        
+        # Show available aliases/search terms
+        alias_topics = [key for key in sorted(usage_guide_sections.keys()) if key not in main_topics]
+        if alias_topics:
+            response += f"\n🔍 **Search terms**: {', '.join(alias_topics[:15])}" # Show first 15 aliases
+            if len(alias_topics) > 15:
+                response += f", and {len(alias_topics) - 15} more..."
+        
+        response += "\n\n💡 **Usage**: Use `get_fuse_usage_guide` with a specific topic to get detailed information."
+        
+        return [TextContent(type="text", text=response)]
+    
+    # Search for topic
+    topic_content = None
+    
+    # Direct match
+    if topic in usage_guide_sections:
+        topic_content = usage_guide_sections[topic]
+    else:
+        # Fuzzy search - find sections containing the topic
+        matching_sections = []
+        for key, content in usage_guide_sections.items():
+            if topic in key or topic in content.lower():
+                matching_sections.append((key, content))
+        
+        if len(matching_sections) == 1:
+            topic_content = matching_sections[0][1]
+        elif len(matching_sections) > 1:
+            response = f"# 🔍 Multiple sections found for '{topic}'\n\n"
+            for key, _ in matching_sections:
+                response += f"• {key}\n"
+            response += f"\nPlease specify one of these topics for detailed information."
+            return [TextContent(type="text", text=response)]
+    
+    if topic_content:
+        return [TextContent(type="text", text=topic_content)]
+    else:
+        available_topics = ", ".join(sorted(usage_guide_sections.keys())[:10])
+        return [TextContent(type="text", text=f"❌ Topic '{topic}' not found.\n\nAvailable topics: {available_topics}...\n\nUse `get_fuse_usage_guide` without arguments to see all available topics.")]
 
 async def handle_relationships_tool(arguments: dict):
     """Handle the get_actor_relationships tool"""
@@ -236,6 +406,9 @@ async def main():
     # Load relationships data
     load_relationships()
     
+    # Load usage guide
+    load_usage_guide()
+    
     # Create server
     server = Server(name="fuse-mcp", version="0.1.0")
     
@@ -319,6 +492,19 @@ async def main():
                             "type": "string",
                             "enum": ["data_flow", "dependencies", "physics_groups", "category_connections", "all"],
                             "description": "Type of relationships to show (default: 'all')"
+                        }
+                    }
+                }
+            ),
+            Tool(
+                name="get_fuse_usage_guide",
+                description="Get FUSE usage guide for workflows, concepts, and best practices. Covers core concepts, transport modeling, time-dependent simulations, IMAS data manipulation, and more",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "topic": {
+                            "type": "string",
+                            "description": "Specific topic to get guidance on (e.g., 'transport', 'flux_matching', 'time_dependent', 'actors', 'workflows', 'imas'). Leave empty to see all available topics."
                         }
                     }
                 }
@@ -418,6 +604,9 @@ async def main():
         elif name == "get_actor_relationships":
             return await handle_relationships_tool(arguments)
         
+        elif name == "get_fuse_usage_guide":
+            return await handle_usage_guide_tool(arguments)
+        
         return [TextContent(type="text", text=f"❌ Unknown tool: {name}")]
     
     @server.list_resources()
@@ -434,6 +623,12 @@ async def main():
                 name="FUSE Actors Knowledge Base", 
                 description="Complete JSON knowledge base of FUSE plasma simulation actors",
                 mimeType="application/json"
+            ),
+            Resource(
+                uri="knowledge://fuse_usage_guide",
+                name="FUSE Usage Guide",
+                description="Comprehensive guide for FUSE workflows, concepts, transport modeling, time-dependent simulations, and best practices",
+                mimeType="text/markdown"
             )
         ]
     
@@ -474,6 +669,12 @@ async def main():
                 "categories": list(kb.categories.keys()),
                 "actors": actors_data
             }, indent=2)
+        
+        elif uri == "knowledge://fuse_usage_guide":
+            if usage_guide_content:
+                return usage_guide_content
+            else:
+                return "# FUSE Usage Guide\n\nUsage guide not loaded. Please check server configuration."
         
         else:
             raise ValueError(f"Unknown resource URI: {uri}")
