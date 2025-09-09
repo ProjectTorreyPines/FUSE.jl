@@ -821,6 +821,8 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     end
 
     if par.evolve_rotation == :flux_match
+        #z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
+        #append!(z_profiles, z_rot)
         # Use TGYRO approach: evolve normalized rotation shear f_rot = (dω/dr) / w0_norm
         w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
         
@@ -905,6 +907,7 @@ function unpack_z_profiles(
     end
 
     if par.evolve_rotation == :flux_match
+        #cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
         # Use TGYRO approach: convert normalized rotation shear back to rotation frequency
         w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
         
@@ -997,6 +1000,32 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
 end
 
 """
+    evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector, replay_species::Vector; quasi_neutrality_specie::Union{Symbol,Bool}=false)
+
+Create the density_evolution dict based on input vectors: flux_match_species, fixed_species, match_ne_scale_species, replay_species, quasi_neutrality_specie
+"""
+function evolve_densities_dict_creation(
+    flux_match_species::Vector;
+    fixed_species::Vector{Symbol}=Symbol[],
+    match_ne_scale_species::Vector{Symbol}=Symbol[],
+    replay_species::Vector{Symbol}=Symbol[],
+    quasi_neutrality_specie::Union{Symbol,Bool}=false)
+
+    parse_list = vcat(
+        [[sym, :flux_match] for sym in flux_match_species],
+        [[sym, :match_ne_scale] for sym in match_ne_scale_species],
+        [[sym, :fixed] for sym in fixed_species],
+        [[sym, :replay] for sym in replay_species]
+    )
+    if typeof(quasi_neutrality_specie) <: Symbol
+        parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
+    end
+
+    return Dict(sym => evolve for (sym, evolve) in parse_list)
+end
+
+
+"""
     setup_density_evolution_electron_flux_match_rest_ne_scale(cp1d::IMAS.core_profiles__profiles_1d)
 
 Sets up the evolve_density dict to evolve only ne and keep the rest matching the ne_scale lengths
@@ -1060,31 +1089,6 @@ Sets up the evolve_density dict to replay all species from replay_dd
 function setup_density_evolution_replay(cp1d::IMAS.core_profiles__profiles_1d)
     all_species = [specie.name for specie in IMAS.species(cp1d; return_zero_densities=true)]
     return evolve_densities_dict_creation(Symbol[]; replay_species=all_species, quasi_neutrality_specie=false)
-end
-
-"""
-    evolve_densities_dict_creation(flux_match_species::Vector, fixed_species::Vector, match_ne_scale_species::Vector, replay_species::Vector; quasi_neutrality_specie::Union{Symbol,Bool}=false)
-
-Create the density_evolution dict based on input vectors: flux_match_species, fixed_species, match_ne_scale_species, replay_species, quasi_neutrality_specie
-"""
-function evolve_densities_dict_creation(
-    flux_match_species::Vector;
-    fixed_species::Vector{Symbol}=Symbol[],
-    match_ne_scale_species::Vector{Symbol}=Symbol[],
-    replay_species::Vector{Symbol}=Symbol[],
-    quasi_neutrality_specie::Union{Symbol,Bool}=false)
-
-    parse_list = vcat(
-        [[sym, :flux_match] for sym in flux_match_species], 
-        [[sym, :match_ne_scale] for sym in match_ne_scale_species], 
-        [[sym, :fixed] for sym in fixed_species],
-        [[sym, :replay] for sym in replay_species]
-    )
-    if typeof(quasi_neutrality_specie) <: Symbol
-        parse_list = vcat(parse_list, [[quasi_neutrality_specie, :quasi_neutrality]])
-    end
-
-    return Dict(sym => evolve for (sym, evolve) in parse_list)
 end
 
 """
