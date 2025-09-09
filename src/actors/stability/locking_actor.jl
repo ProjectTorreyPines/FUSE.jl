@@ -1,150 +1,6 @@
 #import DifferentialEquations as DiffEqs
 using Distributed
-addprocs(2)
-@everywhere begin
-    using DifferentialEquations
-
-    # Make sure workers know the ODEparams layout so they can receive an instance.
-    # (Same field order/types as your definition.)
-    if !isdefined(Main, :ODEparams)
-        Base.@kwdef mutable struct ODEparams
-        #sim_time::Vector{Float64} = Float64[]# simulation time vector
-        saturation_param::Float64 = 0.2 # controls nonlinear island saturation
-        error_field::Float64 = 0.5 # Set this when control_type is NOT :EF
-        DeltaW::Float64 = 0.0 # intrinsic stability of RW mode
-        stability_index::Float64 = 0.0 # intrinsic stability of the mode: Delta'
-        layer_width::Float64 = 1.e-3 # linear layer width from tearing theory, ususally ~1 mm
-        rat_surface::Float64 = 0.67 # q=2 surface location in dimensionless units"; default=0.67)
-        res_wall::Float64 = 1.0  # Resistive wall location in dimensionless units"; default=1.0)
-        control_surf::Float64 = 1.25    # Control surface location in dimensionless units"; default=1.25)
-        rat_index::Int64 = 50        # index of the q=2 surface in the rho_tor_norm profile
-        mu::Float64 = 0.1              # shear modulus
-        Inertia::Float64 = 0.1          # moment of inertia of the layer
-        Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
-        Control2::Vector{Float64} = Float64[] # control parameter 2,
-        l12::Float64 = 1.0        # mutual inductance between rational surface and RW
-        l21::Float64 = 1.0        # mutual inductance between RW and rational surface
-        l32::Float64 = 1.0        # mutual inductance between the control surface and RW
-        Taut_Tauw::Float64 = 1.0  # ratio of tearing time to wall time
-        hyper_cube_dims::Vector{Float64} = [1., 1., 1.] # dimensions of the initial condtion hypercube
-        #alpha_upper::Float64 = 0.6
-        #alpha_lower::Float64 = 0.1
-        # keep adding default and magic things
-    end
-
-    "Apply control_type adjustments"
-    function control_adjustments(ode_params::ODEparams, Control1::Float64, control_type::Symbol)
-        alpha = ode_params.saturation_param
-        errF = ode_params.error_field
-        Deltat = ode_params.stability_index
-
-        if control_type == :NLsaturation
-            alpha = Control1
-        elseif control_type == :EF
-            errF = Control1
-        elseif control_type == :StabIndex
-            Deltat = Control1
-        end
-    
-        return alpha, errF, Deltat
-    end
-    
-    "Right-hand side for RW system"
-    function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
-        m0 = n_mode
-        DeltaW = ode_params.DeltaW
-        rt = ode_params.rat_surface
-        l21 = ode_params.l21
-        l12 = ode_params.l12
-        l32 = ode_params.l32
-        Tt_Tw = ode_params.Taut_Tauw
-        mu = ode_params.mu
-        I = ode_params.Inertia
-    
-        alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
-    
-        psi, theta, Om, psiW, thW = y
-    
-        dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
-        dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
-        dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
-        dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
-        dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
-    end
-    
-    "Right-hand side for basic system"
-    function rhs_basic!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
-        m0 = n_mode
-        rt = ode_params.rat_surface
-        l21 = ode_params.l21
-        mu = ode_params.mu
-        I = ode_params.Inertia
-    
-        alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
-    
-        psi, theta, Om = y
-    
-        dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * errF * cos(theta)
-        dydt[2] = -m0 * Om - l21 * errF * sin(theta) / psi
-        dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (Om0 - Om)) / I
-    end
-    
-    "Return the correct RHS function for a given task"
-    function make_rhs_function(task::String)
-        if task == "solveRW"
-            return rhs_RW!
-        elseif task == "solve"
-            return rhs_basic!
-        else
-            error("Unknown task: $task")
-        end
-    end
-    
-    function make_initial_condition(dims::Vector{Float64}, task::String)
-        
-        if task == "solveRW"
-            # 5D system
-            return [
-                rand() * (dims[1] - 0.001) + 0.001,   # y1
-                rand() * 2π - π,                      # y2
-                rand() * (dims[2] - 0.001) + 0.001,   # y3
-                rand() * (dims[3] - 0.001) + 0.001,   # y4
-                rand() * 2π - π                       # y5
-            ]
-    
-        elseif task == "solve"
-            # 3D system
-            return [
-                rand() * (dims[1] - 0.001) + 0.001,   # y1
-                rand() * 2π - π,                      # y2
-                rand() * (dims[2] - 0.001) + 0.001    # y3
-            ]
-
-        else
-           error("Unknown task: $task")
-        end
-    end
-
-    function make_ode_func(rhs!)
-        return function (du, u, p, t)
-            # p must match this tuple layout:
-            # (ode_params, eps, Om0, n, control_type)
-            X1, X2, ode_params, n_mode, control_type = p
-            rhs!(du, u, t, X1, X2, ode_params, n_mode, control_type)
-        end
-    end
-
-end
-#function make_problem_factory(prob_template, ode_params, task, dt)
-#    return function(input)
-#        eps, Om0 = input
-#        y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
-#        p = (ode_params, eps, Om0)
-#        prob = remake(prob_template; u0=y0, p=p)
-#        solve(prob, Tsit5(); saveat=dt, reltol=1e-9)
-#    end
-#end
-
+using DifferentialEquations
 
 #================== =#
 #  ActorLockingProbability  #
@@ -179,6 +35,142 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "Length scale for the integration , usually minor radius"; default=1.)
     NBItorque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)    
 end
+
+
+# Make sure workers know the ODEparams layout so they can receive an instance.
+# (Same field order/types as your definition.)
+#if !isdefined(Main, :ODEparams)
+Base.@kwdef mutable struct ODEparams
+    #sim_time::Vector{Float64} = Float64[]# simulation time vector
+    saturation_param::Float64 = 0.2 # controls nonlinear island saturation
+    error_field::Float64 = 0.5 # Set this when control_type is NOT :EF
+    DeltaW::Float64 = 0.0 # intrinsic stability of RW mode
+    stability_index::Float64 = 0.0 # intrinsic stability of the mode: Delta'
+    layer_width::Float64 = 1.e-3 # linear layer width from tearing theory, ususally ~1 mm
+    rat_surface::Float64 = 0.67 # q=2 surface location in dimensionless units"; default=0.67)
+    res_wall::Float64 = 1.0  # Resistive wall location in dimensionless units"; default=1.0)
+    control_surf::Float64 = 1.25    # Control surface location in dimensionless units"; default=1.25)
+    rat_index::Int64 = 50        # index of the q=2 surface in the rho_tor_norm profile
+    mu::Float64 = 0.1              # shear modulus
+    Inertia::Float64 = 0.1          # moment of inertia of the layer
+    Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
+    Control2::Vector{Float64} = Float64[] # control parameter 2,
+    l12::Float64 = 1.0        # mutual inductance between rational surface and RW
+    l21::Float64 = 1.0        # mutual inductance between RW and rational surface
+    l32::Float64 = 1.0        # mutual inductance between the control surface and RW
+    Taut_Tauw::Float64 = 1.0  # ratio of tearing time to wall time
+    hyper_cube_dims::Vector{Float64} = [1., 1., 1.] # dimensions of the initial condtion hypercube
+    #alpha_upper::Float64 = 0.6
+    #alpha_lower::Float64 = 0.1
+    # keep adding default and magic things
+end
+
+"Apply control_type adjustments"
+function control_adjustments(ode_params::ODEparams, Control1::Float64, control_type::Symbol)
+    alpha = ode_params.saturation_param
+    errF = ode_params.error_field
+    Deltat = ode_params.stability_index
+
+    if control_type == :NLsaturation
+        alpha = Control1
+    elseif control_type == :EF
+        errF = Control1
+    elseif control_type == :StabIndex
+        Deltat = Control1
+    end
+
+    return alpha, errF, Deltat
+end
+
+"Right-hand side for RW system"
+function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+    m0 = n_mode
+    DeltaW = ode_params.DeltaW
+    rt = ode_params.rat_surface
+    l21 = ode_params.l21
+    l12 = ode_params.l12
+    l32 = ode_params.l32
+    Tt_Tw = ode_params.Taut_Tauw
+    mu = ode_params.mu
+    I = ode_params.Inertia
+
+    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
+
+    psi, theta, Om, psiW, thW = y
+
+    dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
+    dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
+    dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
+    dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
+    dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
+end
+
+"Right-hand side for basic system"
+function rhs_basic!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+    m0 = n_mode
+    rt = ode_params.rat_surface
+    l21 = ode_params.l21
+    mu = ode_params.mu
+    I = ode_params.Inertia
+
+    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
+
+    psi, theta, Om = y
+
+    dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * errF * cos(theta)
+    dydt[2] = -m0 * Om - l21 * errF * sin(theta) / psi
+    dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (Om0 - Om)) / I
+end
+
+"Return the correct RHS function for a given task"
+function make_rhs_function(task::String)
+    #task == "solveRW" ? rhs_RW! :
+    #task == "solve"   ? rhs_basic! :
+    #error("Unknown task: $task")
+    if task == "solveRW"
+        return rhs_RW!
+    elseif task == "solve"
+        return rhs_basic!
+    else
+        error("Unknown task: $task")
+    end
+end
+
+function make_initial_condition(dims::Vector{Float64}, task::String)
+    
+    if task == "solveRW"
+        # 5D system
+        return [
+            rand() * (dims[1] - 0.001) + 0.001,   # y1
+            rand() * 2π - π,                      # y2
+            rand() * (dims[2] - 0.001) + 0.001,   # y3
+            rand() * (dims[3] - 0.001) + 0.001,   # y4
+            rand() * 2π - π                       # y5
+        ]
+
+    elseif task == "solve"
+        # 3D system
+        return [
+            rand() * (dims[1] - 0.001) + 0.001,   # y1
+            rand() * 2π - π,                      # y2
+            rand() * (dims[2] - 0.001) + 0.001    # y3
+        ]
+
+    else
+       error("Unknown task: $task")
+    end
+end
+
+function make_ode_func(rhs!)
+    return function (du, u, p, t)
+        # p must match this tuple layout:
+        # (ode_params, eps, Om0, n, control_type)
+        X1, X2, ode_params, n_mode, control_type = p
+        rhs!(du, u, t, X1, X2, ode_params, n_mode, control_type)
+    end
+end
+
+
 
 mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
@@ -399,10 +391,13 @@ function set_phys_params!(dd::IMAS.DD, par, ode_params::ODEparams)
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     # approximate core rotation
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic[10]
-    # Calculate the drag coefficient in SI
+    
+    # get the actual torque from dd
     #cp1d = dd.core_profiles.profiles_1d[]
     #total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:torque_tor_inside])
     #dd.core_sources.source[15].global_quantities[1].torque_tor
+
+    # Calculate the drag coefficient in SI
     muSI = par.NBItorque / rot_core
     # Calculate first the moment of inertia in the layer  
     inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
@@ -550,7 +545,7 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
     
     # --- pick correct RHS once
     rhs! = make_rhs_function(task)
-    ode_rhs! = make_ode_func(rhs!)                  # wraps it to f!(du,u,p,t)
+    ode_rhs! = make_ode_func(rhs!)    # wraps it to f!(du,u,p,t)
     
     # choose the inifial condition
     y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
@@ -598,15 +593,32 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
         throw(ArgumentError("Unknown task: $task"))
     end
 
-    
     return sol.u
+end
+
+function solve_ODE_final(ode_params::ODEparams, task::String,
+                                       control1::Float64, control2::Float64,
+                                       n_mode::Int, control_type::Symbol,
+                                       t_final::Float64; nsave::Int=100)
+        rhs! = make_rhs_function(task)
+        ode_rhs! = make_ode_func(rhs!)
+        y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
+        p = (control1, control2, ode_params, n_mode, control_type)
+        tspan = (0.0, t_final)
+
+        prob = ODEProblem(ode_rhs!, y0, tspan, p)
+        sol = solve(prob, Tsit5(); saveat=t_final, reltol=1e-8, abstol=1e-10)
+
+        final = sol.u[end]
+
+        return final
 end
 
 function solve_system(actor::ActorLocking, task::String)
     par = actor.par
     ode_params = actor.ode_params
 
-    n = par.n_mode
+    n_mode = par.n_mode
     control_type = par.control_type
     t_final = par.t_final
     
@@ -633,23 +645,3 @@ function solve_system(actor::ActorLocking, task::String)
 
     return finals
 end
-
-
-#     # Create ODE problem
-#     tspan = (0.0, t_final)
-#     dt = t_final/100.
-    
-#     # --- pick correct RHS once
-#     rhs! = make_rhs_function(task)
-    
-#     # ---- Build a template problem once (dummy y0)
-#     y0_dummy = make_initial_condition(ode_params.hyper_cube_dims, task)
-#     prob_template = ODEProblem(ode_func!, y0_dummy, tspan, (ode_params, 0.1, 0.1))
-
-#     # Run distributed solve
-#     results = pmap(SolveODE_RW, inputs)
-
-#     return results
-#     #sols = pmap(inp -> SolveODE_RW(inp, prob_template, task, ode_params), inp)
-#     # return prob_template
-# end
