@@ -56,6 +56,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: Paramete
         default=1.0,
         check=x -> @assert x > 0.0 "must be: turbulence_scale_value > 0.0"
     )
+    z_max = Entry{Float64}("-", "Maximum inverse scale length"; default=10.0)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
     show_trace::Entry{Bool} = Entry{Bool}("-", "Show convergence trace of nonlinear solver"; default=false)
@@ -877,8 +878,7 @@ function unpack_z_profiles(
     z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
     # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10.0
-    z_profiles .= min.(max.(z_profiles, -z_max), z_max)
+    z_profiles .= min.(max.(z_profiles, -par.z_max), par.z_max)
 
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]

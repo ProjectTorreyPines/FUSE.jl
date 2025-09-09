@@ -8,12 +8,16 @@ Base.@kwdef mutable struct FUSEparameters__ActorAnalyticTurbulence{T<:Real} <: P
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:GyroBohm, :BgB], "-", "Analytic transport model"; default=:GyroBohm)
+    model::Switch{Symbol} = Switch{Symbol}([:GyroBohm, :BgB,:diffusivities], "-", "Analytic transport model"; default=:GyroBohm)
     αBgB::Entry{T} = Entry{T}("-", "Scale factor for BgB transport"; default=0.01)
     χeB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of Bohm component in χe. χe=αBgB*(χeB_coefficient*χeB+χeGB_coefficient*χeGB)"; default=0.01)
     χeGB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of gyro-Bohm component in χe. χe=αBgB*(χeB_coefficient*χeB+χeGB_coefficient*χeGB)"; default=50.0)
     χiB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of Bohm component in χi. χi=αBgB*(χiB_coefficient*χiB+χiGB_coefficient*χiGB)"; default=0.001)
     χiGB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of gyro-Bohm component in χi. χi=αBgB*(χiB_coefficient*χiB+χiGB_coefficient*χiGB)"; default=1.0)
+    Dn::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "Particle diffusivity")
+    χe::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "Electron energy diffusivity")
+    χi::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "Ion energy diffusivity")
+    χφ::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "Rotation diffusivity")
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute fluxes on"; default=0.25:0.1:0.85)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -59,7 +63,7 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
         flux_solution = GACODE.FluxSolution{D}(1.0, 1.0, 1.0, [1.0 for ion in cp1d.ion], 1.0)
         actor.flux_solutions = GACODE.FluxSolution{D}[flux_solution for irho in par.rho_transport]
 
-    elseif actor.par.model == :BgB
+    elseif actor.par.model == :BgB || actor.par.model == :diffusivities
         A1 = 1.0
         A2 = 0.3
         αgB = 5e-6
@@ -82,8 +86,15 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
         zeff = cp1d.zeff
         dlntidr = .-IMAS.calc_z(rho_cp, Ti, :backward)
 
+        ω = cp1d.rotation_frequency_tor_sonic
+        dωdr = .-IMAS.calc_z(rho_cp, ω, :backward) .* ω
+        mi = cp1d.ion[1].element[1].a * IMAS.mks.m_p
+        Rmaj = eqt.boundary.geometric_axis.r
+        pφ = dωdr .* ne .* mi .* Rmaj .^2
+
         Q_GB = GACODE.gyrobohm_energy_flux(cp1d, eqt)
         Γ_GB = GACODE.gyrobohm_particle_flux(cp1d, eqt)
+        Π_GB = GACODE.gyrobohm_momentum_flux(cp1d, eqt)
 
         dpe = @. ne * IMAS.mks.e * Te * (dlntedr .+ dlnnedr)
         dpi = @. ne * IMAS.mks.e * Ti * (dlntidr .+ dlnnedr) / zeff
@@ -92,11 +103,18 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
 
         χiB = 2.0 * χeB
         χiGB = 0.5 * χeGB
-
-        χe = @. actor.par.αBgB * (actor.par.χeB_coefficient * χeB + actor.par.χeGB_coefficient * χeGB) 
-        χi = @. actor.par.αBgB * (actor.par.χiB_coefficient * χiB + actor.par.χiGB_coefficient * χiGB)
-        Γe = @. (A1 + (A2 - A1) * rho_cp) * χe * χi / (χe + χi) * dlnnedr * ne
-
+        if actor.par.model == :diffusivities
+            χe =  par.χe
+            χi =  par.χi
+            Γe = @. par.Dn * dlnnedr * ne * vprime_miller 
+            Π  = @. par.χφ * pφ  
+        else         
+            χe = @. actor.par.αBgB * (actor.par.χeB_coefficient * χeB + actor.par.χeGB_coefficient * χeGB) 
+            χi = @. actor.par.αBgB * (actor.par.χiB_coefficient * χiB + actor.par.χiGB_coefficient * χiGB)
+            Γe = @. (A1 + (A2 - A1) * rho_cp) * χe * χi / (χe + χi) * dlnnedr * ne * vprime_miller 
+            Π = zeros(length(Γe))
+        end
+        
         gridpoint_cp = [argmin_abs(cp1d.grid.rho_tor_norm, ρ) for ρ in par.rho_transport]
 
         actor.flux_solutions = [
@@ -105,7 +123,7 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
                 χi[irho] * dpi[irho] / Q_GB[irho] / vprime_miller[irho],
                 Γe[irho] / Γ_GB[irho] / vprime_miller[irho],
                 [Γe[irho] / Γ_GB[irho] / vprime_miller[irho] / ion.element[1].z_n for ion in cp1d.ion],
-                1.0
+                Π[irho]/Π_GB[irho] / vprime_miller[irho]
             )
             for irho in gridpoint_cp
         ]
