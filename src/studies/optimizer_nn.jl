@@ -81,51 +81,41 @@ function _run(study::StudyOptimizerNN)
         # do training of the models and maybe hyperparamemter tuning 
     end 
 
-    # this originally was the filtered df, need to filter for the constraints 
+    Pelectric = df.Pelectric_net
 
-    filtered_df = filter(:q95 => x -> 0 <= x <= 8, df);
+    OH_j_margin = df.OH_j_margin
+    TF_j_margin = df.TF_j_margin
 
-    TOL = 1e-2
+    OH_stress_margin = df.OH_stress_margin
+    TF_stress_margin = df.TF_stress_margin
 
-    δ     = filtered_df.δ
-    zeff  = filtered_df."<zeff>"
-    Psol  = filtered_df.Psol
-    PLH   = filtered_df.PLH
-    R0    = filtered_df.R0
-    q95   = filtered_df.q95
-    TBR   = filtered_df.TBR
-    Pelectric = filtered_df.Pelectric_net
+    Pelectric_mask = Pelectric .> 250
+    OH_j_margin_mask = OH_j_margin .>= 1.15
+    TF_j_margin_mask = TF_j_margin .>= 1.15
+    OH_stress_margin_mask = OH_stress_margin .>= 1.15
+    TF_stress_margin_mask = TF_stress_margin .>= 1.15
 
-    delta_mask =((δ .> 0.0) .& (δ .< 0.7))
-    zeff_mask  = (zeff .> 1.5) .& (zeff .< 2.5)
-    psol_PLH_mask = (Psol ./ PLH) .> 1.1
-    q95_mask = q95 .> 3.0
-    tbr_mask = TBR .> 1.1
-    Pelectric_mask = Pelectric .> 200
+    combined_mask = Pelectric_mask .& OH_j_margin_mask .& TF_j_margin_mask .& OH_stress_margin_mask .& TF_stress_margin_mask
 
-    combined_mask = delta_mask .& zeff_mask .& psol_PLH_mask .& tbr_mask .& Pelectric_mask
+    df.meets_constraints = Int.(combined_mask)
 
-    filtered_df.meets_constraints = Int.(combined_mask)
+    inputs = hcat(df.R0, df.B0, df.ip, df.δ, df.κ)
 
-    inputs = hcat(filtered_df.R0, filtered_df.B0, filtered_df.ip, filtered_df.δ, filtered_df.fGW, filtered_df.Pec, filtered_df.Pic, filtered_df."<zeff>", filtered_df.κ, filtered_df.a)
-    outputs = hcat(filtered_df.q95, filtered_df.capital_cost, filtered_df.Pelectric_net)
+    outputs = hcat(df.q95, df.capital_cost)
 
-    valid_rows = map(is_valid_row, eachrow(inputs)) .& map(is_valid_row, eachrow(outputs)) 
+    valid_rows = map(is_valid_row, eachrow(inputs)) .& map(is_valid_row, eachrow(outputs))
     
     study.interpolator_nn_inputs = permutedims(inputs[valid_rows, :])
     study.interpolator_nn_outputs = permutedims(outputs[valid_rows, :])
 
     ########################################################################
 
-    cl_inputs = hcat(df.R0, df.B0, df.ip, df.δ, df.fGW, df.Pec, df.Pic, df."<zeff>", df.κ, df.a, df.Pelectric_net)
+    study.classifier_nn_inputs = permutedims(inputs[valid_rows, :])
 
-    valid_rows = map(is_valid_row, eachrow(cl_inputs))
+    idx_base = 746
 
-    study.classifier_nn_inputs = permutedims(cl_inputs[valid_rows, :])
-
-    idx_base = 10002
     results = complete_sensitivity_analysis(study, idx_base)
-    # store the results in study 
+
     return study
 end 
 # instead of idx_base, user should be able to select the design with params closest to
@@ -141,7 +131,7 @@ function constrained_sensitivity(study::StudyOptimizerNN, input_label::String, i
     percent_diff = sty.actuator_variation
     n_test       = sty.n_test_points
 
-    labelsx = ["R0","B0","ip","δ","fGW","Pec","Pic","zeff","kappa","minor radius"] # this eventually needs to be a variable 
+    labelsx = ["R0", "B0", "ip", "δ", "kappa"] # this eventually needs to be a variable 
     
     j = findfirst(==(input_label), labelsx)
     j === nothing && error("input_label '$input_label' not found in labelsx")
@@ -150,12 +140,14 @@ function constrained_sensitivity(study::StudyOptimizerNN, input_label::String, i
     y, y_min, y_max         = minmax_normalize(interpolator_nn_outputs)
     cl_x, cl_x_min, cl_x_max = minmax_normalize(classifier_nn_inputs)
 
-    row = view(interpolator_nn_inputs, j, :)
-    mean_val = sum(row) / length(row)
+    base_input = [7.998806510013617, 7.871922565425106, 19.255083087112848, 0.20941257783410488, 1.951696005565453]
+    # base_input = interpolator_nn_inputs[:, idx_base]
 
-    test_vals = collect(range(mean_val * (1 - percent_diff), mean_val * (1 + percent_diff), n_test))
+    base_val = base_input[j]
 
-    base_input = interpolator_nn_inputs[:, idx_base]
+    distribution_range = x_max[j] - x_min[j]
+    variation_amount = distribution_range * percent_diff
+    test_vals = collect(range(base_val - variation_amount, base_val + variation_amount, n_test))
 
     outputs = Vector{Vector{Float32}}()
     classifier_inputs = Vector{Vector{Float32}}()
@@ -170,8 +162,7 @@ function constrained_sensitivity(study::StudyOptimizerNN, input_label::String, i
         output      = vec(minmax_unnormalize(output_norm, y_min, y_max))
         push!(outputs, output)
 
-        # append net electric power to inputs for classifier
-        push!(classifier_inputs, vcat(input_vec, output[3]))
+        push!(classifier_inputs, input_vec)
     end
 
     classifier_inputs_mat = reduce(hcat, classifier_inputs)'
@@ -179,12 +170,20 @@ function constrained_sensitivity(study::StudyOptimizerNN, input_label::String, i
     classifier_outputs = Vector{Int}()
     for i in 1:length(test_vals)
         norm_cl_in = minmax_normalize(classifier_inputs_mat[i, :], cl_x_min, cl_x_max)
-        cl_out = only(round.(study.model_classifier(norm_cl_in)))
+        cl_out_raw = study.model_classifier(norm_cl_in)
+        cl_out = only(round.(cl_out_raw))
         push!(classifier_outputs, cl_out)
     end
 
     outputs_mat = hcat(outputs...)'
-    return (test_vals, outputs_mat, classifier_outputs)
+
+    param_info = (
+        base_value = base_val,
+        min_tested = minimum(test_vals),
+        max_tested = maximum(test_vals)
+    )
+    
+    return (test_vals, outputs_mat, classifier_outputs, param_info)
 end
 
 
@@ -209,37 +208,28 @@ function is_valid_row(row)
 end
 
 function calculate_output_variations(interpolator_outputs, classifier_outputs)
-    # Filter for feasible cases only
     feasible_mask = classifier_outputs .== 1
     
     if sum(feasible_mask) == 0
-        # No feasible cases found
         println("Warning: No feasible cases found for this parameter variation")
         return 0.0, 0.0, 0.0
     elseif sum(feasible_mask) == 1
-        # Only one feasible case, no variation to calculate
         println("Warning: Only one feasible case found, no variation to calculate")
         return 0.0, 0.0, 0.0
     end
     
-    # Get only the feasible outputs
     feasible_outputs = interpolator_outputs[feasible_mask, :]
     
-    # Get the range (max - min) for each output column among feasible cases
     q95_range = maximum(feasible_outputs[:, 1]) - minimum(feasible_outputs[:, 1])
     cost_range = maximum(feasible_outputs[:, 2]) - minimum(feasible_outputs[:, 2])
-    pelectric_range = maximum(feasible_outputs[:, 3]) - minimum(feasible_outputs[:, 3])
     
-    # Calculate baseline as the first feasible value
     q95_baseline = feasible_outputs[1, 1]
     cost_baseline = feasible_outputs[1, 2]  
-    pelectric_baseline = feasible_outputs[1, 3]
     
     q95_percent_var = (q95_range / abs(q95_baseline)) * 100
     cost_percent_var = (cost_range / abs(cost_baseline)) * 100
-    pelectric_percent_var = (pelectric_range / abs(pelectric_baseline)) * 100
     
-    return q95_percent_var, cost_percent_var, pelectric_percent_var
+    return q95_percent_var, cost_percent_var
 end
 
 function run_sensitivity_analysis(study, input_params, idx_base)
@@ -248,61 +238,52 @@ function run_sensitivity_analysis(study, input_params, idx_base)
     for param in input_params
         println("Running sensitivity analysis for: $param")
         
-        # Run your existing sensitivity function
-        test_vals, interpolator_outputs, classifier_outputs = constrained_sensitivity(study, param, idx_base)
+        test_vals, interpolator_outputs, classifier_outputs, param_info = constrained_sensitivity(study, param, idx_base)
         
-        # Calculate variations (now filtered by feasibility)
-        q95_var, cost_var, pelectric_var = calculate_output_variations(interpolator_outputs, classifier_outputs)
-        
-        # Calculate total sensitivity (sum of absolute variations)
-        total_sensitivity = abs(q95_var) + abs(cost_var) + abs(pelectric_var)
-        
-        # Count feasible cases for reference
+        q95_var, cost_var = calculate_output_variations(interpolator_outputs, classifier_outputs)
+        total_sensitivity = abs(q95_var) + abs(cost_var)
         n_feasible = sum(classifier_outputs .== 1)
         n_total = length(classifier_outputs)
         
-        println("  -> $n_feasible/$n_total cases were feasible")
-        
-        # Store results
         push!(results, (
             parameter = param,
+            base_value = param_info.base_value,
+            min_tested = param_info.min_tested,
+            max_tested = param_info.max_tested,
             q95_variation = q95_var,
             cost_variation = cost_var,
-            pelectric_variation = pelectric_var,
             total_sensitivity = total_sensitivity,
             n_feasible = n_feasible,
             n_total = n_total,
-            interpolator_outputs = interpolator_outputs,  # Store for reference if needed
+            interpolator_outputs = interpolator_outputs,
             classifier_outputs = classifier_outputs
         ))
     end
     
-    # Sort by total sensitivity (descending)
     sort!(results, by = x -> x.total_sensitivity, rev = true)
-    
     return results
 end
 
 function display_sensitivity_results(results)
     n_params = length(results)
-    data = Matrix{Any}(undef, n_params, 6)
+    data = Matrix{Any}(undef, n_params, 7)  
     
     for (i, result) in enumerate(results)
         data[i, 1] = result.parameter
-        data[i, 2] = round(result.q95_variation, digits=2)
-        data[i, 3] = round(result.cost_variation, digits=2)
-        data[i, 4] = round(result.pelectric_variation, digits=2)
-        data[i, 5] = round(result.total_sensitivity, digits=2)
-        data[i, 6] = "$(result.n_feasible)/$(result.n_total)"
+        data[i, 2] = round(result.base_value, digits=3)
+        data[i, 3] = "$(round(result.min_tested, digits=3)) - $(round(result.max_tested, digits=3))"
+        data[i, 4] = round(result.q95_variation, digits=2)
+        data[i, 5] = round(result.cost_variation, digits=2)
+        data[i, 6] = round(result.total_sensitivity, digits=2)
+        data[i, 7] = "$(result.n_feasible)/$(result.n_total)"
     end
     
-    header = ["Parameter", "q95 Variation (%)", "Cost Variation (%)", "P_electric Variation (%)", "Total Sensitivity (%)", "Feasible Cases"]
+    header = ["Parameter", "Base Value", "Tested Range", "q95 Variation (%)", "Cost Variation (%)", "Total Sensitivity (%)", "Feasible Cases"]
     
-    pretty_table(data; 
+    PrettyTables.pretty_table(data; 
                 header = header,
-                header_crayon = crayon"bold blue",
-                alignment = [:l, :r, :r, :r, :r, :c],
-                formatters = ft_printf("%.2f", [2,3,4,5]))
+                header_crayon = PrettyTables.crayon"bold blue",
+                alignment = [:l, :r, :c, :r, :r, :r, :c])
     
     return data
 end
@@ -310,7 +291,7 @@ end
 # Main function to run everything
 function complete_sensitivity_analysis(study, idx_base)
     # Define your input parameters
-    input_params = ["R0", "B0", "ip", "δ", "fGW", "Pec", "Pic", "zeff", "kappa", "minor radius"]
+    input_params = ["R0", "B0", "ip", "δ", "kappa"]
     
     println("="^80)
     println("RUNNING SENSITIVITY ANALYSIS")
