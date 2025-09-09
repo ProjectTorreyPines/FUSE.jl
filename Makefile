@@ -705,6 +705,11 @@ knowledge_clean: .PHONY
 	@echo "Checking for orphaned actor files..."
 	@cd knowledge && julia -e 'include("extract_knowledge.jl"); clean_orphaned_fuse_actors()'
 
+# @dev
+learn_usage:
+# Learn FUSE usage from Jupyter notebooks and update knowledge/how_to_use_fuse.md
+	cd knowledge ; ./learn_fuse_usage.sh ../examples/tutorial.ipynb ../examples/tutorial_imas.ipynb ../examples/fluxmatcher.ipynb ../examples/study_TGLFdb.ipynb ../examples/time_dependent_d3d.ipynb ../examples/time_dependent_iter.ipynb ../examples/study_database_generator.ipynb ../examples/study_multi_objective_optimizer.ipynb
+
 # @devs
 list_open_compats:
 # List compat patches PR on GitHub
