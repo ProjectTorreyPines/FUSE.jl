@@ -65,113 +65,6 @@ Base.@kwdef mutable struct ODEparams
     # keep adding default and magic things
 end
 
-"Apply control_type adjustments"
-function control_adjustments(ode_params::ODEparams, Control1::Float64, control_type::Symbol)
-    alpha = ode_params.saturation_param
-    errF = ode_params.error_field
-    Deltat = ode_params.stability_index
-
-    if control_type == :NLsaturation
-        alpha = Control1
-    elseif control_type == :EF
-        errF = Control1
-    elseif control_type == :StabIndex
-        Deltat = Control1
-    end
-
-    return alpha, errF, Deltat
-end
-
-"Right-hand side for RW system"
-function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
-    m0 = n_mode
-    DeltaW = ode_params.DeltaW
-    rt = ode_params.rat_surface
-    l21 = ode_params.l21
-    l12 = ode_params.l12
-    l32 = ode_params.l32
-    Tt_Tw = ode_params.Taut_Tauw
-    mu = ode_params.mu
-    I = ode_params.Inertia
-
-    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
-
-    psi, theta, Om, psiW, thW = y
-
-    dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
-    dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
-    dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
-    dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
-    dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
-end
-
-"Right-hand side for basic system"
-function rhs_basic!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
-    m0 = n_mode
-    rt = ode_params.rat_surface
-    l21 = ode_params.l21
-    mu = ode_params.mu
-    I = ode_params.Inertia
-
-    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
-
-    psi, theta, Om = y
-
-    dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * errF * cos(theta)
-    dydt[2] = -m0 * Om - l21 * errF * sin(theta) / psi
-    dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (Om0 - Om)) / I
-end
-
-"Return the correct RHS function for a given task"
-function make_rhs_function(task::String)
-    #task == "solveRW" ? rhs_RW! :
-    #task == "solve"   ? rhs_basic! :
-    #error("Unknown task: $task")
-    if task == "solveRW"
-        return rhs_RW!
-    elseif task == "solve"
-        return rhs_basic!
-    else
-        error("Unknown task: $task")
-    end
-end
-
-function make_initial_condition(dims::Vector{Float64}, task::String)
-    
-    if task == "solveRW"
-        # 5D system
-        return [
-            rand() * (dims[1] - 0.001) + 0.001,   # y1
-            rand() * 2π - π,                      # y2
-            rand() * (dims[2] - 0.001) + 0.001,   # y3
-            rand() * (dims[3] - 0.001) + 0.001,   # y4
-            rand() * 2π - π                       # y5
-        ]
-
-    elseif task == "solve"
-        # 3D system
-        return [
-            rand() * (dims[1] - 0.001) + 0.001,   # y1
-            rand() * 2π - π,                      # y2
-            rand() * (dims[2] - 0.001) + 0.001    # y3
-        ]
-
-    else
-       error("Unknown task: $task")
-    end
-end
-
-function make_ode_func(rhs!)
-    return function (du, u, p, t)
-        # p must match this tuple layout:
-        # (ode_params, eps, Om0, n, control_type)
-        X1, X2, ode_params, n_mode, control_type = p
-        rhs!(du, u, t, X1, X2, ode_params, n_mode, control_type)
-    end
-end
-
-
-
 mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorLocking{P}}
@@ -211,8 +104,10 @@ function _step(actor::ActorLocking)
     
     bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
-    task = "solveRW"  #MAKE this an ODEparam or param
-    sols = solve_ODEs(par, actor.ode_params, task, 5., 0.5)
+    # Solve a single case to debug
+    # pick Control1 and Control 2
+    C1 = 5.; C2 = 0.5; task = "solveRW"
+    solve_one_case(par, actor.ode_params, task, C1, C2 )
 
     #all_sols = solve_system(actor, task)
     #control1 = actor.ode_params.Control1
@@ -223,13 +118,17 @@ function _step(actor::ActorLocking)
     # NEW (distributed over the whole control grid):
     #finals = solve_system(actor, task)
 
-    ## run distributed ODE solves
-    #results = pmap(inputs) do (eps, Om0)
-    #    solve_ODEs(par, ode_params, "LockingTask", eps, Om0)
-    #end
-    
-    
     return actor
+end
+
+function solve_one_case(par, ode_params::ODEparams, task::String, eps::Float64, Om0::Float64)    
+    final_sol = solve_ODEs(par, ode_params, task, eps, Om0)
+    #final_sol = sols[end]
+    
+    sols_norm = normalize_ode_results(final_sol, ode_params, eps, Om0, par.control_type)
+    println(sols_norm)
+
+    return
 end
 
 
@@ -263,55 +162,6 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
 
     return ode_params #ODEparams(;sim_time, rat_surface=rat_surf,rat_index,stability_index=Deltat, DeltaW=Deltaw)
 end
-
-function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
-    # Determine target shape
-    m, n = size(Z)
-
-    # If C1 and C2 are vectors, try to reshape them
-    if ndims(X) == 1
-        X = unique(X)
-    end
-    if ndims(Y) == 1
-        Y = unique(Y)
-    end
-    
-    
-    plt = contour(X,Y, Z; linewidth=2)
-    display(plt)   # explicitly display
-    return plt
-end
-
-
-function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, levels::Vector{Float64}, control_type)
-    # Determine target shape
-    m, n = size(Z)
-
-    # If C1 and C2 are vectors, try to reshape them
-    if ndims(X) == 1 
-        X = unique(X)
-    end
-    if ndims(Y) == 1 
-        Y = unique(Y)
-    end
-
-    if control_type==:EF
-        xlabel = "Error Field"
-    elseif control_type==:LinStab
-        xlabel = "Linear Stability"
-    elseif control_type==:NLsaturation
-        xlabel = "NL saturation"
-    end
-
-    ## Create the contour plot
-    #pythonplot()
-    plt = contour(X, Y, Z; levels=levels, linewidth=2, xlabel=xlabel, ylabel="Normalized Torque")
-    #plt.xlabel("Control1")
-    display(plt)  # show plot
-
-    return plt
-end
-
 
 # function set_sim_time(time0::Float64, tfinal::Float64, time_steps::Int64) 
 #     """
@@ -465,6 +315,115 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     return ode_params
 end
 
+
+"Apply control_type adjustments"
+function control_adjustments(ode_params::ODEparams, Control1::Float64, control_type::Symbol)
+    alpha = ode_params.saturation_param
+    errF = ode_params.error_field
+    Deltat = ode_params.stability_index
+
+    if control_type == :NLsaturation
+        alpha = Control1
+    elseif control_type == :EF
+        errF = Control1
+    elseif control_type == :StabIndex
+        Deltat = Control1
+    end
+
+    return alpha, errF, Deltat
+end
+
+"Right-hand side for RW system"
+function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+    m0 = n_mode
+    DeltaW = ode_params.DeltaW
+    rt = ode_params.rat_surface
+    l21 = ode_params.l21
+    l12 = ode_params.l12
+    l32 = ode_params.l32
+    Tt_Tw = ode_params.Taut_Tauw
+    mu = ode_params.mu
+    I = ode_params.Inertia
+
+    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
+
+    psi, theta, Om, psiW, thW = y
+
+    dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
+    dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
+    dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
+    dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
+    dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
+end
+
+"Right-hand side for basic system"
+function rhs_basic!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+    m0 = n_mode
+    rt = ode_params.rat_surface
+    l21 = ode_params.l21
+    mu = ode_params.mu
+    I = ode_params.Inertia
+
+    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
+
+    psi, theta, Om = y
+
+    dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * errF * cos(theta)
+    dydt[2] = -m0 * Om - l21 * errF * sin(theta) / psi
+    dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (Om0 - Om)) / I
+end
+
+"Return the correct RHS function for a given task"
+function make_rhs_function(task::String)
+    #task == "solveRW" ? rhs_RW! :
+    #task == "solve"   ? rhs_basic! :
+    #error("Unknown task: $task")
+    if task == "solveRW"
+        return rhs_RW!
+    elseif task == "solve"
+        return rhs_basic!
+    else
+        error("Unknown task: $task")
+    end
+end
+
+function make_initial_condition(dims::Vector{Float64}, task::String)
+    
+    if task == "solveRW"
+        # 5D system
+        return [
+            rand() * (dims[1] - 0.001) + 0.001,   # y1
+            rand() * 2π - π,                      # y2
+            rand() * (dims[2] - 0.001) + 0.001,   # y3
+            rand() * (dims[3] - 0.001) + 0.001,   # y4
+            rand() * 2π - π                       # y5
+        ]
+
+    elseif task == "solve"
+        # 3D system
+        return [
+            rand() * (dims[1] - 0.001) + 0.001,   # y1
+            rand() * 2π - π,                      # y2
+            rand() * (dims[2] - 0.001) + 0.001    # y3
+        ]
+
+    else
+       error("Unknown task: $task")
+    end
+end
+
+function make_ode_func(rhs!)
+    return function (du, u, p, t)
+        # p must match this tuple layout:
+        # (ode_params, eps, Om0, n, control_type)
+        X1, X2, ode_params, n_mode, control_type = p
+        rhs!(du, u, t, X1, X2, ode_params, n_mode, control_type)
+    end
+end
+
+
+
+
 function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     """
     Calculate the bifurcation boundaries analytically
@@ -525,73 +484,61 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     return bifurcation_bounds
 end
 
+function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
+    # Determine target shape
+    m, n = size(Z)
 
-function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, Om0::Float64=1.0)
-    
-    n = par.n_mode
-    control_type = par.control_type
-    t_final = par.t_final
-    DeltaW = ode_params.DeltaW
-    Deltat = ode_params.stability_index
-    l21 = ode_params.l21
-    l12 = ode_params.l12
-    l32 = ode_params.l32 
-
-    # Create ODE problem
-    tspan = (0.0, t_final)
-    dt = t_final/100.
-    #p = (ode_params, eps, Om0)  # Parameters
-    p = (eps, Om0, ode_params, n, control_type)
-    
-    # --- pick correct RHS once
-    rhs! = make_rhs_function(task)
-    ode_rhs! = make_ode_func(rhs!)    # wraps it to f!(du,u,p,t)
-    
-    # choose the inifial condition
-    y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
-    
-    
-    prob = ODEProblem(ode_rhs!, y0, tspan, p)
-    sol = solve(prob, Tsit5(), saveat=dt, reltol=1e-9)
-
-    if task == "solveRW"
-        # Initial conditions: [psiMag, theta, Om, psiW, thetaW]
-        
-        # Extract final solution
-        final_sol = sol.u[end]
-        final_sol[2] = mod(final_sol[2], 2π)  # Normalize phase
-        final_sol[5] = mod(final_sol[5], 2π)  # Normalize phase
-
-        println("Raw sol = ", final_sol)
-
-        # Normalized solutions
-        psiN = final_sol[1] * (Deltat * DeltaW - l12 * l21) / (l32 * l21 * eps)
-        psiwN = final_sol[4] * (Deltat * DeltaW - l12 * l21) / (l32 * abs(Deltat) * eps)
-        
-        println("Normalized psit, psiW, Omt = ", psiN, ", ", psiwN, ", ", final_sol[3]/Om0)
-
-        #plt = plot(sol.u[:, 1]); display(plt)
-
-    elseif task == "solve"
-        # Extract final solution
-        final_sol = sol.u[end]
-        final_sol[2] = mod(final_sol[2], 2π)  # Normalize phase
-        
-        
-        # Implement 3rd order system solution
-        println("3rd order system solution not yet implemented")
-        return nothing
-    else
-        throw(ArgumentError("Unknown task: $task"))
+    # If C1 and C2 are vectors, try to reshape them
+    if ndims(X) == 1
+        X = unique(X)
     end
-
-    return sol.u
+    if ndims(Y) == 1
+        Y = unique(Y)
+    end
+    
+    
+    plt = contour(X,Y, Z; linewidth=2)
+    display(plt)   # explicitly display
+    return plt
 end
 
-function solve_ODE_final(ode_params::ODEparams, task::String,
-                                       control1::Float64, control2::Float64,
-                                       n_mode::Int, control_type::Symbol,
-                                       t_final::Float64; nsave::Int=100)
+
+function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, levels::Vector{Float64}, control_type)
+    # Determine target shape
+    m, n = size(Z)
+
+    # If C1 and C2 are vectors, try to reshape them
+    if ndims(X) == 1 
+        X = unique(X)
+    end
+    if ndims(Y) == 1 
+        Y = unique(Y)
+    end
+
+    if control_type==:EF
+        xlabel = "Error Field"
+    elseif control_type==:LinStab
+        xlabel = "Linear Stability"
+    elseif control_type==:NLsaturation
+        xlabel = "NL saturation"
+    end
+
+    ## Create the contour plot
+    #pythonplot()
+    plt = contour(X, Y, Z; levels=levels, linewidth=2, xlabel=xlabel, ylabel="Normalized Torque")
+    #plt.xlabel("Control1")
+    display(plt)  # show plot
+
+    return plt
+end
+
+function solve_ODEs(par, ode_params::ODEparams, task::String,
+                        control1::Float64, control2::Float64)
+        
+        n_mode = par.n_mode
+        control_type = par.control_type
+        t_final = par.t_final
+
         rhs! = make_rhs_function(task)
         ode_rhs! = make_ode_func(rhs!)
         y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
@@ -623,7 +570,7 @@ Normalization:
     psiwN = final_sol[4] * (Deltat * DeltaW - l12 * l21) / (l32 * abs(Deltat) * eps)
     OmN   = final_sol[3] / Om0
 """
-function normalize_results(results, ode_params::ODEparams, Control1, Control2, control_type)
+function normalize_ode_results(results, ode_params::ODEparams, Control1, Control2, control_type)
     # Extract parameters
     l12    = ode_params.l12
     l21    = ode_params.l21
@@ -655,6 +602,7 @@ function normalize_results(results, ode_params::ODEparams, Control1, Control2, c
             theta_t = mod(final_sol[2], 2π)  # Normalize phase
             OmN    = final_sol[3] / Om0_val
             return (psiN, theta_t, OmN)
+
         else
             throw(ArgumentError("Unexpected final_sol length: $(length(final_sol))"))
         end
@@ -700,7 +648,7 @@ function solve_system(actor::ActorLocking, task::String)
 
     # Parallel map over the grid, returning final states
     finals = pmap(inputs) do (eps, Om0)
-        solve_ODE_final(ode_params_send, task, eps, Om0, n_mode, control_type, t_final; nsave=100)
+        solve_ODE_final(par, ode_params_send, task, eps, Om0, n_mode, control_type, t_final; nsave=100)
     end
 
     # finals[i] is the final state vector for inputs[i].
