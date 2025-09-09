@@ -119,12 +119,14 @@ function case_parameters(::Val{:D3D}, shot::Int;
             echo "Starting parallel tasks..." >&2
 
             # Run both tasks in parallel
+            mkdir -p $remote_path
             cd $remote_path
+
             export PYTHONPATH=$(omas_root):\$PYTHONPATH
 
             python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
 
-            python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/omas_data.h5 d3d $shot EFIT02 ZIPFIT01
+            python -u $(omas_root)/omas/examples/fuse_data_export.py $remote_path/$(filename) d3d $shot EFIT02 ZIPFIT01
 
             echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
             wait
