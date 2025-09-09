@@ -550,12 +550,7 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
     # choose the inifial condition
     y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
     
-    # Define ODE function for DifferentialEquations.jl
-    #function ode_func!(dydt, y, p, t)
-    #    ode_params, eps, Om0 = p
-    #    rhs!(dydt, y, t, eps, Om0, ode_params, n, control_type)
-    #end
-
+    
     prob = ODEProblem(ode_rhs!, y0, tspan, p)
     sol = solve(prob, Tsit5(), saveat=dt, reltol=1e-9)
 
@@ -569,7 +564,6 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
 
         println("Raw sol = ", final_sol)
 
-        
         # Normalized solutions
         psiN = final_sol[1] * (Deltat * DeltaW - l12 * l21) / (l32 * l21 * eps)
         psiwN = final_sol[4] * (Deltat * DeltaW - l12 * l21) / (l32 * abs(Deltat) * eps)
@@ -579,12 +573,10 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, eps::Float64=1.0, 
         #plt = plot(sol.u[:, 1]); display(plt)
 
     elseif task == "solve"
-        # Define ODE function for DifferentialEquations.jl
-        # function ode_func!(dydt, y, p, t)
-        #     ode_params, eps, Om0 = p
-        #     rhs!(dydt, y, t, eps, Om0, ode_params, control_type)
-        # end
-
+        # Extract final solution
+        final_sol = sol.u[end]
+        final_sol[2] = mod(final_sol[2], 2π)  # Normalize phase
+        
         
         # Implement 3rd order system solution
         println("3rd order system solution not yet implemented")
@@ -613,6 +605,78 @@ function solve_ODE_final(ode_params::ODEparams, task::String,
 
         return final
 end
+
+"""
+normalize_results(results, ode_params, eps, Om0)
+
+Normalize the final solutions from ODE runs.
+
+- `results` may be:
+    * a single solution vector (Vector{Float64}), or
+    * a Vector of solution vectors (Vector{Vector{Float64}}).
+- `eps` and `Om0` may be:
+    * single Float64 values (if results is one vector), or
+    * Vector{Float64} of the same length as results.
+
+Normalization:
+    psiN  = final_sol[1] * (Deltat * DeltaW - l12 * l21) / (l32 * l21 * eps)
+    psiwN = final_sol[4] * (Deltat * DeltaW - l12 * l21) / (l32 * abs(Deltat) * eps)
+    OmN   = final_sol[3] / Om0
+"""
+function normalize_results(results, ode_params::ODEparams, Control1, Control2, control_type)
+    # Extract parameters
+    l12    = ode_params.l12
+    l21    = ode_params.l21
+    l32    = ode_params.l32
+    DeltaW = ode_params.DeltaW
+
+    # check controls
+    if control_type != :Stab 
+        Deltat = ode_params.stability_index
+    else
+        Deltat = Control1
+    end
+
+    
+    # Normalization for one solution
+    function normalize_one(final_sol::AbstractVector{<:Real}, eps_val::Float64, Om0_val::Float64)
+        if length(final_sol) == 5 # assumes solveRW layout
+            num = Deltat * DeltaW - l12 * l21
+
+            psiN   = final_sol[1] * num / (l32 * l21 * eps_val)
+            theta_t = mod(final_sol[2], 2π)  # Normalize phase
+            OmN    = final_sol[3] / Om0_val
+            psiwN = final_sol[4] * num / (l32 * abs(Deltat) * eps_val)  
+            theta_w = mod(final_sol[5], 2π)  # Normalize phase
+            return (psiN, theta_t, OmN, psiwN, theta_w)
+
+        elseif length(final_sol) == 3
+            psiN   = final_sol[1] / (l21 * eps_val)
+            theta_t = mod(final_sol[2], 2π)  # Normalize phase
+            OmN    = final_sol[3] / Om0_val
+            return (psiN, theta_t, OmN)
+        else
+            throw(ArgumentError("Unexpected final_sol length: $(length(final_sol))"))
+        end
+    end  
+
+    if isa(results, AbstractVector{<:Real}) && isa(Control1, Real) && isa(Control2, Real)
+        # Single case
+        return normalize_one(results, Control1, Control2)
+
+    elseif isa(results, AbstractVector{<:AbstractVector{<:Real}}) &&
+           isa(Control1, AbstractVector{<:Real}) &&
+           isa(Control2, AbstractVector{<:Real})
+        # Many cases
+        length(results) == length(Control1) == length(Control2) ||
+            throw(ArgumentError("results, eps, and Om0 must all have the same length"))
+        return [normalize_one(sol, e, o) for (sol, e, o) in zip(results, Control1, Control2)]
+
+    else
+        throw(ArgumentError("Input types do not match expected patterns"))
+    end
+end
+
 
 function solve_system(actor::ActorLocking, task::String)
     par = actor.par
