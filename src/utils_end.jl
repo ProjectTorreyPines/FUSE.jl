@@ -279,7 +279,7 @@ end
 
 Construct a Dictionary with the evaluated values of a dictionary of IMAS.ExtractFunction
 """
-function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+function Base.Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
     tmp = Dict()
     for xfun in values(xtract)
         tmp[xfun.name] = xfun.value
