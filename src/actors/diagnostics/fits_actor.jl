@@ -63,23 +63,6 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    # use the same time-basis
-    for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
-        tg = IMAS.time_dependent_leaves(experimental_ids)
-        times_coords = Dict{IMAS.IDS,IMAS.Coordinate}()
-        for group in values(tg)
-            for leaf in group
-                data = IMAS.smooth_by_convolution(leaf.ids, leaf.field, time_basis; window_size=par.time_averaging)
-                setproperty!(leaf.ids, leaf.field, data)
-                time_coord = IMAS.time_coordinate(leaf.ids, leaf.field)
-                times_coords[time_coord.ids] = time_coord
-            end
-        end
-        for time_coord in values(times_coords)
-            setproperty!(time_coord.ids, time_coord.field, time_basis)
-        end
-    end
-
     # empty core_profiles
     empty!(dd.core_profiles)
     for time0 in time_basis
@@ -91,6 +74,9 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
     dd.core_profiles.time = time_basis
 
+    # time average TS data
+    time_basis_average!(dd.thomson_scattering, time_basis, par.time_averaging)
+
     # fit Te
     itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
     for (kt, time0) in enumerate(time_basis)
@@ -100,7 +86,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # scale thomson scattering density based on interferometer measurements
-    if !isempty(dd.interferometer.channel)
+    if false && !isempty(dd.interferometer.channel)
         n_points = 101
         interferometer_calibration_times = time_basis[1:2:end]
 
@@ -182,6 +168,9 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
+    # time average CER data
+    time_basis_average!(dd.charge_exchange, time_basis, par.time_averaging)
+
     # # fit Zeff
     # itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
     # for (k, time0) in enumerate(time_basis)
@@ -234,9 +223,25 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # restore the original raw data (comment this out to see what data the fitting routine saw)
-    for field in (:thomson_scattering, :charge_exchange)
-        setproperty!(dd, field, getproperty(dd1, field))
-    end
+    # for field in (:thomson_scattering, :charge_exchange)
+    #     setproperty!(dd, field, getproperty(dd1, field))
+    # end
 
     return actor
+end
+
+function time_basis_average!(experimental_ids::IMAS.IDS, time_basis::Vector{Float64}, time_averaging::Float64)
+    tg = IMAS.time_dependent_leaves(experimental_ids)
+    times_coords = Dict{IMAS.IDS,IMAS.Coordinate}()
+    for group in values(tg)
+        for leaf in group
+            data = IMAS.smooth_by_convolution(leaf.ids, leaf.field, time_basis; window_size=time_averaging)
+            setproperty!(leaf.ids, leaf.field, data)
+            time_coord = IMAS.time_coordinate(leaf.ids, leaf.field)
+            times_coords[time_coord.ids] = time_coord
+        end
+    end
+    for time_coord in values(times_coords)
+        setproperty!(time_coord.ids, time_coord.field, time_basis)
+    end
 end
