@@ -135,8 +135,16 @@ function _finalize(actor::ActorAnalyticPedestal)
 end
 
 
-function pedestal_poloidal_βn_scaling_from_βn(βn::Float64)
-    return 0.015βn + 0.008βn^3
+function pedestal_poloidal_βn_scaling_from_βn(βn::Float64; scaling_method=1)
+    βn= max(min(βn, 4.0),1.0)
+
+    if scaling_method == 1
+        βn_ped = 0.04*βn^1.64 + 0.00    # In the original paper
+    elseif scaling_method == 2
+        βn_ped = 0.015βn + 0.008βn^3    # Joey version
+    end 
+
+    return βn_ped
 end
 
 """
@@ -156,7 +164,7 @@ function pedestal_poloidal_βn(dd::IMAS.dd)
     beta_n_core_profiles = @ddtime dd.core_profiles.global_quantities.beta_tor_norm
     betap_ped = pedestal_poloidal_βn_scaling_from_βn(beta_n_core_profiles)
 
-    width = 0.11 * sqrt(betap_ped)
+    width = 0.11 * sqrt(betap_ped) # from Mattias https://iopscience.iop.org/article/10.1088/1741-4326/abe804/pdf?casa_token=SSujWN-GjO4AAAAA:fiROOVg9PBlPmzF4VTNzzAfit7_c7rEWpIcz5aeUG1rdGzoCTstStrc5prABojm1THhMKYtfyWYsHcT6zicOsOnT4g
     pped = betap_ped * b_poloidal_from_per^2 / (2 * IMAS.mks.μ_0)
 
     return pped, width # units
