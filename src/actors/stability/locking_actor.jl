@@ -660,33 +660,30 @@ end
 
 using Plots
 
+using Plots
+
 """
 plot_normalized_scatter(norm_sol; xcol=1, ycol=3)
 
 Make a scatter plot from normalized solutions.
 
 Arguments:
-- `norm_sol`: 
-    * either a single tuple `(psiN, psiwN, OmN)` 
-    * or a Vector of such tuples.
-- `xcol`, `ycol`: indices (1-based) of tuple components to plot 
-   (default: psiN vs OmN).
+- `norm_sol`: Vector{Vector{Float64}}, each inner vector
+              is one normalized solution [psiN, psiwN, OmN].
+- `xcol`, `ycol`: column indices (1-based) of the components
+   to plot (default: psiN vs OmN).
 
 Example:
-    plot_normalized_scatter(norm_solutions; xcol=1, ycol=3)
+    plot_normalized_scatter(norm_sol; xcol=1, ycol=3)
 """
-function plot_normalized_scatter(norm_sol; xcol::Int=1, ycol::Int=3)
-    # Normalize input to a matrix of size (N, 3)
-    data = if isa(norm_sol, Tuple)
-        hcat(norm_sol...)'    # single row
-    elseif isa(norm_sol, AbstractVector{<:Tuple})
-        hcat(norm_sol...)'    # stack into rows
-    else
-        throw(ArgumentError("norm_sol must be a tuple or vector of tuples"))
-    end
+function plot_normalized_scatter(norm_sol::Vector{Vector{Float64}}; xcol::Int=1, ycol::Int=3)
+    # Stack into matrix of size (M, K)
+    data = reduce(vcat, (x' for x in norm_sol))  # each x' is 1×K row
 
     scatter(data[:, xcol], data[:, ycol],
             xlabel="Component $xcol",
             ylabel="Component $ycol",
             title="Normalized solution scatter")
 end
+
+
