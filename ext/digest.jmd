@@ -1,0 +1,259 @@
+---
+title: `j "$(WEAVE_ARGS[:title])"`
+author: `j chomp(read(Cmd(map(String,split("git config --global user.name"," "))), String))`
+date: `j import Dates; Dates.format(Dates.now(), "yyyy-mm-dd HH:MM")`
+weave_options:
+  line_width: 120
+  results: "markup"
+  echo: false
+---
+
+```julia
+dd = WEAVE_ARGS[:dd]
+ini = WEAVE_ARGS[:ini]
+act = WEAVE_ARGS[:act]
+description = WEAVE_ARGS[:description]
+section = 0;
+```
+
+------------
+
+```julia
+println(description)
+```
+
+-----------
+
+```julia
+# NOTE: digest sections are repeated like this so that figures and text ouput of digest command are presented in the right order
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+```julia
+section += 1
+FUSE.digest(dd; terminal_width=120, line_char='-', section)
+```
+
+-----------
+
+```julia;
+if ini !== nothing
+    display(ini)
+end
+```
+
+-----------
+
+```julia;
+if act !== nothing
+    display(act)
+end
+```
+
+-----------
