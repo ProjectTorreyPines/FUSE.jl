@@ -1,10 +1,7 @@
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorLFSsizing{T} begin
     maintenance::Switch{Symbol} = Switch{Symbol}([:vertical, :horizontal, :none], "-", "Scheme for installation/removal of in-vessel components"; default=:none)
     tor_modularity::Entry{Int} =
         Entry{Int}("-", "Number of toroidal modules of blanket normalized to number of TF coils"; default=2, check=x -> @assert x > 0 "must be: tor_modularity > 0")

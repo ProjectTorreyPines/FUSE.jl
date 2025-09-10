@@ -4,10 +4,7 @@ import GeoInterface
 #= ============= =#
 #  cross-section  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorCXbuild{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCXbuild{T} begin
     rebuild_wall::Entry{Bool} = Entry{Bool}("-", "Rebuild wall based on equilibrium, even if dd.wall is already filled"; default=true)
     layers_aware_of_pf_coils::Entry{Bool} = Entry{Bool}("-", "Build layers are aware of pf_active coils"; default=true)
     divertor_hfs_size_fraction::Entry{T} = Entry{T}(

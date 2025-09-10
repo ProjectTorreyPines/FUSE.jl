@@ -5,10 +5,7 @@ import GACODE
 #= =========== =#
 #  ActorQLGYRO  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorQLGYRO{T} begin
     ky::Entry{Float64} = Entry{Float64}("-", "Max ky"; default=1.6)
     nky::Entry{Int} = Entry{Int}("-", "Number of ky modes"; default=16)
     cpu_per_ky::Entry{Int} = Entry{Int}("-", "Number of cpus per ky"; default=1)

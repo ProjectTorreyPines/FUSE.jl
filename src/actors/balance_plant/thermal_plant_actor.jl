@@ -5,18 +5,12 @@ using BalanceOfPlantSurrogate
 
 abstract type AbstractActorThermalPlant{D,P} <: SingleAbstractActor{D,P} end
 
-Base.@kwdef mutable struct FUSEparameters__ActorThermalSystemModels{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(Nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorThermalSystemModels{T} begin
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
-Base.@kwdef mutable struct FUSEparameters__ActorThermalPlant{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(Nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorThermalPlant{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:fixed_plant_efficiency, :network, :surrogate], "-", "Power plant heat cycle efficiency"; default=:surrogate)
     fixed_plant_efficiency::Entry{T} = Entry{T}("-", "Overall thermal cycle efficiency (if `model=:fixed_plant_efficiency`)"; default=0.35, check=x -> @assert 1.0 >= x >= 0.0 "must be: 1.0 >= fixed_plant_efficiency >= 0.0")
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)

@@ -2,10 +2,7 @@
 #  ActorSOLBox  #
 #= =========== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorSOLBox{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorSOLBox{T} begin
     Te_t::Entry{T} = Entry{T}("eV", "Input electron temperature at the target"; default=10.0)
     Ti_t::Entry{T} = Entry{T}("eV", "Input ion temperature at the target"; default=10.0)
     frac_cond::Entry{T} = Entry{T}("-", "Fraction of power carried by electron conduction"; default=0.7)

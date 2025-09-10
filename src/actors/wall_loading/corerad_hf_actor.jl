@@ -1,10 +1,7 @@
 #= ===================== =#
 #  ActorCoreRadHeatFlux  #
 #= ===================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCoreRadHeatFlux{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCoreRadHeatFlux{T} begin
     N::Entry{Int} = Entry{Int}("-", "Number of launched photons"; default=100000)
     r::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of r at outermidplane"; default=T[])
     q::Entry{Vector{T}} = Entry{Vector{T}}("W m^-2", "Vector of parallel power density at outer midplane"; default=T[])

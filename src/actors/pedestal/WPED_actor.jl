@@ -1,10 +1,7 @@
 #= ========= =#
 #  ActorWPED  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorWPED{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorWPED{T} begin
     #== common pedestal parameters==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped

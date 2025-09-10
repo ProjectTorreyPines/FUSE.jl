@@ -1,10 +1,7 @@
 #= ================= =#
 #  ActorPlasmaLimits  #
 #= ================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPlasmaLimits{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorPlasmaLimits{T} begin
     models::Entry{Vector{Symbol}} =
         Entry{Vector{Symbol}}("-", "Models used for checking plasma operational limits: $(supported_limit_models)"; default=deepcopy(default_limit_models))
     raise_on_breach::Entry{Bool} = Entry{Bool}("-", "Raise an error when one or more operational limits are breached"; default=false)

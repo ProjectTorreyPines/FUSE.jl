@@ -1,10 +1,7 @@
 #= =================== =#
 #  ActorFluxCalculator  #
 #= =================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFluxCalculator{T} begin
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho core transport grid"; default=0.25:0.1:0.85)
     turbulence_model::Switch{Symbol} = Switch{Symbol}([:TGLF, :QLGYRO, :analytic, :none], "-", "Turbulence model to use"; default=:TGLF)
     neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)

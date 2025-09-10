@@ -4,10 +4,7 @@ using Plots
 #= =========== =#
 #  ActorRABBIT  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorRABBIT{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorRABBIT{T} begin
     remove_inputs::Entry{Bool} = Entry{Bool}("-", "Delete directory containing RABBIT input files after run"; default=true)
     Δt_history::Entry{Float64} = Entry{Float64}("s", "Amount of history to include such that simulation proceeds from (dd.global_time - Δt_history) to dd.global_time")
 end

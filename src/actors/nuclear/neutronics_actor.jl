@@ -1,10 +1,7 @@
 #= =============== =#
 #  ActorNeutronics  #
 #= =============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorNeutronics{T} begin
     N::Entry{Int} = Entry{Int}("-", "Number of particles"; default=100000)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end

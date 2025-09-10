@@ -3,10 +3,7 @@ import VacuumFields
 #= ====================== =#
 #  ActorVerticalStability  #
 #= ====================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorVerticalStability{T} begin
     #== actor parameters ==#
     model::Entry{Bool} = Entry{Bool}("-", "Tunr on/off model of vertical stability"; default=true)
     #== display and debugging parameters ==#

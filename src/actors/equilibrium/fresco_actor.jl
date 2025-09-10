@@ -3,10 +3,7 @@ import FRESCO
 #= =========== =#
 #  ActorFRESCO  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFRESCO{T} begin
     #== actor parameters ==#
     control::Switch{Symbol} = Switch{Symbol}([:vertical, :shape, :magnetics], "-", "Vertical control algorithm to be used"; default=:shape)
     number_of_iterations::Entry{Tuple{Int,Int}} = Entry{Tuple{Int,Int}}("-", "Number of outer and inner iterations"; default=(100, 3))

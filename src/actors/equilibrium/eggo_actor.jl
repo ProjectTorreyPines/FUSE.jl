@@ -4,10 +4,7 @@ import VacuumFields
 #= ========= =#
 #  ActorEGGO  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorEGGO{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorEGGO{T} begin
     #== actor parameters ==#
     model::Entry{Symbol} = Entry{Symbol}("-", "Neural network model to be used")
     use_vacuumfield_green::Entry{Bool} = Entry{Bool}("-", "Use Vacuum Fields green's function tables"; default=false)

@@ -1,10 +1,7 @@
 #= ========== =#
 #  PF passive  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorPassiveStructures{T} begin
     #== actor parameters ==#
     wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=1.0)
     min_n_segments::Entry{Int} = Entry{Int}("-", "Minimum number of quadralaterals"; default=15)

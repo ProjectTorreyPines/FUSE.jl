@@ -4,10 +4,7 @@ using DataFrames
 #= ============ =#
 #  ActorCosting  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCosting{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()) + 10.0 ± 5.0)
     future_inflation_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Predicted average rate of future inflation"; default=0.025 ± 0.0125)

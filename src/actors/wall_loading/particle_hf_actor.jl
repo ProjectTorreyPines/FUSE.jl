@@ -2,10 +2,7 @@
 #  ActorParticleHeatFlux  #
 #= ===================== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorParticleHeatFlux{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorParticleHeatFlux{T} begin
     r::Entry{Vector{T}} = Entry{Vector{T}}("m", "Vector of r at outermidplane"; default=T[])
     q::Entry{Vector{T}} = Entry{Vector{T}}("W m^-2", "Vector of parallel power density at outer midplane"; default=T[])
     levels::Entry{Union{Int,Vector{T}}} =

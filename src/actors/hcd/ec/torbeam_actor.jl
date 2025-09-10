@@ -4,10 +4,7 @@ using Plots
 #= =========== =#
 #  ActorTORBEAM  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTORBEAM{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorTORBEAM{T} begin
 end
 
 mutable struct ActorTORBEAM{D,P} <: SingleAbstractActor{D,P}

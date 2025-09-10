@@ -1,10 +1,7 @@
 #= ============ =#
 #  ActorCurrent  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorCurrent{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCurrent{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:SteadyStateCurrent, :QED, :replay, :none], "-", "Current actor to run"; default=:QED)
     #== data flow parameters ==#
     ip_from::Switch{Symbol} = switch_get_from(:ip)

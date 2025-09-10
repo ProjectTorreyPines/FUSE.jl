@@ -1,10 +1,7 @@
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFluxSwing{T} begin
     operate_oh_at_j_crit::Entry{Bool} = Entry{Bool}("-", """
 If `true` it makes the OH operate at its current limit (within specified dd.requirements.coil_j_margin`).
 The flattop duration and maximum toroidal magnetic field follow from that.

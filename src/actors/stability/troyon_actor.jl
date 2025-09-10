@@ -3,10 +3,7 @@ import TroyonBetaNN
 #= ================= =#
 #  ActorTroyonBetaNN  #
 #= ================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorTroyonBetaNN{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorTroyonBetaNN{T} begin
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end

@@ -1,10 +1,7 @@
 #= =========== =#
 #  ActorReplay  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorReplay{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorReplay{T} begin
     replay_dd::Entry{IMAS.DD} = Entry{IMAS.DD}("-", "`dd` to replay data from")
 end
 

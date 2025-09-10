@@ -1,10 +1,7 @@
 #= ============== =#
 #  OH TF stresses  #
 #= ============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStresses{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorStresses{T} begin
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     n_points::Entry{Int} = Entry{Int}("-", "Number of grid points"; default=101)
 end

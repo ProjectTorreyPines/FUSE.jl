@@ -2,10 +2,7 @@
 #  ActorCostingSheffield  #
 #= ===================== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorCostingSheffield{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCostingSheffield{T} begin
     construction_lead_time::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Duration of construction"; default=10.0 ± 2.0)
     fixed_charge_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Constant dollar fixed charge rate"; default=0.08 ± 0.01)
     capitalize_blanket::Entry{Bool} = Entry{Bool}("-", "If true, include cost of 1st blanket in direct captial cost"; default=true)

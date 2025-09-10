@@ -1,10 +1,7 @@
 #= ================= =#
 #  ActorCostingARIES  #
 #= ================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCostingARIES{T} begin
     land_space::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("acres", "Plant site space required"; default=1000.0 ± 100.0)
     building_volume::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("m^3", "Volume of the tokmak building"; default=140e3 ± 14e3)
     interest_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Annual interest rate fraction of direct capital cost"; default=0.05 ± 0.01)

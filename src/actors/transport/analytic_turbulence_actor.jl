@@ -4,10 +4,7 @@ import IMAS
 #= ======================= =#
 #  ActorAnalyticTurbulence  #
 #= ======================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorAnalyticTurbulence{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorAnalyticTurbulence{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:GyroBohm, :BgB], "-", "Analytic transport model"; default=:GyroBohm)
     αBgB::Entry{T} = Entry{T}("-", "Scale factor for BgB transport"; default=0.01)
     χeB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of Bohm component in χe. χe=αBgB*(χeB_coefficient*χeB+χeGB_coefficient*χeGB)"; default=0.01)

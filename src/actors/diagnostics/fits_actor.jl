@@ -1,10 +1,7 @@
 #= ================ =#
 #  ActorFitProfiles  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorFitProfiles{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFitProfiles{T} begin
     #== actor parameters ==#
     time_averaging::Entry{Float64} = Entry{Float64}("s", "Time averaging window")
     rho_averaging::Entry{Float64} = Entry{Float64}("-", "rho averaging window")
