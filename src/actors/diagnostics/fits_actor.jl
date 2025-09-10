@@ -47,11 +47,11 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     smooth1 = 0.1
     smooth2 = par.rho_averaging
 
-    # # set aside original raw data, since we'll be overwriting it internally 
-    # dd1 = IMAS.dd{D}()
-    # for field in (:thomson_scattering, :charge_exchange)
-    #     setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
-    # end
+    # set aside original raw data, since we'll be overwriting it internally 
+    dd1 = IMAS.dd{D}()
+    for field in (:thomson_scattering, :charge_exchange)
+        setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
+    end
 
     # identify outliers on raw data
     for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
@@ -236,10 +236,10 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    # restore the original raw data
-    # for field in (:thomson_scattering, :charge_exchange)
-    #     setproperty!(dd, field, getproperty(dd1, field))
-    # end
+    # restore the original raw data (comment this out to see what data the fitting routine saw)
+    for field in (:thomson_scattering, :charge_exchange)
+        setproperty!(dd, field, getproperty(dd1, field))
+    end
 
     return actor
 end
