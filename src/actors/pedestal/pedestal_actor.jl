@@ -20,6 +20,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
         "Times at which the plasma transitions to a given mode [:L_mode, :H_mode]. If missing, the L-H transition will be based on `IMAS.satisfies_h_mode_conditions(dd)`."
     )
     #== actor parameters==#
+    density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped, :fixed], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
     model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pressure edge model"; default=:EPED)
     rotation_model::Switch{Symbol} = Switch{Symbol}([:linear, :replay, :none], "-", "Rotation edge model"; default=:none)
@@ -246,12 +248,14 @@ function _finalize(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
 
     IMAS.enforce_quasi_neutrality!(cp1d, :electrons)
 
-    position = 1 - IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
-    @ddtime summary_ped.position.rho_tor_norm = position
-    @ddtime summary_ped.n_e.value = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(position)
-    @ddtime summary_ped.zeff.value = IMAS.interp1d(rho, cp1d.zeff).(position)
-    @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(position)
-    @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(position)
+    if actor.par.model !== :WPED
+        position = 1 - IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
+        @ddtime summary_ped.position.rho_tor_norm = position
+        @ddtime summary_ped.n_e.value = IMAS.interp1d(rho, cp1d.electrons.density_thermal).(position)
+        @ddtime summary_ped.zeff.value = IMAS.interp1d(rho, cp1d.zeff).(position)
+        @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(position)
+        @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(position)
+    end
 
     return actor
 end
@@ -366,9 +370,12 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
             par.ne_from = :pulse_schedule
         end
 
-    else
-        error("act.ActorPedestal.density_match can be either one of [:ne_ped, :ne_line]")
+    elseif par.density_match == :fixed
+        finalize(step(actor.ped_actor))
     end
+
+#    else
+#        error("act.ActorPedestal.density_match can be either one of [:ne_ped, :ne_line]")
 
     return actor
 end
