@@ -7,6 +7,7 @@
     rho_averaging::Entry{Float64} = Entry{Float64}("-", "rho averaging window")
     rho_grid::Entry{Int} = Entry{Int}("-", "Number of points in rho"; default=101)
     time_basis_ids::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Time basis to use"; default=:core_profiles)
+    use_interferometer::Entry{Bool} = Entry{Bool}("-", "Scale thomson scattering density based on interferometer measurements"; default=true)
     #== display and debugging parameters ==#
 end
 
@@ -95,7 +96,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # scale thomson scattering density based on interferometer measurements
-    if false && !isempty(dd.interferometer.channel)
+    if par.use_interferometer && !isempty(dd.interferometer.channel)
         n_points = 101
         interferometer_calibration_times = time_basis[1:2:end]
 
@@ -232,9 +233,9 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # restore the original raw data (comment this out to see what data the fitting routine saw)
-    # for field in (:thomson_scattering, :charge_exchange)
-    #     setproperty!(dd, field, getproperty(dd1, field))
-    # end
+    for field in (:thomson_scattering, :charge_exchange)
+        setproperty!(dd, field, getproperty(dd1, field))
+    end
 
     return actor
 end
