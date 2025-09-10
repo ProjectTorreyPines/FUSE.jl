@@ -3,7 +3,8 @@
 FUSE MCP Server - Model Context Protocol server for FUSE plasma simulation actors
 
 This server provides LLM access to FUSE actor documentation, usage guides, parameter information,
-and relationships between actors. It supports comprehensive queries about plasma simulation workflows.
+relationships between actors, and use case definitions. It supports comprehensive queries about 
+plasma simulation workflows and tokamak configurations.
 """
 
 import asyncio
