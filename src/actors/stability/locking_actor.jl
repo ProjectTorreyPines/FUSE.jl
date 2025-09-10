@@ -648,7 +648,7 @@ function solve_system(actor::ActorLocking, task::String)
 
     # Parallel map over the grid, returning final states
     finals = pmap(inputs) do (eps, Om0)
-        solve_ODE_final(par, ode_params_send, task, eps, Om0, n_mode, control_type, t_final; nsave=100)
+        solve_ODEs(par, ode_params_send, task, eps, Om0)
     end
 
     # finals[i] is the final state vector for inputs[i].
