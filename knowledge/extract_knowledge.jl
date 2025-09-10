@@ -296,13 +296,17 @@ function analyze_actor_with_claude(actor_file::String, category::String, schema_
     # Read schema for Claude
     schema_content = read(schema_path, String)
     
-    # Extract actor name from filename
-    filename = basename(actor_file)
-    actor_name = "Actor" * titlecase(replace(filename, "_actor.jl" => ""))
-    
     # Create analysis prompt
     prompt = """
-You are analyzing a FUSE (fusion simulation) actor. Please analyze this Julia source code and return a JSON object that exactly matches the provided schema.
+You are analyzing a FUSE actor
+
+Please analyze this Julia source code and return a JSON object that exactly matches the provided schema.
+
+NOTE: You can use the docstring for a high-level description of what the actor does,
+but you should not trust that. The only source of truth is the Julia executable code.
+Please always cross-check that the description of the actors, parameters and such
+that you find ind the docstrings is indeed up to date. If any discrepancy comes up,
+always trust the executable julia code.
 
 **CRITICAL INSTRUCTIONS:**
 - Return ONLY valid JSON, no markdown, no explanations, no code blocks
@@ -310,7 +314,7 @@ You are analyzing a FUSE (fusion simulation) actor. Please analyze this Julia so
 - Fill out ALL required fields
 - Use the category "$category" for the category field
 - Extract the actual actor name from the struct definition in the code
-- For sub_actors: only include if this is a compound actor (inherits from CompoundAbstractActor)
+- For sub_actors: only include if this is a compound actor (ie. inherits from CompoundAbstractActor)
 - For data_inputs/data_outputs: look for IMAS data paths in the code
 - Be concise but informative in descriptions
 
