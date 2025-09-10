@@ -24,7 +24,16 @@ end
 """
     ActorTroyonBetaNN(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor evaluates the low-n no-wall ideal MHD stability
+Evaluates ideal MHD stability limits using neural network models for low-n no-wall modes.
+The actor calculates the Troyon beta limit (βN) for different toroidal mode numbers using 
+machine learning models trained on MHD stability analysis.
+
+The calculation is disabled for negative triangularity plasmas. Results are stored in 
+`dd.mhd_linear.time_slice` with separate entries for each toroidal mode number.
+
+!!! note
+
+    Stores data in `dd.mhd_linear`
 """
 function ActorTroyonBetaNN(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorTroyonBetaNN(dd, act.ActorTroyonBetaNN; kw...)

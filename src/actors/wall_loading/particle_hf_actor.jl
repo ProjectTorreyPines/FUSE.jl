@@ -27,7 +27,31 @@ end
 """
     ActorParticleHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Computes the heat flux on the wall due to the charged particles
+Computes wall heat flux from charged particle transport across the scrape-off layer (SOL).
+
+This actor calculates the heat flux deposited on plasma-facing components by charged particles
+(ions and electrons) flowing along magnetic field lines from the plasma edge to the wall.
+The calculation accounts for:
+
+**Physical Modeling:**
+- Parallel heat conduction along magnetic field lines in the SOL
+- Power density decay profiles from outer midplane to divertor/limiters
+- Geometric projection effects from field-line-following to wall-normal flux
+- Integration over the entire first wall and divertor surfaces
+
+**Computational Approach:**
+1. Creates a computational mesh of the first wall incorporating SOL flux surfaces
+2. Traces open field lines from the separatrix to wall intersection points  
+3. Applies prescribed power decay profiles along field lines
+4. Computes both parallel (field-line-following) and perpendicular (wall-normal) heat fluxes
+
+**Key Outputs:**
+- `q_part`: Heat flux perpendicular to wall surface from particle transport
+- `q_parallel`: Heat flux parallel to magnetic field lines  
+- Wall mesh coordinates and curvilinear distance along the wall
+
+The results provide essential input for material design, cooling system requirements,
+and component lifetime assessments in tokamak reactor studies.
 """
 function ActorParticleHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorParticleHeatFlux(dd, act.ActorParticleHeatFlux; kw...)
@@ -36,6 +60,33 @@ function ActorParticleHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+"""    _step(actor::ActorParticleHeatFlux)
+
+Calculates charged particle heat flux on the wall using SOL field line tracing.
+
+The calculation procedure:
+
+1. **Wall Mesh Generation:** Creates a computational mesh of the first wall that incorporates
+   intersections with SOL flux surfaces, using either prescribed power decay profiles or
+   default parameters if not specified.
+
+2. **SOL Field Line Tracing:** Traces open magnetic field lines from the separatrix through
+   the SOL to their intersection points with the wall mesh.
+
+3. **Heat Flux Calculation:** Computes particle heat flux using the IMAS.particle_heat_flux
+   function which:
+   - Applies power decay profiles along field lines
+   - Accounts for geometric projection from parallel to perpendicular flux components
+   - Integrates contributions over all field lines intersecting each wall element
+
+4. **Result Storage:** Creates a WallHeatFlux object containing wall coordinates, heat flux
+   distributions, and curvilinear distance along the wall.
+
+5. **Optional Visualization:** If plotting is enabled, generates 1D and 2D visualizations
+   showing heat flux distribution along the wall and in the SOL region.
+
+The results provide both perpendicular (wall-normal) and parallel heat flux components.
+"""
 function _step(actor::ActorParticleHeatFlux{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
@@ -70,6 +121,18 @@ function _step(actor::ActorParticleHeatFlux{D,P}) where {D<:Real, P<:Real}
 end
 
 # Populate dd
+"""    _finalize(actor::ActorParticleHeatFlux)
+
+Finalizes particle heat flux calculation and prepares for integration with other physics.
+
+This function is currently a placeholder for future development that will:
+1. Store calculated heat flux results in the appropriate IMAS data structure locations
+2. Integrate with other wall loading calculations (e.g., core radiation, neutron heating)
+3. Provide data for downstream materials and cooling system analyses
+
+The heat flux results are currently stored in the actor's `wall_heat_flux` field and can be
+accessed directly or through the plotting functionality.
+"""
 function _finalize(actor::ActorParticleHeatFlux)
     # Finalize: work in progress - populate dd
     return actor

@@ -32,7 +32,39 @@ end
 """
     ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the ML-based free boundary equilibrium solver EGGO
+Solves free-boundary tokamak MHD equilibria using the EGGO machine learning-based equilibrium reconstruction code.
+
+EGGO (Equilibrium Grad-Shafranov Green's-function Optimizer) uses neural networks trained on experimental 
+equilibrium databases to rapidly predict tokamak equilibria from plasma shape and profile constraints.
+
+Key features:
+- **Neural network prediction**: Fast equilibrium reconstruction using pre-trained models from experimental data
+- **Free-boundary capability**: Includes external coil system effects and realistic machine constraints  
+- **Profile fitting**: Automatically fits pressure and current profiles using basis function decomposition
+- **Boundary adaptation**: Accepts arbitrary plasma boundary shapes with configurable resolution
+- **Temporal averaging**: Optional smoothing over multiple time slices for enhanced stability
+
+Machine learning approach:
+- **Training data**: Models trained on extensive experimental equilibrium databases (D3D, JET, etc.)
+- **Input features**: Plasma boundary points, basis-fitted pressure/current profiles, plasma current
+- **Output**: Complete equilibrium reconstruction including ψ(R,Z), geometric parameters, and profiles
+- **Green's functions**: Uses precomputed vacuum field response for computational efficiency
+
+Workflow:
+1. **Profile preparation**: Fits p'(ψ) and ff'(ψ) profiles to basis functions  
+2. **Boundary processing**: Decimates and processes plasma boundary points
+3. **Neural prediction**: Generates equilibrium using trained ML model
+4. **Post-processing**: Extracts flux surfaces, magnetic axis, and geometric parameters
+5. **Temporal smoothing**: Optional averaging with previous time slices for robustness
+
+The ML approach provides orders-of-magnitude speedup compared to traditional equilibrium solvers
+while maintaining good accuracy for scenarios within the training data domain.
+
+!!! note
+
+    Reads pressure/current profiles from `dd.equilibrium.profiles_1d`, plasma boundary from
+    `dd.pulse_schedule.position_control`, and wall geometry from `dd.wall`. 
+    Updates `dd.equilibrium` with ML-predicted equilibrium solution.
 """
 function ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEGGO(dd, act.ActorEGGO, act; kw...)

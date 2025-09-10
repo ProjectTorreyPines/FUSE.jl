@@ -32,7 +32,44 @@ end
 """
     ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound evolves plasma in time
+Evolves plasma profiles forward in time using coupled physics models.
+
+This compound actor advances the plasma state through time by coordinating multiple 
+physics models with proper temporal splitting and time step management. It handles 
+the complex coupling between transport, current evolution, heating, equilibrium, 
+and magnetic control systems.
+
+Time integration strategy:
+- Uses second-order accurate time-stepping with sub-cycling
+- Splits fast (equilibrium, PF) and slow (transport, pedestal) physics appropriately
+- Handles time-dependent boundary conditions from pulse schedule
+- Supports plasma current control via feedback systems
+
+Evolution workflow (each time step):
+1. **Phase 1**: Current evolution and heating sources (δt steps)
+2. **Phase 2**: Pedestal and transport evolution (δt steps) 
+3. **Both phases**: Sawteeth, equilibrium, and PF control (δt/2 sub-steps)
+
+Key features:
+- Configurable evolution of individual physics components
+- Optional plasma current feedback control via loop voltage
+- Time derivative sources for energy and particle balance
+- Progress tracking and convergence monitoring
+- Automatic cleanup of post-simulation time data
+
+Physics models coordinated:
+- **ActorCurrent**: Current density diffusion and resistive evolution
+- **ActorHCD**: Time-dependent heating and current drive
+- **ActorPedestal**: Pedestal evolution and L-H transitions
+- **ActorCoreTransport**: Transport flux evolution
+- **ActorSawteeth**: Sawtooth instability cycling  
+- **ActorEquilibrium**: MHD equilibrium with evolving profiles
+- **ActorPFactive**: PF coil current control for plasma shape
+
+Control options:
+- `ip_controller`: Feedback control of plasma current via loop voltage
+- Individual physics component enable/disable switches
+- Configurable time step size and number of steps
 """
 function ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorDynamicPlasma(dd, act.ActorDynamicPlasma, act; kw...)

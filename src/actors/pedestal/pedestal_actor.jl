@@ -49,7 +49,32 @@ end
 """
     ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the pedestal boundary condition (height and width)
+Comprehensive pedestal modeling with support for multiple models and L-H mode transitions.
+
+This compound actor manages pedestal physics by selecting from available pedestal models
+and handling mode transitions between L-mode and H-mode operation. It coordinates multiple
+specialized pedestal actors and provides dynamic transition capabilities.
+
+Available pedestal models:
+- `:EPED`: EPED neural network model for pedestal predictions
+- `:WPED`: Width-based energy balance pedestal model  
+- `:analytic`: Analytic scaling laws for spherical tokamaks
+- `:dynamic`: Time-dependent L-H transitions with smoothing
+- `:replay`: Replays pedestal data from experimental reference
+- `:none`: No pedestal modifications
+
+Key features:
+- Automatic L-H mode detection based on power threshold criteria
+- Dynamic mode transitions with configurable time constants
+- Density matching options (pedestal or line-averaged)
+- Rotation profile modeling (linear, experimental replay)
+- Consistent Ti/Te ratio handling across all models
+
+Mode transition physics:
+- Supports user-defined transition times or automatic power threshold detection
+- Smooth temporal evolution using tanh functions with configurable time scales
+- Separate evolution times for temperature and density transitions
+- Configurable density and Zeff ratios between L-mode and H-mode
 """
 function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPedestal(dd, act.ActorPedestal, act; kw...)
@@ -87,7 +112,17 @@ end
 """
     _step(actor::ActorPedestal)
 
-Runs actors to evaluate profiles at the edge of the plasma
+Orchestrates pedestal model selection and mode transition logic.
+
+The step function manages the complex workflow of:
+1. Determining current plasma mode (L-mode, H-mode) from power balance or user input
+2. Selecting and running the appropriate pedestal model
+3. Handling dynamic L-H transitions with proper temporal smoothing
+4. Applying rotation models if requested
+5. Updating plasma profiles with pedestal boundary conditions
+
+For dynamic mode transitions, tracks transition times and applies gradual profile 
+evolution to avoid numerical discontinuities.
 """
 function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd

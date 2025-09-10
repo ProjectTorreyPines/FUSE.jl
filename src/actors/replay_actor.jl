@@ -35,13 +35,25 @@ end
 """
     ActorReplay(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-This actor is meant to be used as a specific model in generic actors
-for replaying past behaviour from data specified in `act.ActorReplay.replay_dd`.
+Replays plasma profiles and behavior from experimental data or previous simulation results.
 
-The behaviour of this actor (what it replays) is defined by the dispatch on these functions:
+This actor serves as a transport model that imposes predetermined plasma profiles
+instead of calculating them from physics models. It reads data from `act.ActorReplay.replay_dd`
+and applies it to the current simulation state.
 
-  - `_step(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)`
-  - `_finalize(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)`
+The specific replay behavior depends on the context where this actor is used, defined by
+specialized dispatch methods:
+- `_step(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)` - defines what data to replay
+- `_finalize(::ActorReplay, actor::Actor???, replay_dd::IMAS.dd)` - handles post-processing
+
+Common use cases:
+- Replaying experimental temperature/density profiles in flux matching
+- Using previous simulation results as boundary conditions  
+- Imposing prescribed time evolution for sensitivity studies
+- Validation against experimental data
+
+The replay data source is specified via the `replay_dd` parameter, which can be
+an experimental shot, previous simulation, or synthetic data.
 """
 function ActorReplay(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorReplay(dd, act.ActorReplay; kw...)

@@ -33,7 +33,35 @@ end
 """
     ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the Fixed boundary equilibrium solver TEQUILA
+Solves tokamak MHD equilibria using the TEQUILA fixed-boundary equilibrium solver with MXH flux surface representation.
+
+TEQUILA is a fixed-boundary equilibrium solver that uses cubic-Hermite finite elements in the radial direction,
+Fourier modes in the poloidal angle, and a Miller extended harmonic (MXH) flux-surface parametrization [Arbon 2021].
+MXH provides an efficient representation of flux surfaces.
+
+Key features:
+- **MXH flux surface parametrization**: Spectral representation using R₀(ρ), Z₀(ρ), ε(ρ), κ(ρ) and Fourier harmonics
+- **Free-boundary conversion**: Solves with external coil currents and control constraints via VacuumFields.jl
+- **Adaptive grid refinement**: Efficient spectral convergence with configurable Fourier mode resolution
+- **Control integration**: Supports X-point, strike-point, and magnetic axis control with poloidal field coils
+- **Profile flexibility**: Accepts pressure and current profiles on either poloidal or toroidal flux coordinates
+
+Solver workflow:
+1. **Fixed-boundary solve**: Initial equilibrium with specified plasma boundary using TEQUILA core
+2. **Free-boundary conversion**: Couples plasma equilibrium with external coil system via Green's functions
+3. **Control optimization**: Adjusts coil currents to satisfy geometric and flux control targets
+4. **Grid mapping**: Converts spectral solution to rectangular R-Z grids for analysis
+
+Grid options:
+- **Profile grids**: :poloidal (√ψ_norm) or :toroidal (ρ_tor_norm) flux coordinate systems
+- **Spatial resolution**: Configurable radial points (31 default) and Fourier modes (8 default)  
+- **Rectangular grid**: Automatic sizing based on plasma geometry plus divertor margins
+
+!!! note
+
+    Reads pressure/current profiles from `dd.equilibrium.profiles_1d`, boundary shape from 
+    `dd.pulse_schedule.position_control`, and PF coil setup from `dd.pf_active`. 
+    Updates `dd.equilibrium` with solved equilibrium and coil currents.
 """
 function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorTEQUILA(dd, act.ActorTEQUILA, act; kw...)

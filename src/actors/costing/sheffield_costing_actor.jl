@@ -24,11 +24,33 @@ end
 """
     ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates costing based on Sheffield and Milora, FS&T 70 (2016)
+Estimates fusion power plant costs using the Sheffield and Milora methodology from Fusion Science & Technology 70 (2016).
+
+This costing model provides a comprehensive economic analysis based on the "Generic magnetic fusion reactor revisited" 
+study, adapted for tokamak reactor designs. The methodology covers:
+
+**Direct Capital Costs:**
+- Tokamak systems: TF coils, shields, structure, blanket, divertor, auxiliary power systems
+- Balance of plant: heat transfer systems, power conversion, electrical systems
+- Facility costs: buildings, site preparation, infrastructure
+
+**Operating Costs:**
+- Fuel cycle costs including blanket and divertor replacement based on fluence limits
+- Maintenance and operations scaled to plant electrical capacity
+- Auxiliary power system operating costs
+
+**Key Features:**
+- Accounts for component replacement schedules based on neutron/thermal fluence
+- Includes cost escalation and construction financing effects
+- Provides detailed cost breakdown by system and subsystem
+- Calculates levelized cost of electricity (LCOE)
+
+The model uses scaling relationships derived from fusion power plant studies and incorporates
+realistic assumptions about component lifetimes, availability, and economic parameters.
 
 !!! note
 
-    Stores data in `dd.costing`
+    Results are stored in `dd.costing` with costs referenced to Sheffield & Milora (2016)
 """
 function ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCostingSheffield(dd, act.ActorCostingSheffield; kw...)
@@ -37,6 +59,29 @@ function ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+"""    _step(actor::ActorCostingSheffield)
+
+Calculates all cost components using the Sheffield methodology.
+
+The calculation proceeds in several stages:
+
+**Direct Capital Costs:** Computes costs for each major system using scaling relationships:
+- Tokamak fusion island: TF coils, shields, structure, blanket, divertor, auxiliary heating
+- Facility systems: buildings, balance of plant, heat rejection systems
+
+**Operating Costs:** Calculates annual costs including:
+- Component replacement based on fluence lifetime limits (blanket, divertor)
+- Auxiliary power system fuel costs (10% of capital cost annually)
+- Operations and maintenance scaled to electrical output
+- Miscellaneous fuel and material costs
+
+**Economic Analysis:**
+- Applies construction lead time and indirect cost factors
+- Computes levelized cost of electricity including all cost components
+- Accounts for plant availability and capacity factors
+
+All costs are adjusted to future dollars using inflation and construction timing parameters.
+"""
 function _step(actor::ActorCostingSheffield)
     dd = actor.dd
     par = actor.par
@@ -212,6 +257,18 @@ function _step(actor::ActorCostingSheffield)
     return actor
 end
 
+"""    _finalize(actor::ActorCostingSheffield)
+
+Organizes cost results for output and analysis.
+
+This function:
+1. Sorts all cost systems and subsystems by magnitude (highest to lowest)
+2. Provides organized cost breakdown for easy interpretation of major cost drivers
+3. Ensures cost data is properly structured for downstream analysis and reporting
+
+The sorting helps identify which systems contribute most significantly to overall plant costs,
+facilitating design optimization and cost reduction efforts.
+"""
 function _finalize(actor::ActorCostingSheffield)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system; by=x -> x.cost, rev=true)

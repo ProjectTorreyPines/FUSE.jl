@@ -33,7 +33,18 @@ end
 """
     ActorWPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Finds the temperature profile at the edge to match the ped_to_core_fraction of stored energy set in par.ped_to_core_fraction
+Adjusts pedestal temperature profiles to match a target energy ratio between pedestal and core regions.
+
+The actor optimizes temperature profiles at the plasma edge by finding the optimal boundary temperature 
+and slope parameters that produce a specified pedestal-to-core stored energy fraction. It uses optimization 
+to iteratively adjust the temperature gradient and boundary conditions until the energy balance criterion is satisfied.
+
+Key operations:
+- Calculates current core-to-edge energy ratio if target ratio is not specified
+- Optimizes boundary temperature value to match target energy ratio
+- Adjusts both electron and ion temperature profiles with consistent Ti/Te ratios
+- Preserves separatrix temperature boundary conditions
+- Updates temperature profiles through H-mode blending functions
 """
 function ActorWPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorWPED(dd, act.ActorWPED; kw...)
@@ -51,7 +62,13 @@ end
 """
     _step(actor::ActorWPED)
 
-Finds the temperature profile at the edge to match the ped_to_core_fraction of stored energy set in par.ped_to_core_fraction
+Executes the optimization procedure to find optimal pedestal temperature profiles.
+
+The step function performs a nested optimization:
+1. Outer loop: optimizes the boundary temperature value to match the target energy ratio
+2. Inner loop: for each boundary value, optimizes the temperature gradient parameters (α_Te, α_Ti)
+3. Uses Brent's method for robust 1D optimization with relative tolerance of 1E-3
+4. Updates both electron and ion temperature profiles maintaining Ti/Te ratio consistency
 """
 function _step(actor::ActorWPED{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd

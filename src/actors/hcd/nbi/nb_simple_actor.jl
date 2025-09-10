@@ -23,11 +23,24 @@ end
 """
     ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Calculates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a pencil beam.
+Calculates neutral beam injection (NBI) heating and current drive using a simplified pencil beam model.
+
+This actor models the deposition of neutral beam energy and momentum through:
+- Pencil beam ray tracing through the plasma
+- Calculation of beam attenuation via electron collisions, ion collisions, and charge exchange
+- Energy deposition to electrons and ions using Sivukhin fractions
+- Toroidal momentum deposition including banana orbit effects
+- Parallel current drive from beam-driven currents (beam, Ohkawa, and bootstrap contributions)
+
+The model includes:
+- Multiple beam energy components (full, half, third energy)
+- Gaussian deposition profiles with configurable width
+- Banana orbit shift correction for trapped particles
+- Fast ion thermalization time smoothing of launched power
 
 !!! note
 
-    Reads data in `dd.nbi`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.nbi`, `dd.pulse_schedule` and stores results in `dd.core_sources` and `dd.waves.coherent_wave`
 """
 function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleNB(dd, act.ActorSimpleNB; kw...)

@@ -27,7 +27,20 @@ end
 """
     ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates blankets tritium breeding ratio (TBR), heat deposition, and neutron leakage
+Calculates blanket performance including tritium breeding ratio (TBR), thermal power
+generation, and neutron leakage using 1D neutronics models. The actor optimizes
+blanket layer thicknesses to achieve target TBR while minimizing neutron leakage
+and respecting geometric constraints.
+
+The calculations include:
+- Tritium breeding from Li-6 reactions using neural network models
+- Thermal power generation with configurable multiplication factor
+- Neutron leakage assessment for radiation protection
+- Layer thickness optimization to meet TBR requirements
+- Li-6 enrichment optimization
+
+Handles multiple blanket modules (e.g., inboard and outboard) with different
+geometric and material configurations.
 
 !!! note
 

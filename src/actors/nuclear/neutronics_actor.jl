@@ -19,7 +19,15 @@ end
 """
     ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the neutron wall loading
+Calculates neutron wall loading on the first wall using Monte Carlo particle tracing.
+The actor defines neutron sources from fusion reactions, traces their paths to the 
+first wall, and calculates the resulting neutron flux and power deposition.
+
+The calculation includes:
+- Neutron source definition from D-T and D-D fusion reactions
+- Particle tracing from plasma to first wall
+- Flux and power calculation on wall elements
+- Normalization to match total fusion neutron power
 
 !!! note
 

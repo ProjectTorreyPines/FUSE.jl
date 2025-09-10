@@ -27,7 +27,38 @@ end
 """
     ActorCoreRadHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Computes the heat flux on the wall due to the core radiation
+Computes wall heat flux from core plasma radiation using Monte Carlo photon transport.
+
+This actor calculates the heat flux deposited on plasma-facing components by electromagnetic
+radiation (bremsstrahlung, line radiation, synchrotron) emitted from the core plasma.
+Core radiation represents a significant fraction of total plasma power and directly impacts
+wall loading and cooling requirements.
+
+**Physical Modeling:**
+- Volume emission from all core radiation sources (impurity line radiation, bremsstrahlung)
+- Line-of-sight photon transport from emission location to wall intersection
+- Accounts for plasma opacity and absorption effects
+- Integration over entire plasma volume and all wall surfaces
+
+**Computational Method:**
+1. **Source Definition:** Uses radiation source profiles from `dd.core_sources` including
+   contributions from impurity radiation, bremsstrahlung, and other radiative losses
+
+2. **Monte Carlo Transport:** Launches statistical photons from emission locations with:
+   - Proper spatial weighting based on local radiation source strength
+   - Random directional sampling to capture all emission angles
+   - Line-of-sight transport to first wall intersection
+
+3. **Wall Deposition:** Accumulates photon energy deposition on wall mesh elements,
+   accounting for geometric factors and surface orientations
+
+**Key Outputs:**
+- `q_core_rad`: Heat flux on wall surface from core radiation transport
+- Statistical convergence based on number of photons traced (parameter N)
+- Wall mesh coordinates for spatial distribution analysis
+
+This calculation provides essential data for first wall and blanket thermal design,
+complementing particle heat flux calculations for comprehensive wall loading analysis.
 """
 function ActorCoreRadHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCoreRadHeatFlux(dd, act.ActorCoreRadHeatFlux; kw...)
@@ -36,6 +67,37 @@ function ActorCoreRadHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+"""    _step(actor::ActorCoreRadHeatFlux)
+
+Executes Monte Carlo photon transport calculation for core radiation heat flux.
+
+The calculation procedure:
+
+1. **Wall Mesh Setup:** Creates the same computational wall mesh used for particle heat flux,
+   ensuring consistency between different wall loading calculations.
+
+2. **Radiation Source Processing:** Extracts radiation source profiles from `dd.core_sources`:
+   - Computes total volumetric radiation source density (W/m³)
+   - Calculates integrated core radiation power for normalization
+   - Uses negative source values (losses for core_sources convention)
+
+3. **Monte Carlo Photon Transport:** 
+   - Launches N statistical photons from plasma volume using IMAS.core_radiation_heat_flux
+   - Each photon carries appropriate statistical weight based on local source strength
+   - Traces line-of-sight paths from emission point to wall intersection
+   - Accumulates energy deposition on wall mesh elements
+
+4. **Result Assembly:** Creates WallHeatFlux object containing:
+   - Wall mesh coordinates (R, Z) and curvilinear distance
+   - Core radiation heat flux distribution `q_core_rad`
+
+5. **Optional Visualization:** If enabled, produces plots showing:
+   - 1D heat flux profile along the wall perimeter
+   - 2D visualization with photon trajectories and SOL boundary
+   - Statistical photon launch locations in the plasma
+
+Statistical convergence improves with larger N (number of photons traced).
+"""
 function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
@@ -75,6 +137,19 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
+"""    _finalize(actor::ActorCoreRadHeatFlux)
+
+Finalizes core radiation heat flux calculation for integration with other analyses.
+
+This function is currently a placeholder for future development that will:
+1. Store core radiation heat flux results in appropriate IMAS data structures
+2. Combine with particle heat flux and other wall loading contributions
+3. Provide integrated wall loading data for thermal and structural analysis
+4. Enable coupling with neutronics and materials activation calculations
+
+The core radiation heat flux results are currently accessible through the actor's
+`wall_heat_flux` field and can be visualized using the built-in plotting capabilities.
+"""
 function _finalize(actor::ActorCoreRadHeatFlux)
     # Finalize: work in progress - populate dd
     return actor

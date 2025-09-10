@@ -17,11 +17,15 @@ end
 """
     ActorSawteeth(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Applies sawteeth reconnection to core_sources and core_profiles when q < 1.0.
+Applies sawtooth reconnection effects to plasma sources when the safety factor q < 1.0.
 
-This actor finds the last radial position where q < 1.0 and applies
-sawteeth source and profile modifications using IMAS.sawteeth_source!
-and IMAS.sawteeth_profiles! functions.
+This actor finds the outermost radial position where q < 1.0 (the q=1 surface) and applies
+sawtooth source modifications using `IMAS.sawteeth_source!` to account for the redistribution
+of heat and particles due to sawtooth crashes within the q=1 region.
+
+The sawtooth model affects the core sources by redistributing energy and particles
+from the core to the q=1 surface, simulating the flattening of profiles that occurs
+during sawtooth crashes in tokamak plasmas.
 """
 function ActorSawteeth(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSawteeth(dd, act.ActorSawteeth; kw...)
@@ -30,6 +34,15 @@ function ActorSawteeth(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+"""
+    _step(actor::ActorSawteeth)
+
+Identifies q=1 surface and applies sawtooth source redistribution.
+
+Finds the outermost radial grid point where q < 1.0 and calls `IMAS.sawteeth_source!`
+to redistribute heat and particle sources within the q=1 region, simulating the
+profile flattening effects of sawtooth crashes.
+"""
 function _step(actor::ActorSawteeth)
     dd = actor.dd
     cp1d = dd.core_profiles.profiles_1d[]

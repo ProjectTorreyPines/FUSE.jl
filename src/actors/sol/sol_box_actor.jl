@@ -97,7 +97,23 @@ end
 """
     ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-0D box model for the scrape-off layer developed by X. Zhang et al. https://doi.org/10.1016/j.nme.2022.101354 .
+Implements a 0D box model for scrape-off layer (SOL) physics to calculate upstream 
+plasma conditions at the separatrix from target boundary conditions. Based on the 
+model developed by X. Zhang et al. (https://doi.org/10.1016/j.nme.2022.101354).
+
+The model calculates:
+- Upstream electron and ion temperatures and densities
+- Power flux densities for electrons and ions 
+- Connection length and flux expansion from field line tracing
+- Target conditions using recycling coefficients and power balance
+
+Handles both single-null and double-null configurations automatically based on
+magnetic balance assessment.
+
+!!! note
+
+    Reads data from `dd.equilibrium`, `dd.core_sources`, `dd.wall` and stores 
+    results in `dd.edge_profiles`
 """
 function ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSOLBox(dd, act.ActorSOLBox; kw...)
@@ -281,6 +297,13 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
+"""
+    _finalize(actor::ActorSOLBox)
+
+Populates the edge_profiles IDS with the calculated upstream conditions. Since the 
+box model provides a single point calculation, only the separatrix values 
+(rho_pol_norm = 1.0) are populated with electron density and temperature.
+"""
 function _finalize(actor::ActorSOLBox)
     dd = actor.dd
 

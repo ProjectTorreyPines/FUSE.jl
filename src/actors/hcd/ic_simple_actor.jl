@@ -24,9 +24,19 @@ end
 """
     ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
+Calculates ion cyclotron (IC) heating and current drive using simplified Gaussian 
+deposition profiles. The actor models IC wave absorption with configurable power
+split between electrons and ions, typically optimized for minority heating scenarios.
 
-NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+The model includes:
+- Gaussian power deposition profiles at user-specified locations
+- Configurable electron/ion power fraction (default 80% to ions for minority heating)
+- Current drive efficiency based on GASC formulae corrected for beta effects
+- Multiple antenna support for different IC systems
+- Beta-dependent current drive efficiency reduction
+
+Current drive efficiency uses the G. Tonon formula modified for finite beta effects,
+suitable for reactor-relevant conditions with significant beta_toroidal.
 
 !!! note
 

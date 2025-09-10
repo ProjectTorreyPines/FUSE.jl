@@ -35,7 +35,30 @@ end
 """
     ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Generates the 2D cross section of the tokamak build
+Generates 2D cross-sectional geometry of the tokamak build by converting the 1D radial build 
+layers into full poloidal cross-sections. Creates detailed outlines for all build layers,
+divertor regions, blanket segments, and maintenance ports based on equilibrium geometry
+and engineering requirements.
+
+# Key functionality
+- Converts 1D radial build to 2D poloidal cross-sections with proper shaping
+- Generates first wall geometry from equilibrium boundary (or rebuilds if needed)
+- Creates divertor regions based on magnetic X-points and private flux regions  
+- Defines blanket segments on the low-field side
+- Generates maintenance port structures for plasma-facing component access
+
+# Geometry generation process
+1. Establishes first wall from equilibrium boundary and strike point locations
+2. Builds layer outlines from plasma outward using shape optimization
+3. Handles layer-to-layer clearances and PF coil obstruction avoidance
+4. Creates divertor slots and blanket regions based on physics constraints  
+5. Adds maintenance port geometry for component access
+
+# Key outputs
+- 2D layer outlines for all radial build components (`dd.build.layer[].outline`)
+- Divertor structure definitions (`dd.build.structure` for divertors)
+- Blanket structure segmentation for modular designs
+- Updated wall geometry with strike point information
 
 !!! note
 

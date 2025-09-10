@@ -23,11 +23,27 @@ end
 """
     ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the Pellet particle deposition
+Calculates pellet fueling particle deposition using a simplified deposition model.
+
+This actor models pellet particle injection through:
+- Calculation of pellet particle content based on geometry (spherical, cylindrical, or rectangular)
+- Material density lookup for different species (DT, D, T, C, Ne)
+- Frequency-based particle source calculation
+- Beta-function radial deposition profile with configurable location and width
+- Pure particle source (no heating or current drive)
+
+The pellet volume and particle content are calculated based on:
+- Spherical: V = (4/3)πr³
+- Cylindrical: V = πr²h  
+- Rectangular: V = l×w×h
+
+Particle rate = pellet_volume × material_density × injection_frequency
+
+The deposition profile uses a beta function with parameters tuned for pellet-like deposition.
 
 !!! note
 
-    Reads data in `dd.pellet_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.pellets.launcher`, `dd.pulse_schedule` and stores results in `dd.core_sources`
 """
 function ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimplePL(dd, act.ActorSimplePL; kw...)

@@ -24,7 +24,16 @@ end
 """
     ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-FitProfiles experimental data
+Fits experimental diagnostic data from Thomson scattering and charge exchange recombination spectroscopy to create smooth plasma profiles.
+
+This actor performs several key operations:
+- Identifies and removes outliers from raw diagnostic data using adaptive algorithms
+- Time-averages diagnostic measurements within specified windows
+- Fits electron temperature (Te), electron density (ne), ion temperature (Ti), and ion density profiles
+- Optionally scales Thomson scattering density based on interferometer measurements
+- Enforces quasi-neutrality and provides smooth, consistent profiles on a common radial grid
+
+The resulting fitted profiles are stored in `dd.core_profiles.profiles_1d[]` and provide the foundation for physics modeling.
 """
 function ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFitProfiles(dd, act.ActorFitProfiles, act; kw...)

@@ -30,11 +30,29 @@ end
 """
     ActorPFactive(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Finds the optimal coil currents to match the equilibrium boundary shape
+Optimizes poloidal field coil currents to match target equilibrium constraints.
+
+The actor solves for optimal PF coil currents that satisfy boundary shape, X-point positions,
+and strike point locations in a least-squares sense. It uses Green's functions to model 
+electromagnetic coupling between coils and plasma, with optional regularization to prevent 
+unrealistic current solutions.
+
+Key features:
+- Supports different Green's function calculation methods (quadrature, filament models)
+- Handles boundary shape control through iso-flux control points
+- Maintains X-point and strike point positions with configurable weights
+- Includes automatic regularization parameter selection for stable solutions
+- Can update target equilibrium with achievable coil configuration
+
+Control points:
+- Boundary iso-flux surfaces for plasma shape control
+- X-point locations as saddle point constraints  
+- Strike point locations as flux surface constraints
+- Magnetic axis position and flux value
 
 !!! note
 
-    Manupulates data in `dd.pf_active`
+    Manipulates data in `dd.pf_active`
 """
 function ActorPFactive(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPFactive(dd, act.ActorPFactive; kw...)
@@ -63,7 +81,16 @@ end
 """
     _step(actor::ActorPFactive)
 
-Find currents that satisfy boundary and flux/saddle constraints in a least-square sense
+Solves the least-squares optimization for optimal PF coil currents.
+
+The step function performs the core optimization by:
+1. Setting up coil system (fixed, pinned, and optimizable coils) with caching
+2. Computing optimal regularization parameter if not specified
+3. Solving the regularized least-squares problem for coil currents
+4. Evaluating cost function to assess solution quality
+
+The optimization balances satisfaction of electromagnetic constraints with 
+regularization to prevent unrealistic current magnitudes.
 """
 function _step(actor::ActorPFactive{T}) where {T<:Real}
     dd = actor.dd
@@ -122,7 +149,11 @@ end
 """
     _finalize(actor::ActorPFactive)
 
-Update actor.eqt_out 2D equilibrium PSI based on coils currents
+Generates output equilibrium with updated magnetic flux from optimized coil currents.
+
+Updates the 2D equilibrium flux map (ψ) based on the computed coil currents, evaluates 
+current limits for the PF system, and optionally updates the target equilibrium if 
+requested. The output equilibrium shows what the coil system can actually achieve.
 """
 function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd

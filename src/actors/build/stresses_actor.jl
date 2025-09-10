@@ -19,7 +19,27 @@ end
 """
     ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates mechanical stresses on the center stack
+Calculates mechanical stresses in the tokamak center stack (TF coils, OH coils, and plug) using
+1D analytical solutions based on Leuer's solid mechanics equations. Analyzes both scenarios
+with OH coils on and off to find the worst-case stress conditions for structural design.
+
+# Physics approach
+- Uses 1D cylindrical stress analysis with hoop, radial, and axial stress components
+- Accounts for electromagnetic forces from TF and OH magnetic fields
+- Handles different boundary conditions (bucked vs free-standing coils)
+- Applies structural material fractions to calculate effective stresses
+
+# Key inputs
+- TF and OH coil geometry from radial build (`dd.build.layer`)
+- Magnetic field values (`dd.equilibrium.vacuum_toroidal_field.b0`, `dd.build.oh.max_b_field`)
+- Material properties and structural fractions (`dd.build.tf/oh.technology`)
+- Mechanical configuration flags (bucked, noslip, plug presence)
+
+# Key outputs
+- Radial stress profiles for TF, OH, and plug components
+- Hoop stress profiles for structural analysis
+- Axial stress estimates based on field configurations
+- Von Mises stress for failure analysis
 
 !!! note
 

@@ -24,7 +24,16 @@ end
 """
     ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates analytic turbulence models
+Evaluates analytic turbulent transport models including GyroBohm and Bohm+gyro-Bohm (BgB) models.
+
+The actor supports two transport models:
+- `:GyroBohm`: Simple gyro-Bohm scaling returning unit fluxes
+- `:BgB`: Detailed Bohm + gyro-Bohm model calculating electron and ion energy diffusivities (χe, χi) 
+  and particle flux (Γe) based on local plasma parameters, pressure gradients, and magnetic geometry
+
+The BgB model computes transport coefficients using local temperature and density gradients,
+safety factor profiles, and magnetic field geometry. Results are normalized to gyro-Bohm 
+and stored in `dd.core_transport` as anomalous transport fluxes.
 """
 function ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorAnalyticTurbulence(dd, act.ActorAnalyticTurbulence; kw...)
@@ -42,7 +51,15 @@ end
 """
     _step(actor::ActorAnalyticTurbulence)
 
-Runs analytic turbulent transport model on a vector of gridpoints
+Runs the selected analytic turbulent transport model on specified radial grid points.
+
+For the BgB model, calculates:
+- χeB, χeGB: Bohm and gyro-Bohm electron heat diffusivities
+- χiB, χiGB: Bohm and gyro-Bohm ion heat diffusivities  
+- Γe: Electron particle flux based on density gradients
+
+All transport coefficients are scaled by user-specified coefficients and stored as 
+FluxSolution objects normalized to gyro-Bohm units.
 """
 function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
@@ -119,7 +136,11 @@ end
 """
     _finalize(actor::ActorAnalyticTurbulence)
 
-Writes results to dd.core_transport
+Writes calculated transport fluxes to `dd.core_transport.model[:anomalous]`.
+
+The model identifier is set to the selected transport model name (:GyroBohm or :BgB)
+and flux results are converted from normalized GACODE format to IMAS format using
+`GACODE.flux_gacode_to_imas` for electron/ion energy, particle, and momentum fluxes.
 """
 function _finalize(actor::ActorAnalyticTurbulence)
     dd = actor.dd

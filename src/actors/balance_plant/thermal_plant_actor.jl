@@ -34,9 +34,28 @@ end
 """
     ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
+Calculates thermal plant efficiency and electrical power generation based on heat loads from the tokamak.
+Uses different models to convert thermal power from blanket, divertor, and wall heat loads into electrical power.
+Acts as a dispatcher to different thermal plant models based on the `model` parameter.
+
+# Available models
+- `:fixed_plant_efficiency`: Uses a constant overall efficiency factor
+- `:surrogate`: Uses BalanceOfPlantSurrogate.jl for heat cycle efficiency calculations
+- `:network`: Uses ThermalSystemModels.jl extension for detailed thermal modeling
+
+# Key inputs
+- Heat loads from blanket thermal extraction (`dd.blanket.module[].power_thermal_extracted`)
+- Divertor power incident (`dd.divertors.divertor[].power_incident`)  
+- Wall radiation losses (`dd.core_sources` radiation losses)
+
+# Key outputs
+- Plant thermal efficiency (`thermal_efficiency_plant`)
+- Total heat supplied to thermal cycle (`total_heat_supplied`)
+- Net electrical power generated (`power_electric_generated`)
+
 !!! note
 
-    Provides a common interface to run different thermal plant actors
+    Stores data in `dd.balance_of_plant`
 """
 function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorThermalPlant(dd, act.ActorThermalPlant, act; kw...)

@@ -24,13 +24,26 @@ end
 """
     ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the Lower-hybrid electron energy deposition and current drive as a gaussian.
+Calculates lower hybrid (LH) wave heating and current drive using a simplified Gaussian deposition model.
 
-NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+This actor models LH wave energy and current deposition through:
+- Gaussian radial deposition profile with configurable location and width
+- Current drive efficiency based on local plasma parameters (density, temperature, Zeff)
+- All power deposited to electrons (no ion heating)
+- Parallel current drive calculated using scaling from Tonon's reactor studies
+
+The current drive efficiency formula used is:
+η_CD = η_scale × T_e[keV] × 0.037 × B₀ / (5.0 + Z_eff) / n_e[10²⁰]^0.33
+
+Where the parallel current is: j_∥ = η_CD / R₀ / n_e[10²⁰] × P_launched
+
+!!! note "Reference"
+    
+    Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
 
 !!! note
 
-    Reads data in `dd.lh_antennas`, `dd.pulse_schedule` and stores data in `dd.waves` and `dd.core_sources`
+    Reads data in `dd.lh_antennas`, `dd.pulse_schedule` and stores results in `dd.waves` and `dd.core_sources`
 """
 function ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleLH(dd, act.ActorSimpleLH; kw...)

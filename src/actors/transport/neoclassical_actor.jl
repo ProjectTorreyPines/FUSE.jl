@@ -20,7 +20,18 @@ end
 """
     ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the neoclassical transport fluxes
+Evaluates neoclassical (collisional) transport fluxes using established theoretical models.
+
+Supported neoclassical models:
+- `:changhinton`: Chang-Hinton model for ion heat transport in the banana/plateau regime
+- `:neo`: Full drift-kinetic NEO code for comprehensive neoclassical transport including 
+  bootstrap current, providing electron/ion energy, particle, and momentum fluxes
+- `:hirshmansigmar`: Hirshman-Sigmar analytical model for comprehensive neoclassical transport
+  in various collisionality regimes
+
+The models account for collisional effects, magnetic geometry, and trapped particle physics
+to calculate transport coefficients. Results are stored in `dd.core_transport.model[:neoclassical]`
+and include contributions to bootstrap current, thermal transport, and particle transport.
 """
 function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorNeoclassical(dd, act.ActorNeoclassical; kw...)
@@ -38,7 +49,12 @@ end
 """
     _step(actor::ActorNeoclassical)
 
-Runs ActorNeoclassical to evaluate the neoclassical transport flux on a vector of gridpoints
+Runs the selected neoclassical transport model to evaluate collisional fluxes on radial grid points.
+
+For Chang-Hinton: Calculates ion heat transport using local parameters.
+For NEO: Creates InputNEO structures and runs the NEO code in parallel for each grid point.
+For Hirshman-Sigmar: Uses cached equilibrium geometry and evaluates the analytical model
+with local plasma parameters, providing comprehensive neoclassical transport coefficients.
 """
 function _step(actor::ActorNeoclassical)
     par = actor.par
@@ -73,7 +89,12 @@ end
 """
     _finalize(actor::ActorNeoclassical)
 
-Writes ActorNeoclassical results to dd.core_transport
+Writes neoclassical transport fluxes to `dd.core_transport.model[:neoclassical]`.
+
+Sets the model identifier based on the selected model (Chang-Hinton, NEO, or Hirshman-Sigmar)
+and converts flux results from GACODE format to IMAS format. The number and type of fluxes 
+written depend on the model: Chang-Hinton provides only ion energy flux, while NEO and 
+Hirshman-Sigmar provide comprehensive electron/ion energy, particle, and momentum fluxes.
 """
 function _finalize(actor::ActorNeoclassical)
     par = actor.par

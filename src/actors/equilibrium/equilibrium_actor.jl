@@ -23,7 +23,38 @@ end
 """
     ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run different equilibrium actors
+Unified interface for tokamak MHD equilibrium solvers with automatic data preparation and postprocessing.
+
+This compound actor coordinates different equilibrium solver codes through a single interface,
+handling data flow preparation and postprocessing while allowing flexible solver selection.
+
+Supported equilibrium solvers:
+- **TEQUILA**: Fixed-boundary equilibrium solver
+- **FRESCO**: Free-boundary rectangular grid Grad-Shafranov solver  
+- **EGGO**: Machine learning-based free-boundary equilibrium reconstruction
+- **CHEASE**: External fixed-boundary equilibrium solver
+- **Replay**: Use equilibrium data from experimental or simulation archives
+
+Key features:
+- **Automatic data preparation**: Extracts pressure/current profiles, boundary shape, and control targets
+- **Flexible profile sources**: Can use profiles from core_profiles (self-consistent) or equilibrium (re-solve)
+- **Control integration**: Uses pulse_schedule position_control for boundary and X-point targets
+- **Geometric postprocessing**: Adds flux surfaces, symmetrization, and consistency checks
+- **Error handling**: Comprehensive error reporting with diagnostic plots
+
+Data flow control:
+- Profile sources: core_profiles (default) or equilibrium  
+- Scalar sources: pulse_schedule, core_profiles, or equilibrium
+- Automatic zero-gradient boundary conditions on axis
+- Geometric factors preservation across iterations
+
+The actor handles the complete equilibrium workflow: data extraction → solver execution → 
+flux surface reconstruction → validation and visualization.
+
+!!! note
+
+    Reads from `dd.core_profiles`, `dd.pulse_schedule.position_control`, and optionally `dd.wall`, 
+    `dd.pf_active`. Updates `dd.equilibrium` with the solved MHD equilibrium.
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)

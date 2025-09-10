@@ -34,11 +34,25 @@ end
 """
     ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the cost of building, operating, and recommission the fusion power plant.
+Estimates the comprehensive cost of building, operating, and decommissioning a fusion power plant.
+
+This actor provides a unified interface to different costing methodologies and handles:
+- Direct capital costs for all major plant systems and components  
+- Operating and maintenance costs over the plant lifetime
+- Decommissioning costs at end-of-life
+- Economic parameters like inflation, learning rates, and financial factors
+
+Available costing models:
+- `:ARIES`: Based on ARIES tokamak reactor studies with detailed component breakdown
+- `:Sheffield`: Based on Sheffield & Milora generic magnetic fusion reactor methodology
+
+The actor creates a separate data structure with uncertainty propagation (Measurement types)
+to handle cost uncertainties, then transfers final results back to the main data structure.
+Key economic outputs include levelized cost of electricity (LCOE) and lifetime plant costs.
 
 !!! note
 
-    Stores data in `dd.costing`
+    Results are stored in `dd.costing` with detailed breakdown by system and subsystem
 """
 function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCosting(dd, act.ActorCosting, act; kw...)

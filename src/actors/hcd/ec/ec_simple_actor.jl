@@ -24,9 +24,18 @@ end
 """
     ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the EC electron energy deposition and current drive as a gaussian.
+Calculates electron cyclotron (EC) heating and current drive using simplified Gaussian 
+deposition profiles. The actor performs vacuum ray tracing to determine beam paths and
+calculates power absorption and current drive with analytic models.
 
-NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+The model includes:
+- Vacuum ray tracing from launch point to absorption location
+- Gaussian power deposition profiles centered at user-specified locations
+- Current drive efficiency based on GASC formulae (G. Tonon model)
+- Multiple actuator support for different EC systems
+
+Current drive efficiency is calculated using the formula from G. Tonon's work on
+"Current Drive Efficiency Requirements for an Attractive Steady-State Reactor".
 
 !!! note
 
