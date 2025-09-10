@@ -535,22 +535,22 @@ end
 function solve_ODEs(par, ode_params::ODEparams, task::String,
                         control1::Float64, control2::Float64)
         
-        n_mode = par.n_mode
-        control_type = par.control_type
-        t_final = par.t_final
+    n_mode = par.n_mode
+    control_type = par.control_type
+    t_final = par.t_final
 
-        rhs! = make_rhs_function(task)
-        ode_rhs! = make_ode_func(rhs!)
-        y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
-        p = (control1, control2, ode_params, n_mode, control_type)
-        tspan = (0.0, t_final)
+    rhs! = make_rhs_function(task)
+    ode_rhs! = make_ode_func(rhs!)
+    y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
+    p = (control1, control2, ode_params, n_mode, control_type)
+    tspan = (0.0, t_final)
 
-        prob = ODEProblem(ode_rhs!, y0, tspan, p)
-        sol = solve(prob, Tsit5(); saveat=t_final, reltol=1e-8, abstol=1e-10)
+    prob = ODEProblem(ode_rhs!, y0, tspan, p)
+    sol = solve(prob, Tsit5(); saveat=t_final, reltol=1e-8, abstol=1e-10)
 
-        final = sol.u[end]
+    final = sol.u[end]
 
-        return final
+    return final
 end
 
 """
@@ -656,4 +656,37 @@ function solve_system(actor::ActorLocking, task::String)
     # finals_mat = reshape(finals, (par.grid_size, par.grid_size))
 
     return finals
+end
+
+using Plots
+
+"""
+plot_normalized_scatter(norm_sol; xcol=1, ycol=3)
+
+Make a scatter plot from normalized solutions.
+
+Arguments:
+- `norm_sol`: 
+    * either a single tuple `(psiN, psiwN, OmN)` 
+    * or a Vector of such tuples.
+- `xcol`, `ycol`: indices (1-based) of tuple components to plot 
+   (default: psiN vs OmN).
+
+Example:
+    plot_normalized_scatter(norm_solutions; xcol=1, ycol=3)
+"""
+function plot_normalized_scatter(norm_sol; xcol::Int=1, ycol::Int=3)
+    # Normalize input to a matrix of size (N, 3)
+    data = if isa(norm_sol, Tuple)
+        hcat(norm_sol...)'    # single row
+    elseif isa(norm_sol, AbstractVector{<:Tuple})
+        hcat(norm_sol...)'    # stack into rows
+    else
+        throw(ArgumentError("norm_sol must be a tuple or vector of tuples"))
+    end
+
+    scatter(data[:, xcol], data[:, ycol],
+            xlabel="Component $xcol",
+            ylabel="Component $ycol",
+            title="Normalized solution scatter")
 end
