@@ -182,7 +182,6 @@ function find_q2_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surf
     # Use absolute values to ensure we find the correct surface
     rho_interp = IMAS.interp1d(abs.(q_prof), rho)
     rho_rat = rho_interp.(2.0)  
-    rat_indx = findfirst(x-> x > rat_surface, abs.(q_prof))
     println("Found q=2 surface at: ", rho_rat)
     return rho_rat
 end
