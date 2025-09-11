@@ -1,6 +1,7 @@
 import TurbulentTransport
 import TurbulentTransport: InputTGLF, InputQLGYRO, InputTJLF, InputCGYRO
 import TJLF
+import TJLF: InputTJLF
 import GACODE
 
 #= ========= =#
