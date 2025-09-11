@@ -337,7 +337,6 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
         Base.include_string(Main, code)
     end
 
-    return println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")
     println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")
     return pid_list
 end
