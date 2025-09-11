@@ -3,13 +3,15 @@ using Distributed
 """
     case_parameters(::Val{:D3D}, shot::Int;
         new_impurity_match_power_rad::Symbol=:none,
-        fit_profiles::Bool=false, 
+        fit_profiles::Bool=false,
         EFIT_tree::String="EFIT02",
         PROFILES_tree::String="ZIPFIT01",
         CER_analysis_type::String="CERAUTO",
-        omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
-        omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
-        omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
+        EFIT_run_id::String="",
+        PROFILES_run_id::String="",
+        omfit_host::String=get(ENV, "FUSE_OMFIT_HOST", "somega.gat.com"),
+        omfit_root::String=get(ENV, "FUSE_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
+        omas_root::String=get(ENV, "FUSE_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
         use_local_cache::Bool=false
     )
 
@@ -23,7 +25,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
     CER_analysis_type::String="CERAUTO",
     EFIT_run_id::String="",
     PROFILES_run_id::String="",
-    omfit_host::String=get(ENV, "FUSE_OMFIT_HOST", "omega.gat.com"),
+    omfit_host::String=get(ENV, "FUSE_OMFIT_HOST", "somega.gat.com"),
     omfit_root::String=get(ENV, "FUSE_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
     omas_root::String=get(ENV, "FUSE_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
     use_local_cache::Bool=false
@@ -36,7 +38,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         filename = "D3D_$(shot)_$(phash).h5"
         local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
     else
-        # Resolve omega username using the ssh config
+        # Resolve remote username using the ssh config
         output = read(`ssh -G $omfit_host`, String)
         omfit_user = nothing
         for line in split(output, '\n')
@@ -46,7 +48,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
             end
         end
         if isnothing(omfit_user)
-            throw(ErrorException("Need to add omega.gat.com to ~/.ssh"))
+            throw(ErrorException("Need to add $omfit_host to ~/.ssh"))
         end
         omfit_host = "$omfit_user@$omfit_host"
         phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omfit_user, omfit_root, omas_root))
@@ -156,7 +158,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
         # run data fetching
         @info("Remote D3D data fetching for shot $shot")
-        @info("Path on OMEGA: $remote_path")
+        @info("Path on $omfit_host: $remote_path")
         @info("Path on Localhost: $local_path")
         if !isfile(joinpath(local_path, filename)) || !use_local_cache
             Base.run(`bash $local_path/local_driver.sh`)
