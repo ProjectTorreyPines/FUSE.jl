@@ -212,5 +212,6 @@ include("test_cases.jl")
 export IMAS, @ddtime, help, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
+export digest
 
 end
