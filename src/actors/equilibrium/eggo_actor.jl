@@ -4,35 +4,67 @@ import VacuumFields
 #= ========= =#
 #  ActorEGGO  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorEGGO{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorEGGO{T} begin
     #== actor parameters ==#
     model::Entry{Symbol} = Entry{Symbol}("-", "Neural network model to be used")
-    use_vacuumfield_green = Entry{Bool}("-", "Use Vacuum Fields green's function tables"; default=false)
-    nb_reduce = Entry{Real}("-", "parameter to reduce constrained boundary points"; default=4)
+    use_vacuumfield_green::Entry{Bool} = Entry{Bool}("-", "Use Vacuum Fields green's function tables"; default=false)
+    decimate_boundary::Entry{Int} = Entry{Int}("-", "Parameter to decimate number of boundary points"; default=4)
+    timeslice_average::Entry{Int} = Entry{Int}("-", "Number of time slices to average"; default=0)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing EGGO solve"; default=false)
 end
 
+
+
 mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorEGGO{P}}
     act::ParametersAllActors{P}
-    green::Dict
-    basis_functions::Dict
-    basis_functions_1d::Dict
-    bf1d_itp::Dict
+    green::EGGO.GreenFunctionTables{Float64}
+    basis_functions::EGGO.BasisFunctions{Float64}
+    basis_functions_1d::EGGO.BasisFunctions1D{Float64}
+    bf1d_itp::EGGO.BasisFunctions1Dinterp
     coils::Vector{<:VacuumFields.AbstractCoil}
-    NNmodel::Dict
+    NNmodel::EGGO.NeuralNetModel{Float64}
 end
 
 """
     ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the ML-based free boundary equilibrium solver EGGO
+Solves free-boundary tokamak MHD equilibria using the EGGO machine learning-based equilibrium reconstruction code.
+
+EGGO (Equilibrium Grad-Shafranov Green's-function Optimizer) uses neural networks trained on experimental 
+equilibrium databases to rapidly predict tokamak equilibria from plasma shape and profile constraints.
+
+Key features:
+- **Neural network prediction**: Fast equilibrium reconstruction using pre-trained models from experimental data
+- **Free-boundary capability**: Includes external coil system effects and realistic machine constraints  
+- **Profile fitting**: Automatically fits pressure and current profiles using basis function decomposition
+- **Boundary adaptation**: Accepts arbitrary plasma boundary shapes with configurable resolution
+- **Temporal averaging**: Optional smoothing over multiple time slices for enhanced stability
+
+Machine learning approach:
+- **Training data**: Models trained on extensive experimental equilibrium databases (D3D, JET, etc.)
+- **Input features**: Plasma boundary points, basis-fitted pressure/current profiles, plasma current
+- **Output**: Complete equilibrium reconstruction including ψ(R,Z), geometric parameters, and profiles
+- **Green's functions**: Uses precomputed vacuum field response for computational efficiency
+
+Workflow:
+1. **Profile preparation**: Fits p'(ψ) and ff'(ψ) profiles to basis functions  
+2. **Boundary processing**: Decimates and processes plasma boundary points
+3. **Neural prediction**: Generates equilibrium using trained ML model
+4. **Post-processing**: Extracts flux surfaces, magnetic axis, and geometric parameters
+5. **Temporal smoothing**: Optional averaging with previous time slices for robustness
+
+The ML approach provides orders-of-magnitude speedup compared to traditional equilibrium solvers
+while maintaining good accuracy for scenarios within the training data domain.
+
+!!! note
+
+    Reads pressure/current profiles from `dd.equilibrium.profiles_1d`, plasma boundary from
+    `dd.pulse_schedule.position_control`, and wall geometry from `dd.wall`. 
+    Updates `dd.equilibrium` with ML-predicted equilibrium solution.
 """
 function ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEGGO(dd, act.ActorEGGO, act; kw...)
@@ -50,28 +82,29 @@ function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::Param
     NNmodel = EGGO.get_model(model_name)
     basis_functions_1d, bf1d_itp = EGGO.get_basis_functions_1d(model_name)
     coils = VacuumFields.MultiCoils(dd.pf_active)
-    green[:ggridfc_vf] = VacuumFields.Green_table(green[:rgrid], green[:zgrid], coils)
+    green.ggridfc_vf = VacuumFields.Green_table(green.rgrid, green.zgrid, coils)
     return ActorEGGO(dd, par, act, green, basis_functions, basis_functions_1d, bf1d_itp, coils, NNmodel)
 end
 
 function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
+    par = actor.par
 
     eqt = dd.equilibrium.time_slice[]
     eqt1d = eqt.profiles_1d
 
     # prepare inputs
-    wall = Dict{Symbol,Vector{Float64}}()
-    wall[:rlim], wall[:zlim] = IMAS.first_wall(dd.wall)
-    psi_norm = range(0.0, 1.0, actor.green[:nw])
+    rlim, zlim = IMAS.first_wall(dd.wall)
+    wall = EGGO.Wall(rlim,zlim)
+    psi_norm = range(0.0, 1.0, actor.green.nw)
     pp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.dpressure_dpsi).(psi_norm) * 2π
     ffp_target = IMAS.interp1d(eqt1d.psi_norm, eqt1d.f_df_dpsi).(psi_norm) * 2π
     pp_fit, ffp_fit = EGGO.fit_ppffp(pp_target, ffp_target, actor.basis_functions_1d)
 
     # make actual prediction
     Ip_target = eqt.global_quantities.ip
-    Rb_target = eqt.boundary.outline.r[1:actor.par.nb_reduce:end]
-    Zb_target = eqt.boundary.outline.z[1:actor.par.nb_reduce:end]
+    Rb_target = eqt.boundary.outline.r[1:par.decimate_boundary:end]
+    Zb_target = eqt.boundary.outline.z[1:par.decimate_boundary:end]
     Rb_target[end] = Rb_target[1]
     Zb_target[end] = Zb_target[1]
 
@@ -85,12 +118,12 @@ function _step(actor::ActorEGGO{D,P}) where {D<:Real,P<:Real}
         actor.basis_functions,
         actor.coils,
         Ip_target,
-        actor.par.use_vacuumfield_green
+        par.use_vacuumfield_green
     )
 
     # average out EGGO solution with previous time slice(s)
     # until EGGO becomes a bit more robust
-    n = 0 # number of time slices to average
+    n = par.timeslice_average # number of time slices to average
     i = IMAS.index(eqt)
     if i > n
         d = 1.0

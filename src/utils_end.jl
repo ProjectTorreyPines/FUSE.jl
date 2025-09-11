@@ -1,4 +1,3 @@
-import Weave
 using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
@@ -6,6 +5,44 @@ import DataFrames
 import Dates
 import HDF5
 import Random
+
+# ================== #
+# Digest Trait System #
+# ================== #
+"""
+Abstract type for digest backend selection.
+
+See also: [`WeaveBackend`](@ref), [`NoWeaveBackend`](@ref)
+"""
+abstract type DigestBackend end
+
+"""
+    WeaveBackend <: DigestBackend
+
+Digest backend that uses Weave.jl for PDF generation.
+Only available when WeaveExt extension is loaded.
+"""
+struct WeaveBackend <: DigestBackend end
+
+"""
+    NoWeaveBackend <: DigestBackend
+
+Fallback digest backend when Weave.jl is not available.
+Provides helpful error messages guiding users to install Weave.
+"""
+struct NoWeaveBackend <: DigestBackend end
+
+"""
+    get_digest_backend() -> DigestBackend
+
+Determine which digest backend to use based on available extensions.
+
+Returns `WeaveBackend()` if the WeaveExt extension is loaded, 
+otherwise returns `NoWeaveBackend()`.
+"""
+function get_digest_backend()
+    return Base.get_extension(@__MODULE__, :WeaveExt) === nothing ? NoWeaveBackend() : WeaveBackend()
+end
 
 # ========== #
 # Checkpoint #
@@ -88,10 +125,10 @@ macro checkin(key, vars...)
 
     # Save all the variables in the `vars` list under the provided key using their names
     return quote
-        @assert typeof($key) <: Symbol "`@checkin chk :what var1 var2` was deprecated in favor of `@checkin :what var1 var2`"
+        @assert typeof($key) <: Symbol "`use `@checkin :what var1 var2 ...`"
         d = getfield(checkpoint, :history)
         if $key in keys(d)
-            dict = Dict(k => v for (k, v) in pairs(d[$key]))
+            dict = Dict{Symbol,Any}(k => v for (k, v) in pairs(d[$key]))
         else
             dict = Dict{Symbol,Any}()
         end
@@ -199,7 +236,7 @@ function IMAS.extract(
             xtr = extract(DD[1], xtract)
             tmp = Dict()
             for (xkey, xfun) in xtr
-                if xfun.value === NaN
+                if isnan(xfun.value)
                     delete!(xtract, xkey)
                 else
                     tmp[xfun.name] = xfun.value
@@ -238,7 +275,6 @@ function IMAS.extract(
                 if isa(e, InterruptException)
                     rethrow(e)
                 end
-                continue
             end
             ProgressMeter.next!(p)
         end
@@ -280,7 +316,7 @@ end
 
 Construct a Dictionary with the evaluated values of a dictionary of IMAS.ExtractFunction
 """
-function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+function Base.Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
     tmp = Dict()
     for xfun in values(xtract)
         tmp[xfun.name] = xfun.value
@@ -1028,6 +1064,26 @@ function digest(
 end
 
 """
+    weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; kwargs...)
+
+Fallback method when Weave.jl is not available. Provides helpful error message.
+"""
+function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; 
+                     ini::Union{Nothing,ParametersAllInits}=nothing,
+                     act::Union{Nothing,ParametersAllActors}=nothing)
+    error("""
+    PDF digest generation requires the Weave.jl package.
+    
+    To enable this functionality:
+    1. Install Weave in your local project: `import Pkg; Pkg.add("Weave")`
+    2. `import Weave`
+    3. Try again: `digest(dd, "$title")`
+    
+    Alternatively, use the non-PDF version: `digest(dd)`
+    """)
+end
+
+"""
     digest(dd::IMAS.dd,
         title::AbstractString,
         description::AbstractString="";
@@ -1037,6 +1093,12 @@ end
 Write digest to PDF in current working directory.
 
 PDF filename is based on title (with `" "` replaced by `"_"`)
+
+**Note**: PDF generation requires the Weave.jl package. Install with:
+```
+import Pkg; Pkg.add("Weave")
+import Weave
+```
 """
 function digest(dd::IMAS.dd,
     title::AbstractString,
@@ -1044,38 +1106,8 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
-    title = replace(title, r".pdf$" => "", "_" => " ")
-    outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
-
-    tmpdir = mktempdir()
-    logger = SimpleLogger(stderr, Logging.Warn)
-    try
-        filename = redirect_stdout(Base.DevNull()) do
-            filename = with_logger(logger) do
-                return Weave.weave(joinpath(@__DIR__, "digest.jmd");
-                    latex_cmd=["xelatex"],
-                    mod=@__MODULE__,
-                    doctype="md2pdf",
-                    template=joinpath(@__DIR__, "digest.tpl"),
-                    out_path=tmpdir,
-                    args=Dict(
-                        :dd => dd,
-                        :ini => ini,
-                        :act => act,
-                        :title => title,
-                        :description => description))
-            end
-        end
-        cp(filename, outfilename; force=true)
-        return outfilename
-    catch e
-        if isa(e, InterruptException)
-            rethrow(e)
-        end
-        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir\n$e")
-    else
-        rm(tmpdir; recursive=true, force=true)
-    end
+    backend = get_digest_backend()
+    return weave_digest(backend, dd, title, description; ini, act)
 end
 
 """
@@ -1423,7 +1455,6 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
             if isa(e, InterruptException)
                 rethrow(e)
             end
-            continue
         end
         ProgressMeter.next!(p)
     end

@@ -121,6 +121,7 @@ include(joinpath("actors", "hcd", "pl_simple_actor.jl"))
 include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
 include(joinpath("actors", "hcd", "hcd_actor.jl"))
 
+include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
 include(joinpath("actors", "pedestal", "WPED_actor.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
@@ -128,12 +129,13 @@ include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
 
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
-include(joinpath("actors", "transport", "analytical_turbulence_actor.jl"))
+include(joinpath("actors", "transport", "analytic_turbulence_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
 include(joinpath("actors", "transport", "eped_profiles_actor.jl"))
+include(joinpath("actors", "transport", "sawteeth_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
@@ -178,6 +180,7 @@ include("studies.jl")
 include(joinpath("studies", "database_generator.jl"))
 include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
+include(joinpath("studies", "experiment_postdictive.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
@@ -211,5 +214,6 @@ include("test_cases.jl")
 export IMAS, @ddtime, help, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
+export digest
 
 end

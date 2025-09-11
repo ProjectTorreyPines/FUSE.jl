@@ -1,10 +1,7 @@
 #= ============= =#
 #  ActorPedestal  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorPedestal{T} begin
     #== common pedestal parameters==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
@@ -21,10 +18,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersA
     )
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :replay, :none], "-", "Pedestal model to use"; default=:EPED)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pressure edge model"; default=:EPED)
+    rotation_model::Switch{Symbol} = Switch{Symbol}([:linear, :replay, :none], "-", "Rotation edge model"; default=:none)
     #== L to H and H to L transition model ==#
-    tau_t::Entry{T} = Entry{T}("s", "pedestal temperature LH transition tanh evolution time (95% of full transition)")
-    tau_n::Entry{T} = Entry{T}("s", "pedestal density LH transition tanh evolution time (95% of full transition)")
+    tau_t::Entry{T} = Entry{T}("s", "Edge temperature LH transition tanh evolution time (95% of full transition)")
+    tau_n::Entry{T} = Entry{T}("s", "Edge density LH transition tanh evolution time (95% of full transition)")
     density_ratio_L_over_H::Entry{T} = Entry{T}("-", "n_Lmode / n_Hmode")
     zeff_ratio_L_over_H::Entry{T} = Entry{T}("-", "zeff_Lmode / zeff_Hmode")
     #== display and debugging parameters ==#
@@ -35,9 +33,10 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}
     act::ParametersAllActors{P}
-    ped_actor::Union{ActorWPED{D,P},ActorEPED{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    ped_actor::Union{ActorWPED{D,P},ActorEPED{D,P},ActorAnalyticPedestal{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     wped_actor::ActorWPED{D,P}
     eped_actor::ActorEPED{D,P}
+    analytic_actor::ActorAnalyticPedestal{D,P}
     replay_actor::Union{ActorReplay{D,P},ActorNoOperation{D,P}}
     noop_actor::ActorNoOperation{D,P}
     state::Vector{Symbol}
@@ -50,7 +49,32 @@ end
 """
     ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the pedestal boundary condition (height and width)
+Comprehensive pedestal modeling with support for multiple models and L-H mode transitions.
+
+This compound actor manages pedestal physics by selecting from available pedestal models
+and handling mode transitions between L-mode and H-mode operation. It coordinates multiple
+specialized pedestal actors and provides dynamic transition capabilities.
+
+Available pedestal models:
+- `:EPED`: EPED neural network model for pedestal predictions
+- `:WPED`: Width-based energy balance pedestal model  
+- `:analytic`: Analytic scaling laws for spherical tokamaks
+- `:dynamic`: Time-dependent L-H transitions with smoothing
+- `:replay`: Replays pedestal data from experimental reference
+- `:none`: No pedestal modifications
+
+Key features:
+- Automatic L-H mode detection based on power threshold criteria
+- Dynamic mode transitions with configurable time constants
+- Density matching options (pedestal or line-averaged)
+- Rotation profile modeling (linear, experimental replay)
+- Consistent Ti/Te ratio handling across all models
+
+Mode transition physics:
+- Supports user-defined transition times or automatic power threshold detection
+- Smooth temporal evolution using tanh functions with configurable time scales
+- Separate evolution times for temperature and density transitions
+- Configurable density and Zeff ratios between L-mode and H-mode
 """
 function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPedestal(dd, act.ActorPedestal, act; kw...)
@@ -66,8 +90,21 @@ function ActorPedestal(dd::IMAS.dd{D}, par::FUSEparameters__ActorPedestal{P}, ac
         ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     wped_actor =
         ActorWPED(dd, act.ActorWPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
+    analytic_actor =
+        ActorAnalyticPedestal(
+            dd,
+            act.ActorAnalyticPedestal;
+            par.rho_nml,
+            par.rho_ped,
+            par.T_ratio_pedestal,
+            par.Te_sep,
+            par.ip_from,
+            par.βn_from,
+            ne_from=:core_profiles,
+            zeff_from=:core_profiles
+        )
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}())
+    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, analytic_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}())
     actor.replay_actor = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -75,7 +112,17 @@ end
 """
     _step(actor::ActorPedestal)
 
-Runs actors to evaluate profiles at the edge of the plasma
+Orchestrates pedestal model selection and mode transition logic.
+
+The step function manages the complex workflow of:
+1. Determining current plasma mode (L-mode, H-mode) from power balance or user input
+2. Selecting and running the appropriate pedestal model
+3. Handling dynamic L-H transitions with proper temporal smoothing
+4. Applying rotation models if requested
+5. Updating plasma profiles with pedestal boundary conditions
+
+For dynamic mode transitions, tracks transition times and applies gradual profile 
+evolution to avoid numerical discontinuities.
 """
 function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
@@ -109,73 +156,112 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         actor.ped_actor = actor.replay_actor
         finalize(step(actor.ped_actor))
 
-    elseif par.model == :EPED
-        actor.ped_actor = actor.eped_actor
-        run_selected_pedestal_model(actor; density_factor=1.0, zeff_factor=1.0)
-
-    elseif par.model == :WPED
-        actor.ped_actor = actor.wped_actor
-        run_selected_pedestal_model(actor; density_factor=1.0, zeff_factor=1.0)
-
-    elseif par.model == :dynamic
-        @assert par.ne_from == :pulse_schedule ":dynamic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
-        @assert actor.previous_time < dd.global_time "subsequent calls to :dynamic pedestal model require dd.global_time advance"
-
-        if length(actor.state) < 2
-            # initialization
-            actor.t_lh = -Inf
-            actor.t_hl = -Inf
-            actor.cp1d_transition = deepcopy(cp1d)
-
-        elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode]
-            # L to H
-            actor.t_lh = (actor.previous_time + dd.global_time) / 2.0
-            actor.cp1d_transition = deepcopy(cp1d)
-
-        elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:H_mode, :L_mode]
-            # H to L
-            actor.t_hl = (actor.previous_time + dd.global_time) / 2.0
-            actor.cp1d_transition = deepcopy(cp1d)
-        end
-
-        if mode == :L_mode
-            # L-mode
-            α_t = LH_dynamics(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
-            α_n = LH_dynamics(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
-
-            actor.ped_actor = actor.wped_actor
-            density_factor = 1.0 * (1 - α_n) + par.density_ratio_L_over_H * α_n
-            zeff_factor = 1.0 * (1 - α_n) + par.zeff_ratio_L_over_H * α_n
-
-            run_selected_pedestal_model(actor; density_factor, zeff_factor)
-
-            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
-            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
-
-            cp1d.electrons.temperature = Te_now
-            for ion in cp1d.ion
-                ion.temperature = Ti_now
-            end
-
-        else
-            # H-mode
-            α_t = LH_dynamics(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
-            α_n = LH_dynamics(par.tau_n, actor.t_lh, dd.global_time) # from 0 -> 1
-
+    else
+        if par.model == :EPED
             actor.ped_actor = actor.eped_actor
-            density_factor = par.density_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
-            zeff_factor = par.zeff_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
+            run_selected_pedestal_model(actor; density_factor=1.0, zeff_factor=1.0)
 
-            run_selected_pedestal_model(actor; density_factor, zeff_factor)
+        elseif par.model == :WPED
+            actor.ped_actor = actor.wped_actor
+            run_selected_pedestal_model(actor; density_factor=1.0, zeff_factor=1.0)
 
-            Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
-            Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
+        elseif par.model == :analytic
+            actor.ped_actor = actor.analytic_actor
+            run_selected_pedestal_model(actor; density_factor=1.0, zeff_factor=1.0)
 
-            cp1d.electrons.temperature = Te_now
-            for ion in cp1d.ion
-                ion.temperature = Ti_now
+        elseif par.model == :dynamic
+            @assert par.ne_from == :pulse_schedule ":dynamic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
+            @assert actor.previous_time < dd.global_time "subsequent calls to :dynamic pedestal model require dd.global_time advance"
+
+            if length(actor.state) < 2
+                # initialization
+                actor.t_lh = -Inf
+                actor.t_hl = -Inf
+                actor.cp1d_transition = deepcopy(cp1d)
+
+            elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode]
+                # L to H
+                actor.t_lh = (actor.previous_time + dd.global_time) / 2.0
+                actor.cp1d_transition = deepcopy(cp1d)
+
+            elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:H_mode, :L_mode]
+                # H to L
+                actor.t_hl = (actor.previous_time + dd.global_time) / 2.0
+                actor.cp1d_transition = deepcopy(cp1d)
+            end
+
+            if mode == :L_mode
+                # L-mode
+                α_t = LH_dynamics(par.tau_t, actor.t_hl, dd.global_time) # from 0 -> 1
+                α_n = LH_dynamics(par.tau_n, actor.t_hl, dd.global_time) # from 0 -> 1
+
+                actor.ped_actor = actor.wped_actor
+                density_factor = 1.0 * (1 - α_n) + par.density_ratio_L_over_H * α_n
+                zeff_factor = 1.0 * (1 - α_n) + par.zeff_ratio_L_over_H * α_n
+
+                run_selected_pedestal_model(actor; density_factor, zeff_factor)
+
+                Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
+                Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
+
+                cp1d.electrons.temperature = Te_now
+                for ion in cp1d.ion
+                    ion.temperature = Ti_now
+                end
+
+            else
+                # H-mode
+                α_t = LH_dynamics(par.tau_t, actor.t_lh, dd.global_time) # from 0 -> 1
+                α_n = LH_dynamics(par.tau_n, actor.t_lh, dd.global_time) # from 0 -> 1
+
+                actor.ped_actor = actor.eped_actor
+                density_factor = par.density_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
+                zeff_factor = par.zeff_ratio_L_over_H * (1 - α_n) + 1.0 * α_n
+
+                run_selected_pedestal_model(actor; density_factor, zeff_factor)
+
+                Te_now = (1 .- α_t) .* actor.cp1d_transition.electrons.temperature .+ α_t .* cp1d.electrons.temperature
+                Ti_now = (1 .- α_t) .* actor.cp1d_transition.ion[1].temperature .+ α_t .* cp1d.ion[1].temperature
+
+                cp1d.electrons.temperature = Te_now
+                for ion in cp1d.ion
+                    ion.temperature = Ti_now
+                end
             end
         end
+
+        if par.rotation_model == :linear
+            # linear pedestal rotation with zero boundary condition at the edge
+            rho = cp1d.grid.rho_tor_norm
+            i_nml = IMAS.argmin_abs(rho, par.rho_nml)
+            i_ped = IMAS.argmin_abs(rho, par.rho_ped)
+            ω_core = IMAS.freeze!(cp1d.ion[1], :rotation_frequency_tor)
+            if i_nml == i_ped
+                dωdr_nml = IMAS.gradient(rho, -ω_core; method=:backward)[i_nml]
+            else
+                dωdr_nml = (ω_core[i_nml] - ω_core[i_ped]) / (rho[i_ped] - rho[i_nml])
+            end
+            ω_edge_linear = (1.0 .- rho) * dωdr_nml
+            ω_core[i_nml+1:end] = ω_edge_linear[i_nml+1:end]
+            ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge_linear[i_nml]
+            for ion in cp1d.ion
+                ion.rotation_frequency_tor = ω_core
+            end
+            IMAS.ωtor2sonic!(cp1d)
+
+        elseif par.rotation_model == :replay
+            time0 = dd.global_time
+            rho = cp1d.grid.rho_tor_norm
+            replay_cp1d = actor.replay_actor.replay_dd.core_profiles.profiles_1d[time0]
+            i_nml = IMAS.argmin_abs(rho, par.rho_nml)
+            i_ped = IMAS.argmin_abs(rho, par.rho_ped)
+            ω_core = IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
+            ω_edge_linear = replay_cp1d.rotation_frequency_tor_sonic
+            ω_core[i_nml+1:end] = ω_edge_linear[i_nml+1:end]
+            ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge_linear[i_nml]
+            cp1d.rotation_frequency_tor_sonic = ω_core
+        end
+
     end
 
     actor.previous_time = dd.global_time
@@ -237,7 +323,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     w_ped = IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
 
     ne_old = copy(cp1d.electrons.density_thermal)
-    ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * density_factor
+    ne_ped = IMAS.get_from(dd, Val(:ne_ped), par.ne_from, rho09) * density_factor
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = ne = IMAS.ped_height_at_09(rho, ne, ne_ped)
@@ -255,7 +341,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
 
     #NOTE: Zeff can change after a pedestal actor is run, even though actors like EPED and WPED only operate on the temperature profiles.
     # This is because in FUSE the calculation of Zeff is temperature dependent.
-    zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, par.zeff_from, rho09) * zeff_factor
+    zeff_ped = IMAS.get_from(dd, Val(:zeff_ped), par.zeff_from, rho09) * zeff_factor
     IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
 
     return nothing
@@ -339,6 +425,7 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
     replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
     rho = cp1d.grid.rho_tor_norm
 
+    # densities
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :density_thermal)
@@ -346,12 +433,17 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
         end
     end
 
+    # temperatures
     cp1d.electrons.temperature = IMAS.blend_core_edge(cp1d.electrons.temperature, replay_cp1d.electrons.temperature, rho, par.rho_nml, par.rho_ped)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :temperature)
             ion.temperature = IMAS.blend_core_edge(ion.temperature, replay_ion.temperature, rho, par.rho_nml, par.rho_ped)
         end
     end
+
+    # rotation
+    cp1d.rotation_frequency_tor_sonic =
+        IMAS.blend_core_edge(cp1d.rotation_frequency_tor_sonic, replay_cp1d.rotation_frequency_tor_sonic, rho, par.rho_nml, par.rho_ped; method=:shift)
 
     return replay_actor
 end

@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
+    case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
 
 UKAEA STEP design
 """
-function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
+function case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
     @assert init_from in (:scalars, :ods)
     @assert pf_from in (:scalars, :ods)
 
@@ -102,7 +102,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
         # 1. DT
         IMAS.ion_element!(bulk_ion, ini.core_profiles.bulk)
-        @assert IMAS.is_hydrogenic(bulk_ion) "Bulk ion `$(ini.core_profiles.bulk)` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
         # 2. Impurity
         IMAS.ion_element!(imp_ion, ini.core_profiles.impurity)
         # 3. He

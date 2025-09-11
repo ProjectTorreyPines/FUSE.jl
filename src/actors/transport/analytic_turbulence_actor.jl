@@ -4,10 +4,7 @@ import IMAS
 #= ======================= =#
 #  ActorAnalyticTurbulence  #
 #= ======================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorAnalyticTurbulence{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorAnalyticTurbulence{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:GyroBohm, :BgB], "-", "Analytic transport model"; default=:GyroBohm)
     αBgB::Entry{T} = Entry{T}("-", "Scale factor for BgB transport"; default=0.01)
     χeB_coefficient::Entry{T} = Entry{T}("-", "Coefficient of Bohm component in χe. χe=αBgB*(χeB_coefficient*χeB+χeGB_coefficient*χeGB)"; default=0.01)
@@ -21,13 +18,22 @@ end
 mutable struct ActorAnalyticTurbulence{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorAnalyticTurbulence{P}}
-    flux_solutions::Vector{<:GACODE.FluxSolution}
+    flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
     ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates analytic turbulence models
+Evaluates analytic turbulent transport models including GyroBohm and Bohm+gyro-Bohm (BgB) models.
+
+The actor supports two transport models:
+- `:GyroBohm`: Simple gyro-Bohm scaling returning unit fluxes
+- `:BgB`: Detailed Bohm + gyro-Bohm model calculating electron and ion energy diffusivities (χe, χi) 
+  and particle flux (Γe) based on local plasma parameters, pressure gradients, and magnetic geometry
+
+The BgB model computes transport coefficients using local temperature and density gradients,
+safety factor profiles, and magnetic field geometry. Results are normalized to gyro-Bohm 
+and stored in `dd.core_transport` as anomalous transport fluxes.
 """
 function ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorAnalyticTurbulence(dd, act.ActorAnalyticTurbulence; kw...)
@@ -36,18 +42,26 @@ function ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorAnalyticTurbulence(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticTurbulence; kw...)
+function ActorAnalyticTurbulence(dd::IMAS.dd{D}, par::FUSEparameters__ActorAnalyticTurbulence{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorAnalyticTurbulence)
     par = OverrideParameters(par; kw...)
-    return ActorAnalyticTurbulence(dd, par, GACODE.FluxSolution[])
+    return ActorAnalyticTurbulence(dd, par, GACODE.FluxSolution{D}[])
 end
 
 """
     _step(actor::ActorAnalyticTurbulence)
 
-Runs analytic turbulent transport model on a vector of gridpoints
+Runs the selected analytic turbulent transport model on specified radial grid points.
+
+For the BgB model, calculates:
+- χeB, χeGB: Bohm and gyro-Bohm electron heat diffusivities
+- χiB, χiGB: Bohm and gyro-Bohm ion heat diffusivities  
+- Γe: Electron particle flux based on density gradients
+
+All transport coefficients are scaled by user-specified coefficients and stored as 
+FluxSolution objects normalized to gyro-Bohm units.
 """
-function _step(actor::ActorAnalyticTurbulence)
+function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
@@ -56,8 +70,8 @@ function _step(actor::ActorAnalyticTurbulence)
     eqt1d = eqt.profiles_1d
 
     if actor.par.model == :GyroBohm
-        flux_solution = GACODE.FluxSolution(1.0, 1.0, 1.0, [1.0 for ion in cp1d.ion], 1.0)
-        actor.flux_solutions = GACODE.FluxSolution[flux_solution for irho in par.rho_transport]
+        flux_solution = GACODE.FluxSolution{D}(1.0, 1.0, 1.0, [1.0 for ion in cp1d.ion], 1.0)
+        actor.flux_solutions = GACODE.FluxSolution{D}[flux_solution for irho in par.rho_transport]
 
     elseif actor.par.model == :BgB
         A1 = 1.0
@@ -100,7 +114,7 @@ function _step(actor::ActorAnalyticTurbulence)
         gridpoint_cp = [argmin_abs(cp1d.grid.rho_tor_norm, ρ) for ρ in par.rho_transport]
 
         actor.flux_solutions = [
-            GACODE.FluxSolution(
+            GACODE.FluxSolution{D}(
                 χe[irho] * dpe[irho] / Q_GB[irho] / vprime_miller[irho],
                 χi[irho] * dpi[irho] / Q_GB[irho] / vprime_miller[irho],
                 Γe[irho] / Γ_GB[irho] / vprime_miller[irho],
@@ -122,7 +136,11 @@ end
 """
     _finalize(actor::ActorAnalyticTurbulence)
 
-Writes results to dd.core_transport
+Writes calculated transport fluxes to `dd.core_transport.model[:anomalous]`.
+
+The model identifier is set to the selected transport model name (:GyroBohm or :BgB)
+and flux results are converted from normalized GACODE format to IMAS format using
+`GACODE.flux_gacode_to_imas` for electron/ion energy, particle, and momentum fluxes.
 """
 function _finalize(actor::ActorAnalyticTurbulence)
     dd = actor.dd

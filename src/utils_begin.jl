@@ -110,7 +110,7 @@ struct TraceCAD
 end
 
 function TraceCAD(device::Symbol)
-    return TraceCAD(Val{device})
+    return TraceCAD(Val(device))
 end
 
 """
@@ -151,17 +151,22 @@ end
 # parallel #
 # ======== #
 """
-    parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
+    parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, workers_import_fuse::Bool=true, kw...)
 
 Start multiprocessing environment
 
   - kw arguments are passed to the Distributed.addprocs
-  - nworkers == 0 uses as many workers as the number of available CPUs
+  - nworkers == -1 uses as many workers as the number of available CPUs
+  - nworkers == 0 uses no worker nodes
   - cpus_per_task can be used to control memory usage
   - memory_usage_fraction is the fraction of peak memory that can be used
+  - workers_import_fuse does a `@everywhere using FUSE` on the worker nodes
 """
-function parallel_environment(cluster::String="localhost", nworkers::Integer=0, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
-    if cluster == "omega"
+function parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, workers_import_fuse::Bool=true, kw...)
+    if nworkers == 0
+        #pass
+
+    elseif cluster == "omega"
     	if occursin("omega", gethostname())
             gigamem_per_node = 512
             cpus_per_node = 128
@@ -311,6 +316,23 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=0, 
 
     else
         error("Cluster `$cluster` is unknown. Use `localhost` or add `$cluster` to the FUSE.parallel_environment")
+    end
+
+    # import FUSE and IJulia on workers
+    if workers_import_fuse
+        if isdefined(Main, :IJulia)
+            code = """
+            using Distributed
+            @everywhere using FUSE
+            @everywhere import IJulia
+            """
+        else
+            code = """
+            using Distributed
+            @everywhere using FUSE
+            """
+        end
+        Base.include_string(Main, code)
     end
 
     return println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")

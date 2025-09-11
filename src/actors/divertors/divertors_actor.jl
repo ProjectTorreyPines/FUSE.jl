@@ -3,10 +3,7 @@
 #= ============== =#
 import BoundaryPlasmaModels
 
-Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorDivertors{T} begin
     heat_flux_model::Switch{Symbol} = Switch{Symbol}([:lengyel, :stangeby], "-", "Divertor heat flux model"; default=:lengyel)
     impurities::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "Vector of impurity species"; default=Symbol[])
     impurities_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Vector of impurity fractions"; default=T[])
@@ -24,11 +21,46 @@ end
 """
     ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates divertor loading and deposited power
+Calculates divertor heat fluxes and power loads using reduced SOL transport models.
+
+The actor evaluates the heat and particle fluxes striking divertor targets by tracing 
+power flow from the main plasma through the scrape-off layer (SOL) to the material 
+surfaces. It uses simplified two-point models calibrated for divertor physics.
+
+Key physics modeled:
+- Power flow from separatrix through SOL to divertor targets
+- Heat flux spreading due to field line divergence and cross-field transport  
+- Strike point geometry and magnetic field angle effects
+- Material surface heat loads and wetted area calculations
+
+Heat flux models available:
+- `:lengyel`: Simple exponential decay model with flux expansion
+- `:stangeby`: More sophisticated model including impurity effects
+
+Analysis workflow:
+1. **SOL Geometry**: Identifies strike surfaces and field line connections
+2. **Power Balance**: Calculates SOL power from core sources minus radiation
+3. **SOL Width**: Estimates λq (heat flux width) at outer midplane using Eich scaling
+4. **Field Line Mapping**: Traces flux expansion from midplane to targets
+5. **Heat Flux Calculation**: Applies model-specific physics for target fluxes
+6. **Surface Integration**: Calculates total power loads and peak heat fluxes
+
+Key outputs:
+- Peak heat flux on each divertor target surface (W/m²)
+- Total incident power on each target (W)  
+- Wetted area and flux expansion factors
+- Strike angles and field line geometry parameters
+- Thermal power extraction efficiency for cooling systems
+
+Model parameters:
+- `heat_spread_factor`: Additional flux spreading in private regions
+- `impurities`: Impurity species concentrations affecting radiation
+- `thermal_power_extraction_efficiency`: Cooling system effectiveness
 
 !!! note
 
-    Stores data in `dd.divertors`
+    Stores detailed heat flux analysis in `dd.divertors` including peak fluxes,
+    total power loads, target geometry, and cooling system requirements
 """
 function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorDivertors(dd, act.ActorDivertors; kw...)

@@ -29,3 +29,25 @@ function convert_notebook_to_litterate(ipynb_file::String, litterate_file::Strin
         end
     end
 end
+
+# ================================================================= #
+# Command line execution
+# ================================================================= #
+if !isempty(ARGS)
+    if length(ARGS) != 2
+        println("Usage: julia script.jl <input.ipynb> <output.jl>")
+        exit(1)
+    end
+
+    ipynb_file = ARGS[1]
+    litterate_file = ARGS[2]
+
+    # Check if input file exists
+    if !isfile(ipynb_file)
+        println("Error: Input file '$ipynb_file' not found")
+        exit(1)
+    end
+
+    convert_notebook_to_litterate(ipynb_file, litterate_file)
+    println("Converted '$ipynb_file' to '$litterate_file'")
+end

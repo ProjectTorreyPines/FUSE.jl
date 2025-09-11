@@ -1,10 +1,12 @@
 """
-    case_parameters(::Type{Val{:D3D}}, shot::Int;
-        new_impurity_match_power_rad::Symbol=:none,
-        fit_profiles::Bool=false, 
+    case_parameters(::Val{:D3D}, shot::Int;
+        fit_profiles::Bool=true,
         EFIT_tree::String="EFIT02",
         PROFILES_tree::String="ZIPFIT01",
         CER_analysis_type::String="CERAUTO",
+        time_averaging::Float64=0.05,
+        rho_averaging::Float64=0.25,
+        new_impurity_match_power_rad::Symbol=:none,
         omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
         omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
         omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
@@ -13,46 +15,40 @@
 
 DIII-D from experimental shot
 """
-function case_parameters(::Type{Val{:D3D}}, shot::Int;
-    new_impurity_match_power_rad::Symbol=:none,
-    fit_profiles::Bool=false, 
+function case_parameters(::Val{:D3D}, shot::Int;
+    fit_profiles::Bool=true,
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
+    time_averaging::Float64=0.05,
+    rho_averaging::Float64=0.25,
+    new_impurity_match_power_rad::Symbol=:none,
     omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
     omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
     omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
     use_local_cache::Bool=false
 )
-    ini, act = case_parameters(Val{:D3D_machine})
+    ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
 
-    # variables used for data fetching
-    remote_omas_root = "\$OMAS_ROOT"
-    if !isempty(omega_omas_root)
-        remote_omas_root = omega_omas_root
-    end
-    remote_omfit_root = "\$OMFIT_ROOT"
-    if !isempty(omega_omfit_root)
-        remote_omfit_root = omega_omfit_root
-    end
-    remote_host = "$(omega_user)@omega.gat.com"
-    remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
-    filename = "D3D_$shot.h5"
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
-        local_path = remote_path
+    # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
+    if contains(EFIT_tree, "USER")
+        efit_shot = parse(Int, "$(shot)$(EFIT_tree[5:end])")
+        EFIT_tree = "EFIT"
     else
-        local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
-        if isdir(local_path) && !use_local_cache
-            rm(local_path; recursive=true)
-        end
-        if !isdir(local_path)
-            mkdir(local_path)
-        end
+        efit_shot = shot
     end
 
-    # remote omas script
-    omas_py = """
+    # to get user OMFIT_PROFS use (shot, OMFIT_PROFS001) to get (shot001, OMFIT_PROFS)
+    if contains(PROFILES_tree, "OMFIT_PROFS")
+        prof_shot = parse(Int, "$(shot)$(PROFILES_tree[12:end])")
+        PROFILES_tree = "OMFIT_PROFS"
+    else
+        prof_shot = shot
+    end
+
+    # omas fetching script
+    omas_fetching = """
         import time
         import omas
         from omas.omas_utils import printe
@@ -69,7 +65,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         # d3d.nbi_active_hardware(ods, $shot)
 
         printe("- Fetching core_profiles data")
-        d3d.core_profiles_profile_1d(ods, $shot, PROFILES_tree="$(PROFILES_tree)")
+        d3d.core_profiles_profile_1d(ods, $prof_shot, PROFILES_tree="$(PROFILES_tree)")
 
         printe("- Fetching wall data")
         d3d.wall(ods, $shot)
@@ -77,6 +73,9 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         printe("- Fetching coils data")
         d3d.pf_active_hardware(ods, $shot)
         d3d.pf_active_coil_current_data(ods, $shot)
+
+        printe("- Fetching magnetic hardware data")
+        d3d.magnetics_hardware(ods, $shot)
 
         printe("- Fetching flux loops data")
         d3d.magnetics_floops_data(ods, $shot)
@@ -87,6 +86,10 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         printe("- Fetching Thomson scattering data")
         d3d.thomson_scattering_data(ods, $shot)
 
+        printe("- Fetching interferometer data")
+        d3d.interferometer_hardware(ods, $shot)
+        d3d.interferometer_data(ods, $shot)
+
         printe("- Fetching charge exchange data")
         d3d.charge_exchange_data(ods, $shot, analysis_type="$(CER_analysis_type)")
 
@@ -94,7 +97,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         d3d.summary(ods, $shot)
 
         printe("- Fetching equilibrium data")
-        with ods.open('d3d', $shot, options={'EFIT_tree': '$EFIT_tree'}):
+        with ods.open('d3d', $efit_shot, options={'EFIT_tree': '$EFIT_tree'}):
             for k in range(len(ods["equilibrium.time"])):
                 ods["equilibrium.time_slice"][k]["time"]
                 ods["equilibrium.time_slice"][k]["global_quantities.ip"]
@@ -109,7 +112,35 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
                 ods["equilibrium.vacuum_toroidal_field.b0"]
 
         printe(f"Data fetched via OMAS in {time.time()-tic:.2f} [s]")
+        """
 
+    # variables used for data fetching
+    remote_omas_root = "\$OMAS_ROOT"
+    if !isempty(omega_omas_root)
+        remote_omas_root = omega_omas_root
+    end
+    remote_omfit_root = "\$OMFIT_ROOT"
+    if !isempty(omega_omfit_root)
+        remote_omfit_root = omega_omfit_root
+    end
+    remote_host = "$(omega_user)@somega.gat.com"
+    phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root, omas_fetching))
+    remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
+    filename = "D3D_$(shot)_$(phash).h5"
+    if occursin(r"somega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+        local_path = remote_path
+    else
+        local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
+    end
+    if isdir(local_path) && !use_local_cache
+        rm(local_path; recursive=true)
+    end
+    if !isdir(local_path)
+        mkdir(local_path)
+    end
+
+    # remote omas script
+    omas_py = omas_fetching * """
         printe("Saving ODS to $filename", end="")
         tic = time.time()
         ods.save("$filename")
@@ -139,19 +170,19 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
         cd $remote_path
         export PYTHONPATH=$(remote_omas_root):\$PYTHONPATH
 
-        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+        python -u $(remote_omfit_root)/omfit/omfit.py $(remote_omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" 2>&1 > "$remote_path/omfit_log.txt" &
 
-        python -u omas_data_fetch.py
+        python -u omas_data_fetch.py 2>&1 | tee "$remote_path/omas_log.txt"
 
         echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
         wait
-        echo "Transfering data from remote" >&2
+        echo "Transfering data from the remote" >&2
         """
     open(joinpath(local_path, "remote_slurm.sh"), "w") do io
         return write(io, remote_slurm)
     end
 
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+    if occursin(r"somega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
         # local driver script
         local_driver = """
             #!/bin/bash
@@ -190,6 +221,9 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
+    # simulation starts when both equilibrium and profiles are available
+    ini.time.simulation_start = max(ini.general.dd.equilibrium.time_slice[2].time, ini.general.dd.core_profiles.profiles_1d[2].time)
+
     # sanitize dd
     for nbu in dd1.nbi.unit
         nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
@@ -205,7 +239,7 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 
     # profile fitting starting from diagnostic measurements
     if fit_profiles
-        ActorFitProfiles(dd1, act; time_averaging=0.05, rho_averaging=0.25, time_basis_ids=:equilibrium)
+        ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium)
     end
 
     # add rotation information if missing
@@ -229,24 +263,24 @@ function case_parameters(::Type{Val{:D3D}}, shot::Int;
 
     set_ini_act_from_ods!(ini, act)
 
-    ini.time.simulation_start = missing # to force user selection
-
     #### ACT ####
 
     for actuator in act.ActorSimpleEC.actuator
         actuator.rho_0 = missing
+        actuator.ηcd_scale = 0.2 # based on comparisons with TORAY for shot 156905
+        actuator.width = 0.05
     end
 
     return ini, act
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
+    case_parameters(::Val{:D3D}, ods_file::AbstractString)
 
 DIII-D from ods file
 """
-function case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
-    ini, act = case_parameters(Val{:D3D_machine})
+function case_parameters(::Val{:D3D}, ods_file::AbstractString)
+    ini, act = case_parameters(Val(:D3D_machine))
 
     ini.general.casename = "D3D $ods_file"
     ini.ods.filename = "$(ini.ods.filename),$(ods_file)"
@@ -258,12 +292,12 @@ function case_parameters(::Type{Val{:D3D}}, ods_file::AbstractString)
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
+    case_parameters(::Val{:D3D}, dd::IMAS.dd)
 
 DIII-D from dd file
 """
-function case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
-    ini, act = case_parameters(Val{:D3D_machine})
+function case_parameters(::Val{:D3D}, dd::IMAS.dd)
+    ini, act = case_parameters(Val(:D3D_machine))
 
     ini.general.casename = "D3D from dd"
 
@@ -279,17 +313,17 @@ function case_parameters(::Type{Val{:D3D}}, dd::IMAS.dd)
 end
 
 """
-    case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
+    case_parameters(::Val{:D3D}, scenario::Symbol)
 
 DIII-D from sample cases
 """
-function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
+function case_parameters(::Val{:D3D}, scenario::Symbol)
     filenames = Dict(
         :H_mode => "$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json")),$(joinpath("__FUSE__", "sample", "D3D_standard_Hmode.json"))",
         :L_mode => "$(joinpath("__FUSE__", "sample", "D3D_standard_Lmode.json"))",
         :default => "$(joinpath("__FUSE__", "sample", "D3D_eq_ods.json"))")
 
-    ini, act = case_parameters(Val{:D3D}, filenames[scenario])
+    ini, act = case_parameters(Val(:D3D), filenames[scenario])
     ini.general.casename = "D3D $scenario"
 
     if isempty(ini.general.dd.core_sources)
@@ -335,11 +369,11 @@ function case_parameters(::Type{Val{:D3D}}, scenario::Symbol)
 end
 
 """
-    case_parameters(::Type{Val{:D3D_machine}})
+    case_parameters(::Val{:D3D_machine})
 
 Base DIII-D machine parameters that are then extended by the other `case_parameters(:D3D, ...)` functions
 """
-function case_parameters(::Type{Val{:D3D_machine}})
+function case_parameters(::Val{:D3D_machine})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -405,7 +439,7 @@ function case_parameters(::Type{Val{:D3D_machine}})
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:D3D}})
+function TraceCAD(::Val{:D3D})
     x_length = 3.7727
     x_offset = -0.0303
     y_offset = -0.0303

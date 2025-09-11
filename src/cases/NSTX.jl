@@ -2,7 +2,7 @@
     case_parameters(:NSTX; init_from::Symbol)
 
 """
-function case_parameters(::Type{Val{:NSTX}}; init_from::Symbol)
+function case_parameters(::Val{:NSTX}; init_from::Symbol)
     ini = FUSE.ParametersInits()
     act = FUSE.ParametersActors()
     ini.general.casename = "NSTX"

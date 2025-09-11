@@ -2,7 +2,7 @@
     case_parameters(:KSTAR; init_from::Symbol)
 
 """
-function case_parameters(::Type{Val{:KSTAR}}; init_from::Symbol)
+function case_parameters(::Val{:KSTAR}; init_from::Symbol)
     ini = FUSE.ParametersInits()
     act = FUSE.ParametersActors()
     ini.general.casename = "KSTAR"

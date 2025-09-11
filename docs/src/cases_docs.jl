@@ -9,7 +9,7 @@ for method in methods(FUSE.case_parameters)
         """## $name
 
         ```@docs
-        case_parameters(::Type{Val{:$name}})
+        case_parameters(::Val(:$name))
         ```
         """
     )
