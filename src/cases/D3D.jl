@@ -119,11 +119,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
     if !isempty(omega_omfit_root)
         remote_omfit_root = omega_omfit_root
     end
-    remote_host = "$(omega_user)@omega.gat.com"
+    remote_host = "$(omega_user)@somega.gat.com"
     phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root, omas_fetching))
     remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
     filename = "D3D_$(shot)_$(phash).h5"
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+    if occursin(r"somega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
         local_path = remote_path
     else
         local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
@@ -178,7 +178,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         return write(io, remote_slurm)
     end
 
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+    if occursin(r"somega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
         # local driver script
         local_driver = """
             #!/bin/bash
