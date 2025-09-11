@@ -7,6 +7,7 @@
     rho_averaging::Entry{Float64} = Entry{Float64}("-", "rho averaging window")
     rho_grid::Entry{Int} = Entry{Int}("-", "Number of points in rho"; default=101)
     time_basis_ids::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Time basis to use"; default=:core_profiles)
+    use_interferometer::Entry{Bool} = Entry{Bool}("-", "Scale thomson scattering density based on interferometer measurements"; default=true)
     #== display and debugging parameters ==#
 end
 
@@ -27,11 +28,12 @@ end
 Fits experimental diagnostic data from Thomson scattering and charge exchange recombination spectroscopy to create smooth plasma profiles.
 
 This actor performs several key operations:
-- Identifies and removes outliers from raw diagnostic data using adaptive algorithms
-- Time-averages diagnostic measurements within specified windows
-- Fits electron temperature (Te), electron density (ne), ion temperature (Ti), and ion density profiles
-- Optionally scales Thomson scattering density based on interferometer measurements
-- Enforces quasi-neutrality and provides smooth, consistent profiles on a common radial grid
+
+  - Identifies and removes outliers from raw diagnostic data using adaptive algorithms
+  - Time-averages diagnostic measurements within specified windows
+  - Fits electron temperature (Te), electron density (ne), ion temperature (Ti), and ion density profiles
+  - Optionally scales Thomson scattering density based on interferometer measurements
+  - Enforces quasi-neutrality and provides smooth, consistent profiles on a common radial grid
 
 The resulting fitted profiles are stored in `dd.core_profiles.profiles_1d[]` and provide the foundation for physics modeling.
 """
@@ -95,7 +97,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # scale thomson scattering density based on interferometer measurements
-    if false && !isempty(dd.interferometer.channel)
+    if par.use_interferometer && !isempty(dd.interferometer.channel)
         n_points = 101
         interferometer_calibration_times = time_basis[1:2:end]
 
@@ -150,11 +152,10 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
                 end
 
                 # profiles continuity: we want to minimize jumps in the profile
-                tmp = maximum(abs.(diff(data[kt][index]))) / sum(scales)
+                tmp = sum(abs.(diff(data[kt][index]))) / sum(data[kt])
                 push!(c_continuity, tmp)
             end
-
-            return sqrt(norm(c_simulated)^2 + norm(c_continuity)^2 + norm(scales0)^2)
+            return sqrt(norm(c_simulated)^2 + norm(c_continuity)^2)
         end
         res = Optim.optimize(cost, fill(0.0, length(ts_subsystems_mapper)), Optim.NelderMead())
 
@@ -165,6 +166,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
             for chnum in ts_subsystems_mapper[subsystem]
                 dd.thomson_scattering.channel[chnum].n_e.data .*= scales[kch]
+                dd1.thomson_scattering.channel[chnum].n_e.data .*= scales[kch]
             end
         end
     end
@@ -231,10 +233,11 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    # restore the original raw data (comment this out to see what data the fitting routine saw)
-    # for field in (:thomson_scattering, :charge_exchange)
-    #     setproperty!(dd, field, getproperty(dd1, field))
-    # end
+    # restore the original raw data [still compensated for interferometer!]
+    # (comment this out to see what data the fitting routine saw)
+    for field in (:thomson_scattering, :charge_exchange)
+        setproperty!(dd, field, getproperty(dd1, field))
+    end
 
     return actor
 end
