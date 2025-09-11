@@ -1,10 +1,7 @@
 #= ========== =#
 #  HFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHFSsizing{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorHFSsizing{T} begin
     error_on_technology::Entry{Bool} = Entry{Bool}("-", "Error if build stresses and current limits are not met"; default=true)
     error_on_performance::Entry{Bool} = Entry{Bool}("-", "Error if requested Bt and flattop duration are not met"; default=true)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
@@ -22,9 +19,29 @@ end
 """
     ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that resizes the High Field Side of the tokamak radial build.
-It changes the radial build of the center stack (plug, OH, and TF)
-accounting for stresses, superconductors critical currents, flux swing, and field requirements.
+Optimizes the High Field Side (HFS) radial build dimensions to satisfy engineering constraints
+and performance requirements. Uses metaheuristic optimization to find the optimal thicknesses
+and steel fractions for the center stack components (plug, OH coils, TF coils) while respecting
+stress limits, current density limits, magnetic field requirements, and flattop duration targets.
+
+# Optimization variables
+- TF coil thickness (normalized to available space)  
+- OH coil thickness (normalized to available space)
+- OH steel fraction (within void fraction constraints)
+- TF steel fraction (within void fraction constraints)
+- TF nose thickness fraction (if not bucked configuration)
+
+# Engineering constraints
+- Critical current density limits for superconducting coils (TF and OH)
+- Mechanical stress limits (Von Mises stress vs yield strength) 
+- Magnetic field requirements (achieve target B₀)
+- Flux swing capability for OH coil flattop duration
+
+# Key outputs
+- Optimized radial build dimensions (`dd.build.layer` thicknesses)
+- Updated technology parameters (steel fractions)
+- Stress analysis results via integrated ActorStresses
+- Flux swing analysis via integrated ActorFluxSwing
 
 !!! note
 
