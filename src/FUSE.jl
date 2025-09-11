@@ -179,6 +179,7 @@ include(joinpath("studies", "database_generator.jl"))
 include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
 include(joinpath("studies", "experiment_postdictive.jl"))
+include(joinpath("studies", "study_database.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
