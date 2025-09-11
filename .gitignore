@@ -77,3 +77,4 @@ tmp.gif
 
 # Generated knowledge base files
 knowledge/actors/
+knowledge/mcp_server/start_server.sh
