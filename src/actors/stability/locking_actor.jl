@@ -106,7 +106,7 @@ function _step(actor::ActorLocking)
 
     # Solve a single case to debug
     # pick Control1 and Control 2
-    C1 = 5.; C2 = 0.5; task = "solveRW"
+    C1 = .1; C2 = 5.; task = "solveRW"
     solve_one_case(par, actor.ode_params, task, C1, C2 )
 
     #all_sols = solve_system(actor, task)
@@ -123,10 +123,10 @@ end
 
 function solve_one_case(par, ode_params::ODEparams, task::String, eps::Float64, Om0::Float64)    
     final_sol = solve_ODEs(par, ode_params, task, eps, Om0)
-    #final_sol = sols[end]
+    println("final raw solution = ", final_sol)
     
     sols_norm = normalize_ode_results(final_sol, ode_params, eps, Om0, par.control_type)
-    println(sols_norm)
+    println("final normalized solution", sols_norm)
 
     return
 end
@@ -422,8 +422,6 @@ function make_ode_func(rhs!)
 end
 
 
-
-
 function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     """
     Calculate the bifurcation boundaries analytically
@@ -484,53 +482,6 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
     return bifurcation_bounds
 end
 
-function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
-    # Determine target shape
-    m, n = size(Z)
-
-    # If C1 and C2 are vectors, try to reshape them
-    if ndims(X) == 1
-        X = unique(X)
-    end
-    if ndims(Y) == 1
-        Y = unique(Y)
-    end
-    
-    
-    plt = contour(X,Y, Z; linewidth=2)
-    display(plt)   # explicitly display
-    return plt
-end
-
-
-function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, levels::Vector{Float64}, control_type)
-    # Determine target shape
-    m, n = size(Z)
-
-    # If C1 and C2 are vectors, try to reshape them
-    if ndims(X) == 1 
-        X = unique(X)
-    end
-    if ndims(Y) == 1 
-        Y = unique(Y)
-    end
-
-    if control_type==:EF
-        xlabel = "Error Field"
-    elseif control_type==:LinStab
-        xlabel = "Linear Stability"
-    elseif control_type==:NLsaturation
-        xlabel = "NL saturation"
-    end
-
-    ## Create the contour plot
-    #pythonplot()
-    plt = contour(X, Y, Z; levels=levels, linewidth=2, xlabel=xlabel, ylabel="Normalized Torque")
-    #plt.xlabel("Control1")
-    display(plt)  # show plot
-
-    return plt
-end
 
 function solve_ODEs(par, ode_params::ODEparams, task::String,
                         control1::Float64, control2::Float64)
@@ -638,7 +589,7 @@ function solve_system(actor::ActorLocking, task::String)
     control1 = ode_params.Control1
     control2 = ode_params.Control2
 
-    # NOTE: rhs expects (eps, Om0), and in your EF case Control2 = eps, Control1 = Om0  :contentReference[oaicite:4]{index=4}
+    # NOTE: rhs expects (eps, Om0), and in your EF case Control2 = eps, Control1 = Om0  
     inputs = collect(zip(control1, control2))
 
     # Optional: shrink what we ship by clearing large control arrays
@@ -647,8 +598,8 @@ function solve_system(actor::ActorLocking, task::String)
     ode_params_send.Control2 = Float64[]
 
     # Parallel map over the grid, returning final states
-    finals = pmap(inputs) do (eps, Om0)
-        solve_ODEs(par, ode_params_send, task, eps, Om0)
+    finals = pmap(inputs) do (C1, C2)
+        solve_ODEs(par, ode_params_send, task, C2, C1)
     end
 
     # finals[i] is the final state vector for inputs[i].
@@ -658,32 +609,86 @@ function solve_system(actor::ActorLocking, task::String)
     return finals
 end
 
-using Plots
-
-using Plots
 
 """
-plot_normalized_scatter(norm_sol; xcol=1, ycol=3)
+plot_sols_scatter(norm_sol; xcol=1, ycol=3)
 
 Make a scatter plot from normalized solutions.
 
 Arguments:
-- `norm_sol`: Vector{Vector{Float64}}, each inner vector
-              is one normalized solution [psiN, psiwN, OmN].
-- `xcol`, `ycol`: column indices (1-based) of the components
-   to plot (default: psiN vs OmN).
+- `norm_sol`: 
+    * Vector{Vector{Float64}} or 
+    * Vector{NTuple{N,Float64}} (N=3 or 5 typically).
+  Each entry is one normalized solution.
+- `xcol`, `ycol`: column indices (1-based) to plot.
 
 Example:
     plot_normalized_scatter(norm_sol; xcol=1, ycol=3)
 """
-function plot_normalized_scatter(norm_sol::Vector{Vector{Float64}}; xcol::Int=1, ycol::Int=3)
-    # Stack into matrix of size (M, K)
-    data = reduce(vcat, (x' for x in norm_sol))  # each x' is 1×K row
+function plot_sols_scatter(norm_sol; xcol::Int=1, ycol::Int=3)
+    if eltype(norm_sol) <: AbstractVector{<:Real}
+        # Convert vector-of-vectors to a matrix
+        data = reduce(vcat, (x' for x in norm_sol))
+    elseif eltype(norm_sol) <: NTuple
+        # Convert vector-of-tuples to a matrix
+        data = reduce(vcat, (collect(x)' for x in norm_sol))
+    else
+        throw(ArgumentError("norm_sol must be Vector{Vector{Float64}} or Vector{NTuple{N,Float64}}"))
+    end
 
     scatter(data[:, xcol], data[:, ycol],
             xlabel="Component $xcol",
             ylabel="Component $ycol",
             title="Normalized solution scatter")
 end
+
+function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
+    # Determine target shape
+    m, n = size(Z)
+
+    # If C1 and C2 are vectors, try to reshape them
+    if ndims(X) == 1
+        X = unique(X)
+    end
+    if ndims(Y) == 1
+        Y = unique(Y)
+    end
+    
+    
+    plt = contour(X,Y, Z; linewidth=2)
+    display(plt)   # explicitly display
+    return plt
+end
+
+
+function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, levels::Vector{Float64}, control_type)
+    # Determine target shape
+    m, n = size(Z)
+
+    # If C1 and C2 are vectors, try to reshape them
+    if ndims(X) == 1 
+        X = unique(X)
+    end
+    if ndims(Y) == 1 
+        Y = unique(Y)
+    end
+
+    if control_type==:EF
+        xlabel = "Error Field"
+    elseif control_type==:LinStab
+        xlabel = "Linear Stability"
+    elseif control_type==:NLsaturation
+        xlabel = "NL saturation"
+    end
+
+    ## Create the contour plot
+    #pythonplot()
+    plt = contour(X, Y, Z; levels=levels, linewidth=2, xlabel=xlabel, ylabel="Normalized Torque")
+    #plt.xlabel("Control1")
+    display(plt)  # show plot
+
+    return plt
+end
+
 
 
