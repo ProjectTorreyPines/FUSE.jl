@@ -151,7 +151,7 @@ end
 # parallel #
 # ======== #
 """
-    parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1,memory_usage_fraction::Float64=0.5, kw...)
+    parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, workers_import_fuse::Bool=true, kw...)
 
 Start multiprocessing environment
 
@@ -160,8 +160,9 @@ Start multiprocessing environment
   - nworkers == 0 uses no worker nodes
   - cpus_per_task can be used to control memory usage
   - memory_usage_fraction is the fraction of peak memory that can be used
+  - workers_import_fuse does a `@everywhere using FUSE` on the worker nodes
 """
-function parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
+function parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, workers_import_fuse::Bool=true, kw...)
     if nworkers == 0
         #pass
 
@@ -316,6 +317,23 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
 
     else
         error("Cluster `$cluster` is unknown. Use `localhost` or add `$cluster` to the FUSE.parallel_environment")
+    end
+
+    # import FUSE and IJulia on workers
+    if workers_import_fuse
+        if isdefined(Main, :IJulia)
+            code = """
+            using Distributed
+            @everywhere using FUSE
+            @everywhere import IJulia
+            """
+        else
+            code = """
+            using Distributed
+            @everywhere using FUSE
+            """
+        end
+        Base.include_string(Main, code)
     end
 
     return println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")
