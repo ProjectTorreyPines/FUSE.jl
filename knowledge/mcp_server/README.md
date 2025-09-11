@@ -73,15 +73,6 @@ The server loads actor information from:
 
 ## Integration
 
-Configure in Claude Code or other MCP clients:
+Configure in Claude Code:
 
-```json
-{
-  "mcpServers": {
-    "fuse": {
-      "command": "python",
-      "args": ["/path/to/fuse/knowledge/mcp_server/server.py"]
-    }
-  }
-}
-```
+`claude mcp add fuse -- <your_FUSE_folder>>/knowledge/mcp_server/start_server.sh`
