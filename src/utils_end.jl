@@ -1075,8 +1075,8 @@ function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, desc
     PDF digest generation requires the Weave.jl package.
     
     To enable this functionality:
-    1. Install Weave: `import Pkg; Pkg.add("Weave")`
-    2. Restart Julia to load the WeaveExt extension
+    1. Install Weave in your local project: `import Pkg; Pkg.add("Weave")`
+    2. `import Weave`
     3. Try again: `digest(dd, "$title")`
     
     Alternatively, use the non-PDF version: `digest(dd)`
@@ -1095,9 +1095,10 @@ Write digest to PDF in current working directory.
 PDF filename is based on title (with `" "` replaced by `"_"`)
 
 **Note**: PDF generation requires the Weave.jl package. Install with:
-`import Pkg; Pkg.add("Weave")`
-
-After installation, restart Julia to enable the WeaveExt extension.
+```
+import Pkg; Pkg.add("Weave")
+import Weave
+```
 """
 function digest(dd::IMAS.dd,
     title::AbstractString,
