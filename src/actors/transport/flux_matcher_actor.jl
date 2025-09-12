@@ -1009,14 +1009,14 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
 
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort!([specie for (specie, evolve) in evolve_densities]) == sort!(dd_species) "Mismatch: dd species $(sort!(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
-
-    # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
-    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+    @assert sort(evolve_species) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
+    
+    
+    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
         txt = "When flux_matching densities, either none or all ion species must be :zeff"
-        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
-    elseif all(evolve in (:fixed, :replay) for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
-        txt = "When using fixed/replay densities, no more than one species can be set to :quasi_neutrality"
+        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
+    elseif all(evolve == :fixed for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
+        txt = "When flux_matching densities, no more than one species can be set to :quasi_neutrality"
         @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
     elseif any(evolve == :flux_match for (specie, evolve) in evolve_densities)
         txt = "When flux_matching densities, one an only one species must be set to :quasi_neutrality"
