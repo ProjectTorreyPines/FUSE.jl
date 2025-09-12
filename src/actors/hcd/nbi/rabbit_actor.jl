@@ -4,10 +4,7 @@ using Plots
 #= =========== =#
 #  ActorRABBIT  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorRABBIT{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorRABBIT{T} begin
     remove_inputs::Entry{Bool} = Entry{Bool}("-", "Delete directory containing RABBIT input files after run"; default=true)
     Δt_history::Entry{Float64} = Entry{Float64}("s", "Amount of history to include such that simulation proceeds from (dd.global_time - Δt_history) to dd.global_time")
 end
@@ -26,6 +23,25 @@ end
 
 """
     ActorRABBIT(dd::IMAS.dd, act::ParametersAllActors; kw...)
+
+Calculates neutral beam injection (NBI) heating, current drive, and fast ion physics
+using the RABBIT Monte Carlo code. RABBIT provides detailed modeling of beam-plasma
+interactions including collisional processes, beam thermalization, and current drive.
+
+The actor interfaces with the external RABBIT code to perform:
+- Detailed beam ionization and thermalization calculations
+- Power deposition to electrons and ions
+- Current drive from beam-driven currents
+- Toroidal momentum input from NBI
+- Fast ion particle source generation
+
+The calculation includes temporal history to properly account for beam slowing-down
+physics and requires equilibrium data over the specified time window.
+
+!!! note
+
+    Requires RABBIT external code. Reads data from `dd.nbi`, `dd.pulse_schedule` 
+    and equilibrium data, stores results in `dd.core_sources`
 """
 function ActorRABBIT(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorRABBIT(dd, act.ActorRABBIT; kw...)
@@ -46,6 +62,13 @@ function _step(actor::ActorRABBIT)
     return actor
 end
 
+"""
+    _finalize(actor::ActorRABBIT)
+
+Processes RABBIT simulation outputs and populates IMAS core_sources with calculated
+heating, current drive, and particle sources. Creates fast ion source terms for
+each NBI unit with appropriate energy and particle fluxes.
+"""
 function _finalize(actor::ActorRABBIT)
     dd = actor.dd
     cs = dd.core_sources

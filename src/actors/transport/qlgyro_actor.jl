@@ -5,10 +5,7 @@ import GACODE
 #= =========== =#
 #  ActorQLGYRO  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQLGYRO{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorQLGYRO{T} begin
     ky::Entry{Float64} = Entry{Float64}("-", "Max ky"; default=1.6)
     nky::Entry{Int} = Entry{Int}("-", "Number of ky modes"; default=16)
     cpu_per_ky::Entry{Int} = Entry{Int}("-", "Number of cpus per ky"; default=1)
@@ -32,7 +29,19 @@ end
 """
     ActorQLGYRO(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the QLGYRO predicted turbulence
+Evaluates turbulent transport using the QLGYRO quasi-linear gyrokinetic model.
+
+QLGYRO combines TGLF quasi-linear theory with CGYRO nonlinear gyrokinetic simulations 
+to provide high-fidelity turbulent transport predictions. The model:
+
+- Uses TGLF to identify the most unstable modes and calculate quasi-linear fluxes
+- Runs CGYRO nonlinear gyrokinetic simulations to compute saturation levels
+- Applies saturation rules to calibrate the quasi-linear transport predictions
+
+Key parameters include ky spectral resolution, number of field components (electrostatic
+vs electromagnetic), simulation time parameters, and saturation rules. The model provides
+comprehensive electron/ion energy, particle, and momentum fluxes with gyrokinetic fidelity
+while being more computationally efficient than full nonlinear simulations.
 """
 function ActorQLGYRO(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorQLGYRO(dd, act.ActorQLGYRO; kw...)
@@ -52,7 +61,12 @@ end
 """
     _step(actor::ActorQLGYRO)
 
-Runs QLGYRO actor to evaluate the turbulence flux on a vector of gridpoints
+Runs QLGYRO to evaluate gyrokinetic turbulent transport on radial grid points.
+
+Creates InputQLGYRO and InputCGYRO input structures for each transport grid point,
+configuring ky spectral parameters, field components, time stepping, and saturation rules.
+Calls `TurbulentTransport.run_qlgyro` to execute the quasi-linear gyrokinetic calculation
+combining TGLF linear analysis with CGYRO nonlinear saturation physics.
 """
 function _step(actor::ActorQLGYRO)
     dd = actor.dd
@@ -95,7 +109,11 @@ end
 """
     _finalize(actor::ActorQLGYRO)
 
-Writes results to dd.core_transport
+Writes QLGYRO transport fluxes to `dd.core_transport.model[:anomalous]`.
+
+Sets the model identifier to "QLGYRO" and converts flux results from GACODE format 
+to IMAS format for electron/ion energy, particle, and momentum fluxes using
+`GACODE.flux_gacode_to_imas`.
 """
 function _finalize(actor::ActorQLGYRO)
     dd = actor.dd

@@ -1,10 +1,7 @@
 #= ============= =#
 #  ActorPFdesign  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorPFdesign{T} begin
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     model::Switch{Symbol} = Switch{Symbol}([:none, :uniform, :optimal], "-", "Coil placement strategy"; default=:optimal)
@@ -23,7 +20,32 @@ end
 """
     ActorPFdesign(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Optimize PF coil locations to achieve desired equilibrium
+Optimizes poloidal field (PF) coil placement and sizing to achieve target equilibrium configurations.
+Uses optimization algorithms to find coil positions that minimize current requirements while satisfying
+magnetic flux and force balance constraints for plasma control.
+
+# Design approaches (controlled by `model`)
+- `:none`: Uses existing coil configuration without modification
+- `:uniform`: Places coils uniformly on predefined rails  
+- `:optimal`: Optimizes both coil placement and currents using least-squares minimization
+
+# Optimization process (for `:optimal` mode)
+1. Initializes PF coil rails based on radial build geometry
+2. Uses nested optimization: outer loop optimizes coil positions, inner loop finds currents
+3. Minimizes flux/saddle constraint violations while penalizing large currents
+4. Includes coil spacing penalties to prevent overlapping
+5. Sizes coils based on current requirements and engineering margins
+
+# Key constraints
+- Flux control points (boundary and internal flux surfaces)
+- Saddle control points (X-points and magnetic axis)
+- Current density limits and coil spacing requirements
+- Up-down symmetry (if `symmetric=true`)
+
+# Key outputs  
+- Optimized PF coil positions and sizes (`dd.pf_active.coil[].element[].geometry`)
+- Coil currents that achieve target equilibrium
+- Updated equilibrium solution (if `update_equilibrium=true`)
 
 !!! note
 
@@ -45,7 +67,12 @@ end
 """
     _step(actor::ActorPFdesign)
 
-Find currents that satisfy boundary and flux/saddle constraints in a least-square sense
+Executes PF coil design optimization based on the selected model:
+- For `:optimal`: Uses nested optimization with coil placement (outer) and current finding (inner)
+- Includes cost penalties for coil spacing and current magnitudes
+- Applies engineering constraints (current limits, spacing) and symmetry requirements
+- Sizes coils based on current requirements after optimization completes
+- Always runs ActorPFactive at the end to update equilibrium with final coil configuration
 """
 function _step(actor::ActorPFdesign{T}) where {T<:Real}
     dd = actor.dd

@@ -1,10 +1,7 @@
 #= =================== =#
 #  ActorFluxCalculator  #
 #= =================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxCalculator{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFluxCalculator{T} begin
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho core transport grid"; default=0.25:0.1:0.85)
     turbulence_model::Switch{Symbol} = Switch{Symbol}([:TGLF, :QLGYRO, :analytic, :none], "-", "Turbulence model to use"; default=:TGLF)
     neoclassical_model::Switch{Symbol} = Switch{Symbol}([:neoclassical, :none], "-", "Neocalssical model to use"; default=:neoclassical)
@@ -21,7 +18,22 @@ end
 """
     ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run multiple transport model actors
+Provides a unified interface to run turbulent and neoclassical transport model actors.
+
+This compound actor manages the execution of both turbulent transport models 
+(TGLF, QLGYRO, analytic, or none) and neoclassical transport models (neoclassical or none).
+The actor coordinates the calculation of transport fluxes from both physics mechanisms
+and ensures they are properly stored in `dd.core_transport`.
+
+Turbulence model options:
+- `:TGLF`: TGLF-based models (TGLF, TGLFNN, GKNN, TJLF)
+- `:QLGYRO`: Quasi-linear gyrokinetic transport via CGYRO
+- `:analytic`: Simple analytic transport models
+- `:none`: No turbulent transport
+
+Neoclassical model options:
+- `:neoclassical`: Collisional transport (Chang-Hinton, NEO, Hirshman-Sigmar)
+- `:none`: No neoclassical transport
 """
 function ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; kw...)
@@ -57,7 +69,11 @@ end
 """
     _step(actor::ActorFluxCalculator)
 
-Runs through the selected equilibrium actor's step
+Runs the selected turbulent and neoclassical transport actors in sequence.
+
+First executes the turbulent transport actor, then the neoclassical transport actor.
+Each actor calculates its respective transport fluxes and stores them in the
+appropriate sections of `dd.core_transport`.
 """
 function _step(actor::ActorFluxCalculator)
     step(actor.actor_turb)
@@ -68,7 +84,10 @@ end
 """
     _finalize(actor::ActorFluxCalculator)
 
-Finalizes the selected equilibrium actor
+Finalizes both the turbulent and neoclassical transport actors.
+
+Calls the finalize methods of both sub-actors to ensure their results are properly
+written to the `dd.core_transport` data structure.
 """
 function _finalize(actor::ActorFluxCalculator)
     finalize(actor.actor_turb)

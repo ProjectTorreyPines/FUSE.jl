@@ -1,10 +1,7 @@
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFluxSwing{T} begin
     operate_oh_at_j_crit::Entry{Bool} = Entry{Bool}("-", """
 If `true` it makes the OH operate at its current limit (within specified dd.requirements.coil_j_margin`).
 The flattop duration and maximum toroidal magnetic field follow from that.
@@ -28,16 +25,29 @@ end
 """
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Depending on `operate_oh_at_j_crit`
+Analyzes OH coil flux swing capability and determines operating limits based on current density constraints
+and flattop duration requirements. Calculates flux consumption during different operational phases
+and determines maximum achievable flattop duration or required current levels.
 
-  - true => Evaluate the OH current limits, and evaluate flattop duration from that.
-  - false => Evaluate what are the currents needed for a given flattop duration. This may or may not exceed the OH current limits.
+# Operating modes (controlled by `operate_oh_at_j_crit`)
+- `true`: Operates OH at critical current limit, calculates achievable flattop duration
+- `false`: Uses required flattop duration, calculates needed currents (may exceed limits)
 
-OH flux consumption based on:
+# Flux consumption analysis
+- **Rampup flux**: Estimated using Ejima coefficient and plasma inductance calculations
+- **Flattop flux**: Based on resistive current drive requirements from Ohmic heating  
+- **PF flux**: Vertical field contribution from poloidal field coils
 
-  - rampup estimate based on Ejima coefficient
-  - flattop consumption
-  - vertical field from PF coils
+# Physics models
+- Plasma inductance (internal + external components) for flux estimation
+- Resistive flux consumption using conductivity profiles and current density
+- Vertical field requirements based on plasma geometry and pressure
+
+# Key outputs
+- OH flux swing components (`dd.build.flux_swing.rampup/flattop/pf`)
+- OH coil current and field limits (`dd.build.oh.max_j/max_b_field`)
+- TF coil current and field requirements (`dd.build.tf.max_j/max_b_field`)  
+- Achievable flattop duration (`dd.build.oh.flattop_duration`)
 
 !!! note
 
@@ -52,6 +62,12 @@ end
 
 """
     _step(actor::ActorFluxSwing)
+
+Performs flux swing analysis by calculating OH flux consumption components:
+- Calls `rampup_flux_estimates()` using Ejima coefficient and plasma inductance
+- Calls `pf_flux_estimates()` for vertical field contribution  
+- Either calculates flattop flux from required duration or operates at current limit
+- Updates OH and TF coil current/field requirements based on analysis results
 """
 function _step(actor::ActorFluxSwing)
     bd = actor.dd.build
