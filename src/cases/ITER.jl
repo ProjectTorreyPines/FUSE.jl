@@ -9,7 +9,7 @@
 ITER
 """
 function case_parameters(
-    ::Type{Val{:ITER}};
+    ::Val{:ITER};
     init_from::Symbol,
     boundary_from::Symbol=:auto,
     ne_setting::Symbol=:ne_ped,
@@ -192,7 +192,7 @@ function case_parameters(
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:ITER}})
+function TraceCAD(::Val{:ITER})
     x_length = 16.9
     x_offset = -1.08
     y_offset = 0.1

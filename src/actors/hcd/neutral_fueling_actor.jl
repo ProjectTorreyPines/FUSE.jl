@@ -1,10 +1,7 @@
 #= ====== =#
 #  PELLET  #
 #= ====== =#
-Base.@kwdef mutable struct FUSEparameters__ActorNeutralFueling{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorNeutralFueling{T} begin
     τp_over_τe::Entry{Float64} = Entry{Float64}("-", "Particle confinement time as fraction of energy confinement time"; default=0.5)
     T_wall::Entry{Float64} = Entry{Float64}("eV", "Wall temperature"; default=10.0)
 end
@@ -22,7 +19,34 @@ end
 """
     ActorNeutralFueling(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the neutral fueling deposition
+Calculates neutral gas fueling particle source using the neucg model for wall recycling.
+
+This actor models neutral atom transport and ionization in the plasma edge/scrape-off-layer using 
+the neucg algorithm from Burrell (Journal of Computational Physics 27.1, 1978: 88-102).
+
+The model computes:
+- Neutral density profiles accounting for ionization and charge exchange
+- Particle source from wall recycling based on particle confinement time
+- Integral equation solution for neutral transport in toroidal geometry
+- Ionization source profiles for maintaining particle balance
+
+Key physics included:
+- Electron impact ionization rates (Freeman & Jones, 1974)
+- Charge exchange reactions between neutrals and ions
+- Wall temperature effects on neutral injection velocity  
+- Toroidal geometry effects on neutral penetration
+- Recycling coefficient based on particle confinement time scaling
+
+The solver uses:
+- Particle confinement time as fraction of energy confinement time (τp/τe)
+- Wall temperature for neutral injection energy
+- Iterative solution of integral transport equations
+- Numerical integration over velocity space
+
+!!! note
+
+    Reads data from `dd.equilibrium`, `dd.core_profiles` and stores results in 
+    `dd.core_profiles.profiles_1d.neutral` and `dd.core_sources`
 """
 function ActorNeutralFueling(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorNeutralFueling(dd, act.ActorNeutralFueling; kw...)
@@ -259,7 +283,6 @@ function get_K_matrix(atrr01::Matrix{Float64}, vth::Vector{Float64}, r::Vector{F
                 k11[j, i] = sum1p
                 k11[i, j] = sum1r
             end
-
         end
     end
     return k11

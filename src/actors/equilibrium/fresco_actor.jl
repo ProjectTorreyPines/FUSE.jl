@@ -3,12 +3,9 @@ import FRESCO
 #= =========== =#
 #  ActorFRESCO  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFRESCO{T} begin
     #== actor parameters ==#
-    control::Switch{Symbol} = Switch{Symbol}([:vertical, :shape], "-", "Vertical control algorithm to be used"; default=:shape)
+    control::Switch{Symbol} = Switch{Symbol}([:vertical, :shape, :magnetics], "-", "Vertical control algorithm to be used"; default=:shape)
     number_of_iterations::Entry{Tuple{Int,Int}} = Entry{Tuple{Int,Int}}("-", "Number of outer and inner iterations"; default=(100, 3))
     relax::Entry{Float64} = Entry{Float64}("-", "Relaxation on the Picard iterations"; default=0.5)
     tolerance::Entry{Float64} = Entry{Float64}("-", "Tolerance for terminating iterations"; default=1e-4)
@@ -32,7 +29,29 @@ end
 """
     ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the Fixed boundary equilibrium solver FRESCO
+Solves the tokamak MHD equilibrium using the FRESCO fixed-boundary equilibrium solver.
+
+FRESCO (Free-boundary Reactor Equilibrium Solver for Comprehensive Optimization) solves the 
+Grad-Shafranov equation for toroidal plasma equilibria with specified pressure and current profiles.
+
+This actor performs:
+- Free-boundary equilibrium reconstruction using pressure and current profiles from core_profiles
+- Iterative solution of the Grad-Shafranov equation on a rectangular R-Z grid
+- Vertical control options (vertical position, shape control, or magnetics-based)
+- Updates to poloidal field coil currents for force balance
+- Conversion of equilibrium solution back to IMAS equilibrium format
+
+The solver supports:
+- Configurable grid resolution (nR × nZ)
+- Multiple control algorithms for vertical stability
+- Active X-point specification
+- Green's function table reuse for computational efficiency
+- Relaxation and tolerance control for convergence
+
+!!! note
+
+    Reads data from `dd.equilibrium`, `dd.core_profiles`, `dd.pf_active`, and `dd.wall`, 
+    and updates `dd.equilibrium` and `dd.pf_active` with the solved equilibrium
 """
 function ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFRESCO(dd, act.ActorFRESCO, act; kw...)
@@ -73,13 +92,9 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     Zs = range(minimum(fw_z) - ΔZ / 20, maximum(fw_z) + ΔZ / 20, par.nZ)
 
     # reuse green table if possible
-    if actor.canvas !== nothing
-        Green_table = actor.canvas._Gvac
-    else
-        Green_table = D[;;;]
-    end
+    gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table = actor.canvas.Green_table)
 
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, Green_table, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points)
+    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points, gt_kw...)
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
@@ -119,8 +134,8 @@ function _finalize(actor::ActorFRESCO)
     eqt1d.pressure .+= pend .- eqt1d.pressure[end]
 
     eq2d.grid_type.index = 1
-    eq2d.grid.dim1 = collect(range(canvas.Rs[1], canvas.Rs[end], Npsi))
-    eq2d.grid.dim2 = collect(range(canvas.Zs[1], canvas.Zs[end], Npsi))
+    eq2d.grid.dim1 = canvas.Rs
+    eq2d.grid.dim2 = canvas.Zs
     FRESCO.update_interpolation!(canvas)
     eq2d.psi = [canvas._Ψitp(r, z) for r in eq2d.grid.dim1, z in eq2d.grid.dim2]
 

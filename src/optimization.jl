@@ -81,13 +81,13 @@ function optimization_engine(
 
         return ff, gg, hh
 
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         # save empty dd and error to directory
-        save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
+        save(savedir, nothing, ini, act; error=e, timer=true, freeze=false, overwrite_files=true)
 
         # rethrow(e) # uncomment for debugging purposes
 
@@ -121,7 +121,7 @@ end
         save_folder::AbstractString,
         generation::Int,
         save_dd::Bool,
-        ::Type{Val{:hdf5}};
+        ::Val{:hdf5};
         case_index::Union{Nothing,Int}=nothing
         )
 
@@ -137,7 +137,7 @@ function optimization_engine(
     save_folder::AbstractString,
     generation::Int,
     save_dd::Bool,
-    ::Type{Val{:hdf5}};
+    ::Val{:hdf5};
     case_index::Union{Nothing,Int}=nothing,
     kw...
 )
@@ -233,9 +233,9 @@ function optimization_engine(
 
         return ff, gg, hh
 
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         df = DataFrame()
@@ -251,7 +251,7 @@ function optimization_engine(
 
         # save empty dd and error to directory
         save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
-            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+            error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
@@ -308,7 +308,7 @@ function _optimization_engine(
     if database_policy == :separate_folders
         tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd)
     elseif database_policy == :single_hdf5
-        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd, Val{:hdf5}; case_index, kw...)
+        tmp = optimization_engine(ini, act, actor_or_workflow, x, objective_functions, constraint_functions, save_folder, generation, save_dd, Val(:hdf5); case_index, kw...)
     else
         error("database_policy must be `separate_folders` or `:single_hdf5`")
     end

@@ -7,22 +7,10 @@ import GACODE
 #= ================= =#
 
 """
-    study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
 """
-function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
-    sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
-    act = ParametersActors()
-
-    # Change act for the default TGLFdb run
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorTGLF.warn_nn_train_bounds = false
-
-    # finalize 
-    set_new_base!(sty)
-    set_new_base!(act)
-
-    return sty, act
+function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    return FUSEparameters__ParametersStudyTGLFdb{Real}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}
@@ -60,14 +48,9 @@ function TGLF_dataframe()
         Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
 end
 
-function StudyTGLFdb(sty, act; kw...)
+function StudyTGLFdb(sty::ParametersStudy, act::ParametersAllActors; kw...)
     sty = OverrideParameters(sty; kw...)
     study = StudyTGLFdb(sty, act, missing, missing)
-    return setup(study)
-end
-
-function _setup(study::StudyTGLFdb)
-    sty = study.sty
 
     @assert !ismissing(getproperty(sty, :database_folder, missing)) "Specify the database_folder in sty"
     @assert !ismissing(readdir(sty.database_folder)) "There are no input cases in $(sty.database_folder)"
@@ -137,23 +120,21 @@ function _run(study::StudyTGLFdb)
     return study
 end
 
-function _analyze(study::StudyTGLFdb)
-    plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
-    return study
-end
-
-function preprocess_dd(filename)
+function preprocess_dd(filename::AbstractString)
     dd = IMAS.json2imas(filename; verbose=false)
 
-    dd.summary.local.pedestal.n_e.value = [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
-    dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
+    cp1d = dd.core_profiles.profiles_1d[]
+    value = [interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(0.9)]
+    @ddtime(dd.summary.local.pedestal.n_e.value = value)
+    value = [interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.zeff).(0.9)]
+    @ddtime(dd.summary.local.pedestal.zeff.value = value)
     dd.pulse_schedule.tf.time = dd.summary.time
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = dd.equilibrium.vacuum_toroidal_field.b0
 
     return dd
 end
 
-function run_case(filename, study, item)
+function run_case(filename::AbstractString, study::StudyTGLFdb, item)
     act = study.act
     sty = study.sty
 
@@ -161,8 +142,10 @@ function run_case(filename, study, item)
 
     cp1d = dd.core_profiles.profiles_1d[]
     exp_values = [
-        cp1d.electrons.density_thermal[1], cp1d.electrons.temperature[1],
-        cp1d.ion[1].temperature[1], @ddtime(dd.summary.global_quantities.energy_thermal.value),
+        cp1d.electrons.density_thermal[1],
+        cp1d.electrons.temperature[1],
+        cp1d.ion[1].temperature[1],
+        @ddtime(dd.summary.global_quantities.energy_thermal.value),
         cp1d.rotation_frequency_tor_sonic[1]]
 
     name = split(splitpath(filename)[end], ".")[1]
@@ -195,7 +178,7 @@ function run_case(filename, study, item)
     end
 end
 
-function workflow_actor(dd, act)
+function workflow_actor(dd::IMAS.dd, act::ParametersAllActors)
     # Actors to run on the input dd
 
     actor_transport = ActorCoreTransport(dd, act)
@@ -290,7 +273,6 @@ function preparse_input(database_folder)
             json_data["core_sources"]["source"][source]["profiles_1d"][1]["time"] = time
         end
 
-
         json_data["summary"]["time"] = [time]
         json_string = JSON.json(json_data)
 
@@ -300,43 +282,75 @@ function preparse_input(database_folder)
     end
 end
 
-
-function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
+@recipe function plot_xy_wth_hist2d(study::StudyTGLFdb; quantity=:WTH, item_index=nothing)
     if study.act.ActorTGLF.electromagnetic
         EM_contribution = :EM
     else
         EM_contribution = :ES
     end
 
-    for item in study.iterator
-        plot_xy_wth_hist2d(study.dataframes_dict[string(item)], string(item), EM_contribution, quantity, save_fig, save_path)
-    end
-end
-
-function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
-    x = df[!, "$(quantity)_exp"]
-    y = df[!, "$(quantity)"]
-
-    MRE = round(100 * mean_relative_error(x, y); digits=2)
-
-    bins = 10 .^ (4:0.05:7)
-
-    ticks = ([10^4, 10^5, 10^6, 10^7, 10^8], [L"10^4", L"10^5", L"10^6", L"10^7", L"10^8"])
-    xy_lim = [bins[1], bins[end]]
-
-    p = histogram2d(x, y; xscale=:log10, yscale=:log10, bins=(bins, bins), xticks=ticks, yticks=ticks,
-        color=cgrad(:magma; rev=true), colorbar=true, show_empty_bins=true,
-        ylabel="Thermal stored energy predicted [J]", xlabel="Thermal stored energy experiment [J]",
-        ylim=xy_lim, xlim=xy_lim, tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern",
-        xguidefontsize=15, yguidefontsize=14)
-
-    plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="SAT$name $EM_contribution")
-
-    println("MRE SAT$name $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
-
-    if save_fig
-        savefig(p, save_path)
+    # If item_index is specified, plot only that item, otherwise plot all
+    items_to_plot = if item_index === nothing
+        collect(1:length(study.iterator))
     else
-        display(p)
+        [item_index]
     end
+
+    for (i, idx) in enumerate(items_to_plot)
+        item = study.iterator[idx]
+        df = study.dataframes_dict[string(item)]
+        
+        # Check that quantity is supported based on DataFrame columns
+        exp_col = "$(quantity)_exp"
+        pred_col = "$(quantity)"
+        @assert exp_col in names(df) "Quantity $(quantity) not supported: column '$exp_col' not found in DataFrame. Available columns: $(names(df))"
+        @assert pred_col in names(df) "Quantity $(quantity) not supported: column '$pred_col' not found in DataFrame. Available columns: $(names(df))"
+        
+        x = df[!, exp_col]
+        y = df[!, pred_col]
+
+        MRE = round(100 * sum(abs, (y .- x) ./ x) / length(x); digits=2)
+
+        bins = 10 .^ (4:0.05:7)
+        ticks_vals = [10^4, 10^5, 10^6, 10^7, 10^8]
+        ticks_labels = [L"10^4", L"10^5", L"10^6", L"10^7", L"10^8"]
+        xy_lim = [bins[1], bins[end]]
+
+        @series begin
+            seriestype := :histogram2d
+            xscale := :log10
+            yscale := :log10
+            bins := (bins, bins)
+            xticks := (ticks_vals, ticks_labels)
+            yticks := (ticks_vals, ticks_labels)
+            color := cgrad(:magma; rev=true)
+            colorbar := true
+            show_empty_bins := true
+            ylabel := "Thermal stored energy predicted [J]"
+            xlabel := "Thermal stored energy experiment [J]"
+            ylims := xy_lim
+            xlims := xy_lim
+            tickfontsize := 12
+            tickfontfamily := "Computer Modern"
+            guidefontfamily := "Computer Modern"
+            xguidefontsize := 15
+            yguidefontsize := 14
+            title := "SAT$item $EM_contribution"
+            subplot := i
+            x, y
+        end
+
+        @series begin
+            seriestype := :line
+            linestyle := :dash
+            color := :black
+            label := ""
+            subplot := i
+            xy_lim, xy_lim
+        end
+
+        @info("MRE SAT$item $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
+    end
+
+    layout := length(items_to_plot) > 1 ? length(items_to_plot) : 1
 end
