@@ -76,7 +76,7 @@ function _run(study::StudyOptimizerNN)
         # do training of the models and maybe hyperparamemter tuning 
     end 
 
-    Pelectric_mask = df.Pelectric .> 250
+    Pelectric_mask = df.Pelectric_net .> 250
     OH_j_margin_mask = df.OH_j_margin .>= 1.15
     TF_j_margin_mask = df.TF_j_margin .>= 1.15
     OH_stress_margin_mask = df.OH_stress_margin .>= 1.15
