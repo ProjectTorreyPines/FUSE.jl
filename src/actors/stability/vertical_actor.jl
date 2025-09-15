@@ -3,7 +3,10 @@ import VacuumFields
 #= ====================== =#
 #  ActorVerticalStability  #
 #= ====================== =#
-@actor_parameters_struct ActorVerticalStability{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorVerticalStability{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     model::Entry{Bool} = Entry{Bool}("-", "Tunr on/off model of vertical stability"; default=true)
     #== display and debugging parameters ==#
@@ -22,14 +25,7 @@ end
 """
     ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Computes vertical stability metrics for tokamak plasmas using the equilibrium and coil configuration.
-
-This actor calculates two key stability metrics:
-- Stability margin: measures the plasma's resilience to vertical displacement events (VDEs)
-- Normalized growth rate (γτ): quantifies how rapidly vertical instabilities develop
-
-The analysis considers both active PF coils and passive conducting structures. Results are stored in
-`dd.mhd_linear.time_slice[].toroidal_mode` where stability margin > 0.15 and γτ < 10 indicate stability.
+Compute vertical stability metrics
 """
 function ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorVerticalStability(dd, act.ActorVerticalStability, act; kw...)
@@ -47,16 +43,7 @@ end
 """
     _step(actor::ActorVerticalStability)
 
-Calculates vertical stability metrics using the VacuumFields package.
-
-The calculation involves:
-1. Loading active coils from `dd.pf_active` with their current distribution
-2. Loading passive conducting structures from `dd.pf_passive`
-3. Creating a plasma image from the equilibrium
-4. Computing stability margin using the method of images
-5. Computing normalized growth rate considering circuit time constants
-
-The method validates that all coils have positive resistance before calculating the normalized growth rate.
+Compute vertical stability metrics
 """
 function _step(actor::ActorVerticalStability)
     dd = actor.dd
@@ -109,13 +96,7 @@ end
 """
     _finalize(actor::ActorVerticalStability)
 
-Stores computed stability metrics in the IMAS data structure.
-
-Stability metrics are stored in `dd.mhd_linear.time_slice[].toroidal_mode`:
-- Stability margin: stored with perturbation_type "m_s" and n_tor=0
-- Normalized growth rate: stored with perturbation_type "γτ" and n_tor=0
-
-If plotting is enabled, generates a visualization showing passive structures considered in the analysis.
+Store vertical stability metrics
 """
 function _finalize(actor::ActorVerticalStability)
     dd = actor.dd

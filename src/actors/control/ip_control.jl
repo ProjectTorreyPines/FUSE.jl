@@ -1,4 +1,7 @@
-@actor_parameters_struct ActorControllerIp{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorControllerIp{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     algorithm::Entry{Symbol} = Entry{Symbol}("-", "Algorithm to dispatch on"; default=:PID)
     P::Entry{T} = Entry{T}("-", "Proportional gain")
     I::Entry{T} = Entry{T}("-", "Integral gain")

@@ -1,7 +1,10 @@
 #= ======== =#
 #  ActorHCD  #
 #= ======== =#
-@actor_parameters_struct ActorHCD{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :TORBEAM, :replay, :none], "-", "EC source actor to run"; default=:ECsimple)
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :replay, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
@@ -25,39 +28,7 @@ end
 """
     ActorHCD(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Unified heating, current drive, and fueling system coordinator for all auxiliary power systems.
-
-This compound actor orchestrates multiple heating and current drive subsystem actors through a 
-single interface, providing centralized control over all auxiliary power and particle sources.
-
-Managed subsystems:
-- **Electron Cyclotron (EC)**: ECsimple, TORBEAM, or replay modes
-- **Ion Cyclotron (IC)**: ICsimple or replay modes  
-- **Lower Hybrid (LH)**: LHsimple or replay modes
-- **Neutral Beam Injection (NB)**: NBsimple, RABBIT, or replay modes
-- **Pellet fueling**: PLsimple or replay modes
-- **Neutral gas fueling**: NEUCG model or replay modes
-
-Key features:
-- Model selection switches for each subsystem (simple physics, advanced codes, replay, or off)
-- Automatic hardware setup and validation (launcher/antenna count consistency)
-- Sequential execution with proper dependencies (neutral fueling runs last)
-- Centralized source integration via IMAS.sources!() 
-- Unified replay capability for all subsystems
-
-Execution order:
-1. EC heating/current drive
-2. IC heating  
-3. LH current drive
-4. NB heating/current drive/momentum
-5. Pellet particle sources
-6. Neutral gas fueling (depends on energy confinement time from HCD)
-7. Source integration and consistency checks
-
-!!! note
-
-    Reads from hardware descriptions (`dd.ec_launchers`, `dd.ic_antennas`, etc.) and 
-    pulse schedules (`dd.pulse_schedule`), and coordinates updates to `dd.core_sources`, `dd.waves`, etc.
+Provides a common interface to run HCD actors
 """
 function ActorHCD(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorHCD(dd, act.ActorHCD, act; kw...)
@@ -158,15 +129,12 @@ function _step(actor::ActorHCD)
 
     # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
-
-    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.sources!(dd)
-
-    # Eq. solver is having a difficult time converging when fast particles are present
     
-    # IMAS.fast_particles_profiles!(dd)
-    # IMAS.enforce_quasi_neutrality!(dd, :electrons)
+    # Call fast particles as one might expect nbi, for example, to generate a fast ion population
+    IMAS.fast_particles_profiles!(dd; verbose=true)
+    cp1d = dd.core_profiles.profiles_1d[]
 
+    # @assert IMAS.is_quasi_neutral(cp1d) "HCD step should maintain quasi-neutrality"
     return actor
 end
 

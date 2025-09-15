@@ -3,7 +3,10 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-@actor_parameters_struct ActorCHEASE{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
@@ -20,28 +23,7 @@ end
 """
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the CHEASE fixed-boundary equilibrium solver to compute a 2D equilibrium from the plasma boundary,
-pressure profile, and current density profile. The solver takes the R-Z boundary coordinates from
-the plasma time slice, extracts pressure and j_tor from profiles_1d, and generates a full 2D equilibrium
-solution including flux surfaces and safety factor profiles.
-
-Optionally converts the fixed-boundary solution to a free-boundary equilibrium by using VacuumFields.jl
-to find PF coil currents that reproduce the same plasma shape and flux surfaces.
-
-# Key inputs (from dd.equilibrium.time_slice[])
-- Boundary outline (r, z coordinates)
-- Pressure profile on normalized flux surfaces
-- Current density profile j_tor
-- Global quantities (plasma current, magnetic axis location)
-
-# Key outputs
-- Complete 2D equilibrium solution via gEQDSK format conversion to IMAS
-- Optional free-boundary PF coil currents (if `free_boundary=true`)
-- Updated flux surface geometry and safety factor profiles
-
-!!! note
-    
-    Stores data in `dd.equilibrium`
+Runs the Fixed boundary equilibrium solver CHEASE
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCHEASE(dd, act.ActorCHEASE, act; kw...)
@@ -59,14 +41,7 @@ end
 """
     _step(actor::ActorCHEASE)
 
-Runs CHEASE fixed-boundary equilibrium solver with the following inputs extracted from IMAS:
-- R-Z boundary coordinates from `equilibrium.time_slice[].boundary.outline`
-- Pressure profile from `equilibrium.time_slice[].profiles_1d.pressure`
-- Toroidal current density from `equilibrium.time_slice[].profiles_1d.j_tor`
-- Plasma current and magnetic field parameters from global quantities
-
-Performs boundary smoothing and resampling for numerical stability. Executes CHEASE calculation
-and handles errors by displaying diagnostic plots if the solver fails.
+Runs CHEASE on the r_z boundary, equilibrium pressure and equilibrium j_tor
 """
 function _step(actor::ActorCHEASE)
     dd = actor.dd
@@ -137,7 +112,7 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
 
         # Flux control points
         mag = VacuumFields.FluxControlPoint{D}(actor.chease.gfile.rmaxis, actor.chease.gfile.zmaxis, actor.chease.gfile.psi[1], iso_cps[1].weight)
-        flux_cps = VacuumFields.FluxControlPoint{D}[mag]
+        flux_cps = VacuumFields.FluxControlPoint[mag]
         strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
         strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)

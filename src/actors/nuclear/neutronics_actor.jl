@@ -1,7 +1,10 @@
 #= =============== =#
 #  ActorNeutronics  #
 #= =============== =#
-@actor_parameters_struct ActorNeutronics{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     N::Entry{Int} = Entry{Int}("-", "Number of particles"; default=100000)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -19,15 +22,7 @@ end
 """
     ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Calculates neutron wall loading on the first wall using Monte Carlo particle tracing.
-The actor defines neutron sources from fusion reactions, traces their paths to the 
-first wall, and calculates the resulting neutron flux and power deposition.
-
-The calculation includes:
-- Neutron source definition from D-T and D-D fusion reactions
-- Particle tracing from plasma to first wall
-- Flux and power calculation on wall elements
-- Normalization to match total fusion neutron power
+Estimates the neutron wall loading
 
 !!! note
 

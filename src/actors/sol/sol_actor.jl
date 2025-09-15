@@ -1,7 +1,10 @@
 #= ======== =#
 #  ActorSOL  #
 #= ======== =#
-@actor_parameters_struct ActorSOL{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorSOL{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:box, :replay, :none], "-", "SOL actor to run"; default=:box)
 end
 
@@ -15,20 +18,7 @@ end
 """
     ActorSOL(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a unified interface for different scrape-off layer (SOL) physics models.
-This compound actor selects and runs one of several available SOL models based on
-configuration:
-
-- `:box` - Uses ActorSOLBox for 0D box model calculations
-- `:replay` - Uses ActorReplay to replay previously calculated data  
-- `:none` - Uses ActorNoOperation for no SOL modeling
-
-The selected SOL actor is instantiated and executed, providing consistent interface
-regardless of the underlying model complexity.
-
-!!! note
-
-    Delegates to the selected SOL model actor based on configuration
+Provides a common interface to run different SOL actors
 """
 function ActorSOL(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSOL(dd, act.ActorSOL, act; kw...)

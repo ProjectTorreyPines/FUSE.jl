@@ -1,13 +1,19 @@
 #= ========= =#
 #  Simple IC  #
 #= ========= =#
-@actor_parameters_struct _ActorSimpleICactuator{T} begin
+Base.@kwdef mutable struct _FUSEparameters__ActorSimpleICactuator{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
     rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.0, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.1, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
-@actor_parameters_struct ActorSimpleIC{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorSimpleIC{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     actuator::ParametersVector{_FUSEparameters__ActorSimpleICactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleICactuator{T}}()
 end
 
@@ -24,19 +30,9 @@ end
 """
     ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Calculates ion cyclotron (IC) heating and current drive using simplified Gaussian 
-deposition profiles. The actor models IC wave absorption with configurable power
-split between electrons and ions, typically optimized for minority heating scenarios.
+Estimates the ion-cyclotron electron/ion energy deposition and current drive as a gaussian.
 
-The model includes:
-- Gaussian power deposition profiles at user-specified locations
-- Configurable electron/ion power fraction (default 80% to ions for minority heating)
-- Current drive efficiency based on GASC formulae corrected for beta effects
-- Multiple antenna support for different IC systems
-- Beta-dependent current drive efficiency reduction
-
-Current drive efficiency uses the G. Tonon formula modified for finite beta effects,
-suitable for reactor-relevant conditions with significant beta_toroidal.
+NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
 
 !!! note
 
