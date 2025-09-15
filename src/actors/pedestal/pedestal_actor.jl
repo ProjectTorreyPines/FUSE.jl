@@ -1,7 +1,10 @@
 #= ============= =#
 #  ActorPedestal  #
 #= ============= =#
-@actor_parameters_struct ActorPedestal{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorPedestal{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== common pedestal parameters==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
@@ -11,6 +14,7 @@
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    ne_sep_from::Switch{Symbol} = switch_get_from(:ne_sep, default=:core_profiles)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     mode_transitions::Entry{Dict{Float64,Symbol}} = Entry{Dict{Float64,Symbol}}(
         "s",
@@ -49,32 +53,7 @@ end
 """
     ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Comprehensive pedestal modeling with support for multiple models and L-H mode transitions.
-
-This compound actor manages pedestal physics by selecting from available pedestal models
-and handling mode transitions between L-mode and H-mode operation. It coordinates multiple
-specialized pedestal actors and provides dynamic transition capabilities.
-
-Available pedestal models:
-- `:EPED`: EPED neural network model for pedestal predictions
-- `:WPED`: Width-based energy balance pedestal model  
-- `:analytic`: Analytic scaling laws for spherical tokamaks
-- `:dynamic`: Time-dependent L-H transitions with smoothing
-- `:replay`: Replays pedestal data from experimental reference
-- `:none`: No pedestal modifications
-
-Key features:
-- Automatic L-H mode detection based on power threshold criteria
-- Dynamic mode transitions with configurable time constants
-- Density matching options (pedestal or line-averaged)
-- Rotation profile modeling (linear, experimental replay)
-- Consistent Ti/Te ratio handling across all models
-
-Mode transition physics:
-- Supports user-defined transition times or automatic power threshold detection
-- Smooth temporal evolution using tanh functions with configurable time scales
-- Separate evolution times for temperature and density transitions
-- Configurable density and Zeff ratios between L-mode and H-mode
+Evaluates the pedestal boundary condition (height and width)
 """
 function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPedestal(dd, act.ActorPedestal, act; kw...)
@@ -112,17 +91,7 @@ end
 """
     _step(actor::ActorPedestal)
 
-Orchestrates pedestal model selection and mode transition logic.
-
-The step function manages the complex workflow of:
-1. Determining current plasma mode (L-mode, H-mode) from power balance or user input
-2. Selecting and running the appropriate pedestal model
-3. Handling dynamic L-H transitions with proper temporal smoothing
-4. Applying rotation models if requested
-5. Updating plasma profiles with pedestal boundary conditions
-
-For dynamic mode transitions, tracks transition times and applies gradual profile 
-evolution to avoid numerical discontinuities.
+Runs actors to evaluate profiles at the edge of the plasma
 """
 function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
@@ -323,8 +292,12 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     w_ped = IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
 
     ne_old = copy(cp1d.electrons.density_thermal)
-    ne_ped = IMAS.get_from(dd, Val(:ne_ped), par.ne_from, rho09) * density_factor
-    cp1d.electrons.density_thermal[end] = ne_ped / 4.0
+    ne_ped = IMAS.get_from(dd, Val{:ne_ped}, par.ne_from, rho09) * density_factor
+    ne_sep = IMAS.get_from(dd, Val{:ne_sep}, par.ne_sep_from) * density_factor
+    user_sep_to_ped_ratio = ne_sep / ne_ped
+
+    cp1d.electrons.density_thermal[end] = ne_ped * user_sep_to_ped_ratio
+    
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = ne = IMAS.ped_height_at_09(rho, ne, ne_ped)
     ratio = ne ./ ne_old
@@ -333,7 +306,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
         if !ismissing(ion, :density_thermal)
             ion.density_thermal = ion.density_thermal .* ratio
             ni_ped = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ion.density_thermal[end] = ni_ped / 4.0
+            ion.density_thermal[end] = ni_ped * user_sep_to_ped_ratio
             ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end

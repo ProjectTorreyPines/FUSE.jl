@@ -1,7 +1,10 @@
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-@actor_parameters_struct ActorLFSsizing{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     maintenance::Switch{Symbol} = Switch{Symbol}([:vertical, :horizontal, :none], "-", "Scheme for installation/removal of in-vessel components"; default=:none)
     tor_modularity::Entry{Int} =
         Entry{Int}("-", "Number of toroidal modules of blanket normalized to number of TF coils"; default=2, check=x -> @assert x > 0 "must be: tor_modularity > 0")
@@ -24,31 +27,12 @@ end
 """
     ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Optimizes the low-field-side (LFS) radial build layout for toroidal field ripple and maintenance requirements.
-
-This actor determines the optimal position of the outer toroidal field (TF) coil leg by balancing:
-- **TF ripple constraint**: Ensures the TF coil outer radius provides acceptable magnetic field ripple
-- **Maintenance access**: Accommodates vertical or horizontal maintenance port requirements  
-- **Geometric modularity**: Accounts for toroidal and poloidal blanket sector arrangements
-
-Key calculations:
-- Minimum TF leg radius for specified ripple tolerance using IMAS.R_tf_ripple()
-- Vacuum port geometry for blanket module removal (vertical_maintenance())  
-- Balance between ripple minimization and maintenance accessibility
-- Automatic radial build adjustment via vacuum gap resizing
-
-Maintenance schemes supported:
-- **Vertical**: Blanket sectors removed vertically through upper/lower ports
-- **Horizontal**: Blanket sectors removed horizontally through side ports  
-- **None**: No maintenance access constraints
-
-The actor modifies the first vacuum layer between vessel and plasma to accommodate 
-the required TF coil repositioning while maintaining geometric consistency.
+Actor that resizes the Low Field Side of the tokamak radial build
+It changes the location of the outer TF leg by takig into account requirement of ripple and maintenance ports.
 
 !!! note
 
-    Reads and modifies radial build information in `dd.build.layer`, using TF coil specifications 
-    from `dd.build.tf` (ripple tolerance, coil count)
+    Manipulates radial build information in `dd.build.layer`
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)

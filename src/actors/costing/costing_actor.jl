@@ -4,7 +4,10 @@ using DataFrames
 #= ============ =#
 #  ActorCosting  #
 #= ============ =#
-@actor_parameters_struct ActorCosting{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorCosting{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:ARIES, :Sheffield], "-", "Costing model"; default=:ARIES)
     construction_start_year::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Year that plant construction begins"; default=Dates.year(Dates.now()) + 10.0 ± 5.0)
     future_inflation_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Predicted average rate of future inflation"; default=0.025 ± 0.0125)
@@ -34,25 +37,11 @@ end
 """
     ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the comprehensive cost of building, operating, and decommissioning a fusion power plant.
-
-This actor provides a unified interface to different costing methodologies and handles:
-- Direct capital costs for all major plant systems and components  
-- Operating and maintenance costs over the plant lifetime
-- Decommissioning costs at end-of-life
-- Economic parameters like inflation, learning rates, and financial factors
-
-Available costing models:
-- `:ARIES`: Based on ARIES tokamak reactor studies with detailed component breakdown
-- `:Sheffield`: Based on Sheffield & Milora generic magnetic fusion reactor methodology
-
-The actor creates a separate data structure with uncertainty propagation (Measurement types)
-to handle cost uncertainties, then transfers final results back to the main data structure.
-Key economic outputs include levelized cost of electricity (LCOE) and lifetime plant costs.
+Estimates the cost of building, operating, and recommission the fusion power plant.
 
 !!! note
 
-    Results are stored in `dd.costing` with detailed breakdown by system and subsystem
+    Stores data in `dd.costing`
 """
 function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCosting(dd, act.ActorCosting, act; kw...)

@@ -7,7 +7,10 @@ import NonlinearSolve, FixedPointAcceleration
 #= ================ =#
 #  ActorFluxMatcher  #
 #= ================ =#
-@actor_parameters_struct ActorFluxMatcher{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.25:0.1:0.85)
     evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Ion temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Electron temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
@@ -72,25 +75,7 @@ end
 """
     ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Performs self-consistent transport evolution by matching turbulent/neoclassical transport fluxes to source fluxes.
-
-This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile 
-gradients until transport fluxes balance particle/energy sources. The process:
-
-1. **Profile Evolution**: Adjusts temperature/density/rotation profile gradients based on user configuration
-2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator  
-3. **Source Calculation**: Updates plasma heating, particle, and momentum sources
-4. **Flux Matching**: Minimizes residual (transport_flux - source_flux) using nonlinear solvers
-5. **Pedestal Coupling**: Optionally evolves pedestal conditions during the iteration process
-
-Evolution options per channel:
-- `:flux_match`: Evolve profile gradients to match transport and source fluxes  
-- `:fixed`: Keep profiles fixed
-- `:replay`: Use profiles from experimental data
-
-Advanced features include turbulence scaling to target confinement laws (H98, DS03),
-time-dependent evolution with ∂/∂t terms, and various nonlinear solver algorithms
-optimized for different transport model characteristics.
+Evalutes the transport fluxes and source fluxes and minimizes the flux_match error
 """
 function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; kw...)
@@ -213,9 +198,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             function f!(F, u, initial_cp1d)
                 try
                     F .= flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog).errors
-                catch e
-                    if isa(e, InterruptException)
-                        rethrow(e)
+                catch error
+                    if isa(error, InterruptException)
+                        rethrow(error)
                     end
                     F .= Inf
                 end
@@ -1009,14 +994,14 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
 
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort!([specie for (specie, evolve) in evolve_densities]) == sort!(dd_species) "Mismatch: dd species $(sort!(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
-
-    # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
-    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+    @assert sort(collect(keys(evolve_densities))) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
+    
+    
+    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
         txt = "When flux_matching densities, either none or all ion species must be :zeff"
-        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
-    elseif all(evolve in (:fixed, :replay) for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
-        txt = "When using fixed/replay densities, no more than one species can be set to :quasi_neutrality"
+        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
+    elseif all(evolve == :fixed for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
+        txt = "When flux_matching densities, no more than one species can be set to :quasi_neutrality"
         @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
     elseif any(evolve == :flux_match for (specie, evolve) in evolve_densities)
         txt = "When flux_matching densities, one an only one species must be set to :quasi_neutrality"

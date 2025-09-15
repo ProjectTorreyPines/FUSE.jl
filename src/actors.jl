@@ -68,6 +68,8 @@ function switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missin
         swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule, :edge_profiles], "-", txt; default)
     elseif quantity == :zeff_ped
         swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt; default)
+    elseif quantity == :ne_sep
+        swch = Switch{Symbol}([:core_profiles, :pulse_schedule], "-", txt; default)
     else
         error("`$quantity` not supported in switch_get_from()")
     end

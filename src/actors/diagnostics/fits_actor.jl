@@ -1,13 +1,15 @@
 #= ================ =#
 #  ActorFitProfiles  #
 #= ================ =#
-@actor_parameters_struct ActorFitProfiles{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorFitProfiles{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     #== actor parameters ==#
     time_averaging::Entry{Float64} = Entry{Float64}("s", "Time averaging window")
     rho_averaging::Entry{Float64} = Entry{Float64}("-", "rho averaging window")
     rho_grid::Entry{Int} = Entry{Int}("-", "Number of points in rho"; default=101)
     time_basis_ids::Switch{Symbol} = Switch{Symbol}([:equilibrium, :core_profiles], "-", "Time basis to use"; default=:core_profiles)
-    use_interferometer::Entry{Bool} = Entry{Bool}("-", "Scale thomson scattering density based on interferometer measurements"; default=true)
     #== display and debugging parameters ==#
 end
 
@@ -25,17 +27,7 @@ end
 """
     ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Fits experimental diagnostic data from Thomson scattering and charge exchange recombination spectroscopy to create smooth plasma profiles.
-
-This actor performs several key operations:
-
-  - Identifies and removes outliers from raw diagnostic data using adaptive algorithms
-  - Time-averages diagnostic measurements within specified windows
-  - Fits electron temperature (Te), electron density (ne), ion temperature (Ti), and ion density profiles
-  - Optionally scales Thomson scattering density based on interferometer measurements
-  - Enforces quasi-neutrality and provides smooth, consistent profiles on a common radial grid
-
-The resulting fitted profiles are stored in `dd.core_profiles.profiles_1d[]` and provide the foundation for physics modeling.
+FitProfiles experimental data
 """
 function ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFitProfiles(dd, act.ActorFitProfiles, act; kw...)
@@ -55,11 +47,11 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     smooth1 = 0.1
     smooth2 = par.rho_averaging
 
-    # set aside original raw data, since we'll be overwriting it internally 
-    dd1 = IMAS.dd{D}()
-    for field in (:thomson_scattering, :charge_exchange)
-        setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
-    end
+    # # set aside original raw data, since we'll be overwriting it internally 
+    # dd1 = IMAS.dd{D}()
+    # for field in (:thomson_scattering, :charge_exchange)
+    #     setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
+    # end
 
     # identify outliers on raw data
     for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
@@ -68,9 +60,26 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # disregard divertor thomson (D3D specific! need to generalize)
-    for (k, ch) in reverse!(collect(enumerate(dd.thomson_scattering.channel)))
+    for (k,ch) in reverse!(collect(enumerate(dd.thomson_scattering.channel)))
         if contains(lowercase(ch.name), "divertor")
             popat!(dd.thomson_scattering.channel, k)
+        end
+    end
+
+    # use the same time-basis
+    for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
+        tg = IMAS.time_dependent_leaves(experimental_ids)
+        times_coords = Dict{IMAS.IDS,IMAS.Coordinate}()
+        for group in values(tg)
+            for leaf in group
+                data = IMAS.smooth_by_convolution(leaf.ids, leaf.field, time_basis; window_size=par.time_averaging)
+                setproperty!(leaf.ids, leaf.field, data)
+                time_coord = IMAS.time_coordinate(leaf.ids, leaf.field)
+                times_coords[time_coord.ids] = time_coord
+            end
+        end
+        for time_coord in values(times_coords)
+            setproperty!(time_coord.ids, time_coord.field, time_basis)
         end
     end
 
@@ -85,9 +94,6 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
     dd.core_profiles.time = time_basis
 
-    # time average TS data
-    time_basis_average!(dd.thomson_scattering, time_basis, par.time_averaging)
-
     # fit Te
     itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
     for (kt, time0) in enumerate(time_basis)
@@ -97,7 +103,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     end
 
     # scale thomson scattering density based on interferometer measurements
-    if par.use_interferometer && !isempty(dd.interferometer.channel)
+    if !isempty(dd.interferometer.channel)
         n_points = 101
         interferometer_calibration_times = time_basis[1:2:end]
 
@@ -132,41 +138,33 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
 
         # optimization scales density for groups of thomson scattering channels
-        function cost(scales0)
-            scales = abs.(1.0 .+ scales0)
+        function cost(scales)
+            scales = abs.(scales)
             data = deepcopy(nes)
-            c_simulated = Float64[]
-            c_continuity = Float64[]
+            c = Float64[]
             for (kt, time0) in enumerate(interferometer_calibration_times)
                 for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
                     data[kt][ts_subsystems_mapper[subsystem]] .*= scales[kch]
                 end
                 eqt = dd.equilibrium.time_slice[time0]
                 index = sortperm(chρs[kt])
-
-                # synthetic line average density from Thomson should match measured one from interferometer
                 for (kch, ch) in enumerate(dd.interferometer.channel)
                     density_thermal = IMAS.line_average(eqt, data[kt][index], chρs[kt][index], ch.line_of_sight; n_points)
                     simulation = density_thermal.line_average
-                    push!(c_simulated, norm((experiments[kch][kt] .- simulation) ./ experiments[kch][kt]))
+                    push!(c, norm((experiments[kch][kt] .- simulation) ./ experiments[kch][kt]))
                 end
-
-                # profiles continuity: we want to minimize jumps in the profile
-                tmp = sum(abs.(diff(data[kt][index]))) / sum(data[kt])
-                push!(c_continuity, tmp)
             end
-            return sqrt(norm(c_simulated)^2 + norm(c_continuity)^2)
+            return norm(c)
         end
-        res = Optim.optimize(cost, fill(0.0, length(ts_subsystems_mapper)), Optim.NelderMead())
+        res = Optim.optimize(cost, fill(1.0, length(ts_subsystems_mapper)), Optim.NelderMead())
 
         # scale raw data in thomson_scattering IDS
-        scales = abs.(1.0 .+ res.minimizer)
-        scales_string = join(["$subsystem_name=$(@sprintf("%3.3f",scale))" for (subsystem_name, scale) in zip(keys(ts_subsystems_mapper), scales)], ", ")
+        scales = res.minimizer
+        scales_string = join(["$subsystem_name=$(@sprintf("%3.3f",scale))" for (subsystem_name,scale) in zip(keys(ts_subsystems_mapper),scales)], ", ")
         @info "Thomson subsystems scaled to match interferometer measurements: $scales_string"
         for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
             for chnum in ts_subsystems_mapper[subsystem]
                 dd.thomson_scattering.channel[chnum].n_e.data .*= scales[kch]
-                dd1.thomson_scattering.channel[chnum].n_e.data .*= scales[kch]
             end
         end
     end
@@ -178,9 +176,6 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
         cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
-
-    # time average CER data
-    time_basis_average!(dd.charge_exchange, time_basis, par.time_averaging)
 
     # # fit Zeff
     # itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
@@ -233,27 +228,10 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    # restore the original raw data [still compensated for interferometer!]
-    # (comment this out to see what data the fitting routine saw)
-    for field in (:thomson_scattering, :charge_exchange)
-        setproperty!(dd, field, getproperty(dd1, field))
-    end
+    # restore the original raw data
+    # for field in (:thomson_scattering, :charge_exchange)
+    #     setproperty!(dd, field, getproperty(dd1, field))
+    # end
 
     return actor
-end
-
-function time_basis_average!(experimental_ids::IMAS.IDS, time_basis::Vector{Float64}, time_averaging::Float64)
-    tg = IMAS.time_dependent_leaves(experimental_ids)
-    times_coords = Dict{IMAS.IDS,IMAS.Coordinate}()
-    for group in values(tg)
-        for leaf in group
-            data = IMAS.smooth_by_convolution(leaf.ids, leaf.field, time_basis; window_size=time_averaging)
-            setproperty!(leaf.ids, leaf.field, data)
-            time_coord = IMAS.time_coordinate(leaf.ids, leaf.field)
-            times_coords[time_coord.ids] = time_coord
-        end
-    end
-    for time_coord in values(times_coords)
-        setproperty!(time_coord.ids, time_coord.field, time_basis)
-    end
 end

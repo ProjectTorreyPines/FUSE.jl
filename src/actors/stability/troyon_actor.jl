@@ -3,7 +3,10 @@ import TroyonBetaNN
 #= ================= =#
 #  ActorTroyonBetaNN  #
 #= ================= =#
-@actor_parameters_struct ActorTroyonBetaNN{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorTroyonBetaNN{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
@@ -24,16 +27,7 @@ end
 """
     ActorTroyonBetaNN(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates ideal MHD stability limits using neural network models for low-n no-wall modes.
-The actor calculates the Troyon beta limit (βN) for different toroidal mode numbers using 
-machine learning models trained on MHD stability analysis.
-
-The calculation is disabled for negative triangularity plasmas. Results are stored in 
-`dd.mhd_linear.time_slice` with separate entries for each toroidal mode number.
-
-!!! note
-
-    Stores data in `dd.mhd_linear`
+This actor evaluates the low-n no-wall ideal MHD stability
 """
 function ActorTroyonBetaNN(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorTroyonBetaNN(dd, act.ActorTroyonBetaNN; kw...)

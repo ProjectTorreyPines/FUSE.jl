@@ -1,7 +1,10 @@
 #= ================== =#
 #  ActorCoreTransport  #
 #= ================== =#
-@actor_parameters_struct ActorCoreTransport{T} begin
+Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
     model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
 end
 
@@ -15,19 +18,7 @@ end
 """
     ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a unified interface to run core transport evolution models.
-
-This compound actor manages different approaches to core transport evolution:
-
-Transport model options:
-- `:FluxMatcher`: Self-consistent flux-matching transport evolution using turbulent and 
-  neoclassical models to evolve temperature and density profiles
-- `:EPEDProfiles`: Use EPED model predictions for pedestal and core profiles
-- `:replay`: Replay profiles from experimental data or previous simulations
-- `:none`: No core transport evolution (fixed profiles)
-
-The selected model determines how the core plasma profiles (temperature, density, rotation)
-evolve in response to heating, particle sources, and transport processes.
+Provides a common interface to run multiple core transport actors
 """
 function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCoreTransport(dd, act.ActorCoreTransport, act; kw...)
