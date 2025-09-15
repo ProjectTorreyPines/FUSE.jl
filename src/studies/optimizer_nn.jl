@@ -6,11 +6,11 @@ import PrettyTables
 #= ================= =#
 
 """
-    study_parameters(::Type{Val{:OptimizerNN}})::Tuple{FUSEparameters__ParametersStudyOptimizerNN,ParametersAllActors}
+    study_parameters(::Val{:OptimizerNN})::Tuple{FUSEparameters__ParametersStudyOptimizerNN,ParametersAllActors}
 
 Uses NN surrogate of an optimization database for uncertainty quantification
 """
-function study_parameters(::Type{Val{:OptimizerNN}})::Tuple{FUSEparameters__ParametersStudyOptimizerNN,ParametersAllActors}
+function study_parameters(::Val{:OptimizerNN})::Tuple{FUSEparameters__ParametersStudyOptimizerNN,ParametersAllActors}
     sty = FUSEparameters__ParametersStudyOptimizerNN{Real}()
     act = ParametersActors()
 
@@ -62,11 +62,6 @@ function StudyOptimizerNN(
 )
     sty = OverrideParameters(sty; kw...)
     study = StudyOptimizerNN(sty, ini, act, constraint_functions, objective_functions, missing, missing, missing, missing, dataframe, missing, missing)
-    return setup(study)
-end
-
-function _setup(study::StudyOptimizerNN)
-    sty = study.sty
     return study
 end
 
