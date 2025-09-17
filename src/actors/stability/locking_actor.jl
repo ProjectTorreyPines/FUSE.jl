@@ -1,6 +1,7 @@
 #import DifferentialEquations as DiffEqs
 using Distributed
 using DifferentialEquations
+import Roots
 
 #================== =#
 #  ActorLockingProbability  #
@@ -12,11 +13,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     n_mode::Entry{Int} = Entry{Int}("_", "toroidal mode number of the mode"; default=1)
     q_surf::Entry{Float64} = Entry{Float64}("_", "rational surface of interest, usually 2.0"; default=2.)
     grid_size::Entry{Int} = Entry{Int}("-", "grid resolution for control space"; default=100)
-    t_final::Entry{Float64} = Entry{Float64}("-", "Final integration time in units of tearing time (~ms)")
+    t_final::Entry{Float64} = Entry{Float64}("-", "Final integration time in units of tearing time (~ms)"; default=100.)
     time_steps::Entry{Int} = Entry{Int}("-", "number of time steps for the ODE integration"; default=200)
     control_type::Switch{Symbol} = Switch{Symbol}([:EF, :LinStab, :NLsaturation], # EF: error field
-        "-",                                                           # StabIndex: vary stability_index,
-        "Use a user specified Control case to run the locking models") # SatParam: vary NL saturation
+        "-",                                                            # LinStab: vary stability_index,
+        "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
     NL_saturation_ON::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=true)
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
@@ -149,7 +150,7 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     # find the normalized radius of the q=2 surface
     q_prof = dd.equilibrium.time_slice[].profiles_1d.q
     rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
-    ode_params.rat_surface = find_q2_surface(q_prof, rho, par.q_surf)
+    ode_params.rat_surface = find_rat_surface(q_prof, rho, par.q_surf)
     
     # calculate the stability indices and mutual inductances
     ode_params = calculate_stability_index!(dd, par, ode_params)
@@ -173,18 +174,18 @@ end
 # end
 
 
-function find_q2_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surface::Float64)
+function find_rat_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surface::Float64)
     """
-    Find the location of the q=2 surface given the q profile
+    Find the location of the q=rat_surface surface given the q profile
     """
-
-    # Interpolate rho(q) to find the q=2 surface
-    # Use absolute values to ensure we find the correct surface
-    rho_interp = IMAS.interp1d(abs.(q_prof), rho)
-    rho_rat = rho_interp.(2.0)  
-    println("Found q=2 surface at: ", rho_rat)
+    q_interp = IMAS.interp1d(rho, q_prof)
+    x0 = findfirst(x -> abs(x) > rat_surface, q_prof)
+    f = x -> abs(q_interp(x)) - rat_surface
+    @time rho_rat = Roots.secant_method(f, (rho[x0-1], rho[x0]))
+    println("Found q=$rat_surface surface at: ", rho_rat)
     return rho_rat
 end
+
 
 function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
     rt = ode_params.rat_surface  
