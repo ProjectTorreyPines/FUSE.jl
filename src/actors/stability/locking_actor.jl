@@ -110,14 +110,22 @@ function _step(actor::ActorLocking)
     C1 = .1; C2 = 5.; task = "solveRW"
     solve_one_case(par, actor.ode_params, task, C1, C2 )
 
-    #all_sols = solve_system(actor, task)
-    #control1 = actor.ode_params.Control1
-    #control2 = actor.ode_params.Control2
+    
+    # Solve the ODE system on the whole control grid):
+    control1 = actor.ode_params.Control1
+    control2 = actor.ode_params.Control2
+    full_sys_sols = solve_system(actor, task)
+    norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
+        control2, 
+        control1,
+        actor.par.control_type)
+
+    # plot normalize solution scatters
+    plot_sols_scatter(norm_sols; xcol=1,ycol=3)
     #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
     #inputs = vec(inputs)  # flatten
 
-    # NEW (distributed over the whole control grid):
-    #finals = solve_system(actor, task)
+    ## classify normalized solutions
 
     return actor
 end
@@ -127,7 +135,7 @@ function solve_one_case(par, ode_params::ODEparams, task::String, eps::Float64, 
     println("final raw solution = ", final_sol)
     
     sols_norm = normalize_ode_results(final_sol, ode_params, eps, Om0, par.control_type)
-    println("final normalized solution", sols_norm)
+    println("final normalized solution = ", sols_norm)
 
     return
 end
@@ -578,6 +586,9 @@ end
 
 
 function solve_system(actor::ActorLocking, task::String)
+
+    println("Solving the FULL system, this may take a few seconds")
+
     par = actor.par
     ode_params = actor.ode_params
 
@@ -602,6 +613,7 @@ function solve_system(actor::ActorLocking, task::String)
         solve_ODEs(par, ode_params_send, task, C2, C1)
     end
 
+    
     # finals[i] is the final state vector for inputs[i].
     # If you want them back on a 2D grid (N x M), reshape here:
     # finals_mat = reshape(finals, (par.grid_size, par.grid_size))
@@ -636,10 +648,13 @@ function plot_sols_scatter(norm_sol; xcol::Int=1, ycol::Int=3)
         throw(ArgumentError("norm_sol must be Vector{Vector{Float64}} or Vector{NTuple{N,Float64}}"))
     end
 
-    scatter(data[:, xcol], data[:, ycol],
+    plt = scatter(data[:, xcol], data[:, ycol],
             xlabel="Component $xcol",
             ylabel="Component $ycol",
             title="Normalized solution scatter")
+    display(plt)
+
+    return plt
 end
 
 function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
@@ -660,12 +675,10 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
     return plt
 end
 
-
 function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, levels::Vector{Float64}, control_type)
-    # Determine target shape
-    m, n = size(Z)
-
-    # If C1 and C2 are vectors, try to reshape them
+    lblsz = 16
+    
+    # Ensure unique 1D grids
     if ndims(X) == 1 
         X = unique(X)
     end
@@ -673,22 +686,26 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, lev
         Y = unique(Y)
     end
 
-    if control_type==:EF
-        xlabel = "Error Field"
-    elseif control_type==:LinStab
-        xlabel = "Linear Stability"
-    elseif control_type==:NLsaturation
-        xlabel = "NL saturation"
-    end
+    # Axis label
+    xlabel = control_type == :EF          ? "Error Field" :
+             control_type == :LinStab     ? "Linear Stability" :
+             control_type == :NLsaturation ? "NL saturation" : "Control1"
 
-    ## Create the contour plot
-    #pythonplot()
+    # Contour plot
     plt = contour(X, Y, Z; levels=levels, linewidth=2, xlabel=xlabel, ylabel="Normalized Torque")
-    #plt.xlabel("Control1")
-    display(plt)  # show plot
 
+    # Compute axis ranges for relative placement
+    xmin, xmax = extrema(X)
+    ymin, ymax = extrema(Y)
+
+    annotate!(xmin + 0.05*(xmax-xmin), ymin + 0.85*(ymax-ymin), text("UNLOCKED", lblsz))
+    annotate!(xmin + 0.70*(xmax-xmin), ymin + 0.05*(ymax-ymin), text("LOCKED", lblsz))
+
+    display(plt)
     return plt
 end
+
+
 
 
 
