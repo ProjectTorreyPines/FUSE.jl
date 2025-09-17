@@ -1,4 +1,4 @@
-using Distributed
+
 
 """
     case_parameters(::Val{:D3D}, shot::Int;
@@ -104,7 +104,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
         Base.run(`chmod +x $omfit_sh`)
         Base.run(`chmod +x $omas_sh`)
-        task = @spawn Base.run(`$omfit_sh`)
+        task = @async Base.run(`$omfit_sh`)
         Base.run(`$omas_sh`)
         wait(task)
     else
