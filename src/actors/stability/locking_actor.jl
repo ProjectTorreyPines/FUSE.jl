@@ -116,11 +116,9 @@ function _step(actor::ActorLocking)
     control2 = actor.ode_params.Control2
     full_sys_sols = solve_system(actor, task)
     norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
-        control2, 
-        control1,
-        actor.par.control_type)
+        control2, control1,actor.par.control_type)
 
-    # plot normalize solution scatters
+    ## plot normalize solution scatters
     plot_sols_scatter(norm_sols; xcol=1,ycol=3)
     #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
     #inputs = vec(inputs)  # flatten
@@ -637,7 +635,15 @@ Arguments:
 Example:
     plot_normalized_scatter(norm_sol; xcol=1, ycol=3)
 """
-function plot_sols_scatter(norm_sol; xcol::Int=1, ycol::Int=3)
+function plot_sols_scatter(
+        norm_sol; 
+        xcol::Int=1, 
+        ycol::Int=3,
+        xlabel::AbstractString="TM amplitude",
+        ylabel::AbstractString="Rotation at the rat. surf.",
+        title::AbstractString="Normalized solution scatter"
+    )
+
     if eltype(norm_sol) <: AbstractVector{<:Real}
         # Convert vector-of-vectors to a matrix
         data = reduce(vcat, (x' for x in norm_sol))
@@ -649,13 +655,14 @@ function plot_sols_scatter(norm_sol; xcol::Int=1, ycol::Int=3)
     end
 
     plt = scatter(data[:, xcol], data[:, ycol],
-            xlabel="Component $xcol",
-            ylabel="Component $ycol",
-            title="Normalized solution scatter")
-    display(plt)
+                  xlabel=xlabel,
+                  ylabel=ylabel,
+                  title=title)
 
+    display(plt)
     return plt
 end
+
 
 function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
     # Determine target shape
@@ -692,14 +699,24 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, lev
              control_type == :NLsaturation ? "NL saturation" : "Control1"
 
     # Contour plot
-    plt = contour(X, Y, Z; levels=levels, linewidth=2, xlabel=xlabel, ylabel="Normalized Torque")
+    plt = contour(X, Y, Z; levels=levels, linewidth=2, 
+                  xlabel=xlabel, ylabel="Normalized Torque", 
+                  clabel=false)
 
     # Compute axis ranges for relative placement
     xmin, xmax = extrema(X)
     ymin, ymax = extrema(Y)
 
-    annotate!(xmin + 0.05*(xmax-xmin), ymin + 0.85*(ymax-ymin), text("UNLOCKED", lblsz))
-    annotate!(xmin + 0.70*(xmax-xmin), ymin + 0.05*(ymax-ymin), text("LOCKED", lblsz))
+    annotate!(xmin + 0.5*(xmax-xmin), ymin + 0.85*(ymax-ymin), text("UNLOCKED", lblsz))
+    annotate!(xmin + 0.80*(xmax-xmin), ymin + 0.02*(ymax-ymin), text("LOCKED", lblsz))
+
+    if any(Z .< 0)
+        ind = argmin(Z)
+        i, j = Tuple(ind)   # row, col indices
+        xloc = X[j]
+        yloc = Y[i]
+        annotate!(xloc, yloc, text("Locking\n(Possible)", lblsz, :red))
+    end
 
     display(plt)
     return plt
