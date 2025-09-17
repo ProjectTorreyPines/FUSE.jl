@@ -15,7 +15,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :StudyPostdictive
     server::Switch{String} = study_common_parameters(; server="localhost")
-    n_workers::Entry{Int} = study_common_parameters(; n_workers=1)
+    n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the postdictive runs into")
 
@@ -52,10 +52,6 @@ function _run(study::StudyPostdictive)
     # parallel run
     println("running $(length(sty.shots)) postdictive simulations with $(sty.n_workers) workers on $(sty.server)")
 
-    if !isdir(sty.save_folder)
-        mkdir(sty.save_folder)
-    end
-
     ProgressMeter.@showprogress map(shot -> run_postdictive_case(study, shot), sty.shots)
 
     # Release workers after run
@@ -81,13 +77,21 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int)
     # Redirect stdout and stderr to the file
     original_stdout = stdout
     original_stderr = stderr
-    file_log = open("log.txt", "w")
+
+    savedir = abspath(joinpath(sty.save_folder, "$(device)_$(shot)__$(Dates.now())__$(getpid())"))
+    @info savedir
+    if !isdir(savedir)
+        mkdir(savedir)
+    end
+    SimulationParameters.par2json(sty, joinpath(savedir, "sty.json"))
+    file_log = open(joinpath(savedir, "log.txt"), "w")
 
     try
         redirect_stdout(file_log)
         redirect_stderr(file_log)
+        cd(savedir)
 
-        run_postdictive_case(device, shot; user_act=study.act, sty.fit_profiles, sty.use_local_cache, sty.save_folder, sty.reconstruction)
+        run_postdictive_case(device, shot; user_act=study.act, sty.fit_profiles, sty.use_local_cache, savedir, sty.reconstruction)
 
         # catch e
         #     if isa(e, InterruptException)
@@ -117,13 +121,9 @@ function run_postdictive_case!(
     user_act::ParametersActors,
     fit_profiles::Bool,
     use_local_cache::Bool,
-    save_folder::AbstractString=abspath("."),
+    savedir::AbstractString=abspath("."),
     reconstruction::Bool
 )
-    savedir = abspath(joinpath(save_folder, "$(device)_$(shot)__$(Dates.now())__$(getpid())"))
-    if !isdir(savedir)
-        mkdir(savedir)
-    end
 
     # Get case parameters
     @info "case_parameters($(repr(device)), $shot; fit_profiles=$fit_profiles, use_local_cache=$use_local_cache)"
@@ -234,13 +234,28 @@ function run_postdictive_case!(
     Nt_OK = round(Int, (dd.global_time - ini.time.simulation_start) / δt)
     times = range(ini.time.simulation_start, dd.global_time, Nt_OK)
 
+    @info "IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);"
+    bnch = IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);
+
     # save simulation data to directory
-    if !ismissing(save_folder)
-        @info "save simulation results to: $(save_folder)"
-        SimulationParameters.par2json(sty, "sty.json")
-        SimulationParameters.par2json(act, "act.json")
+    if !isempty(savedir)
+        @info "saving simulation results to: $(savedir)"
+        @info "save act.json"
+        tmp = act.ActorReplay.replay_dd
+        act.ActorReplay.replay_dd = IMAS.dd()
+        SimulationParameters.par2json(act,joinpath(savedir, "act.json"))
+        act.ActorReplay.replay_dd = tmp
+
+        @info "save dd_sim.json"
         IMAS.imas2json(dd, joinpath(savedir, "dd_sim.json"))
+
+        @info "save dd_exp.json"
         IMAS.imas2json(dd_exp, joinpath(savedir, "dd_exp.json"))
+
+        @info "save dd_benchmark.json"
+        IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
+
+        @info "save animated gif"
         mkdir(joinpath(savedir, "gif"))
         animated_plasma_overview(dd, joinpath(savedir, "gif"), dd_exp)
     end
