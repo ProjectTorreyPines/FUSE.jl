@@ -10,7 +10,19 @@ import GACODE
     study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
 """
 function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
-    return FUSEparameters__ParametersStudyTGLFdb{Real}()
+    sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
+    act = ParametersActors()
+
+    # Change act for the default TGLFdb run
+    act.ActorCoreTransport.model = :FluxMatcher
+    act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorTGLF.warn_nn_train_bounds = false
+
+    # finalize 
+    set_new_base!(sty)
+    set_new_base!(act)
+
+    return sty, act
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}
@@ -131,7 +143,7 @@ function _analyze(study::StudyTGLFdb)
 end
 
 function preprocess_dd(filename::AbstractString)
-    dd = IMAS.json2imas(filename; verbose=false)
+    dd = IMAS.json2imas(filename; show_warnings=false)
 
     cp1d = dd.core_profiles.profiles_1d[]
     # Handle both single and multiple time slice cases
