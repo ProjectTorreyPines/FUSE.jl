@@ -5,7 +5,7 @@ import HDF5
 #= ====================== =#
 
 """
-    study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+    study_parameters(::Val{:DatabaseGenerator})
 
 Generates a database of dds from `ini` and `act` based on ranges specified in `ini` (i.e. `ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0]`)
 
@@ -13,7 +13,7 @@ It's also possible to run the database generator on Vector of `ini`s and `act`s.
 
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
-function study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+function study_parameters(::Val{:DatabaseGenerator})
     return FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
 end
 

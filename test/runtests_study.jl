@@ -7,7 +7,7 @@ using FUSE.DataFrames
 using FUSE.SimulationParameters.Distributions
 
 @testset "study_db_gen" begin
-    sty, act = FUSE.study_parameters(:DatabaseGenerator)
+    sty = FUSE.study_parameters(:DatabaseGenerator)
     sty.server = "localhost"
     sty.n_workers = 2
     sty.file_save_mode = :append

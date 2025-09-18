@@ -820,7 +820,7 @@ Studies use a `sty` (study parameters) structure similar to `act` (actor paramet
 
 ```julia
 # Get study parameters - similar to case_parameters but for studies
-sty, act = FUSE.study_parameters(:TGLFdb)
+sty = FUSE.study_parameters(:TGLFdb)
 
 # Common study parameters
 sty.server = "localhost"           # Distributed computing server  
@@ -841,7 +841,7 @@ sty.custom_tglf_models = ["sat3_em_d3d_azf-1_withnegD"]  # Custom TGLF models to
 using Distributed
 
 # 1. Setup study parameters
-sty, act = FUSE.study_parameters(:TGLFdb)
+sty = FUSE.study_parameters(:TGLFdb)
 sty.server = "localhost"
 sty.n_workers = 4
 sty.database_folder = "/path/to/database"
@@ -951,7 +951,7 @@ ylabel!("Probability")
 
 ```julia
 # Get study parameters for database generation
-sty, _ = FUSE.study_parameters(:DatabaseGenerator)
+sty = FUSE.study_parameters(:DatabaseGenerator)
 
 # Configure distributed computing
 sty.server = "localhost"
@@ -1120,7 +1120,7 @@ ini.requirements.coil_stress_margin = 0.1   # 10% stress margin
 
 ```julia
 # Get study parameters for multi-objective optimization
-sty, _ = FUSE.study_parameters(:MultiObjectiveOptimizer)
+sty = FUSE.study_parameters(:MultiObjectiveOptimizer)
 
 # Configure distributed computing
 sty.server = "localhost"  # Can be "saga", "omega", or cluster name
