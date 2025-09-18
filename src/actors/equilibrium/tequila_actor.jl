@@ -3,10 +3,7 @@ import TEQUILA
 #= =========== =#
 #  ActorTEQUILA  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTEQUILA{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorTEQUILA{T} begin
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=31)
@@ -36,7 +33,35 @@ end
 """
     ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the Fixed boundary equilibrium solver TEQUILA
+Solves tokamak MHD equilibria using the TEQUILA fixed-boundary equilibrium solver with MXH flux surface representation.
+
+TEQUILA is a fixed-boundary equilibrium solver that uses cubic-Hermite finite elements in the radial direction,
+Fourier modes in the poloidal angle, and a Miller extended harmonic (MXH) flux-surface parametrization [Arbon 2021].
+MXH provides an efficient representation of flux surfaces.
+
+Key features:
+- **MXH flux surface parametrization**: Spectral representation using R₀(ρ), Z₀(ρ), ε(ρ), κ(ρ) and Fourier harmonics
+- **Free-boundary conversion**: Solves with external coil currents and control constraints via VacuumFields.jl
+- **Adaptive grid refinement**: Efficient spectral convergence with configurable Fourier mode resolution
+- **Control integration**: Supports X-point, strike-point, and magnetic axis control with poloidal field coils
+- **Profile flexibility**: Accepts pressure and current profiles on either poloidal or toroidal flux coordinates
+
+Solver workflow:
+1. **Fixed-boundary solve**: Initial equilibrium with specified plasma boundary using TEQUILA core
+2. **Free-boundary conversion**: Couples plasma equilibrium with external coil system via Green's functions
+3. **Control optimization**: Adjusts coil currents to satisfy geometric and flux control targets
+4. **Grid mapping**: Converts spectral solution to rectangular R-Z grids for analysis
+
+Grid options:
+- **Profile grids**: :poloidal (√ψ_norm) or :toroidal (ρ_tor_norm) flux coordinate systems
+- **Spatial resolution**: Configurable radial points (31 default) and Fourier modes (8 default)  
+- **Rectangular grid**: Automatic sizing based on plasma geometry plus divertor margins
+
+!!! note
+
+    Reads pressure/current profiles from `dd.equilibrium.profiles_1d`, boundary shape from 
+    `dd.pulse_schedule.position_control`, and PF coil setup from `dd.pf_active`. 
+    Updates `dd.equilibrium` with solved equilibrium and coil currents.
 """
 function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorTEQUILA(dd, act.ActorTEQUILA, act; kw...)
@@ -219,7 +244,7 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
 
         # Flux control points
         mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, iso_cps[1].weight)
-        flux_cps = VacuumFields.FluxControlPoint[mag]
+        flux_cps = VacuumFields.FluxControlPoint{D}[mag]
         strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
         strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
         append!(flux_cps, strike_cps)

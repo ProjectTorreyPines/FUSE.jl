@@ -1,10 +1,7 @@
 #= ===================== =#
 #  ActorStationaryPlasma  #
 #= ===================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorStationaryPlasma{T} begin
     max_iterations::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
     #== display and debugging parameters ==#
@@ -27,16 +24,42 @@ end
 """
     ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs the following actors in succesion to find a self-consistent stationary plasma solution
+Iteratively solves for self-consistent stationary plasma equilibrium and transport.
 
-  - ActorCurrent
-  - ActorHCD
-  - ActorCoreTransport
-  - ActorEquilibrium
+This compound actor finds steady-state plasma solutions by iterating between plasma 
+physics models until convergence. It balances current drive, heating, transport, 
+and equilibrium to achieve a consistent stationary state.
+
+Core iteration workflow:
+1. **Current Evolution**: Updates current density from current drive and resistive diffusion
+2. **Heating & Current Drive**: Calculates power deposition and driven current from external sources
+3. **Pedestal**: Determines edge boundary conditions and pedestal profiles
+4. **Core Transport**: Evolves temperature and density profiles based on transport fluxes
+5. **Sawteeth**: Applies sawtooth mixing to maintain realistic q-profiles
+6. **Equilibrium**: Solves MHD equilibrium with updated pressure and current profiles
+
+The iteration continues until the relative changes in current density and pressure 
+profiles fall below the convergence threshold. Each iteration updates the flux surface
+geometry based on the latest equilibrium solution.
+
+Key convergence criteria:
+- Relative change in current density profile (volume-averaged)
+- Relative change in pressure profile (volume-averaged) 
+- Combined error must be below `convergence_error` threshold
+- Maximum iterations limit prevents infinite loops
+
+Actors coordinated:
+- **ActorCurrent**: Current density evolution (Ohmic + driven + bootstrap)
+- **ActorHCD**: Heating and current drive power deposition  
+- **ActorPedestal**: Edge pressure and temperature boundary conditions
+- **ActorCoreTransport**: Core transport flux calculations
+- **ActorSawteeth**: Sawtooth crash mixing and q-profile flattening
+- **ActorEquilibrium**: MHD equilibrium solution with updated profiles
 
 !!! note
 
-    Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`, `dd.core_transport`
+    Stores converged plasma state in `dd.equilibrium`, `dd.core_profiles`, 
+    `dd.core_sources`, `dd.core_transport`
 """
 function ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorStationaryPlasma(dd, act.ActorStationaryPlasma, act; kw...)

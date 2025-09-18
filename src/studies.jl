@@ -18,18 +18,6 @@ function study_parameters(study::Symbol; kw...)
     return study_parameters(Val(study); kw...)
 end
 
-function setup(study::AbstractStudy)
-    return _setup(study)
-end
-
-function analyze(study::AbstractStudy; kw...)
-    return _analyze(study; kw...)
-end
-
-function _analyze(study::AbstractStudy; kw...)
-    return study
-end
-
 function run(study::T, args...; kw...) where {T<:AbstractStudy}
     timer_name = name(study)
     TimerOutputs.reset_timer!(timer_name)

@@ -7,10 +7,7 @@ import NonlinearSolve, FixedPointAcceleration
 #= ================ =#
 #  ActorFluxMatcher  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxMatcher{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFluxMatcher{T} begin
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.25:0.1:0.85)
     evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Ion temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
     evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Electron temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
@@ -75,7 +72,25 @@ end
 """
     ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evalutes the transport fluxes and source fluxes and minimizes the flux_match error
+Performs self-consistent transport evolution by matching turbulent/neoclassical transport fluxes to source fluxes.
+
+This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile 
+gradients until transport fluxes balance particle/energy sources. The process:
+
+1. **Profile Evolution**: Adjusts temperature/density/rotation profile gradients based on user configuration
+2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator  
+3. **Source Calculation**: Updates plasma heating, particle, and momentum sources
+4. **Flux Matching**: Minimizes residual (transport_flux - source_flux) using nonlinear solvers
+5. **Pedestal Coupling**: Optionally evolves pedestal conditions during the iteration process
+
+Evolution options per channel:
+- `:flux_match`: Evolve profile gradients to match transport and source fluxes  
+- `:fixed`: Keep profiles fixed
+- `:replay`: Use profiles from experimental data
+
+Advanced features include turbulence scaling to target confinement laws (H98, DS03),
+time-dependent evolution with ∂/∂t terms, and various nonlinear solver algorithms
+optimized for different transport model characteristics.
 """
 function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; kw...)
@@ -198,9 +213,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             function f!(F, u, initial_cp1d)
                 try
                     F .= flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog).errors
-                catch error
-                    if isa(error, InterruptException)
-                        rethrow(error)
+                catch e
+                    if isa(e, InterruptException)
+                        rethrow(e)
                     end
                     F .= Inf
                 end
