@@ -62,7 +62,7 @@ end
 function _run(study::StudyMultiObjectiveOptimizer)
     sty = study.sty
 
-    @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
+    @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
     @assert iseven(sty.population_size) "Population size must be even"
 
     if sty.restart_workers_after_n_generations > 0

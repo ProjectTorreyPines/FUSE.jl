@@ -69,7 +69,7 @@ Runs the DatabaseGenerator with sty settings in parallel on designated cluster
 function _run(study::StudyDatabaseGenerator)
     sty = study.sty
 
-    @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
+    @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
     if typeof(study.ini) <: ParametersAllInits && typeof(study.act) <: ParametersAllActors
         iterator = collect(1:sty.n_simulations)

@@ -68,7 +68,7 @@ function _run(study::StudyTGLFdb)
     sty = study.sty
     act = study.act
 
-    @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
+    @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
     @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
 
     cases_files = [

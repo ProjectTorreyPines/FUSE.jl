@@ -18,13 +18,12 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     n_workers::Entry{Int} = study_common_parameters(; n_workers=missing)
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the postdictive runs into")
+    kw_case_parameters::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to case_parameters"; default=Dict{Symbol,Any}())
 
     # Postdictive-specific parameters
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run postdictive simulations for")
     shots::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "List of shot numbers")
-    fit_profiles::Entry{Bool} = Entry{Bool}("-", "Whether to fit profiles in case_parameters"; default=true)
     reconstruction::Entry{Bool} = Entry{Bool}("-", "Run postdiction in reconstruction mode")
-    use_local_cache::Entry{Bool} = Entry{Bool}("-", "Whether to use local cache in case_parameters"; default=false)
 end
 
 mutable struct StudyPostdictive{T<:Real} <: AbstractStudy
@@ -47,12 +46,12 @@ Runs the Postdictive study with sty settings in parallel on designated cluster
 function _run(study::StudyPostdictive)
     sty = study.sty
 
-    @assert sty.n_workers == length(Distributed.workers()) "The number of workers = $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
+    @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers = $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
     # parallel run
     println("running $(length(sty.shots)) postdictive simulations with $(sty.n_workers) workers on $(sty.server)")
 
-    ProgressMeter.@showprogress map(shot -> run_postdictive_case(study, shot), sty.shots)
+    ProgressMeter.@showprogress map(shot -> run_postdictive_case(study, shot; sty.kw_case_parameters), sty.shots)
 
     # Release workers after run
     if sty.release_workers_after_run
@@ -64,11 +63,11 @@ function _run(study::StudyPostdictive)
 end
 
 """
-    run_postdictive_case(study::StudyPostdictive, shot::Int)
+    run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parameters::Dict{Symbol,Any})
 
 Run a single postdictive case for a given device and shot
 """
-function run_postdictive_case(study::StudyPostdictive, shot::Int)
+function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parameters::Dict{Symbol,Any})
     sty = study.sty
     device = sty.device
 
@@ -91,7 +90,7 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int)
         redirect_stderr(file_log)
         cd(savedir)
 
-        run_postdictive_case(device, shot; user_act=study.act, sty.fit_profiles, sty.use_local_cache, savedir, sty.reconstruction)
+        run_postdictive_case(device, shot; user_act=study.act, savedir, sty.reconstruction, kw_case_parameters)
 
         # catch e
         #     if isa(e, InterruptException)
@@ -106,10 +105,10 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int)
     end
 end
 
-function run_postdictive_case(device::Symbol, shot::Int; kw...)
+function run_postdictive_case(device::Symbol, shot::Int; kw_case_parameters::Dict{Symbol,Any}, kw...)
     dd = IMAS.dd()
     dd_exp = IMAS.dd()
-    run_postdictive_case!(dd, dd_exp, device, shot; kw...)
+    run_postdictive_case!(dd, dd_exp, device, shot; kw_case_parameters, kw...)
     return (dd=dd, dd_exp=dd_exp)
 end
 
@@ -119,15 +118,14 @@ function run_postdictive_case!(
     device::Symbol,
     shot::Int;
     user_act::ParametersActors,
-    fit_profiles::Bool,
-    use_local_cache::Bool,
     savedir::AbstractString=abspath("."),
-    reconstruction::Bool
+    reconstruction::Bool,
+    kw_case_parameters::Dict{Symbol,Any}
 )
 
     # Get case parameters
-    @info "case_parameters($(repr(device)), $shot; fit_profiles=$fit_profiles, use_local_cache=$use_local_cache)"
-    ini, act = FUSE.case_parameters(device, shot; fit_profiles, use_local_cache)
+    @info "case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
+    ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
 
     # Override act with user-specific actor parameters
     #merge!(act, user_act)
