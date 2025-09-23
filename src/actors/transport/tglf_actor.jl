@@ -6,10 +6,7 @@ import GACODE
 #= ========= =#
 #  ActorTGLF  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorTGLF{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorTGLF{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :GKNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
     onnx_model::Entry{Bool} = Entry{Bool}("-", "use onnx model"; default=false)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
@@ -37,7 +34,18 @@ end
 """
     ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the TGLF predicted turbulence
+Evaluates turbulent transport fluxes using TGLF-based models including TGLF, TGLFNN, GKNN, and TJLF.
+
+Supported models:
+- `:TGLF`: Full TGLF gyrokinetic transport model
+- `:TGLFNN`: Neural network surrogate of TGLF for fast evaluation
+- `:GKNN`: Neural network surrogate with gyrokinetic fidelity
+- `:TJLF`: Weiland model for ITG/TEM turbulence with adaptive spectral widths
+
+The actor creates input files for the selected model based on local plasma parameters,
+runs the transport calculation, and stores results as FluxSolution objects containing
+electron/ion energy fluxes, particle fluxes, and momentum flux. Results are normalized
+in gyro-Bohm units and written to `dd.core_transport` as anomalous transport.
 """
 function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorTGLF(dd, act.ActorTGLF; kw...)
@@ -60,7 +68,13 @@ end
 """
     _step(actor::ActorTGLF)
 
-Runs TGLF actor to evaluate the turbulence flux on a vector of gridpoints
+Runs the selected TGLF-based transport model to evaluate turbulent fluxes on radial grid points.
+
+Creates input files for each transport grid point containing local plasma parameters,
+gradients, and geometry. For TJLF, maintains memory of spectral widths between iterations.
+Supports custom input file parameters and can save input files to disk for debugging.
+Runs the transport model (TGLF/TGLFNN/GKNN via TurbulentTransport.jl or TJLF) and
+stores the resulting fluxes as FluxSolution objects.
 """
 function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
     par = actor.par
@@ -169,7 +183,12 @@ end
 """
     _finalize(actor::ActorTGLF)
 
-Writes results to dd.core_transport
+Writes calculated transport fluxes to `dd.core_transport.model[:anomalous]`.
+
+Sets the model identifier to include the model name, configuration details (saturation rule,
+electromagnetic vs electrostatic for TGLF), and neural network model filename for TGLFNN/GKNN.
+Converts flux results from GACODE format to IMAS format for electron/ion energy, particle,
+and momentum fluxes using `GACODE.flux_gacode_to_imas`.
 """
 function _finalize(actor::ActorTGLF)
     dd = actor.dd

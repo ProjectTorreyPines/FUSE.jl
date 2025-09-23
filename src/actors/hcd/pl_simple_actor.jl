@@ -1,18 +1,12 @@
 #= ============= =#
 #  Simple PELLET  #
 #= ============= =#
-Base.@kwdef mutable struct _FUSEparameters__ActorSimplePLactuator{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct _ActorSimplePLactuator{T} begin
     rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.25, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ActorSimplePL{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorSimplePL{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimplePLactuator{T}} = ParametersVector{_FUSEparameters__ActorSimplePLactuator{T}}()
 end
 
@@ -29,11 +23,27 @@ end
 """
     ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the Pellet particle deposition
+Calculates pellet fueling particle deposition using a simplified deposition model.
+
+This actor models pellet particle injection through:
+- Calculation of pellet particle content based on geometry (spherical, cylindrical, or rectangular)
+- Material density lookup for different species (DT, D, T, C, Ne)
+- Frequency-based particle source calculation
+- Beta-function radial deposition profile with configurable location and width
+- Pure particle source (no heating or current drive)
+
+The pellet volume and particle content are calculated based on:
+- Spherical: V = (4/3)πr³
+- Cylindrical: V = πr²h  
+- Rectangular: V = l×w×h
+
+Particle rate = pellet_volume × material_density × injection_frequency
+
+The deposition profile uses a beta function with parameters tuned for pellet-like deposition.
 
 !!! note
 
-    Reads data in `dd.pellet_launchers`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.pellets.launcher`, `dd.pulse_schedule` and stores results in `dd.core_sources`
 """
 function ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimplePL(dd, act.ActorSimplePL; kw...)

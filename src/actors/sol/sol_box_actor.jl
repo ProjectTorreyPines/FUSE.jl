@@ -2,10 +2,7 @@
 #  ActorSOLBox  #
 #= =========== =#
 
-Base.@kwdef mutable struct FUSEparameters__ActorSOLBox{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorSOLBox{T} begin
     Te_t::Entry{T} = Entry{T}("eV", "Input electron temperature at the target"; default=10.0)
     Ti_t::Entry{T} = Entry{T}("eV", "Input ion temperature at the target"; default=10.0)
     frac_cond::Entry{T} = Entry{T}("-", "Fraction of power carried by electron conduction"; default=0.7)
@@ -100,7 +97,23 @@ end
 """
     ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-0D box model for the scrape-off layer developed by X. Zhang et al. https://doi.org/10.1016/j.nme.2022.101354 .
+Implements a 0D box model for scrape-off layer (SOL) physics to calculate upstream 
+plasma conditions at the separatrix from target boundary conditions. Based on the 
+model developed by X. Zhang et al. (https://doi.org/10.1016/j.nme.2022.101354).
+
+The model calculates:
+- Upstream electron and ion temperatures and densities
+- Power flux densities for electrons and ions 
+- Connection length and flux expansion from field line tracing
+- Target conditions using recycling coefficients and power balance
+
+Handles both single-null and double-null configurations automatically based on
+magnetic balance assessment.
+
+!!! note
+
+    Reads data from `dd.equilibrium`, `dd.core_sources`, `dd.wall` and stores 
+    results in `dd.edge_profiles`
 """
 function ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSOLBox(dd, act.ActorSOLBox; kw...)
@@ -284,6 +297,13 @@ function _step(actor::ActorSOLBox{D,P}) where {D<:Real,P<:Real}
     return actor
 end
 
+"""
+    _finalize(actor::ActorSOLBox)
+
+Populates the edge_profiles IDS with the calculated upstream conditions. Since the 
+box model provides a single point calculation, only the separatrix values 
+(rho_pol_norm = 1.0) are populated with electron density and temperature.
+"""
 function _finalize(actor::ActorSOLBox)
     dd = actor.dd
 

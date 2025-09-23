@@ -3,10 +3,7 @@ import FRESCO
 #= =========== =#
 #  ActorFRESCO  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFRESCO{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFRESCO{T} begin
     #== actor parameters ==#
     control::Switch{Symbol} = Switch{Symbol}([:vertical, :shape, :magnetics], "-", "Vertical control algorithm to be used"; default=:shape)
     number_of_iterations::Entry{Tuple{Int,Int}} = Entry{Tuple{Int,Int}}("-", "Number of outer and inner iterations"; default=(100, 3))
@@ -32,7 +29,29 @@ end
 """
     ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the Fixed boundary equilibrium solver FRESCO
+Solves the tokamak MHD equilibrium using the FRESCO fixed-boundary equilibrium solver.
+
+FRESCO (Free-boundary Reactor Equilibrium Solver for Comprehensive Optimization) solves the 
+Grad-Shafranov equation for toroidal plasma equilibria with specified pressure and current profiles.
+
+This actor performs:
+- Free-boundary equilibrium reconstruction using pressure and current profiles from core_profiles
+- Iterative solution of the Grad-Shafranov equation on a rectangular R-Z grid
+- Vertical control options (vertical position, shape control, or magnetics-based)
+- Updates to poloidal field coil currents for force balance
+- Conversion of equilibrium solution back to IMAS equilibrium format
+
+The solver supports:
+- Configurable grid resolution (nR × nZ)
+- Multiple control algorithms for vertical stability
+- Active X-point specification
+- Green's function table reuse for computational efficiency
+- Relaxation and tolerance control for convergence
+
+!!! note
+
+    Reads data from `dd.equilibrium`, `dd.core_profiles`, `dd.pf_active`, and `dd.wall`, 
+    and updates `dd.equilibrium` and `dd.pf_active` with the solved equilibrium
 """
 function ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFRESCO(dd, act.ActorFRESCO, act; kw...)

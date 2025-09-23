@@ -3,10 +3,7 @@ import NNeutronics
 #= ============ =#
 #  ActorBlanket  #
 #= ============ =#
-Base.@kwdef mutable struct FUSEparameters__ActorBlanket{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorBlanket{T} begin
     minimum_first_wall_thickness::Entry{T} = Entry{T}("m", "Minimum first wall thickness"; default=0.02)
     blanket_multiplier::Entry{T} = Entry{T}("-", "Neutron thermal power multiplier in blanket"; default=1.2)
     thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-",
@@ -30,7 +27,20 @@ end
 """
     ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates blankets tritium breeding ratio (TBR), heat deposition, and neutron leakage
+Calculates blanket performance including tritium breeding ratio (TBR), thermal power
+generation, and neutron leakage using 1D neutronics models. The actor optimizes
+blanket layer thicknesses to achieve target TBR while minimizing neutron leakage
+and respecting geometric constraints.
+
+The calculations include:
+- Tritium breeding from Li-6 reactions using neural network models
+- Thermal power generation with configurable multiplication factor
+- Neutron leakage assessment for radiation protection
+- Layer thickness optimization to meet TBR requirements
+- Li-6 enrichment optimization
+
+Handles multiple blanket modules (e.g., inboard and outboard) with different
+geometric and material configurations.
 
 !!! note
 

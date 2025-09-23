@@ -151,6 +151,7 @@ end
 # parallel #
 # ======== #
 """
+<<<<<<< HEAD
     parallel_environment(
         cluster::String="localhost",
         nworkers::Integer=-1,
@@ -160,6 +161,9 @@ end
         release_existing_workers::Bool=true,
         kw...
     )
+=======
+    parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, workers_import_fuse::Bool=true, kw...)
+>>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
 
 Start multiprocessing environment
 
@@ -171,6 +175,7 @@ Start multiprocessing environment
   - cpus_per_task can be used to control memory usage
   - memory_usage_fraction is the fraction of peak memory that can be used
   - workers_import_fuse does a `@everywhere using FUSE` on the worker nodes
+<<<<<<< HEAD
   - release_existing_workers does just that before starting a new set
 """
 function parallel_environment(
@@ -189,6 +194,10 @@ function parallel_environment(
 
     current_nworkers = Distributed.nprocs() - 1
 
+=======
+"""
+function parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, workers_import_fuse::Bool=true, kw...)
+>>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
     if nworkers == 0
         #pass
 
@@ -349,7 +358,11 @@ function parallel_environment(
         Base.include_string(Main, code)
     end
 
+<<<<<<< HEAD
     return println("Using $(Distributed.nprocs() - 1) workers on $(gethostname())")
+=======
+    return println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")
+>>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
 end
 
 """

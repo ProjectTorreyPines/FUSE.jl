@@ -13,6 +13,7 @@ It's also possible to run the database generator on Vector of `ini`s and `act`s.
 
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
+<<<<<<< HEAD
 function study_parameters(::Val{:DatabaseGenerator})
     sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
     act = ParametersActors()
@@ -28,6 +29,10 @@ function study_parameters(::Val{:DatabaseGenerator})
     set_new_base!(act)
 
     return sty, act
+=======
+function study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+    return FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
+>>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:Real} <: ParametersStudy{T}
@@ -66,11 +71,6 @@ function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersA
         sty.n_simulations = length(inis)
     end
     study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
-    return setup(study)
-end
-
-function _setup(study::StudyDatabaseGenerator)
-    sty = study.sty
 
     check_and_create_file_save_mode(sty)
 
@@ -105,7 +105,7 @@ function _run(study::StudyDatabaseGenerator)
 
     if study.sty.database_policy == :separate_folders
         FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
-        analyze(study; extract=true)
+        extract_results(study)
 
     elseif study.sty.database_policy == :single_hdf5
 
@@ -120,8 +120,6 @@ function _run(study::StudyDatabaseGenerator)
             end, iterator)
 
         study.dataframe = _merge_tmp_study_files(study.sty.save_folder; cleanup=true)
-
-        analyze(study; extract=false)
     else
         error("DatabaseGenerator should never be here: database_policy must be either `:separate_folders` or `:single_hdf5`")
     end
@@ -132,18 +130,6 @@ function _run(study::StudyDatabaseGenerator)
         @info "released workers"
     end
 
-    return study
-end
-
-"""
-    _analyze(study::StudyDatabaseGenerator; extract::Bool=true)
-
-Analyze the database generator study results by extracting results if requested
-"""
-function _analyze(study::StudyDatabaseGenerator; extract::Bool=true)
-    if extract
-        extract_results(study)
-    end
     return study
 end
 
@@ -190,13 +176,13 @@ function run_case(study::AbstractStudy, item::Int)
         save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
 
         return nothing
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         # save empty dd and error to directory
-        save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
+        save(savedir, nothing, ini, act; error=e, timer=true, freeze=false, overwrite_files=true)
     finally
         redirect_stdout(original_stdout)
         redirect_stderr(original_stderr)
@@ -274,9 +260,10 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         end
 
         return df
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
@@ -284,7 +271,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
         # save empty dd and error to directory
-        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"

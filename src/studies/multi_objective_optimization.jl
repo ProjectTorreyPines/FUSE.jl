@@ -8,6 +8,7 @@ import Serialization
 
 Generates a database of dds from ini and act based on ranges specified in ini
 """
+<<<<<<< HEAD
 function study_parameters(::Val{:MultiObjectiveOptimizer})
     sty = FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
     act = ParametersActors()
@@ -17,6 +18,10 @@ function study_parameters(::Val{:MultiObjectiveOptimizer})
     set_new_base!(act)
 
     return sty, act
+=======
+function study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
+    return FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
+>>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T<:Real} <: ParametersStudy{T}
@@ -58,30 +63,11 @@ function StudyMultiObjectiveOptimizer(
 )
     sty = OverrideParameters(sty; kw...)
     study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
-    return setup(study)
-end
-
-function _setup(study::StudyMultiObjectiveOptimizer)
-    sty = study.sty
 
     check_and_create_file_save_mode(sty)
 
     parallel_environment(sty.server, sty.n_workers)
 
-    # import FUSE and IJulia on workers
-    if isdefined(Main, :IJulia)
-        code = """
-        using Distributed
-        @everywhere import FUSE
-        @everywhere import IJulia
-        """
-    else
-        code = """
-        using Distributed
-        @everywhere import FUSE
-        """
-    end
-    Base.include_string(Main, code)
     return study
 end
 
@@ -151,10 +137,10 @@ function _run(study::StudyMultiObjectiveOptimizer)
             study.constraint_functions)
 
         if study.sty.database_policy == :separate_folders
-            analyze(study; extract_results=true)
+            extract_results(study)
         else
             study.dataframe = _merge_tmp_study_files(sty.save_folder; cleanup=true)
-            analyze(study; extract_results=false)
+            study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions])
         end
 
         # Release workers after run
@@ -245,19 +231,6 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
     end
 
     return merged_df
-end
-
-"""
-    _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
-"""
-function _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
-    if extract_results
-        extract_results(study)
-    end
-    if !isempty(study.dataframe)
-        study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions])
-    end
-    return study
 end
 
 """

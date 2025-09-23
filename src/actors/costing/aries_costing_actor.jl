@@ -1,10 +1,7 @@
 #= ================= =#
 #  ActorCostingARIES  #
 #= ================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCostingARIES{T} begin
     land_space::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("acres", "Plant site space required"; default=1000.0 ± 100.0)
     building_volume::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("m^3", "Volume of the tokmak building"; default=140e3 ± 14e3)
     interest_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Annual interest rate fraction of direct capital cost"; default=0.05 ± 0.01)
@@ -27,11 +24,38 @@ end
 """
     ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates costing based on ARIES cost account documentation https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+Estimates fusion power plant costs using the ARIES (Advanced Reactor Innovation and Evaluation Study) methodology.
+
+This costing model implements the detailed cost accounting framework developed for the ARIES tokamak reactor studies,
+as documented in UCSD-CER-13-01. The methodology provides component-level cost estimates with:
+
+**Direct Capital Costs:**
+- Tokamak systems: all build layers (TF, PF, OH coils, blanket, shields, vacuum vessel)
+- Heating and current drive: ECH, ICRF, LHCD, NBI systems scaled by power
+- Facility infrastructure: land, buildings, hot cells, heat transfer systems
+- Balance of plant: power conversion equipment, electrical systems, fuel handling
+
+**Operating Costs:**  
+- Tritium handling and fuel cycle operations
+- Maintenance and operations scaled to plant capacity
+- Component replacement (blanket modules based on lifetime parameters)
+
+**Decommissioning Costs:**
+- End-of-life plant dismantling and waste management
+
+**Key Features:**
+- Component-specific cost models based on material volumes and unit costs
+- Power-scaling relationships for heating and current drive systems  
+- Economic modeling with interest rates, escalation, and indirect costs
+- Detailed cost account structure matching ARIES studies
+- Uncertainty propagation through all cost calculations
+
+The model supports advanced tokamak designs with superconducting magnets and provides
+realistic cost estimates for commercial-scale fusion power plants.
 
 !!! note
 
-    Stores data in `dd.costing`
+    Results stored in `dd.costing` following ARIES cost account documentation (UCSD-CER-13-01)
 """
 function ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCostingARIES(dd, act.ActorCostingARIES; kw...)
@@ -40,6 +64,37 @@ function ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+"""
+    _step(actor::ActorCostingARIES)
+
+Calculates comprehensive costs using the ARIES methodology and cost account structure.
+
+The calculation follows the detailed ARIES cost accounting framework:
+
+**Direct Capital Costs:**
+1. **Tokamak Systems:** Iterates through all build layers calculating material-based costs
+   - TF/PF/OH coils: volume-based costs using superconductor and structural materials
+   - Blanket/shield layers: fixed cost per unit volume 
+   - Vacuum vessel/wall: structural material costs
+
+2. **Heating & Current Drive:** Power-proportional costs for each system type
+   - ECH, ICRF, LHCD, NBI: different \$/W scaling factors from ARIES studies
+
+3. **Facility Infrastructure:** 
+   - Land, buildings, hot cells: scaled to plant size and power output
+   - Heat transfer systems: material costs for coolant loops
+   - Balance of plant equipment: power cycle and electrical systems
+   - Fuel cycle and radioactive handling systems
+
+**Operating Costs:**
+- Tritium handling, maintenance/operations, component replacement
+
+**Economic Analysis:**
+- Applies interest rates, escalation factors, and indirect costs
+- Computes total lifetime costs and levelized cost of electricity (LCOE)
+
+All costs reference specific years and are adjusted to future dollars using economic parameters.
+"""
 function _step(actor::ActorCostingARIES)
     dd = actor.dd
     par = actor.par
@@ -175,6 +230,18 @@ function _step(actor::ActorCostingARIES)
     return actor
 end
 
+"""    _finalize(actor::ActorCostingARIES)
+
+Organizes and sorts cost results following ARIES reporting standards.
+
+This function:
+1. Sorts all cost systems and subsystems by cost magnitude (descending order)
+2. Ensures consistent cost breakdown structure for analysis and comparison
+3. Facilitates identification of major cost drivers in the plant design
+
+The sorted output helps users quickly identify which systems dominate plant costs,
+enabling focused optimization efforts on the most cost-significant components.
+"""
 function _finalize(actor::ActorCostingARIES)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system; by=x -> x.cost, rev=true)

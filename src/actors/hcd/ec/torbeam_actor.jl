@@ -4,10 +4,7 @@ using Plots
 #= =========== =#
 #  ActorTORBEAM  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorTORBEAM{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorTORBEAM{T} begin
 end
 
 mutable struct ActorTORBEAM{D,P} <: SingleAbstractActor{D,P}
@@ -24,6 +21,19 @@ end
 
 """
     ActorTORBEAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
+
+Performs electron cyclotron (EC) heating and current drive calculations using the 
+TORBEAM ray-tracing code. TORBEAM provides detailed 3D beam propagation modeling
+for EC waves, including absorption and current drive efficiency calculations.
+
+The actor interfaces with the external TORBEAM code to perform sophisticated 
+beam physics calculations that account for relativistic effects, mode conversion,
+and realistic wave-plasma interactions.
+
+!!! note
+
+    Requires TORBEAM external code. Reads data from `dd.ec_launchers` and 
+    equilibrium data, stores results in appropriate IMAS data structures.
 """
 function ActorTORBEAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorTORBEAM(dd, act.ActorTORBEAM; kw...)
