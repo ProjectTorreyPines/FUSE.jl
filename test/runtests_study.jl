@@ -6,8 +6,8 @@ import FUSE.HDF5 as HDF5
 using FUSE.DataFrames
 using FUSE.SimulationParameters.Distributions
 
-@testset "study" begin
-    sty, act = FUSE.study_parameters(:DatabaseGenerator)
+@testset "study_db_gen" begin
+    sty = FUSE.study_parameters(:DatabaseGenerator)
     sty.server = "localhost"
     sty.n_workers = 2
     sty.file_save_mode = :append
