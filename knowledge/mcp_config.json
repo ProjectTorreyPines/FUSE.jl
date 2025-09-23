@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "fuse": {
+      "command": "bash",
+      "args": ["/Users/meneghini/.julia/dev/FUSE/knowledge/mcp_server/start_server.sh"],
+      "env": {}
+    }
+  }
+}

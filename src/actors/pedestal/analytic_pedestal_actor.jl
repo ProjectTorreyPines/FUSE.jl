@@ -2,10 +2,7 @@ import EPEDNN
 
 #  ActorAnalyticPedestal  #
 
-Base.@kwdef mutable struct FUSEparameters__ActorAnalyticPedestal{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN #== common pedestal parameters==#
+@actor_parameters_struct ActorAnalyticPedestal{T} begin #== common pedestal parameters==#
 
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
@@ -35,7 +32,21 @@ end
 """
     ActorAnalyticPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the pedestal boundary condition (height and width)
+Calculates pedestal pressure and width using analytic scaling laws for spherical tokamaks.
+
+The actor computes pedestal boundary conditions using empirical scaling relationships based on 
+machine parameters and plasma conditions. It supports multiple scaling models calibrated 
+against experimental data from MAST and NSTX spherical tokamaks.
+
+Available models:
+- `:TE_MAST`: MAST-like scaling with w_ped ~ βp_ped^0.5
+- `:TE_NSTX`: NSTX-like scaling with w_ped ~ βp_ped^1.0  
+- `:hiped_MASTU`: MAST-U scaling based on βn relationship
+
+Key outputs:
+- Pedestal pressure (pped) in EPED units (MPa)
+- Pedestal width (wped) as half-width fraction of ψ_norm
+- Scaling coefficients can be customized via height_coefficient and width_coefficient parameters
 """
 function ActorAnalyticPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorAnalyticPedestal(dd, act.ActorAnalyticPedestal; kw...)
@@ -128,7 +139,11 @@ end
 """
     _finalize(actor::ActorAnalyticPedestal)
 
-Writes results to dd.summary.local.pedestal and updates core_profiles
+Applies computed pedestal conditions to plasma profiles.
+
+Writes pedestal pressure and width results to dd.summary.local.pedestal and updates 
+the core_profiles temperature and density profiles by blending the computed pedestal 
+conditions with the existing core profiles using H-mode profile functions.
 """
 function _finalize(actor::ActorAnalyticPedestal)
     return __finalize(actor)

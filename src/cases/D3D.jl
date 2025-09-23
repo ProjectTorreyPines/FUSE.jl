@@ -1,10 +1,12 @@
 """
     case_parameters(::Val{:D3D}, shot::Int;
-        new_impurity_match_power_rad::Symbol=:none,
-        fit_profiles::Bool=false, 
+        fit_profiles::Bool=true,
         EFIT_tree::String="EFIT02",
         PROFILES_tree::String="ZIPFIT01",
         CER_analysis_type::String="CERAUTO",
+        time_averaging::Float64=0.05,
+        rho_averaging::Float64=0.25,
+        new_impurity_match_power_rad::Symbol=:none,
         omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
         omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
         omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
@@ -14,11 +16,13 @@
 DIII-D from experimental shot
 """
 function case_parameters(::Val{:D3D}, shot::Int;
-    new_impurity_match_power_rad::Symbol=:none,
-    fit_profiles::Bool=false,
+    fit_profiles::Bool=true,
     EFIT_tree::String="EFIT02",
     PROFILES_tree::String="ZIPFIT01",
     CER_analysis_type::String="CERAUTO",
+    time_averaging::Float64=0.05,
+    rho_averaging::Float64=0.25,
+    new_impurity_match_power_rad::Symbol=:none,
     omega_user::String=get(ENV, "OMEGA_USER", ENV["USER"]),
     omega_omfit_root::String=get(ENV, "OMEGA_OMFIT_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/OMFIT-source"),
     omega_omas_root::String=get(ENV, "OMEGA_OMAS_ROOT", "/fusion/projects/theory/fuse/d3d_data_fetching/omas"),
@@ -119,11 +123,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
     if !isempty(omega_omfit_root)
         remote_omfit_root = omega_omfit_root
     end
-    remote_host = "$(omega_user)@omega.gat.com"
+    remote_host = "$(omega_user)@somega.gat.com"
     phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omega_user, omega_omfit_root, omega_omas_root, omas_fetching))
     remote_path = "/cscratch/$(omega_user)/d3d_data/$shot"
     filename = "D3D_$(shot)_$(phash).h5"
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+    if occursin(r"somega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
         local_path = remote_path
     else
         local_path = joinpath(tempdir(), "$(omega_user)_D3D_$(shot)")
@@ -178,7 +182,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         return write(io, remote_slurm)
     end
 
-    if occursin(r"omega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
+    if occursin(r"somega.*.gat.com", get(ENV, "HOSTNAME", "Unknown"))
         # local driver script
         local_driver = """
             #!/bin/bash
@@ -235,7 +239,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     # profile fitting starting from diagnostic measurements
     if fit_profiles
-        ActorFitProfiles(dd1, act; time_averaging=0.05, rho_averaging=0.25, time_basis_ids=:equilibrium)
+        ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium)
     end
 
     # add rotation information if missing
