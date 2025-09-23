@@ -570,7 +570,6 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
             Deltat = ode_params.stability_index
             eps = ode_params.error_field
             alpha = Control1
-
         end
 
         
