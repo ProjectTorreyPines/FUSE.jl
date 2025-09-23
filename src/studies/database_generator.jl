@@ -13,26 +13,8 @@ It's also possible to run the database generator on Vector of `ini`s and `act`s.
 
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
-<<<<<<< HEAD
-function study_parameters(::Val{:DatabaseGenerator})
-    sty = FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
-    act = ParametersActors()
-
-    # Change act for the default DatabaseGenerator run
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorTGLF.warn_nn_train_bounds = false
-    act.ActorFluxMatcher.evolve_rotation = :fixed
-
-    # finalize
-    set_new_base!(sty)
-    set_new_base!(act)
-
-    return sty, act
-=======
 function study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
     return FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
->>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:Real} <: ParametersStudy{T}

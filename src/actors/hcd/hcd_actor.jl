@@ -159,7 +159,6 @@ function _step(actor::ActorHCD)
     # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
 
-<<<<<<< HEAD
     IMAS.fast_particles_profiles!(dd)
     cp1d = dd.core_profiles.profiles_1d[]
 
@@ -212,16 +211,6 @@ function _step(actor::ActorHCD)
 #       IMAS.freeze!(ion, :density)
 #       IMAS.freeze!(ion, :pressure)
 #   end
-=======
-    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.sources!(dd)
-
-    # Eq. solver is having a difficult time converging when fast particles are present
-    
-    # IMAS.fast_particles_profiles!(dd)
-    # IMAS.enforce_quasi_neutrality!(dd, :electrons)
-
->>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
     return actor
 end
 

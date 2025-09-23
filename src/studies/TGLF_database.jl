@@ -9,25 +9,8 @@ import GACODE
 """
     study_parameters(::Val{:TGLFdb})
 """
-<<<<<<< HEAD
-function study_parameters(::Val{:TGLFdb})
-    sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
-    act = ParametersActors()
-
-    # Change act for the default TGLFdb run
-    act.ActorCoreTransport.model = :FluxMatcher
-    act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorTGLF.warn_nn_train_bounds = false
-
-    # finalize 
-    set_new_base!(sty)
-    set_new_base!(act)
-
-    return sty, act
-=======
 function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
     return FUSEparameters__ParametersStudyTGLFdb{Real}()
->>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}

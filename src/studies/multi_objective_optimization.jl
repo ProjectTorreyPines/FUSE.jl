@@ -8,20 +8,8 @@ import Serialization
 
 Generates a database of dds from ini and act based on ranges specified in ini
 """
-<<<<<<< HEAD
-function study_parameters(::Val{:MultiObjectiveOptimizer})
-    sty = FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
-    act = ParametersActors()
-
-    # finalize
-    set_new_base!(sty)
-    set_new_base!(act)
-
-    return sty, act
-=======
 function study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
     return FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
->>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T<:Real} <: ParametersStudy{T}
