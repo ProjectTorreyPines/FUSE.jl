@@ -18,9 +18,9 @@ using FUSE.DataFrames
     dd3.equilibrium.vacuum_toroidal_field.b0 = [0.8]
 
     # --- Create study_database_item (absent fields -> nothing) ---
-    item1 = FUSE.study_database_item(dd = dd1)
-    item2 = FUSE.study_database_item(dd = dd2, ini = nothing, act = nothing, log = nothing, timer = nothing, error = nothing)
-    item3 = FUSE.study_database_item(dd = dd3, ini = nothing, act = nothing, log = "this is log", timer = nothing, error = "this is error")
+    item1 = FUSE.study_database_item(name = "case1", dd = dd1)
+    item2 = FUSE.study_database_item(name = "case2", dd = dd2, ini = nothing, act = nothing, log = nothing, timer = nothing, error = nothing)
+    item3 = FUSE.study_database_item(name = "case3", dd = dd3, ini = nothing, act = nothing, log = "this is log", timer = nothing, error = "this is error")
     items = [item1, item2, item3]
 
     # --- Simple DataFrame metadata (only columns used in the tests) ---
@@ -28,11 +28,11 @@ using FUSE.DataFrames
     df_additional = DataFrame(
         dir = ["case1", "case2", "case3"],
         case = [1, 2, 3],
-        gparent = ["/case1", "/case2", "/case3"],  # must be valid HDF5 group paths
         status = ["success", "success", "fail"],
         worker_id = [1, 2, 3],
         elapsed_time = [0.1, 0.2, 0.3],
-    )
+    )    
+    
     df = hcat(df, df_additional)   # assumes no name conflicts and same row count
 
     # --- Create study_database ---
