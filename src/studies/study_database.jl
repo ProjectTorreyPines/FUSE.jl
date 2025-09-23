@@ -321,7 +321,7 @@ function save_study_database(h5path::AbstractString, db::study_database; kw...)
         # If :gparent column doesn't exist, create it from item names
         parent_groups = String[]
         for (i, item) in pairs(db.items)
-            if !isnothing(item.name)
+            if !isnothing(item.name) && !isempty(item.name)
                 push!(parent_groups, IMAS.norm_hdf5_path(item.name))
             else
                 Lpad = length(string(length(db.items)))
@@ -344,7 +344,7 @@ function save_study_database(h5path::AbstractString, db::study_database; kw...)
             if ismissing(pg) || !isa(pg, AbstractString) || isempty(pg)
                 # Generate auto name for empty/missing values
                 item = db.items[i]
-                if !isnothing(item.name)
+                if !isnothing(item.name) && !isempty(item.name)
                     push!(updated_parent_groups, IMAS.norm_hdf5_path(item.name))
                 else
                     auto_item_name = "/item" * lpad(i, Lpad, "0")
