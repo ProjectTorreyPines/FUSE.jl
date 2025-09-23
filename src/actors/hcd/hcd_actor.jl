@@ -134,7 +134,58 @@ function _step(actor::ActorHCD)
     IMAS.fast_particles_profiles!(dd; verbose=true)
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # @assert IMAS.is_quasi_neutral(cp1d) "HCD step should maintain quasi-neutrality"
+    IMAS.fast_particles_profiles!(dd)
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    # Unfreeze fields we will modify
+    IMAS.unfreeze!(cp1d.electrons, :density)
+    for ion in cp1d.ion
+        IMAS.unfreeze!(ion, :density)
+        IMAS.unfreeze!(ion, :pressure)
+    end
+
+    # # ---- clamp fast fields to 1% of thermal (immediately after creation) ----
+
+    # # Deuterium (assume ion[1] is D)
+    # d_th0 = cp1d.ion[1].density_thermal
+    # d_fast = cp1d.ion[1].density_fast
+    # @. cp1d.ion[1].density_fast = min(d_fast, 0.01 * d_th0)
+
+    # # Clamp fast pressures vs the ion's thermal pressure
+    # pt    = cp1d.ion[1].pressure_thermal
+    # pfpar = cp1d.ion[1].pressure_fast_parallel
+    # pfper = cp1d.ion[1].pressure_fast_perpendicular
+
+    # @. cp1d.ion[1].pressure_fast_parallel      = min(pfpar, 0.01 * pt)
+    # @. cp1d.ion[1].pressure_fast_perpendicular = min(pfper, 0.01 * pt)
+    # # -------------------------------------------------------------------------
+
+    Z_c = 6
+    Z_d = 1
+
+    Zeff = IMAS.zeff(cp1d)
+    ne   = cp1d.electrons.density_thermal
+
+    # total deuterium (thermal + fast)
+    nd_total = @. (Z_c - Zeff) / ((Z_c - 1) * Z_d) * ne
+
+    # thermal carbon
+    nc = @. (Zeff - 1) / (Z_c * (Z_c - 1)) * ne
+    
+    # thermal deuterium = total - fast
+    cp1d.ion[1].density_thermal .= nd_total .- cp1d.ion[1].density_fast
+    cp1d.ion[2].density_thermal .= nc
+
+    # # optional: clip negatives for safety
+    # @. cp1d.ion[1].density_thermal = max(cp1d.ion[1].density_thermal, 0.0)
+    # @. cp1d.ion[2].density_thermal = max(cp1d.ion[2].density_thermal, 0.0)
+
+    IMAS.freeze!(cp1d.electrons, :density)
+    # (Optional) re-freeze ion fields if your workflow expects it:
+    # for ion in cp1d.ion
+#       IMAS.freeze!(ion, :density)
+#       IMAS.freeze!(ion, :pressure)
+#   end
     return actor
 end
 
