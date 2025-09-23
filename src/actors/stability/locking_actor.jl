@@ -1,4 +1,3 @@
-#import DifferentialEquations as DiffEqs
 using Distributed
 using DifferentialEquations
 import Roots
@@ -18,6 +17,12 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     control_type::Switch{Symbol} = Switch{Symbol}([:EF, :LinStab, :NLsaturation], # EF: error field
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
+    task::Switch{String} = Switch{String}(
+        ["solveRP-IW", "solveRP-RW"],
+        "-",  
+        "Choose whether to solve a resistive plasma with a resistive or ideal wall",  # docstring
+        default = "solveRP-RW"
+    )
     NL_saturation_ON::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=true)
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
@@ -61,8 +66,10 @@ Base.@kwdef mutable struct ODEparams
     l32::Float64 = 1.0        # mutual inductance between the control surface and RW
     Taut_Tauw::Float64 = 1.0  # ratio of tearing time to wall time
     hyper_cube_dims::Vector{Float64} = [1., 1., 1.] # dimensions of the initial condtion hypercube
-    #alpha_upper::Float64 = 0.6
-    #alpha_lower::Float64 = 0.1
+    alpha_upper::Float64 = 0.6
+    alpha_lower::Float64 = 0.1
+    Delta_upper::Float64 = -0.1
+    Delta_lower::Float64 = -0.5
     # keep adding default and magic things
 end
 
@@ -95,6 +102,7 @@ end
 function _step(actor::ActorLocking)
     dd = actor.dd
     par = actor.par
+    task = par.task
 
     # actor.ode_params :: nothing
     actor.ode_params = ODEparams(;)
@@ -106,20 +114,21 @@ function _step(actor::ActorLocking)
     bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
     # Solve a single case to debug
-    # pick Control1 and Control 2
-    C1 = .1; C2 = 5.; task = "solveRW"
-    solve_one_case(par, actor.ode_params, task, C1, C2 )
+    # pick Control1 = rotation Frequency 
+    # and Control 2 = error field, TM stability index ( <0) or saturation param
+    C2 = -6.3; rot_freq = 5.
+    solve_one_case(par, actor.ode_params, task, C2, rot_freq)
 
     
     # Solve the ODE system on the whole control grid):
     control1 = actor.ode_params.Control1
     control2 = actor.ode_params.Control2
-    full_sys_sols = solve_system(actor, task)
-    norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
-        control2, control1,actor.par.control_type)
+    # full_sys_sols = solve_system(actor, task)
+    # norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
+    #     control2, control1,actor.par.control_type)
 
-    ## plot normalize solution scatters
-    plot_sols_scatter(norm_sols; xcol=1,ycol=3)
+    # ## plot normalize solution scatters
+    # plot_sols_scatter(norm_sols; xcol=1,ycol=3)
     #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
     #inputs = vec(inputs)  # flatten
 
@@ -128,11 +137,11 @@ function _step(actor::ActorLocking)
     return actor
 end
 
-function solve_one_case(par, ode_params::ODEparams, task::String, eps::Float64, Om0::Float64)    
-    final_sol = solve_ODEs(par, ode_params, task, eps, Om0)
+function solve_one_case(par, ode_params::ODEparams, task::String, control2::Float64, control1::Float64)    
+    final_sol = solve_ODEs(par, ode_params, task, control2, control1)
     println("final raw solution = ", final_sol)
     
-    sols_norm = normalize_ode_results(final_sol, ode_params, eps, Om0, par.control_type)
+    sols_norm = normalize_ode_results(final_sol, ode_params, control2, control1, par.control_type)
     println("final normalized solution = ", sols_norm)
 
     return
@@ -214,6 +223,14 @@ function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
     ode_params.DeltaW = DeltaWr - DeltaWl
     ode_params.stability_index = par.RPRW_stability_index + ode_params.l21 * ode_params.l12 / ode_params.DeltaW
 
+    ## In case control_type=:LinStab, adjust the upper Deltat to keep the
+    ## RP-RW system weakly stable. Then, adjust the lower Deltat
+    ode_params.Delta_upper = ode_params.l21 * ode_params.l12 / ode_params.DeltaW - 1.e-2
+    if ode_params.Delta_lower >= ode_params.Delta_upper
+        ode_params.Delta_lower = ode_params.Delta_upper + ode_params.Delta_upper
+    end
+    println(ode_params.Delta_upper, ode_params.Delta_lower)
+
     return ode_params
 end
 
@@ -287,13 +304,17 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     N = par.grid_size
     M = par.grid_size
 
-    # figure out the rotation rate at the q=2 surface
+    l21 = ode_params.l21
+    l12 = ode_params.l12
+    DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
+
+    # figure out the rotation rate at the q=2 surface
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
     Omega0 = rot_interp(rt) * 2 * π * par.t0 # Convert to
-    println("Dimensionless Omega0 at q=2 surface: ", Omega0)
+    println("Toroidal rotation requency at rational surface: ", Omega0, " kHz")
 
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
     Om0s = repeat(Om0Vals, 1, M)
@@ -307,8 +328,15 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
 
     elseif control_type == :LinStab
         ode_params.error_field = 0.5  # Example value for error field
-        Control2_vals = range(DeltaLow, DeltaUp, length=M) |> collect
-        
+        Control2_vals = range(ode_params.Delta_lower, ode_params.Delta_upper, length=M) |> collect
+        ## Check to make sure the system is still weakly stable
+        DeltatRW = Control2_vals .- l21*l12/DeltaW
+        if any(DeltatRW .> 0)
+            println("*** ALERT: You set up a case with an unstable RP-RW mode! ***")
+            println("*** Maximum RP-RW stability set to ", maximum(DeltatRW))
+            error("Deltat_RW > 0 for your range of TM stability values ***")
+end
+
     elseif control_type == :NLsaturation
         Control2_vals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
         
@@ -323,24 +351,24 @@ end
 
 
 "Apply control_type adjustments"
-function control_adjustments(ode_params::ODEparams, Control1::Float64, control_type::Symbol)
+function control_adjustments(ode_params::ODEparams, Control2::Float64, control_type::Symbol)
     alpha = ode_params.saturation_param
     errF = ode_params.error_field
     Deltat = ode_params.stability_index
 
     if control_type == :NLsaturation
-        alpha = Control1
+        alpha = Control2
     elseif control_type == :EF
-        errF = Control1
-    elseif control_type == :StabIndex
-        Deltat = Control1
+        errF = Control2
+    elseif control_type == :LinStab
+        Deltat = Control2
     end
 
     return alpha, errF, Deltat
 end
 
 "Right-hand side for RW system"
-function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+function rhs_RW!(dydt, y, t, Control2::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
     m0 = n_mode
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
@@ -351,7 +379,7 @@ function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, 
     mu = ode_params.mu
     I = ode_params.Inertia
 
-    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
+    alpha, errF, Deltat = control_adjustments(ode_params, Control2, control_type)
 
     psi, theta, Om, psiW, thW = y
 
@@ -363,14 +391,14 @@ function rhs_RW!(dydt, y, t, eps::Float64, Om0::Float64, ode_params::ODEparams, 
 end
 
 "Right-hand side for basic system"
-function rhs_basic!(dydt, y, t, eps, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+function rhs_basic!(dydt, y, t, Control2, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
     m0 = n_mode
     rt = ode_params.rat_surface
     l21 = ode_params.l21
     mu = ode_params.mu
     I = ode_params.Inertia
 
-    alpha, errF, Deltat = control_adjustments(ode_params, eps, control_type)
+    alpha, errF, Deltat = control_adjustments(ode_params, Control2, control_type)
 
     psi, theta, Om = y
 
@@ -381,21 +409,15 @@ end
 
 "Return the correct RHS function for a given task"
 function make_rhs_function(task::String)
-    #task == "solveRW" ? rhs_RW! :
-    #task == "solve"   ? rhs_basic! :
-    #error("Unknown task: $task")
-    if task == "solveRW"
-        return rhs_RW!
-    elseif task == "solve"
-        return rhs_basic!
-    else
-        error("Unknown task: $task")
-    end
+    task == "solveRP-RW" ? rhs_RW! :
+    task == "solveRP-IW"   ? rhs_basic! :
+    error("Unknown task: $task")
+   
 end
 
 function make_initial_condition(dims::Vector{Float64}, task::String)
     
-    if task == "solveRW"
+    if task == "solveRP-RW"
         # 5D system
         return [
             rand() * (dims[1] - 0.001) + 0.001,   # y1
@@ -405,7 +427,7 @@ function make_initial_condition(dims::Vector{Float64}, task::String)
             rand() * 2π - π                       # y5
         ]
 
-    elseif task == "solve"
+    elseif task == "solveRP-IW"
         # 3D system
         return [
             rand() * (dims[1] - 0.001) + 0.001,   # y1
@@ -462,15 +484,15 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
             q = (Deltat / m0)^2 .+ (l21 * X).^2 / mu
             r = -Y * Deltat^2 / m0^2
         end
-    elseif par.control_type == :Stab
+    elseif par.control_type == :LinStab
         Eps = ode_params.error_field
         X = ode_params.Control2
-        DeltatRW = X - l21*l21/DeltaW # overwrite the stability index since Deltat is control
+        DeltatRW = X .- l21*l21/DeltaW # overwrite the stability index since Deltat is control
         if RWon
-            q = (DeltatRW / m0)^2 .+ rt * (l32 * l21 * Eps / DeltaW).^2 / (m0 * mu)
-            r = -Y * DeltatRW^2 / m0^2
+            q = (DeltatRW / m0).^2 .+ rt * (l32 * l21 * Eps / DeltaW).^2 / (m0 * mu)
+            r = -Y .* DeltatRW.^2 / m0^2
         else
-            q = (Deltat / m0)^2 + (l21 * Eps).^2 / mu
+            q = (X / m0).^2 + (l21 * Eps).^2 / mu
             r = -Om0s * Deltat^2 / m0^2
         end
     end
@@ -511,7 +533,7 @@ function solve_ODEs(par, ode_params::ODEparams, task::String,
 end
 
 """
-normalize_results(results, ode_params, eps, Om0)
+normalize_ode_results(results, ode_params, eps, Om0)
 
 Normalize the final solutions from ODE runs.
 
@@ -534,23 +556,31 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
     l32    = ode_params.l32
     DeltaW = ode_params.DeltaW
 
-    # check controls
-    if control_type != :Stab 
-        Deltat = ode_params.stability_index
-    else
-        Deltat = Control1
-    end
-
     
     # Normalization for one solution
-    function normalize_one(final_sol::AbstractVector{<:Real}, eps_val::Float64, Om0_val::Float64)
-        if length(final_sol) == 5 # assumes solveRW layout
+    function normalize_one(final_sol::AbstractVector{<:Real}, eps::Float64, Om0::Float64, control_type)
+        # check controls
+        if control_type == :EF 
+            Deltat = ode_params.stability_index
+            eps = Control1
+        elseif control_type == :LinStab
+            Deltat = Control1
+            eps = ode_params.error_field
+        elseif control_type == :NLsaturation
+            Deltat = ode_params.stability_index
+            eps = ode_params.error_field
+            alpha = Control1
+
+        end
+
+        
+        if length(final_sol) == 5 # assumes solveRP-RW layout
             num = Deltat * DeltaW - l12 * l21
 
-            psiN   = final_sol[1] * num / (l32 * l21 * eps_val)
+            psiN   = final_sol[1] * num / (l32 * l21 * eps)
             theta_t = mod(final_sol[2], 2π)  # Normalize phase
-            OmN    = final_sol[3] / Om0_val
-            psiwN = final_sol[4] * num / (l32 * abs(Deltat) * eps_val)  
+            OmN    = final_sol[3] / Om0
+            psiwN = final_sol[4] * num / (l32 * abs(Deltat) * eps)  
             theta_w = mod(final_sol[5], 2π)  # Normalize phase
             return (psiN, theta_t, OmN, psiwN, theta_w)
 
@@ -567,7 +597,7 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
 
     if isa(results, AbstractVector{<:Real}) && isa(Control1, Real) && isa(Control2, Real)
         # Single case
-        return normalize_one(results, Control1, Control2)
+        return normalize_one(results, Control1, Control2, control_type)
 
     elseif isa(results, AbstractVector{<:AbstractVector{<:Real}}) &&
            isa(Control1, AbstractVector{<:Real}) &&
@@ -575,7 +605,7 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
         # Many cases
         length(results) == length(Control1) == length(Control2) ||
             throw(ArgumentError("results, eps, and Om0 must all have the same length"))
-        return [normalize_one(sol, e, o) for (sol, e, o) in zip(results, Control1, Control2)]
+        return [normalize_one(sol, e, o, cc) for (sol, e, o, cc) in zip(results, Control1, Control2, control_type)]
 
     else
         throw(ArgumentError("Input types do not match expected patterns"))
