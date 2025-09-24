@@ -31,26 +31,28 @@ end
 
 Solves the tokamak MHD equilibrium using the FRESCO fixed-boundary equilibrium solver.
 
-FRESCO (Free-boundary Reactor Equilibrium Solver for Comprehensive Optimization) solves the 
+FRESCO (Free-boundary Reactor Equilibrium Solver for Comprehensive Optimization) solves the
 Grad-Shafranov equation for toroidal plasma equilibria with specified pressure and current profiles.
 
 This actor performs:
-- Free-boundary equilibrium reconstruction using pressure and current profiles from core_profiles
-- Iterative solution of the Grad-Shafranov equation on a rectangular R-Z grid
-- Vertical control options (vertical position, shape control, or magnetics-based)
-- Updates to poloidal field coil currents for force balance
-- Conversion of equilibrium solution back to IMAS equilibrium format
+
+  - Free-boundary equilibrium reconstruction using pressure and current profiles from core_profiles
+  - Iterative solution of the Grad-Shafranov equation on a rectangular R-Z grid
+  - Vertical control options (vertical position, shape control, or magnetics-based)
+  - Updates to poloidal field coil currents for force balance
+  - Conversion of equilibrium solution back to IMAS equilibrium format
 
 The solver supports:
-- Configurable grid resolution (nR × nZ)
-- Multiple control algorithms for vertical stability
-- Active X-point specification
-- Green's function table reuse for computational efficiency
-- Relaxation and tolerance control for convergence
+
+  - Configurable grid resolution (nR × nZ)
+  - Multiple control algorithms for vertical stability
+  - Active X-point specification
+  - Green's function table reuse for computational efficiency
+  - Relaxation and tolerance control for convergence
 
 !!! note
 
-    Reads data from `dd.equilibrium`, `dd.core_profiles`, `dd.pf_active`, and `dd.wall`, 
+    Reads data from `dd.equilibrium`, `dd.core_profiles`, `dd.pf_active`, and `dd.wall`,
     and updates `dd.equilibrium` and `dd.pf_active` with the solved equilibrium
 """
 function ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -92,9 +94,20 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     Zs = range(minimum(fw_z) - ΔZ / 20, maximum(fw_z) + ΔZ / 20, par.nZ)
 
     # reuse green table if possible
-    gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table = actor.canvas.Green_table)
+    gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table=actor.canvas.Green_table)
 
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points, gt_kw...)
+    actor.canvas = FRESCO.Canvas(
+        dd,
+        Rs,
+        Zs;
+        par.active_x_points,
+        load_pf_passive=false,
+        act.ActorPFactive.strike_points_weight,
+        act.ActorPFactive.x_points_weight,
+        act.ActorPFactive.magnetic_probe_weight,
+        act.ActorPFactive.flux_loop_weight,
+        gt_kw...
+    )
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
