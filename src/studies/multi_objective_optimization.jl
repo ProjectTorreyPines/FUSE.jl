@@ -102,7 +102,6 @@ function _run(study::StudyMultiObjectiveOptimizer)
         @info "released workers"
 
     else
-        setup(study)
         optimization_parameters = Dict(
             :N => sty.population_size,
             :iterations => sty.number_of_generations,
