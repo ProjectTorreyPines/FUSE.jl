@@ -485,12 +485,12 @@ end
 
 scale gradients to get smaller stepping in nlsolve
 """
-function scale_gradients(gradients, norm=100.0)
-    return gradients .* norm
+function scale_gradients(gradients, norm=1.0)
+    return gradients .* norm * 100.0
 end
 
-function unscale_gradients(gradients_scaled; norm=100.0)
-    return gradients_scaled ./ norm
+function unscale_gradients(gradients_scaled; norm=1.0)
+    return gradients_scaled ./ norm / 100.0
 end
 
 """
