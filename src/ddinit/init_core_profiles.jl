@@ -66,6 +66,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.zeff,
                 ini.core_profiles.bulk,
                 ini.core_profiles.impurity,
+                ini.core_profiles.rot_core_to_ped_ratio,
                 ini.core_profiles.rot_core,
                 ejima=getproperty(ini.core_profiles, :ejima, missing),
                 ini.core_profiles.polarized_fuel_fraction,
@@ -108,6 +109,7 @@ function init_core_profiles!(
     zeff::Real,
     bulk::Symbol,
     impurity::Symbol,
+    rot_core_to_ped_ratio::Real,
     rot_core::Real,
     ejima::Union{Real,Missing},
     polarized_fuel_fraction::Real,
@@ -229,9 +231,9 @@ function init_core_profiles!(
 
     # rotation
     if plasma_mode == :H_mode
-        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core/rot_core_to_ped_ratio,rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, Te_shaping, w_ped)
     else
-        cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_core/rot_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
     end
 
     # ejima

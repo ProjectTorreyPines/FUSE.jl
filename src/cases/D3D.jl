@@ -246,7 +246,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
     for cp1d in dd1.core_profiles.profiles_1d
         if ismissing(cp1d, :rotation_frequency_tor_sonic)
             cp1d.rotation_frequency_tor_sonic =
-                IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
+                IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core/ini.core_profiles.rot_core_to_ped_ratio, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
         end
     end
 
@@ -362,7 +362,8 @@ function case_parameters(::Val{:D3D}, scenario::Symbol)
         ini.core_profiles.zeff = 2.0
         ini.core_profiles.bulk = :D
         ini.core_profiles.impurity = :C
-        ini.core_profiles.rot_core = 5E3
+        ini.core_profiles.rot_core = 100E3
+        ini.core_profiles.rot_core_to_ped_ratio = 8.0
     end
 
     return ini, act
@@ -412,7 +413,7 @@ function case_parameters(::Val{:D3D_machine})
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
 
-    ini.core_profiles.rot_core = 5E3
+    ini.core_profiles.rot_core = 100E3
 
     #### ACT ####
 

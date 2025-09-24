@@ -98,6 +98,8 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     Te_core::Entry{T} =
         Entry{T}("eV", "Core temperature (NOTE: `Te_core` can be calculated from `ini.equilibrium.presssure_core`)"; check=x -> @assert x > 0.0 "must be: Te_core > 0.0")
     zeff::Entry{T} = Entry{T}("-", "Effective ion charge"; check=x -> @assert x >= 1.0 "must be: zeff > 1.0")
+    rot_core_to_ped_ratio::Entry{T} =
+        Entry{T}("-", "Ratio used to set the core rotation to pedestal rotation"; default=1.4, check=x -> @assert x > 0.0 "must be: ne_core_to_ped_ratio > 0.0")
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
     bulk::Switch{Symbol} = Switch{Symbol}([:H, :D, :DT, :D_T], "-", "Hydrogenic bulk ion species. Use :D_T for unbundled :D and :T species.")

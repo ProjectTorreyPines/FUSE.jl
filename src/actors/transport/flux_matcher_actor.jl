@@ -290,7 +290,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # NonlinearSolve returns the first value if the optimization was not successful
             # but we want it to return the best solution, even if the optimization did not
             # reach the desired tolerance
-            @show(err_history)
             if norm(err_history[end]) == norm(err_history[1])
                 pop!(err_history)
                 pop!(gradients_scale_history)
@@ -526,6 +525,7 @@ function flux_match_errors(
     end
 
     # unscale gradients
+    #gradients_scaled .= min.(max.(gradients_scaled, -1000.0), 1000.0)
     gradients = unscale_gradients(gradients_scaled; norm=actor.profile_norms)
 
     # restore profiles at initial conditions
@@ -757,7 +757,6 @@ function flux_match_simple(
         @assert turbulence_scale == 1.0
         grad_init_scaled = @views opt_parameters[2:end]
     end
-
     gradients_old = unscale_gradients(grad_init_scaled; norm=actor.profile_norms)
     targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d; gradients_scale_history, err_history, prog)
     ferror = norm(errors)
@@ -907,9 +906,6 @@ function unpack_gradients(
     par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
     gradients::AbstractVector{<:Real}) where {P<:Real}
 
-    # bound range of accepted gradients to avoid issues during optimization
-    #gradients .= min.(max.(gradients, -par.z_max), par.z_max)
-
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
@@ -935,14 +931,8 @@ function unpack_gradients(
     end
 
     if par.evolve_rotation == :flux_match
-        # Use TGYRO approach: convert normalized rotation shear back to rotation frequency
-        #w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
-        
-        # Get normalized rotation shear f_rot from gradients
+        # Use TGYRO approach: convert normalized rotation shear back to rotation frequency        
         dw_dr_evolved = gradients[counter+1:counter+N]
-        
-        # Convert to rotation shear: dω/dr = f_rot * w0_norm
-        #dw_dr_evolved = f_rot_evolved .* w0_norm
         
         # Use the new profile_from_rotation_shear_transport function
         cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_gradient(
