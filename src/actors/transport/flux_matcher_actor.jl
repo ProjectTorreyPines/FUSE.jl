@@ -9,8 +9,10 @@ import NonlinearSolve, FixedPointAcceleration
 #= ================ =#
 @actor_parameters_struct ActorFluxMatcher{T} begin
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid"; default=0.25:0.1:0.85)
-    evolve_Ti::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Ion temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
-    evolve_Te::Switch{Symbol} = Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Electron temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
+    evolve_Ti::Switch{Symbol} =
+        Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Ion temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
+    evolve_Te::Switch{Symbol} =
+        Switch{Symbol}([:flux_match, :fixed, :replay], "-", "Electron temperature `:flux_match`, keep `:fixed`, or `:replay` from replay_dd"; default=:flux_match)
     evolve_densities::Entry{Union{AbstractDict,Symbol}} =
         Entry{Union{AbstractDict,Symbol}}(
             "-",
@@ -75,19 +77,20 @@ end
 
 Performs self-consistent transport evolution by matching turbulent/neoclassical transport fluxes to source fluxes.
 
-This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile 
+This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile
 gradients until transport fluxes balance particle/energy sources. The process:
 
-1. **Profile Evolution**: Adjusts temperature/density/rotation profile gradients based on user configuration
-2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator  
-3. **Source Calculation**: Updates plasma heating, particle, and momentum sources
-4. **Flux Matching**: Minimizes residual (transport_flux - source_flux) using nonlinear solvers
-5. **Pedestal Coupling**: Optionally evolves pedestal conditions during the iteration process
+ 1. **Profile Evolution**: Adjusts temperature/density/rotation profile gradients based on user configuration
+ 2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator
+ 3. **Source Calculation**: Updates plasma heating, particle, and momentum sources
+ 4. **Flux Matching**: Minimizes residual (transport_flux - source_flux) using nonlinear solvers
+ 5. **Pedestal Coupling**: Optionally evolves pedestal conditions during the iteration process
 
 Evolution options per channel:
-- `:flux_match`: Evolve profile gradients to match transport and source fluxes  
-- `:fixed`: Keep profiles fixed
-- `:replay`: Use profiles from experimental data
+
+  - `:flux_match`: Evolve profile gradients to match transport and source fluxes
+  - `:fixed`: Keep profiles fixed
+  - `:replay`: Use profiles from experimental data
 
 Advanced features include turbulence scaling to target confinement laws (H98, DS03),
 time-dependent evolution with ∂/∂t terms, and various nonlinear solver algorithms
@@ -115,7 +118,7 @@ function ActorFluxMatcher(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[],D[], D(Inf))
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D[], D(Inf))
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -133,7 +136,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # Apply replay profiles if any evolve options are set to :replay
     evolve_densities = evolve_densities_dictionary(cp1d, par)
     if par.evolve_Te == :replay || par.evolve_Ti == :replay || par.evolve_rotation == :replay ||
-                 (!isempty(evolve_densities) && any(evolve == :replay for (_, evolve) in evolve_densities))
+       (!isempty(evolve_densities) && any(evolve == :replay for (_, evolve) in evolve_densities))
         finalize(step(actor.actor_replay))
     end
 
@@ -160,10 +163,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     actor.profile_norms = ones(length(grad_init))
     ntransport = length(par.rho_transport)
     N = length(grad_init) ÷ ntransport
-    for i in range(1,N)
-        actor.profile_norms[(i-1)*ntransport+1:i*ntransport] .= 1.0/(sum(grad_init[(i-1)*ntransport+1:i*ntransport]) / ntransport)
+    for i in range(1, N)
+        actor.profile_norms[(i-1)*ntransport+1:i*ntransport] .= 1.0 / (sum(grad_init[(i-1)*ntransport+1:i*ntransport]) / ntransport)
     end
-    grad_init_scaled = scale_gradients(grad_init,actor.profile_norms) # scale gradients to get smaller stepping using NLsolve
+    grad_init_scaled = scale_gradients(grad_init, actor.profile_norms) # scale gradients to get smaller stepping using NLsolve
     N_radii = length(par.rho_transport)
     N_channels = round(Int, length(grad_init) / N_radii, RoundDown)
 
@@ -349,7 +352,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         display(p)
 
-        channels_evolution = transpose(hcat(map(z -> collect(unscale_gradients(z;norm = actor.profile_norms)), gradients_scale_history)...))
+        channels_evolution = transpose(hcat(map(z -> collect(unscale_gradients(z; norm=actor.profile_norms)), gradients_scale_history)...))
         data = reshape(channels_evolution, (length(err_history), N_radii, N_channels))
         p = plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
@@ -773,11 +776,11 @@ function flux_match_simple(
 
         gradients = gradients_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         if ismissing(par, :scale_turbulence_law)
-            targets, fluxes, errors = flux_match_errors(actor, scale_gradients(gradients,actor.profile_norms), initial_cp1d; gradients_scale_history, err_history, prog)
+            targets, fluxes, errors = flux_match_errors(actor, scale_gradients(gradients, actor.profile_norms), initial_cp1d; gradients_scale_history, err_history, prog)
         else
             turbulence_scale += errors[1] * step_size
             targets, fluxes, errors =
-                flux_match_errors(actor, [turbulence_scale; scale_gradients(gradients,actor.profile_norms)], initial_cp1d; gradients_scale_history, err_history, prog)
+                flux_match_errors(actor, [turbulence_scale; scale_gradients(gradients, actor.profile_norms)], initial_cp1d; gradients_scale_history, err_history, prog)
         end
         xerror = maximum(abs.(gradients .- gradients_old)) / step_size
         ferror = norm(errors)
@@ -842,7 +845,7 @@ function pack_gradients(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideP
 
     if par.evolve_Te == :flux_match
         #z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward)[cp_gridpoints]
-        dTe_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature)[cp_gridpoints]
+        dTe_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature; method=:backward)[cp_gridpoints]
         append!(gradients, dTe_dr)
         push!(profiles_paths, (:electrons, :temperature))
         push!(fluxes_paths, (:electrons, :energy))
@@ -850,7 +853,7 @@ function pack_gradients(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideP
 
     if par.evolve_Ti == :flux_match
         #z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward)[cp_gridpoints]
-        dTi_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.t_i_average)[cp_gridpoints]
+        dTi_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.t_i_average; method=:backward)[cp_gridpoints]
         append!(gradients, dTi_dr)
         push!(profiles_paths, (:t_i_average,))
         push!(fluxes_paths, (:total_ion_energy,))
@@ -859,7 +862,7 @@ function pack_gradients(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideP
     if par.evolve_rotation == :flux_match
         # Use TGYRO approach: evolve normalized rotation shear f_rot = (dω/dr) / w0_norm
         # Calculate rotation shear dω/dr
-        dw_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic)[cp_gridpoints]
+        dw_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic; method=:backward)[cp_gridpoints]
         append!(gradients, dw_dr)
         push!(profiles_paths, (:rotation_frequency_tor_sonic,))
         push!(fluxes_paths, (:momentum_tor,))
@@ -869,14 +872,14 @@ function pack_gradients(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideP
     if !isempty(evolve_densities)
         check_evolve_densities(cp1d, evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            dne_dr = IMAS.gradient(cp1d.grid.rho_tor_norm,  cp1d.electrons.density_thermal)[cp_gridpoints]
+            dne_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal; method=:backward)[cp_gridpoints]
             append!(gradients, dne_dr)
             push!(profiles_paths, (:electrons, :density_thermal))
             push!(fluxes_paths, (:electrons, :particles))
         end
         for (k, ion) in enumerate(cp1d.ion)
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                dni_dr = IMAS.gradient(cp1d.grid.rho_tor_norm,  ion.density_thermal)[cp_gridpoints]
+                dni_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, ion.density_thermal; method=:backward)[cp_gridpoints]
                 append!(gradients, dni_dr)
                 push!(profiles_paths, (:ion, k, :density_thermal))
                 push!(fluxes_paths, [:ion, k, :particles])
@@ -908,7 +911,6 @@ function unpack_gradients(
 
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
-
     N = length(par.rho_transport)
     counter = 0
 
@@ -933,7 +935,7 @@ function unpack_gradients(
     if par.evolve_rotation == :flux_match
         # Use TGYRO approach: convert normalized rotation shear back to rotation frequency        
         dw_dr_evolved = gradients[counter+1:counter+N]
-        
+
         # Use the new profile_from_rotation_shear_transport function
         cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_gradient(
             cp1d.rotation_frequency_tor_sonic,
@@ -957,12 +959,12 @@ function unpack_gradients(
                 IMAS.scale_ion_densities_to_target_zeff!(cp1d, old_zeff)
                 break
             elseif evolve_densities[Symbol(ion.label)] == :flux_match
-                ni_over_ne = ion.density_thermal[cp_gridpoints[end]]/cp1d.electrons.density_thermal[cp_gridpoints[end]]
+                ni_over_ne = ion.density_thermal[cp_gridpoints[end]] / cp1d.electrons.density_thermal[cp_gridpoints[end]]
                 ion.density_thermal = IMAS.profile_from_gradient(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, gradients[counter+1:counter+N])
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
-                ni_over_ne = ion.density_thermal[cp_gridpoints[end]]/cp1d.electrons.density_thermal[cp_gridpoints[end]]
-                ion.density_thermal = IMAS.profile_from_gradient(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, ni_over_ne*dne_dr)
+                ni_over_ne = ion.density_thermal[cp_gridpoints[end]] / cp1d.electrons.density_thermal[cp_gridpoints[end]]
+                ion.density_thermal = IMAS.profile_from_gradient(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, ni_over_ne * dne_dr)
             end
         end
     end
