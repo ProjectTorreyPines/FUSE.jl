@@ -977,12 +977,44 @@ function unpack_z_profiles(
 
     # Ensure quasi neutrality if densities are evolved
     # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
+    # for (species, evolve) in evolve_densities
+    #     if evolve == :quasi_neutrality
+    #         IMAS.enforce_quasi_neutrality!(cp1d, species)
+    #         break
+    #     end
+    # end
+
     for (species, evolve) in evolve_densities
         if evolve == :quasi_neutrality
-            IMAS.enforce_quasi_neutrality!(cp1d, species)
+            # fast-ion aware quasi-neutrality calculation (for D+C) plasma only.
+            Z_c = 6
+            Z_d = 1
+
+            Zeff = IMAS.zeff(cp1d)
+            ne = cp1d.electrons.density_thermal 
+
+            # Total deuterium (thermal + fast)
+            nd_total = @. (Z_c - Zeff) / (Z_c - Z_d) * ne
+
+            # Thermal carbon
+            nc = @. (Zeff - 1) / (Z_c * (Z_c -1)) * ne
+
+            # Thermal deuterium = total - fast 
+            if !ismissing(cp1d.ion[1], :density_fast) 
+                nd_fast = cp1d.ion[1].density_fast
+            else
+                nd_fast = zeros(length(ne)) # No fast ionsif not calculated
+            end 
+
+            cp1d.ion[1].density_thermal .= nd_total .- nd_fast
+            cp1d.ion[2].density_thermal .= nc
+
             break
-        end
-    end
+        end 
+    end 
+
+    #ADD fast density and pressure to frozen expressions and unforzen expresions
+
 
     # re-freeze pressures expressions
     zero_value = zero(cp1d.grid.rho_tor_norm)
@@ -1009,7 +1041,7 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
 
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort(evolve_species) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
+    @assert sort(collect(keys(evolve_densities))) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
     
     
     if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)

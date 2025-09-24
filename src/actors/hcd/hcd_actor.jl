@@ -159,7 +159,7 @@ function _step(actor::ActorHCD)
     # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
 
-    IMAS.fast_particles_profiles!(dd)
+    IMAS.fast_particles_profiles!(dd; verbose=true)
     cp1d = dd.core_profiles.profiles_1d[]
 
     # Unfreeze fields we will modify
@@ -168,22 +168,6 @@ function _step(actor::ActorHCD)
         IMAS.unfreeze!(ion, :density)
         IMAS.unfreeze!(ion, :pressure)
     end
-
-    # # ---- clamp fast fields to 1% of thermal (immediately after creation) ----
-
-    # # Deuterium (assume ion[1] is D)
-    # d_th0 = cp1d.ion[1].density_thermal
-    # d_fast = cp1d.ion[1].density_fast
-    # @. cp1d.ion[1].density_fast = min(d_fast, 0.01 * d_th0)
-
-    # # Clamp fast pressures vs the ion's thermal pressure
-    # pt    = cp1d.ion[1].pressure_thermal
-    # pfpar = cp1d.ion[1].pressure_fast_parallel
-    # pfper = cp1d.ion[1].pressure_fast_perpendicular
-
-    # @. cp1d.ion[1].pressure_fast_parallel      = min(pfpar, 0.01 * pt)
-    # @. cp1d.ion[1].pressure_fast_perpendicular = min(pfper, 0.01 * pt)
-    # # -------------------------------------------------------------------------
 
     Z_c = 6
     Z_d = 1
@@ -206,11 +190,10 @@ function _step(actor::ActorHCD)
     # @. cp1d.ion[2].density_thermal = max(cp1d.ion[2].density_thermal, 0.0)
 
     IMAS.freeze!(cp1d.electrons, :density)
-    # (Optional) re-freeze ion fields if your workflow expects it:
-    # for ion in cp1d.ion
-#       IMAS.freeze!(ion, :density)
-#       IMAS.freeze!(ion, :pressure)
-#   end
+    for ion in cp1d.ion
+      IMAS.freeze!(ion, :density)
+      IMAS.freeze!(ion, :pressure)
+     end
     return actor
 end
 
