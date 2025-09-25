@@ -56,7 +56,6 @@ Base.@kwdef mutable struct ODEparams
     rat_surface::Float64 = 0.67 # q=2 surface location in dimensionless units"; default=0.67)
     res_wall::Float64 = 1.0  # Resistive wall location in dimensionless units"; default=1.0)
     control_surf::Float64 = 1.25    # Control surface location in dimensionless units"; default=1.25)
-    rat_index::Int64 = 50        # index of the q=2 surface in the rho_tor_norm profile
     mu::Float64 = 0.1              # shear modulus
     Inertia::Float64 = 0.1          # moment of inertia of the layer
     Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
@@ -116,21 +115,26 @@ function _step(actor::ActorLocking)
     # Solve a single case to debug
     # pick Control1 = rotation Frequency 
     # and Control 2 = error field, TM stability index ( <0) or saturation param
-    C2 = -6.3; rot_freq = 5.
+    C2 = -6.; rot_freq = 1.
     solve_one_case(par, actor.ode_params, task, C2, rot_freq)
 
     
     # Solve the ODE system on the whole control grid):
     control1 = actor.ode_params.Control1
     control2 = actor.ode_params.Control2
-    # full_sys_sols = solve_system(actor, task)
-    # norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
-    #     control2, control1,actor.par.control_type)
+    full_sys_sols = solve_system(actor, task)
+    norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
+         control2, control1, actor.par.control_type)
 
     # ## plot normalize solution scatters
-    # plot_sols_scatter(norm_sols; xcol=1,ycol=3)
+    plot_sols_scatter(norm_sols; xcol=1,ycol=3)
     #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
     #inputs = vec(inputs)  # flatten
+
+    # If you want them back on a 2D grid (N x M), reshape here:
+    norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size))
+    make_contour(control2, control1, getindex.(norm_sols_2D,1))
+
 
     ## classify normalized solutions
 
@@ -166,12 +170,18 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     q_prof = dd.equilibrium.time_slice[].profiles_1d.q
     rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
     ode_params.rat_surface = find_rat_surface(q_prof, rho, par.q_surf)
-    
+    ode_params.rat_surface = 0.67 # overwrite for now
+
     # calculate the stability indices and mutual inductances
     ode_params = calculate_stability_index!(dd, par, ode_params)
 
     # Set physical parameters in dimensionless form
     ode_params = set_phys_params!(dd, par, ode_params)
+    
+    # Overwrite params to reproduce PoP2024
+    ode_params.mu = 0.1
+    ode_params.Inertia = 1
+    ode_params.Delta_lower = -3.5
 
     # Prepare control parameters based on the control type
     ode_params = set_control_parameters!(dd, par, ode_params)
@@ -313,7 +323,8 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
-    Omega0 = rot_interp(rt) * 2 * π * par.t0 # Convert to
+    Omega0 = rot_interp(rt) * 2 * π * par.t0 # in units of kHz
+    Omega0 = 10
     println("Toroidal rotation requency at rational surface: ", Omega0, " kHz")
 
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
@@ -327,7 +338,7 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
         Control2_vals = range(1e-2, EpsUp, length=M) |> collect
 
     elseif control_type == :LinStab
-        ode_params.error_field = 0.5  # Example value for error field
+        ode_params.error_field = 0.6  # Example value for error field
         Control2_vals = range(ode_params.Delta_lower, ode_params.Delta_upper, length=M) |> collect
         ## Check to make sure the system is still weakly stable
         DeltatRW = Control2_vals .- l21*l12/DeltaW
@@ -558,18 +569,18 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
 
     
     # Normalization for one solution
-    function normalize_one(final_sol::AbstractVector{<:Real}, eps::Float64, Om0::Float64, control_type)
+    function normalize_one(final_sol::AbstractVector{<:Real}, Control2::Float64, Om0::Float64)
         # check controls
         if control_type == :EF 
             Deltat = ode_params.stability_index
-            eps = Control1
+            eps = Control2
         elseif control_type == :LinStab
-            Deltat = Control1
+            Deltat = Control2
             eps = ode_params.error_field
         elseif control_type == :NLsaturation
             Deltat = ode_params.stability_index
             eps = ode_params.error_field
-            alpha = Control1
+            alpha = Control2
         end
 
         
@@ -581,13 +592,13 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
             OmN    = final_sol[3] / Om0
             psiwN = final_sol[4] * num / (l32 * abs(Deltat) * eps)  
             theta_w = mod(final_sol[5], 2π)  # Normalize phase
-            return (psiN, theta_t, OmN, psiwN, theta_w)
+            return [psiN, theta_t, OmN, psiwN, theta_w]
 
         elseif length(final_sol) == 3
             psiN   = final_sol[1] / (l21 * eps_val)
             theta_t = mod(final_sol[2], 2π)  # Normalize phase
             OmN    = final_sol[3] / Om0_val
-            return (psiN, theta_t, OmN)
+            return [psiN, theta_t, OmN]
 
         else
             throw(ArgumentError("Unexpected final_sol length: $(length(final_sol))"))
@@ -596,7 +607,7 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
 
     if isa(results, AbstractVector{<:Real}) && isa(Control1, Real) && isa(Control2, Real)
         # Single case
-        return normalize_one(results, Control1, Control2, control_type)
+        return normalize_one(results, Control1, Control2)
 
     elseif isa(results, AbstractVector{<:AbstractVector{<:Real}}) &&
            isa(Control1, AbstractVector{<:Real}) &&
@@ -604,7 +615,7 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
         # Many cases
         length(results) == length(Control1) == length(Control2) ||
             throw(ArgumentError("results, eps, and Om0 must all have the same length"))
-        return [normalize_one(sol, e, o, cc) for (sol, e, o, cc) in zip(results, Control1, Control2, control_type)]
+        return [normalize_one(sol, e, o) for (sol, e, o) in zip(results, Control1, Control2)]
 
     else
         throw(ArgumentError("Input types do not match expected patterns"))
@@ -642,9 +653,7 @@ function solve_system(actor::ActorLocking, task::String)
 
     
     # finals[i] is the final state vector for inputs[i].
-    # If you want them back on a 2D grid (N x M), reshape here:
-    # finals_mat = reshape(finals, (par.grid_size, par.grid_size))
-
+    
     return finals
 end
 
@@ -672,7 +681,7 @@ function plot_sols_scatter(
         ylabel::AbstractString="Rotation at the rat. surf.",
         title::AbstractString="Normalized solution scatter"
     )
-
+    println(typeof(norm_sol))
     if eltype(norm_sol) <: AbstractVector{<:Real}
         # Convert vector-of-vectors to a matrix
         data = reduce(vcat, (x' for x in norm_sol))
@@ -706,7 +715,7 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
     end
     
     
-    plt = contour(X,Y, Z; linewidth=2)
+    plt = contourf(X,Y, Z; linewidth=2)
     display(plt)   # explicitly display
     return plt
 end
@@ -750,8 +759,4 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, lev
     display(plt)
     return plt
 end
-
-
-
-
 
