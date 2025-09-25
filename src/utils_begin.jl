@@ -163,7 +163,7 @@ Start multiprocessing environment
 """
 function parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, kw...)
     if nworkers == 0
-        pid_list = []
+        pid_list = Int[]
         #pass
 
     elseif cluster == "omega"
