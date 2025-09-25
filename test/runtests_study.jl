@@ -6,8 +6,8 @@ import FUSE.HDF5 as HDF5
 using FUSE.DataFrames
 using FUSE.SimulationParameters.Distributions
 
-@testset "study" begin
-    sty, act = FUSE.study_parameters(:DatabaseGenerator)
+@testset "study_db_gen" begin
+    sty = FUSE.study_parameters(:DatabaseGenerator)
     sty.server = "localhost"
     sty.n_workers = 2
     sty.file_save_mode = :append
@@ -92,22 +92,21 @@ using FUSE.SimulationParameters.Distributions
         sorted_dirs = sort(db_folders; by=x -> parse(Int, split(splitpath(x)[end], "__")[1]))
         @test length(db_folders) == length(ini_list)
 
-        dds1 = typeof(IMAS.dd())[]
+        dds1 = Union{Nothing, typeof(IMAS.dd())}[]
         inis1 = FUSE.ParametersInits[]
         acts1 = FUSE.ParametersActors[]
         for folder in sorted_dirs
             out = FUSE.load(folder)
-            push!(dds1, ismissing(out.dd) ? IMAS.dd() : out.dd)
+            push!(dds1, ismissing(out.dd) ? nothing : out.dd)
             push!(inis1, out.ini)
             push!(acts1, out.act)
         end
         df1 = CSV.read(joinpath(save_dir, "output.csv"), DataFrame)
 
-        out = FUSE.load_database(joinpath(save_dir, "database.h5"))
-        dds2 = out.dds
-        inis2 = out.inis
-        acts2 = out.acts
-        df2 = out.df
+        db = FUSE.load_study_database(joinpath(save_dir, "database.h5"));
+        inis2 = [ i.ini for i in db.items ];
+        acts2 = [ i.act for i in db.items ];
+        df2 = db.df
 
         # Comparison
         @test dds1 == dds2
