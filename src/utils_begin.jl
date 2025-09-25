@@ -304,9 +304,6 @@ function parallel_environment(
             end
             gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
-            if Distributed.nprocs() < np
-                pid_list = Distributed.addprocs(
-                    ClusterManagers.SlurmManager(np - Distributed.nprocs());
             if current_nworkers < nworkers
                 pid_list = Distributed.addprocs(
                     ClusterManagers.SlurmManager(nworkers - current_nworkers);
