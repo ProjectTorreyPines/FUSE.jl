@@ -1,3 +1,14 @@
+- name: Disk before anything
+  run: |
+    df -h
+    sudo du -sh /usr/local/lib/android /usr/share/dotnet /opt/ghc 2>/dev/null || true
+
+- name: Julia depot sizes (if you restore a cache)
+  run: |
+    du -h -d1 ~/.julia 2>/dev/null | sort -h | tail -n 50 || true
+    du -h -d1 ~/.julia/artifacts 2>/dev/null | sort -h | tail -n 50 || true
+
+
 name: Make Docs
 
 on:
