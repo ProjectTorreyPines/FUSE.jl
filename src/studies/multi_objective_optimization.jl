@@ -4,19 +4,12 @@ import Serialization
 #= ============================ =#
 
 """
-    study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
+    study_parameters(::Val{:MultiObjectiveOptimizer})
 
 Generates a database of dds from ini and act based on ranges specified in ini
 """
-function study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
-    sty = FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
-    act = ParametersActors()
-
-    # finalize
-    set_new_base!(sty)
-    set_new_base!(act)
-
-    return sty, act
+function study_parameters(::Val{:MultiObjectiveOptimizer})
+    return FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T<:Real} <: ParametersStudy{T}
@@ -46,6 +39,7 @@ mutable struct StudyMultiObjectiveOptimizer{T<:Real} <: AbstractStudy
     dataframe::Union{DataFrame,Missing}
     datafame_filtered::Union{DataFrame,Missing}
     generation::Int
+    workflow::Union{Function,Missing}
 end
 
 function StudyMultiObjectiveOptimizer(
@@ -57,38 +51,18 @@ function StudyMultiObjectiveOptimizer(
     kw...
 )
     sty = OverrideParameters(sty; kw...)
-    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
-    return setup(study)
-end
-
-function _setup(study::StudyMultiObjectiveOptimizer)
-    sty = study.sty
-
+    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0, missing)
     check_and_create_file_save_mode(sty)
 
     parallel_environment(sty.server, sty.n_workers)
 
-    # import FUSE and IJulia on workers
-    if isdefined(Main, :IJulia)
-        code = """
-        using Distributed
-        @everywhere import FUSE
-        @everywhere import IJulia
-        """
-    else
-        code = """
-        using Distributed
-        @everywhere import FUSE
-        """
-    end
-    Base.include_string(Main, code)
     return study
 end
 
 function _run(study::StudyMultiObjectiveOptimizer)
     sty = study.sty
 
-    @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
+    @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
     @assert iseven(sty.population_size) "Population size must be even"
 
     if sty.restart_workers_after_n_generations > 0
@@ -128,7 +102,6 @@ function _run(study::StudyMultiObjectiveOptimizer)
         @info "released workers"
 
     else
-        setup(study)
         optimization_parameters = Dict(
             :N => sty.population_size,
             :iterations => sty.number_of_generations,
@@ -137,8 +110,12 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
+        if ismissing(study.workflow)
+            study.workflow = optimization_workflow_default
+        end
+
         study.state = workflow_multiobjective_optimization(
-            study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
+            study.ini, study.act, study.workflow, study.objective_functions, study.constraint_functions;
             optimization_parameters..., generation_offset=study.generation, sty.database_policy,
             sty.number_of_generations, sty.population_size)
 
@@ -151,10 +128,10 @@ function _run(study::StudyMultiObjectiveOptimizer)
             study.constraint_functions)
 
         if study.sty.database_policy == :separate_folders
-            analyze(study; extract_results=true)
+            extract_results(study)
         else
             study.dataframe = _merge_tmp_study_files(sty.save_folder; cleanup=true)
-            analyze(study; extract_results=false)
+            study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions])
         end
 
         # Release workers after run
@@ -248,19 +225,6 @@ function _merge_tmp_study_files(save_folder::AbstractString; cleanup::Bool=false
 end
 
 """
-    _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
-"""
-function _analyze(study::StudyMultiObjectiveOptimizer; extract_results::Bool=true)
-    if extract_results
-        extract_results(study)
-    end
-    if !isempty(study.dataframe)
-        study.datafame_filtered = filter_outputs(study.dataframe, [o.name for o in study.objective_functions])
-    end
-    return study
-end
-
-"""
     filter_outputs(outputs::DataFrame,constraint_symbols::Vector{Symbol})
 
 Filters the dataframe to the constraints you pass.
@@ -272,4 +236,15 @@ function filter_outputs(outputs::DataFrame, constraint_symbols::Vector{Symbol})
     constraint_values = [outputs[i, key] for key in constraint_symbols, i in 1:n]
     all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:, i]), 1:n)
     return outputs[all_constraint_idxs, :]
+end
+
+"""
+    optimization_workflow_default(ini::ParametersAllInits, act::ParametersAllActors)
+Default optimization workflow when study.workflow isn't set, initializes and runs the whole facility actor
+"""
+function optimization_workflow_default(ini::ParametersAllInits, act::ParametersAllActors)
+    dd = FUSE.IMAS.dd()
+    FUSE.init(dd, ini, act)
+    FUSE.ActorWholeFacility(dd, act)
+    return dd
 end
