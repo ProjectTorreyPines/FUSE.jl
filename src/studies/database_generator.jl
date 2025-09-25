@@ -227,7 +227,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         df[!, :worker_id] = fill(myid, nrow(df))
         df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
-        save_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io; timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_study_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io; timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
@@ -253,7 +253,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
         # save empty dd and error to directory
-        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_study_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
