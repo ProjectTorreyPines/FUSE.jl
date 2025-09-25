@@ -12,6 +12,7 @@ The figure below is a sneakpeak of the models implemented in FUSE:
 
 Here are some key resources for getting started with FUSE:
 
+* 📨 **[Sign up for more info](https://forms.gle/iQGYKWfgeNkw2fCZ7)**
 * 📚 **[Online documentation](https://fuse.help)**
 * 🎓 **[Intro tutorial](https://fuse.help/dev/tutorial.html)**
 * 🎤 **[Recent presentation](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)**

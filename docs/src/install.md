@@ -68,9 +68,9 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    !!! note
        The WebIO jupyter-lab extension is needed for the [`Interact.jl`](https://github.com/JuliaGizmos/Interact.jl?tab=readme-ov-file#usage) package to work.
 
-       Make sure WebIO is working with `jupyter labextension list`.
+       Make sure WebIO is working with `jupyter labextension list`. If it is working properly, you should see something like: webio-jupyterlab-provider v0.1.0 enabled OK (python, webio_jupyter_extension). This can also be checked with `jupyter nbextension list`, which should show something like: webio-jupyter-nbextension/nbextension  enabled.
 
-       If the extension has compatibility issues, consider installing an older verision of Jupyter (eg. `conda install jupyterlab=3.6.7`).
+       If the extension has compatibility issues, consider installing an older verision of Jupyter (eg. `conda install jupyterlab=3.6.7`). Also ensure that the WebIO and Interact packages are fully up-to-date, and restart the notebook session before testing that it works. Finally, it may be necessary to downgrade your system's version of Python - the recommended version for compatibility with Interact is 3.11.11. 
 
 1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
 
