@@ -190,7 +190,7 @@ function parallel_environment(
     current_nworkers = Distributed.nprocs() - 1
 
     if nworkers == 0
-        pid_list = []
+        pid_list = Int[]
         #pass
 
     elseif cluster == "omega"
@@ -350,7 +350,7 @@ function parallel_environment(
         Base.include_string(Main, code)
     end
 
-    println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")
+    println("Using $(Distributed.nprocs() - 1) workers on $(gethostname())")
     return pid_list
 end
 
