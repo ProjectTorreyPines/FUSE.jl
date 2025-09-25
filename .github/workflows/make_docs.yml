@@ -4,10 +4,10 @@ on:
   push:
     branches: ["master"]
     paths:
-      - 'Project.toml' # new version released
-    tags: '*'
+      - "Project.toml"
+    tags: "*"
   schedule:
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -21,22 +21,95 @@ jobs:
       statuses: write
     name: Documentation
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_RUNNER_DEBUG: "true"
+      ACTIONS_STEP_DEBUG: "true"
 
     steps:
-      - uses: actions/checkout@v4
+      # --- PROBE 0: Before anything ---
+      - name: Disk before anything
+        run: |
+          echo "== df -h ==" && df -h
+          echo "== df -i ==" && df -i
+          echo "== runner cached dir size (if exists) ==" && du -h -d2 /home/runner/actions-runner/cached 2>/dev/null | sort -h || true
 
-      - uses: julia-actions/setup-julia@latest
+      # Start a background disk monitor EARLY so we catch spikes during actions/cache, instantiate, etc.
+      - name: Start disk monitor
+        run: |
+          (
+            while true; do
+              echo "===== $(date -u) DISK SNAPSHOT ====="
+              df -h
+              df -i
+              echo "-- runner cached --"
+              du -h -d2 /home/runner/actions-runner/cached 2>/dev/null | sort -h | tail -n 40 || true
+              echo "-- workspace --"
+              du -h -d2 "$GITHUB_WORKSPACE" 2>/dev/null | sort -h | tail -n 40 || true
+              echo "-- depot top --"
+              du -h -d1 ~/.julia 2>/dev/null | sort -h || true
+              echo "-- artifacts top 40 --"
+              du -h -d1 ~/.julia/artifacts 2>/dev/null | sort -h | tail -n 40 || true
+              echo "-- scratchspaces top 40 --"
+              du -h -d1 ~/.julia/scratchspaces 2>/dev/null | sort -h | tail -n 40 || true
+              echo "-- top 60 dirs under /home/runner --"
+              du -xh --max-depth=4 /home/runner 2>/dev/null | sort -h | tail -n 60 || true
+              sleep 15
+            done
+          ) &
+          echo $! > /tmp/diskmon.pid
 
-      - uses: julia-actions/cache@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- After checkout ---
+      - name: Disk after checkout
+        run: |
+          echo "== df -h ==" && df -h
+          echo "== workspace (depth 2) ==" && du -h -d2 "$GITHUB_WORKSPACE" 2>/dev/null | sort -h || true
+          echo "== depot (if exists) ==" && du -h -d1 ~/.julia 2>/dev/null | sort -h || true
+
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@latest
+
+      # --- Julia info before cache restore ---
+      - name: Julia info (version & depot path)
+        run: |
+          which julia || true
+          julia -v
+          julia -e 'println("DEPOT_PATH = ", Base.DEPOT_PATH)'
+          df -h
+
+      - name: Restore Julia cache
+        uses: julia-actions/cache@v2
+
+      # --- After cache restore ---
+      - name: Disk & depot after cache restore
+        run: |
+          df -h
+          du -h -d1 ~/.julia 2>/dev/null | sort -h || true
+          du -h -d1 ~/.julia/artifacts 2>/dev/null | sort -h | tail -n 50 || true
+          du -h -d1 ~/.julia/scratchspaces 2>/dev/null | sort -h | tail -n 50 || true
+          du -h -d1 ~/.julia/compiled 2>/dev/null | sort -h || true
+          ls -la ~/.julia/registries || true
 
       - name: Add FuseRegistry
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
           julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
 
+      - name: Disk & registries after registry update
+        run: |
+          df -h
+          du -h -d2 ~/.julia/registries 2>/dev/null | sort -h || true
+
       - name: Replace git@github.com with https in Package.toml files
         run: |
           find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+
+      - name: Disk before instantiate
+        run: |
+          df -h
+          du -h -d2 docs 2>/dev/null | sort -h || true
 
       - name: Install dependencies
         run: |
@@ -47,8 +120,38 @@ jobs:
             Pkg.instantiate()
           '
 
-      - name: "Build and deploy"
+      - name: Disk & depot after instantiate
+        run: |
+          df -h
+          du -h -d1 ~/.julia 2>/dev/null | sort -h || true
+          du -h -d1 ~/.julia/artifacts 2>/dev/null | sort -h | tail -n 50 || true
+          du -h -d1 ~/.julia/scratchspaces 2>/dev/null | sort -h | tail -n 50 || true
+          du -h -d1 ~/.julia/compiled 2>/dev/null | sort -h || true
+
+      - name: Pkg status & artifact dirs (docs env)
+        run: |
+          julia --project=docs -e '
+            using Pkg
+            @info "Pkg.status(docs)"; Pkg.status()
+            @info "DEPOT_PATH" DEPOT_PATH=Base.DEPOT_PATH
+            @info "artifact_dirs()" artifact_dirs=Base.artifact_dirs()
+          '
+
+      - name: Disk before docs build
+        run: df -h
+
+      - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
         run: julia --project=docs/ docs/make.jl
+
+      # Always stop the monitor and print one last snapshot
+      - name: Stop disk monitor
+        if: always()
+        run: |
+          kill "$(cat /tmp/diskmon.pid)" 2>/dev/null || true
+          rm -f /tmp/diskmon.pid || true
+          echo "== FINAL SNAPSHOT =="
+          df -h
+          du -xh --max-depth=4 /home/runner 2>/dev/null | sort -h | tail -n 80 || true
