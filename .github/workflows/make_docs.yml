@@ -1,24 +1,13 @@
-- name: Disk before anything
-  run: |
-    df -h
-    sudo du -sh /usr/local/lib/android /usr/share/dotnet /opt/ghc 2>/dev/null || true
-
-- name: Julia depot sizes (if you restore a cache)
-  run: |
-    du -h -d1 ~/.julia 2>/dev/null | sort -h | tail -n 50 || true
-    du -h -d1 ~/.julia/artifacts 2>/dev/null | sort -h | tail -n 50 || true
-
-
 name: Make Docs
 
 on:
   push:
     branches: ["master"]
     paths:
-      - 'Project.toml' # new version released
-    tags: '*'
+      - "Project.toml" # new version released
+    tags: "*"
   schedule:
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -34,20 +23,79 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # --- PROBE 0: Disk before anything ---
+      - name: Disk before anything
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== Large preinstalled toolchains (sizes) =="
+          sudo du -sh /usr/local/lib/android /usr/share/dotnet /opt/ghc 2>/dev/null || true
+
       - uses: actions/checkout@v4
+
+      # --- PROBE 1: After checkout, before any Julia setup/cache restore ---
+      - name: Disk after checkout
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== Workspace size =="
+          du -h -d1 "$GITHUB_WORKSPACE" 2>/dev/null | sort -h || true
+          echo "== (If any) existing ~/.julia top-level =="
+          du -h -d1 ~/.julia 2>/dev/null | sort -h || true
 
       - uses: julia-actions/setup-julia@latest
 
+      # --- PROBE 2: After Julia is on PATH, before cache restore ---
+      - name: Julia info (version & depot path)
+        run: |
+          which julia || true
+          julia -v
+          julia -e 'println("DEPOT_PATH = ", Base.DEPOT_PATH)'
+          echo "== df -h =="
+          df -h
+
       - uses: julia-actions/cache@v2
+
+      # --- PROBE 3: Immediately after cache restore ---
+      - name: Disk & depot after cache restore
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== ~/.julia (top-level) =="
+          du -h -d1 ~/.julia 2>/dev/null | sort -h || true
+          echo "== ~/.julia/artifacts (largest 50 entries) =="
+          du -h -d1 ~/.julia/artifacts 2>/dev/null | sort -h | tail -n 50 || true
+          echo "== ~/.julia/scratchspaces (largest 50 entries) =="
+          du -h -d1 ~/.julia/scratchspaces 2>/dev/null | sort -h | tail -n 50 || true
+          echo "== ~/.julia/compiled (top-level) =="
+          du -h -d1 ~/.julia/compiled 2>/dev/null | sort -h || true
+          echo "== Registries present =="
+          ls -la ~/.julia/registries || true
 
       - name: Add FuseRegistry
         run: |
           rm -rf ~/.julia/registries/FuseRegistry
           julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
 
+      # --- PROBE 4: After adding registries ---
+      - name: Disk & registries after registry add/update
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== ~/.julia/registries =="
+          du -h -d2 ~/.julia/registries 2>/dev/null | sort -h || true
+
       - name: Replace git@github.com with https in Package.toml files
         run: |
           find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
+
+      # --- PROBE 5: Before dependency install ---
+      - name: Disk before instantiate
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== docs/ tree (top-level) =="
+          du -h -d2 docs 2>/dev/null | sort -h || true
 
       - name: Install dependencies
         run: |
@@ -58,8 +106,41 @@ jobs:
             Pkg.instantiate()
           '
 
-      - name: "Build and deploy"
+      # --- PROBE 6: After instantiate (this often triggers downloads/artifacts) ---
+      - name: Disk & depot after instantiate
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== ~/.julia (top-level) =="
+          du -h -d1 ~/.julia 2>/dev/null | sort -h || true
+          echo "== ~/.julia/artifacts (largest 50 entries) =="
+          du -h -d1 ~/.julia/artifacts 2>/dev/null | sort -h | tail -n 50 || true
+          echo "== ~/.julia/scratchspaces (largest 50 entries) =="
+          du -h -d1 ~/.julia/scratchspaces 2>/dev/null | sort -h | tail -n 50 || true
+          echo "== ~/.julia/compiled (top-level) =="
+          du -h -d1 ~/.julia/compiled 2>/dev/null | sort -h || true
+
+      # --- PROBE 7: Just before docs build ---
+      - name: Disk before build
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== docs/ size recap =="
+          du -h -d2 docs 2>/dev/null | sort -h || true
+
+      - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
         run: julia --project=docs/ docs/make.jl
+
+      # --- PROBE 8: After docs build (even on failure this may not run; keep it for successes) ---
+      - name: Disk after build
+        if: always()
+        run: |
+          echo "== df -h =="
+          df -h
+          echo "== ~/.julia (top-level) =="
+          du -h -d1 ~/.julia 2>/dev/null | sort -h || true
+          echo "== docs/ build dir (if exists) =="
+          du -h -d2 docs/build 2>/dev/null | sort -h || true
