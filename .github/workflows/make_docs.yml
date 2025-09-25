@@ -120,6 +120,16 @@ jobs:
           echo "== ~/.julia/compiled (top-level) =="
           du -h -d1 ~/.julia/compiled 2>/dev/null | sort -h || true
 
+      # --- NEW: Julia-level probe to see exactly what's in the docs env ---
+      - name: Pkg status & artifact dirs (docs env)
+        run: |
+          julia --project=docs -e '
+            using Pkg
+            @info "Pkg.status(docs)"; Pkg.status()
+            @info "DEPOT_PATH" DEPOT_PATH=Base.DEPOT_PATH
+            @info "artifact_dirs()" artifact_dirs=Base.artifact_dirs()
+          '
+
       # --- PROBE 7: Just before docs build ---
       - name: Disk before build
         run: |
