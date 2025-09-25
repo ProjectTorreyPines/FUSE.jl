@@ -245,6 +245,6 @@ Default optimization workflow when study.workflow isn't set, initializes and run
 function optimization_workflow_default(ini::ParametersAllInits, act::ParametersAllActors)
     dd = FUSE.IMAS.dd()
     FUSE.init(dd, ini, act)
-    FUSE.ActorFluxMatcher(dd, act)
+    FUSE.ActorWholeFacility(dd, act)
     return dd
 end

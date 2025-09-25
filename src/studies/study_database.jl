@@ -173,7 +173,7 @@ function save_study_database(
 
     savedir = abspath(savedir)
     if !isdir(savedir)
-        mkdir(savedir)
+        mkpath(savedir)
     end
 
     parent_group = IMAS.norm_hdf5_path(parent_group)
