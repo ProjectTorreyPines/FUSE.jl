@@ -159,7 +159,17 @@ function _step(actor::ActorHCD)
     # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
 
+    old_cp1d = dd.core_profiles.profiles_1d[]
+
+    # Unfreeze fields we will modify
+    IMAS.unfreeze!(old_cp1d.electrons, :density)
+    for ion in old_cp1d.ion
+        IMAS.unfreeze!(ion, :density)
+        IMAS.unfreeze!(ion, :pressure)
+    end
+
     IMAS.fast_particles_profiles!(dd; verbose=true)
+
     cp1d = dd.core_profiles.profiles_1d[]
 
     # Unfreeze fields we will modify
@@ -168,6 +178,7 @@ function _step(actor::ActorHCD)
         IMAS.unfreeze!(ion, :density)
         IMAS.unfreeze!(ion, :pressure)
     end
+
 
     Z_c = 6
     Z_d = 1

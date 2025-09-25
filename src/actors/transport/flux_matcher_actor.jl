@@ -1003,7 +1003,7 @@ function unpack_z_profiles(
             if !ismissing(cp1d.ion[1], :density_fast) 
                 nd_fast = cp1d.ion[1].density_fast
             else
-                nd_fast = zeros(length(ne)) # No fast ionsif not calculated
+                nd_fast = zeros(length(ne)) # No fast ions if not calculated
             end 
 
             cp1d.ion[1].density_thermal .= nd_total .- nd_fast

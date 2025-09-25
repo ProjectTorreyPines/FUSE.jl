@@ -8,7 +8,7 @@
 Runs postdictive simulations for specified device and shots with configurable parameters
 """
 function study_parameters(::Val{:Postdictive})::Tuple{FUSEparameters__ParametersStudyPostdictive,ParametersAllActors}
-    return FUSEparameters__ParametersStudyPostdictive{Real}()
+    return FUSEparameters__ParametersStudyPostdictive{Real}(), ParametersActors{Real}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <: ParametersStudy{T}
