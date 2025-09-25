@@ -332,6 +332,7 @@ function parallel_environment(
     else
         error("Cluster `$cluster` is unknown. Use `localhost` or add `$cluster` to the FUSE.parallel_environment")
     end
+
     # import FUSE and IJulia on workers
     if workers_import_fuse
         if isdefined(Main, :IJulia)
