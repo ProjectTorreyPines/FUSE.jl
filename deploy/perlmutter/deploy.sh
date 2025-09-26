@@ -2,6 +2,11 @@
 command -v module >/dev/null 2>&1 || source /usr/share/lmod/lmod/init/bash
 module load julia/1.11.4
 
+# Set up OMFIT and OMAS which is needed for the DIII-D study
+export FUSE_OMFIT_HOST="localhost"
+export FUSE_OMFIT_ROOT="/global/common/software/m3739/perlmutter/OMFIT-CAKE"
+export FUSE_OMAS_ROOT="/global/common/software/m3739/perlmutter/FUSE_OMAS"
+
 basedir="/global/common/software/m3739/perlmutter/fuse"
 
 fuse_env=`curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releases/latest | jq -r .name`

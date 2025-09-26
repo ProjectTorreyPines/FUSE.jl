@@ -166,6 +166,7 @@ Start multiprocessing environment
 """
 function parallel_environment(cluster::String="localhost", nworkers::Integer=-1, cpus_per_task::Int=1; memory_usage_fraction::Float64=0.5, workers_import_fuse::Bool=true, kw...)
     if nworkers == 0
+        pid_list = Int[]
         #pass
 
     elseif cluster == "omega"
@@ -179,7 +180,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
             gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if current_nworkers < nworkers
-                Distributed.addprocs(
+                pid_list = Distributed.addprocs(
                     ClusterManagers.SlurmManager(nworkers - current_nworkers);
                     partition="ga-ird",
                     exclusive="",
@@ -205,7 +206,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
             gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if current_nworkers < nworkers
-                Distributed.addprocs(
+                pid_list = Distributed.addprocs(
                     ClusterManagers.SlurmManager(nworkers - current_nworkers);
                     partition="pppl-medium",
                     exclusive="",
@@ -231,7 +232,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
             gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "180"
             if current_nworkers < nworkers
-                Distributed.addprocs(
+                pid_list = Distributed.addprocs(
                     ClusterManagers.SlurmManager(nworkers - current_nworkers);
                     exclusive="",
                     topology=:master_worker,
@@ -255,7 +256,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
             gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if current_nworkers < nworkers
-                Distributed.addprocs(
+                pid_list = Distributed.addprocs(
                     ClusterManagers.SlurmManager(nworkers - current_nworkers);
                     partition="LocalQ",
                     topology=:master_worker,
@@ -280,7 +281,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
             gigamem_per_cpu = Int(ceil(memory_usage_fraction * gigamem_per_node / cpus_per_node * cpus_per_task))
             ENV["JULIA_WORKER_TIMEOUT"] = "360"
             if current_nworkers < nworkers
-                Distributed.addprocs(
+                pid_list = Distributed.addprocs(
                     ClusterManagers.SlurmManager(nworkers - current_nworkers);
                     partition="sched_mit_psfc_r8",
                     exclusive="",
@@ -301,7 +302,7 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
             nworkers = length(Sys.cpu_info())
         end
         if current_nworkers < nworkers
-            Distributed.addprocs(nworkers - current_nworkers; topology=:master_worker, exeflags=["--heap-size-hint=$(mem_size)G"])
+            pid_list = Distributed.addprocs(nworkers - current_nworkers; topology=:master_worker, exeflags=["--heap-size-hint=$(mem_size)G"])
         end
 
     else
@@ -325,7 +326,8 @@ function parallel_environment(cluster::String="localhost", nworkers::Integer=-1,
         Base.include_string(Main, code)
     end
 
-    return println("Using $(Distributed.nprocs()-1) workers on $(gethostname())")
+    println("Using $(Distributed.nprocs() - 1) workers on $(gethostname())")
+    return pid_list
 end
 
 """
