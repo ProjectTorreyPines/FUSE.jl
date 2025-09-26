@@ -8,8 +8,8 @@ import Serialization
 
 Generates a database of dds from ini and act based on ranges specified in ini
 """
-function study_parameters(::Val{:MultiObjectiveOptimizer})
-    return FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
+function study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
+    return FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}(), ParametersActors{Real}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyMultiObjectiveOptimizer{T<:Real} <: ParametersStudy{T}

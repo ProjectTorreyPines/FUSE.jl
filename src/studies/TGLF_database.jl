@@ -9,8 +9,8 @@ import GACODE
 """
     study_parameters(::Val{:TGLFdb})
 """
-function study_parameters(::Val{:TGLFdb})
-    return FUSEparameters__ParametersStudyTGLFdb{Real}()
+function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    return FUSEparameters__ParametersStudyTGLFdb{Real}(), ParametersActors{Real}()
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}

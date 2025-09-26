@@ -984,6 +984,38 @@ function unpack_z_profiles(
         end
     end
 
+    # for (species, evolve) in evolve_densities
+    #     if evolve == :quasi_neutrality
+    #         # fast-ion aware quasi-neutrality calculation (for D+C) plasma only.
+    #         Z_c = 6
+    #         Z_d = 1
+
+    #         Zeff = IMAS.zeff(cp1d)
+    #         ne = cp1d.electrons.density_thermal 
+
+    #         # Total deuterium (thermal + fast)
+    #         nd_total = @. (Z_c - Zeff) / (Z_c - Z_d) * ne
+
+    #         # Thermal carbon
+    #         nc = @. (Zeff - 1) / (Z_c * (Z_c -1)) * ne
+
+    #         # Thermal deuterium = total - fast 
+    #         if !ismissing(cp1d.ion[1], :density_fast) 
+    #             nd_fast = cp1d.ion[1].density_fast
+    #         else
+    #             nd_fast = zeros(length(ne)) # No fast ions if not calculated
+    #         end 
+
+    #         cp1d.ion[1].density_thermal .= nd_total .- nd_fast
+    #         cp1d.ion[2].density_thermal .= nc
+
+    #         break
+    #     end 
+    # end 
+
+    # #ADD fast density and pressure to frozen expressions and unforzen expresions
+
+
     # re-freeze pressures expressions
     zero_value = zero(cp1d.grid.rho_tor_norm)
     IMAS.refreeze!(cp1d.electrons, :pressure_thermal, zero_value)
@@ -1009,14 +1041,14 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
 
     # Check if evolve_densities contains all of dd thermal species
-    @assert sort!([specie for (specie, evolve) in evolve_densities]) == sort!(dd_species) "Mismatch: dd species $(sort!(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
-
-    # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
-    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
+    @assert sort(collect(keys(evolve_densities))) == sort(dd_species) "Mismatch: dd species $(sort(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
+    
+    
+    if any(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
         txt = "When flux_matching densities, either none or all ion species must be :zeff"
-        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons)
-    elseif all(evolve in (:fixed, :replay) for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
-        txt = "When using fixed/replay densities, no more than one species can be set to :quasi_neutrality"
+        @assert all(evolve == :zeff for (specie, evolve) in evolve_densities if specie != :electrons && specie != :electrons_fast)
+    elseif all(evolve == :fixed for (specie, evolve) in evolve_densities if evolve != :quasi_neutrality)
+        txt = "When flux_matching densities, no more than one species can be set to :quasi_neutrality"
         @assert length([specie for (specie, evolve) in evolve_densities if evolve == :quasi_neutrality]) <= 1 txt
     elseif any(evolve == :flux_match for (specie, evolve) in evolve_densities)
         txt = "When flux_matching densities, one an only one species must be set to :quasi_neutrality"

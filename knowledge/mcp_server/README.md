@@ -75,4 +75,8 @@ The server loads actor information from:
 
 Configure in Claude Code:
 
+<<<<<<< HEAD
 `claude mcp add fuse -- ./mcp_server/start_server.sh`
+=======
+`claude mcp add fuse -- <your_FUSE_folder>>/knowledge/mcp_server/start_server.sh`
+>>>>>>> parent of 4865739a (Revert "Merge branch 'master' into fix/optional-pedestal-density-tanh")
