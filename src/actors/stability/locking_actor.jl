@@ -531,6 +531,7 @@ function solve_ODEs(par, ode_params::ODEparams, task::String,
 
     rhs! = make_rhs_function(task)
     ode_rhs! = make_ode_func(rhs!)
+    ode_params.hyper_cube_dims = [3., 3., 3.]
     y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
     p = (control1, control2, ode_params, n_mode, control_type)
     tspan = (0.0, t_final)
@@ -715,7 +716,7 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
     end
     
     
-    plt = contourf(X,Y, Z; linewidth=2)
+    plt = heatmap(X,Y, Z)#; linewidth=2)
     display(plt)   # explicitly display
     return plt
 end
@@ -751,8 +752,8 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix, lev
     if any(Z .< 0)
         ind = argmin(Z)
         i, j = Tuple(ind)   # row, col indices
-        xloc = X[j]
-        yloc = Y[i]
+        xloc = 0.9*X[j]
+        yloc = 0.9*Y[i]
         annotate!(xloc, yloc, text("Locking\n(Possible)", lblsz, :red))
     end
 
