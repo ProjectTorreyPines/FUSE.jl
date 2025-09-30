@@ -7,7 +7,7 @@ import GACODE
 #= ================= =#
 
 """
-    study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    study_parameters(::Val{:TGLFdb})
 """
 function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
     sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
