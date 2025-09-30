@@ -73,6 +73,43 @@ The server loads actor information from:
 
 ## Integration
 
+### Initial Setup (Required for Both)
+
+1. **Create Mamba Environment**:
+   ```bash
+   mamba create -n fuse_mcp python=3.11 -y
+   mamba activate fuse_mcp
+   pip install -r requirements.txt
+   ```
+
+### Claude Desktop Configuration
+
+1. **Update Configuration File**:
+
+   Edit `~/Library/Application Support/Claude/claude_desktop_config.json` and add:
+
+   ```json
+   {
+     "mcpServers": {
+       "fuse": {
+         "command": "/Users/YOUR_USERNAME/.julia/dev/FUSE/knowledge/mcp_server/start_server.sh"
+       }
+     }
+   }
+   ```
+
+   Replace `YOUR_USERNAME` with your actual username or use the full absolute path.
+
+2. **Restart Claude Desktop**:
+
+   Quit and reopen Claude Desktop for the changes to take effect.
+
+3. **Verify Installation**:
+
+   In Claude Desktop, you should see the FUSE MCP server appear with available tools and resources.
+
+### Claude Code CLI Configuration
+
 Configure in Claude Code:
 
 `claude mcp add fuse -- ./mcp_server/start_server.sh`
