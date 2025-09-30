@@ -43,7 +43,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
     else
         # Resolve remote username using the ssh config
-        output = read(`ssh -G $omfit_host`, String)
+        output = read(`ssh -T -G $omfit_host`, String)
         omfit_user = nothing
         for line in split(output, '\n')
             if startswith(line, "user ")
@@ -161,6 +161,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
 
         # run data fetching
+        @info "Connecting to $omfit_host"
         @info("Remote D3D data fetching for shot $shot")
         @info("Path on $omfit_host: $remote_path")
         @info("Path on Localhost: $local_path")
