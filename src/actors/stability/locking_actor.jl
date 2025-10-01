@@ -1,6 +1,9 @@
 using Distributed
 using DifferentialEquations
 import Roots
+using Plots
+import FUSE: coordinates
+
 
 #================== =#
 #  ActorLockingProbability  #
@@ -103,19 +106,25 @@ function _step(actor::ActorLocking)
     par = actor.par
     task = par.task
 
-    # actor.ode_params :: nothing
+    # Populate the physical parameters needed to solve the ODEs
     actor.ode_params = ODEparams(;)
-    #dd.global_time,par.t_final, par.time_steps)
     #pressure = dd.equilibrium.time_slice[].pressure
 
     actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
     
-    bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
+    #bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
-    # Solve a single case to debug
+    ## Solve a single case to debug
     # pick Control1 = rotation Frequency 
-    # and Control 2 = error field, TM stability index ( <0) or saturation param
-    C2 = -6.; rot_freq = 1.
+    # and Control 2 = error field, TM stability index ( <0), or saturation param
+    if actor.par.control_type == :EF
+        C2 = 0.5
+    elseif actor.par.control_type == :LinStab
+        C2 = -6.
+    else
+        C2 = 0.2 
+    end
+    rot_freq = 1.
     solve_one_case(par, actor.ode_params, task, C2, rot_freq)
 
     
@@ -127,14 +136,17 @@ function _step(actor::ActorLocking)
          control2, control1, actor.par.control_type)
 
     # ## plot normalize solution scatters
-    plot_sols_scatter(norm_sols; xcol=1,ycol=3)
+    #plot_sols_scatter(norm_sols; xcol=1,ycol=3)
     #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
     #inputs = vec(inputs)  # flatten
 
     # If you want them back on a 2D grid (N x M), reshape here:
     norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size))
-    make_contour(control2, control1, getindex.(norm_sols_2D,1))
-
+    #make_contour(control2, control1, getindex.(norm_sols_2D,1))
+    psi_tN = getindex.(norm_sols_2D, 1)
+    dummy = DummyIDS(control2, control1, psi_tN)
+    plt = plot(dummy, :Z; seriestype=:heatmap)
+    display(plt)
 
     ## classify normalized solutions
 
@@ -506,6 +518,18 @@ function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
             q = (X / m0).^2 + (l21 * Eps).^2 / mu
             r = -Om0s * Deltat^2 / m0^2
         end
+    elseif par.control_type == :NLsaturation
+        Eps = ode_params.error_field
+        Deltat = ode_params.stability_index
+        X = ode_params.Control2
+        DeltatRW = Deltat - l21*l21/DeltaW # overwrite the stability index since Deltat is control
+        if RWon
+            q = (DeltatRW / m0).^2 .+ rt * (l32 * l21 * Eps / DeltaW).^2 / (m0 * mu)
+            r = -Y .* DeltatRW.^2 / m0^2
+        else
+            q = (Deltat / m0).^2 + (l21 * Eps).^2 / mu
+            r = -Om0s * Deltat^2 / m0^2
+        end
     end
     
     # remaining coefficients
@@ -701,6 +725,37 @@ function plot_sols_scatter(
     display(plt)
     return plt
 end
+
+"""
+    DummyIDS(X, Y, Z)
+
+Minimal wrapper to reuse FUSE plotting recipes with raw arrays.
+- `X` :: Vector (coordinate values along dim1)
+- `Y` :: Vector (coordinate values along dim2)
+- `Z` :: Matrix (data values, size = (length(Y), length(X)))
+"""
+struct DummyIDS
+    X::Vector{Float64}
+    Y::Vector{Float64}
+    Z::Matrix{Float64}
+end
+
+Base.getproperty(ids::DummyIDS, s::Symbol) =
+    s === :Z ? ids.Z : getfield(ids, s)
+
+# Provide coordinates for the recipe system
+function coordinates(ids::DummyIDS, field::Symbol)
+    if field == :Z
+        return (
+            (field = :X, ids.X),
+            (field = :Y, ids.Y)
+        )
+    else
+        return (nothing, nothing)
+    end
+end
+
+
 
 
 function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
