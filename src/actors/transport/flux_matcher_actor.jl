@@ -1130,13 +1130,17 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
     to_cp1d = IMAS.core_profiles__profiles_1d{T}()
     to_cp1d.grid.rho_tor_norm = deepcopy(cp1d.grid.rho_tor_norm)
     to_cp1d.electrons.density_thermal = deepcopy(cp1d.electrons.density_thermal)
-    to_cp1d.electrons.density_fast = deepcopy(cp1d.electrons.density_fast)
     to_cp1d.electrons.temperature = deepcopy(cp1d.electrons.temperature)
+    if !ismissing(cp1d.electrons, :density_fast)
+        to_cp1d.electrons.density_fast = deepcopy(cp1d.electrons.density_fast)
+    end
     resize!(to_cp1d.ion, length(cp1d.ion))
     for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
         initial_ion.element = ion.element
         initial_ion.density_thermal = deepcopy(ion.density_thermal)
-        initial_ion.density_fast = deepcopy(ion.density_fast)
+        if !ismissing(ion, :density_fast)
+            initial_ion.density_fast = deepcopy(ion.density_fast)
+        end
         initial_ion.temperature = deepcopy(ion.temperature)
     end
     to_cp1d.rotation_frequency_tor_sonic = deepcopy(cp1d.rotation_frequency_tor_sonic)
@@ -1147,12 +1151,16 @@ function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_
     @assert length(to_cp1d.ion) == length(cp1d.ion)
     to_cp1d.grid.rho_tor_norm .= cp1d.grid.rho_tor_norm
     to_cp1d.electrons.density_thermal .= cp1d.electrons.density_thermal
-    to_cp1d.electrons.density_fast .= cp1d.electrons.density_fast
     to_cp1d.electrons.temperature .= cp1d.electrons.temperature
+    if !ismissing(cp1d.electrons, :density_fast)
+        to_cp1d.electrons.density_fast .= cp1d.electrons.density_fast
+    end
     for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
         initial_ion.density_thermal .= ion.density_thermal
         initial_ion.temperature .= ion.temperature
-        initial_ion.density_fast .= ion.density_fast
+        if !ismissing(ion, :density_fast)
+            initial_ion.density_fast .= ion.density_fast
+        end
     end
     to_cp1d.rotation_frequency_tor_sonic .= cp1d.rotation_frequency_tor_sonic
     return to_cp1d
