@@ -920,12 +920,12 @@ function unpack_gradients(
     end
 
     if par.evolve_Te == :flux_match
-        cp1d.electrons.temperature = IMAS.profile_from_gradient(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, gradients[counter+1:counter+N])
+        cp1d.electrons.temperature = IMAS.profile_from_grad(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, gradients[counter+1:counter+N])
         counter += N
     end
 
     if par.evolve_Ti == :flux_match
-        Ti_new = IMAS.profile_from_gradient(cp1d.t_i_average, cp1d.grid.rho_tor_norm, cp_rho_transport, gradients[counter+1:counter+N])
+        Ti_new = IMAS.profile_from_grad(cp1d.t_i_average, cp1d.grid.rho_tor_norm, cp_rho_transport, gradients[counter+1:counter+N])
         counter += N
         for ion in cp1d.ion
             ion.temperature = Ti_new
@@ -937,7 +937,7 @@ function unpack_gradients(
         dw_dr_evolved = gradients[counter+1:counter+N]
 
         # Use the new profile_from_rotation_shear_transport function
-        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_gradient(
+        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_grad(
             cp1d.rotation_frequency_tor_sonic,
             cp1d.grid.rho_tor_norm,
             cp_rho_transport,
@@ -949,7 +949,7 @@ function unpack_gradients(
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
             dne_dr = gradients[counter+1:counter+N]
-            cp1d.electrons.density_thermal = IMAS.profile_from_gradient(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, dne_dr)
+            cp1d.electrons.density_thermal = IMAS.profile_from_grad(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, dne_dr)
             counter += N
         else
             dne_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)[cp_gridpoints]
@@ -960,11 +960,11 @@ function unpack_gradients(
                 break
             elseif evolve_densities[Symbol(ion.label)] == :flux_match
                 ni_over_ne = ion.density_thermal[cp_gridpoints[end]] / cp1d.electrons.density_thermal[cp_gridpoints[end]]
-                ion.density_thermal = IMAS.profile_from_gradient(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, gradients[counter+1:counter+N])
+                ion.density_thermal = IMAS.profile_from_grad(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, gradients[counter+1:counter+N])
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
                 ni_over_ne = ion.density_thermal[cp_gridpoints[end]] / cp1d.electrons.density_thermal[cp_gridpoints[end]]
-                ion.density_thermal = IMAS.profile_from_gradient(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, ni_over_ne * dne_dr)
+                ion.density_thermal = IMAS.profile_from_grad(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, ni_over_ne * dne_dr)
             end
         end
     end
