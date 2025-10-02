@@ -14,7 +14,8 @@
         time_averaging::Float64=0.05,
         rho_averaging::Float64=0.25,
         new_impurity_match_power_rad::Symbol=:none,
-        use_local_cache::Bool=false
+        use_local_cache::Bool=false,
+        use_interferometer::Bool=true
     )
 
 DIII-D from experimental shot
@@ -32,7 +33,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
     time_averaging::Float64=0.05,
     rho_averaging::Float64=0.25,
     new_impurity_match_power_rad::Symbol=:none,
-    use_local_cache::Bool=false
+    use_local_cache::Bool=false,
+    use_interferometer::Bool=true
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
@@ -192,7 +194,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     # profile fitting starting from diagnostic measurements
     if fit_profiles
-        ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium)
+        ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium, use_interferometer)
     end
 
     # add rotation information if missing
