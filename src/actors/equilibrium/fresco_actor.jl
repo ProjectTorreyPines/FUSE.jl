@@ -97,8 +97,13 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table=actor.canvas.Green_table)
 
     # control points (NOTE: we purposely do not pass dd.pulse_schedule.position_control because we want the eqt_control_points to be as ActorEquilibrium set it up
-    eqt_control_points = VacuumFields.equilibrium_control_points(eqt, IMAS.pulse_schedule__position_control{D}(); act.ActorPFactive.x_points_weight, act.ActorPFactive.strike_points_weight)
-    mag_control_points = VacuumFields.magnetic_control_points(dd.magnetics; act.ActorPFactive.flux_loop_weight, act.ActorPFactive.magnetic_probe_weight)
+    eqt_control_points = VacuumFields.equilibrium_control_points(eqt, IMAS.pulse_schedule__position_control{D}();
+        act.ActorPFactive.boundary_weight,
+        act.ActorPFactive.x_points_weight,
+        act.ActorPFactive.strike_points_weight)
+    mag_control_points = VacuumFields.magnetic_control_points(dd.magnetics;
+        act.ActorPFactive.flux_loop_weight,
+        act.ActorPFactive.magnetic_probe_weight)
 
     actor.canvas = FRESCO.Canvas(
         dd,

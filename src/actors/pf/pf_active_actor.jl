@@ -14,6 +14,7 @@ import VacuumFields: GS_IMAS_pf_active__coil
     strike_points_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to strike-point constraints"; default=0.1)
     magnetic_probe_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to magnetic probes measurements"; default=1.0)
     flux_loop_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to flux loops measurements"; default=1.0)
+    boundary_weight::Entry{Float64} = Entry{Float64}("-", "Weight givent to the boundary"; default=1.0)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
@@ -36,22 +37,24 @@ end
 Optimizes poloidal field coil currents to match target equilibrium constraints.
 
 The actor solves for optimal PF coil currents that satisfy boundary shape, X-point positions,
-and strike point locations in a least-squares sense. It uses Green's functions to model 
-electromagnetic coupling between coils and plasma, with optional regularization to prevent 
+and strike point locations in a least-squares sense. It uses Green's functions to model
+electromagnetic coupling between coils and plasma, with optional regularization to prevent
 unrealistic current solutions.
 
 Key features:
-- Supports different Green's function calculation methods (quadrature, filament models)
-- Handles boundary shape control through iso-flux control points
-- Maintains X-point and strike point positions with configurable weights
-- Includes automatic regularization parameter selection for stable solutions
-- Can update target equilibrium with achievable coil configuration
+
+  - Supports different Green's function calculation methods (quadrature, filament models)
+  - Handles boundary shape control through iso-flux control points
+  - Maintains X-point and strike point positions with configurable weights
+  - Includes automatic regularization parameter selection for stable solutions
+  - Can update target equilibrium with achievable coil configuration
 
 Control points:
-- Boundary iso-flux surfaces for plasma shape control
-- X-point locations as saddle point constraints  
-- Strike point locations as flux surface constraints
-- Magnetic axis position and flux value
+
+  - Boundary iso-flux surfaces for plasma shape control
+  - X-point locations as saddle point constraints
+  - Strike point locations as flux surface constraints
+  - Magnetic axis position and flux value
 
 !!! note
 
@@ -67,8 +70,13 @@ function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
     par = OverrideParameters(par; kw...)
 
-    eqt_control_points = VacuumFields.equilibrium_control_points(dd.equilibrium.time_slice[], dd.pulse_schedule.position_control; par.x_points_weight, par.strike_points_weight)
-    mag_control_points = VacuumFields.magnetic_control_points(dd.magnetics; par.flux_loop_weight, par.magnetic_probe_weight)
+    eqt_control_points = VacuumFields.equilibrium_control_points(dd.equilibrium.time_slice[], dd.pulse_schedule.position_control;
+        par.boundary_weight,
+        par.x_points_weight,
+        par.strike_points_weight)
+    mag_control_points = VacuumFields.magnetic_control_points(dd.magnetics;
+        par.flux_loop_weight,
+        par.magnetic_probe_weight)
 
     return ActorPFactive(
         dd,
@@ -89,12 +97,13 @@ end
 Solves the least-squares optimization for optimal PF coil currents.
 
 The step function performs the core optimization by:
-1. Setting up coil system (fixed, pinned, and optimizable coils) with caching
-2. Computing optimal regularization parameter if not specified
-3. Solving the regularized least-squares problem for coil currents
-4. Evaluating cost function to assess solution quality
 
-The optimization balances satisfaction of electromagnetic constraints with 
+ 1. Setting up coil system (fixed, pinned, and optimizable coils) with caching
+ 2. Computing optimal regularization parameter if not specified
+ 3. Solving the regularized least-squares problem for coil currents
+ 4. Evaluating cost function to assess solution quality
+
+The optimization balances satisfaction of electromagnetic constraints with
 regularization to prevent unrealistic current magnitudes.
 """
 function _step(actor::ActorPFactive{T}) where {T<:Real}
@@ -115,7 +124,8 @@ function _step(actor::ActorPFactive{T}) where {T<:Real}
         # Get coils organized by their function and initialize them
         fixed_coils, pinned_coils, optim_coils = fixed_pinned_optim_coils(actor; zero_currents=true)
 
-        actor.setup_cache = (fixed_eq=fixed_eq, image_eq=image_eq, fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils, ψbound=eqt.global_quantities.psi_boundary)
+        actor.setup_cache =
+            (fixed_eq=fixed_eq, image_eq=image_eq, fixed_coils=fixed_coils, pinned_coils=pinned_coils, optim_coils=optim_coils, ψbound=eqt.global_quantities.psi_boundary)
     end
     fixed_eq, image_eq, fixed_coils, pinned_coils, optim_coils, ψbound = actor.setup_cache
 
@@ -158,8 +168,8 @@ end
 
 Generates output equilibrium with updated magnetic flux from optimized coil currents.
 
-Updates the 2D equilibrium flux map (ψ) based on the computed coil currents, evaluates 
-current limits for the PF system, and optionally updates the target equilibrium if 
+Updates the 2D equilibrium flux map (ψ) based on the computed coil currents, evaluates
+current limits for the PF system, and optionally updates the target equilibrium if
 requested. The output equilibrium shows what the coil system can actually achieve.
 """
 function _finalize(actor::ActorPFactive{D,P}) where {D<:Real,P<:Real}
