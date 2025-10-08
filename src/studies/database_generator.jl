@@ -30,6 +30,13 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:R
     database_policy::Switch{Symbol} = study_common_parameters(; database_policy=:single_hdf5)
 end
 
+function setup(study::StudyDatabaseGenerator)
+    sty = study.sty
+    check_and_create_file_save_mode(sty)
+    parallel_environment(sty.server, sty.n_workers)
+    return study
+end
+
 mutable struct StudyDatabaseGenerator{T<:Real} <: AbstractStudy
     sty::OverrideParameters{T,FUSEparameters__ParametersStudyDatabaseGenerator{T}}
     ini::Union{ParametersAllInits,Vector{<:ParametersAllInits}}
