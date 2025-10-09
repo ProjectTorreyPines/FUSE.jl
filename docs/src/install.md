@@ -105,3 +105,10 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    ```
 
 1. Run `fusebot install_IJulia` to install the Kernel for the latest version of Julia in Jupyter-Lab
+
+## Install on specific platforms
+
+```@contents
+Pages = ["install_omega.md", "install_saga.md"]
+Depth = 2
+```

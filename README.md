@@ -1,5 +1,3 @@
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ProjectTorreyPines/FUSE.jl)
-
 # FUSE.jl
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for integrated simulations of fusion devices.
@@ -19,6 +17,7 @@ Here are some key resources for getting started with FUSE:
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
 * 🗒️ **[Weekly devs meeting minutes](https://github.com/ProjectTorreyPines/FUSE.jl/discussions)**
+* 🤔 **[Ask DeepWiki](https://deepwiki.com/ProjectTorreyPines/FUSE.jl)**
 
 ## Objectives
 
