@@ -64,7 +64,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # identify outliers on raw data
     for experimental_ids in (dd.thomson_scattering, dd.charge_exchange)
         tg = IMAS.time_groups(experimental_ids; min_channels=0)
-        IMAS.adaptive_outlier_removal!(tg; min_channels=5)
+        IMAS.adaptive_outlier_removal!(tg; min_channels=5, threshold=3.0, adaptivity=:variance_gradient)
     end
 
     # disregard divertor thomson (D3D specific! need to generalize)
@@ -88,11 +88,13 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # time average TS data
     time_basis_average!(dd.thomson_scattering, time_basis, par.time_averaging)
 
+    method = IMAS.NaturalNeighbours.Triangle()
+
     # fit Te
     itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
     for (kt, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[kt]
-        data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
+        data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
         cp1d.electrons.temperature = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
@@ -175,7 +177,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
+        data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
         cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     end
 
@@ -186,7 +188,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # itp_zeff = IMAS.fit2d(Val(:zeff), dd; transform=x -> abs(max(x, 1.0) - 1.0))
     # for (k, time0) in enumerate(time_basis)
     #     cp1d = dd.core_profiles.profiles_1d[k]
-    #     data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12))) .+ 1.0
+    #     data = itp_zeff(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method) .+ 1.0
     #     cp1d.zeff = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     # end
 
@@ -197,8 +199,8 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         bulk_ion = cp1d.ion[1]
         imp_ion = cp1d.ion[2]
 
-        data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
-        data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
+        data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
         n_i = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
@@ -209,7 +211,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=abs)
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
+        data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
         ti = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
         for ion in cp1d.ion
             ion.temperature = ti
@@ -226,7 +228,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     itp_ωtor = IMAS.fit2d(Val(:ω_tor), dd)
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
-        data = itp_ωtor(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)))
+        data = itp_ωtor(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
         ωtor = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
         for ion in cp1d.ion
             ion.rotation_frequency_tor = ωtor
