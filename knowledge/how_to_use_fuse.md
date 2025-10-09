@@ -894,9 +894,8 @@ sty.database_folder = "/path/to/database"
 sty.save_folder = "/path/to/results"
 sty.custom_tglf_models = ["sat3_em_d3d_azf-1_withnegD"]
 
-# 2. Create and setup study
-study = FUSE.StudyTGLFdb(sty, act)  # Automatically calls FUSE.setup()
-# OR manually setup: study = FUSE.setup(study)
+# 2. Create study
+study = FUSE.StudyTGLFdb(sty, act)
 
 # 3. Import FUSE on all workers (required for distributed computing)
 @everywhere import FUSE
