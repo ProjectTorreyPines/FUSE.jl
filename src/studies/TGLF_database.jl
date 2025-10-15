@@ -9,8 +9,20 @@ import GACODE
 """
     study_parameters(::Val{:TGLFdb})
 """
-function study_parameters(::Val{:TGLFdb})
-    return FUSEparameters__ParametersStudyTGLFdb{Real}()
+function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
+    act = ParametersActors()
+
+    # Change act for the default TGLFdb run
+    act.ActorCoreTransport.model = :FluxMatcher
+    act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorTGLF.warn_nn_train_bounds = false
+
+    # finalize 
+    set_new_base!(sty)
+    set_new_base!(act)
+
+    return sty, act
 end
 
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: ParametersStudy{T}
@@ -40,7 +52,7 @@ function TGLF_dataframe()
         shot=Int[], time=Int[], ne0=Float64[],
         Te0=Float64[], Ti0=Float64[], ne0_exp=Float64[],
         Te0_exp=Float64[], Ti0_exp=Float64[], WTH_exp=Float64[],
-        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], rho=Vector{Float64}[],
+        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], timef=Int[], rho=Vector{Float64}[],
         Qe_target=Vector{Float64}[], Qe_TGLF=Vector{Float64}[], Qe_neoc=Vector{Float64}[],
         Qi_target=Vector{Float64}[], Qi_TGLF=Vector{Float64}[], Qi_neoc=Vector{Float64}[],
         particle_target=Vector{Float64}[], particle_TGLF=Vector{Float64}[], particle_neoc=Vector{Float64}[],
@@ -93,14 +105,19 @@ function _run(study::StudyTGLFdb)
             act.ActorTGLF.tglfnn_model = item
         end
         act.ActorTGLF.lump_ions = sty.lump_ions
-
+        if item == "wrapped_model.onnx"
+            act.ActorTGLF.onnx_model=true
+            act.ActorTGLF.tglfnn_model = item
+        end
         # paraller run
         results = pmap(filename -> run_case(filename, study, item), cases_files)
 
         # populate DataFrame
         for row in results
-            if !isnothing(row)
+            if row isa NamedTuple || row isa AbstractArray || row isa DataFrameRow || row isa AbstractDict
                 push!(study.dataframes_dict[string(item)], row)
+            else
+                @warn "Invalid row type encountered: $row"
             end
         end
 
@@ -120,14 +137,29 @@ function _run(study::StudyTGLFdb)
     return study
 end
 
+function _analyze(study::StudyTGLFdb)
+    plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
+    return study
+end
+
 function preprocess_dd(filename::AbstractString)
-    dd = IMAS.json2imas(filename; verbose=false)
+    dd = IMAS.json2imas(filename; show_warnings=false)
 
     cp1d = dd.core_profiles.profiles_1d[]
-    value = [interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(0.9)]
-    @ddtime(dd.summary.local.pedestal.n_e.value = value)
-    value = [interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.zeff).(0.9)]
-    @ddtime(dd.summary.local.pedestal.zeff.value = value)
+    # Handle both single and multiple time slice cases
+    ne_interp_result = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)(0.9)
+    zeff_interp_result = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff)(0.9)
+
+    # Convert to vector format: handle scalar (single time slice) or vector (multiple time slices)
+    if ndims(ne_interp_result) == 0 || (ndims(ne_interp_result) == 2 && size(ne_interp_result) == (1,1))
+        # Single time slice case: scalar or 1x1 matrix
+        dd.summary.local.pedestal.n_e.value = [Float64(ne_interp_result)]
+        dd.summary.local.pedestal.zeff.value = [Float64(zeff_interp_result)]
+    else
+        # Multiple time slice case: already a vector
+        dd.summary.local.pedestal.n_e.value = vec(ne_interp_result)
+        dd.summary.local.pedestal.zeff.value = vec(zeff_interp_result)
+    end
     dd.pulse_schedule.tf.time = dd.summary.time
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = dd.equilibrium.vacuum_toroidal_field.b0
 
@@ -140,13 +172,23 @@ function run_case(filename::AbstractString, study::StudyTGLFdb, item)
 
     dd = preprocess_dd(filename)
 
+    act.ActorFluxMatcher.evolve_densities = FUSE.setup_density_evolution_electron_flux_match_impurities_fixed(dd.core_profiles.profiles_1d[])
+
+    # find time from filename
+    timefn = match(r"(\d+)\.\w+$", filename)
+    if timefn !== nothing
+        timef = parse(Int,timefn.captures[1])
+    else
+        timef = 0
+    end
+
     cp1d = dd.core_profiles.profiles_1d[]
     exp_values = [
         cp1d.electrons.density_thermal[1],
         cp1d.electrons.temperature[1],
         cp1d.ion[1].temperature[1],
         @ddtime(dd.summary.global_quantities.energy_thermal.value),
-        cp1d.rotation_frequency_tor_sonic[1]]
+        cp1d.rotation_frequency_tor_sonic[1], timef]
 
     name = split(splitpath(filename)[end], ".")[1]
     output_case = joinpath(sty.save_folder, name)
@@ -200,44 +242,64 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     eqt = dd.equilibrium.time_slice[]
 
     rho_transport = dd.core_transport.model[1].profiles_1d[].grid_flux.rho_tor_norm
+    ct1d_tglf   = dd.core_transport.model[1].profiles_1d[]
 
-    ct1d_tglf = dd.core_transport.model[1].profiles_1d[]
-    ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport; time0=dd.global_time)
+    gyro_bohms = [GACODE.gyrobohm_energy_flux(cp1d, eqt), GACODE.gyrobohm_particle_flux(cp1d, eqt), GACODE.gyrobohm_momentum_flux(cp1d, eqt)]
+    ini, act_temp = FUSE.case_parameters(:ITER; init_from = :scalars)
+    act_fm = OverrideParameters(act_temp.ActorFluxMatcher;
+                               rho_transport = rho_transport,
+                               evolve_rotation = :flux_match)
 
-    qybro_bohms = [GACODE.gyrobohm_energy_flux(cp1d, eqt), GACODE.gyrobohm_particle_flux(cp1d, eqt), GACODE.gyrobohm_momentum_flux(cp1d, eqt)]
+    nr    = length(rho_transport)
+    q_mat = reshape(
+      FUSE.flux_match_targets(dd, act_fm),
+      nr, 4
+    )
+    qi, qe, qp, qg = eachcol(q_mat)
+    gyro_bohms = [
+      GACODE.gyrobohm_energy_flux(cp1d, eqt),
+      GACODE.gyrobohm_particle_flux(cp1d, eqt),
+      GACODE.gyrobohm_momentum_flux(cp1d, eqt),
+    ]
     rho_cp = cp1d.grid.rho_tor_norm
 
-    IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport)
-    rho_cp = cp1d.grid.rho_tor_norm
+    IMAS.interp1d(rho_cp, gyro_bohms[1]).(rho_transport)
 
     return (
-        shot=dd.dataset_description.data_entry.pulse,
-        time=dd.dataset_description.data_entry.pulse,
-        ne0=cp1d.electrons.density_thermal[1],
-        Te0=cp1d.electrons.temperature[1],
-        Ti0=cp1d.ion[1].temperature[1],
-        WTH=IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
-        rot0=cp1d.rotation_frequency_tor_sonic[1],
-        ne0_exp=exp_values[1],
-        Te0_exp=exp_values[2],
-        Ti0_exp=exp_values[3],
-        WTH_exp=exp_values[4],
-        rot0_exp=exp_values[5],
-        rho=rho_transport,
-        Qe_target=ct1d_target.electrons.energy.flux,
-        Qe_TGLF=ct1d_tglf.electrons.energy.flux,
-        Qe_neoc=dd.core_transport.model[2].profiles_1d[].electrons.energy.flux,
-        Qi_target=ct1d_target.total_ion_energy.flux,
-        Qi_TGLF=ct1d_tglf.total_ion_energy.flux,
-        Qi_neoc=dd.core_transport.model[2].profiles_1d[].total_ion_energy.flux,
-        particle_target=ct1d_target.electrons.particles.flux,
-        particle_TGLF=ct1d_tglf.electrons.particles.flux,
-        particle_neoc=dd.core_transport.model[2].profiles_1d[].electrons.particles.flux,
-        momentum_target=ct1d_target.momentum_tor.flux,
-        momentum_TGLF=ct1d_tglf.momentum_tor.flux,
-        Q_GB=IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport),
-        particle_GB=IMAS.interp1d(rho_cp, qybro_bohms[2]).(rho_transport),
-        momentum_GB=IMAS.interp1d(rho_cp, qybro_bohms[3]).(rho_transport)
+      shot            = dd.dataset_description.data_entry.pulse,
+      time            = Int(dd.summary.time[1] * 1000),
+      ne0             = cp1d.electrons.density_thermal[1],
+      Te0             = cp1d.electrons.temperature[1],
+      Ti0             = cp1d.ion[1].temperature[1],
+      WTH             = IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
+      rot0            = cp1d.rotation_frequency_tor_sonic[1],
+
+      ne0_exp         = exp_values[1],
+      Te0_exp         = exp_values[2],
+      Ti0_exp         = exp_values[3],
+      WTH_exp         = exp_values[4],
+      rot0_exp        = exp_values[5],
+      timef           = exp_values[6],
+
+      rho             = rho_transport,
+      Qe_target       = qe,
+      Qe_TGLF         = ct1d_tglf.electrons.energy.flux,
+      Qe_neoc         = dd.core_transport.model[2].profiles_1d[].electrons.energy.flux,
+
+      Qi_target       = qi,
+      Qi_TGLF         = ct1d_tglf.total_ion_energy.flux,
+      Qi_neoc         = dd.core_transport.model[2].profiles_1d[].total_ion_energy.flux,
+
+      particle_target = qg,
+      particle_TGLF   = ct1d_tglf.electrons.particles.flux,
+      particle_neoc   = dd.core_transport.model[2].profiles_1d[].electrons.particles.flux,
+
+      momentum_target = qp,
+      momentum_TGLF   = ct1d_tglf.momentum_tor.flux,
+
+      Q_GB            = IMAS.interp1d(rho_cp, gyro_bohms[1]).(rho_transport),
+      particle_GB     = IMAS.interp1d(rho_cp, gyro_bohms[2]).(rho_transport),
+      momentum_GB     = IMAS.interp1d(rho_cp, gyro_bohms[3]).(rho_transport),
     )
 end
 

@@ -12,7 +12,6 @@ import FRESCO
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:psi_norm, :rho_tor_norm], "-", "Fix P and Jt on this grid"; default=:rho_tor_norm)
     nR::Entry{Int} = Entry{Int}("-", "Grid resolution along R"; default=129)
     nZ::Entry{Int} = Entry{Int}("-", "Grid resolution along Z"; default=129)
-    active_x_points::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "Active x-points in the equilibrium solver"; default=Int[])
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing FRESCO solve"; default=false)
@@ -29,28 +28,30 @@ end
 """
     ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Solves the tokamak MHD equilibrium using the FRESCO fixed-boundary equilibrium solver.
+Solves the tokamak MHD equilibrium using the FRESCO free-boundary equilibrium solver.
 
-FRESCO (Free-boundary Reactor Equilibrium Solver for Comprehensive Optimization) solves the 
+FRESCO (Free-boundary Reactor Equilibrium Solver for Comprehensive Optimization) solves the
 Grad-Shafranov equation for toroidal plasma equilibria with specified pressure and current profiles.
 
 This actor performs:
-- Free-boundary equilibrium reconstruction using pressure and current profiles from core_profiles
-- Iterative solution of the Grad-Shafranov equation on a rectangular R-Z grid
-- Vertical control options (vertical position, shape control, or magnetics-based)
-- Updates to poloidal field coil currents for force balance
-- Conversion of equilibrium solution back to IMAS equilibrium format
+
+  - Free-boundary equilibrium reconstruction using pressure and current profiles from core_profiles
+  - Iterative solution of the Grad-Shafranov equation on a rectangular R-Z grid
+  - Vertical control options (vertical position, shape control, or magnetics-based)
+  - Updates to poloidal field coil currents for force balance
+  - Conversion of equilibrium solution back to IMAS equilibrium format
 
 The solver supports:
-- Configurable grid resolution (nR × nZ)
-- Multiple control algorithms for vertical stability
-- Active X-point specification
-- Green's function table reuse for computational efficiency
-- Relaxation and tolerance control for convergence
+
+  - Configurable grid resolution (nR × nZ)
+  - Multiple control algorithms for vertical stability
+  - Active X-point specification
+  - Green's function table reuse for computational efficiency
+  - Relaxation and tolerance control for convergence
 
 !!! note
 
-    Reads data from `dd.equilibrium`, `dd.core_profiles`, `dd.pf_active`, and `dd.wall`, 
+    Reads data from `dd.equilibrium`, `dd.core_profiles`, `dd.pf_active`, and `dd.wall`,
     and updates `dd.equilibrium` and `dd.pf_active` with the solved equilibrium
 """
 function ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -75,12 +76,13 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
     act = actor.act
+    eqt = dd.equilibrium.time_slice[]
 
     # FRESCO requires wall information
     if IMAS.hasdata(dd.wall)
         fw_r, fw_z = IMAS.first_wall(dd.wall)
-    elseif IMAS.hasdata(dd.pf_active) && findfirst(:rectangular, dd.equilibrium.time_slice[].profiles_2d) !== nothing
-        fw_r, fw_z = IMAS.first_wall(dd.equilibrium.time_slice[], dd.pf_active)
+    elseif IMAS.hasdata(dd.pf_active) && findfirst(:rectangular, eqt.profiles_2d) !== nothing
+        fw_r, fw_z = IMAS.first_wall(eqt, dd.pf_active)
     elseif IMAS.hasdata(dd.pf_active)
         fw_r, fw_z = IMAS.first_wall(dd.pf_active)
     else
@@ -92,10 +94,33 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
     Zs = range(minimum(fw_z) - ΔZ / 20, maximum(fw_z) + ΔZ / 20, par.nZ)
 
     # reuse green table if possible
-    gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table = actor.canvas.Green_table)
+    gt_kw = isnothing(actor.canvas) ? (;) : (; Green_table=actor.canvas.Green_table)
 
-    actor.canvas = FRESCO.Canvas(dd, Rs, Zs; load_pf_passive=false, act.ActorPFactive.strike_points_weight, act.ActorPFactive.x_points_weight, par.active_x_points, gt_kw...)
+    # control points (NOTE: we purposely do not pass dd.pulse_schedule.position_control because we want the eqt_control_points to be as ActorEquilibrium set it up
+    eqt_control_points = VacuumFields.equilibrium_control_points(eqt, IMAS.pulse_schedule__position_control{D}();
+        act.ActorPFactive.boundary_weight,
+        act.ActorPFactive.x_points_weight,
+        act.ActorPFactive.strike_points_weight)
+    mag_control_points = VacuumFields.magnetic_control_points(dd.magnetics;
+        act.ActorPFactive.flux_loop_weight,
+        act.ActorPFactive.magnetic_probe_weight)
+
+    actor.canvas = FRESCO.Canvas(
+        dd,
+        Rs,
+        Zs;
+        wall_r=fw_r,
+        wall_z=fw_z,
+        load_pf_passive=false,
+        iso_cps=[eqt_control_points.iso_cps; mag_control_points.iso_cps],
+        saddle_cps=eqt_control_points.saddle_cps,
+        flux_cps=[eqt_control_points.flux_cps; mag_control_points.flux_cps],
+        field_cps=mag_control_points.field_cps,
+        gt_kw...
+    )
+
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
+
     FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
 
     return actor

@@ -309,23 +309,49 @@ function prepare(actor::ActorEquilibrium)
 
     # if available, restore coil currents and magnetic measurements from experiment
     # these may be needed if equilibrium solver is run in reconstruction mode.
-    # The equilibrium solvers will overwritte the coil currents,
+    # The equilibrium solvers will overwrite the coil currents,
     # and the synthetic diagnostics will overwrite the magnetics and flux loops
     if !ismissing(act.ActorReplay, :replay_dd)
-        if !isempty(act.ActorReplay.replay_dd.pf_active.coil)
+
+        # pf_active.coil
+        if !isempty(act.ActorReplay.replay_dd.pf_active.coil) && IMAS.hasdata(act.ActorReplay.replay_dd.pf_active.coil[1].current, :data)
             act.ActorReplay.replay_dd.global_time = dd.global_time
             for (coil, replay_coil) in zip(dd.pf_active.coil, act.ActorReplay.replay_dd.pf_active.coil)
                 @ddtime(coil.current.data = @ddtime(replay_coil.current.data))
+                if IMAS.hasdata(replay_coil.current, :data_σ)
+                    @ddtime(coil.current.data_σ = @ddtime(replay_coil.current.data_σ))
+                end
             end
         end
-        if !isempty(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
+
+        # pf_passive.loop
+        if !isempty(act.ActorReplay.replay_dd.pf_passive.loop) && IMAS.hasdata(act.ActorReplay.replay_dd.pf_passive.loop[1], :current)
+            act.ActorReplay.replay_dd.global_time = dd.global_time
+            for (loop, replay_loop) in zip(dd.pf_passive.loop, act.ActorReplay.replay_dd.pf_passive.loop)
+                @ddtime(loop.current = @ddtime(replay_loop.current))
+                if IMAS.hasdata(replay_loop, :current_σ)
+                    @ddtime(loop.current_σ = @ddtime(replay_loop.current_σ))
+                end
+            end
+        end
+
+        # magnetics.b_field_pol_probe
+        if !isempty(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe) && IMAS.hasdata(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe[1].field, :data)
             for (probe, replay_probe) in zip(dd.magnetics.b_field_pol_probe, act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
                 @ddtime(probe.field.data = @ddtime(replay_probe.field.data))
+                if IMAS.hasdata(replay_probe.field, :data_σ)
+                    @ddtime(probe.field.data_σ = @ddtime(replay_probe.field.data_σ))
+                end
             end
         end
-        if !isempty(act.ActorReplay.replay_dd.magnetics.flux_loop)
+
+        # magnetics.flux_loop
+        if !isempty(act.ActorReplay.replay_dd.magnetics.flux_loop) && IMAS.hasdata(act.ActorReplay.replay_dd.magnetics.flux_loop[1].flux, :data)
             for (loop, replay_loop) in zip(dd.magnetics.flux_loop, act.ActorReplay.replay_dd.magnetics.flux_loop)
                 @ddtime(loop.flux.data = @ddtime(replay_loop.flux.data))
+                if IMAS.hasdata(replay_loop.flux, :data_σ)
+                    @ddtime(loop.flux.data_σ = @ddtime(replay_loop.flux.data_σ))
+                end
             end
         end
     end

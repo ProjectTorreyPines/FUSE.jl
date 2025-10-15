@@ -42,7 +42,7 @@ end
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = OverrideParameters(sty; kw...)
     study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
-    return setup(study)
+    return study
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; kw...)
