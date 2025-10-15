@@ -466,64 +466,12 @@ plot!(peq, dd.equilibrium; label="after")
 ## Time-Dependent Simulations
 
 ### Overview
-FUSE supports time-dependent plasma simulations, allowing users to model plasma evolution through different phases like rampup, flattop, and rampdown. Time-dependent parameters are defined as functions of time in the `ini` structure.
+FUSE supports time-dependent plasma simulations for both experimental post-diction and predictive scenarios. Time-dependent parameters are defined as functions of time in the `ini` structure.
 
-### Experimental Data-Based Time-Dependent Simulations
-
-FUSE can initialize time-dependent simulations directly from experimental data, allowing for post-diction studies that replay experimental conditions.
-
-#### D3D Shot Analysis Example
-```julia
-using Plots
-using FUSE
-using Interact
-FUSE.ProgressMeter.ijulia_behavior(:clear)
-
-# Load D3D shot data with automatic profile fitting
-use_local_cache = false
-shot = 168830
-@time ini, act = FUSE.case_parameters(:D3D, shot; fit_profiles=true, use_local_cache)
-
-# Initialize from experimental data - this populates pulse_schedule for post-diction
-ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
-dd = IMAS.dd()
-@time FUSE.init!(dd, ini, act)
-```
-
-The key insight is that `FUSE.init!()` with experimental data automatically populates `dd.pulse_schedule` to allow post-diction (reproducing experimental conditions). For "what if" scenarios, users would modify the pulse schedule after initialization.
-
-### Time-Dependent Parameter Configuration
-
-#### Pulse Schedule Time Basis
-```julia
-# Define time grid for simulation
-ini.time.pulse_shedule_time_basis = range(0, 300; step=1.0)  # 0-300s with 1s steps
-ini.time.simulation_start = 50.0  # Start simulation at t=50s
-```
-
-#### Time-Dependent Functions
-Parameters can be defined as functions of time `t` instead of scalar values:
-
-```julia
-# Define time-dependent plasma current
-rampup_ends = 10.0
-ini.equilibrium.ip = t -> ramp(t / rampup_ends) * 14E6 + ramp((t - 100) / 100) * 1E6
-
-# Time-dependent core pressure
-ini.equilibrium.pressure_core = t -> ramp(t / rampup_ends) .^ 2 * 0.643e6
-
-# Time-dependent auxiliary heating power
-ini.nb_unit[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 16.7e6
-ini.ec_launcher[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 10E6
-ini.ic_antenna[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 12E6
-ini.lh_antenna[1].power_launched = t -> (1 .+ ramp((t - 100) / 100)) * 5E6
-
-# Time-dependent pellet injection frequency
-ini.pellet_launcher[1].frequency = t -> (1 .+ ramp((t - 100) / 100)) * 0.01  # Hz
-```
+### Common Concepts
 
 #### Pulse Shaping Functions
-FUSE provides convenient pulse shaping functions for common time dependencies:
+FUSE provides convenient pulse shaping functions:
 
 - **`ramp(t)`**: Linear ramp from 0 to 1
 - **`step(t)`**: Step function
@@ -531,153 +479,251 @@ FUSE provides convenient pulse shaping functions for common time dependencies:
 - **`trap(t, ramp_fraction)`**: Trapezoidal pulse
 - **`gaus(t, order)`**: Gaussian pulse
 - **`beta(t, mode)`**: Beta function pulse
+- **`sequence(t, [(t1,y1), (t2,y2), ...])`**: Interpolate through specific time points
 
-#### Sequence Function
-For complex time profiles, use `sequence(t, t_y_tuple_sequence)`:
+#### Time-Dependent Parameter Definition
 ```julia
-# Define plasma current with specific time points and values
-ini.equilibrium.ip = t -> sequence(t, [(0.0, 0.0), (10.0, 13.0E6), (100.0, 13.0E6), (200.0, 15.0E6)])
-```
-
-### Rampup Configuration
-```julia
-ini.rampup.side = :lfs                      # Low field side rampup
-ini.rampup.ends_at = 10.0                   # Rampup ends at t=10s
-ini.rampup.diverted_at = rampup_ends * 0.8  # Divertion at 80% of rampup time
-```
-
-### Time-Dependent Workflow
-
-#### 1. Initialize with Time-Dependent Parameters
-```julia
-# Get time-dependent case parameters
-ini, _ = FUSE.case_parameters(:ITER; init_from=:scalars, time_dependent=true)
-
-# Configure time grid and start time
+# Time basis and start time
 ini.time.pulse_shedule_time_basis = range(0, 300; step=1.0)
 ini.time.simulation_start = 50.0
 
-# Define time-dependent parameters (see examples above)
-# ...
+# Time-dependent plasma parameters
+ini.equilibrium.ip = t -> ramp(t / 10) * 14E6 + ramp((t - 100) / 100) * 1E6
+ini.equilibrium.pressure_core = t -> ramp(t / 10)^2 * 0.643e6
 
-# Initialize hardware from ODS if needed
-ini_hw, act = FUSE.case_parameters(:ITER; init_from=:ods)
+# Time-dependent auxiliary systems
+ini.nb_unit[1].power_launched = t -> ramp(t / 100) * 16.7e6
+ini.ec_launcher[1].power_launched = t -> ramp(t / 100) * 10E6
+ini.pellet_launcher[1].frequency = t -> ramp(t / 100) * 0.01  # Hz
+```
+
+#### Evolution vs. Replay Modes
+```julia
+# Evolution flags (what to calculate)
+act.ActorDynamicPlasma.evolve_current = true       # Calculate current evolution
+act.ActorDynamicPlasma.evolve_equilibrium = true   # Calculate equilibrium
+act.ActorDynamicPlasma.evolve_transport = true     # Calculate transport
+act.ActorDynamicPlasma.evolve_hcd = true           # Calculate heating/current drive
+act.ActorDynamicPlasma.evolve_pedestal = true      # Evolve pedestal
+act.ActorDynamicPlasma.evolve_pf_active = false    # Calculate PF coils (needed for TEQUILA/CHEASE)
+
+# Replay modes (take from experimental data - post-diction only)
+act.ActorCurrent.model = :replay           # Use experimental current
+act.ActorEquilibrium.model = :replay       # Use experimental equilibrium
+act.ActorCoreTransport.model = :replay     # Use experimental profiles
+act.ActorPedestal.model = :replay          # Use experimental pedestal
+act.ActorHCD.ec_model = :replay            # Use experimental ECH
+act.ActorHCD.nb_model = :replay            # Use experimental NBI
+```
+
+**Replay mode philosophy:**
+- **Full replay**: Check for time lags (should closely match experiment)
+- **Partial replay**: Predict some physics, take others from experiment
+  - "Kinetic equilibrium mode": Take profiles from experiment, calculate currents
+- **Full predictive**: Evolve all physics
+
+#### Running Time-Dependent Simulations
+```julia
+# Configure time stepping
+δt = 0.05  # Time step size (s)
+act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
+act.ActorDynamicPlasma.Δt = final_time - dd.global_time
+
+# Execute simulation
+@time actor = FUSE.ActorDynamicPlasma(dd, act; verbose=true)
+
+# Continue simulation for additional steps
+dd = actor.dd  # Get updated data from actor
+FUSE.finalize(FUSE.step(actor; n_steps=10))
+```
+
+### DIII-D Post-diction Workflow
+
+DIII-D simulations replay experimental conditions for model validation.
+
+#### 1. Load Experimental Data
+```julia
+shot = 168830
+ini, act = FUSE.case_parameters(:D3D, shot; use_local_cache=true, fit_profiles=true)
+# Optional: EFIT_tree="EFIT01" (earlier start, no MSE) or "EFIT02" (with MSE)
+# Optional: rho_averaging=0.2, time_averaging=0.1
+```
+
+**Data structure:**
+- `ini.general.dd`: Experimental data from MDS+ via OMAS (equilibrium, profiles, sources)
+- `dd.pulse_schedule`: Auto-populated for post-diction (modify for "what if" scenarios)
+
+#### 2. Initialize from Experimental Data
+```julia
+ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
 dd = IMAS.dd()
-FUSE.init(dd, ini_hw, act)  # Initialize hardware
+FUSE.init!(dd, ini, act)
+```
 
-# Initialize pulse schedule
+**Timing considerations:**
+- Start early for accurate Ohmic current (EFIT total current - HCD sources = Ohmic)
+- Ideal: when current profile is purely Ohmic
+- `ini.time.simulation_start` auto-filled to first EFIT time
+
+#### 3. L-H Transition Analysis (Optional)
+```julia
+experiment_LH = FUSE.LH_analysis(dd; do_plot=true)
+
+# Configure dynamic pedestal
+act.ActorPedestal.model = :dynamic
+act.ActorPedestal.tau_n = experiment_LH.tau_n
+act.ActorPedestal.tau_t = experiment_LH.tau_t
+act.ActorWPED.ped_to_core_fraction = experiment_LH.W_ped_to_core_fraction
+
+# L-H transition timing
+act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
+act.ActorPedestal.mode_transitions[5.2] = :L_mode  # Override if needed
+```
+
+**Notes:**
+- In FUSE "pedestal" defined at ρ = 0.9, independent of the mode
+- W_ped_to_core_fraction default ~0.3 for D3D
+
+#### 4. Configure D3D-Specific Actors
+```julia
+# Equilibrium: EGGO (ML, D3D-trained) or FRESCO (physics-based)
+act.ActorEquilibrium.model = :EGGO
+act.ActorEGGO.timeslice_average = 4  # Reduce noise
+
+# Or use FRESCO with lower resolution for speed
+act.ActorEquilibrium.model = :FRESCO
+act.ActorFRESCO.nR = 33
+act.ActorFRESCO.nZ = 33
+
+# Neutral fueling
+act.ActorNeutralFueling.τp_over_τe = 0.25  # Particle/energy confinement ratio
+
+# Flux matcher
+act.ActorFluxMatcher.algorithm = :simple
+act.ActorFluxMatcher.max_iterations = -10  # Negative suppresses warnings
+act.ActorFluxMatcher.relax = 0.5
+
+# Transport
+act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+```
+
+#### 5. PF Coil Fitting Weights
+```julia
+act.ActorPFactive.boundary_weight = 1.0          # From EFIT boundary
+act.ActorPFactive.strike_points_weight = 0.1     # From EFIT
+act.ActorPFactive.x_points_weight = 0.1          # From EFIT
+act.ActorPFactive.magnetic_probe_weight = 0.1    # Post-diction only
+act.ActorPFactive.flux_loop_weight = 0.1         # Post-diction only
+```
+
+#### 6. Modify Pulse Schedule for "What If" Scenarios (Optional)
+```julia
+# Reduce NBI power
+for unit in dd.pulse_schedule.nbi.unit
+    unit.power.reference ./= 5.0
+end
+
+# Change plasma current
+dd.pulse_schedule.flux_control.i_plasma.reference .*= 0.8
+
+# Custom boundary for each time slice (e.g., flip triangularity)
+# Via dd.pulse_schedule.position_control
+```
+
+#### 7. Visualization with Experimental Overlay
+```julia
+# Profile comparison
+@manipulate for time0 in dd.equilibrium.time
+    plot(dd.core_profiles.profiles_1d[time0];
+         thomson_scattering=true, charge_exchange=true)
+end
+
+# Plasma overview
+@manipulate for time0 in dd.equilibrium.time
+    FUSE.plot_plasma_overview(dd, Float64(time0); dd1, aggregate_hcd=true)
+end
+```
+
+#### Performance Tips
+- FRESCO slowest (reduce `nR`, `nZ` for speed)
+- EGGO faster but noisy (use `timeslice_average`)
+- EGGO q-profile sometimes suspicious
+- Negative `max_iterations` suppresses convergence warnings
+- EFIT01: earlier start, no MSE; EFIT02: needs beam blip, has MSE
+- Use `trim_time` to remove garbage in last time slice
+
+### ITER Predictive Workflow
+
+ITER simulations are fully predictive, defining scenarios from scratch.
+
+#### 1. Initialize Machine Build
+```julia
+# Define machine build first!
+ini, act = FUSE.case_parameters(:ITER; init_from=:ods)
+dd = IMAS.dd()
+FUSE.init(dd, ini, act)  # Initialize hardware once
+```
+
+#### 2. Define Time-Dependent Scenario
+```julia
+# Get time-dependent parameters
+ini, _ = FUSE.case_parameters(:ITER; init_from=:scalars, time_dependent=true)
+
+# Time basis and start
+ini.time.pulse_shedule_time_basis = range(0, 300; step=1.0)
+ini.time.simulation_start = 50.0
+
+# Initialize pulse schedule without reinitializing hardware
 FUSE.init(dd, ini, act; initialize_hardware=false)
 ```
 
-#### 2. Achieve Self-Consistent Initial State
+#### 3. Configure Rampup (Optional)
 ```julia
-# Configure stationary plasma solver
+rampup_ends = 12.0
+
+ini.rampup.side = :lfs                      # Low field side rampup
+ini.rampup.ends_at = rampup_ends
+ini.rampup.diverted_at = rampup_ends * 0.8  # X-point formation
+
+# Time-dependent plasma parameters
+ini.equilibrium.pressure_core = t -> ramp(t / rampup_ends)^2 * 0.643e6
+ini.equilibrium.ip = t -> ramp(t / rampup_ends) * 10E6 + ramp((t - 100) / 100) * 5E6
+
+# Auxiliary systems (see Common Concepts section for more examples)
+ini.nb_unit[1].power_launched = t -> ramp(t / 100) * 16.7e6
+```
+
+**Rampup physics:**
+- Circular bore → elongated → X-point forms → diverted plasma
+- TGLF (TGLFNN) not calibrated for high-q circular plasmas
+- **Best chances of success**: Start simulation when already diverted, transport modeling is not robust earlier
+
+#### 4. Achieve Self-Consistent Initial State
+```julia
+# Critical for unusual rampup shapes
 act.ActorStationaryPlasma.convergence_error = 2E-2
 act.ActorStationaryPlasma.max_iterations = 5
-act.ActorSteadyStateCurrent.current_relaxation_radius = 0.2
-act.ActorFluxMatcher.verbose = true
-act.ActorFluxMatcher.relax = 0.5
+act.ActorSteadyStateCurrent.current_relaxation_radius = 0.4
+act.ActorFluxMatcher.relax = 0.1
 
-# Find self-consistent initial state
 FUSE.ActorStationaryPlasma(dd, act; verbose=true)
 ```
 
-#### 3. L-H Transition Analysis and Configuration
-
-For experimental post-diction, FUSE can analyze L-H transitions from experimental data:
-
+#### 5. Configure Evolution
 ```julia
-# Analyze L-H transitions from experimental data
-experiment_LH = FUSE.LH_analysis(dd; do_plot=true)
+# Time stepping
+act.ActorDynamicPlasma.Nt = 60
+act.ActorDynamicPlasma.Δt = 300.0
 
-# Configure dynamic pedestal model based on experimental analysis
-act.ActorPedestal.model = :dynamic
-act.ActorPedestal.tau_n = experiment_LH.tau_n              # Density decay time
-act.ActorPedestal.tau_t = experiment_LH.tau_t              # Temperature decay time
-act.ActorWPED.ped_to_core_fraction = experiment_LH.W_ped_to_core_fraction
-act.ActorEPED.ped_factor = 1.0
-act.ActorPedestal.T_ratio_pedestal = 1.0                   # Ti/Te in pedestal
+# All predictive (no replay modes)
+act.ActorDynamicPlasma.evolve_pf_active = true  # Required for TEQUILA equilibrium
 
-# Option 1: Use experimental density and Zeff profiles as-is
-act.ActorPedestal.density_ratio_L_over_H = 1.0
-act.ActorPedestal.zeff_ratio_L_over_H = 1.0
+# Advanced transport (optional)
+act.ActorTGLF.model = :GKNN
+act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1"  # TGLFNN needed for backup
 
-# Option 2: Allow density to transition at different times
-# act.ActorPedestal.density_ratio_L_over_H = experiment_LH.ne_L_over_H
-# act.ActorPedestal.zeff_ratio_L_over_H = experiment_LH.zeff_L_over_H
-# dd.pulse_schedule.density_control.n_e_line.reference = experiment_LH.ne_H
-# dd.pulse_schedule.density_control.zeff_pedestal.reference = experiment_LH.zeff_H
-
-# L-H transition timing options
-# Option 1: From L-H scaling law
-# act.ActorPedestal.mode_transitions = missing
-
-# Option 2: User-defined transition times (typical for post-diction)
-act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
-act.ActorPedestal.mode_transitions[5.2] = :L_mode          # Force L-mode at t=5.2s
-```
-
-#### 4. Advanced Actor Configuration for Time-Dependent Simulations
-
-```julia
-# Equilibrium solver configuration
-act.ActorEquilibrium.model = :FRESCO    # Options: :EGGO, :FRESCO
-act.ActorFRESCO.nR = 65                 # Radial grid points
-act.ActorFRESCO.nZ = 65                 # Vertical grid points
-
-# Neutral fueling configuration
-act.ActorNeutralFueling.τp_over_τe = 0.25  # Particle confinement time ratio
-
-# Flux matcher for time-dependent transport
-act.ActorFluxMatcher.evolve_plasma_sources = false
-act.ActorFluxMatcher.algorithm = :simple
-act.ActorFluxMatcher.max_iterations = -10          # Negative to suppress warnings
-act.ActorFluxMatcher.evolve_pedestal = false
-act.ActorFluxMatcher.relax = 0.5
-
-# TGLF configuration for time-dependent transport
-act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
-
-# Time step configuration
-δt = 0.05                              # Time step size (s)
-dd.global_time = ini.general.dd.equilibrium.time_slice[2].time
-final_time = ini.general.dd.equilibrium.time[end]
-act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
-act.ActorDynamicPlasma.Δt = final_time - dd.global_time
-```
-
-#### 5. Run Time-Dependent Simulation
-```julia
-# Configure dynamic plasma evolution
-act.ActorDynamicPlasma.evolve_current = true          # Evolve current profile
-act.ActorDynamicPlasma.evolve_equilibrium = true      # Evolve equilibrium
-act.ActorDynamicPlasma.evolve_transport = true        # Evolve transport
-act.ActorDynamicPlasma.evolve_hcd = true              # Evolve heating/current drive
-act.ActorDynamicPlasma.evolve_pf_active = false       # Keep PF coils fixed
-act.ActorDynamicPlasma.evolve_pedestal = true         # Evolve pedestal
-
-# Optional replay modes (for debugging or comparison)
-# act.ActorCurrent.model = :replay
-# act.ActorEquilibrium.model = :replay  
-# act.ActorCoreTransport.model = :replay
-# act.ActorPedestal.model = :replay
-# act.ActorHCD.ec_model = :replay
-# act.ActorHCD.ic_model = :replay
-# act.ActorHCD.lh_model = :replay
-# act.ActorHCD.nb_model = :replay
-# act.ActorHCD.pellet_model = :replay
-# act.ActorHCD.neutral_model = :none
-
-# Execute time-dependent simulation
-@time actor = FUSE.ActorDynamicPlasma(dd, act; verbose=true)
-```
-
-#### 4. Continue Simulation
-```julia
-# Simulation can be continued for additional steps
-# NOTE: actor has its own internal copy of dd
-dd = actor.dd  # Get updated data from actor
-FUSE.finalize(FUSE.step(actor; n_steps=10))  # Continue for 10 more steps
+# Run
+actor = FUSE.ActorDynamicPlasma(dd, act; verbose=true)
 ```
 
 ### Visualization of Time-Dependent Results
@@ -848,9 +894,8 @@ sty.database_folder = "/path/to/database"
 sty.save_folder = "/path/to/results"
 sty.custom_tglf_models = ["sat3_em_d3d_azf-1_withnegD"]
 
-# 2. Create and setup study
-study = FUSE.StudyTGLFdb(sty, act)  # Automatically calls FUSE.setup()
-# OR manually setup: study = FUSE.setup(study)
+# 2. Create study
+study = FUSE.StudyTGLFdb(sty, act)
 
 # 3. Import FUSE on all workers (required for distributed computing)
 @everywhere import FUSE
@@ -1229,15 +1274,23 @@ Results from multi-objective optimization studies are stored in the study object
    - Custom TGLF models and saturation rules configuration
    - Worker management and resource scaling
 
-5. **time_dependent_iter.ipynb** - Time-dependent plasma simulations
+5. **time_dependent_iter.ipynb** - ITER predictive time-dependent simulations
+   - Build initialization for non-existent machines (init_from=:ods)
+   - Critical sequence: fix machine build first, then define plasma scenarios
    - Time-dependent parameter configuration using functions of time
    - Pulse shaping functions: ramp(), step(), pulse(), trap(), gaus(), beta()
    - Pulse schedule time basis and simulation start time configuration
-   - Rampup configuration and divertion timing
+   - Rampup configuration: circular to diverted plasma formation (side, ends_at, diverted_at)
+   - Rampup physics: elongation increase, X-point formation, plasma peeling from wall
+   - TGLF/TGLFNN limitations for high-q circular bore plasmas
+   - Time-dependent auxiliary systems: NBI, ECH, ICH, LH, pellets
+   - TEQUILA equilibrium for predictive simulations with PF active evolution
+   - ActorStationaryPlasma for self-consistent initial conditions (critical for unusual shapes)
+   - Current relaxation radius for initialization convergence
    - ActorDynamicPlasma for time evolution with configurable physics flags
-   - ActorStationaryPlasma for self-consistent initial conditions
+   - Advanced transport configuration with GKNN and TGLFNN backup
    - Visualization of time-dependent results with interactive sliders and animations
-   - Simulation continuation and step management
+   - Simulation continuation and step management (actor.dd contains internal copy)
    - External control integration with FuseExchangeProtocol
    - Time slice extraction and result saving strategies
 
@@ -1264,12 +1317,19 @@ Results from multi-objective optimization studies are stored in the study object
    - Integration with whole facility design workflow (ActorWholeFacility.update_plasma=true)
 
 8. **time_dependent_d3d.ipynb** - Experimental post-diction time-dependent simulations
-   - Loading D3D shot data with automatic profile fitting (fit_profiles=true)
+   - Loading D3D shot data with automatic profile fitting (fit_profiles=true) from MDS+
+   - Understanding D3D data structure: ini.general.dd contains experimental data from OMAS
    - Post-diction workflow: experimental data automatically populates pulse_schedule
+   - EFIT tree selection: EFIT01 (earlier start, no MSE) vs EFIT02 (with MSE, needs beam blip)
    - L-H transition analysis using FUSE.LH_analysis() for experimental parameter extraction
    - Dynamic pedestal modeling with ActorPedestal.model=:dynamic configuration
-   - Advanced time-dependent actor configuration (FRESCO equilibrium, neutral fueling)
-   - Replay mode options for debugging and component-by-component analysis
+   - Pedestal to core fraction assumptions and L-mode pedestal definition at ρ=0.9
+   - Advanced time-dependent actor configuration (EGGO/FRESCO equilibrium, neutral fueling)
+   - Replay vs. evolve modes for component-by-component physics analysis
+   - Kinetic equilibrium mode: take profiles from experiment, calculate currents
+   - PF active coil fitting with magnetics diagnostics (boundary, probes, flux loops)
+   - Modifying pulse schedule for "what if" scenarios
+   - Performance considerations: equilibrium solver speed, flux matcher robustness
    - Comprehensive visualization with FUSE.plot_plasma_overview() and experimental overlay
    - Animation creation with consistent axis limits for smooth time evolution
    - Profile visualization with experimental data overlay (thomson_scattering, charge_exchange)

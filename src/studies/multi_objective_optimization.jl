@@ -39,6 +39,7 @@ mutable struct StudyMultiObjectiveOptimizer{T<:Real} <: AbstractStudy
     dataframe::Union{DataFrame,Missing}
     datafame_filtered::Union{DataFrame,Missing}
     generation::Int
+    workflow::Union{Function,Missing}
 end
 
 function StudyMultiObjectiveOptimizer(
@@ -50,8 +51,7 @@ function StudyMultiObjectiveOptimizer(
     kw...
 )
     sty = OverrideParameters(sty; kw...)
-    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0)
-
+    study = StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions, nothing, missing, missing, 0, missing)
     check_and_create_file_save_mode(sty)
 
     parallel_environment(sty.server, sty.n_workers)
@@ -102,7 +102,6 @@ function _run(study::StudyMultiObjectiveOptimizer)
         @info "released workers"
 
     else
-        setup(study)
         optimization_parameters = Dict(
             :N => sty.population_size,
             :iterations => sty.number_of_generations,
@@ -111,8 +110,12 @@ function _run(study::StudyMultiObjectiveOptimizer)
 
         @assert !isempty(sty.save_folder) "Specify where you would like to store your optimization results in sty.save_folder"
 
+        if ismissing(study.workflow)
+            study.workflow = optimization_workflow_default
+        end
+
         study.state = workflow_multiobjective_optimization(
-            study.ini, study.act, ActorWholeFacility, study.objective_functions, study.constraint_functions;
+            study.ini, study.act, study.workflow, study.objective_functions, study.constraint_functions;
             optimization_parameters..., generation_offset=study.generation, sty.database_policy,
             sty.number_of_generations, sty.population_size)
 
@@ -233,4 +236,15 @@ function filter_outputs(outputs::DataFrame, constraint_symbols::Vector{Symbol})
     constraint_values = [outputs[i, key] for key in constraint_symbols, i in 1:n]
     all_constraint_idxs = findall(i -> all(x -> x == 0.0, constraint_values[:, i]), 1:n)
     return outputs[all_constraint_idxs, :]
+end
+
+"""
+    optimization_workflow_default(ini::ParametersAllInits, act::ParametersAllActors)
+Default optimization workflow when study.workflow isn't set, initializes and runs the whole facility actor
+"""
+function optimization_workflow_default(ini::ParametersAllInits, act::ParametersAllActors)
+    dd = FUSE.IMAS.dd()
+    FUSE.init(dd, ini, act)
+    FUSE.ActorWholeFacility(dd, act)
+    return dd
 end

@@ -38,9 +38,9 @@ def load_relationships():
         with open(knowledge_file, 'r') as f:
             data = json.load(f)
             relationships_data = data.get("relationships", {})
-            print(f"Loaded relationships: {list(relationships_data.keys())}")
+            print(f"Loaded relationships: {list(relationships_data.keys())}", file=sys.stderr)
     except Exception as e:
-        print(f"Failed to load relationships: {e}")
+        print(f"Failed to load relationships: {e}", file=sys.stderr)
         relationships_data = {}
 
 def load_usage_guide():
@@ -57,10 +57,10 @@ def load_usage_guide():
         
         # Parse sections based on headers
         usage_guide_sections = parse_markdown_sections(usage_guide_content)
-        print(f"Loaded usage guide with {len(usage_guide_sections)} sections")
-        
+        print(f"Loaded usage guide with {len(usage_guide_sections)} sections", file=sys.stderr)
+
     except Exception as e:
-        print(f"Failed to load usage guide: {e}")
+        print(f"Failed to load usage guide: {e}", file=sys.stderr)
         usage_guide_content = ""
         usage_guide_sections = {}
 
@@ -395,9 +395,9 @@ async def main():
     server_dir = Path(__file__).parent
     actors_dir = server_dir.parent / "actors"
     knowledge_file = server_dir.parent / "fuse_knowledge_base.json"
-    
-    print(f"Loading actors from: {actors_dir}")
-    print(f"Knowledge base file: {knowledge_file}")
+
+    print(f"Loading actors from: {actors_dir}", file=sys.stderr)
+    print(f"Knowledge base file: {knowledge_file}", file=sys.stderr)
     
     kb = ActorKnowledgeBase(
         actors_dir=actors_dir,
@@ -635,13 +635,21 @@ async def main():
     
     @server.read_resource()
     async def read_resource(uri: str):
+        from mcp.types import TextResourceContents
+
         if uri == "prompt://fuse_expert":
             prompt_file = Path(__file__).parent / "prompts" / "actor_expert.txt"
             if prompt_file.exists():
-                return prompt_file.read_text()
+                content = prompt_file.read_text()
             else:
-                return "You are a FUSE plasma simulation expert. Help users understand and work with FUSE actors."
-        
+                content = "You are a FUSE plasma simulation expert. Help users understand and work with FUSE actors."
+
+            return TextResourceContents(
+                uri=uri,
+                text=content,
+                mimeType="text/plain"
+            )
+
         elif uri == "knowledge://fuse_actors":
             import json
             # Create a JSON representation of the knowledge base
@@ -664,19 +672,31 @@ async def main():
                     "inputs": actor_info.inputs,
                     "outputs": actor_info.outputs
                 }
-            
-            return json.dumps({
+
+            content = json.dumps({
                 "total_actors": len(kb.actors),
                 "categories": list(kb.categories.keys()),
                 "actors": actors_data
             }, indent=2)
-        
+
+            return TextResourceContents(
+                uri=uri,
+                text=content,
+                mimeType="application/json"
+            )
+
         elif uri == "knowledge://fuse_usage_guide":
             if usage_guide_content:
-                return usage_guide_content
+                content = usage_guide_content
             else:
-                return "# FUSE Usage Guide\n\nUsage guide not loaded. Please check server configuration."
-        
+                content = "# FUSE Usage Guide\n\nUsage guide not loaded. Please check server configuration."
+
+            return TextResourceContents(
+                uri=uri,
+                text=content,
+                mimeType="text/markdown"
+            )
+
         else:
             raise ValueError(f"Unknown resource URI: {uri}")
     

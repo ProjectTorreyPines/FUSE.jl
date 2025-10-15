@@ -193,15 +193,21 @@ makedocs(;
     repo=Remotes.GitHub("ProjectTorreyPines", "FUSE.jl"),
     warnonly=true,
     pages=[
-        "Main" => "index.md",
-        "Learn" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md", "Publications" => "pubs.md"],
+        "Home" => "index.md",
+        "Install" => "install.md",
+        "Tutorial" => "tutorial.md",
+        "Examples" => "examples.md",
         "Use Cases" => "cases.md",
-        "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
-        "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"],
-        "Data Structure" => "dd.md",
-        "Development" => ["deps.md", "develop.md"],
-        "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
-        "License" => ["License" => "license.md", "Notice" => "notice.md"]
+        "Publications" => "pubs.md",
+        "Actors" => "actors.md",
+        "Initialization" => "inits.md",
+        "`act` Parameters" => "act.md",
+        "`ini` Parameters" => "ini.md",
+        "`dd` Data Structure" => "dd.md",
+        "Ecosystem" => "deps.md",
+        "Development" => "develop.md",
+        "License" => "license.md",
+        "Notice" => "notice.md"
     ]
 )
 
