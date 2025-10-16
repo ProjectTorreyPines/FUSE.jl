@@ -1,10 +1,11 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
 authors = ["Orso Meneghini <orso82@gmail.com>"]
-version = "0.9.1"
+version = "0.9.2"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 BalanceOfPlantSurrogate = "001e48cb-5a1e-4e3c-a5d4-cdc3aa14f3de"
 BoundaryPlasmaModels = "2da5b0d0-c5e5-4f14-9caf-62d0020df410"
 CHEASE = "40781a8e-f1bb-11ec-24ef-0f6bc40c1567"
@@ -67,16 +68,18 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 TroyonBetaNN = "c0158764-c6e1-428b-a545-31826f389bc8"
 TurbulentTransport = "9bf5e8f4-5746-4003-bc69-ef83265c10ca"
 VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
-Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [weakdeps]
 ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
+Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [extensions]
 ThermalSystemModelsExt = "ThermalSystemModels"
+WeaveExt = "Weave"
 
 [compat]
 AbstractTrees = "0.4"
+ArgParse = "1.2.0"
 BalanceOfPlantSurrogate = "3"
 BoundaryPlasmaModels = "1"
 CHEASE = "1"
@@ -86,7 +89,7 @@ DataFrames = "1"
 DelimitedFiles = "1"
 EGGO = "2.1"
 EPEDNN = "1"
-FRESCO = "0.6"
+FRESCO = "0.7"
 FileIO = "1"
 FixedPointAcceleration = "1.0.1"
 ForwardDiff = "0.10"
@@ -132,5 +135,5 @@ ThermalSystemModels = "1"
 TimerOutputs = "0.5"
 TroyonBetaNN = "1"
 TurbulentTransport = "1"
-VacuumFields = "4, 5"
+VacuumFields = "6"
 Weave = "0.10"

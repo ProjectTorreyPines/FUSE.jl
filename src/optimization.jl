@@ -81,13 +81,13 @@ function optimization_engine(
 
         return ff, gg, hh
 
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         # save empty dd and error to directory
-        save(savedir, nothing, ini, act; error, timer=true, freeze=false, overwrite_files=true)
+        save(savedir, nothing, ini, act; error=e, timer=true, freeze=false, overwrite_files=true)
 
         # rethrow(e) # uncomment for debugging purposes
 
@@ -206,7 +206,7 @@ function optimization_engine(
         df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
 
         # save simulation data
-        save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
+        save_study_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
             timer=true, freeze=false, overwrite_groups=true)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
@@ -233,9 +233,9 @@ function optimization_engine(
 
         return ff, gg, hh
 
-    catch error
-        if isa(error, InterruptException)
-            rethrow(error)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
         end
 
         df = DataFrame()
@@ -250,8 +250,8 @@ function optimization_engine(
         df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
 
         # save empty dd and error to directory
-        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
-            error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_study_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
+            error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"

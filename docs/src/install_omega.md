@@ -1,4 +1,4 @@
-# Public FUSE installation on GA's Omega
+# On OMEGA cluster
 
 ## FUSE module
 
