@@ -72,3 +72,9 @@ LocalPreferences.toml
 julia-*.out
 examples/Untitled.ipynb
 tmp.gif
+*.pyc
+*.log
+
+# Generated knowledge base files
+knowledge/actors/
+knowledge/mcp_server/start_server.sh

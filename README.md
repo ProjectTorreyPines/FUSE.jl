@@ -10,12 +10,14 @@ The figure below is a sneakpeak of the models implemented in FUSE:
 
 Here are some key resources for getting started with FUSE:
 
+* 📨 **[Sign up for more info](https://forms.gle/iQGYKWfgeNkw2fCZ7)**
 * 📚 **[Online documentation](https://fuse.help)**
 * 🎓 **[Intro tutorial](https://fuse.help/dev/tutorial.html)**
 * 🎤 **[Recent presentation](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)**
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
 * 🗒️ **[Weekly devs meeting minutes](https://github.com/ProjectTorreyPines/FUSE.jl/discussions)**
+* 🤔 **[Ask DeepWiki](https://deepwiki.com/ProjectTorreyPines/FUSE.jl)**
 
 ## Objectives
 
@@ -41,7 +43,7 @@ FUSE is entirely written in Julia and is structured around the following core co
 6. **🔄 Studies**: Studies pre-bake commonly used functionalities, typically involving multiple FUSE simulations (eg. database generation or multi objective optimizations).
 7. **🌍 Interoperability**: FUSE interfaces via `dd` with existing modeling tools like OMFIT/OMAS and the IMAS ecosystem.
 
-A diagram illustrating these concepts is provided below:  
+A diagram illustrating these concepts is provided below:
 ![FUSE Diagram](./docs/src/assets/FUSE.svg)
 
 ## Usage Example

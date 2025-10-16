@@ -4,10 +4,7 @@ import GACODE
 #= ================= =#
 #  ActorNeoclassical  #
 #= ================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorNeoclassical{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorNeoclassical{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar], "-", "Neoclassical model to run"; default=:hirshmansigmar)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.25:0.1:0.85)
 end
@@ -16,14 +13,25 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorNeoclassical{P}}
     input_neos::Vector{<:NeoclassicalTransport.InputNEO}
-    flux_solutions::Vector{<:GACODE.FluxSolution}
+    flux_solutions::Vector{GACODE.FluxSolution{D}}
     equilibrium_geometry::Union{NeoclassicalTransport.EquilibriumGeometry,Missing}
 end
 
 """
     ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the neoclassical transport fluxes
+Evaluates neoclassical (collisional) transport fluxes using established theoretical models.
+
+Supported neoclassical models:
+- `:changhinton`: Chang-Hinton model for ion heat transport in the banana/plateau regime
+- `:neo`: Full drift-kinetic NEO code for comprehensive neoclassical transport including 
+  bootstrap current, providing electron/ion energy, particle, and momentum fluxes
+- `:hirshmansigmar`: Hirshman-Sigmar analytical model for comprehensive neoclassical transport
+  in various collisionality regimes
+
+The models account for collisional effects, magnetic geometry, and trapped particle physics
+to calculate transport coefficients. Results are stored in `dd.core_transport.model[:neoclassical]`
+and include contributions to bootstrap current, thermal transport, and particle transport.
 """
 function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorNeoclassical(dd, act.ActorNeoclassical; kw...)
@@ -32,16 +40,21 @@ function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorNeoclassical(dd::IMAS.dd, par::FUSEparameters__ActorNeoclassical; kw...)
+function ActorNeoclassical(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeoclassical{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorNeoclassical)
     par = OverrideParameters(par; kw...)
-    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution[], missing)
+    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing)
 end
 
 """
     _step(actor::ActorNeoclassical)
 
-Runs ActorNeoclassical to evaluate the neoclassical transport flux on a vector of gridpoints
+Runs the selected neoclassical transport model to evaluate collisional fluxes on radial grid points.
+
+For Chang-Hinton: Calculates ion heat transport using local parameters.
+For NEO: Creates InputNEO structures and runs the NEO code in parallel for each grid point.
+For Hirshman-Sigmar: Uses cached equilibrium geometry and evaluates the analytical model
+with local plasma parameters, providing comprehensive neoclassical transport coefficients.
 """
 function _step(actor::ActorNeoclassical)
     par = actor.par
@@ -76,7 +89,12 @@ end
 """
     _finalize(actor::ActorNeoclassical)
 
-Writes ActorNeoclassical results to dd.core_transport
+Writes neoclassical transport fluxes to `dd.core_transport.model[:neoclassical]`.
+
+Sets the model identifier based on the selected model (Chang-Hinton, NEO, or Hirshman-Sigmar)
+and converts flux results from GACODE format to IMAS format. The number and type of fluxes 
+written depend on the model: Chang-Hinton provides only ion energy flux, while NEO and 
+Hirshman-Sigmar provide comprehensive electron/ion energy, particle, and momentum fluxes.
 """
 function _finalize(actor::ActorNeoclassical)
     par = actor.par

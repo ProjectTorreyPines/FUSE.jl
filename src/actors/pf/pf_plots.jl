@@ -77,7 +77,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
     if coils_flux
         ngrid = 129
         R = range(xlim[1], xlim[2], ngrid)
-        Z = range(ylim[1], ylim[2], Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
+        Z = range(ylim[1], ylim[2], round(Int, ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]), RoundUp))
 
         coils = VacuumFields.GS_IMAS_pf_active__coil{D,D}[]
         for coil in dd.pf_active.coil
@@ -202,6 +202,16 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 marker := :star
                 label := "Saddle constraints"
                 [cpt.R for cpt in actor.saddle_control_points], [cpt.Z for cpt in actor.saddle_control_points]
+            end
+        end
+        if !isempty(actor.field_control_points)
+            @series begin
+                color := :blue
+                seriestype := scatter
+                markerstrokewidth := 0
+                marker := :square
+                label := "Field constraints"
+                [cpt.R for cpt in actor.field_control_points], [cpt.Z for cpt in actor.field_control_points]
             end
         end
     end

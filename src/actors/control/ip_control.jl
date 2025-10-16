@@ -1,7 +1,4 @@
-Base.@kwdef mutable struct FUSEparameters__ActorControllerIp{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorControllerIp{T} begin
     algorithm::Entry{Symbol} = Entry{Symbol}("-", "Algorithm to dispatch on"; default=:PID)
     P::Entry{T} = Entry{T}("-", "Proportional gain")
     I::Entry{T} = Entry{T}("-", "Integral gain")
@@ -82,7 +79,7 @@ function _step(actor::ActorControllerIp; time0::Float64=dd.global_time)
             # initial guess for Vloop if none provided
             if ismissing(par, :Vloop_initial)
                 Ω = IMAS.plasma_lumped_resistance(dd)
-                Ip0 = IMAS.get_from(dd, Val{:ip}, :pulse_schedule)
+                Ip0 = IMAS.get_from(dd, Val(:ip), :pulse_schedule)
                 Vloop0 = Ip0 * Ω
             else
                 Vloop0 = par.Vloop_initial
@@ -97,8 +94,8 @@ function _step(actor::ActorControllerIp; time0::Float64=dd.global_time)
 
     else
         # run the controller
-        ip_target_now = IMAS.get_from(dd, Val{:ip}, :pulse_schedule; time0)
-        ip_value_now = IMAS.get_from(dd, Val{:ip}, :core_profiles) # eventually this should be Ip from a synthetic Rogowski coil
+        ip_target_now = IMAS.get_from(dd, Val(:ip), :pulse_schedule; time0)
+        ip_value_now = IMAS.get_from(dd, Val(:ip), :core_profiles) # eventually this should be Ip from a synthetic Rogowski coil
         actor.controller(Val(:ip), Val(par.algorithm), ip_target_now, ip_value_now, time0)
     end
 

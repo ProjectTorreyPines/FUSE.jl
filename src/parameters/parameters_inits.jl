@@ -100,7 +100,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     zeff::Entry{T} = Entry{T}("-", "Effective ion charge"; check=x -> @assert x >= 1.0 "must be: zeff > 1.0")
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
-    bulk::Entry{Symbol} = Entry{Symbol}("-", "Bulk ion species")
+    bulk::Switch{Symbol} = Switch{Symbol}([:H, :D, :DT, :D_T], "-", "Hydrogenic bulk ion species. Use :D_T for unbundled :D and :T species.")
     impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
@@ -397,7 +397,7 @@ function Base.setproperty!(parameters_layer::FUSEparameters__build_layer{T}, fie
         allowed_materials = FusionMaterials.supported_material_list(layer_type)
 
         if val ∉ allowed_materials
-            error("$val is not an allowed material for $(pretty_layer_type) layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
+            error("`$val` is not an allowed material for `$(pretty_layer_type)` layer type. Acceptable materials are $(join(allowed_materials, ", ")).")
         end
     end
 
@@ -714,8 +714,8 @@ Plots ini time dependent time traces including plasma boundary
             end
         end
         layout := @layout [N + 1]
-        w = max(600, Int(ceil(300 * sqrt(N))))
-        h = max(400, Int(ceil(200 * sqrt(N))))
+        w = max(600, round(Int, 300 * sqrt(N), RoundUp))
+        h = max(400, round(Int, 200 * sqrt(N), RoundUp))
         size --> (w, h)
     end
 

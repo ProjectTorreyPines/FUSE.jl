@@ -1,17 +1,14 @@
 #= ================== =#
 #  ActorEPEDprofiles  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorEPEDprofiles{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorEPEDprofiles{T} begin
     Te_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile")
     ne_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the density profile")
     T_ratio_pedestal::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the pedestal")
     T_ratio_core::Entry{T} = Entry{T}("-", "Ion to electron temperature ratio in the core")
 end
 
-mutable struct ActorEPEDprofiles{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorEPEDprofiles{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorEPEDprofiles{P}}
     act::ParametersAllActors{P}
@@ -25,9 +22,38 @@ end
 """
     ActorEPEDprofiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Updates pedestal height and width and blends with core profiles that are defined by shaping factors.
+Constructs complete plasma profiles by blending EPED pedestal predictions with shaped core profiles.
 
-Does not change on-axis values of plasma profiles.
+This actor combines EPED-predicted pedestal conditions with parametrically shaped core 
+profiles to create complete, consistent temperature and density profiles across the entire 
+plasma. It maintains fixed on-axis values while ensuring smooth transitions between core 
+and pedestal regions.
+
+Key operations:
+- Runs EPED model to predict pedestal pressure and width
+- Applies H-mode profile functions with configurable shaping parameters
+- Maintains ion-electron temperature ratio consistency (core vs. pedestal)
+- Preserves particle density ratios between species
+- Ensures proper pedestal positioning at ρ=0.9 reference location
+
+Profile construction workflow:
+1. **EPED Prediction**: Calculates pedestal pressure and width from current plasma state
+2. **Temperature Profiles**: Constructs Te and Ti using H-mode functions with shaping
+3. **Density Profiles**: Updates ne and ni maintaining species fraction consistency  
+4. **Source Updates**: Recalculates all power and particle sources for updated profiles
+
+Shaping parameters:
+- `Te_shaping`: Controls electron temperature profile curvature
+- `ne_shaping`: Controls electron density profile curvature  
+- `T_ratio_pedestal`: Ti/Te ratio in pedestal region
+- `T_ratio_core`: Ti/Te ratio in core region
+
+The actor preserves the on-axis plasma values while optimizing the profile shapes 
+to match both EPED pedestal predictions and prescribed core-pedestal transitions.
+
+!!! note
+
+    Does not modify on-axis values of plasma profiles, only shapes and pedestal conditions
 """
 function ActorEPEDprofiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act; kw...)
@@ -38,6 +64,12 @@ end
 
 """
     _step(actor::ActorEPEDprofiles)
+
+Executes EPED model and constructs shaped plasma profiles.
+
+The step function runs the EPED prediction, extracts pedestal boundary conditions,
+and applies H-mode profile functions to create consistent temperature and density 
+profiles that smoothly transition from shaped cores to EPED-predicted pedestals.
 """
 function _step(actor::ActorEPEDprofiles)
     dd = actor.dd
@@ -52,8 +84,8 @@ function _step(actor::ActorEPEDprofiles)
 
     rho_ped = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - sol.width.GH.H)
 
-    ne_ped = IMAS.get_from(dd, Val{:ne_ped}, :pulse_schedule, rho_ped)
-    zeff_ped = IMAS.get_from(dd, Val{:zeff_ped}, :pulse_schedule, rho_ped)
+    ne_ped = IMAS.get_from(dd, Val(:ne_ped), :pulse_schedule, rho_ped)
+    zeff_ped = IMAS.get_from(dd, Val(:zeff_ped), :pulse_schedule, rho_ped)
 
     impurity = [ion.element[1].z_n for ion in cp1d.ion if !IMAS.is_hydrogenic(ion)][1]
     zi = sum(impurity) / length(impurity)
@@ -118,7 +150,10 @@ end
 """
     _finalize(actor::ActorEPEDprofiles)
 
-Updates IMAS.core_sources
+Updates plasma sources to be consistent with the new profile shapes.
+
+Recalculates all power, particle, and momentum sources in dd.core_sources 
+to ensure consistency with the updated temperature and density profiles.
 """
 function _finalize(actor::ActorEPEDprofiles)
     dd = actor.dd
