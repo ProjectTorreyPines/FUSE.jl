@@ -1,25 +1,4 @@
-txt = []
-for method in methods(FUSE.case_parameters)
-    name = try
-        method.sig.types[2].parameters[1].parameters[1]
-    catch
-        continue
-    end
-    push!(txt,
-        """## $name
-
-        ```@docs
-        case_parameters(::Val(:$name))
-        ```
-        """
-    )
-end
-
-sort!(txt)
-
-pushfirst!(
-    txt,
-    """# Use cases
+# Use cases
 
 ```@meta
 CurrentModule = FUSE
@@ -35,9 +14,6 @@ A handy way of generating the ini code from `your_ini` that you created in a not
 !!! tip "Tip!"
     Click on the `Source` button of each use case to see how each is setup
 
-"""
-)
-
-open("$(@__DIR__)/cases.md", "w") do io
-    return write(io, join(txt, "\n"))
-end
+```@docs
+case_parameters
+```
