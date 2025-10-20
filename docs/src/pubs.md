@@ -1,14 +1,12 @@
 # References
 
 ```
-@misc{meneghini2024fusefusionsynthesisengine,
-      title={FUSE (Fusion Synthesis Engine): A Next Generation Framework for Integrated Design of Fusion Pilot Plants}, 
-      author={O. Meneghini and T. Slendebroek and B. C. Lyons and K. McLaughlin and J. McClenaghan and L. Stagner and J. Harvey and T. F. Neiser and A. Ghiozzi and G. Dose and J. Guterl and A. Zalzali and T. Cote and N. Shi and D. Weisberg and S. P. Smith and B. A. Grierson and J. Candy},
-      year={2024},
-      eprint={2409.05894},
-      archivePrefix={arXiv},
-      primaryClass={physics.plasm-ph},
-      url={https://arxiv.org/abs/2409.05894}, 
+@article{meneghini2024fuse,
+author = {Meneghini, O. and Slendebroek, T. and Lyons, B.C. and McLaughlin, K. and McClenaghan, J. and Stagner, L. and Harvey, J. and Neiser, T.F. and Ghiozzi, A. and Dose, G. and Guterl, J. and Zalzali, A. and Cote, T. and Shi, N. and Weisberg, D. and Smith, S.P. and Grierson, B.A. and Candy, J.},
+doi = {10.48550/arXiv.2409.05894},
+journal = {arXiv},
+title = {{FUSE (Fusion Synthesis Engine): A Next Generation Framework for Integrated Design of Fusion Pilot Plants}},
+year = {2024}
 }
 ```
 
