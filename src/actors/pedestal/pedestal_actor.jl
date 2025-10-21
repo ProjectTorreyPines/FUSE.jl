@@ -325,7 +325,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
 
     ne_old = copy(cp1d.electrons.density_thermal)
     ne_ped = IMAS.get_from(dd, Val(:ne_ped), par.ne_from, rho09) * density_factor
-    ne_sep = IMAS.get_from(dd, Val(:ne_sep), par.ne_sep_from) * density_factor
+    ne_sep = IMAS.get_from(dd, Val(:ne_sep), par.ne_sep_from; time0=dd.global_time) * density_factor
     user_sep_to_ped_ratio = ne_sep / ne_ped
 
     cp1d.electrons.density_thermal[end] = ne_ped * user_sep_to_ped_ratio
