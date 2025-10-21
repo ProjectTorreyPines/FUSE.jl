@@ -8,7 +8,7 @@ import Serialization
 
 Generates a database of dds from ini and act based on ranges specified in ini
 """
-function study_parameters(::Val{:MultiObjectiveOptimizer})::Tuple{FUSEparameters__ParametersStudyMultiObjectiveOptimizer,ParametersAllActors}
+function study_parameters(::Val{:MultiObjectiveOptimizer})
     return FUSEparameters__ParametersStudyMultiObjectiveOptimizer{Real}()
 end
 
@@ -102,7 +102,6 @@ function _run(study::StudyMultiObjectiveOptimizer)
         @info "released workers"
 
     else
-        setup(study)
         optimization_parameters = Dict(
             :N => sty.population_size,
             :iterations => sty.number_of_generations,
