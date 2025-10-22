@@ -89,7 +89,7 @@ function optimization_engine(
         # save empty dd and error to directory
         save(savedir, nothing, ini, act; error=e, timer=true, freeze=false, overwrite_files=true)
 
-        # rethrow(e) # uncomment for debugging purposes
+        rethrow(e) # uncomment for debugging purposes
 
         ff = Float64[Inf for f in objective_functions]
         gg = Float64[Inf for g in constraint_functions]
@@ -265,7 +265,7 @@ function optimization_engine(
             CSV.write(csv_filepath, df)
         end
 
-        # rethrow(e) # uncomment for debugging purposes
+        rethrow(e) # uncomment for debugging purposes
 
         ff = Float64[Inf for f in objective_functions]
         gg = Float64[Inf for g in constraint_functions]

@@ -31,6 +31,7 @@ The actor supports two transport models:
   - `:GyroBohm`: Simple gyro-Bohm scaling returning unit fluxes
   - `:BgB`: Detailed Bohm + gyro-Bohm model calculating electron and ion energy diffusivities (χe, χi)
     and particle flux (Γe) based on local plasma parameters, pressure gradients, and magnetic geometry
+    Tholerus, Emmi, et al. Nuclear Fusion 64.10 (2024): 106030
 
 The BgB model computes transport coefficients using local temperature and density gradients,
 safety factor profiles, and magnetic field geometry. Results are normalized to gyro-Bohm
