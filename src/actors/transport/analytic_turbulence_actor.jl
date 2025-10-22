@@ -116,9 +116,9 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
         χi = @. actor.par.αBgB * (actor.par.χiB_coefficient * χiB + actor.par.χiGB_coefficient * χiGB)
 
         Dp = @. (A1 + (A2 - A1) * rho_cp) * χe * χi / (χe + χi)
-        vin = @. 0.5 * Dp .* (surf .^ 2 ./ volume) ./ vprime_miller
+        vin = @. 0.5 * Dp * (surf ^ 2 / volume) / vprime_miller
         vin[1] = 0.0
-        Γe = @. Dp * dlnnedr * ne .- vin * ne
+        Γe = @. (Dp * dlnnedr - vin) * ne
 
         gridpoint_cp = [argmin_abs(cp1d.grid.rho_tor_norm, ρ) for ρ in par.rho_transport]
 
