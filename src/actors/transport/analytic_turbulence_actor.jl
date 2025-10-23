@@ -27,12 +27,14 @@ end
 Evaluates analytic turbulent transport models including GyroBohm and Bohm+gyro-Bohm (BgB) models.
 
 The actor supports two transport models:
-- `:GyroBohm`: Simple gyro-Bohm scaling returning unit fluxes
-- `:BgB`: Detailed Bohm + gyro-Bohm model calculating electron and ion energy diffusivities (χe, χi) 
-  and particle flux (Γe) based on local plasma parameters, pressure gradients, and magnetic geometry
+
+  - `:GyroBohm`: Simple gyro-Bohm scaling returning unit fluxes
+  - `:BgB`: Detailed Bohm + gyro-Bohm model calculating electron and ion energy diffusivities (χe, χi)
+    and particle flux (Γe) based on local plasma parameters, pressure gradients, and magnetic geometry
+    Tholerus, Emmi, et al. Nuclear Fusion 64.10 (2024): 106030
 
 The BgB model computes transport coefficients using local temperature and density gradients,
-safety factor profiles, and magnetic field geometry. Results are normalized to gyro-Bohm 
+safety factor profiles, and magnetic field geometry. Results are normalized to gyro-Bohm
 and stored in `dd.core_transport` as anomalous transport fluxes.
 """
 function ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -54,11 +56,12 @@ end
 Runs the selected analytic turbulent transport model on specified radial grid points.
 
 For the BgB model, calculates:
-- χeB, χeGB: Bohm and gyro-Bohm electron heat diffusivities
-- χiB, χiGB: Bohm and gyro-Bohm ion heat diffusivities  
-- Γe: Electron particle flux based on density gradients
 
-All transport coefficients are scaled by user-specified coefficients and stored as 
+  - χeB, χeGB: Bohm and gyro-Bohm electron heat diffusivities
+  - χiB, χiGB: Bohm and gyro-Bohm ion heat diffusivities
+  - Γe: Electron particle flux based on density gradients
+
+All transport coefficients are scaled by user-specified coefficients and stored as
 FluxSolution objects normalized to gyro-Bohm units.
 """
 function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
@@ -84,7 +87,10 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
 
         bax = eqt.global_quantities.magnetic_axis.b_field_tor
         q_profile = IMAS.interp1d(rho_eq, eqt1d.q).(rho_cp)
+        volume = IMAS.interp1d(rho_eq, eqt1d.volume).(rho_cp)
+        dvoldrho = IMAS.interp1d(rho_eq, eqt1d.dvolume_drho_tor).(rho_cp)*eqt1d.rho_tor[end]
         vprime_miller = IMAS.interp1d(rho_eq, GACODE.volume_prime_miller_correction(eqt)).(rho_cp)
+        surf = IMAS.interp1d(rho_eq, eqt1d.surface).(rho_cp)
 
         rmin = GACODE.r_min_core_profiles(eqt1d, rho_cp)
         Te = cp1d.electrons.temperature
@@ -107,9 +113,13 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
         χiB = 2.0 * χeB
         χiGB = 0.5 * χeGB
 
-        χe = @. actor.par.αBgB * (actor.par.χeB_coefficient * χeB + actor.par.χeGB_coefficient * χeGB) 
+        χe = @. actor.par.αBgB * (actor.par.χeB_coefficient * χeB + actor.par.χeGB_coefficient * χeGB)
         χi = @. actor.par.αBgB * (actor.par.χiB_coefficient * χiB + actor.par.χiGB_coefficient * χiGB)
-        Γe = @. (A1 + (A2 - A1) * rho_cp) * χe * χi / (χe + χi) * dlnnedr * ne
+
+        Dp = @. (A1 + (A2 - A1) * rho_cp) * χe * χi / (χe + χi)
+        vin = @. 0.5 * Dp * (surf ^ 2 / volume) / dvoldrho
+        vin[1] = 0.0
+        Γe = @. (Dp * dlnnedr - vin) * ne
 
         gridpoint_cp = [argmin_abs(cp1d.grid.rho_tor_norm, ρ) for ρ in par.rho_transport]
 
