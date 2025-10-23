@@ -1,4 +1,4 @@
-# On OMEGA cluster
+# On GA's OMEGA cluster
 
 ## FUSE module
 
@@ -9,7 +9,38 @@ To load the latest version, do:
 module load fuse
 ```
 
-Once the module is loaded, you can start Julia at the terminal and import the FUSE module.
+The FUSE module does several things:
+
+1. It exposes the `fuse` executable, which runs Julia in a read-only environment with the FUSE
+   codebase precompiled into a
+   [sysimage](https://julialang.github.io/PackageCompiler.jl/dev/sysimages.html).
+   This greatly reduces the time-to-first-execution (TTFX) for many functions in the FUSE code suite,
+   at the expense of "locking" those packages and functions to the versions with which they
+   were compiled.
+
+1. The Julia module is also loaded, so development work can be done by running the `julia` command.
+   This gives you access to a public Julia installation with your own private "depot" in which each
+   user can add or develop their own packages. The location of this private depot is given by the
+   environment variable `JULIA_USER_DEPOT`.
+
+1. FUSE is already available when you launch `julia` or `fuse`, so there's no need to do
+   `Pkg.add("FUSE")`. You can simply do `using FUSE` and begin working.
+
+1. A custom conda installation is made available to you that has Jupyterlab with
+   precompiled Julia kernels that include the FUSE sysimage. You can just do `jupyter lab` to
+   start a Jupyter session and select the desired kernels. There is a kernel with 1 thread meant
+   for the login nodes and 10 & 16 threads for the worker nodes.
+   !!! warning
+       **Problem**: There's a bug that may occur when a new user first launches one of these
+       Julia + FUSE Jupyter kernels.
+       In your terminal, you will see output about precompiling IJulia, which is expected.
+       Once the precompilation is done, it will report `Starting kernel event loops` but then the
+       kernel may hang and your notebook may not work. It is unclear why this happens, but it is
+       only the first time for each user.
+
+       **Solution**: Restart the kernel. Occasionally this needs to be done twice, perhaps if you
+       restart too quickly and the precompilation was not finished. In any case, if the problem
+       does not resolve after restarting the kernel twice, reach out to the FUSE developers.
 
 ## Running Julia/FUSE via VScode
 
@@ -31,7 +62,7 @@ To do this:
 
 Now Julia scripts and notebooks can be run directly from this remote VScode session.
 
-## Connecting to a Jupyter-lab server running on OMEGA
+## Connecting to a Jupyter-lab server running on OMEGA from your laptop
 
 1. Connect to `omega` and launch `screen`
 
@@ -126,37 +157,3 @@ module load atom
 module unload gcc
 module unload env
 ```
-
-### How the public installation of FUSE works
-
-The FUSE unix module `module load fuse` does several things:
-
-1. The `julia` unix module is loaded, which gives you access to a public Julia installation with your
-   own private "depot" in which each user can add or develop their own packages. The location
-   of this private depot is given by the environment variable `JULIA_USER_DEPOT`.
-
-1. The FUSE codebase has been precompiled and made available to Julia via a
-   [sysimage](https://julialang.github.io/PackageCompiler.jl/dev/sysimages.html).
-   This greatly reduces the time-to-first-execution (TTFX) for many functions in the FUSE code suite,
-   at the expense of "locking" those packages and functions to the versions with which they
-   were compiled.
-
-1. FUSE is already available when you launch Julia, so there's no need to do `Pkg.add("FUSE")`.
-   You can simply do `using FUSE` and being working.
-
-1. A custom conda installation is made available to you that has Jupyter notebooks with
-   precompiled Julia kernels that include the FUSE sysimage. You can just do `jupyter lab` to
-   start a Jupyter session and select the desired kernels. There is a kernel with 10 threads meant
-   for the login nodes and one with 40 threads meant for the worker nodes.
-   !!! warning
-       **Problem**: There's a bug that occurs when a new user first launches one of these
-       Julia + FUSE Jupyter kernels.
-       In your terminal, you will see output about precompiling IJulia, which is expected.
-       Once the precompilation is done, it will report `Starting kernel event loops` but then the
-       kernel may hang and your notebook may not work. It is unclear why this happens, but it is
-       only the first time for each user.
-
-       **Solution**: Restart the kernel. Occasionally this needs to be done twice, perhaps if you
-       restart too quickly and the precompilation was not finished. In any case, if the problem
-       does not resolve after restarting the kernel twice, reach out to the FUSE developers.
-
