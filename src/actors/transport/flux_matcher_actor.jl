@@ -283,14 +283,18 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # NonlinearSolve returns the first value if the optimization was not successful
             # but we want it to return the best solution, even if the optimization did not
             # reach the desired tolerance
-            if norm(err_history[end]) == norm(err_history[1])
+            if !isempty(err_history) && length(err_history) > 1 && norm(err_history[end]) == norm(err_history[1])
                 pop!(err_history)
                 pop!(z_scaled_history)
             end
 
             # Extract the solution vector
-            k = argmin(map(norm, err_history))
-            res = (zero=z_scaled_history[k],)
+            if !isempty(err_history)
+                k = argmin(map(norm, err_history))
+                res = (zero=z_scaled_history[k],)
+            else
+                res = (zero=opt_parameters,)
+            end
         end
 
     finally
