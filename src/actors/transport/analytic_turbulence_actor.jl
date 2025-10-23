@@ -88,6 +88,7 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
         bax = eqt.global_quantities.magnetic_axis.b_field_tor
         q_profile = IMAS.interp1d(rho_eq, eqt1d.q).(rho_cp)
         volume = IMAS.interp1d(rho_eq, eqt1d.volume).(rho_cp)
+        dvoldrho = IMAS.interp1d(rho_eq, eqt1d.dvolume_drho_tor).(rho_cp)*eqt1d.rho_tor[end]
         vprime_miller = IMAS.interp1d(rho_eq, GACODE.volume_prime_miller_correction(eqt)).(rho_cp)
         surf = IMAS.interp1d(rho_eq, eqt1d.surface).(rho_cp)
 
@@ -116,7 +117,7 @@ function _step(actor::ActorAnalyticTurbulence{D,P}) where {D<:Real,P<:Real}
         χi = @. actor.par.αBgB * (actor.par.χiB_coefficient * χiB + actor.par.χiGB_coefficient * χiGB)
 
         Dp = @. (A1 + (A2 - A1) * rho_cp) * χe * χi / (χe + χi)
-        vin = @. 0.5 * Dp * (surf ^ 2 / volume) / vprime_miller
+        vin = @. 0.5 * Dp * (surf ^ 2 / volume) / dvoldrho
         vin[1] = 0.0
         Γe = @. (Dp * dlnnedr - vin) * ne
 
