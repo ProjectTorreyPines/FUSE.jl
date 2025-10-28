@@ -169,7 +169,7 @@ include("$(@__DIR__)/src/deps.jl")
 
 pages = [
     "Home" => "index.md",
-    "Install" => ["Install FUSE" => "install.md", "on OMEGA" => "install_omega.md", "on SAGA" => "install_saga.md"],
+    "Install" => "install.md",
     "References" => "pubs.md",
     "Tutorial" => "tutorial.md",
     "Examples" => "examples.md",
