@@ -74,17 +74,17 @@ end
 
 Performs self-consistent transport evolution by matching turbulent/neoclassical transport fluxes to source fluxes.
 
-This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile 
+This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile
 gradients until transport fluxes balance particle/energy sources. The process:
 
 1. **Profile Evolution**: Adjusts temperature/density/rotation profile gradients based on user configuration
-2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator  
+2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator
 3. **Source Calculation**: Updates plasma heating, particle, and momentum sources
 4. **Flux Matching**: Minimizes residual (transport_flux - source_flux) using nonlinear solvers
 5. **Pedestal Coupling**: Optionally evolves pedestal conditions during the iteration process
 
 Evolution options per channel:
-- `:flux_match`: Evolve profile gradients to match transport and source fluxes  
+- `:flux_match`: Evolve profile gradients to match transport and source fluxes
 - `:fixed`: Keep profiles fixed
 - `:replay`: Use profiles from experimental data
 
@@ -362,16 +362,30 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time)
         model_type = IMAS.name_2_index(dd.core_transport.model)
         for (ch, (profiles_path, fluxes_path)) in enumerate(zip(profiles_paths, fluxes_paths))
-            plot!(
-                IMAS.goto(total_source1d, fluxes_path[1:end-1]),
-                Val(fluxes_path[end]);
-                flux=true,
-                subplot=2 * ch - 1,
-                name="total sources",
-                color=:blue,
-                linewidth=2,
-                show_zeros=true
-            )
+            if fluxes_path[1] === :electrons
+                @assert length(fluxes_path) == 2 "fluxes_path for electrons must be length 2"
+                plot!(
+                    total_source1d,
+                    Val(Symbol(join(string.(fluxes_path), "__")));
+                    flux=true,
+                    subplot=2 * ch - 1,
+                    name="total sources",
+                    color=:blue,
+                    linewidth=2,
+                    show_zeros=true
+                )
+            else
+                plot!(
+                    IMAS.goto(total_source1d, fluxes_path[1:end-1]),
+                    Val(fluxes_path[end]);
+                    flux=true,
+                    subplot=2 * ch - 1,
+                    name="total sources",
+                    color=:blue,
+                    linewidth=2,
+                    show_zeros=true
+                )
+            end
             for model in dd.core_transport.model
                 if !ismissing(IMAS.goto(model.profiles_1d[], fluxes_path), :flux)
                     if model.identifier.index == model_type[:anomalous]
