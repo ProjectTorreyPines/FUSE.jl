@@ -127,7 +127,6 @@ end
         return nothing
     end
     
-=======
     end
 
     strike_indices = (index_outer, index_inner)
