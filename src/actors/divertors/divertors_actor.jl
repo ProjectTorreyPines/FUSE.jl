@@ -54,10 +54,6 @@ function _step(actor::ActorDivertors)
     sol1 = IMAS.sol(eqt, dd.wall; levels=1)[:lfs][1] # first SOL open field line on the lfs
     Psol = IMAS.power_sol(dd.core_sources, cp1d)
     λ_omp = IMAS.widthSOL_eich(eqt, Psol)
-<<<<<<< Updated upstream
-=======
-    
->>>>>>> Stashed changes
     index_inner = 1
     index_outer = length(sol1.r)
     if sol1.r[1] < sol1.r[end]
@@ -66,7 +62,6 @@ function _step(actor::ActorDivertors)
     else
         index_inner = length(sol1.r)
         index_outer = 1
-<<<<<<< Updated upstream
     end
 
     strike_indices = (index_outer, index_inner)
