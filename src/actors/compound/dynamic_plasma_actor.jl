@@ -34,42 +34,47 @@ end
 
 Evolves plasma profiles forward in time using coupled physics models.
 
-This compound actor advances the plasma state through time by coordinating multiple 
-physics models with proper temporal splitting and time step management. It handles 
-the complex coupling between transport, current evolution, heating, equilibrium, 
+This compound actor advances the plasma state through time by coordinating multiple
+physics models with proper temporal splitting and time step management. It handles
+the complex coupling between transport, current evolution, heating, equilibrium,
 and magnetic control systems.
 
 Time integration strategy:
-- Uses second-order accurate time-stepping with sub-cycling
-- Splits fast (equilibrium, PF) and slow (transport, pedestal) physics appropriately
-- Handles time-dependent boundary conditions from pulse schedule
-- Supports plasma current control via feedback systems
+
+  - Uses second-order accurate time-stepping with sub-cycling
+  - Splits fast (equilibrium, PF) and slow (transport, pedestal) physics appropriately
+  - Handles time-dependent boundary conditions from pulse schedule
+  - Supports plasma current control via feedback systems
 
 Evolution workflow (each time step):
-1. **Phase 1**: Current evolution and heating sources (δt steps)
-2. **Phase 2**: Pedestal and transport evolution (δt steps) 
-3. **Both phases**: Sawteeth, equilibrium, and PF control (δt/2 sub-steps)
+
+ 1. **Phase 1**: Current evolution and heating sources (δt steps)
+ 2. **Phase 2**: Pedestal and transport evolution (δt steps)
+ 3. **Both phases**: Sawteeth, equilibrium, and PF control (δt/2 sub-steps)
 
 Key features:
-- Configurable evolution of individual physics components
-- Optional plasma current feedback control via loop voltage
-- Time derivative sources for energy and particle balance
-- Progress tracking and convergence monitoring
-- Automatic cleanup of post-simulation time data
+
+  - Configurable evolution of individual physics components
+  - Optional plasma current feedback control via loop voltage
+  - Time derivative sources for energy and particle balance
+  - Progress tracking and convergence monitoring
+  - Automatic cleanup of post-simulation time data
 
 Physics models coordinated:
-- **ActorCurrent**: Current density diffusion and resistive evolution
-- **ActorHCD**: Time-dependent heating and current drive
-- **ActorPedestal**: Pedestal evolution and L-H transitions
-- **ActorCoreTransport**: Transport flux evolution
-- **ActorSawteeth**: Sawtooth instability cycling  
-- **ActorEquilibrium**: MHD equilibrium with evolving profiles
-- **ActorPFactive**: PF coil current control for plasma shape
+
+  - **ActorCurrent**: Current density diffusion and resistive evolution
+  - **ActorHCD**: Time-dependent heating and current drive
+  - **ActorPedestal**: Pedestal evolution and L-H transitions
+  - **ActorCoreTransport**: Transport flux evolution
+  - **ActorSawteeth**: Sawtooth instability cycling
+  - **ActorEquilibrium**: MHD equilibrium with evolving profiles
+  - **ActorPFactive**: PF coil current control for plasma shape
 
 Control options:
-- `ip_controller`: Feedback control of plasma current via loop voltage
-- Individual physics component enable/disable switches
-- Configurable time step size and number of steps
+
+  - `ip_controller`: Feedback control of plasma current via loop voltage
+  - Individual physics component enable/disable switches
+  - Configurable time step size and number of steps
 """
 function ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorDynamicPlasma(dd, act.ActorDynamicPlasma, act; kw...)
@@ -175,6 +180,10 @@ function _step(actor::ActorDynamicPlasma)
             substep(actor, Val(:run_pf_active), δt / 2; progr)
         end
 
+    catch e
+        @warn "ActorDynamicPlasma failed at $(dd.global_time) [s], trimming the last time slice which might be in a corrupted state"
+        IMAS.trim_time!(dd, (-Inf, dd.global_time - 1E-6))
+        rethrow(e)
     finally
         actor_logging(dd, old_logging)
     end
@@ -508,7 +517,17 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
                 plot!(dd1.thomson_scattering, :n_e; time0, lw=2.0, xlabel="", ylabel="", label="", primary=false)
             end
             if IMAS.hasdata(dd1.charge_exchange)
-                plot!(dd1.charge_exchange, :n_imp; time0, lw=2.0, xlabel="", ylabel="", label="", normalization=dd1.core_profiles.profiles_1d[time0].ion[2].element[1].z_n, primary=false)
+                plot!(
+                    dd1.charge_exchange,
+                    :n_imp;
+                    time0,
+                    lw=2.0,
+                    xlabel="",
+                    ylabel="",
+                    label="",
+                    normalization=dd1.core_profiles.profiles_1d[time0].ion[2].element[1].z_n,
+                    primary=false
+                )
             end
         end
         if dd !== dd1
