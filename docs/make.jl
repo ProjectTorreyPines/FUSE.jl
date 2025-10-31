@@ -9,6 +9,10 @@ import AbstractTrees
 import ProgressMeter
 import Dates
 using Literate
+ENV["GKSwstype"] = 100 # disable Plots.jl interactive output
+
+# skip running tutorial for faster builds when editing the documentation
+skip_tutorial = false
 
 include("notebook_to_jl.jl")
 
@@ -158,20 +162,32 @@ include("$(@__DIR__)/src/ini_docs.jl")
 # ================= #
 include("$(@__DIR__)/src/act_docs.jl")
 
-# =================== #
-# generate cases page #
-# =================== #
-include("$(@__DIR__)/src/cases_docs.jl")
-
 # ========================== #
 # generate dependencies page #
 # ========================== #
 include("$(@__DIR__)/src/deps.jl")
 
-# # ====================== #
-# # generate examples page #
-# # ====================== #
-# include("$(@__DIR__)/src/examples.jl")
+pages = [
+    "Home" => "index.md",
+    "Install" => "install.md",
+    "References" => "pubs.md",
+    "Tutorial" => "tutorial.md",
+    "Examples" => "examples.md",
+    "Use Cases" => "cases.md",
+    "Actors" => "actors.md",
+    "Initialization" => "inits.md",
+    "`dd` Data Structure" => "dd.md",
+    "`ini` Parameters" => "ini.md",
+    "`act` Parameters" => "act.md",
+    "Development" => "develop.md",
+    "Ecosystem" => "deps.md",
+    "License" => "license.md",
+    "Notice" => "notice.md"
+]
+
+if skip_tutorial
+    pages = [page for page in pages if page.first != "Tutorial"]
+end
 
 # ============== #
 # build the docs #
@@ -192,23 +208,7 @@ makedocs(;
     ),
     repo=Remotes.GitHub("ProjectTorreyPines", "FUSE.jl"),
     warnonly=true,
-    pages=[
-        "Home" => "index.md",
-        "Install" => "install.md",
-        "Tutorial" => "tutorial.md",
-        "Examples" => "examples.md",
-        "Use Cases" => "cases.md",
-        "Publications" => "pubs.md",
-        "Actors" => "actors.md",
-        "Initialization" => "inits.md",
-        "`act` Parameters" => "act.md",
-        "`ini` Parameters" => "ini.md",
-        "`dd` Data Structure" => "dd.md",
-        "Ecosystem" => "deps.md",
-        "Development" => "develop.md",
-        "License" => "license.md",
-        "Notice" => "notice.md"
-    ]
+    pages
 )
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks
