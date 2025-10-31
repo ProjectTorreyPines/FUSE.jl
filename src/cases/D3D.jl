@@ -115,8 +115,6 @@ function case_parameters(::Val{:D3D}, shot::Int;
         wait(task)
     else
         # remote bash/slurm script
-        # Note: Remote execution uses 'omfit/unstable' module for compatibility with remote cluster setup,
-        # while localhost uses 'omfit' (typically when already running on a GA cluster like Omega).
         remote_slurm = """#!/bin/bash -l
             #SBATCH --job-name=fetch_d3d_omas
             #SBATCH --partition=short
@@ -128,7 +126,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
             # Load any required modules
             module purge
-            module load omfit/unstable
+            module load omfit
 
             echo "Starting parallel tasks..." >&2
 
@@ -163,7 +161,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
             # Retrieve results using rsync
             $(downsync_command(omfit_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
         """
-    
+
         open(joinpath(local_path, "local_driver.sh"), "w") do io
             return write(io, local_driver)
         end
