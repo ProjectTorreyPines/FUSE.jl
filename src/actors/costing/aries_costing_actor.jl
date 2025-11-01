@@ -259,10 +259,10 @@ end
 
 Capital cost for each layer in the build
 """
-function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, da::DollarAdjust)
+function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
     if layer.type == Int(_oh_)
-        return 0.0 # oh is part of the pf_active calculation
+        return zero(T) # oh is part of the pf_active calculation
     elseif layer.type == Int(_tf_)
         build = IMAS.parent(IMAS.parent(layer))
         cost = layer.volume * (unit_cost(build.tf.technology, cst) * (1.0 - build.tf.nose_hfs_fraction) .+ unit_cost(Material(:steel), cst) * build.tf.nose_hfs_fraction)
@@ -459,7 +459,7 @@ function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_the
     bop = dd.balance_of_plant
 
     if power_thermal <= 0.0
-        return 0.0
+        return zero(eltype(da))
     else
         if contains(lowercase(bop.power_plant.power_cycle_type), "rankine")
             cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
