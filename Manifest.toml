@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.6"
+julia_version = "1.11.4"
 manifest_format = "2.0"
 project_hash = "1f6d1cbfcd2ca325f50147f7bf307aaa24bcef1b"
 
@@ -195,9 +195,9 @@ version = "3.0.2"
 
 [[deps.BandedMatrices]]
 deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "PrecompileTools"]
-git-tree-sha1 = "d5133c6b1326fe10042e41ddf1d46b0a1a4011f4"
+git-tree-sha1 = "12a29ff9110449f71120601e8e033369814023af"
 uuid = "aae01518-5342-5314-be14-df237901396f"
-version = "1.9.5"
+version = "1.10.0"
 
     [deps.BandedMatrices.extensions]
     BandedMatricesSparseArraysExt = "SparseArrays"
@@ -2333,7 +2333,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+4"
 
 [[deps.OpenMPI_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Hwloc_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "MPIPreferences", "TOML", "Zlib_jll"]
@@ -3082,15 +3082,15 @@ version = "1.7.1"
 
 [[deps.StatsBase]]
 deps = ["AliasTables", "DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "2c962245732371acd51700dbb268af311bddd719"
+git-tree-sha1 = "a136f98cefaf3e2924a66bd75173d1c891ab7453"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.34.6"
+version = "0.34.7"
 
 [[deps.StatsFuns]]
 deps = ["HypergeometricFunctions", "IrrationalConstants", "LogExpFunctions", "Reexport", "Rmath", "SpecialFunctions"]
-git-tree-sha1 = "8e45cecc66f3b42633b8ce14d431e8e57a3e242e"
+git-tree-sha1 = "1ec049c79e13fb2638ddbf8793ab2cbbeb266f45"
 uuid = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
-version = "1.5.0"
+version = "1.5.1"
 weakdeps = ["ChainRulesCore", "InverseFunctions"]
 
     [deps.StatsFuns.extensions]
