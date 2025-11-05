@@ -1,5 +1,8 @@
 # On GA's OMEGA cluster
 
+   !!! note
+       FUSE should only be run on `somega` or on a worker node, never on the `omega` login nodes.
+
 ## FUSE module
 
 If you only intend to use FUSE and don't plan to develop the source code, release versions of FUSE
@@ -31,36 +34,17 @@ The FUSE module does several things:
    start a Jupyter session and select the desired kernels. There is a kernel with 1 thread meant
    for the login nodes and 10 & 16 threads for the worker nodes.
    !!! warning
-       **Problem**: There's a bug that may occur when a new user first launches one of these
+       **Potential Problem**: There's a bug that may occur when a new user first launches one of these
        Julia + FUSE Jupyter kernels.
-       In your terminal, you will see output about precompiling IJulia, which is expected.
+       In your terminal, you may see output about precompiling IJulia, which is expected.
        Once the precompilation is done, it will report `Starting kernel event loops` but then the
        kernel may hang and your notebook may not work. It is unclear why this happens, but it is
        only the first time for each user.
 
-       **Solution**: Restart the kernel. Occasionally this needs to be done twice, perhaps if you
+       **Solution**: The latest installations on Omega seemed to have fixed this issue, but if it happens,
+       restart the kernel. Occasionally this needs to be done twice, perhaps if you
        restart too quickly and the precompilation was not finished. In any case, if the problem
        does not resolve after restarting the kernel twice, reach out to the FUSE developers.
-
-## Running Julia/FUSE via VScode
-
-The simplest way to start using FUSE is with [VScode and remote SHH connection](https://code.visualstudio.com/docs/remote/ssh-tutorial) to Omega.
-
-To do this:
-
-* Open a remote connection to Omega
-
-* Install the `Julia` and the `Jupyter` VScode extensions in on Omega
-
-* Open the `Code > Settings... > Settings` menu
-
-  * Select the `Remote [SSH: omega]` tab
-
-  * Search for `julia executable` in the search bar
-
-  * Edit the `julia: Executable Path` to `/fusion/projects/codes/julia/fuse/julia_with_fuse`
-
-Now Julia scripts and notebooks can be run directly from this remote VScode session.
 
 ## Connecting to a Jupyter-lab server running on OMEGA from your laptop
 
@@ -138,6 +122,26 @@ Keep in mind that each worker node on Omega has 128 CPUs
    This is more complex, and finicky. Avoid if possible.
 
    Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+## Running Julia/FUSE via VScode
+
+You can use [VScode and remote SHH connection](https://code.visualstudio.com/docs/remote/ssh-tutorial) to run Julia and FUSE on Omega.
+
+To do this:
+
+* Open a remote connection to Omega
+
+* Install the `Julia` and the `Jupyter` VScode extensions in on Omega
+
+* Open the `Code > Settings... > Settings` menu
+
+  * Select the `Remote [SSH: omega]` tab
+
+  * Search for `julia executable` in the search bar
+
+  * Edit the `julia: Executable Path` to `/fusion/projects/codes/julia/fuse/julia_with_fuse`
+
+Now Julia scripts and notebooks can be run directly from this remote VScode session.
 
 ## Using Revise on Omega
 When working on omega it seems ones need to manually trigger revise to pick up code changes:
