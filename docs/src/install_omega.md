@@ -1,7 +1,7 @@
 # On GA's OMEGA cluster
 
-   !!! note
-       FUSE should only be run on `somega` or on a worker node, never on the `omega` login nodes.
+!!! note
+    FUSE should only be run on `somega` or on a worker node, never on the `omega` login nodes.
 
 ## FUSE module
 
