@@ -452,14 +452,14 @@ end
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
+function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust{T}, dd::IMAS.dd) where {T<:Real}
     da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_generated = power_electric_generated / 1E6
     bop = dd.balance_of_plant
 
     if power_thermal <= 0.0
-        return zero(eltype(da))
+        return zero(T)
     else
         if contains(lowercase(bop.power_plant.power_cycle_type), "rankine")
             cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
