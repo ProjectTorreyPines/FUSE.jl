@@ -347,13 +347,13 @@ function cost_direct_capital_Sheffield(::Val{:buildings}, bd::IMAS.build, da::Do
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.dd, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.dd, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
 
     cost = 0.0
 
     if cap == false
-        return 0.0
+        return zero(T)
     else
         bd = dd.build
         cst = dd.costing
