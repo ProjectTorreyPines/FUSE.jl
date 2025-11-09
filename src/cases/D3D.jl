@@ -78,6 +78,16 @@ function case_parameters(::Val{:D3D}, shot::Int;
         efit_shot = shot
     end
 
+    # Build OMAS command string (same for both localhost and remote execution)
+    # Note: OUTPUT_FILE is a placeholder that gets replaced with actual path (local or remote)
+    omas_command = "python -u $(omas_root)/omas/examples/fuse_data_export.py OUTPUT_FILE d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"
+    if length(EFIT_run_id) > 0
+        omas_command *= " --EFIT_RUN_ID $EFIT_run_id"
+    end
+    if length(PROFILES_run_id) > 0
+        omas_command *= " --PROFILES_RUN_ID $PROFILES_run_id"
+    end
+
     if omfit_host == "localhost"
         setup_block = """#!/bin/bash -l
         module purge
@@ -88,14 +98,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
         omfit_block = """
         python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null
         """
-        omas_block = """
-        python -u $(omas_root)/omas/examples/fuse_data_export.py $local_path/$filename d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"""
-        if length(EFIT_run_id) >0
-            omas_block *= "  --EFIT_RUN_ID $EFIT_run_id"
-        end
-        if length(PROFILES_run_id) >0
-            omas_block *= "  --PROFILES_RUN_ID $PROFILES_run_id"
-        end
+        # Substitute OUTPUT_FILE placeholder with actual path for localhost
+        omas_block = replace(omas_command, "OUTPUT_FILE" => "$local_path/$filename")
         omfit_sh = joinpath(local_path, "omfit.sh")
         open(omfit_sh, "w") do io
             return write(io, setup_block*omfit_block)
@@ -122,7 +126,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
             # Load any required modules
             module purge
-            module load omfit/unstable
+            module load omfit
 
             echo "Starting parallel tasks..." >&2
 
@@ -134,7 +138,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
             python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
 
-            python -u $(omas_root)/omas/examples/fuse_data_export.py $remote_path/$(filename) d3d $shot EFIT02 ZIPFIT01
+            $(replace(omas_command, "OUTPUT_FILE" => "$remote_path/$(filename)"))
 
             echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
             wait
@@ -149,7 +153,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
             # Use rsync to create directory if it doesn't exist and copy the script
             $(ssh_command(omfit_host, "\"mkdir -p $remote_path\""))
-            $(upsync_command(omfit_host, ["$(local_path)/remote_slurm.sh", "$(local_path)/omas_data_fetch.py"], remote_path))
+            $(upsync_command(omfit_host, ["$(local_path)/remote_slurm.sh"], remote_path))
 
             # Execute script remotely
             $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
@@ -157,7 +161,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
             # Retrieve results using rsync
             $(downsync_command(omfit_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
         """
-    
+
         open(joinpath(local_path, "local_driver.sh"), "w") do io
             return write(io, local_driver)
         end
