@@ -109,6 +109,8 @@ include(joinpath("actors", "current", "steadycurrent_actor.jl"))
 include(joinpath("actors", "current", "current_actor.jl"))
 
 include(joinpath("actors", "diagnostics", "fits_actor.jl"))
+include(joinpath("actors", "diagnostics", "interferometer_actor.jl"))
+include(joinpath("actors", "diagnostics", "magnetics_actor.jl"))
 
 include(joinpath("actors", "hcd", "simple_common.jl"))
 include(joinpath("actors", "hcd", "ec", "ec_simple_actor.jl"))

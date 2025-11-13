@@ -48,16 +48,17 @@ end
 #= ==================== =#
 #  Inflation Adjustment  #
 #= ==================== =#
-mutable struct DollarAdjust
-    future_inflation_rate::Real
-    construction_start_year::Real
+mutable struct DollarAdjust{T<:Real}
+    future_inflation_rate::T
+    construction_start_year::T
     year_assessed::Union{Missing,Int}
     year::Union{Missing,Int}
 end
 
-function DollarAdjust(dd::IMAS.dd)
-    return DollarAdjust(dd.costing.future.inflation_rate, dd.costing.construction_start_year, missing, missing)
+function DollarAdjust(dd::IMAS.dd{T}) where {T<:Real}
+    return DollarAdjust{T}(dd.costing.future.inflation_rate, dd.costing.construction_start_year, missing, missing)
 end
+Base.eltype(::Type{DollarAdjust{T}}) where {T} = T
 
 """
     load_inflation_rate()
@@ -95,10 +96,10 @@ end
 
 Adjusts costs assessed in a previous year to current or future dollar amount
 """
-function future_dollars(dollars::Real, da::DollarAdjust)
+function future_dollars(dollars::Real, da::DollarAdjust{T})::T where {T<:Real} 
 
     if dollars == 0.0
-        return 0.0
+        return zero(T)
     end
 
     CPI = load_inflation_rate()
@@ -129,7 +130,7 @@ function future_dollars(dollars::Real, da::DollarAdjust)
     # wipe out year_assessed each time to force developer to enter of `da.year_assessed` and avoid using the wrong year 
     da.year_assessed = missing
 
-    return value
+    return T(value)
 end
 
 #= ================== =#
