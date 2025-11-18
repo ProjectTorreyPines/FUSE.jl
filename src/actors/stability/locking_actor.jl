@@ -117,15 +117,9 @@ function _step(actor::ActorLocking)
     ## Solve a single case to debug
     # pick Control1 = rotation Frequency 
     # and Control 2 = error field, TM stability index ( <0), or saturation param
-    if actor.par.control_type == :EF
-        C2 = 0.5
-    elseif actor.par.control_type == :LinStab
-        C2 = -6.
-    else
-        C2 = 0.2 
-    end
+    
     rot_freq = 1.
-    solve_one_case(par, actor.ode_params, task, C2, rot_freq)
+    solve_one_case(par, actor.ode_params, task, rot_freq)
 
     
     # Solve the ODE system on the whole control grid):
@@ -136,24 +130,34 @@ function _step(actor::ActorLocking)
          control2, control1, actor.par.control_type)
 
     # ## plot normalize solution scatters
-    #plot_sols_scatter(norm_sols; xcol=1,ycol=3)
+    plot_sols_scatter(norm_sols; xcol=1,ycol=3)
     #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
     #inputs = vec(inputs)  # flatten
 
     # If you want them back on a 2D grid (N x M), reshape here:
     norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size))
-    #make_contour(control2, control1, getindex.(norm_sols_2D,1))
+    make_contour(control2, control1, getindex.(norm_sols_2D,1))
     psi_tN = getindex.(norm_sols_2D, 1)
-    dummy = DummyIDS(control2, control1, psi_tN)
-    plt = plot(dummy, :Z; seriestype=:heatmap)
-    display(plt)
+    #plt = plot(psi_tN; seriestype=:heatmap)
+    #dummy = DummyIDS(control2, control1, psi_tN)
+    #plt = plot(dummy, :Z; seriestype=:heatmap)
+    #display(plt)
 
     ## classify normalized solutions
 
     return actor
 end
 
-function solve_one_case(par, ode_params::ODEparams, task::String, control2::Float64, control1::Float64)    
+function solve_one_case(par, ode_params::ODEparams, task::String, control1::Float64)    
+    
+    if par.control_type == :EF
+        control2 = 0.5
+    elseif par.control_type == :LinStab
+        control2 = -6.
+    else
+        control2 = 0.2 
+    end
+
     final_sol = solve_ODEs(par, ode_params, task, control2, control1)
     println("final raw solution = ", final_sol)
     
@@ -247,7 +251,7 @@ function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
 
     ## In case control_type=:LinStab, adjust the upper Deltat to keep the
     ## RP-RW system weakly stable. Then, adjust the lower Deltat
-    ode_params.Delta_upper = ode_params.l21 * ode_params.l12 / ode_params.DeltaW - 1.e-2
+    ode_params.Delta_upper = ode_params.l21 * ode_params.l12 / ode_params.DeltaW - 5.e-2
     if ode_params.Delta_lower >= ode_params.Delta_upper
         ode_params.Delta_lower = ode_params.Delta_upper + ode_params.Delta_upper
     end
@@ -706,7 +710,7 @@ function plot_sols_scatter(
         ylabel::AbstractString="Rotation at the rat. surf.",
         title::AbstractString="Normalized solution scatter"
     )
-    println(typeof(norm_sol))
+    
     if eltype(norm_sol) <: AbstractVector{<:Real}
         # Convert vector-of-vectors to a matrix
         data = reduce(vcat, (x' for x in norm_sol))
@@ -717,7 +721,8 @@ function plot_sols_scatter(
         throw(ArgumentError("norm_sol must be Vector{Vector{Float64}} or Vector{NTuple{N,Float64}}"))
     end
 
-    plt = scatter(data[:, xcol], data[:, ycol],
+    plt = plot()
+    plt = scatter!(plt, data[:, xcol], data[:, ycol],
                   xlabel=xlabel,
                   ylabel=ylabel,
                   title=title)
@@ -726,34 +731,34 @@ function plot_sols_scatter(
     return plt
 end
 
-"""
-    DummyIDS(X, Y, Z)
+# """
+# #     DummyIDS(X, Y, Z)
 
-Minimal wrapper to reuse FUSE plotting recipes with raw arrays.
-- `X` :: Vector (coordinate values along dim1)
-- `Y` :: Vector (coordinate values along dim2)
-- `Z` :: Matrix (data values, size = (length(Y), length(X)))
-"""
-struct DummyIDS
-    X::Vector{Float64}
-    Y::Vector{Float64}
-    Z::Matrix{Float64}
-end
+# # Minimal wrapper to reuse FUSE plotting recipes with raw arrays.
+# # - `X` :: Vector (coordinate values along dim1)
+# # - `Y` :: Vector (coordinate values along dim2)
+# # - `Z` :: Matrix (data values, size = (length(Y), length(X)))
+# # """
+# struct DummyIDS 
+#     X::Vector{Float64}
+#     Y::Vector{Float64}
+#     Z::Matrix{Float64}
+# end
 
-Base.getproperty(ids::DummyIDS, s::Symbol) =
-    s === :Z ? ids.Z : getfield(ids, s)
+# Base.getproperty(ids::DummyIDS, s::Symbol) =
+#     s === :Z ? ids.Z : getfield(ids, s)
 
-# Provide coordinates for the recipe system
-function coordinates(ids::DummyIDS, field::Symbol)
-    if field == :Z
-        return (
-            (field = :X, ids.X),
-            (field = :Y, ids.Y)
-        )
-    else
-        return (nothing, nothing)
-    end
-end
+# # Provide coordinates for the recipe system
+# function coordinates(ids::DummyIDS, field::Symbol)
+#     if field == :Z
+#         return (
+#             (field = :X, ids.X),
+#             (field = :Y, ids.Y)
+#         )
+#     else
+#         return (nothing, nothing)
+#     end
+# end
 
 
 
@@ -770,8 +775,8 @@ function make_contour(X::AbstractArray, Y::AbstractArray, Z::AbstractMatrix)
         Y = unique(Y)
     end
     
-    
-    plt = heatmap(X,Y, Z)#; linewidth=2)
+    plt = plot()
+    plt = heatmap!(plt, X,Y, Z)#; linewidth=2)
     display(plt)   # explicitly display
     return plt
 end
