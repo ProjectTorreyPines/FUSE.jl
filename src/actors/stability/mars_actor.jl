@@ -38,9 +38,12 @@ function _step(actor::ActorMars)
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
     # and computing the wall heat flux accordingly
-    # Get the additional inputs required for MARS
+    # Produce the additional inputs required for MARS
     get_additional_MARS_inputs(dd, par)
     #@info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
+    run_CHEASE(dd, par)
+    run_MARS(dd, par)
+    run_PARTICLE_TRACING(dd, par)
 
     # Here would be the implementation details for interfacing with MARS and computing the wall heat flux
 
