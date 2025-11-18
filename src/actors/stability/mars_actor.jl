@@ -31,6 +31,8 @@ function ActorMars(dd::IMAS.dd, act::ParametersAllActors; kw...)
     finalize(actor)
     return actor
 end
+
+
 function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
@@ -38,15 +40,31 @@ function _step(actor::ActorMars)
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
     # and computing the wall heat flux accordingly
+
     # Produce the additional inputs required for MARS
     get_additional_MARS_inputs(dd, par)
-    #@info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
+    @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
+    
     run_CHEASE(dd, par)
+    
     run_MARS(dd, par)
+    
     run_PARTICLE_TRACING(dd, par)
 
     # Here would be the implementation details for interfacing with MARS and computing the wall heat flux
 
     # For now, we just set wall_heat_flux to nothing
     actor.wall_heat_flux = nothing
+end
+
+
+function run_CHEASE(dd::IMAS.dd, par)
+    # Placeholder function to run CHEASE equilibrium solver
+    @info "Running CHEASE with EQDSK=$(par.EQDSK)"
+end
+
+function get_additional_MARS_inputs(dd::IMAS.dd, par)
+    # Placeholder function to generate additional inputs for MARS
+    # This would involve preparing files or data structures needed by MARS
+    @info "Generating additional MARS inputs based on parameters."
 end
