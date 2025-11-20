@@ -1,3 +1,5 @@
+import CHEASE
+
 Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -13,11 +15,13 @@ end
 mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorMars{P}}
+    actor_eq::ActorEquilibrium{D,P}
     wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
+
     function ActorMars(dd::IMAS.dd{D}, par::FUSEparameters__ActorMars{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorMars)
         par = OverrideParameters(par; kw...)
-        return ActorMars(dd, par, nothing)
+        return new{D,P}(dd, par, nothing, nothing)
     end
 end
 
@@ -41,12 +45,15 @@ function _step(actor::ActorMars)
     # This would involve setting up the MARS simulation based on the parameters
     # and computing the wall heat flux accordingly
 
+    
+    #run_CHEASE(dd, par)
+    actor.actor_eq.par.model = :CHEASE # hardcode for now
+    #actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
+    #actor.eq_actor = ActorCHEASE(dd, act.ActorCHEASE, act)
+    
     # Produce the additional inputs required for MARS
     get_additional_MARS_inputs(dd, par)
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
-    
-    run_CHEASE(dd, par)
-    
     run_MARS(dd, par)
     
     run_PARTICLE_TRACING(dd, par)
