@@ -284,21 +284,21 @@ end
 #= =================== =#
 
 # Equation 18 in Generic magnetic fusion reactor revisited, Sheffield and Milora, FS&T 70 (2016)
-function cost_direct_capital_Sheffield(::Val{:main_heat_transfer_system}, power_thermal::Real, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:main_heat_transfer_system}, power_thermal::Real, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
     power_thermal = power_thermal / 1e6 #want this in megawatts 
     cost = 221 * (power_thermal / 4150)^0.6
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:tf_coils}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:tf_coils}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016   # Year the materials costs were assessed 
     tf_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
     cost = 1.5 * tf_coils_hfs.volume * (unit_cost(bd.tf.technology, cst) * (1.0 - bd.tf.nose_hfs_fraction) .+ unit_cost(Material(:steel), cst) * bd.tf.nose_hfs_fraction)
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:shields}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:shields}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
     shields_hfs = IMAS.get_build_layers(bd.layer; type=IMAS._shield_, fs=_hfs_)
 
@@ -312,14 +312,14 @@ function cost_direct_capital_Sheffield(::Val{:shields}, cst::IMAS.costing, bd::I
     return future_dollars(1.25 * cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:structure}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:structure}, cst::IMAS.costing, bd::IMAS.build, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
     tf_coils_hfs = IMAS.get_build_layer(bd.layer; type=IMAS._tf_, fs=_hfs_)
     cost = 0.75 * tf_coils_hfs.volume * unit_cost(Material(:steel), cst)
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:aux_power}, ec_power::Real, ic_power::Real, lh_power::Real, nb_power::Real, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:aux_power}, ec_power::Real, ic_power::Real, lh_power::Real, nb_power::Real, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
     aux_power = ec_power + ic_power + lh_power + nb_power
     cost = 1.1 * (aux_power * 5.3) * 1e-6 # convert to M$ 
@@ -327,7 +327,7 @@ function cost_direct_capital_Sheffield(::Val{:aux_power}, ec_power::Real, ic_pow
 end
 
 # Equation 19
-function cost_direct_capital_Sheffield(::Val{:balance_of_plant}, power_electric_net::Real, power_thermal::Real, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:balance_of_plant}, power_electric_net::Real, power_thermal::Real, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2010  # pg. 19 of Generic magnetic fusion reactor revisited
     power_electric_net = power_electric_net / 1e6 #want input for power electric net, power_thermal in megawatts
     power_thermal = power_thermal / 1e6
@@ -335,7 +335,7 @@ function cost_direct_capital_Sheffield(::Val{:balance_of_plant}, power_electric_
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:buildings}, bd::IMAS.build, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:buildings}, bd::IMAS.build, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
 
     vol_fusion_island = 0.0
@@ -347,13 +347,13 @@ function cost_direct_capital_Sheffield(::Val{:buildings}, bd::IMAS.build, da::Do
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.dd, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.dd, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
 
     cost = 0.0
 
     if cap == false
-        return 0.0
+        return zero(T)
     else
         bd = dd.build
         cst = dd.costing
@@ -367,7 +367,7 @@ function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.dd, 
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:divertor}, cap::Bool, dd::IMAS.dd, da::DollarAdjust)
+function cost_direct_capital_Sheffield(::Val{:divertor}, cap::Bool, dd::IMAS.dd, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
 
     if cap == false
@@ -396,7 +396,7 @@ function cost_fuel_Sheffield(
     neutron_flux::Real,
     blanket_fluence_lifetime::Real,
     power_electric_net::Real,
-    da::DollarAdjust)
+    da::DollarAdjust{T}) where {T<:Real}
 
     da.year_assessed = 2016
 
@@ -436,7 +436,7 @@ function cost_fuel_Sheffield(
     thermal_flux::Real,
     divertor_fluence_lifetime::Real,
     power_electric_net,
-    da::DollarAdjust)
+    da::DollarAdjust{T}) where {T<:Real}
 
     da.year_assessed = 2016
 
@@ -457,11 +457,11 @@ function cost_fuel_Sheffield(
 end
 
 # Table III
-function cost_fuel_Sheffield(::Val{:aux_power}, ec_power::Real, ic_power::Real, lh_power::Real, nb_power::Real, da::DollarAdjust)
-    return 0.1 * cost_direct_capital_Sheffield(Val{:aux_power}, ec_power, ic_power, lh_power, nb_power, da)
+function cost_fuel_Sheffield(::Val{:aux_power}, ec_power::Real, ic_power::Real, lh_power::Real, nb_power::Real, da::DollarAdjust{T}) where {T<:Real}
+    return 0.1 * cost_direct_capital_Sheffield(Val(:aux_power), ec_power, ic_power, lh_power, nb_power, da)
 end
 
-function cost_fuel_Sheffield(::Val{:misc_fuel}, fixed_charge_rate::Real, da::DollarAdjust)
+function cost_fuel_Sheffield(::Val{:misc_fuel}, fixed_charge_rate::Real, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 1983
     cost = 24 * fixed_charge_rate + 0.4 # $M/yr # 24*FCR for misc. replacements plus 0.4 M$ for fuel costs (in 1983 dollars)
     return future_dollars(cost, da)
@@ -471,7 +471,7 @@ end
 #  yearly operations cost  #
 #= ====================== =#
 
-function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::DollarAdjust)
+function cost_operations_maintenance_Sheffield(power_electric_net::Real, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 1983
     if power_electric_net == 0.0
         cost = 49.1 # $M/yr 

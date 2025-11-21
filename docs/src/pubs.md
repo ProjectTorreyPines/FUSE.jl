@@ -1,9 +1,24 @@
-# Publications
+# References
 
-### References
+```
+@article{meneghini2024fuse,
+author = {Meneghini, O. and Slendebroek, T. and Lyons, B.C. and McLaughlin, K. and McClenaghan, J. and Stagner, L. and Harvey, J. and Neiser, T.F. and Ghiozzi, A. and Dose, G. and Guterl, J. and Zalzali, A. and Cote, T. and Shi, N. and Weisberg, D. and Smith, S.P. and Grierson, B.A. and Candy, J.},
+doi = {10.48550/arXiv.2409.05894},
+journal = {arXiv},
+title = {{FUSE (Fusion Synthesis Engine): A Next Generation Framework for Integrated Design of Fusion Pilot Plants}},
+year = {2024}
+}
+```
 
-* 📜 **[ArXiv preprint publication](https://arxiv.org/abs/2409.05894)**
-* 🎤 **[Latest presentation](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)**
+* 📜 **[ArXiv: FUSE reference paper](https://arxiv.org/abs/2409.05894)**
+
+* 📜 **[ArXiv: Elevating zero dimensional global scaling predictions to self-consistent theory-based simulations](https://arxiv.org/abs/2305.07285)**
+
+# Posters/Talks
+
+### 2025 D3D Sept SET
+
+* 🎤 **Meneghini** [Between-shot predictive modeling of DIII-D discharges with FUSE](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_sep_2025.pdf)
 
 ### 2025 ITER summer school
 
@@ -13,7 +28,7 @@
 
 * 📊 **Slendebroek** [Examining the impacts of power-exhaust solutions on core performance with FUSE](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_US-TTF/slendebroek_US-TTF.pdf)
 
-### 2025 D3D 
+### 2025 D3D March SET
 
 * 🎤 **Meneghini** [FUSE: an open-source framework for tokamak power plant design and operations](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)
 

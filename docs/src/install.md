@@ -6,7 +6,7 @@ We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) ma
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
 * Windows: `winget install julia -s msstore --accept-source-agreements --accept-package-agreements`
 
-Once installed, restart your termninal to pick-up the `julia` executable.
+Once installed, restart your terminal to pick-up the `julia` executable.
 
 ## FUSE installation
 
@@ -50,14 +50,14 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 
 ## Install Jupyter-Lab with Julia support
 
-1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system 
+1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system
 
    !!! note
        The WebIO jupyter-lab extension is needed for the [`Interact.jl`](https://github.com/JuliaGizmos/Interact.jl?tab=readme-ov-file#usage) package to work.
 
        Make sure WebIO is working with `jupyter labextension list`. If it is working properly, you should see something like: webio-jupyterlab-provider v0.1.0 enabled OK (python, webio_jupyter_extension). This can also be checked with `jupyter nbextension list`, which should show something like: webio-jupyter-nbextension/nbextension  enabled.
 
-       If the extension has compatibility issues, install an older verision of Jupyter (eg. `conda install jupyterlab=3.6.7`). Also ensure that the WebIO and Interact packages are fully up-to-date, and restart the notebook session before testing that it works. Finally, it may be necessary to downgrade your system's version of Python - the recommended version for compatibility with Interact is 3.11.11. 
+       If the extension has compatibility issues, install an older version of Jupyter (eg. `conda install jupyterlab=3.6.7`). Also ensure that the WebIO and Interact packages are fully up-to-date, and restart the notebook session before testing that it works. Finally, it may be necessary to downgrade your system's version of Python - the recommended version for compatibility with Interact is 3.11.11.
 
 1. Install the `IJulia` package by running:
 
@@ -106,7 +106,7 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
 
 1. Run `fusebot install_IJulia` to install the Kernel for the latest version of Julia in Jupyter-Lab
 
-## Install on specific platforms
+## Working on GA clusters
 
 ```@contents
 Pages = ["install_omega.md", "install_saga.md"]

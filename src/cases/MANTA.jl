@@ -3,9 +3,9 @@
 
 MANTA (Modular Adjustable Negative-Triangularity ARC)
 
-https://arxiv.org/abs/2405.20243
+    https://arxiv.org/abs/2405.20243
 
-https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
+    https://burningplasma.org/resources/ref/Web_Seminars/MANTA_USBPO_Webinar_Presentation.pdf
 """
 function case_parameters(::Val{:MANTA}; flux_matcher::Bool=false)
     ini = ParametersInits()
