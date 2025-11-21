@@ -1,10 +1,7 @@
 #= ======================= =#
 #  ActorSteadyStateCurrent  #
 #= ======================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorSteadyStateCurrent{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorSteadyStateCurrent{T} begin
     allow_floating_plasma_current::Entry{Bool} = Entry{Bool}("-", "Zero loop voltage if non-inductive fraction exceeds 100% of the target Ip"; default=true)
     current_relaxation_radius::Entry{Float64} = Entry{Float64}(
         "-",
@@ -29,7 +26,18 @@ end
 """
     ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evolves the ohmic current to steady state using the conductivity from `dd.core_profiles`
+Computes the steady-state ohmic current distribution using plasma conductivity and target plasma current.
+
+This actor solves for the equilibrium current distribution assuming infinite current diffusion time,
+where the current profile is determined by the balance between ohmic heating and resistive dissipation.
+The solution uses the conductivity profile from `dd.core_profiles` and can either target a specific
+plasma current or allow floating current based on non-inductive drive.
+
+Key features:
+- Computes steady-state ohmic current profile using plasma conductivity
+- Supports current relaxation with adjustable radial extent
+- Can float plasma current when non-inductive fraction exceeds 100%
+- Updates `j_total` by combining ohmic and non-inductive current components
 
 !!! note
 
@@ -42,6 +50,21 @@ function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
+"""
+    _step(actor::ActorSteadyStateCurrent)
+
+Computes the steady-state ohmic current profile.
+
+The calculation process:
+1. Obtains target plasma current from specified source
+2. Computes fully relaxed ohmic current profile using plasma conductivity
+3. Optionally applies current relaxation blending with artificial profile
+4. Checks for floating plasma current condition (non-inductive fraction > 100%)
+5. Updates `j_total` by combining ohmic and non-inductive components
+
+Current relaxation (if enabled) blends between an artificial current profile and the
+physically motivated steady-state solution based on local current diffusion times.
+"""
 function _step(actor::ActorSteadyStateCurrent)
     dd = actor.dd
     par = actor.par
@@ -49,7 +72,7 @@ function _step(actor::ActorSteadyStateCurrent)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
 
-    ip_target = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+    ip_target = IMAS.get_from(dd, Val(:ip), par.ip_from)
 
     # update j_ohmic
     relaxed_j_ohmic = IMAS.j_ohmic_steady_state(eqt, cp1d, ip_target, cp1d.conductivity_parallel)

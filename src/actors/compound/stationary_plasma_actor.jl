@@ -1,10 +1,7 @@
 #= ===================== =#
 #  ActorStationaryPlasma  #
 #= ===================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorStationaryPlasma{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorStationaryPlasma{T} begin
     max_iterations::Entry{Int} = Entry{Int}("-", "max number of transport-equilibrium iterations"; default=5)
     convergence_error::Entry{T} = Entry{T}("-", "Convergence error threshold (relative change in current and pressure profiles)"; default=5E-2)
     #== display and debugging parameters ==#
@@ -21,21 +18,48 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_hc::ActorHCD{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
+    actor_saw::ActorSawteeth{D,P}
 end
 
 """
     ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs the following actors in succesion to find a self-consistent stationary plasma solution
+Iteratively solves for self-consistent stationary plasma equilibrium and transport.
 
-  - ActorCurrent
-  - ActorHCD
-  - ActorCoreTransport
-  - ActorEquilibrium
+This compound actor finds steady-state plasma solutions by iterating between plasma 
+physics models until convergence. It balances current drive, heating, transport, 
+and equilibrium to achieve a consistent stationary state.
+
+Core iteration workflow:
+1. **Current Evolution**: Updates current density from current drive and resistive diffusion
+2. **Heating & Current Drive**: Calculates power deposition and driven current from external sources
+3. **Pedestal**: Determines edge boundary conditions and pedestal profiles
+4. **Core Transport**: Evolves temperature and density profiles based on transport fluxes
+5. **Sawteeth**: Applies sawtooth mixing to maintain realistic q-profiles
+6. **Equilibrium**: Solves MHD equilibrium with updated pressure and current profiles
+
+The iteration continues until the relative changes in current density and pressure 
+profiles fall below the convergence threshold. Each iteration updates the flux surface
+geometry based on the latest equilibrium solution.
+
+Key convergence criteria:
+- Relative change in current density profile (volume-averaged)
+- Relative change in pressure profile (volume-averaged) 
+- Combined error must be below `convergence_error` threshold
+- Maximum iterations limit prevents infinite loops
+
+Actors coordinated:
+- **ActorCurrent**: Current density evolution (Ohmic + driven + bootstrap)
+- **ActorHCD**: Heating and current drive power deposition  
+- **ActorPedestal**: Edge pressure and temperature boundary conditions
+- **ActorCoreTransport**: Core transport flux calculations
+- **ActorSawteeth**: Sawtooth crash mixing and q-profile flattening
+- **ActorEquilibrium**: MHD equilibrium solution with updated profiles
 
 !!! note
 
-    Stores data in `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`, `dd.core_transport`
+    Stores converged plasma state in `dd.equilibrium`, `dd.core_profiles`, 
+    `dd.core_sources`, `dd.core_transport`
 """
 function ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorStationaryPlasma(dd, act.ActorStationaryPlasma, act; kw...)
@@ -82,7 +106,9 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq)
+    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_saw)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -123,7 +149,7 @@ function _step(actor::ActorStationaryPlasma)
     was_logging = actor_logging(dd)
     is_logging = was_logging && !(par.verbose && !par.do_plot)
     actor_logging(dd, is_logging)
-    prog = ProgressMeter.Progress((par.max_iterations + 1) * 5 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
+    prog = ProgressMeter.Progress((par.max_iterations + 1) * 6 + 2; dt=0.0, showspeed=true, enabled=par.verbose && !par.do_plot)
     total_error = Float64[]
     cp1d = dd.core_profiles.profiles_1d[]
     try
@@ -157,6 +183,10 @@ function _step(actor::ActorStationaryPlasma)
             # evolve j_ohmic
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_jt))
             finalize(step(actor.actor_jt))
+
+            # run sawteeth actor
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_saw))
+            finalize(step(actor.actor_saw))
 
             # run equilibrium actor with the updated beta
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_eq))
@@ -238,11 +268,12 @@ function progress_ActorStationaryPlasma(total_error::Vector{Float64}, actor::Act
         ("required convergence error", par.convergence_error),
         ("       convergence history", isempty(total_error) ? "N/A" : reverse(total_error)),
         ("                     stage", step_actor === nothing ? "N/A" : "$(name(step_actor))"),
-        ("                   Ip [MA]", IMAS.get_from(dd, Val{:ip}, :equilibrium) / 1E6),
+        ("                   Ip [MA]", IMAS.get_from(dd, Val(:ip), :equilibrium) / 1E6),
         ("                 Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
         ("                 Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
         ("            ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
-        ("                 max(zeff)", maximum(cp1d.zeff))
+        ("                 max(zeff)", maximum(cp1d.zeff)),
+        ("               ω0 [krad/s]", cp1d.rotation_frequency_tor_sonic[1] / 1E3)
     ]
     return tuple(tmp...)
 end

@@ -1,4 +1,3 @@
-import Weave
 using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
@@ -6,6 +5,44 @@ import DataFrames
 import Dates
 import HDF5
 import Random
+
+# ================== #
+# Digest Trait System #
+# ================== #
+"""
+Abstract type for digest backend selection.
+
+See also: [`WeaveBackend`](@ref), [`NoWeaveBackend`](@ref)
+"""
+abstract type DigestBackend end
+
+"""
+    WeaveBackend <: DigestBackend
+
+Digest backend that uses Weave.jl for PDF generation.
+Only available when WeaveExt extension is loaded.
+"""
+struct WeaveBackend <: DigestBackend end
+
+"""
+    NoWeaveBackend <: DigestBackend
+
+Fallback digest backend when Weave.jl is not available.
+Provides helpful error messages guiding users to install Weave.
+"""
+struct NoWeaveBackend <: DigestBackend end
+
+"""
+    get_digest_backend() -> DigestBackend
+
+Determine which digest backend to use based on available extensions.
+
+Returns `WeaveBackend()` if the WeaveExt extension is loaded, 
+otherwise returns `NoWeaveBackend()`.
+"""
+function get_digest_backend()
+    return Base.get_extension(@__MODULE__, :WeaveExt) === nothing ? NoWeaveBackend() : WeaveBackend()
+end
 
 # ========== #
 # Checkpoint #
@@ -91,7 +128,7 @@ macro checkin(key, vars...)
         @assert typeof($key) <: Symbol "`use `@checkin :what var1 var2 ...`"
         d = getfield(checkpoint, :history)
         if $key in keys(d)
-            dict = Dict(k => v for (k, v) in pairs(d[$key]))
+            dict = Dict{Symbol,Any}(k => v for (k, v) in pairs(d[$key]))
         else
             dict = Dict{Symbol,Any}()
         end
@@ -238,7 +275,6 @@ function IMAS.extract(
                 if isa(e, InterruptException)
                     rethrow(e)
                 end
-                continue
             end
             ProgressMeter.next!(p)
         end
@@ -280,7 +316,7 @@ end
 
 Construct a Dictionary with the evaluated values of a dictionary of IMAS.ExtractFunction
 """
-function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+function Base.Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
     tmp = Dict()
     for xfun in values(xtract)
         tmp[xfun.name] = xfun.value
@@ -382,443 +418,6 @@ function save(
 
     return savedir
 end
-
-
-function save_database(
-    savedir::AbstractString,
-    parent_group::AbstractString,
-    dd::Union{Nothing,IMAS.dd},
-    ini::Union{Nothing,ParametersAllInits},
-    act::Union{Nothing,ParametersAllActors},
-    log_io::IOStream;
-    error_info::Any=nothing,
-    timer::Bool=true,
-    varinfo::Bool=false,
-    freeze::Bool=false,
-    overwrite_groups::Bool=false,
-    verbose::Bool=false,
-    kw...
-)
-
-    savedir = abspath(savedir)
-    if !isdir(savedir)
-        mkdir(savedir)
-    end
-
-    parent_group = IMAS.norm_hdf5_path(parent_group)
-
-    h5_filename = joinpath(savedir, "pid$(getpid())_output.h5")
-
-    function check_and_create_group(fid::HDF5.File, target_group::AbstractString)
-        if haskey(fid, target_group)
-            if target_group == "/"
-                gparent = fid
-            else
-                if !overwrite_groups
-                    error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
-                          "\n       Set `overwrite_groups`=true to replace the existing group.")
-                else
-                    verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
-                    HDF5.delete_object(fid, target_group)
-                    gparent = HDF5.create_group(fid, target_group)
-                end
-            end
-        else
-            gparent = HDF5.create_group(fid, target_group)
-        end
-        attr = HDF5.attrs(gparent)
-        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-        return gparent
-    end
-
-    function check_and_write(fid::HDF5.File, target_group::AbstractString, data)
-        if haskey(fid, target_group)
-            if target_group != "/"
-                if !overwrite_groups
-                    error("Target group '$target_group' already exists in file '$(fid.filename)'. " *
-                          "\n       Set `overwrite_groups`=true to replace the existing group.")
-                else
-                    verbose && @warn "Target group '$target_group' already exists. Overwriting it..."
-                    HDF5.delete_object(fid, target_group)
-                end
-            end
-        end
-        HDF5.write(fid, target_group, data)
-        attr = HDF5.attrs(fid[target_group])
-        return attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-    end
-
-    mode = isfile(h5_filename) ? "r+" : "w"
-
-    HDF5.h5open(h5_filename, mode) do fid
-
-        attr = HDF5.attrs(fid)
-        attr["FUSE_version"] = string(pkgversion(FUSE))
-        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-        attr["original_file_abs_path"] = abspath(fid.filename)
-        attr["original_file_rel_path"] = relpath(fid.filename)
-
-        if !haskey(fid, parent_group)
-            HDF5.create_group(fid, parent_group)
-        end
-        attr = HDF5.attrs(fid[parent_group])
-        attr["FUSE_version"] = string(pkgversion(FUSE))
-        attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-        attr["original_file_abs_path"] = abspath(fid.filename)
-        attr["original_file_rel_path"] = relpath(fid.filename)
-
-        # Write error information into the HDF5 file (instead of separate txt file)
-        if error_info !== nothing
-            error_str = ""
-            if typeof(error_info) <: Exception
-                io = IOBuffer()
-                showerror(io, error_info, catch_backtrace())
-                error_str = String(take!(io))
-            else
-                error_str = string(error_info)
-            end
-            check_and_write(fid, parent_group * "/error.txt", error_str)
-        end
-
-        if ini !== nothing
-            gparent = check_and_create_group(fid, parent_group * "/ini.h5")
-            SimulationParameters.par2hdf!(ini, gparent)
-        end
-
-        if dd !== nothing
-            IMAS.imas2hdf(dd, h5_filename; mode="a", freeze, target_group=parent_group * "/dd.h5", overwrite=overwrite_groups, show_warnings=verbose)
-        end
-
-        if act !== nothing
-            gparent = check_and_create_group(fid, parent_group * "/act.h5")
-            SimulationParameters.par2hdf!(act, gparent)
-        end
-
-        # save timer output
-        if timer
-            check_and_write(fid, parent_group * "/timer.txt", string(FUSE.timer))
-        end
-
-        # save memory trace
-        if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
-            memtrace_string = String[]
-            for (date, txt, kb) in FUSE.memtrace.data
-                push!(memtrace_string, "$date $kb \"$txt\"")
-            end
-            check_and_write(fid, parent_group * "/memtrace.txt", memtrace_string)
-        end
-
-        # save vars usage
-        if varinfo
-            varinfo_string = string(FUSE.varinfo(FUSE; all=true, imported=true, recursive=true, sortby=:size, minsize=1024))
-            check_and_write(fid, parent_group * "/varinfo.txt", varinfo_string)
-        end
-
-        # save log
-        flush(log_io)
-        seekstart(log_io)
-        log_str = read(log_io, String)
-        if !isempty(log_str)
-            check_and_write(fid, parent_group * "/log.txt", log_str)
-        end
-    end
-
-    return savedir
-end
-
-"""
-    load_database(filename::AbstractString; kw...)
-
-Loads all data in a combined HDF5 database. Additional keyword arguments are forwarded.
-
-### Example:
-```julia
-    data = FUSE.load_database("database.h5")
-```
-"""
-function load_database(filename::AbstractString; kw...)
-    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
-
-    HDF5.h5open(filename, "r") do H5_fid
-        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-        return load_database(filename, df[!, :gparent]; kw...)
-    end
-end
-
-"""
-    load_database(filename::AbstractString, conditions::Function; kw...)
-
-Loads a combined HDF5 database using a filtering condition. The condition is applied to the
-extract.csv contents to select parent group paths for loading.
-
-### Example:
-```julia
-    data = FUSE.load_database("database.h5", x -> x.status=="fail"; kw...)
-    data = FUSE.load_database("database.h5", x -> x.R0>2 && x."<zeff>">1.5; kw...)
-```
-"""
-function load_database(filename::AbstractString, conditions::Function; kw...)
-    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
-
-    HDF5.h5open(filename, "r") do H5_fid
-        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-        parent_groups = filter(conditions, df)[!, :gparent]
-        return load_database(filename, parent_groups; kw...)
-    end
-end
-
-"""
-    load_database(filename::AbstractString, parent_group::AbstractString, kw...)
-
-Loads a combined HDF5 database for a single parent group path
-
-### Example:
-```julia
-    data = FUSE.load_database("database.h5", "/case01"; kw...)
-```
-"""
-function load_database(filename::AbstractString, parent_group::AbstractString, kw...)
-    return load_database(filename, [parent_group]; kw...)
-end
-
-"""
-    load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
-
-Loads a combined HDF5 database for the specified parent group paths.
-
-### Example:
-```julia
-    data = FUSE.load_database("database.h5", ["/case01", "/case02"]; pattern=r"dd.h5")
-```
-"""
-function load_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
-    @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
-
-    parent_groups = IMAS.norm_hdf5_path.(parent_groups)
-
-    H5_fid = HDF5.h5open(filename, "r")
-
-    # Load dataframe (from extract)
-    df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-    df = subset(df, :gparent => ByRow(x -> x in parent_groups))
-
-    Nparents = length(parent_groups)
-
-    # Prepare output data
-    dds = occursin(pattern, "dd.h5") || occursin(pattern, "dd.json") ? fill(IMAS.dd(), Nparents) : nothing
-    inis = occursin(pattern, "ini.h5") || occursin(pattern, "ini.json")  ? fill(ParametersInits(), Nparents) : nothing
-    acts = occursin(pattern, "act.h5") || occursin(pattern, "act.json") ? fill(ParametersActors(), Nparents) : nothing
-    logs = occursin(pattern, "log.txt") ? fill("", Nparents) : nothing
-    timers = occursin(pattern, "timer.txt") ? fill("", Nparents) : nothing
-    errors = occursin(pattern, "error.txt") ? fill("", Nparents) : nothing
-
-    for (k, gparent) in pairs(parent_groups)
-        filterd_keys = filter(x -> occursin(pattern, x), keys(H5_fid[gparent]))
-        for key in filterd_keys
-            h5path = gparent * "/" * key
-            if key == "dd.h5"
-                dds[k] = IMAS.hdf2imas(filename, h5path)
-            elseif key == "dd.json"
-                dds[k] = IMAS.jstr2imas(H5_fid[h5path][])
-            elseif key == "ini.h5"
-                inis[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
-            elseif key == "ini.json"
-                inis[k] = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersInits())
-            elseif key == "act.h5"
-                acts[k] = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
-            elseif key == "act.json"
-                acts[k] = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersActors())
-            elseif key == "log.txt"
-                logs[k] = H5_fid[h5path][]
-            elseif key == "timer.txt"
-                timers[k] = H5_fid[h5path][]
-            elseif key == "error.txt"
-                errors[k] = H5_fid[h5path][]
-            end
-        end
-    end
-
-    close(H5_fid)
-
-    return (dds=dds, inis=inis, acts=acts, logs=logs, timers=timers, errors=errors, df=df)
-end
-
-"""
-    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function)
-
-Samples the database by filtering groups that satisfy the provided `conditions` function.
-
-### Examples:
-```julia
-    sample_and_write_database("database.h5", "sampled.h5", x -> x.status == "fail")
-    sample_and_write_database("database.h5", "sampled.h5", x -> x.R0>2 && x."<zeff>">1.5)
-```
-"""
-function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, conditions::Function; kw...)
-    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
-
-    HDF5.h5open(ori_DB_name, "r") do H5_fid
-        df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-        parent_groups = filter(conditions, df)[!, :gparent]
-        return sample_and_write_database(ori_DB_name, sampled_DB_name, parent_groups; kw...)
-    end
-end
-
-"""
-    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString;
-                              Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing)
-
-Samples the database by randomly selecting a subset of the original HDF5 file.
-The sample size is determined by either a fixed number (`Nsamples`) or a fraction (`sampling_ratio`) of the
-total number of rows.
-
-### Examples:
-```julia
-    sample_and_write_database("database.h5", "sampled.h5"; sampling_ratio=0.2)
-    sample_and_write_database("database.h5", "sampled.h5"; Nsamples=15)
-```
-"""
-function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString;
-    Nsamples::Union{Nothing,Int}=nothing, sampling_ratio::Union{Nothing,Float64}=nothing, kw...)
-
-    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
-    if isnothing(Nsamples) && isnothing(sampling_ratio)
-        error("Either Nsamples or sampling_ratio must be provided.")
-    end
-
-    HDF5.h5open(ori_DB_name, "r") do H5_fid
-        ori_df = coalesce.(CSV.read(IOBuffer(H5_fid["/extract.csv"][]), DataFrame), NaN)
-        if isnothing(Nsamples)
-            Nsamples = clamp(ceil(Int, sampling_ratio * nrow(ori_df)), 1, nrow(ori_df))
-        else
-            Nsamples = clamp(Nsamples, 1, nrow(ori_df))
-        end
-        sampled_df = ori_df[Random.shuffle(1:nrow(ori_df))[1:Nsamples], :]
-        return sample_and_write_database(ori_DB_name, sampled_DB_name, sampled_df[!, :gparent]; kw...)
-    end
-end
-
-"""
-    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString)
-
-Sampling a single specific group from the original HDF5 file.
-
-### Example:
-```julia
-    sample_and_write_database("database.h5", "sampled.h5", "/case01")
-```
-"""
-function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_group::AbstractString; kw...)
-    return sample_and_write_database(ori_DB_name, sampled_DB_name, [parent_group]; kw...)
-end
-
-"""
-    sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString})
-
-Sampling the groups specified in `parent_groups` from the original HDF5 file.
-
-### Example:
-```julia
-    df = sample_and_write_database("database.h5", "sampled.h5", ["/case01", "/case02"])
-```
-"""
-function sample_and_write_database(ori_DB_name::AbstractString, sampled_DB_name::AbstractString, parent_groups::Vector{<:AbstractString}; sub_format::Union{Symbol,Nothing}=nothing)
-
-    @assert HDF5.ishdf5(ori_DB_name) "\"$ori_DB_name\" is not the HDF5 format"
-    @assert sub_format ∈ (:h5, :json, nothing) "sub_format must be either `:h5` or `:json" or `nothing`
-
-    ori_fid = HDF5.h5open(ori_DB_name, "r")
-    new_fid = HDF5.h5open(sampled_DB_name, "w")
-
-    ori_df = coalesce.(CSV.read(IOBuffer(ori_fid["/extract.csv"][]), DataFrame), NaN)
-
-    # normalize and unique the parent_groups
-    parent_groups = IMAS.norm_hdf5_path.(parent_groups)
-    unique!(parent_groups)
-
-    # Check if any requested groups don't exist in the original database
-    missing_groups = setdiff(parent_groups, ori_df.gparent)
-    if !isempty(missing_groups)
-        missing_list = join(["\n  [$i]: \"$group\"" for (i, group) in pairs(missing_groups)], "")
-        @warn "Following $(length(missing_groups)) groups not found in original database:$missing_list"
-    end
-
-    sampled_df = filter(row -> string(row.gparent) in parent_groups, ori_df)
-    sort!(sampled_df, "gparent")
-
-    # prepare progressmeter
-    ProgressMeter.ijulia_behavior(:clear)
-    Ngparents = length(sampled_df.gparent)
-    p = ProgressMeter.Progress(Ngparents; showspeed=true)
-
-    if isnothing(sub_format)
-        for (iter, gparent) in pairs(sampled_df.gparent)
-            HDF5.copy_object(ori_fid, gparent, new_fid, gparent)
-            ProgressMeter.next!(p; showvalues =[(:groups, "($iter/$Ngparents) \"$gparent\"")])
-        end
-    else
-        for (iter, gparent) in pairs(sampled_df.gparent)
-            for key in keys(ori_fid[gparent])
-
-                ori_h5path = gparent * "/" * key
-
-                if endswith(key, r"\.txt")
-                    HDF5.copy_object(ori_fid, ori_h5path, new_fid, ori_h5path)
-                elseif endswith(key, Regex(string(sub_format)))
-                    HDF5.copy_object(ori_fid, ori_h5path, new_fid, ori_h5path)
-                else
-                    if startswith(key, r"dd")
-                        if sub_format == :json
-                            json_string = string(IMAS.hdf2imas(ori_DB_name, gparent * "/dd.h5"))
-                            HDF5.write(new_fid, gparent * "/dd.json", json_string)
-                        else
-                            dd = IMAS.jstr2imas(ori_fid[ori_h5path][], IMAS.dd())
-                            HDF5.create_group(new_fid, gparent * "/dd.h5")
-                            IMAS.imas2hdf(dd, new_fid[gparent*"/dd.h5"])
-                        end
-                    elseif startswith(key, r"ini")
-                        if sub_format == :json
-                            ini = SimulationParameters.hdf2par(ori_fid[ori_h5path], ParametersInits())
-                            json_string = SimulationParameters.par2jstr(ini)
-                            HDF5.write(new_fid, gparent * "/ini.json", json_string)
-                        else
-                            ini = SimulationParameters.jstr2par(ori_fid[ori_h5path][], ParametersInits())
-                            HDF5.create_group(new_fid, gparent * "/ini.h5")
-                            SimulationParameters.par2hdf!(ini, new_fid[gparent*"/ini.h5"])
-                        end
-                    elseif startswith(key, r"act")
-                        if sub_format == :json
-                            act = SimulationParameters.hdf2par(ori_fid[ori_h5path], ParametersActors())
-                            json_string = SimulationParameters.par2jstr(act)
-                            HDF5.write(new_fid, gparent * "/act.json", json_string)
-                        else
-                            act = SimulationParameters.jstr2par(ori_fid[ori_h5path][], ParametersActors())
-                            HDF5.create_group(new_fid, gparent * "/act.h5")
-                            SimulationParameters.par2hdf!(act, new_fid[gparent*"/act.h5"])
-                        end
-                    end
-                end
-            end
-            ProgressMeter.next!(p; showvalues =[(:groups, "($iter/$Ngparents) \"$gparent\"")])
-        end
-    end
-    ProgressMeter.finish!(p)
-
-    # write extract.csv into HDF5
-    io_buffer = IOBuffer()
-    CSV.write(io_buffer, sampled_df)
-    csv_text = String(take!(io_buffer))
-    HDF5.write(new_fid, "extract.csv", csv_text)
-    attr = HDF5.attrs(new_fid["/extract.csv"])
-    attr["date_time"] = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
-    attr["FUSE_version"] = string(pkgversion(FUSE))
-
-    close(ori_fid)
-    close(new_fid)
-
-    return sampled_df
-end
-
 
 
 """
@@ -1028,6 +627,26 @@ function digest(
 end
 
 """
+    weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; kwargs...)
+
+Fallback method when Weave.jl is not available. Provides helpful error message.
+"""
+function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; 
+                     ini::Union{Nothing,ParametersAllInits}=nothing,
+                     act::Union{Nothing,ParametersAllActors}=nothing)
+    error("""
+    PDF digest generation requires the Weave.jl package.
+    
+    To enable this functionality:
+    1. Install Weave in your local project: `import Pkg; Pkg.add("Weave")`
+    2. `import Weave`
+    3. Try again: `digest(dd, "$title")`
+    
+    Alternatively, use the non-PDF version: `digest(dd)`
+    """)
+end
+
+"""
     digest(dd::IMAS.dd,
         title::AbstractString,
         description::AbstractString="";
@@ -1037,6 +656,12 @@ end
 Write digest to PDF in current working directory.
 
 PDF filename is based on title (with `" "` replaced by `"_"`)
+
+**Note**: PDF generation requires the Weave.jl package. Install with:
+```
+import Pkg; Pkg.add("Weave")
+import Weave
+```
 """
 function digest(dd::IMAS.dd,
     title::AbstractString,
@@ -1044,38 +669,8 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
-    title = replace(title, r".pdf$" => "", "_" => " ")
-    outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
-
-    tmpdir = mktempdir()
-    logger = SimpleLogger(stderr, Logging.Warn)
-    try
-        filename = redirect_stdout(Base.DevNull()) do
-            filename = with_logger(logger) do
-                return Weave.weave(joinpath(@__DIR__, "digest.jmd");
-                    latex_cmd=["xelatex"],
-                    mod=@__MODULE__,
-                    doctype="md2pdf",
-                    template=joinpath(@__DIR__, "digest.tpl"),
-                    out_path=tmpdir,
-                    args=Dict(
-                        :dd => dd,
-                        :ini => ini,
-                        :act => act,
-                        :title => title,
-                        :description => description))
-            end
-        end
-        cp(filename, outfilename; force=true)
-        return outfilename
-    catch e
-        if isa(e, InterruptException)
-            rethrow(e)
-        end
-        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir\n$e")
-    else
-        rm(tmpdir; recursive=true, force=true)
-    end
+    backend = get_digest_backend()
+    return weave_digest(backend, dd, title, description; ini, act)
 end
 
 """
@@ -1423,7 +1018,6 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
             if isa(e, InterruptException)
                 rethrow(e)
             end
-            continue
         end
         ProgressMeter.next!(p)
     end

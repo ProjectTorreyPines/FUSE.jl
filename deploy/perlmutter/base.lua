@@ -21,7 +21,7 @@ if not user_depot then
    setenv("JULIA_DEPOT_PATH", home .. "/.julia:" .. base_depot .. ":")
 elseif user_depot:sub(-1) == ":" then
    -- case 2: JULIA_DEPOT_PATH ends with “:”, so append base_depot after it
-   --         Already ends in ":", so need to append a ":" in between
+   --         Already ends in ":", so no need to append a ":" in between
    setenv("JULIA_DEPOT_PATH", user_depot .. base_depot .. ":")
 else
    LmodError(
@@ -29,6 +29,12 @@ else
       "It must be unset or end with ':'."
    )
 end
+
+-- Environment variables for data fetching
+setenv("FUSE_OMFIT_HOST", "localhost")
+setenv("FUSE_OMFIT_ROOT", "/global/common/software/m3739/perlmutter/OMFIT-CAKE")
+setenv("FUSE_OMAS_ROOT", "/global/common/software/m3739/perlmutter/FUSE_OMAS")
+setenv("FUSE_RESULT_ARCHIVE", pathJoin("/global/cfs/cdirs/m3739/FUSE/d3d-time-dependent", os.getenv("USER")))
 
 -- The FUSE sysimage enviornment is the last place julia looks for packages
 --   when a user does `using <package>`, but this allows Julia to automatically

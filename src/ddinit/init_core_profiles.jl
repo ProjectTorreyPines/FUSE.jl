@@ -61,7 +61,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.ne_core_to_ped_ratio,
                 ini.core_profiles.ne_shaping,
                 pressure_core=getproperty(ini.equilibrium, :pressure_core, missing),
-                helium_fraction=ini.core_profiles.bulk == :D ? 0.0 : ini.core_profiles.helium_fraction,
+                helium_fraction=ini.core_profiles.bulk in (:DT, :D_T) ? ini.core_profiles.helium_fraction : 0.0,
                 ini.core_profiles.w_ped,
                 ini.core_profiles.zeff,
                 ini.core_profiles.bulk,
@@ -170,7 +170,6 @@ function init_core_profiles!(
     bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
     # 1. DT
     IMAS.ion_element!(bulk_ion, bulk)
-    @assert IMAS.is_hydrogenic(bulk_ion) "Bulk ion `$bulk` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
     # 2. Impurity
     IMAS.ion_element!(imp_ion, impurity)
     # 3. He
@@ -214,6 +213,11 @@ function init_core_profiles!(
     end
     for i in eachindex(cp1d.ion)
         cp1d.ion[i].temperature = cp1d.electrons.temperature .* Ti_Te_ratio
+    end
+
+    # use :D_T for unbundled D and T
+    if bulk == :D_T
+        IMAS.unbundle_DT!(cp1d; dt_fraction=0.5);
     end
 
     # pedestal

@@ -35,7 +35,7 @@ println("    ", packages)
 println()
 println("### Setup new environment")
 Pkg.activate(env_dir)
-Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT"]; packages])
+Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT", "ArgParse"]; packages])
 Pkg.build("IJulia")
 
 println()

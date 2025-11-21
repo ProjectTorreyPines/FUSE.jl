@@ -1,10 +1,7 @@
 #= ================ =#
 #  ActorEquilibrium  #
 #= ================ =#
-Base.@kwdef mutable struct FUSEparameters__ActorEquilibrium{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorEquilibrium{T} begin
     #== actor parameters ==#
     model::Switch{Symbol} = Switch{Symbol}([:TEQUILA, :FRESCO, :EGGO, :CHEASE, :replay, :none], "-", "Equilibrium actor to run"; default=:TEQUILA)
     symmetrize::Entry{Bool} = Entry{Bool}("-", "Force equilibrium up-down symmetry with respect to magnetic axis"; default=false)
@@ -26,7 +23,38 @@ end
 """
     ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run different equilibrium actors
+Unified interface for tokamak MHD equilibrium solvers with automatic data preparation and postprocessing.
+
+This compound actor coordinates different equilibrium solver codes through a single interface,
+handling data flow preparation and postprocessing while allowing flexible solver selection.
+
+Supported equilibrium solvers:
+- **TEQUILA**: Fixed-boundary equilibrium solver
+- **FRESCO**: Free-boundary rectangular grid Grad-Shafranov solver  
+- **EGGO**: Machine learning-based free-boundary equilibrium reconstruction
+- **CHEASE**: External fixed-boundary equilibrium solver
+- **Replay**: Use equilibrium data from experimental or simulation archives
+
+Key features:
+- **Automatic data preparation**: Extracts pressure/current profiles, boundary shape, and control targets
+- **Flexible profile sources**: Can use profiles from core_profiles (self-consistent) or equilibrium (re-solve)
+- **Control integration**: Uses pulse_schedule position_control for boundary and X-point targets
+- **Geometric postprocessing**: Adds flux surfaces, symmetrization, and consistency checks
+- **Error handling**: Comprehensive error reporting with diagnostic plots
+
+Data flow control:
+- Profile sources: core_profiles (default) or equilibrium  
+- Scalar sources: pulse_schedule, core_profiles, or equilibrium
+- Automatic zero-gradient boundary conditions on axis
+- Geometric factors preservation across iterations
+
+The actor handles the complete equilibrium workflow: data extraction → solver execution → 
+flux surface reconstruction → validation and visualization.
+
+!!! note
+
+    Reads from `dd.core_profiles`, `dd.pulse_schedule.position_control`, and optionally `dd.wall`, 
+    `dd.pf_active`. Updates `dd.equilibrium` with the solved MHD equilibrium.
 """
 function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)
@@ -180,8 +208,8 @@ function prepare(actor::ActorEquilibrium)
     end
 
     # get ip and b0 before wiping eqt in case ip_from=:equilibrium
-    ip = IMAS.get_from(dd, Val{:ip}, actor.par.ip_from)
-    r0, b0 = IMAS.get_from(dd, Val{:vacuum_r0_b0}, actor.par.vacuum_r0_b0_from)
+    ip = IMAS.get_from(dd, Val(:ip), actor.par.ip_from)
+    r0, b0 = IMAS.get_from(dd, Val(:vacuum_r0_b0), actor.par.vacuum_r0_b0_from)
 
     # geometric factors
     past_time_slice = false
@@ -281,23 +309,49 @@ function prepare(actor::ActorEquilibrium)
 
     # if available, restore coil currents and magnetic measurements from experiment
     # these may be needed if equilibrium solver is run in reconstruction mode.
-    # The equilibrium solvers will overwritte the coil currents,
+    # The equilibrium solvers will overwrite the coil currents,
     # and the synthetic diagnostics will overwrite the magnetics and flux loops
     if !ismissing(act.ActorReplay, :replay_dd)
-        if !isempty(act.ActorReplay.replay_dd.pf_active.coil)
+
+        # pf_active.coil
+        if !isempty(act.ActorReplay.replay_dd.pf_active.coil) && IMAS.hasdata(act.ActorReplay.replay_dd.pf_active.coil[1].current, :data)
             act.ActorReplay.replay_dd.global_time = dd.global_time
             for (coil, replay_coil) in zip(dd.pf_active.coil, act.ActorReplay.replay_dd.pf_active.coil)
                 @ddtime(coil.current.data = @ddtime(replay_coil.current.data))
+                if IMAS.hasdata(replay_coil.current, :data_σ)
+                    @ddtime(coil.current.data_σ = @ddtime(replay_coil.current.data_σ))
+                end
             end
         end
-        if !isempty(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
+
+        # pf_passive.loop
+        if !isempty(act.ActorReplay.replay_dd.pf_passive.loop) && IMAS.hasdata(act.ActorReplay.replay_dd.pf_passive.loop[1], :current)
+            act.ActorReplay.replay_dd.global_time = dd.global_time
+            for (loop, replay_loop) in zip(dd.pf_passive.loop, act.ActorReplay.replay_dd.pf_passive.loop)
+                @ddtime(loop.current = @ddtime(replay_loop.current))
+                if IMAS.hasdata(replay_loop, :current_σ)
+                    @ddtime(loop.current_σ = @ddtime(replay_loop.current_σ))
+                end
+            end
+        end
+
+        # magnetics.b_field_pol_probe
+        if !isempty(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe) && IMAS.hasdata(act.ActorReplay.replay_dd.magnetics.b_field_pol_probe[1].field, :data)
             for (probe, replay_probe) in zip(dd.magnetics.b_field_pol_probe, act.ActorReplay.replay_dd.magnetics.b_field_pol_probe)
                 @ddtime(probe.field.data = @ddtime(replay_probe.field.data))
+                if IMAS.hasdata(replay_probe.field, :data_σ)
+                    @ddtime(probe.field.data_σ = @ddtime(replay_probe.field.data_σ))
+                end
             end
         end
-        if !isempty(act.ActorReplay.replay_dd.magnetics.flux_loop)
+
+        # magnetics.flux_loop
+        if !isempty(act.ActorReplay.replay_dd.magnetics.flux_loop) && IMAS.hasdata(act.ActorReplay.replay_dd.magnetics.flux_loop[1].flux, :data)
             for (loop, replay_loop) in zip(dd.magnetics.flux_loop, act.ActorReplay.replay_dd.magnetics.flux_loop)
                 @ddtime(loop.flux.data = @ddtime(replay_loop.flux.data))
+                if IMAS.hasdata(replay_loop.flux, :data_σ)
+                    @ddtime(loop.flux.data_σ = @ddtime(replay_loop.flux.data_σ))
+                end
             end
         end
     end

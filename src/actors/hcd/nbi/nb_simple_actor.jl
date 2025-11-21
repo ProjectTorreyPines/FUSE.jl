@@ -1,18 +1,12 @@
 #= ========== =#
 #  Simple NBI  #
 #= ========== =#
-Base.@kwdef mutable struct _FUSEparameters__ActorSimpleNBactuator{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct _ActorSimpleNBactuator{T} begin
     banana_shift_fraction::Entry{T} = Entry{T}("-", "Shift factor"; default=0.5, check=x -> @assert x >= 0.0 "must be: banana_shift_fraction >= 0.0")
     smoothing_width::Entry{T} = Entry{T}("-", "Width of the deposition profile"; default=0.12, check=x -> @assert x >= 0.0 "must be: smoothing_width > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ActorSimpleNB{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorSimpleNB{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleNBactuator{T}}()
 end
 
@@ -29,11 +23,24 @@ end
 """
     ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Calculates the NBI ion/electron energy deposition, particle source, rotation and current drive source with a pencil beam.
+Calculates neutral beam injection (NBI) heating and current drive using a simplified pencil beam model.
+
+This actor models the deposition of neutral beam energy and momentum through:
+- Pencil beam ray tracing through the plasma
+- Calculation of beam attenuation via electron collisions, ion collisions, and charge exchange
+- Energy deposition to electrons and ions using Sivukhin fractions
+- Toroidal momentum deposition including banana orbit effects
+- Parallel current drive from beam-driven currents (beam, Ohkawa, and bootstrap contributions)
+
+The model includes:
+- Multiple beam energy components (full, half, third energy)
+- Gaussian deposition profiles with configurable width
+- Banana orbit shift correction for trapped particles
+- Fast ion thermalization time smoothing of launched power
 
 !!! note
 
-    Reads data in `dd.nbi`, `dd.pulse_schedule` and stores data in `dd.core_sources`
+    Reads data in `dd.nbi`, `dd.pulse_schedule` and stores results in `dd.core_sources` and `dd.waves.coherent_wave`
 """
 function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSimpleNB(dd, act.ActorSimpleNB; kw...)

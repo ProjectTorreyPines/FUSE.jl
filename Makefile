@@ -693,6 +693,42 @@ install_playground: .PHONY
 	if [ ! -d "playground" ]; then git clone https://github.com/ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 # @devs
+knowledge: .PHONY
+# Extract FUSE actor knowledge base using Claude analysis
+	@echo "Extracting FUSE actor knowledge base..."
+	@cd knowledge && julia --threads=$(JULIA_NUM_THREADS) -e 'include("extract_knowledge.jl"); extract_fuse_knowledge_parallel()'
+	@echo "Knowledge extraction complete! Check knowledge/fuse_knowledge_base.json"
+
+# @devs
+knowledge_clean: .PHONY
+# Clean up orphaned actor files in knowledge base
+	@echo "Checking for orphaned actor files..."
+	@cd knowledge && julia -e 'include("extract_knowledge.jl"); clean_orphaned_fuse_actors()'
+
+# @dev
+learn_usage:
+# Learn FUSE usage from Jupyter notebooks and update knowledge/how_to_use_fuse.md
+	cd knowledge ; ./learn_fuse_usage.sh ../examples/tutorial.ipynb ../examples/tutorial_imas.ipynb ../examples/fluxmatcher.ipynb ../examples/study_TGLFdb.ipynb ../examples/time_dependent_d3d.ipynb ../examples/time_dependent_iter.ipynb ../examples/study_database_generator.ipynb ../examples/study_multi_objective_optimizer.ipynb
+
+# @devs
+learn_init:
+# Create comprehensive guide on how to initialize FUSE by analyzing case files and parameter structures
+	claude "Write a how_to_init_fuse.md knowledge file, structured for users and LLMs to learn how to define FUSE use cases. You should looking at each individual *.jl files under FUSE/src/cases (don't skip any, they are all important!). Also add a note about the parameters definitions being in FUSE/src/parameters/parameters_inits.jl and use this file to build your .md documentation as necessary."
+
+# @devs
+learn_actors_docstrings:
+# update actors docstrings
+	claude "Go through each and every actor file (***_actor.jl) and (in parallel) spawn a claude session to improve the docstring of each. \
+	Don't add any docstring to the \`@actor_parameters_struct\` or the Actor constructor. \
+	Instead you should focus on the \`ActorXXX(dd,act)\` function which in the end is what is going to appear in the online documentation. \
+	You can add some extra details to the docstrings of \`_step()\` and \`_finalize()\`. \
+	NEVER document boilerplate arguments, like \`dd\`, \`par\`, \`act\`, \`kw...\`. \
+	To know what an actor does, look at the executable code. \
+	If there's already a docstring, verify it against the executable code. \
+	If there's any conflicting information the executable code should take precendence. \
+	To know what actors need documentation, search for \`actor_parameters_struct\`, and process them in parallel claude sessions."
+
+# @devs
 list_open_compats:
 # List compat patches PR on GitHub
 	@$(foreach repo,$(DEV_PACKAGES_MAKEFILE), \
@@ -815,7 +851,7 @@ status:
 		elif [ "$$latest_tag" = "(no tag)" ]; then \
 			commit_info="(no tag)"; \
 		fi; \
-		line_text=`printf "%25s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
+		line_text=`printf "%26s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
 		line_length=`echo "$$line_text" | wc -c | tr -d ' '`; \
 		padding=$$((term_width - line_length)); \
 		printf "$$color%s%*s$$reset\n" "$$line_text" $$padding ""; \

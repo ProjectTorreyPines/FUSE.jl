@@ -1,10 +1,7 @@
 #= ================== =#
 #  ActorWholeFacility  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorWholeFacility{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorWholeFacility{T} begin
     update_plasma::Entry{Bool} = Entry{Bool}("-", "Run plasma related actors"; default=true)
     update_build::Entry{Bool} = Entry{Bool}("-", "Optimize tokamak build"; default=true)
 end
@@ -34,28 +31,46 @@ end
 """
     ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Compound actor that runs all the physics, engineering and costing actors needed to model the whole plant:
+Integrates all physics, engineering, and economic models for complete tokamak facility design.
 
-  - ActorStationaryPlasma
-  - ActorPlasmaLimits
-  - ActorHFSsizing
-  - ActorLFSsizing
-  - ActorCXbuild
-  - ActorFluxSwing
-  - ActorStresses
-  - ActorPFdesign
-  - ActorPFactive
-  - ActorPassiveStructures
-  - ActorVerticalStability
-  - ActorNeutronics
-  - ActorBlanket
-  - ActorDivertors
-  - ActorBalanceOfPlant
-  - ActorCosting
+This compound actor orchestrates the full workflow for designing and analyzing a complete
+tokamak power plant. It coordinates plasma physics modeling with engineering design and
+economic optimization to provide a comprehensive facility assessment.
+
+Execution workflow:
+1. **Plasma Design**: Self-consistent plasma solutions with optimized PF coil positions
+2. **Plasma Physics**: Stationary plasma equilibrium with all transport and heating
+3. **Engineering Design**: Radial build optimization for all major tokamak systems
+4. **Magnetic Systems**: PF coil repositioning and passive structure analysis  
+5. **Nuclear Analysis**: Neutronics, blanket optimization, and tritium breeding
+6. **Plasma-Facing Components**: Divertor heat loads and thermal management
+7. **Power Systems**: Balance of plant and thermal-to-electric conversion
+8. **Economics**: Complete facility costing and economic analysis
+
+Key actors executed:
+- **ActorStationaryPlasma**: Converged plasma equilibrium and transport solution
+- **ActorPlasmaLimits**: Operational stability limits and MHD analysis
+- **ActorHFSsizing**: High-field-side radial build optimization (TF, OH, structural)
+- **ActorLFSsizing**: Low-field-side TF leg design for ripple and maintenance
+- **ActorCXbuild**: 2D cross-sectional geometry generation
+- **ActorFluxSwing**: Flux swing analysis for plasma scenarios
+- **ActorStresses**: Structural and electromagnetic stress analysis
+- **ActorPFdesign**: PF coil system design and optimization
+- **ActorPFactive**: PF current optimization for equilibrium control
+- **ActorPassiveStructures**: Passive conductor modeling
+- **ActorNeutronics**: Neutron flux and nuclear heating analysis
+- **ActorBlanket**: Tritium breeding blanket optimization
+- **ActorDivertors**: Divertor heat flux and cooling analysis
+- **ActorBalanceOfPlant**: Power conversion and auxiliary systems
+- **ActorCosting**: Economic analysis and cost optimization
+
+The actor handles complex interdependencies between systems, such as re-optimizing
+the PF coil layout after radial build changes and updating the first wall geometry
+based on the final equilibrium solution.
 
 !!! note
 
-    Stores data in `dd`
+    Stores comprehensive facility design data across all `dd` structures
 """
 function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorWholeFacility(dd, act.ActorWholeFacility, act; kw...)

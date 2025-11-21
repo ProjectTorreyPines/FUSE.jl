@@ -135,6 +135,7 @@ include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
 include(joinpath("actors", "transport", "eped_profiles_actor.jl"))
+include(joinpath("actors", "transport", "sawteeth_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))
@@ -177,6 +178,8 @@ include("studies.jl")
 include(joinpath("studies", "database_generator.jl"))
 include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
+include(joinpath("studies", "study_database.jl"))
+include(joinpath("studies", "experiment_postdictive.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
@@ -210,5 +213,6 @@ include("test_cases.jl")
 export IMAS, @ddtime, help, ±, ↔, Logging, print_tree, help_plot, help_plot!, @findall
 export @checkin, @checkout
 export step, pulse, ramp, trap, gaus, beta, sequence
+export digest
 
 end

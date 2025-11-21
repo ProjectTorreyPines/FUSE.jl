@@ -3,10 +3,7 @@ import QED
 #= ======== =#
 #  ActorQED  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorQED{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorQED{T} begin
     Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt (Inf for steady state)"; default=Inf, check=x -> @assert x >= 0 "Δt must be >= 0.0")
     Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=100, check=x -> @assert x > 0 "Nt must be > 0")
     solve_for::Switch{Symbol} = Switch{Symbol}([:ip, :vloop], "-", "Solve for specified Ip or Vloop"; default=:ip)
@@ -27,17 +24,34 @@ end
 """
     ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evolves the plasma current using the QED current diffusion solver.
+Evolves plasma current using the QED (quasi-steady-state equilibrium diffusion) solver for realistic current diffusion.
 
-The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
+This actor provides time-dependent current evolution with proper physics including:
+- Finite current diffusion time constants based on plasma resistivity
+- Sawtooth reconnection events that flatten current profiles inside q=1
+- Non-inductive current drive from external sources
+- Ability to solve for either specified plasma current or loop voltage
+
+Key capabilities:
+- Time-dependent evolution: finite time steps with realistic diffusion
+- Steady-state solution: infinite time limit with equilibrium current distribution  
+- Current or voltage control: can target either Ip or Vloop
+- Sawtooth modeling: automatic current profile flattening to maintain q≥1
+
+The QED solver uses finite element methods on flux coordinates and can handle complex
+current drive scenarios including bootstrap current, ECCD, NBCD, and other sources.
 
 !!! note
 
-    This actor operates at "dd.global_time", any time advance must be done outside of the actor
+    This actor operates at `dd.global_time`. Time advancement must be done externally:
 
         IMAS.new_timeslice!(dd, dd.global_time + Δt)
         dd.global_time += Δt
         ActorQED(dd, act)
+
+!!! note
+
+    The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
 """
 function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorQED(dd, act.ActorQED, act; kw...)
@@ -53,6 +67,31 @@ function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED, act::ParametersAll
     return ActorQED(dd, par, act, ip_controller, nothing)
 end
 
+"""
+    _step(actor::ActorQED)
+
+Executes QED current diffusion calculation for the specified time step.
+
+The calculation process varies based on the time step parameter:
+
+**Finite time evolution (Δt > 0, Δt < Inf):**
+1. Initializes QED state from equilibrium and current profiles
+2. Computes non-inductive current sources (excluding ohmic, sawteeth, time-dependent)
+3. Steps through time using finite difference with proper sawtooth handling
+4. Applies current profile flattening where q < qmin_desired
+5. Can solve for either target Ip or Vloop using optional plasma current control
+
+**Steady-state solution (Δt = Inf):**
+1. Solves for equilibrium current distribution directly
+2. Iteratively determines sawtooth inversion radius to maintain q ≥ qmin_desired
+3. Converges to steady-state solution balancing sources and diffusion
+
+**Key physics:**
+- Uses neoclassical plasma resistivity for current diffusion
+- Implements sawtooth model through current profile flattening inside q=1
+- Handles both current-driven and voltage-driven scenarios
+- Updates j_total, j_non_inductive, and safety factor profiles
+"""
 function _step(actor::ActorQED)
     dd = actor.dd
     par = actor.par
@@ -67,12 +106,9 @@ function _step(actor::ActorQED)
 
     # initialize QED
     # we must reinitialize to update the equilibrium metrics
-    actor.QO = qed_init_from_imas(dd, par.qmin_desired; uniform_rho=501)
+    actor.QO = QED.initialize(dd, par.qmin_desired; uniform_rho=501)
 
-    if par.Nt == 0
-        # only initialize, nothing to do
-
-    elseif par.Δt > 0.0 && par.Δt < Inf
+    if par.Δt > 0.0 && par.Δt < Inf
         # current diffusion
         t0 = dd.global_time - par.Δt
         t1 = dd.global_time
@@ -93,7 +129,7 @@ function _step(actor::ActorQED)
         flattened_j_non_inductive = j_non_inductive
         for tt in range(t0, t1, No + 1)[1:end-1]
             if par.solve_for == :ip
-                Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from; time0=tt + δt)
+                Ip = IMAS.get_from(dd, Val(:ip), par.ip_from; time0=tt + δt)
                 Vedge = nothing
             else
                 # run Ip controller if vloop_from == :controllers__ip
@@ -101,7 +137,7 @@ function _step(actor::ActorQED)
                     finalize(step(actor.ip_controller; time0=tt + δt))
                 end
                 Ip = nothing
-                Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from; time0=tt + δt)
+                Vedge = IMAS.get_from(dd, Val(:vloop), par.vloop_from; time0=tt + δt)
             end
 
             # check where q<1 based on the the q-profile at the previous
@@ -114,33 +150,25 @@ function _step(actor::ActorQED)
                 rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
             end
 
-            η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, conductivity_parallel, j_non_inductive, rho_qdes)
+            η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes; conductivity_parallel)
             actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
 
             actor.QO = QED.diffuse(actor.QO, η_jardin, δt, Ni; Vedge, Ip, debug=false)
         end
 
-        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-        cp1d.j_non_inductive = flattened_j_non_inductive
-
-        # sources with hysteresis of sawteeth flattening
-        qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
-        i_qdes = findlast(qval .< par.qmin_desired * 1.1)
-        IMAS.sawteeth_source!(dd, i_qdes)
-
     elseif par.Δt == Inf
         # steady state solution
         if par.solve_for == :ip
-            Ip = IMAS.get_from(dd, Val{:ip}, par.ip_from)
+            Ip = IMAS.get_from(dd, Val(:ip), par.ip_from)
             Vedge = nothing
         else
             Ip = nothing
-            Vedge = IMAS.get_from(dd, Val{:vloop}, par.vloop_from)
+            Vedge = IMAS.get_from(dd, Val(:vloop), par.vloop_from)
         end
 
         # fist try full relaxation
         rho_qdes = 0.0
-        η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, conductivity_parallel, j_non_inductive, rho_qdes)
+        η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes; conductivity_parallel)
         actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
         actor.QO = QED.steady_state(actor.QO, η_jardin; Vedge, Ip)
         qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
@@ -150,7 +178,7 @@ function _step(actor::ActorQED)
         if i_qdes !== nothing
             for i_qdes in 1:i_qdes
                 rho_qdes = cp1d.grid.rho_tor_norm[i_qdes]
-                η_jardin, flattened_j_non_inductive = η_JBni_sawteeth(cp1d, conductivity_parallel, j_non_inductive, rho_qdes)
+                η_jardin, flattened_j_non_inductive = QED.η_JBni_sawteeth(cp1d, j_non_inductive, rho_qdes; conductivity_parallel)
                 actor.QO.JBni = QED.FE(cp1d.grid.rho_tor_norm, flattened_j_non_inductive .* B0)
                 actor.QO = QED.steady_state(actor.QO, η_jardin; Vedge, Ip)
                 qval = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
@@ -159,106 +187,14 @@ function _step(actor::ActorQED)
                 end
             end
         end
-
-        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
-        cp1d.j_non_inductive = flattened_j_non_inductive
-
-        # update sources with sawteeth
-        IMAS.sawteeth_source!(dd, rho_qdes)
-
     else
+
         error("act.ActorQED.Δt = $(par.Δt) is not valid")
     end
 
+    cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+    cp1d.j_non_inductive = flattened_j_non_inductive
+    cp1d.q = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
+
     return actor
-end
-
-# utils
-"""
-    qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing, Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from) where {D<:Real,P<:Real}
-
-Setup QED from data in IMAS `dd`
-"""
-function qed_init_from_imas(dd::IMAS.dd, qmin_desired::Union{Nothing,Real}=nothing; uniform_rho::Int, j_tor_from::Symbol=:core_profiles, ip_from::Union{Symbol,Real}=j_tor_from)
-    eqt = dd.equilibrium.time_slice[]
-    cp1d = dd.core_profiles.profiles_1d[]
-    B0 = eqt.global_quantities.vacuum_toroidal_field.b0
-
-    rho_tor = eqt.profiles_1d.rho_tor
-    gm1 = eqt.profiles_1d.gm1
-    f = eqt.profiles_1d.f
-    dvolume_drho_tor = eqt.profiles_1d.dvolume_drho_tor
-    q = eqt.profiles_1d.q
-    gm9 = eqt.profiles_1d.gm9
-
-    # DO NOT use the equilibrium j_tor, since it's quality depends on the quality/resolution of the equilibrium solver
-    # better to use the j_tor from core_profiles, which is the same quantity that is input in the equilibrium solver
-    if j_tor_from === :equilibrium
-        j_tor = eqt.profiles_1d.j_tor
-    elseif j_tor_from === :core_profiles
-        j_tor = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.j_tor, :cubic).(IMAS.norm01(rho_tor))
-    else
-        error("j_tor_from must be :equilibrium or :core_profiles")
-    end
-
-    if ip_from === :equilibrium
-        Ip0 = IMAS.get_from(dd, Val{:ip}, :equilibrium)
-    elseif ip_from === :core_profiles
-        Ip0 = IMAS.get_from(dd, Val{:ip}, :core_profiles)
-    elseif typeof(ip_from) <: Real
-        Ip0 = ip_from
-    else
-        error("ip_from must be :equilibrium, :core_profiles, or a real number")
-    end
-
-    if ismissing(cp1d, :j_non_inductive)
-        ρ_j_non_inductive = nothing
-    elseif qmin_desired === nothing
-        ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, cp1d.j_non_inductive)
-    else
-        i_qdes = findlast(abs.(eqt.profiles_1d.q) .< qmin_desired)
-        if i_qdes === nothing
-            rho_qdes = -1.0
-        else
-            rho_qdes = eqt.profiles_1d.rho_tor_norm[i_qdes]
-        end
-        _, j_non_inductive = η_JBni_sawteeth(cp1d, cp1d.conductivity_parallel, cp1d.j_non_inductive, rho_qdes)
-        ρ_j_non_inductive = (cp1d.grid.rho_tor_norm, j_non_inductive)
-    end
-
-    ρ_grid = collect(range(0.0, 1.0, uniform_rho))
-
-    return QED.initialize(rho_tor, B0, gm1, f, dvolume_drho_tor, q, j_tor, gm9; ρ_j_non_inductive, ρ_grid, Ip0)
-end
-
-"""
-    η_JBni_sawteeth(cp1d::IMAS.core_profiles__profiles_1d{T}, j_non_inductive::Vector{T}, rho_qdes::Float64; use_log::Bool=true) where {T<:Real}
-
-returns
-
-  - resistivity profile using Jardin's model for stationary sawteeth changes the plasma resistivity to raise q>1
-
-  - non-inductive profile with flattening of the current inside of the inversion radius
-"""
-function η_JBni_sawteeth(
-    cp1d::IMAS.core_profiles__profiles_1d{T},
-    conductivity_parallel::Vector{T},
-    j_non_inductive::Vector{T},
-    rho_qdes::Float64;
-    use_log::Bool=true
-) where {T<:Real}
-    rho = cp1d.grid.rho_tor_norm
-    η = 1.0 ./ conductivity_parallel
-
-    if rho_qdes > 0.0
-        # flattened current resistivity as per Jardin's model
-        icp_qdes = argmin_abs(rho, rho_qdes)
-        η[1:icp_qdes] .= η[icp_qdes]
-
-        # flatten non-inductive current contribution
-        width = min(rho_qdes / 4, 0.05)
-        j_non_inductive = IMAS.flatten_profile!(copy(j_non_inductive), rho, cp1d.grid.area, rho_qdes, width)
-    end
-
-    return QED.η_FE(rho, η; use_log), j_non_inductive
 end

@@ -1,7 +1,7 @@
 """
-    case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)
+    case_parameters(::Val{:baby_MANTA}; flux_matcher::Bool=false)
 """
-function case_parameters(::Type{Val{:baby_MANTA}}; flux_matcher::Bool=false)
+function case_parameters(::Val{:baby_MANTA}; flux_matcher::Bool=false)
     ini = ParametersInits()
     act = ParametersActors()
 

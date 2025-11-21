@@ -9,7 +9,7 @@ for method in methods(FUSE.case_parameters)
         """## $name
 
         ```@docs
-        case_parameters(::Type{Val{:$name}})
+        case_parameters(::Val(:$name))
         ```
         """
     )
@@ -25,7 +25,7 @@ pushfirst!(
 CurrentModule = FUSE
 ```
 
-FUSE comes with a set of pre-cookes used cases.
+FUSE comes with a set of pre-cooked use cases.
 The `case_parameters(:use_case, ...)` method returns the `ini` and `act` parameters for that specific `use_case`.
 These `ini` and `act` can then be further customized before running a FUSE simulation.
 

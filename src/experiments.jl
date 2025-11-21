@@ -44,7 +44,7 @@ The function performs the following analysis steps:
 - Diagnostic plots show density, Zeff, temperature evolution and L-H power threshold analysis
 - The smoothing uses low-pass filtering based on the transition timescales
 """
-function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, do_plot::Bool=true)
+function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, threshold::Float64=0.4, do_plot::Bool=true)
     rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
     index09 = argmin_abs(rho, 0.9)
     time = dd.core_profiles.time
@@ -77,8 +77,14 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
     mode_transitions[0.0] = :L_mode
     if scale_LH == 0.0
         # auto-detect mode transitions based on pedestal structure
-        is_H_mask = [IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure) for cp1d in dd.core_profiles.profiles_1d]
+        is_H_mask = [IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure; threshold) for cp1d in dd.core_profiles.profiles_1d]
         is_H_mask = [is_H_mask[2:end]; is_H_mask[end]]
+        if is_H_mask[1]
+            @warn "First time slice detected as a H-mode!"
+            cp1d = dd.core_profiles.profiles_1d[1]
+            IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure; do_plot=true, threshold)
+        end
+
     else
         # auto-detect mode transitions based on LH-power threshold
         is_H_mask = Bool[false for time0 in time]
@@ -110,6 +116,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
         ne_L_over_H = 1.0
         zeff_L_over_H = 1.0
         transition_start = -1.0
+
     else
         if transition_start == 0.0
             transition_start = sort!(collect(keys(mode_transitions)))[2]
@@ -237,7 +244,7 @@ end
 
 function get_true_ranges(mask::Vector{Bool})
     ranges = Tuple{Int,Int}[]
-    i = 1
+    i = 2
     while i <= length(mask)
         if mask[i]
             start_idx = i
