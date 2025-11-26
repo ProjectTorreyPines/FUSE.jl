@@ -127,7 +127,7 @@ function _step(actor::ActorCoreRadHeatFlux{D,P}) where {D<:Real,P<:Real}
         p = plot(; layout=ll, size=(1500, 500))
         plot!(p, HF; which_plot=:oneD, q=:core_radiation, subplot=1)
         sol = IMAS.sol(dd; levels=1)
-        photons, _ = IMAS.define_particles(eqt, cp1d.grid.psi_norm, source_1d, par.N)
+        photons, _ = IMAS.define_particles(eqt, psi, source_1d, par.N)
         plot!(p, photons, actor.dd.equilibrium.time_slice[]; colorbar_entry=false, subplot=2)
         plot!(p, sol; subplot=2, line_z=nothing, color=:black)
         plot!(p, HF; q=:core_radiation, plot_type=:path, subplot=2)
