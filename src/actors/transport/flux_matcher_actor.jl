@@ -857,7 +857,6 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     if par.evolve_rotation == :flux_match
         max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
         rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
-        @show rot_check
         if !(any(x -> x >= 0, rot_check) && any(x -> x < 0, rot_check))
             z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
             append!(z_profiles, z_rot)
