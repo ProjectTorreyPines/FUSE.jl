@@ -68,10 +68,19 @@ end
 function run_CHEASE(dd::IMAS.dd, par)
     # Placeholder function to run CHEASE equilibrium solver
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
+
+    CHEASE_struct = run_chease(ϵ, z_axis, pressure_sep, Bt_center, r_center, Ip, r_bound, z_bound, mode, rho_psi, pressure, j_tor, clear_workdir=false)
 end
 
 function get_additional_MARS_inputs(dd::IMAS.dd, par)
     # Placeholder function to generate additional inputs for MARS
     # This would involve preparing files or data structures needed by MARS
     @info "Generating additional MARS inputs based on parameters."
+end
+
+function run_PARTICLE_TRACING(dd::IMAS.dd, par)
+    # Placeholder function to run particle tracing simulations
+    @info "Running particle tracing with tracer_type=$(par.tracer_type)."
+
+    println("Particle tracing simulation completed.")
 end
