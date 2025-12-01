@@ -56,10 +56,9 @@ function _step(actor::ActorMars)
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
     run_MARS(dd, par)
     
-    run_PARTICLE_TRACING(dd, par)
+    #run_PARTICLE_TRACING(dd, par)
 
-    # Here would be the implementation details for interfacing with MARS and computing the wall heat flux
-
+    
     # For now, we just set wall_heat_flux to nothing
     actor.wall_heat_flux = nothing
 end
