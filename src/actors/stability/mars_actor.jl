@@ -87,11 +87,12 @@ function _step(actor::ActorMars)
 end
 
 
-function run_CHEASE(dd::IMAS.dd, par)
+function run_CHEASE(dd::IMAS.dd, par, time_slice_index::Int=1)
     # Placeholder function to run CHEASE equilibrium solver
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
-
-    #write_EXPEQ_file(ϵ, z_axis, pressure_sep, r_center, Bt_center, Ip, r_bound, z_bound, mode, rho_psi, pressure, j_tor)
+    pressure_sep = 0.0  # Placeholder value
+    mode = 0            # Placeholder value
+    #write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], pressure_sep, mode)
     #CHEASE_struct = run_chease(ϵ, z_axis, pressure_sep, Bt_center, r_center, Ip, r_bound, z_bound, mode, rho_psi, pressure, j_tor, clear_workdir=false)
 end
 
@@ -110,36 +111,18 @@ end
 
 
 """
-    write_EXPEQ_file(
-        ϵ::Float64,
-        pressure_sep::Float64,
-        Ip::Float64,
-        r_bound::Vector{Float64},dd.equilibrium.time_slice[1]
-        z_bound::Vector{Float64},
-        mode::Int,
-        rho_pol::Vector{Float64},
-        pressure::Vector{Float64}, dd.equilibrium.time_slice[1].profiles_1d.p
-        j_tor::Vector{Float64})
-
-Writes a EXPEQ file for CHEASE given the above arrays and scalars
+  Writes a EXPEQ file for CHEASE given dd and mode number
 """
-function write_EXPEQ_file(
-    pressure_sep::Float64,
-    r_center::Float64,
-    Ip::Float64,
-    r_bound::Vector{Float64},
-    z_bound::Vector{Float64},
-    mode::Int,
-    rho_pol::Vector{Float64},)
+function write_EXPEQ_file(time_slice, pressure_sep::Float64, mode::Int)
 
     # populate the input file lines
-    minor_radius = dd.equilibrium.time_slice[1].global_quantities.minor_radius
-    z_axis = dd.equilibrium.time_slice[1].boundary.geometric_axis.z
-    Bt_center = dd.equilibrium.vacuum_toroidal_field.b0
-    r_center = dd.equilibrium.vacuum_toroidal_field.r0
-    Ip = dd.equilibrium.time_slice[1].global_quantities.ip
-    pressure = dd.equilibrium.time_slice[1].profiles_1d.pressure
-    j_tor = dd.equilibrium.time_slice[1].profiles_1d.j_tor
+    minor_radius = time_slice.boundary.minor_radius
+    z_axis = time_slice.global_quantities.magnetic_axis.z
+    Bt_center = time_slice.global_quantities.magnetic_axis.b_field_tor
+    r_center = time_slice.global_quantities.magnetic_axis.r
+    Ip = time_slice.global_quantities.ip
+    pressure = time_slice.profiles_1d.pressure
+    j_tor = time_slice.profiles_1d.j_tor
 
     # calculate aspect ratio
     ϵ = minor_radius / r_center
