@@ -262,13 +262,20 @@ function _step(actor::ActorSimpleNB)
 
         # add nbi fast ion particles source
         source1d = source.profiles_1d[]
-        ion = resize!(source1d.ion, 1)[1]
-        IMAS.ion_element!(ion, 1, nbu.species.a; fast=true)
-        ion.particles = source1d.electrons.particles
-        ion.particles_inside = source1d.electrons.particles_inside
-        ion.energy = source1d.total_ion_energy
-        ion.power_inside = source1d.total_ion_power_inside
-        ion.fast_particles_energy = beam_energy
+        resize!(source1d.ion, 2)
+        ion_fast = source1d.ion[1]
+        IMAS.ion_element!(ion_fast, 1, nbu.species.a; fast=true)
+        ion_fast.particles = source1d.electrons.particles
+        ion_fast.particles_inside = source1d.electrons.particles_inside
+        ion_fast.energy = source1d.total_ion_energy
+        ion_fast.power_inside = source1d.total_ion_power_inside
+        ion_fast.fast_particles_energy = beam_energy
+
+        ion_thermal = source1d.ion[2]
+        IMAS.ion_element!(ion_thermal, 1, nbu.species.a; fast=false)
+        ion_thermal.particles        = source1d.electrons.particles
+        ion_thermal.particles_inside = source1d.electrons.particles_inside
+
     end
     IMAS.unfreeze!(cp1d, :zeff)
 
