@@ -37,7 +37,7 @@ struct NoWeaveBackend <: DigestBackend end
 
 Determine which digest backend to use based on available extensions.
 
-Returns `WeaveBackend()` if the WeaveExt extension is loaded, 
+Returns `WeaveBackend()` if the WeaveExt extension is loaded,
 otherwise returns `NoWeaveBackend()`.
 """
 function get_digest_backend()
@@ -631,17 +631,17 @@ end
 
 Fallback method when Weave.jl is not available. Provides helpful error message.
 """
-function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; 
+function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString="";
                      ini::Union{Nothing,ParametersAllInits}=nothing,
                      act::Union{Nothing,ParametersAllActors}=nothing)
     error("""
     PDF digest generation requires the Weave.jl package.
-    
+
     To enable this functionality:
     1. Install Weave in your local project: `import Pkg; Pkg.add("Weave")`
     2. `import Weave`
     3. Try again: `digest(dd, "$title")`
-    
+
     Alternatively, use the non-PDF version: `digest(dd)`
     """)
 end
@@ -1152,3 +1152,37 @@ function downsync_command(remote_host::AbstractString, remote_files::AbstractVec
         return "rsync $extra_flags -az -e '$(ssh_exe)' $(remote_host):$(join(remote_files," :")) $(local_dir) >&2"
     end
 end
+
+# ============== #
+# Web GUI (GenieFramework) #
+# ============== #
+"""
+    launch_web_gui(; host="127.0.0.1", port=8050, open_browser=true)
+
+Launch the FUSE web GUI using GenieFramework.jl.
+
+This function is implemented by the FUSEGenieFrameworkExt extension and requires
+the GenieFramework package to be installed.
+
+# Keyword Arguments
+- `host::String="127.0.0.1"` - Host address to bind the server to
+- `port::Int=8050` - Port number for the web server
+- `open_browser::Bool=true` - Automatically open the browser to the GUI
+
+# Example
+```julia
+using Pkg
+Pkg.add("GenieFramework")  # This also installs Stipple and Genie as dependencies
+
+using FUSE
+import GenieFramework  # Ensure the extension is loaded
+FUSE.launch_web_gui()  # Opens browser to http://127.0.0.1:8050
+```
+
+# Notes
+- The server runs in blocking mode by default
+- Press Ctrl+C to stop the server
+- If the FUSEGenieFrameworkExt extension is not loaded, you will get a MethodError
+
+"""
+function launch_web_gui end

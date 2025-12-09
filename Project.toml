@@ -70,10 +70,12 @@ TurbulentTransport = "9bf5e8f4-5746-4003-bc69-ef83265c10ca"
 VacuumFields = "9d9223b5-c5da-4bf4-abee-2a8bb6775a49"
 
 [weakdeps]
+GenieFramework = "a59fdf5c-6bf0-4f5d-949c-a137c9e2f353"
 ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [extensions]
+FUSEGenieFrameworkExt = "GenieFramework"
 ThermalSystemModelsExt = "ThermalSystemModels"
 WeaveExt = "Weave"
 
@@ -95,6 +97,7 @@ FixedPointAcceleration = "1.0.1"
 ForwardDiff = "0.10"
 FusionMaterials = "1"
 GACODE = "1"
+GenieFramework = "3"
 GeoInterface = "1"
 HDF5 = "0.17.2"
 HelpPlots = "1"
