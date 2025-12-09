@@ -1,5 +1,5 @@
 #import CHEASE: run_chease
-#const μ_0 = 4pi * 1E-7
+const μ_0 = 4pi * 1E-7
 
 struct MarsEq
     OutRVAR::Vector{Float64}
@@ -27,19 +27,21 @@ end
 mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorMars{P}}
-    #actor_eq::ActorEquilibrium{D,P}
-    wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
-    mars_equilibrium::Union{Nothing,MarsEq}
     mars_inputs::Union{Nothing,Vector{MarsInput}}
+    #actor_eq::ActorEquilibrium{D,P}
+    #wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
+    #mars_equilibrium::Union{Nothing,MarsEq}
     """
         ActorMars(dd::IMAS.dd{D}, par::FUSEparameters__ActorMars{P}; kw...) where {D<:Real,P<:Real}
 
     """
 
-    function ActorMars(dd::IMAS.dd{D}, par::FUSEparameters__ActorMars{P}, actor_eq, wall_heat_flux, mars_equilibrium, mars_inputs; kw...) where {D<:Real,P<:Real}
+    function ActorMars(dd::IMAS.dd{D}, par::FUSEparameters__ActorMars{P}; mars_inputs=nothing, kw...) where {D<:Real,P<:Real}
+        #, actor_eq, wall_heat_flux, mars_equilibrium, mars_inputs
         logging_actor_init(ActorMars)
         par = OverrideParameters(par; kw...)
-        return new{D,P}(dd, par, actor_eq, wall_heat_flux, mars_equilibrium, mars_inputs)
+        return new{D,P}(dd, par, mars_inputs) 
+        #, actor_eq, wall_heat_flux, mars_equilibrium, mars_inputs)
     end
 end
 
@@ -66,9 +68,9 @@ function _step(actor::ActorMars)
 
     
     #run_CHEASE(dd, par)
-    if actor.eq_type == :CHEASE # hardcode for now
+    if par.eq_type == :CHEASE # hardcode for now
         run_CHEASE(dd, par)
-    elseif actor.eq_type == :TEQUILA
+    elseif par.eq_type == :TEQUILA
         # run TEQUILA equilibrium solver
     end
     #actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
@@ -83,7 +85,9 @@ function _step(actor::ActorMars)
 
     
     # For now, we just set wall_heat_flux to nothing
-    actor.wall_heat_flux = nothing
+    #actor.wall_heat_flux = nothing
+
+    return actor
 end
 
 
@@ -92,7 +96,8 @@ function run_CHEASE(dd::IMAS.dd, par, time_slice_index::Int=1)
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
     pressure_sep = 0.0  # Placeholder value
     mode = 0            # Placeholder value
-    #write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], pressure_sep, mode)
+    limiter_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
+    write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], limiter_RZ, pressure_sep, mode)
     #CHEASE_struct = run_chease(ϵ, z_axis, pressure_sep, Bt_center, r_center, Ip, r_bound, z_bound, mode, rho_psi, pressure, j_tor, clear_workdir=false)
 end
 
@@ -100,6 +105,11 @@ function get_additional_MARS_inputs(dd::IMAS.dd, par)
     # Placeholder function to generate additional inputs for MARS
     # This would involve preparing files or data structures needed by MARS
     @info "Generating additional MARS inputs based on parameters."
+end
+
+function run_MARS(dd::IMAS.dd, par)
+    # Placeholder function to run MARS MHD stability code
+    @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
 end
 
 function run_PARTICLE_TRACING(dd::IMAS.dd, par)
@@ -113,7 +123,7 @@ end
 """
   Writes a EXPEQ file for CHEASE given dd and mode number
 """
-function write_EXPEQ_file(time_slice, pressure_sep::Float64, mode::Int)
+function write_EXPEQ_file(time_slice, limiter_RZ, pressure_sep::Float64, mode::Int)
 
     # populate the input file lines
     minor_radius = time_slice.boundary.minor_radius
@@ -123,9 +133,13 @@ function write_EXPEQ_file(time_slice, pressure_sep::Float64, mode::Int)
     Ip = time_slice.global_quantities.ip
     pressure = time_slice.profiles_1d.pressure
     j_tor = time_slice.profiles_1d.j_tor
+    r_bound = time_slice.boundary.outline.r
+    z_bound = time_slice.boundary.outline.z
+    rho_pol = time_slice.profiles_1d.rho_tor_norm
 
     # calculate aspect ratio
     ϵ = minor_radius / r_center
+    
 
     # Normalize from SI to chease units
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
@@ -155,11 +169,10 @@ function write_EXPEQ_file(time_slice, pressure_sep::Float64, mode::Int)
     end
     @assert length(rho_pol) == length(pressure) == length(j_tor) "rho_pol, presssure and j_tor arrays must have the same shape"
     write_list = vcat(write_list, "$(length(pressure))    $(string(mode)[1])")
-    write_list = vcat(write_list, "$(string(mode)[2])    0")
+    #write_list = vcat(write_list, "$(string(mode)[2])    0")
     write_list = vcat(write_list, map(string, rho_pol))
     write_list = vcat(write_list, map(string, pressure_norm))
     write_list = vcat(write_list, map(string, j_tor_norm))
-
     touch("EXPEQ")
     open("EXPEQ", "w") do file
         for line in write_list
