@@ -8,8 +8,8 @@ struct MarsEq
 end
 
 struct MarsInput
+    something::Float64
     # Placeholder for MARS input data structure
-    
 end
 
 Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor{T}
@@ -19,13 +19,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     eq_type::Switch{Symbol} = Switch{Symbol}([:CHEASE, :TEQUILA], "-", "Type of equilibrium to use: :CHEASE or :TEQUILA"; default=:CHEASE)
     EQDSK::Entry{Bool} = Entry{Bool}("-", "Enable EQDSK"; default=false)
-    MHD_code::Switch{Symbol} = Switch{Symbol}([:MARS, :MARS_F, :MARS_K], "-", "MHD code to use: :MARS or :MARS_F"; default=:MARS)
+    MHD_code::Switch{Symbol} = Switch{Symbol}([:MARS_Q, :MARS_F, :MARS_K], "-", "MHD code to use: :MARS or :MARS_F"; default=:MARS_F)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
     PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)
-    #NWBPS::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
-    #NSTTP::Switch{Symbol} = Switch{Symbol}("-", "Specification of Grad-Shaf RHS current", [:TTpr, :Jtor, :Jpar]; default=:TTpr)
-    #NDATA::Switch{Symbol} = Switch{Symbol}("-", "Wall Resistivity Model", [:Constant, :Variable]; default=:Constant)
-    #pressure_sep::Entry{Float64} = Entry{Float64}("-", "Pressure at separatrix in Pa"; default=0.0)
+    number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
+    pressure_sep::Entry{Float64} = Entry{Float64}("-", "Pressure at separatrix in Pa"; default=0.0)
+    GS_rhs::Switch{Symbol} = Switch{Symbol}([:TTpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:TTpr)
+    wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
 end
 
 mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
@@ -76,8 +76,6 @@ function _step(actor::ActorMars)
     elseif par.eq_type == :TEQUILA
         # run TEQUILA equilibrium solver
     end
-    #actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
-    #actor.eq_actor = ActorCHEASE(dd, act.ActorCHEASE, act)
     
     # Produce the additional inputs required for MARS
     get_additional_MARS_inputs(dd, par)
@@ -97,7 +95,7 @@ function run_CHEASE(dd::IMAS.dd, par, time_slice_index::Int=1)
     # Placeholder function to run CHEASE equilibrium solver
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
     limiter_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
-    write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], limiter_RZ, par)
+    write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], par, limiter_RZ)
     #CHEASE_struct = run_chease(ϵ, z_axis, pressure_sep, Bt_center, r_center, Ip, r_bound, z_bound, mode, rho_psi, pressure, j_tor, clear_workdir=false)
 end
 
@@ -126,7 +124,7 @@ end
         NWBPS: Number of wall boundary points
         NSTTP: Number of steps in pressure and current profiles
 """
-function write_EXPEQ_file(time_slice, limiter_RZ, par)
+function write_EXPEQ_file(time_slice, par, limiter_RZ)
 
     # populate the input file lines
     minor_radius = time_slice.boundary.minor_radius
@@ -141,14 +139,31 @@ function write_EXPEQ_file(time_slice, limiter_RZ, par)
     rho_pol = time_slice.profiles_1d.rho_tor_norm
 
     ## get additional parameters from user
-    NWBPS = par.NWBPS
-    NSTTP = Int(par.NSTTP == :TTpr ? 1 : par.NSTTP == :Jtor ? 2 : par.NSTTP == :Jpol ? 3)
+    NWBPS = par.number_surfaces
+    NSTTP = if par.GS_rhs == :TTpr
+        1
+    elseif par.GS_rhs == :Jtor
+        2
+    elseif par.GS_rhs == :Jpar
+        3
+    else
+        0
+    end
+
+    if par.wall_resistivity_type == :Constant
+        NDATA = 2
+        # set wall resistivity model to constant
+    elseif par.wall_resistivity_type == :Variable
+        NDATA = 3
+        # set wall resistivity model to variable
+    else
+        NDATA = 1   
+    end
     pressure_sep = par.pressure_sep
 
     # calculate aspect ratio
     ϵ = minor_radius / r_center
     
-
     # Normalize from SI to chease units
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
     pressure_norm = pressure / (Bt_center^2 / μ_0)
@@ -166,19 +181,37 @@ function write_EXPEQ_file(time_slice, limiter_RZ, par)
         j_tor_norm .*= -1
     end
 
+    # Remove/smooth the X-point along the boundary
+    pr = r_bound
+    pz = z_bound
+    ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
+    pr, pz = limit_curvature(pr, pz, ab / 20.0)
+    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * length(pr), method=:linear)
+    plt =plot!(pr, pz; marker=:circle, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+    display(plt)
+
     r_bound_norm = r_bound / r_center
     z_bound_norm = z_bound / r_center
 
     write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
     @assert length(r_bound) == length(z_bound) "R,Z boundary arrays must have the same shape"
-    write_list = vcat(write_list, string(length(r_bound)), string(NWBPS))
+    write_list = vcat(write_list, string(length(r_bound), " ", NWBPS, " ", NDATA))
     for (r, z) in zip(r_bound_norm, z_bound_norm)
         write_list = vcat(write_list, "$r    $z")
     end
 
     # add the limiter/vacuum vessel outline
+    # first smooth the outline
+    # Remove/smooth the X-point along the boundary
+    pr2 = limiter_RZ[1]
+    pz2 = limiter_RZ[2]
+    ab = sqrt((maximum(pr2) - minimum(pr2))^2 + (maximum(pz2) - minimum(pz2))^2) / 2.0
+    #pr2, pz2 = limit_curvature(pr2, pz2, ab / 20.0)
+    #pr2, pz2 = IMAS.resample_2d_path(pr2, pz2; n_points=2 * length(pr), method=:linear)
+    
+    #
     write_list = vcat(write_list, string(length(limiter_RZ[1])))
-    for (r, z) in zip(limiter_RZ[1], limiter_RZ[2])
+    for (r, z) in zip(pr2, pz2)
         write_list = vcat(write_list, "$r    $z")
     end
 
