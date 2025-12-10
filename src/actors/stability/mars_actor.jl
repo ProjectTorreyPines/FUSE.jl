@@ -9,8 +9,8 @@ end
 
 struct MarsInput
     # Placeholder for MARS input data structure
+    
 end
-
 
 Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
@@ -21,7 +21,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     EQDSK::Entry{Bool} = Entry{Bool}("-", "Enable EQDSK"; default=false)
     MHD_code::Switch{Symbol} = Switch{Symbol}([:MARS, :MARS_F, :MARS_K], "-", "MHD code to use: :MARS or :MARS_F"; default=:MARS)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
-    PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)   
+    PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)
+    #NWBPS::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
+    #NSTTP::Switch{Symbol} = Switch{Symbol}("-", "Specification of Grad-Shaf RHS current", [:TTpr, :Jtor, :Jpar]; default=:TTpr)
+    #NDATA::Switch{Symbol} = Switch{Symbol}("-", "Wall Resistivity Model", [:Constant, :Variable]; default=:Constant)
+    #pressure_sep::Entry{Float64} = Entry{Float64}("-", "Pressure at separatrix in Pa"; default=0.0)
 end
 
 mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
@@ -66,7 +70,6 @@ function _step(actor::ActorMars)
     # This would involve setting up the MARS simulation based on the parameters
     # and computing the wall heat flux accordingly
 
-    
     #run_CHEASE(dd, par)
     if par.eq_type == :CHEASE # hardcode for now
         run_CHEASE(dd, par)
@@ -83,7 +86,6 @@ function _step(actor::ActorMars)
     
     #run_PARTICLE_TRACING(dd, par)
 
-    
     # For now, we just set wall_heat_flux to nothing
     #actor.wall_heat_flux = nothing
 
@@ -94,10 +96,8 @@ end
 function run_CHEASE(dd::IMAS.dd, par, time_slice_index::Int=1)
     # Placeholder function to run CHEASE equilibrium solver
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
-    pressure_sep = 0.0  # Placeholder value
-    mode = 0            # Placeholder value
     limiter_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
-    write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], limiter_RZ, pressure_sep, mode)
+    write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], limiter_RZ, par)
     #CHEASE_struct = run_chease(ϵ, z_axis, pressure_sep, Bt_center, r_center, Ip, r_bound, z_bound, mode, rho_psi, pressure, j_tor, clear_workdir=false)
 end
 
@@ -122,8 +122,11 @@ end
 
 """
   Writes a EXPEQ file for CHEASE given dd and mode number
+    This function will create the necessary input file for the CHEASE equilibrium solver.
+        NWBPS: Number of wall boundary points
+        NSTTP: Number of steps in pressure and current profiles
 """
-function write_EXPEQ_file(time_slice, limiter_RZ, pressure_sep::Float64, mode::Int)
+function write_EXPEQ_file(time_slice, limiter_RZ, par)
 
     # populate the input file lines
     minor_radius = time_slice.boundary.minor_radius
@@ -136,6 +139,11 @@ function write_EXPEQ_file(time_slice, limiter_RZ, pressure_sep::Float64, mode::I
     r_bound = time_slice.boundary.outline.r
     z_bound = time_slice.boundary.outline.z
     rho_pol = time_slice.profiles_1d.rho_tor_norm
+
+    ## get additional parameters from user
+    NWBPS = par.NWBPS
+    NSTTP = Int(par.NSTTP == :TTpr ? 1 : par.NSTTP == :Jtor ? 2 : par.NSTTP == :Jpol ? 3)
+    pressure_sep = par.pressure_sep
 
     # calculate aspect ratio
     ϵ = minor_radius / r_center
@@ -163,16 +171,26 @@ function write_EXPEQ_file(time_slice, limiter_RZ, pressure_sep::Float64, mode::I
 
     write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
     @assert length(r_bound) == length(z_bound) "R,Z boundary arrays must have the same shape"
-    write_list = vcat(write_list, string(length(r_bound)))
+    write_list = vcat(write_list, string(length(r_bound)), string(NWBPS))
     for (r, z) in zip(r_bound_norm, z_bound_norm)
         write_list = vcat(write_list, "$r    $z")
     end
+
+    # add the limiter/vacuum vessel outline
+    write_list = vcat(write_list, string(length(limiter_RZ[1])))
+    for (r, z) in zip(limiter_RZ[1], limiter_RZ[2])
+        write_list = vcat(write_list, "$r    $z")
+    end
+
     @assert length(rho_pol) == length(pressure) == length(j_tor) "rho_pol, presssure and j_tor arrays must have the same shape"
-    write_list = vcat(write_list, "$(length(pressure))    $(string(mode)[1])")
-    #write_list = vcat(write_list, "$(string(mode)[2])    0")
+    write_list = vcat(write_list, "$(length(pressure))    $(string(NSTTP))")
     write_list = vcat(write_list, map(string, rho_pol))
     write_list = vcat(write_list, map(string, pressure_norm))
     write_list = vcat(write_list, map(string, j_tor_norm))
+
+   
+
+    # write to EXPEQ file   
     touch("EXPEQ")
     open("EXPEQ", "w") do file
         for line in write_list
