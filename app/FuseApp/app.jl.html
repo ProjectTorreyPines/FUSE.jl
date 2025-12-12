@@ -1,0 +1,46 @@
+<header>
+    <h4>Hello Genie!</h4>
+</header>
+<div class="row">
+    <div class="col-12 col-sm flex"></div>
+</div>
+<div class="row">
+    <div class="col-12 col-sm flex">
+        <div class="st-module">
+            <q-select id="i1s86" label="Select case" :options="usecases" v-model="usecase"></q-select>
+            <q-select id="i79bi" v-model="usecase_method_str" label="Select case method" :options="usecase_method_strs"></q-select>
+            <div class="row">
+                <div class="col-12 col-sm flex">
+                    <div class="st-module">
+                        <h6>Specify args</h6>
+                        <div id="iq67r">
+                            <div looper="" iscomposite="true" id="iks8f" v-for="item in usecase_args_list">
+                                <q-input id="iv6k5" v-bind:label="item.name" v-bind:error="!!usecase_arg_errors[item.name]" v-bind:error-message="usecase_arg_errors[item.name]" v-model="usecase_arg_values[item.name]">
+                                    <q-tooltip id="ino48">Type: {{ item.type }}</q-tooltip>
+                                </q-input>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm flex">
+                    <div class="st-module">
+                        <h6>Specify kwargs</h6>
+                        <div id="i0cv4">
+                            <div looper="" iscomposite="true" v-for="item in usecase_kwargs_list">
+                                <q-input v-bind:placeholder="item.default" id="iym0s" v-bind:label="item.name" v-bind:error="!!usecase_kwarg_errors[item.name]" v-bind:error-message="usecase_kwarg_errors[item.name]" v-model="usecase_kwarg_values[item.name]">
+                                    <q-tooltip id="i14aw">Type: {{ item.type }}<span v-if="item.default"> | Default: {{ item.default }}</span></q-tooltip>
+                                </q-input>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <q-btn id="iait6" v-bind:loading="is_initializing" v-bind:disable="is_initializing" color="primary" label="Initialize" v-on:click="initialize_clicked = true"></q-btn>
+            <div class="text-positive q-mt-sm" v-if="init_status === 'success'">✓ Initialization successful</div>
+            <div class="text-negative q-mt-sm" v-if="init_status === 'error'">✗ {{ init_error }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm flex">
+        <div class="st-module"></div>
+    </div>
+</div>

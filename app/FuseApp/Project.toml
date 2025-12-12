@@ -1,0 +1,10 @@
+[deps]
+CodeTracking = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
+FUSE = "e64856f0-3bb8-4376-b4b7-c03396503992"
+GenieFramework = "a59fdf5c-6bf0-4f5d-949c-a137c9e2f353"
+
+[compat]
+GenieFramework = "2.10.0"
+
+[Genie]
+instantiated_pwd = "/Users/lyons/.julia/dev/FUSE/app/FuseApp"
