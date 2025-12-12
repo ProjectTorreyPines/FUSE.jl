@@ -11,6 +11,7 @@
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    ne_sep_from::Switch{Symbol} = switch_get_from(:ne_sep, default=:core_profiles)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     mode_transitions::Entry{Dict{Float64,Symbol}} = Entry{Dict{Float64,Symbol}}(
         "s",
@@ -324,7 +325,11 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
 
     ne_old = copy(cp1d.electrons.density_thermal)
     ne_ped = IMAS.get_from(dd, Val(:ne_ped), par.ne_from, rho09) * density_factor
-    cp1d.electrons.density_thermal[end] = ne_ped / 4.0
+    ne_sep = IMAS.get_from(dd, Val(:ne_sep), par.ne_sep_from; time0=dd.global_time) * density_factor
+    user_sep_to_ped_ratio = ne_sep / ne_ped
+
+    cp1d.electrons.density_thermal[end] = ne_ped * user_sep_to_ped_ratio
+    
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = ne = IMAS.ped_height_at_09(rho, ne, ne_ped)
     ratio = ne ./ ne_old
@@ -333,7 +338,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
         if !ismissing(ion, :density_thermal)
             ion.density_thermal = ion.density_thermal .* ratio
             ni_ped = IMAS.interp1d(rho, ion.density_thermal).(rho09)
-            ion.density_thermal[end] = ni_ped / 4.0
+            ion.density_thermal[end] = ni_ped * user_sep_to_ped_ratio
             ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
         end
