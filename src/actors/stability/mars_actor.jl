@@ -161,6 +161,7 @@ end
 function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
+    nl = actor.chease_inputs
 
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
@@ -168,7 +169,7 @@ function _step(actor::ActorMars)
 
     #run_CHEASE(dd, par)
     if par.eq_type == :CHEASE # hardcode for now
-        run_CHEASE(dd, par)
+        run_CHEASE(nl, dd, par)
     elseif par.eq_type == :TEQUILA
         # run TEQUILA equilibrium solver
     end
@@ -187,12 +188,19 @@ function _step(actor::ActorMars)
 end
 
 
-function run_CHEASE(dd::IMAS.dd, par, time_slice_index::Int=1)
+function run_CHEASE(nl, dd::IMAS.dd, par, time_slice_index::Int=1)
+    
+    @assert nl !== nothing "CHEASE namelist not initialized"
+
+    
     # Placeholder function to run CHEASE equilibrium solver
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
     limiter_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
     #write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], par, limiter_RZ)
+    
     write_EXPEQ_file(dd, par)
+    
+    write_MarsEqNamelist(nl, "datain")
     
     ## Execute CHEASE
     #run(pipeline(`$(executable)`; stdout=io, stderr=io))
@@ -343,48 +351,22 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     end
 end
 
-"""
-    write_chease_namelist(
-        Bt_center::Float64,
-        r_center::Float64,
-        Ip::Float64,
-        r_bound::Vector{Float64},
-        z_bound::Vector{Float64};
-        rescale_eq_to_ip::Bool=false,
-        extra_box_fraction::Float64=0.33)
+function write_MarsEqNamelist(nl::MarsEqNamelist, filename::AbstractString="datain")
+    open(filename, "w") do io
+        println(io, "&INPUT")
 
-Writes the chease namelist to the current folder
-"""
-function write_chease_namelist(
-    Bt_center::Float64,
-    r_center::Float64,
-    Ip::Float64,
-    r_bound::Vector{Float64},
-    z_bound::Vector{Float64};
-    rescale_eq_to_ip::Bool=false,
-    extra_box_fraction::Float64=0.33)
+        for field in fieldnames(MarsEqNamelist)
+            val = getfield(nl, field)
 
-    eqdata = Dict{Symbol,Any}()
-    eqdata[:R0EXP] = r_center
-    eqdata[:B0EXP] = Bt_center
-    eqdata[:CURRT] = abs(Ip / (r_center * Bt_center / μ_0))
-    eqdata[:SIGNB0XP] = sign(Bt_center)
-    eqdata[:SIGNIPXP] = sign(Ip)
-    eqdata[:NT] = 80 # number of theta points
-    eqdata[:COCOS_IN] = 11
-    if rescale_eq_to_ip
-        eqdata[:NCSCAL] = 2 
-    else
-        eqdata[:NCSCAL] = 4 
-    end 
-    eqdata[:NPROPT] = -2
-    eqdata[:NPPFUN] = 8 
-    eqdata[:EPSLON] = 1e-6 # convergence
-    eqdata[:RELAX] = 0.9 
+            if val isa Vector
+                println(io, "  $(field)(1) = ", join(val, ", "))
+            else
+                println(io, "  $(field) = ", val)
+            end
+        end
 
+        println(io, "/")
+    end
 
-    touch("datain")
-
+    return filename
 end
-
-
