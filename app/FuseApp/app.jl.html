@@ -1,12 +1,13 @@
-<header>
-    <h4>Hello Genie!</h4>
+<header class="q-pa-md q-mb-md" style="display: flex; align-items: center; background: #f5f5f5; border-bottom: 1px solid #ddd;">
+    <img src="/img/logo.svg" alt="FUSE" style="height: 100px; margin-right: 16px;">
+    <span style="font-size: 24px; font-weight: 500;">FUSE Web GUI</span>
 </header>
-<div class="row">
-    <div class="col-12 col-sm flex"></div>
-</div>
 <div class="row">
     <div class="col-12 col-sm flex">
         <div class="st-module">
+            <header>
+                <h1><span style="font-size:26px;">Initialize Case</span><u></u></h1>
+            </header>
             <q-select id="i1s86" label="Select case" :options="usecases" v-model="usecase"></q-select>
             <q-select id="i79bi" v-model="usecase_method_str" label="Select case method" :options="usecase_method_strs"></q-select>
             <div class="row">
@@ -41,6 +42,14 @@
         </div>
     </div>
     <div class="col-12 col-sm flex">
-        <div class="st-module"></div>
+        <div class="st-module">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h6 style="margin: 0;">Log</h6>
+                <q-btn color="negative" label="Clear" size="sm" flat dense v-on:click="clear_log_clicked = true"></q-btn>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto; background: #f5f5f5; border: 1px solid #ccc; border-radius: 4px; padding: 8px; margin-top: 8px;">
+                <pre style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">{{ log_text }}</pre>
+            </div>
+        </div>
     </div>
 </div>
