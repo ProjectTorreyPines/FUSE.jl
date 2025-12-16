@@ -1,7 +1,7 @@
 #import CHEASE: run_chease
 const μ_0 = 4pi * 1E-7
 
-Base.@kwdef mutable struct MarsEqNamelist
+Base.@kwdef mutable struct CHEASEnamelist
     NEQDSK::Int     = 0
     NSURF::Int      = 6
     NTCASE::Int     = 0
@@ -94,6 +94,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     eq_type::Switch{Symbol} = Switch{Symbol}([:CHEASE, :TEQUILA], "-", "Type of equilibrium to use: :CHEASE or :TEQUILA"; default=:CHEASE)
     EQDSK::Entry{Bool} = Entry{Bool}("-", "Enable EQDSK"; default=false)
     MHD_code::Switch{Symbol} = Switch{Symbol}([:MARS_Q, :MARS_F, :MARS_K], "-", "MHD code to use: :MARS or :MARS_F"; default=:MARS_F)
+    chease_exec::Entry{String} =
+        Entry{String}("-", "Path to CHEASE executable"; default="chease.x")
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
     PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)
     number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
@@ -106,7 +108,7 @@ end
 mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorMars{P}}
-    chease_inputs::Union{Nothing,MarsEqNamelist}
+    chease_inputs::Union{Nothing,CHEASEnamelist}
     mars_inputs::Union{Nothing,Vector{MarsInput}}
 
     function ActorMars(
@@ -126,13 +128,13 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Create default CHEASE namelist
         # -------------------------
-        nl = chease_inputs === nothing ? MarsEqNamelist() : chease_inputs
+        nl = chease_inputs === nothing ? CHEASEnamelist() : chease_inputs
 
         # -------------------------
         # Apply user overrides
         # -------------------------
         for (k, v) in pairs(namelist_overrides)
-            if k ∉ fieldnames(MarsEqNamelist)
+            if k ∉ fieldnames(CHEASEnamelist)
                 error("Unknown namelist entry '$k'")
             end
             setfield!(nl, k, v)
@@ -189,22 +191,38 @@ end
 
 
 function run_CHEASE(nl, dd::IMAS.dd, par, time_slice_index::Int=1)
-    
+    @info "Running CHEASE with EQDSK=$(par.EQDSK)"
+
+    chease_exec = par.chease_exec
+
     @assert nl !== nothing "CHEASE namelist not initialized"
 
-    
-    # Placeholder function to run CHEASE equilibrium solver
-    @info "Running CHEASE with EQDSK=$(par.EQDSK)"
-    limiter_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
-    #write_EXPEQ_file(dd.equilibrium.time_slice[time_slice_index], par, limiter_RZ)
-    
+    # Write EXPEQ file
     write_EXPEQ_file(dd, par)
     
-    write_MarsEqNamelist(nl, "datain")
+    # Write CHEASE namelist file
+    write_CHEASEnamelist(nl, "datain")
+
+    # Execute CHEASE
+    @assert isfile("datain") "CHEASE input file datain not found"
+    cmd = pipeline(
+        `$(chease_exec)`,
+        stdin  = open("datain", "r"),
+        stdout = open("log_chease", "w"),
+        stderr = open("log_chease", "a")  # optional, but recommended
+    )
+ 
+    ok = success(cmd)
+
+    if !ok
+        error("CHEASE failed — see log_chease")
+    end
     
-    ## Execute CHEASE
-    #run(pipeline(`$(executable)`; stdout=io, stderr=io))
-    
+    #@assert success "CHEASE execution failed"
+
+    run(cmd)
+
+    return nothing
 end
 
 function get_additional_MARS_inputs(dd::IMAS.dd, par)
@@ -351,11 +369,11 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     end
 end
 
-function write_MarsEqNamelist(nl::MarsEqNamelist, filename::AbstractString="datain")
+function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="datain")
     open(filename, "w") do io
         println(io, "&INPUT")
 
-        for field in fieldnames(MarsEqNamelist)
+        for field in fieldnames(CHEASEnamelist)
             val = getfield(nl, field)
 
             if val isa Vector
