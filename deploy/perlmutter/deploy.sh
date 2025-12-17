@@ -75,10 +75,10 @@ else
     rm $basedir/modules/fuse/default.lua
     /bin/ln -s $basedir/modules/fuse/$fuse_env.lua $basedir/modules/fuse/default.lua
     # Remove sysimage and .julia folder of laste environment
-    rm -rf "$(readlink -f $basedir/environments/latest)"/.julia
-    rm -f "$(readlink -f $basedir/environments/latest)"/sys_fuse.so
+    /bin/rm -rf "$(readlink -f $basedir/environments/latest)"/.julia
+    /bin/rm -f "$(readlink -f $basedir/environments/latest)"/sys_fuse.so
     # Remove old link
-    rm $basedir/environments/latest
+    /bin/rm $basedir/environments/latest
     # Recreate it
-     /bin/ln -s $envdir $basedir/environments/latest
+    /bin/ln -s $envdir $basedir/environments/latest
 fi
