@@ -378,6 +378,10 @@ end
 
 function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="datain")
     open(filename, "w") do io
+        println(io, "***")
+        println(io, "***    Example Torus")
+        println(io, "***")
+        println(io, "***")
         println(io, "&EQDATA")
 
         for field in fieldnames(CHEASEnamelist)
