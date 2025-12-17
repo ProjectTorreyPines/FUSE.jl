@@ -384,9 +384,9 @@ function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="data
             val = getfield(nl, field)
 
             if val isa Vector
-                println(io, "  $(field)(1) = ", join(val, ", "))
+                println(io, "  $(field)(1) = ", join(val, ", "), ",")
             else
-                println(io, "  $(field) = ", join(val, ","))
+                println(io, "  $(field) = ", val, ",")
             end
         end
 
