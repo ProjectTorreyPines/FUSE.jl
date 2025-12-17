@@ -208,8 +208,20 @@ function run_CHEASE(nl, dd::IMAS.dd, par, time_slice_index::Int=1)
     @info "Executing CHEASE from $chease_exec"
     assert_executable(chease_exec)
 
-    ok = success(`$(chease_exec) < datain > log_chease`)
+    isfile(chease_exec) || error("CHEASE executable not found: $chease_exec")
+
+    cmd = pipeline(
+        `$(chease_exec)`,
+        stdin  = "datain",
+        stdout = "log_chease",
+        stderr = "log_chease"
+    )
+
+    @info "Executing CHEASE from $chease_exec"
+    ok = success(cmd)
+
     ok || error("CHEASE failed — see log_chease")
+
 
     return nothing
 end
