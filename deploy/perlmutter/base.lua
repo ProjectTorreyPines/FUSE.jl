@@ -1,6 +1,6 @@
 whatis("Name    : fuse")
 whatis("Version : " .. fuse_env)
-
+depends_on("julia-latest/1.0")
 depends_on("julia/1.11.4")
 
 local envdir = basedir .. "/environments/" .. fuse_env
