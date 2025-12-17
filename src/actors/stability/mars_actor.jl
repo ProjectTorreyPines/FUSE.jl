@@ -205,22 +205,11 @@ function run_CHEASE(nl, dd::IMAS.dd, par, time_slice_index::Int=1)
 
     # Execute CHEASE
     @assert isfile("datain") "CHEASE input file datain not found"
-    cmd = pipeline(
-        `$(chease_exec)`,
-        stdin  = open("datain", "r"),
-        stdout = open("log_chease", "w"),
-        stderr = open("log_chease", "a")  # optional, but recommended
-    )
- 
-    ok = success(cmd)
-
-    if !ok
-        error("CHEASE failed — see log_chease")
-    end
+    @info "Executing CHEASE from $chease_exec"
+    assert_executable(chease_exec)
     
-    #@assert success "CHEASE execution failed"
-
-    run(cmd)
+    ok = success(`$(chease_exec) < datain > log_chease`)
+    ok || error("CHEASE failed — see log_chease")
 
     return nothing
 end
@@ -235,6 +224,12 @@ function run_MARS(dd::IMAS.dd, par)
     # Placeholder function to run MARS MHD stability code
     @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
 end
+
+function assert_executable(path::AbstractString)
+    isfile(path) || error("CHEASE executable not found: $path")
+    isexecutable(path) || error("CHEASE exists but is not executable: $path")
+end
+
 
 function run_PARTICLE_TRACING(dd::IMAS.dd, par)
     # Placeholder function to run particle tracing simulations
