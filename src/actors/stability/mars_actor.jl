@@ -207,7 +207,7 @@ function run_CHEASE(nl, dd::IMAS.dd, par, time_slice_index::Int=1)
     @assert isfile("datain") "CHEASE input file datain not found"
     @info "Executing CHEASE from $chease_exec"
     assert_executable(chease_exec)
-    
+
     ok = success(`$(chease_exec) < datain > log_chease`)
     ok || error("CHEASE failed — see log_chease")
 
@@ -366,7 +366,7 @@ end
 
 function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="datain")
     open(filename, "w") do io
-        println(io, "&INPUT")
+        println(io, "&EQDATA")
 
         for field in fieldnames(CHEASEnamelist)
             val = getfield(nl, field)
@@ -374,11 +374,11 @@ function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="data
             if val isa Vector
                 println(io, "  $(field)(1) = ", join(val, ", "))
             else
-                println(io, "  $(field) = ", val)
+                println(io, "  $(field) = ", join(val, ","))
             end
         end
 
-        println(io, "/")
+        println(io, "&END")
     end
 
     return filename
