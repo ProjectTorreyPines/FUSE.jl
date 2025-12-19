@@ -1,4 +1,5 @@
 #import CHEASE: run_chease
+using Interpolations
 const μ_0 = 4pi * 1E-7
 
 Base.@kwdef mutable struct CHEASEnamelist
@@ -164,6 +165,7 @@ function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
     nl = actor.chease_inputs
+    profiles = dd.equilibrium.time_slice[].profiles_1d
 
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
@@ -171,13 +173,13 @@ function _step(actor::ActorMars)
 
     #run_CHEASE(dd, par)
     if par.eq_type == :CHEASE # hardcode for now
-        run_CHEASE(nl, dd, par)
+        run_CHEASE(dd, par, nl)
     elseif par.eq_type == :TEQUILA
         # run TEQUILA equilibrium solver
     end
     
     # Produce the additional inputs required for MARS
-    get_additional_MARS_inputs(dd, par)
+    get_additional_MARS_inputs(profiles, par)
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
     run_MARS(dd, par)
     
@@ -190,7 +192,7 @@ function _step(actor::ActorMars)
 end
 
 
-function run_CHEASE(nl, dd::IMAS.dd, par, time_slice_index::Int=1)
+function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
 
     chease_exec = par.chease_exec
@@ -226,10 +228,12 @@ function run_CHEASE(nl, dd::IMAS.dd, par, time_slice_index::Int=1)
     return nothing
 end
 
-function get_additional_MARS_inputs(dd::IMAS.dd, par)
+function get_additional_MARS_inputs(profiles, par)
     # Placeholder function to generate additional inputs for MARS
     # This would involve preparing files or data structures needed by MARS
     @info "Generating additional MARS inputs based on parameters."
+
+    pressure = profiles.pressure
 end
 
 function run_MARS(dd::IMAS.dd, par)
@@ -322,26 +326,23 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     end
 
     # Remove/smooth the X-point along the boundary
-    pr = r_bound
-    pz = z_bound
-    ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
-    pr, pz = limit_curvature(pr, pz, ab / 20.0)
-    pr, pz = IMAS.resample_2d_path(pr, pz; n_points=301, method=:linear)
+    ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
+    pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
+    rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=301, method=:linear)
 
-    plt = plot!(pr, pz; marker=:circle, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+    plt = plot!(rb_new, zb_new; marker=:circle, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
     display(plt)
 
-    r_bound_norm = pr / r_center
-    z_bound_norm = pz / r_center
+    r_bound_norm = rb_new / r_center
+    z_bound_norm = zb_new / r_center
 
-    
     # add the limiter/vacuum vessel outline
     # first smooth the outline
     # Remove/smooth the X-point along the boundary
-    pr2 = wall_RZ[1]
-    pz2 = wall_RZ[2]
-    ab = sqrt((maximum(pr2) - minimum(pr2))^2 + (maximum(pz2) - minimum(pz2))^2) / 2.0
-    println(ab)
+    pr2, pz2 = offset_boundary(r_bound, z_bound, 0.1)
+    #pr2 = wall_RZ[1]
+    #pz2 = wall_RZ[2]
+    #ab = sqrt((maximum(pr2) - minimum(pr2))^2 + (maximum(pz2) - minimum(pz2))^2) / 2.0
     #pr2, pz2 = limit_curvature(pr2, pz2, ab/20.)
     pr2, pz2 = IMAS.resample_2d_path(pr2, pz2; n_points=301, method=:linear)
     
@@ -350,7 +351,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
     @assert length(r_bound) == length(z_bound) "R,Z boundary arrays must have the same shape"
     write_list = vcat(write_list, string(length(r_bound), " ", NWBPS, " ", NDATA))
-    for (r, z) in zip(r_bound_norm, z_bound_norm)
+    for (r, z) in zip(rb_new, zb_new)
         write_list = vcat(write_list, "$r    $z")
     end
     if NWBPS > 1. ## WHAT TO DO if > 2
@@ -398,4 +399,59 @@ function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="data
     end
 
     return filename
+end
+
+
+function offset_boundary(xs, ys, d)
+    ds = sqrt.(diff(xs).^2 .+ diff(ys).^2)
+    t  = cumsum(vcat(0.0, ds))
+    s  = t ./ maximum(t)
+
+    itp_raw = linear_interpolation(s, xs)
+
+    # resample onto uniform grid
+    s_uniform = range(0.0, 1.0; length=length(s))
+    r_uniform = itp_raw.(s_uniform)
+
+    # now cubic spline
+    itp_x = CubicSplineInterpolation(s_uniform, r_uniform)
+
+    itp_raw = linear_interpolation(s, ys)
+
+    # resample onto uniform grid
+    s_uniform = range(0.0, 1.0; length=length(s))
+    z_uniform = itp_raw.(s_uniform)
+
+    # now cubic spline
+    itp_y = CubicSplineInterpolation(s_uniform, z_uniform)
+
+    npts = 200
+    ss   = range(0,1,length=npts)
+
+    X = Float64[]
+    Y = Float64[]
+
+    for s in ss
+        xv = itp_x(s)
+        yv = itp_y(s)
+
+        # tangent
+        dxds = Interpolations.gradient(itp_x, s)
+        dyds = Interpolations.gradient(itp_y, s)
+        T    = normalize([dxds, dyds])
+
+        N    = [-T[2], T[1]]     # normal vector
+
+        println("X: ", xv .+d*N[1] )
+        println("Y: ", yv)
+        #X[s] = xv + d*N[1]
+        #Y[s] = yv + d*N[2]
+        #push!(X, xv + d*N[1])
+        #push!(Y, yv + d*N[2])
+    end
+
+    return X, Y
+
+
+    #return (xs .+ d * cos.(2π .* s), ys .+ d * sin.(2π .* s))
 end
