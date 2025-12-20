@@ -34,7 +34,7 @@ This actor provides time-dependent current evolution with proper physics includi
 
 Key capabilities:
 - Time-dependent evolution: finite time steps with realistic diffusion
-- Steady-state solution: infinite time limit with equilibrium current distribution  
+- Steady-state solution: infinite time limit with equilibrium current distribution
 - Current or voltage control: can target either Ip or Vloop
 - Sawtooth modeling: automatic current profile flattening to maintain q≥1
 
@@ -134,6 +134,11 @@ function _step(actor::ActorQED)
             else
                 # run Ip controller if vloop_from == :controllers__ip
                 if par.vloop_from == :controllers__ip
+                    if tt > t0
+                        # update Ip in core_profiles before controller
+                        cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
+                        cp1d.j_non_inductive = flattened_j_non_inductive
+                    end
                     finalize(step(actor.ip_controller; time0=tt + δt))
                 end
                 Ip = nothing
