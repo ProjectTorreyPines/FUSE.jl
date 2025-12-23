@@ -286,6 +286,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
 
+    if minimum(r_bound) - offset < 0
+        error("Offset too large: boundary crosses R < 0 (min R = $(minimum(r_bound)))")
+    end
+
     ## get additional parameters from user
     NWBPS = par.number_surfaces
     NSTTP = if par.GS_rhs == :TTpr
@@ -333,9 +337,9 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
     rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
-
+    println(length(rb_new),length(pr))
     plt = plot()
-    plt = plot!(rb_new, zb_new; marker=:circle, aspect_ratio=:equal, title="Smoothed Boundary & RW for CHEASE")
+    plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, title="Smoothed Boundary & RW for CHEASE")
     display(plt)
 
     #r_bound_norm = rb_new / r_center
@@ -345,18 +349,17 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     pr2, pz2 = offset_boundary(rb_new, zb_new, offset)
     pr2, pz2 = IMAS.resample_2d_path(pr2, pz2; n_points=n_points, method=:linear)
     
-    plt = plot!(pr2, pz2; aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+    plt = plot!(pr2, pz2; linewidth=1.5, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
     display(plt)
 
     ##----------------- Write the file -----------------##
     write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
-    @assert length(r_bound) == length(z_bound) "R,Z boundary arrays must have the same shape"
-    write_list = vcat(write_list, string(length(r_bound), " ", NWBPS, " ", NDATA))
+    @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
+    write_list = vcat(write_list, string(length(rb_new), " ", NWBPS, " ", NDATA))
     for (r, z) in zip(rb_new, zb_new)
         write_list = vcat(write_list, "$r    $z")
     end
     if NWBPS > 1. ## WHAT TO DO if > 2
-        write_list = vcat(write_list, string(length(pr2)))
         for (r, z) in zip(pr2, pz2)
             write_list = vcat(write_list, "$r    $z")
         end
