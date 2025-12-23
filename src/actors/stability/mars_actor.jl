@@ -97,6 +97,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     MHD_code::Switch{Symbol} = Switch{Symbol}([:MARS_Q, :MARS_F, :MARS_K], "-", "MHD code to use: :MARS or :MARS_F"; default=:MARS_F)
     chease_exec::Entry{String} =
         Entry{String}("-", "Path to CHEASE executable"; default="chease.x")
+    offset::Entry{Float64} = Entry{Float64}("-", "Offset for first wall (RW) in meters"; default=0.2)
+    n_points::Entry{Int} = Entry{Int}("-", "Number of points for plasma boundary and surrounding walls "; default=301)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
     PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)
     number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
@@ -263,10 +265,12 @@ end
 """
 function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
 
+    offset = par.offset  # offset for first wall (RW) in meters
+    n_points = par.n_points  # number of points for first wall (RW)
+
     # initialize eqt from pulse_schedule and core_profiles
     time_slice = dd.equilibrium.time_slice[time_slice_index]
     eqt1d = time_slice.profiles_1d
-
 
     # populate the input file lines
     minor_radius = time_slice.boundary.minor_radius
@@ -328,25 +332,22 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     # Remove/smooth the X-point along the boundary
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
-    rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=301, method=:linear)
+    rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
 
-    plt = plot!(rb_new, zb_new; marker=:circle, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+    plt = plot()
+    plt = plot!(rb_new, zb_new; marker=:circle, aspect_ratio=:equal, title="Smoothed Boundary & RW for CHEASE")
     display(plt)
 
-    r_bound_norm = rb_new / r_center
-    z_bound_norm = zb_new / r_center
+    #r_bound_norm = rb_new / r_center
+    #z_bound_norm = zb_new / r_center
 
-    # add the limiter/vacuum vessel outline
-    # first smooth the outline
-    # Remove/smooth the X-point along the boundary
-    pr2, pz2 = offset_boundary(r_bound, z_bound, 0.1)
-    #pr2 = wall_RZ[1]
-    #pz2 = wall_RZ[2]
-    #ab = sqrt((maximum(pr2) - minimum(pr2))^2 + (maximum(pz2) - minimum(pz2))^2) / 2.0
-    #pr2, pz2 = limit_curvature(pr2, pz2, ab/20.)
-    pr2, pz2 = IMAS.resample_2d_path(pr2, pz2; n_points=301, method=:linear)
+    # add a smooth first wall (RW)
+    pr2, pz2 = offset_boundary(rb_new, zb_new, offset)
+    pr2, pz2 = IMAS.resample_2d_path(pr2, pz2; n_points=n_points, method=:linear)
     
-    
+    plt = plot!(pr2, pz2; aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+    display(plt)
+
     ##----------------- Write the file -----------------##
     write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
     @assert length(r_bound) == length(z_bound) "R,Z boundary arrays must have the same shape"
@@ -431,24 +432,27 @@ function offset_boundary(xs, ys, d)
     X = Float64[]
     Y = Float64[]
 
-    for s in ss
-        xv = itp_x(s)
-        yv = itp_y(s)
+    # Evaluate curve
+    xv = itp_x.(ss)
+    yv = itp_y.(ss)
 
-        # tangent
-        dxds = Interpolations.gradient(itp_x, s)
-        dyds = Interpolations.gradient(itp_y, s)
-        T    = normalize([dxds, dyds])
+    # Gradients (extract scalar from SVector{1})
+    dxds = getindex.(Interpolations.gradient.(Ref(itp_x), ss), 1)
+    dyds = getindex.(Interpolations.gradient.(Ref(itp_y), ss), 1)
 
-        N    = [-T[2], T[1]]     # normal vector
+    # Tangents
+    normT = sqrt.(dxds.^2 .+ dyds.^2)
+    Tx = dxds ./ normT
+    Ty = dyds ./ normT
 
-        println("X: ", xv .+d*N[1] )
-        println("Y: ", yv)
-        #X[s] = xv + d*N[1]
-        #Y[s] = yv + d*N[2]
-        #push!(X, xv + d*N[1])
-        #push!(Y, yv + d*N[2])
-    end
+    # Normals
+    Nx = -Ty
+    Ny =  Tx
+
+    # Offset curve
+    X = xv .+ d .* Nx
+    Y = yv .+ d .* Ny
+
 
     return X, Y
 
