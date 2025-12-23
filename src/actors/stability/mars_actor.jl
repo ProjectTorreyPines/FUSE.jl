@@ -281,8 +281,9 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     r_bound = time_slice.boundary.outline.r
     z_bound = time_slice.boundary.outline.z
     pressure = eqt1d.pressure
+    pprime = eqt1d.dpressure_dpsi
     j_tor = eqt1d.j_tor
-    rho_pol = eqt1d.rho_tor_norm
+    rho_pol = sqrt.(eqt1d.psi_norm)
 
     wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
 
@@ -320,6 +321,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
     pressure_norm = pressure / (Bt_center^2 / μ_0)
     j_tor_norm = abs.(j_tor / (Bt_center / (r_center * μ_0)))
+    dpressure_ds = 2*pprime.*rho_pol / (Bt_center^2 / μ_0)
 
     ip_sign = sign(Ip)
     bt_sign = sign(Bt_center)
@@ -366,9 +368,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     end
 
     @assert length(rho_pol) == length(pressure) == length(j_tor) "rho_pol, presssure and j_tor arrays must have the same shape"
-    write_list = vcat(write_list, "$(length(pressure))    $(string(NSTTP))")
+    write_list = vcat(write_list, "$(length(pressure))")
+    write_list = vcat(write_list, "$(string(NSTTP))")
     write_list = vcat(write_list, map(string, rho_pol))
-    write_list = vcat(write_list, map(string, pressure_norm))
+    write_list = vcat(write_list, map(string, dpressure_ds))
     write_list = vcat(write_list, map(string, j_tor_norm))
 
    
