@@ -282,7 +282,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     z_bound = time_slice.boundary.outline.z
     pressure = eqt1d.pressure
     pprime = eqt1d.dpressure_dpsi
-    j_tor = eqt1d.j_tor
     rho_pol = sqrt.(eqt1d.psi_norm)
 
     wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
@@ -293,12 +292,15 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     ## get additional parameters from user
     NWBPS = par.number_surfaces
-    NSTTP = if par.GS_rhs == :TTpr
-        1
+    if par.GS_rhs == :TTpr
+        NSTTP = 1
+        Jtor = eqt.j_tor
     elseif par.GS_rhs == :Jtor
-        2
+        NSTTP = 2
+        Jtor = eqt.j_parallel
     elseif par.GS_rhs == :Jpar
-        3
+        NSTTP = 3
+        Jtor = eqt.j_parallel # NOT right!
     else
         0
     end
