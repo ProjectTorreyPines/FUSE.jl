@@ -294,13 +294,13 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     NWBPS = par.number_surfaces
     if par.GS_rhs == :TTpr
         NSTTP = 1
-        Jtor = eqt.j_tor
+        j_tor = eqt1d.j_tor
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
-        Jtor = eqt.j_parallel
+        j_tor = eqt1d.j_parallel
     elseif par.GS_rhs == :Jpar
         NSTTP = 3
-        Jtor = eqt.j_parallel # NOT right!
+        j_tor = eqt1d.j_parallel # NOT right!
     else
         0
     end
