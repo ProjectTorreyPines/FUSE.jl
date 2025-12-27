@@ -187,9 +187,7 @@ function _step(actor::ActorMars)
     
     #run_PARTICLE_TRACING(dd, par)
 
-    # For now, we just set wall_heat_flux to nothing
-    #actor.wall_heat_flux = nothing
-
+    
     return actor
 end
 
