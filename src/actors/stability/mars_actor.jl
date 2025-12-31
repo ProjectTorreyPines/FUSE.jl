@@ -221,7 +221,8 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
 
     @info "Executing CHEASE from $chease_exec"
     ok = success(cmd)
-
+    keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
+    extract_lines_for_keys("log_chease", keys) if ok
     ok || error("CHEASE failed — see log_chease")
 
 
@@ -232,8 +233,8 @@ function get_additional_MARS_inputs(profiles, par)
     # Placeholder function to generate additional inputs for MARS
     # This would involve preparing files or data structures needed by MARS
     @info "Generating additional MARS inputs based on parameters."
-
-    pressure = profiles.pressure
+    tor_rotation = profiles.profiles_1d.rotation_frequency_tor_sonic
+    pressure = profiles.profiles_1d.pressure
 end
 
 function run_MARS(dd::IMAS.dd, par)
@@ -462,7 +463,37 @@ function offset_boundary(xs, ys, d)
 
 
     return X, Y
-
-
-    #return (xs .+ d * cos.(2π .* s), ys .+ d * sin.(2π .* s))
 end
+"""
+    extract_lines_for_keys(logfile, keys) -> Dict
+
+Scan `logfile` once and return a dictionary mapping each key
+to the first line containing it.
+
+Errors if any key is not found.
+"""
+function extract_lines_for_keys(
+    logfile::AbstractString,
+    keys::AbstractVector{<:AbstractString}
+)
+    isfile(logfile) || error("Log file not found: $logfile")
+
+    remaining = Set(keys)
+    results   = Dict{String,String}()
+
+    for line in eachline(logfile)
+        for key in remaining
+            if occursin(key, line)
+                results[key] = line
+                delete!(remaining, key)
+            end
+        end
+        isempty(remaining) && break
+    end
+
+    isempty(remaining) || error("Keys not found in $logfile: $(collect(remaining))")
+
+    return results
+end
+
+
