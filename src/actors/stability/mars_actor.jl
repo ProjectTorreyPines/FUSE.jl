@@ -376,7 +376,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     write_list = vcat(write_list, map(string, dpressure_ds))
     write_list = vcat(write_list, map(string, j_tor_norm))
 
-   
     # write to EXPEQ file   
     touch("EXPEQ")
     open("EXPEQ", "w") do file
