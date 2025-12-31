@@ -221,10 +221,11 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
 
     @info "Executing CHEASE from $chease_exec"
     ok = success(cmd)
-    keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
-    extract_lines_for_keys("log_chease", keys) if ok
     ok || error("CHEASE failed — see log_chease")
 
+    keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
+    extract_lines_for_keys("log_chease", keys)
+    
 
     return nothing
 end
