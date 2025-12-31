@@ -167,7 +167,7 @@ function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
     nl = actor.chease_inputs
-    profiles = dd.equilibrium.time_slice[].profiles_1d
+    core_profiles = dd.equilibrium.core_profiles[]
 
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
@@ -186,8 +186,6 @@ function _step(actor::ActorMars)
     run_MARS(dd, par)
     
     #run_PARTICLE_TRACING(dd, par)
-
-    
     return actor
 end
 
@@ -224,8 +222,8 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     ok || error("CHEASE failed — see log_chease")
 
     keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
-    extract_lines_for_keys("log_chease", keys)
-    
+    vals = extract_lines_for_keys("log_chease", keys)
+    println(vals)
 
     return nothing
 end
