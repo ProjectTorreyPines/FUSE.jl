@@ -167,7 +167,7 @@ function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
     nl = actor.chease_inputs
-    core_profiles = dd.equilibrium.core_profiles[]
+    core_profiles = dd.core_profiles[]
 
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
