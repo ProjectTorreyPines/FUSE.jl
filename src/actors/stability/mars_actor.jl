@@ -344,25 +344,26 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, title="Smoothed Boundary & RW for CHEASE")
     display(plt)
 
-    #r_bound_norm = rb_new / r_center
-    #z_bound_norm = zb_new / r_center
+    r_bound_norm = rb_new / r_center
+    z_bound_norm = zb_new / r_center
 
     # add a smooth first wall (RW)
-    pr2, pz2 = offset_boundary(rb_new, zb_new, offset)
-    pr2, pz2 = IMAS.resample_2d_path(pr2, pz2; n_points=n_points, method=:linear)
-    
-    plt = plot!(pr2, pz2; linewidth=1.5, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+    r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
+    r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
+    r_lim_norm = r_lim / r_center
+    z_lim_norm = z_lim / r_center
+    plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
     display(plt)
 
     ##----------------- Write the file -----------------##
     write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
     write_list = vcat(write_list, string(length(rb_new), " ", NWBPS, " ", NDATA))
-    for (r, z) in zip(rb_new, zb_new)
+    for (r, z) in zip(r_bound_norm, z_bound_norm)
         write_list = vcat(write_list, "$r    $z")
     end
     if NWBPS > 1. ## WHAT TO DO if > 2
-        for (r, z) in zip(pr2, pz2)
+        for (r, z) in zip(r_lim_norm, z_lim_norm)
             write_list = vcat(write_list, "$r    $z")
         end
     end
