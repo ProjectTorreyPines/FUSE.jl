@@ -167,7 +167,7 @@ function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
     nl = actor.chease_inputs
-    core_profiles = dd.core_profiles[]
+    core_profiles = dd.core_profiles
 
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
@@ -232,8 +232,8 @@ function get_additional_MARS_inputs(profiles, par)
     # Placeholder function to generate additional inputs for MARS
     # This would involve preparing files or data structures needed by MARS
     @info "Generating additional MARS inputs based on parameters."
-    tor_rotation = profiles.profiles_1d.rotation_frequency_tor_sonic
-    pressure = profiles.profiles_1d.pressure
+    tor_rotation = profiles.profiles_1d[1].rotation_frequency_tor_sonic
+    pressure = profiles.profiles_1d[1].pressure
 end
 
 function run_MARS(dd::IMAS.dd, par)
