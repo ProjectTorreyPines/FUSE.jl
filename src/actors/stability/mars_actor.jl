@@ -181,7 +181,7 @@ function _step(actor::ActorMars)
     end
     
     # Produce the additional inputs required for MARS
-    get_additional_MARS_inputs(profiles, par)
+    get_additional_MARS_inputs(core_profiles, par)
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
     run_MARS(dd, par)
     
@@ -202,6 +202,14 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     
     # Write CHEASE namelist file
     write_CHEASEnamelist(nl, "datain")
+
+    # Clean up any stale CHEASE output files
+    for f in readdir(pwd())
+        startswith(f, "OUT") && 
+        occursin("MAR", f) && 
+        @info "Checking deleting: $f" && 
+        rm(f; force=true)
+    end
 
     # Execute CHEASE
     @assert isfile("datain") "CHEASE input file datain not found"
