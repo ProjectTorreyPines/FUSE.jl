@@ -205,10 +205,10 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
 
     # Clean up any stale CHEASE output files
     for f in readdir(pwd())
-        startswith(f, "OUT") && 
-        occursin("MAR", f) && 
-        @info "Checking deleting: $f" && 
-        rm(f; force=true)
+        if startswith(f, "OUT") && occursin("MAR", f)
+            @info "Checking deleting: $f" 
+            rm(f; force=true)
+        end
     end
 
     # Execute CHEASE
