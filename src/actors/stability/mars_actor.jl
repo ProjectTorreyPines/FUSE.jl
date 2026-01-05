@@ -181,7 +181,6 @@ function _step(actor::ActorMars)
     end
     
     # Produce the additional inputs required for MARS
-    get_additional_MARS_inputs(core_profiles, par)
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
     run_MARS(dd, par)
     
@@ -236,17 +235,49 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     return nothing
 end
 
-function get_additional_MARS_inputs(profiles, par)
+function specify_MARS_profiles(profiles, rho, KEY="1")
+    # Call this if NPROFN or NPROFR = 4 in MARS namelist
     # Placeholder function to generate additional inputs for MARS
     # This would involve preparing files or data structures needed by MARS
     @info "Generating additional MARS inputs based on parameters."
     tor_rotation = profiles.profiles_1d[1].rotation_frequency_tor_sonic
+    tor_rotation = tor_rotation / maximum(tor_rotation)  # normalize rotation profile
     pressure = profiles.profiles_1d[1].pressure
+    ni = profiles.profiles_1d[1].ion[1].density
+    ni = ni / maximum(ni)  # normalize density profile
+
+    s = sqrt.(profiles.profiles_1d[1].grid.psi_norm)  # radial coordinate
+    rho_tor = sqrt.(profiles.profiles_1d[1].grid.psi_norm)
+
+    # write the *.IN files for each quantity
+    @assert length(ni) == length(tor_rotation) "density and rotation arrays must have the same shape"
+    write_list = string(length(tor_rotation), "    ", KEY)
+    for (r, z) in zip(s, tor_rotation)
+        write_list = vcat(write_list, "$r    $z")
+    end
+    touch("PROFROT.IN")
+    open("PROFROT.IN", "w") do file
+        for line in write_list
+            write(file, "$line \n")
+        end
+    end
 end
 
-function run_MARS(dd::IMAS.dd, par)
+function run_MARS(dd::IMAS.dd, par, nl=nothing, time_slice_index::Int=1)
+
+    core_profiles = dd.core_profiles
+
     # Placeholder function to run MARS MHD stability code
     @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
+    
+    @assert nl !== nothing "MARS namelist not initialized"
+
+    
+    # Write CHEASE namelist file
+    write_MARSnamelist(nl, "RUN.IN")
+
+
+    specify_MARS_profiles(core_profiles, rho, "1")
 end
 
 function assert_executable(path::AbstractString)
