@@ -100,11 +100,6 @@ struct MarsEq
     # Placeholder for MARS equilibrium data structure
 end
 
-struct MarsInput
-    something::Float64
-    # Placeholder for MARS input data structure
-end
-
 Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
@@ -143,7 +138,6 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         par::FUSEparameters__ActorMars{P}; 
         namelist_overrides = NamedTuple(),
         chease_inputs = nothing,
-        mars_overrides = NamedTuple(),
         kw...
     ) where {D<:Real,P<:Real}
 
@@ -208,7 +202,7 @@ function _step(actor::ActorMars)
     
     # Produce the additional inputs required for MARS
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
-    run_MARS(dd, par))
+    run_MARS(dd, par)
 
     #run_PARTICLE_TRACING(dd, par)
     return actor
@@ -277,21 +271,12 @@ function collect_block_overrides(block)
     return d
 end
 
-function collect_block_overrides(overrides::NamedTuple)
-    blocks = Dict{String,Dict{String,String}}()
-
-    for (block, params) in pairs(overrides)
-        bdict = Dict{String,String}()
-
-        for (k, v) in pairs(params)
-            v === nothing && continue
-            bdict[string(k)] = string(v)
-        end
-
-        isempty(bdict) || (blocks[string(block)] = bdict)
-    end
-
-    return blocks
+function collect_block_overrides(mars_overrides::NamedTuple)
+    Dict(
+        (Symbol(block), Symbol(key)) => val
+        for (block, kvs) in pairs(mars_overrides)
+        for (key, val) in pairs(kvs)
+    )
 end
 
 
@@ -354,6 +339,7 @@ function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
     cp("RUN.IN", "RUN.IN.local"; force=true)
 
     # 2. Collect overrides
+    println("MARS overrides:", mars_overrides)
     blocks = collect_block_overrides(mars_overrides)
     println(blocks)
 
@@ -361,10 +347,10 @@ function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
     #patch_runin!("RUN.IN.local", blocks)
     
     # Write CHEASE namelist file
-    write_MARSnamelist(nl, "RUN.IN")
+    #write_MARSnamelist(nl, "RUN.IN")
 
 
-    specify_MARS_profiles(core_profiles, rho, "1")
+    #specify_MARS_profiles(core_profiles, rho, "1")
 end
 
 function specify_MARS_profiles(profiles, rho, KEY="1")
