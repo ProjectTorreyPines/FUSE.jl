@@ -75,6 +75,24 @@ Base.@kwdef mutable struct CHEASEnamelist
     R0EXP::Float64  = 3.0
 end
 
+Base.@kwdef mutable struct MarsBasicOverrides
+    NCASE  ::Union{Nothing,Int} = nothing
+    NPROFN ::Union{Nothing,Int} = nothing
+    NPROFR  ::Union{Nothing,Int} = nothing
+    NPROFT  ::Union{Nothing,Int} = nothing
+end
+
+Base.@kwdef mutable struct MarsNamelistOverrides
+    BASIC ::MarsBasicOverrides = MarsBasicOverrides()
+    #FEEDBACK ::MarsFeedbackOverrides = MarsFeedbackOverrides()
+    #NUMERIC ::MarsNumericOverrides = MarsNumericOverrides()
+    #OUTOPT ::MarsOutputOverrides = MarsOutputOverrides()
+    #KINETIC ::MarsKineticOverrides = MarsKineticOverrides()
+    #QLIN ::MarsQLINOverrides = MarsQLINOverrides()
+    ## raw overrides for uncommon / experimental keys
+    raw::Dict{Symbol,Dict{Symbol,Any}} = Dict()
+end
+
 
 struct MarsEq
     OutRVAR::Vector{Float64}
@@ -105,6 +123,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     pressure_sep::Entry{Float64} = Entry{Float64}("-", "Pressure at separatrix in Pa"; default=0.0)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:TTpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:TTpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
+    mars_exec::Entry{String} =
+        Entry{String}("-", "Path to MARS executable"; default="mars.x")
+    mars_runin_path::Entry{String} =
+        Entry{String}("-", "Path to base MARS RUN.IN file"; default="RUN.IN")
 end
 
 
@@ -119,7 +141,7 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         par::FUSEparameters__ActorMars{P}; 
         namelist_overrides = NamedTuple(),
         chease_inputs = nothing,
-        mars_inputs = nothing,
+        mars_overrides = NamedTuple(),
         kw...
     ) where {D<:Real,P<:Real}
 
@@ -146,7 +168,7 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Final actor construction
         # -------------------------
-        return new{D,P}(dd, par, nl, mars_inputs)
+        return new{D,P}(dd, par, nl, mars_overrides)
     end
 end
 
@@ -166,24 +188,25 @@ end
 function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
-    nl = actor.chease_inputs
+    chease_namelist = actor.chease_inputs
+    mars_overrides = actor.mars_overrides
     core_profiles = dd.core_profiles
 
     # Placeholder for MARS actor implementation
     # This would involve setting up the MARS simulation based on the parameters
     # and computing the wall heat flux accordingly
 
-    #run_CHEASE(dd, par)
-    if par.eq_type == :CHEASE # hardcode for now
-        run_CHEASE(dd, par, nl)
+    #run equilibrium solver to generate initial conditions for MARS
+    if par.eq_type == :CHEASE
+        run_CHEASE(dd, par, chease_namelist)
     elseif par.eq_type == :TEQUILA
         # run TEQUILA equilibrium solver
     end
     
     # Produce the additional inputs required for MARS
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
-    run_MARS(dd, par)
-    
+    run_MARS(dd, par, mars_overrides)
+
     #run_PARTICLE_TRACING(dd, par)
     return actor
 end
@@ -235,6 +258,111 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     return nothing
 end
 
+
+"""
+    collect_block_overrides(block)
+
+Return a Dict{Symbol,Any} of only fields that are NOT `nothing`.
+"""
+function collect_block_overrides(block)
+    d = Dict{Symbol,Any}()
+    for f in fieldnames(typeof(block))
+        val = getfield(block, f)
+        val === nothing && continue
+        d[f] = val
+    end
+    return d
+end
+
+function collect_block_overrides(overrides::NamedTuple)
+    blocks = Dict{String,Dict{String,String}}()
+
+    for (block, params) in pairs(overrides)
+        bdict = Dict{String,String}()
+
+        for (k, v) in pairs(params)
+            v === nothing && continue
+            bdict[string(k)] = string(v)
+        end
+
+        isempty(bdict) || (blocks[string(block)] = bdict)
+    end
+
+    return blocks
+end
+
+
+function modify_MARSinputs(dd, par, overrides::MarsNamelistOverrides)
+
+    base_runin = par.mars_runin_path   # e.g. ".../RUN.IN"
+    outfile    = "run_mars.in"
+
+    open(outfile, "w") do io
+        current_block = nothing
+
+        for line in eachline(base_runin)
+
+            # detect block start
+            if startswith(strip(line), "&")
+                current_block = Symbol(strip(line)[2:end])
+                println(io, line)
+                continue
+            end
+
+            # detect block end
+            if strip(line) == "&END"
+                current_block = nothing
+                println(io, line)
+                continue
+            end
+
+            # patch only if block has overrides
+            if current_block !== nothing && hasfield(typeof(overrides), current_block)
+                block = getfield(overrides, current_block)
+                block_over = collect_block_overrides(block)
+
+                key = Symbol(first(split(strip(line), "=")))
+                if haskey(block_over, key)
+                    println(io, "  $(key) = $(block_over[key]),")
+                    continue
+                end
+            end
+
+            # default: write original line
+            println(io, line)
+        end
+    end
+
+    return outfile
+end
+
+
+function run_MARS(dd::IMAS.dd, par, mars_overrides=NamedTuple(), nl=nothing, time_slice_index::Int=1)
+
+    core_profiles = dd.core_profiles
+
+    # Placeholder function to run MARS MHD stability code
+    @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
+    
+    @assert nl !== nothing "MARS namelist not initialized"
+
+    # 1. Copy RUN.IN template
+    cp("RUN.IN", "RUN.IN.local"; force=true)
+
+    # 2. Collect overrides
+    blocks = collect_block_overrides(mars_overrides)
+    println(blocks)
+    
+    # 3. Patch only requested entries
+    #patch_runin!("RUN.IN.local", blocks)
+    
+    # Write CHEASE namelist file
+    write_MARSnamelist(nl, "RUN.IN")
+
+
+    specify_MARS_profiles(core_profiles, rho, "1")
+end
+
 function specify_MARS_profiles(profiles, rho, KEY="1")
     # Call this if NPROFN or NPROFR = 4 in MARS namelist
     # Placeholder function to generate additional inputs for MARS
@@ -263,22 +391,6 @@ function specify_MARS_profiles(profiles, rho, KEY="1")
     end
 end
 
-function run_MARS(dd::IMAS.dd, par, nl=nothing, time_slice_index::Int=1)
-
-    core_profiles = dd.core_profiles
-
-    # Placeholder function to run MARS MHD stability code
-    @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
-    
-    @assert nl !== nothing "MARS namelist not initialized"
-
-    
-    # Write CHEASE namelist file
-    write_MARSnamelist(nl, "RUN.IN")
-
-
-    specify_MARS_profiles(core_profiles, rho, "1")
-end
 
 function assert_executable(path::AbstractString)
     isfile(path) || error("CHEASE executable not found: $path")
