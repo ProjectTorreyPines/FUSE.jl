@@ -123,6 +123,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     pressure_sep::Entry{Float64} = Entry{Float64}("-", "Pressure at separatrix in Pa"; default=0.0)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:TTpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:TTpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
+    mars_overrides::Entry{NamedTuple} =
+        Entry{NamedTuple}("-", "Runtime MARS namelist overrides"; default=NamedTuple())
     mars_exec::Entry{String} =
         Entry{String}("-", "Path to MARS executable"; default="mars.x")
     mars_runin_path::Entry{String} =
@@ -134,7 +136,7 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorMars{P}}
     chease_inputs::Union{Nothing,CHEASEnamelist}
-    mars_inputs::Union{Nothing,Vector{MarsInput}}
+    #mars_inputs::Union{Nothing,Vector{MarsInput}}
 
     function ActorMars(
         dd::IMAS.dd{D}, 
@@ -168,7 +170,7 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Final actor construction
         # -------------------------
-        return new{D,P}(dd, par, nl, mars_overrides)
+        return new{D,P}(dd, par, nl)
     end
 end
 
@@ -189,7 +191,6 @@ function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
     chease_namelist = actor.chease_inputs
-    mars_overrides = actor.mars_overrides
     core_profiles = dd.core_profiles
 
     # Placeholder for MARS actor implementation
@@ -198,14 +199,16 @@ function _step(actor::ActorMars)
 
     #run equilibrium solver to generate initial conditions for MARS
     if par.eq_type == :CHEASE
-        run_CHEASE(dd, par, chease_namelist)
+        @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
+        #run_CHEASE(dd, par, chease_namelist)
     elseif par.eq_type == :TEQUILA
+        @info "Running TEQUILA equilibrium solver with EQDSK=$(par.EQDSK)."
         # run TEQUILA equilibrium solver
     end
     
     # Produce the additional inputs required for MARS
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
-    run_MARS(dd, par, mars_overrides)
+    run_MARS(dd, par))
 
     #run_PARTICLE_TRACING(dd, par)
     return actor
@@ -337,14 +340,15 @@ function modify_MARSinputs(dd, par, overrides::MarsNamelistOverrides)
 end
 
 
-function run_MARS(dd::IMAS.dd, par, mars_overrides=NamedTuple(), nl=nothing, time_slice_index::Int=1)
+function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
 
+    mars_overrides = par.mars_overrides
     core_profiles = dd.core_profiles
 
     # Placeholder function to run MARS MHD stability code
     @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
     
-    @assert nl !== nothing "MARS namelist not initialized"
+    #@assert nl !== nothing "MARS namelist not initialized"
 
     # 1. Copy RUN.IN template
     cp("RUN.IN", "RUN.IN.local"; force=true)
@@ -352,7 +356,7 @@ function run_MARS(dd::IMAS.dd, par, mars_overrides=NamedTuple(), nl=nothing, tim
     # 2. Collect overrides
     blocks = collect_block_overrides(mars_overrides)
     println(blocks)
-    
+
     # 3. Patch only requested entries
     #patch_runin!("RUN.IN.local", blocks)
     
