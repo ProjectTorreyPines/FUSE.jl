@@ -194,7 +194,7 @@ function _step(actor::ActorMars)
     #run equilibrium solver to generate initial conditions for MARS
     if par.eq_type == :CHEASE
         @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
-        #run_CHEASE(dd, par, chease_namelist)
+        run_CHEASE(dd, par, chease_namelist)
     elseif par.eq_type == :TEQUILA
         @info "Running TEQUILA equilibrium solver with EQDSK=$(par.EQDSK)."
         # run TEQUILA equilibrium solver
