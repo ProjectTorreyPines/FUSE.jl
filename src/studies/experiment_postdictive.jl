@@ -19,6 +19,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the postdictive runs into")
     kw_case_parameters::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to case_parameters"; default=Dict{Symbol,Any}())
+    redirect_output::Entry{Bool} = study_common_parameters(; redirect_output=true)
 
     # Postdictive-specific parameters
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run postdictive simulations for")
@@ -71,37 +72,19 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
     sty = study.sty
     device = sty.device
 
-    original_dir = pwd()
-
-    # Redirect stdout and stderr to the file
-    original_stdout = stdout
-    original_stderr = stderr
-
     savedir = abspath(joinpath(sty.save_folder, "$(device)_$(shot)__$(Dates.now())__$(getpid())"))
     @info savedir
     if !isdir(savedir)
         mkdir(savedir)
     end
     SimulationParameters.par2json(sty, joinpath(savedir, "sty.json"))
-    file_log = open(joinpath(savedir, "log.txt"), "w")
 
-    try
-        redirect_stdout(file_log)
-        redirect_stderr(file_log)
-        cd(savedir)
-
-        run_postdictive_case(device, shot; savedir, sty.reconstruction, kw_case_parameters)
-
-        # catch e
-        #     if isa(e, InterruptException)
-        #         rethrow(e)
-        #     end
-        #     @error "Error in postdictive case for $(device) shot $(shot): $e"
-    finally
-        redirect_stdout(original_stdout)
-        redirect_stderr(original_stderr)
-        cd(original_dir)
-        close(file_log)
+    io_out = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
+    io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
+    redirect_stdio(stdout=io_out, stderr=io_err) do
+        cd(savedir) do
+            run_postdictive_case(device, shot; savedir, sty.reconstruction, kw_case_parameters)
+        end
     end
 end
 
