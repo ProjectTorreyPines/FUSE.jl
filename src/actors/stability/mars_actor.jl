@@ -249,7 +249,7 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     ok || error("CHEASE failed — see log_chease")
 
     keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
-    vals = extract_lines_for_keys("log_chease", keys)
+    vals = extract_lines_for_keys("log_chease", keys , Any)
     println(vals)
 
     return nothing
@@ -257,19 +257,10 @@ end
 
 
 """
-    collect_block_overrides(block)
+    collect_block_overrides(NamedTuple) -> Dict{Symbol,Any}
 
 Return a Dict{Symbol,Any} of only fields that are NOT `nothing`.
 """
-function collect_block_overrides(block)
-    d = Dict{Symbol,Any}()
-    for f in fieldnames(typeof(block))
-        val = getfield(block, f)
-        val === nothing && continue
-        d[f] = val
-    end
-    return d
-end
 
 function collect_block_overrides(mars_overrides::NamedTuple)
     Dict(
@@ -279,49 +270,44 @@ function collect_block_overrides(mars_overrides::NamedTuple)
     )
 end
 
+function write_MARS_RUNIN(
+    template::AbstractString,
+    outfile::AbstractString,
+    mars_overrides::NamedTuple
+)
+    overrides = collect_block_overrides(mars_overrides)
 
-function modify_MARSinputs(dd, par, overrides::MarsNamelistOverrides)
+    current_block = nothing
+    open(outfile, "w") do out
+        for line in eachline(template)
+            stripped = strip(line)
 
-    base_runin = par.mars_runin_path   # e.g. ".../RUN.IN"
-    outfile    = "run_mars.in"
-
-    open(outfile, "w") do io
-        current_block = nothing
-
-        for line in eachline(base_runin)
-
-            # detect block start
-            if startswith(strip(line), "&")
-                current_block = Symbol(strip(line)[2:end])
-                println(io, line)
+            # Detect block headers
+            if startswith(stripped, "&")
+                current_block = Symbol(strip(stripped[2:end]))
+                println(out, line)
                 continue
-            end
-
-            # detect block end
-            if strip(line) == "&END"
+            elseif stripped == "&END"
                 current_block = nothing
-                println(io, line)
+                println(out, line)
                 continue
             end
 
-            # patch only if block has overrides
-            if current_block !== nothing && hasfield(typeof(overrides), current_block)
-                block = getfield(overrides, current_block)
-                block_over = collect_block_overrides(block)
+            # Override line if key matches
+            if current_block !== nothing && occursin("=", stripped)
+                key = Symbol(strip(first(split(stripped, "="))))
 
-                key = Symbol(first(split(strip(line), "=")))
-                if haskey(block_over, key)
-                    println(io, "  $(key) = $(block_over[key]),")
+                k = (current_block, key)
+                if haskey(overrides, k)
+                    val = overrides[k]
+                    println(out, " $key = $val,")
                     continue
                 end
             end
 
-            # default: write original line
-            println(io, line)
+            println(out, line)
         end
     end
-
-    return outfile
 end
 
 
@@ -329,6 +315,7 @@ function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     mars_overrides = par.mars_overrides
     core_profiles = dd.core_profiles
+    mars_namelist = par.mars_runin_path
 
     # Placeholder function to run MARS MHD stability code
     @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
@@ -336,19 +323,18 @@ function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
     #@assert nl !== nothing "MARS namelist not initialized"
 
     # 1. Copy RUN.IN template
-    cp("RUN.IN", "RUN.IN.local"; force=true)
+    cp(mars_namelist, "RUN.IN.local"; force=true)
 
     # 2. Collect overrides
-    println("MARS overrides:", mars_overrides)
     blocks = collect_block_overrides(mars_overrides)
-    println(blocks)
 
     # 3. Patch only requested entries
-    #patch_runin!("RUN.IN.local", blocks)
+    write_MARS_RUNIN(mars_namelist, "RUN.IN.local", mars_overrides)
     
-    # Write CHEASE namelist file
-    #write_MARSnamelist(nl, "RUN.IN")
-
+    # 4. Determine which profiles come from experiment
+    keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
+    vals = extract_lines_for_keys(mars_namelist, keys, Int)
+    println(typeof(vals["NPROFN"])) 
 
     #specify_MARS_profiles(core_profiles, rho, "1")
 end
@@ -604,8 +590,11 @@ function offset_boundary(xs, ys, d)
 
     return X, Y
 end
+
+
+
 """
-    extract_lines_for_keys(logfile, keys) -> Dict
+    extract_lines_for_keys(logfile, keys, DataType) -> Dict(key, value::DataType)
 
 Scan `logfile` once and return a dictionary mapping each key
 to the first line containing it.
@@ -614,24 +603,29 @@ Errors if any key is not found.
 """
 function extract_lines_for_keys(
     logfile::AbstractString,
-    keys::AbstractVector{<:AbstractString}
-)
+    keys::AbstractVector{<:AbstractString},
+    T::Type{<:Any}
+) ::Dict{String, T}
     isfile(logfile) || error("Log file not found: $logfile")
 
     remaining = Set(keys)
-    results   = Dict{String,String}()
+    results   = Dict{String, T}()
 
     for line in eachline(logfile)
         for key in remaining
             if occursin(key, line)
-                results[key] = line
+                # extract text after key
+                val = strip(replace(line, key => ""))
+                val = strip(lstrip(val, ['=', ':']))  # handle ": or =" separators
+                val = strip(rstrip(val, ','))   # handle "= or :" separators
+                results[key] = parse(T, val)
                 delete!(remaining, key)
             end
         end
         isempty(remaining) && break
     end
 
-    isempty(remaining) || error("Keys not found in $logfile: $(collect(remaining))")
+    #isempty(remaining) || error("Keys not found in $logfile: $(collect(remaining))")
 
     return results
 end
