@@ -314,7 +314,7 @@ end
 function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     mars_overrides = par.mars_overrides
-    core_profiles = dd.core_profiles
+    core_profiles = dd.core_profiles.profiles_1d[time_slice_index]
     mars_namelist = par.mars_runin_path
 
     # Placeholder function to run MARS MHD stability code
@@ -331,48 +331,59 @@ function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
     # 3. Patch only requested entries
     write_MARS_RUNIN(mars_namelist, "RUN.IN.local", mars_overrides)
     
-    # 4. Determine which profiles come from experiment
+    # 4. Determine which profiles to pull from dd, i.e. experiment
     keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
-    prof_dict = extract_lines_for_keys(mars_namelist, keys, Int)
-    #specify_MARS_profiles(core_profiles, keys, "1")
+    prof_dict = extract_lines_for_keys("RUN.IN.local", keys, Int)
+    write_exp_profiles(core_profiles, prof_dict, "1")
 end
 
-function specify_MARS_profiles(profiles, prof_dict, KEY="1")
-    # Call this if NPROFN or NPROFR = 4 in MARS namelist
-    # Placeholder function to generate additional inputs for MARS
-    # This would involve preparing files or data structures needed by MARS
-    @info "Generating additional MARS inputs based on parameters."
+function write_exp_profiles(profiles, prof_dict, KEY="1")
+    @info "Generating additional PROF*.IN files from experiment or dd."
     
-    s = sqrt.(profiles.profiles_1d[1].grid.psi_norm)  # radial coordinate
-    rho_tor = sqrt.(profiles.profiles_1d[1].grid.psi_norm)
+    s = sqrt.(profiles.grid.psi_norm)  # radial coordinate
+    rho_tor = sqrt.(profiles.grid.psi_norm)
 
     for (field, value) in prof_dict
         if field == "NPROFR" && value == 4
-            profile = profiles.profiles_1d[1].rotation_frequency_tor_sonic
+            profile = profiles.rotation_frequency_tor_sonic
             profile = profile / maximum(profile)  # normalize
+            write_profile_IN("PROFROT.IN", s, profile, KEY)
         elseif field == "NPROFN" && value == 4
-            profile = profiles.profiles_1d[1].ion[1].density
+            profile = profiles.ion[1].density
             profile = profile / maximum(profile)  # normalize
+            write_profile_IN("PROFDEN.IN", s, profile, KEY)   
         elseif field == "NPROFP" && value == 4
-            profile = profiles.profiles_1d[1].pressure
-            profile = profile / maximum(profile) 
-        elseif field == "NPROFTTCA" && value == 4 # normalize
-            profile = profiles.profiles_1d[1].conductivity_parallel
+            profile = profiles.pressure
             profile = profile / maximum(profile)
-        else    
-            error("Unknown field $field for MARS profile specification")
+            write_profile_IN("PROFPRES.IN", s, profile, KEY)
+        elseif field == "NPROFTTCA" && value == 4 # normalize
+            profile = profiles.conductivity_parallel
+            profile = profile / maximum(profile)
+        elseif field == "NPROFTTCE" && value == 4 # normalize
+            @info "Need Chi_perpendicular profile for MARS."
+            #profile = profiles.conductivity_perpendicular
+            #profile = profile / maximum(profile)
+        elseif field == "NPROFWE" && value == 4 
+            @info "Need ExB profile for MARS."
+            #profile = profiles.viscosity
+            #profile = profile / maximum(profile)
+        else
+            continue
+            #error("Unknown field $field for MARS profile specification")
         end
     end
-    
 
-    # write the *.IN files for each quantity
-    @assert length(ni) == length(tor_rotation) "density and rotation arrays must have the same shape"
-    write_list = string(length(tor_rotation), "    ", KEY)
-    for (r, z) in zip(s, tor_rotation)
+end
+
+# write the *.IN files for each quantity
+function write_profile_IN(filename::AbstractString, s::Vector{Float64}, profile::Vector{Float64}, KEY::AbstractString)
+    @assert length(s) == length(profile) "density and rotation arrays must have the same shape"
+    write_list = string(length(profile), "    ", KEY)
+    for (r, z) in zip(s, profile)
         write_list = vcat(write_list, "$r    $z")
     end
-    touch("PROFROT.IN")
-    open("PROFROT.IN", "w") do file
+    touch(filename)
+    open(filename, "w") do file
         for line in write_list
             write(file, "$line \n")
         end
