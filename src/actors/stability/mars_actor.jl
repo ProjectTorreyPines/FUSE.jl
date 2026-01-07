@@ -233,8 +233,7 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     # Execute CHEASE
     @assert isfile("datain") "CHEASE input file datain not found"
     @info "Executing CHEASE from $chease_exec"
-    assert_executable(chease_exec)
-
+    #assert_executable(chease_exec)
     isfile(chease_exec) || error("CHEASE executable not found: $chease_exec")
 
     cmd = pipeline(
@@ -388,12 +387,6 @@ function write_profile_IN(filename::AbstractString, s::Vector{Float64}, profile:
             write(file, "$line \n")
         end
     end
-end
-
-
-function assert_executable(path::AbstractString)
-    isfile(path) || error("CHEASE executable not found: $path")
-    isexecutable(path) || error("CHEASE exists but is not executable: $path")
 end
 
 
