@@ -333,25 +333,37 @@ function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
     
     # 4. Determine which profiles come from experiment
     keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
-    vals = extract_lines_for_keys(mars_namelist, keys, Int)
-    println(typeof(vals["NPROFN"])) 
-
-    #specify_MARS_profiles(core_profiles, rho, "1")
+    prof_dict = extract_lines_for_keys(mars_namelist, keys, Int)
+    #specify_MARS_profiles(core_profiles, keys, "1")
 end
 
-function specify_MARS_profiles(profiles, rho, KEY="1")
+function specify_MARS_profiles(profiles, prof_dict, KEY="1")
     # Call this if NPROFN or NPROFR = 4 in MARS namelist
     # Placeholder function to generate additional inputs for MARS
     # This would involve preparing files or data structures needed by MARS
     @info "Generating additional MARS inputs based on parameters."
-    tor_rotation = profiles.profiles_1d[1].rotation_frequency_tor_sonic
-    tor_rotation = tor_rotation / maximum(tor_rotation)  # normalize rotation profile
-    pressure = profiles.profiles_1d[1].pressure
-    ni = profiles.profiles_1d[1].ion[1].density
-    ni = ni / maximum(ni)  # normalize density profile
-
+    
     s = sqrt.(profiles.profiles_1d[1].grid.psi_norm)  # radial coordinate
     rho_tor = sqrt.(profiles.profiles_1d[1].grid.psi_norm)
+
+    for (field, value) in prof_dict
+        if field == "NPROFR" && value == 4
+            profile = profiles.profiles_1d[1].rotation_frequency_tor_sonic
+            profile = profile / maximum(profile)  # normalize
+        elseif field == "NPROFN" && value == 4
+            profile = profiles.profiles_1d[1].ion[1].density
+            profile = profile / maximum(profile)  # normalize
+        elseif field == "NPROFP" && value == 4
+            profile = profiles.profiles_1d[1].pressure
+            profile = profile / maximum(profile) 
+        elseif field == "NPROFTTCA" && value == 4 # normalize
+            profile = profiles.profiles_1d[1].conductivity_parallel
+            profile = profile / maximum(profile)
+        else    
+            error("Unknown field $field for MARS profile specification")
+        end
+    end
+    
 
     # write the *.IN files for each quantity
     @assert length(ni) == length(tor_rotation) "density and rotation arrays must have the same shape"
