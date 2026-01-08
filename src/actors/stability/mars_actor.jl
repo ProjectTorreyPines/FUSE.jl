@@ -255,6 +255,46 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     return nothing
 end
 
+function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
+
+    mars_overrides = par.mars_overrides
+    core_profiles = dd.core_profiles.profiles_1d[time_slice_index]
+    mars_namelist = par.mars_runin_path
+
+    # Placeholder function to run MARS MHD stability code
+    @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
+    
+    #@assert nl !== nothing "MARS namelist not initialized"
+
+    # 1. Copy RUN.IN template
+    cp(mars_namelist, "RUN.IN.local"; force=true)
+
+    # 2. Collect overrides
+    blocks = collect_block_overrides(mars_overrides)
+
+    # 3. Patch only requested entries
+    write_MARS_RUNIN(mars_namelist, "RUN.IN.local", mars_overrides)
+    
+    # 4. Determine which profiles to pull from dd, i.e. experiment
+    keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
+    prof_dict = extract_lines_for_keys("RUN.IN.local", keys, Int)
+    write_exp_profiles(core_profiles, prof_dict, "1")
+
+    # 5. Execute MARS
+    mars_exec = par.mars_exec
+    @assert isfile("RUN.IN.local") "MARS input file RUN.IN.local not found"
+    isfile(mars_exec) || error("MARS executable not found: $mars_exec")
+    cmd = pipeline(
+        `time $(mars_exec)`,
+        stdout = "log_mars",
+        stderr = "log_mars"
+    )
+
+    ok = success(cmd)
+    ok || error("MARS failed — see log_mars")
+
+end
+
 
 """
     collect_block_overrides(NamedTuple) -> Dict{Symbol,Any}
@@ -310,32 +350,6 @@ function write_MARS_RUNIN(
     end
 end
 
-
-function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
-
-    mars_overrides = par.mars_overrides
-    core_profiles = dd.core_profiles.profiles_1d[time_slice_index]
-    mars_namelist = par.mars_runin_path
-
-    # Placeholder function to run MARS MHD stability code
-    @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
-    
-    #@assert nl !== nothing "MARS namelist not initialized"
-
-    # 1. Copy RUN.IN template
-    cp(mars_namelist, "RUN.IN.local"; force=true)
-
-    # 2. Collect overrides
-    blocks = collect_block_overrides(mars_overrides)
-
-    # 3. Patch only requested entries
-    write_MARS_RUNIN(mars_namelist, "RUN.IN.local", mars_overrides)
-    
-    # 4. Determine which profiles to pull from dd, i.e. experiment
-    keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
-    prof_dict = extract_lines_for_keys("RUN.IN.local", keys, Int)
-    write_exp_profiles(core_profiles, prof_dict, "1")
-end
 
 function write_exp_profiles(profiles, prof_dict, KEY="1")
     @info "Generating additional PROF*.IN files from experiment or dd."
