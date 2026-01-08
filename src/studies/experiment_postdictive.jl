@@ -19,7 +19,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the postdictive runs into")
     kw_case_parameters::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to case_parameters"; default=Dict{Symbol,Any}())
-    redirect_output::Entry{Bool} = study_common_parameters(; redirect_output=true)
+    redirect_output::Entry{Bool} = Entry{Bool}("-", "Redirect stdout and stderr to log.txt file"; default=true)
 
     # Postdictive-specific parameters
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run postdictive simulations for")
