@@ -267,22 +267,22 @@ function run_MARS(dd::IMAS.dd, par, time_slice_index::Int=1)
     #@assert nl !== nothing "MARS namelist not initialized"
 
     # 1. Copy RUN.IN template
-    cp(mars_namelist, "RUN.IN.local"; force=true)
+    cp(mars_namelist, "RUN.IN"; force=true)
 
     # 2. Collect overrides
     blocks = collect_block_overrides(mars_overrides)
 
     # 3. Patch only requested entries
-    write_MARS_RUNIN(mars_namelist, "RUN.IN.local", mars_overrides)
+    write_MARS_RUNIN(mars_namelist, "RUN.IN", mars_overrides)
     
     # 4. Determine which profiles to pull from dd, i.e. experiment
     keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
-    prof_dict = extract_lines_for_keys("RUN.IN.local", keys, Int)
+    prof_dict = extract_lines_for_keys("RUN.IN", keys, Int)
     write_exp_profiles(core_profiles, prof_dict, "1")
 
     # 5. Execute MARS
     mars_exec = par.mars_exec
-    @assert isfile("RUN.IN.local") "MARS input file RUN.IN.local not found"
+    @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
     isfile(mars_exec) || error("MARS executable not found: $mars_exec")
     cmd = pipeline(
         `time $(mars_exec)`,
