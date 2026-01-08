@@ -230,6 +230,7 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
         end
     end
 
+    
     # Execute CHEASE
     @assert isfile("datain") "CHEASE input file datain not found"
     @info "Executing CHEASE from $chease_exec"
@@ -247,10 +248,10 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     ok = success(cmd)
     ok || error("CHEASE failed — see log_chease")
 
+    # basic checks on CHEASE output
     keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
-    vals = extract_lines_for_keys("log_chease", keys , Any)
-    println(vals)
-
+    println(julia_grep(keys, "log_chease"))
+    
     return nothing
 end
 
@@ -607,6 +608,17 @@ function offset_boundary(xs, ys, d)
     return X, Y
 end
 
+function julia_grep(patterns::AbstractVector{<:AbstractString}, filename::AbstractString)
+    matches = String[]
+
+    open(filename, "r") do file
+        for line in eachline(file)
+            any(p -> occursin(p, line), patterns) && push!(matches, line)
+        end
+    end
+
+    return matches
+end
 
 
 """
