@@ -1,7 +1,7 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
-authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.10.0"
+authors = ["Orso Meneghini <orso82@gmail.com>"]
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -114,7 +114,7 @@ NLsolve = "4"
 NNeutronics = "1"
 NeoclassicalTransport = "1"
 NonlinearSolve = "4.8.0"
-Optim = "1"
+Optim = "1, 2"
 OrderedCollections = "1"
 Plots = "1"
 PolygonOps = "0.1"
