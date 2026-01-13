@@ -131,16 +131,10 @@ end
 function _step(actor::ActorDynamicPlasma)
     dd = actor.dd
     par = actor.par
-
-    Δt = par.Δt
     Nt = par.Nt
-    δt = Δt / Nt
 
-    t0 = dd.global_time
-    t1 = dd.global_time + Δt
-
-    # remove time dependent data after global_time
-    IMAS.trim_time!(actor.dd, (-Inf, dd.global_time); trim_pulse_schedule=false)
+    t0 = prepare_dynamic_step!(actor)
+    t1 = t0 + par.Δt
 
     substeps_per_2loop = 9
     ProgressMeter.ijulia_behavior(:clear)
@@ -148,36 +142,10 @@ function _step(actor::ActorDynamicPlasma)
     old_logging = actor_logging(dd, false)
 
     try
-        # NOTE: δt is a full step, some actors are called every 1/2 step
-        for (kk, time0) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
-            phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2, we start with 1
+        for kk in 1:(2 * Nt)
+            phase = mod(kk + 1, 2) + 1
             progr = (prog, t0, t1, phase)
-
-            # Prepare time dependent arrays of structures
-            # NOTE: dd.core_profiles is different because it is updated
-            # by actor_jt at the 1/2 steps, but also
-            # by actor_tr and actor_ped at the 1/2 steps.
-            # For dd.core_profiles we thus create a new time slice
-            # at the 1/2 steps which is then retimed at the 2/2 steps.
-            dd.global_time = time0 # this is the --end-- time, the one we are working on
-            substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
-
-            if phase == 1
-                substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
-
-                substep(actor, Val(:run_hcd), kk == 1 ? δt / 2 : δt; progr)
-            else
-                substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
-
-                substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
-                IMAS.time_derivative_source!(dd)
-            end
-
-            substep(actor, Val(:run_sawteeth), δt / 2; progr)
-
-            substep(actor, Val(:run_equilibrium), δt / 2; progr)
-
-            substep(actor, Val(:run_pf_active), δt / 2; progr)
+            dynamic_step!(actor, kk, t0; progr)
         end
 
     catch e
@@ -187,6 +155,86 @@ function _step(actor::ActorDynamicPlasma)
     finally
         actor_logging(dd, old_logging)
     end
+
+    return actor
+end
+
+"""
+    prepare_dynamic_step!(actor::ActorDynamicPlasma) -> t0::Float64
+
+Prepare actor for manual time stepping. Call once before `dynamic_step!`.
+
+Trims future time data and returns `t0` (the current `dd.global_time`).
+Pass this `t0` value to subsequent `dynamic_step!` calls.
+"""
+function prepare_dynamic_step!(actor::ActorDynamicPlasma)
+    t0 = actor.dd.global_time
+    IMAS.trim_time!(actor.dd, (-Inf, t0); trim_pulse_schedule=false)
+    return t0
+end
+
+"""
+    dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=nothing)
+
+Execute a single half-step iteration of the dynamic plasma evolution.
+
+# Arguments
+- `actor`: The initialized ActorDynamicPlasma
+- `kk`: Iteration index (1-based), from 1 to `2 * par.Nt`
+- `t0`: Start time returned by `prepare_dynamic_step!(actor)`
+
+# Notes
+- Phase is computed as `mod(kk + 1, 2) + 1` (1 for odd kk, 2 for even)
+- Phase 1 (odd kk): evolves j_ohmic, runs HCD
+- Phase 2 (even kk): runs pedestal, transport, time derivative sources
+- Both phases: runs sawteeth, equilibrium, PF active
+
+# Example
+```julia
+actor = ActorDynamicPlasma(dd, act.ActorDynamicPlasma, act)
+t0 = prepare_dynamic_step!(actor)
+
+Nt = actor.par.Nt
+for kk in 1:(2*Nt)
+    dynamic_step!(actor, kk, t0)
+    # inspect dd state here if debugging
+end
+finalize(actor)
+```
+"""
+function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=nothing)
+    dd = actor.dd
+    par = actor.par
+
+    Δt = par.Δt
+    Nt = par.Nt
+    δt = Δt / Nt
+
+    # Compute target time for this step
+    time0 = t0 + kk * (δt / 2)
+    phase = mod(kk + 1, 2) + 1  # 1 for odd kk, 2 for even kk
+
+    # Prepare time dependent arrays of structures
+    # NOTE: dd.core_profiles is different because it is updated
+    # by actor_jt at the 1/2 steps, but also
+    # by actor_tr and actor_ped at the 1/2 steps.
+    # For dd.core_profiles we thus create a new time slice
+    # at the 1/2 steps which is then retimed at the 2/2 steps.
+    dd.global_time = time0  # this is the --end-- time, the one we are working on
+    substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
+
+    if phase == 1
+        substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
+        substep(actor, Val(:run_hcd), kk == 1 ? δt / 2 : δt; progr)
+    else
+        substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
+        substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
+        IMAS.time_derivative_source!(dd)
+    end
+
+    substep(actor, Val(:run_sawteeth), δt / 2; progr)
+    substep(actor, Val(:run_equilibrium), δt / 2; progr)
+    substep(actor, Val(:run_pf_active), δt / 2; progr)
 
     return actor
 end
