@@ -90,7 +90,7 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
         redirect_stderr(file_log)
         cd(savedir)
 
-        run_postdictive_case(device, shot; user_act=study.act, savedir, sty.reconstruction, kw_case_parameters)
+        run_postdictive_case(device, shot; savedir, sty.reconstruction, kw_case_parameters)
 
         # catch e
         #     if isa(e, InterruptException)
@@ -117,8 +117,8 @@ function run_postdictive_case!(
     dd_exp::IMAS.dd,
     device::Symbol,
     shot::Int;
-    user_act::ParametersActors,
     savedir::AbstractString=abspath("."),
+    save_gif::Bool=false,
     reconstruction::Bool,
     kw_case_parameters::Dict{Symbol,Any}
 )
@@ -126,9 +126,6 @@ function run_postdictive_case!(
     # Get case parameters
     @info "case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
-
-    # Override act with user-specific actor parameters
-    #merge!(act, user_act)
 
     # init
     ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
@@ -146,57 +143,45 @@ function run_postdictive_case!(
     act.ActorPedestal.tau_n = experiment_LH.tau_n
     act.ActorPedestal.tau_t = experiment_LH.tau_t
     act.ActorWPED.ped_to_core_fraction = experiment_LH.W_ped_to_core_fraction
-    act.ActorEPED.ped_factor = 1.0
+    act.ActorEPED.ped_factor = 0.8
     act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
 
-    if true
-        # density and Zeff from experiment
-        act.ActorPedestal.density_ratio_L_over_H = 1.0
-        act.ActorPedestal.zeff_ratio_L_over_H = 1.0
-    else
-        # density can go from L to H mode at a different time
-        act.ActorPedestal.density_ratio_L_over_H = experiment_LH.ne_L_over_H
-        act.ActorPedestal.zeff_ratio_L_over_H = experiment_LH.zeff_L_over_H
-        dd.pulse_schedule.density_control.n_e_line.reference = experiment_LH.ne_H
-        dd.pulse_schedule.density_control.zeff_pedestal.reference = experiment_LH.zeff_H
-    end
+    # density and Zeff from experiment
+    act.ActorPedestal.density_ratio_L_over_H = 1.0
+    act.ActorPedestal.zeff_ratio_L_over_H = 1.0
 
-    if true
-        # LH-transition at user-defined times
-        act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
-    else
-        # LH-transition from LH scaling law
-        act.ActorPedestal.mode_transitions = missing
-    end
+    # LH-transition at user-defined times
+    act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
 
     act.ActorEquilibrium.model = :FRESCO
     act.ActorFRESCO.nR = 65
     act.ActorFRESCO.nZ = 65
+    #act.ActorEGGO.timeslice_average = 4
 
     act.ActorNeutralFueling.τp_over_τe = 0.25
 
     act.ActorFluxMatcher.evolve_plasma_sources = false
-    act.ActorFluxMatcher.algorithm = :simple
+    act.ActorFluxMatcher.algorithm = :simple_dfsane
     act.ActorFluxMatcher.max_iterations = -10 # negative to avoid print of warnings
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorFluxMatcher.evolve_Te = :flux_match
     act.ActorFluxMatcher.evolve_Ti = :flux_match
     act.ActorFluxMatcher.evolve_densities = :flux_match
-    act.ActorFluxMatcher.evolve_rotation = :flux_match
+    act.ActorFluxMatcher.evolve_rotation = :replay
     act.ActorPedestal.rotation_model = :replay
 
     act.ActorFluxMatcher.relax = 0.5
-    act.ActorEGGO.timeslice_average = 4
 
-    #act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     # time
-    δt = 0.025
+    δt = 0.05
     dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
     final_time = ini.general.dd.equilibrium.time[end]
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
     act.ActorDynamicPlasma.Δt = final_time - dd.global_time
 
+    # choose what to evolve
     act.ActorDynamicPlasma.evolve_current = true
     act.ActorDynamicPlasma.evolve_equilibrium = true
     act.ActorDynamicPlasma.evolve_transport = true
@@ -204,18 +189,26 @@ function run_postdictive_case!(
     act.ActorDynamicPlasma.evolve_pf_active = false
     act.ActorDynamicPlasma.evolve_pedestal = true
 
-    # act.ActorCurrent.model = :replay
-    # act.ActorEquilibrium.model = :replay
     if reconstruction
         act.ActorCoreTransport.model = :replay
         act.ActorPedestal.model = :replay
+
+        act.ActorPFactive.boundary_weight = 1.0
+        act.ActorPFactive.magnetic_probe_weight = 1.0
+        act.ActorPFactive.flux_loop_weight = 1.0
+        act.ActorPFactive.strike_points_weight = 0.0
+        act.ActorPFactive.x_points_weight = 1.0
+    else
+        act.ActorPFactive.boundary_weight = 1.0
+        act.ActorPFactive.magnetic_probe_weight = 0.0
+        act.ActorPFactive.flux_loop_weight = 0.0
+        act.ActorPFactive.strike_points_weight = 0.0
+        act.ActorPFactive.x_points_weight = 1.0
+
+        # it's best to start from a transport simulation that is flux-matched
+        #FUSE.ActorFluxMatcher(dd, act; verbose=true, evolve_plasma_sources=true, max_iterations=1000, do_plot=false);
     end
-    # act.ActorHCD.ec_model = :replay
-    # act.ActorHCD.ic_model = :replay
-    # act.ActorHCD.lh_model = :replay
-    # act.ActorHCD.nb_model = :replay
-    # act.ActorHCD.pellet_model = :replay
-    # act.ActorHCD.neutral_model = :none
+
 
     # Run the simulation
     try
@@ -253,9 +246,11 @@ function run_postdictive_case!(
         @info "save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
 
-        @info "save animated gif"
-        mkdir(joinpath(savedir, "gif"))
-        animated_plasma_overview(dd, joinpath(savedir, "gif"), dd_exp)
+        if save_gif
+            @info "save animated gif"
+            mkdir(joinpath(savedir, "gif"))
+            animated_plasma_overview(dd, joinpath(savedir, "gif"), dd_exp)
+        end
     end
 
     return nothing
@@ -264,8 +259,7 @@ end
 function animated_plasma_overview(dd::IMAS.dd, dir::AbstractString, dd1::Union{IMAS.dd,Nothing}=nothing; aggregate_hcd::Bool=true, fps::Int=12)
     fulldir = abspath(dir)
     @assert isdir(fulldir) "$fulldir directory does not exist"
-    #a = Interact.@animate
-    for (k, time0) in enumerate(dd.equilibrium.time)
+    a = Plots.@animate for (k, time0) in enumerate(dd.equilibrium.time)
         try
             FUSE.plot_plasma_overview(dd, Float64(time0); dd1, aggregate_hcd)
             savefig(abspath(joinpath(fulldir, "$(@sprintf("%04d", k)).png")))
@@ -273,5 +267,5 @@ function animated_plasma_overview(dd::IMAS.dd, dir::AbstractString, dd1::Union{I
             plot()
         end
     end
-    #Interact.gif(a, abspath(joinpath(fulldir, "dd.gif")); fps)
+    Plots.gif(a, abspath(joinpath(fulldir, "dd.gif")); fps)
 end
