@@ -185,11 +185,6 @@ function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
     chease_namelist = actor.chease_inputs
-    core_profiles = dd.core_profiles
-
-    # Placeholder for MARS actor implementation
-    # This would involve setting up the MARS simulation based on the parameters
-    # and computing the wall heat flux accordingly
 
     #run equilibrium solver to generate initial conditions for MARS
     if par.eq_type == :CHEASE
@@ -200,7 +195,7 @@ function _step(actor::ActorMars)
         # run TEQUILA equilibrium solver
     end
     
-    # Produce the additional inputs required for MARS
+    # run MARS
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
     run_MARS(dd, par)
 
@@ -230,7 +225,6 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
         end
     end
 
-    
     # Execute CHEASE
     @assert isfile("datain") "CHEASE input file datain not found"
     @info "Executing CHEASE from $chease_exec"
