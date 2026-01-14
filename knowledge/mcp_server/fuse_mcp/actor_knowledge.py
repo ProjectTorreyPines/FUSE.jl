@@ -46,29 +46,30 @@ class ActorKnowledgeBase:
     def _load_actors(self):
         """Load all actor definitions from JSON files"""
         logger.info(f"Loading actors from {self.actors_dir}")
-        
-        # Load from individual JSON files
-        for json_file in self.actors_dir.rglob("*.json"):
-            try:
-                with open(json_file, 'r') as f:
-                    actor_data = json.load(f)
-                
-                actor_info = self._parse_actor_json(actor_data, json_file)
-                if actor_info:
-                    self.actors[actor_info.name] = actor_info
-                    
-                    # Organize by category
-                    if actor_info.category not in self.categories:
-                        self.categories[actor_info.category] = []
-                    self.categories[actor_info.category].append(actor_info.name)
-                    
-            except Exception as e:
-                logger.warning(f"Failed to load actor from {json_file}: {e}")
-        
-        # Also try to load from unified knowledge base if it exists
+
+        # Load from individual JSON files if they exist
+        if self.actors_dir.exists():
+            for json_file in self.actors_dir.rglob("*.json"):
+                try:
+                    with open(json_file, 'r') as f:
+                        actor_data = json.load(f)
+
+                    actor_info = self._parse_actor_json(actor_data, json_file)
+                    if actor_info:
+                        self.actors[actor_info.name] = actor_info
+
+                        # Organize by category
+                        if actor_info.category not in self.categories:
+                            self.categories[actor_info.category] = []
+                        self.categories[actor_info.category].append(actor_info.name)
+
+                except Exception as e:
+                    logger.warning(f"Failed to load actor from {json_file}: {e}")
+
+        # Load from unified knowledge base if it exists
         if self.knowledge_base_file.exists():
             self._load_unified_knowledge_base()
-        
+
         logger.info(f"Loaded {len(self.actors)} actors across {len(self.categories)} categories")
     
     def _parse_actor_json(self, data: Dict, file_path: Path) -> Optional[ActorInfo]:
@@ -136,15 +137,67 @@ class ActorKnowledgeBase:
         try:
             with open(self.knowledge_base_file, 'r') as f:
                 kb_data = json.load(f)
-            
-            # Enhance existing actors with additional information
+
             actors_data = kb_data.get("actors", {})
+
+            # Load actors from unified knowledge base
             for actor_name, actor_info in actors_data.items():
-                if actor_name in self.actors:
-                    # Update with additional info
+                if actor_name not in self.actors:
+                    # Create new actor from knowledge base
+                    parameters = []
+                    # Handle both 'parameters' and 'key_parameters' keys
+                    params_data = actor_info.get("parameters", actor_info.get("key_parameters", {}))
+                    for param_name, param_data in params_data.items():
+                        if isinstance(param_data, dict):
+                            param = ActorParameter(
+                                name=param_name,
+                                type=param_data.get("type", "unknown"),
+                                unit=param_data.get("unit", "-"),
+                                description=param_data.get("description", "No description"),
+                                default=param_data.get("default"),
+                                required=param_data.get("required", True)
+                            )
+                            parameters.append(param)
+                        elif isinstance(param_data, str):
+                            # Simple string description
+                            param = ActorParameter(
+                                name=param_name,
+                                type="unknown",
+                                unit="-",
+                                description=param_data,
+                                default=None,
+                                required=True
+                            )
+                            parameters.append(param)
+
+                    category = actor_info.get("category", "general")
+                    # Handle both 'inputs'/'outputs' and 'data_inputs'/'data_outputs'
+                    inputs = actor_info.get("inputs", actor_info.get("data_inputs", []))
+                    outputs = actor_info.get("outputs", actor_info.get("data_outputs", []))
+
+                    new_actor = ActorInfo(
+                        name=actor_name,
+                        category=category,
+                        description=actor_info.get("description", "No description available"),
+                        parameters=parameters,
+                        inputs=inputs,
+                        outputs=outputs,
+                        file_path=str(self.knowledge_base_file),
+                        julia_type=actor_info.get("julia_type"),
+                        usage_examples=actor_info.get("usage_examples")
+                    )
+
+                    self.actors[actor_name] = new_actor
+
+                    # Organize by category
+                    if category not in self.categories:
+                        self.categories[category] = []
+                    self.categories[category].append(actor_name)
+                else:
+                    # Enhance existing actors with additional information
                     if "usage_examples" in actor_info:
                         self.actors[actor_name].usage_examples = actor_info["usage_examples"]
-                
+
         except Exception as e:
             logger.warning(f"Failed to load unified knowledge base: {e}")
     

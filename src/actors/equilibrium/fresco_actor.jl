@@ -105,7 +105,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         act.ActorPFactive.flux_loop_weight,
         act.ActorPFactive.magnetic_probe_weight)
 
-    actor.canvas = FRESCO.Canvas(
+actor.canvas = FRESCO.Canvas(
         dd,
         Rs,
         Zs;
@@ -116,6 +116,7 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
         saddle_cps=eqt_control_points.saddle_cps,
         flux_cps=[eqt_control_points.flux_cps; mag_control_points.flux_cps],
         field_cps=mag_control_points.field_cps,
+        λ_regularize=1e-16,
         gt_kw...
     )
 

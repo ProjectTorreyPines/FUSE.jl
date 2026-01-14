@@ -241,7 +241,7 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
     if par.free_boundary
         # Boundary control points
         iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999; weight=act.ActorPFactive.boundary_weight)
-
+        
         # Flux control points
         mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, 1.0)
         flux_cps = VacuumFields.FluxControlPoint{D}[mag]
@@ -258,7 +258,7 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
         coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)
 
         # from fixed boundary to free boundary via VacuumFields
-        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
+        psi_free_rz = VacuumFields.fixed2free(shot, coils, Rgrid, Zgrid; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0) #Try: 1e-18 - 1e-10 
         eq2d.psi .= psi_free_rz'
 
         VacuumFields.update_currents!(dd.pf_active.coil, coils; active_only=true)

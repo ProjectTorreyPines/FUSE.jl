@@ -392,13 +392,15 @@ async def main():
     global kb
     
     # Initialize knowledge base
-    server_dir = Path(__file__).parent
-    actors_dir = server_dir.parent / "actors"
-    knowledge_file = server_dir.parent / "fuse_knowledge_base.json"
+    server_dir = Path(__file__).parent.resolve()
+    actors_dir = (server_dir.parent / "actors").resolve()
+    knowledge_file = (server_dir.parent / "fuse_knowledge_base.json").resolve()
 
     print(f"Loading actors from: {actors_dir}", file=sys.stderr)
     print(f"Knowledge base file: {knowledge_file}", file=sys.stderr)
-    
+    print(f"Actors dir exists: {actors_dir.exists()}", file=sys.stderr)
+    print(f"Knowledge file exists: {knowledge_file.exists()}", file=sys.stderr)
+
     kb = ActorKnowledgeBase(
         actors_dir=actors_dir,
         knowledge_base_file=knowledge_file
