@@ -186,6 +186,17 @@ function _step(actor::ActorMars)
     par = actor.par
     chease_namelist = actor.chease_inputs
 
+    # plot equilibrium if requested
+    if par.do_plot
+        if !isempty(dd.equilibrium.time_slice)
+            println("Plotting initial equilibrium...")
+            plt = FUSE.Plots.plot(dd.equilibrium; label="before ActorEquilibrium")
+        else
+            plt = FUSE.Plots.plot()
+        end
+        display(plt)
+    end
+
     #run equilibrium solver to generate initial conditions for MARS
     if par.eq_type == :CHEASE
         @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
@@ -194,7 +205,7 @@ function _step(actor::ActorMars)
         @info "Running TEQUILA equilibrium solver with EQDSK=$(par.EQDSK)."
         # run TEQUILA equilibrium solver
     end
-    
+
     # run MARS
     @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
     run_MARS(dd, par)
@@ -208,7 +219,6 @@ function run_CHEASE(dd::IMAS.dd, par, nl, time_slice_index::Int=1)
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
 
     chease_exec = par.chease_exec
-
     @assert nl !== nothing "CHEASE namelist not initialized"
 
     # Write EXPEQ file
@@ -441,13 +451,14 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     end
 
     ## get additional parameters from user
+    println("")
     NWBPS = par.number_surfaces
     if par.GS_rhs == :TTpr
         NSTTP = 1
-        j_tor = eqt1d.j_tor
+        j_tor = eqt1d.f_df_dpsi
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
-        j_tor = eqt1d.j_parallel
+        j_tor = eqt1d.j_tor
     elseif par.GS_rhs == :Jpar
         NSTTP = 3
         j_tor = eqt1d.j_parallel # NOT right!
@@ -491,23 +502,14 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
     rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
-    println(length(rb_new),length(pr))
     r_bound_norm = rb_new / r_center
     z_bound_norm = zb_new / r_center
 
-    plt = plot()
-    plt = plot!(r_bound_norm, z_bound_norm; linewidth=3., aspect_ratio=:equal, title="Smoothed Boundary & RW for CHEASE")
+    #plt = plot()
+    plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, title="Smoothed Boundary")
     display(plt)
 
-
-    # add a smooth first wall (RW)
-    r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
-    r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
-    r_lim_norm = r_lim / r_center
-    z_lim_norm = z_lim / r_center
-    plt = plot!(r_lim_norm, z_lim_norm; linewidth=1.5, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
-    display(plt)
-
+    
     ##----------------- Write the file -----------------##
     write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
@@ -515,7 +517,16 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     for (r, z) in zip(r_bound_norm, z_bound_norm)
         write_list = vcat(write_list, "$r    $z")
     end
+
+    # if there is another surface, calclate its cooridanes given an offset and save to file
     if NWBPS > 1. ## WHAT TO DO if > 2
+        # add a smooth first wall (RW)
+        r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
+        r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
+        r_lim_norm = r_lim / r_center
+        z_lim_norm = z_lim / r_center
+        plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+        display(plt)
         for (r, z) in zip(r_lim_norm, z_lim_norm)
             write_list = vcat(write_list, "$r    $z")
         end
