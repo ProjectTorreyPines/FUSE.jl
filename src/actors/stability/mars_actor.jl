@@ -452,7 +452,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     end
 
     ## get additional parameters from user
-    println("WHAHAAH")
     NWBPS = par.number_surfaces
     if par.GS_rhs == :TTpr
         NSTTP = 1
