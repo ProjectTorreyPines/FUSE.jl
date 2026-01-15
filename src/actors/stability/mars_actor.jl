@@ -442,6 +442,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     z_bound = time_slice.boundary.outline.z
     pressure = eqt1d.pressure
     pprime = eqt1d.dpressure_dpsi
+    FFprime = eqt1d.f_df_dpsi
     rho_pol = sqrt.(eqt1d.psi_norm)
 
     wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
@@ -455,7 +456,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     NWBPS = par.number_surfaces
     if par.GS_rhs == :TTpr
         NSTTP = 1
-        j_tor = eqt1d.f_df_dpsi
+        j_tor = eqt1d.f_df_dpsi/μ_0 # throw in mu0 for later
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         j_tor = eqt1d.j_tor
