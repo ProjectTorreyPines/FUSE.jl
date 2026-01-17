@@ -74,17 +74,17 @@ end
 
 Performs self-consistent transport evolution by matching turbulent/neoclassical transport fluxes to source fluxes.
 
-This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile 
+This actor solves the core transport equation ∇·Γ = S by iteratively adjusting plasma profile
 gradients until transport fluxes balance particle/energy sources. The process:
 
 1. **Profile Evolution**: Adjusts temperature/density/rotation profile gradients based on user configuration
-2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator  
+2. **Transport Calculation**: Evaluates turbulent and neoclassical transport fluxes using ActorFluxCalculator
 3. **Source Calculation**: Updates plasma heating, particle, and momentum sources
 4. **Flux Matching**: Minimizes residual (transport_flux - source_flux) using nonlinear solvers
 5. **Pedestal Coupling**: Optionally evolves pedestal conditions during the iteration process
 
 Evolution options per channel:
-- `:flux_match`: Evolve profile gradients to match transport and source fluxes  
+- `:flux_match`: Evolve profile gradients to match transport and source fluxes
 - `:fixed`: Keep profiles fixed
 - `:replay`: Use profiles from experimental data
 
@@ -136,7 +136,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.actor_replay))
     end
 
-    IMAS.sources!(dd)
+    # make intrinsic sources consistent to start
+    IMAS.intrinsic_sources!(dd)
+
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_ohmic)
     IMAS.refreeze!(cp1d, :j_non_inductive)
@@ -419,8 +421,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         IMAS.unfreeze!(cp1d, :t_i_average)
 
-        # refresh sources with relatex profiles
-        IMAS.sources!(dd)
+        # refresh intrinsic sources with relaxed profiles
+        IMAS.intrinsic_sources!(dd)
 
         # Ensure quasi neutrality if densities are evolved
         # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
@@ -539,10 +541,9 @@ function flux_match_errors(
     # modify cp1d with new z_profiles
     unpack_z_profiles(cp1d, par, z_profiles)
 
-    # evaluate sources (ie. target fluxes)
-    if par.evolve_plasma_sources
-        IMAS.sources!(dd; bootstrap=false)
-    end
+    # evaluate intrinsic sources (i.e., target fluxes)
+    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false)
+
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
     end
