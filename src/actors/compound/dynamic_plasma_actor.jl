@@ -26,7 +26,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_pf::ActorPFactive{D,P}
-    actor_saw::ActorSawteeth{D,P}
+    actor_saw::ActorSawteethSource{D,P}
 end
 
 """
@@ -66,7 +66,7 @@ Physics models coordinated:
   - **ActorHCD**: Time-dependent heating and current drive
   - **ActorPedestal**: Pedestal evolution and L-H transitions
   - **ActorCoreTransport**: Transport flux evolution
-  - **ActorSawteeth**: Sawtooth instability cycling
+  - **ActorSawteethSource**: Sawtooth instability cycling
   - **ActorEquilibrium**: MHD equilibrium with evolving profiles
   - **ActorPFactive**: PF coil current control for plasma shape
 
@@ -123,7 +123,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
-    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+    actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource)
 
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf, actor_saw)
 end
