@@ -140,8 +140,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     IMAS.intrinsic_sources!(dd)
 
     # freeze current expressions for speed
+    IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
     IMAS.refreeze!(cp1d, :j_ohmic)
-    IMAS.refreeze!(cp1d, :j_non_inductive)
     IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
 
     if !isinf(par.Δt)
