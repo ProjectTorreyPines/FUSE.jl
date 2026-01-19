@@ -84,10 +84,12 @@ function ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
-    logging_actor_init(ActorDynamicPlasma)
-    par = OverrideParameters(par; kw...)
+function enforce_parameter_consistency(par, act)
 
+    # FluxMatcher consistency checks
+    @assert act.ActorFluxMatcher.relax == 1.0 "ActorDynamicPlasma requires ActorFluxMatcher.relax = 1.0"
+
+    # Sawteeth consistency checks
     if par.evolve_sawteeth
         if act.ActorCurrent.model !== :QED
             error("Inconsistently enabled sawteeth. Set one of the following:
@@ -102,6 +104,13 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     - act.ActorQED.qmin_desired = 0.0")
         end
     end
+end
+
+function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorDynamicPlasma)
+    par = OverrideParameters(par; kw...)
+
+    enforce_parameter_consistency(par, act)
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
