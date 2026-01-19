@@ -198,6 +198,11 @@ function _step(actor::ActorQED)
 
     cp1d.j_total = QED.JB(actor.QO; ρ=cp1d.grid.rho_tor_norm) ./ B0
     cp1d.q = 1.0 ./ abs.(actor.QO.ι.(cp1d.grid.rho_tor_norm))
-    @ddtime(dd.sawteeth.diagnostics.rho_tor_norm_inversion = rho_qdes)
+
+    # If we've been applying sawteeth flattening, record the inversion radius
+    if rho_qdes > 0.0
+        @ddtime(dd.sawteeth.diagnostics.rho_tor_norm_inversion = rho_qdes)
+    end
+
     return actor
 end

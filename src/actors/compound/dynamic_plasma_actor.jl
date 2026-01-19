@@ -148,7 +148,7 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
-    actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource)
+    actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource; period=max(par.Δt / par.Nt, act.ActorSawteethSource.period))
 
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf, actor_saw)
 end
