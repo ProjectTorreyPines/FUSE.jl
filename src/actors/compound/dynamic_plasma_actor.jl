@@ -10,6 +10,7 @@
     evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=false)
+    evolve_sawteeth::Entry{Bool} = Entry{Bool}("-", "Evolve current and sources with sawteeth"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
     time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=true)
     #== display and debugging parameters ==#
@@ -86,6 +87,21 @@ end
 function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorDynamicPlasma)
     par = OverrideParameters(par; kw...)
+
+    if par.evolve_sawteeth
+        if act.ActorCurrent.model !== :QED
+            error("Inconsistently enabled sawteeth. Set one of the following:
+    - act.ActorDynamicPlasma.evolve_sawteeth = false
+    - act.ActorCurrent.model = :QED")
+        end
+    else
+        if act.ActorCurrent.model === :QED && act.ActorQED.qmin_desired > 0.0
+            error("Inconsistently disabled sawteeth. Set one of the following:
+    - act.ActorDynamicPlasma.evolve_sawteeth = true
+    - act.ActorCurrent.model = :SteadyStateCurrent
+    - act.ActorQED.qmin_desired = 0.0")
+        end
+    end
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
 
@@ -351,7 +367,9 @@ function substep(actor::ActorDynamicPlasma, ::Val{:run_sawteeth}, δt::Float64; 
         prog, t0, t1, phase = progr
         ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_saw, phase))
     end
-    return finalize(step(actor.actor_saw))
+    if actor.par.evolve_sawteeth
+        finalize(step(actor.actor_saw))
+    end
 end
 
 function substep(actor::ActorDynamicPlasma, ::Val{:run_pf_active}, δt::Float64; progr=nothing, kw...)
