@@ -248,16 +248,18 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
     dd.global_time = time0  # this is the --end-- time, the one we are working on
     substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
 
+    substep(actor, Val(:run_hcd), δt / 2; progr)
+
+    # apply sawteeth to sources after sources have been recomputed
+    substep(actor, Val(:run_sawteeth), δt / 2; progr)
+
     if phase == 1
         substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
-        substep(actor, Val(:run_hcd), kk == 1 ? δt / 2 : δt; progr)
     else
         substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
         substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
-        IMAS.time_derivative_source!(dd)
     end
 
-    substep(actor, Val(:run_sawteeth), δt / 2; progr)
     substep(actor, Val(:run_equilibrium), δt / 2; progr)
     substep(actor, Val(:run_pf_active), δt / 2; progr)
 
