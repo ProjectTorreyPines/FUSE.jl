@@ -10,9 +10,9 @@ Base.@kwdef mutable struct CHEASEnamelist
     NBLOPT::Int     = 0
     NBSOPT::Int     = 0
     CPRESS::Float64 = 1.000
-    CFBAL::Float64  = 3.0000
+    CFBAL::Float64  = 3.0000. # set to 1. if NSCAL = 4
 
-    NCSCAL::Int     = 2
+    NCSCAL::Int     = 2   # set to 4 if NOT scale q
     CSSPEC::Float64 = 0.000
     QSPEC::Float64  = 1.6185
 
@@ -484,7 +484,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
     pressure_norm = pressure / (Bt_center^2 / μ_0)
     j_tor_norm = abs.(j_tor / (Bt_center / (r_center * μ_0)))
-    dpressure_ds = 2*pprime.*rho_pol / (Bt_center^2 / μ_0)
+    dpressure_ds = pprime * (r_center^2 * Bt_center) / (Bt_center^2 / μ_0) 
 
     ip_sign = sign(Ip)
     bt_sign = sign(Bt_center)
