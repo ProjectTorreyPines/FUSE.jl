@@ -144,15 +144,15 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     IMAS.refreeze!(cp1d, :j_ohmic)
     IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
 
+    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
+
     if !isinf(par.Δt)
         # "∂/∂t" is to account to changes in the profiles that
         # have happened between t-1 and tnow outside of the flux matcher.
         # The flux_macher then temporarily adds a "∂/∂t implicit" term to this to
         # account for changes that occur because of transport predictions.
-        IMAS.time_derivative_source!(dd)
+        IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
-
-    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
@@ -437,7 +437,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # remove the temporary `∂/∂t implicit` term and update the full `∂/∂t` term
     if !isinf(par.Δt)
         deleteat!(dd.core_sources.source, :time_derivative, "identifier.name" => "∂/∂t implicit")
-        IMAS.time_derivative_source!(dd)
+        IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt)
     end
 
     # free pressures expressions
