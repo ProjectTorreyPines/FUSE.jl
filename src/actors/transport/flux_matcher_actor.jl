@@ -1,6 +1,6 @@
 import NLsolve
 using LinearAlgebra
-import TJLF: InputTJLF
+import TurbulentTransport: InputCGYRO,InputTGLF
 
 import NonlinearSolve, FixedPointAcceleration
 
@@ -56,6 +56,7 @@ import NonlinearSolve, FixedPointAcceleration
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
     show_trace::Entry{Bool} = Entry{Bool}("-", "Show convergence trace of nonlinear solver"; default=false)
+    save_inputs_to_folder::Entry{String} = Entry{String}("-", "Folder to save input_tglf/input_cgyro files at each iteration"; default="")
 end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
@@ -553,6 +554,12 @@ function flux_match_errors(
     # evaluate neoclassical + turbulent fluxes
     finalize(step(actor.actor_ct))
 
+    # save input files if folder is specified
+    if isdir(par.save_inputs_to_folder)
+        iteration = length(err_history) + 1
+        save_transport_inputs(dd, par.save_inputs_to_folder, iteration, par.rho_transport, dd.global_time)
+    end
+
     # scale turbulent fluxes, if par.scale_turbulence_law is set
     if !ismissing(par, :scale_turbulence_law)
         m1d = dd.core_transport.model[:anomalous].profiles_1d[]
@@ -907,7 +914,7 @@ function unpack_z_profiles(
     z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
     # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10.0
+    z_max=300.0
     z_profiles .= min.(max.(z_profiles, -z_max), z_max)
 
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
@@ -1178,6 +1185,33 @@ function calculate_w0_norm(Te_axis)
     cs_axis = sqrt(IMAS.mks.k_B * Te_axis / IMAS.mks.m_d)  # sound speed at axis
     R0 = 1.0 # 1 [m]
     return cs_axis / R0
+end
+
+"""
+    save_transport_inputs(dd::IMAS.dd, folder::String, iteration::Int, rho_transport::AbstractVector, time::Float64)
+
+Save input_tglf and input_cgyro files to the specified folder with iteration number and time in the filename.
+Files are generated directly from dd, independent of which transport model was run.
+"""
+function save_transport_inputs(dd::IMAS.dd, folder::String, iteration::Int, rho_transport::AbstractVector, time::Float64)
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    # Generate and save input_tglf files
+    input_tglfs = InputTGLF(dd,rho_transport, :sat2, true, false)
+    for (k, rho) in enumerate(rho_transport)
+        filename = joinpath(folder, "input.tglf_t$(time)_iter$(iteration)_rho$(rho)")
+        save(input_tglfs[k], filename)
+    end
+
+    # Generate and save input_cgyro files
+    for (k, rho) in enumerate(rho_transport)
+        gridpoint_cp = argmin_abs(cp1d.grid.rho_tor_norm, rho)
+        input_cgyro = InputCGYRO(dd, gridpoint_cp, false)
+        filename = joinpath(folder, "input.cgyro_t$(time)_iter$(iteration)_rho$(rho)")
+        save(input_cgyro, filename)
+    end
+
+    return nothing
 end
 
 """
