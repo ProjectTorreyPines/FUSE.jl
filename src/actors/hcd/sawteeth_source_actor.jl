@@ -5,7 +5,7 @@
     flat_factor::Entry{Float64} = Entry{Float64}("-", "Degree of flattening"; default=0.5, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= flat_factor <= 1.0")
     period::Entry{Float64} = Entry{Float64}("s", "Time after last sawteeth event to keep full flattening"; default=Inf, check=x -> @assert x >= 0.0 "period must be >= 0.0")
     qmin_desired::Entry{Float64} = Entry{Float64}("-", "Fallback qmin_desired when sawteeth diagnostics are missing"; default=1.0, check=x -> @assert x >= 0.0 "qmin_desired >= 0.0")
-    ignore_before_time::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("s", "Ignore sawteeth diagnostics at times <= this value (nothing = use all history)"; default=nothing)
+    ignore_before_time::Entry{Float64} = Entry{Float64}("s", "Ignore sawteeth diagnostics at times <= this value (-Inf = use all history)"; default=-Inf)
 end
 
 mutable struct ActorSawteethSource{D,P} <: AbstractActor{D,P}
@@ -36,7 +36,7 @@ during sawtooth crashes in tokamak plasmas.
     (typically written by ActorQED). Flattening is full strength for `period` seconds after
     the last event, then ramps linearly to zero over the next `period` seconds.
 - `qmin_desired`: Fallback threshold used when no non-zero sawteeth events are found
-- `ignore_before_time`: Ignore sawteeth diagnostics at times <= this value. If `nothing` (default),
+- `ignore_before_time`: Ignore sawteeth diagnostics at times <= this value. If `-Inf` (default),
     considers entire history. Only non-zero `rho_tor_norm_inversion` values are considered as sawteeth events.
 """
 function ActorSawteethSource(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -46,7 +46,7 @@ function ActorSawteethSource(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function _last_sawteeth_event(dd::IMAS.dd, ignore_before_time::Union{Nothing,Float64})
+function _last_sawteeth_event(dd::IMAS.dd, ignore_before_time::Float64)
     diag = dd.sawteeth.diagnostics
     if ismissing(dd.sawteeth, :time) || ismissing(diag, :rho_tor_norm_inversion) || isempty(diag.rho_tor_norm_inversion)
         return nothing, nothing
@@ -61,7 +61,7 @@ function _last_sawteeth_event(dd::IMAS.dd, ignore_before_time::Union{Nothing,Flo
     # Find last non-zero inversion radius, filtered by time if ignore_before_time is set
     i_last = findlast(eachindex(diag.rho_tor_norm_inversion)) do i
         i <= i_current &&
-        (ignore_before_time === nothing || dd.sawteeth.time[i] > ignore_before_time) &&
+        dd.sawteeth.time[i] > ignore_before_time &&
         diag.rho_tor_norm_inversion[i] > 0.0
     end
 
