@@ -108,7 +108,6 @@ function _step(actor::ActorSawteethSource)
     t_last, rho_last = _last_sawteeth_event(dd, par.ignore_before_time)
 
     if isnothing(t_last)
-        @info "ActorSawteethSource: `period` is finite but no previous sawteeth events found; no sawteeth source applied."
         IMAS.sawteeth_source!(dd, 0.0; par.flat_factor)
         return actor
     end
