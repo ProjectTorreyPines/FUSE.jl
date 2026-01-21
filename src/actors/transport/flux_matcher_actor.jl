@@ -166,7 +166,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     actor.norms = fill(D(NaN), N_channels)
 
-    ProgressMeter.ijulia_behavior(:clear)
+    par.verbose && ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 

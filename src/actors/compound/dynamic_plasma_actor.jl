@@ -162,7 +162,7 @@ function _step(actor::ActorDynamicPlasma)
     t1 = t0 + par.Δt
 
     substeps_per_2loop = 9
-    ProgressMeter.ijulia_behavior(:clear)
+    par.verbose && ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 

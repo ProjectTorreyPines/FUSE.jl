@@ -145,7 +145,7 @@ function _step(actor::ActorStationaryPlasma)
         actor.actor_tr.tr_actor.par.Δt = Inf
     end
 
-    ProgressMeter.ijulia_behavior(:clear)
+    (par.verbose && !par.do_plot) && ProgressMeter.ijulia_behavior(:clear)
     was_logging = actor_logging(dd)
     is_logging = was_logging && !(par.verbose && !par.do_plot)
     actor_logging(dd, is_logging)
