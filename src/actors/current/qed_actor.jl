@@ -76,9 +76,9 @@ The calculation process varies based on the time step parameter:
 
 **Finite time evolution (Δt > 0, Δt < Inf):**
 1. Initializes QED state from equilibrium and current profiles
-2. Computes non-inductive current sources (excluding ohmic, sawteeth, time-dependent)
+2. Computes non-inductive current sources
 3. Steps through time using finite difference with proper sawtooth handling
-4. Applies current profile flattening where q < qmin_desired
+4. Applies resistivity modification where q < qmin_desired to clamp the q-profile
 5. Can solve for either target Ip or Vloop using optional plasma current control
 
 **Steady-state solution (Δt = Inf):**
@@ -88,9 +88,10 @@ The calculation process varies based on the time step parameter:
 
 **Key physics:**
 - Uses neoclassical plasma resistivity for current diffusion
-- Implements sawtooth model through current profile flattening inside q=1
+- Implements sawtooth model through resistivity modification to flatten q-profile at qmin_desired
 - Handles both current-driven and voltage-driven scenarios
-- Updates j_total, j_non_inductive, and safety factor profiles
+- Updates j_total and safety factor profiles
+- Records sawteeth inversion radius when sawtooth flattening is applied
 """
 function _step(actor::ActorQED)
     dd = actor.dd
