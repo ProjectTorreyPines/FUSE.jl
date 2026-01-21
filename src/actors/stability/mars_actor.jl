@@ -431,21 +431,23 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     # initialize eqt from pulse_schedule and core_profiles
     time_slice = dd.equilibrium.time_slice[time_slice_index]
     eqt1d = time_slice.profiles_1d
-
+    
     # populate the input file lines
     minor_radius = time_slice.boundary.minor_radius
     z_axis = time_slice.global_quantities.magnetic_axis.z
+    B0 = time_slice.global_quantities.vacuum_toroidal_field.b0
     Bt_center = time_slice.global_quantities.magnetic_axis.b_field_tor
     r_center = time_slice.global_quantities.magnetic_axis.r
     Ip = time_slice.global_quantities.ip
     r_bound = time_slice.boundary.outline.r
     z_bound = time_slice.boundary.outline.z
-    pressure = eqt1d.pressure
     pprime = eqt1d.dpressure_dpsi
     FFprime = eqt1d.f_df_dpsi
-    rho_pol = sqrt.(eqt1d.psi_norm)
+    psi_norm = eqt1d.psi_norm
+    s = sqrt.(psi_norm)
 
-    wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
+    ### Currently NOT used, but may be useful later
+    #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
 
     if minimum(r_bound) - offset < 0
         error("Offset too large: boundary crosses R < 0 (min R = $(minimum(r_bound)))")
@@ -480,21 +482,22 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     # calculate aspect ratio
     ϵ = minor_radius / r_center
     
+    # interpolate to s coordinates
+    field_at_s = IMAS.interp1d(psi_norm, j_tor)
+    j_tor_of_s = field_at_s.(s)
+    field_at_s = IMAS.interp1d(psi_norm, pprime)
+    pprime_of_s = field_at_s.(s)
+    
     # Normalize from SI to chease units
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    pressure_norm = pressure / (Bt_center^2 / μ_0)
-    j_tor_norm = abs.(j_tor / (Bt_center / (r_center * μ_0)))
-    dpressure_ds = pprime * (r_center^2 * Bt_center) / (Bt_center^2 / μ_0) 
+    j_tor_norm = abs.(j_tor_of_s / (Bt_center / (r_center * μ_0)))
+    dpressure_ds = pprime_of_s * (r_center^2 * Bt_center) / (Bt_center^2 / μ_0)
 
     ip_sign = sign(Ip)
     bt_sign = sign(Bt_center)
-    if ip_sign == 1 && bt_sign == 1
-        j_tor_norm .*= 1
-    elseif ip_sign == 1 && bt_sign == -1
-        j_tor_norm .*= 1
-    elseif ip_sign == -1 && bt_sign == -1
-        j_tor_norm .*= 1
-    else
+    println("Ip sign: $ip_sign, Bt sign: $bt_sign")
+    ## **** check this logic with YQL **** ##
+    if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
         j_tor_norm .*= -1
     end
 
@@ -532,10 +535,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
         end
     end
 
-    @assert length(rho_pol) == length(pressure) == length(j_tor) "rho_pol, presssure and j_tor arrays must have the same shape"
-    write_list = vcat(write_list, "$(length(pressure))")
+    @assert length(s) == length(pprime_of_s) == length(j_tor_of_s) "s, presssure and j_tor arrays must have the same shape"
+    write_list = vcat(write_list, "$(length(s))")
     write_list = vcat(write_list, "$(string(NSTTP))")
-    write_list = vcat(write_list, map(string, rho_pol))
+    write_list = vcat(write_list, map(string, s))
     write_list = vcat(write_list, map(string, dpressure_ds))
     write_list = vcat(write_list, map(string, j_tor_norm))
 
