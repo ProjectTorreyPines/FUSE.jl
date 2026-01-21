@@ -84,35 +84,16 @@ function ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function enforce_parameter_consistency(par, act)
-
-    # FluxMatcher consistency checks
-    @assert act.ActorFluxMatcher.relax == 1.0 "ActorDynamicPlasma requires ActorFluxMatcher.relax = 1.0"
-
-    # Sawteeth consistency checks
-    if par.evolve_sawteeth
-        if act.ActorCurrent.model !== :QED
-            error("Inconsistently enabled sawteeth. Set one of the following:
-    - act.ActorDynamicPlasma.evolve_sawteeth = false
-    - act.ActorCurrent.model = :QED")
-        end
-    else
-        if act.ActorCurrent.model === :QED && act.ActorQED.qmin_desired > 0.0
-            error("Inconsistently disabled sawteeth. Set one of the following:
-    - act.ActorDynamicPlasma.evolve_sawteeth = true
-    - act.ActorCurrent.model = :SteadyStateCurrent
-    - act.ActorQED.qmin_desired = 0.0")
-        end
-    end
-end
-
 function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorDynamicPlasma)
     par = OverrideParameters(par; kw...)
 
-    enforce_parameter_consistency(par, act)
-
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
+
+    if act.ActorCoreTransport.model == :FluxMatcher && act.ActorFluxMatcher.relax != 1.0
+        @info "ActorDynamicPlasma: Setting ActorFluxMatcher.relax = 1.0 (was $(act.ActorFluxMatcher.relax))"
+        actor_tr.tr_actor.par.relax = 1.0
+    end
 
     # allows users to hardwire `rho_nml` and `rho_ped` (same logic here as in ActorStationaryPlasma)
     if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_nml)
@@ -142,7 +123,24 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
+    # Enforce ActorCurrent.model = :QED if evolving sawteeth
+    if par.evolve_sawteeth && act.ActorCurrent.model != :QED
+        @info "ActorDynamicPlasma: Setting ActorCurrent.model = :QED (was $(act.ActorCurrent.model)) because evolve_sawteeth = true"
+        actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule, model=:QED)
+    else
+        actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
+    end
+
+    # Enforce ActorQED.qmin_desired = 0.0 if NOT evolving sawteeth with QED
+    if actor_jt.par.model == :QED
+        if par.evolve_sawteeth && act.ActorQED.qmin_desired <= 0.0
+            @info "ActorDynamicPlasma: Setting ActorQED.qmin_desired = 1.0 (was $(act.ActorQED.qmin_desired)) because evolve_sawteeth = true"
+            actor_jt.jt_actor.par.qmin_desired = 1.0
+        elseif !par.evolve_sawteeth && act.ActorQED.qmin_desired > 0.0
+            @info "ActorDynamicPlasma: Setting ActorQED.qmin_desired = 0.0 (was $(act.ActorQED.qmin_desired)) because evolve_sawteeth = false"
+            actor_jt.jt_actor.par.qmin_desired = 0.0
+        end
+    end
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
 
