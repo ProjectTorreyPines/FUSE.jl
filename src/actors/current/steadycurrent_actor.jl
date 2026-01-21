@@ -106,5 +106,7 @@ function _step(actor::ActorSteadyStateCurrent)
         cp1d.j_total = j_ohmic .+ cp1d.j_non_inductive
     end
 
+    IMAS.unfreeze!(cp1d, :q)
+
     return actor
 end

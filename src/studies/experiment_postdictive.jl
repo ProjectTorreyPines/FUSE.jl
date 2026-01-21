@@ -143,17 +143,20 @@ function run_postdictive_case!(
 
     act.ActorNeutralFueling.τp_over_τe = 0.25
 
-    act.ActorFluxMatcher.evolve_plasma_sources = false
-    act.ActorFluxMatcher.algorithm = :simple_dfsane
-    act.ActorFluxMatcher.max_iterations = -10 # negative to avoid print of warnings
+    act.ActorFluxMatcher.evolve_plasma_sources = true
+    act.ActorFluxMatcher.algorithm = :default
+    act.ActorFluxMatcher.max_iterations = -100 # negative to avoid print of warnings
     act.ActorFluxMatcher.evolve_pedestal = false
     act.ActorFluxMatcher.evolve_Te = :flux_match
     act.ActorFluxMatcher.evolve_Ti = :flux_match
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorFluxMatcher.evolve_rotation = :replay
+    act.ActorFluxMatcher.relax = 1.0
+
     act.ActorPedestal.rotation_model = :replay
 
-    act.ActorFluxMatcher.relax = 0.5
+    act.ActorSawteethSource.flat_factor = 1.0
+    act.ActorSawteethSource.period = 0.25 # turn off flattening after 0.25s of no sawteeth events
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
@@ -171,6 +174,7 @@ function run_postdictive_case!(
     act.ActorDynamicPlasma.evolve_hcd = true
     act.ActorDynamicPlasma.evolve_pf_active = false
     act.ActorDynamicPlasma.evolve_pedestal = true
+    act.ActorDynamicPlasma.evolve_sawteeth = true
 
     if reconstruction
         act.ActorCoreTransport.model = :replay
@@ -189,7 +193,10 @@ function run_postdictive_case!(
         act.ActorPFactive.x_points_weight = 1.0
 
         # it's best to start from a transport simulation that is flux-matched
-        #FUSE.ActorFluxMatcher(dd, act; verbose=true, evolve_plasma_sources=true, max_iterations=1000, do_plot=false);
+        ped_mod = act.ActorPedestal.model
+        act.ActorPedestal.model = :WPED
+        FUSE.ActorFluxMatcher(dd, act; verbose=true, evolve_plasma_sources=true, evolve_pedestal=true, max_iterations=1000, do_plot=false);
+        act.ActorPedestal.model = ped_mod
     end
 
 

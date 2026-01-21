@@ -24,9 +24,9 @@ end
 
 Constructs complete plasma profiles by blending EPED pedestal predictions with shaped core profiles.
 
-This actor combines EPED-predicted pedestal conditions with parametrically shaped core 
-profiles to create complete, consistent temperature and density profiles across the entire 
-plasma. It maintains fixed on-axis values while ensuring smooth transitions between core 
+This actor combines EPED-predicted pedestal conditions with parametrically shaped core
+profiles to create complete, consistent temperature and density profiles across the entire
+plasma. It maintains fixed on-axis values while ensuring smooth transitions between core
 and pedestal regions.
 
 Key operations:
@@ -39,16 +39,16 @@ Key operations:
 Profile construction workflow:
 1. **EPED Prediction**: Calculates pedestal pressure and width from current plasma state
 2. **Temperature Profiles**: Constructs Te and Ti using H-mode functions with shaping
-3. **Density Profiles**: Updates ne and ni maintaining species fraction consistency  
+3. **Density Profiles**: Updates ne and ni maintaining species fraction consistency
 4. **Source Updates**: Recalculates all power and particle sources for updated profiles
 
 Shaping parameters:
 - `Te_shaping`: Controls electron temperature profile curvature
-- `ne_shaping`: Controls electron density profile curvature  
+- `ne_shaping`: Controls electron density profile curvature
 - `T_ratio_pedestal`: Ti/Te ratio in pedestal region
 - `T_ratio_core`: Ti/Te ratio in core region
 
-The actor preserves the on-axis plasma values while optimizing the profile shapes 
+The actor preserves the on-axis plasma values while optimizing the profile shapes
 to match both EPED pedestal predictions and prescribed core-pedestal transitions.
 
 !!! note
@@ -68,7 +68,7 @@ end
 Executes EPED model and constructs shaped plasma profiles.
 
 The step function runs the EPED prediction, extracts pedestal boundary conditions,
-and applies H-mode profile functions to create consistent temperature and density 
+and applies H-mode profile functions to create consistent temperature and density
 profiles that smoothly transition from shaped cores to EPED-predicted pedestals.
 """
 function _step(actor::ActorEPEDprofiles)
@@ -96,7 +96,7 @@ function _step(actor::ActorEPEDprofiles)
 
     # update electron temperature profile using
     # * new pedestal height & width
-    # * existing Te0 & Te_shaping 
+    # * existing Te0 & Te_shaping
     Te = cp1d.electrons.temperature
     Te_ped = 2.0 * tped / (1.0 + par.T_ratio_pedestal)
     tval = IMAS.Hmode_profiles(Te[end], Te_ped, Te[1], length(cp1d.grid.rho_tor_norm), par.Te_shaping, par.Te_shaping, wped)
@@ -125,7 +125,7 @@ function _step(actor::ActorEPEDprofiles)
 
     # update electron density profile using
     # * new pedestal height & width
-    # * existing ne0 & ne_shaping 
+    # * existing ne0 & ne_shaping
     ne = cp1d.electrons.density_thermal
     # first store ratios of electron density to ion densities
     ion_fractions = zeros(Float64, length(cp1d.ion), length(ne))
@@ -152,14 +152,14 @@ end
 
 Updates plasma sources to be consistent with the new profile shapes.
 
-Recalculates all power, particle, and momentum sources in dd.core_sources 
+Recalculates all power, particle, and momentum sources in dd.core_sources
 to ensure consistency with the updated temperature and density profiles.
 """
 function _finalize(actor::ActorEPEDprofiles)
     dd = actor.dd
 
     # update sources
-    IMAS.sources!(dd)
+    IMAS.intrinsic_sources!(dd)
 
     return actor
 end
