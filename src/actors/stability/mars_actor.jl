@@ -10,7 +10,7 @@ Base.@kwdef mutable struct CHEASEnamelist
     NBLOPT::Int     = 0
     NBSOPT::Int     = 0
     CPRESS::Float64 = 1.000
-    CFBAL::Float64  = 3.0000. # set to 1. if NSCAL = 4
+    CFBAL::Float64  = 3.0000 # set to 1. if NSCAL = 4
 
     NCSCAL::Int     = 2   # set to 4 if NOT scale q
     CSSPEC::Float64 = 0.000
