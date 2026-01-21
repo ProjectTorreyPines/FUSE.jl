@@ -146,7 +146,15 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
-    actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource; period=max(par.Δt / par.Nt, act.ActorSawteethSource.period))
+    qmin_saw = act.ActorSawteethSource.qmin_desired
+    if actor_jt.jt_actor isa ActorQED
+        qmin_qed = actor_jt.jt_actor.par.qmin_desired
+        if qmin_saw != qmin_qed
+            @info "ActorDynamicPlasma: Setting ActorSawteethSource.qmin_desired = ActorQED.qmin_desired = $(qmin_qed) (was $(qmin_saw))"
+            qmin_saw = actor_jt.jt_actor.par.qmin_desired
+        end
+    end
+    actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource; period=max(par.Δt / par.Nt, act.ActorSawteethSource.period), qmin_desired=qmin_saw)
 
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf, actor_saw)
 end
