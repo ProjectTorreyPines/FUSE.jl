@@ -20,6 +20,7 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the postdictive runs into")
     kw_case_parameters::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to case_parameters"; default=Dict{Symbol,Any}())
     redirect_output::Entry{Bool} = Entry{Bool}("-", "Redirect stdout and stderr to log.txt file"; default=true)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Turn on verbose progress output"; default=true)
 
     # Postdictive-specific parameters
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run postdictive simulations for")
@@ -50,14 +51,14 @@ function _run(study::StudyPostdictive)
     @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers = $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
     # parallel run
-    println("running $(length(sty.shots)) postdictive simulations with $(sty.n_workers) workers on $(sty.server)")
+    @info "StudyPostdictive: running $(length(sty.shots)) postdictive simulations with $(sty.n_workers) workers on $(sty.server)"
 
     ProgressMeter.@showprogress map(shot -> run_postdictive_case(study, shot; sty.kw_case_parameters), sty.shots)
 
     # Release workers after run
     if sty.release_workers_after_run
         Distributed.rmprocs(Distributed.workers())
-        @info "released workers"
+        @info "StudyPostdictive: released workers"
     end
 
     return study
@@ -83,7 +84,7 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
     io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
     redirect_stdio(stdout=io_out, stderr=io_err) do
         cd(savedir) do
-            run_postdictive_case(device, shot; savedir, sty.reconstruction, kw_case_parameters)
+            run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, kw_case_parameters)
         end
     end
 end
@@ -103,23 +104,30 @@ function run_postdictive_case!(
     savedir::AbstractString=abspath("."),
     save_gif::Bool=false,
     reconstruction::Bool,
+    verbose::Bool,
     kw_case_parameters::Dict{Symbol,Any}
 )
 
+    isterminal = isa(stdout, Base.TTY) && (get(ENV, "CI", nothing) != "true")
+    if !isterminal && verbose
+        @info "StudyPostdictive: verbose output requested but stdout is not a terminal; setting verbose=false"
+        verbose = false
+    end
+
     # Get case parameters
-    @info "case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
+    @info "StudyPostdictive: case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
 
     # init
     ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
-    @info "ini.time.simulation_start = $(ini.time.simulation_start)"
+    @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
     FUSE.init!(dd, ini, act)
 
     # keep aside the dd with experimental data
     IMAS.fill!(dd_exp, dd)
 
     # identify LH transitions
-    @info "LH_analysis"
+    @info "StudyPostdictive: LH_analysis"
     experiment_LH = FUSE.LH_analysis(dd; do_plot=false)
 
     act.ActorPedestal.model = :dynamic
@@ -195,15 +203,15 @@ function run_postdictive_case!(
         # it's best to start from a transport simulation that is flux-matched
         ped_mod = act.ActorPedestal.model
         act.ActorPedestal.model = :WPED
-        FUSE.ActorFluxMatcher(dd, act; verbose=true, evolve_plasma_sources=true, evolve_pedestal=true, max_iterations=1000, do_plot=false);
+        FUSE.ActorFluxMatcher(dd, act; verbose, evolve_plasma_sources=true, evolve_pedestal=true, max_iterations=1000, do_plot=false);
         act.ActorPedestal.model = ped_mod
     end
 
 
     # Run the simulation
     try
-        @info "ActorDynamicPlasma(dd, act)"
-        FUSE.ActorDynamicPlasma(dd, act; verbose=true)
+        @info "StudyPostdictive: ActorDynamicPlasma(dd, act)"
+        FUSE.ActorDynamicPlasma(dd, act; verbose)
     catch e
         if isa(e, InterruptException)
             rethrow(e)
@@ -215,29 +223,29 @@ function run_postdictive_case!(
     Nt_OK = round(Int, (dd.global_time - ini.time.simulation_start) / δt)
     times = range(ini.time.simulation_start, dd.global_time, Nt_OK)
 
-    @info "IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);"
+    @info "StudyPostdictive: IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);"
     bnch = IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);
 
     # save simulation data to directory
     if !isempty(savedir)
-        @info "saving simulation results to: $(savedir)"
-        @info "save act.json"
+        @info "StudyPostdictive: saving simulation results to: $(savedir)"
+        @info "StudyPostdictive: save act.json"
         tmp = act.ActorReplay.replay_dd
         act.ActorReplay.replay_dd = IMAS.dd()
         SimulationParameters.par2json(act,joinpath(savedir, "act.json"))
         act.ActorReplay.replay_dd = tmp
 
-        @info "save dd_sim.json"
+        @info "StudyPostdictive: save dd_sim.json"
         IMAS.imas2json(dd, joinpath(savedir, "dd_sim.json"))
 
-        @info "save dd_exp.json"
+        @info "StudyPostdictive: save dd_exp.json"
         IMAS.imas2json(dd_exp, joinpath(savedir, "dd_exp.json"))
 
-        @info "save dd_benchmark.json"
+        @info "StudyPostdictive: save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
 
         if save_gif
-            @info "save animated gif"
+            @info "StudyPostdictive: save animated gif"
             mkdir(joinpath(savedir, "gif"))
             animated_plasma_overview(dd, joinpath(savedir, "gif"), dd_exp)
         end
