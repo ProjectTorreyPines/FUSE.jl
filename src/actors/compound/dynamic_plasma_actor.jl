@@ -10,6 +10,7 @@
     evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=false)
+    evolve_sawteeth::Entry{Bool} = Entry{Bool}("-", "Evolve current and sources with sawteeth"; default=true)
     ip_controller::Entry{Bool} = Entry{Bool}("-", "Use controller to change v_loop to match desired Ip"; default=false)
     time_derivatives_sources::Entry{Bool} = Entry{Bool}("-", "Include time-derivative sources"; default=true)
     #== display and debugging parameters ==#
@@ -26,7 +27,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_pf::ActorPFactive{D,P}
-    actor_saw::ActorSawteeth{D,P}
+    actor_saw::ActorSawteethSource{D,P}
 end
 
 """
@@ -66,7 +67,7 @@ Physics models coordinated:
   - **ActorHCD**: Time-dependent heating and current drive
   - **ActorPedestal**: Pedestal evolution and L-H transitions
   - **ActorCoreTransport**: Transport flux evolution
-  - **ActorSawteeth**: Sawtooth instability cycling
+  - **ActorSawteethSource**: Sawtooth instability cycling
   - **ActorEquilibrium**: MHD equilibrium with evolving profiles
   - **ActorPFactive**: PF coil current control for plasma shape
 
@@ -88,6 +89,11 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     par = OverrideParameters(par; kw...)
 
     actor_tr = ActorCoreTransport(dd, act.ActorCoreTransport, act)
+
+    if act.ActorCoreTransport.model == :FluxMatcher && act.ActorFluxMatcher.relax != 1.0
+        @info "ActorDynamicPlasma: Setting ActorFluxMatcher.relax = 1.0 (was $(act.ActorFluxMatcher.relax))"
+        actor_tr.tr_actor.par.relax = 1.0
+    end
 
     # allows users to hardwire `rho_nml` and `rho_ped` (same logic here as in ActorStationaryPlasma)
     if act.ActorCoreTransport.model == :FluxMatcher && ismissing(act.ActorPedestal, :rho_nml)
@@ -117,13 +123,38 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
 
     actor_hc = ActorHCD(dd, act.ActorHCD, act)
 
-    actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
+    # Enforce ActorCurrent.model = :QED if evolving sawteeth
+    if par.evolve_sawteeth && act.ActorCurrent.model != :QED
+        @info "ActorDynamicPlasma: Setting ActorCurrent.model = :QED (was $(act.ActorCurrent.model)) because evolve_sawteeth = true"
+        actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule, model=:QED)
+    else
+        actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
+    end
+
+    # Enforce ActorQED.qmin_desired = 0.0 if NOT evolving sawteeth with QED
+    if actor_jt.par.model == :QED
+        if par.evolve_sawteeth && act.ActorQED.qmin_desired <= 0.0
+            @info "ActorDynamicPlasma: Setting ActorQED.qmin_desired = 1.0 (was $(act.ActorQED.qmin_desired)) because evolve_sawteeth = true"
+            actor_jt.jt_actor.par.qmin_desired = 1.0
+        elseif !par.evolve_sawteeth && act.ActorQED.qmin_desired > 0.0
+            @info "ActorDynamicPlasma: Setting ActorQED.qmin_desired = 0.0 (was $(act.ActorQED.qmin_desired)) because evolve_sawteeth = false"
+            actor_jt.jt_actor.par.qmin_desired = 0.0
+        end
+    end
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:pulse_schedule)
 
     actor_pf = ActorPFactive(dd, act.ActorPFactive)
 
-    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+    qmin_saw = act.ActorSawteethSource.qmin_desired
+    if actor_jt.jt_actor isa ActorQED
+        qmin_qed = actor_jt.jt_actor.par.qmin_desired
+        if qmin_saw != qmin_qed
+            @info "ActorDynamicPlasma: Setting ActorSawteethSource.qmin_desired = ActorQED.qmin_desired = $(qmin_qed) (was $(qmin_saw))"
+            qmin_saw = actor_jt.jt_actor.par.qmin_desired
+        end
+    end
+    actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource; period=max(par.Δt / par.Nt, act.ActorSawteethSource.period), qmin_desired=qmin_saw)
 
     return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf, actor_saw)
 end
@@ -131,53 +162,21 @@ end
 function _step(actor::ActorDynamicPlasma)
     dd = actor.dd
     par = actor.par
-
-    Δt = par.Δt
     Nt = par.Nt
-    δt = Δt / Nt
 
-    t0 = dd.global_time
-    t1 = dd.global_time + Δt
-
-    # remove time dependent data after global_time
-    IMAS.trim_time!(actor.dd, (-Inf, dd.global_time); trim_pulse_schedule=false)
+    t0 = prepare_dynamic_step!(actor)
+    t1 = t0 + par.Δt
 
     substeps_per_2loop = 9
-    ProgressMeter.ijulia_behavior(:clear)
+    par.verbose && ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     try
-        # NOTE: δt is a full step, some actors are called every 1/2 step
-        for (kk, time0) in enumerate(range(t0, t1, 2 * Nt + 1)[2:end])
-            phase = mod(kk + 1, 2) + 1 # phase can be either 1 or 2, we start with 1
+        for kk in 1:(2 * Nt)
+            phase = mod(kk + 1, 2) + 1
             progr = (prog, t0, t1, phase)
-
-            # Prepare time dependent arrays of structures
-            # NOTE: dd.core_profiles is different because it is updated
-            # by actor_jt at the 1/2 steps, but also
-            # by actor_tr and actor_ped at the 1/2 steps.
-            # For dd.core_profiles we thus create a new time slice
-            # at the 1/2 steps which is then retimed at the 2/2 steps.
-            dd.global_time = time0 # this is the --end-- time, the one we are working on
-            substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
-
-            if phase == 1
-                substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
-
-                substep(actor, Val(:run_hcd), kk == 1 ? δt / 2 : δt; progr)
-            else
-                substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
-
-                substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
-                IMAS.time_derivative_source!(dd)
-            end
-
-            substep(actor, Val(:run_sawteeth), δt / 2; progr)
-
-            substep(actor, Val(:run_equilibrium), δt / 2; progr)
-
-            substep(actor, Val(:run_pf_active), δt / 2; progr)
+            dynamic_step!(actor, kk, t0; progr)
         end
 
     catch e
@@ -187,6 +186,88 @@ function _step(actor::ActorDynamicPlasma)
     finally
         actor_logging(dd, old_logging)
     end
+
+    return actor
+end
+
+"""
+    prepare_dynamic_step!(actor::ActorDynamicPlasma) -> t0::Float64
+
+Prepare actor for manual time stepping. Call once before `dynamic_step!`.
+
+Trims future time data and returns `t0` (the current `dd.global_time`).
+Pass this `t0` value to subsequent `dynamic_step!` calls.
+"""
+function prepare_dynamic_step!(actor::ActorDynamicPlasma)
+    t0 = actor.dd.global_time
+    IMAS.trim_time!(actor.dd, (-Inf, t0); trim_pulse_schedule=false)
+    return t0
+end
+
+"""
+    dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=nothing)
+
+Execute a single half-step iteration of the dynamic plasma evolution.
+
+# Arguments
+- `actor`: The initialized ActorDynamicPlasma
+- `kk`: Iteration index (1-based), from 1 to `2 * par.Nt`
+- `t0`: Start time returned by `prepare_dynamic_step!(actor)`
+
+# Notes
+- Phase is computed as `mod(kk + 1, 2) + 1` (1 for odd kk, 2 for even)
+- Phase 1 (odd kk): evolves j_ohmic, runs HCD
+- Phase 2 (even kk): runs pedestal, transport, time derivative sources
+- Both phases: runs sawteeth, equilibrium, PF active
+
+# Example
+```julia
+actor = ActorDynamicPlasma(dd, act.ActorDynamicPlasma, act)
+t0 = prepare_dynamic_step!(actor)
+
+Nt = actor.par.Nt
+for kk in 1:(2*Nt)
+    dynamic_step!(actor, kk, t0)
+    # inspect dd state here if debugging
+end
+finalize(actor)
+```
+"""
+function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=nothing)
+    dd = actor.dd
+    par = actor.par
+
+    Δt = par.Δt
+    Nt = par.Nt
+    δt = Δt / Nt
+
+    # Compute target time for this step
+    time0 = t0 + kk * (δt / 2)
+    phase = mod(kk + 1, 2) + 1  # 1 for odd kk, 2 for even kk
+
+    # Prepare time dependent arrays of structures
+    # NOTE: dd.core_profiles is different because it is updated
+    # by actor_jt at the 1/2 steps, but also
+    # by actor_tr and actor_ped at the 1/2 steps.
+    # For dd.core_profiles we thus create a new time slice
+    # at the 1/2 steps which is then retimed at the 2/2 steps.
+    dd.global_time = time0  # this is the --end-- time, the one we are working on
+    substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
+
+    substep(actor, Val(:run_hcd), δt / 2; progr)
+
+    # apply sawteeth to sources after sources have been recomputed
+    substep(actor, Val(:run_sawteeth), δt / 2; progr)
+
+    if phase == 1
+        substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
+    else
+        substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
+        substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
+    end
+
+    substep(actor, Val(:run_equilibrium), δt / 2; progr)
+    substep(actor, Val(:run_pf_active), δt / 2; progr)
 
     return actor
 end
@@ -303,7 +384,9 @@ function substep(actor::ActorDynamicPlasma, ::Val{:run_sawteeth}, δt::Float64; 
         prog, t0, t1, phase = progr
         ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_saw, phase))
     end
-    return finalize(step(actor.actor_saw))
+    if actor.par.evolve_sawteeth
+        finalize(step(actor.actor_saw))
+    end
 end
 
 function substep(actor::ActorDynamicPlasma, ::Val{:run_pf_active}, δt::Float64; progr=nothing, kw...)
