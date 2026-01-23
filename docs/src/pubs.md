@@ -10,9 +10,21 @@ year = {2024}
 }
 ```
 
+```
+@article{Slendebroek_2026,
+doi = {10.1088/1741-4326/ae27e6},
+url = {https://doi.org/10.1088/1741-4326/ae27e6},
+year = {2026},
+month = {jan},
+author = {Slendebroek, T. and Nelson, A.O. and Meneghini, O.M. and Dose, G. and Ghiozzi, A.G. and Harvey, J. and Lyons, B.C. and McClenaghan, J. and Neiser, T.F. and Weisberg, D.B. and Yoo, M.G. and Bursch, E. and Holland, C.},
+title = {Exploring the fusion power plant design space: comparative analysis of positive and negative triangularity tokamaks through optimization},
+journal = {Nuclear Fusion}
+}
+```
+
 * 📜 **[ArXiv: FUSE reference paper](https://arxiv.org/abs/2409.05894)**
 
-* 📜 **[ArXiv: Elevating zero dimensional global scaling predictions to self-consistent theory-based simulations](https://arxiv.org/abs/2305.07285)**
+* 📜 **[Nuclear Fusion: Exploring the fusion power plant design space: comparative analysis of positive and negative triangularity tokamaks through optimization](https://doi.org/10.1088/1741-4326/ae27e6)**
 
 # Posters/Talks
 
