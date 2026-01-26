@@ -1,10 +1,7 @@
 #= ========== =#
 #  flux-swing #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorFluxSwing{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorFluxSwing{T} begin
     operate_oh_at_j_crit::Entry{Bool} = Entry{Bool}("-", """
 If `true` it makes the OH operate at its current limit (within specified dd.requirements.coil_j_margin`).
 The flattop duration and maximum toroidal magnetic field follow from that.
@@ -17,10 +14,10 @@ end
 
 mutable struct ActorFluxSwing{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorFluxSwing{P}
+    par::OverrideParameters{P,FUSEparameters__ActorFluxSwing{P}}
     function ActorFluxSwing(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFluxSwing)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -28,16 +25,32 @@ end
 """
     ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Depending on `operate_oh_at_j_crit`
-* true => Evaluate the OH current limits, and evaluate flattop duration from that.
-* false => Evaluate what are the currents needed for a given flattop duration. This may or may not exceed the OH current limits.
+Analyzes OH coil flux swing capability and determines operating limits based on current density constraints
+and flattop duration requirements. Calculates flux consumption during different operational phases
+and determines maximum achievable flattop duration or required current levels.
 
-OH flux consumption based on:
-* rampup estimate based on Ejima coefficient
-* flattop consumption
-* vertical field from PF coils
+# Operating modes (controlled by `operate_oh_at_j_crit`)
+- `true`: Operates OH at critical current limit, calculates achievable flattop duration
+- `false`: Uses required flattop duration, calculates needed currents (may exceed limits)
+
+# Flux consumption analysis
+- **Rampup flux**: Estimated using Ejima coefficient and plasma inductance calculations
+- **Flattop flux**: Based on resistive current drive requirements from Ohmic heating  
+- **PF flux**: Vertical field contribution from poloidal field coils
+
+# Physics models
+- Plasma inductance (internal + external components) for flux estimation
+- Resistive flux consumption using conductivity profiles and current density
+- Vertical field requirements based on plasma geometry and pressure
+
+# Key outputs
+- OH flux swing components (`dd.build.flux_swing.rampup/flattop/pf`)
+- OH coil current and field limits (`dd.build.oh.max_j/max_b_field`)
+- TF coil current and field requirements (`dd.build.tf.max_j/max_b_field`)  
+- Achievable flattop duration (`dd.build.oh.flattop_duration`)
 
 !!! note
+
     Stores data in `dd.build.flux_swing`, `dd.build.tf`, and `dd.build.oh`
 """
 function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -49,6 +62,12 @@ end
 
 """
     _step(actor::ActorFluxSwing)
+
+Performs flux swing analysis by calculating OH flux consumption components:
+- Calls `rampup_flux_estimates()` using Ejima coefficient and plasma inductance
+- Calls `pf_flux_estimates()` for vertical field contribution  
+- Either calculates flattop flux from required duration or operates at current limit
+- Updates OH and TF coil current/field requirements based on analysis results
 """
 function _step(actor::ActorFluxSwing)
     bd = actor.dd.build
@@ -64,7 +83,7 @@ function _step(actor::ActorFluxSwing)
     bd.flux_swing.rampup = rampup_flux_estimates(eqt, cp)
     bd.flux_swing.pf = pf_flux_estimates(eqt)
     if !ismissing(requirements, :flattop_duration) && !par.operate_oh_at_j_crit
-        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d) # flattop flux based on requirements duration
+        bd.flux_swing.flattop = flattop_flux_estimates(requirements, cp1d; requirements.coil_j_margin) # flattop flux based on requirements duration
         oh_required_J_B!(bd)
     else
         oh_maximum_J_B!(bd; requirements.coil_j_margin)
@@ -109,18 +128,15 @@ function rampup_flux_estimates(eqt::IMAS.equilibrium__time_slice, cp::IMAS.core_
 end
 
 """
-    flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
+    flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d; coil_j_margin::Float64)
 
 Estimate OH flux requirement during flattop
-
-NOTES:
-* If j_ohmic profile is missing then steady state ohmic profile is assumed
 """
-function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d)
+function flattop_flux_estimates(requirements::IMAS.requirements, cp1d::IMAS.core_profiles__profiles_1d; coil_j_margin::Float64)
     j_ohmic = cp1d.j_ohmic
     conductivity_parallel = cp1d.conductivity_parallel
     f = (k, x) -> j_ohmic[k] / conductivity_parallel[k]
-    return abs(trapz(cp1d.grid.area, f)) * (requirements.flattop_duration) # V*s
+    return abs(trapz(cp1d.grid.area, f)) * requirements.flattop_duration * (1.0 + coil_j_margin) # V*s
 end
 
 """
@@ -129,13 +145,13 @@ end
 OH flux given its bd.oh.max_b_field and radial build
 """
 function flattop_flux_estimates(bd::IMAS.build; double_swing::Bool=true)
-    OH = IMAS.get_build_layer(bd.layer, type=_oh_)
+    OH = IMAS.get_build_layer(bd.layer; type=_oh_)
     innerSolenoidRadius = OH.start_radius
     outerSolenoidRadius = OH.end_radius
     magneticFieldSolenoidBore = bd.oh.max_b_field
     RiRo_factor = innerSolenoidRadius / outerSolenoidRadius
     totalOhFluxReq = magneticFieldSolenoidBore / 3.0 * pi * outerSolenoidRadius^2 * (RiRo_factor^2 + RiRo_factor + 1.0) * (double_swing ? 2 : 1)
-    bd.flux_swing.flattop = totalOhFluxReq - bd.flux_swing.rampup - bd.flux_swing.pf
+    return bd.flux_swing.flattop = totalOhFluxReq - bd.flux_swing.rampup - bd.flux_swing.pf
 end
 
 """

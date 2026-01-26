@@ -43,3 +43,61 @@ end
 function SimulationParameters.global_time(parameters::ParametersAllInits, time0::Float64)
     return parameters.time.simulation_start = time0
 end
+
+function Base.show(io::IO, ::MIME"text/plain", x::Tuple{Vararg{AbstractParameters}})
+    println(io, join(map(SimulationParameters.spath,x),", "))
+end
+
+"""
+    @actor_parameters_struct ActorName{T} body
+
+Generate a mutable struct for actor parameters with standard boilerplate fields automatically included.
+
+The macro creates a struct named `FUSEparameters__ActorName` (or `_FUSEparameters__ActorName` for underscore-prefixed actors)
+that inherits from `ParametersActor{T}` and includes the standard fields:
+- `_parent::WeakRef = WeakRef(nothing)`
+- `_name::Symbol = :not_set` 
+- `_time::Float64 = NaN`
+"""
+macro actor_parameters_struct(name_expr, body)
+    # Parse the actor name and type parameter from expressions like ActorName{T}
+    if name_expr isa Expr && name_expr.head == :curly
+        actor_name = name_expr.args[1]
+        type_param = name_expr.args[2]
+    else
+        error("Expected format: ActorName{T}")
+    end
+    
+    # Convert actor name to string and determine struct name
+    actor_str = string(actor_name)
+    if startswith(actor_str, "_")
+        # Remove _ in underscore-prefixed actors
+        struct_name = Symbol("_FUSEparameters__" * actor_str[2:end])
+    else
+        struct_name = Symbol("FUSEparameters__" * actor_str)
+    end
+    
+    # Extract field definitions from the body
+    user_fields = if body isa Expr && body.head == :block
+        filter(x -> !(x isa LineNumberNode), body.args)
+    else
+        [body]
+    end
+    
+    # Standard boilerplate fields that every actor needs
+    standard_fields = [
+        :(_parent::WeakRef = WeakRef(nothing)),
+        :(_name::Symbol = :not_set),
+        :(_time::Float64 = NaN)
+    ]
+    
+    # Combine standard fields with user-defined fields
+    all_fields = vcat(standard_fields, user_fields)
+    
+    # Generate the @kwdef struct
+    return esc(quote
+        Base.@kwdef mutable struct $struct_name{$type_param<:Real} <: ParametersActor{$type_param}
+            $(all_fields...)
+        end
+    end)
+end

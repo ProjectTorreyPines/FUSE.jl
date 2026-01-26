@@ -28,7 +28,9 @@ function workflow_multiobjective_optimization(
     iterations::Int=N,
     continue_state::Union{Nothing,Metaheuristics.State}=nothing,
     save_folder::AbstractString="optimization_runs",
-    save_dd::Bool=true)
+    save_dd::Bool=true,
+    generation_offset::Int=0,
+    kw...)
 
     if mod(N, 2) > 0
         error("workflow_multiobjective_optimization population size `N` must be an even number")
@@ -44,19 +46,21 @@ function workflow_multiobjective_optimization(
 
     # itentify optimization variables in ini
     opt_ini = opt_parameters(ini)
-    println("== Actuators ==")
-    for optpar in opt_ini
-        println(optpar)
-    end
-    println()
-    println("== Objectives ==")
-    for objf in objective_functions
-        println(objf)
-    end
-    println()
-    println("== Constraints ==")
-    for cnst in constraint_functions
-        println(cnst)
+    if generation_offset == 0
+        println("== Actuators ==")
+        for optpar in opt_ini
+            println(optpar)
+        end
+        println()
+        println("== Objectives ==")
+        for objf in objective_functions
+            println(objf)
+        end
+        println()
+        println("== Constraints ==")
+        for cnst in constraint_functions
+            println(cnst)
+        end
     end
 
     # optimization floating point boundaries
@@ -80,17 +84,17 @@ function workflow_multiobjective_optimization(
 
     if length(objective_functions) == 1
         D = length(opt_ini)
-        K = Int(floor(N / D))
+        K = round(Int, N/D, RoundDown)
         algorithm = Metaheuristics.ECA(; N, K, options)
 
     else
         # set algorithm parameters depending on exploitation_vs_exploration index
         # crossover distribution index
-        η_cr = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 40.0], :cubic).(exploitation_vs_exploration)))
+        η_cr = round(Int, IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 40.0], :cubic).(exploitation_vs_exploration))
         # crossover probability
         p_cr = IMAS.interp1d([0.0, 1.0, 2.0], [0.9, 0.6, 0.5], :cubic).(exploitation_vs_exploration)
         # mutation distribution index
-        η_m = Int(round(IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 50.0], :cubic).(exploitation_vs_exploration)))
+        η_m = round(Int, IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 50.0], :cubic).(exploitation_vs_exploration))
         # mutation probability
         p_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
 
@@ -106,10 +110,17 @@ function workflow_multiobjective_optimization(
     end
 
     flush(stdout)
+    ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(iterations; desc="Iteration", showspeed=true)
     @time state =
-        Metaheuristics.optimize(X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p), bounds, algorithm)
-    display(state)
+        Metaheuristics.optimize(
+            X -> optimization_engine(ini, act, actor_or_workflow, X, objective_functions, constraint_functions, save_folder, save_dd, p, generation_offset; kw...),
+            bounds,
+            algorithm
+        )
+    if generation_offset == 0
+        display(state)
+    end
 
     if !isempty(save_folder)
         save_optimization(joinpath(save_folder, "results.jls"), state, ini, act, objective_functions, constraint_functions)

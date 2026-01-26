@@ -1,5 +1,5 @@
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
-JULIA_DIR ?= $(call realpath,$(HOME)/.julia)
+JULIA_DIR ?= $(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia))
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -8,17 +8,37 @@ TODAY := $(shell date +'%Y-%m-%d')
 export JULIA_NUM_THREADS ?= $(shell julia -e "println(length(Sys.cpu_info()))")
 
 ifdef GITHUB_HEAD_REF
-  # For pull_request events
-  FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
+    # On GitHub for pull_request events
+    FUSE_LOCAL_BRANCH=$(GITHUB_HEAD_REF)
 else
-  # For push events and others
-  FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+    ifdef GITHUB_REF
+       # On GitHub for push events and others
+       FUSE_LOCAL_BRANCH=$(shell echo $(GITHUB_REF) | sed 's/refs\/heads\///')
+    else
+       # For local machine
+       FUSE_LOCAL_BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
+    endif
 endif
 
-FUSE_PACKAGES_MAKEFILE := ADAS BoundaryPlasmaModels CHEASE CoordinateConventions EPEDNN FiniteElementHermite Fortran90Namelists FuseUtils FusionMaterials FuseExchangeProtocol IMAS IMASdd MXHEquilibrium MeshTools MillerExtendedHarmonic NEO NNeutronics QED RABBIT SimulationParameters TEQUILA TGLFNN TJLF VacuumFields XSteam ThermalSystemModels
-FUSE_PACKAGES_MAKEFILE := $(sort $(FUSE_PACKAGES_MAKEFILE))
+GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
+FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NeoclassicalTransport NNeutronics QED RABBIT SimulationParameters TEQUILA TJLF TORBEAM TroyonBetaNN TurbulentTransport VacuumFields
+FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
+FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
+FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
+ifndef NO_FUSE_EXTENSION
+	FUSE_PACKAGES_MAKEFILE := $(FUSE_PACKAGES_MAKEFILE_ALL)
+endif
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
-DEV_PACKAGES := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
+FUSE_PACKAGES_ALL := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_ALL)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
+DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
+
+# ANSI color codes
+RESET=\033[0m
+BOLD=\033[1m
+BLUE=\033[34m
+RED=\033[31m
+GREEN=\033[32m
+PURPLE=\033[35m
 
 # use command line interface for git to work nicely with private repos
 export JULIA_PKG_USE_CLI_GIT := true
@@ -32,6 +52,7 @@ endif
 
 define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
+	@echo $(JULIA_PKG_DEVDIR)/$(1)
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull 2>&1 | sed 's/^/$(1): /'; fi
 endef
 
@@ -59,25 +80,33 @@ function feature_or_master(package, feature_branch) ;\
 end
 endef
 
+help: header help_info
+
 ADAS:
 	$(call clone_pull_repo,$@)
 
-FUSE:
+BalanceOfPlantSurrogate:
+	$(call clone_pull_repo$@)
+
+BoundaryPlasmaModels:
 	$(call clone_pull_repo,$@)
 
-IMAS:
-	$(call clone_pull_repo,$@)
-
-IMASdd:
+CHEASE:
 	$(call clone_pull_repo,$@)
 
 CoordinateConventions:
 	$(call clone_pull_repo,$@)
 
-MillerExtendedHarmonic:
+EGGO:
 	$(call clone_pull_repo,$@)
 
-FuseUtils:
+EPEDNN:
+	$(call clone_pull_repo,$@)
+
+FiniteElementHermite:
+	$(call clone_pull_repo,$@)
+
+FRESCO:
 	$(call clone_pull_repo,$@)
 
 FusionMaterials:
@@ -86,55 +115,66 @@ FusionMaterials:
 FuseExchangeProtocol:
 	$(call clone_pull_repo,$@)
 
-VacuumFields:
+GACODE:
+	$(call clone_pull_repo,$@)
+
+HelpPlots:
+	$(call clone_pull_repo,$@)
+
+IMAS:
+	$(call clone_pull_repo,$@)
+
+IMASdd:
+	$(call clone_pull_repo,$@)
+
+IMASutils:
 	$(call clone_pull_repo,$@)
 
 MXHEquilibrium:
 	$(call clone_pull_repo,$@)
 
-MeshTools:
+MillerExtendedHarmonic:
 	$(call clone_pull_repo,$@)
 
-TGLFNN:
-	$(call clone_pull_repo,$@)
-
-TJLF:
-	$(call clone_pull_repo,$@)
-
-EPEDNN:
-	$(call clone_pull_repo,$@)
-
-QED:
-	$(call clone_pull_repo,$@)
-
-FiniteElementHermite:
-	$(call clone_pull_repo,$@)
-
-Fortran90Namelists:
-	$(call clone_pull_repo,$@)
-
-CHEASE:
-	$(call clone_pull_repo,$@)
-
-TEQUILA:
+NeoclassicalTransport:
 	$(call clone_pull_repo,$@)
 
 NNeutronics:
 	$(call clone_pull_repo,$@)
 
-SimulationParameters:
-	$(call clone_pull_repo,$@)
-
-BoundaryPlasmaModels:
-	$(call clone_pull_repo,$@)
-
-NEO:
-	$(call clone_pull_repo,$@)
-
-XSteam:
+QED:
 	$(call clone_pull_repo,$@)
 
 RABBIT:
+	$(call clone_pull_repo,$@)
+
+SimulationParameters:
+	$(call clone_pull_repo,$@)
+
+TEQUILA:
+	$(call clone_pull_repo,$@)
+
+TurbulentTransport:
+	$(call clone_pull_repo,$@)
+
+TJLF:
+	$(call clone_pull_repo,$@)
+
+TORBEAM:
+	$(call clone_pull_repo,$@)
+
+TroyonBetaNN:
+	$(call clone_pull_repo,$@)
+
+VacuumFields:
+	$(call clone_pull_repo,$@)
+
+# ========
+
+FUSE:
+	$(call clone_pull_repo,$@)
+
+XSteam:
 	$(call clone_pull_repo,$@)
 
 ThermalSystemModels:
@@ -152,36 +192,70 @@ ServeFUSE:
 	Pkg.develop([["FUSE"] ; fuse_packages]);\
 	'
 
-help: header help_info
-
 .PHONY:
 
 # =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #
 
-# @# @")), "# @"); \
-		open(file*"", "w") do f \
-			write(f, strip(header)); \
-			write(f, "\n\n# =%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%=%= #\n\n"); \
-			write(f, targets); \
-		end;\
-	'# @"*join(sort!(split(strip(targets), "# @devs
+# @devs
+apache: error_missing_repo_var
+# Update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
+# The starting information is taken from IMASdd.jl and moved to the target repo
+# >> make apache repo=CHEASE
+# in addition, one must add the DOCUMENTER_KEY to the repo
+# https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
+	@echo $(repo)
+	@cp ../IMASdd/LICENSE ../$(repo)/ ;\
+	\
+	cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
+	\
+	mkdir -p ../$(repo)/.github/workflows ;\
+	cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
+	cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
+	\
+	cp ../IMASdd/README.md ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
+	\
+	cp -R ../IMASdd/docs ../$(repo)/ ;\
+	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
+	echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
+	rm ../$(repo)/docs/Manifest.toml ;\
+	rm -rf ../$(repo)/docs/build ;\
+	\
+	cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
+	\
+	cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
+	\
+	julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
+
 blank_examples:clean_examples
 # Clean and convert examples to md without executing
 	cd docs; julia notebooks_to_md.jl
 
 # @devs
-branch_master: error_missing_repos_var
-# GitHub merge of `branch` into `master` for a series of repos
-# >> make branch_master branch=my_branch repos='FUSE IMAS IMASdd'
-	@$(foreach repo,$(repos), \
-	curl -X POST \
-	-H "Authorization: token $$(security find-generic-password -a orso82 -s GITHUB_TOKEN -w)" \
-	-H "Accept: application/vnd.github.v3+json" \
-	https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
-	-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}';)
+merge_remote: error_missing_repo_var error_missing_branch_var
+# GitHub merge of `branch` into master for a given `repo`
+# >> make merge_remote branch=my_branch repo=FUSE
+	@merge_response=$$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+		-H "Authorization: token $$(PTP_READ_TOKEN)" \
+		-H "Accept: application/vnd.github.v3+json" \
+		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/merges \
+		-d '{"base": "master", "head": "$(branch)", "commit_message": "merging $(branch) into master"}'); \
+	echo "Merge response code: $$merge_response"; \
+	if [ "$$merge_response" -eq 201 ]; then \
+		echo "Merge successful. Deleting branch $(branch) from remote..."; \
+		curl -X DELETE \
+		-H "Authorization: token $$(PTP_READ_TOKEN)" \
+		-H "Accept: application/vnd.github.v3+json" \
+		https://api.github.com/repos/ProjectTorreyPines/$(repo).jl/git/refs/heads/$(branch); \
+	else \
+		echo "Merge failed with status code $$merge_response. Branch $(branch) was not deleted."; \
+	fi
 
 # @devs
-bump_major: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+bump_major: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump major version of a repo
 # >> make bump_major repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -191,7 +265,7 @@ bump_major: error_missing_repo_var error_on_previous_commit_is_a_version_bump ve
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_minor: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+bump_minor: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump minor version of a repo
 # >> make bump_minor repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -201,7 +275,7 @@ bump_minor: error_missing_repo_var error_on_previous_commit_is_a_version_bump ve
 	make commit_project_toml repo=$(repo) new_version=$${new_version}
 
 # @devs
-bump_patch: error_missing_repo_var error_on_previous_commit_is_a_version_bump versions_used
+bump_patch: error_missing_repo_var error_on_last_commit_is_a_version_bump error_not_on_master_branch versions_used
 # Bump patch version of a repo
 # >> make bump_patch repo=IMAS
 	@git -C ../$(repo) checkout -- Project.toml ;\
@@ -265,6 +339,13 @@ compat: error_missing_repo_var download_compat_tomls combine_compat_toml
 	@echo ""
 
 # @devs
+compat_all:
+# apply compat to all repos in development
+	for repo in $(DEV_PACKAGES_MAKEFILE); do \
+		make compat repo=$$repo; \
+	done
+
+# @devs
 compat_cleanup: error_missing_repo_var
 # Remove temporary Project_PR???.toml files and close CompatHelper PRs
 	@echo "Closing corresponding PRs and deleting temporary Project_PR???.toml files"
@@ -296,9 +377,16 @@ daily_example_ci_commit:
 endif
 
 # @devs
-dev_deps_tree:
-# Print dependency tree of the packages in dev folder
+delete_remote_branch: error_missing_repo_var error_missing_branch_var
+# delete `dev` branch on GitHub for a repo
+	@cd ../$(repo) && git push origin --delete $(branch)
+
+# @devs
+deps_tree:
+# Print FUSE dependency tree of project-torrey-pines packages
 	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES_ALL);\
+	println(fuse_packages);\
 	using Pkg ;\
 	Pkg.add("AbstractTrees") ;\
 	using AbstractTrees ;\
@@ -308,11 +396,72 @@ dev_deps_tree:
 	end ;\
 	function AbstractTrees.children(uuid::Base.UUID) ;\
 		dep = get(Pkg.dependencies(), uuid, nothing) ;\
-		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && isdir("../$$(get(Pkg.dependencies(), value, nothing).name)")]) ;\
+		dev_deps = Dict([(key,value) for (key,value) in get(Pkg.dependencies(), uuid, nothing).dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
 		tmp= sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
 	end ;\
 	AbstractTrees.print_tree(Pkg.project().dependencies["FUSE"]) ;\
 	'
+
+# @devs
+deps_dag:
+# Generate a DOT file representing the dependency DAG of the FUSE package for project-torrey-pines packages (install dot with `brew install graphviz`)
+	@julia -e' ;\
+	fuse_packages = $(FUSE_PACKAGES_ALL);\
+	println(fuse_packages);\
+	using Pkg ;\
+	Pkg.add("AbstractTrees") ;\
+	using Random ;\
+	using AbstractTrees ;\
+	using Printf ;\
+	edges = Set{Tuple{String, String}}() ;\
+	function random_color() ;\
+		r = rand(0:255) ;\
+		g = rand(0:255) ;\
+		b = rand(0:255) ;\
+		return @sprintf("#%02x%02x%02x", r, g, b) ;\
+	end ;\
+	function AbstractTrees.printnode(io::IO, uuid::Base.UUID) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		print(io, dep.name) ;\
+	end ;\
+	function AbstractTrees.children(uuid::Base.UUID) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		dev_deps = Dict([(key, value) for (key, value) in dep.dependencies if value !== nothing && get(Pkg.dependencies(), value, nothing).name in fuse_packages]) ;\
+		return sort!(collect(values(dev_deps)), by=x->get(Pkg.dependencies(), x, (name="",)).name) ;\
+	end ;\
+	function collect_edges(uuid::Base.UUID, edges::Set{Tuple{String, String}}) ;\
+		dep = get(Pkg.dependencies(), uuid, nothing) ;\
+		if dep !== nothing ;\
+			for subdep in AbstractTrees.children(uuid) ;\
+				subdep_info = get(Pkg.dependencies(), subdep, nothing) ;\
+				if subdep_info !== nothing ;\
+					push!(edges, (subdep_info.name, dep.name)) ;\
+					collect_edges(subdep, edges) ;\
+				end ;\
+			end ;\
+		end ;\
+	end ;\
+	project_dep = Pkg.project().dependencies["FUSE"] ;\
+	if project_dep !== nothing ;\
+		collect_edges(project_dep, edges) ;\
+	end ;\
+	open("docs/src/deps.dot", "w") do io ;\
+		write(io, "digraph G {\n") ;\
+		write(io, "rankdir=RL;\n");\
+		write(io, "ranksep=0.4;\n");\
+		write(io, "nodesep=0.1;\n");\
+		write(io, "splines=true;\n");\
+		write(io, "node [shape=ellipse, fontname=\"Helvetica\", fontsize=12, penwidth=3];\n");\
+		write(io, "edge [penwidth=2];\n");\
+		for (src, dst) in edges ;\
+			color = random_color() ;\
+			@printf(io, "\"%s\" -> \"%s\" [color=\"%s\"];\n", src, dst, color) ;\
+		end ;\
+		write(io, "}\n") ;\
+	end ;\
+	'
+	dot -Tsvg docs/src/deps.dot -o docs/src/assets/deps.svg
+	@echo "See DAG at: $(PWD)/docs/src/assets/deps.svg"
 
 # @devs
 develop:
@@ -337,10 +486,18 @@ develop_docs:
 	'
 
 # @devs
+develop_no_registry: install_registry clone_pull_all develop
+# Develop FUSE and associated packages without using the registry
+
+# @devs
+develop_via_registry: install_registry develop
+# Develop FUSE and associated packages using the registry
+
+# @devs
 devs_update:
 # Pull changes for all ProjectTorreyPines packages that are in the .julia/dev folder and resolve environment
-	@echo $(DEV_PACKAGES)
-	@$(foreach repo,$(DEV_PACKAGES), \
+	@echo $(DEV_PACKAGES_MAKEFILE)
+	@$(foreach repo,$(DEV_PACKAGES_MAKEFILE), \
 	(sh -c "cd $(JULIA_PKG_DEVDIR)/$(repo) && git pull 2>&1 | sed 's/^/$(repo): /'") & \
 	)
 	make resolve
@@ -392,38 +549,56 @@ ifeq ($(repo),)
 endif
 
 # @devs
-error_missing_repos_var:
-# Throw an error if environment variable `repos` is not set
-ifeq ($(repo),)
-	$(error `repos` variable is not set)
+error_missing_branch_var:
+# Throw an error if environment variable `branch` is not set
+ifeq ($(branch),)
+	$(error `branch` variable is not set)
 endif
 
 # @devs
-error_on_previous_commit_is_a_version_bump: error_missing_repo_var
-# Utility to error if previous commit was a version bump
-	@previous_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
-	if echo "$$previous_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
-		echo "Error: The previous commit was a version bump." ;\
+error_on_last_commit_is_a_version_bump: error_missing_repo_var
+# Utility to error if last commit was a version bump
+	@last_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
+	if echo "$$last_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
+		echo "Error: The last commit was a version bump." ;\
 		exit 1 ;\
 	fi
 
 # @devs
-feature_or_master:
+error_on_last_commit_is_not_a_version_bump: error_missing_repo_var
+# Utility to error if last commit was not a version bump
+	@last_commit_message=$$(git -C ../$(repo) log -1 --pretty=%B) ;\
+	if ! echo "$$last_commit_message" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+' ; then \
+		echo "Error: The last commit was not a version bump." ;\
+		exit 1 ;\
+	fi
+
+# @devs
+error_not_on_master_branch: error_missing_repo_var
+# Utility to error if the current branch is not master
+	@current_branch=$$(git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
+	if [ "$$current_branch" != "master" ]; then \
+		echo "Error: $(repo) is not on the master branch (current branch: $$current_branch)." ;\
+		exit 1 ;\
+	fi
+
+# @devs
+feature_or_master: error_missing_branch_var
 # checks if on the packages remote GitHub repos there is a branch with the same name of the local FUSE branch
-	julia -e ';\
+	@julia -e ';\
 	$(feature_or_master_julia);\
-	fuse_packages = $(FUSE_PACKAGES);\
+	fuse_packages = sort!(["FUSE"; $(FUSE_PACKAGES_ALL)]);\
 	for package in fuse_packages;\
-		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
-        if branch == "master";\
-            println(">>> $$(package)");\
+		branch_name = feature_or_master(package, "$(branch)");\
+        if branch_name == "master";\
+            println("    $$(package)");\
         else;\
-            println(">>> $$(package) @ $$(branch)");\
+            println(">>> $$(package) @ $$(branch_name)");\
         end;\
 	end'
 
 # @devs
-generate_dd:
+generate_dd: .PHONY
 # Update dd from the json files in IMASdd
 	@julia -e 'using GenerateDD; update_data_structures_from_OMAS(); generate_dd()'
 
@@ -445,14 +620,13 @@ help_user:
 	@FILTER="user" make help_common
 
 header:
-	@printf "\n"
-	@printf "  \033[1;31m███████\033[1;30m╗\033[1;31m██\033[1;30m╗   \033[1;31m██\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔════╝\033[1;31m██\033[1;30m╔════╝\033[0m\n"
-	@printf "  \033[1;31m█████\033[1;30m╗  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║\033[1;31m███████\033[1;30m╗\033[1;31m█████\033[1;30m╗  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m╔══╝  \033[1;31m██\033[1;30m║   \033[1;31m██\033[1;30m║╚════\033[1;31m██\033[1;30m║\033[1;31m██\033[1;30m╔══╝  \033[0m\n"
-	@printf "  \033[1;31m██\033[1;30m║     ╚\033[1;31m██████\033[1;30m╔╝\033[1;31m███████\033[1;30m║\033[1;31m███████\033[1;30m╗\033[0m\n"
-	@printf "  \033[1;30m╚═╝      ╚═════╝ ╚══════╝╚══════╝\033[0m\n"
-	@printf "   Project  Torrey  Pines  (PTP)\n"
+	@echo "    $(BOLD)$(GREEN)_$(RESET)  __               $(BOLD)$(PURPLE)_$(RESET) $(BOLD)$(BLUE)_$(RESET)"
+	@echo "   $(BOLD)$(GREEN)(_)$(RESET)/ _|             $(BOLD)$(PURPLE)(_$(RESET)$(BOLD)$(BLUE)(_)$(RESET)"
+	@echo "  $(BOLD)$(RED)(_)$(RESET)| |_ _   _ ___  _$(BOLD)$(BLUE)(_$(RESET)$(BOLD)$(PURPLE)(_)$(RESET)    Documentation: https://fuse.help"
+	@echo "     |  _| | | / __|/ _ \\"
+	@echo "    $(BOLD)$(RED)_$(RESET)| | | |_| \\__ \\  __/"
+	@echo "   $(BOLD)$(RED)(_)$(RESET)_|  \\__'_|___/\\___|$(BOLD)$(BLUE)_$(RESET)"
+	@echo "  $(BOLD)$(GREEN)(_(_)$(RESET)                 $(BOLD)$(BLUE)(_)$(RESET)"
 
 # Update Makefile targets
 sort_targets:
@@ -467,10 +641,6 @@ init_expressions:
 	julia -e 'import FUSE; FUSE.init_expressions(;save=true)'
 
 # @devs
-install: install_no_registry
-# Install with default install method (no registry)
-
-# @devs
 install_PyCall:
 # Install PyCall
 	julia -e '\
@@ -481,14 +651,21 @@ install_PyCall:
 	'
 
 # @devs
-install_ci_add:
+install_ci_master:
+	julia --project=@. -e ';\
+	using Pkg;\
+	Pkg.instantiate();\
+	Pkg.add("Test");\
+	Pkg.status()'
+
+# @devs
+install_ci_dev:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
-	julia -e ';\
+	julia --project=@. -e ';\
 	$(feature_or_master_julia);\
 	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg;\
-	Pkg.activate(".");\
 	dependencies = Pkg.PackageSpec[];\
 	for package in fuse_packages;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
@@ -501,35 +678,60 @@ install_ci_add:
         end;\
 	end;\
 	Pkg.add(dependencies);\
+	Pkg.add("Test");\
 	Pkg.status()'
 
 # @devs
-install_ci_dev: install_registry https_dev
-# Install used by CI (dev packages, do not add them)
-
-# @devs
 install_examples_dev:
-# Install FUSE_examples under FUSE/examples
-	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git examples ; else cd examples && git pull; fi
-
-# @devs
-install_no_registry: install_registry clone_pull_all develop
-# Install FUSE without using the registry
+# Install FuseExamples under FUSE/examples using ssh
+	@if [ ! -d "examples" ]; then git clone git@github.com:ProjectTorreyPines/FuseExamples.git examples ; else cd examples && git pull; fi
 
 # @devs
 install_playground: .PHONY
-# Clone FUSE_playground repository under FUSE/playground folder
+# Clone FusePlayground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
-	if [ ! -d "playground" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_playground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+	if [ ! -d "playground" ]; then git clone https://github.com/ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
 
 # @devs
-install_via_registry: install_registry develop
-# Install FUSE using the registry
+knowledge: .PHONY
+# Extract FUSE actor knowledge base using Claude analysis
+	@echo "Extracting FUSE actor knowledge base..."
+	@cd knowledge && julia --threads=$(JULIA_NUM_THREADS) -e 'include("extract_knowledge.jl"); extract_fuse_knowledge_parallel()'
+	@echo "Knowledge extraction complete! Check knowledge/fuse_knowledge_base.json"
+
+# @devs
+knowledge_clean: .PHONY
+# Clean up orphaned actor files in knowledge base
+	@echo "Checking for orphaned actor files..."
+	@cd knowledge && julia -e 'include("extract_knowledge.jl"); clean_orphaned_fuse_actors()'
+
+# @dev
+learn_usage:
+# Learn FUSE usage from Jupyter notebooks and update knowledge/how_to_use_fuse.md
+	cd knowledge ; ./learn_fuse_usage.sh ../examples/tutorial.ipynb ../examples/tutorial_imas.ipynb ../examples/fluxmatcher.ipynb ../examples/study_TGLFdb.ipynb ../examples/time_dependent_d3d.ipynb ../examples/time_dependent_iter.ipynb ../examples/study_database_generator.ipynb ../examples/study_multi_objective_optimizer.ipynb
+
+# @devs
+learn_init:
+# Create comprehensive guide on how to initialize FUSE by analyzing case files and parameter structures
+	claude "Write a how_to_init_fuse.md knowledge file, structured for users and LLMs to learn how to define FUSE use cases. You should looking at each individual *.jl files under FUSE/src/cases (don't skip any, they are all important!). Also add a note about the parameters definitions being in FUSE/src/parameters/parameters_inits.jl and use this file to build your .md documentation as necessary."
+
+# @devs
+learn_actors_docstrings:
+# update actors docstrings
+	claude "Go through each and every actor file (***_actor.jl) and (in parallel) spawn a claude session to improve the docstring of each. \
+	Don't add any docstring to the \`@actor_parameters_struct\` or the Actor constructor. \
+	Instead you should focus on the \`ActorXXX(dd,act)\` function which in the end is what is going to appear in the online documentation. \
+	You can add some extra details to the docstrings of \`_step()\` and \`_finalize()\`. \
+	NEVER document boilerplate arguments, like \`dd\`, \`par\`, \`act\`, \`kw...\`. \
+	To know what an actor does, look at the executable code. \
+	If there's already a docstring, verify it against the executable code. \
+	If there's any conflicting information the executable code should take precendence. \
+	To know what actors need documentation, search for \`actor_parameters_struct\`, and process them in parallel claude sessions."
 
 # @devs
 list_open_compats:
 # List compat patches PR on GitHub
-	@$(foreach repo,$(DEV_PACKAGES), \
+	@$(foreach repo,$(DEV_PACKAGES_MAKEFILE), \
 		echo ;\
 		echo $(repo) ;\
 		cd ../$(repo) && \
@@ -546,40 +748,6 @@ list_open_compats:
 	)
 
 # @devs
-make_apache: error_missing_repo_var
-# Update LICENSE, NOTICE.md, github workflows, docs, juliaformatter and gitignore in preparation of public release
-# The starting information is taken from IMASdd.jl and moved to the target repo
-# >> make apache repo=CHEASE
-# in addition, one must add the DOCUMENTER_KEY to the repo
-# https://m3g.github.io/JuliaNotes.jl/stable/publish_docs/#How-to-deploy-the-documentation-of-a-project
-	@echo $(repo)
-	@cp ../IMASdd/LICENSE ../$(repo)/ ;\
-	\
-	cp ../IMASdd/NOTICE.md ../$(repo)/ ;\
-	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/NOTICE.md && rm ../$(repo)/NOTICE.md.bak ;\
-	\
-	mkdir -p ../$(repo)/.github/workflows ;\
-	cp ../IMASdd/.github/workflows/make_docs.yml ../$(repo)/.github/workflows/ ;\
-	cp ../IMASdd/.github/workflows/runtests.yml ../$(repo)/.github/workflows/ ;\
-	cp ../IMASdd/.github/workflows/CompatHelper.yml ../$(repo)/.github/workflows/ ;\
-	cp ../IMASdd/.github/workflows/TagBot.yml ../$(repo)/.github/workflows/ ;\
-	\
-	cp ../IMASdd/README.md ../$(repo)/ ;\
-	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/README.md && rm ../$(repo)/README.md.bak ;\
-	\
-	cp -R ../IMASdd/docs ../$(repo)/ ;\
-	sed -i.bak "s/IMASdd/$(repo)/g" ../$(repo)/docs/make.jl && rm ../$(repo)/docs/make.jl.bak ;\
-	echo "# $(repo).jl" > ../$(repo)/docs/src/index.md ;\
-	rm ../$(repo)/docs/Manifest.toml ;\
-	rm -rf ../$(repo)/docs/build ;\
-	\
-	cp -R ../IMASdd/.JuliaFormatter.toml ../$(repo)/ ;\
-	\
-	cp -R ../IMASdd/.gitignore ../$(repo)/ ;\
-	\
-	julia -e 'import Pkg; Pkg.add("DocumenterTools"); import DocumenterTools; DocumenterTools.genkeys()'
-
-# @devs
 nuke_julia:
 # Remove everything under $HOME/.julia besides $HOME/.julia/dev
 	mv $(JULIA_PKG_DEVDIR) $(call realpath,$(JULIA_DIR))/../asddsaasddsa
@@ -588,19 +756,26 @@ nuke_julia:
 	mv $(call realpath,$(JULIA_DIR))/../asddsaasddsa $(JULIA_PKG_DEVDIR)
 
 # @devs
-register: error_missing_repo_var
+register_general: error_missing_repo_var error_not_on_master_branch error_on_last_commit_is_not_a_version_bump
+# Register a package to General registry
+	@if echo "$(GENERAL_REGISTRY_PACKAGES)" | grep -wq "$(repo)" ; then \
+		gh api repos/ProjectTorreyPines/$(repo).jl/commits/master --jq '.sha' | \
+		xargs -I{} gh api repos/ProjectTorreyPines/$(repo).jl/commits/{}/comments -f body='@JuliaRegistrator register' ;\
+		echo "Registered $(repo) to General registry." ;\
+	else \
+		echo "$(repo) is not listed as part of the General registry." ;\
+	fi
+
+# @devs
+register: error_missing_repo_var error_not_on_master_branch
 # Register a package to FuseRegistry
 # >> make register repo=IMASdd
-	@current_branch=$(shell git -C ../$(repo) rev-parse --abbrev-ref HEAD) ;\
-	if [ "$$current_branch" != "master" ]; then \
-		echo "Error: $(repo) is not on the master branch" ;\
-		exit 1 ;\
-	fi
 	sed -i.bak "s/https:\/\/github.com\//git@github.com:/g" $(JULIA_DIR)/registries/FuseRegistry/.git/config && rm $(JULIA_DIR)/registries/FuseRegistry/.git/config.bak
 	julia -e '\
 using Pkg;\
 Pkg.Registry.update("FuseRegistry");\
 Pkg.activate();\
+Pkg.add("LocalRegistry");\
 using LocalRegistry;\
 LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="FuseRegistry")'
 	version=$$(grep '^version' ../$(repo)/Project.toml | sed -E 's/version = "(.*)"/\1/') ;\
@@ -609,16 +784,23 @@ LocalRegistry.is_dirty(path, gitconfig)= false; register("$(repo)", registry="Fu
 	gh release create v$${version} --generate-notes --repo ProjectTorreyPines/$(repo).jl
 
 # @devs
-register_major: bump_major register
+register_major: bump_major register register_general
 # Bump major version and register: X.Y.Z --> (X+1).0.0
 
 # @devs
-register_minor: bump_minor register
+register_minor: bump_minor register register_general
 # Bump minor version and register: X.Y.Z --> X.(Y+1).0
 
 # @devs
-register_patch: bump_patch register
+register_patch: bump_patch register register_general
 # Bump patch version and register: X.Y.Z --> X.Y.(Z+1)
+
+# @devs
+register_patch_all:
+# runs `make register_patch` for all FUSE packages
+	@$(foreach repo,$(FUSE_PACKAGES_MAKEFILE), \
+	make register_patch repo=$(repo); \
+	)
 
 # @devs
 resolve:
@@ -639,7 +821,7 @@ run_examples: clean_examples
 status:
 # List branches of all the ProjectTorreyPines packages used by FUSE with version, dirty * flag, and commits since the latest tag
 	@cd $(CURRENTDIR); \
-	packages="$(DEV_PACKAGES)"; \
+	packages="$(DEV_PACKAGES_MAKEFILE)"; \
 	sorted_packages=`echo $$packages | tr ' ' '\n' | sort | tr '\n' ' '`; \
 	line_count=0; \
 	term_width=`tput cols`; \
@@ -669,7 +851,7 @@ status:
 		elif [ "$$latest_tag" = "(no tag)" ]; then \
 			commit_info="(no tag)"; \
 		fi; \
-		line_text=`printf "%25s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
+		line_text=`printf "%26s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
 		line_length=`echo "$$line_text" | wc -c | tr -d ' '`; \
 		padding=$$((term_width - line_length)); \
 		printf "$$color%s%*s$$reset\n" "$$line_text" $$padding ""; \
@@ -780,13 +962,13 @@ install_IJulia:
 	'
 	jupyter kernelspec list
 	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter nbextension list
 	jupyter labextension list
+	jupyter nbextension list
 
 # @user
 install_examples:
-# Install FUSE_examples in current folder
-	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FUSE_examples" ]; then git clone git@github.com:ProjectTorreyPines/FUSE_examples.git ; else cd FUSE_examples && git pull; fi
+# Install FuseExamples in current folder using https
+	@cd $(PTP_ORIGINAL_DIR) && if [ ! -d "FuseExamples" ]; then git clone https://github.com/ProjectTorreyPines/FuseExamples.git ; else cd FuseExamples && git pull; fi
 
 # @user
 install_registry:

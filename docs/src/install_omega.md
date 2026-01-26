@@ -1,74 +1,68 @@
-## Getting started on the OMEGA cluster
+# On GA's OMEGA cluster
 
-1. Install miniconda
-   ```
-   cd # in your home folder
-   wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-   sh Miniconda3-latest-Linux-x86_64.sh
-   ```
-   read and accept the license, and install under `$HOME/miniconda3`, answer questions, and restart your shell
+!!! note
+    FUSE should only be run on `somega` or on a worker node, never on the `omega` login nodes.
 
-1. install `mamba` for faster package management
-   ```
-   $HOME/miniconda3/bin/conda install -c conda-forge mamba
-   ```
-   !!! note
-       We use the full `conda` path to avoid picking up the system `conda` install. There is no system-wide `mamba` executable, so that's not necessary when running `mamba`.
+## FUSE module
 
-1. install `jupyterlab`
-   ```
-   mamba install -c conda-forge jupyterlab
-   ```
+If you only intend to use FUSE and don't plan to develop the source code, release versions of FUSE
+have been installed on the Omega cluster. All available versions can be found with `module avail fuse`.
+To load the latest version, do:
+```
+module load fuse
+```
 
-1. Remove `module load defaults` from your `~/.bashrc`
-   This module is used to run experimental tools like review+, efit_veiwer, etc...
-   but it does not play well with the Julia executable.
-   (alternatively you'll have to `module purge` or `module unload defaults`)
+The FUSE module does several things:
 
-1. Now follow the standard Julia and FUSE installation instructions
+1. It exposes the `fuse` executable, which runs Julia in a read-only environment with the FUSE
+   codebase precompiled into a
+   [sysimage](https://julialang.github.io/PackageCompiler.jl/dev/sysimages.html).
+   This greatly reduces the time-to-first-execution (TTFX) for many functions in the FUSE code suite,
+   at the expense of "locking" those packages and functions to the versions with which they
+   were compiled.
 
-1. Setup a multi-threaded Jupyter Julia kernel that does not take the whole login node
-   ```
-   export JULIA_NUM_THREADS=10
-   fusebot install_IJulia
+1. The Julia module is also loaded, so development work can be done by running the `julia` command.
+   This gives you access to a public Julia installation with your own private "depot" in which each
+   user can add or develop their own packages. The location of this private depot is given by the
+   environment variable `JULIA_USER_DEPOT`.
 
-   export JULIA_NUM_THREADS=40
-   fusebot install_IJulia
-   ```
-   OMEGA login nodes are a shared resource. Each login node has 40 cores.
-   This will setup a Jupyter Julia kernel with both 10 and 40 threads.
-   Use 10 threads on login nodes and 40 threads on worker nodes.
+1. FUSE is already available when you launch `julia` or `fuse`, so there's no need to do
+   `Pkg.add("FUSE")`. You can simply do `using FUSE` and begin working.
 
-## Distributed.jl on OMEGA
+1. A custom conda installation is made available to you that has Jupyterlab with
+   precompiled Julia kernels that include the FUSE sysimage. You can just do `jupyter lab` to
+   start a Jupyter session and select the desired kernels. There is a kernel with 1 thread meant
+   for the login nodes and 10 & 16 threads for the worker nodes.
+   !!! warning
+       **Potential Problem**: There's a bug that may occur when a new user first launches one of these
+       Julia + FUSE Jupyter kernels.
+       In your terminal, you may see output about precompiling IJulia, which is expected.
+       Once the precompilation is done, it will report `Starting kernel event loops` but then the
+       kernel may hang and your notebook may not work. It is unclear why this happens, but it is
+       only the first time for each user.
 
-We have found issues when trying to run parallel jobs using `Distributed.jl` on OMEGA.
-The fix for this is simple: don't use the `Main` environment, rather activate a separate environment.
+       **Solution**: The latest installations on Omega seemed to have fixed this issue, but if it happens,
+       restart the kernel. Occasionally this needs to be done twice, perhaps if you
+       restart too quickly and the precompilation was not finished. In any case, if the problem
+       does not resolve after restarting the kernel twice, reach out to the FUSE developers.
 
-This can be easily by doing the following in the first cell of your Jupyter notebook:
-
-    ```julia
-    using Pkg
-    Pkg.activate("$HOME/julia_runs/my_run") # this is key, to avoid using the Main FUSE environment
-    Pkg.add(("Plots", "FUSE"))
-    ```
-
-## Jupyter on OMEGA cluster
+## Connecting to a Jupyter-lab server running on OMEGA from your laptop
 
 1. Connect to `omega` and launch `screen`
 
    !!! note
        You can re-connect to an existing `screen` session with `screen -r`
 
-1. For larger jobs especially, consider doing what follows on a login node.
-   To do this (eg. a whole worker node of 40 cores for 4 days)
+1. **If (and only if) you want to run jupyter-lab on a worker node** do as follows:
 
     `srun --partition=ga-ird --nodes=1 --time=4-00:00:00 --pty bash -l`
 
    !!! note
-       Use the queue, time, cpu, and memory limits that make the most sense for your application
+       Use the queue, time, CPU, and memory limits that make the most sense for your application
        see these [instructions](https://fusionga.sharepoint.com/sites/Computing/SitePages/Omega.aspx#using-slurm-to-run-interactive-tasks%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B%E2%80%8B) for help
 
-1. Then start the Jupyter lab server from the `screen` session (`screen` will keep `jupyter` running even when you log out)
+1. Then start the Jupyter lab server from the `screen` session (`screen` will keep `jupyter`
+   running even when you log out)
    ```
    jupyter lab --no-browser --port 55667
    ```
@@ -99,11 +93,57 @@ This can be easily by doing the following in the first cell of your Jupyter note
    ssh -N -L localhost:33445:localhost:55667 omegae
    ```
    !!! note
-       Keep this terminal always open. You may need to re-issue this command whenever you put your laptop to sleep.
+       Keep this terminal always open. You may need to re-issue this command whenever you put your
+       laptop to sleep.
 
-1. On your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab session on `omega`. Use the token when prompted.
+1. On your computer open a web browser tab to `localhost:33445` to connect to the Jupyter-lab
+   session on `omega`. Use the token when prompted.
 
-## Using Revise on OMEGA
+## Three ways to run parallel jobs
+
+Keep in mind that each worker node on Omega has 128 CPUs
+
+1. Screen + Jupyter on the login node, workers on the worker nodes
+
+   OK when the master process will not be doing a lot of work, and we need multiple nodes
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+1. Screen on the login node, Jupyter and workers on one worker node
+
+   OK when the master process will be doing a lot of work, and we don't need more than one node
+
+   Here we will use the `FUSE.parallel_environment("localhost", ...)` call.
+
+1. Screen on the login node, Jupyter on a worker node, workers on different worker nodes
+
+   OK when the master process will be doing a lot of work, and we need multiple nodes
+
+   This is more complex, and finicky. Avoid if possible.
+
+   Here we will use the `FUSE.parallel_environment("omega", ...)` call.
+
+## Running Julia/FUSE via VScode
+
+You can use [VScode and remote SHH connection](https://code.visualstudio.com/docs/remote/ssh-tutorial) to run Julia and FUSE on Omega.
+
+To do this:
+
+* Open a remote connection to Omega
+
+* Install the `Julia` and the `Jupyter` VScode extensions in on Omega
+
+* Open the `Code > Settings... > Settings` menu
+
+  * Select the `Remote [SSH: omega]` tab
+
+  * Search for `julia executable` in the search bar
+
+  * Edit the `julia: Executable Path` to `/fusion/projects/codes/julia/fuse/julia_with_fuse`
+
+Now Julia scripts and notebooks can be run directly from this remote VScode session.
+
+## Using Revise on Omega
 When working on omega it seems ones need to manually trigger revise to pick up code changes:
 ```
 import Revise
@@ -112,10 +152,10 @@ Revise.revise()  # manual trigger
 
 This is even if setting [`JULIA_REVISE_POLL=1`](https://timholy.github.io/Revise.jl/stable/config/#Polling-and-NFS-mounted-code-directories:-JULIA_REVISE_POLL)
 
-## Using GACODE on OMEGA with Julia
+## Using GACODE on Omega with Julia
 Julia may be incompatible with some environments and will crash when launched.
-This is the case for the GACODE environment on OMEGA.
-To be able to run both GACODE and Julia on OMEGA (eg. to run NEO and TGLF) do the following:
+This is the case for the GACODE environment on Omega.
+To be able to run both GACODE and Julia on Omega (eg. to run NEO and TGLF) do the following:
 ```
 module load atom
 module unload gcc

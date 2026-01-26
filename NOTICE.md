@@ -10,7 +10,13 @@ FUSE.jl was originally developed under the FUSE project by the Magnetic Fusion E
 
 If this software contributes to an academic publication, please cite it as follows:
 
-> O. Meneghini, T. Slendebroek, B.C. Lyons, K. McLaughlin, J. McClenaghan, L. Stagner, J. Harvey, T.F. Neiser, A. Ghiozzi, G. Dose, J. Guterl, A. Zalzali, T. Cote, N. Shi, D. Weisberg, S.P. Smith, B.A. Grierson, _FUSE: A next generation framework for integrated design of fusion pilot plants_, Proceedings of the IAEA FEC 2023 Conference, (2023)
+    @article{meneghini2024fuse,
+    author = {Meneghini, O. and Slendebroek, T. and Lyons, B.C. and McLaughlin, K. and McClenaghan, J. and Stagner, L. and Harvey, J. and Neiser, T.F. and Ghiozzi, A. and Dose, G. and Guterl, J. and Zalzali, A. and Cote, T. and Shi, N. and Weisberg, D. and Smith, S.P. and Grierson, B.A. and Candy, J.},
+    doi = {10.48550/arXiv.2409.05894},
+    journal = {arXiv},
+    title = {{FUSE (Fusion Synthesis Engine): A Next Generation Framework for Integrated Design of Fusion Pilot Plants}},
+    year = {2024}
+    }
 
 ## Trademark Notice
 
@@ -22,4 +28,4 @@ Copyright (c) 2024 General Atomics
 
 ## Version
 
-**Version: v1.0**
+**Version: v2.1**

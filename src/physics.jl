@@ -8,69 +8,59 @@ import GeoInterface
 #= =============== =#
 #  Shape functions  #
 #= =============== =#
-
 function layer_shape_message(shape_function_index)
-    return "layer.shape=$(shape_function_index) is invalid. Valid options are:
-            -2: Offset & convex-hull
-            -1: Offset
-             1: Princeton D exact  (shape_parameters = [])
-             2: Princeton D approx (shape_parameters = [])
-             3: Princeton D scaled (shape_parameters = [height])
-             4: rectangle          (shape_parameters = [height])
-             5: double_ellipse     (shape_parameters = [centerpost_height, height])
-             6: rectangle_ellipse  (shape_parameters = [height])
-             7: tripple-arc        (shape_parameters = [height, small_radius, mid_radius, small_coverage, mid_coverage])
-             8: miller             (shape_parameters = [])
-             9: racetrack          (shape_parameters = [height, radius_ratio])
-            10: silo               (shape_parameters = [h_start, h_end)
-           10x: shape + z_offset   (shape_parameters = [..., z_offset])
-          100x: negative shape     (shape_parameters = [...])"
+    buf = IOBuffer()
+    show(buf, MIME("text/plain"), IMAS.BuildLayerShape)
+    valid_shapes = String(take!(buf))
+    return """
+        layer.shape=$(shape_function_index) is invalid. Valid options are:
+
+        $(valid_shapes)
+
+        shape + z_offset = +100"""
 end
 
 function initialize_shape_parameters(shape_function_index, r_obstruction, z_obstruction, r_start, r_end, clearance)
-    height = maximum(z_obstruction) - minimum(z_obstruction) + clearance * 2.0
-    z_offset = (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0
     shape_parameters = nothing
     if shape_function_index ∈ (Int(_offset_), Int(_negative_offset_), Int(_convex_hull_))
         return nothing
     else
+        height = maximum(z_obstruction) - minimum(z_obstruction) + clearance * 2.0
+        r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
+
         shape_index_mod = shape_function_index
-        is_negative_D = false
-        if shape_index_mod > 1000
-            shape_index_mod = mod(shape_function_index, 1000)
-            is_negative_D = true
-        end
-        is_z_offset = false
+        z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
-            is_z_offset = true
+            z_offset = true
         end
-        if shape_index_mod == Int(_princeton_D_)
+        if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             shape_parameters = Float64[]
-        elseif shape_index_mod == Int(_princeton_D_scaled_)
+        elseif shape_index_mod in (Int(_princeton_D_scaled_), Int(_mirror_princeton_D_scaled_))
             shape_parameters = [height]
-        elseif shape_index_mod == Int(_double_ellipse_)
-            r_center = (r_obstruction[argmax(z_obstruction)] + r_obstruction[argmin(z_obstruction)]) / 2.0
+        elseif shape_index_mod in (Int(_double_ellipse_), Int(_mirror_double_ellipse_))
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [r_center, centerpost_height, height]
-        elseif shape_index_mod == Int(_circle_ellipse_)
+        elseif shape_index_mod in (Int(_circle_ellipse_), Int(_mirror_circle_ellipse_))
             centerpost_height = (maximum(z_obstruction) - minimum(z_obstruction)) * 2.0 / 3.0
             shape_parameters = [centerpost_height, height]
+        elseif shape_index_mod in (Int(_rectangle_ellipse_), Int(_mirror_rectangle_ellipse_))
+            shape_parameters = [r_center, height]
+        elseif shape_index_mod in (Int(_triple_arc_), Int(_mirror_triple_arc_))
+            shape_parameters = [height, 0.5, 0.5, Float64(pi / 3), Float64(pi / 3)]
         elseif shape_index_mod == Int(_rectangle_)
             shape_parameters = [height]
         elseif shape_index_mod == Int(_racetrack_)
             shape_parameters = [height, 0.25]
-        elseif shape_index_mod == Int(_triple_arc_)
-            shape_parameters = [height, 0.5, 0.5, Float64(pi / 3), Float64(pi / 3)]
         elseif shape_index_mod == Int(_silo_)
-            shape_parameters = [height, height / 2.0]
+            shape_parameters = [height, 0.2]
         end
     end
     if shape_parameters === nothing
-        error(shape_function_index)
+        error(layer_shape_message(shape_function_index))
     end
-    if is_z_offset
-        push!(shape_parameters, z_offset)
+    if z_offset
+        push!(shape_parameters, (maximum(z_obstruction) + minimum(z_obstruction)) / 2.0)
     end
     return shape_parameters
 end
@@ -81,36 +71,33 @@ function shape_function(shape_function_index::Int; resolution::Float64)
         return nothing
     else
         shape_index_mod = shape_function_index
-        is_negative_D = false
-        if shape_index_mod > 1000
-            shape_index_mod = mod(shape_function_index, 1000)
-            is_negative_D = true
-        end
-        is_z_offset = false
+        z_offset = false
         if shape_index_mod > 100
             shape_index_mod = mod(shape_function_index, 100)
-            is_z_offset = true
+            z_offset = true
         end
-        if shape_index_mod == Int(_princeton_D_)
+        if shape_index_mod in (Int(_princeton_D_), Int(_mirror_princeton_D_))
             func = princeton_D_approx
-        elseif shape_index_mod == Int(_princeton_D_scaled_)
+        elseif shape_index_mod in (Int(_princeton_D_scaled_), Int(_mirror_princeton_D_scaled_))
             func = princeton_D_scaled
-        elseif shape_index_mod == Int(_circle_ellipse_)
-            func = circle_ellipse
-        elseif shape_index_mod == Int(_double_ellipse_)
+        elseif shape_index_mod in (Int(_double_ellipse_), Int(_mirror_double_ellipse_))
             func = double_ellipse
+        elseif shape_index_mod in (Int(_circle_ellipse_), Int(_mirror_circle_ellipse_))
+            func = circle_ellipse
+        elseif shape_index_mod in (Int(_rectangle_ellipse_), Int(_mirror_rectangle_ellipse_))
+            func = rectangle_ellipse
+        elseif shape_index_mod in (Int(_triple_arc_), Int(_mirror_triple_arc_))
+            func = triple_arc
         elseif shape_index_mod == Int(_rectangle_)
             func = rectangle_shape
         elseif shape_index_mod == Int(_racetrack_)
             func = racetrack
-        elseif shape_index_mod == Int(_triple_arc_)
-            func = triple_arc
         elseif shape_index_mod == Int(_silo_)
             func = silo
         end
     end
     if func === nothing
-        error(layer_shape_message(shape_index_mod))
+        error(layer_shape_message(shape_function_index))
     end
 
     # resolution
@@ -118,7 +105,7 @@ function shape_function(shape_function_index::Int; resolution::Float64)
 
     # zoffset
     zfunc = rfunc
-    if is_z_offset
+    if z_offset
         zfunc(args...) = begin
             R, Z = rfunc(args[1:end-1]...)
             Z .+= args[end]
@@ -128,7 +115,14 @@ function shape_function(shape_function_index::Int; resolution::Float64)
 
     # neg-D
     dfunc = zfunc
-    if is_negative_D
+    if shape_index_mod in (
+        Int(_mirror_princeton_D_),
+        Int(_mirror_princeton_D_scaled_),
+        Int(_mirror_double_ellipse_),
+        Int(_mirror_circle_ellipse_),
+        Int(_mirror_rectangle_ellipse_),
+        Int(_mirror_triple_arc_)
+    )
         dfunc(args...) = begin
             R, Z = zfunc(args...)
             R = -(R .- args[1]) .+ args[2]
@@ -171,8 +165,6 @@ An pproximate version of the "Princeton-D" constant tension shape for a TF coil 
 References: Gralnick, S. L.; Tenney, F. H. Analytic Solutions for Constant‐tension Coil Shapes. J. Appl. Phys. 1976, 47, 7
 """
 function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(round(n_points * resolution))
-
     r1 = r_start
     r2 = r_end
     k = 0.5 * log(r2 / r1)
@@ -188,8 +180,8 @@ function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100, resolut
     ra_e2 = r2 - r0
     zb_e2 = coil_maxz
     e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
-    n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
-    n2_points = Int(round(n_points * resolution))
+    n1_points = max(3, round(Int, n_points * resolution * e1_e2_ratio))
+    n2_points = round(Int, n_points * resolution)
 
     # make ellipses to approximate equal-tension arc
     r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points=n1_points)
@@ -206,12 +198,10 @@ end
     princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
 
 This routine calculates a "shortened" TF coil shape that foregoes the equal-tension "Princeton-Dee" for
-a squater, more space-efficient shape. It replicates the inboard curve of the equal-tension arc, but
+a squarer, more space-efficient shape. It replicates the inboard curve of the equal-tension arc, but
 decreases the height of the coil to match a given value.
 """
 function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
-    n_points = Int(round(n_points * resolution))
-
     r1 = r_start
     r2 = r_end
     k = 0.5 * log(r2 / r1)
@@ -220,10 +210,8 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     centerpost_maxz = 2 * pi * r0 * k * SpecialFunctions.besseli(1, k) / 2 # Gralnick Eq. 28
     coil_maxz = pi * r0 * k * (SpecialFunctions.besseli(1, k) + struveL(1, k) + 2 / pi) / 2  # Gralnick Eq. 34
 
-    centerpost_height = height - (coil_maxz - centerpost_maxz) * 2
-
     inboard_curve_dz = coil_maxz - centerpost_maxz
-    centerpost_maxz = centerpost_height / 2
+    centerpost_maxz = height / 2
     coil_maxz = centerpost_maxz + inboard_curve_dz
 
     # number of points
@@ -232,8 +220,8 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     ra_e2 = r2 - r0
     zb_e2 = coil_maxz
     e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
-    n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
-    n2_points = Int(round(n_points * resolution))
+    n1_points = max(3, round(Int, n_points * resolution * e1_e2_ratio))
+    n2_points = round(Int, n_points * resolution)
 
     # make ellipses to approximate equal-tension arc
     r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points=n1_points)
@@ -277,8 +265,8 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 
     # number of points
     e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
-    n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
-    n2_points = Int(round(n_points * resolution))
+    n1_points = max(3, round(Int, n_points * resolution * e1_e2_ratio))
+    n2_points = round(Int, n_points * resolution)
 
     # ellipses
     r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points=n1_points)
@@ -307,18 +295,35 @@ function circle_ellipse(r_start::T, r_end::T, centerpost_height::T, height::T; n
 end
 
 """
+    rectangle_ellipse(r_start::T, r_end::T, r_center::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+
+Rectangle ellipse shape
+
+The inner part of the TF is actually a rectangle
+"""
+function rectangle_ellipse(r_start::T, r_end::T, r_center::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
+    height = abs(height)
+    r_center = mirror_bound(r_center, r_start, r_end)
+    n_points = round(Int, n_points * resolution)
+    r2, z2 = ellipse(r_end - r_center, height / 2.0, float(π / 2), float(0.0), r_center, 0.0; n_points)
+    R = [r_start; r_start; r2[1:end-1]; r2[end:-1:1]; r_start]
+    Z = [-z2[1]; z2[1]; z2[1:end-1]; -z2[end:-1:1]; -z2[1]]
+    return R, Z
+end
+
+"""
     rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
 
 Asymmetric rectangular shape
 
-NOTE: by default resolution=0, which returns 5 points
+NOTE: by default resolution=0.0, which returns 5 points
 """
 function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::Int=400, resolution::Float64=0.0) where {T<:Real}
     if resolution == 0.0
         R = [r_start, r_start, r_end, r_end, r_start]
         Z = [z_low, z_high, z_high, z_low, z_low]
     else
-        n_points = Int(round(n_points / 4 * resolution))
+        n_points = round(Int, n_points / 4 * resolution)
         R = vcat(
             range(r_start, r_start, n_points),
             range(r_start, r_end, n_points)[2:end],
@@ -398,7 +403,7 @@ function triple_arc(
     n_points::Integer=400,
     resolution::Float64=1.0) where {T<:Real}
 
-    n_points = Int(round(n_points / 4.0 * resolution))
+    n_points = round(Int, n_points / 4.0 * resolution)
 
     height = abs(height) / 2.0
     small_radius = mirror_bound(small_radius, 0.01, 1.0) * height
@@ -447,6 +452,8 @@ end
 Returns LibGEOS.Polygon from x and y arrays
 """
 function xy_polygon(x::T, y::T) where {T<:AbstractVector{<:Real}}
+    x = convert(Vector{Float64}, x)
+    y = convert(Vector{Float64}, y)
     if (x[1] ≈ x[end]) && (y[1] ≈ y[end])
         coords = [[[x[i], y[i]] for i in 1:length(x)]]
         coords[1][end] .= coords[1][1]
@@ -472,6 +479,10 @@ function xy_polygon(coords::T) where {T<:Vector{Tuple{Float64,Float64}}}
     return LibGEOS.Polygon([[[coord[1], coord[2]] for coord in coords]])
 end
 
+function xy_polygon(coords::T) where {T<:Vector{Vector{Float64}}}
+    return LibGEOS.Polygon([[[coord[1], coord[2]] for coord in coords]])
+end
+
 """
     xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
 
@@ -479,17 +490,6 @@ Returns LibGEOS.Polygon from IMAS build layer or structure
 """
 function xy_polygon(layer::Union{IMAS.build__layer,IMAS.build__structure})
     return xy_polygon(layer.outline.r, layer.outline.z)
-end
-
-"""
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
-
-Buffer polygon defined by x,y arrays by a quantity b
-"""
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
-    poly = xy_polygon(x, y)
-    poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
-    @inline return get_xy(poly_b, T)
 end
 
 function get_xy(poly::LibGEOS.Polygon, T=Float64)
@@ -531,27 +531,56 @@ function getPoint!(
 end
 
 """
-    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T) where {T<:Real}
 
-Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
+Buffer polygon defined by x,y arrays by a quantity b
 """
-function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
-    x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
-    x_offset = 0.5 * (b_lfs - b_hfs)
-    x_b .+= x_offset
-    return x_b, y_b
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b::T) where {T<:Real}
+    poly = xy_polygon(x, y)
+    poly_b::LibGEOS.Polygon = LibGEOS.buffer(poly, b)
+    @inline return get_xy(poly_b, Float64)::Tuple{Vector{Float64},Vector{Float64}}
 end
 
 """
-    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
+    x_b, y_b = buffer(x, y, 0.5 * (b_lfs + b_hfs))
+    x_offset = 0.5 * (b_lfs - b_hfs)
+    x_b .+= x_offset
+    return (x_b, y_b)::Tuple{Vector{T},Vector{T}}
+end
+
+"""
+    buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T) where {T<:Real}
+
+Buffer polygon defined by x,y arrays by a quantity b_hfs to the left and b_lfs to the right
+"""
+function buffer(x::AbstractVector{T}, y::AbstractVector{T}, b_hfs::T, b_lfs::T, b_updown::T) where {T<:Real}
+    b_radius = 0.5 * (b_lfs + b_hfs)
+    x_offset = 0.5 * (b_lfs - b_hfs)
+    y_max = maximum(y)
+    y_min = minimum(y)
+    y_scaled = (y .- y_min) ./ (y_max - y_min) .* (y_max + b_updown - b_radius - (y_min - b_updown + b_radius)) .+ (y_min - b_updown + b_radius)
+    x_b, y_b = buffer(x .+ x_offset, y_scaled, b_radius)
+    return (x_b, y_b)::Tuple{Vector{T},Vector{T}}
+end
+
+"""
+    limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real) where {T<:Real}
 
 Limit maximum curvature of a polygon described by x,y arrays
 """
-function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::T)::Tuple{Vector{T},Vector{T}} where {T<:Real}
+function limit_curvature(x::AbstractVector{T}, y::AbstractVector{T}, max_curvature::Real) where {T<:Real}
     @assert max_curvature > 0.0
+    x = convert(Vector{Float64}, x)
+    y = convert(Vector{Float64}, y)
+    max_curvature = convert(Float64, max_curvature)
     poly = xy_polygon(x, y)
     poly_b = LibGEOS.buffer(LibGEOS.buffer(poly, -max_curvature)::LibGEOS.Polygon, max_curvature)::LibGEOS.Polygon
-    @inline return get_xy(poly_b, T)
+    @inline return get_xy(poly_b, Float64)::Tuple{Vector{Float64},Vector{Float64}}
 end
 
 """
@@ -628,13 +657,13 @@ function approximate_surface_area(a::Real, R::Real, κ::Real, δ::Real)
 end
 
 """
-    silo(r_start, r_end, height_start, height_end; n_points::Int=100, resolution::Float64=1.0)
+    silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
 """
-function silo(r_start::Real, r_end::Real, height_start::Real, height_end::Real; n_points::Int=100, resolution::Float64=1.0)
-    n_points = Int(round(n_points * resolution))
+function silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
+    n_points = round(Int, n_points * resolution)
     height_start = abs(height_start)
-    height_end = abs(height_end)
-    height_end = min(max(height_end, height_start * 0.0), height_start * 0.9)
+    curved_fraction = mirror_bound(curved_fraction, 0.01, 0.99)
+    height_end = height_start * (1 - curved_fraction)
     x, y = ellipse(r_end - r_start, height_start - height_end, 0.0, pi / 2, r_start, height_end; n_points)
     return vcat(r_start, r_start, r_end, x), vcat(height_start, 0.0, 0.0, y) .- (height_start / 2.0)
 end
@@ -650,6 +679,8 @@ end
 
 mutable struct MXHboundary
     mxh::IMAS.MXH
+    upper_x_point::Bool
+    lower_x_point::Bool
     RX::Vector{<:Real}
     ZX::Vector{<:Real}
     r_boundary::Vector{<:Real}
@@ -692,11 +723,10 @@ end
     add_xpoint(
         mr::AbstractVector{T},
         mz::AbstractVector{T},
-        R0::Union{Nothing,T}=nothing,
-        Z0::Union{Nothing,T}=nothing;
+        R0::T,
+        Z0::T;
         upper::Bool,
-        α_multiplier::Float64
-    ) where {T<:Real}
+        α_multiplier::Float64) where {T<:Real}
 
 Add a X-point to a boundary that does not have one.
 
@@ -712,8 +742,7 @@ function add_xpoint(
     R0::T,
     Z0::T;
     upper::Bool,
-    α_multiplier::Float64
-) where {T<:Real}
+    α_multiplier::Float64) where {T<:Real}
 
     function cost(pr::Vector{Float64}, pz::Vector{Float64}, i::Integer, R0::T, Z0::T, α::Float64)
         return abs(add_xpoint(pr, pz, i, R0, Z0, α).θX - π / 2)
@@ -725,7 +754,7 @@ function add_xpoint(
         i = argmax(abs.(IMAS.curvature(mr, mz)) .* (mz .< Z0))
     end
 
-    res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.GoldenSection())
+    res = Optim.optimize(α -> cost(mr, mz, i, R0, Z0, α), 1.0, 1.5, Optim.Brent())
     return add_xpoint(mr, mz, i, R0, Z0, 1.0 + (res.minimizer[1] - 1.0) * α_multiplier)
 end
 
@@ -770,14 +799,14 @@ Return MXHboundary structure of boundary with x-points based on input MXH bounda
 """
 function MXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0)
     mr, mz = mxh()
-    mxhb = MXHboundary(deepcopy(mxh), Float64[], Float64[], mr, mz)
-    return MXHboundary!(mxhb; upper_x_point, lower_x_point, n_points)
+    mxhb = MXHboundary(deepcopy(mxh), upper_x_point, lower_x_point, Float64[], Float64[], mr, mz)
+    return MXHboundary!(mxhb; n_points)
 end
 
-function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Bool, n_points::Integer=0, RU::Real=0.0, RL::Real=0.0)
+function MXHboundary!(mxhb::MXHboundary; n_points::Integer=0, RU::Real=0.0, RL::Real=0.0)
     mr, mz = mxhb.mxh()
 
-    if ~upper_x_point && ~lower_x_point && n_points === 0
+    if ~mxhb.upper_x_point && ~mxhb.lower_x_point && n_points === 0
         empty!(mxhb.RX)
         empty!(mxhb.ZX)
         mxhb.r_boundary = mr
@@ -795,32 +824,32 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
     end
 
     R, Z = mr, mz
-    RXU, ZXU, R1, Z1, _ = add_xpoint(R, Z, RU, Z0; upper=true, α_multiplier=(upper_x_point ? 1.0 : 2.0))
-    if upper_x_point
+    RXU, ZXU, R1, Z1, _ = add_xpoint(R, Z, RU, Z0; upper=true, α_multiplier=(mxhb.upper_x_point ? 1.0 : 2.0))
+    if mxhb.upper_x_point
         R = R1
         Z = Z1
     end
 
-    RXL, ZXL, R2, Z2 = add_xpoint(R, Z, RL, Z0; upper=false, α_multiplier=(lower_x_point ? 1.0 : 2.0))
-    if lower_x_point
+    RXL, ZXL, R2, Z2 = add_xpoint(R, Z, RL, Z0; upper=false, α_multiplier=(mxhb.lower_x_point ? 1.0 : 2.0))
+    if mxhb.lower_x_point
         R = R2
         Z = Z2
     end
 
     RX = Float64[]
     ZX = Float64[]
-    if upper_x_point
+    if mxhb.upper_x_point
         push!(RX, RXU)
         push!(ZX, ZXU)
     end
-    if lower_x_point
+    if mxhb.lower_x_point
         push!(RX, RXL)
         push!(ZX, ZXL)
     end
 
     # resample boundary after convex_hull in such a way to preserve x-points and add proper curvature in the x-point region
-    if upper_x_point + lower_x_point == 1
-        if upper_x_point
+    if mxhb.upper_x_point + mxhb.lower_x_point == 1
+        if mxhb.upper_x_point
             R, Z = IMAS.reorder_flux_surface!(R, Z, argmax(Z))
         else
             R, Z = IMAS.reorder_flux_surface!(R, Z, argmin(Z))
@@ -828,7 +857,7 @@ function MXHboundary!(mxhb::MXHboundary; upper_x_point::Bool, lower_x_point::Boo
         RR = @views [-(reverse(R[2:end-1]) .- R[1]) .+ R[1]; R[2:end-1]; -(reverse(R[2:end-1]) .- R[1]) .+ R[1]]
         ZZ = @views [-(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]; Z[2:end-1]; -(reverse(Z[2:end-1]) .- Z[1]) .+ Z[1]]
         RR, ZZ = IMAS.resample_plasma_boundary(RR, ZZ; n_points=length(R) * 2, method=:cubic)
-        if upper_x_point
+        if mxhb.upper_x_point
             I = ZZ .< Z[1]
         else
             I = ZZ .> Z[1]
@@ -905,7 +934,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
     mxhb0 = MXHboundary(mxh; upper_x_point, lower_x_point, n_points)
     mxh0 = IMAS.MXH(mxhb0.r_boundary, mxhb0.z_boundary, M)
 
-    function mxhb_from_params!(mxhb0::MXHboundary, params::AbstractVector{<:Real}; upper_x_point::Bool, lower_x_point::Bool, n_points::Int)
+    function mxhb_from_params!(mxhb0::MXHboundary, params::AbstractVector{<:Real}; n_points::Int)
         L = 1
         mxhb0.mxh.Z0 = params[L]
         L += 1
@@ -913,36 +942,36 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         if symmetric
             mxhb0.mxh.c0 = 0.0
             mxhb0.mxh.s = params[L+1:end]
-            mxhb0.mxh.c = mxhb0.mxh.s .* 0.0
+            mxhb0.mxh.c = zero(mxhb0.mxh.s)
         else
             L += 1
             mxhb0.mxh.c0 = params[L]
             mxhb0.mxh.s = params[L+1:L+Integer((end - L) / 2)]
             mxhb0.mxh.c = params[L+Integer((end - L) / 2)+1:end]
         end
-        return MXHboundary!(mxhb0; upper_x_point, lower_x_point, n_points)
+        return MXHboundary!(mxhb0; n_points)
     end
 
-    function cost(params::AbstractVector{<:Real}; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area::Float64, target_volume::Float64)
+    function cost(params::AbstractVector{<:Real}; mxhb0, mxh0, n_points, target_area::Float64, target_volume::Float64)
         # mxhb0: contains the boundary with the x-point
         # mxhb0.mxh: is the MXH parametrization that leads to mxhb0 once x-points are set
         # mxh0: is the MHX fit to the mxhb0 boundary
 
-        mxhb_from_params!(mxhb0, params; upper_x_point, lower_x_point, n_points)
+        mxhb_from_params!(mxhb0, params; n_points)
         IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
         pr0, pz0 = IMAS.resample_plasma_boundary(mxhb0.r_boundary, mxhb0.z_boundary; n_points=length(pr))
 
         # X-points and non X-points halves
         c = 0.0
-        if upper_x_point
+        if mxhb0.upper_x_point
             i = argmax(mxhb0.ZX)
             c += ((mxhb0.RX[i] - RXU)^2 + (mxhb0.ZX[i] - ZXU)^2)
         else
             i = pz .< mxhb0.mxh.Z0
             c += sum((pr0[i] .- pr[i]) .^ 2 .+ (pz0[i] .- pz[i]) .^ 2) / sum(i)
         end
-        if lower_x_point
+        if mxhb0.lower_x_point
             i = argmin(mxhb0.ZX)
             c += ((mxhb0.RX[i] - RXL)^2 + (mxhb0.ZX[i] - ZXL)^2)
         else
@@ -973,7 +1002,7 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
 
         # To avoid MXH solutions with kinks force area and convex_hull area to match
         mr, mz = mxhb0.mxh()
-        hull = convex_hull(mr, mz; closed_polygon=true)
+        hull = IMAS.convex_hull(mr, mz; closed_polygon=true)
         mrch = [r for (r, z) in hull]
         mzch = [z for (r, z) in hull]
         marea = IMAS.area(mr, mz)
@@ -998,12 +1027,12 @@ function fitMXHboundary(mxh::IMAS.MXH; upper_x_point::Bool, lower_x_point::Bool,
         params = vcat(mxh.Z0, mxh.κ, mxh.c0, mxh.s, mxh.c)
     end
     res = Optim.optimize(
-        x -> cost(x; mxhb0, mxh0, upper_x_point, lower_x_point, n_points, target_area, target_volume),
+        x -> cost(x; mxhb0, mxh0, n_points, target_area, target_volume),
         params,
         Optim.NelderMead(),
         Optim.Options(; iterations=1000, g_tol=1E-5)
     )
-    mxhb_from_params!(mxhb0, res.minimizer; upper_x_point, lower_x_point, n_points)
+    mxhb_from_params!(mxhb0, res.minimizer; n_points)
     IMAS.MXH!(mxh0, mxhb0.r_boundary, mxhb0.z_boundary)
 
     if debug
@@ -1122,21 +1151,6 @@ function private_flux_regions_from_lcfs(mr::AbstractArray{T}, mz::AbstractArray{
     zz_l = vcat(zz_l_hfs[1:end-1], zz_l_lfs[2:end])
 
     return rr_u, zz_u, rr_l, zz_l
-end
-
-"""
-    check_ped_finder(profile::AbstractVector{<:Real},psi_norm::AbstractVector{<:Real})
-
-Plots the profile and fitted profile for pedestal finding (region outside pedestal not important for fit)
-"""
-function check_ped_finder(profile::AbstractVector{<:Real}, psi_norm::AbstractVector{<:Real})
-    ped_height, ped_width = IMAS.pedestal_finder(profile, psi_norm)
-    plot(psi_norm, profile; label="original profile")
-    return plot!(
-        psi_norm,
-        IMAS.Hmode_profiles(profile[end], ped_height, profile[1], length(profile), 2.0, 2.0, ped_width);
-        label="fitted profile (pedestal region is important only)"
-    )
 end
 
 """

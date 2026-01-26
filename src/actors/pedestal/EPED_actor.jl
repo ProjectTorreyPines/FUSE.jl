@@ -3,39 +3,57 @@ import EPEDNN
 #= ========= =#
 #  ActorEPED  #
 #= ========= =#
-Base.@kwdef mutable struct FUSEparameters__ActorEPED{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
-    #== actor parameters ==#
+@actor_parameters_struct ActorEPED{T} begin
+    #== common pedestal parameters==#
     rho_nml::Entry{T} = Entry{T}("-", "Defines rho at which the no man's land region starts")
     rho_ped::Entry{T} = Entry{T}("-", "Defines rho at which the pedestal region starts") # rho_nml < rho_ped
     T_ratio_pedestal::Entry{T} =
         Entry{T}("-", "Ratio of ion to electron temperatures (or rho at which to sample for that ratio, if negative; or rho_nml-(rho_ped-rho_nml) if 0.0)"; default=1.0)
-    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier"; default=1.0)
-    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=false)
-    #== data flow parameters ==#
+    Te_sep::Entry{T} = Entry{T}("-", "Separatrix electron temperature"; default=80.0, check=x -> @assert x > 0 "Te_sep must be > 0")
     ip_from::Switch{Symbol} = switch_get_from(:ip)
     βn_from::Switch{Symbol} = switch_get_from(:βn)
-    ne_ped_from::Switch{Symbol} = switch_get_from(:ne_ped)
-    zeff_ped_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
+    zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
+    #== actor parameters==#
+    ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width is scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
+    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
 end
 
 mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorEPED{P}
+    par::OverrideParameters{P,FUSEparameters__ActorEPED{P}}
     epedmod::EPEDNN.EPEDmodel
     inputs::EPEDNN.InputEPED
-    wped::Union{Missing,Real}
-    pped::Union{Missing,Real}
+    wped::Union{Missing,Real} # pedestal width using EPED definition (1/2 width as fraction of psi_norm)
+    pped::Union{Missing,Real} # pedestal height using EPED units (MPa)
 end
 
 """
     ActorEPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Evaluates the pedestal boundary condition (height and width)
+Predicts pedestal pressure and width using the EPED neural network model.
+
+The actor utilizes the EPED (Edge Pedestal Equilibrium and Dynamics) model to predict 
+pedestal height and width based on global plasma parameters. EPED combines physics-based 
+scaling laws with neural network corrections trained on experimental pedestal data.
+
+Model capabilities:
+- Physics-based power-law scaling for robust extrapolation
+- Optional neural network corrections for improved accuracy
+- Calibrated against experimental data from multiple tokamaks
+- Handles both conventional and spherical tokamak geometries
+
+Key inputs (extracted from plasma state):
+- Machine geometry (R, a, κ, δ, triangularity)
+- Global parameters (βn, Ip, Bt, effective mass)  
+- Pedestal conditions (ne_ped, Zeff_ped)
+
+Outputs:
+- Pedestal pressure height in MPa (pped)
+- Pedestal width as fraction of normalized poloidal flux (wped)
+- Automatic fallback to edge pressure + 10% if EPED prediction is too low
 """
 function ActorEPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorEPED(dd, act.ActorEPED; kw...)
@@ -47,7 +65,7 @@ end
 
 function ActorEPED(dd::IMAS.dd, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
     return ActorEPED(dd, par, epedmod, EPEDNN.InputEPED(), missing, missing)
 end
@@ -55,18 +73,23 @@ end
 """
     _step(actor::ActorEPED)
 
-Runs pedestal actor to evaluate pedestal width and height
+Executes the EPED model prediction and validates results against plasma edge conditions.
+
+The step function calls the EPED neural network model with current plasma parameters 
+and checks that the predicted pedestal pressure exceeds the separatrix pressure. 
+If the prediction is too low, it applies a 10% safety margin above edge pressure 
+while maintaining the predicted width.
 """
 function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    sol = run_EPED(dd, actor.inputs, actor.epedmod; ne_from=par.ne_ped_from, par.zeff_ped_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
     if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
-        actor.wped = max(sol.width.GH.H, 0.01)
+        actor.wped = max(sol.width.GH.H, 0.005)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.1 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
         actor.pped = sol.pressure.GH.H
@@ -79,41 +102,59 @@ end
 """
     _finalize(actor::ActorEPED)
 
-Writes results to dd.summary.local.pedestal and updates core_profiles
+Applies EPED predictions to plasma temperature and density profiles.
+
+Writes pedestal pressure and width to dd.summary.local.pedestal and updates 
+core_profiles by blending the EPED-predicted pedestal conditions with existing 
+core profiles using H-mode profile functions with proper particle balance.
 """
 function _finalize(actor::ActorEPED)
+    return __finalize(actor)
+end
+
+function __finalize(actor::Union{ActorEPED,ActorAnalyticPedestal})
     dd = actor.dd
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    impurity = [ion.element[1].z_n for ion in cp1d.ion if Int(floor(ion.element[1].z_n)) != 1][1]
+    rho = cp1d.grid.rho_tor_norm
+
+    # NOTE: Standard EPED uses 1/2 width as fraction of psi_norm
+    #       Instead FUSE, IMAS and the Hmode_profiles functions use the full width as a function of rho_tor_norm.
+    from_ped_to_full_width = 2.0
+    position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
+    w_ped = 1.0 - position
+    old_t_i_ped = IMAS.interp1d(rho, cp1d.t_i_average).(position)
+
+    impurity = [IMAS.avgZ(ion.element[1].z_n, old_t_i_ped) for ion in cp1d.ion if !IMAS.is_hydrogenic(ion)][1]
     zi = sum(impurity) / length(impurity)
+    @assert actor.inputs.zeffped <= zi
     nival = actor.inputs.neped * 1e19 * (actor.inputs.zeffped - 1) / (zi^2 - zi)
     nval = actor.inputs.neped * 1e19 - zi * nival
     nsum = actor.inputs.neped * 1e19 + nval + nival
-    tped = (actor.pped * 1e6) / nsum / constants.e
+    tped = (actor.pped * 1e6) / nsum / IMAS.mks.e
 
-    if par.T_ratio_pedestal == 0.0
-        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.rho_nml - (par.rho_ped - par.rho_nml))
-    elseif par.T_ratio_pedestal <= 0.0
-        T_ratio_pedestal = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.t_i_average ./ cp1d.electrons.temperature)(par.T_ratio_pedestal)
-    else
-        T_ratio_pedestal = par.T_ratio_pedestal
+    Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
+    t_e = 2.0 * tped / (1.0 + Ti_over_Te) * par.ped_factor
+    t_i_average = t_e * Ti_over_Te
+
+    # Change the last point of the temperatures profiles since
+    # The rest of the profile will be taken care by the blend_core_edge_Hmode() function
+    cp1d.electrons.temperature[end] = par.Te_sep
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature[end] = cp1d.electrons.temperature[end] * Ti_over_Te
+        end
     end
 
-    n_e = actor.inputs.neped * 1e19
-    t_e = 2.0 * tped / (1.0 + T_ratio_pedestal) * par.ped_factor
-    t_i_average = t_e * T_ratio_pedestal
-    position = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - actor.wped * sqrt(par.ped_factor))
-
-    summary_ped = dd.summary.local.pedestal
-    @ddtime summary_ped.n_e.value = n_e
-    @ddtime summary_ped.t_e.value = t_e
-    @ddtime summary_ped.t_i_average.value = t_i_average
-    @ddtime summary_ped.position.rho_tor_norm = position
-
-    # this function takes information about the H-mode pedestal from summary IDS and blends it with core_profiles core
-    IMAS.blend_core_edge(:H_mode, cp1d, summary_ped, par.rho_nml, par.rho_ped)
+    # blend core_profiles core
+    cp1d.electrons.temperature = IMAS.blend_core_edge_Hmode(cp1d.electrons.temperature, rho, t_e, w_ped, par.rho_nml, par.rho_ped)
+    ti_avg_new = IMAS.blend_core_edge_Hmode(cp1d.t_i_average, rho, t_i_average, w_ped, par.rho_nml, par.rho_ped)
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            ion.temperature = ti_avg_new
+        end
+    end
 
     return actor
 end
@@ -121,7 +162,7 @@ end
 function run_EPED(
     dd::IMAS.dd;
     ne_from::Symbol,
-    zeff_ped_from::Symbol,
+    zeff_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
@@ -129,16 +170,16 @@ function run_EPED(
 
     inputs = EPEDNN.InputEPED()
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return run_EPED(dd, inputs, epedmod; ne_from, zeff_ped_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
+    return run_EPED!(dd, inputs, epedmod; ne_from, zeff_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
 end
 
 """
-    run_EPED(
+    run_EPED!(
         dd::IMAS.dd,
         eped_inputs::EPEDNN.InputEPED,
         epedmod::EPEDNN.EPED1NNmodel;
-        ne_ped_from::Symbol,
-        zeff_ped_from::Symbol,
+        ne_from::Symbol,
+        zeff_from::Symbol,
         βn_from::Symbol,
         ip_from::Symbol,
         only_powerlaw::Bool,
@@ -146,12 +187,12 @@ end
 
 Runs EPED from dd and outputs the EPED solution as the sol struct
 """
-function run_EPED(
+function run_EPED!(
     dd::IMAS.dd,
     eped_inputs::EPEDNN.InputEPED,
     epedmod::EPEDNN.EPED1NNmodel;
     ne_from::Symbol,
-    zeff_ped_from::Symbol,
+    zeff_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
     only_powerlaw::Bool,
@@ -160,26 +201,35 @@ function run_EPED(
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
-    m = Int(round(IMAS.A_effective(cp1d) * 2.0)) / 2.0
+    m = round(Int, IMAS.A_effective(cp1d) * 2.0, RoundNearest) / 2.0
     if !(m == 2.0 || m == 2.5)
         @warn "EPED-NN is only trained on m_effective = 2.0 & 2.5 , m_effective = $m"
     end
 
-    neped = IMAS.get_from(dd, Val{:ne_ped}, ne_from, nothing)
-    zeffped = IMAS.get_from(dd, Val{:zeff_ped}, zeff_ped_from, nothing)
-    βn = IMAS.get_from(dd, Val{:βn}, βn_from)
-    ip = IMAS.get_from(dd, Val{:ip}, ip_from)
+    w_ped_ne = IMAS.pedestal_tanh_width_half_maximum(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)
+
+    # NOTE: Throughout FUSE, the "pedestal" density is the density at rho=0.9
+    # the conversion from ne_ped09 to ne_ped with w_ped is based on this
+    # peaked density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 1.0, 1.0, w_ped_ne)[90] ∼ 0.828
+    # flat density profile: 1.0/IMAS.Hmode_profiles(0.0, 1.0, 100, 0.0, 1.0, 0.05)[90] ∼ 0.866
+    rho09 = 0.9
+    tanh_width_to_09_factor = 1.0 / IMAS.Hmode_profiles(0.0, 1.0, 100, 0.5, 1.0, w_ped_ne)[90]
+    ne09 = IMAS.get_from(dd, Val(:ne_ped), ne_from, rho09)
+    neped = ne09 * tanh_width_to_09_factor
+    zeffped = IMAS.get_from(dd, Val(:zeff_ped), zeff_from, rho09)
+    βn = IMAS.get_from(dd, Val(:βn), βn_from)
+    ip = IMAS.get_from(dd, Val(:ip), ip_from)
     Bt = abs(eqt.global_quantities.vacuum_toroidal_field.b0) * eqt.global_quantities.vacuum_toroidal_field.r0 / eqt.boundary.geometric_axis.r
 
-    #NOTE: EPED results can be very sensitive to δu, δl
+    # NOTE: EPED results can be very sensitive to δu, δl
     #
-    #      eqt.boundary can have small changes in κ, δu, δl just due to contouring
-    #      This issue can be mitigated using higher grid resolutions in the equilibrium solver.
+    # eqt.boundary can have small changes in κ, δu, δl just due to contouring
+    # This issue can be mitigated using higher grid resolutions in the equilibrium solver.
     #
-    #      Here we use the flux surface right inside of the LCFS, and not the LCFS itself.
-    #      Not only this avoids these sensitivity issues, but it's actually more correct,
-    #      since the TOQ equilibrium used by EPED is a fixed boundary equilibrium solver,
-    #      and as such it cuts out psi at 99% or similar.
+    # Here we use the flux surface right inside of the LCFS, and not the LCFS itself.
+    # Not only this avoids these sensitivity issues, but it's actually more correct,
+    # since the TOQ equilibrium used by EPED is a fixed boundary equilibrium solver,
+    # and as such it cuts out psi at 99% or similar.
     if false
         R = eqt.boundary.geometric_axis.r
         a = eqt.boundary.minor_radius
@@ -198,6 +248,7 @@ function run_EPED(
     end
 
     eped_inputs.a = a
+    @assert !isnan(βn)
     eped_inputs.betan = βn
     eped_inputs.bt = Bt
     eped_inputs.delta = EPEDNN.effective_triangularity(δu, δl)

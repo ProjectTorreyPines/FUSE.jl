@@ -1,9 +1,48 @@
-import Weave
 using InteractiveUtils: summarysize, format_bytes, Markdown
 import DelimitedFiles
 import OrderedCollections
 import DataFrames
-import ProgressMeter
+import Dates
+import HDF5
+import Random
+
+# ================== #
+# Digest Trait System #
+# ================== #
+"""
+Abstract type for digest backend selection.
+
+See also: [`WeaveBackend`](@ref), [`NoWeaveBackend`](@ref)
+"""
+abstract type DigestBackend end
+
+"""
+    WeaveBackend <: DigestBackend
+
+Digest backend that uses Weave.jl for PDF generation.
+Only available when WeaveExt extension is loaded.
+"""
+struct WeaveBackend <: DigestBackend end
+
+"""
+    NoWeaveBackend <: DigestBackend
+
+Fallback digest backend when Weave.jl is not available.
+Provides helpful error messages guiding users to install Weave.
+"""
+struct NoWeaveBackend <: DigestBackend end
+
+"""
+    get_digest_backend() -> DigestBackend
+
+Determine which digest backend to use based on available extensions.
+
+Returns `WeaveBackend()` if the WeaveExt extension is loaded, 
+otherwise returns `NoWeaveBackend()`.
+"""
+function get_digest_backend()
+    return Base.get_extension(@__MODULE__, :WeaveExt) === nothing ? NoWeaveBackend() : WeaveBackend()
+end
 
 # ========== #
 # Checkpoint #
@@ -11,30 +50,31 @@ import ProgressMeter
 """
 Provides handy checkpoint capabilities of `dd`, `ini`, `act`
 
-It essentially behaves like a ordered dictionary, with the difference that it does deepcopy on getindex and setindex!
+@checkin and @checkout macros use FUSE.checkpoint = Checkpoint()
 
-Sample usage in a Jupyter notebook:
-
-    chk = FUSE.Checkpoint()
     ...init...
-    chk[:init] = dd, ini, act; # store
+    @checkin :init dd ini act # store dd, ini, act
 
     --------
 
-    dd, ini, act = chk[:init] # restore
+    @checkout :init dd ini act # restore dd, ini, act
     ...something...
-    chk[:something] = dd, ini, act; # store
+    @checkin :something dd act # store dd, act
 
     --------
 
-    dd = chk[:something].dd # restore only dd
+    @checkout :something dd # restore only dd
     ...something_else...
-    chk[:something_else] = dd # store only dd
+    @checkin :something_else dd # store only dd
 
     --------
 
-    dd = chk[:something_else].dd # restore only dd
+    @checkout :something_else dd # restore only dd
     ...something_else_more...
+
+    ========
+
+    empty!(FUSE.checkpoint) # to start over
 """
 Base.@kwdef struct Checkpoint
     history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
@@ -58,20 +98,14 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", chk::Checkpoint)
     for (k, v) in chk.history
-        TPs = map(typeof, v)
-        what = String[]
-        if any(tp <: IMAS.dd for tp in TPs)
-            push!(what, "dd")
-        end
-        if any(tp <: ParametersAllInits for tp in TPs)
-            push!(what, "ini")
-        end
-        if any(tp <: ParametersAllActors for tp in TPs)
-            push!(what, "act")
-        end
+        what = Tuple{Symbol,Type}[(k, typeof(v)) for (k, v) in pairs(v)]
         println(io, "$(repr(k)) => $(join(what,", "))")
     end
-    return
+    return nothing
+end
+
+function Base.iterate(chk::Checkpoint, state=1)
+    return iterate(chk.history, state)
 end
 
 # Generate the delegated methods (NOTE: these methods do not require deepcopy)
@@ -80,6 +114,53 @@ for func in [:empty!, :delete!, :haskey, :pop!, :popfirst!]
         return $func(chk.history, args...; kw...)
     end
 end
+
+"""
+    @checkin :key a b c
+
+Macro to save variables into a Checkpoint under a specific key
+"""
+macro checkin(key, vars...)
+    key = esc(key)
+
+    # Save all the variables in the `vars` list under the provided key using their names
+    return quote
+        @assert typeof($key) <: Symbol "`use `@checkin :what var1 var2 ...`"
+        d = getfield(checkpoint, :history)
+        if $key in keys(d)
+            dict = Dict{Symbol,Any}(k => v for (k, v) in pairs(d[$key]))
+        else
+            dict = Dict{Symbol,Any}()
+        end
+        $(Expr(:block, [:(dict[Symbol($(string(v)))] = deepcopy($(esc(v)))) for v in vars]...))
+        d[$key] = NamedTuple{Tuple(keys(dict))}(values(dict))  # Convert the dictionary to a NamedTuple
+        nothing
+    end
+end
+
+"""
+    @checkout :key a c
+
+Macro to load variables from a Checkpoint
+"""
+macro checkout(key, vars...)
+    key = esc(key)
+
+    # Restore variables from the checkpoint
+    return quote
+        @assert typeof($key) <: Symbol "`@checkout chk :what var1 var2` was deprecated in favor of `@checkout :what var1 var2`"
+        d = getfield(checkpoint, :history)
+        if haskey(d, $key)
+            saved_vars = d[$key]
+            $(Expr(:block, [:($(esc(v)) = deepcopy(getfield(saved_vars, Symbol($(string(v)))))) for v in vars]...))
+        else
+            error("Checkpoint named `:$($key)` does not exist. Possible options are: [:$(join(keys(d),", :"))]")
+        end
+        nothing
+    end
+end
+
+const checkpoint = Checkpoint()
 
 # ===================================== #
 # extract data from FUSE save folder(s) #
@@ -121,12 +202,12 @@ function IMAS.extract(
     read_cache::Bool=true,
     write_cache::Bool=true)::DataFrames.DataFrame
 
-    function identifier(DD::Vector{<:AbstractString}, k::Int)
-        return abspath(DD[k])
+    function identifier(DD::AbstractVector{<:AbstractString}, k::Int)
+        return abspath(DD[k]), abspath(DD[k])
     end
 
-    function identifier(DD::Vector{IMAS.dd}, k::Int)
-        return k
+    function identifier(DD::AbstractVector{<:IMAS.dd}, k::Int)
+        return "$k", DD[k]
     end
 
     # test filter_invalid
@@ -138,6 +219,7 @@ function IMAS.extract(
 
     # load in cache
     cached_dirs = []
+    df_cache = DataFrames.DataFrame()
     if length(cache) > 0 && read_cache && isfile(cache)
         df_cache = DataFrames.DataFrame(CSV.File(cache))
         cached_dirs = df_cache[:, :dir]
@@ -145,7 +227,7 @@ function IMAS.extract(
     end
 
     if DD === nothing
-        df = DataFrames.DataFrame()
+        df = df_cache
 
     else
         # allocate memory
@@ -154,7 +236,7 @@ function IMAS.extract(
             xtr = extract(DD[1], xtract)
             tmp = Dict()
             for (xkey, xfun) in xtr
-                if xfun.value === NaN
+                if isnan(xfun.value)
                     delete!(xtract, xkey)
                 else
                     tmp[xfun.name] = xfun.value
@@ -164,27 +246,35 @@ function IMAS.extract(
             tmp = Dict(extract(DD[1], xtract))
         end
 
-        tmp[:dir] = identifier(DD, 1)
+        tmp[:dir] = ""
         df = DataFrames.DataFrame(tmp)
         for k in 2:length(DD)
             push!(df, df[1, :])
         end
 
         # load the data
+        ProgressMeter.ijulia_behavior(:clear)
         p = ProgressMeter.Progress(length(DD); showspeed=true)
-        Threads.@threads for k in eachindex(DD)
-            aDDk = identifier(DD, k)
+        Threads.@threads :static for k in eachindex(DD)
+            aDDk, aDD = identifier(DD, k)
             try
                 if aDDk in cached_dirs
                     k_cache = findfirst(dir -> dir == aDDk, cached_dirs)
                     df[k, :] = df_cache[k_cache, :]
                 else
-                    tmp = Dict(extract(aDDk, xtract))
-                    tmp[:dir] = aDDk
-                    df[k, :] = tmp
+                    tmp1 = Dict(extract(aDD, xtract))
+                    for key in keys(tmp1)
+                        if typeof(tmp1[key]) <: Float64 && typeof(tmp[key]) <: String
+                            tmp1[key] = ""
+                        end
+                    end
+                    tmp1[:dir] = aDDk
+                    df[k, :] = tmp1
                 end
-            catch
-                continue
+            catch e
+                if isa(e, InterruptException)
+                    rethrow(e)
+                end
             end
             ProgressMeter.next!(p)
         end
@@ -226,7 +316,7 @@ end
 
 Construct a Dictionary with the evaluated values of a dictionary of IMAS.ExtractFunction
 """
-function Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
+function Base.Dict(xtract::AbstractDict{Symbol,IMAS.ExtractFunction})
     tmp = Dict()
     for xfun in values(xtract)
         tmp[xfun.name] = xfun.value
@@ -246,7 +336,7 @@ end
         error::Any=nothing,
         timer::Bool=true,
         varinfo::Bool=false,
-        freeze::Bool=true,
+        freeze::Bool=false,
         format::Symbol=:json,
         overwrite_files::Bool=true)
 
@@ -266,7 +356,7 @@ function save(
     error::Any=nothing,
     timer::Bool=true,
     varinfo::Bool=false,
-    freeze::Bool=true,
+    freeze::Bool=false,
     format::Symbol=:json,
     overwrite_files::Bool=true)
 
@@ -328,6 +418,7 @@ function save(
 
     return savedir
 end
+
 
 """
     load(savedir::AbstractString; load_dd::Bool=true, load_ini::Bool=true, load_act::Bool=true, skip_on_error::Bool=false)
@@ -423,77 +514,27 @@ function digest(
     end
 
     # core profiles
-    # temperatures
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=1))
-    end
-    # densities
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=2))
-    end
-    # rotation
-    sec += 1
-    if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_profiles; only=3))
+    for k in 1:3
+        if !isempty(dd.core_profiles.profiles_1d) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_profiles; only=k))
+        end
     end
 
     # core sources
-    # electron heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=1))
-    end
-    # ion heat
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=2))
-    end
-    # electron particle
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=3))
-    end
-    # parallel current
-    sec += 1
-    if !isempty(dd.core_sources.source) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_sources; only=4))
+    for k in 1:5+length(IMAS.list_ions(dd.core_sources, dd.core_profiles; time0=dd.global_time))
+        if !isempty(dd.core_sources.source) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_sources; only=k))
+        end
     end
 
-    # Electron energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=1))
-    end
-
-    # Ion energy flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=2))
-    end
-
-    # Electron particle flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=3))
-    end
-
-    # Momentum flux matching
-    sec += 1
-    if !isempty(dd.core_transport) && section ∈ (0, sec)
-        println('\u200B')
-        display(plot(dd.core_transport; only=4))
+    # core transport
+    for k in 1:4+length(IMAS.list_ions(dd.core_transport, dd.core_profiles; time0=dd.global_time))
+        if !isempty(dd.core_transport) && section ∈ (0, sec)
+            println('\u200B')
+            display(plot(dd.core_transport; only=k))
+        end
     end
 
     # neutron wall loading
@@ -529,15 +570,15 @@ function digest(
 
     # pf active
     sec += 1
-    if !isempty(dd.pf_active.coil) && !ismissing(dd.equilibrium,:time) && section ∈ (0, sec)
+    if !isempty(dd.pf_active.coil) && !ismissing(dd.equilibrium, :time) && section ∈ (0, sec)
         println('\u200B')
         time0 = dd.equilibrium.time[end]
         l = @layout [a{0.5w} b{0.5w}]
         p = plot(; layout=l, size=(900, 400))
-        plot!(p, dd.pf_active, :currents; time0, title="PF currents at t=$(time0) s", subplot=1)
+        plot!(p, dd.pf_active; what=:currents, time0, title="PF currents at t=$(time0) s", subplot=1)
         plot!(p, dd.equilibrium; time0, cx=true, subplot=2)
         plot!(p, dd.build; subplot=2, legend=false, equilibrium=false, pf_active=false)
-        plot!(p, dd.pf_active; time0, subplot=2, coil_names=true)
+        plot!(p, dd.pf_active; time0, subplot=2, coil_identifiers=true)
         plot!(p, dd.build.pf_active.rail; subplot=2)
         display(p)
     end
@@ -586,6 +627,26 @@ function digest(
 end
 
 """
+    weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; kwargs...)
+
+Fallback method when Weave.jl is not available. Provides helpful error message.
+"""
+function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; 
+                     ini::Union{Nothing,ParametersAllInits}=nothing,
+                     act::Union{Nothing,ParametersAllActors}=nothing)
+    error("""
+    PDF digest generation requires the Weave.jl package.
+    
+    To enable this functionality:
+    1. Install Weave in your local project: `import Pkg; Pkg.add("Weave")`
+    2. `import Weave`
+    3. Try again: `digest(dd, "$title")`
+    
+    Alternatively, use the non-PDF version: `digest(dd)`
+    """)
+end
+
+"""
     digest(dd::IMAS.dd,
         title::AbstractString,
         description::AbstractString="";
@@ -595,6 +656,12 @@ end
 Write digest to PDF in current working directory.
 
 PDF filename is based on title (with `" "` replaced by `"_"`)
+
+**Note**: PDF generation requires the Weave.jl package. Install with:
+```
+import Pkg; Pkg.add("Weave")
+import Weave
+```
 """
 function digest(dd::IMAS.dd,
     title::AbstractString,
@@ -602,35 +669,8 @@ function digest(dd::IMAS.dd,
     ini::Union{Nothing,ParametersAllInits}=nothing,
     act::Union{Nothing,ParametersAllActors}=nothing
 )
-    title = replace(title, r".pdf$" => "", "_" => " ")
-    outfilename = joinpath(pwd(), "$(replace(title," "=>"_")).pdf")
-
-    tmpdir = mktempdir()
-    logger = SimpleLogger(stderr, Logging.Warn)
-    try
-        filename = redirect_stdout(Base.DevNull()) do
-            filename = with_logger(logger) do
-                return Weave.weave(joinpath(@__DIR__, "digest.jmd");
-                    latex_cmd=["xelatex"],
-                    mod=@__MODULE__,
-                    doctype="md2pdf",
-                    template=joinpath(@__DIR__, "digest.tpl"),
-                    out_path=tmpdir,
-                    args=Dict(
-                        :dd => dd,
-                        :ini => ini,
-                        :act => act,
-                        :title => title,
-                        :description => description))
-            end
-        end
-        cp(filename, outfilename; force=true)
-        return outfilename
-    catch e
-        println("Generation of $(basename(outfilename)) failed. See directory: $tmpdir\n$e")
-    else
-        rm(tmpdir; recursive=true, force=true)
-    end
+    backend = get_digest_backend()
+    return weave_digest(backend, dd, title, description; ini, act)
 end
 
 """
@@ -673,7 +713,7 @@ function categorize_errors(
 
     # go through directories
     for dir in dirs
-        filename = joinpath([dir, "error.txt"])
+        filename = joinpath(dir, "error.txt")
         if !isfile(filename)
             continue
         end
@@ -804,17 +844,25 @@ A plot with the following characteristics:
         [], []
     end
 end
-
 """
     get_julia_process_memory_usage()
 
 Returns memory used by current julia process
 """
 function get_julia_process_memory_usage()
-    pid = getpid()
-    mem_info = read(`ps -p $pid -o rss=`, String)
-    mem_usage_kb = parse(Int, strip(mem_info))
-    return mem_usage_kb * 1024
+    if Sys.iswindows()
+        pid = getpid()
+        # Use PowerShell to get the current process's WorkingSet (memory in bytes)
+        cmd = `powershell -Command "(Get-Process -Id $pid).WorkingSet64"`
+        mem_bytes_str = readchomp(cmd)
+        mem_bytes = parse(Int, mem_bytes_str)
+    else
+        pid = getpid()
+        mem_info = read(`ps -p $pid -o rss=`, String)
+        mem_usage_kb = parse(Int, strip(mem_info))
+        mem_bytes = mem_usage_kb * 1024
+    end
+    return mem_bytes::Int
 end
 
 """
@@ -939,6 +987,9 @@ function malloc_trim_if_glibc()
                 #println("Not using glibc.")
             end
         catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             #println("Error reading /proc/version: ", e)
         end
     else
@@ -957,13 +1008,16 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     for k in 2:length(dds)
         push!(df, df[1, :])
     end
+    ProgressMeter.ijulia_behavior(:clear)
     p = ProgressMeter.Progress(length(dds); showspeed=true)
     Threads.@threads for k in eachindex(dds)
         try
             tmp = Dict(extract(dds[k], xtract))
             df[k, :] = tmp
-        catch
-            continue
+        catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
         end
         ProgressMeter.next!(p)
     end
@@ -972,30 +1026,129 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
 end
 
 """
-    install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+    install_fusebot()
 
-This function installs the `fusebot` executable in a given folder,
-by default in the directory where the juliaup executable is located.
+Installs the `fusebot` executable in the directory where the `juliaup` executable is located
 """
-function install_fusebot(folder::String=dirname(readchomp(`which juliaup`)))
+function install_fusebot()
+    try
+        if Sys.iswindows()
+            folder = dirname(readchomp(`where juliaup`))
+        else
+            folder = dirname(readchomp(`which juliaup`))
+        end
+        return install_fusebot(folder)
+    catch e
+        error("error locating `juliaup` executable: $(string(e))\nPlease use `FUSE.install_fusebot(folder)` specifying a folder in your \$PATH")
+    end
+end
+
+"""
+    install_fusebot(folder::String)
+
+Installs the `fusebot` executable in a specified folder
+"""
+function install_fusebot(folder::String)
     fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
     target_path = joinpath(folder, "fusebot")
-    ptp_target_path = joinpath(folder, "ptp")
-
-    if !isfile(fusebot_path)
-        error("The `fusebot` executable does not exist in the FUSE directory!?")
-    end
-
+    @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
+    return println("`fusebot` has been successfully installed: $target_path")
+end
 
-    if folder == dirname(readchomp(`which juliaup`))
-        println("`fusebot` has been successfully installed in the Julia executable directory: $folder")
-    else
-        println("`fusebot` has been successfully installed in folder: $folder")
+"""
+    compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
+
+This function activates the `Manifest.toml` files for the provided directories and compares their dependencies. It identifies:
+
+  - **Added dependencies**: Packages present in the env2 environment but not in the working environment.
+  - **Removed dependencies**: Packages present in the working environment but not in the env2 environment.
+  - **Modified dependencies**: Packages that exist in both environments but differ in version.
+"""
+function compare_manifests(env1_dir::AbstractString, env2_dir::AbstractString)
+    # Save the current active environment
+    original_env = Base.current_project()
+
+    try
+        # Activate the env2 environment and retrieve its dependencies
+        Pkg.activate(env2_dir)
+        env_env2 = Pkg.dependencies()
+
+        # Activate the working environment and retrieve its dependencies
+        Pkg.activate(env1_dir)
+        env_env1 = Pkg.dependencies()
+
+        # Compare dependencies
+        added = setdiff(keys(env_env2), keys(env_env1))
+        removed = setdiff(keys(env_env1), keys(env_env2))
+        modified = [uuid for uuid in intersect(keys(env_env1), keys(env_env2)) if env_env1[uuid] != env_env2[uuid]]
+
+        println("Added dependencies: ")
+        for uuid in added
+            package_pkg = env_env2[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Removed dependencies:")
+        for uuid in removed
+            package_pkg = env_env1[uuid]
+            package_name = package_pkg.name
+            package_version = package_pkg.version
+            println("    $package_name: $package_version")
+        end
+        println()
+        println("Modified dependencies:")
+        for uuid in modified
+            env2_pkg = env_env2[uuid]
+            env1_pkg = env_env1[uuid]
+            env2_name = env2_pkg.name
+            env2_version = env2_pkg.version
+            env1_version = env1_pkg.version
+            println("    $env2_name: env2=$env2_version, env1=$env1_version")
+        end
+
+        return (added=added, removed=removed, modified=modified)
+    finally
+        # Restore the original environment
+        Pkg.activate(original_env)
     end
+end
 
-    if isfile(ptp_target_path)
-        rm(ptp_target_path)
-        println("Old `ptp` has been successfully removed from folder: $folder")
+# === #
+# SSH #
+# === #
+const ssh_exe = "ssh -o StrictHostKeyChecking=no"
+
+"""
+    ssh_command(remote_host::AbstractString, remote_command::AbstractString; extra_flags::AbstractString="")
+
+Generate ssh command string for executing remote_command on remote_host
+"""
+function ssh_command(remote_host::AbstractString, remote_command::AbstractString; extra_flags::AbstractString="")
+    return "$ssh_exe $extra_flags $remote_host $remote_command"
+end
+
+"""
+    upsync_command(remote_host::AbstractString, local_files::AbstractVector{<:AbstractString}, remote_dir::AbstractString; extra_flags::AbstractString="")
+
+Generate rsync command string for uploading local_files to remote_dir on remote_host
+"""
+function upsync_command(remote_host::AbstractString, local_files::AbstractVector{<:AbstractString}, remote_dir::AbstractString; extra_flags::AbstractString="")
+    return "rsync $extra_flags -az -e '$(ssh_exe)' $(join(local_files," ")) $(remote_host):$(remote_dir) >&2"
+end
+
+"""
+    downsync_command(remote_host::AbstractString, remote_files::AbstractVector{<:AbstractString}, local_dir::AbstractString; extra_flags::AbstractString="")
+
+Generate rsync command string for downloading remote_files to local_dir from remote_host
+"""
+function downsync_command(remote_host::AbstractString, remote_files::AbstractVector{<:AbstractString}, local_dir::AbstractString; extra_flags::AbstractString="")
+    # rsync works a bit different on MACs
+    if Sys.isapple()
+        return "rsync $extra_flags -az -e '$(ssh_exe)' $(remote_host):\"$(join(remote_files," "))\" $(local_dir) >&2"
+    else
+        return "rsync $extra_flags -az -e '$(ssh_exe)' $(remote_host):$(join(remote_files," :")) $(local_dir) >&2"
     end
 end

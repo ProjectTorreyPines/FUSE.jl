@@ -1,20 +1,17 @@
 #= =============== =#
 #  ActorNeutronics  #
 #= =============== =#
-Base.@kwdef mutable struct FUSEparameters__ActorNeutronics{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorNeutronics{T} begin
     N::Entry{Int} = Entry{Int}("-", "Number of particles"; default=100000)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
 
 mutable struct ActorNeutronics{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorNeutronics{P}
+    par::OverrideParameters{P,FUSEparameters__ActorNeutronics{P}}
     function ActorNeutronics(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutronics{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNeutronics)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -22,7 +19,15 @@ end
 """
     ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the neutron wall loading
+Calculates neutron wall loading on the first wall using Monte Carlo particle tracing.
+The actor defines neutron sources from fusion reactions, traces their paths to the 
+first wall, and calculates the resulting neutron flux and power deposition.
+
+The calculation includes:
+- Neutron source definition from D-T and D-D fusion reactions
+- Particle tracing from plasma to first wall
+- Flux and power calculation on wall elements
+- Normalization to match total fusion neutron power
 
 !!! note
 
@@ -84,8 +89,7 @@ function define_neutrons(dd::IMAS.dd, N::Int)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
     source_1d = IMAS.D_T_to_He4_heating(cp1d) .* 4.0 .+ IMAS.D_D_to_He3_heating(cp1d) .* 3.0
-    psi = cp1d.grid.psi
-    neutrons, W_per_trace, dr, dz = IMAS.define_particles(eqt, psi, source_1d, N)
+    neutrons, W_per_trace, dr, dz = IMAS.define_particles(eqt, cp1d.grid.psi_norm, source_1d, N)
     return (neutrons=neutrons, W_per_trace=W_per_trace, dr=dr, dz=dz)
 end
 

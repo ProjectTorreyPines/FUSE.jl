@@ -14,8 +14,9 @@ Fidelity hierarchy is enabled by concept of *generic* Vs *specific* actors
 * For example:
   ```
   ActorEquilibrium  <--  generic
-  ├─ ActorSolovev   <--  specific
-  └─ ActorCHEASE    <--  specific
+  ├─ ActorTEQUILA   <--  specific
+  ├─ ActorCHEASE    <--  specific
+  └─ ActorFRESCO    <--  specific
   ```
 * `act.[ActorGeneric].model` selects specific actor being used
 * All specific actors will expect data and fill the same enties in `dd`
@@ -37,7 +38,7 @@ function concrete_subtypes(T::Type)
     end
 end
 
-list_directories(path::String) = [item for item in readdir(path) if isdir(joinpath(path, item))]
+list_directories(path::String) = (item for item in readdir(path) if isdir(joinpath(path, item)))
 
 single_actors = concrete_subtypes(FUSE.SingleAbstractActor)
 compound_actors = concrete_subtypes(FUSE.CompoundAbstractActor)

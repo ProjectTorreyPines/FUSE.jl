@@ -2,19 +2,21 @@
     warmup(dd::IMAS.dd)
 
 Function used to precompile the majority of FUSE
-
-This function is also useful for profiling
 """
 function warmup(dd::IMAS.dd)
     empty!(dd)
-    TimerOutputs.reset_timer!("warmup")
-    return TimerOutputs.@timeit timer "warmup" begin
-        TimerOutputs.@timeit timer "init" begin
-            ini, act = case_parameters(:FPP)
-            init(dd, ini, act)
-        end
-        act.ActorStationaryPlasma.max_iter = 1
-        ActorWholeFacility(dd, act)
-        return IMAS.freeze(dd)
+
+    ini, act = case_parameters(:KDEMO)
+
+    ini_act_tests_customizations!(ini, act)
+
+    init(dd, ini, act)
+
+    ActorWholeFacility(dd, act)
+
+    TimerOutputs.@timeit timer "freeze" begin
+        frozen_dd = IMAS.freeze(dd)
     end
+
+    return frozen_dd
 end

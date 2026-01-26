@@ -3,46 +3,70 @@ import CHEASE
 #= =========== =#
 #  ActorCHEASE  #
 #= =========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCHEASE{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorCHEASE{T} begin
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
     clear_workdir::Entry{Bool} = Entry{Bool}("-", "Clean the temporary workdir for CHEASE"; default=true)
     rescale_eq_to_ip::Entry{Bool} = Entry{Bool}("-", "Scale equilibrium to match Ip"; default=true)
-    #== data flow parameters ==#
-    ip_from::Switch{Symbol} = switch_get_from(:ip)
 end
 
-mutable struct ActorCHEASE{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorCHEASE{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCHEASE{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCHEASE{P}}
+    act::ParametersAllActors{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 
 """
     ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs the Fixed boundary equilibrium solver CHEASE
+Runs the CHEASE fixed-boundary equilibrium solver to compute a 2D equilibrium from the plasma boundary,
+pressure profile, and current density profile. The solver takes the R-Z boundary coordinates from
+the plasma time slice, extracts pressure and j_tor from profiles_1d, and generates a full 2D equilibrium
+solution including flux surfaces and safety factor profiles.
+
+Optionally converts the fixed-boundary solution to a free-boundary equilibrium by using VacuumFields.jl
+to find PF coil currents that reproduce the same plasma shape and flux surfaces.
+
+# Key inputs (from dd.equilibrium.time_slice[])
+- Boundary outline (r, z coordinates)
+- Pressure profile on normalized flux surfaces
+- Current density profile j_tor
+- Global quantities (plasma current, magnetic axis location)
+
+# Key outputs
+- Complete 2D equilibrium solution via gEQDSK format conversion to IMAS
+- Optional free-boundary PF coil currents (if `free_boundary=true`)
+- Updated flux surface geometry and safety factor profiles
+
+!!! note
+    
+    Stores data in `dd.equilibrium`
 """
 function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorCHEASE(dd, act.ActorCHEASE; kw...)
+    actor = ActorCHEASE(dd, act.ActorCHEASE, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd, par::FUSEparameters__ActorCHEASE; kw...)
+function ActorCHEASE(dd::IMAS.dd{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCHEASE)
-    par = par(kw...)
-    return ActorCHEASE(dd, par, nothing)
+    par = OverrideParameters(par; kw...)
+    return ActorCHEASE(dd, par, act, nothing)
 end
 
 """
     _step(actor::ActorCHEASE)
 
-Runs CHEASE on the r_z boundary, equilibrium pressure and equilibrium j_tor
+Runs CHEASE fixed-boundary equilibrium solver with the following inputs extracted from IMAS:
+- R-Z boundary coordinates from `equilibrium.time_slice[].boundary.outline`
+- Pressure profile from `equilibrium.time_slice[].profiles_1d.pressure`
+- Toroidal current density from `equilibrium.time_slice[].profiles_1d.j_tor`
+- Plasma current and magnetic field parameters from global quantities
+
+Performs boundary smoothing and resampling for numerical stability. Executes CHEASE calculation
+and handles errors by displaying diagnostic plots if the solver fails.
 """
 function _step(actor::ActorCHEASE)
     dd = actor.dd
@@ -50,7 +74,7 @@ function _step(actor::ActorCHEASE)
 
     # initialize eqt from pulse_schedule and core_profiles
     eqt = dd.equilibrium.time_slice[]
-    eq1d = eqt.profiles_1d
+    eqt1d = eqt.profiles_1d
 
     # boundary
     pr = eqt.boundary.outline.r
@@ -69,9 +93,9 @@ function _step(actor::ActorCHEASE)
     ϵ = eqt.boundary.minor_radius / r_geo
 
     # pressure and j_tor
-    psin = eq1d.psi_norm
-    j_tor = [sign(j) == sign(Ip) ? j : 0.0 for j in eq1d.j_tor]
-    pressure = eq1d.pressure
+    psin = eqt1d.psi_norm
+    j_tor = [sign(j) == sign(Ip) ? j : 0.0 for j in eqt1d.j_tor]
+    pressure = eqt1d.pressure
     rho_pol = sqrt.(psin)
     pressure_sep = pressure[end]
 
@@ -93,51 +117,49 @@ function _step(actor::ActorCHEASE)
     return actor
 end
 
-function _finalize(actor::ActorCHEASE)
+function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
     dd = actor.dd
     par = actor.par
+    act = actor.act
+
+    eq = dd.equilibrium
+    eqt = eq.time_slice[]
 
     # convert from fixed to free boundary equilibrium
+    eqt.global_quantities.free_boundary = Int(par.free_boundary)
     if par.free_boundary
-        eqt = dd.equilibrium.time_slice[]
-
-        RA = actor.chease.gfile.rmaxis
-        ZA = actor.chease.gfile.zmaxis
 
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         ψbound = 0.0
 
         # Boundary control points
-        flux_cps = VacuumFields.boundary_control_points(EQ, 0.999, ψbound)
+        iso_cps = VacuumFields.boundary_iso_control_points(EQ, 0.999; weight=act.ActorPFactive.boundary_weight)
 
         # Flux control points
-        if !isempty(eqt.boundary.strike_point)
-            strike_weight = 0.01
-            strike_cps = VacuumFields.FluxControlPoint{Float64}[
-                VacuumFields.FluxControlPoint(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point
-            ]
-            append!(flux_cps, strike_cps)
-        end
+        mag = VacuumFields.FluxControlPoint{D}(actor.chease.gfile.rmaxis, actor.chease.gfile.zmaxis, actor.chease.gfile.psi[1], 1.0)
+        flux_cps = VacuumFields.FluxControlPoint{D}[mag]
+        strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
+        strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
+        append!(flux_cps, strike_cps)
 
         # Saddle control points
-        saddle_weight = 0.01
-        saddle_cps = VacuumFields.SaddleControlPoint{Float64}[VacuumFields.SaddleControlPoint(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
+        saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
+        push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, act.ActorPFactive.x_points_weight))
 
         # Coils locations
-        if isempty(dd.pf_active.coil)
-            coils = encircling_coils(eqt.boundary.outline.r, eqt.boundary.outline.z, RA, ZA, 8)
-        else
-            coils = VacuumFields.IMAS_pf_active__coils(dd; green_model=:quad, zero_currents=true)
-        end
+        coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)
 
         # from fixed boundary to free boundary via VacuumFields
-        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
+        psi_free_rz = VacuumFields.fixed2free(EQ, coils, EQ.r, EQ.z; iso_cps, flux_cps, saddle_cps, ψbound, λ_regularize=-1.0)
         actor.chease.gfile.psirz .= psi_free_rz'
+
+        VacuumFields.update_currents!(dd.pf_active.coil, coils; active_only=true)
     end
 
     # Convert gEQDSK data to IMAS
     try
-        gEQDSK2IMAS(actor.chease.gfile, dd.equilibrium)
+        gEQDSK2IMAS(actor.chease.gfile, eq)
     catch e
         EQ = MXHEquilibrium.efit(actor.chease.gfile, 1)
         psi_b = MXHEquilibrium.psi_boundary(EQ; r=EQ.r, z=EQ.z)
@@ -164,8 +186,8 @@ function gEQDSK2IMAS(g::CHEASE.EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     tc = MXHEquilibrium.transform_cocos(1, 11) # chease output is cocos 1 , dd is cocos 11
 
     eqt = eq.time_slice[]
-    eq1d = eqt.profiles_1d
-    eq2d = resize!(eqt.profiles_2d, 1)[1]
+    eqt1d = eqt.profiles_1d
+    eqt2d = resize!(eqt.profiles_2d, 1)[1]
 
     @ddtime(eq.vacuum_toroidal_field.b0 = g.bcentr)
     eq.vacuum_toroidal_field.r0 = g.rcentr
@@ -176,17 +198,17 @@ function gEQDSK2IMAS(g::CHEASE.EFIT.GEQDSKFile, eq::IMAS.equilibrium)
     eqt.global_quantities.magnetic_axis.z = g.zmaxis
     eqt.global_quantities.ip = g.current
 
-    eq1d.psi = g.psi .* tc["PSI"]
-    eq1d.q = g.qpsi
-    eq1d.pressure = g.pres
-    eq1d.dpressure_dpsi = g.pprime .* tc["PPRIME"]
-    eq1d.f = g.fpol .* tc["F"]
-    eq1d.f_df_dpsi = g.ffprim .* tc["F_FPRIME"]
+    eqt1d.psi = g.psi .* tc["PSI"]
+    eqt1d.q = g.qpsi
+    eqt1d.pressure = g.pres
+    eqt1d.dpressure_dpsi = g.pprime .* tc["PPRIME"]
+    eqt1d.f = g.fpol .* tc["F"]
+    eqt1d.f_df_dpsi = g.ffprim .* tc["F_FPRIME"]
 
-    eq2d.grid_type.index = 1
-    eq2d.grid.dim1 = g.r
-    eq2d.grid.dim2 = g.z
-    eq2d.psi = g.psirz .* tc["PSI"]
+    eqt2d.grid_type.index = 1
+    eqt2d.grid.dim1 = g.r
+    eqt2d.grid.dim2 = g.z
+    eqt2d.psi = g.psirz .* tc["PSI"]
 
     return nothing
 end

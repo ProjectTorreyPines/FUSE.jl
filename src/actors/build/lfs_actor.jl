@@ -1,10 +1,7 @@
 #= ========== =#
 #  LFS sizing  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorLFSsizing{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorLFSsizing{T} begin
     maintenance::Switch{Symbol} = Switch{Symbol}([:vertical, :horizontal, :none], "-", "Scheme for installation/removal of in-vessel components"; default=:none)
     tor_modularity::Entry{Int} =
         Entry{Int}("-", "Number of toroidal modules of blanket normalized to number of TF coils"; default=2, check=x -> @assert x > 0 "must be: tor_modularity > 0")
@@ -16,10 +13,10 @@ end
 
 mutable struct ActorLFSsizing{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorLFSsizing{P}
+    par::OverrideParameters{P,FUSEparameters__ActorLFSsizing{P}}
     function ActorLFSsizing(dd::IMAS.dd{D}, par::FUSEparameters__ActorLFSsizing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorLFSsizing)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -27,20 +24,36 @@ end
 """
     ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Actor that resizes the Low Field Side of the tokamak radial build
+Optimizes the low-field-side (LFS) radial build layout for toroidal field ripple and maintenance requirements.
 
-  - Places TF outer leg at radius required to meet the dd.build.tf.ripple requirement
-  - Other low-field side layers are scaled proportionally
+This actor determines the optimal position of the outer toroidal field (TF) coil leg by balancing:
+- **TF ripple constraint**: Ensures the TF coil outer radius provides acceptable magnetic field ripple
+- **Maintenance access**: Accommodates vertical or horizontal maintenance port requirements  
+- **Geometric modularity**: Accounts for toroidal and poloidal blanket sector arrangements
+
+Key calculations:
+- Minimum TF leg radius for specified ripple tolerance using IMAS.R_tf_ripple()
+- Vacuum port geometry for blanket module removal (vertical_maintenance())  
+- Balance between ripple minimization and maintenance accessibility
+- Automatic radial build adjustment via vacuum gap resizing
+
+Maintenance schemes supported:
+- **Vertical**: Blanket sectors removed vertically through upper/lower ports
+- **Horizontal**: Blanket sectors removed horizontally through side ports  
+- **None**: No maintenance access constraints
+
+The actor modifies the first vacuum layer between vessel and plasma to accommodate 
+the required TF coil repositioning while maintaining geometric consistency.
 
 !!! note
 
-
-Manipulates radial build information in `dd.build.layer`
+    Reads and modifies radial build information in `dd.build.layer`, using TF coil specifications 
+    from `dd.build.tf` (ripple tolerance, coil count)
 """
 function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)
     if actor.par.do_plot
-        plot(dd.build)
+        plot(dd.build.layer)
     end
     step(actor)
     finalize(actor)
@@ -65,7 +78,7 @@ function _step(actor::ActorLFSsizing)
 
         if par.tor_modularity == 1
             # if tor_modularity is 1, then lfs vessel end_radius must coincide with rVP_lfs_ob
-            vessel_lfs_layer = IMAS.get_build_layer(dd.build.layer; type=_vessel_, fs=_lfs_)
+            vessel_lfs_layer = IMAS.get_build_layers(dd.build.layer; type=_vessel_, fs=_lfs_)[1]
             @assert TF_lfs_layer.start_radius > vessel_lfs_layer.end_radius
             maintenance_TF_radius = rVP_lfs_ob + (TF_lfs_layer.start_radius - vessel_lfs_layer.end_radius)
         else
@@ -89,7 +102,7 @@ function _step(actor::ActorLFSsizing)
         println("old_TF_radius = $old_TF_radius [m], new_TF_radius = $new_TF_radius [m]")
     end
 
-    ivessel = IMAS.get_build_index(dd.build.layer; type=_vessel_, fs=_lfs_) - 1
+    ivessel = IMAS.get_build_indexes(dd.build.layer; type=_vessel_, fs=_lfs_)[1] - 1
     iplasma = IMAS.get_build_index(dd.build.layer; type=_plasma_) + 1
 
     # resize first vacuum gap between VV and plasma

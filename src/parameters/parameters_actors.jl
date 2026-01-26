@@ -6,9 +6,11 @@ Expands the subtypes into struct members
 macro insert_subtype_members(T)
     expr = Expr(:block)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE.FUSEparameters__" => ""))
-        constraint = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
-        push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(constraint), esc(:T))))
+        full_parameters_actor_name = split(String(Symbol(s)), '.')[end]
+        if !startswith(full_parameters_actor_name, '_')
+            mem = Symbol(split(full_parameters_actor_name, "__")[end])
+            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(s), esc(:T))))
+        end
     end
     return expr
 end
@@ -22,8 +24,11 @@ subtypes we can then splat into the larger constructor
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
     for s in subtypes(eval(T))
-        mem = Symbol(replace(String(Symbol(s)), "FUSE." => ""))
-        push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+        full_actor_name = split(String(Symbol(s)), '.')[end]
+        if !startswith(full_actor_name, '_')
+            mem = Symbol(full_actor_name)
+            push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+        end
     end
     return expr
 end
@@ -49,9 +54,8 @@ function ParametersActors()
 end
 
 ############
-# 
+# act_common_parameters
 ############
-
 """
     act_common_parameters(; kw...)
 
@@ -64,7 +68,7 @@ function act_common_parameters(; kw...)
     if name == :do_plot
         return Entry{Bool}("-", "Store the output dds of the workflow run"; default)
     elseif name == :verbose
-        return  Entry{Bool}("-", "Verbose"; default)
+        return Entry{Bool}("-", "Verbose"; default)
     else
         error("There is no act_common_parameter for name = $name")
     end
@@ -73,11 +77,10 @@ end
 ###############
 # save / load #
 ###############
-
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
-Save the FUSE act parameters to a JSON file with given `filename`
+Save the ACT act parameters to a JSON file with given `filename`
 
 `kw` arguments are passed to the JSON.print function
 """
@@ -88,7 +91,7 @@ end
 """
     json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
 
-Load the FUSE act parameters from a JSON file with given `filename`
+Load the ACT act parameters from a JSON file with given `filename`
 """
 function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
     return SimulationParameters.json2par(filename, act)
@@ -97,7 +100,7 @@ end
 """
     act2yaml(act::ParametersAllActors, filename::AbstractString; kw...)
 
-Save the FUSE parameters to a YAML file with given `filename`
+Save the ACT parameters to a YAML file with given `filename`
 
 `kw` arguments are passed to the YAML.print function
 """
@@ -108,8 +111,26 @@ end
 """
     yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
 
-Load the FUSE act parameters from a YAML file with given `filename`
+Load the ACT act parameters from a YAML file with given `filename`
 """
 function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
     return SimulationParameters.yaml2par(filename, act)
+end
+
+"""
+    act2dict(act::ParametersAllInits; kw...)
+
+Convert the ACT parameters to a dictionary form
+"""
+function act2dict(act::ParametersAllActors; kw...)
+    return SimulationParameters.par2dict(act; kw...)
+end
+
+"""
+    dict2act(dict::AbstractDict, act::ParametersAllInits=ParametersActors())
+
+Convert dict to ACT parameters
+"""
+function dict2act(dict::AbstractDict, act::ParametersAllActors=ParametersActors())
+    return SimulationParameters.dict2par!(dict, act)
 end

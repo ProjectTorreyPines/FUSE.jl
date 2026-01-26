@@ -1,27 +1,51 @@
 #= ============= =#
 #  ActorPFdesign  #
 #= ============= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPFdesign{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorPFdesign{T} begin
     symmetric::Entry{Bool} = Entry{Bool}("-", "Force PF coils location to be up-down symmetric"; default=true)
     update_equilibrium::Entry{Bool} = Entry{Bool}("-", "Overwrite target equilibrium with the one that the coils can actually make"; default=false)
     model::Switch{Symbol} = Switch{Symbol}([:none, :uniform, :optimal], "-", "Coil placement strategy"; default=:optimal)
+    reset_rails::Entry{Bool} = Entry{Bool}("-", "Reset PF coils rails"; default=true)
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorPFdesign{P}
+    par::OverrideParameters{P,FUSEparameters__ActorPFdesign{P}}
+    act::ParametersAllActors{P}
     actor_pf::ActorPFactive{D,P}
 end
 
 """
     ActorPFdesign(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Optimize PF coil locations to achieve desired equilibrium
+Optimizes poloidal field (PF) coil placement and sizing to achieve target equilibrium configurations.
+Uses optimization algorithms to find coil positions that minimize current requirements while satisfying
+magnetic flux and force balance constraints for plasma control.
+
+# Design approaches (controlled by `model`)
+- `:none`: Uses existing coil configuration without modification
+- `:uniform`: Places coils uniformly on predefined rails
+- `:optimal`: Optimizes both coil placement and currents using least-squares minimization
+
+# Optimization process (for `:optimal` mode)
+1. Initializes PF coil rails based on radial build geometry
+2. Uses nested optimization: outer loop optimizes coil positions, inner loop finds currents
+3. Minimizes flux/saddle constraint violations while penalizing large currents
+4. Includes coil spacing penalties to prevent overlapping
+5. Sizes coils based on current requirements and engineering margins
+
+# Key constraints
+- Flux control points (boundary and internal flux surfaces)
+- Saddle control points (X-points and magnetic axis)
+- Current density limits and coil spacing requirements
+- Up-down symmetry (if `symmetric=true`)
+
+# Key outputs
+- Optimized PF coil positions and sizes (`dd.pf_active.coil[].element[].geometry`)
+- Coil currents that achieve target equilibrium
+- Updated equilibrium solution (if `update_equilibrium=true`)
 
 !!! note
 
@@ -35,15 +59,20 @@ end
 
 function ActorPFdesign(dd::IMAS.dd, par::FUSEparameters__ActorPFdesign, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPFdesign)
-    par = par(kw...)
+    par = OverrideParameters(par; kw...)
     actor_pf = ActorPFactive(dd, act.ActorPFactive; par.update_equilibrium)
-    return ActorPFdesign(dd, par, actor_pf)
+    return ActorPFdesign(dd, par, act, actor_pf)
 end
 
 """
     _step(actor::ActorPFdesign)
 
-Find currents that satisfy boundary and flux/saddle constraints in a least-square sense
+Executes PF coil design optimization based on the selected model:
+- For `:optimal`: Uses nested optimization with coil placement (outer) and current finding (inner)
+- Includes cost penalties for coil spacing and current magnitudes
+- Applies engineering constraints (current limits, spacing) and symmetry requirements
+- Sizes coils based on current requirements after optimization completes
+- Always runs ActorPFactive at the end to update equilibrium with final coil configuration
 """
 function _step(actor::ActorPFdesign{T}) where {T<:Real}
     dd = actor.dd
@@ -55,8 +84,9 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
 
     elseif par.model in [:uniform, :optimal]
         # reset pf coil rails
-        n_coils = Int[rail.coils_number for rail in dd.build.pf_active.rail]
-        init_pf_active!(dd.pf_active, dd.build, eqt, n_coils)
+        if par.reset_rails
+            init_pf_active!(dd.pf_active, dd.build, eqt)
+        end
 
         # optimize coil placement
         if par.model == :optimal
@@ -88,9 +118,9 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
                 end
 
                 coils = (coil for coil in vcat(actor.actor_pf.setup_cache.fixed_coils, actor.actor_pf.setup_cache.pinned_coils, actor.actor_pf.setup_cache.optim_coils))
-                cost_currents = norm([coil.current for coil in coils]) / eqt.global_quantities.ip
+                cost_currents = norm((coil.current_per_turn * coil.turns for coil in coils)) / eqt.global_quantities.ip
 
-                cost = norm([actor.actor_pf.cost, 0.1 * cost_spacing])^2 * (1 .+ cost_currents)
+                cost = norm((actor.actor_pf.cost, 0.1 * cost_spacing))^2 * (1 .+ cost_currents)
 
                 if prog !== nothing
                     ProgressMeter.next!(prog; showvalues=[("constraints", actor.actor_pf.cost), ("spacing", cost_spacing), ("currents", cost_currents)])
@@ -100,7 +130,8 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
 
             old_logging = actor_logging(dd, false)
-            prog = ProgressMeter.ProgressUnknown(; desc="Calls:", enabled=par.verbose)
+            par.verbose && ProgressMeter.ijulia_behavior(:clear)
+            prog = ProgressMeter.ProgressUnknown(;dt=0.1, desc="Calls:", enabled=par.verbose)
             try
                 packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
                 res = Optim.optimize(x -> placement_cost(x; prog), packed, Optim.NelderMead())#, Optim.Options(; g_tol=1E-6))

@@ -1,29 +1,25 @@
-import DataFrames
-import CSV
+using DataFrames: DataFrames
+using CSV: CSV
 
 """
-    case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)
+    case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=0, database_case::Int=0)
 
 For description of cases/variables see https://osf.io/593q6/
 """
-function case_parameters(::Type{Val{:HDB5}}; tokamak::Union{String,Symbol}=:any, case=missing, database_case=missing)::Tuple{ParametersAllInits,ParametersAllActors}
-    if !ismissing(database_case)
-        data_row = load_hdb5(; database_case)
-    elseif !ismissing(case)
-        data_row = load_hdb5(tokamak)[case, :]
-    else
-        error("Specifcy either the case or database_case")
+function case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=1, database_case::Int=0, shot::Int=-1, verbose::Bool=true)
+    data = load_hdb5(tokamak; database_case, shot)
+    if nrow(data) > 1
+        display(data)
     end
-    return case_parameters(data_row)
+    data_row = data[case, :]
+    return case_parameters(data_row; verbose)
 end
 
-function case_parameters(data_row::DataFrames.DataFrameRow)
-
-    n_nb = (data_row[:PNBI] > 0) ? 1 : 0
-    n_ec = (data_row[:PECRH] > 0) ? 1 : 0
-    n_ic = (data_row[:PICRH] > 0) ? 1 : 0
-
-    ini = ParametersInits(; n_nb, n_ec, n_ic)
+function case_parameters(data_row::DataFrames.DataFrameRow; verbose::Bool=true)
+    if verbose
+        display(data_row)
+    end
+    ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "HDB_$(data_row[:TOK])_$(data_row[:SHOT])"
     ini.general.init_from = :scalars
@@ -55,57 +51,68 @@ function case_parameters(data_row::DataFrames.DataFrameRow)
     end
 
     # to match the experimental volume and area:
+    # NOTE: only one MXH coefficient, since we only need to capture up to triangularity
     mxhb = MXHboundary(ini; target_volume=data_row[:VOL], target_area=data_row[:AREA])
-    mxh = IMAS.MXH(mxhb.r_boundary, mxhb.z_boundary, 4)
+    mxh = IMAS.MXH(mxhb.r_boundary, mxhb.z_boundary, 1)
     ini.equilibrium.MXH_params = IMAS.flat_coeffs(mxh)
     ini.equilibrium.boundary_from = :MXH_params
 
     # Core_profiles parameters
-    ## This should become ne_line and ne_line matching!
-    ini.core_profiles.ne_setting = :ne_ped
-    ini.core_profiles.ne_value = data_row[:NEL] / 1.4
-    ##
-    ini.core_profiles.T_ratio = 1.0
-    ini.core_profiles.T_shaping = 1.8
-    ini.core_profiles.n_shaping = 0.9
+    ini.core_profiles.ne_setting = :ne_line
+    ini.core_profiles.ne_value = data_row[:NEL]
+    ini.core_profiles.ne_shaping = 0.9
+    ini.core_profiles.Te_shaping = 1.8
+    ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = data_row[:ZEFF]
     ini.core_profiles.rot_core = 10e3
     ini.core_profiles.ngrid = 201
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
 
-    # nbi
-    if n_nb > 0
+    # hcd
+    if data_row[:PNBI] > 0
+        resize!(ini.nb_unit, 1)
         ini.nb_unit[1].power_launched = data_row[:PNBI]
         if data_row[:ENBI] > 0
             ini.nb_unit[1].beam_energy = data_row[:ENBI]
         else
             ini.nb_unit[1].beam_energy = 100e3
         end
-        ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].toroidal_angle = 18.0 / 360.0 * 2pi # 18 degrees assumed like DIII-D
+        ini.nb_unit[1].normalized_tangency_radius = 0.6
+        ini.nb_unit[1].beam_current_fraction = [0.8, 0.15, 0.05]
+        ini.nb_unit[1].current_direction = :co
+        ini.nb_unit[1].offaxis = false
     end
-
-    if n_ec > 0
+    if data_row[:PECRH] > 0
+        resize!(ini.ec_launcher, 1)
         ini.ec_launcher[1].power_launched = data_row[:PECRH]
     end
-
-    if n_ic > 0
+    if data_row[:PICRH] > 0
+        resize!(ini.ic_antenna, 1)
         ini.ic_antenna[1].power_launched = data_row[:PICRH]
     end
 
-    set_new_base!(ini)
-    set_new_base!(act)
+    #### ACT ####
+
+    # the shaping in the database only does up to triangularity, however
+    # shapes with x-points require more harmonics to be properly described
+    act.ActorTEQUILA.number_of_MXH_harmonics = 4
+    act.ActorTEQUILA.free_boundary = false
+
+    act.ActorPedestal.density_match = :ne_line
+    act.ActorFluxMatcher.evolve_pedestal = false
+
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
 end
 
-function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Union{Int,Missing}=missing, extra_signal_names=Union{String,Symbol}[])
+function load_hdb5(tokamak::Symbol=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Int=0, shot::Int=0, extra_signal_names::Vector{String}=String[])
     # For description of variables see https://osf.io/593q6/
     run_df = CSV.read(joinpath(__FUSE__, "sample", "HDB5_compressed.csv"), DataFrames.DataFrame)
     run_df[:, "database_case"] = collect(1:length(run_df[:, "TOK"]))
 
-    if !ismissing(database_case)
+    if database_case != 0
         return run_df[run_df.database_case.==database_case, :]
     end
 
@@ -120,17 +127,37 @@ function load_hdb5(tokamak::Union{String,Symbol}=:all; maximum_ohmic_fraction::F
         "CONFIG"
     ]
     signal_names = vcat(signal_names, extra_signal_names)
+
     # subselect on the signals of interest
     run_df = run_df[:, signal_names]
+
     # only retain cases for which all signals have data
     run_df = run_df[DataFrames.completecases(run_df), :]
+
     # some basic filters
     run_df = run_df[(run_df.TOK.!="T10").&(run_df.TOK.!="TDEV").&(run_df.KAPPA.>1.0).&(run_df.DELTA.<0.79).&(1.6 .< run_df.MEFF .< 2.2).&(1.1 .< run_df.ZEFF .< 5.9), :]
+
     # Filter cases where the ohmic power is dominating
     run_df[:, "Paux"] = run_df[:, "PNBI"] .+ run_df[:, "PECRH"] .+ run_df[:, "PICRH"] .+ run_df[:, "POHM"]
     run_df = run_df[run_df[:, "POHM"].<maximum_ohmic_fraction.*(run_df[:, "Paux"].-run_df[:, "POHM"]), :]
-    if Symbol(tokamak) ∉ (:all, :any)
-        run_df = run_df[run_df.TOK.==String(tokamak), :]
+
+    if tokamak != :all
+        if string(tokamak) ∉ run_df.TOK
+            error("Tokamak `$tokamak` does not exist in HDB5. Possible options are: $(unique(run_df.TOK))")
+        end
+        run_df = run_df[run_df.TOK.==string(tokamak), :]
     end
+    if shot < 0
+        n = rand(1:nrow(run_df))
+        run_df = run_df[n:n, :]
+    elseif shot == 0
+        # pass
+    else
+        if shot ∉ run_df.SHOT
+            error("Shot `$shot` does not exist in HDB5. Possible options are: $(unique(run_df.SHOT))")
+        end
+        run_df = run_df[run_df.SHOT.==shot, :]
+    end
+
     return run_df
 end

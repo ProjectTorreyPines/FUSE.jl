@@ -27,12 +27,13 @@ Plot recipe for ActorPFdesign and ActorPFactive
     control_points=true,
     plot_r_buffer=1.6) where {D<:Real,P<:Real}
 
-    @assert typeof(equilibrium) <: Bool
-    @assert typeof(build) <: Bool
-    @assert typeof(coils_flux) <: Bool
-    @assert typeof(rails) <: Bool
-    @assert typeof(control_points) <: Bool
-    @assert typeof(plot_r_buffer) <: Real
+    id = recipe_dispatch(actor)
+    assert_type_and_record_argument(id, Bool, "Show equilibrium"; equilibrium)
+    assert_type_and_record_argument(id, Bool, "Show build"; build)
+    assert_type_and_record_argument(id, Bool, "Show coils flux"; coils_flux)
+    assert_type_and_record_argument(id, Bool, "Show rails"; rails)
+    assert_type_and_record_argument(id, Bool, "Show control points"; control_points)
+    assert_type_and_record_argument(id, Float64, "How much to buffer R axis of the plot to fit the legend"; plot_r_buffer)
 
     dd = actor.dd
     par = actor.par
@@ -63,12 +64,12 @@ Plot recipe for ActorPFdesign and ActorPFactive
             exclude_layers --> [:oh]
             alpha --> 0.25
             label := false
-            dd.build
+            dd.build.layer
         end
         @series begin
             exclude_layers --> [:oh]
             wireframe := true
-            dd.build
+            dd.build.layer
         end
     end
 
@@ -76,7 +77,7 @@ Plot recipe for ActorPFdesign and ActorPFactive
     if coils_flux
         ngrid = 129
         R = range(xlim[1], xlim[2], ngrid)
-        Z = range(ylim[1], ylim[2], Int(ceil(ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]))))
+        Z = range(ylim[1], ylim[2], round(Int, ngrid * (ylim[2] - ylim[1]) / (xlim[2] - xlim[1]), RoundUp))
 
         coils = VacuumFields.GS_IMAS_pf_active__coil{D,D}[]
         for coil in dd.pf_active.coil
@@ -175,13 +176,13 @@ Plot recipe for ActorPFdesign and ActorPFactive
 
     # plot control points
     if control_points
-        if !isempty(actor.boundary_control_points)
+        if !isempty(actor.iso_control_points)
             @series begin
                 color := :blue
                 linestyle := :dash
                 linewidth := 1.5
-                label := "Boundary constraints"
-                [cpt.R for cpt in actor.boundary_control_points], [cpt.Z for cpt in actor.boundary_control_points]
+                label := "Iso-flux constraints"
+                [cpt.R1 for cpt in actor.iso_control_points], [cpt.Z1 for cpt in actor.iso_control_points]
             end
         end
         if !isempty(actor.flux_control_points)
@@ -201,6 +202,16 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 marker := :star
                 label := "Saddle constraints"
                 [cpt.R for cpt in actor.saddle_control_points], [cpt.Z for cpt in actor.saddle_control_points]
+            end
+        end
+        if !isempty(actor.field_control_points)
+            @series begin
+                color := :blue
+                seriestype := scatter
+                markerstrokewidth := 0
+                marker := :square
+                label := "Field constraints"
+                [cpt.R for cpt in actor.field_control_points], [cpt.Z for cpt in actor.field_control_points]
             end
         end
     end

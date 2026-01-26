@@ -50,24 +50,24 @@ end
 #  switch_get_from  #
 #= =============== =#
 """
-    switch_get_from(quantity::Symbol)
+    switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)
 
-Switch to pick form which IDS `quantity` comes from
+Switch to pick the IDS that `quantity` comes from
 """
-function switch_get_from(quantity::Symbol)::Switch{Symbol}
+function switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missing)
     txt = "Take $quantity from this IDS"
     if quantity == :ip
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule], "-", txt; default)
     elseif quantity == :vacuum_r0_b0
-        swch = Switch{Symbol}([:equilibrium, :pulse_schedule], "-", txt; default=:pulse_schedule)
+        swch = Switch{Symbol}([:equilibrium, :pulse_schedule], "-", txt; default)
     elseif quantity == :vloop
-        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium, :pulse_schedule, :controllers__ip], "-", txt; default)
     elseif quantity == :βn
-        swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt; default)
     elseif quantity == :ne_ped
-        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule, :edge_profiles], "-", txt; default)
     elseif quantity == :zeff_ped
-        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt)
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt; default)
     else
         error("`$quantity` not supported in switch_get_from()")
     end
@@ -102,7 +102,7 @@ This is where the main part of the actor calculation gets done
 function step(actor::T, args...; kw...) where {T<:AbstractActor}
     global_time(actor.par, global_time(actor.dd)) # syncrhonize global_time of `par` with the one of `dd`
     if !actor_logging(actor.dd)
-        _step(actor, args...; kw...)::T
+        s_actor = _step(actor, args...; kw...)
     else
         timer_name = name(actor)
         TimerOutputs.reset_timer!(timer_name)
@@ -110,15 +110,15 @@ function step(actor::T, args...; kw...) where {T<:AbstractActor}
             memory_time_tag(actor, "step IN")
             logging(Logging.Info, :actors, " "^workflow_depth(actor.dd) * "$(name(actor))")
             enter_workflow(actor)
-            try
-                s_actor = _step(actor, args...; kw...)
-                @assert s_actor === actor "`$(typeof(T))._step(actor)` should return the same actor that is input to the function"
+            s_actor = try
+                _step(actor, args...; kw...)
             finally
                 exit_workflow(actor)
             end
             memory_time_tag(actor, "step OUT")
         end
     end
+    @assert s_actor === actor "`$(T)._step(actor)` should return the same actor that is input to the function"
     return actor
 end
 
@@ -138,41 +138,58 @@ This is typically used to update `dd` to whatever the actor has calculated at th
 """
 function finalize(actor::T)::T where {T<:AbstractActor}
     if !actor_logging(actor.dd)
-        _finalize_and_freeze_onetime_expressions(actor)::T
+        f_actor = _finalize(actor)
     else
         timer_name = name(actor)
         TimerOutputs.@timeit timer timer_name begin
             memory_time_tag(actor, "finalize IN")
             logging(Logging.Debug, :actors, " "^workflow_depth(actor.dd) * "$(name(actor)) @finalize")
-            f_actor = _finalize_and_freeze_onetime_expressions(actor)
-            @assert f_actor === actor "`$(typeof(T))._finalize(actor)` should return the same actor that is input to the function"
+            f_actor = _finalize(actor)
             memory_time_tag(actor, "finalize OUT")
         end
     end
+    @assert f_actor === actor "`$(T)._finalize(actor)` should return the same actor that is input to the function"
     return actor
-end
-
-function _finalize_and_freeze_onetime_expressions(actor::T) where {T<:AbstractActor}
-    f_actor = _finalize(actor)
-    # freeze onetime expressions (ie. grids)
-    while !isempty(IMAS.expression_onetime_weakref)
-        idsw = pop!(IMAS.expression_onetime_weakref, first(keys(IMAS.expression_onetime_weakref)))
-        if idsw.value !== nothing
-            # println("Freeze $(typeof(actor)): $(IMAS.location(idsw.value))")
-            IMAS.freeze!(idsw.value)
-        end
-    end
-    return f_actor
 end
 
 @recipe function plot_actor(actor::AbstractActor, args...)
     return error("No plot recipe defined for ator $(typeof(actor))")
 end
 
+#= ======== =#
+#  callback  #
+#= ======== =#
+"""
+    callback(actor::AbstractActor, specialize::Symbol; kw...)
+
+Provides callback functionality within actors. To use it, anywhere in an actor, define your entry point, for example:
+
+    callback(actor, :iteration_end; iteration_number, ...)
+
+Users can define their own callback functions (which will be called in arbitrary oder):
+
+    function callback(actor::ActorStationaryPlasma, ::Val{:iteration_end}, ::Val{:world}; kw...)
+        println("Hello world")
+    end
+
+    function callback(actor::ActorStationaryPlasma, ::Val{:iteration_end}, ::Val{:fuse}; kw...)
+        println("Hello fuse")
+    end
+"""
+function callback(actor::AbstractActor, callback_location::Any; kw...)
+    for m in methods(callback).ms
+        if m.nargs == 4 && typeof(callback_location) == m.sig.parameters[3]
+            callback_name = m.sig.parameters[4]
+            callback(actor, callback_location, callback_name(); kw...)
+        end
+    end
+    return actor
+end
+
 #= ============= =#
 #  actor_logging  #
 #= ============= =#
-function actor_logging(dd::IMAS.dd)
+function actor_logging(dd::IMAS.DD)
     aux = getfield(dd, :_aux)
     if :fuse_actor_logging ∉ keys(aux)
         aux[:fuse_actor_logging] = true
@@ -180,7 +197,7 @@ function actor_logging(dd::IMAS.dd)
     return aux[:fuse_actor_logging]
 end
 
-function actor_logging(dd::IMAS.dd, value::Bool)
+function actor_logging(dd::IMAS.DD, value::Bool)
     aux = getfield(dd, :_aux)
     old_value = actor_logging(dd)
     aux[:fuse_actor_logging] = value
@@ -219,14 +236,14 @@ end
 
 function enter_workflow(actor::AbstractActor)
     aux = _aux_workflow(actor.dd)
-    h = goto_worflow_depth(aux[:fuse_workflow], aux[:fuse_workflow_depth])
-    aux[:fuse_workflow_count] += 1
-    aux[:fuse_workflow_depth] += 1
-    return h[(name(actor), aux[:fuse_workflow_count])] = Workflow(name(actor))
+    h = goto_worflow_depth(aux[:fuse_workflow], aux[:fuse_workflow_depth][1])
+    aux[:fuse_workflow_count][1] += 1
+    aux[:fuse_workflow_depth][1] += 1
+    return h[(name(actor), aux[:fuse_workflow_count][1])] = Workflow(name(actor))
 end
 
 function exit_workflow(actor::AbstractActor)
-    return _aux_workflow(actor.dd)[:fuse_workflow_depth] -= 1
+    return _aux_workflow(actor.dd)[:fuse_workflow_depth][1] -= 1
 end
 
 function goto_worflow_depth(workflow::Workflow, depth::Int)
@@ -237,20 +254,35 @@ function goto_worflow_depth(workflow::Workflow, depth::Int)
     return h
 end
 
-function workflow_depth(dd::IMAS.dd)
-    return _aux_workflow(dd)[:fuse_workflow_depth]
+function workflow_depth(dd::IMAS.DD)
+    return _aux_workflow(dd)[:fuse_workflow_depth][1]
 end
 
-function workflow(dd::IMAS.dd)
+function workflow(dd::IMAS.DD)
     return _aux_workflow(dd)[:fuse_workflow]
 end
 
-function _aux_workflow(dd::IMAS.dd)
+function _aux_workflow(dd::IMAS.DD)
     aux = getfield(dd, :_aux)
     if :fuse_workflow ∉ keys(aux)
         aux[:fuse_workflow] = Workflow("Main")
-        aux[:fuse_workflow_depth] = 0
-        aux[:fuse_workflow_count] = 0
+        aux[:fuse_workflow_depth] = [0]
+        aux[:fuse_workflow_count] = [0]
     end
     return aux
+end
+
+"""
+    copy_workflow!(dd_out::IMAS.DD, dd_in::IMAS.DD)
+
+Copy (:fuse_workflow, :fuse_workflow_depth, :fuse_workflow_count, :fuse_actor_logging) from `dd_in` to `dd_out`
+
+This is useful when continuing the execution of a FUSE workflow on different dd's
+"""
+function copy_workflow!(dd_out::IMAS.DD, dd_in::IMAS.DD)
+    for item in (:fuse_workflow, :fuse_workflow_depth, :fuse_workflow_count, :fuse_actor_logging)
+        if item in keys(getfield(dd_in, :_aux))
+            getfield(dd_out, :_aux)[item] = getfield(dd_in, :_aux)[item]
+        end
+    end
 end

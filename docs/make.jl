@@ -9,17 +9,27 @@ import AbstractTrees
 import ProgressMeter
 import Dates
 using Literate
+ENV["GKSwstype"] = 100 # disable Plots.jl interactive output
 
-# Convert the Literate.jl script to markdown
-Literate.markdown(joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src"), documenter=true)
+# skip running tutorial for faster builds when editing the documentation
+skip_tutorial = false
+
+include("notebook_to_jl.jl")
+
+# Convert the Jupyter Notebook to Literate script
+if isfile(joinpath(@__DIR__, "..", "examples", "tutorial.ipynb"))
+    convert_notebook_to_litterate(joinpath(@__DIR__, "..", "examples", "tutorial.ipynb"), joinpath(@__DIR__, "src", "tutorial.jl"))
+end
+# Convert the Literate script to markdown
+Literate.markdown(joinpath(@__DIR__, "src", "tutorial.jl"), joinpath(@__DIR__, "src"); documenter=true)
 lines = join(readlines(joinpath(@__DIR__, "src", "tutorial.md")), "\n")
 open(joinpath(@__DIR__, "src", "tutorial.md"), "w") do f
-    write(f, replace(lines,
-"""
----
+    return write(f, replace(lines,
+        """
+        ---
 
-*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
-""" => ""))
+        *This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
+        """ => ""))
 end
 
 function pretty_units(unit)
@@ -73,7 +83,7 @@ function AbstractTrees.printnode(io::IO, @nospecialize(ids::Type{<:IMAS.IDSvecto
 end
 
 function AbstractTrees.printnode(io::IO, leaf::IMAS.IMASstructRepr; kwargs...)
-    nfo = IMAS.info(leaf.location)
+    nfo = IMAS.info(leaf.ids_type, leaf.field)
     units = nfo.units
     if units == "-"
         units = ""
@@ -87,7 +97,7 @@ function parameters_details_md(io::IO, pars::SimulationParameters.AbstractParame
     for leafRepr in AbstractTrees.Leaves(pars)
         leaf = leafRepr.value
         if typeof(leaf) <: SimulationParameters.ParametersVector
-            error("$(SimulationParameters.path(leaf)) has zero length, which prevents generation of documentation.")
+            error("$(SimulationParameters.spath(leaf)) has zero length, which prevents generation of documentation.")
         end
         if typeof(leaf) <: SimulationParameters.AbstractParameters
             continue
@@ -152,15 +162,32 @@ include("$(@__DIR__)/src/ini_docs.jl")
 # ================= #
 include("$(@__DIR__)/src/act_docs.jl")
 
-# =================== #
-# generate cases page #
-# =================== #
-include("$(@__DIR__)/src/cases_docs.jl")
+# ========================== #
+# generate dependencies page #
+# ========================== #
+include("$(@__DIR__)/src/deps.jl")
 
-# # ====================== #
-# # generate examples page #
-# # ====================== #
-# include("$(@__DIR__)/src/examples.jl")
+pages = [
+    "Home" => "index.md",
+    "Install" => "install.md",
+    "References" => "pubs.md",
+    "Tutorial" => "tutorial.md",
+    "Examples" => "examples.md",
+    "Use Cases" => "cases.md",
+    "Actors" => "actors.md",
+    "Initialization" => "inits.md",
+    "`dd` Data Structure" => "dd.md",
+    "`ini` Parameters" => "ini.md",
+    "`act` Parameters" => "act.md",
+    "Development" => "develop.md",
+    "Ecosystem" => "deps.md",
+    "License" => "license.md",
+    "Notice" => "notice.md"
+]
+
+if skip_tutorial
+    pages = [page for page in pages if page.first != "Tutorial"]
+end
 
 # ============== #
 # build the docs #
@@ -173,24 +200,15 @@ makedocs(;
     format=Documenter.HTML(;
         repolink="https://github.com/ProjectTorreyPines/FUSE.jl",
         prettyurls=false,
+        analytics="G-65D8V8C8VQ",
         sidebar_sitename=false,
         assets=["assets/favicon.ico"],
         size_threshold=nothing,
-        size_threshold_warn=nothing,
+        size_threshold_warn=nothing
     ),
     repo=Remotes.GitHub("ProjectTorreyPines", "FUSE.jl"),
     warnonly=true,
-    pages=[
-        "Concepts" => "index.md",
-        "Lean" => ["Tutorial" => "tutorial.md", "Examples" => "examples.md"],
-        "Use Cases" => "cases.md",
-        "Actors" => ["List of actors" => "actors.md", "act parameters" => "act.md"],
-        "Initialization" => ["Init routines" => "inits.md", "ini parameters" => "ini.md"], 
-        "Data Structure" => "dd.md",
-        "Development" => "develop.md",
-        "Install" => ["Install FUSE" => "install.md", "on SAGA" => "install_saga.md", "on OMEGA" => "install_omega.md"],
-        "License" => ["License" => "license.md", "Notice" => "notice.md"]
-    ]
+    pages
 )
 
 # convert "©(.*)©©(.*)©" patterns to hyperlinks

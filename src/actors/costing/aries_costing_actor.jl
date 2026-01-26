@@ -1,26 +1,22 @@
 #= ================= =#
 #  ActorCostingARIES  #
 #= ================= =#
-
-Base.@kwdef mutable struct FUSEparameters__ActorCostingARIES{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
-    land_space::Entry{T} = Entry{T}("acres", "Plant site space required"; default=1000.0)
-    building_volume::Entry{T} = Entry{T}("m^3", "Volume of the tokmak building"; default=140.0e3)
-    interest_rate::Entry{T} = Entry{T}("-", "Annual interest rate fraction of direct capital cost"; default=0.05)
-    indirect_cost_rate::Entry{T} =
-        Entry{T}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4)
-    escalation_fraction::Entry{T} = Entry{T}("-", "Yearly escalation fraction based on risk assessment"; default=0.05)
-    blanket_lifetime::Entry{T} = Entry{T}("year", "Lifetime of the blanket"; default=6.8)
+@actor_parameters_struct ActorCostingARIES{T} begin
+    land_space::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("acres", "Plant site space required"; default=1000.0 ± 100.0)
+    building_volume::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("m^3", "Volume of the tokmak building"; default=140e3 ± 14e3)
+    interest_rate::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Annual interest rate fraction of direct capital cost"; default=0.05 ± 0.01)
+    indirect_cost_rate::Entry{Measurement{Float64}} =
+        Entry{Measurement{Float64}}("-", "Indirect cost associated with construction, equipment, services, engineering construction management and owners cost"; default=0.4 ± 0.01)
+    escalation_fraction::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("-", "Yearly escalation fraction based on risk assessment"; default=0.05 ± 0.01)
+    blanket_lifetime::Entry{Measurement{Float64}} = Entry{Measurement{Float64}}("year", "Lifetime of the blanket"; default=7.0 ± 1.0)
 end
 
 mutable struct ActorCostingARIES{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::FUSEparameters__ActorCostingARIES{P}
+    par::OverrideParameters{P,FUSEparameters__ActorCostingARIES{P}}
     function ActorCostingARIES(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingARIES{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCostingARIES)
-        par = par(kw...)
+        par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
     end
 end
@@ -28,20 +24,77 @@ end
 """
     ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates costing based on ARIES cost account documentation https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
+Estimates fusion power plant costs using the ARIES (Advanced Reactor Innovation and Evaluation Study) methodology.
+
+This costing model implements the detailed cost accounting framework developed for the ARIES tokamak reactor studies,
+as documented in UCSD-CER-13-01. The methodology provides component-level cost estimates with:
+
+**Direct Capital Costs:**
+- Tokamak systems: all build layers (TF, PF, OH coils, blanket, shields, vacuum vessel)
+- Heating and current drive: ECH, ICRF, LHCD, NBI systems scaled by power
+- Facility infrastructure: land, buildings, hot cells, heat transfer systems
+- Balance of plant: power conversion equipment, electrical systems, fuel handling
+
+**Operating Costs:**  
+- Tritium handling and fuel cycle operations
+- Maintenance and operations scaled to plant capacity
+- Component replacement (blanket modules based on lifetime parameters)
+
+**Decommissioning Costs:**
+- End-of-life plant dismantling and waste management
+
+**Key Features:**
+- Component-specific cost models based on material volumes and unit costs
+- Power-scaling relationships for heating and current drive systems  
+- Economic modeling with interest rates, escalation, and indirect costs
+- Detailed cost account structure matching ARIES studies
+- Uncertainty propagation through all cost calculations
+
+The model supports advanced tokamak designs with superconducting magnets and provides
+realistic cost estimates for commercial-scale fusion power plants.
 
 !!! note
 
-    Stores data in `dd.costing`
+    Results stored in `dd.costing` following ARIES cost account documentation (UCSD-CER-13-01)
 """
 function ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    par = act.ActorCostingARIES(kw...)
-    actor = ActorCostingARIES(dd, par)
+    actor = ActorCostingARIES(dd, act.ActorCostingARIES; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
+"""
+    _step(actor::ActorCostingARIES)
+
+Calculates comprehensive costs using the ARIES methodology and cost account structure.
+
+The calculation follows the detailed ARIES cost accounting framework:
+
+**Direct Capital Costs:**
+1. **Tokamak Systems:** Iterates through all build layers calculating material-based costs
+   - TF/PF/OH coils: volume-based costs using superconductor and structural materials
+   - Blanket/shield layers: fixed cost per unit volume 
+   - Vacuum vessel/wall: structural material costs
+
+2. **Heating & Current Drive:** Power-proportional costs for each system type
+   - ECH, ICRF, LHCD, NBI: different \$/W scaling factors from ARIES studies
+
+3. **Facility Infrastructure:** 
+   - Land, buildings, hot cells: scaled to plant size and power output
+   - Heat transfer systems: material costs for coolant loops
+   - Balance of plant equipment: power cycle and electrical systems
+   - Fuel cycle and radioactive handling systems
+
+**Operating Costs:**
+- Tritium handling, maintenance/operations, component replacement
+
+**Economic Analysis:**
+- Applies interest rates, escalation factors, and indirect costs
+- Computes total lifetime costs and levelized cost of electricity (LCOE)
+
+All costs reference specific years and are adjusted to future dollars using economic parameters.
+"""
 function _step(actor::ActorCostingARIES)
     dd = actor.dd
     par = actor.par
@@ -79,12 +132,41 @@ function _step(actor::ActorCostingARIES)
     end
 
     # Heating and current drive
-    for hcd in vcat(dd.ec_launchers.beam, dd.ic_antennas.antenna, dd.lh_antennas.antenna, dd.nbi.unit)
-        c = cost_direct_capital_ARIES(hcd, da)
-        if c > 0.0
-            sub = resize!(tokamak.subsystem, "name" => uppercase(hcd.name))
-            sub.cost = c
-        end
+    # EC
+    c = 0.0
+    for hcd in dd.ec_launchers.beam
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "ECH")
+        sub.cost = c
+    end
+    # IC
+    c = 0.0
+    for hcd in dd.ic_antennas.antenna
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "ICRF")
+        sub.cost = c
+    end
+    # LH
+    c = 0.0
+    for hcd in dd.lh_antennas.antenna
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "LHCD")
+        sub.cost = c
+    end
+    # NBI
+    c = 0.0
+    for hcd in dd.nbi.unit
+        c += cost_direct_capital_ARIES(hcd, da)
+    end
+    if c > 0.0
+        sub = resize!(tokamak.subsystem, "name" => "NBI")
+        sub.cost = c
     end
 
     ### Facility
@@ -136,25 +218,36 @@ function _step(actor::ActorCostingARIES)
     sys = resize!(cost_decom.system, "name" => "decommissioning")
     sys.cost = cost_decomissioning_ARIES(:decom_wild_guess, cst.plant_lifetime, da)
 
-    ###### Levelized Cost Of Electricity 
+    ###### Total cost over lifetime ######
     capital_cost_rate = par.interest_rate / (1.0 - (1.0 + par.interest_rate)^(-1.0 * cst.plant_lifetime))
-    cst.cost_lifetime = 0.0
-    for year in 1:cst.plant_lifetime
-        yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / cst.plant_lifetime)
-        cst.cost_lifetime += (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate) * yearly_cost
-    end
+    yearly_cost = (capital_cost_rate * cost_direct.cost + cost_ops.yearly_cost + cost_decom.cost / cst.plant_lifetime)
+    annual_growth_rate = (1.0 + par.escalation_fraction) * (1.0 + par.indirect_cost_rate)
+    cst.cost_lifetime = annual_growth_rate * yearly_cost * cst.plant_lifetime
+
+    ###### Levelized Cost Of Electricity ######
     cst.levelized_CoE = (cst.cost_lifetime * 1E6) / (cst.plant_lifetime * 24 * 365 * power_electric_net / 1e3 * cst.availability)
 
     return actor
 end
 
+"""    _finalize(actor::ActorCostingARIES)
+
+Organizes and sorts cost results following ARIES reporting standards.
+
+This function:
+1. Sorts all cost systems and subsystems by cost magnitude (descending order)
+2. Ensures consistent cost breakdown structure for analysis and comparison
+3. Facilitates identification of major cost drivers in the plant design
+
+The sorted output helps users quickly identify which systems dominate plant costs,
+enabling focused optimization efforts on the most cost-significant components.
+"""
 function _finalize(actor::ActorCostingARIES)
     # sort system/subsystem by their costs
     sort!(actor.dd.costing.cost_direct_capital.system; by=x -> x.cost, rev=true)
     for sys in actor.dd.costing.cost_direct_capital.system
         sort!(sys.subsystem; by=x -> x.cost, rev=true)
     end
-
     return actor
 end
 
@@ -166,13 +259,13 @@ end
 
 Capital cost for each layer in the build
 """
-function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, da::DollarAdjust)
+function cost_direct_capital_ARIES(layer::IMAS.build__layer, cst::IMAS.costing, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
     if layer.type == Int(_oh_)
-        return 0.0
+        return zero(T) # oh is part of the pf_active calculation
     elseif layer.type == Int(_tf_)
         build = IMAS.parent(IMAS.parent(layer))
-        cost = layer.volume * unit_cost(build.tf.technology, cst)
+        cost = layer.volume * (unit_cost(build.tf.technology, cst) * (1.0 - build.tf.nose_hfs_fraction) .+ unit_cost(Material(:steel), cst) * build.tf.nose_hfs_fraction)
         return future_dollars(cost, da)
     elseif layer.type == Int(_shield_)
         cost = layer.volume * 0.29  # $M/m^3
@@ -246,11 +339,13 @@ function cost_direct_capital_ARIES(nbu::IMAS.nbi__unit, da::DollarAdjust)
 end
 
 """
-    cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, cst::IMAS.costing)
+    cost_direct_capital_ARIES(pf_active::IMAS.pf_active{T}, da::DollarAdjust, cst::IMAS.costing) where {T<:Real}
+
+Capital cost for pf_active coils
 """
-function cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, cst::IMAS.costing)
+function cost_direct_capital_ARIES(pf_active::IMAS.pf_active{T}, da::DollarAdjust, cst::IMAS.costing) where {T<:Real}
     dd = IMAS.top_dd(pf_active)
-    c = Dict("OH" => 0.0, "PF" => 0.0)
+    c = Dict{String,T}("OH" => 0.0, "PF" => 0.0)
     for coil in pf_active.coil
         if IMAS.is_ohmic_coil(coil)
             c["OH"] += cost_direct_capital_ARIES(coil, dd.build.oh.technology, da, cst)
@@ -261,26 +356,23 @@ function cost_direct_capital_ARIES(pf_active::IMAS.pf_active, da::DollarAdjust, 
     return c
 end
 
-"""
-    cost_direct_capital_ARIES(coil::IMAS.pf_active__coil, technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology}, da::DollarAdjust, cst::IMAS.costing)
-"""
 function cost_direct_capital_ARIES(
     coil::IMAS.pf_active__coil,
     technology::Union{IMAS.build__tf__technology,IMAS.build__oh__technology,IMAS.build__pf_active__technology},
     da::DollarAdjust,
-    cst::IMAS.costing
-)
+    cst::IMAS.costing)
+
     da.year_assessed = 2016
     cost = IMAS.volume(coil) * unit_cost(technology, cst)
     return future_dollars(cost, da)
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:land}}, land::Real, power_electric_net::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:land}, land::Real, power_electric_net::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital_ARIES(::Type{Val{:land}}, land::Real, power_electric_net::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:land}, land::Real, power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = 2009 #pg. 8, ARIES report
     power_electric_net = power_electric_net / 1E6
     if power_electric_net > 0.0
@@ -292,19 +384,19 @@ function cost_direct_capital_ARIES(::Type{Val{:land}}, land::Real, power_electri
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:buildings}}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:buildings}, land::Real, building_volume::Real, power_electric_generated::Real, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
 function cost_direct_capital_ARIES(
-    ::Type{Val{:buildings}},
+    ::Val{:buildings},
     land::Real,
     building_volume::Real,
     power_electric_generated::Real,
     power_thermal::Real,
     power_electric_net::Real,
-    da::DollarAdjust
-)
+    da::DollarAdjust)
+
     da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
     power_thermal = power_thermal / 1E6
@@ -324,27 +416,27 @@ function cost_direct_capital_ARIES(
     cost += 2.0 # site service
     cost += 2.09 # cyrogenic and inert gas storage
     cost += 0.71 # security
-    cost += 4.15  # ventilation stack
+    cost += 4.15 # ventilation stack
     return future_dollars(cost, da)
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:hot_cell}}, building_volume, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:hot_cell}, building_volume, da::DollarAdjust)
 
 NOTE: https://www.iter.org/mach/HotCell
 """
-function cost_direct_capital_ARIES(::Type{Val{:hot_cell}}, building_volume::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:hot_cell}, building_volume::Real, da::DollarAdjust)
     da.year_assessed = 2009
     cost = 0.34 * 111.661 * (building_volume / 80.0e3)^0.62
     return future_dollars(cost, da)
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:heat_transfer_loop_materials}, power_thermal::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
-function cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, power_thermal::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:heat_transfer_loop_materials}, power_thermal::Real, da::DollarAdjust)
     da.year_assessed = 2009  # Table 15 ARIES report
     power_thermal = power_thermal / 1E6
     cost = 50.0 * (power_thermal / 2000.0)^0.55 # water
@@ -356,36 +448,42 @@ function cost_direct_capital_ARIES(::Type{Val{:heat_transfer_loop_materials}}, p
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
+    cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital_ARIES(::Type{Val{:balance_of_plant_equipment}}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
+function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust{T}, dd::IMAS.dd) where {T<:Real}
     da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_generated = power_electric_generated / 1E6
     bop = dd.balance_of_plant
 
-    if contains(lowercase(bop.power_plant.power_cycle_type), "rankine")
-        cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
-    elseif contains(lowercase(bop.power_plant.power_cycle_type), "brayton")
-        cost = 360.0 * (power_thermal / 2000.0)^0.8
-        if !isnan(bop.thermal_efficiency_cycle[1])
-            cost *= bop.thermal_efficiency_cycle[1] / 0.6
+    if power_thermal <= 0.0
+        return zero(T)
+    else
+        if contains(lowercase(bop.power_plant.power_cycle_type), "rankine")
+            cost = 350.0 * (power_thermal / 2620.0)^0.7 # Turbine equipment
+        elseif contains(lowercase(bop.power_plant.power_cycle_type), "brayton")
+            cost = 360.0 * (power_thermal / 2000.0)^0.8
+            if !isnan(@ddtime(bop.thermal_efficiency_plant))
+                cost *= @ddtime(bop.thermal_efficiency_plant) / 0.6
+            end
+        else
+            error("ARIES has no costing model for power cycle $power_cycle_type")
         end
+        cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
+        cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
+        cost += 88.89 * (power_electric_generated / 1200.0)^0.6 # Miscellaneous equipment
+        return future_dollars(cost, da)
     end
-    cost += 182.98 * (power_electric_generated / 1200.0)^0.5 # Electrical plant equipment
-    cost += 87.52 * ((power_thermal - power_electric_generated) / 2300.0) # Heat rejection equipment
-    cost += 88.89 * (power_electric_generated / 1200.0)^0.6 # Miscellaneous equipment
-    return future_dollars(cost, da)
 end
 
 """
-    cost_direct_capital_ARIES(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
+    cost_direct_capital_ARIES(::Val{:fuel_cycle_rad_handling}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf (warning uses LiPb for blanket)
 """
-function cost_direct_capital_ARIES(::Type{Val{:fuel_cycle_rad_handling}}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
+function cost_direct_capital_ARIES(::Val{:fuel_cycle_rad_handling}, power_thermal::Real, power_electric_net::Real, da::DollarAdjust)
     da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_net = power_electric_net / 1E6
@@ -401,13 +499,13 @@ end
 #  yearly operations cost  #
 #= ====================== =#
 """
-    cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real, da::DollarAdjust)
+    cost_operations_ARIES(::Val{:operation_maintenance}, power_electric_generated::Real, da::DollarAdjust)
 
 Yearly cost for maintenance [\$M/year]
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electric_generated::Real, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:operation_maintenance}, power_electric_generated::Real, da::DollarAdjust)
     da.year_assessed = 2009
     power_electric_generated = power_electric_generated / 1E6
 
@@ -420,24 +518,24 @@ function cost_operations_ARIES(::Type{Val{:operation_maintenance}}, power_electr
 end
 
 """
-    cost_operations_ARIES(::Type{Val{:tritium_handling}}, da::DollarAdjust)
+    cost_operations_ARIES(::Val{:tritium_handling}, da::DollarAdjust)
 
 Yearly cost for tritium_handling [\$M/year]
 
 !!!!WRONG!!!! Needs estiamte
 """
-function cost_operations_ARIES(::Type{Val{:tritium_handling}}, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:tritium_handling}, da::DollarAdjust)
     da.year_assessed = 2013
     cost = 1.0
     return future_dollars(cost, da)
 end
 
 """
-    cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
+    cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Real, blanket_lifetime::Real, da::DollarAdjust)
 
 Yearly cost for blanket replacement [\$M/year]
 """
-function cost_operations_ARIES(::Type{Val{:blanket_replacement}}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
+function cost_operations_ARIES(::Val{:blanket_replacement}, cost_blanket::Union{Real,Nothing}, blanket_lifetime::Real, da::DollarAdjust)
     if cost_blanket === nothing
         cost = 0.0
     else
@@ -451,13 +549,13 @@ end
 #  Decomissioning cost  #
 #= =================== =#
 """
-    cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
+    cost_decomissioning_ARIES(::Val{:decom_wild_guess}, plant_lifetime::Real, da::DollarAdjust)
 
 Cost to decommission the plant [\$M]
 
 LIKELY NEEDS FIXING
 """
-function cost_decomissioning_ARIES(::Type{Val{:decom_wild_guess}}, plant_lifetime::Real, da::DollarAdjust)
+function cost_decomissioning_ARIES(::Val{:decom_wild_guess}, plant_lifetime::Real, da::DollarAdjust)
     da.year_assessed = 2009  # pg. 94 ARIES
     unit_cost = 2.76 # [$M/year] from GASC
     cost = unit_cost * plant_lifetime
