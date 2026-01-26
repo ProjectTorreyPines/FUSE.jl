@@ -21,12 +21,20 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
     task::Switch{String} = Switch{String}(
-        ["solveRP-IW", "solveRP-RW"],
+        ["solve-system", "single-case", "Monte-Carlo"],
         "-",  
-        "Choose whether to solve a resistive plasma with a resistive or ideal wall",  # docstring
-        default = "solveRP-RW"
+        "Choose whether to simulate system on full-grid, do a single case, or Monte Carlo (NOT implmented) which does 1e4 simulations on the full grid",  # docstring
+        default = "solve-system"
     )
-    NL_saturation_ON::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=true)
+    application::Switch{String} = Switch{String}(
+        ["RP-RW", "RP-IW", "RP-RP-RW", "RP-RW-IW"],
+        "-", 
+        "Type of application: 'RP-RW' for resistive plasma with a single rational surface interacting with a resistive wall; 
+                              'RP-IW' for resistive plasma with a single rational surface interacting with an ideal wall;
+                              'RP-RP-RW' for resistive plasma with two rational surfaces interacting with a resistive wall;
+                              'RP-RW-IW' for resistive plasma with a single rational surface interacting with both walls"; default="RP-RW"
+    )
+    NL_saturation_ON::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=false)
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
         "Stability index of the system (set to Neg. value for now)"; default=-0.5)
@@ -105,6 +113,7 @@ function _step(actor::ActorLocking)
     dd = actor.dd
     par = actor.par
     task = par.task
+    application = par.application
 
     # Populate the physical parameters needed to solve the ODEs
     actor.ode_params = ODEparams(;)
@@ -118,34 +127,55 @@ function _step(actor::ActorLocking)
     # pick Control1 = rotation Frequency 
     # and Control 2 = error field, TM stability index ( <0), or saturation param
     
-    rot_freq = 1.
-    solve_one_case(par, actor.ode_params, task, rot_freq)
+    if par.task == "single-case"
+        rot_freq = 1.
+        solve_one_case(par, actor.ode_params, application, rot_freq)
+        return actor
+    elseif par.task == "Monte-Carlo"
+        error("Monte-Carlo not implemented yet")
+    elseif par.task == "solve-system"
+        # Solve the ODE system on the whole control grid):
+        control1 = actor.ode_params.Control1
+        control2 = actor.ode_params.Control2
+        full_sys_sols = solve_system(actor, application, control1, control2)
+        norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
+             control2, control1, actor.par.control_type)
 
+        # ## plot normalize solution scatters
+        plot_sols_scatter(norm_sols; xcol=1,ycol=3)
+        #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
+        #inputs = vec(inputs)  # flatten
+
+        # If you want them back on a 2D grid (N x M), reshape here:
+        norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size))
+        make_contour(control2, control1, getindex.(norm_sols_2D,1))
+        psi_tN = getindex.(norm_sols_2D, 1)
+        #plt = plot(psi_tN; seriestype=:heatmap)
+        #dummy = DummyIDS(control2, control1, psi_tN)
+        #plt = plot(dummy, :Z; seriestype=:heatmap)
+        #display(plt)
+
+        ## classify normalized solutions
+
+        # write back to dd
+        
+    else
+        error("Unknown task: $(par.task)")
+    end
     
-    # Solve the ODE system on the whole control grid):
-    control1 = actor.ode_params.Control1
-    control2 = actor.ode_params.Control2
-    full_sys_sols = solve_system(actor, task)
-    norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
-         control2, control1, actor.par.control_type)
-
-    # ## plot normalize solution scatters
-    plot_sols_scatter(norm_sols; xcol=1,ycol=3)
-    #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
-    #inputs = vec(inputs)  # flatten
-
-    # If you want them back on a 2D grid (N x M), reshape here:
-    norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size))
-    make_contour(control2, control1, getindex.(norm_sols_2D,1))
-    psi_tN = getindex.(norm_sols_2D, 1)
-    #plt = plot(psi_tN; seriestype=:heatmap)
-    #dummy = DummyIDS(control2, control1, psi_tN)
-    #plt = plot(dummy, :Z; seriestype=:heatmap)
-    #display(plt)
-
-    ## classify normalized solutions
 
     return actor
+end
+
+function update_dd!(dd::IMAS.dd, par, ode_params::ODEparams)
+    """
+    # write back to dd
+    """
+    @info "Writing back to IMAS dd mhd_linear structure"
+    #dd.mhd_linear.time_slice[1].toroidal_mode[1].m_pol_dominant=2
+    #dd.mhd_linear.time_slice[1].toroidal_mode[1].n_tor = 1
+
+    return
 end
 
 function solve_one_case(par, ode_params::ODEparams, task::String, control1::Float64)    
@@ -436,15 +466,15 @@ end
 
 "Return the correct RHS function for a given task"
 function make_rhs_function(task::String)
-    task == "solveRP-RW" ? rhs_RW! :
-    task == "solveRP-IW"   ? rhs_basic! :
+    task == "RP-RW" ? rhs_RW! :
+    task == "RP-IW"   ? rhs_basic! :
     error("Unknown task: $task")
    
 end
 
 function make_initial_condition(dims::Vector{Float64}, task::String)
-    
-    if task == "solveRP-RW"
+
+    if task == "RP-RW"
         # 5D system
         return [
             rand() * (dims[1] - 0.001) + 0.001,   # y1
@@ -454,7 +484,7 @@ function make_initial_condition(dims::Vector{Float64}, task::String)
             rand() * 2π - π                       # y5
         ]
 
-    elseif task == "solveRP-IW"
+    elseif task == "RP-IW"
         # 3D system
         return [
             rand() * (dims[1] - 0.001) + 0.001,   # y1
@@ -613,7 +643,7 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
         end
 
         
-        if length(final_sol) == 5 # assumes solveRP-RW layout
+        if length(final_sol) == 5 # assumes RP-RW layout
             num = Deltat * DeltaW - l12 * l21
 
             psiN   = final_sol[1] * num / (l32 * l21 * eps)
