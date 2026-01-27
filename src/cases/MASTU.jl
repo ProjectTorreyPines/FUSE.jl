@@ -79,3 +79,92 @@ function case_parameters(::Val{:MASTU}; init_from::Symbol)
 
     return ini, act
 end
+
+"""
+    case_parameters(:MASTU, ods_file::AbstractString)
+
+MAST-U from ODS file path
+"""
+function case_parameters(::Val{:MASTU}, ods_file::AbstractString)
+    ini, act = case_parameters(Val(:MASTU); init_from=:ods)
+    
+    ini.general.casename = "MASTU $ods_file"
+    ini.ods.filename = "$(ini.ods.filename),$(ods_file)"
+    
+    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
+    set_ini_act_from_ods!(ini, act)
+    
+    # Set simulation time from the loaded ODS
+    if !isempty(ini.general.dd.core_profiles)
+        IMAS.last_global_time(ini.general.dd)
+        ini.time.simulation_start = ini.general.dd.global_time
+    end
+    
+    return ini, act
+end
+
+"""
+    case_parameters(:MASTU, scenario::Symbol)
+
+MAST-U from sample cases
+"""
+function case_parameters(::Val{:MASTU}, scenario::Symbol)
+    filenames = Dict(
+        :H_mode => "$(joinpath("__FUSE__", "sample", "MASTU_Hmode.json"))",
+        :default => "$(joinpath("__FUSE__", "sample", "MASTU_Hmode.json"))"
+    )
+    
+    if !haskey(filenames, scenario)
+        error("Scenario :$scenario not available for MASTU. Available scenarios: $(keys(filenames))")
+    end
+    
+    ini, act = case_parameters(Val(:MASTU), filenames[scenario])
+    ini.general.casename = "MASTU $scenario"
+    
+    # Configure heating sources if not in ODS
+    if isempty(ini.general.dd.core_sources)
+        resize!(ini.nb_unit, 2)
+        ini.nb_unit[1].power_launched = 1E6
+        ini.nb_unit[1].beam_energy = 80e3
+        ini.nb_unit[1].beam_mass = 2.0
+        ini.nb_unit[1].template_beam = :mast_onaxis
+        
+        ini.nb_unit[2].power_launched = 1E6
+        ini.nb_unit[2].beam_energy = 80e3
+        ini.nb_unit[2].beam_mass = 2.0
+        ini.nb_unit[2].template_beam = :mast_offaxis
+    else
+        act.ActorHCD.nb_model = :none
+        act.ActorHCD.ec_model = :none
+        act.ActorHCD.lh_model = :none
+        act.ActorHCD.ic_model = :none
+        act.ActorHCD.pellet_model = :none
+    end
+    
+    return ini, act
+end
+
+"""
+    case_parameters(:MASTU, ods::IMAS.dd)
+
+MAST-U from ODS/dd object with experimental data
+"""
+function case_parameters(::Val{:MASTU}, dd::IMAS.dd)
+    # Get base MASTU machine parameters
+    ini, act = case_parameters(Val(:MASTU); init_from=:ods)
+    
+    ini.general.casename = "MASTU from dd"
+    
+    # Load and merge the provided ODS data
+    ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
+    merge!(ini.general.dd, dd)
+    
+    # Set time from the ODS
+    IMAS.last_global_time(ini.general.dd)
+    ini.time.simulation_start = dd.global_time
+    
+    # Extract parameters from the ODS (equilibrium, profiles, etc.)
+    set_ini_act_from_ods!(ini, act)
+    
+    return ini, act
+end
