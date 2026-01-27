@@ -2,7 +2,7 @@ using Distributed
 using DifferentialEquations
 import Roots
 using Plots
-import FUSE: coordinates
+#import FUSE: coordinates
 
 
 #================== =#
@@ -32,7 +32,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "Type of application: 'RP-RW' for resistive plasma with a single rational surface interacting with a resistive wall; 
                               'RP-IW' for resistive plasma with a single rational surface interacting with an ideal wall;
                               'RP-RP-RW' for resistive plasma with two rational surfaces interacting with a resistive wall;
-                              'RP-RW-IW' for resistive plasma with a single rational surface interacting with both walls"; default="RP-RW"
+                              'RP-RW-IW' for resistive plasma with a single rational surface interacting with both walls"; 
+        default="RP-RW"
     )
     NL_saturation_ON::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=false)
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
@@ -67,7 +68,7 @@ Base.@kwdef mutable struct ODEparams
     rat_surface::Float64 = 0.67 # q=2 surface location in dimensionless units"; default=0.67)
     res_wall::Float64 = 1.0  # Resistive wall location in dimensionless units"; default=1.0)
     control_surf::Float64 = 1.25    # Control surface location in dimensionless units"; default=1.25)
-    mu::Float64 = 0.1              # shear modulus
+    mu::Float64 = 0.1              # anomalous perp. plasma viscosity
     Inertia::Float64 = 0.1          # moment of inertia of the layer
     Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
     Control2::Vector{Float64} = Float64[] # control parameter 2,
@@ -76,10 +77,8 @@ Base.@kwdef mutable struct ODEparams
     l32::Float64 = 1.0        # mutual inductance between the control surface and RW
     Taut_Tauw::Float64 = 1.0  # ratio of tearing time to wall time
     hyper_cube_dims::Vector{Float64} = [1., 1., 1.] # dimensions of the initial condtion hypercube
-    alpha_upper::Float64 = 0.6
-    alpha_lower::Float64 = 0.1
-    Delta_upper::Float64 = -0.1
-    Delta_lower::Float64 = -0.5
+    Control2_min::Float64 = 0.01
+    Control2_max::Float64 = 1.0
     # keep adding default and magic things
 end
 
@@ -87,13 +86,46 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorLocking{P}}
     ode_params::Union{Nothing, ODEparams}
-    # Add the ODEstruct thing here so you can access it when you debug it
-    function ActorLocking(dd::IMAS.dd{D}, par::FUSEparameters__ActorLocking{P}; kw...) where {D<:Real,P<:Real}
+
+    function ActorLocking(
+        dd::IMAS.dd{D},
+        par::FUSEparameters__ActorLocking{P};
+        ode_params = nothing,
+        kw...
+    ) where {D<:Real,P<:Real}
+
         logging_actor_init(ActorLocking)
+
+        # Apply standard FUSE parameter overrides
         par = OverrideParameters(par; kw...)
-        return new{D,P}(dd, par, nothing)
+
+        # Handle ODE params
+        ode = if ode_params === nothing
+            nothing
+        elseif ode_params isa ODEparams
+            ode_params
+        elseif ode_params isa NamedTuple
+            ODEparams(; ode_params...)
+        else
+            error("ode_params must be nothing, ODEparams, or NamedTuple")
+        end
+
+        return new{D,P}(dd, par, ode)
     end
 end
+
+
+# mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
+#     dd::IMAS.dd{D}
+#     par::OverrideParameters{P,FUSEparameters__ActorLocking{P}}
+#     ode_params::Union{Nothing, ODEparams}
+#     # Add the ODEstruct thing here so you can access it when you debug it
+#     function ActorLocking(dd::IMAS.dd{D}, par::FUSEparameters__ActorLocking{P}; kw...) where {D<:Real,P<:Real}
+#         logging_actor_init(ActorLocking)
+#         par = OverrideParameters(par; kw...)
+#         return new{D,P}(dd, par, nothing)
+#     end
+# end
 
 """
     ActorLocking(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -137,7 +169,7 @@ function _step(actor::ActorLocking)
         # Solve the ODE system on the whole control grid):
         control1 = actor.ode_params.Control1
         control2 = actor.ode_params.Control2
-        full_sys_sols = solve_system(actor, application, control1, control2)
+        full_sys_sols = solve_system(actor, application)
         norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
              control2, control1, actor.par.control_type)
 
@@ -227,12 +259,11 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     # Overwrite params to reproduce PoP2024
     ode_params.mu = 0.1
     ode_params.Inertia = 1
-    ode_params.Delta_lower = -3.5
-
+    
     # Prepare control parameters based on the control type
     ode_params = set_control_parameters!(dd, par, ode_params)
 
-    return ode_params #ODEparams(;sim_time, rat_surface=rat_surf,rat_index,stability_index=Deltat, DeltaW=Deltaw)
+    return ode_params
 end
 
 # function set_sim_time(time0::Float64, tfinal::Float64, time_steps::Int64) 
@@ -253,7 +284,7 @@ function find_rat_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_sur
     x0 = findfirst(x -> abs(x) > rat_surface, q_prof)
     f = x -> abs(q_interp(x)) - rat_surface
     @time rho_rat = Roots.secant_method(f, (rho[x0-1], rho[x0]))
-    println("Found q=$rat_surface surface at: ", rho_rat)
+    @info "Found q=$rat_surface surface at: ", rho_rat
     return rho_rat
 end
 
@@ -281,11 +312,21 @@ function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
 
     ## In case control_type=:LinStab, adjust the upper Deltat to keep the
     ## RP-RW system weakly stable. Then, adjust the lower Deltat
-    ode_params.Delta_upper = ode_params.l21 * ode_params.l12 / ode_params.DeltaW - 5.e-2
-    if ode_params.Delta_lower >= ode_params.Delta_upper
-        ode_params.Delta_lower = ode_params.Delta_upper + ode_params.Delta_upper
+    if par.control_type == :LinStab
+        @info "Adjusting Deltat range for LinStab control to keep RW-RP system stable"
+        if ode_params.Control2_min > 0.0
+            ode_params.Control2_min = -3.5
+            println("Setting Deltat minimum to $(ode_params.Control2_min) for RP-RW system to be stable")
+        end
+
+        ode_params.Control2_max = ode_params.l21 * ode_params.l12 / ode_params.DeltaW - 5.e-2
+        if ode_params.Control2_max > 0.0
+            error("Maximum Deltat for stability must be <0 for RP-RW system to be stable")
+        end
+        
+        println(ode_params.Control2_min, ode_params.Control2_max)
     end
-    println(ode_params.Delta_upper, ode_params.Delta_lower)
+    
 
     return ode_params
 end
@@ -364,13 +405,16 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     l12 = ode_params.l12
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
+    c2min = ode_params.Control2_min
+    c2max = ode_params.Control2_max
 
     # figure out the rotation rate at the q=2 surface
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
     Omega0 = rot_interp(rt) * 2 * π * par.t0 # in units of kHz
-    Omega0 = 10
+    @info("Calculated toroidal rotation frequency at rational surface: $Omega0 kHz")
+    Omega0 = 10  # overwrite for now to DEBUG
     println("Toroidal rotation requency at rational surface: ", Omega0, " kHz")
 
     Om0Vals = range(1.0e-2, Omega0, length=N) |> collect
@@ -379,23 +423,26 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     ode_params.Control1 = Control1
 
     # Initialize the other control parameter based on the control type
+    Control2_vals = range(c2min, c2max, length=M) |> collect
     if control_type == :EF
+        println("Overwriting default Control2 range with Max Error Field")
         EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
         Control2_vals = range(1e-2, EpsUp, length=M) |> collect
 
     elseif control_type == :LinStab
-        ode_params.error_field = 0.6  # Example value for error field
-        Control2_vals = range(ode_params.Delta_lower, ode_params.Delta_upper, length=M) |> collect
+        #ode_params.error_field = 0.6  # Example value for error field
+        #Control2_vals = range(ode_params.Delta_lower, ode_params.Delta_upper, length=M) |> collect
         ## Check to make sure the system is still weakly stable
         DeltatRW = Control2_vals .- l21*l12/DeltaW
         if any(DeltatRW .> 0)
             println("*** ALERT: You set up a case with an unstable RP-RW mode! ***")
             println("*** Maximum RP-RW stability set to ", maximum(DeltatRW))
             error("Deltat_RW > 0 for your range of TM stability values ***")
-end
+        end
 
     elseif control_type == :NLsaturation
-        Control2_vals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
+        println("Do nothing for NL saturation control")
+        #Control2_vals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
         
         #ode_params.saturation_param = Control2
     end
@@ -709,9 +756,6 @@ function solve_system(actor::ActorLocking, task::String)
     finals = pmap(inputs) do (C1, C2)
         solve_ODEs(par, ode_params_send, task, C2, C1)
     end
-
-    
-    # finals[i] is the final state vector for inputs[i].
     
     return finals
 end
