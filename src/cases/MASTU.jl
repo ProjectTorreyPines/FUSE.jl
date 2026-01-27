@@ -18,10 +18,10 @@ function case_parameters(::Val{:MASTU}; init_from::Symbol)
     end
 
     ini.equilibrium.boundary_from = :MXH_params
-    ini.equilibrium.R0 = 0.83
-    ini.equilibrium.ϵ = 0.665
-    ini.equilibrium.κ = 2.36
-    ini.equilibrium.B0 = -0.55
+    ini.equilibrium.R0 = 0.996630
+    ini.equilibrium.ϵ = 0.543114
+    ini.equilibrium.κ = 1.938625
+    ini.equilibrium.B0 = -0.561750
     ini.equilibrium.MXH_params = [ 0.836657977635524,
     0.030050802044432556,
     0.63,
@@ -37,20 +37,20 @@ function case_parameters(::Val{:MASTU}; init_from::Symbol)
    -0.004389730106586556
   ]
     ini.equilibrium.Z0 = 0.0
-    ini.equilibrium.ip = 0.8e6
+    ini.equilibrium.ip = 0.744e6
     ini.equilibrium.xpoints = :upper
     
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
-    ini.core_profiles.ne_value = 0.37
+    ini.core_profiles.ne_value = 0.533
     ini.core_profiles.ne_shaping = 0.9
-    ini.core_profiles.Te_core = 1e3
-    ini.core_profiles.Te_ped = 100.0
-    ini.core_profiles.Te_sep = 35.0
+    ini.core_profiles.Te_core = 1427.59
+    ini.core_profiles.Te_ped = 198.78
+    ini.core_profiles.Te_sep = 34.59
     ini.core_profiles.Te_shaping = 1.8
     ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.w_ped = 0.08
-    ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.zeff = 1.5
+    ini.core_profiles.rot_core = 57441.57
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
     ini.tf.technology = :copper
@@ -58,12 +58,12 @@ function case_parameters(::Val{:MASTU}; init_from::Symbol)
     ini.pf_active.technology = :copper
     
     resize!(ini.nb_unit, 2)
-    ini.nb_unit[1].power_launched = 1E6
+    ini.nb_unit[1].power_launched = 0.95E6
     ini.nb_unit[1].beam_energy = 80e3
     ini.nb_unit[1].beam_mass = 2.0
     ini.nb_unit[1].template_beam = :mast_onaxis
     
-    ini.nb_unit[2].power_launched = 1E6
+    ini.nb_unit[2].power_launched = 0.95E6
     ini.nb_unit[2].beam_energy = 80e3
     ini.nb_unit[2].beam_mass = 2.0
     ini.nb_unit[2].template_beam = :mast_offaxis
