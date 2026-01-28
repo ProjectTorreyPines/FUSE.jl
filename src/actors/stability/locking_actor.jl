@@ -115,17 +115,6 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
 end
 
 
-# mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
-#     dd::IMAS.dd{D}
-#     par::OverrideParameters{P,FUSEparameters__ActorLocking{P}}
-#     ode_params::Union{Nothing, ODEparams}
-#     # Add the ODEstruct thing here so you can access it when you debug it
-#     function ActorLocking(dd::IMAS.dd{D}, par::FUSEparameters__ActorLocking{P}; kw...) where {D<:Real,P<:Real}
-#         logging_actor_init(ActorLocking)
-#         par = OverrideParameters(par; kw...)
-#         return new{D,P}(dd, par, nothing)
-#     end
-# end
 
 """
     ActorLocking(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -190,22 +179,43 @@ function _step(actor::ActorLocking)
         ## classify normalized solutions
 
         # write back to dd
+        #@info "Writing back to IMAS dd structure"
+        #update_dd!(dd, par, actor.ode_params, norm_sols)
         
     else
         error("Unknown task: $(par.task)")
     end
     
-
     return actor
 end
 
-function update_dd!(dd::IMAS.dd, par, ode_params::ODEparams)
+function _finalize(actor::ActorLocking)
+    dd = actor.dd
+    par = actor.par
+
+    @info "Finalizing ActorLocking at time $(par._time)"
+    mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
+    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "Troyon no-wall", "n_tor" => MLP.n)
+    mode.perturbation_type.description = "Locked mode limit from ActorLocking"
+    #mode.stability_metric = 0.
+        
+    return actor
+end
+
+function update_dd!(dd::IMAS.dd, par, ode_params::ODEparams, norm_sols::Vector{Vector{Float64}})
     """
     # write back to dd
     """
     @info "Writing back to IMAS dd mhd_linear structure"
+
+    ts = dd.mhd_linear.time_slice
+
+    isempty(ts) && resize!(ts, 1)
     #dd.mhd_linear.time_slice[1].toroidal_mode[1].m_pol_dominant=2
-    #dd.mhd_linear.time_slice[1].toroidal_mode[1].n_tor = 1
+    tor_mode = toroidal_mode
+    isempty(ts) && resize!(ts, 1)
+    tor_mode.n_tor = 1
+    #dd.mhd_linear.time_slice[1].toroidal_mode[1].frequency = norm_sols[3] # in kHz
 
     return
 end
