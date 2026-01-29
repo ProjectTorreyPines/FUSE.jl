@@ -2,6 +2,7 @@ using Distributed
 using DifferentialEquations
 import Roots
 using Plots
+#import Clustering: kmc
 #import FUSE: coordinates
 
 
@@ -144,10 +145,7 @@ function _step(actor::ActorLocking)
     
     #bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
-    ## Solve a single case to debug
-    # pick Control1 = rotation Frequency 
-    # and Control 2 = error field, TM stability index ( <0), or saturation param
-    
+    ## Time evolve the ODEs
     if par.task == "single-case"
         rot_freq = 1.
         solve_one_case(par, actor.ode_params, application, rot_freq)
@@ -169,14 +167,18 @@ function _step(actor::ActorLocking)
 
         # If you want them back on a 2D grid (N x M), reshape here:
         norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size))
-        make_contour(control2, control1, getindex.(norm_sols_2D,1))
         psi_tN = getindex.(norm_sols_2D, 1)
+        make_contour(control2, control1, psi_tN)
+        
         #plt = plot(psi_tN; seriestype=:heatmap)
         #dummy = DummyIDS(control2, control1, psi_tN)
         #plt = plot(dummy, :Z; seriestype=:heatmap)
         #display(plt)
 
         ## classify normalized solutions
+        R = vcat(norm_sols[1]', norm_sols[3]')
+        #kmc = kmeans(R, 2)
+        #locking_labels = kmc.assignments
 
         # write back to dd
         #@info "Writing back to IMAS dd structure"
