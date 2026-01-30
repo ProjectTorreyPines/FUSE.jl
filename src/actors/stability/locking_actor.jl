@@ -195,9 +195,9 @@ function _finalize(actor::ActorLocking)
     dd = actor.dd
     par = actor.par
 
-    @info "Finalizing ActorLocking at time $(par._time)"
+    @info "Finalizing ActorLocking at time"
     mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
-    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "Troyon no-wall", "n_tor" => MLP.n)
+    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "Locked mode", "n_tor" => 1)
     mode.perturbation_type.description = "Locked mode limit from ActorLocking"
     #mode.stability_metric = 0.
         
