@@ -121,25 +121,11 @@ function case_parameters(::Val{:MASTU}, scenario::Symbol)
     ini, act = case_parameters(Val(:MASTU), filenames[scenario])
     ini.general.casename = "MASTU $scenario"
     
-    # Configure heating sources if not in ODS
-    if isempty(ini.general.dd.core_sources)
-        resize!(ini.nb_unit, 2)
-        ini.nb_unit[1].power_launched = 1E6
-        ini.nb_unit[1].beam_energy = 80e3
-        ini.nb_unit[1].beam_mass = 2.0
-        ini.nb_unit[1].template_beam = :mast_onaxis
-        
-        ini.nb_unit[2].power_launched = 1E6
-        ini.nb_unit[2].beam_energy = 80e3
-        ini.nb_unit[2].beam_mass = 2.0
-        ini.nb_unit[2].template_beam = :mast_offaxis
-    else
-        act.ActorHCD.nb_model = :none
-        act.ActorHCD.ec_model = :none
-        act.ActorHCD.lh_model = :none
-        act.ActorHCD.ic_model = :none
-        act.ActorHCD.pellet_model = :none
-    end
+    act.ActorHCD.nb_model = :none
+    act.ActorHCD.ec_model = :none
+    act.ActorHCD.lh_model = :none
+    act.ActorHCD.ic_model = :none
+    act.ActorHCD.pellet_model = :none
     
     return ini, act
 end
