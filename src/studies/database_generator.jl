@@ -13,7 +13,7 @@ It's also possible to run the database generator on Vector of `ini`s and `act`s.
 
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
-function study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+function study_parameters(::Val{:DatabaseGenerator})
     return FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
 end
 
@@ -253,7 +253,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
         # save empty dd and error to directory
-        save_study_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=error, timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_study_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io; error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
