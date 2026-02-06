@@ -62,6 +62,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.ne_shaping,
                 pressure_core=getproperty(ini.equilibrium, :pressure_core, missing),
                 helium_fraction=ini.core_profiles.bulk in (:DT, :D_T) ? ini.core_profiles.helium_fraction : 0.0,
+                tungsten_density=getproperty(ini.core_profiles, :tungsten_density, 0.0),
                 ini.core_profiles.w_ped,
                 ini.core_profiles.zeff,
                 ini.core_profiles.bulk,
@@ -104,6 +105,7 @@ function init_core_profiles!(
     ne_shaping::Real,
     pressure_core::Union{Real,Missing},
     helium_fraction::Real,
+    tungsten_density::Real,
     w_ped::Real,
     zeff::Real,
     bulk::Symbol,
@@ -167,31 +169,51 @@ function init_core_profiles!(
 
     # Set ions:
     cp1d.zeff = ones(ngrid) .* zeff
-    bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
-    # 1. DT
+    n_ion_species = tungsten_density > 0.0 ? 4 : 3
+    ions = resize!(cp1d.ion, n_ion_species)
+    # 1. Bulk (DT, D, H)
+    bulk_ion = ions[1]
     IMAS.ion_element!(bulk_ion, bulk)
-    # 2. Impurity
+    # 2. Seeded impurity (Ne, Ar, etc.)
+    imp_ion = ions[2]
     IMAS.ion_element!(imp_ion, impurity)
-    # 3. He
+    # 3. Helium ash
+    he_ion = ions[3]
     IMAS.ion_element!(he_ion, :He4)
+    # 4. Tungsten trace (if present)
+    z_W = 60  # effective charge state assumption
+    if tungsten_density > 0.0
+        w_ion = ions[4]
+        IMAS.ion_element!(w_ion, :W)
+        w_ion.density_thermal = ones(ngrid) .* tungsten_density
+    end
 
-    # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
-    niFraction = zeros(3)
-    # DT == 1
-    # Imp == 2
-    # He == 3
+    # Zeff and quasi neutrality: solve for DT and impurity fractions (relative to ne)
+    # given fixed helium_fraction and optional tungsten
     zimp = imp_ion.element[1].z_n
+    niFraction = zeros(3)  # fractions relative to ne for DT, seeded impurity, He
     niFraction[3] = helium_fraction
-    niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
-    niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
-    @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
+
+    # W contribution as fraction of ne_core (W has flat density, ne is peaked)
+    f_W = tungsten_density > 0.0 ? tungsten_density / ne_core : 0.0
+
+    # Solve 2x2 system from quasineutrality and Zeff:
+    #   f_DT + zimp * f_imp + 2 * f_He + z_W * f_W = 1
+    #   f_DT + zimp^2 * f_imp + 4 * f_He + z_W^2 * f_W = zeff
+    niFraction[2] = (zeff - 1 - 2 * niFraction[3] - z_W * (z_W - 1) * f_W) / (zimp * (zimp - 1))
+    niFraction[1] = 1 - 2 * niFraction[3] - z_W * f_W - zimp * niFraction[2]
+
+    @assert !any(niFraction .< 0.0) "zeff=$zeff impossible to match for given helium_fraction=$helium_fraction, tungsten_density=$tungsten_density, and impurity=$impurity (zimp=$zimp)"
     ni_core = 0.0
-    for i in eachindex(cp1d.ion)
+    for i in 1:3
         cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
         ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
     end
+    if tungsten_density > 0.0
+        ni_core += tungsten_density
+    end
     # remove He if not present
-    if sum(niFraction[3]) == 0.0
+    if niFraction[3] == 0.0
         deleteat!(cp1d.ion, 3)
     end
 

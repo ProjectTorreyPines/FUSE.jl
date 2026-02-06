@@ -103,6 +103,7 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     bulk::Switch{Symbol} = Switch{Symbol}([:H, :D, :DT, :D_T], "-", "Hydrogenic bulk ion species. Use :D_T for unbundled :D and :T species.")
     impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
+    tungsten_density::Entry{T} = Entry{T}("m⁻³", "Tungsten trace impurity number density (flat profile). Effective charge state Z=60 assumed. Typical range: 0 (clean) to 5e16 (heavily contaminated). Set to 0.0 to disable."; default=0.0, check=x -> @assert x >= 0.0 "must be: tungsten_density >= 0.0")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
     polarized_fuel_fraction::Entry{T} =
         Entry{T}("-", "Spin polarized fuel fraction"; default=0.0, check=x -> @assert 0.0 <= x <= 1.0 "must be: 0.0 <= polarized_fuel_fraction <= 1.0")
