@@ -942,36 +942,44 @@ function unpack_z_profiles(
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)
-    N_channels = round(Int, length(z_profiles) / N, RoundDown)
 
-    # Build spatially varying z_max profile
+    # Build spatially varying z_max profile and apply clamping
+    # Avoid allocations by clamping directly with modulo indexing
     if par.z_max isa Real
-        # Uniform limit for all locations
-        z_max_profile = fill(par.z_max, N)
+        # Uniform limit - simple scalar clamping
+        z_max_val = par.z_max
+        @inbounds for i in eachindex(z_profiles)
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
     elseif par.z_max isa NamedTuple
-        # Spatially varying limit
+        # Spatially varying limit - compute slope once outside loop
         core_limit = par.z_max.core
         edge_limit = par.z_max.edge
         rho_trans = par.z_max.rho_transition
+        slope = (edge_limit - core_limit) / (1.0 - rho_trans)
 
-        z_max_profile = similar(cp_rho_transport)
-        for (i, rho) in enumerate(cp_rho_transport)
-            if rho <= rho_trans
-                z_max_profile[i] = core_limit
+        # Clamp each z_profile element using spatially varying limit
+        @inbounds for i in eachindex(z_profiles)
+            rho_idx = mod1(i, N)  # Map to radial position
+            rho = cp_rho_transport[rho_idx]
+
+            # Compute z_max for this radial location
+            z_max_val = if rho <= rho_trans
+                core_limit
             else
-                # Linear interpolation from core_limit at rho_trans to edge_limit at rho=1.0
-                slope = (edge_limit - core_limit) / (1.0 - rho_trans)
-                z_max_profile[i] = core_limit + slope * (rho - rho_trans)
+                core_limit + slope * (rho - rho_trans)
             end
+
+            # Apply clamping in-place
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
         end
     else
         # Default fallback
-        z_max_profile = fill(100.0, N)
+        z_max_val = 100.0
+        @inbounds for i in eachindex(z_profiles)
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
     end
-
-    # Apply clamping to all z_profiles at once (replicated for all channels)
-    z_max_full = repeat(z_max_profile, N_channels)
-    z_profiles .= min.(max.(z_profiles, -z_max_full), z_max_full)
 
     counter = 0
 
