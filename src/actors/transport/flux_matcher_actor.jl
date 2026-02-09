@@ -53,6 +53,26 @@ import NonlinearSolve, FixedPointAcceleration
         default=1.0,
         check=x -> @assert x > 0.0 "must be: turbulence_scale_value > 0.0"
     )
+    z_max::Entry{Union{T,NamedTuple}} = Entry{Union{T,NamedTuple}}(
+        "m⁻¹",
+        """
+        Maximum allowed normalized gradient (inverse scale length). Can be:
+        * Single value: applies to all channels and radii (e.g., 100.0)
+        * NamedTuple for spatially varying limits:
+          (core=20.0, edge=100.0, rho_transition=0.80)
+          Values are constant at 'core' for rho <= rho_transition, then linearly increase to 'edge' at rho=1.0
+        """;
+        default=(core=20.0, edge=100.0, rho_transition=0.80),
+        check=x -> begin
+            if x isa Real
+                @assert x > 0.0 "z_max must be positive"
+            elseif x isa NamedTuple
+                @assert haskey(x, :core) && haskey(x, :edge) && haskey(x, :rho_transition) "Spatially varying z_max must have :core, :edge, :rho_transition"
+                @assert x.core > 0.0 && x.edge > 0.0 "core and edge z_max must be positive"
+                @assert 0.0 <= x.rho_transition <= 1.0 "rho_transition must be between 0 and 1"
+            end
+        end
+    )
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
     show_trace::Entry{Bool} = Entry{Bool}("-", "Show convergence trace of nonlinear solver"; default=false)
@@ -918,14 +938,41 @@ function unpack_z_profiles(
     par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
     z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
-    # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10.0
-    z_profiles .= min.(max.(z_profiles, -z_max), z_max)
-
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)
+    N_channels = round(Int, length(z_profiles) / N, RoundDown)
+
+    # Build spatially varying z_max profile
+    if par.z_max isa Real
+        # Uniform limit for all locations
+        z_max_profile = fill(par.z_max, N)
+    elseif par.z_max isa NamedTuple
+        # Spatially varying limit
+        core_limit = par.z_max.core
+        edge_limit = par.z_max.edge
+        rho_trans = par.z_max.rho_transition
+
+        z_max_profile = similar(cp_rho_transport)
+        for (i, rho) in enumerate(cp_rho_transport)
+            if rho <= rho_trans
+                z_max_profile[i] = core_limit
+            else
+                # Linear interpolation from core_limit at rho_trans to edge_limit at rho=1.0
+                slope = (edge_limit - core_limit) / (1.0 - rho_trans)
+                z_max_profile[i] = core_limit + slope * (rho - rho_trans)
+            end
+        end
+    else
+        # Default fallback
+        z_max_profile = fill(100.0, N)
+    end
+
+    # Apply clamping to all z_profiles at once (replicated for all channels)
+    z_max_full = repeat(z_max_profile, N_channels)
+    z_profiles .= min.(max.(z_profiles, -z_max_full), z_max_full)
+
     counter = 0
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
