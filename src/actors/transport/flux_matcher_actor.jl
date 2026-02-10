@@ -53,6 +53,26 @@ import NonlinearSolve, FixedPointAcceleration
         default=1.0,
         check=x -> @assert x > 0.0 "must be: turbulence_scale_value > 0.0"
     )
+    z_max::Entry{Union{T,NamedTuple}} = Entry{Union{T,NamedTuple}}(
+        "m⁻¹",
+        """
+        Maximum allowed normalized gradient (inverse scale length). Can be:
+        * Single value: applies to all channels and radii (e.g., 10.0)
+        * NamedTuple for spatially varying limits:
+          (core=20.0, edge=100.0, rho_transition=0.80)
+          Values are constant at 'core' for rho <= rho_transition, then linearly increase to 'edge' at rho=1.0
+        """;
+        default=10.0,
+        check=x -> begin
+            if x isa Real
+                @assert x > 0.0 "z_max must be positive"
+            elseif x isa NamedTuple
+                @assert haskey(x, :core) && haskey(x, :edge) && haskey(x, :rho_transition) "Spatially varying z_max must have :core, :edge, :rho_transition"
+                @assert x.core > 0.0 && x.edge > 0.0 "core and edge z_max must be positive"
+                @assert 0.0 <= x.rho_transition <= 1.0 "rho_transition must be between 0 and 1"
+            end
+        end
+    )
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
     show_trace::Entry{Bool} = Entry{Bool}("-", "Show convergence trace of nonlinear solver"; default=false)
@@ -918,14 +938,49 @@ function unpack_z_profiles(
     par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
     z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
-    # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10.0
-    z_profiles .= min.(max.(z_profiles, -z_max), z_max)
-
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)
+
+    # Build spatially varying z_max profile and apply clamping
+    # Avoid allocations by clamping directly with modulo indexing
+    if par.z_max isa Real
+        # Uniform limit - simple scalar clamping
+        z_max_val = par.z_max
+        @inbounds for i in eachindex(z_profiles)
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
+    elseif par.z_max isa NamedTuple
+        # Spatially varying limit - compute slope once outside loop
+        core_limit = par.z_max.core
+        edge_limit = par.z_max.edge
+        rho_trans = par.z_max.rho_transition
+        slope = (edge_limit - core_limit) / (1.0 - rho_trans)
+
+        # Clamp each z_profile element using spatially varying limit
+        @inbounds for i in eachindex(z_profiles)
+            rho_idx = mod1(i, N)  # Map to radial position
+            rho = cp_rho_transport[rho_idx]
+
+            # Compute z_max for this radial location
+            z_max_val = if rho <= rho_trans
+                core_limit
+            else
+                core_limit + slope * (rho - rho_trans)
+            end
+
+            # Apply clamping in-place
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
+    else
+        # Default fallback
+        z_max_val = 100.0
+        @inbounds for i in eachindex(z_profiles)
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
+    end
+
     counter = 0
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
