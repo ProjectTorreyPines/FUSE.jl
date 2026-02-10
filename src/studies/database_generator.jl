@@ -11,6 +11,9 @@ Generates a database of dds from `ini` and `act` based on ranges specified in `i
 
 It's also possible to run the database generator on Vector of `ini`s and `act`s. NOTE: the length of the `ini`s and `act`s must be the same.
 
+For large parameter sweeps (100k+ combinations), use the generator-based constructor to avoid
+materializing all ini/act objects in memory. See `StudyDatabaseGenerator(sty, generator)`.
+
 There is a example notebook in `FUSE_examples/study_database_generator.ipynb` that goes through the steps of setting up, running and analyzing this study
 """
 function study_parameters(::Val{:DatabaseGenerator})
@@ -32,16 +35,24 @@ end
 
 mutable struct StudyDatabaseGenerator{T<:Real} <: AbstractStudy
     sty::OverrideParameters{T,FUSEparameters__ParametersStudyDatabaseGenerator{T}}
-    ini::Union{ParametersAllInits,Vector{<:ParametersAllInits}}
-    act::Union{ParametersAllActors,Vector{<:ParametersAllActors}}
+    ini::Union{ParametersAllInits,Vector{<:ParametersAllInits},Nothing}
+    act::Union{ParametersAllActors,Vector{<:ParametersAllActors},Nothing}
+    generator::Union{Nothing,Function}
     dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
 end
 
+function setup(study::StudyDatabaseGenerator)
+    sty = study.sty
+    check_and_create_file_save_mode(sty)
+    parallel_environment(sty.server, sty.n_workers)
+    return study
+end
+
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = OverrideParameters(sty; kw...)
-    study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
+    study = StudyDatabaseGenerator(sty, ini, act, nothing, missing, missing, missing)
     return setup(study)
 end
 
@@ -49,10 +60,10 @@ function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersA
     @assert length(inis) == length(acts)
     sty = OverrideParameters(sty; kw...)
     if sty.n_simulations ≠ length(inis)
-        @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
+        @warn "sty.n_simulations is set to length(inis)=$(length(inis))"
         sty.n_simulations = length(inis)
     end
-    study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
+    study = StudyDatabaseGenerator(sty, inis, acts, nothing, missing, missing, missing)
 
     check_and_create_file_save_mode(sty)
 
@@ -62,18 +73,82 @@ function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersA
 end
 
 """
+    StudyDatabaseGenerator(sty::ParametersStudy, generator::Function; kw...)
+
+Create a database generator study using a lazy generator function instead of pre-allocated
+`ini`/`act` vectors. The `generator` function must accept an integer index and return a
+`(ini::ParametersAllInits, act::ParametersAllActors)` tuple.
+
+This avoids materializing all parameter combinations in memory at once, which is critical
+for large parameter sweeps (100k+ combinations) where pre-allocating all `ini`/`act` objects
+would exhaust available memory and cause each `pmap` worker to serialize the entire collection.
+
+`sty.n_simulations` must be set before calling this constructor.
+
+### Example:
+```julia
+grid = collect(Iterators.product(param1_values, param2_values, ...))
+sty.n_simulations = length(grid)
+
+function make_ini_act(item::Int)
+    (p1, p2, ...) = grid[item]
+    ini = deepcopy(ini_base)
+    act = deepcopy(act_base)
+    ini.some_param = p1
+    ...
+    return ini, act
+end
+
+study = FUSE.StudyDatabaseGenerator(sty, make_ini_act)
+```
+"""
+function StudyDatabaseGenerator(sty::ParametersStudy, generator::Function; kw...)
+    sty = OverrideParameters(sty; kw...)
+    @assert sty.n_simulations > 0 "sty.n_simulations must be set before creating a generator-based study"
+    study = StudyDatabaseGenerator(sty, nothing, nothing, generator, missing, missing, missing)
+
+    check_and_create_file_save_mode(sty)
+
+    parallel_environment(sty.server, sty.n_workers)
+
+    return study
+end
+
+"""
+    _resolve_ini_act(study::StudyDatabaseGenerator, item::Int)
+
+Resolve the `(ini, act)` pair for a given item index, supporting generator functions,
+vectors, and single ini/act with random sampling.
+"""
+function _resolve_ini_act(study::StudyDatabaseGenerator, item::Int)
+    if study.generator !== nothing
+        return study.generator(item)
+    elseif study.ini isa Vector
+        return study.ini[item], study.act[item]
+    else
+        return rand(study.ini), rand(study.act)
+    end
+end
+
+"""
     _run(study::StudyDatabaseGenerator)
 
-Runs the DatabaseGenerator with sty settings in parallel on designated cluster
+Runs the DatabaseGenerator with sty settings in parallel on designated cluster.
+
+Uses lightweight pmap closures that avoid serializing the full ini/act collections to each
+worker. For generator-based studies, only the small generator closure is sent to workers.
+For vector-based studies, individual (item, ini, act) tuples are sent one at a time.
 """
 function _run(study::StudyDatabaseGenerator)
     sty = study.sty
 
     @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
-    if typeof(study.ini) <: ParametersAllInits && typeof(study.act) <: ParametersAllActors
+    if study.generator !== nothing
         iterator = collect(1:sty.n_simulations)
-    elseif typeof(study.ini) <: Vector{<:ParametersAllInits} && typeof(study.act) <: Vector{<:ParametersAllActors}
+    elseif study.ini isa ParametersAllInits && study.act isa ParametersAllActors
+        iterator = collect(1:sty.n_simulations)
+    elseif study.ini isa Vector{<:ParametersAllInits} && study.act isa Vector{<:ParametersAllActors}
         @assert length(study.ini) == length(study.act)
         iterator = collect(1:length(study.ini))
     else
@@ -82,24 +157,67 @@ function _run(study::StudyDatabaseGenerator)
 
     study.iterator = iterator
 
-    # paraller run
+    # parallel run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
 
+    # Extract lightweight references to avoid capturing the full study (with potentially
+    # large ini/act vectors) in pmap closures. Each worker should only receive the data
+    # it needs for its assigned case, not the entire parameter collection.
+    _sty = study.sty
+    _wf = study.workflow
+
     if study.sty.database_policy == :separate_folders
-        FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
+
+        if study.generator !== nothing
+            _gen = study.generator
+            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
+                ini, act = _gen(item)
+                run_case(_sty, _wf, ini, act, item)
+            end
+        elseif study.ini isa Vector
+            work_items = [(i, study.ini[i], study.act[i]) for i in iterator]
+            FUSE.ProgressMeter.@showprogress pmap(work_items) do (item, ini, act)
+                run_case(_sty, _wf, ini, act, item)
+            end
+        else
+            _ini, _act = study.ini, study.act
+            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
+                run_case(_sty, _wf, rand(_ini), rand(_act), item)
+            end
+        end
         extract_results(study)
 
     elseif study.sty.database_policy == :single_hdf5
 
-        FUSE.ProgressMeter.@showprogress pmap(item -> begin
+        if study.generator !== nothing
+            _gen = study.generator
+            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
                 try
-                    run_case(study, item, Val(:hdf5))
+                    ini, act = _gen(item)
+                    run_case(_sty, _wf, ini, act, item, Val(:hdf5))
                 catch e
-                    if isa(e, InterruptException)
-                        rethrow(e)  # or handle as needed
-                    end
+                    isa(e, InterruptException) && rethrow(e)
                 end
-            end, iterator)
+            end
+        elseif study.ini isa Vector
+            work_items = [(i, study.ini[i], study.act[i]) for i in iterator]
+            FUSE.ProgressMeter.@showprogress pmap(work_items) do (item, ini, act)
+                try
+                    run_case(_sty, _wf, ini, act, item, Val(:hdf5))
+                catch e
+                    isa(e, InterruptException) && rethrow(e)
+                end
+            end
+        else
+            _ini, _act = study.ini, study.act
+            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
+                try
+                    run_case(_sty, _wf, rand(_ini), rand(_act), item, Val(:hdf5))
+                catch e
+                    isa(e, InterruptException) && rethrow(e)
+                end
+            end
+        end
 
         study.dataframe = _merge_tmp_study_files(study.sty.save_folder; cleanup=true)
     else
@@ -115,15 +233,80 @@ function _run(study::StudyDatabaseGenerator)
     return study
 end
 
-"""
-    run_case(study::AbstractStudy, item::String)
+# ================================================================ #
+# run_case methods that accept (study, item) for backward compat   #
+# These delegate to the standalone (sty, workflow, ini, act, item) #
+# methods after resolving ini/act from the study.                  #
+# ================================================================ #
 
-Run a single case based by setting up a dd from ini and act and then executing the workflow_DatabaseGenerator workflow (feel free to change the workflow based on your needs)
+"""
+    run_case(study::AbstractStudy, item::Int)
+
+Run a single case for the separate_folders policy by resolving ini/act from the study.
 """
 function run_case(study::AbstractStudy, item::Int)
     sty = study.sty
-    @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
+    @assert isa(study.workflow, Function) "Make sure to specify a workflow to study.workflow that takes dd, ini, act as arguments"
 
+    if study isa StudyDatabaseGenerator
+        ini, act = _resolve_ini_act(study, item)
+    else
+        if typeof(study.ini) <: ParametersAllInits
+            ini = rand(study.ini)
+        elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
+            ini = study.ini[item]
+        end
+        if typeof(study.act) <: ParametersAllActors
+            act = rand(study.act)
+        elseif typeof(study.act) <: Vector{<:ParametersAllActors}
+            act = study.act[item]
+        end
+    end
+
+    return run_case(sty, study.workflow, ini, act, item)
+end
+
+"""
+    run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
+
+Run a single case for the single_hdf5 policy by resolving ini/act from the study.
+"""
+function run_case(study::AbstractStudy, item::Int, v::Val{:hdf5}; kw...)
+    sty = study.sty
+    @assert isa(study.workflow, Function) "Make sure to specify a workflow to study.workflow that takes dd, ini, act as arguments"
+
+    if study isa StudyDatabaseGenerator
+        ini, act = _resolve_ini_act(study, item)
+    else
+        if typeof(study.ini) <: ParametersAllInits
+            ini = rand(study.ini)
+        elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
+            ini = study.ini[item]
+        end
+        if typeof(study.act) <: ParametersAllActors
+            act = rand(study.act)
+        elseif typeof(study.act) <: Vector{<:ParametersAllActors}
+            act = study.act[item]
+        end
+    end
+
+    return run_case(sty, study.workflow, ini, act, item, v; kw...)
+end
+
+# ================================================================ #
+# Standalone run_case methods that accept ini/act directly.        #
+# These are called from _run's pmap closures to avoid capturing    #
+# the full study object (with large ini/act vectors).              #
+# ================================================================ #
+
+"""
+    run_case(sty, workflow::Function, ini::ParametersAllInits, act::ParametersAllActors, item::Int)
+
+Run a single case for the separate_folders policy with explicitly provided ini/act.
+This method does not reference any large study data structures, making it safe for
+use in pmap closures without serializing the entire parameter collection.
+"""
+function run_case(sty, workflow::Function, ini::ParametersAllInits, act::ParametersAllActors, item::Int)
     original_dir = pwd()
     savedir = abspath(joinpath(sty.save_folder, "$(item)__$(Dates.now())__$(getpid())"))
     mkdir(savedir)
@@ -134,25 +317,13 @@ function run_case(study::AbstractStudy, item::Int)
     original_stderr = stderr  # Save the original stderr
     file_log = open("log.txt", "w")
 
-    # ini/act variations
-    if typeof(study.ini) <: ParametersAllInits
-        ini = rand(study.ini)
-    elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
-        ini = study.ini[item]
-    end
-    if typeof(study.act) <: ParametersAllActors
-        act = rand(study.act)
-    elseif typeof(study.act) <: Vector{<:ParametersAllActors}
-        act = study.act[item]
-    end
-
     dd = IMAS.dd()
 
     try
         redirect_stdout(file_log)
         redirect_stderr(file_log)
 
-        study.workflow(dd, ini, act)
+        workflow(dd, ini, act)
 
         # save simulation data to directory
         save(savedir, sty.save_dd ? dd : nothing, ini, act; timer=true, freeze=false, overwrite_files=true)
@@ -173,10 +344,14 @@ function run_case(study::AbstractStudy, item::Int)
     end
 end
 
-function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
-    sty = study.sty
-    @assert isa(study.workflow, Function) "Make sure to specicy a workflow to study.workflow that takes dd, ini , act as arguments"
+"""
+    run_case(sty, workflow::Function, ini::ParametersAllInits, act::ParametersAllActors, item::Int, ::Val{:hdf5}; kw...)
 
+Run a single case for the single_hdf5 policy with explicitly provided ini/act.
+This method does not reference any large study data structures, making it safe for
+use in pmap closures without serializing the entire parameter collection.
+"""
+function run_case(sty, workflow::Function, ini::ParametersAllInits, act::ParametersAllActors, item::Int, ::Val{:hdf5}; kw...)
     original_dir = pwd()
     if !isdir(sty.save_folder)
         mkdir(sty.save_folder)
@@ -187,25 +362,10 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
     original_stdout = stdout  # Save the original stdout
     original_stderr = stderr  # Save the original stderr
 
-    # ini/act variations
-    if typeof(study.ini) <: ParametersAllInits
-        ini = rand(study.ini)
-    elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
-        ini = study.ini[item]
-    end
-
-    if typeof(study.act) <: ParametersAllActors
-        act = rand(study.act)
-    elseif typeof(study.act) <: Vector{<:ParametersAllActors}
-        act = study.act[item]
-    end
-
     dd = IMAS.dd()
-
 
     zero_pad_length = length(string(sty.n_simulations))
     parent_group = "/case$(lpad(item, zero_pad_length, "0"))"
-
 
     tmp_log_filename = "tmp_log_worker_$(Distributed.myid())_pid$(getpid())_case_$item.txt"
     tmp_log_io = open(tmp_log_filename, "w+")
@@ -217,7 +377,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         redirect_stdout(tmp_log_io)
         redirect_stderr(tmp_log_io)
 
-        study.workflow(dd, ini, act)
+        workflow(dd, ini, act)
 
         df = DataFrame(IMAS.extract(dd, :all))
         df[!, :case] = fill(item, nrow(df))
