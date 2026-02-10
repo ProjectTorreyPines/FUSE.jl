@@ -57,12 +57,12 @@ import NonlinearSolve, FixedPointAcceleration
         "m⁻¹",
         """
         Maximum allowed normalized gradient (inverse scale length). Can be:
-        * Single value: applies to all channels and radii (e.g., 100.0)
+        * Single value: applies to all channels and radii (e.g., 10.0)
         * NamedTuple for spatially varying limits:
           (core=20.0, edge=100.0, rho_transition=0.80)
           Values are constant at 'core' for rho <= rho_transition, then linearly increase to 'edge' at rho=1.0
         """;
-        default=(core=20.0, edge=100.0, rho_transition=0.80),
+        default=10.0,
         check=x -> begin
             if x isa Real
                 @assert x > 0.0 "z_max must be positive"
