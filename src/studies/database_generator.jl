@@ -136,8 +136,9 @@ end
 Runs the DatabaseGenerator with sty settings in parallel on designated cluster.
 
 Uses lightweight pmap closures that avoid serializing the full ini/act collections to each
-worker. For generator-based studies, only the small generator closure is sent to workers.
-For vector-based studies, individual (item, ini, act) tuples are sent one at a time.
+worker. The generator (or vector indexing) is evaluated lazily on the main process, and only
+individual `(item, ini, act)` tuples are sent to workers one at a time. This means the
+generator function can safely reference main-process globals without needing to be a closure.
 """
 function _run(study::StudyDatabaseGenerator)
     sty = study.sty
@@ -160,62 +161,39 @@ function _run(study::StudyDatabaseGenerator)
     # parallel run
     println("running $(sty.n_simulations) simulations with $(sty.n_workers) workers on $(sty.server)")
 
-    # Extract lightweight references to avoid capturing the full study (with potentially
-    # large ini/act vectors) in pmap closures. Each worker should only receive the data
-    # it needs for its assigned case, not the entire parameter collection.
+    # Build a lazy generator of (item, ini, act) tuples that is iterated on the main process.
+    # Only the individual tuples are serialized and sent to workers one at a time.
+    # This avoids: (a) materializing all ini/act in memory, (b) serializing the full
+    # study to each worker, and (c) requiring user-defined generators to be closures.
+    if study.generator !== nothing
+        _gen = study.generator
+        work_items = ((i, _gen(i)...) for i in iterator)
+    elseif study.ini isa Vector
+        _inis, _acts = study.ini, study.act
+        work_items = ((i, _inis[i], _acts[i]) for i in iterator)
+    else
+        _ini, _act = study.ini, study.act
+        work_items = ((i, rand(_ini), rand(_act)) for i in iterator)
+    end
+
     _sty = study.sty
     _wf = study.workflow
 
     if study.sty.database_policy == :separate_folders
 
-        if study.generator !== nothing
-            _gen = study.generator
-            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
-                ini, act = _gen(item)
-                run_case(_sty, _wf, ini, act, item)
-            end
-        elseif study.ini isa Vector
-            work_items = [(i, study.ini[i], study.act[i]) for i in iterator]
-            FUSE.ProgressMeter.@showprogress pmap(work_items) do (item, ini, act)
-                run_case(_sty, _wf, ini, act, item)
-            end
-        else
-            _ini, _act = study.ini, study.act
-            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
-                run_case(_sty, _wf, rand(_ini), rand(_act), item)
-            end
+        FUSE.ProgressMeter.@showprogress pmap(work_items) do (item, ini, act)
+            run_case(_sty, _wf, ini, act, item)
         end
         extract_results(study)
 
     elseif study.sty.database_policy == :single_hdf5
 
-        if study.generator !== nothing
-            _gen = study.generator
-            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
-                try
-                    ini, act = _gen(item)
-                    run_case(_sty, _wf, ini, act, item, Val(:hdf5))
-                catch e
-                    isa(e, InterruptException) && rethrow(e)
-                end
-            end
-        elseif study.ini isa Vector
-            work_items = [(i, study.ini[i], study.act[i]) for i in iterator]
-            FUSE.ProgressMeter.@showprogress pmap(work_items) do (item, ini, act)
-                try
-                    run_case(_sty, _wf, ini, act, item, Val(:hdf5))
-                catch e
-                    isa(e, InterruptException) && rethrow(e)
-                end
-            end
-        else
-            _ini, _act = study.ini, study.act
-            FUSE.ProgressMeter.@showprogress pmap(iterator) do item
-                try
-                    run_case(_sty, _wf, rand(_ini), rand(_act), item, Val(:hdf5))
-                catch e
-                    isa(e, InterruptException) && rethrow(e)
-                end
+        FUSE.ProgressMeter.@showprogress pmap(work_items) do (item, ini, act)
+            try
+                run_case(_sty, _wf, ini, act, item, Val(:hdf5))
+            catch e
+                isa(e, InterruptException) && rethrow(e)
+                @error "run_case failed for item $item on worker $(Distributed.myid())" exception = (e, catch_backtrace())
             end
         end
 
