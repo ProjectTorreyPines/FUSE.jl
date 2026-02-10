@@ -175,7 +175,7 @@ function run_postdictive_case!(
     act.ActorSawteethSource.flat_factor = 1.0
     act.ActorSawteethSource.period = 0.25 # turn off flattening after 0.25s of no sawteeth events
 
-    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+    act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     # time
     δt = 0.05
