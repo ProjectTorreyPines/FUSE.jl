@@ -94,9 +94,9 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :density_thermal)
             ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+            ion.density_thermal .= max.(ion.density_thermal, 0.0)
         end
     end
-    IMAS.scale_ion_densities_to_target_zeff!(cp1d, replay_cp1d.zeff)
 
     # temperatures
     cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
