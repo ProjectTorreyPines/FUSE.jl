@@ -458,17 +458,23 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
     end
 
     # rotation (core from simulation, edge from replay)
-    # NOTE: We must also copy ion.rotation_frequency_tor, not just sonic rotation,
-    # because ion rotation is the measured quantity.
-    cp1d.rotation_frequency_tor_sonic =
-        IMAS.blend_core_edge(cp1d.rotation_frequency_tor_sonic, replay_cp1d.rotation_frequency_tor_sonic, rho, par.rho_nml, par.rho_ped; method=:shift)
+    # NOTE: Cannot use blend_core_edge for rotation because it uses log internally,
+    # and rotation can be negative. Use manual index-based shifting instead.
+    i_nml = IMAS.argmin_abs(rho, par.rho_nml)
+    ω_core = cp1d.rotation_frequency_tor_sonic
+    ω_edge = replay_cp1d.rotation_frequency_tor_sonic
+    ω_core[i_nml+1:end] = ω_edge[i_nml+1:end]
+    ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge[i_nml]
+    cp1d.rotation_frequency_tor_sonic = ω_core
 
     # Ion rotation: same blending
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
-            ion.rotation_frequency_tor = IMAS.blend_core_edge(
-                ion.rotation_frequency_tor, replay_ion.rotation_frequency_tor,
-                rho, par.rho_nml, par.rho_ped; method=:shift)
+            ω_ion_core = ion.rotation_frequency_tor
+            ω_ion_edge = replay_ion.rotation_frequency_tor
+            ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
+            ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]
+            ion.rotation_frequency_tor = ω_ion_core
         end
     end
 
