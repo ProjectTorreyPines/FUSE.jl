@@ -202,7 +202,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     algorithm = if par.algorithm === :default
-        if actor.actor_ct.actor_turb.par.model === :TGLFNN
+        if actor.actor_ct.actor_turb.par.model in (:TGLFNN, :GKNN)
             # combines speed and robustness, but needs smooth derivatives
             :basic_polyalg
         else
@@ -273,7 +273,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
             elseif algorithm === :basic_polyalg
                 NonlinearSolve.NonlinearSolvePolyAlgorithm((NonlinearSolve.Broyden(; autodiff),
-                    NonlinearSolve.SimpleTrustRegion(; autodiff)))
+                    NonlinearSolve.SimpleTrustRegion(; autodiff)),
+                    NonlinearSolve.SimpleDFSane())
 
             elseif algorithm == :polyalg
                 # Default NonlinearSolve algorithm
