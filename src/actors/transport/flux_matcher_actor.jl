@@ -273,8 +273,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
             elseif algorithm === :basic_polyalg
                 NonlinearSolve.NonlinearSolvePolyAlgorithm((NonlinearSolve.Broyden(; autodiff),
-                    NonlinearSolve.SimpleTrustRegion(; autodiff)),
-                    NonlinearSolve.SimpleDFSane())
+                    NonlinearSolve.SimpleTrustRegion(; autodiff),
+                    NonlinearSolve.SimpleDFSane()))
 
             elseif algorithm == :polyalg
                 # Default NonlinearSolve algorithm
