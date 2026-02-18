@@ -2,7 +2,7 @@ using Distributed
 using DifferentialEquations
 import Roots
 using Plots
-#import Clustering: kmc
+using Clustering
 #import FUSE: coordinates
 
 
@@ -157,8 +157,8 @@ function _step(actor::ActorLocking)
         control1 = actor.ode_params.Control1
         control2 = actor.ode_params.Control2
         full_sys_sols = solve_system(actor, application)
-        norm_sols = FUSE.normalize_ode_results(full_sys_sols, actor.ode_params,
-             control2, control1, actor.par.control_type)
+        norm_sols = normalize_ode_results(full_sys_sols, actor.ode_params,
+             control2, control1, par.control_type)
 
         # ## plot normalize solution scatters
         plot_sols_scatter(norm_sols; xcol=1,ycol=3)
@@ -166,8 +166,9 @@ function _step(actor::ActorLocking)
         #inputs = vec(inputs)  # flatten
 
         # If you want them back on a 2D grid (N x M), reshape here:
-        norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size))
-        psi_tN = getindex.(norm_sols_2D, 1)
+        N, M = size(norm_sols)
+        norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size, M))
+        psi_tN = norm_sols_2D[:,:,1]
         make_contour(control2, control1, psi_tN)
         
         #plt = plot(psi_tN; seriestype=:heatmap)
@@ -176,9 +177,11 @@ function _step(actor::ActorLocking)
         #display(plt)
 
         ## classify normalized solutions
-        R = vcat(norm_sols[1]', norm_sols[3]')
-        #kmc = kmeans(R, 2)
-        #locking_labels = kmc.assignments
+        R = hcat(norm_sols[:,1], norm_sols[:,3])
+        kmc = kmeans(R', 2)
+        locking_labels = kmc.assignments
+        println(size(locking_labels))
+        plot_sols_scatter(norm_sols; labels=locking_labels)
 
         # write back to dd
         #@info "Writing back to IMAS dd structure"
@@ -733,7 +736,9 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
         # Many cases
         length(results) == length(Control1) == length(Control2) ||
             throw(ArgumentError("results, eps, and Om0 must all have the same length"))
-        return [normalize_one(sol, e, o) for (sol, e, o) in zip(results, Control1, Control2)]
+        #return [normalize_one(sol, e, o) for (sol, e, o) in zip(results, Control1, Control2)]
+        return reduce(vcat, (normalize_one(sol,e,o)' 
+              for (sol,e,o) in zip(results,Control1,Control2)))
 
     else
         throw(ArgumentError("Input types do not match expected patterns"))
@@ -817,35 +822,56 @@ function plot_sols_scatter(
     return plt
 end
 
-# """
-# #     DummyIDS(X, Y, Z)
+using Plots
 
-# # Minimal wrapper to reuse FUSE plotting recipes with raw arrays.
-# # - `X` :: Vector (coordinate values along dim1)
-# # - `Y` :: Vector (coordinate values along dim2)
-# # - `Z` :: Matrix (data values, size = (length(Y), length(X)))
-# # """
-# struct DummyIDS 
-#     X::Vector{Float64}
-#     Y::Vector{Float64}
-#     Z::Matrix{Float64}
-# end
+function plot_sols_scatter(
+        norm_sols::AbstractMatrix{<:Real};
+        xcol::Int = 1,
+        ycol::Int = 3,
+        labels::Union{Nothing,AbstractVector{<:Integer}} = nothing,
+        xlabel::AbstractString = "TM amplitude",
+        ylabel::AbstractString = "Rotation at the rat. surf.",
+        title::AbstractString = "Normalized solution scatter"
+    )
 
-# Base.getproperty(ids::DummyIDS, s::Symbol) =
-#     s === :Z ? ids.Z : getfield(ids, s)
+    N, M = size(norm_sols)
 
-# # Provide coordinates for the recipe system
-# function coordinates(ids::DummyIDS, field::Symbol)
-#     if field == :Z
-#         return (
-#             (field = :X, ids.X),
-#             (field = :Y, ids.Y)
-#         )
-#     else
-#         return (nothing, nothing)
-#     end
-# end
+    @assert 1 ≤ xcol ≤ M "xcol out of bounds"
+    @assert 1 ≤ ycol ≤ M "ycol out of bounds"
 
+    x = norm_sols[:, xcol]
+    y = norm_sols[:, ycol]
+
+    plt = plot()
+
+    if labels === nothing
+        scatter!(
+            plt,
+            x, y;
+            xlabel = xlabel,
+            ylabel = ylabel,
+            title  = title,
+            legend = false,
+            markersize = 4
+        )
+    else
+        @assert length(labels) == N "labels must match number of rows"
+
+        scatter!(
+            plt,
+            x, y;
+            group = labels,
+            xlabel = xlabel,
+            ylabel = ylabel,
+            title  = title,
+            legend = :topright,
+            markersize = 4
+        )
+    end
+
+    display(plt)
+    return plt
+end
 
 
 
