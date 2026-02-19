@@ -443,9 +443,11 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
 
     # densities
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
-        if !ismissing(ion, :density_thermal)
-            ion.density_thermal = IMAS.blend_core_edge(ion.density_thermal, replay_ion.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
+        if !ismissing(ion, :density)
+            ion.density = IMAS.blend_core_edge(ion.density, replay_ion.density, rho, par.rho_nml, par.rho_ped; method=:shift)
+            IMAS.unfreeze!(ion, :density_thermal)
         end
     end
 
