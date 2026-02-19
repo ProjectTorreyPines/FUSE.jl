@@ -1032,6 +1032,7 @@ function unpack_z_profiles(
         if evolve_densities[:electrons] == :flux_match
             z_ne = z_profiles[counter+1:counter+N]
             cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
+            IMAS.unfreeze!(cp1d.electrons, :density)
             counter += N
         else
             z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
@@ -1042,9 +1043,11 @@ function unpack_z_profiles(
                 break
             elseif evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+                IMAS.unfreeze!(ion, :density)
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
+                IMAS.unfreeze!(ion, :density)
             end
         end
     end
@@ -1209,6 +1212,7 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
     if !ismissing(cp1d.electrons, :density_fast)
         to_cp1d.electrons.density_fast = deepcopy(cp1d.electrons.density_fast)
     end
+    IMAS.unfreeze!(to_cp1d.electrons, :density)
     resize!(to_cp1d.ion, length(cp1d.ion))
     for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
         initial_ion.element = ion.element
@@ -1216,6 +1220,7 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
         if !ismissing(ion, :density_fast)
             initial_ion.density_fast = deepcopy(ion.density_fast)
         end
+        IMAS.unfreeze!(initial_ion, :density)
         initial_ion.temperature = deepcopy(ion.temperature)
     end
     to_cp1d.rotation_frequency_tor_sonic = deepcopy(cp1d.rotation_frequency_tor_sonic)
@@ -1230,12 +1235,14 @@ function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_
     if !ismissing(cp1d.electrons, :density_fast)
         to_cp1d.electrons.density_fast .= cp1d.electrons.density_fast
     end
+    IMAS.unfreeze!(to_cp1d.electrons, :density)
     for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
         initial_ion.density_thermal .= ion.density_thermal
         initial_ion.temperature .= ion.temperature
         if !ismissing(ion, :density_fast)
             initial_ion.density_fast .= ion.density_fast
         end
+        IMAS.unfreeze!(initial_ion, :density)
     end
     to_cp1d.rotation_frequency_tor_sonic .= cp1d.rotation_frequency_tor_sonic
     return to_cp1d
@@ -1301,6 +1308,7 @@ function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IM
         # Replay electron density if set to :replay
         if evolve_densities[:electrons] == :replay
             cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+            IMAS.unfreeze!(cp1d.electrons, :density)
         end
 
         # Replay ion densities if set to :replay
