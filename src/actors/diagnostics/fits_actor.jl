@@ -55,7 +55,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     smooth1 = 0.1
     smooth2 = par.rho_averaging
 
-    # set aside original raw data, since we'll be overwriting it internally 
+    # set aside original raw data, since we'll be overwriting it internally
     dd1 = IMAS.dd{D}()
     for field in (:thomson_scattering, :charge_exchange)
         setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
@@ -179,6 +179,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
         cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        IMAS.unfreeze!(cp1d.electrons, :density)
     end
 
     # time average CER data
@@ -205,6 +206,8 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
         imp_ion.density_thermal = n_i
+        IMAS.unfreeze!(bulk_ion, :density)
+        IMAS.unfreeze!(imp_ion, :density)
     end
 
     # fit Ti
