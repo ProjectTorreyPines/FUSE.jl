@@ -1338,8 +1338,9 @@ function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IM
         for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
             ion_symbol = Symbol(ion.label)
             if haskey(evolve_densities, ion_symbol) && evolve_densities[ion_symbol] == :replay
-                if !ismissing(ion, :density_thermal)
-                    ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+                if !ismissing(ion, :density)
+                    ion.density = IMAS.blend_core_edge(replay_ion.density, ion.density, rho, rho_nml, rho_ped; method=:scale)
+                    IMAS.unfreeze!(ion, :density_thermal)
                 end
             end
         end
