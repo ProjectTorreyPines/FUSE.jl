@@ -180,12 +180,7 @@ function _step(actor::ActorLocking)
         R = hcat(norm_sols[:,1], norm_sols[:,3])
         kmc = kmeans(R', 2)
         locking_labels = kmc.assignments
-        println(size(locking_labels))
         plot_sols_scatter(norm_sols; labels=locking_labels)
-
-        # write back to dd
-        #@info "Writing back to IMAS dd structure"
-        #update_dd!(dd, par, actor.ode_params, norm_sols)
         
     else
         error("Unknown task: $(par.task)")
