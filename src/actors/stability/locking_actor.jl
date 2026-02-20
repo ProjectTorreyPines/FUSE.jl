@@ -851,17 +851,40 @@ function plot_sols_scatter(
         )
     else
         @assert length(labels) == N "labels must match number of rows"
+        # Ensure two unique classes
+        classes = unique(labels)
+        @assert length(classes) == 2 "This version expects exactly 2 classes"
+
+        class1, class2 = classes
+
+        idx1 = findall(labels .== class1)
+        idx2 = findall(labels .== class2)
 
         scatter!(
             plt,
-            x, y;
-            group = labels,
-            xlabel = xlabel,
-            ylabel = ylabel,
-            title  = title,
-            legend = :topright,
-            markersize = 4
+            x[idx1], y[idx1];
+            markershape = :circle,
+            label = "Class $class1",
+            markersize = 5
         )
+
+        scatter!(
+            plt,
+            x[idx2], y[idx2];
+            markershape = :x,
+            label = "Class $class2",
+            markersize = 6
+        )
+        # scatter!(
+        #     plt,
+        #     x, y;
+        #     group = labels,
+        #     xlabel = xlabel,
+        #     ylabel = ylabel,
+        #     title  = title,
+        #     legend = :topright,
+        #     markersize = 4
+        # )
     end
 
     display(plt)
