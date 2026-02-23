@@ -357,7 +357,10 @@ function run_case(sty, workflow::Function, ini::ParametersAllInits, act::Paramet
 
         workflow(dd, ini, act)
 
-        df = DataFrame(IMAS.extract(dd, :all))
+        xtract = IMAS.extract(dd, :all)
+        merge!(xtract, extract_ini(ini))
+        merge!(xtract, extract_act(act))
+        df = DataFrame(xtract)
         df[!, :case] = fill(item, nrow(df))
         df[!, :dir] = fill(sty.save_folder, nrow(df))
         df[!, :gparent] = fill(parent_group, nrow(df))
@@ -386,7 +389,15 @@ function run_case(sty, workflow::Function, ini::ParametersAllInits, act::Paramet
             rethrow(e)
         end
 
-        df = DataFrame(; case=item, dir=sty.save_folder, gparent=parent_group, status="fail")
+        dd_empty = IMAS.dd()
+        xtract = IMAS.extract(dd_empty, :all)
+        merge!(xtract, extract_ini(ini))
+        merge!(xtract, extract_act(act))
+        df = DataFrame(xtract)
+        df[!, :case] = fill(item, nrow(df))
+        df[!, :dir] = fill(sty.save_folder, nrow(df))
+        df[!, :gparent] = fill(parent_group, nrow(df))
+        df[!, :status] = fill("fail", nrow(df))
         df[!, :worker_id] = fill(myid, nrow(df))
         df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 

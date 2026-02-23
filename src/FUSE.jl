@@ -181,6 +181,11 @@ include(joinpath("studies", "TGLF_database.jl"))
 include(joinpath("studies", "experiment_postdictive.jl"))
 include(joinpath("studies", "study_database.jl"))
 
+#= ============ =#
+#  EXTRACT INI   #
+#= ============ =#
+include("extract_ini.jl")
+
 #= ========= =#
 #  WORKFLOWS  #
 #= ========= =#
