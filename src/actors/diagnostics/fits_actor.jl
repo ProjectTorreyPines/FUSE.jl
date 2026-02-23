@@ -224,6 +224,25 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # quasi neutrality
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
+        # CER and Thomson are independent diagnostics and can be inconsistent at the edge.
+        # Clip each impurity density against the remaining electron budget after accounting
+        # for all other impurities, so that n_D >= 0 after enforce_quasi_neutrality!.
+        ne = cp1d.electrons.density_thermal
+        for ion in cp1d.ion
+            if !IMAS.is_hydrogenic(ion) && !ismissing(ion, :density_thermal)
+                # sum charge from all OTHER impurities
+                other_charge = zeros(length(ne))
+                for other in cp1d.ion
+                    if other !== ion && !IMAS.is_hydrogenic(other) && !ismissing(other, :density_thermal)
+                        other_charge .+= other.density_thermal .* IMAS.avgZ(other)
+                    end
+                end
+                # electron budget remaining for this impurity
+                ne_remaining = ne .- other_charge
+                Z_imp = IMAS.avgZ(ion)
+                ion.density_thermal = min.(ion.density_thermal, ne_remaining ./ Z_imp .* 0.99)
+            end
+        end
         IMAS.enforce_quasi_neutrality!(cp1d, :D)
     end
 
