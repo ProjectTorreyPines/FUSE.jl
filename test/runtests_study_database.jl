@@ -18,9 +18,9 @@ using FUSE.DataFrames
     dd3.equilibrium.vacuum_toroidal_field.b0 = [0.8]
 
     # --- Create study_database_item (absent fields -> nothing) ---
-    item1 = FUSE.study_database_item(dd = dd1)
-    item2 = FUSE.study_database_item(dd = dd2, ini = nothing, act = nothing, log = nothing, timer = nothing, error = nothing)
-    item3 = FUSE.study_database_item(dd = dd3, ini = nothing, act = nothing, log = "this is log", timer = nothing, error = "this is error")
+    item1 = FUSE.study_database_item(name = "case1", dd = dd1)
+    item2 = FUSE.study_database_item(name = "case2", dd = dd2, ini = nothing, act = nothing, log = nothing, timer = nothing, error = nothing)
+    item3 = FUSE.study_database_item(name = "case3", dd = dd3, ini = nothing, act = nothing, log = "this is log", timer = nothing, error = "this is error")
     items = [item1, item2, item3]
 
     # --- Simple DataFrame metadata (only columns used in the tests) ---
@@ -28,11 +28,11 @@ using FUSE.DataFrames
     df_additional = DataFrame(
         dir = ["case1", "case2", "case3"],
         case = [1, 2, 3],
-        gparent = ["/case1", "/case2", "/case3"],  # must be valid HDF5 group paths
         status = ["success", "success", "fail"],
         worker_id = [1, 2, 3],
         elapsed_time = [0.1, 0.2, 0.3],
-    )
+    )    
+    
     df = hcat(df, df_additional)   # assumes no name conflicts and same row count
 
     # --- Create study_database ---
@@ -166,5 +166,122 @@ using FUSE.DataFrames
             @test nrow(df_sampled2) == 3
         end
         # mktempdir do ... end ensures temporary dir cleanup automatically
+    end
+
+    @testset "Edge cases - empty names and :gparent handling" begin
+        # Test items with nothing/empty names
+        dd_test = FUSE.IMAS.json2imas(joinpath(@__DIR__, "..", "sample", "CAT_eq_ods.json"))
+
+        # Create items with various name states
+        item_with_name = FUSE.study_database_item(name="valid_name", dd=deepcopy(dd_test))
+        item_nothing_name = FUSE.study_database_item(name=nothing, dd=deepcopy(dd_test))
+        item_empty_name = FUSE.study_database_item(name="", dd=deepcopy(dd_test))
+
+        # Test 1: DataFrame without :gparent column (should auto-create)
+        @testset "Missing :gparent column" begin
+            df_no_gparent = DataFrame(
+                case = [1, 2, 3],
+                status = ["success", "fail", "success"]
+            )
+            items_test = [item_with_name, item_nothing_name, item_empty_name]
+            db_no_gparent = FUSE.study_database(df_no_gparent, items_test)
+
+            mktempdir() do save_dir
+                h5file = joinpath(save_dir, "test_no_gparent.h5")
+                # This should auto-create :gparent column
+                FUSE.save_study_database(h5file, db_no_gparent; timer=false)
+
+                # Verify :gparent was created
+                @test hasproperty(db_no_gparent.df, :gparent)
+                @test db_no_gparent.df.gparent[1] == "/valid_name"
+                @test db_no_gparent.df.gparent[2] == "/item2"  # auto-generated
+                @test db_no_gparent.df.gparent[3] == "/item3"  # auto-generated
+            end
+        end
+
+        # Test 2: DataFrame with invalid :gparent values
+        @testset "Invalid :gparent values" begin
+            df_bad_gparent = DataFrame(
+                gparent = ["valid/path", missing, ""],  # mixed valid/invalid
+                case = [1, 2, 3]
+            )
+            items_test = [item_with_name, item_nothing_name, item_empty_name]
+            db_bad_gparent = FUSE.study_database(df_bad_gparent, items_test)
+
+            mktempdir() do save_dir
+                h5file = joinpath(save_dir, "test_bad_gparent.h5")
+                FUSE.save_study_database(h5file, db_bad_gparent; timer=false)
+
+                # Check that values were processed correctly
+                @test db_bad_gparent.df.gparent[1] == "/valid/path"  # normalized
+                @test db_bad_gparent.df.gparent[2] == "/item2"  # auto-generated from nothing name
+                @test db_bad_gparent.df.gparent[3] == "/item3"  # auto-generated from empty name
+            end
+        end
+
+        # Test 3: Large number of items (test padding)
+        @testset "Auto-name padding" begin
+            # Create 15 items to test padding (should use 2 digits)
+            items_many = [FUSE.study_database_item(name=nothing, dd=deepcopy(dd_test)) for _ in 1:15]
+            df_many = DataFrame(case = 1:15)
+            db_many = FUSE.study_database(df_many, items_many)
+
+            mktempdir() do save_dir
+                h5file = joinpath(save_dir, "test_padding.h5")
+                FUSE.save_study_database(h5file, db_many; timer=false)
+
+                # Check padding is correct (should be 2 digits for 15 items)
+                @test db_many.df.gparent[1] == "/item01"
+                @test db_many.df.gparent[9] == "/item09"
+                @test db_many.df.gparent[10] == "/item10"
+                @test db_many.df.gparent[15] == "/item15"
+            end
+        end
+
+        # Test 4: Mixed valid and invalid names
+        @testset "Mixed name scenarios" begin
+            item1 = FUSE.study_database_item(name="group/subgroup", dd=deepcopy(dd_test))
+            item2 = FUSE.study_database_item(name=nothing, dd=deepcopy(dd_test))
+            item3 = FUSE.study_database_item(name="another_group", dd=deepcopy(dd_test))
+
+            df_mixed = DataFrame(
+                gparent = ["/existing", missing, "no_slash"],
+                case = [1, 2, 3]
+            )
+            db_mixed = FUSE.study_database(df_mixed, [item1, item2, item3])
+
+            mktempdir() do save_dir
+                h5file = joinpath(save_dir, "test_mixed.h5")
+                FUSE.save_study_database(h5file, db_mixed; timer=false)
+
+                # First keeps existing valid value
+                @test db_mixed.df.gparent[1] == "/existing"
+                # Second uses auto-generated (since name is nothing)
+                @test db_mixed.df.gparent[2] == "/item2"
+                # Third normalizes the invalid value
+                @test db_mixed.df.gparent[3] == "/no_slash"
+            end
+        end
+
+        # Test 5: Loading and name stripping
+        @testset "Loading with name stripping" begin
+            # Create a db with known names
+            item1 = FUSE.study_database_item(name="test_load", dd=deepcopy(dd_test))
+            df_load = DataFrame(gparent = ["/test_load"], case = [1])
+            db_load = FUSE.study_database(df_load, [item1])
+
+            mktempdir() do save_dir
+                h5file = joinpath(save_dir, "test_load.h5")
+                FUSE.save_study_database(h5file, db_load; timer=false)
+
+                # Load back
+                db_loaded = FUSE.load_study_database(h5file)
+
+                # Name should have leading "/" stripped when loaded
+                @test db_loaded.items[1].name == "test_load"
+                # But :gparent should keep the "/"
+                @test db_loaded.df.gparent[1] == "/test_load"
+            end
+        end
     end
 end

@@ -27,12 +27,12 @@ end
 
 Unified heating, current drive, and fueling system coordinator for all auxiliary power systems.
 
-This compound actor orchestrates multiple heating and current drive subsystem actors through a 
+This compound actor orchestrates multiple heating and current drive subsystem actors through a
 single interface, providing centralized control over all auxiliary power and particle sources.
 
 Managed subsystems:
 - **Electron Cyclotron (EC)**: ECsimple, TORBEAM, or replay modes
-- **Ion Cyclotron (IC)**: ICsimple or replay modes  
+- **Ion Cyclotron (IC)**: ICsimple or replay modes
 - **Lower Hybrid (LH)**: LHsimple or replay modes
 - **Neutral Beam Injection (NB)**: NBsimple, RABBIT, or replay modes
 - **Pellet fueling**: PLsimple or replay modes
@@ -42,12 +42,12 @@ Key features:
 - Model selection switches for each subsystem (simple physics, advanced codes, replay, or off)
 - Automatic hardware setup and validation (launcher/antenna count consistency)
 - Sequential execution with proper dependencies (neutral fueling runs last)
-- Centralized source integration via IMAS.sources!() 
+- Centralized intrinsic source integration via IMAS.intrinsic_sources!()
 - Unified replay capability for all subsystems
 
 Execution order:
 1. EC heating/current drive
-2. IC heating  
+2. IC heating
 3. LH current drive
 4. NB heating/current drive/momentum
 5. Pellet particle sources
@@ -56,7 +56,7 @@ Execution order:
 
 !!! note
 
-    Reads from hardware descriptions (`dd.ec_launchers`, `dd.ic_antennas`, etc.) and 
+    Reads from hardware descriptions (`dd.ec_launchers`, `dd.ic_antennas`, etc.) and
     pulse schedules (`dd.pulse_schedule`), and coordinates updates to `dd.core_sources`, `dd.waves`, etc.
 """
 function ActorHCD(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -159,8 +159,8 @@ function _step(actor::ActorHCD)
     # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
 
-    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.sources!(dd)
+    # Call IMAS.intrinsic_sources!(dd) since most would expect sources to be consistent when coming out of this actor
+    IMAS.intrinsic_sources!(dd)
 
     return actor
 end

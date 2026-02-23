@@ -5,7 +5,7 @@ import HDF5
 #= ====================== =#
 
 """
-    study_parameters(::Val{:DatabaseGenerator})::Tuple{FUSEparameters__ParametersStudyDatabaseGenerator,ParametersAllActors}
+    study_parameters(::Val{:DatabaseGenerator})
 
 Generates a database of dds from `ini` and `act` based on ranges specified in `ini` (i.e. `ini.equilibrium.R0 = 5.0 ↔ [4.0, 10.0]`)
 
@@ -143,7 +143,7 @@ generator function can safely reference main-process globals without needing to 
 function _run(study::StudyDatabaseGenerator)
     sty = study.sty
 
-    @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
+    @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
     if study.generator !== nothing
         iterator = collect(1:sty.n_simulations)

@@ -33,11 +33,7 @@ using FUSE # this will also import IMAS in the current namespace
 # 
 # FUSE comes with some predefined [use-cases](https://fuse.help/stable/cases.html), some of which are used for regression testing.
 # 
-# Note that some use cases are for non-nuclear experiments and certain Actors like Blankets or BalanceOfPlant will not perform any actions.
-# 
-# Here's the list of supported use-cases. These can be customized and you will also be able to build your own.
-
-methods(FUSE.case_parameters)
+# Note that some use cases are for non-nuclear experiments and certain actors like Blankets or BalanceOfPlant will not perform any actions.
 
 # Get initial parameters (`ini`) and actions (`act`) for a given use-case, let's use KDEMO for example
 

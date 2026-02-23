@@ -1,31 +1,10 @@
-txt = []
-for method in methods(FUSE.case_parameters)
-    name = try
-        method.sig.types[2].parameters[1].parameters[1]
-    catch
-        continue
-    end
-    push!(txt,
-        """## $name
-
-        ```@docs
-        case_parameters(::Val(:$name))
-        ```
-        """
-    )
-end
-
-sort!(txt)
-
-pushfirst!(
-    txt,
-    """# Use cases
+# Use cases
 
 ```@meta
 CurrentModule = FUSE
 ```
 
-FUSE comes with a set of pre-cookes used cases.
+FUSE comes with a set of pre-cooked use cases.
 The `case_parameters(:use_case, ...)` method returns the `ini` and `act` parameters for that specific `use_case`.
 These `ini` and `act` can then be further customized before running a FUSE simulation.
 
@@ -35,9 +14,6 @@ A handy way of generating the ini code from `your_ini` that you created in a not
 !!! tip "Tip!"
     Click on the `Source` button of each use case to see how each is setup
 
-"""
-)
-
-open("$(@__DIR__)/cases.md", "w") do io
-    return write(io, join(txt, "\n"))
-end
+```@docs
+case_parameters
+```

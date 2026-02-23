@@ -3,64 +3,32 @@
 #= ============== =#
 import BoundaryPlasmaModels
 
-@actor_parameters_struct ActorDivertors{T} begin
-    heat_flux_model::Switch{Symbol} = Switch{Symbol}([:lengyel, :stangeby], "-", "Divertor heat flux model"; default=:lengyel)
+Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: ParametersActor{T}
+    _parent::WeakRef = WeakRef(nothing)
+    _name::Symbol = :not_set
+    _time::Float64 = NaN
+    boundary_model::Switch{Symbol} = Switch{Symbol}([:slcoupled, :lengyel, :stangeby], "-", "SOL boundary model"; default=:slcoupled)
     impurities::Entry{Vector{Symbol}} = Entry{Vector{Symbol}}("-", "Vector of impurity species"; default=Symbol[])
     impurities_fraction::Entry{Vector{T}} = Entry{Vector{T}}("-", "Vector of impurity fractions"; default=T[])
-    heat_spread_factor::Entry{T} = Entry{T}("-", "Heat flux expansion factor in the private flux region (eg. due to transport) should be >= 1.0"; default=1.0)
-    thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-", "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=1.0)
+    heat_spread_factor::Entry{T} = Entry{T}("-", "Heat flux expansion factor in the private flux region (eg. due to transport) should be >= 1.0"; default=one(T))
+    thermal_power_extraction_efficiency::Entry{T} = Entry{T}("-", "Fraction of thermal power that is carried out by the coolant at the divertor interface, rather than being lost in the surrounding strutures."; default=one(T))
     verbose::Entry{Bool} = act_common_parameters(verbose=false)
 end
 
 mutable struct ActorDivertors{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorDivertors{P}}
-    boundary_plasma_models::Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}
+    boundary_plasma_models::Vector{BoundaryPlasmaModels.SOLBoundaryModel}
 end
 
 """
     ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Calculates divertor heat fluxes and power loads using reduced SOL transport models.
-
-The actor evaluates the heat and particle fluxes striking divertor targets by tracing 
-power flow from the main plasma through the scrape-off layer (SOL) to the material 
-surfaces. It uses simplified two-point models calibrated for divertor physics.
-
-Key physics modeled:
-- Power flow from separatrix through SOL to divertor targets
-- Heat flux spreading due to field line divergence and cross-field transport  
-- Strike point geometry and magnetic field angle effects
-- Material surface heat loads and wetted area calculations
-
-Heat flux models available:
-- `:lengyel`: Simple exponential decay model with flux expansion
-- `:stangeby`: More sophisticated model including impurity effects
-
-Analysis workflow:
-1. **SOL Geometry**: Identifies strike surfaces and field line connections
-2. **Power Balance**: Calculates SOL power from core sources minus radiation
-3. **SOL Width**: Estimates λq (heat flux width) at outer midplane using Eich scaling
-4. **Field Line Mapping**: Traces flux expansion from midplane to targets
-5. **Heat Flux Calculation**: Applies model-specific physics for target fluxes
-6. **Surface Integration**: Calculates total power loads and peak heat fluxes
-
-Key outputs:
-- Peak heat flux on each divertor target surface (W/m²)
-- Total incident power on each target (W)  
-- Wetted area and flux expansion factors
-- Strike angles and field line geometry parameters
-- Thermal power extraction efficiency for cooling systems
-
-Model parameters:
-- `heat_spread_factor`: Additional flux spreading in private regions
-- `impurities`: Impurity species concentrations affecting radiation
-- `thermal_power_extraction_efficiency`: Cooling system effectiveness
+Evaluates divertor loading and deposited power
 
 !!! note
 
-    Stores detailed heat flux analysis in `dd.divertors` including peak fluxes,
-    total power loads, target geometry, and cooling system requirements
+    Stores data in `dd.divertors`
 """
 function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorDivertors(dd, act.ActorDivertors; kw...)
@@ -72,7 +40,7 @@ end
 function ActorDivertors(dd::IMAS.dd, par::FUSEparameters__ActorDivertors; kw...)
     logging_actor_init(ActorDivertors)
     par = OverrideParameters(par; kw...)
-    return ActorDivertors(dd, par, Vector{BoundaryPlasmaModels.DivertorHeatFluxModel}())
+    return ActorDivertors(dd, par, Vector{BoundaryPlasmaModels.SOLBoundaryModel}())
 end
 
 function _step(actor::ActorDivertors)
@@ -81,71 +49,147 @@ function _step(actor::ActorDivertors)
 
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
+    cs = dd.core_sources
 
     sol1 = IMAS.sol(eqt, dd.wall; levels=1)[:lfs][1] # first SOL open field line on the lfs
     Psol = IMAS.power_sol(dd.core_sources, cp1d)
     λ_omp = IMAS.widthSOL_eich(eqt, Psol)
-
-    identifiers = IMAS.identify_strike_surface(sol1, dd.divertors)
-    identifiers = [(k_divertor, k_target) for (k_divertor, k_target, k_tile) in identifiers]
-
-    for (k_divertor, divertor) in enumerate(dd.divertors.divertor)
-        for (k_target, target) in enumerate(divertor.target)
-
-            # identify which end of the field line strikes the divertor/target that we are considering
-            id = (k_divertor, k_target)
-            if id == identifiers[1]
-                strike_index = 1
-            elseif id == identifiers[2]
-                strike_index = length(sol1.r)
-            else
-                @ddtime(target.power_conducted.data = 0.0)
-                @ddtime(target.power_convected.data = 0.0)
-                @ddtime(target.power_incident.data = 0.0)
-                continue
-            end
-
-            # Power conducted/convected by the plasma on this divertor target  [W]
-            @ddtime(target.power_conducted.data = Psol / 2.0)
-            @ddtime(target.power_convected.data = 0.0)
-
-            # λq at the outer midplane [m]
-            resize!(target.two_point_model)
-            target.two_point_model[].sol_heat_decay_length = λ_omp
-
-            # target flux expansion [-] and wetted area [m²]
-            flxexp = @ddtime(target.flux_expansion.data = sol1.total_flux_expansion[strike_index])
-            λ_target = flxexp * λ_omp
-            wetted_area = @ddtime(target.wetted_area.data = λ_target * 2π * sol1.r[strike_index])
-
-            # strike angles [rad]
-            @ddtime(target.tilt_angle_tor.data = atan(sol1.Bp[strike_index] / sol1.Bt[strike_index]))
-            @ddtime(target.tilt_angle_pol.data = sol1.strike_angles[strike_index == 1 ? 1 : 2])
-
-            # Setup model based on dd and run
-            boundary_plasma_model = BoundaryPlasmaModels.DivertorHeatFluxModel(par.heat_flux_model)
-            push!(actor.boundary_plasma_models, boundary_plasma_model)
-            BoundaryPlasmaModels.setup_model(boundary_plasma_model, target, eqt, cp1d, sol1; par.impurities, par.impurities_fraction, par.heat_spread_factor)
-            boundary_plasma_model() # run
-            if par.verbose
-                println("      == $(uppercase(target.name)) ==")
-                BoundaryPlasmaModels.summary(boundary_plasma_model)
-                println()
-            end
-
-            # get the peak power heatflux [W.m²]
-            power_flux_peak = @ddtime(target.power_flux_peak.data = boundary_plasma_model.results.q_perp_target_spread)
-
-            # get the total power on the divertor [W]
-            power_incident = power_flux_peak * wetted_area
-            @ddtime(target.power_incident.data = power_incident)
-        end
-
-        # update totals
-        IMAS.divertor_totals_from_targets!(divertor)
-
-        @ddtime(divertor.power_thermal_extracted.data = par.thermal_power_extraction_efficiency * @ddtime(divertor.power_incident.data))
+    index_inner = 1
+    index_outer = length(sol1.r)
+    if sol1.r[1] < sol1.r[end]
+        index_inner = 1
+        index_outer = length(sol1.r)
+    else
+        index_inner = length(sol1.r)
+        index_outer = 1
     end
 
+    strike_indices = (index_outer, index_inner)
+    empty!(actor.boundary_plasma_models)
+    for (i, strike_index) in enumerate(strike_indices)
+        boundary_plasma_model = BoundaryPlasmaModels.SOLBoundaryModel(par.boundary_model)
+        push!(actor.boundary_plasma_models, boundary_plasma_model)
+        BoundaryPlasmaModels.setup_model(boundary_plasma_model, λ_omp, eqt, cp1d, cs, sol1; par.impurities, par.impurities_fraction, par.heat_spread_factor,strike_index)
+        boundary_plasma_model() # run
+    end
+    # --- Decide how to write back results --- #
+    if !_has_any_divertor(dd)
+        write_divertor_totals_only_from_sol!(dd, sol1, λ_omp, actor.boundary_plasma_models, par)
     return actor
+    end
+
+    if !_has_any_target(dd)
+        write_divertor_totals_only_from_sol!(dd, sol1, λ_omp, actor.boundary_plasma_models, par)
+        return actor
+    end
+
+    populate_divertor_targets_from_sol!(dd, sol1, λ_omp, actor.boundary_plasma_models, Psol, par, strike_indices)
+    return actor
+end
+
+function populate_divertor_targets_from_sol!(
+    dd,
+    sol1,
+    λ_omp,
+    boundary_models::Vector,
+    Psol,
+    par,
+    strike_indices::Tuple{Int,Int};
+)
+    identifiers = try
+        IMAS.identify_strike_surface(sol1, dd.divertors)
+    catch err
+        @warn "identify_strike_surface failed: $err"
+        Tuple{Int,Int,Int}[(0,0,0),(0,0,0)]
+    end
+
+    if length(identifiers) < 2 || any(==( (0,0,0) ), identifiers)
+        @warn "No valid strike surfaces; skip per-target write-back."
+        write_divertor_totals_only_from_sol!(dd, sol1, λ_omp, boundary_models, par)
+        return nothing
+    end
+
+    strike_angle_slot = (1, 2)
+
+    for i in 1:2
+        (k_div, k_tgt) = identifiers[i]
+        target = dd.divertors.divertor[k_div].target[k_tgt]
+
+        strike_index = strike_indices[i]
+        bpm          = boundary_models[i]
+
+        # λq @ OMP
+        resize!(target.two_point_model)
+        target.two_point_model[].sol_heat_decay_length = λ_omp
+
+        # flux expansion & wetted area
+        flxexp = @ddtime(target.flux_expansion.data = sol1.total_flux_expansion[strike_index])
+        λ_target = flxexp * λ_omp
+        wetted_area = @ddtime(target.wetted_area.data = λ_target * 2π * sol1.r[strike_index])
+
+        # strike angles
+        @ddtime(target.tilt_angle_tor.data = atan(sol1.Bp[strike_index] / sol1.Bt[strike_index]))
+        @ddtime(target.tilt_angle_pol.data = sol1.strike_angles[strike_angle_slot[i]])
+
+        @ddtime(target.power_flux_peak.data = bpm.results.q_perp_target_spread)
+
+        power_incident = @ddtime(target.power_flux_peak.data) * wetted_area
+        @ddtime(target.power_incident.data = power_incident)
+
+        @ddtime(target.power_conducted.data = Psol / 2.0)
+        @ddtime(target.power_convected.data = 0.0)
+    end
+
+    for divertor in dd.divertors.divertor
+        IMAS.divertor_totals_from_targets!(divertor)
+        @ddtime(divertor.power_thermal_extracted.data =
+            par.thermal_power_extraction_efficiency * @ddtime(divertor.power_incident.data))
+    end
+
+    return nothing
+end
+_has_any_divertor(dd) = !isempty(dd.divertors.divertor)
+
+function _has_any_target(dd)
+    for d in dd.divertors.divertor
+        if !isempty(d.target); return true; end
+    end
+    return false
+end
+"""
+Write total divertor quantities using only SOL data
+(used when no target geometry is available)
+"""
+function write_divertor_totals_only_from_sol!(
+    dd,
+    sol1,
+    λ_omp,
+    boundary_models::Vector,
+    par::OverrideParameters
+)
+    function compute_incident_power(strike_index::Int, boundary_model)::Float64
+        flux_expansion = sol1.total_flux_expansion[strike_index]
+        λ_target = flux_expansion * λ_omp
+        wetted_area = λ_target * 2π * sol1.r[strike_index]
+        q_peak = boundary_model.results.q_perp_target_spread
+        return q_peak * wetted_area
+    end
+
+    index_inner = 1
+    index_outer = length(sol1.r)
+    if !(sol1.r[1] < sol1.r[end])
+        index_inner, index_outer = length(sol1.r), 1
+    end
+    strike_indices = (index_outer, index_inner)
+
+    power_outer = compute_incident_power(strike_indices[1], boundary_models[1])
+    power_inner = compute_incident_power(strike_indices[2], boundary_models[2])
+    total_power_incident = power_outer + power_inner
+
+    for divertor in dd.divertors.divertor
+        @ddtime(divertor.power_incident.data = total_power_incident)
+        @ddtime(divertor.power_thermal_extracted.data =
+            par.thermal_power_extraction_efficiency * @ddtime(divertor.power_incident.data))
+    end
+    return nothing
 end

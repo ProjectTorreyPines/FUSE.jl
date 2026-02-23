@@ -26,7 +26,7 @@ magnetic flux and force balance constraints for plasma control.
 
 # Design approaches (controlled by `model`)
 - `:none`: Uses existing coil configuration without modification
-- `:uniform`: Places coils uniformly on predefined rails  
+- `:uniform`: Places coils uniformly on predefined rails
 - `:optimal`: Optimizes both coil placement and currents using least-squares minimization
 
 # Optimization process (for `:optimal` mode)
@@ -42,7 +42,7 @@ magnetic flux and force balance constraints for plasma control.
 - Current density limits and coil spacing requirements
 - Up-down symmetry (if `symmetric=true`)
 
-# Key outputs  
+# Key outputs
 - Optimized PF coil positions and sizes (`dd.pf_active.coil[].element[].geometry`)
 - Coil currents that achieve target equilibrium
 - Updated equilibrium solution (if `update_equilibrium=true`)
@@ -130,7 +130,7 @@ function _step(actor::ActorPFdesign{T}) where {T<:Real}
             end
 
             old_logging = actor_logging(dd, false)
-            ProgressMeter.ijulia_behavior(:clear)
+            par.verbose && ProgressMeter.ijulia_behavior(:clear)
             prog = ProgressMeter.ProgressUnknown(;dt=0.1, desc="Calls:", enabled=par.verbose)
             try
                 packed, bounds = pack_rail(dd.build, actor.actor_pf.λ_regularize, par.symmetric)
