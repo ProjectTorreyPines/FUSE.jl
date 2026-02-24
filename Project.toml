@@ -1,7 +1,7 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
-authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "0.10.0"
+authors = ["Orso Meneghini <orso82@gmail.com>"]
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -104,7 +104,7 @@ HelpPlots = "1"
 IMAS = "6, 7"
 IMASutils = "1.5.1"
 Interpolations = "0.15, 0.16.1"
-JSON = "0.21"
+JSON = "0.21, 1"
 JSON3 = "1.14.3"
 JpegTurbo = "0.1"
 LaTeXStrings = "1"
