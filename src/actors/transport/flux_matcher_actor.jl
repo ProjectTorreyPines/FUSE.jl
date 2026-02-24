@@ -294,14 +294,27 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # See https://github.com/SciML/NonlinearSolve.jl/issues/593
             abstol = par.xtol
 
-            NonlinearSolve.solve(
-                problem, alg;
-                abstol,
-                maxiters=max_iterations,
-                show_trace=Val(par.show_trace),
-                store_trace=Val(false),
-                verbose=false
-            )
+            try
+                NonlinearSolve.solve(
+                    problem, alg;
+                    abstol,
+                    maxiters=max_iterations,
+                    show_trace=Val(par.show_trace),
+                    store_trace=Val(false),
+                    verbose=false
+                )
+            catch e
+                if e isa InterruptException
+                    rethrow(e)
+                end
+                @warn "$(typeof(e)) in $(algorithm), falling back to SimpleDFSane"
+                NonlinearSolve.solve(
+                    problem, NonlinearSolve.SimpleDFSane();
+                    abstol,
+                    maxiters=max_iterations,
+                    verbose=false
+                )
+            end
 
             # NonlinearSolve returns the first value if the optimization was not successful
             # but we want it to return the best solution, even if the optimization did not
