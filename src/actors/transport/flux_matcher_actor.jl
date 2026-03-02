@@ -474,16 +474,22 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.time_derivative_source!(dd)
     end
 
-    # free pressures expressions
+    # free pressure expressions
     IMAS.unfreeze!(cp1d.electrons, :pressure_thermal)
     IMAS.unfreeze!(cp1d.electrons, :pressure)
     for ion in cp1d.ion
-        IMAS.unfreeze!(ion, :rotation_frequency_tor)
         IMAS.unfreeze!(ion, :pressure_thermal)
         IMAS.unfreeze!(ion, :pressure)
     end
     for field in [:pressure_ion_total, :pressure_thermal, :pressure]
         IMAS.unfreeze!(cp1d, field)
+    end
+
+    # free rotation expressions (skip if replaying to keep copied data)
+    if par.evolve_rotation != :replay
+        for ion in cp1d.ion
+            IMAS.unfreeze!(ion, :rotation_frequency_tor)
+        end
     end
 
     return actor
@@ -1306,13 +1312,30 @@ function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IM
     end
 
     # Replay rotation if set to :replay
+    # Core from replay, edge from simulation (pedestal model)
+    # NOTE: We must also copy ion.rotation_frequency_tor, not just sonic rotation,
+    # because ion rotation is the measured quantity. If we only copy sonic rotation,
+    # ion rotation gets recomputed via expression using simulated pressure gradients.
     if par.evolve_rotation == :replay
         i_nml = IMAS.argmin_abs(rho, rho_nml)
+
+        # Sonic rotation: core from replay, edge from simulation, shift to match
         ω_core = deepcopy(replay_cp1d.rotation_frequency_tor_sonic)
         ω_edge = IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
         ω_core[i_nml+1:end] = ω_edge[i_nml+1:end]
         ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge[i_nml]
         cp1d.rotation_frequency_tor_sonic = ω_core
+
+        # Ion rotation: same blending (core from replay, edge from simulation)
+        for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+            if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
+                ω_ion_core = deepcopy(replay_ion.rotation_frequency_tor)
+                ω_ion_edge = IMAS.freeze!(ion, :rotation_frequency_tor)
+                ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
+                ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]
+                ion.rotation_frequency_tor = ω_ion_core
+            end
+        end
     end
 
     # Handle density replays

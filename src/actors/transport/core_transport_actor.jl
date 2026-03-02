@@ -114,5 +114,13 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
     # rotation
     cp1d.rotation_frequency_tor_sonic = replay_cp1d.rotation_frequency_tor_sonic
 
+    # Ion rotation: must also copy ion.rotation_frequency_tor, not just sonic rotation,
+    # because ion rotation is the measured quantity
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
+            ion.rotation_frequency_tor = replay_ion.rotation_frequency_tor
+        end
+    end
+
     return replay_actor
 end
