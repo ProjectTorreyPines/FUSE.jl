@@ -24,6 +24,8 @@ else
 
     include("runtests_init_expressions.jl")
 
+    include("runtests_costing.jl")
+
     # Conditionally run extension tests if environment variable is set.
     if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
         include("runtests_study.jl")

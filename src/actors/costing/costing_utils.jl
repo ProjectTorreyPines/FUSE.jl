@@ -2,6 +2,7 @@ import CSV
 import DataFrames
 import Memoize
 import Dates
+import Measurements: value, uncertainty
 import FusionMaterials
 import FusionMaterials: Material
 
@@ -117,13 +118,20 @@ function future_dollars(dollars::Real, da::DollarAdjust{T})::T where {T<:Real}
     end
 
     # inflate to the year of start of construction
-    if da.construction_start_year < CPI.Year[1]
-        error("Cannot translate cost earlier than $(CPI.Year[1])")
-    elseif da.construction_start_year <= CPI.Year[end]
-        CPI_const_year = CPI[findfirst(x -> x == da.construction_start_year, CPI.Year), "Year Avg"]
-        value = CPI_const_year ./ CPI[end, "Year Avg"] .* val_today
+    cpi_year_min = CPI.Year[1]
+    cpi_year_max = CPI.Year[end]
+    construction_start_year = da.construction_start_year
+    construction_year_min, construction_year_max = year_bounds(construction_start_year)
+
+    if construction_year_min < cpi_year_min
+        error("Cannot translate construction_start_year=$(construction_start_year) earlier than $(cpi_year_min)")
+    elseif construction_year_min <= cpi_year_max && construction_year_max > cpi_year_max
+        error("construction_start_year=$(construction_start_year) overlaps CPI range end $(cpi_year_max); use a fully historical or fully future year range")
+    elseif construction_year_max <= cpi_year_max
+        cpi_construction_year = cpi_year_average(CPI, construction_start_year)
+        value = cpi_construction_year ./ CPI[end, "Year Avg"] .* val_today
     else
-        n_years = da.construction_start_year - CPI.Year[end]
+        n_years = construction_start_year - cpi_year_max
         value = val_today * ((1.0 + da.future_inflation_rate)^n_years)
     end
 
@@ -131,6 +139,88 @@ function future_dollars(dollars::Real, da::DollarAdjust{T})::T where {T<:Real}
     da.year_assessed = missing
 
     return T(value)
+end
+
+function year_bounds(year::Real)
+    year_real = float(year)
+    return year_real, year_real
+end
+
+function year_bounds(year::Measurement)
+    y0 = value(year)
+    σ = uncertainty(year)
+    return y0 - σ, y0 + σ
+end
+
+function cpi_year_average(CPI::DataFrames.DataFrame, year::Real)
+    cpi_year_min = CPI.Year[1]
+    cpi_year_max = CPI.Year[end]
+    if !(cpi_year_min <= year <= cpi_year_max)
+        error("Requested year=$(year) is outside CPI range [$cpi_year_min, $cpi_year_max]")
+    end
+
+    year_lo = floor(Int, year)
+    year_hi = ceil(Int, year)
+    idx_lo = findfirst(==(year_lo), CPI.Year)
+    idx_hi = findfirst(==(year_hi), CPI.Year)
+    @assert idx_lo !== nothing && idx_hi !== nothing "CPI table is missing expected years for interpolation"
+
+    cpi_lo = CPI[idx_lo, "Year Avg"]
+    cpi_hi = CPI[idx_hi, "Year Avg"]
+
+    if year_lo == year_hi
+        return cpi_lo
+    end
+
+    weight = year - year_lo
+    return (1.0 - weight) * cpi_lo + weight * cpi_hi
+end
+
+function cpi_year_average(CPI::DataFrames.DataFrame, year::Measurement)
+    cpi_year_min = CPI.Year[1]
+    cpi_year_max = CPI.Year[end]
+    year_min, year_max = year_bounds(year)
+    if !(cpi_year_min <= year_min <= year_max <= cpi_year_max)
+        error("Requested year=$(year) is outside CPI range [$cpi_year_min, $cpi_year_max]")
+    end
+
+    year_nominal = value(year)
+    year_uncertainty = uncertainty(year)
+    cpi_nominal = cpi_year_average(CPI, year_nominal)
+    cpi_gradient = cpi_year_average_gradient(CPI, year_nominal)
+    cpi_uncertainty = abs(cpi_gradient) * year_uncertainty
+
+    return cpi_nominal ± cpi_uncertainty
+end
+
+function cpi_year_average_gradient(CPI::DataFrames.DataFrame, year::Real)
+    cpi_year_min = CPI.Year[1]
+    cpi_year_max = CPI.Year[end]
+    if !(cpi_year_min <= year <= cpi_year_max)
+        error("Requested year=$(year) is outside CPI range [$cpi_year_min, $cpi_year_max]")
+    end
+
+    # Piecewise-linear CPI interpolation slope d(CPI)/d(year).
+    # At exact integer years (kinks), use the right derivative except at the last year.
+    year_lo = floor(Int, year)
+    year_hi = ceil(Int, year)
+    if year_lo == year_hi
+        if year_lo == cpi_year_max
+            year_lo = cpi_year_max - 1
+            year_hi = cpi_year_max
+        else
+            year_hi = year_lo + 1
+        end
+    end
+
+    idx_lo = findfirst(==(year_lo), CPI.Year)
+    idx_hi = findfirst(==(year_hi), CPI.Year)
+    @assert idx_lo !== nothing && idx_hi !== nothing "CPI table is missing expected years for gradient evaluation"
+
+    cpi_lo = CPI[idx_lo, "Year Avg"]
+    cpi_hi = CPI[idx_hi, "Year Avg"]
+
+    return (cpi_hi - cpi_lo) / (year_hi - year_lo)
 end
 
 #= ================== =#
