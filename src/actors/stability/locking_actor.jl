@@ -817,7 +817,6 @@ function plot_sols_scatter(
     return plt
 end
 
-using Plots
 
 function plot_sols_scatter(
         norm_sols::AbstractMatrix{<:Real};
