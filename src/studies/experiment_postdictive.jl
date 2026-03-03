@@ -128,7 +128,6 @@ function run_postdictive_case!(
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
 
     # init
-    ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
     @info "ini.time.simulation_start = $(ini.time.simulation_start)"
     FUSE.init!(dd, ini, act)
 
@@ -178,7 +177,7 @@ function run_postdictive_case!(
     act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     # time
-    δt = 0.05
+    δt = 0.025
     dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
     final_time = ini.general.dd.equilibrium.time[end]
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
