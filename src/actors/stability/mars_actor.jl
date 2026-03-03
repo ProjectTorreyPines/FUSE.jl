@@ -490,16 +490,16 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     
     # Normalize from SI to chease units
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    j_tor_norm = abs.(j_tor_of_s / (Bt_center / (r_center * μ_0)))
-    dpressure_ds = pprime_of_s * (r_center^2 * Bt_center) / (Bt_center^2 / μ_0)
+    j_tor_norm = j_tor_of_s / (abs(Bt_center) / (r_center * μ_0))
+    dpressure_ds = pprime_of_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
 
     ip_sign = sign(Ip)
     bt_sign = sign(Bt_center)
     println("Ip sign: $ip_sign, Bt sign: $bt_sign")
     ## **** check this logic with YQL **** ##
-    if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
-        j_tor_norm .*= -1
-    end
+    #if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
+    #    j_tor_norm .*= -1
+    #end
 
     # Remove/smooth the X-point along the boundary
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
