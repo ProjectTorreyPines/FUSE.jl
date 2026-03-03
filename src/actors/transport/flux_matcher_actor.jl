@@ -202,13 +202,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     algorithm = if par.algorithm === :default
-        if actor.actor_ct.actor_turb.par.model in (:TGLFNN, :GKNN)
-            # combines speed and robustness, but needs smooth derivatives
-            :basic_polyalg
-        else
-            # derivative-free method
-            :simple_dfsane
-        end
+        # derivative-free method
+        # robust and fast even for NNs that could use gradients
+        # BCL 3/3/26: Should consider going back to :basic_polyalg for NNs once autodiff FluxMatcher works for them
+        :simple_dfsane
     else
         par.algorithm
     end
