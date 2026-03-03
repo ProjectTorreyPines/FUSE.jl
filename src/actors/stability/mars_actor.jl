@@ -109,7 +109,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     EQDSK::Entry{Bool} = Entry{Bool}("-", "Enable EQDSK"; default=false)
     MHD_code::Switch{Symbol} = Switch{Symbol}([:MARS_Q, :MARS_F, :MARS_K], "-", "MHD code to use: :MARS or :MARS_F"; default=:MARS_F)
     chease_exec::Entry{String} =
-        Entry{String}("-", "Path to CHEASE executable"; default="chease.x")
+        Entry{String}("-", "Path to CHEASE executable"; default="/fusion/projects/codes/mars/CHEASE/chease.x")
     offset::Entry{Float64} = Entry{Float64}("-", "Offset for first wall (RW) in meters"; default=0.2)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points for plasma boundary and surrounding walls "; default=301)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
@@ -121,7 +121,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     mars_overrides::Entry{NamedTuple} =
         Entry{NamedTuple}("-", "Runtime MARS namelist overrides"; default=NamedTuple())
     mars_exec::Entry{String} =
-        Entry{String}("-", "Path to MARS executable"; default="mars.x")
+        Entry{String}("-", "Path to MARS executable"; default="/fusion/projects/codes/mars/MARSQ/marsq.x")
     mars_runin_path::Entry{String} =
         Entry{String}("-", "Path to base MARS RUN.IN file"; default="RUN.IN")
 end
