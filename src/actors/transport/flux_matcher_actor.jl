@@ -1087,7 +1087,16 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
     dd_species =
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
 
-    # Check if evolve_densities contains all of dd thermal species
+    # If fast species appeared in cp1d after evolve_densities was built (e.g. added by a beam/RF actor),
+    # auto-register them as :fixed rather than crashing. Log a warning so the user is aware.
+    for specie in dd_species
+        if !haskey(evolve_densities, specie)
+            @warn "Species $specie found in dd but not in evolve_densities dict — defaulting to :fixed" maxlog = 1
+            evolve_densities[specie] = :fixed
+        end
+    end
+
+    # Check there are no stale species in evolve_densities that no longer exist in dd
     @assert sort!([specie for (specie, evolve) in evolve_densities]) == sort!(dd_species) "Mismatch: dd species $(sort!(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
