@@ -171,9 +171,16 @@ end
 
     all_toks = unique(df.TOK)
     colors = Dict("JET" => :red, "D3D" => :blue, "NSTX" => :purple, "JT60U" => :black,
-                   "ASDEX" => :green, "AUG" => :green, "CMOD" => :orange)
+                   "ASDEX" => :darkgreen, "AUG" => :green4, "CMOD" => :orange)
 
     aspect_ratio --> :equal
+    xscale --> :log10
+    yscale --> :log10
+    xlim --> x_ylim
+    ylim --> x_ylim
+    legend --> :topleft
+    xlabel --> "Experimental τₑ [s]"
+    ylabel --> "FUSE τₑ [s]"
 
     # MRE band lines
     @series begin
@@ -181,11 +188,6 @@ end
         linestyle := :dash
         color := :black
         label := "±$(MRE)% MRE ($(nrow(df)) cases)"
-        legend := :topleft
-        xscale := :log10
-        yscale := :log10
-        xlim := x_ylim
-        ylim := x_ylim
         [x_ylim[1], x_ylim[2]], [off * x_ylim[1], off * x_ylim[2]]
     end
 
@@ -213,8 +215,6 @@ end
             seriestype := :scatter
             color := c
             label := "$tok"
-            xlabel := "Experimental τₑ [s]"
-            ylabel := "FUSE τₑ [s]"
             markersize := 2.0
             markerstrokewidth := 0.0
             legend_foreground_color := :transparent
