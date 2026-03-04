@@ -430,6 +430,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     # initialize eqt from pulse_schedule and core_profiles
     time_slice = dd.equilibrium.time_slice[time_slice_index]
+    psi0 = time_slice.global_quantities.psi_axis
+    psib = time_slice.global_quantities.psi_boundary
     eqt1d = time_slice.profiles_1d
     
     # populate the input file lines
@@ -441,11 +443,13 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     Ip = time_slice.global_quantities.ip
     r_bound = time_slice.boundary.outline.r
     z_bound = time_slice.boundary.outline.z
-    pprime = eqt1d.dpressure_dpsi
-    FFprime = eqt1d.f_df_dpsi
+
+    # get the normalized psi and convert d/dPsi to d/ds coordinate for CHEASE input
     psi_norm = eqt1d.psi_norm
     s = sqrt.(psi_norm)
-
+    pprime = eqt1d.dpressure_dpsi*(psib - psi0)*2 .* sqrt.(psi_norm) # convert to s coordinate
+    FFprime = eqt1d.f_df_dpsi*(psib - psi0)*2 .* sqrt.(psi_norm)
+    
     ### Currently NOT used, but may be useful later
     #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
 
@@ -497,9 +501,9 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     bt_sign = sign(Bt_center)
     println("Ip sign: $ip_sign, Bt sign: $bt_sign")
     ## **** check this logic with YQL **** ##
-    #if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
-    #    j_tor_norm .*= -1
-    #end
+    if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
+        j_tor_norm .*= -1
+    end
 
     # Remove/smooth the X-point along the boundary
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
