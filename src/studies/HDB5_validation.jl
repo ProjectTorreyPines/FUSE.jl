@@ -142,6 +142,35 @@ function _run_HDB5_case(data_row::DataFrames.DataFrameRow)
     return data_row
 end
 
+"""
+    load_HDB5_validation(filename::AbstractString)
+
+Load a previously saved HDB5 validation run from a CSV file and return a `StudyHDB5Validation`.
+The failed-cases CSV (if present) is inferred from the filename by appending `_failed`.
+
+Example:
+```julia
+study = FUSE.load_HDB5_validation("/tmp/hdb5/HDB5_validation_2026-01-01T12-00-00.csv")
+plot(study)
+```
+"""
+function load_HDB5_validation(filename::AbstractString)
+    sty = OverrideParameters(FUSEparameters__ParametersStudyHDB5Validation{Real}())
+    study = StudyHDB5Validation(sty, missing, missing)
+    study.run_df = CSV.read(filename, DataFrame)
+    if "error_message" in names(study.run_df)
+        study.run_df[!, :error_message] = coalesce.(study.run_df[!, :error_message], "")
+    end
+    failed_filename = replace(filename, ".csv" => "_failed.csv")
+    if isfile(failed_filename)
+        study.fail_df = CSV.read(failed_filename, DataFrame)
+        if "error_message" in names(study.fail_df)
+            study.fail_df[!, :error_message] = coalesce.(study.fail_df[!, :error_message], "")
+        end
+    end
+    return study
+end
+
 function _R_squared(x, y)
     return 1 - sum((x .- y) .^ 2) / sum((x .- sum(x) / length(x)) .^ 2)
 end
