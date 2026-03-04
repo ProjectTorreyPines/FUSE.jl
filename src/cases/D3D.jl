@@ -305,11 +305,11 @@ function case_parameters(::Val{:D3D}, scenario::Symbol)
         resize!(ini.ec_launcher, 1)
         ini.ec_launcher[1].power_launched = 3E6
     else
-        act.ActorHCD.nb_model = :none
-        act.ActorHCD.ec_model = :none
-        act.ActorHCD.lh_model = :none
-        act.ActorHCD.ic_model = :none
-        act.ActorHCD.pellet_model = :none
+        act.ActorSources.nb_model = :none
+        act.ActorSources.ec_model = :none
+        act.ActorSources.lh_model = :none
+        act.ActorSources.ic_model = :none
+        act.ActorSources.pellet_model = :none
     end
 
     if isempty(ini.general.dd.core_profiles)

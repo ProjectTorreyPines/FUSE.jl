@@ -122,7 +122,7 @@ include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
 include(joinpath("actors", "hcd", "pl_simple_actor.jl"))
 include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
 include(joinpath("actors", "hcd", "sawteeth_source_actor.jl"))
-include(joinpath("actors", "hcd", "hcd_actor.jl"))
+include(joinpath("actors", "hcd", "sources_actor.jl"))
 
 include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
