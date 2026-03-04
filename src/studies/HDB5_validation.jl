@@ -32,13 +32,21 @@ end
 
 mutable struct StudyHDB5Validation{T<:Real} <: AbstractStudy
     sty::OverrideParameters{T,FUSEparameters__ParametersStudyHDB5Validation{T}}
+    act::Union{ParametersAllActors,Missing}
     run_df::Union{DataFrame,Missing}
     fail_df::Union{DataFrame,Missing}
 end
 
 function StudyHDB5Validation(sty::ParametersStudy; kw...)
     sty = OverrideParameters(sty; kw...)
-    study = StudyHDB5Validation(sty, missing, missing)
+    study = StudyHDB5Validation(sty, missing, missing, missing)
+    parallel_environment(sty.server, sty.n_workers)
+    return study
+end
+
+function StudyHDB5Validation(sty::ParametersStudy, act::ParametersAllActors; kw...)
+    sty = OverrideParameters(sty; kw...)
+    study = StudyHDB5Validation(sty, act, missing, missing)
     parallel_environment(sty.server, sty.n_workers)
     return study
 end
@@ -75,7 +83,7 @@ function _run(study::StudyHDB5Validation)
     # Run in parallel
     println("Running HDB5 validation on $n_cases cases with $(sty.n_workers) workers on $(sty.server)")
     data_rows = ProgressMeter.@showprogress pmap(
-        k -> _run_HDB5_case(run_df[k, :]),
+        k -> _run_HDB5_case(run_df[k, :], study.act),
         1:n_cases
     )
     for k in 1:n_cases
@@ -116,14 +124,15 @@ function _run(study::StudyHDB5Validation)
 end
 
 """
-    _run_HDB5_case(data_row::DataFrames.DataFrameRow)
+    _run_HDB5_case(data_row::DataFrames.DataFrameRow, study_act::Union{ParametersAllActors,Missing})
 
 Run a single HDB5 validation case: init from data_row, run ActorStationaryPlasma,
 and extract predicted τ_energy and T0.
 """
-function _run_HDB5_case(data_row::DataFrames.DataFrameRow)
+function _run_HDB5_case(data_row::DataFrames.DataFrameRow, study_act::Union{ParametersAllActors,Missing})
     try
-        ini, act = case_parameters(data_row; verbose=false)
+        ini, case_act = case_parameters(data_row; verbose=false)
+        act = ismissing(study_act) ? case_act : study_act
         dd = IMAS.dd()
         actor_logging(dd, false)
         init!(dd, ini, act)
@@ -156,7 +165,7 @@ plot(study)
 """
 function load_HDB5_validation(filename::AbstractString)
     sty = OverrideParameters(FUSEparameters__ParametersStudyHDB5Validation{Real}())
-    study = StudyHDB5Validation(sty, missing, missing)
+    study = StudyHDB5Validation(sty, missing, missing, missing)
     study.run_df = CSV.read(filename, DataFrame)
     if "error_message" in names(study.run_df)
         study.run_df[!, :error_message] = coalesce.(study.run_df[!, :error_message], "")
