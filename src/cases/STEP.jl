@@ -94,6 +94,7 @@ function case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symb
 
         rho = cp1d.grid.rho_tor_norm
         cp1d.electrons.density_thermal = ((1.0 .- rho .^ 4) .* 1.6 .+ 0.4) .* 1E20
+        unfreeze!(cp1d.electrons, :density)
 
         cp1d.zeff = fill(ini.core_profiles.zeff, length(rho))
         cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
