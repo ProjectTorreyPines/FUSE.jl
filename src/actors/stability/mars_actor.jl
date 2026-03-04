@@ -116,7 +116,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)
     number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
     pressure_sep::Entry{Float64} = Entry{Float64}("-", "Pressure at separatrix in Pa"; default=0.0)
-    GS_rhs::Switch{Symbol} = Switch{Symbol}([:TTpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:TTpr)
+    GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
     mars_overrides::Entry{NamedTuple} =
         Entry{NamedTuple}("-", "Runtime MARS namelist overrides"; default=NamedTuple())
@@ -459,7 +459,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     ## get additional parameters from user
     NWBPS = par.number_surfaces
-    if par.GS_rhs == :TTpr
+    if par.GS_rhs == :FFpr
         NSTTP = 1
         j_tor = eqt1d.f_df_dpsi/μ_0 # throw in mu0 for later
     elseif par.GS_rhs == :Jtor
