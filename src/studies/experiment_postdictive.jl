@@ -188,7 +188,7 @@ function run_postdictive_case!(
     act.ActorDynamicPlasma.evolve_current = true
     act.ActorDynamicPlasma.evolve_equilibrium = true
     act.ActorDynamicPlasma.evolve_transport = true
-    act.ActorDynamicPlasma.evolve_hcd = true
+    act.ActorDynamicPlasma.evolve_sources = true
     act.ActorDynamicPlasma.evolve_pf_active = false
     act.ActorDynamicPlasma.evolve_pedestal = true
     act.ActorDynamicPlasma.evolve_sawteeth = true
