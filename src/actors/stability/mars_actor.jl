@@ -447,8 +447,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     # get the normalized psi and convert d/dPsi to d/ds coordinate for CHEASE input
     psi_norm = eqt1d.psi_norm
     s = sqrt.(psi_norm)
-    pprime = eqt1d.dpressure_dpsi*(psib - psi0)*2 .* sqrt.(psi_norm) # convert to s coordinate
-    FFprime = eqt1d.f_df_dpsi*(psib - psi0)*2 .* sqrt.(psi_norm)
+    pprime = eqt1d.dpressure_dpsi 
+    FFprime = eqt1d.f_df_dpsi/μ_0 # throw in mu0 and r_center for later normalization
     
     ### Currently NOT used, but may be useful later
     #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
@@ -461,7 +461,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     NWBPS = par.number_surfaces
     if par.GS_rhs == :FFpr
         NSTTP = 1
-        j_tor = eqt1d.f_df_dpsi/μ_0 # throw in mu0 for later
+        j_tor = FFprime
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         j_tor = eqt1d.j_tor
@@ -496,14 +496,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
     j_tor_norm = j_tor_of_s / (abs(Bt_center) / (r_center * μ_0))
     dpressure_ds = pprime_of_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
-
-    ip_sign = sign(Ip)
-    bt_sign = sign(Bt_center)
-    println("Ip sign: $ip_sign, Bt sign: $bt_sign")
-    ## **** check this logic with YQL **** ##
-    if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
-        j_tor_norm .*= -1
-    end
 
     # Remove/smooth the X-point along the boundary
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
