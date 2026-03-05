@@ -182,12 +182,12 @@ include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
 include(joinpath("studies", "study_database.jl"))
 include(joinpath("studies", "experiment_postdictive.jl"))
+include(joinpath("studies", "HDB5_validation.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
 #= ========= =#
 include(joinpath("workflows", "optimization_workflow.jl"))
-include(joinpath("workflows", "DB5_validation_workflow.jl"))
 
 #= ======= =#
 #  LOGGING  #
