@@ -77,6 +77,13 @@ end
 ###############
 # save / load #
 ###############
+
+# Backward compatibility: rename old parameter keys to new names
+function _migrate_act_string(str::String)
+    str = replace(str, "\":ActorHCD\"" => "\":ActorSources\"")
+    str = replace(str, "\":ActorSawteeth\"" => "\":ActorSawteethSource\"")
+    return str
+end
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
@@ -94,7 +101,7 @@ end
 Load the ACT act parameters from a JSON file with given `filename`
 """
 function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.json2par(filename, act)
+    return SimulationParameters.jstr2par(_migrate_act_string(read(filename, String)), act)
 end
 
 """
@@ -114,7 +121,7 @@ end
 Load the ACT act parameters from a YAML file with given `filename`
 """
 function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.yaml2par(filename, act)
+    return SimulationParameters.ystr2par(_migrate_act_string(read(filename, String)), act)
 end
 
 """
