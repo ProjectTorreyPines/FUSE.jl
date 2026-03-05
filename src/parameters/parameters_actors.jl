@@ -84,6 +84,21 @@ function _migrate_act_string(str::String)
     str = replace(str, "\":ActorSawteeth\"" => "\":ActorSawteethSource\"")
     return str
 end
+
+function _validate_act_keys(str::String, act::ParametersAllActors)
+    known = Set("\":" * string(k) * "\"" for k in keys(act))
+    unknown = String[]
+    for m in eachmatch(r"\":(Actor\w+)\"", str)
+        key = "\":$(m.captures[1])\""
+        if key ∉ known
+            push!(unknown, m.captures[1])
+        end
+    end
+    unique!(unknown)
+    if !isempty(unknown)
+        error("Unknown actor(s) in act file: $(join(sort!(unknown), ", "))")
+    end
+end
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
@@ -101,7 +116,9 @@ end
 Load the ACT act parameters from a JSON file with given `filename`
 """
 function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.jstr2par(_migrate_act_string(read(filename, String)), act)
+    str = _migrate_act_string(read(filename, String))
+    _validate_act_keys(str, act)
+    return SimulationParameters.jstr2par(str, act)
 end
 
 """
@@ -121,7 +138,9 @@ end
 Load the ACT act parameters from a YAML file with given `filename`
 """
 function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.ystr2par(_migrate_act_string(read(filename, String)), act)
+    str = _migrate_act_string(read(filename, String))
+    _validate_act_keys(str, act)
+    return SimulationParameters.ystr2par(str, act)
 end
 
 """
