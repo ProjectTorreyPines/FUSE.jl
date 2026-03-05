@@ -20,7 +20,7 @@ Provides a unified interface to run core transport evolution models.
 This compound actor manages different approaches to core transport evolution:
 
 Transport model options:
-- `:FluxMatcher`: Self-consistent flux-matching transport evolution using turbulent and 
+- `:FluxMatcher`: Self-consistent flux-matching transport evolution using turbulent and
   neoclassical models to evolve temperature and density profiles
 - `:EPEDProfiles`: Use EPED model predictions for pedestal and core profiles
 - `:replay`: Replay profiles from experimental data or previous simulations
@@ -91,12 +91,17 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
 
     # densities
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
-        if !ismissing(ion, :density_thermal)
-            ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+        if !ismissing(ion, :density)
+            ion.density = IMAS.blend_core_edge(replay_ion.density, ion.density, rho, rho_nml, rho_ped; method=:scale)
+            IMAS.unfreeze!(ion, :density_thermal)
+            if IMAS.hasdata(ion, :density_fast)
+                ion.density_fast .= min.(ion.density_fast, ion.density)  # can't have more fast than total
+            end
+            ion.density_thermal = ion.density_thermal  # freeze: evaluate expression and store so that hasdata(ion, :density_thermal) is true
         end
     end
-    IMAS.scale_ion_densities_to_target_zeff!(cp1d, replay_cp1d.zeff)
 
     # temperatures
     cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)

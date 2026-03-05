@@ -207,6 +207,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
             cp1d.rotation_frequency_tor_sonic =
                 IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
         end
+        # freeze ion rotation so it's stored as data, not recomputed via dynamic expression
+        # (sonic2ωtor uses density/pressure which change during simulation, breaking replay)
+        for ion in cp1d.ion
+            IMAS.freeze!(ion, :rotation_frequency_tor)
+        end
     end
 
     # add impurity to match total radiation

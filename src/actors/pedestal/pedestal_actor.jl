@@ -57,7 +57,7 @@ specialized pedestal actors and provides dynamic transition capabilities.
 
 Available pedestal models:
 - `:EPED`: EPED neural network model for pedestal predictions
-- `:WPED`: Width-based energy balance pedestal model  
+- `:WPED`: Width-based energy balance pedestal model
 - `:analytic`: Analytic scaling laws for spherical tokamaks
 - `:dynamic`: Time-dependent L-H transitions with smoothing
 - `:replay`: Replays pedestal data from experimental reference
@@ -121,7 +121,7 @@ The step function manages the complex workflow of:
 4. Applying rotation models if requested
 5. Updating plasma profiles with pedestal boundary conditions
 
-For dynamic mode transitions, tracks transition times and applies gradual profile 
+For dynamic mode transitions, tracks transition times and applies gradual profile
 evolution to avoid numerical discontinuities.
 """
 function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
@@ -343,6 +343,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = ne = IMAS.ped_height_at_09(rho, ne, ne_ped)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     ratio = ne ./ ne_old
 
     for ion in cp1d.ion
@@ -352,6 +353,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
             ion.density_thermal[end] = ni_ped / 4.0
             ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
+            IMAS.unfreeze!(ion, :density)
         end
     end
 
@@ -395,9 +397,11 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
             nel = IMAS.ne_line(eqt, cp1d)
             factor = nel_wanted / nel
             cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
+            IMAS.unfreeze!(cp1d.electrons, :density)
             for ion in cp1d.ion
                 if !ismissing(ion, :density_thermal)
                     ion.density_thermal = ion.density_thermal * factor
+                    IMAS.unfreeze!(ion, :density)
                 end
             end
             cp1d.electrons.temperature = cp1d.electrons.temperature / factor
@@ -443,9 +447,11 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
 
     # densities
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
-        if !ismissing(ion, :density_thermal)
-            ion.density_thermal = IMAS.blend_core_edge(ion.density_thermal, replay_ion.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
+        if !ismissing(ion, :density)
+            ion.density = IMAS.blend_core_edge(ion.density, replay_ion.density, rho, par.rho_nml, par.rho_ped; method=:shift)
+            IMAS.unfreeze!(ion, :density_thermal)
         end
     end
 
