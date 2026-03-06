@@ -3,7 +3,6 @@
 
 MAST-U (Mega Ampere Spherical Tokamak Upgrade) — the UK spherical tokamak at UKAEA/Culham.
 
-
 Initialization options:
 - `init_from = :ods`: Load from the IMAS ODS machine description file (full geometry)
 - `init_from = :scalars`: Initialize from scalar plasma parameters (default)
