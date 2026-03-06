@@ -79,10 +79,25 @@ end
 ###############
 
 # Backward compatibility: rename old parameter keys to new names
+const ACT_ACTOR_MIGRATIONS = Dict(
+    "ActorHCD" => "ActorSources",
+    "ActorSawteeth" => "ActorSawteethSource"
+)
+
 function _migrate_act_string(str::String)
-    str = replace(str, "\":ActorHCD\"" => "\":ActorSources\"")
-    str = replace(str, "\":ActorSawteeth\"" => "\":ActorSawteethSource\"")
+    for (old, new) in ACT_ACTOR_MIGRATIONS
+        str = replace(str, "\":$old\"" => "\":$new\"")
+    end
     return str
+end
+
+function _assert_migrations_valid(act::ParametersAllActors)
+    schema_keys = Set(string(k) for k in keys(act))
+    for old_name in keys(ACT_ACTOR_MIGRATIONS)
+        if old_name ∈ schema_keys
+            error("Migration source '$old_name' conflicts with an existing actor — remove or update the entry in ACT_ACTOR_MIGRATIONS")
+        end
+    end
 end
 
 function _validate_act_keys(str::String, act::ParametersAllActors)
@@ -116,6 +131,7 @@ end
 Load the ACT act parameters from a JSON file with given `filename`
 """
 function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+    _assert_migrations_valid(act)
     str = _migrate_act_string(read(filename, String))
     _validate_act_keys(str, act)
     return SimulationParameters.jstr2par(str, act)
@@ -138,6 +154,7 @@ end
 Load the ACT act parameters from a YAML file with given `filename`
 """
 function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
+    _assert_migrations_valid(act)
     str = _migrate_act_string(read(filename, String))
     _validate_act_keys(str, act)
     return SimulationParameters.ystr2par(str, act)
