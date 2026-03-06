@@ -1088,11 +1088,15 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
 
     # If fast species appeared in cp1d after evolve_densities was built (e.g. added by a beam/RF actor),
-    # auto-register them as :fixed rather than crashing. Log a warning so the user is aware.
+    # auto-register them as :fixed rather than crashing. Log an info so the user is aware.
     for specie in dd_species
         if !haskey(evolve_densities, specie)
-            @warn "Species $specie found in dd but not in evolve_densities dict — defaulting to :fixed" maxlog = 1
-            evolve_densities[specie] = :fixed
+            specie_str = string(specie)
+            thermal_specie = Symbol(replace(specie_str, "_fast" => ""))
+            if endswith(specie_str, "_fast") && haskey(evolve_densities, thermal_specie)
+                @info "Fast species $specie found in dd but not in evolve_densities dict — defaulting to :fixed" maxlog = 1
+                evolve_densities[specie] = :fixed
+            end
         end
     end
 
