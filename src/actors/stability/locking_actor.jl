@@ -87,6 +87,7 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorLocking{P}}
     ode_params::Union{Nothing, ODEparams}
+    results::Union{Nothing, Any}
 
     function ActorLocking(
         dd::IMAS.dd{D},
@@ -111,7 +112,7 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
             error("ode_params must be nothing, ODEparams, or NamedTuple")
         end
 
-        return new{D,P}(dd, par, ode)
+        return new{D,P}(dd, par, ode, nothing)
     end
 end
 
@@ -194,10 +195,12 @@ function _finalize(actor::ActorLocking)
     par = actor.par
 
     @info "Finalizing ActorLocking at time"
-    mhd = resize!(dd.mhd_linear.time_slice; wipe=false)
-    mode = resize!(mhd.toroidal_mode, "perturbation_type.name" => "Locked mode", "n_tor" => 1)
+    mhd = dd.mhd_linear
+    mhd_ts = resize!(mhd.time_slice; wipe=false)
+    mode = resize!(mhd_ts.toroidal_mode, "perturbation_type.name" => "Locked mode", "n_tor" => 1)
     mode.perturbation_type.description = "Locked mode limit from ActorLocking"
-    #mode.stability_metric = 0.
+    mode.amplitude_multiplier = 1.0 / (par.b0*par.r0)
+    mode.plasma.b_field_perturbed = 1.0
         
     return actor
 end
