@@ -211,11 +211,11 @@ ods.core_profiles.time = [4.6]
 ini, act = FUSE.case_parameters(:D3D, ods)
 
 # Disable heating models if not needed
-act.ActorHCD.ec_model = :none      # Electron cyclotron
-act.ActorHCD.ic_model = :none      # Ion cyclotron  
-act.ActorHCD.lh_model = :none      # Lower hybrid
-act.ActorHCD.nb_model = :none      # Neutral beam
-act.ActorHCD.neutral_model = :none # Neutral particles
+act.ActorSources.ec_model = :none      # Electron cyclotron
+act.ActorSources.ic_model = :none      # Ion cyclotron  
+act.ActorSources.lh_model = :none      # Lower hybrid
+act.ActorSources.nb_model = :none      # Neutral beam
+act.ActorSources.neutral_model = :none # Neutral particles
 
 # Continue with flux matching workflow...
 ```
@@ -512,8 +512,8 @@ act.ActorCurrent.model = :replay           # Use experimental current
 act.ActorEquilibrium.model = :replay       # Use experimental equilibrium
 act.ActorCoreTransport.model = :replay     # Use experimental profiles
 act.ActorPedestal.model = :replay          # Use experimental pedestal
-act.ActorHCD.ec_model = :replay            # Use experimental ECH
-act.ActorHCD.nb_model = :replay            # Use experimental NBI
+act.ActorSources.ec_model = :replay            # Use experimental ECH
+act.ActorSources.nb_model = :replay            # Use experimental NBI
 ```
 
 **Replay mode philosophy:**

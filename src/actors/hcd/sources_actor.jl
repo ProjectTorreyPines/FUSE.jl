@@ -7,7 +7,7 @@
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
-    neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Pellet source actor to run"; default=:NEUCG)
+    neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Neutral gas fueling actor to run"; default=:NEUCG)
 end
 
 mutable struct ActorSources{D,P} <: CompoundAbstractActor{D,P}

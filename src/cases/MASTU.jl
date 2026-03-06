@@ -1,6 +1,13 @@
 """
     case_parameters(:MASTU; init_from::Symbol)
 
+MAST-U (Mega Ampere Spherical Tokamak Upgrade) — the UK spherical tokamak at UKAEA/Culham.
+
+
+Initialization options:
+- `init_from = :ods`: Load from the IMAS ODS machine description file (full geometry)
+- `init_from = :scalars`: Initialize from scalar plasma parameters (default)
+
 """
 function case_parameters(::Val{:MASTU}; init_from::Symbol)
     ini = FUSE.ParametersInits()
