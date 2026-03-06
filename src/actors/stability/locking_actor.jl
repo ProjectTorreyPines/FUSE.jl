@@ -83,11 +83,18 @@ Base.@kwdef mutable struct ODEparams
     # keep adding default and magic things
 end
 
+mutable struct LockingResults
+    ode_sols
+    prob
+    norm_sols
+    locking_labels
+end
+
 mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorLocking{P}}
     ode_params::Union{Nothing, ODEparams}
-    results::Union{Nothing, Any}
+    results::Union{Nothing, LockingResults}
 
     function ActorLocking(
         dd::IMAS.dd{D},
@@ -157,8 +164,8 @@ function _step(actor::ActorLocking)
         # Solve the ODE system on the whole control grid):
         control1 = actor.ode_params.Control1
         control2 = actor.ode_params.Control2
-        full_sys_sols = solve_system(actor, application)
-        norm_sols = normalize_ode_results(full_sys_sols, actor.ode_params,
+        ode_sols = solve_system(actor, application)
+        norm_sols = normalize_ode_results(ode_sols, actor.ode_params,
              control2, control1, par.control_type)
 
         # ## plot normalize solution scatters
@@ -182,6 +189,16 @@ function _step(actor::ActorLocking)
         kmc = kmeans(R', 2)
         locking_labels = kmc.assignments
         plot_sols_scatter(norm_sols; labels=locking_labels)
+
+        # store back in the actor
+        prob = 0 # placeholder for now, can store the ODEProblem if you want to keep it
+        actor.results = LockingResults(
+        ode_sols,
+        prob,
+        norm_sols,
+        locking_labels
+        )
+
         
     else
         error("Unknown task: $(par.task)")
