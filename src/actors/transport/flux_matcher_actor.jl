@@ -108,9 +108,15 @@ Evolution options per channel:
 - `:fixed`: Keep profiles fixed
 - `:replay`: Use profiles from experimental data
 
+Available nonlinear solver `algorithm` options:
+`:default`, `:basic_polyalg`, `:polyalg`, `:broyden`, `:anderson`, `:simple_trust`,
+`:simple_dfsane`, `:trust`, `:simple`, `:old_anderson`, `:custom`, `:none`.
+On solver exception, the actor automatically falls back to `:simple_dfsane`.
+
 Advanced features include turbulence scaling to target confinement laws (H98, DS03),
-time-dependent evolution with ∂/∂t terms, and various nonlinear solver algorithms
-optimized for different transport model characteristics.
+time-dependent evolution with ∂/∂t terms, and the `z_max` parameter to cap normalized
+gradient (inverse scale lengths) during the iteration — either as a uniform scalar or
+as a spatially varying `NamedTuple(core, edge, rho_transition)`.
 """
 function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; kw...)

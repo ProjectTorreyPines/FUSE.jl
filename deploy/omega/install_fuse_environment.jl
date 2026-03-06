@@ -50,7 +50,7 @@ using WebIO
 using FUSE, EFIT, $pkgs_using
 include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
 include(joinpath(pkgdir(FUSE), "test", "runtests.jl"))
-include(joinpath(pkgdir(FUSE), "deploy", "omega", "time_dependent_d3d.jl")
+include(joinpath(pkgdir(FUSE), "deploy", "omega", "time_dependent_d3d.jl"))
 """
 write(precompile_execution_file, precompile_cmds)
 chmod(precompile_execution_file, 0o444)
