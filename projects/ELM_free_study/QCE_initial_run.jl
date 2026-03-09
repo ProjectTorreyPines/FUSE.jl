@@ -1,6 +1,3 @@
-julia
-using Pkg
-Pkg.activate(".")
 using FUSE
 FUSE.logging(Logging.Info; actors=Logging.Error);
 
@@ -9,21 +6,21 @@ qce_regime = true
 
 ### NEW DEFINITIONS ###
 
-function alpha_t(dd) # from https://doi.org/10.1088/1741-4326/ad89da
+function alpha_t(dd::IMAS.dd) # from https://doi.org/10.1088/1741-4326/ad89da
 
     μ0 = 4π * 1e-7
 
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    B_T = dd.equilibrium.vacuum_toroidal_field.b0[1]
-    a_minor = dd.equilibrium.time_slice[1].boundary.minor_radius
-    kappa = dd.equilibrium.time_slice[1].boundary.elongation
-    delta = dd.equilibrium.time_slice[1].boundary.triangularity
-    n_e_edge = dd.core_profiles.profiles_1d[1].electrons.density_thermal[end]
-    Z_eff = dd.core_profiles.profiles_1d[1].zeff[end]
-    T_e_edge = dd.core_profiles.profiles_1d[1].electrons.temperature[end]
+    B_T = dd.equilibrium.vacuum_toroidal_field.b0[]
+    a_minor = dd.equilibrium.time_slice[].boundary.minor_radius
+    kappa = dd.equilibrium.time_slice[].boundary.elongation
+    delta = dd.equilibrium.time_slice[].boundary.triangularity
+    n_e_edge = dd.core_profiles.profiles_1d[].electrons.density_thermal[end]
+    Z_eff = dd.core_profiles.profiles_1d[].zeff[end]
+    T_e_edge = dd.core_profiles.profiles_1d[].electrons.temperature[end]
 
     A = R0 / a_minor
-    B_theta = μ0 *  dd.equilibrium.time_slice[1].global_quantities.ip / (2π *  a_minor)
+    B_theta = μ0 *  dd.equilibrium.time_slice[].global_quantities.ip / (2π *  a_minor)
 
     k_eff = sqrt((1 + kappa^2 * (1 + 2*delta^2 - 1.2*delta^3)) / 2)
 
