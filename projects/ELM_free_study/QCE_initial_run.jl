@@ -150,6 +150,7 @@ CFL = deepcopy(IMAS.ConstraintFunctionsLibrary)
 
 objective_functions = [OFL[:min_capital_cost],OFL[:max_q95]]#, OFL[:max_log10_flattop]]
 transport_error_func = IMAS.ConstraintFunction(:max_transport_error, "", dd -> @ddtime(dd.transport_solver_numerics.convergence.time_step.data),<,1.1)
+qce_min_alpha_t = IMAS.ConstraintFunction(:min_alpha_t, "", dd -> @ddtime(alpha_t(dd)),>,0.55)
 
 constraint_functions = []
 
@@ -160,7 +161,7 @@ if qce_regime
         transport_error_func,
         CFL[:min_lh_power_threshold],
         CFL[:max_Psol_R],
-        CFL[:min_αt], ### Needs to be implemented αt > 0.55
+        CFL[:qce_min_alpha_t],
         CFL[:max_tf_j],CFL[:max_oh_j],
         CFL[:max_pl_stress],CFL[:max_tf_stress],CFL[:max_oh_stress]]
    
