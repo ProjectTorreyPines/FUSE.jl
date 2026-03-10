@@ -544,7 +544,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
         end
     end
 
-    @assert length(s) == length(pprime_of_s) == length(j_tor_of_s) "s, presssure and j_tor arrays must have the same shape"
+    @assert length(s) == length(pprime_at_s) == length(j_tor_at_s) "s, presssure and j_tor arrays must have the same shape"
     write_list = vcat(write_list, "$(length(s))")
     write_list = vcat(write_list, "$(string(NSTTP))")
     write_list = vcat(write_list, map(string, s))
