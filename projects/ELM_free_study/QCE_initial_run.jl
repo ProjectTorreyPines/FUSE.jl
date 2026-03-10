@@ -6,30 +6,6 @@ qce_regime = true
 
 ### NEW DEFINITIONS ###
 
-function alpha_t(dd::IMAS.dd) # from https://doi.org/10.1088/1741-4326/ad89da
-
-    μ0 = 4π * 1e-7
-
-    R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    B_T = dd.equilibrium.vacuum_toroidal_field.b0[]
-    a_minor = dd.equilibrium.time_slice[].boundary.minor_radius
-    kappa = dd.equilibrium.time_slice[].boundary.elongation
-    delta = dd.equilibrium.time_slice[].boundary.triangularity
-    n_e_edge = dd.core_profiles.profiles_1d[].electrons.density_thermal[end]
-    Z_eff = dd.core_profiles.profiles_1d[].zeff[end]
-    T_e_edge = dd.core_profiles.profiles_1d[].electrons.temperature[end]
-
-    A = R0 / a_minor
-    B_theta = μ0 *  dd.equilibrium.time_slice[].global_quantities.ip / (2π *  a_minor)
-
-    k_eff = sqrt((1 + kappa^2 * (1 + 2*delta^2 - 1.2*delta^3)) / 2)
-
-    q_cyl = (B_T / B_theta) * (k_eff / A)
-
-    αt = 3.13e-18 * R0 * q_cyl^2 * (n_e_edge * Z_eff) / (T_e_edge^2)
-
-    return αt
-end
 
 # function alpha_edge_crit(dd) # from https://doi.org/10.1088/1741-4326/ad89da
 
@@ -49,17 +25,12 @@ end
 
 
 
-
-
-
-
 ini,act = FUSE.case_parameters(:KDEMO);
 
 ### Act settings
 act.ActorEquilibrium.model = :TEQUILA
 act.ActorCoreTransport.model = :FluxMatcher
-act.ActorFluxMatcher.optimizer_algorithm = :simple
-
+act.ActorFluxMatcher.algorithm = :simple
 
 act.ActorPFdesign.model=:optimal
 act.ActorFluxSwing.operate_oh_at_j_crit = true # this maximizes flattop inside the fluxswing actor
@@ -69,8 +40,6 @@ act.ActorWholeFacility.update_plasma = true
 # This is handeled by the constraint funcitons
 act.ActorHFSsizing.error_on_performance = false
 act.ActorHFSsizing.error_on_technology = false
-act.ActorStabilityLimits.raise_on_breach = false
-
 
 act.ActorFluxMatcher.evolve_densities = :flux_match
 
@@ -80,7 +49,7 @@ resize!(ini.ec_launcher,1)
 ini.ec_launcher[1].power_launched = 1e7 ↔ [1e4,5e7]
 ini.ec_launcher[1].efficiency_conversion = 0.45
 ini.ec_launcher[1].efficiency_transmission = 0.8
-ini.ec_launcher[1].rho_0 = 0.2 #↔ [0.1,0.9]
+act.ActorSimpleEC.actuator[1].rho_0 = 0.2 #↔ [0.1,0.9]
 
 ini.ic_antenna[1].power_launched = 5.0e7  ↔ [1e4,5e7]
 
@@ -150,30 +119,29 @@ CFL = deepcopy(IMAS.ConstraintFunctionsLibrary)
 
 objective_functions = [OFL[:min_capital_cost],OFL[:max_q95]]#, OFL[:max_log10_flattop]]
 transport_error_func = IMAS.ConstraintFunction(:max_transport_error, "", dd -> @ddtime(dd.transport_solver_numerics.convergence.time_step.data),<,1.1)
-qce_min_alpha_t = IMAS.ConstraintFunction(:min_alpha_t, "", dd -> @ddtime(alpha_t(dd)),>,0.55)
-
 constraint_functions = []
 
 if qce_regime
     constraint_functions = [
-        CFL[:required_power_electric_net],
+        CFL[:min_power_electric_net],
         CFL[:min_q95],
         transport_error_func,
-        CFL[:min_lh_power_threshold],
+        CFL[:min_lh_power_threshold_fraction],
         CFL[:max_Psol_R],
-        CFL[:qce_min_alpha_t],
-        CFL[:max_tf_j],CFL[:max_oh_j],
-        CFL[:max_pl_stress],CFL[:max_tf_stress],CFL[:max_oh_stress]]
+        CFL[:min_alpha_t],
+        CFL[:max_Psol_R],
+        CFL[:max_tf_coil_j],CFL[:max_oh_coil_j],
+        CFL[:max_pl_stress],CFL[:max_tf_coil_stress],CFL[:max_oh_coil_stress]]
    
 else
     constraint_functions = [
-        CFL[:required_power_electric_net],
+        CFL[:min_power_electric_net],
         CFL[:min_q95],
         transport_error_func,
-        CFL[:min_lh_power_threshold],
+        CFL[:min_lh_power_threshold_fraction],
         CFL[:max_Psol_R],
-        CFL[:max_tf_j],CFL[:max_oh_j],
-        CFL[:max_pl_stress],CFL[:max_tf_stress],CFL[:max_oh_stress]]
+        CFL[:max_tf_coil_j],CFL[:max_oh_coil_j],
+        CFL[:max_pl_stress],CFL[:max_tf_coil_stress],CFL[:max_oh_coil_stress]]
 end
 
 println("== OBJECTIVE FUNCTIONS ==")
@@ -181,3 +149,30 @@ display(objective_functions)
 println()
 println("== CONSTRAINT FUNCTIONS ==")
 display(constraint_functions)
+
+sty = FUSE.study_parameters(:MultiObjectiveOptimizer);
+
+sty.server = "localhost"
+
+sty.n_workers = N_workers = 126
+sty.restart_workers_after_n_generations = 0# this is the default behavior and releases workers after running the study
+
+sty.population_size = 500
+
+sty.number_of_generations = 60
+
+save_dir = "/pscratch/sd/s/slendebt/projects/ELM_free_study/results/QCE_1"
+
+if !isdir(save_dir)
+    mkdir(save_dir)
+end
+
+sty.save_folder = save_dir
+
+println(sty.save_folder)
+
+
+using Distributed
+@everywhere import FUSE
+
+study = FUSE.StudyMultiObjectiveOptimizer(sty,ini, act, constraint_functions, objective_functions); # it is possible to pass in keyword arguments to sty
