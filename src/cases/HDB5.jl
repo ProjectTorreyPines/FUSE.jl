@@ -1,18 +1,62 @@
 using DataFrames: DataFrames
 using CSV: CSV
+import Random
 
 """
-    case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=0, database_case::Int=0)
+    KNOWN_TGLFNN_MODELS
+
+Pre-computed best TGLFNN models per tokamak and saturation rule,
+determined via `model_selector` on 5 representative cases per TOK.
+Used as a fast lookup to avoid re-running model_selector every time.
+"""
+const KNOWN_TGLFNN_MODELS = Dict{Tuple{String,Symbol},String}(
+    ("ASDEX", :sat0quench) => "sat0quench_em_d3d_azf+1",
+    ("ASDEX", :sat3)       => "sat3_em_d3d_azf-1_withnegD",
+    ("D3D",   :sat0quench) => "sat0quench_em_d3d_azf+1_withnegD",
+    ("D3D",   :sat3)       => "sat3_em_d3d_azf-1_withnegD",
+    ("JET",   :sat0quench) => "sat0quench_em_d3d_azf+1_withnegD",
+    ("JET",   :sat3)       => "sat3_em_d3d_azf-1",
+)
+
+"""
+    case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=1, database_case::Int=0, shot::Int=-1, verbose::Bool=true, tglfnn_model::Union{String,Symbol}=:auto, sat_rule::Symbol=:sat0quench)
 
 For description of cases/variables see https://osf.io/593q6/
+
+When `tglfnn_model=:auto` (default), a temporary `dd` is initialized and
+`TurbulentTransport.model_selector` selects the best TGLFNN neural network for the given `sat_rule`.
+Pass a model name string (e.g. `"sat1_em_d3d"`) to skip auto-selection.
 """
-function case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=1, database_case::Int=0, shot::Int=-1, verbose::Bool=true)
+function case_parameters(::Val{:HDB5}; tokamak::Symbol=:all, case::Int=1, database_case::Int=0, shot::Int=-1, verbose::Bool=true,
+                         tglfnn_model::Union{String,Symbol}=:auto, sat_rule::Symbol=:sat0quench)
     data = load_hdb5(tokamak; database_case, shot)
     if nrow(data) > 1
         display(data)
     end
     data_row = data[case, :]
-    return case_parameters(data_row; verbose)
+    ini, act = case_parameters(data_row; verbose)
+
+    act.ActorTGLF.sat_rule = sat_rule
+
+    if tglfnn_model === :auto
+        tok_str = string(data_row[:TOK])
+        lookup_key = (tok_str, sat_rule)
+        if haskey(KNOWN_TGLFNN_MODELS, lookup_key)
+            best = KNOWN_TGLFNN_MODELS[lookup_key]
+            @info "Using known TGLFNN model" model = best sat_rule tok = tok_str
+        else
+            dd = IMAS.dd()
+            init(dd, ini, act)
+            ms = TurbulentTransport.model_selector(dd; sat_rule, max_models=1, ground_truth=true, verbose=false)
+            best = ms.rankings[1].top_models[1]
+            @info "Auto-selected TGLFNN model" model = best sat_rule tok = tok_str
+        end
+        act.ActorTGLF.tglfnn_model = best
+    else
+        act.ActorTGLF.tglfnn_model = tglfnn_model
+    end
+
+    return ini, act
 end
 
 function case_parameters(data_row::DataFrames.DataFrameRow; verbose::Bool=true)
@@ -105,6 +149,81 @@ function case_parameters(data_row::DataFrames.DataFrameRow; verbose::Bool=true)
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
 
     return ini, act
+end
+
+"""
+    find_best_tglfnn_models(; sat_rules=[:sat0quench, :sat3], rho_grid=range(0.1, 0.9, 9), max_models=3, ground_truth=true, n_samples=5)
+
+For each unique `:TOK` symbol in the HDB5 database, initialize `n_samples` representative cases
+(0 for all), combine their `InputTGLF`s, and use `TurbulentTransport.model_selector` to find
+the best TGLFNN neural network model across the range of plasma conditions.
+
+Returns a `Dict{String, Dict{Symbol, Any}}` mapping `TOK => sat_rule => model_selector_results`.
+"""
+function find_best_tglfnn_models(;
+    sat_rules::Vector{Symbol}=[:sat0quench, :sat3],
+    rho_grid=range(0.1, 0.9, 9),
+    max_models::Int=3,
+    ground_truth::Bool=true,
+    n_samples::Int=5
+)
+    data = load_hdb5()
+    toks = sort(unique(data.TOK))
+
+    results = Dict{String,Dict{Symbol,Any}}()
+
+    for tok in toks
+        tok_sym = Symbol(tok)
+        try
+            tok_data = load_hdb5(tok_sym)
+            n_avail = nrow(tok_data)
+            n_sel = n_samples > 0 ? min(n_samples, n_avail) : n_avail
+            sample_indices = Random.shuffle(1:n_avail)[1:n_sel]
+
+            all_input_tglfs = TurbulentTransport.InputTGLF{Float64}[]
+            for idx in sample_indices
+                try
+                    ini, act = case_parameters(tok_data[idx, :]; verbose=false)
+                    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+                    dd = IMAS.dd()
+                    init(dd, ini, act)
+                    rho_vec = collect(rho_grid)
+                    input_tglfs = TurbulentTransport._unwrap_input_tglfs(
+                        TurbulentTransport.InputTGLF(dd, rho_vec, sat_rules[1], true, false))
+                    append!(all_input_tglfs, input_tglfs)
+                catch e
+                    @debug "Skipping case" tok idx exception = e
+                end
+            end
+
+            if isempty(all_input_tglfs)
+                @warn "No cases initialized successfully" tok
+                continue
+            end
+
+            @info "Processing TOK" tok n_cases = length(sample_indices) n_inputs = length(all_input_tglfs)
+            results[tok] = Dict{Symbol,Any}()
+            for sat_rule in sat_rules
+                @info "Running model_selector" tok sat_rule
+                ms = TurbulentTransport.model_selector(all_input_tglfs;
+                    filter_sat_rule=sat_rule, max_models, ground_truth, verbose=false)
+                results[tok][sat_rule] = ms
+            end
+        catch e
+            @warn "Failed for TOK" tok exception = (e, catch_backtrace())
+        end
+    end
+
+    for tok in sort(collect(keys(results)))
+        for sat_rule in sat_rules
+            if haskey(results[tok], sat_rule)
+                best = results[tok][sat_rule].rankings[1].top_models[1]
+                @info "Best TGLFNN model" tok sat_rule model = best
+            end
+        end
+    end
+
+    return results
 end
 
 function load_hdb5(tokamak::Symbol=:all; maximum_ohmic_fraction::Float64=0.25, database_case::Int=0, shot::Int=0, extra_signal_names::Vector{String}=String[])
