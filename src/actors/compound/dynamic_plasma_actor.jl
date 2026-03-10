@@ -2,8 +2,8 @@
 #  ActorDynamicPlasma  #
 #= ================== =#
 @actor_parameters_struct ActorDynamicPlasma{T} begin
-    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
+    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt"; default=missing)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=missing)
     evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal"; default=true)
     evolve_sources::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
