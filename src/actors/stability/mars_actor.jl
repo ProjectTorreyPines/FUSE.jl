@@ -492,7 +492,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     
     # Normalize from SI to chease units
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    j_tor_norm = abs(j_tor_of_s) / (abs(Bt_center) / (r_center * μ_0))
+    j_tor_norm = abs.(j_tor_of_s) / (abs(Bt_center) / (r_center * μ_0))
     dpressure_ds = pprime_of_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
 
     # I suspect this logic is to make the q profile > 0, but NOT sure
