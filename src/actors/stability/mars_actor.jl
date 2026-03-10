@@ -444,6 +444,11 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     # get the normalized psi and convert d/dPsi to d/ds coordinate for CHEASE input
     psi_norm = eqt1d.psi_norm
+    psi = eqt1d.psi
+    s = sqrt.(psi_norm)
+    psi0 = psi[1]
+    psib = psi[end]
+    psi_at_s = (psib - psi0) * s.^2 .+ psi0
     s = sqrt.(psi_norm)
     pprime = eqt1d.dpressure_dpsi 
     FFprime = eqt1d.f_df_dpsi/μ_0 # throw in mu0 and r_center for later normalization
@@ -485,10 +490,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     ϵ = minor_radius / r_center
     
     # interpolate to s coordinates
-    field_at_s = IMAS.interp1d(psi_norm, j_tor)
-    j_tor_of_s = field_at_s.(s)
-    field_at_s = IMAS.interp1d(psi_norm, pprime)
-    pprime_of_s = field_at_s.(s)
+    field_at_s = IMAS.interp1d(psi, j_tor)
+    j_tor_of_s = field_at_s.(psi_at_s)
+    field_at_s = IMAS.interp1d(psi, pprime)
+    pprime_of_s = field_at_s.(psi_at_s)
     
     # Normalize from SI to chease units
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
