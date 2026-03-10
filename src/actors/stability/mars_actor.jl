@@ -490,15 +490,15 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     ϵ = minor_radius / r_center
     
     # interpolate to s coordinates
-    field_at_s = IMAS.interp1d(psi, j_tor)
-    j_tor_of_s = field_at_s.(psi_at_s)
-    field_at_s = IMAS.interp1d(psi, pprime)
-    pprime_of_s = field_at_s.(psi_at_s)
-    
+    field_at_psi = IMAS.interp1d(psi, j_tor)
+    j_tor_at_s = field_at_psi.(psi_at_s)
+    field_at_psi = IMAS.interp1d(psi, pprime)
+    pprime_at_s = field_at_psi.(psi_at_s)
+
     # Normalize from SI to chease units
-    pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    j_tor_norm = abs.(j_tor_of_s) / (abs(Bt_center) / (r_center * μ_0))
-    dpressure_ds = pprime_of_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
+    pressure_step_norm = pressure_sep / (Bt_center^2 / μ_0)
+    j_tor_norm = abs.(j_tor_at_s) / (abs(Bt_center) / (r_center * μ_0))
+    dpressure_ds = pprime_at_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
 
     # I suspect this logic is to make the q profile > 0, but NOT sure
     ip_sign = sign(Ip)
