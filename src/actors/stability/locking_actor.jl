@@ -187,7 +187,7 @@ function _step(actor::ActorLocking)
         ## classify normalized solutions
         R = hcat(norm_sols[:,1], norm_sols[:,3])
         kmc = kmeans(R', 2)
-        locking_labels = kmc.assignments
+        locking_labels = kmc.assignments 
         plot_sols_scatter(norm_sols; labels=locking_labels)
 
         # store back in the actor
@@ -217,7 +217,7 @@ function _finalize(actor::ActorLocking)
     mode = resize!(mhd_ts.toroidal_mode, "perturbation_type.name" => "Locked mode", "n_tor" => 1)
     mode.perturbation_type.description = "Locked mode limit from ActorLocking"
     mode.amplitude_multiplier = 1.0 / (par.b0*par.r0)
-    mode.plasma.b_field_perturbed = 1.0
+    #mode.plasma.b_field_perturbed.coordinate1.coefficients_real = AbstractArray(1.0, 0., 0.)
         
     return actor
 end
