@@ -461,15 +461,20 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
 
     ## get additional parameters from user
     NWBPS = par.number_surfaces
+
+    ## GS current density specification and de-dimensionalization for CHEASE input
     if par.GS_rhs == :FFpr
         NSTTP = 1
         j_tor = FFprime
+        j_tor_norm = μ_0 * j_tor / abs(Bt_center)
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         j_tor = eqt1d.j_tor
+        j_tor_norm = r_center * μ_0 * j_tor / abs(Bt_center)
     elseif par.GS_rhs == :Jpar
         NSTTP = 3
         j_tor = eqt1d.j_parallel # NOT right!
+        j_tor_norm = r_center * μ_0 * j_tor / abs(Bt_center)
     else
         0
     end
@@ -489,14 +494,13 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     ϵ = minor_radius / r_center
     
     # interpolate to s coordinates
-    field_at_s = IMAS.interp1d(s, j_tor)
+    field_at_s = IMAS.interp1d(s, j_tor_norm)
     j_tor_at_s = field_at_s.(s_grid)
     field_at_s = IMAS.interp1d(s, pprime)
     pprime_at_s = field_at_s.(s_grid)
 
-    # Normalize from SI to chease units
+    # Make pressure terms dimensionless for CHEASE input
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    j_tor_norm = j_tor_at_s / (abs(Bt_center) / (r_center * μ_0))
     dpressure_ds = pprime_at_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
 
     # I suspect this logic is to make the q profile > 0, but NOT sure
