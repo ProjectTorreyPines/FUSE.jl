@@ -41,9 +41,9 @@ jobs:
       fail-fast: false
       matrix:
         flavor:
-          - { os: ubuntu-latest, arch: x64, version: "1.x" }
-          - { os: macos-latest, arch: arm64, version: "1.x" }
-#          - { os: windows-latest, arch: x86, version: "1.x" }
+          - { os: ubuntu-latest, arch: x64, version: "1.11" }
+          - { os: macos-latest, arch: arm64, version: "1.11" }
+#          - { os: windows-latest, arch: x86, version: "1.11" }
     env:
       GKSwstype: 100 # disable Plots.jl interactive output
 
@@ -126,11 +126,21 @@ jobs:
 
       - name: 'Install (without extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'false'
-        run: make install_ci_add NO_FUSE_EXTENSION=true
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            make install_ci_master NO_FUSE_EXTENSION=true
+          else
+            make install_ci_dev NO_FUSE_EXTENSION=true
+          fi
 
       - name: 'Install (with extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'true'
-        run: make install_ci_add
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            make install_ci_master
+          else
+            make install_ci_dev
+          fi
 
       # Save Manifest.toml
       - name: 'Save Manifest.toml'
@@ -145,9 +155,9 @@ jobs:
       # Run tests
       - uses: julia-actions/julia-runtest@v1
 
-      # Code coverage
-      - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v5
-        if: github.ref != 'refs/heads/master'
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+    #   # Code coverage
+    #   - uses: julia-actions/julia-processcoverage@v1
+    #   - uses: codecov/codecov-action@v5
+    #     if: github.ref != 'refs/heads/master'
+    #     with:
+    #       token: ${{ secrets.CODECOV_TOKEN }}

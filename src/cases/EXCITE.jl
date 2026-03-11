@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:EXCITE}})
+    case_parameters(::Val{:EXCITE})
 
 GA EXCITE design
 """
-function case_parameters(::Type{Val{:EXCITE}})
+function case_parameters(::Val{:EXCITE})
     ini = ParametersInits()
     act = ParametersActors()
 
@@ -102,14 +102,11 @@ function case_parameters(::Type{Val{:EXCITE}})
 
     act.ActorFluxSwing.operate_oh_at_j_crit = true
 
-    act.ActorEquilibrium.model = :TEQUILA
-    act.ActorTEQUILA.relax = 0.25
+    act.ActorEquilibrium.model = :FRESCO
 
     act.ActorCoreTransport.model = :none # No flux matching possible
 
     act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
-
-    act.ActorPFactive.strike_points_weight = 0.0
 
     return ini, act
 end

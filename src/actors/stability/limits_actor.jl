@@ -1,10 +1,7 @@
 #= ================= =#
 #  ActorPlasmaLimits  #
 #= ================= =#
-Base.@kwdef mutable struct FUSEparameters__ActorPlasmaLimits{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorPlasmaLimits{T} begin
     models::Entry{Vector{Symbol}} =
         Entry{Vector{Symbol}}("-", "Models used for checking plasma operational limits: $(supported_limit_models)"; default=deepcopy(default_limit_models))
     raise_on_breach::Entry{Bool} = Entry{Bool}("-", "Raise an error when one or more operational limits are breached"; default=false)
@@ -26,7 +23,17 @@ end
 """
     ActorPlasmaLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Runs all the limit actors
+Evaluates plasma operational limits by running all selected limit models and checking 
+for violations. The actor executes various stability and operational limit assessments
+based on the configured models and reports which limits are satisfied or exceeded.
+
+The actor can be configured to raise errors when limits are breached or simply warn.
+It provides detailed reporting of the limit check results, showing the percentage
+of each limit threshold reached.
+
+!!! note
+
+    Reads data from various sources and stores results in `dd.limits`
 """
 function ActorPlasmaLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPlasmaLimits(dd, act.ActorPlasmaLimits, act; kw...)
@@ -38,7 +45,10 @@ end
 """
     _step(actor::ActorPlasmaLimits)
 
-Runs through the selected plasma limits
+Executes all selected limit models and evaluates their pass/fail status. Each model
+is called dynamically based on the configuration. The function then analyzes the
+results to identify which limits were breached and generates appropriate warnings
+or errors based on the configuration.
 """
 function _step(actor::ActorPlasmaLimits)
     dd = actor.dd
@@ -63,7 +73,7 @@ function _step(actor::ActorPlasmaLimits)
     failed_list = String[]
     passed_list = String[]
     for model in dd.limits.model
-        txt = "$(Int(ceil(@ddtime(model.fraction)*100)))% of: $(model.identifier.description)"
+        txt = "$(round(Int, @ddtime(model.fraction)*100, RoundUp))% of: $(model.identifier.description)"
         if Bool(@ddtime model.cleared)
             push!(passed_list, txt)
         else

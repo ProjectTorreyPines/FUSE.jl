@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:UNIT}})
+    case_parameters(::Val{:UNIT})
 
 UNIT circular plasma
 """
-function case_parameters(::Type{Val{:UNIT}})
+function case_parameters(::Val{:UNIT})
     ini = FUSE.ParametersInits()
     act = FUSE.ParametersActors()
 

@@ -12,22 +12,10 @@ function name(study::AbstractStudy)
 end
 
 function study_parameters(study::Symbol; kw...)
-    if length(methods(study_parameters, (Type{Val{study}},))) == 0
+    if length(methods(study_parameters, (Val{study},))) == 0
         error("study `$study` does not exist.\nPossible options are:\n\n$(join(["$method" for method in methods(study_parameters)],"\n"))")
     end
-    return study_parameters(Val{study}; kw...)
-end
-
-function setup(study::AbstractStudy)
-    return _setup(study)
-end
-
-function analyze(study::AbstractStudy; kw...)
-    return _analyze(study; kw...)
-end
-
-function _analyze(study::AbstractStudy; kw...)
-    return study
+    return study_parameters(Val(study); kw...)
 end
 
 function run(study::T, args...; kw...) where {T<:AbstractStudy}

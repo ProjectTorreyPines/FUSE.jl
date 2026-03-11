@@ -1,9 +1,9 @@
 """
-    case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
+    case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
 
 UKAEA STEP design
 """
-function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
+function case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symbol=init_from)
     @assert init_from in (:scalars, :ods)
     @assert pf_from in (:scalars, :ods)
 
@@ -94,6 +94,7 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
 
         rho = cp1d.grid.rho_tor_norm
         cp1d.electrons.density_thermal = ((1.0 .- rho .^ 4) .* 1.6 .+ 0.4) .* 1E20
+        unfreeze!(cp1d.electrons, :density)
 
         cp1d.zeff = fill(ini.core_profiles.zeff, length(rho))
         cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, ini.core_profiles.rot_core / 8, ini.core_profiles.rot_core, length(cp1d.grid.rho_tor_norm), 1.4, 1.4, 0.05)
@@ -102,7 +103,6 @@ function case_parameters(::Type{Val{:STEP}}; init_from::Symbol=:scalars, pf_from
         bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
         # 1. DT
         IMAS.ion_element!(bulk_ion, ini.core_profiles.bulk)
-        @assert IMAS.is_hydrogenic(bulk_ion) "Bulk ion `$(ini.core_profiles.bulk)` must be a Hydrogenic isotope [:H, :D, :DT, :T]"
         # 2. Impurity
         IMAS.ion_element!(imp_ion, ini.core_profiles.impurity)
         # 3. He

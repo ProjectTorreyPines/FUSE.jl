@@ -1,10 +1,7 @@
 #= ========== =#
 #  PF passive  #
 #= ========== =#
-Base.@kwdef mutable struct FUSEparameters__ActorPassiveStructures{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorPassiveStructures{T} begin
     #== actor parameters ==#
     wall_precision::Entry{Float64} = Entry{Float64}("-", "Precision for making wall quadralaterals"; default=1.0)
     min_n_segments::Entry{Int} = Entry{Int}("-", "Minimum number of quadralaterals"; default=15)
@@ -25,7 +22,36 @@ end
 """
     ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Populates `pf_passive` IDS based on the vacuum vessel layer(s)
+Generates passive conducting structure models for electromagnetic analysis by discretizing
+vacuum vessel layers into quadrilateral current loops. These passive elements are essential
+for vertical stability analysis and disruption modeling as they represent the primary
+conducting structures that interact with changing magnetic fields.
+
+# Discretization process
+1. Identifies vacuum vessel layers from the radial build (`dd.build.layer` with type `:vessel`)
+2. Creates inner and outer boundaries of conducting walls
+3. Discretizes walls into quadrilateral elements based on precision requirements
+4. Assigns electrical properties (resistivity) based on vessel materials
+
+# Physics modeling
+- Each quadrilateral represents a passive current loop with specific resistance
+- Material properties determine resistivity (defaults to steel if not specified)
+- Geometric discretization balances accuracy vs computational efficiency  
+- Accounts for wall thickness effects on electromagnetic coupling
+
+# Key inputs
+- Vacuum vessel layer geometry (`dd.build.layer[].outline`)
+- Material specifications and electrical conductivity
+- Discretization precision parameters
+
+# Key outputs
+- Passive loop elements in `dd.pf_passive.loop[].element[]`
+- Loop resistivity values for electromagnetic calculations  
+- Geometric properties (outline coordinates) for each discretized element
+
+!!! note
+
+    Populates `dd.pf_passive` based on vacuum vessel layer(s)
 """
 function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorPassiveStructures(dd, act.ActorPassiveStructures; kw...)

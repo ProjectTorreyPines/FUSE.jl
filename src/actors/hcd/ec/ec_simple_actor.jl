@@ -1,19 +1,13 @@
 #= ========= =#
 #  Simple EC  #
 #= ========= =#
-Base.@kwdef mutable struct _FUSEparameters__ActorSimpleECactuator{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct _ActorSimpleECactuator{T} begin
     ηcd_scale::Entry{T} = Entry{T}("-", "Scaling factor for nominal current drive efficiency"; default=1.0)
     rho_0::Entry{T} = Entry{T}("-", "Desired radial location of the deposition profile"; default=0.5, check=x -> @assert x >= 0.0 "must be: rho_0 >= 0.0")
     width::Entry{T} = Entry{T}("-", "Desired width of the deposition profile"; default=0.025, check=x -> @assert x >= 0.0 "must be: width > 0.0")
 end
 
-Base.@kwdef mutable struct FUSEparameters__ActorSimpleEC{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorSimpleEC{T} begin
     actuator::ParametersVector{_FUSEparameters__ActorSimpleECactuator{T}} = ParametersVector{_FUSEparameters__ActorSimpleECactuator{T}}()
 end
 
@@ -30,9 +24,18 @@ end
 """
     ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Estimates the EC electron energy deposition and current drive as a gaussian.
+Calculates electron cyclotron (EC) heating and current drive using simplified Gaussian 
+deposition profiles. The actor performs vacuum ray tracing to determine beam paths and
+calculates power absorption and current drive with analytic models.
 
-NOTE: Current drive efficiency from GASC, based on "G. Tonon 'Current Drive Efficiency Requirements for an Attractive Steady-State Reactor'"
+The model includes:
+- Vacuum ray tracing from launch point to absorption location
+- Gaussian power deposition profiles centered at user-specified locations
+- Current drive efficiency based on GASC formulae (G. Tonon model)
+- Multiple actuator support for different EC systems
+
+Current drive efficiency is calculated using the formula from G. Tonon's work on
+"Current Drive Efficiency Requirements for an Attractive Steady-State Reactor".
 
 !!! note
 
