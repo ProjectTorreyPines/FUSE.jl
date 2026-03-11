@@ -494,14 +494,14 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     ϵ = minor_radius / r_center
     
     # interpolate to s coordinates
-    field_at_s = IMAS.interp1d(s, j_tor_norm)
-    j_tor_at_s = field_at_s.(s_grid)
+    field_at_s = IMAS.interp1d(s, abs.(j_tor_norm))
+    j_tor_final = field_at_s.(s_grid)
     field_at_s = IMAS.interp1d(s, pprime)
     pprime_at_s = field_at_s.(s_grid)
 
     # Make pressure terms dimensionless for CHEASE input
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    dpressure_ds = pprime_at_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
+    pprime_final = pprime_at_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
 
     # I suspect this logic is to make the q profile > 0, but NOT sure
     ip_sign = sign(Ip)
@@ -547,12 +547,12 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
         end
     end
 
-    @assert length(s) == length(pprime_at_s) == length(j_tor_at_s) "s, presssure and j_tor arrays must have the same shape"
-    write_list = vcat(write_list, "$(length(s))")
+    @assert length(s_grid) == length(pprime_final) == length(j_tor_final) "s, presssure and j_tor arrays must have the same shape"
+    write_list = vcat(write_list, "$(length(s_grid))")
     write_list = vcat(write_list, "$(string(NSTTP))")
     write_list = vcat(write_list, map(string, s_grid))
-    write_list = vcat(write_list, map(string, dpressure_ds))
-    write_list = vcat(write_list, map(string, j_tor_norm))
+    write_list = vcat(write_list, map(string, pprime_final))
+    write_list = vcat(write_list, map(string, j_tor_final))
 
     # write to EXPEQ file   
     touch("EXPEQ")
