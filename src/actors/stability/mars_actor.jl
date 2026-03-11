@@ -446,11 +446,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     psi_norm = eqt1d.psi_norm
     psi = eqt1d.psi
     s = sqrt.(psi_norm)
-    s_grid = range(0.0, 1.0; length=length(psi))
+    s_grid = s #range(0.0, 1.0; length=length(psi))
     psi0 = psi[1]
     psib = psi[end]
     pprime = eqt1d.dpressure_dpsi 
-    FFprime = eqt1d.f_df_dpsi/μ_0 # throw in mu0 and r_center for later normalization
     
     ### Currently NOT used, but may be useful later
     #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
@@ -465,8 +464,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     ## GS current density specification and de-dimensionalization for CHEASE input
     if par.GS_rhs == :FFpr
         NSTTP = 1
-        j_tor = FFprime
-        j_tor_norm = μ_0 * j_tor / abs(Bt_center)
+        j_tor = eqt1d.f_df_dpsi
+        j_tor_norm = j_tor / abs(Bt_center)
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         j_tor = eqt1d.j_tor
@@ -493,15 +492,13 @@ function write_EXPEQ_file(dd::IMAS.dd, par, time_slice_index::Int=1)
     # calculate aspect ratio
     ϵ = minor_radius / r_center
     
-    # interpolate to s coordinates
-    field_at_s = IMAS.interp1d(s, abs.(j_tor_norm))
-    j_tor_final = field_at_s.(s_grid)
-    field_at_s = IMAS.interp1d(s, pprime)
-    pprime_at_s = field_at_s.(s_grid)
+    # interpolate to uniform s grid for CHEASE input
+    j_tor_final = abs.(j_tor_norm)#IMAS.interp1d(s, abs.(j_tor_norm)).(s_grid)
+    pprime_at_s = pprime #IMAS.interp1d(s, pprime).(s_grid)
 
     # Make pressure terms dimensionless for CHEASE input
     pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    pprime_final = pprime_at_s * (r_center^2 * abs(Bt_center)) / (Bt_center^2 / μ_0)
+    pprime_final = pprime_at_s * r_center^2 * μ_0 / abs(Bt_center)
 
     # I suspect this logic is to make the q profile > 0, but NOT sure
     ip_sign = sign(Ip)
