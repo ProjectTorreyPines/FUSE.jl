@@ -254,9 +254,9 @@
         }
       ]
     },
-    "ActorSawteeth": {
+    "ActorSawteethSource": {
       "source_url": "https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/src/actors/transport/sawteeth_actor.jl",
-      "name": "ActorSawteeth",
+      "name": "ActorSawteethSource",
       "physics_domain": "MHD instabilities and reconnection events",
       "key_parameters": {},
       "description": "Applies sawteeth reconnection to core_sources and core_profiles when q < 1.0 in the plasma core",
@@ -1266,7 +1266,7 @@
           "optional": true
         },
         {
-          "name": "ActorHCD",
+          "name": "ActorSources",
           "optional": false
         },
         {
@@ -1278,14 +1278,14 @@
           "optional": false
         },
         {
-          "name": "ActorSawteeth",
+          "name": "ActorSawteethSource",
           "optional": false
         }
       ]
     },
-    "ActorHCD": {
+    "ActorSources": {
       "source_url": "https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/src/actors/hcd/hcd_actor.jl",
-      "name": "ActorHCD",
+      "name": "ActorSources",
       "physics_domain": "Heating and current drive systems",
       "key_parameters": {
         "lh_model": "LH source actor to run (LHsimple, replay, none)",
@@ -1470,7 +1470,7 @@
           "optional": false
         },
         {
-          "name": "ActorHCD",
+          "name": "ActorSources",
           "optional": false
         },
         {
@@ -1486,7 +1486,7 @@
           "optional": false
         },
         {
-          "name": "ActorSawteeth",
+          "name": "ActorSawteethSource",
           "optional": false
         }
       ]
@@ -2627,7 +2627,7 @@
         "ActorSteadyStateCurrent"
       ],
       "MHD instabilities and reconnection events": [
-        "ActorSawteeth"
+        "ActorSawteethSource"
       ],
       "Plasma equilibrium and magnetic field configuration": [
         "ActorEquilibrium"
@@ -2757,7 +2757,7 @@
         "ActorQLGYRO"
       ],
       "Heating and current drive systems": [
-        "ActorHCD"
+        "ActorSources"
       ],
       "Turbulent transport modeling": [
         "ActorAnalyticTurbulence"
@@ -2787,12 +2787,12 @@
         "ActorStationaryPlasma": [
           "ActorCoreTransport",
           "ActorPedestal",
-          "ActorHCD",
+          "ActorSources",
           "ActorCurrent",
           "ActorEquilibrium",
-          "ActorSawteeth"
+          "ActorSawteethSource"
         ],
-        "ActorHCD": [
+        "ActorSources": [
           "ActorSimpleEC",
           "ActorTORBEAM",
           "ActorSimpleIC",
@@ -2839,11 +2839,11 @@
         "ActorDynamicPlasma": [
           "ActorCoreTransport",
           "ActorPedestal",
-          "ActorHCD",
+          "ActorSources",
           "ActorCurrent",
           "ActorEquilibrium",
           "ActorPFactive",
-          "ActorSawteeth"
+          "ActorSawteethSource"
         ],
         "ActorCosting": [
           "ActorCostingSheffield",
@@ -2917,7 +2917,7 @@
         "ActorEPEDprofiles": [
           "ActorCoreTransport"
         ],
-        "ActorSawteeth": [
+        "ActorSawteethSource": [
           "ActorStationaryPlasma",
           "ActorDynamicPlasma"
         ],
@@ -2966,7 +2966,7 @@
           "ActorDynamicPlasma"
         ],
         "ActorSimpleEC": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorAnalyticTurbulence": [
           "ActorFluxCalculator"
@@ -2975,7 +2975,7 @@
           "ActorFluxCalculator"
         ],
         "ActorSimpleNB": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorThermalPlant": [
           "ActorBalanceOfPlant"
@@ -2989,7 +2989,7 @@
         "ActorStationaryPlasma": [
           "ActorWholeFacility"
         ],
-        "ActorHCD": [
+        "ActorSources": [
           "ActorStationaryPlasma",
           "ActorDynamicPlasma"
         ],
@@ -3015,7 +3015,7 @@
           "ActorWholeFacility"
         ],
         "ActorSimplePL": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorEquilibrium": [
           "ActorStationaryPlasma",
@@ -3028,14 +3028,14 @@
           "ActorCurrent"
         ],
         "ActorNeutralFueling": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorCurrent": [
           "ActorStationaryPlasma",
           "ActorDynamicPlasma"
         ],
         "ActorSimpleIC": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorFluxMatcher": [
           "ActorCoreTransport"
@@ -3054,7 +3054,7 @@
           "ActorFluxCalculator"
         ],
         "ActorSimpleLH": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorEGGO": [
           "ActorEquilibrium"
@@ -3062,7 +3062,7 @@
         "ActorReplay": [
           "ActorPedestal",
           "ActorCoreTransport",
-          "ActorHCD",
+          "ActorSources",
           "ActorEquilibrium",
           "ActorCurrent",
           "ActorSOL",
@@ -3072,10 +3072,10 @@
           "ActorWholeFacility"
         ],
         "ActorTORBEAM": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorRABBIT": [
-          "ActorHCD"
+          "ActorSources"
         ],
         "ActorBlanket": [
           "ActorWholeFacility"
@@ -3916,7 +3916,7 @@
                 "data_path": "dd.equilibrium.time_slice[].profiles_2d.psi"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -4587,7 +4587,7 @@
                 "data_path": "dd.ec_launcher"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -4730,7 +4730,7 @@
                 "data_path": "core_profiles"
               }
             ],
-            "actor": "ActorSawteeth"
+            "actor": "ActorSawteethSource"
           },
           {
             "shared_data": [
@@ -5602,7 +5602,7 @@
                 "data_path": "core_profiles"
               }
             ],
-            "actor": "ActorSawteeth"
+            "actor": "ActorSawteethSource"
           },
           {
             "shared_data": [
@@ -6202,7 +6202,7 @@
           }
         ]
       },
-      "ActorSawteeth": {
+      "ActorSawteethSource": {
         "receives_from": [
           {
             "shared_data": [
@@ -6936,7 +6936,7 @@
                 "data_path": "dd.ec_launcher"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -8300,7 +8300,7 @@
                 "data_path": "dd.equilibrium"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -8751,7 +8751,7 @@
                 "data_path": "dd.ec_launcher"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -8969,7 +8969,7 @@
                 "data_path": "dd.core_sources.source"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -9611,7 +9611,7 @@
                 "data_path": "dd.wall"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -10607,7 +10607,7 @@
                 "data_path": "dd.ec_launcher"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -11191,7 +11191,7 @@
                 "data_path": "dd.nbi"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -11837,7 +11837,7 @@
                 "data_path": "dd.core_sources.source"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -12184,7 +12184,7 @@
                 "data_path": "dd.equilibrium"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -12459,7 +12459,7 @@
           }
         ]
       },
-      "ActorHCD": {
+      "ActorSources": {
         "receives_from": [
           {
             "shared_data": [
@@ -12841,7 +12841,7 @@
                 "data_path": "core_profiles.profiles_1d[].q"
               }
             ],
-            "actor": "ActorSawteeth"
+            "actor": "ActorSawteethSource"
           },
           {
             "shared_data": [
@@ -13348,7 +13348,7 @@
                 "data_path": "dd.equilibrium"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -13829,7 +13829,7 @@
                 "data_path": "dd.equilibrium.time_slice[].profiles_2d[].psi"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -17011,7 +17011,7 @@
                 "data_path": "dd"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -17992,7 +17992,7 @@
                 "data_path": "core_profiles.profiles_1d"
               }
             ],
-            "actor": "ActorSawteeth"
+            "actor": "ActorSawteethSource"
           },
           {
             "shared_data": [
@@ -19720,7 +19720,7 @@
                 "data_path": "dd.equilibrium.time_slice[].profiles_2d.psi"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -20420,7 +20420,7 @@
                 "data_path": "dd.nbi.unit.power_launched"
               }
             ],
-            "actor": "ActorHCD"
+            "actor": "ActorSources"
           },
           {
             "shared_data": [
@@ -20557,7 +20557,7 @@
       "ActorFluxMatcher",
       "ActorNeoclassical",
       "ActorQLGYRO",
-      "ActorSawteeth",
+      "ActorSawteethSource",
       "ActorTGLF"
     ],
     "wall_loading": [
@@ -20581,7 +20581,7 @@
       "ActorTEQUILA"
     ],
     "hcd": [
-      "ActorHCD",
+      "ActorSources",
       "ActorSimpleIC",
       "ActorSimpleLH",
       "ActorNeutralFueling",
@@ -20633,7 +20633,7 @@
       "ActorFluxCalculator",
       "ActorHFSsizing",
       "ActorStationaryPlasma",
-      "ActorHCD",
+      "ActorSources",
       "ActorQED",
       "ActorDynamicPlasma",
       "ActorVerticalStability",
@@ -20649,7 +20649,7 @@
     ],
     "single": [
       "ActorPowerNeeds",
-      "ActorSawteeth",
+      "ActorSawteethSource",
       "ActorStresses",
       "ActorCostingSheffield",
       "ActorNoOperation",

@@ -8,7 +8,7 @@ Physics and engineering **actors** are the fundamental building blocks of FUSE s
 * Actors functionality is controlled via `act` parameters
 * Actors can be combined into other actors
 
-Fidelity hierarchy is enabled by concept of *generic* Vs *specific* actors
+Fidelity hierarchy is enabled by concept of *generic* vs *specific* actors
 * Generic actors define physics/component 
 * Specific actors implement a specific model for that physics/component
 * For example:
@@ -18,8 +18,8 @@ Fidelity hierarchy is enabled by concept of *generic* Vs *specific* actors
   ├─ ActorCHEASE    <--  specific
   └─ ActorFRESCO    <--  specific
   ```
-* `act.[ActorGeneric].model` selects specific actor being used
-* All specific actors will expect data and fill the same enties in `dd`
+* `act.ActorGeneric.model` selects specific actor being used (e.g., `act.ActorEquilibrium.model = :TEQUILA`)
+* All specific actors will read from and write to the same entries in `dd`
   * IMAS.jl expressions are key to make this work seamlessly
 * Where possible actors should make use of generic actors and not hardcode use of specific actors
 

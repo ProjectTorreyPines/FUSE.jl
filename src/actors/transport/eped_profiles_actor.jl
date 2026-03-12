@@ -134,6 +134,7 @@ function _step(actor::ActorEPEDprofiles)
     end
     nval = IMAS.Hmode_profiles(ne[end], ne_ped, ne[1], length(cp1d.grid.rho_tor_norm), par.ne_shaping, par.ne_shaping, 0.05)
     cp1d.electrons.density_thermal = IMAS.ped_height_at_09(cp1d.grid.rho_tor_norm, nval, ne_ped)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     if any(nval .< 0)
         error("ne profile is negative for n0=$(ne[1]) [m⁻³] and ne_ped=$(ne_ped) [m⁻³]")
     end
@@ -142,6 +143,7 @@ function _step(actor::ActorEPEDprofiles)
     # * existing ratios of electron to ion densities
     for (ii, ion) in enumerate(cp1d.ion)
         ion.density_thermal = ion_fractions[ii, :] .* cp1d.electrons.density_thermal
+        IMAS.unfreeze!(ion, :density)
     end
 
     return actor

@@ -119,7 +119,6 @@ function run_postdictive_case!(
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
 
     # init
-    ini.time.simulation_start = ini.general.dd.equilibrium.time_slice[2].time
     @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
     FUSE.init!(dd, ini, act)
 
@@ -166,10 +165,10 @@ function run_postdictive_case!(
     act.ActorSawteethSource.flat_factor = 1.0
     act.ActorSawteethSource.period = 0.25 # turn off flattening after 0.25s of no sawteeth events
 
-    act.ActorTGLF.tglfnn_model = "sat1_em_d3d"
+    act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     # time
-    δt = 0.05
+    δt = 0.025
     dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
     final_time = ini.general.dd.equilibrium.time[end]
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
@@ -179,7 +178,7 @@ function run_postdictive_case!(
     act.ActorDynamicPlasma.evolve_current = true
     act.ActorDynamicPlasma.evolve_equilibrium = true
     act.ActorDynamicPlasma.evolve_transport = true
-    act.ActorDynamicPlasma.evolve_hcd = true
+    act.ActorDynamicPlasma.evolve_sources = true
     act.ActorDynamicPlasma.evolve_pf_active = false
     act.ActorDynamicPlasma.evolve_pedestal = true
     act.ActorDynamicPlasma.evolve_sawteeth = true

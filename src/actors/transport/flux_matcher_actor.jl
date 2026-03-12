@@ -53,6 +53,26 @@ import NonlinearSolve, FixedPointAcceleration
         default=1.0,
         check=x -> @assert x > 0.0 "must be: turbulence_scale_value > 0.0"
     )
+    z_max::Entry{Union{T,NamedTuple}} = Entry{Union{T,NamedTuple}}(
+        "m⁻¹",
+        """
+        Maximum allowed normalized gradient (inverse scale length). Can be:
+        * Single value: applies to all channels and radii (e.g., 10.0)
+        * NamedTuple for spatially varying limits:
+          (core=20.0, edge=100.0, rho_transition=0.80)
+          Values are constant at 'core' for rho <= rho_transition, then linearly increase to 'edge' at rho=1.0
+        """;
+        default=10.0,
+        check=x -> begin
+            if x isa Real
+                @assert x > 0.0 "z_max must be positive"
+            elseif x isa NamedTuple
+                @assert haskey(x, :core) && haskey(x, :edge) && haskey(x, :rho_transition) "Spatially varying z_max must have :core, :edge, :rho_transition"
+                @assert x.core > 0.0 && x.edge > 0.0 "core and edge z_max must be positive"
+                @assert 0.0 <= x.rho_transition <= 1.0 "rho_transition must be between 0 and 1"
+            end
+        end
+    )
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
     show_trace::Entry{Bool} = Entry{Bool}("-", "Show convergence trace of nonlinear solver"; default=false)
@@ -88,9 +108,15 @@ Evolution options per channel:
 - `:fixed`: Keep profiles fixed
 - `:replay`: Use profiles from experimental data
 
+Available nonlinear solver `algorithm` options:
+`:default`, `:basic_polyalg`, `:polyalg`, `:broyden`, `:anderson`, `:simple_trust`,
+`:simple_dfsane`, `:trust`, `:simple`, `:old_anderson`, `:custom`, `:none`.
+On solver exception, the actor automatically falls back to `:simple_dfsane`.
+
 Advanced features include turbulence scaling to target confinement laws (H98, DS03),
-time-dependent evolution with ∂/∂t terms, and various nonlinear solver algorithms
-optimized for different transport model characteristics.
+time-dependent evolution with ∂/∂t terms, and the `z_max` parameter to cap normalized
+gradient (inverse scale lengths) during the iteration — either as a uniform scalar or
+as a spatially varying `NamedTuple(core, edge, rho_transition)`.
 """
 function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; kw...)
@@ -182,7 +208,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     algorithm = if par.algorithm === :default
-        if actor.actor_ct.actor_turb.par.model === :TGLFNN
+        if actor.actor_ct.actor_turb.par.model in (:TGLFNN, :GKNN)
             # combines speed and robustness, but needs smooth derivatives
             :basic_polyalg
         else
@@ -253,7 +279,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
             elseif algorithm === :basic_polyalg
                 NonlinearSolve.NonlinearSolvePolyAlgorithm((NonlinearSolve.Broyden(; autodiff),
-                    NonlinearSolve.SimpleTrustRegion(; autodiff)))
+                    NonlinearSolve.SimpleTrustRegion(; autodiff),
+                    NonlinearSolve.SimpleDFSane()))
 
             elseif algorithm == :polyalg
                 # Default NonlinearSolve algorithm
@@ -273,14 +300,27 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # See https://github.com/SciML/NonlinearSolve.jl/issues/593
             abstol = par.xtol
 
-            NonlinearSolve.solve(
-                problem, alg;
-                abstol,
-                maxiters=max_iterations,
-                show_trace=Val(par.show_trace),
-                store_trace=Val(false),
-                verbose=false
-            )
+            try
+                NonlinearSolve.solve(
+                    problem, alg;
+                    abstol,
+                    maxiters=max_iterations,
+                    show_trace=Val(par.show_trace),
+                    store_trace=Val(false),
+                    verbose=false
+                )
+            catch e
+                if e isa InterruptException
+                    rethrow(e)
+                end
+                @warn "$(typeof(e)) in $(algorithm), falling back to SimpleDFSane"
+                NonlinearSolve.solve(
+                    problem, NonlinearSolve.SimpleDFSane();
+                    abstol,
+                    maxiters=max_iterations,
+                    verbose=false
+                )
+            end
 
             # NonlinearSolve returns the first value if the optimization was not successful
             # but we want it to return the best solution, even if the optimization did not
@@ -440,16 +480,22 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.time_derivative_source!(dd)
     end
 
-    # free pressures expressions
+    # free pressure expressions
     IMAS.unfreeze!(cp1d.electrons, :pressure_thermal)
     IMAS.unfreeze!(cp1d.electrons, :pressure)
     for ion in cp1d.ion
-        IMAS.unfreeze!(ion, :rotation_frequency_tor)
         IMAS.unfreeze!(ion, :pressure_thermal)
         IMAS.unfreeze!(ion, :pressure)
     end
     for field in [:pressure_ion_total, :pressure_thermal, :pressure]
         IMAS.unfreeze!(cp1d, field)
+    end
+
+    # free rotation expressions (skip if replaying to keep copied data)
+    if par.evolve_rotation != :replay
+        for ion in cp1d.ion
+            IMAS.unfreeze!(ion, :rotation_frequency_tor)
+        end
     end
 
     return actor
@@ -918,14 +964,49 @@ function unpack_z_profiles(
     par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
     z_profiles::AbstractVector{<:Real}) where {P<:Real}
 
-    # bound range of accepted z_profiles to avoid issues during optimization
-    z_max = 10.0
-    z_profiles .= min.(max.(z_profiles, -z_max), z_max)
-
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)
+
+    # Build spatially varying z_max profile and apply clamping
+    # Avoid allocations by clamping directly with modulo indexing
+    if par.z_max isa Real
+        # Uniform limit - simple scalar clamping
+        z_max_val = par.z_max
+        @inbounds for i in eachindex(z_profiles)
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
+    elseif par.z_max isa NamedTuple
+        # Spatially varying limit - compute slope once outside loop
+        core_limit = par.z_max.core
+        edge_limit = par.z_max.edge
+        rho_trans = par.z_max.rho_transition
+        slope = (edge_limit - core_limit) / (1.0 - rho_trans)
+
+        # Clamp each z_profile element using spatially varying limit
+        @inbounds for i in eachindex(z_profiles)
+            rho_idx = mod1(i, N)  # Map to radial position
+            rho = cp_rho_transport[rho_idx]
+
+            # Compute z_max for this radial location
+            z_max_val = if rho <= rho_trans
+                core_limit
+            else
+                core_limit + slope * (rho - rho_trans)
+            end
+
+            # Apply clamping in-place
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
+    else
+        # Default fallback
+        z_max_val = 100.0
+        @inbounds for i in eachindex(z_profiles)
+            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        end
+    end
+
     counter = 0
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
@@ -976,6 +1057,7 @@ function unpack_z_profiles(
         if evolve_densities[:electrons] == :flux_match
             z_ne = z_profiles[counter+1:counter+N]
             cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
+            IMAS.unfreeze!(cp1d.electrons, :density)
             counter += N
         else
             z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
@@ -986,9 +1068,11 @@ function unpack_z_profiles(
                 break
             elseif evolve_densities[Symbol(ion.label)] == :flux_match
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+                IMAS.unfreeze!(ion, :density)
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
                 ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
+                IMAS.unfreeze!(ion, :density)
             end
         end
     end
@@ -1026,7 +1110,20 @@ function check_evolve_densities(cp1d::IMAS.core_profiles__profiles_1d, evolve_de
     dd_species =
         Symbol[specie.name for specie in IMAS.species(cp1d; only_electrons_ions=:all, only_thermal_fast=:all, return_zero_densities=true)]
 
-    # Check if evolve_densities contains all of dd thermal species
+    # If fast species appeared in cp1d after evolve_densities was built (e.g. added by a beam/RF actor),
+    # auto-register them as :fixed rather than crashing. Log an info so the user is aware.
+    for specie in dd_species
+        if !haskey(evolve_densities, specie)
+            specie_str = string(specie)
+            thermal_specie = Symbol(replace(specie_str, "_fast" => ""))
+            if endswith(specie_str, "_fast") && haskey(evolve_densities, thermal_specie)
+                @info "Fast species $specie found in dd but not in evolve_densities dict — defaulting to :fixed" maxlog = 1
+                evolve_densities[specie] = :fixed
+            end
+        end
+    end
+
+    # Check there are no stale species in evolve_densities that no longer exist in dd
     @assert sort!([specie for (specie, evolve) in evolve_densities]) == sort!(dd_species) "Mismatch: dd species $(sort!(dd_species)) VS evolve_densities species : $(sort!(collect(keys(evolve_densities))))"
 
     # Check that either all species are fixed, or there is 1 quasi_neutrality specie when evolving densities
@@ -1153,6 +1250,7 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
     if !ismissing(cp1d.electrons, :density_fast)
         to_cp1d.electrons.density_fast = deepcopy(cp1d.electrons.density_fast)
     end
+    IMAS.unfreeze!(to_cp1d.electrons, :density)
     resize!(to_cp1d.ion, length(cp1d.ion))
     for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
         initial_ion.element = ion.element
@@ -1160,6 +1258,7 @@ function cp1d_copy_primary_quantities(cp1d::IMAS.core_profiles__profiles_1d{T}) 
         if !ismissing(ion, :density_fast)
             initial_ion.density_fast = deepcopy(ion.density_fast)
         end
+        IMAS.unfreeze!(initial_ion, :density)
         initial_ion.temperature = deepcopy(ion.temperature)
     end
     to_cp1d.rotation_frequency_tor_sonic = deepcopy(cp1d.rotation_frequency_tor_sonic)
@@ -1174,12 +1273,14 @@ function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_
     if !ismissing(cp1d.electrons, :density_fast)
         to_cp1d.electrons.density_fast .= cp1d.electrons.density_fast
     end
+    IMAS.unfreeze!(to_cp1d.electrons, :density)
     for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
         initial_ion.density_thermal .= ion.density_thermal
         initial_ion.temperature .= ion.temperature
         if !ismissing(ion, :density_fast)
             initial_ion.density_fast .= ion.density_fast
         end
+        IMAS.unfreeze!(initial_ion, :density)
     end
     to_cp1d.rotation_frequency_tor_sonic .= cp1d.rotation_frequency_tor_sonic
     return to_cp1d
@@ -1230,13 +1331,30 @@ function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IM
     end
 
     # Replay rotation if set to :replay
+    # Core from replay, edge from simulation (pedestal model)
+    # NOTE: We must also copy ion.rotation_frequency_tor, not just sonic rotation,
+    # because ion rotation is the measured quantity. If we only copy sonic rotation,
+    # ion rotation gets recomputed via expression using simulated pressure gradients.
     if par.evolve_rotation == :replay
         i_nml = IMAS.argmin_abs(rho, rho_nml)
+
+        # Sonic rotation: core from replay, edge from simulation, shift to match
         ω_core = deepcopy(replay_cp1d.rotation_frequency_tor_sonic)
         ω_edge = IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
         ω_core[i_nml+1:end] = ω_edge[i_nml+1:end]
         ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge[i_nml]
         cp1d.rotation_frequency_tor_sonic = ω_core
+
+        # Ion rotation: same blending (core from replay, edge from simulation)
+        for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+            if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
+                ω_ion_core = deepcopy(replay_ion.rotation_frequency_tor)
+                ω_ion_edge = IMAS.freeze!(ion, :rotation_frequency_tor)
+                ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
+                ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]
+                ion.rotation_frequency_tor = ω_ion_core
+            end
+        end
     end
 
     # Handle density replays
@@ -1245,14 +1363,16 @@ function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IM
         # Replay electron density if set to :replay
         if evolve_densities[:electrons] == :replay
             cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+            IMAS.unfreeze!(cp1d.electrons, :density)
         end
 
         # Replay ion densities if set to :replay
         for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
             ion_symbol = Symbol(ion.label)
             if haskey(evolve_densities, ion_symbol) && evolve_densities[ion_symbol] == :replay
-                if !ismissing(ion, :density_thermal)
-                    ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+                if !ismissing(ion, :density)
+                    ion.density = IMAS.blend_core_edge(replay_ion.density, ion.density, rho, rho_nml, rho_ped; method=:scale)
+                    IMAS.unfreeze!(ion, :density_thermal)
                 end
             end
         end

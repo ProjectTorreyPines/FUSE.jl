@@ -48,9 +48,11 @@ precompile_execution_file = joinpath(env_dir, "precompile_script.jl")
 precompile_cmds = """
 using WebIO
 using FUSE, EFIT, $pkgs_using
+GC.enable(false)
 include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
+GC.enable(true)
 include(joinpath(pkgdir(FUSE), "test", "runtests.jl"))
-include(joinpath(pkgdir(FUSE), "deploy", "omega", "time_dependent_d3d.jl")
+include(joinpath(pkgdir(FUSE), "deploy", "omega", "time_dependent_d3d.jl"))
 """
 write(precompile_execution_file, precompile_cmds)
 chmod(precompile_execution_file, 0o444)
@@ -102,6 +104,7 @@ catch e
 end
 """
 preload_webio_file = joinpath(env_dir, ".jupyter", "preload_webio.jl")
+mkpath(dirname(preload_webio_file))
 write(preload_webio_file, preload_webio_commands)
 chmod(preload_webio_file, 0o444)
 IJulia.installkernel("Julia+FUSE - single thread",
@@ -175,6 +178,8 @@ Restarting (sometimes twice) normally resolves the issue.
 base = read(joinpath(@__DIR__, "base.lua"), String)
 
 # set the cpu target to the one defined in the environment
+julia_version = "$(VERSION.major).$(VERSION.minor).$(VERSION.patch)"
+base = replace(base, "JULIA_VERSION" => julia_version)
 base = replace(base, """setenv("JULIA_CPU_TARGET", "generic")""" => """setenv("JULIA_CPU_TARGET", "$cpu_target")""")
 
 write(module_file, header * base)

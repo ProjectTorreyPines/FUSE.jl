@@ -8,8 +8,8 @@ Recall that FUSE actors operate exclusively on `IMAS.dd` data.
 As such, to run any actor, one has to first **initialize** `IMAS.dd` with some data.
 This can be done in a number of ways:
 
-  1. Manually/Interactivelly (eg. in the REPL or a Jupyter sesion)
-  1. Starting from 0D [`ini`](ini.md) and [`act`](ini.md) parameters (same spirit of OMFIT's PRO_create module)
+  1. Manually/Interactivelly (eg. in the REPL or a Jupyter session)
+  1. Starting from 0D [`ini`](ini.md) and [`act`](act.md) parameters (same spirit of OMFIT's PRO_create module)
   1. By reading in an existing OMAS JSON data structure with [`json2imas`](@ref)
   1. Starting from [GA Systems Code](@ref) output, then to `ini`, and finally to `dd`
 
@@ -25,10 +25,18 @@ CurrentModule = FUSE
 FUSE.init(::IMAS.dd, ::FUSE.ParametersAllInits, ::FUSE.ParametersAllActors)
 ```
 
+```@docs
+FUSE.init!(::IMAS.dd, ::FUSE.ParametersAllInits, ::FUSE.ParametersAllActors)
+```
+
+```@docs
+FUSE.init(::FUSE.ParametersAllInits, ::FUSE.ParametersAllActors)
+```
+
 ## Use-cases initialization
 
 ```@docs
-FUSE.init(case::Symbol; do_plot:Bool=false, kw...)
+FUSE.init(case::Symbol; do_plot::Bool=false, kw...)
 ```
 
 -----------

@@ -41,7 +41,7 @@ Execution workflow:
 1. **Plasma Design**: Self-consistent plasma solutions with optimized PF coil positions
 2. **Plasma Physics**: Stationary plasma equilibrium with all transport and heating
 3. **Engineering Design**: Radial build optimization for all major tokamak systems
-4. **Magnetic Systems**: PF coil repositioning and passive structure analysis  
+4. **Magnetic Systems**: PF coil repositioning and passive structure analysis
 5. **Nuclear Analysis**: Neutronics, blanket optimization, and tritium breeding
 6. **Plasma-Facing Components**: Divertor heat loads and thermal management
 7. **Power Systems**: Balance of plant and thermal-to-electric conversion
@@ -114,7 +114,7 @@ function _step(actor::ActorWholeFacility)
     end
 
     if par.update_plasma
-        # ActorStationaryPlasma iterates between ActorCurrent, ActorHCD, ActorCoreTransport, and ActorEquilibrium to find a self-consistent stationary plasma solution
+        # ActorStationaryPlasma iterates between ActorCurrent, ActorSources, ActorCoreTransport, and ActorEquilibrium to find a self-consistent stationary plasma solution
         actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
     end
 
