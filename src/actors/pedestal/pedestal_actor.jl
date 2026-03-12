@@ -57,7 +57,7 @@ specialized pedestal actors and provides dynamic transition capabilities.
 
 Available pedestal models:
 - `:EPED`: EPED neural network model for pedestal predictions
-- `:WPED`: Width-based energy balance pedestal model  
+- `:WPED`: Width-based energy balance pedestal model
 - `:analytic`: Analytic scaling laws for spherical tokamaks
 - `:dynamic`: Time-dependent L-H transitions with smoothing
 - `:replay`: Replays pedestal data from experimental reference
@@ -121,7 +121,7 @@ The step function manages the complex workflow of:
 4. Applying rotation models if requested
 5. Updating plasma profiles with pedestal boundary conditions
 
-For dynamic mode transitions, tracks transition times and applies gradual profile 
+For dynamic mode transitions, tracks transition times and applies gradual profile
 evolution to avoid numerical discontinuities.
 """
 function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
@@ -250,16 +250,32 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             IMAS.ωtor2sonic!(cp1d)
 
         elseif par.rotation_model == :replay
+            # Edge from replay, core from simulation (opposite of FluxMatcher)
+            # NOTE: We must also copy ion.rotation_frequency_tor, not just sonic rotation,
+            # because ion rotation is the measured quantity.
             time0 = dd.global_time
             rho = cp1d.grid.rho_tor_norm
             replay_cp1d = actor.replay_actor.replay_dd.core_profiles.profiles_1d[time0]
             i_nml = IMAS.argmin_abs(rho, par.rho_nml)
             i_ped = IMAS.argmin_abs(rho, par.rho_ped)
+
+            # Sonic rotation: core from simulation, edge from replay, shift to match
             ω_core = IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
-            ω_edge_linear = replay_cp1d.rotation_frequency_tor_sonic
-            ω_core[i_nml+1:end] = ω_edge_linear[i_nml+1:end]
-            ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge_linear[i_nml]
+            ω_edge = replay_cp1d.rotation_frequency_tor_sonic
+            ω_core[i_nml+1:end] = ω_edge[i_nml+1:end]
+            ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge[i_nml]
             cp1d.rotation_frequency_tor_sonic = ω_core
+
+            # Ion rotation: same blending (core from simulation, edge from replay)
+            for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+                if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
+                    ω_ion_core = IMAS.freeze!(ion, :rotation_frequency_tor)
+                    ω_ion_edge = replay_ion.rotation_frequency_tor
+                    ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
+                    ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]
+                    ion.rotation_frequency_tor = ω_ion_core
+                end
+            end
         end
 
     end
@@ -327,6 +343,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     cp1d.electrons.density_thermal[end] = ne_ped / 4.0
     ne = IMAS.blend_core_edge_Hmode(cp1d.electrons.density_thermal, rho, ne_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
     cp1d.electrons.density_thermal = ne = IMAS.ped_height_at_09(rho, ne, ne_ped)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     ratio = ne ./ ne_old
 
     for ion in cp1d.ion
@@ -336,6 +353,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
             ion.density_thermal[end] = ni_ped / 4.0
             ni = IMAS.blend_core_edge_Hmode(ion.density_thermal, rho, ni_ped, w_ped, par.rho_nml, par.rho_ped; method=:scale)
             ion.density_thermal = IMAS.ped_height_at_09(rho, ni, ni_ped)
+            IMAS.unfreeze!(ion, :density)
         end
     end
 
@@ -379,9 +397,11 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
             nel = IMAS.ne_line(eqt, cp1d)
             factor = nel_wanted / nel
             cp1d.electrons.density_thermal = cp1d.electrons.density_thermal * factor
+            IMAS.unfreeze!(cp1d.electrons, :density)
             for ion in cp1d.ion
                 if !ismissing(ion, :density_thermal)
                     ion.density_thermal = ion.density_thermal * factor
+                    IMAS.unfreeze!(ion, :density)
                 end
             end
             cp1d.electrons.temperature = cp1d.electrons.temperature / factor
@@ -427,9 +447,11 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
 
     # densities
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
-        if !ismissing(ion, :density_thermal)
-            ion.density_thermal = IMAS.blend_core_edge(ion.density_thermal, replay_ion.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
+        if !ismissing(ion, :density)
+            ion.density = IMAS.blend_core_edge(ion.density, replay_ion.density, rho, par.rho_nml, par.rho_ped; method=:shift)
+            IMAS.unfreeze!(ion, :density_thermal)
         end
     end
 
@@ -441,9 +463,26 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
         end
     end
 
-    # rotation
-    cp1d.rotation_frequency_tor_sonic =
-        IMAS.blend_core_edge(cp1d.rotation_frequency_tor_sonic, replay_cp1d.rotation_frequency_tor_sonic, rho, par.rho_nml, par.rho_ped; method=:shift)
+    # rotation (core from simulation, edge from replay)
+    # NOTE: Cannot use blend_core_edge for rotation because it uses log internally,
+    # and rotation can be negative. Use manual index-based shifting instead.
+    i_nml = IMAS.argmin_abs(rho, par.rho_nml)
+    ω_core = cp1d.rotation_frequency_tor_sonic
+    ω_edge = replay_cp1d.rotation_frequency_tor_sonic
+    ω_core[i_nml+1:end] = ω_edge[i_nml+1:end]
+    ω_core[1:i_nml] = ω_core[1:i_nml] .- ω_core[i_nml] .+ ω_edge[i_nml]
+    cp1d.rotation_frequency_tor_sonic = ω_core
+
+    # Ion rotation: same blending
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
+            ω_ion_core = ion.rotation_frequency_tor
+            ω_ion_edge = replay_ion.rotation_frequency_tor
+            ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
+            ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]
+            ion.rotation_frequency_tor = ω_ion_core
+        end
+    end
 
     return replay_actor
 end

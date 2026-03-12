@@ -122,7 +122,7 @@ include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
 include(joinpath("actors", "hcd", "pl_simple_actor.jl"))
 include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
 include(joinpath("actors", "hcd", "sawteeth_source_actor.jl"))
-include(joinpath("actors", "hcd", "hcd_actor.jl"))
+include(joinpath("actors", "hcd", "sources_actor.jl"))
 
 include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
@@ -182,12 +182,12 @@ include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
 include(joinpath("studies", "study_database.jl"))
 include(joinpath("studies", "experiment_postdictive.jl"))
+include(joinpath("studies", "HDB5_validation.jl"))
 
 #= ========= =#
 #  WORKFLOWS  #
 #= ========= =#
 include(joinpath("workflows", "optimization_workflow.jl"))
-include(joinpath("workflows", "DB5_validation_workflow.jl"))
 
 #= ======= =#
 #  LOGGING  #

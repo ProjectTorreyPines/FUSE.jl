@@ -1,6 +1,14 @@
 using FUSE
 using Test
 
+@testset "act_migrations" begin
+    act = FUSE.ParametersActors()
+    schema_keys = Set(string(k) for k in keys(act))
+    for old_name in keys(FUSE.ACT_ACTOR_MIGRATIONS)
+        @test old_name ∉ schema_keys
+    end
+end
+
 @testset "GC" begin
     act = FUSE.ParametersActors()
     @test parent(act.ActorNeoclassical) === act
