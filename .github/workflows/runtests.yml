@@ -148,7 +148,7 @@ jobs:
       - name: 'Save Manifest.toml'
         uses: actions/upload-artifact@v4
         with:
-          name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
+          name: Manifest-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
           path: Manifest.toml
 
       # Build
