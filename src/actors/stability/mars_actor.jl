@@ -270,9 +270,10 @@ end
 function run_MARS(dd::IMAS.dd, par)
 
     mars_overrides = par.mars_overrides
+    time_slice_index = par.time_slice_index
     core_profiles = dd.core_profiles.profiles_1d[time_slice_index]
     mars_namelist = par.mars_runin_path
-    time_slice_index = par.time_slice_index
+    
 
     # Placeholder function to run MARS MHD stability code
     @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
@@ -436,9 +437,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
+    time_slice_index = par.time_slice_index
 
     # initialize eqt from pulse_schedule and core_profiles
-    time_slice = dd.equilibrium.time_slice[par.time_slice_index]
+    time_slice = dd.equilibrium.time_slice[time_slice_index]
     eqt1d = time_slice.profiles_1d
     
     # populate the input file lines
@@ -461,7 +463,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     pprime = eqt1d.dpressure_dpsi 
     
     ### Currently NOT used, but may be useful later
-    #wall_RZ = [dd.wall.description_2d[par.time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[par.time_slice_index].limiter.unit[1].outline.z]
+    #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
 
     if minimum(r_bound) - offset < 0
         error("Offset too large: boundary crosses R < 0 (min R = $(minimum(r_bound)))")
@@ -474,7 +476,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     if par.GS_rhs == :FFpr
         NSTTP = 1
         j_tor = eqt1d.f_df_dpsi
-        j_tor_norm = j_tor / abs(Bt_center)
+        j_tor_norm = 2*pi*j_tor / abs(Bt_center)
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         j_tor = eqt1d.j_tor
