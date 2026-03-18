@@ -135,7 +135,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
         # optimization scales density for groups of thomson scattering channels
         function cost(scales0)
-            scales = abs.(1.0 .+ scales0)
+            scales = 1.0 .+ scales0
             data = deepcopy(nes)
             c_simulated = Float64[]
             c_continuity = Float64[]
@@ -159,10 +159,14 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
             end
             return sqrt(norm(c_simulated)^2 + norm(c_continuity)^2)
         end
-        res = Optim.optimize(cost, fill(0.0, length(ts_subsystems_mapper)), Optim.NelderMead())
+        n_subsystems = length(ts_subsystems_mapper)
+        res = Optim.optimize(cost, fill(-0.05, n_subsystems), fill(0.05, n_subsystems), fill(0.0, n_subsystems), Optim.Fminbox(Optim.NelderMead()))
+        if !Optim.converged(res)
+            @warn "Thomson-interferometer calibration optimization did not converge; using unit scales"
+        end
 
         # scale raw data in thomson_scattering IDS
-        scales = abs.(1.0 .+ res.minimizer)
+        scales = Optim.converged(res) ? 1.0 .+ res.minimizer : ones(n_subsystems)
         scales_string = join(["$subsystem_name=$(@sprintf("%3.3f",scale))" for (subsystem_name, scale) in zip(keys(ts_subsystems_mapper), scales)], ", ")
         @info "Thomson subsystems scaled to match interferometer measurements: $scales_string"
         for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
