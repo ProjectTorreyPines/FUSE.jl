@@ -164,10 +164,10 @@ help([[
 Module for julia with FUSE $fuse_env sysimage
 Automatically created by FUSE install script:
   `julia <FUSE.jl git repo>/deploy/omega/install_fuse_environment.jl`
-Maintainers: B.C. Lyons, lyonsbc@fusion.gat.com
+Maintainers: M.G. Yoo, yoom@fusion.gat.com
              C.M. Clark, clarkm@fusion.gat.com
-Physics Officers: O.M. Meneghini, meneghini@fusion.gat.com
-                  B.C. Lyons, lyonsbc@fusion.gat.com
+Physics Officers: J. McClenaghan, mcclenaghanj@fusion.gat.com
+                  M.G. Yoo, yoom@fusion.gat.com
 Known technical debt:
 The first time a custom Jupyter kernel is used, it may hang.
 Restarting (sometimes twice) normally resolves the issue.
