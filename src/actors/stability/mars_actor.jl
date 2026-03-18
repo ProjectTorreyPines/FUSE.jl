@@ -115,7 +115,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
     PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)
     number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
-    pressure_sep::Entry{Float64} = Entry{Float64}("-", "Pressure at separatrix in Pa"; default=0.0)
+    pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
     time_slice_index::Entry{Int} = Entry{Int}("-", "Time slice index to use for equilibrium and profiles"; default=1)
@@ -464,9 +464,12 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     s = sqrt.(psi_norm)
     #s_grid = range(0.0, 1.0; length=length(psi))
     pressure = eqt1d.pressure
-    pressure_sep = pressure[end]
-    #pressure_sep = par.pressure_sep
-    pprime = eqt1d.dpressure_dpsi 
+    if par.pressure_sep == nothing
+        pressure_sep = pressure[end]
+    else
+        pressure_sep = par.pressure_sep
+    end
+    pprime = eqt1d.dpressure_dpsi
 
     ### Currently NOT used, but may be useful later
     #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
@@ -559,10 +562,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         end
     end
 
-    @assert length(s_grid) == length(pprime_final) == length(j_tor_final) "s, presssure and j_tor arrays must have the same shape"
-    write_list = vcat(write_list, "$(length(s_grid))")
+    @assert length(s) == length(pprime_final) == length(j_tor_final) "s, presssure and j_tor arrays must have the same shape"
+    write_list = vcat(write_list, "$(length(s))")
     write_list = vcat(write_list, "$(string(NSTTP))")
-    write_list = vcat(write_list, map(string, s_grid))
+    write_list = vcat(write_list, map(string, s))
     write_list = vcat(write_list, map(string, pprime_final))
     write_list = vcat(write_list, map(string, j_tor_final))
 
