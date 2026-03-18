@@ -484,16 +484,16 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     ## GS current density specification and de-dimensionalization for CHEASE input
     if par.GS_rhs == :FFpr
         NSTTP = 1
-        j_tor = eqt1d.f_df_dpsi
-        j_tor_norm = j_tor / abs(Bt_geo)
+        GS_RHS = eqt1d.f_df_dpsi
+        GS_RHS_norm = GS_RHS / abs(Bt_geo)
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
-        j_tor = eqt1d.j_tor
-        j_tor_norm = r_geo * μ_0 * j_tor / abs(Bt_geo)
+        GS_RHS = abs.(eqt1d.j_tor)
+        GS_RHS_norm = r_geo * μ_0 * GS_RHS / abs(Bt_geo)
     elseif par.GS_rhs == :Jpar
         NSTTP = 3
-        j_tor = eqt1d.j_parallel # NOT right!
-        j_tor_norm = r_geo * μ_0 * j_tor / abs(Bt_geo)
+        GS_RHS = abs.(eqt1d.j_parallel) # NOT right!
+        GS_RHS_norm = r_geo * μ_0 * GS_RHS / abs(Bt_geo)
     else
         0
     end
@@ -510,7 +510,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     
     
     # interpolate to uniform s grid for CHEASE input
-    j_tor_final = abs.(j_tor_norm)#IMAS.interp1d(s, abs.(j_tor_norm)).(s_grid)
+    GS_RHS_final = GS_RHS_norm#IMAS.interp1d(s, abs.(j_tor_norm)).(s_grid)
     pprime_at_s = pprime #IMAS.interp1d(s, pprime).(s_grid)
 
     # Make pressure terms dimensionless for CHEASE input
@@ -562,12 +562,12 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         end
     end
 
-    @assert length(s) == length(pprime_final) == length(j_tor_final) "s, presssure and j_tor arrays must have the same shape"
+    @assert length(s) == length(pprime_final) == length(GS_RHS_final) "s, presssure and GS_RHS arrays must have the same shape"
     write_list = vcat(write_list, "$(length(s))")
     write_list = vcat(write_list, "$(string(NSTTP))")
     write_list = vcat(write_list, map(string, s))
     write_list = vcat(write_list, map(string, pprime_final))
-    write_list = vcat(write_list, map(string, j_tor_final))
+    write_list = vcat(write_list, map(string, GS_RHS_final))
 
     # write to EXPEQ file   
     touch("EXPEQ")
