@@ -86,9 +86,11 @@ function _step(actor::ActorCHEASE)
     # scalars
     Ip = eqt.global_quantities.ip
     Bt_center = eqt.global_quantities.vacuum_toroidal_field.b0
+    Bt_axis = eqt.global_quantities.magnetic_axis.b_field_tor
     r_center = eqt.global_quantities.vacuum_toroidal_field.r0
     r_geo = eqt.boundary.geometric_axis.r
     z_geo = eqt.boundary.geometric_axis.z
+    z_mid = (maximum(eqt.global_quantities.outline.z) + minimum(eqt.global_quantities.outline.z)) / 2.
     Bt_geo = Bt_center * r_center / r_geo
     ϵ = eqt.boundary.minor_radius / r_geo
 

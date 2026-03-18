@@ -446,22 +446,28 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     # populate the input file lines
     minor_radius = time_slice.boundary.minor_radius
     z_axis = time_slice.global_quantities.magnetic_axis.z
-    B0 = time_slice.global_quantities.vacuum_toroidal_field.b0
-    Bt_center = time_slice.global_quantities.magnetic_axis.b_field_tor
-    r_center = time_slice.global_quantities.magnetic_axis.r
+    Bt_center = time_slice.global_quantities.vacuum_toroidal_field.b0
+    r_center = time_slice.global_quantities.vacuum_toroidal_field.r0
     Ip = time_slice.global_quantities.ip
     r_bound = time_slice.boundary.outline.r
     z_bound = time_slice.boundary.outline.z
+    r_geo = time_slice.boundary.geometric_axis.r
+    z_geo = time_slice.boundary.geometric_axis.z
+    Bt_geo = Bt_center * r_center / r_geo
+
+    # inverse aspect ratio for CHEASE input
+    ϵ = minor_radius / r_geo
 
     # get the normalized psi and convert d/dPsi to d/ds coordinate for CHEASE input
     psi_norm = eqt1d.psi_norm
     psi = eqt1d.psi
     s = sqrt.(psi_norm)
-    s_grid = s #range(0.0, 1.0; length=length(psi))
-    psi0 = psi[1]
-    psib = psi[end]
+    #s_grid = range(0.0, 1.0; length=length(psi))
+    pressure = eqt1d.pressure
+    pressure_sep = pressure[end]
+    #pressure_sep = par.pressure_sep
     pprime = eqt1d.dpressure_dpsi 
-    
+
     ### Currently NOT used, but may be useful later
     #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
 
@@ -476,15 +482,15 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     if par.GS_rhs == :FFpr
         NSTTP = 1
         j_tor = eqt1d.f_df_dpsi
-        j_tor_norm = 2*pi*j_tor / abs(Bt_center)
+        j_tor_norm = j_tor / abs(Bt_geo)
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         j_tor = eqt1d.j_tor
-        j_tor_norm = r_center * μ_0 * j_tor / abs(Bt_center)
+        j_tor_norm = r_geo * μ_0 * j_tor / abs(Bt_geo)
     elseif par.GS_rhs == :Jpar
         NSTTP = 3
         j_tor = eqt1d.j_parallel # NOT right!
-        j_tor_norm = r_center * μ_0 * j_tor / abs(Bt_center)
+        j_tor_norm = r_geo * μ_0 * j_tor / abs(Bt_geo)
     else
         0
     end
@@ -498,18 +504,16 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     else
         NDATA = 1   
     end
-    pressure_sep = par.pressure_sep
-
-    # calculate aspect ratio
-    ϵ = minor_radius / r_center
+    
     
     # interpolate to uniform s grid for CHEASE input
     j_tor_final = abs.(j_tor_norm)#IMAS.interp1d(s, abs.(j_tor_norm)).(s_grid)
     pprime_at_s = pprime #IMAS.interp1d(s, pprime).(s_grid)
 
     # Make pressure terms dimensionless for CHEASE input
-    pressure_sep_norm = pressure_sep / (Bt_center^2 / μ_0)
-    pprime_final = pprime_at_s * r_center^2 * μ_0 / abs(Bt_center)
+    # throw in a 2pi to scale P' correctly
+    pressure_sep_norm = pressure_sep / (Bt_geo^2 / μ_0)
+    pprime_final = 2 * pi * pprime_at_s * r_geo^2 * μ_0 / abs(Bt_geo)
 
     # I suspect this logic is to make the q profile > 0, but NOT sure
     ip_sign = sign(Ip)
@@ -534,7 +538,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
     
     ##----------------- Write the file -----------------##
-    write_list = [string(ϵ), string(z_axis), string(pressure_sep_norm)]
+    write_list = [string(ϵ), string(z_geo/r_geo), string(pressure_sep_norm)]
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
     write_list = vcat(write_list, string(length(rb_new), " ", NWBPS, " ", NDATA))
     for (r, z) in zip(r_bound_norm, z_bound_norm)
