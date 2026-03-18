@@ -484,7 +484,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     ## GS current density specification and de-dimensionalization for CHEASE input
     if par.GS_rhs == :FFpr
         NSTTP = 1
-        GS_RHS = eqt1d.f_df_dpsi
+        GS_RHS = 2 * pi * eqt1d.f_df_dpsi
         GS_RHS_norm = GS_RHS / abs(Bt_geo)
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
