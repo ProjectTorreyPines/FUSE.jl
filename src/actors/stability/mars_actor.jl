@@ -246,7 +246,6 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     # Execute CHEASE
     @assert isfile("datain") "CHEASE input file datain not found"
     @info "Executing CHEASE from $chease_exec"
-    #assert_executable(chease_exec)
     isfile(chease_exec) || error("CHEASE executable not found: $chease_exec")
 
     cmd = pipeline(
@@ -256,7 +255,6 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
         stderr = "log_chease"
     )
 
-    @info "Executing CHEASE from $chease_exec"
     ok = success(cmd)
     ok || error("CHEASE failed — see log_chease")
 
@@ -455,8 +453,12 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     z_geo = time_slice.boundary.geometric_axis.z
     Bt_geo = Bt_center * r_center / r_geo
 
+    # choose B0 & R0 for CHEASE normalization
+    B0 = abs(Bt_geo)
+    R0 = r_geo
+
     # inverse aspect ratio for CHEASE input
-    ϵ = minor_radius / r_geo
+    ϵ = minor_radius / R0
 
     # get the normalized psi and convert d/dPsi to d/ds coordinate for CHEASE input
     psi_norm = eqt1d.psi_norm
@@ -485,15 +487,15 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     if par.GS_rhs == :FFpr
         NSTTP = 1
         GS_RHS = 2 * pi * eqt1d.f_df_dpsi
-        GS_RHS_norm = GS_RHS / abs(Bt_geo)
+        GS_RHS_norm = GS_RHS / B0
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         GS_RHS = abs.(eqt1d.j_tor)
-        GS_RHS_norm = r_geo * μ_0 * GS_RHS / abs(Bt_geo)
+        GS_RHS_norm = r_geo * μ_0 * GS_RHS / B0
     elseif par.GS_rhs == :Jpar
         NSTTP = 3
         GS_RHS = abs.(eqt1d.j_parallel) # NOT right!
-        GS_RHS_norm = r_geo * μ_0 * GS_RHS / abs(Bt_geo)
+        GS_RHS_norm = r_geo * μ_0 * GS_RHS / B0
     else
         0
     end
@@ -515,8 +517,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
     # Make pressure terms dimensionless for CHEASE input
     # throw in a 2pi to scale P' correctly
-    pressure_sep_norm = pressure_sep / (Bt_geo^2 / μ_0)
-    pprime_final = 2 * pi * pprime_at_s * r_geo^2 * μ_0 / abs(Bt_geo)
+    pressure_sep_norm = pressure_sep / (B0^2 / μ_0)
+    pprime_final = 2 * pi * pprime_at_s * R0^2 * μ_0 / B0
 
     # I suspect this logic is to make the q profile > 0, but NOT sure
     ip_sign = sign(Ip)
@@ -532,8 +534,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
     rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
-    r_bound_norm = rb_new / r_center
-    z_bound_norm = zb_new / r_center
+    r_bound_norm = rb_new / R0
+    z_bound_norm = zb_new / R0
 
     #plt = plot()
     plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, title="Smoothed Boundary")
@@ -553,8 +555,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         # add a smooth first wall (RW)
         r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
-        r_lim_norm = r_lim / r_center
-        z_lim_norm = z_lim / r_center
+        r_lim_norm = r_lim / R0
+        z_lim_norm = z_lim / R0
         plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
         display(plt)
         for (r, z) in zip(r_lim_norm, z_lim_norm)
