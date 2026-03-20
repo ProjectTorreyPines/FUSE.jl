@@ -452,6 +452,10 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
         if !ismissing(ion, :density)
             ion.density = IMAS.blend_core_edge(ion.density, replay_ion.density, rho, par.rho_nml, par.rho_ped; method=:shift)
             IMAS.unfreeze!(ion, :density_thermal)
+            if IMAS.hasdata(ion, :density_fast)
+                ion.density_fast .= min.(ion.density_fast, ion.density)  # can't have more fast than total
+            end
+            ion.density_thermal = ion.density_thermal  # freeze: evaluate expression and store so that hasdata(ion, :density_thermal) is true
         end
     end
 
