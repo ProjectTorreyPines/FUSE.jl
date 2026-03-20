@@ -449,15 +449,15 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(cp1d.electrons.density_thermal, replay_cp1d.electrons.density_thermal, rho, par.rho_nml, par.rho_ped; method=:shift)
     IMAS.unfreeze!(cp1d.electrons, :density)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
-    if !ismissing(ion, :density)
-        ion.density = IMAS.blend_core_edge(ion.density, replay_ion.density, rho, par.rho_nml, par.rho_ped; method=:shift)
-        IMAS.unfreeze!(ion, :density_thermal)
-        if IMAS.hasdata(ion, :density_fast)
-            ion.density_fast .= min.(ion.density_fast, ion.density)  # can't have more fast than total
+        if !ismissing(ion, :density)
+            ion.density = IMAS.blend_core_edge(ion.density, replay_ion.density, rho, par.rho_nml, par.rho_ped; method=:shift)
+            IMAS.unfreeze!(ion, :density_thermal)
+            if IMAS.hasdata(ion, :density_fast)
+                ion.density_fast .= min.(ion.density_fast, ion.density)  # can't have more fast than total
+            end
+            ion.density_thermal = ion.density_thermal  # freeze: evaluate expression and store so that hasdata(ion, :density_thermal) is true
         end
-        ion.density_thermal = ion.density_thermal  # freeze: evaluate expression and store so that hasdata(ion, :density_thermal) is true
     end
-end
 
     # temperatures
     cp1d.electrons.temperature = IMAS.blend_core_edge(cp1d.electrons.temperature, replay_cp1d.electrons.temperature, rho, par.rho_nml, par.rho_ped)
