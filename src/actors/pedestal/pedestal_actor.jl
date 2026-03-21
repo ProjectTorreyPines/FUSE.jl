@@ -455,7 +455,6 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
             if IMAS.hasdata(ion, :density_fast)
                 ion.density_fast .= min.(ion.density_fast, ion.density)  # can't have more fast than total
             end
-            ion.density_thermal = ion.density_thermal  # freeze: evaluate expression and store so that hasdata(ion, :density_thermal) is true
         end
     end
 
