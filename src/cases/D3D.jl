@@ -38,6 +38,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
+    omfit_host_original = omfit_host
 
     if omfit_host == "localhost"
         phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omfit_root, omas_root))
@@ -205,7 +206,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 fit_profiles, EFIT_tree, PROFILES_tree,
                 CER_analysis_type="CERQUICK",
                 EFIT_run_id, PROFILES_run_id,
-                omfit_host, omfit_root, omas_root,
+                omfit_host=omfit_host_original, omfit_root, omas_root,
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
                 use_local_cache, use_interferometer)
