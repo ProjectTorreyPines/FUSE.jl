@@ -1268,14 +1268,14 @@ end
 function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_profiles__profiles_1d{<:Real}}
     @assert length(to_cp1d.ion) == length(cp1d.ion)
     to_cp1d.grid.rho_tor_norm .= cp1d.grid.rho_tor_norm
-    to_cp1d.electrons.density_thermal .= cp1d.electrons.density_thermal
+    to_cp1d.electrons.density_thermal = copy(cp1d.electrons.density_thermal) # Must be copied in case density_thermal is function
     to_cp1d.electrons.temperature .= cp1d.electrons.temperature
     if !ismissing(cp1d.electrons, :density_fast)
         to_cp1d.electrons.density_fast .= cp1d.electrons.density_fast
     end
     IMAS.unfreeze!(to_cp1d.electrons, :density)
     for (initial_ion, ion) in zip(to_cp1d.ion, cp1d.ion)
-        initial_ion.density_thermal .= ion.density_thermal
+        initial_ion.density_thermal = copy(ion.density_thermal) # Must be copied in case density_thermal is function
         initial_ion.temperature .= ion.temperature
         if !ismissing(ion, :density_fast)
             initial_ion.density_fast .= ion.density_fast
