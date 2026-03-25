@@ -179,7 +179,7 @@ function run_postdictive_case!(
     act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     # time
-    δt = 0.025
+    δt = 0.05
     dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
     final_time = ini.general.dd.equilibrium.time[end]
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
