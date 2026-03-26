@@ -118,7 +118,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
-    time_slice_index::Entry{Int} = Entry{Int}("-", "Time slice index to use for equilibrium and profiles"; default=1)
     mars_overrides::Entry{NamedTuple} =
         Entry{NamedTuple}("-", "Runtime MARS namelist overrides"; default=NamedTuple())
     mars_exec::Entry{String} =
@@ -198,11 +197,6 @@ function _step(actor::ActorMars)
         display(plt)
     end
 
-    # check to make sure selected time slice is valid
-    if par.time_slice_index < 1 || par.time_slice_index > length(dd.equilibrium.time_slice)
-        error("Invalid time_slice_index: $(par.time_slice_index). Must be between 1 and $(length(dd.equilibrium.time_slice)).")
-    end
-
     #run equilibrium solver to generate initial conditions for MARS
     if par.eq_type == :CHEASE
         @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
@@ -223,8 +217,6 @@ end
 
 function run_CHEASE(dd::IMAS.dd, par, nl)
     @info "Running CHEASE with EQDSK=$(par.EQDSK)"
-
-    time_slice_index = par.time_slice_index
 
     chease_exec = par.chease_exec
     @assert nl !== nothing "CHEASE namelist not initialized"
@@ -268,8 +260,7 @@ end
 function run_MARS(dd::IMAS.dd, par)
 
     mars_overrides = par.mars_overrides
-    time_slice_index = par.time_slice_index
-    core_profiles = dd.core_profiles.profiles_1d[time_slice_index]
+    core_profiles = dd.core_profiles.profiles_1d[]
     mars_namelist = par.mars_runin_path
     
 
@@ -435,10 +426,9 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
-    time_slice_index = par.time_slice_index
 
     # initialize eqt from pulse_schedule and core_profiles
-    time_slice = dd.equilibrium.time_slice[time_slice_index]
+    time_slice = dd.equilibrium.time_slice[]
     eqt1d = time_slice.profiles_1d
     
     # populate the input file lines
@@ -474,7 +464,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     pprime = eqt1d.dpressure_dpsi
 
     ### Currently NOT used, but may be useful later
-    #wall_RZ = [dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.r, dd.wall.description_2d[time_slice_index].limiter.unit[1].outline.z]
+    #wall_RZ = [dd.wall.description_2d[].limiter.unit[1].outline.r, dd.wall.description_2d[].limiter.unit[1].outline.z]
 
     if minimum(r_bound) - offset < 0
         error("Offset too large: boundary crosses R < 0 (min R = $(minimum(r_bound)))")
