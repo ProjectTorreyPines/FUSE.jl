@@ -23,7 +23,7 @@ Transport model options:
 - `:FluxMatcher`: Self-consistent flux-matching transport evolution using turbulent and
   neoclassical models to evolve temperature and density profiles
 - `:FINN`: Direct gradient prediction using the Flux-matcher Inversion Neural Network,
-  bypassing iterative flux matching for sub-millisecond profile prediction
+  bypassing iterative flux matching for 10-millisecond profile prediction
 - `:EPEDProfiles`: Use EPED model predictions for pedestal and core profiles
 - `:replay`: Replay profiles from experimental data or previous simulations
 - `:none`: No core transport evolution (fixed profiles)

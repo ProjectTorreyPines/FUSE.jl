@@ -8,10 +8,7 @@ import GACODE
 @actor_parameters_struct ActorFINN{T} begin
     finn_model::Entry{String} = Entry{String}("-", "FINN model filename (BSON)")
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm grid for FINN predictions"; default=0.25:0.1:0.85)
-    sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule for geometry extraction"; default=:sat3)
-    electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic for geometry extraction"; default=true)
-    lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps fuel species (D,T) and impurities together"; default=true)
-    MXH_modes::Entry{Int} = Entry{Int}("-", "Number of MXH harmonics"; default=1)
+    MXH_modes::Entry{Int} = Entry{Int}("-", "Number of MXH harmonics used when generating InputTGLF geometry for FINN"; default=1)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Warn if inputs are outside FINN training bounds"; default=false)
     evolve_rotation::Entry{Bool} = Entry{Bool}("-", "Set rotation from predicted VEXB_SHEAR"; default=false)
 end
@@ -73,9 +70,6 @@ function _step(actor::ActorFINN{D,P}) where {D<:Real,P<:Real}
     actor.finn_results = TurbulentTransport.run_finn(
         dd, par.rho_transport;
         model_filename=par.finn_model,
-        sat_rule=par.sat_rule,
-        electromagnetic=par.electromagnetic,
-        lump_ions=par.lump_ions,
         warn_nn_train_bounds=par.warn_nn_train_bounds,
         MXH_modes=par.MXH_modes
     )
@@ -114,7 +108,7 @@ function _finalize(actor::ActorFINN)
 
     rho_transport = collect(par.rho_transport)
 
-    input_tglfs = InputTGLF(dd, rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions; MXH_modes=par.MXH_modes)
+    input_tglfs = InputTGLF(dd, rho_transport, :sat3, true, true; MXH_modes=par.MXH_modes)
     if hasproperty(input_tglfs, :tglfs)
         input_tglfs = input_tglfs.tglfs
     end
@@ -143,7 +137,7 @@ function _finalize(actor::ActorFINN)
         cp1d.electrons.density_thermal, rho, rho_transport, z_ne)
     IMAS.unfreeze!(cp1d.electrons, :density)
 
-    # Ion densities: NOT modified — FINN does not predict individual ion density
+    # Ion densities: NOT modified — FINN does not yet predict individual ion density
     # gradients (e.g. Deuterium, Tritium, impurity densities).
     # These retain their experimental/initialized values.
 
