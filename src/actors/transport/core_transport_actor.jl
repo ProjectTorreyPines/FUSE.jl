@@ -2,14 +2,14 @@
 #  ActorCoreTransport  #
 #= ================== =#
 @actor_parameters_struct ActorCoreTransport{T} begin
-    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
+    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :FINN, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
 end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorCoreTransport{P}}
     act::ParametersAllActors{P}
-    tr_actor::Union{ActorFluxMatcher{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    tr_actor::Union{ActorFluxMatcher{D,P},ActorFINN{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -22,6 +22,8 @@ This compound actor manages different approaches to core transport evolution:
 Transport model options:
 - `:FluxMatcher`: Self-consistent flux-matching transport evolution using turbulent and
   neoclassical models to evolve temperature and density profiles
+- `:FINN`: Direct gradient prediction using the Flux-matcher Inversion Neural Network,
+  bypassing iterative flux matching for sub-millisecond profile prediction
 - `:EPEDProfiles`: Use EPED model predictions for pedestal and core profiles
 - `:replay`: Replay profiles from experimental data or previous simulations
 - `:none`: No core transport evolution (fixed profiles)
@@ -45,6 +47,8 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
 
     if par.model == :FluxMatcher
         actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act)
+    elseif par.model == :FINN
+        actor.tr_actor = ActorFINN(dd, act.ActorFINN)
     elseif par.model == :EPEDProfiles
         actor.tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
     elseif par.model == :replay
