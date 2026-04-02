@@ -85,6 +85,12 @@ Converts predicted TGLF gradients to profiles and writes them to dd.core_profile
 TGLF gradient convention: RLTS_1 = -a/L_Te = -(a/Te) * dTe/dr
 Conversion to z-profile: z_Te = (1/Te) * dTe/drho = -RLTS_1 * DRMINDX_LOC
 
+Rotation uses a different conversion because VEXB_SHEAR is not a logarithmic
+gradient — it encodes dω/dr with q, rmin, and c_s normalization:
+  VEXB_SHEAR = (rmin/q) * (a/c_s) * (-dω/dr)
+We solve for dω/drho and integrate inward from the boundary using
+`profile_from_rotation_shear_transport`.
+
 Only the channels predicted by FINN are updated:
   - Electron temperature (from RLTS_1)
   - Ion temperature (from RLTS_2)
@@ -142,11 +148,24 @@ function _finalize(actor::ActorFINN)
     # These retain their experimental/initialized values.
 
     # Rotation: optionally update from predicted VEXB_SHEAR
+    # From tglf.jl: w0 = -ω, gamma_e = (rmin/q)*dω/dr, VEXB_SHEAR = -gamma_e*(a/c_s)
+    # Inverting: dω/drho = VEXB_SHEAR * q / rmin * c_s * DRMINDX
+    # where rmin [cm] = a_cm * RMIN_LOC, and c_s [cm/s] from GACODE
     if par.evolve_rotation && !isempty(res.VEXB_SHEAR)
-        vexb = res.VEXB_SHEAR
-        z_rot = -vexb .* drmindx
-        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(
-            cp1d.rotation_frequency_tor_sonic .+ 1.0, rho, rho_transport, z_rot)
+        eqt1d = dd.equilibrium.time_slice[].profiles_1d
+        rmin_full = GACODE.r_min_core_profiles(eqt1d, rho)
+        a_cm = rmin_full[end]
+
+        cp_gridpoints = [IMAS.argmin_abs(rho, rho_x) for rho_x in rho_transport]
+        Te_transport = cp1d.electrons.temperature[cp_gridpoints]
+        c_s = GACODE.c_s.(Te_transport)
+        q_loc = [Float64(input_tglfs[i].Q_LOC) for i in eachindex(rho_transport)]
+        rmin_loc = [Float64(input_tglfs[i].RMIN_LOC) for i in eachindex(rho_transport)]
+
+        dw_drho = @. res.VEXB_SHEAR * q_loc / (a_cm * rmin_loc) * c_s * drmindx
+
+        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_rotation_shear_transport(
+            cp1d.rotation_frequency_tor_sonic, rho, rho_transport, dw_drho)
     end
 
     IMAS.intrinsic_sources!(dd)
