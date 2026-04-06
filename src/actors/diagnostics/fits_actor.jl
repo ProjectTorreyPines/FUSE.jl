@@ -95,7 +95,8 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     for (kt, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[kt]
         data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        cp1d.electrons.temperature = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        te = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.temperature = max.(te, 1.0)
     end
 
     # scale thomson scattering density based on interferometer measurements
@@ -182,7 +183,8 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        ne = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.density_thermal = max.(ne, 1e10)
         IMAS.unfreeze!(cp1d.electrons, :density)
     end
 
@@ -220,6 +222,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
         ti = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        ti = max.(ti, 1.0)
         for ion in cp1d.ion
             ion.temperature = ti
         end
