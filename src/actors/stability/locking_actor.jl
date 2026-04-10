@@ -199,9 +199,14 @@ function _step(actor::ActorLocking)
         locking_labels
         )
 
-    elseif par.task == "Evaluate probability"
+    elseif par.task == "evaluate-probability"
         @info   "Evaluating saved Locking probability (not implemented yet)"
-        
+        # C1 = .5; C2 = .5 # place holders for now, need to implement a way to specify which case(s) to evaluate probability for
+        #probability = actor.results.prob(C1, C2) # placeholder for now, need to implement a way to evaluate probability from the ODE solutions
+
+    elseif par.task == "transfer-learning"
+        @info   "Transfer Learning training (not implemented yet)"    
+
     else
         error("Unknown task: $(par.task)")
     end
