@@ -199,6 +199,8 @@ function _step(actor::ActorLocking)
         locking_labels
         )
 
+    elseif par.task == "Evaluate probability"
+        @info   "Evaluating saved Locking probability (not implemented yet)"
         
     else
         error("Unknown task: $(par.task)")
