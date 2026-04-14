@@ -179,17 +179,14 @@ rotation with mode-colored scatter markers superimposed at each `rho_transport` 
 When multiple `dd` objects are provided, profile lines are differentiated by line style and
 mode markers by marker shape. Color always encodes the dominant turbulence mode.
 """
-@recipe function plot_ActorModeID_profiles(actor::ActorModeID, ::Val{:profiles})
+function Plots.plot(actor::ActorModeID, ::Val{:profiles}; kwargs...)
     par = actor.par
     rho_transport = collect(par.rho_transport)
-    n_dds = length(actor.labeled_dds)
-
-    layout := (2, 2)
-    size --> (1000, 700)
-    margin --> 5 * Plots.Measures.mm
 
     line_styles = [:solid, :dash, :dot, :dashdot, :dashdotdot]
     ylabels = [L"T_e~[\mathrm{eV}]", L"n_e~[\mathrm{m}^{-3}]", L"T_i~[\mathrm{eV}]", L"\omega_\mathrm{tor}~[\mathrm{rad/s}]"]
+
+    p = plot(layout=(2, 2), size=(1000, 700), margin=5 * Plots.Measures.mm; kwargs...)
 
     for (dd_idx, (label, dd)) in enumerate(actor.labeled_dds)
         cp1d = dd.core_profiles.profiles_1d[]
@@ -205,16 +202,14 @@ mode markers by marker shape. Color always encodes the dominant turbulence mode.
         panels = [Te, ne, Ti, vtor]
 
         for (sp, profile) in enumerate(panels)
-            @series begin
-                subplot := sp
-                ylabel --> ylabels[sp]
-                xlabel --> L"\rho"
-                label --> lbl
-                linestyle --> ls
-                xlims --> (0.0, 1.0)
-                ylims --> (0.0, Inf)
-                rho, profile
-            end
+            plot!(p, rho, profile;
+                subplot=sp,
+                ylabel=ylabels[sp],
+                xlabel=L"\rho",
+                label=lbl,
+                linestyle=ls,
+                xlims=(0.0, 1.0),
+                ylims=(0.0, Inf))
         end
     end
 
@@ -223,7 +218,6 @@ mode markers by marker shape. Color always encodes the dominant turbulence mode.
     for (res_idx, ((label, mode_ids), (_, dd))) in enumerate(zip(actor.results, actor.labeled_dds))
         cp1d = dd.core_profiles.profiles_1d[]
         rho = cp1d.grid.rho_tor_norm
-        mshape = _MODE_MARKER_SHAPES[mod1(res_idx, length(_MODE_MARKER_SHAPES))]
 
         Te = ismissing(cp1d.electrons, :temperature) ? fill(NaN, length(rho)) : cp1d.electrons.temperature
         ne = ismissing(cp1d.electrons, :density) ? fill(NaN, length(rho)) : cp1d.electrons.density
@@ -245,20 +239,19 @@ mode markers by marker shape. Color always encodes the dominant turbulence mode.
 
             for (sp, profile) in enumerate(profiles)
                 y_vals = profile[nearest_idxs]
-                @series begin
-                    subplot := sp
-                    seriestype := :scatter
-                    label --> (sp == 1 && show_label ? MODE_LABELS[mode] : "")
-                    markercolor --> _mode_color(mode)
-                    markersize --> 6
-                    markershape --> :circle
-                    markerstrokewidth --> 1
-                    markerstrokecolor --> :white
-                    rho_vals, y_vals
-                end
+                scatter!(p, rho_vals, y_vals;
+                    subplot=sp,
+                    label=(sp == 1 && show_label ? MODE_LABELS[mode] : ""),
+                    markercolor=_mode_color(mode),
+                    markersize=6,
+                    markershape=:circle,
+                    markerstrokewidth=1,
+                    markerstrokecolor=:white)
             end
         end
     end
+
+    return p
 end
 
 function Base.show(io::IO, ::MIME"text/plain", actor::ActorModeID)
