@@ -90,12 +90,12 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     method = IMAS.NaturalNeighbours.Triangle()
 
-    # fit Te
-    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
+    # fit Te in log space to guarantee positivity
+    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=x -> log(abs(x)))
     for (kt, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[kt]
         data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        cp1d.electrons.temperature = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.temperature = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
     end
 
     # scale thomson scattering density based on interferometer measurements
@@ -177,12 +177,12 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    # fit ne
-    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
+    # fit ne in log space to guarantee positivity
+    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=x -> log(abs(x)))
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.density_thermal = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
         IMAS.unfreeze!(cp1d.electrons, :density)
     end
 
@@ -205,7 +205,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         imp_ion = cp1d.ion[2]
 
         data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data .*= exp.(itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method))
         n_i = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
@@ -213,13 +213,13 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         IMAS.unfreeze!(bulk_ion, :density)
         IMAS.unfreeze!(imp_ion, :density)
     end
-
-    # fit Ti
-    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=abs)
+    
+    # fit Ti in log space to guarantee positivity (prevents avgZ DomainError)
+    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=x -> log(abs(x)))
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        ti = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        ti = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
         for ion in cp1d.ion
             ion.temperature = ti
         end
