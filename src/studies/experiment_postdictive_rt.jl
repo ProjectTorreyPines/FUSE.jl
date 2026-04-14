@@ -153,6 +153,18 @@ function run_postdictive_rt_case!(
 
     act.ActorNeutralFueling.τp_over_τe = 0.25
 
+    act.ActorFluxMatcher.evolve_plasma_sources = true
+    act.ActorFluxMatcher.algorithm = :default
+    act.ActorFluxMatcher.max_iterations = -100 # negative to avoid print of warnings
+    act.ActorFluxMatcher.evolve_pedestal = false
+    act.ActorFluxMatcher.evolve_Te = :flux_match
+    act.ActorFluxMatcher.evolve_Ti = :flux_match
+    act.ActorFluxMatcher.evolve_densities = :flux_match
+    act.ActorFluxMatcher.evolve_rotation = :replay
+    act.ActorFluxMatcher.relax = 1.0
+    act.ActorFluxMatcher.z_max = (core=20.0, edge=100.0, rho_transition=0.80) 
+
+
     # FINN transport — replaces FluxMatcher + TGLF
     act.ActorCoreTransport.model = :FINN
     act.ActorFINN.finn_model = "finn_sat3_d3d_withnegD"
