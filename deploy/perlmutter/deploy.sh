@@ -1,6 +1,6 @@
 #!/bin/bash -v
 command -v module >/dev/null 2>&1 || source /usr/share/lmod/lmod/init/bash
-module load julia/1.11.4
+module load julia/1.11.7
 
 # Set up OMFIT and OMAS which is needed for the DIII-D study
 export FUSE_OMFIT_HOST="localhost"
@@ -70,6 +70,7 @@ if [[ $JULIA_EXIT_CODE -ne 0 ]]; then
     send_failure_notification "$JULIA_EXIT_CODE"
     exit "$JULIA_EXIT_CODE"
 else
+    echo "Cleaning up previous FUSE environment"
     /bin/cp -r $installdir $envdir
     /bin/cp $installdir/$fuse_env.lua $basedir/modules/fuse
     rm $basedir/modules/fuse/default.lua
