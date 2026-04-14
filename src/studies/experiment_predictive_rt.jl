@@ -19,11 +19,13 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPredictiveRT{T<:Real} 
     release_workers_after_run::Entry{Bool} = study_common_parameters(; release_workers_after_run=true)
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the predictive runs into")
     kw_case_parameters::Entry{Dict{Symbol,Any}} = Entry{Dict{Symbol,Any}}("-", "Keyword arguments passed to case_parameters"; default=Dict{Symbol,Any}())
+    redirect_output::Entry{Bool} = Entry{Bool}("-", "Redirect stdout and stderr to log.txt file"; default=true)
+    verbose::Entry{Bool} = Entry{Bool}("-", "Turn on verbose progress output"; default=true)
 
-    # Postdictive-specific parameters
+    # Predictive-specific parameters
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run predictive simulations for")
     shots::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "List of shot numbers")
-    reconstruction::Entry{Bool} = Entry{Bool}("-", "Run postdiction in reconstruction mode")
+    reconstruction::Entry{Bool} = Entry{Bool}("-", "Run prediction in reconstruction mode")
 end
 
 mutable struct StudyPredictiveRT{T<:Real} <: AbstractStudy
@@ -71,32 +73,19 @@ function run_predictive_rt_case(study::StudyPredictiveRT, shot::Int; kw_case_par
     sty = study.sty
     device = sty.device
 
-    original_dir = pwd()
-
-    # Redirect stdout and stderr to the file
-    original_stdout = stdout
-    original_stderr = stderr
-
     savedir = abspath(joinpath(sty.save_folder, "$(device)_$(shot)__$(Dates.now())__$(getpid())"))
     @info savedir
     if !isdir(savedir)
         mkdir(savedir)
     end
     SimulationParameters.par2json(sty, joinpath(savedir, "sty.json"))
-    file_log = open(joinpath(savedir, "log.txt"), "w")
 
-    try
-        redirect_stdout(file_log)
-        redirect_stderr(file_log)
-        cd(savedir)
-
-        run_predictive_rt_case(device, shot; savedir, sty.reconstruction, kw_case_parameters)
-
-    finally
-        redirect_stdout(original_stdout)
-        redirect_stderr(original_stderr)
-        cd(original_dir)
-        close(file_log)
+    io_out = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
+    io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
+    redirect_stdio(stdout=io_out, stderr=io_err) do
+        cd(savedir) do
+            run_predictive_rt_case(device, shot; savedir, sty.reconstruction, sty.verbose, kw_case_parameters)
+        end
     end
 end
 
@@ -115,11 +104,18 @@ function run_predictive_rt_case!(
     savedir::AbstractString=abspath("."),
     save_gif::Bool=false,
     reconstruction::Bool,
+    verbose::Bool,
     kw_case_parameters::Dict{Symbol,Any}
 )
 
+    isterminal = isa(stdout, Base.TTY) && (get(ENV, "CI", nothing) != "true")
+    if !isterminal && verbose
+        @info "StudyPredictiveRT: verbose output requested but stdout is not a terminal; setting verbose=false"
+        verbose = false
+    end
+
     # Get case parameters
-    @info "case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
+    @info "StudyPredictiveRT: case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
 
     # init
@@ -211,8 +207,8 @@ function run_predictive_rt_case!(
 
     # Run the simulation
     try
-        @info "ActorDynamicPlasma(dd, act)"
-        FUSE.ActorDynamicPlasma(dd, act; verbose=true)
+        @info "StudyPredictiveRT: ActorDynamicPlasma(dd, act)"
+        FUSE.ActorDynamicPlasma(dd, act; verbose)
     catch e
         if isa(e, InterruptException)
             rethrow(e)
