@@ -268,7 +268,7 @@ function run_MARS(dd::IMAS.dd, par)
     
     #@assert nl !== nothing "MARS namelist not initialized"
 
-    # 1. Copy RUN.IN template
+    # 1. Copy default namelist into working directory
     cp(mars_namelist, "RUN.IN"; force=true)
 
     # 2. override IWALL in mars_namelist if number_surfaces > 0
@@ -278,12 +278,12 @@ function run_MARS(dd::IMAS.dd, par)
         @info "Overriding IWALL in RUN.IN"
         # Implement the override logic here
         NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
-        write_MARS_RUNIN(mars_namelist, "RUN.IN", (BASIC=(IWALL=NW,),))
+        update_MARS_RUNIN!("RUN.IN", (BASIC=(IWALL=NW,),))
     end
 
     # 3. Patch only requested entries
-    write_MARS_RUNIN(mars_namelist, "RUN.IN", mars_overrides)
-    
+    update_MARS_RUNIN!("RUN.IN", mars_overrides)
+
     # 4. Determine which profiles to pull from dd, i.e. experiment
     keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
     prof_dict = extract_lines_for_keys("RUN.IN", keys, Int)
@@ -319,42 +319,118 @@ function collect_block_overrides(mars_overrides::NamedTuple)
     )
 end
 
-function write_MARS_RUNIN(
+function update_MARS_RUNIN!(
     template::AbstractString,
-    outfile::AbstractString,
     mars_overrides::NamedTuple
 )
     overrides = collect_block_overrides(mars_overrides)
 
+    lines = readlines(template)
+    new_lines = String[]
+
     current_block = nothing
-    open(outfile, "w") do out
-        for line in eachline(template)
-            stripped = strip(line)
 
-            # Detect block headers
-            if startswith(stripped, "&")
-                current_block = Symbol(strip(stripped[2:end]))
-                println(out, line)
-                continue
-            elseif stripped == "&END"
-                current_block = nothing
-                println(out, line)
-                continue
-            end
+    # Track which overrides were applied
+    used = Dict{Tuple{Symbol,Symbol},Bool}()
+    for k in keys(overrides)
+        used[k] = false
+    end
 
-            # Override line if key matches
-            if current_block !== nothing && occursin("=", stripped)
-                key = Symbol(strip(first(split(stripped, "="))))
+    for line in lines
+        stripped = strip(line)
 
-                k = (current_block, key)
-                if haskey(overrides, k)
-                    val = overrides[k]
-                    println(out, " $key = $val,")
-                    continue
+        # Detect block start
+        if startswith(stripped, "&") && !startswith(stripped, "&END")
+            current_block = Symbol(strip(stripped[2:end]))
+            println("Entering block: $current_block")
+            push!(new_lines, line)
+            continue
+        end
+
+        # Detect block end → INSERT missing keys here
+        if startswith(stripped, "&END")
+            if current_block !== nothing
+                for ((block, key), val) in overrides
+                    if block == current_block && !used[(block,key)]
+                        println("Inserting new parameter for $block.$key = $val")
+                        push!(new_lines, " $key = $val,")
+                    end
                 end
             end
 
-            println(out, line)
+            current_block = nothing
+            push!(new_lines, line)
+            continue
+        end
+
+        # Override existing keys
+        if current_block !== nothing && occursin("=", stripped)
+            key = Symbol(strip(first(split(stripped, "="))))
+            k = (current_block, key)
+
+            if haskey(overrides, k)
+                val = overrides[k]
+                push!(new_lines, " $key = $val,")
+                used[k] = true
+                continue
+            end
+        end
+
+        push!(new_lines, line)
+    end
+
+    # Write back to file
+    open(template, "w") do io
+        for l in new_lines
+            println(io, l)
+        end
+    end
+end
+
+function update_MARS_RUNIN2(
+    template::AbstractString,
+    mars_overrides::NamedTuple
+)
+    overrides = collect_block_overrides(mars_overrides)
+
+    lines = readlines(template)   # read entire file
+    new_lines = String[]
+
+    current_block = nothing
+
+    for line in lines
+        stripped = strip(line)
+
+        # Detect block headers
+        if startswith(stripped, "&")
+            current_block = Symbol(strip(stripped[2:end]))
+            push!(new_lines, line)
+            continue
+        elseif stripped == "&END"
+            current_block = nothing
+            push!(new_lines, line)
+            continue
+        end
+
+        # Override line if key matches
+        if current_block !== nothing && occursin("=", stripped)
+            key = Symbol(strip(first(split(stripped, "="))))
+
+            k = (current_block, key)
+            if haskey(overrides, k)
+                val = overrides[k]
+                push!(new_lines, " $key = $val,")
+                continue
+            end
+        end
+
+        push!(new_lines, line)
+    end
+
+    # overwrite the same file
+    open(template, "w") do io
+        for l in new_lines
+            println(io, l)
         end
     end
 end
