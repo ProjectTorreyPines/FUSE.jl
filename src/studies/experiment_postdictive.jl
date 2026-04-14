@@ -132,9 +132,9 @@ function run_postdictive_case!(
     act.ActorPedestal.model = :dynamic
     act.ActorPedestal.tau_n = experiment_LH.tau_n
     act.ActorPedestal.tau_t = experiment_LH.tau_t
-    act.ActorWPED.ped_to_core_fraction = experiment_LH.W_ped_to_core_fraction
     act.ActorEPED.ped_factor = 0.8
     act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
+    act.ActorWPED.ped_to_core_fraction = missing
 
     # density and Zeff from experiment
     act.ActorPedestal.density_ratio_L_over_H = 1.0
@@ -159,16 +159,18 @@ function run_postdictive_case!(
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorFluxMatcher.evolve_rotation = :replay
     act.ActorFluxMatcher.relax = 1.0
+    act.ActorFluxMatcher.z_max = (core=20.0, edge=100.0, rho_transition=0.80) 
+    act.ActorFluxMatcher.rho_transport = 0.15:0.1:0.85
 
     act.ActorPedestal.rotation_model = :replay
 
     act.ActorSawteethSource.flat_factor = 1.0
     act.ActorSawteethSource.period = 0.25 # turn off flattening after 0.25s of no sawteeth events
-
+    act.ActorTGLF.model = :GKNN
     act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     # time
-    δt = 0.025
+    δt = 0.05
     dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
     final_time = ini.general.dd.equilibrium.time[end]
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))

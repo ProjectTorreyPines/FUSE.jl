@@ -255,7 +255,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
       FUSE.flux_match_targets(dd, act_fm),
       nr, 4
     )
-    qi, qe, qp, qg = eachcol(q_mat)
+    qe, qi, qp, qg = eachcol(q_mat)
     gyro_bohms = [
       GACODE.gyrobohm_energy_flux(cp1d, eqt),
       GACODE.gyrobohm_particle_flux(cp1d, eqt),

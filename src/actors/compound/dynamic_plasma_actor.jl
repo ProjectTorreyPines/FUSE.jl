@@ -2,8 +2,8 @@
 #  ActorDynamicPlasma  #
 #= ================== =#
 @actor_parameters_struct ActorDynamicPlasma{T} begin
-    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
+    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt"; default=missing)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=missing)
     evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal"; default=true)
     evolve_sources::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
@@ -167,7 +167,7 @@ function _step(actor::ActorDynamicPlasma)
     t0 = prepare_dynamic_step!(actor)
     t1 = t0 + par.Δt
 
-    substeps_per_2loop = 9
+    substeps_per_2loop = 11
     par.verbose && ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
