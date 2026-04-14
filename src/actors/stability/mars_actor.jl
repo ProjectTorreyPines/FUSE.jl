@@ -272,8 +272,12 @@ function run_MARS(dd::IMAS.dd, par)
     # 1. Copy RUN.IN template
     cp(mars_namelist, "RUN.IN"; force=true)
 
-    # 2. Collect overrides
-    blocks = collect_block_overrides(mars_overrides)
+    # 2. override IWALL in mars_namelist if number_surfaces > 0
+    if par.number_surfaces > 0
+        @info "Overriding IWALL in RUN.IN"
+        # Implement the override logic here
+        NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
+    end
 
     # 3. Patch only requested entries
     write_MARS_RUNIN(mars_namelist, "RUN.IN", mars_overrides)
@@ -649,16 +653,49 @@ function offset_boundary(xs, ys, d)
     return X, Y
 end
 
-function julia_grep(patterns::AbstractVector{<:AbstractString}, filename::AbstractString)
-    matches = String[]
+
+function julia_grep(
+    patterns::AbstractVector{<:AbstractString},
+    filename::AbstractString;
+    extract_values::Bool=false
+)
+    isfile(filename) || error("File not found: $filename")
+
+    # Original behavior
+    if !extract_values
+        matches = String[]
+        open(filename, "r") do file
+            for line in eachline(file)
+                any(p -> occursin(p, line), patterns) && push!(matches, line)
+            end
+        end
+        return matches
+    end
+
+    # Extraction mode
+    results = Dict{String,Any}()
 
     open(filename, "r") do file
         for line in eachline(file)
-            any(p -> occursin(p, line), patterns) && push!(matches, line)
+            for key in patterns
+                # standalone KEY = value
+                pattern = Regex("\\b$(key)\\b\\s*=\\s*([^,\\s]+)")
+                if (m = match(pattern, line)) !== nothing
+                    raw = strip(m.captures[1])
+
+                    if (v = tryparse(Int, raw)) !== nothing
+                        results[key] = v
+                    elseif (v = tryparse(Float64, raw)) !== nothing
+                        results[key] = v
+                    else
+                        results[key] = raw
+                    end
+                end
+            end
         end
     end
 
-    return matches
+    return results
 end
 
 
