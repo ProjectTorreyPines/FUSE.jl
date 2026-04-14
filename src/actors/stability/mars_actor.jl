@@ -1,4 +1,3 @@
-#import CHEASE: run_chease
 using Interpolations
 const μ_0 = 4pi * 1E-7
 
@@ -273,10 +272,13 @@ function run_MARS(dd::IMAS.dd, par)
     cp(mars_namelist, "RUN.IN"; force=true)
 
     # 2. override IWALL in mars_namelist if number_surfaces > 0
+    # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
+    # the next step because if NWALL = 0, IWALL does NOT matter
     if par.number_surfaces > 0
         @info "Overriding IWALL in RUN.IN"
         # Implement the override logic here
         NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
+        write_MARS_RUNIN(mars_namelist, "RUN.IN", (BASIC=(IWALL=NW,),))
     end
 
     # 3. Patch only requested entries
