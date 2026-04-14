@@ -264,7 +264,7 @@ function run_MARS(dd::IMAS.dd, par)
     
 
     # Placeholder function to run MARS MHD stability code
-    @info "Running MARS with MHD_code=$(par.MHD_code) and PEST_input=$(par.PEST_input)."
+    @info "Running MARS with MHD_code=$(par.MHD_code)"
     
     #@assert nl !== nothing "MARS namelist not initialized"
 
