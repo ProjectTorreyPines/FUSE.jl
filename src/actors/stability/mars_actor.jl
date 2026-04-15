@@ -220,6 +220,7 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     @assert nl !== nothing "CHEASE namelist not initialized"
 
     # Write EXPEQ file
+    ### should this be write_EXPEQ_file(dd, par, nl.BOEXP,nl.R0EXP)?
     write_EXPEQ_file(dd, par)
     
     # Write CHEASE namelist file
@@ -301,7 +302,7 @@ function run_MARS(dd::IMAS.dd, par)
     ok = success(cmd)
 
     # Display growth rate and iteration count
-    iter, growth, freq = parse_MARS_results("RESULTS.OUT")
+    iter, growth, freq = parse_MARS_results("RESULT.OUT")
     @info "MARS iterations = $iter"
     @info "Growth rate = $growth"
     @info "Frequency = $freq"
