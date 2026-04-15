@@ -215,8 +215,7 @@ end
 
 
 function run_CHEASE(dd::IMAS.dd, par, nl)
-    @info "Running CHEASE with EQDSK=$(par.EQDSK)"
-
+    
     chease_exec = par.chease_exec
     @assert nl !== nothing "CHEASE namelist not initialized"
 
