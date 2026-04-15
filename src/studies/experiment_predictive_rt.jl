@@ -1,3 +1,5 @@
+import JSON
+
 #= ================== =#
 #  StudyPredictiveRT  #
 #= ================== =#
@@ -217,8 +219,12 @@ function run_predictive_rt_case!(
         end
     end
 
-    Nt_OK = round(Int, (dd.global_time - ini.time.simulation_start) / δt)
+    Nt_OK = max(2, round(Int, (dd.global_time - ini.time.simulation_start) / δt))
     times = range(ini.time.simulation_start, dd.global_time, Nt_OK)
+
+    # Validation residuals
+    @info "StudyPredictiveRT: computing validation residuals"
+    validation = compute_validation_residuals(dd, dd_exp)
 
     @info "IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);"
     bnch = IMAS.benchmark(dd, dd_exp, dd.core_profiles.time);
@@ -241,6 +247,11 @@ function run_predictive_rt_case!(
         @info "save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
 
+        @info "save validation_residuals.json"
+        open(joinpath(savedir, "validation_residuals.json"), "w") do f
+            JSON.print(f, validation, 2)
+        end
+
         if save_gif
             @info "save animated gif"
             mkdir(joinpath(savedir, "gif"))
@@ -249,4 +260,55 @@ function run_predictive_rt_case!(
     end
 
     return nothing
+end
+
+function _median(x::AbstractVector)
+    s = sort(x)
+    n = length(s)
+    return isodd(n) ? s[(n+1)÷2] : (s[n÷2] + s[n÷2+1]) / 2
+end
+
+"""
+    compute_validation_residuals(dd::IMAS.dd, dd_exp::IMAS.dd)
+
+Compute validation residuals comparing time derivatives of FUSE vs EFIT.
+Residual = dq_FUSE/dt - dq_EFIT/dt at each consecutive FUSE time step.
+EFIT quantities are interpolated onto FUSE's time grid before differencing.
+Returns max_abs and median for: dli_dt, dbetap_dt. Rp is TODO.
+"""
+function compute_validation_residuals(dd::IMAS.dd, dd_exp::IMAS.dd)
+    times_sim = dd.equilibrium.time
+    times_exp = dd_exp.equilibrium.time
+
+    if length(times_sim) < 2
+        @warn "compute_validation_residuals: not enough time slices"
+        return Dict{String,Any}()
+    end
+
+    # FUSE traces on FUSE time grid
+    li_sim = [dd.equilibrium.time_slice[t].global_quantities.li_3 for t in times_sim]
+    bp_sim = [dd.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_sim]
+
+    # EFIT traces interpolated onto FUSE time grid
+    li_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.li_3 for t in times_exp]).(times_sim)
+    bp_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_exp]).(times_sim)
+
+    # dq/dt residuals using consecutive time steps
+    res_li = Float64[]
+    res_bp = Float64[]
+    for k in 2:length(times_sim)
+        dt = times_sim[k] - times_sim[k-1]
+        push!(res_li, (li_sim[k] - li_sim[k-1]) / dt - (li_exp[k] - li_exp[k-1]) / dt)
+        push!(res_bp, (bp_sim[k] - bp_sim[k-1]) / dt - (bp_exp[k] - bp_exp[k-1]) / dt)
+    end
+    # TODO: Rp = d(ψ_plasma)/dt / Ip
+
+    summary = Dict{String,Any}()
+    for (name, res) in [("dli_dt", res_li), ("dbetap_dt", res_bp)]
+        if !isempty(res)
+            summary[name] = Dict("max_abs" => maximum(abs.(res)), "median" => _median(res))
+        end
+    end
+
+    return summary
 end
