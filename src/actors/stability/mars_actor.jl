@@ -300,6 +300,13 @@ function run_MARS(dd::IMAS.dd, par)
     )
 
     ok = success(cmd)
+
+    # Display growth rate and iteration count
+    iter, growth, freq = parse_MARS_results("RESULTS.OUT")
+    @info "MARS iterations = $iter"
+    @info "Growth rate = $growth"
+    @info "Frequency = $freq"
+
     ok || error("MARS failed — see log_mars")
 
 end
@@ -318,6 +325,7 @@ function collect_block_overrides(mars_overrides::NamedTuple)
         for (key, val) in pairs(kvs)
     )
 end
+
 
 function update_MARS_RUNIN!(
     template::AbstractString,
@@ -386,60 +394,11 @@ function update_MARS_RUNIN!(
     end
 end
 
-function update_MARS_RUNIN2(
-    template::AbstractString,
-    mars_overrides::NamedTuple
-)
-    overrides = collect_block_overrides(mars_overrides)
-
-    lines = readlines(template)   # read entire file
-    new_lines = String[]
-
-    current_block = nothing
-
-    for line in lines
-        stripped = strip(line)
-
-        # Detect block headers
-        if startswith(stripped, "&")
-            current_block = Symbol(strip(stripped[2:end]))
-            push!(new_lines, line)
-            continue
-        elseif stripped == "&END"
-            current_block = nothing
-            push!(new_lines, line)
-            continue
-        end
-
-        # Override line if key matches
-        if current_block !== nothing && occursin("=", stripped)
-            key = Symbol(strip(first(split(stripped, "="))))
-
-            k = (current_block, key)
-            if haskey(overrides, k)
-                val = overrides[k]
-                push!(new_lines, " $key = $val,")
-                continue
-            end
-        end
-
-        push!(new_lines, line)
-    end
-
-    # overwrite the same file
-    open(template, "w") do io
-        for l in new_lines
-            println(io, l)
-        end
-    end
-end
-
 
 function write_exp_profiles(profiles, prof_dict, KEY="1")
     @info "Generating additional PROF*.IN files from experiment or dd."
     
     s = sqrt.(profiles.grid.psi_norm)  # radial coordinate
-    rho_tor = sqrt.(profiles.grid.psi_norm)
 
     for (field, value) in prof_dict
         if field == "NPROFR" && value == 4
@@ -473,6 +432,8 @@ function write_exp_profiles(profiles, prof_dict, KEY="1")
 
 end
 
+
+
 # write the *.IN files for each quantity
 function write_profile_IN(filename::AbstractString, s::Vector{Float64}, profile::Vector{Float64}, KEY::AbstractString)
     @assert length(s) == length(profile) "density and rotation arrays must have the same shape"
@@ -488,6 +449,26 @@ function write_profile_IN(filename::AbstractString, s::Vector{Float64}, profile:
     end
 end
 
+
+function parse_MARS_results(filename::AbstractString)
+    isfile(filename) || error("File not found: $filename")
+
+    line = strip(readline(filename))
+    vals = [strip(v, ',') for v in split(line)]
+
+    length(vals) >= 6 || error("Unexpected format in $filename")
+
+    iter   = round(Int, parse(Float64, vals[2]))
+    growth = parse(Float64, vals[5])
+    freq   = parse(Float64, vals[6])
+
+    # Convergence warning
+    if iter > 99
+        @warn "MARS did not converge (iterations = $iter). A better initial guess for the eigenvalue may be required."
+    end
+
+    return iter, growth, freq
+end
 
 function run_PARTICLE_TRACING(dd::IMAS.dd, par)
     # Placeholder function to run particle tracing simulations
