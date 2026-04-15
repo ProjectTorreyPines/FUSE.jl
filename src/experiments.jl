@@ -88,7 +88,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
     else
         # auto-detect mode transitions based on LH-power threshold
         is_H_mask = Bool[false for time0 in time]
-        n = 1 # maximum number of H-mode transitions allowed
+        n = 3 # maximum number of H-mode transitions allowed
         for k in eachindex(time)
             if k == 1 || (n > 0 && is_H_mask[k-1] == true && injected_power[k] < scaling_power[k] * scale_LH * 1.1)
                 is_H_mask[k] = false

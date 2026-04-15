@@ -127,7 +127,7 @@ function run_predictive_rt_case!(
 
     # identify LH transitions
     @info "LH_analysis"
-    experiment_LH = FUSE.LH_analysis(dd; do_plot=false)
+    experiment_LH = FUSE.LH_analysis(dd; scale_LH=1.0,do_plot=false)
 
     act.ActorPedestal.model = :dynamic
     act.ActorPedestal.tau_n = experiment_LH.tau_n
