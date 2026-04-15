@@ -342,7 +342,6 @@ function update_MARS_RUNIN!(
         # Detect block start
         if startswith(stripped, "&") && !startswith(stripped, "&END")
             current_block = Symbol(strip(stripped[2:end]))
-            println("Entering block: $current_block")
             push!(new_lines, line)
             continue
         end
