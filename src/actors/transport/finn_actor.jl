@@ -11,6 +11,26 @@ import GACODE
     MXH_modes::Entry{Int} = Entry{Int}("-", "Number of MXH harmonics used when generating InputTGLF geometry for FINN"; default=1)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Warn if inputs are outside FINN training bounds"; default=false)
     evolve_rotation::Entry{Bool} = Entry{Bool}("-", "Set rotation from predicted VEXB_SHEAR"; default=false)
+    z_max::Entry{Union{T,NamedTuple}} = Entry{Union{T,NamedTuple}}(
+        "m⁻¹",
+        """
+        Maximum allowed normalized gradient (inverse scale length). Can be:
+        * Single value: applies to all channels and radii (e.g., 10.0)
+        * NamedTuple for spatially varying limits:
+          (core=20.0, edge=100.0, rho_transition=0.80)
+          Values are constant at 'core' for rho <= rho_transition, then linearly increase to 'edge' at rho=1.0
+        """;
+        default=10.0,
+        check=x -> begin
+            if x isa Real
+                @assert x > 0.0 "z_max must be positive"
+            elseif x isa NamedTuple
+                @assert haskey(x, :core) && haskey(x, :edge) && haskey(x, :rho_transition) "Spatially varying z_max must have :core, :edge, :rho_transition"
+                @assert x.core > 0.0 && x.edge > 0.0 "core and edge z_max must be positive"
+                @assert 0.0 <= x.rho_transition <= 1.0 "rho_transition must be between 0 and 1"
+            end
+        end
+    )
 end
 
 mutable struct ActorFINN{D,P} <: SingleAbstractActor{D,P}
@@ -67,9 +87,10 @@ function _step(actor::ActorFINN{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
+    model_filename = endswith(par.finn_model, ".bson") ? par.finn_model[begin:end-5] : par.finn_model
     actor.finn_results = TurbulentTransport.run_finn(
         dd, par.rho_transport;
-        model_filename=par.finn_model,
+        model_filename=model_filename,
         warn_nn_train_bounds=par.warn_nn_train_bounds,
         MXH_modes=par.MXH_modes
     )
@@ -125,6 +146,23 @@ function _finalize(actor::ActorFINN)
     z_Te = -res.RLTS_1 .* drmindx
     z_Ti = -res.RLTS_2 .* drmindx
     z_ne = -res.RLNS_1 .* drmindx
+
+    # Apply z_max clamping
+    if par.z_max isa Real
+        z_max_val = Float64(par.z_max)
+        z_Te = clamp.(z_Te, -z_max_val, z_max_val)
+        z_Ti = clamp.(z_Ti, -z_max_val, z_max_val)
+        z_ne = clamp.(z_ne, -z_max_val, z_max_val)
+    elseif par.z_max isa NamedTuple
+        core_limit = par.z_max.core
+        edge_limit = par.z_max.edge
+        rho_trans = par.z_max.rho_transition
+        slope = (edge_limit - core_limit) / (1.0 - rho_trans)
+        z_max_profile = [rho_x <= rho_trans ? core_limit : core_limit + slope * (rho_x - rho_trans) for rho_x in rho_transport]
+        z_Te = clamp.(z_Te, -z_max_profile, z_max_profile)
+        z_Ti = clamp.(z_Ti, -z_max_profile, z_max_profile)
+        z_ne = clamp.(z_ne, -z_max_profile, z_max_profile)
+    end
 
     # Electron temperature: update within rho_transport, preserve edge/pedestal
     cp1d.electrons.temperature = IMAS.profile_from_z_transport(
