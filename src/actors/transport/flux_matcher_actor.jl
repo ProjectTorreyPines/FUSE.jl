@@ -45,7 +45,7 @@ import NonlinearSolve, FixedPointAcceleration
         Switch{Symbol}(
             [:finite_diff, :forward_ad],
             "-",
-            "Method for computing the transport Jacobian: `:finite_diff` (default) or `:forward_ad` (exact ForwardDiff through TJLF)";
+            "Method for computing the transport Jacobian: `:finite_diff` (default) or `:forward_ad` (exact ForwardDiff through TJLF/TGLFNN/GKNN)";
             default=:finite_diff
         )
     step_size::Entry{T} = Entry{T}(
@@ -267,7 +267,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 try
                     if eltype(u) <: ForwardDiff.Dual && par.jacobian_method === :forward_ad
                         # AD path: full pipeline through dd{Dual}
-                        ad_flux_match_errors!(F, u, actor, initial_cp1d)
+                        ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history, err_history, prog)
                     else
                         # Standard path: full pipeline through dd
                         result = flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
@@ -1530,7 +1530,10 @@ function ad_flux_match_errors!(
     F::AbstractVector,
     opt_parameters::AbstractVector,
     actor::ActorFluxMatcher{D,P},
-    initial_cp1d::IMAS.core_profiles__profiles_1d) where {D<:Real,P<:Real}
+    initial_cp1d::IMAS.core_profiles__profiles_1d;
+    z_scaled_history=nothing,
+    err_history=nothing,
+    prog=nothing) where {D<:Real,P<:Real}
 
     T = eltype(opt_parameters)
     dd_float = actor.dd
@@ -1636,6 +1639,17 @@ function ad_flux_match_errors!(
             norm0 = (norm(fluxes[index] .* surface0) + norm(targets[index] .* surface0)) / 2.0
         end
         F[index] .= (targets[index] .- fluxes[index]) ./ norm0 .* surface0
+    end
+
+    # Log primal values for history/plotting (extract Float64 from Dual)
+    if z_scaled_history !== nothing
+        push!(z_scaled_history, ForwardDiff.value.(opt_parameters))
+    end
+    if err_history !== nothing
+        push!(err_history, ForwardDiff.value.(F))
+    end
+    if prog !== nothing
+        ProgressMeter.next!(prog)
     end
 
     return nothing
