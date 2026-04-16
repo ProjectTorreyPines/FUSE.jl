@@ -213,11 +213,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         opt_parameters = [1.0; z_init_scaled]
     end
 
-    autodiff = NonlinearSolve.ADTypes.AutoFiniteDiff()
-    if D <: ForwardDiff.Dual
-        autodiff = NonlinearSolve.ADTypes.AutoForwardDiff()
-    elseif par.jacobian_method === :forward_ad
-        autodiff = NonlinearSolve.ADTypes.AutoForwardDiff()
+    autodiff = if (D <: ForwardDiff.Dual) || par.jacobian_method === :forward_ad
+        NonlinearSolve.ADTypes.AutoForwardDiff()
+    else
+        NonlinearSolve.ADTypes.AutoFiniteDiff()
     end
 
     # Validate forward_ad requirements
@@ -562,7 +561,7 @@ function profiles_title(cp1d, profiles_path)
 end
 
 function errors_by_channel(errors::Vector{T}, N_radii::Int, N_channels::Int, N_specials::Int) where {T<:Real}
-    return (specials=errors[1+N_specials], radii_channels=mapslices(norm, reshape(errors[1+N_specials:end], (N_radii, N_channels)); dims=1))
+    return (specials=errors[1:N_specials], radii_channels=mapslices(norm, reshape(errors[1+N_specials:end], (N_radii, N_channels)); dims=1))
 end
 
 """
@@ -1582,7 +1581,7 @@ function ad_flux_match_errors!(
         flux_solutions = [GACODE.FluxSolution{T}(TJLF.Qe(ql), TJLF.Qi(ql), TJLF.Γe(ql), TJLF.Γi(ql), TJLF.Πi(ql)) for ql in QL_fluxes_out]
 
     elseif turb_par.model in (:TGLFNN, :GKNN)
-        # Run TGLFNN/GKNN neural network directly (Dual-compatible via PooledChain fallback)
+        # Run TGLFNN/GKNN neural network directly (Dual-compatible via AdaptiveArrayPools)
         flux_solutions = TurbulentTransport.run_tglfnn(input_tglfs_dual; warn_nn_train_bounds=turb_par.warn_nn_train_bounds, model_filename=model_filename(turb_par), fidelity=turb_par.model)
 
     else
