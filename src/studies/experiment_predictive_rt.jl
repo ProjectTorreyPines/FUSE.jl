@@ -215,7 +215,8 @@ function run_predictive_rt_case!(
         if isa(e, InterruptException)
             rethrow(e)
         else
-            @error repr(e)
+            @error "ActorDynamicPlasma failed: $(repr(e))"
+            rethrow(e)
         end
     end
 
@@ -272,10 +273,10 @@ function extract_traces(dd::IMAS.dd, dd_exp::IMAS.dd)
     times_sim = dd.equilibrium.time
     times_exp = dd_exp.equilibrium.time
 
-    li_sim = [dd.equilibrium.time_slice[t].global_quantities.li_3 for t in times_sim]
+    li_sim = [dd.equilibrium.time_slice[t].global_quantities.li_1 for t in times_sim]
     bp_sim = [dd.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_sim]
 
-    li_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.li_3 for t in times_exp]).(times_sim)
+    li_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.li_1 for t in times_exp]).(times_sim)
     bp_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_exp]).(times_sim)
 
     return Dict(
@@ -311,11 +312,11 @@ function compute_validation_residuals(dd::IMAS.dd, dd_exp::IMAS.dd)
     end
 
     # FUSE traces on FUSE time grid
-    li_sim = [dd.equilibrium.time_slice[t].global_quantities.li_3 for t in times_sim]
+    li_sim = [dd.equilibrium.time_slice[t].global_quantities.li_1 for t in times_sim]
     bp_sim = [dd.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_sim]
 
     # EFIT traces interpolated onto FUSE time grid
-    li_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.li_3 for t in times_exp]).(times_sim)
+    li_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.li_1 for t in times_exp]).(times_sim)
     bp_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_exp]).(times_sim)
 
     # dq/dt residuals using consecutive time steps
