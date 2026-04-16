@@ -266,6 +266,10 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
         substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
     end
 
+    # sync core_profiles/core_sources/core_transport grids to the equilibrium used in core_profiles,
+    # so that new_timeslice! in the next step copies consistent (not stale) grid values
+    latest_equilibrium_grids!(actor.dd)
+
     substep(actor, Val(:run_equilibrium), δt / 2; progr)
     substep(actor, Val(:run_pf_active), δt / 2; progr)
 
