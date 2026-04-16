@@ -238,14 +238,14 @@ function run_predictive_rt_case!(
         SimulationParameters.par2json(act, joinpath(savedir, "act.json"))
         act.ActorReplay.replay_dd = tmp
 
-        @info "save dd_sim.json"
-        IMAS.imas2json(dd, joinpath(savedir, "dd_sim.json"))
-
-        @info "save dd_exp.json"
-        IMAS.imas2json(dd_exp, joinpath(savedir, "dd_exp.json"))
-
         @info "save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
+
+        @info "save traces.json"
+        traces = extract_traces(dd, dd_exp)
+        open(joinpath(savedir, "traces.json"), "w") do f
+            JSON.print(f, traces, 2)
+        end
 
         @info "save validation_residuals.json"
         open(joinpath(savedir, "validation_residuals.json"), "w") do f
@@ -260,6 +260,31 @@ function run_predictive_rt_case!(
     end
 
     return nothing
+end
+
+"""
+    extract_traces(dd::IMAS.dd, dd_exp::IMAS.dd)
+
+Extract time traces of li and beta_pol from FUSE simulation and EFIT,
+both on FUSE's time grid (EFIT is interpolated to match).
+"""
+function extract_traces(dd::IMAS.dd, dd_exp::IMAS.dd)
+    times_sim = dd.equilibrium.time
+    times_exp = dd_exp.equilibrium.time
+
+    li_sim = [dd.equilibrium.time_slice[t].global_quantities.li_3 for t in times_sim]
+    bp_sim = [dd.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_sim]
+
+    li_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.li_3 for t in times_exp]).(times_sim)
+    bp_exp = IMAS.interp1d(times_exp, [dd_exp.equilibrium.time_slice[t].global_quantities.beta_pol for t in times_exp]).(times_sim)
+
+    return Dict(
+        "time"   => times_sim,
+        "li_sim" => li_sim,
+        "bp_sim" => bp_sim,
+        "li_exp" => li_exp,
+        "bp_exp" => bp_exp,
+    )
 end
 
 function _median(x::AbstractVector)
