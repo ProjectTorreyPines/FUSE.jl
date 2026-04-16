@@ -81,33 +81,42 @@ function _run(study::StudyTGLFdb)
     act = study.act
 
     @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
-    @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
+
+    is_finn = act.ActorCoreTransport.model == :FINN
+
+    if is_finn
+        iterator = [act.ActorFINN.finn_model]
+    else
+        @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
+        if !ismissing(getproperty(sty, :sat_rules, missing))
+            iterator = sty.sat_rules
+        elseif !ismissing(sty.custom_tglf_models)
+            iterator = sty.custom_tglf_models
+        end
+    end
 
     cases_files = [
         joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
         item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
     ]
 
-    if !ismissing(getproperty(sty, :sat_rules, missing))
-        iterator = sty.sat_rules
-    elseif !ismissing(sty.custom_tglf_models)
-        iterator = sty.custom_tglf_models
-    end
     study.iterator = iterator
-    study.dataframes_dict = Dict(string(name) => TGLF_dataframe() for name in study.iterator)
+    study.dataframes_dict = Dict(string(name) => (is_finn ? FINN_dataframe() : TGLF_dataframe()) for name in study.iterator)
 
     # loop serially through saturation rules
     println("Running StudyTGLFdb on $(length(cases_files)) cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
     for item in iterator
-        if !ismissing(getproperty(sty, :sat_rules, missing))
-            act.ActorTGLF.sat_rule = item
-        else
-            act.ActorTGLF.tglfnn_model = item
-        end
-        act.ActorTGLF.lump_ions = sty.lump_ions
-        if item == "wrapped_model.onnx"
-            act.ActorTGLF.onnx_model=true
-            act.ActorTGLF.tglfnn_model = item
+        if !is_finn
+            if !ismissing(getproperty(sty, :sat_rules, missing))
+                act.ActorTGLF.sat_rule = item
+            else
+                act.ActorTGLF.tglfnn_model = item
+            end
+            act.ActorTGLF.lump_ions = sty.lump_ions
+            if item == "wrapped_model.onnx"
+                act.ActorTGLF.onnx_model=true
+                act.ActorTGLF.tglfnn_model = item
+            end
         end
         # paraller run
         results = pmap(filename -> run_case(filename, study, item), cases_files)
@@ -193,6 +202,8 @@ function run_case(filename::AbstractString, study::StudyTGLFdb, item)
     name = split(splitpath(filename)[end], ".")[1]
     output_case = joinpath(sty.save_folder, name)
 
+    is_finn = act.ActorCoreTransport.model == :FINN
+
     try
         if !isdir(output_case)
             mkdir(output_case)
@@ -203,13 +214,19 @@ function run_case(filename::AbstractString, study::StudyTGLFdb, item)
 
         if sty.save_dd
             IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(item).json"))
-            save_inputtglfs(actor_transport, output_case, name, item)
+            if !is_finn
+                save_inputtglfs(actor_transport, output_case, name, item)
+            end
             if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
                 save(FUSE.memtrace, joinpath(output_case, "memtrace.txt"))
             end
         end
 
-        return create_data_frame_row(dd, exp_values)
+        if is_finn
+            return create_finn_data_frame_row(dd, exp_values)
+        else
+            return create_data_frame_row(dd, exp_values)
+        end
     catch e
         if isa(e, InterruptException)
             rethrow(e)
@@ -300,6 +317,33 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
       Q_GB            = IMAS.interp1d(rho_cp, gyro_bohms[1]).(rho_transport),
       particle_GB     = IMAS.interp1d(rho_cp, gyro_bohms[2]).(rho_transport),
       momentum_GB     = IMAS.interp1d(rho_cp, gyro_bohms[3]).(rho_transport),
+    )
+end
+
+function FINN_dataframe()
+    return DataFrame(;
+        shot=Int[], time=Int[],
+        ne0=Float64[], Te0=Float64[], Ti0=Float64[], rot0=Float64[], WTH=Float64[],
+        ne0_exp=Float64[], Te0_exp=Float64[], Ti0_exp=Float64[], rot0_exp=Float64[], WTH_exp=Float64[],
+        timef=Int[])
+end
+
+function create_finn_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
+    cp1d = dd.core_profiles.profiles_1d[]
+    return (
+      shot    = dd.dataset_description.data_entry.pulse,
+      time    = Int(dd.summary.time[1] * 1000),
+      ne0     = cp1d.electrons.density_thermal[1],
+      Te0     = cp1d.electrons.temperature[1],
+      Ti0     = cp1d.ion[1].temperature[1],
+      rot0    = cp1d.rotation_frequency_tor_sonic[1],
+      WTH     = IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
+      ne0_exp = exp_values[1],
+      Te0_exp = exp_values[2],
+      Ti0_exp = exp_values[3],
+      rot0_exp = exp_values[5],
+      WTH_exp = exp_values[4],
+      timef   = exp_values[6],
     )
 end
 
