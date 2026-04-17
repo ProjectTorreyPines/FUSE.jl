@@ -41,9 +41,11 @@ jobs:
       fail-fast: false
       matrix:
         flavor:
+          - { os: ubuntu-latest, arch: x64, version: "1.x" }
+          - { os: macos-latest, arch: arm64, version: "1.x" }
           - { os: ubuntu-latest, arch: x64, version: "1.11" }
           - { os: macos-latest, arch: arm64, version: "1.11" }
-#          - { os: windows-latest, arch: x86, version: "1.11" }
+#          - { os: windows-latest, arch: x86, version: "1.x" }
     env:
       GKSwstype: 100 # disable Plots.jl interactive output
 
@@ -146,7 +148,7 @@ jobs:
       - name: 'Save Manifest.toml'
         uses: actions/upload-artifact@v4
         with:
-          name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
+          name: Manifest-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
           path: Manifest.toml
 
       # Build
