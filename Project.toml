@@ -137,3 +137,6 @@ TroyonBetaNN = "1"
 TurbulentTransport = "1"
 VacuumFields = "6"
 Weave = "0.10"
+
+[sources]
+FRESCO = {url = "https://github.com/ProjectTorreyPines/FRESCO.jl.git"}
