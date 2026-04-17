@@ -28,6 +28,8 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPredictiveRT{T<:Real} 
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run predictive simulations for")
     shots::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "List of shot numbers")
     reconstruction::Entry{Bool} = Entry{Bool}("-", "Run prediction in reconstruction mode")
+    start_time::Entry{Float64} = Entry{Float64}("-", "Override simulation start time [s]"; default=missing)
+    end_time::Entry{Float64} = Entry{Float64}("-", "Override simulation end time [s]"; default=missing)
 end
 
 mutable struct StudyPredictiveRT{T<:Real} <: AbstractStudy
@@ -86,7 +88,7 @@ function run_predictive_rt_case(study::StudyPredictiveRT, shot::Int; kw_case_par
     io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
     redirect_stdio(stdout=io_out, stderr=io_err) do
         cd(savedir) do
-            run_predictive_rt_case(device, shot; savedir, sty.reconstruction, sty.verbose, kw_case_parameters)
+            run_predictive_rt_case(device, shot; savedir, sty.reconstruction, sty.verbose, sty.start_time, sty.end_time, kw_case_parameters)
         end
     end
 end
@@ -107,6 +109,8 @@ function run_predictive_rt_case!(
     save_gif::Bool=false,
     reconstruction::Bool,
     verbose::Bool,
+    start_time::Union{Float64,Missing}=missing,
+    end_time::Union{Float64,Missing}=missing,
     kw_case_parameters::Dict{Symbol,Any}
 )
 
@@ -119,6 +123,11 @@ function run_predictive_rt_case!(
     # Get case parameters
     @info "StudyPredictiveRT: case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
+
+    # Override start/end time if specified
+    if !ismissing(start_time)
+        ini.time.simulation_start = start_time
+    end
 
     # init
     @info "ini.time.simulation_start = $(ini.time.simulation_start)"
@@ -177,7 +186,7 @@ function run_predictive_rt_case!(
     # time
     δt = 0.05
     dd.global_time = ini.time.simulation_start
-    final_time = ini.general.dd.equilibrium.time[end]
+    final_time = ismissing(end_time) ? ini.general.dd.equilibrium.time[end] : end_time
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
     act.ActorDynamicPlasma.Δt = final_time - dd.global_time
 
