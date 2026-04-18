@@ -285,7 +285,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                     if isa(e, InterruptException)
                         rethrow(e)
                     end
-                    @warn "FluxMatcher f! error ($(eltype(u) <: ForwardDiff.Dual ? "AD" : "primal") path): $(typeof(e)): $(sprint(showerror, e))"
+                    @warn "FluxMatcher f! error ($(eltype(u) <: ForwardDiff.Dual ? "AD" : "primal") path): $(sprint(showerror, e))" maxlog = 3
                     F .= Inf
                 end
             end
@@ -1505,11 +1505,17 @@ function prepare_dd_for_ad(dd_float::IMAS.dd{D}, initial_cp1d::IMAS.core_profile
     dd_ad = IMAS.dd{T}()
     dd_ad.global_time = dd_float.global_time
 
+    # Set parent-level time arrays (needed by @ddtime, time_slice[time0] lookups, total_sources!, etc.)
+    dd_ad.equilibrium.time = [dd_float.global_time]
+    dd_ad.core_profiles.time = [dd_float.global_time]
+
     # Copy equilibrium time_slice (frozen geometry, promoted to T)
     eqt_float = dd_float.equilibrium.time_slice[]
     resize!(dd_ad.equilibrium.time_slice, 1)
     eqt_ad = dd_ad.equilibrium.time_slice[1]
     copy_ids_data!(eqt_ad, eqt_float)
+    # Ensure time_slice.time matches equilibrium.time for expression lookups (e.g. vacuum_toroidal_field.b0)
+    eqt_ad.time = dd_float.global_time
 
     # Copy equilibrium.vacuum_toroidal_field (needed by InputTGLF etc.)
     copy_ids_data!(dd_ad.equilibrium.vacuum_toroidal_field, dd_float.equilibrium.vacuum_toroidal_field)
@@ -1519,6 +1525,8 @@ function prepare_dd_for_ad(dd_float::IMAS.dd{D}, initial_cp1d::IMAS.core_profile
     resize!(dd_ad.core_profiles.profiles_1d, 1)
     cp1d_ad = dd_ad.core_profiles.profiles_1d[1]
     copy_ids_data!(cp1d_ad, cp1d_float)
+    # Ensure profiles_1d.time matches core_profiles.time
+    cp1d_ad.time = dd_float.global_time
 
     return dd_ad
 end
@@ -1601,7 +1609,8 @@ function ad_flux_match_errors!(
 
     elseif turb_par.model in (:TGLFNN, :GKNN)
         # Run TGLFNN/GKNN neural network directly (Dual-compatible via AdaptiveArrayPools)
-        flux_solutions = TurbulentTransport.run_tglfnn(input_tglfs_dual; warn_nn_train_bounds=turb_par.warn_nn_train_bounds, model_filename=model_filename(turb_par), fidelity=turb_par.model)
+        # Unwrap InputTGLFs wrapper to Vector{InputTGLF{T}} expected by run_tglfnn
+        flux_solutions = TurbulentTransport.run_tglfnn(input_tglfs_dual.tglfs; warn_nn_train_bounds=turb_par.warn_nn_train_bounds, model_filename=model_filename(turb_par), fidelity=turb_par.model)
 
     else
         error("jacobian_method=:forward_ad does not support turbulence model :$(turb_par.model)")
@@ -1611,6 +1620,7 @@ function ad_flux_match_errors!(
     turb_model = resize!(dd_ad.core_transport.model, :anomalous; wipe=false)
     turb_model.identifier.name = string(turb_par.model)
     turb_m1d = resize!(turb_model.profiles_1d)
+    turb_m1d.time = dd_ad.global_time
     turb_m1d.grid_flux.rho_tor_norm = T.(par.rho_transport)
     GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), flux_solutions, turb_m1d, eqt_ad, cp1d_ad)
 
@@ -1635,6 +1645,7 @@ function ad_flux_match_errors!(
         neoc_model = resize!(dd_ad.core_transport.model, :neoclassical; wipe=false)
         neoc_model.identifier.name = string(neoc_par.model)
         neoc_m1d = resize!(neoc_model.profiles_1d)
+        neoc_m1d.time = dd_ad.global_time
         neoc_m1d.grid_flux.rho_tor_norm = T.(par.rho_transport)
         if neoc_par.model == :changhinton
             GACODE.flux_gacode_to_imas((:ion_energy_flux,), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
