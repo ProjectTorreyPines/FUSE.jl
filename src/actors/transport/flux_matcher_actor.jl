@@ -45,8 +45,8 @@ import NonlinearSolve, FixedPointAcceleration
         Switch{Symbol}(
             [:finite_diff, :forward_ad],
             "-",
-            "Method for computing the transport Jacobian: `:forward_ad` (default, exact ForwardDiff through TJLF/TGLFNN/GKNN) or `:finite_diff`";
-            default=:forward_ad
+            "Method for computing the transport Jacobian: `:finite_diff` (default) or `:forward_ad` (exact ForwardDiff through TJLF/TGLFNN/GKNN)";
+            default=:finite_diff
         )
     step_size::Entry{T} = Entry{T}(
         "-",
@@ -272,9 +272,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             function f!(F, u, initial_cp1d)
                 try
                     if eltype(u) <: ForwardDiff.Dual && jacobian_method === :forward_ad
-                        # AD path: full pipeline through dd{Dual}
+                        # AD Jacobian evaluation — skip history (same residual as primal call)
                         ad_call_count[] += 1
-                        ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history, err_history, prog)
+                        ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history=nothing, err_history=nothing, prog)
                     else
                         # Standard path: full pipeline through dd
                         primal_call_count[] += 1
