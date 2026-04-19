@@ -43,10 +43,10 @@ import NonlinearSolve, FixedPointAcceleration
         Entry{NonlinearSolve.AbstractNonlinearSolveAlgorithm}("-", "User-defined custom solver from NonlinearSolve")
     jacobian_method::Switch{Symbol} =
         Switch{Symbol}(
-            [:finite_diff, :forward_ad],
+            [:default, :finite_diff, :forward_ad],
             "-",
-            "Method for computing the transport Jacobian: `:finite_diff` (default) or `:forward_ad` (exact ForwardDiff through TJLF/TGLFNN/GKNN)";
-            default=:finite_diff
+            "Method for computing the transport Jacobian: `:default` (`:forward_ad` for `:simple_trust`, `:finite_diff` otherwise) or explicit `:finite_diff` / `:forward_ad`";
+            default=:default
         )
     step_size::Entry{T} = Entry{T}(
         "-",
@@ -98,6 +98,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     actor_ped::ActorPedestal{D,P}
     norms::Vector{D}
     error::D
+    err_history::Vector{Vector{D}}
 end
 
 """
@@ -151,7 +152,7 @@ function ActorFluxMatcher(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf))
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}())
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -213,17 +214,20 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         opt_parameters = [1.0; z_init_scaled]
     end
 
-    autodiff = if (D <: ForwardDiff.Dual) || par.jacobian_method === :forward_ad
-        NonlinearSolve.ADTypes.AutoForwardDiff()
-    else
-        NonlinearSolve.ADTypes.AutoFiniteDiff()
+    # Resolve :default jacobian_method based on algorithm
+    jacobian_method = par.jacobian_method
+    if jacobian_method === :default
+        jacobian_method = (par.algorithm === :simple_trust) ? :forward_ad : :finite_diff
     end
 
-    # Validate forward_ad requirements
-    if par.jacobian_method === :forward_ad
-        @assert actor.actor_ct.actor_turb isa ActorTGLF "jacobian_method=:forward_ad requires ActorTGLF as turbulence actor"
-        @assert actor.actor_ct.actor_turb.par.model in (:TJLF, :TGLFNN, :GKNN) "jacobian_method=:forward_ad requires turbulence model :TJLF, :TGLFNN, or :GKNN (got $(actor.actor_ct.actor_turb.par.model))"
-        @assert ismissing(par, :scale_turbulence_law) "jacobian_method=:forward_ad is not compatible with scale_turbulence_law"
+    # Validate forward_ad requirements; fall back to finite_diff if not supported
+    if jacobian_method === :forward_ad
+        turb_ok = actor.actor_ct.actor_turb isa ActorTGLF && actor.actor_ct.actor_turb.par.model in (:TJLF, :TGLFNN, :GKNN)
+        scale_ok = ismissing(par, :scale_turbulence_law)
+        if !turb_ok || !scale_ok
+            @warn "jacobian_method=:forward_ad not supported (turb=$(actor.actor_ct.actor_turb isa ActorTGLF ? actor.actor_ct.actor_turb.par.model : typeof(actor.actor_ct.actor_turb)), scale_turbulence_law=$(ismissing(par, :scale_turbulence_law) ? "unset" : par.scale_turbulence_law)); falling back to :finite_diff"
+            jacobian_method = :finite_diff
+        end
     end
 
     algorithm = if par.algorithm === :default
@@ -231,7 +235,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # combines speed and robustness, but needs smooth derivatives
             :basic_polyalg
         else
-            if par.jacobian_method === :forward_ad
+            if jacobian_method === :forward_ad
                 # Use gradient-based method with exact Jacobian
                 :basic_polyalg
             else
@@ -241,6 +245,12 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
     else
         par.algorithm
+    end
+
+    autodiff = if (D <: ForwardDiff.Dual) || jacobian_method === :forward_ad
+        NonlinearSolve.ADTypes.AutoForwardDiff()
+    else
+        NonlinearSolve.ADTypes.AutoFiniteDiff()
     end
 
     # Different defaults for gradient-based methods
@@ -264,9 +274,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # 1. In-place residual
             function f!(F, u, initial_cp1d)
                 try
-                    if eltype(u) <: ForwardDiff.Dual && par.jacobian_method === :forward_ad
-                        # AD path: full pipeline through dd{Dual}
-                        ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history, err_history, prog)
+                    if eltype(u) <: ForwardDiff.Dual && jacobian_method === :forward_ad
+                        # AD Jacobian evaluation — skip history (same residual as primal call)
+                        ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history=nothing, err_history=nothing, prog)
                     else
                         # Standard path: full pipeline through dd
                         result = flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
@@ -276,6 +286,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                     if isa(e, InterruptException)
                         rethrow(e)
                     end
+                    @warn "FluxMatcher f! error ($(eltype(u) <: ForwardDiff.Dual ? "AD" : "primal") path): $(sprint(showerror, e))" maxlog = 3
                     F .= Inf
                 end
             end
@@ -297,7 +308,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 )
 
             elseif algorithm == :broyden
-                if par.jacobian_method === :forward_ad
+                if jacobian_method === :forward_ad
                     NonlinearSolve.Broyden(; autodiff, init_jacobian=Val(:true_jacobian))
                 else
                     NonlinearSolve.Broyden(; autodiff)
@@ -313,7 +324,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 NonlinearSolve.SimpleDFSane()
 
             elseif algorithm === :basic_polyalg
-                broyden_alg = if par.jacobian_method === :forward_ad
+                broyden_alg = if jacobian_method === :forward_ad
                     NonlinearSolve.Broyden(; autodiff, init_jacobian=Val(:true_jacobian))
                 else
                     NonlinearSolve.Broyden(; autodiff)
@@ -394,6 +405,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     # statistics
     actor.error = norm(out.errors)
+    actor.err_history = err_history
     @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
     @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
     dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
@@ -1457,17 +1469,22 @@ function copy_ids_data!(dst::IMAS.IDS{T}, src::IMAS.IDS) where {T<:Real}
                 copy_ids_data!(d, s)
             end
             setfield!(filled_dst, field, true)
-        elseif val isa AbstractMatrix{<:Real}
-            setfield!(dst, field, T.(val))
+        elseif val isa AbstractMatrix{<:AbstractFloat}
+            ft = fieldtype(typeof(dst), field)
+            promoted = T.(val)
+            setfield!(dst, field, typeof(promoted) <: ft ? promoted : deepcopy(val))
             setfield!(filled_dst, field, true)
-        elseif val isa AbstractVector{<:Real}
-            setfield!(dst, field, T.(val))
+        elseif val isa AbstractVector{<:AbstractFloat}
+            ft = fieldtype(typeof(dst), field)
+            promoted = T.(val)
+            setfield!(dst, field, typeof(promoted) <: ft ? promoted : deepcopy(val))
             setfield!(filled_dst, field, true)
-        elseif val isa Real
-            setfield!(dst, field, T(val))
+        elseif val isa AbstractFloat
+            ft = fieldtype(typeof(dst), field)
+            setfield!(dst, field, T <: ft ? T(val) : val)
             setfield!(filled_dst, field, true)
         else
-            # Non-numeric (String, Symbol, Int, Bool, Vector{Int}, Vector{String}, etc.)
+            # Non-numeric or integer types (String, Symbol, Int, Bool, Vector{Int}, etc.)
             setfield!(dst, field, deepcopy(val))
             setfield!(filled_dst, field, true)
         end
@@ -1489,17 +1506,28 @@ function prepare_dd_for_ad(dd_float::IMAS.dd{D}, initial_cp1d::IMAS.core_profile
     dd_ad = IMAS.dd{T}()
     dd_ad.global_time = dd_float.global_time
 
+    # Set parent-level time arrays (needed by @ddtime, time_slice[time0] lookups, total_sources!, etc.)
+    dd_ad.equilibrium.time = [dd_float.global_time]
+    dd_ad.core_profiles.time = [dd_float.global_time]
+
     # Copy equilibrium time_slice (frozen geometry, promoted to T)
     eqt_float = dd_float.equilibrium.time_slice[]
     resize!(dd_ad.equilibrium.time_slice, 1)
     eqt_ad = dd_ad.equilibrium.time_slice[1]
     copy_ids_data!(eqt_ad, eqt_float)
+    # Ensure time_slice.time matches equilibrium.time for expression lookups (e.g. vacuum_toroidal_field.b0)
+    eqt_ad.time = dd_float.global_time
+
+    # Copy equilibrium.vacuum_toroidal_field (needed by InputTGLF etc.)
+    copy_ids_data!(dd_ad.equilibrium.vacuum_toroidal_field, dd_float.equilibrium.vacuum_toroidal_field)
 
     # Copy core_profiles from initial_cp1d (promoted to T)
     cp1d_float = dd_float.core_profiles.profiles_1d[]
     resize!(dd_ad.core_profiles.profiles_1d, 1)
     cp1d_ad = dd_ad.core_profiles.profiles_1d[1]
     copy_ids_data!(cp1d_ad, cp1d_float)
+    # Ensure profiles_1d.time matches core_profiles.time
+    cp1d_ad.time = dd_float.global_time
 
     return dd_ad
 end
@@ -1582,7 +1610,8 @@ function ad_flux_match_errors!(
 
     elseif turb_par.model in (:TGLFNN, :GKNN)
         # Run TGLFNN/GKNN neural network directly (Dual-compatible via AdaptiveArrayPools)
-        flux_solutions = TurbulentTransport.run_tglfnn(input_tglfs_dual; warn_nn_train_bounds=turb_par.warn_nn_train_bounds, model_filename=model_filename(turb_par), fidelity=turb_par.model)
+        # Unwrap InputTGLFs wrapper to Vector{InputTGLF{T}} expected by run_tglfnn
+        flux_solutions = TurbulentTransport.run_tglfnn(input_tglfs_dual.tglfs; warn_nn_train_bounds=turb_par.warn_nn_train_bounds, model_filename=model_filename(turb_par), fidelity=turb_par.model)
 
     else
         error("jacobian_method=:forward_ad does not support turbulence model :$(turb_par.model)")
@@ -1592,6 +1621,7 @@ function ad_flux_match_errors!(
     turb_model = resize!(dd_ad.core_transport.model, :anomalous; wipe=false)
     turb_model.identifier.name = string(turb_par.model)
     turb_m1d = resize!(turb_model.profiles_1d)
+    turb_m1d.time = dd_ad.global_time
     turb_m1d.grid_flux.rho_tor_norm = T.(par.rho_transport)
     GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), flux_solutions, turb_m1d, eqt_ad, cp1d_ad)
 
@@ -1616,6 +1646,7 @@ function ad_flux_match_errors!(
         neoc_model = resize!(dd_ad.core_transport.model, :neoclassical; wipe=false)
         neoc_model.identifier.name = string(neoc_par.model)
         neoc_m1d = resize!(neoc_model.profiles_1d)
+        neoc_m1d.time = dd_ad.global_time
         neoc_m1d.grid_flux.rho_tor_norm = T.(par.rho_transport)
         if neoc_par.model == :changhinton
             GACODE.flux_gacode_to_imas((:ion_energy_flux,), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
