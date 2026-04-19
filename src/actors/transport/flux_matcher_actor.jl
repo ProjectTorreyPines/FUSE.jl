@@ -272,17 +272,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         else
             # 1. In-place residual
-            ad_call_count = Ref(0)
-            primal_call_count = Ref(0)
             function f!(F, u, initial_cp1d)
                 try
                     if eltype(u) <: ForwardDiff.Dual && jacobian_method === :forward_ad
                         # AD Jacobian evaluation — skip history (same residual as primal call)
-                        ad_call_count[] += 1
                         ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history=nothing, err_history=nothing, prog)
                     else
                         # Standard path: full pipeline through dd
-                        primal_call_count[] += 1
                         result = flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
                         F .= result.errors
                     end
