@@ -43,10 +43,10 @@ import NonlinearSolve, FixedPointAcceleration
         Entry{NonlinearSolve.AbstractNonlinearSolveAlgorithm}("-", "User-defined custom solver from NonlinearSolve")
     jacobian_method::Switch{Symbol} =
         Switch{Symbol}(
-            [:finite_diff, :forward_ad],
+            [:default, :finite_diff, :forward_ad],
             "-",
-            "Method for computing the transport Jacobian: `:finite_diff` (default) or `:forward_ad` (exact ForwardDiff through TJLF/TGLFNN/GKNN)";
-            default=:finite_diff
+            "Method for computing the transport Jacobian: `:default` (`:forward_ad` for `:simple_trust`, `:finite_diff` otherwise) or explicit `:finite_diff` / `:forward_ad`";
+            default=:default
         )
     step_size::Entry{T} = Entry{T}(
         "-",
@@ -214,8 +214,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         opt_parameters = [1.0; z_init_scaled]
     end
 
-    # Validate forward_ad requirements; fall back to finite_diff if not supported
+    # Resolve :default jacobian_method based on algorithm
     jacobian_method = par.jacobian_method
+    if jacobian_method === :default
+        jacobian_method = (par.algorithm === :simple_trust) ? :forward_ad : :finite_diff
+    end
+
+    # Validate forward_ad requirements; fall back to finite_diff if not supported
     if jacobian_method === :forward_ad
         turb_ok = actor.actor_ct.actor_turb isa ActorTGLF && actor.actor_ct.actor_turb.par.model in (:TJLF, :TGLFNN, :GKNN)
         scale_ok = ismissing(par, :scale_turbulence_law)
