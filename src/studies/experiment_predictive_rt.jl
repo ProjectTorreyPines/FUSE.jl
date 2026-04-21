@@ -199,6 +199,9 @@ function run_predictive_rt_case!(
     act.ActorDynamicPlasma.evolve_pedestal = true
     act.ActorDynamicPlasma.evolve_sawteeth = true
 
+    # ZMQ coupling to GSLite/GSEvolve
+    act.ActorZMQ.enabled = true
+
     if reconstruction
         act.ActorCoreTransport.model = :replay
         act.ActorPedestal.model = :replay
@@ -225,7 +228,7 @@ function run_predictive_rt_case!(
             rethrow(e)
         else
             @error "ActorDynamicPlasma failed: $(repr(e))"
-            rethrow(e)
+            #rethrow(e)
         end
     end
 
@@ -250,6 +253,12 @@ function run_predictive_rt_case!(
 
         @info "save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
+
+        @info "StudyPostdictive: save dd_sim.json"
+        IMAS.imas2json(dd, joinpath(savedir, "dd_sim.json"))
+
+        @info "StudyPostdictive: save dd_exp.json"
+        IMAS.imas2json(dd_exp, joinpath(savedir, "dd_exp.json"))
 
         @info "save traces.json"
         traces = extract_traces(dd, dd_exp)

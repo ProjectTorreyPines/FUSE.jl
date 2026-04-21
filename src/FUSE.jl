@@ -78,6 +78,7 @@ include("actors.jl")
 
 include(joinpath("actors", "noop_actor.jl"))
 include(joinpath("actors", "replay_actor.jl"))
+include(joinpath("actors", "zmq_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
 include(joinpath("actors", "equilibrium", "fresco_actor.jl"))

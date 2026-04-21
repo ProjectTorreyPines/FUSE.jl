@@ -28,6 +28,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_pf::ActorPFactive{D,P}
     actor_saw::ActorSawteethSource{D,P}
+    actor_zmq::ActorZMQ{D,P}
 end
 
 """
@@ -156,7 +157,9 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     end
     actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource; period=max(par.Δt / par.Nt, act.ActorSawteethSource.period), qmin_desired=qmin_saw)
 
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw)
+    actor_zmq = ActorZMQ(dd, act)
+
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq)
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -185,6 +188,7 @@ function _step(actor::ActorDynamicPlasma)
         rethrow(e)
     finally
         actor_logging(dd, old_logging)
+        disconnect!(actor.actor_zmq)
     end
 
     return actor
@@ -254,6 +258,11 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
     dd.global_time = time0  # this is the --end-- time, the one we are working on
     substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
 
+    # ZMQ: receive data from GSLite at Phase 1 start
+    if phase == 1
+        receive!(actor.actor_zmq)
+    end
+
     substep(actor, Val(:run_sources), δt / 2; progr)
 
     # apply sawteeth to sources after sources have been recomputed
@@ -272,6 +281,11 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
 
     substep(actor, Val(:run_equilibrium), δt / 2; progr)
     substep(actor, Val(:run_pf_active), δt / 2; progr)
+
+    # ZMQ: send results to GSLite at Phase 2 end
+    if phase == 2
+        send!(actor.actor_zmq)
+    end
 
     return actor
 end
