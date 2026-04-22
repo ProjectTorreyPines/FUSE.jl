@@ -13,6 +13,7 @@
 
 import JSON
 import Interpolations
+import ZMQ
 
 @actor_parameters_struct ActorZMQ{T} begin
     endpoint::Entry{String} = Entry{String}("-", "ZMQ endpoint (e.g., tcp://localhost:5555)"; default="tcp://localhost:5555")
@@ -76,7 +77,7 @@ function connect!(actor::ActorZMQ)
     if actor.is_connected
         return actor
     end
-    ZMQ = Base.require(Base.PkgId(Base.UUID("c2297ded-f4af-51ae-bb23-16f5c9f64e55"), "ZMQ"))
+
     @info "ActorZMQ: connecting to $(actor.par.endpoint)"
     ctx = ZMQ.Context()
     sock = ZMQ.Socket(ctx, ZMQ.REQ)
@@ -97,7 +98,7 @@ function disconnect!(actor::ActorZMQ)
         return actor
     end
     @info "ActorZMQ: disconnecting"
-    ZMQ = Base.require(Base.PkgId(Base.UUID("c2297ded-f4af-51ae-bb23-16f5c9f64e55"), "ZMQ"))
+
     ZMQ.close(actor.socket)
     ZMQ.close(actor.context)
     actor.socket = nothing
@@ -135,7 +136,7 @@ function receive!(actor::ActorZMQ)
 
     dd = actor.dd
     par = actor.par
-    ZMQ = Base.require(Base.PkgId(Base.UUID("c2297ded-f4af-51ae-bb23-16f5c9f64e55"), "ZMQ"))
+
 
     # REQ: send ready signal, then receive data
     ZMQ.send(actor.socket, JSON.json(Dict("status" => "ready", "time" => dd.global_time)))
@@ -256,8 +257,8 @@ function receive!(actor::ActorZMQ)
         p2d.psi = psi_rz
         p2d.grid_type.index = 1  # rectangular grid
 
-        rgrid = p2d.grid.dim1
-        zgrid = p2d.grid.dim2
+        rgrid = range(p2d.grid.dim1[1], p2d.grid.dim1[end], length=length(p2d.grid.dim1))
+        zgrid = range(p2d.grid.dim2[1], p2d.grid.dim2[end], length=length(p2d.grid.dim2))
         fw_r, fw_z = IMAS.first_wall(dd.wall)
 
         if actor.first_receive
@@ -355,7 +356,7 @@ function send!(actor::ActorZMQ)
 
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
-    ZMQ = Base.require(Base.PkgId(Base.UUID("c2297ded-f4af-51ae-bb23-16f5c9f64e55"), "ZMQ"))
+
 
     betap = eqt.global_quantities.beta_pol
     li = eqt.global_quantities.li_1

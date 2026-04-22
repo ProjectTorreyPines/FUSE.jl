@@ -254,12 +254,6 @@ function run_predictive_rt_case!(
         @info "save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))
 
-        @info "StudyPostdictive: save dd_sim.json"
-        IMAS.imas2json(dd, joinpath(savedir, "dd_sim.json"))
-
-        @info "StudyPostdictive: save dd_exp.json"
-        IMAS.imas2json(dd_exp, joinpath(savedir, "dd_exp.json"))
-
         @info "save traces.json"
         traces = extract_traces(dd, dd_exp)
         open(joinpath(savedir, "traces.json"), "w") do f
