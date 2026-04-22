@@ -182,17 +182,21 @@ function _step(actor::ActorMars)
     end
 
     #run equilibrium solver to generate initial conditions for MARS
-    if par.eq_type == :CHEASE
-        @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
-        run_CHEASE(dd, par, chease_namelist)
-    elseif par.eq_type == :TEQUILA
-        @info "Running TEQUILA equilibrium solver with EQDSK=$(par.EQDSK)."
-        # run TEQUILA equilibrium solver
+    if run_equilibrium
+        if par.eq_type == :CHEASE
+            @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
+            run_CHEASE(dd, par, chease_namelist)
+        elseif par.eq_type == :TEQUILA
+            @info "Running TEQUILA equilibrium solver with EQDSK=$(par.EQDSK)."
+            # run TEQUILA equilibrium solver
+        end
     end
 
     # run MARS
-    @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
-    run_MARS(dd, par)
+    if run_MHD
+        @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
+        run_MARS(dd, par)
+    end
 
     #run_PARTICLE_TRACING(dd, par)
     return actor
