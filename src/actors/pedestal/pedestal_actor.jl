@@ -44,6 +44,8 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     t_hl::Float64
     previous_time::Float64
     cp1d_transition::IMAS.core_profiles__profiles_1d{D}
+    nn_predictor::Union{Nothing,PedestalDensityNN}
+    nn_prediction::Union{Nothing,NamedTuple}
 end
 
 """
@@ -104,7 +106,7 @@ function ActorPedestal(dd::IMAS.dd{D}, par::FUSEparameters__ActorPedestal{P}, ac
             zeff_from=:core_profiles
         )
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, analytic_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}())
+    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, analytic_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}(), nothing, nothing)
     actor.replay_actor = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -230,12 +232,19 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             end
 
         elseif par.model == :nn_predictor
-            # NN-based pedestal predictor: reads machine signals from dd._aux,
-            # predicts ne_ped, Te_ped, Ti_ped, rot_ped, and L/H mode
+            # NN-based pedestal predictor: edensfit89 two-stage ONNX pipeline
+            # (MSE machine-state encoder + FPE actuator encoder). Predicts
+            # pedestal electron density (10^19 m^-3) from 32 DIII-D actuator
+            # channels + a 50-shot machine history tensor.
+            #
+            # First cut: feed z-scored zeros (= training-set means) for both
+            # history and FPE actuators. Will be replaced once the MSE history
+            # NPZ loader and the zmq -> FPE channel mapping are wired up.
             aux = getfield(dd, :_aux)
             t = dd.global_time
 
-            # Gather inputs for NN (stored by ActorZMQ.receive!)
+            # Gather currently-available live signals (stored by ActorZMQ.receive!).
+            # NOTE: not yet routed into the FPE tensor — tracked for the next milestone.
             nn_inputs = Dict{Symbol,Any}()
             for key in (:zmq_I_coil, :zmq_Ip_avg, :zmq_pr15v, :zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal)
                 if key in keys(aux) && t in keys(aux[key])
@@ -243,14 +252,19 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
                 end
             end
 
-            # TODO: call NN model here
-            # nn_output = nn_predict(nn_inputs)
-            # ne_ped = nn_output.ne_ped
-            # Te_ped = nn_output.Te_ped
-            # Ti_ped = nn_output.Ti_ped
-            # rot_ped = nn_output.rot_ped
-            # mode = nn_output.LH_mode  # :L_mode or :H_mode
-            @warn "ActorPedestal :nn_predictor model is not yet connected — using no-op"
+            if actor.nn_predictor === nothing
+                actor.nn_predictor = load_pedestal_nn()
+                @info "ActorPedestal :nn_predictor loaded ONNX edensfit89 pipeline from $(actor.nn_predictor.onnx_dir)"
+            end
+
+            actor.nn_prediction = predict_density(actor.nn_predictor)
+            ne_ped_1e19 = sum(actor.nn_prediction.predictions_physical) / length(actor.nn_prediction.predictions_physical)
+            @info "ActorPedestal :nn_predictor — ne_ped (trace mean, zero-input = trained-mean) = $(round(ne_ped_1e19; digits=3)) x 10^19 m^-3 " *
+                  "[min=$(round(minimum(actor.nn_prediction.predictions_physical); digits=3)), max=$(round(maximum(actor.nn_prediction.predictions_physical); digits=3))] " *
+                  "(live zmq inputs collected but not yet routed to FPE: $(collect(keys(nn_inputs))))"
+
+            # First cut: not yet feeding the prediction into cp1d / summary_ped;
+            # only the prediction itself is exposed on actor.nn_prediction.
             actor.ped_actor = actor.noop_actor
         end
 
