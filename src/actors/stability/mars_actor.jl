@@ -493,7 +493,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     #Bt_geo = Bt_center * r_center / r_geo
 
     # choose B0 & R0 for CHEASE normalization
-    B0 = abs(Bt_axis)
+    B0 = abs(Bt_center)
     R0 = r0
 
     # inverse aspect ratio for CHEASE input
