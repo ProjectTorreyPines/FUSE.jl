@@ -22,6 +22,7 @@ Base.@kwdef mutable struct CHEASEnamelist
     NFUNC::Int      = 4
     NIPR::Int       = 1
     NISO::Int       = 100
+    NIDEAL::Int     = 0
 
     NPPFUN::Int     = 4
     NPP::Int        = 1
@@ -74,24 +75,6 @@ Base.@kwdef mutable struct CHEASEnamelist
     R0EXP::Float64  = 3.0
 end
 
-Base.@kwdef mutable struct MarsBasicOverrides
-    NCASE  ::Union{Nothing,Int} = nothing
-    NPROFN ::Union{Nothing,Int} = nothing
-    NPROFR  ::Union{Nothing,Int} = nothing
-    NPROFT  ::Union{Nothing,Int} = nothing
-end
-
-Base.@kwdef mutable struct MarsNamelistOverrides
-    BASIC ::MarsBasicOverrides = MarsBasicOverrides()
-    #FEEDBACK ::MarsFeedbackOverrides = MarsFeedbackOverrides()
-    #NUMERIC ::MarsNumericOverrides = MarsNumericOverrides()
-    #OUTOPT ::MarsOutputOverrides = MarsOutputOverrides()
-    #KINETIC ::MarsKineticOverrides = MarsKineticOverrides()
-    #QLIN ::MarsQLINOverrides = MarsQLINOverrides()
-    # raw overrides for uncommon / experimental keys
-    raw::Dict{Symbol,Dict{Symbol,Any}} = Dict()
-end
-
 
 struct MarsEq
     OutRVAR::Vector{Float64}
@@ -123,6 +106,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         Entry{String}("-", "Path to MARS executable"; default="/fusion/projects/codes/mars/MARSQ/marsq.x")
     mars_runin_path::Entry{String} =
         Entry{String}("-", "Path to base MARS RUN.IN file"; default="RUN.IN")
+    run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
+    run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
 end
 
 
@@ -220,10 +205,10 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     @assert nl !== nothing "CHEASE namelist not initialized"
 
     # Write EXPEQ file
-    ### should this be write_EXPEQ_file(dd, par, nl.BOEXP,nl.R0EXP)?
     write_EXPEQ_file(dd, par)
     
     # Write CHEASE namelist file
+    # *** update B0EXP, R0EXP in CHEASEnamelist based on dd equilibrium parameters? ***
     write_CHEASEnamelist(nl, "datain")
 
     # Clean up any stale CHEASE output files
@@ -497,17 +482,19 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     minor_radius = time_slice.boundary.minor_radius
     z_axis = time_slice.global_quantities.magnetic_axis.z
     Bt_center = time_slice.global_quantities.vacuum_toroidal_field.b0
+    Bt_axis = time_slice.global_quantities.magnetic_axis.b_field_tor
     r_center = time_slice.global_quantities.vacuum_toroidal_field.r0
+    r0 = dd.equilibrium.vacuum_toroidal_field.r0
     Ip = time_slice.global_quantities.ip
     r_bound = time_slice.boundary.outline.r
     z_bound = time_slice.boundary.outline.z
     r_geo = time_slice.boundary.geometric_axis.r
     z_geo = time_slice.boundary.geometric_axis.z
-    Bt_geo = Bt_center * r_center / r_geo
+    #Bt_geo = Bt_center * r_center / r_geo
 
     # choose B0 & R0 for CHEASE normalization
-    B0 = abs(Bt_geo)
-    R0 = r_geo
+    B0 = abs(Bt_axis)
+    R0 = r0
 
     # inverse aspect ratio for CHEASE input
     ϵ = minor_radius / R0
