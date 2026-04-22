@@ -182,7 +182,7 @@ function _step(actor::ActorMars)
     end
 
     #run equilibrium solver to generate initial conditions for MARS
-    if run_equilibrium
+    if par.run_equilibrium
         if par.eq_type == :CHEASE
             @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
             run_CHEASE(dd, par, chease_namelist)
@@ -193,7 +193,7 @@ function _step(actor::ActorMars)
     end
 
     # run MARS
-    if run_MHD
+    if par.run_MHD
         @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
         run_MARS(dd, par)
     end
