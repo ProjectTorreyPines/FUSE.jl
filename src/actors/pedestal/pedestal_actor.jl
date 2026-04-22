@@ -18,7 +18,7 @@
     )
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
-    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pressure edge model"; default=:EPED)
+    model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :nn_predictor, :none], "-", "Pressure edge model"; default=:EPED)
     rotation_model::Switch{Symbol} = Switch{Symbol}([:linear, :replay, :none], "-", "Rotation edge model"; default=:none)
     #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("s", "Edge temperature LH transition tanh evolution time (95% of full transition)")
@@ -228,6 +228,30 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
                     ion.temperature = Ti_now
                 end
             end
+
+        elseif par.model == :nn_predictor
+            # NN-based pedestal predictor: reads machine signals from dd._aux,
+            # predicts ne_ped, Te_ped, Ti_ped, rot_ped, and L/H mode
+            aux = getfield(dd, :_aux)
+            t = dd.global_time
+
+            # Gather inputs for NN (stored by ActorZMQ.receive!)
+            nn_inputs = Dict{Symbol,Any}()
+            for key in (:zmq_I_coil, :zmq_Ip_avg, :zmq_pr15v, :zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal)
+                if key in keys(aux) && t in keys(aux[key])
+                    nn_inputs[key] = aux[key][t]
+                end
+            end
+
+            # TODO: call NN model here
+            # nn_output = nn_predict(nn_inputs)
+            # ne_ped = nn_output.ne_ped
+            # Te_ped = nn_output.Te_ped
+            # Ti_ped = nn_output.Ti_ped
+            # rot_ped = nn_output.rot_ped
+            # mode = nn_output.LH_mode  # :L_mode or :H_mode
+            @warn "ActorPedestal :nn_predictor model is not yet connected — using no-op"
+            actor.ped_actor = actor.noop_actor
         end
 
         if par.rotation_model == :linear
