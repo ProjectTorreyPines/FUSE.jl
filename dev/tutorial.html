@@ -21,7 +21,7 @@ plot(dd.equilibrium)
 
 plot(dd.core_profiles)
 
-plot(dd.core_sources)</code></pre><img src="tutorial-9815015b.svg" alt="Example block output"/><p>We can <code>@checkin</code> and <code>@checkout</code> variables with an associated tag.</p><p>This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we&#39;ll use this later).</p><pre><code class="language-julia hljs">@checkin :init dd ini act</code></pre><h2 id="Running-Actors"><a class="docs-heading-anchor" href="#Running-Actors">Running Actors</a><a id="Running-Actors-1"></a><a class="docs-heading-anchor-permalink" href="#Running-Actors" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors and play around with plotting to get a sense of what each individual actor does.</p><p>Here&#39;s how we can restore things back to after the initialization stage (in case we did anything else in between)</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>.</p><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
+plot(dd.core_sources)</code></pre><img src="tutorial-140bc11e.svg" alt="Example block output"/><p>We can <code>@checkin</code> and <code>@checkout</code> variables with an associated tag.</p><p>This is handy to save and restore (checkpoint) our progress without having to always start from scratch (we&#39;ll use this later).</p><pre><code class="language-julia hljs">@checkin :init dd ini act</code></pre><h2 id="Running-Actors"><a class="docs-heading-anchor" href="#Running-Actors">Running Actors</a><a id="Running-Actors-1"></a><a class="docs-heading-anchor-permalink" href="#Running-Actors" title="Permalink"></a></h2><p>Let&#39;s now run a series of actors and play around with plotting to get a sense of what each individual actor does.</p><p>Here&#39;s how we can restore things back to after the initialization stage (in case we did anything else in between)</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors in FUSE can be executed by passing two arguments to them: <code>dd</code> and <code>act</code>.</p><p>Let&#39;s start by positioning the PF coils, so that we stand a chance to reproduce the desired plasma shape. This will be important to ensure the stability of the <code>ActorStationaryPlasma</code> that we are going to run next.</p><pre><code class="language-julia hljs">FUSE.ActorPFdesign(dd, act; do_plot=true); # instead of setting `act.ActorPFdesign.do_plot=true` we can just pass `do_plot=true` as argument without chaning `act`</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: PFdesign</code></pre><p>The <code>ActorStationaryPlasma</code> iterates between plasma transport, pedestal, equilibrium and sources to return a self-consistent plasma solution</p><pre><code class="language-julia hljs">peq = plot(dd.equilibrium; label=&quot;before&quot;)
 pcp = plot(dd.core_profiles; color=:gray, label=&quot;before&quot;)
 #act.ActorFluxMatcher.verbose = true
 act.ActorFluxMatcher.algorithm = :anderson
@@ -46,7 +46,430 @@ actors:   QED
 actors:  SawteethSource
 actors:  Equilibrium
 actors:   TEQUILA
-actors:  --------------- 1/5 @ 394.09%
+actors:  --------------- 1/5 @ 393.90%
+actors:  Sources
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+┌ Warning: FluxMatcher f! error (primal path): Bad expression core_profiles.profiles_1d[1].conductivity_parallel
+│ DomainError with -4.089717996886425e60:
+│ sqrt was called with a negative real argument but will only return a complex result if called with a complex argument. Try sqrt(Complex(x)).
+│ DomainError detected in the user `f` function. This occurs when the domain of a function is violated.
+│ For example, `log(-1.0)` is undefined because `log` of a real number is defined to only output real
+│ numbers, but `log` of a negative number is complex valued and therefore Julia throws a DomainError
+│ by default. Cases to be aware of include:
+│
+│ * `log(x)`, `sqrt(x)`, `cbrt(x)`, etc. where `x&lt;0`
+│ * `x^y` for `x&lt;0` floating point `y` (example: `(-1.0)^(1/2) == im`)
+│
+│ Within the context of SciML, this error can occur within the solver process even if the domain constraint
+│ would not be violated in the solution due to adaptivity. For example, an ODE solver or optimization
+│ routine may check a step at `new_u` which violates the domain constraint, and if violated reject the
+│ step and use a smaller `dt`. However, the throwing of this error will have halted the solving process.
+│
+│ Thus the recommended fix is to replace this function with the equivalent ones from NaNMath.jl
+│ (https://github.com/JuliaMath/NaNMath.jl) which returns a NaN instead of an error. The solver will then
+│ effectively use the NaN within the error control routines to reject the out of bounds step. Additionally,
+│ one could perform a domain transformation on the variables so that such an issue does not occur in the
+│ definition of `f`.
+│
+│ For more information, check out the following FAQ page:
+│ &lt;https://docs.sciml.ai/Optimization/stable/API/FAQ/#The-Solver-Seems-to-Violate-Constraints-During-the-Optimization,-Causing-DomainErrors,-What-Can-I-Do-About-That?&gt;
+│
+│ Stacktrace:
+│   [1] throw_complex_domainerror(f::Symbol, x::Float64)
+│     @ Base.Math ./math.jl:33
+│   [2] sqrt
+│     @ ./math.jl:627 [inlined]
+│   [3] _broadcast_getindex_evalf
+│     @ ./broadcast.jl:699 [inlined]
+│   [4] _broadcast_getindex
+│     @ ./broadcast.jl:672 [inlined]
+│   [5] _getindex (repeats 3 times)
+│     @ ./broadcast.jl:695 [inlined]
+│   [6] _broadcast_getindex
+│     @ ./broadcast.jl:671 [inlined]
+│ --- the above 2 lines are repeated 1 more time ---
+│   [9] _getindex
+│     @ ./broadcast.jl:696 [inlined]
+│  [10] _getindex
+│     @ ./broadcast.jl:695 [inlined]
+│  [11] _broadcast_getindex
+│     @ ./broadcast.jl:671 [inlined]
+│  [12] _getindex
+│     @ ./broadcast.jl:620 [inlined]
+│  [13] getindex
+│     @ ./broadcast.jl:616 [inlined]
+│  [14] macro expansion
+│     @ ./broadcast.jl:995 [inlined]
+│  [15] macro expansion
+│     @ ./simdloop.jl:77 [inlined]
+│  [16] copyto!
+│     @ ./broadcast.jl:994 [inlined]
+│  [17] copyto!(dest::Vector{Float64}, bc::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(/), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}}}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(sqrt), Tuple{Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(^), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Vector{Float64}, Int64}}, Float64}}}}}}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(/), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}}}}}, Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(^), Tuple{Vector{Float64}, Float64}}}}}}}})
+│     @ Base.Broadcast ./broadcast.jl:947
+│  [18] copy
+│     @ ./broadcast.jl:919 [inlined]
+│  [19] materialize
+│     @ ./broadcast.jl:894 [inlined]
+│  [20] neo_conductivity(eqt::IMASdd.equilibrium__time_slice{Float64}, cp1d::IMASdd.core_profiles__profiles_1d{Float64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/neoclassical.jl:444
+│  [21] (::IMAS.var&quot;#896#897&quot;)(; dd::IMASdd.dd{Float64}, profiles_1d::IMASdd.core_profiles__profiles_1d{Float64}, ::@Kwargs{core_profiles::IMASdd.core_profiles{Float64}, profiles_1d_index::Int64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/expressions/dynamic.jl:115
+│  [22] exec_expression_with_ancestor_args(ids::IMASdd.IDS, field::Symbol, func::IMAS.var&quot;#896#897&quot;, throw_on_missing::Bool)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:114
+│  [23] exec_expression_with_ancestor_args(ids::IMASdd.IDS, field::Symbol; throw_on_missing::Bool)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:179
+│  [24] exec_expression_with_ancestor_args
+│     @ ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:137 [inlined]
+│  [25] getproperty(ids::IMASdd.core_profiles__profiles_1d{Float64}, field::Symbol; to_cocos::Int64)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/data.jl:362
+│  [26] getproperty(ids::IMASdd.core_profiles__profiles_1d{Float64}, field::Symbol)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/data.jl:343
+│  [27] ohmic_source!(dd::IMASdd.dd{Float64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:84
+│  [28] intrinsic_sources!(dd::IMASdd.dd{Float64}; bootstrap::Bool, DD_fusion::Bool, fast_ion_densities::Bool)
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:166
+│  [29] intrinsic_sources!
+│     @ ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:154 [inlined]
+│  [30] flux_match_errors(actor::FUSE.ActorFluxMatcher{Float64, Float64}, opt_parameters::Vector{Float64}, initial_cp1d::IMASdd.core_profiles__profiles_1d{Float64}; z_scaled_history::Vector{Any}, err_history::Vector{Vector{Float64}}, prog::ProgressMeter.ProgressUnknown)
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:643
+│  [31] flux_match_errors
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:605 [inlined]
+│  [32] (::FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}})(F::Vector{Float64}, u::Vector{Float64}, initial_cp1d::IMASdd.core_profiles__profiles_1d{Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:282
+│  [33] NonlinearFunction
+│     @ ~/.julia/packages/SciMLBase/O1HPI/src/scimlfunctions.jl:2675 [inlined]
+│  [34] (::NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}})(du::Vector{Float64}, u::Vector{Float64})
+│     @ NonlinearSolveBase ~/.julia/packages/NonlinearSolveBase/1vIgs/src/wrappers.jl:26
+│  [35] #67
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/wrappers.jl:47 [inlined]
+│  [36] #77
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/wrappers.jl:79 [inlined]
+│  [37] execute_function_safely(Func::NonlinearSolveBase.var&quot;#77#78&quot;{NonlinearSolveBase.var&quot;#67#68&quot;{NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, Tuple{Int64}, Tuple{Int64}}, Vector{Float64}}, x::Vector{Float64}; type_check::Bool, quiet_errors::Bool)
+│     @ FixedPointAcceleration ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:34
+│  [38] fixed_point(func::NonlinearSolveBase.var&quot;#77#78&quot;{NonlinearSolveBase.var&quot;#67#68&quot;{NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, Tuple{Int64}, Tuple{Int64}}, Vector{Float64}}, Inputs::Matrix{Float64}; Outputs::Matrix{Float64}, Algorithm::Symbol, ConvergenceMetric::typeof(FixedPointAcceleration._default_convergence_metric), ConvergenceMetricThreshold::Float64, MaxIter::Int64, MaxM::Int64, ExtrapolationPeriod::Int64, Dampening::Float64, Dampening_With_Input::Bool, PrintReports::Bool, ReportingSigFig::Int64, ReplaceInvalids::Symbol, ConditionNumberThreshold::Float64, quiet_errors::Bool, other_outputs::Missing)
+│     @ FixedPointAcceleration ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:247
+│  [39] fixed_point(func::NonlinearSolveBase.var&quot;#77#78&quot;{NonlinearSolveBase.var&quot;#67#68&quot;{NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, Tuple{Int64}, Tuple{Int64}}, Vector{Float64}}, Inputs::Vector{Float64}; Algorithm::Symbol, ConvergenceMetric::Function, ConvergenceMetricThreshold::Float64, MaxIter::Int64, MaxM::Int64, ExtrapolationPeriod::Int64, Dampening::Float64, Dampening_With_Input::Bool, PrintReports::Bool, ReportingSigFig::Int64, ReplaceInvalids::Symbol, ConditionNumberThreshold::Float64, quiet_errors::Bool)
+│     @ FixedPointAcceleration ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:157
+│  [40] fixed_point
+│     @ ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:150 [inlined]
+│  [41] __solve(::SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, ::NonlinearSolve.FixedPointAccelerationJL{Float64, Float64}; abstol::Float64, maxiters::Int64, alias::SciMLBase.NonlinearAliasSpecifier, show_trace::Val{false}, termination_condition::Nothing, kwargs::@Kwargs{verbose::NonlinearSolveBase.NonlinearVerbosity{SciMLLogging.None, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent}, store_trace::Val{false}})
+│     @ NonlinearSolveFixedPointAccelerationExt ~/.julia/packages/NonlinearSolve/UXo1A/ext/NonlinearSolveFixedPointAccelerationExt.jl:29
+│  [42] __solve
+│     @ ~/.julia/packages/NonlinearSolve/UXo1A/ext/NonlinearSolveFixedPointAccelerationExt.jl:9 [inlined]
+│  [43] #solve_call#149
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:179 [inlined]
+│  [44] solve_call
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:137 [inlined]
+│  [45] #solve_up#148
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:132 [inlined]
+│  [46] solve(prob::SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, args::NonlinearSolve.FixedPointAccelerationJL{Float64, Float64}; sensealg::Nothing, u0::Nothing, p::Nothing, wrap::Val{true}, verbose::Bool, kwargs::@Kwargs{abstol::Float64, maxiters::Int64, show_trace::Val{false}, store_trace::Val{false}})
+│     @ NonlinearSolveBase ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:89
+│  [47] _step(actor::FUSE.ActorFluxMatcher{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:355
+│  [48] step(::FUSE.ActorFluxMatcher{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [49] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [50] _step(actor::FUSE.ActorCoreTransport{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/core_transport_actor.jl:67
+│  [51] step(::FUSE.ActorCoreTransport{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [52] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [53] _step(actor::FUSE.ActorStationaryPlasma{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:181
+│  [54] step(::FUSE.ActorStationaryPlasma{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [55] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [56] #ActorStationaryPlasma#1718
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:66 [inlined]
+│  [57] FUSE.ActorStationaryPlasma(dd::IMASdd.dd{Float64}, act::FUSE.ParametersActors{Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:64
+│  [58] top-level scope
+│     @ tutorial.md:128
+│  [59] eval(m::Module, e::Any)
+│     @ Core ./boot.jl:489
+│  [60] #61
+│     @ ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:879 [inlined]
+│  [61] cd(f::Documenter.var&quot;#61#62&quot;{Module, Expr}, dir::String)
+│     @ Base.Filesystem ./file.jl:112
+│  [62] (::Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr})()
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:878
+│  [63] (::IOCapture.var&quot;#12#13&quot;{Type{InterruptException}, Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, Base.PipeEndpoint, Base.PipeEndpoint})()
+│     @ IOCapture ~/.julia/packages/IOCapture/MR051/src/IOCapture.jl:170
+│  [64] with_logstate(f::IOCapture.var&quot;#12#13&quot;{Type{InterruptException}, Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, Base.PipeEndpoint, Base.PipeEndpoint}, logstate::Base.CoreLogging.LogState)
+│     @ Base.CoreLogging ./logging/logging.jl:542
+│  [65] with_logger(f::Function, logger::Base.CoreLogging.ConsoleLogger)
+│     @ Base.CoreLogging ./logging/logging.jl:653
+│  [66] capture(f::Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}; rethrow::Type, color::Bool, passthrough::Bool, capture_buffer::IOBuffer, io_context::Vector{Any})
+│     @ IOCapture ~/.julia/packages/IOCapture/MR051/src/IOCapture.jl:167
+│  [67] runner(::Type{Documenter.Expanders.ExampleBlocks}, node::MarkdownAST.Node{Nothing}, page::Documenter.Page, doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:877
+│  [68] dispatch(::Type{Documenter.Expanders.ExpanderPipeline}, ::MarkdownAST.Node{Nothing}, ::Vararg{Any})
+│     @ Documenter.Selectors ~/.julia/packages/Documenter/AXNMp/src/utilities/Selectors.jl:170
+│  [69] expand(doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:60
+│  [70] runner(::Type{Documenter.Builder.ExpandTemplates}, doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/builder_pipeline.jl:224
+│  [71] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+│     @ Documenter.Selectors ~/.julia/packages/Documenter/AXNMp/src/utilities/Selectors.jl:170
+│  [72] #95
+│     @ ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:283 [inlined]
+│  [73] withenv(::Documenter.var&quot;#95#96&quot;{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+│     @ Base ./env.jl:265
+│  [74] #93
+│     @ ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:282 [inlined]
+│  [75] cd(f::Documenter.var&quot;#93#94&quot;{Documenter.Document}, dir::String)
+│     @ Base.Filesystem ./file.jl:112
+│  [76] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{root::String, modules::Vector{Module}, sitename::String, build::String, repo::Documenter.Remotes.GitHub, warnonly::Bool, pages::Vector{Pair{String, String}}})
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:281
+│  [77] top-level scope
+│     @ ~/work/FUSE.jl/FUSE.jl/docs/make.jl:195
+│  [78] include(mod::Module, _path::String)
+│     @ Base ./Base.jl:306
+│  [79] exec_options(opts::Base.JLOptions)
+│     @ Base ./client.jl:317
+└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:289
+actors:    Pedestal
+actors:     EPED
+actors:    FluxCalculator
+actors:     TGLF
+actors:     Neoclassical
+actors:  Current
+actors:   QED
+actors:  SawteethSource
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 2/5 @ 548.15%
+actors:  Sources
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+┌ Warning: FluxMatcher f! error (primal path): Bad expression core_profiles.profiles_1d[1].conductivity_parallel
+│ DomainError with -1.4229840362112135e33:
+│ sqrt was called with a negative real argument but will only return a complex result if called with a complex argument. Try sqrt(Complex(x)).
+│ DomainError detected in the user `f` function. This occurs when the domain of a function is violated.
+│ For example, `log(-1.0)` is undefined because `log` of a real number is defined to only output real
+│ numbers, but `log` of a negative number is complex valued and therefore Julia throws a DomainError
+│ by default. Cases to be aware of include:
+│
+│ * `log(x)`, `sqrt(x)`, `cbrt(x)`, etc. where `x&lt;0`
+│ * `x^y` for `x&lt;0` floating point `y` (example: `(-1.0)^(1/2) == im`)
+│
+│ Within the context of SciML, this error can occur within the solver process even if the domain constraint
+│ would not be violated in the solution due to adaptivity. For example, an ODE solver or optimization
+│ routine may check a step at `new_u` which violates the domain constraint, and if violated reject the
+│ step and use a smaller `dt`. However, the throwing of this error will have halted the solving process.
+│
+│ Thus the recommended fix is to replace this function with the equivalent ones from NaNMath.jl
+│ (https://github.com/JuliaMath/NaNMath.jl) which returns a NaN instead of an error. The solver will then
+│ effectively use the NaN within the error control routines to reject the out of bounds step. Additionally,
+│ one could perform a domain transformation on the variables so that such an issue does not occur in the
+│ definition of `f`.
+│
+│ For more information, check out the following FAQ page:
+│ &lt;https://docs.sciml.ai/Optimization/stable/API/FAQ/#The-Solver-Seems-to-Violate-Constraints-During-the-Optimization,-Causing-DomainErrors,-What-Can-I-Do-About-That?&gt;
+│
+│ Stacktrace:
+│   [1] throw_complex_domainerror(f::Symbol, x::Float64)
+│     @ Base.Math ./math.jl:33
+│   [2] sqrt
+│     @ ./math.jl:627 [inlined]
+│   [3] _broadcast_getindex_evalf
+│     @ ./broadcast.jl:699 [inlined]
+│   [4] _broadcast_getindex
+│     @ ./broadcast.jl:672 [inlined]
+│   [5] _getindex (repeats 3 times)
+│     @ ./broadcast.jl:695 [inlined]
+│   [6] _broadcast_getindex
+│     @ ./broadcast.jl:671 [inlined]
+│ --- the above 2 lines are repeated 1 more time ---
+│   [9] _getindex
+│     @ ./broadcast.jl:696 [inlined]
+│  [10] _getindex
+│     @ ./broadcast.jl:695 [inlined]
+│  [11] _broadcast_getindex
+│     @ ./broadcast.jl:671 [inlined]
+│  [12] _getindex
+│     @ ./broadcast.jl:620 [inlined]
+│  [13] getindex
+│     @ ./broadcast.jl:616 [inlined]
+│  [14] macro expansion
+│     @ ./broadcast.jl:995 [inlined]
+│  [15] macro expansion
+│     @ ./simdloop.jl:77 [inlined]
+│  [16] copyto!
+│     @ ./broadcast.jl:994 [inlined]
+│  [17] copyto!(dest::Vector{Float64}, bc::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(/), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}}}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(sqrt), Tuple{Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(^), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Vector{Float64}, Int64}}, Float64}}}}}}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(/), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}}}}}, Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(^), Tuple{Vector{Float64}, Float64}}}}}}}})
+│     @ Base.Broadcast ./broadcast.jl:947
+│  [18] copy
+│     @ ./broadcast.jl:919 [inlined]
+│  [19] materialize
+│     @ ./broadcast.jl:894 [inlined]
+│  [20] neo_conductivity(eqt::IMASdd.equilibrium__time_slice{Float64}, cp1d::IMASdd.core_profiles__profiles_1d{Float64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/neoclassical.jl:444
+│  [21] (::IMAS.var&quot;#896#897&quot;)(; dd::IMASdd.dd{Float64}, profiles_1d::IMASdd.core_profiles__profiles_1d{Float64}, ::@Kwargs{core_profiles::IMASdd.core_profiles{Float64}, profiles_1d_index::Int64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/expressions/dynamic.jl:115
+│  [22] exec_expression_with_ancestor_args(ids::IMASdd.IDS, field::Symbol, func::IMAS.var&quot;#896#897&quot;, throw_on_missing::Bool)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:114
+│  [23] exec_expression_with_ancestor_args(ids::IMASdd.IDS, field::Symbol; throw_on_missing::Bool)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:179
+│  [24] exec_expression_with_ancestor_args
+│     @ ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:137 [inlined]
+│  [25] getproperty(ids::IMASdd.core_profiles__profiles_1d{Float64}, field::Symbol; to_cocos::Int64)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/data.jl:362
+│  [26] getproperty(ids::IMASdd.core_profiles__profiles_1d{Float64}, field::Symbol)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/data.jl:343
+│  [27] ohmic_source!(dd::IMASdd.dd{Float64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:84
+│  [28] intrinsic_sources!(dd::IMASdd.dd{Float64}; bootstrap::Bool, DD_fusion::Bool, fast_ion_densities::Bool)
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:166
+│  [29] intrinsic_sources!
+│     @ ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:154 [inlined]
+│  [30] flux_match_errors(actor::FUSE.ActorFluxMatcher{Float64, Float64}, opt_parameters::Vector{Float64}, initial_cp1d::IMASdd.core_profiles__profiles_1d{Float64}; z_scaled_history::Vector{Any}, err_history::Vector{Vector{Float64}}, prog::ProgressMeter.ProgressUnknown)
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:643
+│  [31] flux_match_errors
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:605 [inlined]
+│  [32] (::FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}})(F::Vector{Float64}, u::Vector{Float64}, initial_cp1d::IMASdd.core_profiles__profiles_1d{Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:282
+│  [33] NonlinearFunction
+│     @ ~/.julia/packages/SciMLBase/O1HPI/src/scimlfunctions.jl:2675 [inlined]
+│  [34] (::NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}})(du::Vector{Float64}, u::Vector{Float64})
+│     @ NonlinearSolveBase ~/.julia/packages/NonlinearSolveBase/1vIgs/src/wrappers.jl:26
+│  [35] #67
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/wrappers.jl:47 [inlined]
+│  [36] #77
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/wrappers.jl:79 [inlined]
+│  [37] execute_function_safely(Func::NonlinearSolveBase.var&quot;#77#78&quot;{NonlinearSolveBase.var&quot;#67#68&quot;{NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, Tuple{Int64}, Tuple{Int64}}, Vector{Float64}}, x::Vector{Float64}; type_check::Bool, quiet_errors::Bool)
+│     @ FixedPointAcceleration ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:34
+│  [38] fixed_point(func::NonlinearSolveBase.var&quot;#77#78&quot;{NonlinearSolveBase.var&quot;#67#68&quot;{NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, Tuple{Int64}, Tuple{Int64}}, Vector{Float64}}, Inputs::Matrix{Float64}; Outputs::Matrix{Float64}, Algorithm::Symbol, ConvergenceMetric::typeof(FixedPointAcceleration._default_convergence_metric), ConvergenceMetricThreshold::Float64, MaxIter::Int64, MaxM::Int64, ExtrapolationPeriod::Int64, Dampening::Float64, Dampening_With_Input::Bool, PrintReports::Bool, ReportingSigFig::Int64, ReplaceInvalids::Symbol, ConditionNumberThreshold::Float64, quiet_errors::Bool, other_outputs::Missing)
+│     @ FixedPointAcceleration ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:247
+│  [39] fixed_point(func::NonlinearSolveBase.var&quot;#77#78&quot;{NonlinearSolveBase.var&quot;#67#68&quot;{NonlinearSolveBase.var&quot;#61#62&quot;{SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, Tuple{Int64}, Tuple{Int64}}, Vector{Float64}}, Inputs::Vector{Float64}; Algorithm::Symbol, ConvergenceMetric::Function, ConvergenceMetricThreshold::Float64, MaxIter::Int64, MaxM::Int64, ExtrapolationPeriod::Int64, Dampening::Float64, Dampening_With_Input::Bool, PrintReports::Bool, ReportingSigFig::Int64, ReplaceInvalids::Symbol, ConditionNumberThreshold::Float64, quiet_errors::Bool)
+│     @ FixedPointAcceleration ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:157
+│  [40] fixed_point
+│     @ ~/.julia/packages/FixedPointAcceleration/WqVpD/src/1_MainFunctions.jl:150 [inlined]
+│  [41] __solve(::SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, ::NonlinearSolve.FixedPointAccelerationJL{Float64, Float64}; abstol::Float64, maxiters::Int64, alias::SciMLBase.NonlinearAliasSpecifier, show_trace::Val{false}, termination_condition::Nothing, kwargs::@Kwargs{verbose::NonlinearSolveBase.NonlinearVerbosity{SciMLLogging.None, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent}, store_trace::Val{false}})
+│     @ NonlinearSolveFixedPointAccelerationExt ~/.julia/packages/NonlinearSolve/UXo1A/ext/NonlinearSolveFixedPointAccelerationExt.jl:29
+│  [42] __solve
+│     @ ~/.julia/packages/NonlinearSolve/UXo1A/ext/NonlinearSolveFixedPointAccelerationExt.jl:9 [inlined]
+│  [43] #solve_call#149
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:179 [inlined]
+│  [44] solve_call
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:137 [inlined]
+│  [45] #solve_up#148
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:132 [inlined]
+│  [46] solve(prob::SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, args::NonlinearSolve.FixedPointAccelerationJL{Float64, Float64}; sensealg::Nothing, u0::Nothing, p::Nothing, wrap::Val{true}, verbose::Bool, kwargs::@Kwargs{abstol::Float64, maxiters::Int64, show_trace::Val{false}, store_trace::Val{false}})
+│     @ NonlinearSolveBase ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:89
+│  [47] _step(actor::FUSE.ActorFluxMatcher{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:355
+│  [48] step(::FUSE.ActorFluxMatcher{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [49] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [50] _step(actor::FUSE.ActorCoreTransport{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/core_transport_actor.jl:67
+│  [51] step(::FUSE.ActorCoreTransport{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [52] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [53] _step(actor::FUSE.ActorStationaryPlasma{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:181
+│  [54] step(::FUSE.ActorStationaryPlasma{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [55] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [56] #ActorStationaryPlasma#1718
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:66 [inlined]
+│  [57] FUSE.ActorStationaryPlasma(dd::IMASdd.dd{Float64}, act::FUSE.ParametersActors{Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:64
+│  [58] top-level scope
+│     @ tutorial.md:128
+│  [59] eval(m::Module, e::Any)
+│     @ Core ./boot.jl:489
+│  [60] #61
+│     @ ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:879 [inlined]
+│  [61] cd(f::Documenter.var&quot;#61#62&quot;{Module, Expr}, dir::String)
+│     @ Base.Filesystem ./file.jl:112
+│  [62] (::Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr})()
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:878
+│  [63] (::IOCapture.var&quot;#12#13&quot;{Type{InterruptException}, Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, Base.PipeEndpoint, Base.PipeEndpoint})()
+│     @ IOCapture ~/.julia/packages/IOCapture/MR051/src/IOCapture.jl:170
+│  [64] with_logstate(f::IOCapture.var&quot;#12#13&quot;{Type{InterruptException}, Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, Base.PipeEndpoint, Base.PipeEndpoint}, logstate::Base.CoreLogging.LogState)
+│     @ Base.CoreLogging ./logging/logging.jl:542
+│  [65] with_logger(f::Function, logger::Base.CoreLogging.ConsoleLogger)
+│     @ Base.CoreLogging ./logging/logging.jl:653
+│  [66] capture(f::Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}; rethrow::Type, color::Bool, passthrough::Bool, capture_buffer::IOBuffer, io_context::Vector{Any})
+│     @ IOCapture ~/.julia/packages/IOCapture/MR051/src/IOCapture.jl:167
+│  [67] runner(::Type{Documenter.Expanders.ExampleBlocks}, node::MarkdownAST.Node{Nothing}, page::Documenter.Page, doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:877
+│  [68] dispatch(::Type{Documenter.Expanders.ExpanderPipeline}, ::MarkdownAST.Node{Nothing}, ::Vararg{Any})
+│     @ Documenter.Selectors ~/.julia/packages/Documenter/AXNMp/src/utilities/Selectors.jl:170
+│  [69] expand(doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:60
+│  [70] runner(::Type{Documenter.Builder.ExpandTemplates}, doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/builder_pipeline.jl:224
+│  [71] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+│     @ Documenter.Selectors ~/.julia/packages/Documenter/AXNMp/src/utilities/Selectors.jl:170
+│  [72] #95
+│     @ ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:283 [inlined]
+│  [73] withenv(::Documenter.var&quot;#95#96&quot;{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+│     @ Base ./env.jl:265
+│  [74] #93
+│     @ ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:282 [inlined]
+│  [75] cd(f::Documenter.var&quot;#93#94&quot;{Documenter.Document}, dir::String)
+│     @ Base.Filesystem ./file.jl:112
+│  [76] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{root::String, modules::Vector{Module}, sitename::String, build::String, repo::Documenter.Remotes.GitHub, warnonly::Bool, pages::Vector{Pair{String, String}}})
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:281
+│  [77] top-level scope
+│     @ ~/work/FUSE.jl/FUSE.jl/docs/make.jl:195
+│  [78] include(mod::Module, _path::String)
+│     @ Base ./Base.jl:306
+│  [79] exec_options(opts::Base.JLOptions)
+│     @ Base ./client.jl:317
+└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:289
+actors:    Pedestal
+actors:     EPED
+actors:    FluxCalculator
+actors:     TGLF
+actors:     Neoclassical
+actors:  Current
+actors:   QED
+actors:  SawteethSource
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 3/5 @ 146.72%
+actors:  Sources
+actors:   SimpleEC
+actors:   SimpleIC
+actors:   NeutralFueling
+actors:  Pedestal
+actors:   EPED
+actors:  CoreTransport
+actors:   FluxMatcher
+┌ Warning: FluxMatcher f! error (primal path): AssertionError: actor.inputs.zeffped &lt;= zi
+└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:289
+actors:    Pedestal
+actors:     EPED
+actors:    FluxCalculator
+actors:     TGLF
+actors:     Neoclassical
+actors:  Current
+actors:   QED
+actors:  SawteethSource
+actors:  Equilibrium
+actors:   TEQUILA
+actors:  --------------- 4/5 @ 163.53%
 actors:  Sources
 actors:   SimpleEC
 actors:   SimpleIC
@@ -65,76 +488,19 @@ actors:   QED
 actors:  SawteethSource
 actors:  Equilibrium
 actors:   TEQUILA
-actors:  --------------- 2/5 @ 536.46%
-actors:  Sources
-actors:   SimpleEC
-actors:   SimpleIC
-actors:   NeutralFueling
-actors:  Pedestal
-actors:   EPED
-actors:  CoreTransport
-actors:   FluxMatcher
-actors:    Pedestal
-actors:     EPED
-actors:    FluxCalculator
-actors:     TGLF
-actors:     Neoclassical
-actors:  Current
-actors:   QED
-actors:  SawteethSource
-actors:  Equilibrium
-actors:   TEQUILA
-actors:  --------------- 3/5 @ 411.59%
-actors:  Sources
-actors:   SimpleEC
-actors:   SimpleIC
-actors:   NeutralFueling
-actors:  Pedestal
-actors:   EPED
-actors:  CoreTransport
-actors:   FluxMatcher
-actors:    Pedestal
-actors:     EPED
-actors:    FluxCalculator
-actors:     TGLF
-actors:     Neoclassical
-actors:  Current
-actors:   QED
-actors:  SawteethSource
-actors:  Equilibrium
-actors:   TEQUILA
-actors:  --------------- 4/5 @ 267.02%
-actors:  Sources
-actors:   SimpleEC
-actors:   SimpleIC
-actors:   NeutralFueling
-actors:  Pedestal
-actors:   EPED
-actors:  CoreTransport
-actors:   FluxMatcher
-actors:    Pedestal
-actors:     EPED
-actors:    FluxCalculator
-actors:     TGLF
-actors:     Neoclassical
-actors:  Current
-actors:   QED
-actors:  SawteethSource
-actors:  Equilibrium
-actors:   TEQUILA
-actors:  --------------- 5/5 @ 363.95%
-┌ Warning: Max number of iterations (5) has been reached with convergence error of (1)[0.197, 0.268, 0.206, 0.134, 0.182](5) compared to threshold of 0.05
-└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:237</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-874789dc.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-99d6ec8c.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-b41f7e1e.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-66ce3421.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
+actors:  --------------- 5/5 @ 149.44%
+┌ Warning: Max number of iterations (5) has been reached with convergence error of (1)[0.197, 0.274, 0.073, 0.082, 0.075](5) compared to threshold of 0.05
+└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:237</code></pre><p>we can compare equilibrium before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(peq, dd.equilibrium; label=&quot;after&quot;)</code></pre><img src="tutorial-13bbf9e7.svg" alt="Example block output"/><p>we can compare core_profiles before and after the self-consistency loop</p><pre><code class="language-julia hljs">plot!(pcp, dd.core_profiles; label=&quot;after&quot;)</code></pre><img src="tutorial-57d2de39.svg" alt="Example block output"/><p>here are the sources</p><pre><code class="language-julia hljs">plot(dd.core_sources)</code></pre><img src="tutorial-aa920274.svg" alt="Example block output"/><p>and the flux-matched transport</p><pre><code class="language-julia hljs">plot(dd.core_transport)</code></pre><img src="tutorial-25c4a187.svg" alt="Example block output"/><p>HFS sizing actor changes the thickness of the OH and TF layers on the high field side to satisfy current and stresses constraints</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorHFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-400e572c.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-0b366b11.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-4fc03b3a.svg" alt="Example block output"/><p>The stresses on the center stack are stored in the <code>solid_mechanics</code> IDS</p><pre><code class="language-julia hljs">plot(dd.solid_mechanics.center_stack.stress)</code></pre><img src="tutorial-464ad6df.svg" alt="Example block output"/><p>LFS sizing actors change location of the outer TF leg to meet ripple requirements</p><pre><code class="language-julia hljs">plot(dd.build)
 FUSE.ActorLFSsizing(dd, act);
-plot!(dd.build; cx=false)</code></pre><img src="tutorial-b436f751.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame
+plot!(dd.build; cx=false)</code></pre><img src="tutorial-265da095.svg" alt="Example block output"/><p>A custom <code>show()</code> method is defined to print the summary of <code>dd.build.layer</code></p><pre><code class="language-julia hljs">dd.build.layer</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">23×10 DataFrame
  Row │ group   details                            type      ΔR          R_start   R_end     material      area        volume     shape
      │<span class="sgr90"> String  String                             String    Float64     Float64   Float64   String        Float64     Float64    String
 ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-   1 │ in                                                   1.41787      0.0       1.41787  steel          20.0722      98.9922  rectangle
-   2 │ in                                         oh        0.316931     1.41787   1.7348   nb3sn           6.96307     80.5936  rectangle
-   3 │ hfs                                        tf        1.56314      1.7348    3.29794  nb3sn_kdemo    42.9267     889.509   convex hull
+   1 │ in                                                   1.25981      0.0       1.25981  steel          20.0722      98.9922  rectangle
+   2 │ in                                         oh        0.295301     1.25981   1.55511  nb3sn           6.96307     80.5936  rectangle
+   3 │ hfs                                        tf        1.74283      1.55511   3.29794  nb3sn_kdemo    42.9267     889.509   convex hull
    4 │ hfs     gap tf vacuum vessel                         0.0          3.29794   3.29794  vacuum          7.46579    490.894   double ellipse
    5 │ hfs     vacuum  outer                      vessel    0.0982993    3.29794   3.39624  steel           3.06133    124.725   negative offset
    6 │ hfs     gap water                                    0.147449     3.39624   3.54369  water           4.47813    182.564   negative offset
@@ -142,9 +508,9 @@ plot!(dd.build; cx=false)</code></pre><img src="tutorial-b436f751.svg" alt="Exam
    8 │ hfs     gap high temp shield vacuum vess…            0.00982993   3.64199   3.65182  vacuum          0.287611    11.7367  negative offset
    9 │ hfs     high temp                          shield    0.196599     3.65182   3.84842  steel           5.62468    229.669   negative offset
   10 │ hfs                                        blanket   0.373538     3.84842   4.22196  lithium_lead   20.8601     951.677   negative offset
-  11 │ hfs     first                              wall      0.0196599    4.22196   4.24162  tungsten        1.02432     34.0907  offset
+  11 │ hfs     first                              wall      0.0196599    4.22196   4.24162  tungsten        1.02432     34.0878  offset
   12 │ lhfs                                       plasma    4.51651      4.24162   8.75812  plasma         32.1357    1252.48
-  13 │ lfs     first                              wall      0.0196599    8.75812   8.77778  tungsten        1.02432     34.0907  offset
+  13 │ lfs     first                              wall      0.0196599    8.75812   8.77778  tungsten        1.02432     34.0878  offset
   14 │ lfs                                        blanket   1.17959      8.77778   9.95738  lithium_lead   20.8601     951.677   negative offset
   15 │ lfs     high temp                          shield    0.196599     9.95738  10.154    steel           5.62468    229.669   negative offset
   16 │ lfs     gap high temp shield vacuum vess…            0.0442026   10.154    10.1982   vacuum          0.287611    11.7367  negative offset
@@ -152,12 +518,12 @@ plot!(dd.build; cx=false)</code></pre><img src="tutorial-b436f751.svg" alt="Exam
   18 │ lfs     gap water                                    0.147449    10.2965   10.4439   water           4.47813    182.564   negative offset
   19 │ lfs     vacuum  outer                      vessel    0.0982993   10.4439   10.5422   steel           3.06133    124.725   negative offset
   20 │ lfs     gap tf vacuum vessel                         0.775582    10.5422   11.3178   vacuum          7.46579    490.894   double ellipse
-  21 │ lfs                                        tf        1.56314     11.3178   12.8809   nb3sn_kdemo    42.9267     889.509   convex hull
-  22 │ out                                                  1.96599      0.0      14.8469   vacuum        164.179     8376.89
-  23 │ out                                        cryostat  0.0982993    0.0      14.9452   steel           4.86736    309.729   silo</span></span></code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
-plot(dd.build)</code></pre><img src="tutorial-4078fe29.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
-plot(dd.pf_passive)</code></pre><img src="tutorial-7ca25b33.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
-plot(actor) # some actors define their own plot</code></pre><img src="tutorial-7cb4dd66.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
+  21 │ lfs                                        tf        1.74283     11.3178   13.0606   nb3sn_kdemo    42.9267     889.509   convex hull
+  22 │ out                                                  1.96599      0.0      15.0266   vacuum        164.179     8376.89
+  23 │ out                                        cryostat  0.0982993    0.0      15.1249   steel           4.86736    309.729   silo</span></span></code></pre><p>ActorHFSsizing and ActorLFSsizing only change the layer&#39;s thicknesses, so we then need to trigger a build of the 2D cross-sections after them:</p><pre><code class="language-julia hljs">FUSE.ActorCXbuild(dd, act);
+plot(dd.build)</code></pre><img src="tutorial-d9ddcb22.svg" alt="Example block output"/><p>Generate passive structures information (for now the vacuum vessel)</p><pre><code class="language-julia hljs">FUSE.ActorPassiveStructures(dd, act)
+plot(dd.pf_passive)</code></pre><img src="tutorial-465192e2.svg" alt="Example block output"/><p>We can now give the PF coils their final position given the new build</p><pre><code class="language-julia hljs">actor = FUSE.ActorPFdesign(dd, act);
+plot(actor) # some actors define their own plot</code></pre><img src="tutorial-788156b1.svg" alt="Example block output"/><p>With information about both pf<em>active and pf</em>passive we can now evaluate vertical stability</p><pre><code class="language-julia hljs">FUSE.ActorVerticalStability(dd, act)
 IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">mhd_linear [DETACHED]</span>
 ├─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
 └─ <span class="sgr1">time_slice</span>
@@ -169,18 +535,18 @@ IMAS.freeze(dd.mhd_linear)</code></pre><pre class="documenter-example-output"><c
          │  ├─ <span class="sgr1">perturbation_type</span>
          │  │  ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Vertical stability margin &gt; 0.15 for stability&quot;</span>
          │  │  └─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;m_s&quot;</span>
-         │  └─ stability_metric<span class="sgr31"> ➡ 0.226143</span>
+         │  └─ stability_metric<span class="sgr31"> ➡ 0.285984</span>
          └─ <span class="sgr1">2</span>
             ├─ n_tor<span class="sgr31"> ➡ </span><span class="sgr33">0</span>
             ├─ <span class="sgr1">perturbation_type</span>
             │  ├─ description<span class="sgr31"> ➡ </span><span class="sgr35">&quot;Normalized vertical growth rate &lt; 10 for stability&quot;</span>
             │  └─ name<span class="sgr31"> ➡ </span><span class="sgr35">&quot;γτ&quot;</span>
-            └─ stability_metric<span class="sgr31"> ➡ 5.14925</span>
+            └─ stability_metric<span class="sgr31"> ➡ 3.95244</span>
 </code></pre><p>The <code>ActorNeutronics</code> calculates the heat flux on the first wall</p><pre><code class="language-julia hljs">FUSE.ActorNeutronics(dd, act);
 p = plot(; layout=2, size=(900, 350))
 plot!(p, dd.neutronics.time_slice[].wall_loading, subplot=1)
 plot!(p, FUSE.define_neutrons(dd, 100000)[1], dd.equilibrium.time_slice[]; subplot=1, colorbar_entry=false)
-plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-f3c24914.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
+plot!(p, dd.neutronics.time_slice[].wall_loading; cx=false, subplot=2, ylabel=&quot;&quot;)</code></pre><img src="tutorial-dc4fc7f0.svg" alt="Example block output"/><p>The <code>ActorBlanket</code> will change the thickess of the first wall, breeder, shield, and Li6 enrichment to achieve target TBR</p><pre><code class="language-julia hljs">FUSE.ActorBlanket(dd, act);
 print_tree(IMAS.freeze(dd.blanket); maxdepth=5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Blanket
 blanket [DETACHED]
 ├─ module
@@ -188,30 +554,30 @@ blanket [DETACHED]
 │     ├─ layer
 │     │  ├─ 1
 │     │  │  ├─ material ➡ &quot;tungsten&quot;
-│     │  │  ├─ midplane_thickness ➡ 0.0199559 [m]
+│     │  │  ├─ midplane_thickness ➡ 0.0199505 [m]
 │     │  │  └─ name ➡ &quot;lfs first wall&quot;
 │     │  ├─ 2
 │     │  │  ├─ material ➡ &quot;lithium-lead: Li6/7=90.000%&quot;
-│     │  │  ├─ midplane_thickness ➡ 1.29012 [m]
+│     │  │  ├─ midplane_thickness ➡ 1.28424 [m]
 │     │  │  └─ name ➡ &quot;lfs blanket&quot;
 │     │  └─ 3
 │     │     ├─ material ➡ &quot;steel&quot;
-│     │     ├─ midplane_thickness ➡ 0.0857699 [m]
+│     │     ├─ midplane_thickness ➡ 0.0916561 [m]
 │     │     └─ name ➡ &quot;lfs high temp shield&quot;
 │     ├─ name ➡ &quot;blanket&quot;
 │     └─ time_slice
 │        └─ 1
-│           ├─ peak_escape_flux ➡ 145327 [W/m^2]
-│           ├─ peak_wall_flux ➡ 741255 [W/m^2]
-│           ├─ power_incident_neutrons ➡ 7.65394e+06 [W]
+│           ├─ peak_escape_flux ➡ 257046 [W/m^2]
+│           ├─ peak_wall_flux ➡ 1.15583e+06 [W/m^2]
+│           ├─ power_incident_neutrons ➡ 1.25707e+07 [W]
 │           ├─ power_incident_radiated ➡ 0 [W]
-│           ├─ power_thermal_extracted ➡ 9.18472e+06 [W]
-│           ├─ power_thermal_neutrons ➡ 9.18472e+06 [W]
+│           ├─ power_thermal_extracted ➡ 1.50848e+07 [W]
+│           ├─ power_thermal_neutrons ➡ 1.50848e+07 [W]
 │           ├─ power_thermal_radiated ➡ 0 [W]
 │           ├─ time ➡ 0 [s]
-│           └─ tritium_breeding_ratio ➡ 1.67004
+│           └─ tritium_breeding_ratio ➡ 1.64457
 ├─ time ➡ [0] [s]
-└─ tritium_breeding_ratio ➡ [0.0743763]</code></pre><p>The <code>ActorDivertors</code> actor calculates the divertors heat flux</p><pre><code class="language-julia hljs">FUSE.ActorDivertors(dd, act);
+└─ tritium_breeding_ratio ➡ [0.0807812]</code></pre><p>The <code>ActorDivertors</code> actor calculates the divertors heat flux</p><pre><code class="language-julia hljs">FUSE.ActorDivertors(dd, act);
 print_tree(IMAS.freeze(dd.divertors); maxdepth=4)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: Divertors
 divertors [DETACHED]
 ├─ divertor
@@ -220,7 +586,7 @@ divertors [DETACHED]
 │     │  ├─ data ➡ [0] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_conducted
-│     │  ├─ data ➡ [1.16597e+08] [W]
+│     │  ├─ data ➡ [1.21554e+08] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_convected
 │     │  ├─ data ➡ [0] [W]
@@ -229,7 +595,7 @@ divertors [DETACHED]
 │     │  ├─ data ➡ [0] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_incident
-│     │  ├─ data ➡ [2855.65] [W]
+│     │  ├─ data ➡ [2880.64] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_neutrals
 │     │  ├─ data ➡ [0] [W]
@@ -244,7 +610,7 @@ divertors [DETACHED]
 │     │  ├─ data ➡ [0] [W]
 │     │  └─ time ➡ [0] [s]
 │     ├─ power_thermal_extracted
-│     │  ├─ data ➡ [2855.65] [W]
+│     │  ├─ data ➡ [2880.64] [W]
 │     │  └─ time ➡ [0] [s]
 │     └─ target
 │        ├─ 1
@@ -255,8 +621,8 @@ divertors [DETACHED]
 │
 └─ time ➡ [0] [s]</code></pre><p>The <code>ActorBalanceOfPlant</code> calculates the optimal cooling flow rates for the heat sources (breeder, divertor, and wall) and get an efficiency for the electricity conversion cycle</p><pre><code class="language-julia hljs">FUSE.ActorBalanceOfPlant(dd, act);
 IMAS.freeze(dd.balance_of_plant)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr1">balance_of_plant [DETACHED]</span>
-├─ Q_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.0515065]</span>
-├─ power_electric_net<span class="sgr31"> ➡ </span><span class="sgr32">[-1.37532e+08]<span class="sgr1"> [W]</span></span>
+├─ Q_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.0913538]</span>
+├─ power_electric_net<span class="sgr31"> ➡ </span><span class="sgr32">[-1.31754e+08]<span class="sgr1"> [W]</span></span>
 ├─ <span class="sgr1">power_electric_plant_operation</span>
 │  ├─ <span class="sgr1">system</span>
 │  │  ├─ <span class="sgr1">1</span>
@@ -295,16 +661,16 @@ IMAS.freeze(dd.balance_of_plant)</code></pre><pre class="documenter-example-outp
 │  └─ total_power<span class="sgr31"> ➡ </span><span class="sgr32">[1.45e+08]<span class="sgr1"> [W]</span></span>
 ├─ <span class="sgr1">power_plant</span>
 │  ├─ <span class="sgr1">heat_load</span>
-│  │  ├─ breeder<span class="sgr31"> ➡ </span><span class="sgr32">[9.18472e+06]<span class="sgr1"> [W]</span></span>
-│  │  ├─ divertor<span class="sgr31"> ➡ </span><span class="sgr32">[2855.65]<span class="sgr1"> [W]</span></span>
-│  │  └─ wall<span class="sgr31"> ➡ </span><span class="sgr32">[2.71109e+07]<span class="sgr1"> [W]</span></span>
+│  │  ├─ breeder<span class="sgr31"> ➡ </span><span class="sgr32">[1.50848e+07]<span class="sgr1"> [W]</span></span>
+│  │  ├─ divertor<span class="sgr31"> ➡ </span><span class="sgr32">[2880.64]<span class="sgr1"> [W]</span></span>
+│  │  └─ wall<span class="sgr31"> ➡ </span><span class="sgr32">[4.28107e+07]<span class="sgr1"> [W]</span></span>
 │  ├─ power_cycle_type<span class="sgr31"> ➡ </span><span class="sgr35">&quot;rankine&quot;</span>
-│  ├─ power_electric_generated<span class="sgr31"> ➡ </span><span class="sgr32">[7.46845e+06]<span class="sgr1"> [W]</span></span>
-│  └─ total_heat_supplied<span class="sgr31"> ➡ </span><span class="sgr32">[3.62984e+07]<span class="sgr1"> [W]</span></span>
-├─ thermal_efficiency_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.205751]</span>
+│  ├─ power_electric_generated<span class="sgr31"> ➡ </span><span class="sgr32">[1.32463e+07]<span class="sgr1"> [W]</span></span>
+│  └─ total_heat_supplied<span class="sgr31"> ➡ </span><span class="sgr32">[5.78984e+07]<span class="sgr1"> [W]</span></span>
+├─ thermal_efficiency_plant<span class="sgr31"> ➡ </span><span class="sgr32">[0.228785]</span>
 └─ time<span class="sgr31"> ➡ </span><span class="sgr32">[0]<span class="sgr1"> [s]</span></span>
 </code></pre><p><code>ActorCosting</code> will break down the capital and operational costs</p><pre><code class="language-julia hljs">FUSE.ActorCosting(dd, act)
-plot(dd.costing)</code></pre><img src="tutorial-f2f5c580.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
+plot(dd.costing)</code></pre><img src="tutorial-1e21ad80.svg" alt="Example block output"/><p>Let&#39;s checkpoint our results</p><pre><code class="language-julia hljs">@checkin :manual dd ini act</code></pre><h2 id="Whole-facility-design"><a class="docs-heading-anchor" href="#Whole-facility-design">Whole facility design</a><a id="Whole-facility-design-1"></a><a class="docs-heading-anchor-permalink" href="#Whole-facility-design" title="Permalink"></a></h2><p>Here we restore the <code>:init</code> checkpoint that we had previously stored. Resetting any changes to <code>dd</code>, <code>ini</code>, and <code>act</code> that we did in the meantime.</p><pre><code class="language-julia hljs">@checkout :init dd ini act</code></pre><p>Actors can call other actors, creating workflows. For example, the <code>ActorWholeFacility</code> can be used to to get a self-consistent stationary whole facility design.</p><pre><code class="language-julia hljs">FUSE.ActorWholeFacility(dd, act);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">actors: WholeFacility
 actors:  PFdesign
 actors:  StationaryPlasma
 actors:   --------------- 1/5
@@ -326,7 +692,7 @@ actors:    QED
 actors:   SawteethSource
 actors:   Equilibrium
 actors:    TEQUILA
-actors:   --------------- 1/5 @ 393.59%
+actors:   --------------- 1/5 @ 393.60%
 actors:   Sources
 actors:    SimpleEC
 actors:    SimpleIC
@@ -345,7 +711,7 @@ actors:    QED
 actors:   SawteethSource
 actors:   Equilibrium
 actors:    TEQUILA
-actors:   --------------- 2/5 @ 535.63%
+actors:   --------------- 2/5 @ 535.56%
 actors:   Sources
 actors:    SimpleEC
 actors:    SimpleIC
@@ -354,8 +720,13 @@ actors:   Pedestal
 actors:    EPED
 actors:   CoreTransport
 actors:    FluxMatcher
-┌ Warning: FluxMatcher f! error (primal path): DomainError with -0.021325636178160495:
-│ log10 was called with a negative real argument but will only return a complex result if called with a complex argument. Try log10(Complex(x)).
+┌ Warning: avgZ: 66 negative/zero Ti values detected, clamping to 1.0 eV
+└ @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/profiles.jl:1569
+┌ Warning: avgZ: 66 negative/zero Ti values detected, clamping to 1.0 eV
+└ @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/profiles.jl:1569
+┌ Warning: FluxMatcher f! error (primal path): Bad expression core_profiles.profiles_1d[1].conductivity_parallel
+│ DomainError with -2.3589121725261727e34:
+│ sqrt was called with a negative real argument but will only return a complex result if called with a complex argument. Try sqrt(Complex(x)).
 │ DomainError detected in the user `f` function. This occurs when the domain of a function is violated.
 │ For example, `log(-1.0)` is undefined because `log` of a real number is defined to only output real
 │ numbers, but `log` of a negative number is complex valued and therefore Julia throws a DomainError
@@ -377,6 +748,181 @@ actors:    FluxMatcher
 │
 │ For more information, check out the following FAQ page:
 │ &lt;https://docs.sciml.ai/Optimization/stable/API/FAQ/#The-Solver-Seems-to-Violate-Constraints-During-the-Optimization,-Causing-DomainErrors,-What-Can-I-Do-About-That?&gt;
+│
+│ Stacktrace:
+│   [1] throw_complex_domainerror(f::Symbol, x::Float64)
+│     @ Base.Math ./math.jl:33
+│   [2] sqrt
+│     @ ./math.jl:627 [inlined]
+│   [3] _broadcast_getindex_evalf
+│     @ ./broadcast.jl:699 [inlined]
+│   [4] _broadcast_getindex
+│     @ ./broadcast.jl:672 [inlined]
+│   [5] _getindex (repeats 3 times)
+│     @ ./broadcast.jl:695 [inlined]
+│   [6] _broadcast_getindex
+│     @ ./broadcast.jl:671 [inlined]
+│ --- the above 2 lines are repeated 1 more time ---
+│   [9] _getindex
+│     @ ./broadcast.jl:696 [inlined]
+│  [10] _getindex
+│     @ ./broadcast.jl:695 [inlined]
+│  [11] _broadcast_getindex
+│     @ ./broadcast.jl:671 [inlined]
+│  [12] _getindex
+│     @ ./broadcast.jl:620 [inlined]
+│  [13] getindex
+│     @ ./broadcast.jl:616 [inlined]
+│  [14] macro expansion
+│     @ ./broadcast.jl:995 [inlined]
+│  [15] macro expansion
+│     @ ./simdloop.jl:77 [inlined]
+│  [16] copyto!
+│     @ ./broadcast.jl:994 [inlined]
+│  [17] copyto!(dest::Vector{Float64}, bc::Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(/), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}}}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(sqrt), Tuple{Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(+), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(^), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Vector{Float64}, Int64}}, Float64}}}}}}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(/), Tuple{Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(-), Tuple{Int64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(*), Tuple{Float64, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, DataInterpolations.LinearInterpolation{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, Float64}, Tuple{Vector{Float64}}}}}}}, Vector{Float64}}}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, typeof(^), Tuple{Vector{Float64}, Float64}}}}}}}})
+│     @ Base.Broadcast ./broadcast.jl:947
+│  [18] copy
+│     @ ./broadcast.jl:919 [inlined]
+│  [19] materialize
+│     @ ./broadcast.jl:894 [inlined]
+│  [20] neo_conductivity(eqt::IMASdd.equilibrium__time_slice{Float64}, cp1d::IMASdd.core_profiles__profiles_1d{Float64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/neoclassical.jl:444
+│  [21] (::IMAS.var&quot;#896#897&quot;)(; dd::IMASdd.dd{Float64}, profiles_1d::IMASdd.core_profiles__profiles_1d{Float64}, ::@Kwargs{core_profiles::IMASdd.core_profiles{Float64}, profiles_1d_index::Int64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/expressions/dynamic.jl:115
+│  [22] exec_expression_with_ancestor_args(ids::IMASdd.IDS, field::Symbol, func::IMAS.var&quot;#896#897&quot;, throw_on_missing::Bool)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:114
+│  [23] exec_expression_with_ancestor_args(ids::IMASdd.IDS, field::Symbol; throw_on_missing::Bool)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:179
+│  [24] exec_expression_with_ancestor_args
+│     @ ~/.julia/packages/IMASdd/6LCdn/src/expressions.jl:137 [inlined]
+│  [25] getproperty(ids::IMASdd.core_profiles__profiles_1d{Float64}, field::Symbol; to_cocos::Int64)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/data.jl:362
+│  [26] getproperty(ids::IMASdd.core_profiles__profiles_1d{Float64}, field::Symbol)
+│     @ IMASdd ~/.julia/packages/IMASdd/6LCdn/src/data.jl:343
+│  [27] ohmic_source!(dd::IMASdd.dd{Float64})
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:84
+│  [28] intrinsic_sources!(dd::IMASdd.dd{Float64}; bootstrap::Bool, DD_fusion::Bool, fast_ion_densities::Bool)
+│     @ IMAS ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:166
+│  [29] intrinsic_sources!
+│     @ ~/.julia/packages/IMAS/faqaP/src/physics/sources.jl:154 [inlined]
+│  [30] flux_match_errors(actor::FUSE.ActorFluxMatcher{Float64, Float64}, opt_parameters::Vector{Float64}, initial_cp1d::IMASdd.core_profiles__profiles_1d{Float64}; z_scaled_history::Vector{Any}, err_history::Vector{Vector{Float64}}, prog::ProgressMeter.ProgressUnknown)
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:643
+│  [31] flux_match_errors
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:605 [inlined]
+│  [32] (::FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}})(F::Vector{Float64}, u::Vector{Float64}, initial_cp1d::IMASdd.core_profiles__profiles_1d{Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:282
+│  [33] NonlinearFunction
+│     @ ~/.julia/packages/SciMLBase/O1HPI/src/scimlfunctions.jl:2675 [inlined]
+│  [34] evaluate_f!
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/utils.jl:198 [inlined]
+│  [35] step!(cache::NonlinearSolveQuasiNewton.QuasiNewtonCache{Vector{Float64}, Vector{Float64}, Vector{Float64}, IMASdd.core_profiles__profiles_1d{Float64}, Matrix{Float64}, NonlinearSolveQuasiNewton.QuasiNewtonAlgorithm{Nothing, Missing, NonlinearSolveBase.NewtonDescent{Nothing}, NonlinearSolveQuasiNewton.GoodBroydenUpdateRule, NonlinearSolveQuasiNewton.NoChangeInStateReset{Nothing}, NonlinearSolveQuasiNewton.IdentityInitialization{Nothing, NonlinearSolveQuasiNewton.FullStructure}, Val{false}}, SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, Val{:None}, NonlinearSolveQuasiNewton.InitializedApproximateJacobianCache{Matrix{Float64}, NonlinearSolveQuasiNewton.FullStructure, NonlinearSolveQuasiNewton.IdentityInitialization{Nothing, NonlinearSolveQuasiNewton.FullStructure}, Nothing, typeof(NonlinearSolveBase.L2_NORM)}, NonlinearSolveBase.NewtonDescentCache{Vector{Float64}, Nothing, Nothing, Nothing, Nothing, Nothing, Val{true}, Val{false}}, Nothing, Nothing, NonlinearSolveQuasiNewton.BroydenUpdateRuleCache{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, typeof(NonlinearSolveBase.L2_NORM), NonlinearSolveQuasiNewton.GoodBroydenUpdateRule}, NonlinearSolveQuasiNewton.NoChangeInStateResetCache{Vector{Float64}, Float64, NonlinearSolveQuasiNewton.NoChangeInStateReset{Nothing}}, Nothing, Nothing, Nothing, NonlinearSolveBase.NonlinearTerminationModeCache{Vector{Float64}, Float64, NonlinearSolveBase.AbsNormSafeBestTerminationMode{typeof(NonlinearSolveBase.Linf_NORM), Nothing, Int64, Float64, Int64}, Float64, Vector{Float64}, Nothing, Nothing, Vector{Float64}, Int64}, NonlinearSolveBase.NonlinearSolveTrace{Val{false}, Val{false}, Nothing, NonlinearSolveBase.NonlinearSolveTracing{Val{:minimal}}, SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, @Kwargs{alias_u0::Bool, show_trace::Val{false}, store_trace::Val{false}}, NonlinearSolveBase.NonlinearSolveDefaultInit, NonlinearSolveBase.NonlinearVerbosity{SciMLLogging.None, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent}}; recompute_jacobian::Nothing)
+│     @ NonlinearSolveQuasiNewton ~/.julia/packages/NonlinearSolveQuasiNewton/wYNEY/src/solve.jl:401
+│  [36] step!
+│     @ ~/.julia/packages/NonlinearSolveQuasiNewton/wYNEY/src/solve.jl:260 [inlined]
+│  [37] #step!#179
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:609 [inlined]
+│  [38] step!
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:603 [inlined]
+│  [39] solve!(cache::NonlinearSolveQuasiNewton.QuasiNewtonCache{Vector{Float64}, Vector{Float64}, Vector{Float64}, IMASdd.core_profiles__profiles_1d{Float64}, Matrix{Float64}, NonlinearSolveQuasiNewton.QuasiNewtonAlgorithm{Nothing, Missing, NonlinearSolveBase.NewtonDescent{Nothing}, NonlinearSolveQuasiNewton.GoodBroydenUpdateRule, NonlinearSolveQuasiNewton.NoChangeInStateReset{Nothing}, NonlinearSolveQuasiNewton.IdentityInitialization{Nothing, NonlinearSolveQuasiNewton.FullStructure}, Val{false}}, SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, Val{:None}, NonlinearSolveQuasiNewton.InitializedApproximateJacobianCache{Matrix{Float64}, NonlinearSolveQuasiNewton.FullStructure, NonlinearSolveQuasiNewton.IdentityInitialization{Nothing, NonlinearSolveQuasiNewton.FullStructure}, Nothing, typeof(NonlinearSolveBase.L2_NORM)}, NonlinearSolveBase.NewtonDescentCache{Vector{Float64}, Nothing, Nothing, Nothing, Nothing, Nothing, Val{true}, Val{false}}, Nothing, Nothing, NonlinearSolveQuasiNewton.BroydenUpdateRuleCache{Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}, typeof(NonlinearSolveBase.L2_NORM), NonlinearSolveQuasiNewton.GoodBroydenUpdateRule}, NonlinearSolveQuasiNewton.NoChangeInStateResetCache{Vector{Float64}, Float64, NonlinearSolveQuasiNewton.NoChangeInStateReset{Nothing}}, Nothing, Nothing, Nothing, NonlinearSolveBase.NonlinearTerminationModeCache{Vector{Float64}, Float64, NonlinearSolveBase.AbsNormSafeBestTerminationMode{typeof(NonlinearSolveBase.Linf_NORM), Nothing, Int64, Float64, Int64}, Float64, Vector{Float64}, Nothing, Nothing, Vector{Float64}, Int64}, NonlinearSolveBase.NonlinearSolveTrace{Val{false}, Val{false}, Nothing, NonlinearSolveBase.NonlinearSolveTracing{Val{:minimal}}, SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}}, @Kwargs{alias_u0::Bool, show_trace::Val{false}, store_trace::Val{false}}, NonlinearSolveBase.NonlinearSolveDefaultInit, NonlinearSolveBase.NonlinearVerbosity{SciMLLogging.None, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent}})
+│     @ NonlinearSolveBase ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:304
+│  [40] #__solve#154
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:290 [inlined]
+│  [41] __solve
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:286 [inlined]
+│  [42] macro expansion
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:523 [inlined]
+│  [43] __generated_polysolve(::SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, ::NonlinearSolveBase.NonlinearSolvePolyAlgorithm{Val{3}, Tuple{NonlinearSolveQuasiNewton.QuasiNewtonAlgorithm{Nothing, Missing, NonlinearSolveBase.NewtonDescent{Nothing}, NonlinearSolveQuasiNewton.GoodBroydenUpdateRule, NonlinearSolveQuasiNewton.NoChangeInStateReset{Nothing}, NonlinearSolveQuasiNewton.IdentityInitialization{Nothing, NonlinearSolveQuasiNewton.FullStructure}, Val{false}}, SimpleNonlinearSolve.SimpleTrustRegion{ADTypes.AutoFiniteDiff{Val{:forward}, Val{:forward}, Val{:hcentral}, Nothing, Nothing, Bool}, Float64, Float64, Float64, Nothing, Nothing, Nothing, Float64, Val{false}}, SimpleNonlinearSolve.SimpleDFSane{Float64, Float64, Float64, Float64, Float64, Float64, SimpleNonlinearSolve.var&quot;#SimpleDFSane##0#SimpleDFSane##1&quot;, Val{10}}}}; stats::SciMLBase.NLStats, alias::SciMLBase.NonlinearAliasSpecifier, verbose::NonlinearSolveBase.NonlinearVerbosity{SciMLLogging.None, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent, SciMLLogging.Silent}, initializealg::NonlinearSolveBase.NonlinearSolveDefaultInit, kwargs::@Kwargs{abstol::Float64, maxiters::Int64, show_trace::Val{false}, store_trace::Val{false}})
+│     @ NonlinearSolveBase ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:460
+│  [44] __generated_polysolve
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:460 [inlined]
+│  [45] #__solve#165
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:428 [inlined]
+│  [46] __solve
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:424 [inlined]
+│  [47] #solve_call#149
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:179 [inlined]
+│  [48] solve_call
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:137 [inlined]
+│  [49] #solve_up#148
+│     @ ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:132 [inlined]
+│  [50] solve(prob::SciMLBase.NonlinearProblem{Vector{Float64}, true, IMASdd.core_profiles__profiles_1d{Float64}, SciMLBase.NonlinearFunction{true, SciMLBase.AutoSpecialize, FUSE.var&quot;#f!#_step##73&quot;{FUSE.ActorFluxMatcher{Float64, Float64}, ProgressMeter.ProgressUnknown, Vector{Vector{Float64}}, Vector{Any}}, LinearAlgebra.UniformScaling{Bool}, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, typeof(SciMLBase.DEFAULT_OBSERVED_NO_TIME), Nothing, Nothing, Nothing, Nothing}, @Kwargs{}, SciMLBase.StandardNonlinearProblem, Nothing, Nothing}, args::NonlinearSolveBase.NonlinearSolvePolyAlgorithm{Val{3}, Tuple{NonlinearSolveQuasiNewton.QuasiNewtonAlgorithm{Nothing, Missing, NonlinearSolveBase.NewtonDescent{Nothing}, NonlinearSolveQuasiNewton.GoodBroydenUpdateRule, NonlinearSolveQuasiNewton.NoChangeInStateReset{Nothing}, NonlinearSolveQuasiNewton.IdentityInitialization{Nothing, NonlinearSolveQuasiNewton.FullStructure}, Val{false}}, SimpleNonlinearSolve.SimpleTrustRegion{ADTypes.AutoFiniteDiff{Val{:forward}, Val{:forward}, Val{:hcentral}, Nothing, Nothing, Bool}, Float64, Float64, Float64, Nothing, Nothing, Nothing, Float64, Val{false}}, SimpleNonlinearSolve.SimpleDFSane{Float64, Float64, Float64, Float64, Float64, Float64, SimpleNonlinearSolve.var&quot;#SimpleDFSane##0#SimpleDFSane##1&quot;, Val{10}}}}; sensealg::Nothing, u0::Nothing, p::Nothing, wrap::Val{true}, verbose::Bool, kwargs::@Kwargs{abstol::Float64, maxiters::Int64, show_trace::Val{false}, store_trace::Val{false}})
+│     @ NonlinearSolveBase ~/.julia/packages/NonlinearSolveBase/1vIgs/src/solve.jl:89
+│  [51] _step(actor::FUSE.ActorFluxMatcher{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:355
+│  [52] step(::FUSE.ActorFluxMatcher{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [53] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [54] _step(actor::FUSE.ActorCoreTransport{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/core_transport_actor.jl:67
+│  [55] step(::FUSE.ActorCoreTransport{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [56] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [57] _step(actor::FUSE.ActorStationaryPlasma{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:181
+│  [58] step(::FUSE.ActorStationaryPlasma{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [59] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [60] #ActorStationaryPlasma#1718
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:66 [inlined]
+│  [61] FUSE.ActorStationaryPlasma(dd::IMASdd.dd{Float64}, act::FUSE.ParametersActors{Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:64
+│  [62] _step(actor::FUSE.ActorWholeFacility{Float64, Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/whole_facility_actor.jl:118
+│  [63] step(::FUSE.ActorWholeFacility{Float64, Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors.jl:114
+│  [64] step
+│     @ ~/work/FUSE.jl/FUSE.jl/src/actors.jl:102 [inlined]
+│  [65] FUSE.ActorWholeFacility(dd::IMASdd.dd{Float64}, act::FUSE.ParametersActors{Float64}; kw::@Kwargs{})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/whole_facility_actor.jl:77
+│  [66] FUSE.ActorWholeFacility(dd::IMASdd.dd{Float64}, act::FUSE.ParametersActors{Float64})
+│     @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/whole_facility_actor.jl:75
+│  [67] top-level scope
+│     @ tutorial.md:268
+│  [68] eval(m::Module, e::Any)
+│     @ Core ./boot.jl:489
+│  [69] #61
+│     @ ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:879 [inlined]
+│  [70] cd(f::Documenter.var&quot;#61#62&quot;{Module, Expr}, dir::String)
+│     @ Base.Filesystem ./file.jl:112
+│  [71] (::Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr})()
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:878
+│  [72] (::IOCapture.var&quot;#12#13&quot;{Type{InterruptException}, Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, Base.PipeEndpoint, Base.PipeEndpoint})()
+│     @ IOCapture ~/.julia/packages/IOCapture/MR051/src/IOCapture.jl:170
+│  [73] with_logstate(f::IOCapture.var&quot;#12#13&quot;{Type{InterruptException}, Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, Base.PipeEndpoint, Base.PipeEndpoint}, logstate::Base.CoreLogging.LogState)
+│     @ Base.CoreLogging ./logging/logging.jl:542
+│  [74] with_logger(f::Function, logger::Base.CoreLogging.ConsoleLogger)
+│     @ Base.CoreLogging ./logging/logging.jl:653
+│  [75] capture(f::Documenter.var&quot;#59#60&quot;{Documenter.Page, Module, Expr}; rethrow::Type, color::Bool, passthrough::Bool, capture_buffer::IOBuffer, io_context::Vector{Any})
+│     @ IOCapture ~/.julia/packages/IOCapture/MR051/src/IOCapture.jl:167
+│  [76] runner(::Type{Documenter.Expanders.ExampleBlocks}, node::MarkdownAST.Node{Nothing}, page::Documenter.Page, doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:877
+│  [77] dispatch(::Type{Documenter.Expanders.ExpanderPipeline}, ::MarkdownAST.Node{Nothing}, ::Vararg{Any})
+│     @ Documenter.Selectors ~/.julia/packages/Documenter/AXNMp/src/utilities/Selectors.jl:170
+│  [78] expand(doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/expander_pipeline.jl:60
+│  [79] runner(::Type{Documenter.Builder.ExpandTemplates}, doc::Documenter.Document)
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/builder_pipeline.jl:224
+│  [80] dispatch(::Type{Documenter.Builder.DocumentPipeline}, x::Documenter.Document)
+│     @ Documenter.Selectors ~/.julia/packages/Documenter/AXNMp/src/utilities/Selectors.jl:170
+│  [81] #95
+│     @ ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:283 [inlined]
+│  [82] withenv(::Documenter.var&quot;#95#96&quot;{Documenter.Document}, ::Pair{String, Nothing}, ::Vararg{Pair{String, Nothing}})
+│     @ Base ./env.jl:265
+│  [83] #93
+│     @ ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:282 [inlined]
+│  [84] cd(f::Documenter.var&quot;#93#94&quot;{Documenter.Document}, dir::String)
+│     @ Base.Filesystem ./file.jl:112
+│  [85] makedocs(; debug::Bool, format::Documenter.HTMLWriter.HTML, kwargs::@Kwargs{root::String, modules::Vector{Module}, sitename::String, build::String, repo::Documenter.Remotes.GitHub, warnonly::Bool, pages::Vector{Pair{String, String}}})
+│     @ Documenter ~/.julia/packages/Documenter/AXNMp/src/makedocs.jl:281
+│  [86] top-level scope
+│     @ ~/work/FUSE.jl/FUSE.jl/docs/make.jl:195
+│  [87] include(mod::Module, _path::String)
+│     @ Base ./Base.jl:306
+│  [88] exec_options(opts::Base.JLOptions)
+│     @ Base ./client.jl:317
 └ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:289
 actors:     Pedestal
 actors:      EPED
@@ -388,7 +934,7 @@ actors:    QED
 actors:   SawteethSource
 actors:   Equilibrium
 actors:    TEQUILA
-actors:   --------------- 3/5 @ 364.41%
+actors:   --------------- 3/5 @ 364.37%
 actors:   Sources
 actors:    SimpleEC
 actors:    SimpleIC
@@ -407,7 +953,7 @@ actors:    QED
 actors:   SawteethSource
 actors:   Equilibrium
 actors:    TEQUILA
-actors:   --------------- 4/5 @ 211.00%
+actors:   --------------- 4/5 @ 210.62%
 actors:   Sources
 actors:    SimpleEC
 actors:    SimpleIC
@@ -416,30 +962,6 @@ actors:   Pedestal
 actors:    EPED
 actors:   CoreTransport
 actors:    FluxMatcher
-┌ Warning: FluxMatcher f! error (primal path): DomainError with -0.2095649647915061:
-│ log10 was called with a negative real argument but will only return a complex result if called with a complex argument. Try log10(Complex(x)).
-│ DomainError detected in the user `f` function. This occurs when the domain of a function is violated.
-│ For example, `log(-1.0)` is undefined because `log` of a real number is defined to only output real
-│ numbers, but `log` of a negative number is complex valued and therefore Julia throws a DomainError
-│ by default. Cases to be aware of include:
-│
-│ * `log(x)`, `sqrt(x)`, `cbrt(x)`, etc. where `x&lt;0`
-│ * `x^y` for `x&lt;0` floating point `y` (example: `(-1.0)^(1/2) == im`)
-│
-│ Within the context of SciML, this error can occur within the solver process even if the domain constraint
-│ would not be violated in the solution due to adaptivity. For example, an ODE solver or optimization
-│ routine may check a step at `new_u` which violates the domain constraint, and if violated reject the
-│ step and use a smaller `dt`. However, the throwing of this error will have halted the solving process.
-│
-│ Thus the recommended fix is to replace this function with the equivalent ones from NaNMath.jl
-│ (https://github.com/JuliaMath/NaNMath.jl) which returns a NaN instead of an error. The solver will then
-│ effectively use the NaN within the error control routines to reject the out of bounds step. Additionally,
-│ one could perform a domain transformation on the variables so that such an issue does not occur in the
-│ definition of `f`.
-│
-│ For more information, check out the following FAQ page:
-│ &lt;https://docs.sciml.ai/Optimization/stable/API/FAQ/#The-Solver-Seems-to-Violate-Constraints-During-the-Optimization,-Causing-DomainErrors,-What-Can-I-Do-About-That?&gt;
-└ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/transport/flux_matcher_actor.jl:289
 actors:     Pedestal
 actors:      EPED
 actors:     FluxCalculator
@@ -450,8 +972,8 @@ actors:    QED
 actors:   SawteethSource
 actors:   Equilibrium
 actors:    TEQUILA
-actors:   --------------- 5/5 @ 117.71%
-┌ Warning: Max number of iterations (5) has been reached with convergence error of (1)[0.197, 0.268, 0.182, 0.105, 0.059](5) compared to threshold of 0.05
+actors:   --------------- 5/5 @ 120.11%
+┌ Warning: Max number of iterations (5) has been reached with convergence error of (1)[0.197, 0.268, 0.182, 0.105, 0.06](5) compared to threshold of 0.05
 └ @ FUSE ~/work/FUSE.jl/FUSE.jl/src/actors/compound/stationary_plasma_actor.jl:237
 actors:  HFSsizing
 actors:   FluxSwing
@@ -480,50 +1002,50 @@ actors:   CostingARIES
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
 R0 → 6.5 [m]                            B0 → 7.8 [T]                            Te0 → 17.7 [keV]
 a → 2.01 [m]                            ip → 12.7 [MA]                          Ti0 → 17.6 [keV]
-1/ϵ → 3.24                              q95 → 6.13                              &lt;Te&gt; → 8.46 [keV]
-κ → 2                                   &lt;Bpol&gt; → 0.8 [T]                        &lt;Ti&gt; → 7.71 [keV]
-δ → 0.588                               βpol_MHD → 0.78                         Te0/&lt;Te&gt; → 2.09
-ζ → -0.0136                             βtor_MHD → 0.00859                      Ti0/&lt;Ti&gt; → 2.29
+1/ϵ → 3.24                              q95 → 6.13                              &lt;Te&gt; → 8.45 [keV]
+κ → 2                                   &lt;Bpol&gt; → 0.8 [T]                        &lt;Ti&gt; → 7.7 [keV]
+δ → 0.588                               βpol_MHD → 0.778                        Te0/&lt;Te&gt; → 2.09
+ζ → -0.0136                             βtor_MHD → 0.00857                      Ti0/&lt;Ti&gt; → 2.29
 Volume → 927 [m³]                       βn_MHD → 1.05
 Surface → 755 [m²]
 
 DENSITIES                               PRESSURES                               TRANSPORT
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
-ne0 → 9.12e+19 [m⁻³]                    P0 → 0.557 [MPa]                        τe → 2.35 [s]
-ne_ped → 6.71e+19 [m⁻³]                 &lt;P&gt; → 0.207 [MPa]                       τe_exp → 1.82 [s]
-ne_line → 8.24e+19 [m⁻³]                P0/&lt;P&gt; → 2.69                           H98y2 → 0.845
-&lt;ne&gt; → 7.54e+19 [m⁻³]                   βn → 1.06                               H98y2_exp → 0.781
+ne0 → 9.12e+19 [m⁻³]                    P0 → 0.555 [MPa]                        τe → 2.35 [s]
+ne_ped → 6.7e+19 [m⁻³]                  &lt;P&gt; → 0.207 [MPa]                       τe_exp → 1.82 [s]
+ne_line → 8.24e+19 [m⁻³]                P0/&lt;P&gt; → 2.68                           H98y2 → 0.844
+&lt;ne&gt; → 7.54e+19 [m⁻³]                   βn → 1.05                               H98y2_exp → 0.781
 ne0/&lt;ne&gt; → 1.21                         βn_th → 1.01                            Hds03 → 0.63
-fGW → 0.822                                                                     Hds03_exp → 0.562
-zeff_ped → 2                                                                    τα_thermalization → 0.849 [s]
-&lt;zeff&gt; → 2                                                                      τα_slowing_down → 0.917 [s]
+fGW → 0.821                                                                     Hds03_exp → 0.562
+zeff_ped → 2                                                                    τα_thermalization → 0.848 [s]
+&lt;zeff&gt; → 2                                                                      τα_slowing_down → 0.915 [s]
 impurities → DT Ne20 He4
 
 SOURCES                                 EXHAUST                                 CURRENTS
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
 Pec → 50 [MW]                           Psol → 117 [MW]                         ip_bs_aux_ohm → 13 [MA]
-rho0_ec → 0.56 [MW]                     PLH → 133 [MW]                          ip_ni → 5.88 [MA]
+rho0_ec → 0.56 [MW]                     PLH → 133 [MW]                          ip_ni → 5.87 [MA]
 Pnbi → NaN [MW]                         Bpol_omp → 1.1 [T]                      ip_bs → 3.02 [MA]
-Enbi1 → NaN [MeV]                       λq → 0.989 [mm]                         ip_aux → 2.86 [MA]
-Pic → 50 [MW]                           qpol → 2.22e+03 [MW/m²]                 ip_ohm → 7.14 [MA]
+Enbi1 → NaN [MeV]                       λq → 0.989 [mm]                         ip_aux → 2.85 [MA]
+Pic → 50 [MW]                           qpol → 2.22e+03 [MW/m²]                 ip_ohm → 7.15 [MA]
 Plh → NaN [MW]                          qpar → 1.23e+04 [MW/m²]                 ejima → 0.4
 Paux_tot → 100 [MW]                     P/R0 → 18 [MW/m]                        flattop → 0.7 [Hours]
-Pα → 50.5 [MW]                          PB/R0 → 141 [MW T/m]
-Pohm → 0.597 [MW]                       PBp/R0 → 14.4 [MW T/m]
-Pheat → 151 [MW]                        PBϵ/R0q95 → 7.08 [MW T/m]
-Prad_tot → -33.9 [MW]                   neutrons_peak → 0.321 [MW/m²]
+Pα → 50.3 [MW]                          PB/R0 → 140 [MW T/m]
+Pohm → 0.599 [MW]                       PBp/R0 → 14.4 [MW T/m]
+Pheat → 151 [MW]                        PBϵ/R0q95 → 7.07 [MW T/m]
+Prad_tot → -33.8 [MW]                   neutrons_peak → 0.32 [MW/m²]
 
 BOP                                     BUILD                                   COSTING
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
-Pfusion → 252 [MW]                      PF_material → nb3sn                     capital_cost → 6.92 [$B]
-Qfusion → 2.52                          TF_material → nb3sn_kdemo               levelized_CoE → Inf [$/kWh]
-thermal_cycle_type → rankine            OH_material → nb3sn                     TF_of_total → 16.5 [%]
-thermal_efficiency_plant → 19.4 [%]     TF_max_b → 15.4 [T]                     BOP_of_total → 1.16 [%]
-thermal_efficiency_cycle → NaN [%]      OH_max_b → 15.3 [T]                     blanket_of_total → 20.4 [%]
-power_electric_generated → 8.39 [MW]    TF_j_margin → 4.79                      cryostat_of_total → 2.99 [%]
-Pelectric_net → -137 [MW]               OH_j_margin → 1.4
-Qplant → 0.0579                         TF_stress_margin → 3.06
-TBR → 0.0661                            OH_stress_margin → 1.2
+Pfusion → 251 [MW]                      PF_material → nb3sn                     capital_cost → 6.88 [$B]
+Qfusion → 2.51                          TF_material → nb3sn_kdemo               levelized_CoE → Inf [$/kWh]
+thermal_cycle_type → rankine            OH_material → nb3sn                     TF_of_total → 17.9 [%]
+thermal_efficiency_plant → 19.4 [%]     TF_max_b → 15.4 [T]                     BOP_of_total → 1.19 [%]
+thermal_efficiency_cycle → NaN [%]      OH_max_b → 13.9 [T]                     blanket_of_total → 20.5 [%]
+power_electric_generated → 8.56 [MW]    TF_j_margin → 5.59                      cryostat_of_total → 2.99 [%]
+Pelectric_net → -136 [MW]               OH_j_margin → 1.48
+Qplant → 0.059                          TF_stress_margin → 3.01
+TBR → 0.0718                            OH_stress_margin → 1.6
 
 @ time = 0.0 [s]
 ​
@@ -561,50 +1083,50 @@ FUSE.digest(dd)#, filename)</code></pre><pre class="documenter-example-output"><
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
 R0 → 6.5 [m]                            B0 → 7.8 [T]                            Te0 → 17.7 [keV]
 a → 2.01 [m]                            ip → 12.7 [MA]                          Ti0 → 17.6 [keV]
-1/ϵ → 3.24                              q95 → 6.13                              &lt;Te&gt; → 8.46 [keV]
-κ → 2                                   &lt;Bpol&gt; → 0.8 [T]                        &lt;Ti&gt; → 7.71 [keV]
-δ → 0.588                               βpol_MHD → 0.78                         Te0/&lt;Te&gt; → 2.09
-ζ → -0.0136                             βtor_MHD → 0.00859                      Ti0/&lt;Ti&gt; → 2.29
+1/ϵ → 3.24                              q95 → 6.13                              &lt;Te&gt; → 8.45 [keV]
+κ → 2                                   &lt;Bpol&gt; → 0.8 [T]                        &lt;Ti&gt; → 7.7 [keV]
+δ → 0.588                               βpol_MHD → 0.778                        Te0/&lt;Te&gt; → 2.09
+ζ → -0.0136                             βtor_MHD → 0.00857                      Ti0/&lt;Ti&gt; → 2.29
 Volume → 927 [m³]                       βn_MHD → 1.05
 Surface → 755 [m²]
 
 DENSITIES                               PRESSURES                               TRANSPORT
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
-ne0 → 9.12e+19 [m⁻³]                    P0 → 0.557 [MPa]                        τe → 2.35 [s]
-ne_ped → 6.71e+19 [m⁻³]                 &lt;P&gt; → 0.207 [MPa]                       τe_exp → 1.82 [s]
-ne_line → 8.24e+19 [m⁻³]                P0/&lt;P&gt; → 2.69                           H98y2 → 0.845
-&lt;ne&gt; → 7.54e+19 [m⁻³]                   βn → 1.06                               H98y2_exp → 0.781
+ne0 → 9.12e+19 [m⁻³]                    P0 → 0.555 [MPa]                        τe → 2.35 [s]
+ne_ped → 6.7e+19 [m⁻³]                  &lt;P&gt; → 0.207 [MPa]                       τe_exp → 1.82 [s]
+ne_line → 8.24e+19 [m⁻³]                P0/&lt;P&gt; → 2.68                           H98y2 → 0.844
+&lt;ne&gt; → 7.54e+19 [m⁻³]                   βn → 1.05                               H98y2_exp → 0.781
 ne0/&lt;ne&gt; → 1.21                         βn_th → 1.01                            Hds03 → 0.63
-fGW → 0.822                                                                     Hds03_exp → 0.562
-zeff_ped → 2                                                                    τα_thermalization → 0.849 [s]
-&lt;zeff&gt; → 2                                                                      τα_slowing_down → 0.917 [s]
+fGW → 0.821                                                                     Hds03_exp → 0.562
+zeff_ped → 2                                                                    τα_thermalization → 0.848 [s]
+&lt;zeff&gt; → 2                                                                      τα_slowing_down → 0.915 [s]
 impurities → DT Ne20 He4
 
 SOURCES                                 EXHAUST                                 CURRENTS
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
 Pec → 50 [MW]                           Psol → 117 [MW]                         ip_bs_aux_ohm → 13 [MA]
-rho0_ec → 0.56 [MW]                     PLH → 133 [MW]                          ip_ni → 5.88 [MA]
+rho0_ec → 0.56 [MW]                     PLH → 133 [MW]                          ip_ni → 5.87 [MA]
 Pnbi → NaN [MW]                         Bpol_omp → 1.1 [T]                      ip_bs → 3.02 [MA]
-Enbi1 → NaN [MeV]                       λq → 0.989 [mm]                         ip_aux → 2.86 [MA]
-Pic → 50 [MW]                           qpol → 2.22e+03 [MW/m²]                 ip_ohm → 7.14 [MA]
+Enbi1 → NaN [MeV]                       λq → 0.989 [mm]                         ip_aux → 2.85 [MA]
+Pic → 50 [MW]                           qpol → 2.22e+03 [MW/m²]                 ip_ohm → 7.15 [MA]
 Plh → NaN [MW]                          qpar → 1.23e+04 [MW/m²]                 ejima → 0.4
 Paux_tot → 100 [MW]                     P/R0 → 18 [MW/m]                        flattop → 0.7 [Hours]
-Pα → 50.5 [MW]                          PB/R0 → 141 [MW T/m]
-Pohm → 0.597 [MW]                       PBp/R0 → 14.4 [MW T/m]
-Pheat → 151 [MW]                        PBϵ/R0q95 → 7.08 [MW T/m]
-Prad_tot → -33.9 [MW]                   neutrons_peak → 0.321 [MW/m²]
+Pα → 50.3 [MW]                          PB/R0 → 140 [MW T/m]
+Pohm → 0.599 [MW]                       PBp/R0 → 14.4 [MW T/m]
+Pheat → 151 [MW]                        PBϵ/R0q95 → 7.07 [MW T/m]
+Prad_tot → -33.8 [MW]                   neutrons_peak → 0.32 [MW/m²]
 
 BOP                                     BUILD                                   COSTING
 ────────────────────────────────────    ────────────────────────────────────    ────────────────────────────────────
-Pfusion → 252 [MW]                      PF_material → nb3sn                     capital_cost → 6.92 [$B]
-Qfusion → 2.52                          TF_material → nb3sn_kdemo               levelized_CoE → Inf [$/kWh]
-thermal_cycle_type → rankine            OH_material → nb3sn                     TF_of_total → 16.5 [%]
-thermal_efficiency_plant → 19.4 [%]     TF_max_b → 15.4 [T]                     BOP_of_total → 1.16 [%]
-thermal_efficiency_cycle → NaN [%]      OH_max_b → 15.3 [T]                     blanket_of_total → 20.4 [%]
-power_electric_generated → 8.39 [MW]    TF_j_margin → 4.79                      cryostat_of_total → 2.99 [%]
-Pelectric_net → -137 [MW]               OH_j_margin → 1.4
-Qplant → 0.0579                         TF_stress_margin → 3.06
-TBR → 0.0661                            OH_stress_margin → 1.2
+Pfusion → 251 [MW]                      PF_material → nb3sn                     capital_cost → 6.88 [$B]
+Qfusion → 2.51                          TF_material → nb3sn_kdemo               levelized_CoE → Inf [$/kWh]
+thermal_cycle_type → rankine            OH_material → nb3sn                     TF_of_total → 17.9 [%]
+thermal_efficiency_plant → 19.4 [%]     TF_max_b → 15.4 [T]                     BOP_of_total → 1.19 [%]
+thermal_efficiency_cycle → NaN [%]      OH_max_b → 13.9 [T]                     blanket_of_total → 20.5 [%]
+power_electric_generated → 8.56 [MW]    TF_j_margin → 5.59                      cryostat_of_total → 2.99 [%]
+Pelectric_net → -136 [MW]               OH_j_margin → 1.48
+Qplant → 0.059                          TF_stress_margin → 3.01
+TBR → 0.0718                            OH_stress_margin → 1.6
 
 @ time = 0.0 [s]
 ​
@@ -634,4 +1156,4 @@ TBR → 0.0661                            OH_stress_margin → 1.2
 ​
 ​
 ​
-​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="pubs.html">« References</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 21 April 2026 03:51">Tuesday 21 April 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+​</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="pubs.html">« References</a><a class="docs-footer-nextpage" href="examples.html">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 22 April 2026 03:49">Wednesday 22 April 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
