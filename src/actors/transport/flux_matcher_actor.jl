@@ -73,7 +73,7 @@ import NonlinearSolve, FixedPointAcceleration
           (core=20.0, edge=100.0, rho_transition=0.80)
           Values are constant at 'core' for rho <= rho_transition, then linearly increase to 'edge' at rho=1.0
         """;
-        default=100.0,
+        default=10.0,
         check=x -> begin
             if x isa Real
                 @assert x > 0.0 "z_max must be positive"
@@ -884,9 +884,9 @@ function flux_match_simple(
     end
 
     if ismissing(par, :scale_turbulence_law)
-        return (zero=z_scaled_history[end],)
+        return (zero=z_scaled_history[argmin(map(norm, err_history))],)
     else
-        return (zero=[turbulence_scale; z_scaled_history[end]],)
+        return (zero=[turbulence_scale; z_scaled_history[argmin(map(norm, err_history))]],)
     end
 end
 
@@ -1059,11 +1059,6 @@ function unpack_z_profiles(
         end
     end
 
-    N = length(par.rho_transport)
-    Nevolve = length(z_profiles) ÷ N
-    #for i in 1:Nevolve
-    #    z_profiles[N*i] = z_profiles[N*i-1] 
-    #end
     counter = 0
 
     evolve_densities = evolve_densities_dictionary(cp1d, par)
