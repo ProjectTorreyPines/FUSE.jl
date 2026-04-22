@@ -261,7 +261,7 @@ function receive!(actor::ActorZMQ)
         zgrid = range(p2d.grid.dim2[1], p2d.grid.dim2[end], length=length(p2d.grid.dim2))
         fw_r, fw_z = IMAS.first_wall(dd.wall)
 
-        if actor.first_receive
+        if actor.first_receive 
             # First step: full flux_surfaces (Method 2) to get all 1D profiles for QED
             # First find axis and boundary from psizr (Method 1)
             PSI_itp = Interpolations.cubic_spline_interpolation(
@@ -278,7 +278,7 @@ function receive!(actor::ActorZMQ)
 
             # Set up 1D seed arrays for flux_surfaces
             eqt1d = eqt.profiles_1d
-            n_psi = 129
+            n_psi = 101
             eqt1d.psi = collect(range(Ψaxis, Ψbnd, length=n_psi))
             eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
             eqt1d.pressure = zeros(n_psi)
