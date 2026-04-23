@@ -208,12 +208,14 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     chease_exec = par.chease_exec
     @assert nl !== nothing "CHEASE namelist not initialized"
 
-    # Write EXPEQ file
-    write_EXPEQ_file(dd, par)
-    
-    # Write CHEASE namelist file
-    # *** update B0EXP, R0EXP in CHEASEnamelist based on dd equilibrium parameters? ***
-    write_CHEASEnamelist(nl, "datain")
+    # Write EXPEQ file and extract B0 and R0 for CHEASE normalization
+    B0, R0 = write_EXPEQ_file(dd, par)
+    println("B0 for CHEASE normalization: $B0 T")
+    println("R0 for CHEASE normalization: $R0 m")
+    runtime_overrides = (B0EXP = B0, R0EXP = R0,)
+
+    # Write CHEASE namelist file and override B0EXP and R0EXP with values from EXPEQ
+    write_CHEASEnamelist(nl, "datain", runtime_overrides)
 
     # Clean up any stale CHEASE output files
     for f in readdir(pwd())
@@ -553,7 +555,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         NDATA = 1   
     end
     
-    
     # interpolate to uniform s grid for CHEASE input
     GS_RHS_final = GS_RHS_norm#IMAS.interp1d(s, abs.(j_tor_norm)).(s_grid)
     pprime_at_s = pprime #IMAS.interp1d(s, pprime).(s_grid)
@@ -621,9 +622,19 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
             write(file, "$line \n")
         end
     end
+    return B0, R0
 end
 
-function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="datain")
+function write_CHEASEnamelist(nl::CHEASEnamelist, filename::AbstractString="datain", overrides::NamedTuple=NamedTuple())
+
+    for (k, v) in pairs(overrides)
+        if hasproperty(nl, k)
+            setproperty!(nl, k, v)
+        else
+            @warn "Unknown CHEASE namelist key: $k"
+        end
+    end
+    
     open(filename, "w") do io
         println(io, "***")
         println(io, "***    Example Torus")
