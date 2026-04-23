@@ -65,7 +65,7 @@ function switch_get_from(quantity::Symbol; default::Union{Symbol,Missing}=missin
     elseif quantity == :βn
         swch = Switch{Symbol}([:core_profiles, :equilibrium], "-", txt; default)
     elseif quantity == :ne_ped
-        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule, :edge_profiles], "-", txt; default)
+        swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule, :edge_profiles, :nn_predictor], "-", txt; default)
     elseif quantity == :zeff_ped
         swch = Switch{Symbol}([:core_profiles, :summary, :pulse_schedule], "-", txt; default)
     else

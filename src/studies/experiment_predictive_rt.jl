@@ -169,7 +169,6 @@ function run_predictive_rt_case!(
     act.ActorFluxMatcher.evolve_densities = :flux_match
     act.ActorFluxMatcher.evolve_rotation = :replay
     act.ActorFluxMatcher.relax = 1.0
-    act.ActorFluxMatcher.z_max = (core=20.0, edge=100.0, rho_transition=0.80) 
 
 
     # FINN transport — replaces FluxMatcher + TGLF
