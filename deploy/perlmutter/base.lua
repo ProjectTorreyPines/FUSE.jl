@@ -31,7 +31,7 @@ else
 end
 
 -- Environment variables for data fetching
-setenv("FUSE_D3D_CACHE_DIR", "/pscratch/sd/d/d3dsf/FUSE_D3D_data_cache")
+setenv("FUSE_D3D_CACHE_DIR", "/pscratch/sd/d/" .. os.getenv("USER") .. "/FUSE_D3D_data_cache")
 setenv("FUSE_OMFIT_HOST", "localhost")
 setenv("FUSE_OMFIT_ROOT", "/global/common/software/m3739/perlmutter/OMFIT-CAKE")
 setenv("FUSE_OMAS_ROOT", "/global/common/software/m3739/perlmutter/FUSE_OMAS")
