@@ -26,8 +26,8 @@ end
 mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorZMQ{P}}
-    context::Any   # ZMQ.Context when connected, nothing otherwise
-    socket::Any    # ZMQ.Socket when connected, nothing otherwise
+    context::Union{Nothing,ZMQ.Context}
+    socket::Union{Nothing,ZMQ.Socket}
     is_connected::Bool
     first_receive::Bool
     # Previous-step values for time derivatives in send!
@@ -35,12 +35,13 @@ mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
     prev_betap::Float64
     prev_li::Float64
     prev_psipla::Float64
+    prev_co2::Vector{Float64}  # last valid CO2 density values (fallback if computation fails)
 end
 
 function ActorZMQ(dd::IMAS.dd{D}, par::FUSEparameters__ActorZMQ{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorZMQ)
     par = OverrideParameters(par; kw...)
-    return ActorZMQ{D,P}(dd, par, nothing, nothing, false, true, NaN, NaN, NaN, NaN)
+    return ActorZMQ{D,P}(dd, par, nothing, nothing, false, true, NaN, NaN, NaN, NaN, Float64[])
 end
 
 """
@@ -81,6 +82,7 @@ function connect!(actor::ActorZMQ)
     @info "ActorZMQ: connecting to $(actor.par.endpoint)"
     ctx = ZMQ.Context()
     sock = ZMQ.Socket(ctx, ZMQ.REQ)
+    ZMQ.setsockopt(sock, ZMQ.RCVTIMEO, actor.par.timeout_ms)
     ZMQ.connect(sock, string(actor.par.endpoint))
     actor.context = ctx
     actor.socket = sock
@@ -154,18 +156,21 @@ function receive!(actor::ActorZMQ)
 
     # --- Store auxiliary Ip signals for NN ne predictor ---
     # Uses dd._aux (same pattern as FUSE workflow/logging metadata)
+    # Stored as (times=Float64[], values=...) parallel vectors to avoid Float64 dict keys
     aux = getfield(dd, :_aux)
     if haskey(msg, "Ip_avg")
         if :zmq_Ip_avg ∉ keys(aux)
-            aux[:zmq_Ip_avg] = Dict{Float64,Float64}()
+            aux[:zmq_Ip_avg] = (times=Float64[], values=Float64[])
         end
-        aux[:zmq_Ip_avg][dd.global_time] = Float64(msg["Ip_avg"])
+        push!(aux[:zmq_Ip_avg].times, dd.global_time)
+        push!(aux[:zmq_Ip_avg].values, Float64(msg["Ip_avg"]))
     end
     if haskey(msg, "pr15v")
         if :zmq_pr15v ∉ keys(aux)
-            aux[:zmq_pr15v] = Dict{Float64,Float64}()
+            aux[:zmq_pr15v] = (times=Float64[], values=Float64[])
         end
-        aux[:zmq_pr15v][dd.global_time] = Float64(msg["pr15v"])
+        push!(aux[:zmq_pr15v].times, dd.global_time)
+        push!(aux[:zmq_pr15v].values, Float64(msg["pr15v"]))
     end
 
     # --- Update Bt (first step only, constant per shot) ---
@@ -185,9 +190,10 @@ function receive!(actor::ActorZMQ)
     if haskey(msg, "I_coil")
         i_coil = Float64.(msg["I_coil"])
         if :zmq_I_coil ∉ keys(aux)
-            aux[:zmq_I_coil] = Dict{Float64,Vector{Float64}}()
+            aux[:zmq_I_coil] = (times=Float64[], values=Vector{Float64}[])
         end
-        aux[:zmq_I_coil][dd.global_time] = i_coil
+        push!(aux[:zmq_I_coil].times, dd.global_time)
+        push!(aux[:zmq_I_coil].values, i_coil)
     end
 
     # --- Update NBI power per beam [W] ---
@@ -224,9 +230,10 @@ function receive!(actor::ActorZMQ)
         for k in 1:min(length(gas_cal), length(gas_names))
             sym = gas_names[k]
             if sym ∉ keys(aux)
-                aux[sym] = Dict{Float64,Float64}()
+                aux[sym] = (times=Float64[], values=Float64[])
             end
-            aux[sym][dd.global_time] = gas_cal[k]
+            push!(aux[sym].times, dd.global_time)
+            push!(aux[sym].values, gas_cal[k])
         end
     end
 
@@ -261,7 +268,7 @@ function receive!(actor::ActorZMQ)
         zgrid = range(p2d.grid.dim2[1], p2d.grid.dim2[end], length=length(p2d.grid.dim2))
         fw_r, fw_z = IMAS.first_wall(dd.wall)
 
-        if actor.first_receive 
+        if actor.first_receive
             # First step: full flux_surfaces (Method 2) to get all 1D profiles for QED
             # First find axis and boundary from psizr (Method 1)
             PSI_itp = Interpolations.cubic_spline_interpolation(
@@ -342,6 +349,7 @@ Called at the end of Phase 2 in the dynamic plasma loop.
 
 DataFromFUSE fields (matching C++ struct):
 - `sim_time`:     double        — Current simulation time [s]
+- `valid`:        bool          — false on first send (derivatives unreliable), true thereafter
 - `betap`:        double        — Poloidal beta (beta_pol)
 - `betap_dot`:    double        — Time derivative of beta_pol [1/s]
 - `li`:           double        — Internal inductance (li_1)
@@ -363,28 +371,29 @@ function send!(actor::ActorZMQ)
     time_now = dd.global_time
 
     # Time derivatives (0.0 on first step when prev values are NaN)
+    psipla_now = _compute_psipla(eqt)
     dt = time_now - actor.prev_time
     if isnan(actor.prev_time) || dt <= 0.0
         betap_dot = 0.0
         li_dot = 0.0
-        p_res = 1e-9
+        p_res = 0.0
     else
         betap_dot = (betap - actor.prev_betap) / dt
         li_dot = (li - actor.prev_li) / dt
         # Plasma resistance: Rp = dψ_plasma/dt / Ip, clamped >= 1e-9
-        psipla_now = _compute_psipla(eqt)
         Ip_val = eqt.global_quantities.ip
         p_res = max((psipla_now - actor.prev_psipla) / dt / Ip_val, 1e-9)
     end
 
     msg = Dict{String,Any}()
     msg["sim_time"] = time_now
+    msg["valid"] = !isnan(actor.prev_time)  # false on first send (no prior data for derivatives)
     msg["betap"] = betap
     msg["betap_dot"] = betap_dot
     msg["li"] = li
     msg["li_dot"] = li_dot
     msg["p_res"] = p_res
-    msg["dens_co2_sig"] = _compute_co2_density(dd)
+    msg["dens_co2_sig"] = _compute_co2_density(actor)
 
     # REQ: send data, then receive acknowledgment
     ZMQ.send(actor.socket, JSON.json(msg))
@@ -395,7 +404,7 @@ function send!(actor::ActorZMQ)
     actor.prev_time = time_now
     actor.prev_betap = betap
     actor.prev_li = li
-    actor.prev_psipla = _compute_psipla(eqt)
+    actor.prev_psipla = psipla_now
 
     return actor
 end
@@ -436,13 +445,15 @@ function _compute_psipla(eqt)
 end
 
 """
-    _compute_co2_density(dd::IMAS.dd)
+    _compute_co2_density(actor::ActorZMQ)
 
 Compute CO2 interferometer line-averaged electron density for each channel.
 Uses the same IMAS.line_average as ActorInterferometer.
+On failure, logs a warning and falls back to last valid values.
 Returns vector of line-averaged ne [m⁻³] for each interferometer channel.
 """
-function _compute_co2_density(dd::IMAS.dd)
+function _compute_co2_density(actor::ActorZMQ)
+    dd = actor.dd
     intf = dd.interferometer
     if isempty(intf.channel)
         return Float64[]
@@ -450,13 +461,16 @@ function _compute_co2_density(dd::IMAS.dd)
     eqt = dd.equilibrium.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     dens_co2 = Float64[]
-    for ch in intf.channel
+    for (i, ch) in enumerate(intf.channel)
         try
             result = IMAS.line_average(eqt, cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, ch.line_of_sight)
             push!(dens_co2, result.line_average)
-        catch
-            push!(dens_co2, NaN)
+        catch e
+            fallback = (i <= length(actor.prev_co2)) ? actor.prev_co2[i] : NaN
+            @warn "ActorZMQ: CO2 channel $i failed, using fallback=$fallback" exception=e
+            push!(dens_co2, fallback)
         end
     end
+    actor.prev_co2 = dens_co2
     return dens_co2
 end
