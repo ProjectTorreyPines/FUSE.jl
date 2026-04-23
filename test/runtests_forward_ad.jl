@@ -14,28 +14,14 @@ using Test
     act.ActorFluxMatcher.jacobian_method = :forward_ad
     act.ActorFluxMatcher.max_iterations = 3
     act.ActorFluxMatcher.evolve_pedestal = false
-    act.ActorFluxMatcher.find_widths = false
 
     # Save initial core_profiles for comparison
     cp1d_before = deepcopy(dd.core_profiles.profiles_1d[])
 
-    @testset "broyden with true_jacobian" begin
+    @testset "simple_trust with forward_ad" begin
         dd_test = deepcopy(dd)
         act_test = deepcopy(act)
-        act_test.ActorFluxMatcher.algorithm = :broyden
-
-        actor = FUSE.ActorFluxMatcher(dd_test, act_test)
-
-        # Verify the actor ran without error and produced transport results
-        @test !isempty(dd_test.core_transport.model)
-        cp1d_after = dd_test.core_profiles.profiles_1d[]
-        @test !all(cp1d_after.electrons.temperature .== cp1d_before.electrons.temperature)
-    end
-
-    @testset "basic_polyalg with true_jacobian" begin
-        dd_test = deepcopy(dd)
-        act_test = deepcopy(act)
-        act_test.ActorFluxMatcher.algorithm = :basic_polyalg
+        act_test.ActorFluxMatcher.algorithm = :simple_trust
 
         actor = FUSE.ActorFluxMatcher(dd_test, act_test)
 
@@ -48,13 +34,13 @@ using Test
     @testset "AD vs finite-diff Jacobian agreement" begin
         dd_test = deepcopy(dd)
         act_ad = deepcopy(act)
-        act_ad.ActorFluxMatcher.algorithm = :broyden
+        act_ad.ActorFluxMatcher.algorithm = :simple_trust
         act_ad.ActorFluxMatcher.jacobian_method = :forward_ad
         act_ad.ActorFluxMatcher.max_iterations = 1
 
         dd_fd = deepcopy(dd)
         act_fd = deepcopy(act)
-        act_fd.ActorFluxMatcher.algorithm = :broyden
+        act_fd.ActorFluxMatcher.algorithm = :simple_trust
         act_fd.ActorFluxMatcher.jacobian_method = :finite_diff
         act_fd.ActorFluxMatcher.max_iterations = 1
 

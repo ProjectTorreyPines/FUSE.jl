@@ -1597,12 +1597,14 @@ function ad_flux_match_errors!(
         input_tjlfs_ad = Vector{InputTJLF{T}}(undef, length(par.rho_transport))
         for k in eachindex(par.rho_transport)
             input_tjlfs_ad[k] = InputTJLF{T}(input_tglfs_dual[k])
-            # Copy widths from primal evaluation (don't re-find in AD path)
-            if !par.find_widths && isassigned(actor.actor_ct.actor_turb.input_tglfs, k)
+            # Always copy widths from primal evaluation in the AD path.
+            # Width-finding (tjlf_max.jl) is a nonlinear scan that is not AD-compatible,
+            # so we must use the already-found per-ky WIDTH_SPECTRUM regardless of find_widths.
+            if isassigned(actor.actor_ct.actor_turb.input_tglfs, k)
                 existing = actor.actor_ct.actor_turb.input_tglfs[k]
                 input_tjlfs_ad[k].FIND_WIDTH = false
                 input_tjlfs_ad[k].WIDTH = T.(existing.WIDTH)
-                input_tjlfs_ad[k].WIDTH_in = T.(existing.WIDTH_in)
+                input_tjlfs_ad[k].WIDTH_SPECTRUM .= T.(existing.WIDTH_SPECTRUM)
             end
         end
         QL_fluxes_out = TJLF.run_tjlf(input_tjlfs_ad)
