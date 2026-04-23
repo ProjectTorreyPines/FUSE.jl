@@ -411,12 +411,13 @@ function divertor_regions!(
         backwall_domain_poly = try
             LibGEOS.intersection(backwall_poly, domain_poly)
         catch e
-            display(plot(backwall_poly; aspect_ratio=:equal))
-            display(plot!(eqt; cx=true))
-            display(scatter!([RA, Rx], [ZA, Zx]))
-            display(plot!(xx, yy))
-            display(plot!(domain_poly; alpha=0.5))
-            rethrow(e)
+            # display(plot(backwall_poly; aspect_ratio=:equal))
+            # display(plot!(eqt; cx=true))
+            # display(scatter!([RA, Rx], [ZA, Zx]))
+            # display(plot!(xx, yy))
+            # display(plot!(domain_poly; alpha=0.5))
+            @warn "divertor_regions!: geometry intersection failed, skipping"
+            return nothing
         end
         divertor_poly = LibGEOS.difference(backwall_domain_poly, plasma_poly)
 
@@ -443,7 +444,8 @@ function divertor_regions!(
             plot!(domain_poly; alpha=0.3)
             plot!(plasma_poly; alpha=0.3)
             display(p)
-            rethrow(e)
+            @warn "divertor_regions!: geometry intersection failed, skipping"
+            return nothing
         end
 
         # find divertor plasma facing surfaces starting from divertor structure
