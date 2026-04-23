@@ -7,13 +7,31 @@
 #   Phase 1 start: receive!(actor_zmq) — gets flux matrix + Ip from GSLite
 #   Phase 2 end:   send!(actor_zmq)    — sends FRESCO equilibrium back to GSLite
 #
-# Message format: JSON over ZMQ REQ/REP
-#
-# Requires: ZMQ.jl (add to Project.toml: `import Pkg; Pkg.add("ZMQ")`)
+# Message format: Protocol Buffers over ZMQ REQ/REP
+# Schema defined in zmq_messages.proto
 
-import JSON
 import Interpolations
 import ZMQ
+import ProtoBuf
+
+include(joinpath(@__DIR__, "zmq_proto_generated", "zmq_messages_pb.jl"))
+using .zmq_messages_pb: FUSERequest, DataForFUSE, DataFromFUSE, Ack
+
+# --- Protobuf over ZMQ helpers ---
+
+function _pb_send(socket::ZMQ.Socket, msg)
+    io = IOBuffer()
+    e = ProtoBuf.ProtoEncoder(io)
+    ProtoBuf.encode(e, msg)
+    ZMQ.send(socket, take!(io))
+end
+
+function _pb_recv(socket::ZMQ.Socket, ::Type{T}) where {T}
+    raw = ZMQ.recv(socket)
+    io = IOBuffer(raw)
+    d = ProtoBuf.ProtoDecoder(io)
+    return ProtoBuf.decode(d, T)
+end
 
 @actor_parameters_struct ActorZMQ{T} begin
     endpoint::Entry{String} = Entry{String}("-", "ZMQ endpoint (e.g., tcp://localhost:5555)"; default="tcp://localhost:5555")
@@ -140,42 +158,47 @@ function receive!(actor::ActorZMQ)
     par = actor.par
 
 
-    # REQ: send ready signal, then receive data
-    ZMQ.send(actor.socket, JSON.json(Dict("status" => "ready", "time" => dd.global_time)))
-    raw = String(ZMQ.recv(actor.socket))
-    msg = JSON.parse(raw)
+    # REQ: send ready signal, then receive protobuf data
+    _pb_send(actor.socket, FUSERequest("ready", dd.global_time))
+    msg = _pb_recv(actor.socket, DataForFUSE)
 
-    @info "ActorZMQ: received data at sim_time=$(get(msg, "sim_time", "?")) s"
+    @info "ActorZMQ: received data at sim_time=$(msg.sim_time) s"
 
-    # --- Update Ip in pulse_schedule so QED/FRESCO pick it up ---
-    if haskey(msg, "Ip_latest")
-        ip = Float64(msg["Ip_latest"])
-        ps_fc = dd.pulse_schedule.flux_control
-        IMAS.set_time_array(ps_fc.i_plasma, :reference, dd.global_time, ip)
+    # --- Check for end-of-simulation signal from GSLite ---
+    if msg.done
+        @info "ActorZMQ: GSLite signaled end of simulation"
+        disconnect!(actor)
+        return actor
     end
 
-    # --- Store auxiliary Ip signals for NN ne predictor ---
+    # --- Update Ip in pulse_schedule so QED/FRESCO pick it up ---
+    if msg.Ip_latest != 0.0
+        ps_fc = dd.pulse_schedule.flux_control
+        IMAS.set_time_array(ps_fc.i_plasma, :reference, dd.global_time, msg.Ip_latest)
+    end
+
+    # --- Store auxiliary signals for NN ne predictor ---
     # Uses dd._aux (same pattern as FUSE workflow/logging metadata)
     # Stored as (times=Float64[], values=...) parallel vectors to avoid Float64 dict keys
     aux = getfield(dd, :_aux)
-    if haskey(msg, "Ip_avg")
+    if msg.Ip_avg != 0.0
         if :zmq_Ip_avg ∉ keys(aux)
             aux[:zmq_Ip_avg] = (times=Float64[], values=Float64[])
         end
         push!(aux[:zmq_Ip_avg].times, dd.global_time)
-        push!(aux[:zmq_Ip_avg].values, Float64(msg["Ip_avg"]))
+        push!(aux[:zmq_Ip_avg].values, msg.Ip_avg)
     end
-    if haskey(msg, "pr15v")
+    if msg.pr15v != 0.0
         if :zmq_pr15v ∉ keys(aux)
             aux[:zmq_pr15v] = (times=Float64[], values=Float64[])
         end
         push!(aux[:zmq_pr15v].times, dd.global_time)
-        push!(aux[:zmq_pr15v].values, Float64(msg["pr15v"]))
+        push!(aux[:zmq_pr15v].values, msg.pr15v)
     end
 
     # --- Update Bt (first step only, constant per shot) ---
-    if haskey(msg, "Bt")
-        b0 = Float64(msg["Bt"])
+    if msg.Bt != 0.0
+        b0 = msg.Bt
         if length(dd.equilibrium.vacuum_toroidal_field.b0) == 0
             push!(dd.equilibrium.vacuum_toroidal_field.b0, b0)
         else
@@ -187,59 +210,55 @@ function receive!(actor::ActorZMQ)
     # --- Store PF coil currents from GSLite (isolated from dd.pf_active) ---
     # Stored in dd._aux only so FRESCO's own coil current solve is not disturbed.
     # NN ne predictor reads from aux[:zmq_I_coil].
-    if haskey(msg, "I_coil")
-        i_coil = Float64.(msg["I_coil"])
+    if !isempty(msg.I_coil)
         if :zmq_I_coil ∉ keys(aux)
             aux[:zmq_I_coil] = (times=Float64[], values=Vector{Float64}[])
         end
         push!(aux[:zmq_I_coil].times, dd.global_time)
-        push!(aux[:zmq_I_coil].values, i_coil)
+        push!(aux[:zmq_I_coil].values, msg.I_coil)
     end
 
     # --- Update NBI power per beam [W] ---
     # Uses IMAS.set_time_array to properly build up time history,
     # which is needed by smooth_beam_power (smooths over τ_thermalization)
-    if haskey(msg, "pinj_per_beam")
-        pinj = Float64.(msg["pinj_per_beam"])
+    if !isempty(msg.pinj_per_beam)
         ps_nbi = dd.pulse_schedule.nbi
-        n_beams = min(length(pinj), length(ps_nbi.unit))
+        n_beams = min(length(msg.pinj_per_beam), length(ps_nbi.unit))
         time0 = dd.global_time
         for k in 1:n_beams
-            IMAS.set_time_array(ps_nbi.unit[k].power, :reference, time0, pinj[k])
+            IMAS.set_time_array(ps_nbi.unit[k].power, :reference, time0, msg.pinj_per_beam[k])
         end
         @info "ActorZMQ: updated NBI power for $n_beams beams"
     end
 
     # --- Update NBI acceleration voltage per beam [eV] ---
-    if haskey(msg, "nbi_acc_voltage")
-        nbi_voltage = Float64.(msg["nbi_acc_voltage"])
+    if !isempty(msg.nbi_acc_voltage)
         ps_nbi = dd.pulse_schedule.nbi
-        n_beams = min(length(nbi_voltage), length(ps_nbi.unit))
+        n_beams = min(length(msg.nbi_acc_voltage), length(ps_nbi.unit))
         time0 = dd.global_time
         for k in 1:n_beams
-            IMAS.set_time_array(ps_nbi.unit[k].energy, :reference, time0, nbi_voltage[k])
+            IMAS.set_time_array(ps_nbi.unit[k].energy, :reference, time0, msg.nbi_acc_voltage[k])
         end
         @info "ActorZMQ: updated NBI voltage for $n_beams beams"
     end
 
     # --- Store gas calibration values for NN ne predictor ---
     # gas_cal[NGAS]: index 1=gasA, 2=gasB, 3=gasC, 4=gasD, 5=gasE
-    if haskey(msg, "gas_cal")
-        gas_cal = Float64.(msg["gas_cal"])
+    if !isempty(msg.gas_cal)
         gas_names = (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal)
-        for k in 1:min(length(gas_cal), length(gas_names))
+        for k in 1:min(length(msg.gas_cal), length(gas_names))
             sym = gas_names[k]
             if sym ∉ keys(aux)
                 aux[sym] = (times=Float64[], values=Float64[])
             end
             push!(aux[sym].times, dd.global_time)
-            push!(aux[sym].values, gas_cal[k])
+            push!(aux[sym].values, msg.gas_cal[k])
         end
     end
 
     # --- Update equilibrium from flat psizr array ---
-    if haskey(msg, "psizr")
-        psizr_flat = Float64.(msg["psizr"])
+    if !isempty(msg.psizr)
+        psizr_flat = msg.psizr
         nR = par.nR
         nZ = par.nZ
         @assert length(psizr_flat) == nR * nZ "ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ)"
@@ -254,9 +273,9 @@ function receive!(actor::ActorZMQ)
         p2d = eqt.profiles_2d[1]
 
         # Use existing grid from dd if available, otherwise need r_grid/z_grid from GSLite
-        if haskey(msg, "r_grid") && haskey(msg, "z_grid")
-            p2d.grid.dim1 = Float64.(msg["r_grid"])
-            p2d.grid.dim2 = Float64.(msg["z_grid"])
+        if !isempty(msg.r_grid) && !isempty(msg.z_grid)
+            p2d.grid.dim1 = msg.r_grid
+            p2d.grid.dim2 = msg.z_grid
         elseif isempty(p2d.grid.dim1)
             @warn "ActorZMQ: psizr received but no R/Z grid available; skipping equilibrium update"
             return actor
@@ -385,19 +404,20 @@ function send!(actor::ActorZMQ)
         p_res = max((psipla_now - actor.prev_psipla) / dt / Ip_val, 1e-9)
     end
 
-    msg = Dict{String,Any}()
-    msg["sim_time"] = time_now
-    msg["valid"] = !isnan(actor.prev_time)  # false on first send (no prior data for derivatives)
-    msg["betap"] = betap
-    msg["betap_dot"] = betap_dot
-    msg["li"] = li
-    msg["li_dot"] = li_dot
-    msg["p_res"] = p_res
-    msg["dens_co2_sig"] = _compute_co2_density(actor)
+    msg = DataFromFUSE(
+        time_now,
+        !isnan(actor.prev_time),  # valid: false on first send (no prior data for derivatives)
+        betap,
+        betap_dot,
+        li,
+        li_dot,
+        p_res,
+        _compute_co2_density(actor)
+    )
 
     # REQ: send data, then receive acknowledgment
-    ZMQ.send(actor.socket, JSON.json(msg))
-    ack = String(ZMQ.recv(actor.socket))
+    _pb_send(actor.socket, msg)
+    _pb_recv(actor.socket, Ack)
     @info "ActorZMQ: sent betap=$betap, li=$li, p_res=$p_res at t=$(time_now) s"
 
     # Store current values for next step's derivatives

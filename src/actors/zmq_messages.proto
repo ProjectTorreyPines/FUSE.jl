@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+// Protocol Buffer definitions for FUSE <-> GSLite/GSEvolve ZMQ communication.
+// Share this file with the GSLite team to generate C++ code.
+//
+// Julia:  ProtoBuf.protojl("zmq_messages.proto", ".", "output_dir")
+// C++:    protoc --cpp_out=. zmq_messages.proto
+
+// Sent by FUSE to initiate each exchange
+message FUSERequest {
+    string status = 1;                    // "ready", "handshake"
+    double time = 2;                      // FUSE simulation time [s]
+}
+
+// Sent by GSLite in response to FUSERequest with status="ready"
+message DataForFUSE {
+    double sim_time = 1;                  // GSLite simulation time [s]
+    bool   done = 2;                      // true on last time step
+    double Ip_latest = 3;                 // latest Ip measurement [A]
+    double Ip_avg = 4;                    // average Ip measurement [A]
+    double Bt = 5;                        // vacuum toroidal field at R0 [T]
+    double pr15v = 6;                     // PR15V Ip measurement [A]
+    repeated double I_coil = 7;           // PF coil currents [A]
+    repeated double psizr = 8;            // flat flux matrix psi(R,Z) [Wb/rad], R-fast
+    repeated double r_grid = 9;           // R grid points [m]
+    repeated double z_grid = 10;          // Z grid points [m]
+    repeated double pinj_per_beam = 11;   // NBI injected power per beam [W]
+    repeated double nbi_acc_voltage = 12; // NBI acceleration voltage per beam [eV]
+    repeated double gas_cal = 13;         // gas calibration values
+}
+
+// Sent by FUSE after completing a time step
+message DataFromFUSE {
+    double sim_time = 1;                  // current simulation time [s]
+    bool   valid = 2;                     // false on first send
+    double betap = 3;                     // poloidal beta
+    double betap_dot = 4;                 // time derivative of beta_pol [1/s]
+    double li = 5;                        // internal inductance (li_1)
+    double li_dot = 6;                    // time derivative of li_1 [1/s]
+    double p_res = 7;                     // plasma resistance [Ohm]
+    repeated double dens_co2_sig = 8;     // CO2 line-integrated density [m^-2]
+}
+
+// Sent by GSLite as acknowledgment
+message Ack {
+    string status = 1;                    // "ack"
+}
