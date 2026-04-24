@@ -63,7 +63,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     # Only proceed with data fetching if files don't exist
     if !files_already_cached
-        @info "No cache file at $local_path. Attempting to fetch D3D data with OMFIT and OMAS."
+        @info "No cache fileS: at $cached_omas_file $cached_nbi_file $cached_beams_file. Attempting to fetch D3D data with OMFIT and OMAS."
         # Ensure directory exists
         if !isdir(local_path)
             mkpath(local_path)
