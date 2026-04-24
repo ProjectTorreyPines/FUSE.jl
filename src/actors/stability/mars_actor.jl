@@ -262,10 +262,10 @@ function run_MARS(dd::IMAS.dd, par)
     # 1. Copy default namelist into working directory
     cp(mars_namelist, "RUN.IN"; force=true)
 
-    # 2. override IWALL in mars_namelist if number_surfaces > 0
+    # 2. override IWALL in mars_namelist if number_surfaces > 1
     # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
     # the next step because if NWALL = 0, IWALL does NOT matter
-    if par.number_surfaces > 0
+    if par.number_surfaces > 1
         @info "Overriding IWALL in RUN.IN"
         # Implement the override logic here
         NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
