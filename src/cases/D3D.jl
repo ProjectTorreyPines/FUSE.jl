@@ -56,12 +56,14 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     # If use_local_cache is false, clear the directory even if files exist
     if isdir(local_path) && !use_local_cache
+        @info "Clearing cached data and refetching"
         rm(local_path; recursive=true)
         files_already_cached = false
     end
 
     # Only proceed with data fetching if files don't exist
     if !files_already_cached
+        @info "No cache file at $local_path. Attempting to fetch D3D data with OMFIT and OMAS."
         # Ensure directory exists
         if !isdir(local_path)
             mkpath(local_path)
