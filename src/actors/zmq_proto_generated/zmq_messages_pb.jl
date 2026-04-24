@@ -222,31 +222,43 @@ end
 
 struct Ack
     status::String
+    ok::Bool
+    error::String
 end
-PB.default_values(::Type{Ack}) = (;status = "")
-PB.field_numbers(::Type{Ack}) = (;status = 1)
+PB.default_values(::Type{Ack}) = (;status = "", ok = false, error = "")
+PB.field_numbers(::Type{Ack}) = (;status = 1, ok = 2, error = 3)
 
 function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:Ack}, _endpos::Int=0, _group::Bool=false)
     status = ""
+    ok = false
+    error = ""
     while !PB.message_done(d, _endpos, _group)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
             status = PB.decode(d, String)
+        elseif field_number == 2
+            ok = PB.decode(d, Bool)
+        elseif field_number == 3
+            error = PB.decode(d, String)
         else
             Base.skip(d, wire_type)
         end
     end
-    return Ack(status)
+    return Ack(status, ok, error)
 end
 
 function PB.encode(e::PB.AbstractProtoEncoder, x::Ack)
     initpos = position(e.io)
     !isempty(x.status) && PB.encode(e, 1, x.status)
+    x.ok != false && PB.encode(e, 2, x.ok)
+    !isempty(x.error) && PB.encode(e, 3, x.error)
     return position(e.io) - initpos
 end
 function PB._encoded_size(x::Ack)
     encoded_size = 0
     !isempty(x.status) && (encoded_size += PB._encoded_size(x.status, 1))
+    x.ok != false && (encoded_size += PB._encoded_size(x.ok, 2))
+    !isempty(x.error) && (encoded_size += PB._encoded_size(x.error, 3))
     return encoded_size
 end
 end # module
