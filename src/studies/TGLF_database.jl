@@ -95,9 +95,13 @@ function _run(study::StudyTGLFdb)
         end
     end
 
+    # Accept JSON or HDF5 cases. Producers (e.g. parse_superfacility.jl)
+    # may write `*.h5` ODSs directly into `fuse_prepared_inputs/`; the
+    # `preprocess_dd` helper below dispatches on extension.
     cases_files = [
         joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
-        item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
+        item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs"))
+        if endswith(item, ".json") || endswith(item, ".h5")
     ]
 
     study.iterator = iterator
@@ -152,7 +156,9 @@ function _analyze(study::StudyTGLFdb)
 end
 
 function preprocess_dd(filename::AbstractString)
-    dd = IMAS.json2imas(filename; show_warnings=false)
+    dd = endswith(filename, ".h5") ?
+        IMAS.hdf2imas(filename; show_warnings=false) :
+        IMAS.json2imas(filename; show_warnings=false)
 
     cp1d = dd.core_profiles.profiles_1d[]
     # Handle both single and multiple time slice cases
