@@ -15,20 +15,29 @@ message FUSERequest {
 }
 
 // Sent by GSLite in response to FUSERequest with status="ready"
+//
+// Presence semantics for singular scalars:
+//   Proto3 elides zero-valued singular scalars on the wire, so there is no way
+//   to tell "sent 0.0" from "not sent" for plain fields. The four scalars that
+//   can legitimately be zero during a shot (ramp-up / diagnostic) are marked
+//   `optional` so absence and explicit zero are distinguishable. GSLite MUST
+//   set these fields on every message where the value is meaningful; omitting
+//   a field means "not measured this step," NOT "zero."
+//   Requires protoc >= 3.15.
 message DataForFUSE {
-    double sim_time = 1;                  // GSLite simulation time [s]
-    bool   done = 2;                      // true on last time step
-    double Ip_latest = 3;                 // latest Ip measurement [A]
-    double Ip_avg = 4;                    // average Ip measurement [A]
-    double Bt = 5;                        // vacuum toroidal field at R0 [T]
-    double pr15v = 6;                     // PR15V Ip measurement [A]
-    repeated double I_coil = 7;           // PF coil currents [A]
-    repeated double psizr = 8;            // flat flux matrix psi(R,Z) [Wb/rad], R-fast
-    repeated double r_grid = 9;           // R grid points [m]
-    repeated double z_grid = 10;          // Z grid points [m]
-    repeated double pinj_per_beam = 11;   // NBI injected power per beam [W]
-    repeated double nbi_acc_voltage = 12; // NBI acceleration voltage per beam [eV]
-    repeated double gas_cal = 13;         // gas calibration values
+    double sim_time = 1;                    // GSLite simulation time [s]
+    bool   done = 2;                        // true on last time step
+    optional double Ip_latest = 3;          // latest Ip measurement [A], absent = not measured
+    optional double Ip_avg = 4;             // average Ip measurement [A], absent = not measured
+    optional double Bt = 5;                 // vacuum toroidal field at R0 [T]; send on first message and any time it changes
+    optional double pr15v = 6;              // PR15V Ip measurement [A], absent = not measured
+    repeated double I_coil = 7;             // PF coil currents [A]
+    repeated double psizr = 8;              // flat flux matrix psi(R,Z) [Wb/rad], R-fast
+    repeated double r_grid = 9;             // R grid points [m]
+    repeated double z_grid = 10;            // Z grid points [m]
+    repeated double pinj_per_beam = 11;     // NBI injected power per beam [W]
+    repeated double nbi_acc_voltage = 12;   // NBI acceleration voltage per beam [eV]
+    repeated double gas_cal = 13;           // gas calibration values
 }
 
 // Sent by FUSE after completing a time step
@@ -43,7 +52,13 @@ message DataFromFUSE {
     repeated double dens_co2_sig = 8;     // CO2 line-integrated density [m^-2]
 }
 
-// Sent by GSLite as acknowledgment
+// Sent by GSLite as acknowledgment.
+// GSLite MUST set ok=true on accepted steps. Set ok=false with a human-readable
+// `error` to signal rejection (NaN/out-of-range input, solver divergence,
+// time-desync, etc.); FUSE treats a falsy ok as a fatal coupled-run error.
+// `status` is kept for legacy GSLite builds that only populate the string field.
 message Ack {
-    string status = 1;                    // "ack"
+    string status = 1;                    // legacy: "ack" or ""
+    bool   ok     = 2;                    // false => GSLite rejected/errored
+    string error  = 3;                    // human-readable reason when !ok
 }
