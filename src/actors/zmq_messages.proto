@@ -3,7 +3,9 @@ syntax = "proto3";
 // Protocol Buffer definitions for FUSE <-> GSLite/GSEvolve ZMQ communication.
 // Share this file with the GSLite team to generate C++ code.
 //
-// Julia:  ProtoBuf.protojl("zmq_messages.proto", ".", "output_dir")
+// Julia (run from repo root):
+//   julia --project -e 'using ProtoBuf; ProtoBuf.protojl("zmq_messages.proto", joinpath(@__DIR__, "src/actors"), joinpath(@__DIR__, "src/actors/zmq_proto_generated"); always_use_modules=true)'
+// Generated stub: src/actors/zmq_proto_generated/zmq_messages_pb.jl (ProtoBuf.jl v1.3.0 — must match)
 // C++:    protoc --cpp_out=. zmq_messages.proto
 
 // Sent by FUSE to initiate each exchange

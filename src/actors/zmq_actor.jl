@@ -47,7 +47,7 @@ mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
     context::Union{Nothing,ZMQ.Context}
     socket::Union{Nothing,ZMQ.Socket}
     is_connected::Bool
-    first_receive::Bool
+    had_psizr::Bool
     # Previous-step values for time derivatives in send!
     prev_time::Float64
     prev_betap::Float64
@@ -59,7 +59,7 @@ end
 function ActorZMQ(dd::IMAS.dd{D}, par::FUSEparameters__ActorZMQ{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorZMQ)
     par = OverrideParameters(par; kw...)
-    return ActorZMQ{D,P}(dd, par, nothing, nothing, false, true, NaN, NaN, NaN, NaN, Float64[])
+    return ActorZMQ{D,P}(dd, par, nothing, nothing, false, false, NaN, NaN, NaN, NaN, Float64[])
 end
 
 """
@@ -74,6 +74,8 @@ This actor uses a REQ/REP pattern where FUSE initiates each exchange:
 Intended integration in ActorDynamicPlasma:
 - Phase 1 start: `receive!(actor_zmq)` — receive ψ(R,Z), Ip, NBI, gas, coil currents
 - Phase 2 end: `send!(actor_zmq)` — send betap, li, p_res, derivatives, CO2 density
+
+A timeout or protocol error during a ZMQ exchange terminates the coupled run; there is no automatic reconnect.
 """
 function ActorZMQ(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorZMQ(dd, act.ActorZMQ; kw...)
@@ -158,9 +160,16 @@ function receive!(actor::ActorZMQ)
     par = actor.par
 
 
-    # REQ: send ready signal, then receive protobuf data
-    _pb_send(actor.socket, FUSERequest("ready", dd.global_time))
-    msg = _pb_recv(actor.socket, DataForFUSE)
+    # REQ: send ready signal, then receive protobuf data.
+    # Fail-fast: any timeout / EFSM / decode error terminates the coupled run.
+    msg = try
+        _pb_send(actor.socket, FUSERequest("ready", dd.global_time))
+        _pb_recv(actor.socket, DataForFUSE)
+    catch e
+        @error "ActorZMQ.receive!: exchange with GSLite failed at t=$(dd.global_time) s — terminating coupled run" exception=(e, catch_backtrace())
+        disconnect!(actor)
+        rethrow()
+    end
 
     @info "ActorZMQ: received data at sim_time=$(msg.sim_time) s"
 
@@ -259,9 +268,14 @@ function receive!(actor::ActorZMQ)
     # --- Update equilibrium from flat psizr array ---
     if !isempty(msg.psizr)
         psizr_flat = msg.psizr
+        # TODO: par.nR/par.nZ duplicate length(msg.r_grid)/length(msg.z_grid).
+        # Derive from the wire grid instead of the actor params, and drop nR/nZ from
+        # @actor_parameters_struct above. Also update knowledge/fuse_knowledge_base.json.
         nR = par.nR
         nZ = par.nZ
-        @assert length(psizr_flat) == nR * nZ "ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ)"
+        if length(psizr_flat) != nR * nZ
+            error("ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ) — check GSLite vs FUSE grid agreement")
+        end
         psi_rz = reshape(psizr_flat, nR, nZ)  # GSLite stores column-major (R varies fastest)
 
         eqt = dd.equilibrium.time_slice[]
@@ -287,7 +301,7 @@ function receive!(actor::ActorZMQ)
         zgrid = range(p2d.grid.dim2[1], p2d.grid.dim2[end], length=length(p2d.grid.dim2))
         fw_r, fw_z = IMAS.first_wall(dd.wall)
 
-        if actor.first_receive
+        if !actor.had_psizr
             # First step: full flux_surfaces (Method 2) to get all 1D profiles for QED
             # First find axis and boundary from psizr (Method 1)
             PSI_itp = Interpolations.cubic_spline_interpolation(
@@ -350,7 +364,7 @@ function receive!(actor::ActorZMQ)
 
             @info "ActorZMQ: updated boundary from psizr ($(nR)×$(nZ))"
         end
-        actor.first_receive = false
+        actor.had_psizr = true
     end
 
     return actor
@@ -415,9 +429,16 @@ function send!(actor::ActorZMQ)
         _compute_co2_density(actor)
     )
 
-    # REQ: send data, then receive acknowledgment
-    _pb_send(actor.socket, msg)
-    _pb_recv(actor.socket, Ack)
+    # REQ: send data, then receive acknowledgment.
+    # Fail-fast: any timeout / EFSM / decode error terminates the coupled run.
+    try
+        _pb_send(actor.socket, msg)
+        _pb_recv(actor.socket, Ack)
+    catch e
+        @error "ActorZMQ.send!: exchange with GSLite failed at t=$(time_now) s — terminating coupled run" exception=(e, catch_backtrace())
+        disconnect!(actor)
+        rethrow()
+    end
     @info "ActorZMQ: sent betap=$betap, li=$li, p_res=$p_res at t=$(time_now) s"
 
     # Store current values for next step's derivatives

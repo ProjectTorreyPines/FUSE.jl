@@ -1,6 +1,8 @@
 using FUSE
 using Test
 
+include("test_zmq_actor.jl")
+
 @testset "fluxmatcher" begin
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
     dd = IMAS.dd()
