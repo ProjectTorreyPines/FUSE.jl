@@ -24,9 +24,13 @@ struct DataForFUSE
     pinj_per_beam::Vector{Float64}
     nbi_acc_voltage::Vector{Float64}
     gas_cal::Vector{Float64}
+    has_Ip_latest::Bool
+    has_Ip_avg::Bool
+    has_Bt::Bool
+    has_pr15v::Bool
 end
-PB.default_values(::Type{DataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}())
-PB.field_numbers(::Type{DataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13)
+PB.default_values(::Type{DataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}(), has_Ip_latest = false, has_Ip_avg = false, has_Bt = false, has_pr15v = false)
+PB.field_numbers(::Type{DataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13, has_Ip_latest = 14, has_Ip_avg = 15, has_Bt = 16, has_pr15v = 17)
 
 function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::Int=0, _group::Bool=false)
     sim_time = zero(Float64)
@@ -42,6 +46,10 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::I
     pinj_per_beam = PB.BufferedVector{Float64}()
     nbi_acc_voltage = PB.BufferedVector{Float64}()
     gas_cal = PB.BufferedVector{Float64}()
+    has_Ip_latest = false
+    has_Ip_avg = false
+    has_Bt = false
+    has_pr15v = false
     while !PB.message_done(d, _endpos, _group)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
@@ -70,11 +78,19 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::I
             PB.decode!(d, wire_type, nbi_acc_voltage)
         elseif field_number == 13
             PB.decode!(d, wire_type, gas_cal)
+        elseif field_number == 14
+            has_Ip_latest = PB.decode(d, Bool)
+        elseif field_number == 15
+            has_Ip_avg = PB.decode(d, Bool)
+        elseif field_number == 16
+            has_Bt = PB.decode(d, Bool)
+        elseif field_number == 17
+            has_pr15v = PB.decode(d, Bool)
         else
             Base.skip(d, wire_type)
         end
     end
-    return DataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[])
+    return DataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[], has_Ip_latest, has_Ip_avg, has_Bt, has_pr15v)
 end
 
 function PB.encode(e::PB.AbstractProtoEncoder, x::DataForFUSE)
@@ -92,6 +108,10 @@ function PB.encode(e::PB.AbstractProtoEncoder, x::DataForFUSE)
     !isempty(x.pinj_per_beam) && PB.encode(e, 11, x.pinj_per_beam)
     !isempty(x.nbi_acc_voltage) && PB.encode(e, 12, x.nbi_acc_voltage)
     !isempty(x.gas_cal) && PB.encode(e, 13, x.gas_cal)
+    x.has_Ip_latest != false && PB.encode(e, 14, x.has_Ip_latest)
+    x.has_Ip_avg != false && PB.encode(e, 15, x.has_Ip_avg)
+    x.has_Bt != false && PB.encode(e, 16, x.has_Bt)
+    x.has_pr15v != false && PB.encode(e, 17, x.has_pr15v)
     return position(e.io) - initpos
 end
 function PB._encoded_size(x::DataForFUSE)
@@ -109,6 +129,10 @@ function PB._encoded_size(x::DataForFUSE)
     !isempty(x.pinj_per_beam) && (encoded_size += PB._encoded_size(x.pinj_per_beam, 11))
     !isempty(x.nbi_acc_voltage) && (encoded_size += PB._encoded_size(x.nbi_acc_voltage, 12))
     !isempty(x.gas_cal) && (encoded_size += PB._encoded_size(x.gas_cal, 13))
+    x.has_Ip_latest != false && (encoded_size += PB._encoded_size(x.has_Ip_latest, 14))
+    x.has_Ip_avg != false && (encoded_size += PB._encoded_size(x.has_Ip_avg, 15))
+    x.has_Bt != false && (encoded_size += PB._encoded_size(x.has_Bt, 16))
+    x.has_pr15v != false && (encoded_size += PB._encoded_size(x.has_pr15v, 17))
     return encoded_size
 end
 

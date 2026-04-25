@@ -18,19 +18,20 @@ message FUSERequest {
 //
 // Presence semantics for singular scalars:
 //   Proto3 elides zero-valued singular scalars on the wire, so there is no way
-//   to tell "sent 0.0" from "not sent" for plain fields. The four scalars that
-//   can legitimately be zero during a shot (ramp-up / diagnostic) are marked
-//   `optional` so absence and explicit zero are distinguishable. GSLite MUST
-//   set these fields on every message where the value is meaningful; omitting
-//   a field means "not measured this step," NOT "zero."
-//   Requires protoc >= 3.15.
+//   to tell "sent 0.0" from "not sent" for plain fields. ProtoBuf.jl v1.3.0
+//   does not honor the proto3 `optional` keyword either, so we use explicit
+//   companion bools `has_<field>` for the four scalars that can legitimately
+//   be zero during a shot (ramp-up / diagnostic). GSLite MUST set the
+//   corresponding `has_<field> = true` on every message where the value is
+//   meaningful, including when the value itself is 0.0. A missing or false
+//   `has_<field>` means "not measured this step," NOT "zero."
 message DataForFUSE {
     double sim_time = 1;                    // GSLite simulation time [s]
     bool   done = 2;                        // true on last time step
-    optional double Ip_latest = 3;          // latest Ip measurement [A], absent = not measured
-    optional double Ip_avg = 4;             // average Ip measurement [A], absent = not measured
-    optional double Bt = 5;                 // vacuum toroidal field at R0 [T]; send on first message and any time it changes
-    optional double pr15v = 6;              // PR15V Ip measurement [A], absent = not measured
+    double Ip_latest = 3;                   // latest Ip measurement [A]; only valid if has_Ip_latest
+    double Ip_avg = 4;                      // average Ip measurement [A]; only valid if has_Ip_avg
+    double Bt = 5;                          // vacuum toroidal field at R0 [T]; send on first message and any time it changes; only valid if has_Bt
+    double pr15v = 6;                       // PR15V Ip measurement [A]; only valid if has_pr15v
     repeated double I_coil = 7;             // PF coil currents [A]
     repeated double psizr = 8;              // flat flux matrix psi(R,Z) [Wb/rad], R-fast
     repeated double r_grid = 9;             // R grid points [m]
@@ -38,6 +39,10 @@ message DataForFUSE {
     repeated double pinj_per_beam = 11;     // NBI injected power per beam [W]
     repeated double nbi_acc_voltage = 12;   // NBI acceleration voltage per beam [eV]
     repeated double gas_cal = 13;           // gas calibration values
+    bool   has_Ip_latest = 14;              // true if Ip_latest carries a meaningful value (incl. 0.0)
+    bool   has_Ip_avg = 15;                 // true if Ip_avg carries a meaningful value (incl. 0.0)
+    bool   has_Bt = 16;                     // true if Bt carries a meaningful value (incl. 0.0)
+    bool   has_pr15v = 17;                  // true if pr15v carries a meaningful value (incl. 0.0)
 }
 
 // Sent by FUSE after completing a time step
