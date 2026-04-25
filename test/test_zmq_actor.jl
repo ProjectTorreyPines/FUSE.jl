@@ -164,11 +164,54 @@ end
     @test occursin("solver diverged", msg)
 end
 
+@testset "ActorZMQ stores Ip_avg=0.0 when has_Ip_avg=true" begin
+    # Regression for the proto3 zero-elision trap: a legitimate 0 A average during
+    # ramp-up / pre-breakdown must land in aux[:zmq_Ip_avg] when GSLite advertises
+    # presence with has_Ip_avg=true. The earlier `!= 0.0` check (since removed)
+    # would have silently dropped this; the has_* bool is what the GSLite team
+    # MUST set on the C++ side, and this test pins that contract.
+    endpoint = "ipc://" * tempname()
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    act.ActorZMQ.enabled = true
+    act.ActorZMQ.endpoint = endpoint
+    act.ActorZMQ.timeout_ms = 5000
+
+    server = @async begin
+        ctx = ZMQ.Context()
+        sock = ZMQ.Socket(ctx, ZMQ.REP)
+        ZMQ.bind(sock, endpoint)
+        try
+            _ = _zmq_decode(FUSERequest, ZMQ.recv(sock))
+            ZMQ.send(sock, _zmq_encode(_make_DataForFUSE(;
+                sim_time=0.0,
+                Ip_avg=0.0,
+                has_Ip_avg=true,
+                schema_version=FUSE.SCHEMA_VERSION,
+            )))
+        finally
+            ZMQ.close(sock)
+            ZMQ.close(ctx)
+        end
+    end
+
+    actor = FUSE.ActorZMQ(dd, act)
+    try
+        FUSE.receive!(actor)
+    finally
+        FUSE.disconnect!(actor)
+    end
+    wait(server)
+
+    aux = getfield(dd, :_aux)
+    @test haskey(aux, :zmq_Ip_avg)
+    @test aux[:zmq_Ip_avg].values == [0.0]
+    @test aux[:zmq_Ip_avg].times == [dd.global_time]
+end
+
 # TODO: additional cases worth covering once the round-trip is stable:
 #   - done=true short-circuit: receive! disconnects without populating dd
 #   - psizr length vs nR*nZ mismatch: error message mentions "ActorZMQ" and "psizr"
 #     (will need a fully-initialized dd to reach the equilibrium branch)
 #   - had_psizr semantics: two successive receive!s, only the second carries psizr;
 #     full flux_surfaces path runs on the second call, not the first
-#   - Ip_avg=0.0 with has_Ip_avg=true → does it land in aux[:zmq_Ip_avg]?
-#     (verifies presence-bool semantics over the now-removed `!= 0.0` check)
