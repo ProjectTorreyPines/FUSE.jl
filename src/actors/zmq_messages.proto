@@ -8,10 +8,16 @@ syntax = "proto3";
 // Generated stub: src/actors/zmq_proto_generated/zmq_messages_pb.jl (ProtoBuf.jl v1.3.0 — must match)
 // C++:    protoc --cpp_out=. zmq_messages.proto
 
-// Sent by FUSE to initiate each exchange
+// Sent by FUSE to initiate each exchange.
+// Every exchange begins with a version check: FUSE sends `schema_version`,
+// GSLite MUST echo the same value in `DataForFUSE.schema_version`. Any mismatch
+// (including 0 from a pre-versioning GSLite) terminates the coupled run with a
+// loud error — there is no negotiation. Rebuild the older side against the
+// matching zmq_messages.proto to recover.
 message FUSERequest {
     string status = 1;                    // "ready", "handshake"
     double time = 2;                      // FUSE simulation time [s]
+    int32  schema_version = 3;            // FUSE wire-contract version; bump in lockstep with SCHEMA_VERSION constant in zmq_actor.jl. GSLite MUST echo the same value in DataForFUSE.schema_version.
 }
 
 // Sent by GSLite in response to FUSERequest with status="ready"
@@ -43,6 +49,7 @@ message DataForFUSE {
     bool   has_Ip_avg = 15;                 // true if Ip_avg carries a meaningful value (incl. 0.0)
     bool   has_Bt = 16;                     // true if Bt carries a meaningful value (incl. 0.0)
     bool   has_pr15v = 17;                  // true if pr15v carries a meaningful value (incl. 0.0)
+    int32  schema_version = 18;             // GSLite wire-contract version; MUST match FUSERequest.schema_version sent by FUSE. Bump in lockstep with SCHEMA_VERSION constant in zmq_actor.jl.
 }
 
 // Sent by FUSE after completing a time step

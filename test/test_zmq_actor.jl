@@ -13,14 +13,25 @@ using ._ZMQ_PB: FUSERequest, DataForFUSE, DataFromFUSE, Ack
 _zmq_encode(msg) = (io = IOBuffer(); ProtoBuf.encode(ProtoBuf.ProtoEncoder(io), msg); take!(io))
 _zmq_decode(::Type{T}, raw) where {T} = ProtoBuf.decode(ProtoBuf.ProtoDecoder(IOBuffer(raw)), T)
 
-@testset "ActorZMQ" begin
+# Keyword-style constructor for DataForFUSE that survives future field additions:
+# uses ProtoBuf.default_values (generated alongside the struct) for any field the
+# caller doesn't override.
+function _make_DataForFUSE(; kwargs...)
+    defaults = ProtoBuf.default_values(DataForFUSE)
+    overrides = NamedTuple(kwargs)
+    vals = (haskey(overrides, f) ? overrides[f] : defaults[f] for f in keys(defaults))
+    return DataForFUSE(vals...)
+end
+
+@testset "ActorZMQ round-trip" begin
     # ipc:// + tempname() avoids TCP port collisions on shared CI; Linux-only.
     endpoint = "ipc://" * tempname()
 
     # --- Round-trip happy path: metadata-only DataForFUSE (no psizr) ---
     # This exercises the wire format, the FUSERequest/DataForFUSE/Ack handshake,
-    # the try/catch wrappers, and the Bt-storage branch — without dragging in a
-    # fully-initialized equilibrium (which would require a full FUSE.init).
+    # the version handshake (FUSE.SCHEMA_VERSION echoed on both sides), the try/catch
+    # wrappers, and the Bt-storage branch — without dragging in a fully-initialized
+    # equilibrium (which would require a full FUSE.init).
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
     dd = IMAS.dd()
     act.ActorZMQ.enabled = true
@@ -34,26 +45,18 @@ _zmq_decode(::Type{T}, raw) where {T} = ProtoBuf.decode(ProtoBuf.ProtoDecoder(IO
         try
             req = _zmq_decode(FUSERequest, ZMQ.recv(sock))
             @test req.status == "ready"
-            resp = DataForFUSE(
-                0.1,                  # sim_time
-                false,                # done
-                0.0,                  # Ip_latest (skip pulse_schedule write)
-                0.0,                  # Ip_avg
-                2.1,                  # Bt — the field we'll assert on
-                0.0,                  # pr15v
-                Float64[],            # I_coil
-                Float64[],            # psizr (empty → skip equilibrium block)
-                Float64[],            # r_grid
-                Float64[],            # z_grid
-                Float64[],            # pinj_per_beam
-                Float64[],            # nbi_acc_voltage
-                Float64[]             # gas_cal
+            @test req.schema_version == FUSE.SCHEMA_VERSION
+            resp = _make_DataForFUSE(;
+                sim_time=0.1,
+                Bt=2.1,
+                has_Bt=true,
+                schema_version=FUSE.SCHEMA_VERSION,
             )
             ZMQ.send(sock, _zmq_encode(resp))
 
-            # Then a DataFromFUSE arrives; reply with an Ack.
+            # Then a DataFromFUSE arrives; reply with an Ack with ok=true.
             _ = _zmq_decode(DataFromFUSE, ZMQ.recv(sock))
-            ZMQ.send(sock, _zmq_encode(Ack("ack")))
+            ZMQ.send(sock, _zmq_encode(Ack("ack", true, "")))
         finally
             ZMQ.close(sock)
             ZMQ.close(ctx)
@@ -70,15 +73,102 @@ _zmq_decode(::Type{T}, raw) where {T} = ProtoBuf.decode(ProtoBuf.ProtoDecoder(IO
         FUSE.disconnect!(actor)
     end
     wait(server)
-
-    # TODO: additional cases worth covering once the round-trip is stable:
-    #   - done=true short-circuit: receive! disconnects without populating dd
-    #   - psizr length vs nR*nZ mismatch: error message mentions "ActorZMQ" and "psizr"
-    #     (exercises the @assert→error fix; will need a fully-initialized dd to reach
-    #      the equilibrium branch)
-    #   - had_psizr semantics: two successive receive!s, only the second carries psizr;
-    #     full flux_surfaces path runs on the second call, not the first
-    #     (exercises the first_receive→had_psizr rename)
-    #   - Ip_avg = 0.0 storage: blocked until proto3-default fix (issue #1) lands —
-    #     a test today would freeze the existing wrong behavior.
 end
+
+@testset "ActorZMQ rejects schema_version mismatch" begin
+    # GSLite replies with schema_version=0 (pre-versioning binary). FUSE must
+    # error loudly with both versions in the message and not proceed.
+    endpoint = "ipc://" * tempname()
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    act.ActorZMQ.enabled = true
+    act.ActorZMQ.endpoint = endpoint
+    act.ActorZMQ.timeout_ms = 5000
+
+    server = @async begin
+        ctx = ZMQ.Context()
+        sock = ZMQ.Socket(ctx, ZMQ.REP)
+        ZMQ.bind(sock, endpoint)
+        try
+            _ = _zmq_decode(FUSERequest, ZMQ.recv(sock))
+            resp = _make_DataForFUSE(; sim_time=0.0, schema_version=Int32(0))
+            ZMQ.send(sock, _zmq_encode(resp))
+        finally
+            ZMQ.close(sock)
+            ZMQ.close(ctx)
+        end
+    end
+
+    actor = FUSE.ActorZMQ(dd, act)
+    err = try
+        FUSE.receive!(actor)
+        nothing
+    catch e
+        e
+    finally
+        FUSE.disconnect!(actor)
+    end
+    wait(server)
+    @test err !== nothing
+    msg = sprint(showerror, err)
+    @test occursin("schema mismatch", msg)
+    @test occursin(string(FUSE.SCHEMA_VERSION), msg)
+    @test occursin("version 0", msg)
+end
+
+@testset "ActorZMQ rejects ack.ok=false" begin
+    # First exchange succeeds (so send! has somewhere to run); the second exchange
+    # returns Ack(ok=false, error="solver diverged"). FUSE must surface the
+    # rejection and tear down the coupled run.
+    endpoint = "ipc://" * tempname()
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    act.ActorZMQ.enabled = true
+    act.ActorZMQ.endpoint = endpoint
+    act.ActorZMQ.timeout_ms = 5000
+
+    server = @async begin
+        ctx = ZMQ.Context()
+        sock = ZMQ.Socket(ctx, ZMQ.REP)
+        ZMQ.bind(sock, endpoint)
+        try
+            _ = _zmq_decode(FUSERequest, ZMQ.recv(sock))
+            ZMQ.send(sock, _zmq_encode(_make_DataForFUSE(;
+                sim_time=0.1,
+                Bt=2.1,
+                has_Bt=true,
+                schema_version=FUSE.SCHEMA_VERSION,
+            )))
+            _ = _zmq_decode(DataFromFUSE, ZMQ.recv(sock))
+            ZMQ.send(sock, _zmq_encode(Ack("nack", false, "solver diverged")))
+        finally
+            ZMQ.close(sock)
+            ZMQ.close(ctx)
+        end
+    end
+
+    actor = FUSE.ActorZMQ(dd, act)
+    err = try
+        FUSE.receive!(actor)
+        FUSE.send!(actor)
+        nothing
+    catch e
+        e
+    finally
+        FUSE.disconnect!(actor)
+    end
+    wait(server)
+    @test err !== nothing
+    msg = sprint(showerror, err)
+    @test occursin("GSLite rejected", msg)
+    @test occursin("solver diverged", msg)
+end
+
+# TODO: additional cases worth covering once the round-trip is stable:
+#   - done=true short-circuit: receive! disconnects without populating dd
+#   - psizr length vs nR*nZ mismatch: error message mentions "ActorZMQ" and "psizr"
+#     (will need a fully-initialized dd to reach the equilibrium branch)
+#   - had_psizr semantics: two successive receive!s, only the second carries psizr;
+#     full flux_surfaces path runs on the second call, not the first
+#   - Ip_avg=0.0 with has_Ip_avg=true → does it land in aux[:zmq_Ip_avg]?
+#     (verifies presence-bool semantics over the now-removed `!= 0.0` check)

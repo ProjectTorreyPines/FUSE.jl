@@ -28,9 +28,10 @@ struct DataForFUSE
     has_Ip_avg::Bool
     has_Bt::Bool
     has_pr15v::Bool
+    schema_version::Int32
 end
-PB.default_values(::Type{DataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}(), has_Ip_latest = false, has_Ip_avg = false, has_Bt = false, has_pr15v = false)
-PB.field_numbers(::Type{DataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13, has_Ip_latest = 14, has_Ip_avg = 15, has_Bt = 16, has_pr15v = 17)
+PB.default_values(::Type{DataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}(), has_Ip_latest = false, has_Ip_avg = false, has_Bt = false, has_pr15v = false, schema_version = zero(Int32))
+PB.field_numbers(::Type{DataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13, has_Ip_latest = 14, has_Ip_avg = 15, has_Bt = 16, has_pr15v = 17, schema_version = 18)
 
 function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::Int=0, _group::Bool=false)
     sim_time = zero(Float64)
@@ -50,6 +51,7 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::I
     has_Ip_avg = false
     has_Bt = false
     has_pr15v = false
+    schema_version = zero(Int32)
     while !PB.message_done(d, _endpos, _group)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
@@ -86,11 +88,13 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::I
             has_Bt = PB.decode(d, Bool)
         elseif field_number == 17
             has_pr15v = PB.decode(d, Bool)
+        elseif field_number == 18
+            schema_version = PB.decode(d, Int32)
         else
             Base.skip(d, wire_type)
         end
     end
-    return DataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[], has_Ip_latest, has_Ip_avg, has_Bt, has_pr15v)
+    return DataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[], has_Ip_latest, has_Ip_avg, has_Bt, has_pr15v, schema_version)
 end
 
 function PB.encode(e::PB.AbstractProtoEncoder, x::DataForFUSE)
@@ -112,6 +116,7 @@ function PB.encode(e::PB.AbstractProtoEncoder, x::DataForFUSE)
     x.has_Ip_avg != false && PB.encode(e, 15, x.has_Ip_avg)
     x.has_Bt != false && PB.encode(e, 16, x.has_Bt)
     x.has_pr15v != false && PB.encode(e, 17, x.has_pr15v)
+    x.schema_version != zero(Int32) && PB.encode(e, 18, x.schema_version)
     return position(e.io) - initpos
 end
 function PB._encoded_size(x::DataForFUSE)
@@ -133,6 +138,7 @@ function PB._encoded_size(x::DataForFUSE)
     x.has_Ip_avg != false && (encoded_size += PB._encoded_size(x.has_Ip_avg, 15))
     x.has_Bt != false && (encoded_size += PB._encoded_size(x.has_Bt, 16))
     x.has_pr15v != false && (encoded_size += PB._encoded_size(x.has_pr15v, 17))
+    x.schema_version != zero(Int32) && (encoded_size += PB._encoded_size(x.schema_version, 18))
     return encoded_size
 end
 
@@ -211,36 +217,42 @@ end
 struct FUSERequest
     status::String
     time::Float64
+    schema_version::Int32
 end
-PB.default_values(::Type{FUSERequest}) = (;status = "", time = zero(Float64))
-PB.field_numbers(::Type{FUSERequest}) = (;status = 1, time = 2)
+PB.default_values(::Type{FUSERequest}) = (;status = "", time = zero(Float64), schema_version = zero(Int32))
+PB.field_numbers(::Type{FUSERequest}) = (;status = 1, time = 2, schema_version = 3)
 
 function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:FUSERequest}, _endpos::Int=0, _group::Bool=false)
     status = ""
     time = zero(Float64)
+    schema_version = zero(Int32)
     while !PB.message_done(d, _endpos, _group)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
             status = PB.decode(d, String)
         elseif field_number == 2
             time = PB.decode(d, Float64)
+        elseif field_number == 3
+            schema_version = PB.decode(d, Int32)
         else
             Base.skip(d, wire_type)
         end
     end
-    return FUSERequest(status, time)
+    return FUSERequest(status, time, schema_version)
 end
 
 function PB.encode(e::PB.AbstractProtoEncoder, x::FUSERequest)
     initpos = position(e.io)
     !isempty(x.status) && PB.encode(e, 1, x.status)
     x.time !== zero(Float64) && PB.encode(e, 2, x.time)
+    x.schema_version != zero(Int32) && PB.encode(e, 3, x.schema_version)
     return position(e.io) - initpos
 end
 function PB._encoded_size(x::FUSERequest)
     encoded_size = 0
     !isempty(x.status) && (encoded_size += PB._encoded_size(x.status, 1))
     x.time !== zero(Float64) && (encoded_size += PB._encoded_size(x.time, 2))
+    x.schema_version != zero(Int32) && (encoded_size += PB._encoded_size(x.schema_version, 3))
     return encoded_size
 end
 

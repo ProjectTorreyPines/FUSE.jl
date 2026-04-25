@@ -17,6 +17,12 @@ import ProtoBuf
 include(joinpath(@__DIR__, "zmq_proto_generated", "zmq_messages_pb.jl"))
 using .zmq_messages_pb: FUSERequest, DataForFUSE, DataFromFUSE, Ack
 
+# Wire-contract version for FUSE↔GSLite ZMQ coupling.
+# Bump in lockstep with the `schema_version` fields in zmq_messages.proto on any
+# breaking schema change. FUSE sends this in every FUSERequest and refuses any
+# DataForFUSE whose schema_version does not match.
+const SCHEMA_VERSION = Int32(1)
+
 # --- Protobuf over ZMQ helpers ---
 
 function _pb_send(socket::ZMQ.Socket, msg)
@@ -76,6 +82,12 @@ Intended integration in ActorDynamicPlasma:
 - Phase 2 end: `send!(actor_zmq)` — send betap, li, p_res, derivatives, CO2 density
 
 A timeout or protocol error during a ZMQ exchange terminates the coupled run; there is no automatic reconnect.
+
+Each exchange begins with a wire-contract version check: FUSE sends `SCHEMA_VERSION`
+in `FUSERequest`, and any mismatch with `DataForFUSE.schema_version` terminates the
+run with a loud error (no negotiation). GSLite must reply with `Ack.ok = true` on
+accepted steps; `ok = false` (e.g. NaN input, solver divergence) likewise terminates
+the run, surfacing `Ack.error`.
 """
 function ActorZMQ(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorZMQ(dd, act.ActorZMQ; kw...)
@@ -163,12 +175,17 @@ function receive!(actor::ActorZMQ)
     # REQ: send ready signal, then receive protobuf data.
     # Fail-fast: any timeout / EFSM / decode error terminates the coupled run.
     msg = try
-        _pb_send(actor.socket, FUSERequest("ready", dd.global_time))
+        _pb_send(actor.socket, FUSERequest("ready", dd.global_time, SCHEMA_VERSION))
         _pb_recv(actor.socket, DataForFUSE)
     catch e
         @error "ActorZMQ.receive!: exchange with GSLite failed at t=$(dd.global_time) s — terminating coupled run" exception=(e, catch_backtrace())
         disconnect!(actor)
         rethrow()
+    end
+
+    # --- Wire-contract version check: any mismatch is fatal, before any other handling ---
+    if msg.schema_version != SCHEMA_VERSION
+        error("ActorZMQ: ZMQ schema mismatch — FUSE sent version $SCHEMA_VERSION, GSLite replied with version $(msg.schema_version). Incompatible; rebuild the older side against the matching zmq_messages.proto.")
     end
 
     @info "ActorZMQ: received data at sim_time=$(msg.sim_time) s"
@@ -181,7 +198,7 @@ function receive!(actor::ActorZMQ)
     end
 
     # --- Update Ip in pulse_schedule so QED/FRESCO pick it up ---
-    if msg.Ip_latest != 0.0
+    if msg.has_Ip_latest
         ps_fc = dd.pulse_schedule.flux_control
         IMAS.set_time_array(ps_fc.i_plasma, :reference, dd.global_time, msg.Ip_latest)
     end
@@ -190,14 +207,14 @@ function receive!(actor::ActorZMQ)
     # Uses dd._aux (same pattern as FUSE workflow/logging metadata)
     # Stored as (times=Float64[], values=...) parallel vectors to avoid Float64 dict keys
     aux = getfield(dd, :_aux)
-    if msg.Ip_avg != 0.0
+    if msg.has_Ip_avg
         if :zmq_Ip_avg ∉ keys(aux)
             aux[:zmq_Ip_avg] = (times=Float64[], values=Float64[])
         end
         push!(aux[:zmq_Ip_avg].times, dd.global_time)
         push!(aux[:zmq_Ip_avg].values, msg.Ip_avg)
     end
-    if msg.pr15v != 0.0
+    if msg.has_pr15v
         if :zmq_pr15v ∉ keys(aux)
             aux[:zmq_pr15v] = (times=Float64[], values=Float64[])
         end
@@ -206,7 +223,7 @@ function receive!(actor::ActorZMQ)
     end
 
     # --- Update Bt (first step only, constant per shot) ---
-    if msg.Bt != 0.0
+    if msg.has_Bt
         b0 = msg.Bt
         if length(dd.equilibrium.vacuum_toroidal_field.b0) == 0
             push!(dd.equilibrium.vacuum_toroidal_field.b0, b0)
@@ -431,13 +448,19 @@ function send!(actor::ActorZMQ)
 
     # REQ: send data, then receive acknowledgment.
     # Fail-fast: any timeout / EFSM / decode error terminates the coupled run.
-    try
+    ack = try
         _pb_send(actor.socket, msg)
         _pb_recv(actor.socket, Ack)
     catch e
         @error "ActorZMQ.send!: exchange with GSLite failed at t=$(time_now) s — terminating coupled run" exception=(e, catch_backtrace())
         disconnect!(actor)
         rethrow()
+    end
+
+    # Application-level rejection: GSLite parsed the message but is refusing it
+    # (NaN input, solver divergence, etc.). Surface its diagnostic and bail.
+    if !ack.ok
+        error("ActorZMQ.send!: GSLite rejected DataFromFUSE at t=$(time_now) s — status=$(ack.status), ok=$(ack.ok), error=$(ack.error)")
     end
     @info "ActorZMQ: sent betap=$betap, li=$li, p_res=$p_res at t=$(time_now) s"
 
