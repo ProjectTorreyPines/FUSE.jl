@@ -143,16 +143,19 @@ function _run(study::StudyTGLFdb)
             end
         end
 
-        # filter out cases that already have a checkpoint when resuming
+        # filter out cases that already have a checkpoint, or that previously
+        # failed cleanly (an error.txt is present), when resuming
         if sty.resume_from_checkpoints
-            cases_to_run = filter(f -> !isfile(checkpoint_file(sty, f, item)), cases_files)
+            cases_to_run = filter(cases_files) do f
+                !isfile(checkpoint_file(sty, f, item)) && !isfile(error_file(sty, f))
+            end
         else
             cases_to_run = cases_files
         end
         cases_to_run_set = Set(cases_to_run)
         n_skipped = length(cases_files) - length(cases_to_run)
         if n_skipped > 0
-            println("Resuming: skipping $n_skipped/$(length(cases_files)) already-checkpointed cases for $(item)")
+            println("Resuming: skipping $n_skipped/$(length(cases_files)) already-completed-or-failed cases for $(item)")
         end
 
         # parallel run
@@ -220,6 +223,10 @@ end
 
 function checkpoint_file(sty, filename::AbstractString, item)
     return joinpath(case_output_dir(sty, filename), "checkpoint_row_$(item).jls")
+end
+
+function error_file(sty, filename::AbstractString)
+    return joinpath(case_output_dir(sty, filename), "error.txt")
 end
 
 # Sort key based on trailing `<shot>_<time_ms>` numbers in the filename
