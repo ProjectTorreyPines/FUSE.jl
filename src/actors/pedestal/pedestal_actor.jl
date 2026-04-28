@@ -45,6 +45,7 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     previous_time::Float64
     cp1d_transition::IMAS.core_profiles__profiles_1d{D}
     nn_predictor::Union{Nothing,PedestalDensityNN}
+    nn_prediction::Union{Nothing,NamedTuple}
 end
 
 """
@@ -105,7 +106,7 @@ function ActorPedestal(dd::IMAS.dd{D}, par::FUSEparameters__ActorPedestal{P}, ac
             zeff_from=:core_profiles
         )
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, analytic_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}(), nothing)
+    actor = ActorPedestal(dd, par, act, noop, wped_actor, eped_actor, analytic_actor, noop, noop, Symbol[], -Inf, -Inf, -Inf, IMAS.core_profiles__profiles_1d{D}(), nothing, nothing)
     actor.replay_actor = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -130,9 +131,21 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
+    # Run NN predictor once per time step (provides both ne_ped and L/H signal)
+    if par.ne_from == :nn_predictor
+        if actor.nn_predictor === nothing
+            actor.nn_predictor = load_pedestal_nn()
+            @info "ActorPedestal: loaded NN pedestal density predictor from $(actor.nn_predictor.onnx_dir)"
+        end
+        actor.nn_prediction = predict_density(actor.nn_predictor)
+    end
+
     if !ismissing(par, :mode_transitions)
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
+    elseif par.ne_from == :nn_predictor && actor.nn_prediction !== nothing
+        hmode_logit = actor.nn_prediction.hmode_logit
+        mode = hmode_logit >= 0.0 ? :H_mode : :L_mode
     elseif IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
         mode = :H_mode
     elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=0.8)
@@ -332,7 +345,7 @@ The EPED and WPED models only operate on the temperature profiles
 """
 function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}};
                                density_factor::Float64, zeff_factor::Float64,
-                               nn_predictor::Union{Nothing,PedestalDensityNN}=nothing) where {P<:Real}
+                               nn_prediction::Union{Nothing,NamedTuple}=nothing) where {P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm
 
@@ -344,9 +357,8 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
 
     ne_old = copy(cp1d.electrons.density_thermal)
     if par.ne_from == :nn_predictor
-        @assert nn_predictor !== nothing "ne_from=:nn_predictor requires nn_predictor to be loaded"
-        prediction = predict_density(nn_predictor)
-        ne_ped_1e19 = sum(prediction.predictions_physical) / length(prediction.predictions_physical)
+        @assert nn_prediction !== nothing "ne_from=:nn_predictor requires nn_prediction (call predict_density first)"
+        ne_ped_1e19 = sum(nn_prediction.predictions_physical) / length(nn_prediction.predictions_physical)
         ne_ped = Float64(ne_ped_1e19) * 1e19 * density_factor
         @info "ActorPedestal: nn_predictor ne_ped = $(round(ne_ped_1e19; digits=3)) x 10^19 m^-3"
     else
@@ -386,17 +398,11 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
     dd = actor.dd
     par = actor.par
 
-    # Lazy-load NN predictor when needed as a density source
-    if par.ne_from == :nn_predictor && actor.nn_predictor === nothing
-        actor.nn_predictor = load_pedestal_nn()
-        @info "ActorPedestal: loaded NN pedestal density predictor from $(actor.nn_predictor.onnx_dir)"
-    end
-
     eq = dd.equilibrium
     eqt = eq.time_slice[]
     cp1d = dd.core_profiles.profiles_1d[]
     if par.density_match == :ne_ped
-        pedestal_density_tanh(dd, par; density_factor, zeff_factor, nn_predictor=actor.nn_predictor)
+        pedestal_density_tanh(dd, par; density_factor, zeff_factor, nn_prediction=actor.nn_prediction)
         finalize(step(actor.ped_actor))
 
     elseif par.density_match == :ne_line
@@ -406,7 +412,7 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
 
         # run pedestal model on scaled density
         par.ne_from = :core_profiles
-        pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor, nn_predictor=actor.nn_predictor)
+        pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor, nn_prediction=actor.nn_prediction)
 
         try
             # scale thermal densities to match desired line average (and temperatures accordingly, in case they matter)
