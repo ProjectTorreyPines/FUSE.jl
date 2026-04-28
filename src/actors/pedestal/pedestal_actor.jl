@@ -145,8 +145,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
     elseif par.ne_from == :nn_predictor && actor.nn_prediction !== nothing
-        hmode_logit = actor.nn_prediction.hmode_logit
-        mode = hmode_logit >= 0.0 ? :H_mode : :L_mode
+        mode = actor.nn_prediction.is_h_mode ? :H_mode : :L_mode
     elseif IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
         mode = :H_mode
     elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=0.8)
