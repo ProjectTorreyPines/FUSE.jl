@@ -44,7 +44,7 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
     t_hl::Float64
     previous_time::Float64
     cp1d_transition::IMAS.core_profiles__profiles_1d{D}
-    nn_predictor::Union{Nothing,PedestalDensityNN}
+    nn_predictor::Union{Nothing,PedestalNN}
     nn_prediction::Union{Nothing,NamedTuple}
 end
 
@@ -131,13 +131,14 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # Run NN predictor once per time step (provides both ne_ped and L/H signal)
+    # Run NN predictor once per time step (provides ne_ped, Te_ped, Ti_ped,
+    # T_rot_ped, and the L/H classifier in a single ensemble call).
     if par.ne_from == :nn_predictor
         if actor.nn_predictor === nothing
             actor.nn_predictor = load_pedestal_nn()
-            @info "ActorPedestal: loaded NN pedestal density predictor from $(actor.nn_predictor.onnx_dir)"
+            @info "ActorPedestal: loaded NN pedestal predictor ensemble ($(length(actor.nn_predictor.bundles)) bundles) from $(actor.nn_predictor.onnx_dir)"
         end
-        actor.nn_prediction = predict_density(actor.nn_predictor)
+        actor.nn_prediction = predict_pedestal(actor.nn_predictor)
     end
 
     if !ismissing(par, :mode_transitions)
@@ -390,6 +391,97 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
 end
 
 """
+    pedestal_nn_apply!(actor::ActorPedestal)
+
+When `par.ne_from == :nn_predictor` and an NN ensemble prediction is attached
+to the actor, blend the NN-predicted pedestal temperatures and rotation into
+`cp1d` so that downstream consumers (and `_finalize`'s `dd.summary.local.pedestal`
+writes) reflect them.
+
+- `nn_prediction.te_ped`     (keV)   -> `cp1d.electrons.temperature`
+- `nn_prediction.ti_ped`     (keV)   -> every `cp1d.ion[*].temperature`
+- `nn_prediction.t_rot_ped`  (krad/s) -> every `cp1d.ion[*].rotation_frequency_tor`
+   when `par.rotation_model == :none` (an explicit `:linear`/`:replay`
+   rotation model takes precedence and overwrites this later in `_step`).
+
+Each NN field is reduced to a scalar pedestal value by averaging over the
+FPE window — the same convention already used for `predictions_physical`
+in [`pedestal_density_tanh`](@ref). NaN-filled fields (e.g. when a bundle
+was not loaded) are skipped silently.
+"""
+function pedestal_nn_apply!(actor::ActorPedestal)
+    par = actor.par
+    nn = actor.nn_prediction
+    (par.ne_from == :nn_predictor && nn !== nothing) || return actor
+
+    cp1d = actor.dd.core_profiles.profiles_1d[]
+    rho = cp1d.grid.rho_tor_norm
+    rho09 = 0.9
+    w_ped = IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature)
+
+    # Snapshot Ti/Te ratio *before* we mutate Te so the Ti separatrix boundary
+    # stays consistent with the post-ped_actor profiles.
+    Ti_over_Te = ti_te_ratio(cp1d, par.T_ratio_pedestal, par.rho_nml, par.rho_ped)
+
+    function _trace_mean(x)
+        v = filter(isfinite, x)
+        return isempty(v) ? NaN : sum(v) / length(v)
+    end
+
+    Te_ped_keV = _trace_mean(nn.te_ped)
+    if isfinite(Te_ped_keV)
+        Te_ped_eV = Te_ped_keV * 1e3
+        Te = copy(cp1d.electrons.temperature)
+        Te[end] = par.Te_sep
+        Te = IMAS.blend_core_edge_Hmode(Te, rho, Te_ped_eV, w_ped, par.rho_nml, par.rho_ped; method=:scale)
+        cp1d.electrons.temperature = IMAS.ped_height_at_09(rho, Te, Te_ped_eV)
+        @info "ActorPedestal: nn_predictor Te_ped = $(round(Te_ped_keV; digits=3)) keV"
+    end
+
+    Ti_ped_keV = _trace_mean(nn.ti_ped)
+    if isfinite(Ti_ped_keV)
+        Ti_ped_eV = Ti_ped_keV * 1e3
+        Ti_sep = par.Te_sep * Ti_over_Te
+        for ion in cp1d.ion
+            if !ismissing(ion, :temperature)
+                Ti = copy(ion.temperature)
+                Ti[end] = Ti_sep
+                Ti = IMAS.blend_core_edge_Hmode(Ti, rho, Ti_ped_eV, w_ped, par.rho_nml, par.rho_ped; method=:scale)
+                ion.temperature = IMAS.ped_height_at_09(rho, Ti, Ti_ped_eV)
+            end
+        end
+        @info "ActorPedestal: nn_predictor Ti_ped = $(round(Ti_ped_keV; digits=3)) keV"
+    end
+
+    # rotation_frequency_tor can be negative, so we cannot use blend_core_edge_Hmode
+    # (which uses log internally — see the :replay rotation branch in _step).
+    # Use a simple scale-to-target at rho=0.9, falling back to a constant offset
+    # if the existing trace passes through zero at the pedestal foot.
+    # We also refresh cp1d.rotation_frequency_tor_sonic so FINN's
+    # `profile_from_rotation_shear_transport` sees the NN pedestal value as BC.
+    T_rot_krads = _trace_mean(nn.t_rot_ped)
+    if isfinite(T_rot_krads) && par.rotation_model == :none
+        ω_ped = T_rot_krads * 1e3
+        any_ion_rot = false
+        for ion in cp1d.ion
+            if !ismissing(ion, :rotation_frequency_tor)
+                ω = copy(ion.rotation_frequency_tor)
+                ω_at_09 = IMAS.interp1d(rho, ω).(rho09)
+                ω = iszero(ω_at_09) ? ω .+ ω_ped : ω .* (ω_ped / ω_at_09)
+                ion.rotation_frequency_tor = ω
+                any_ion_rot = true
+            end
+        end
+        if any_ion_rot
+            IMAS.ωtor2sonic!(cp1d)
+        end
+        @info "ActorPedestal: nn_predictor T_rot_ped = $(round(T_rot_krads; digits=3)) krad/s"
+    end
+
+    return actor
+end
+
+"""
     run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float64, zeff_factor::Float64)
 
 Runs selected pedestal model this prevents code duplication for using different par.model settings
@@ -445,6 +537,10 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
     else
         error("act.ActorPedestal.density_match can be either one of [:ne_ped, :ne_line]")
     end
+
+    # Apply NN-predicted Te / Ti / T_rot pedestal values on top of whatever
+    # the underlying ped_actor produced. No-op unless par.ne_from == :nn_predictor.
+    pedestal_nn_apply!(actor)
 
     return actor
 end
