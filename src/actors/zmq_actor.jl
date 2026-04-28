@@ -43,8 +43,6 @@ end
     endpoint::Entry{String} = Entry{String}("-", "ZMQ endpoint (e.g., tcp://localhost:5555)"; default="tcp://localhost:5555")
     timeout_ms::Entry{Int} = Entry{Int}("ms", "ZMQ receive timeout"; default=30000)
     enabled::Entry{Bool} = Entry{Bool}("-", "Enable ZMQ coupling with external code"; default=false)
-    nR::Entry{Int} = Entry{Int}("-", "Number of R grid points for psizr reshape"; default=33)
-    nZ::Entry{Int} = Entry{Int}("-", "Number of Z grid points for psizr reshape"; default=33)
 end
 
 mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
@@ -169,8 +167,6 @@ function receive!(actor::ActorZMQ)
     end
 
     dd = actor.dd
-    par = actor.par
-
 
     # REQ: send ready signal, then receive protobuf data.
     # Fail-fast: any timeout / EFSM / decode error terminates the coupled run.
@@ -285,15 +281,6 @@ function receive!(actor::ActorZMQ)
     # --- Update equilibrium from flat psizr array ---
     if !isempty(msg.psizr)
         psizr_flat = msg.psizr
-        # TODO: par.nR/par.nZ duplicate length(msg.r_grid)/length(msg.z_grid).
-        # Derive from the wire grid instead of the actor params, and drop nR/nZ from
-        # @actor_parameters_struct above. Also update knowledge/fuse_knowledge_base.json.
-        nR = par.nR
-        nZ = par.nZ
-        if length(psizr_flat) != nR * nZ
-            error("ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ) — check GSLite vs FUSE grid agreement")
-        end
-        psi_rz = reshape(psizr_flat, nR, nZ)  # GSLite stores column-major (R varies fastest)
 
         eqt = dd.equilibrium.time_slice[]
 
@@ -303,7 +290,7 @@ function receive!(actor::ActorZMQ)
         end
         p2d = eqt.profiles_2d[1]
 
-        # Use existing grid from dd if available, otherwise need r_grid/z_grid from GSLite
+        # Resolve grid: prefer the wire grid; fall back to the cached dd grid.
         if !isempty(msg.r_grid) && !isempty(msg.z_grid)
             p2d.grid.dim1 = msg.r_grid
             p2d.grid.dim2 = msg.z_grid
@@ -311,6 +298,12 @@ function receive!(actor::ActorZMQ)
             @warn "ActorZMQ: psizr received but no R/Z grid available; skipping equilibrium update"
             return actor
         end
+        nR = length(p2d.grid.dim1)
+        nZ = length(p2d.grid.dim2)
+        if length(psizr_flat) != nR * nZ
+            error("ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ) — check GSLite vs FUSE grid agreement")
+        end
+        psi_rz = reshape(psizr_flat, nR, nZ)  # GSLite stores column-major (R varies fastest)
         p2d.psi = psi_rz
         p2d.grid_type.index = 1  # rectangular grid
 
