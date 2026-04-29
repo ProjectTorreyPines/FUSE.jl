@@ -36,7 +36,7 @@ end
     dd = IMAS.dd()
     act.ActorZMQ.enabled = true
     act.ActorZMQ.endpoint = endpoint
-    act.ActorZMQ.timeout_ms = 5000  # short timeout so a bug fails the test instead of hanging 30s
+    act.ActorZMQ.timeout_ms = 5000  # short timeout so a bug fails the test instead of hanging on the default
 
     server = @async begin
         ctx = ZMQ.Context()

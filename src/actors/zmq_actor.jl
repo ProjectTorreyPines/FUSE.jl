@@ -41,8 +41,9 @@ end
 
 @actor_parameters_struct ActorZMQ{T} begin
     endpoint::Entry{String} = Entry{String}("-", "ZMQ endpoint (e.g., tcp://localhost:5555)"; default="tcp://localhost:5555")
-    timeout_ms::Entry{Int} = Entry{Int}("ms", "ZMQ receive timeout"; default=30000)
+    timeout_ms::Entry{Int} = Entry{Int}("ms", "ZMQ receive timeout"; default=10000)
     enabled::Entry{Bool} = Entry{Bool}("-", "Enable ZMQ coupling with external code"; default=false)
+    exit_on_timeout::Entry{Bool} = Entry{Bool}("-", "Call exit(1) after tearing the socket down if a ZMQ exchange fails (e.g. GSLite goes silent past timeout_ms)"; default=false)
 end
 
 mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
@@ -176,6 +177,7 @@ function receive!(actor::ActorZMQ)
     catch e
         @error "ActorZMQ.receive!: exchange with GSLite failed at t=$(dd.global_time) s — terminating coupled run" exception=(e, catch_backtrace())
         disconnect!(actor)
+        actor.par.exit_on_timeout && exit(1)
         rethrow()
     end
 
@@ -447,6 +449,7 @@ function send!(actor::ActorZMQ)
     catch e
         @error "ActorZMQ.send!: exchange with GSLite failed at t=$(time_now) s — terminating coupled run" exception=(e, catch_backtrace())
         disconnect!(actor)
+        actor.par.exit_on_timeout && exit(1)
         rethrow()
     end
 
