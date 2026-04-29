@@ -145,6 +145,7 @@ function run_predictive_rt_case!(
     act.ActorPedestal.tau_t = experiment_LH.tau_t
     act.ActorEPED.ped_factor = 0.8
     act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
+    #act.ActorPedestal.ne_from = :nn_predictor
     act.ActorWPED.ped_to_core_fraction = missing
 
     # density and Zeff from experiment
@@ -188,6 +189,11 @@ function run_predictive_rt_case!(
     final_time = ismissing(end_time) ? ini.general.dd.equilibrium.time[end] : end_time
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
     act.ActorDynamicPlasma.Δt = final_time - dd.global_time
+    # If GSLite does not provide start/end time, uncomment below and let GSLite
+    # control the simulation duration via done signal or timeout.
+    # Δt = 20.0
+    # act.ActorDynamicPlasma.Nt = Int(ceil(Δt / δt))
+    # act.ActorDynamicPlasma.Δt = Δt
 
     # choose what to evolve
     act.ActorDynamicPlasma.evolve_current = true

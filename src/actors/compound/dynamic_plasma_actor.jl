@@ -180,6 +180,11 @@ function _step(actor::ActorDynamicPlasma)
             phase = mod(kk + 1, 2) + 1
             progr = (prog, t0, t1, phase)
             dynamic_step!(actor, kk, t0; progr)
+            # # Stop early if GSLite signaled end of simulation (uncomment when done signal is confirmed)
+            # if actor.actor_zmq.par.enabled && !actor.actor_zmq.is_connected
+            #     @info "ActorDynamicPlasma: GSLite signaled end of simulation, stopping early at t=$(dd.global_time) s"
+            #     break
+            # end
         end
 
     catch e

@@ -191,6 +191,9 @@ function receive!(actor::ActorZMQ)
 
     @info "ActorZMQ: received data at sim_time=$(msg.sim_time) s"
 
+    # --- Sync FUSE clock to GSLite ---
+    dd.global_time = msg.sim_time
+
     # --- Check for end-of-simulation signal from GSLite ---
     if msg.done
         @info "ActorZMQ: GSLite signaled end of simulation"
@@ -382,6 +385,29 @@ function receive!(actor::ActorZMQ)
         actor.had_psizr = true
     end
 
+    # --- Compute and store ohmic & NBI power in dd._aux for NN predictor ---
+    try
+        Pohm = IMAS.total_power_source(IMAS.ohmic_source!(dd).profiles_1d[])
+        if :zmq_Pohm ∉ keys(aux)
+            aux[:zmq_Pohm] = (times=Float64[], values=Float64[])
+        end
+        push!(aux[:zmq_Pohm].times, dd.global_time)
+        push!(aux[:zmq_Pohm].values, Pohm)
+    catch e
+        @warn "ActorZMQ: failed to compute Pohm" exception=e
+    end
+
+    try
+        Pnbi = @ddtime(dd.summary.heating_current_drive.power_launched_nbi.value)
+        if :zmq_Pnbi ∉ keys(aux)
+            aux[:zmq_Pnbi] = (times=Float64[], values=Float64[])
+        end
+        push!(aux[:zmq_Pnbi].times, dd.global_time)
+        push!(aux[:zmq_Pnbi].values, Pnbi)
+    catch e
+        @warn "ActorZMQ: failed to compute Pnbi" exception=e
+    end
+
     return actor
 end
 
@@ -513,10 +539,10 @@ end
 """
     _compute_co2_density(actor::ActorZMQ)
 
-Compute CO2 interferometer line-averaged electron density for each channel.
+Compute CO2 interferometer line-integrated electron density for each channel.
 Uses the same IMAS.line_average as ActorInterferometer.
 On failure, logs a warning and falls back to last valid values.
-Returns vector of line-averaged ne [m⁻³] for each interferometer channel.
+Returns vector of line-integrated ne [m⁻²] for each interferometer channel.
 """
 function _compute_co2_density(actor::ActorZMQ)
     dd = actor.dd
@@ -530,7 +556,7 @@ function _compute_co2_density(actor::ActorZMQ)
     for (i, ch) in enumerate(intf.channel)
         try
             result = IMAS.line_average(eqt, cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, ch.line_of_sight)
-            push!(dens_co2, result.line_average)
+            push!(dens_co2, result.line_integral * 1e-4)
         catch e
             fallback = (i <= length(actor.prev_co2)) ? actor.prev_co2[i] : NaN
             @warn "ActorZMQ: CO2 channel $i failed, using fallback=$fallback" exception=e
