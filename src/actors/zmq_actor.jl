@@ -177,7 +177,10 @@ function receive!(actor::ActorZMQ)
     catch e
         @error "ActorZMQ.receive!: exchange with GSLite failed at t=$(dd.global_time) s — terminating coupled run" exception=(e, catch_backtrace())
         disconnect!(actor)
-        actor.par.exit_on_timeout && exit(1)
+        if actor.par.exit_on_timeout
+            @error "ActorZMQ: exit_on_timeout=true — calling exit(1) to terminate the FUSE process"
+            exit(1)
+        end
         rethrow()
     end
 
@@ -449,7 +452,10 @@ function send!(actor::ActorZMQ)
     catch e
         @error "ActorZMQ.send!: exchange with GSLite failed at t=$(time_now) s — terminating coupled run" exception=(e, catch_backtrace())
         disconnect!(actor)
-        actor.par.exit_on_timeout && exit(1)
+        if actor.par.exit_on_timeout
+            @error "ActorZMQ: exit_on_timeout=true — calling exit(1) to terminate the FUSE process"
+            exit(1)
+        end
         rethrow()
     end
 
