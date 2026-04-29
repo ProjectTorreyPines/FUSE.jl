@@ -15,12 +15,12 @@ import ZMQ
 import ProtoBuf
 
 include(joinpath(@__DIR__, "zmq_proto_generated", "zmq_messages_pb.jl"))
-using .zmq_messages_pb: FUSERequest, DataForFUSE, DataFromFUSE, Ack
+using .zmq_messages_pb: FUSERequest, WireDataForFUSE, WireDataFromFUSE, Ack
 
 # Wire-contract version for FUSE↔GSLite ZMQ coupling.
 # Bump in lockstep with the `schema_version` fields in zmq_messages.proto on any
 # breaking schema change. FUSE sends this in every FUSERequest and refuses any
-# DataForFUSE whose schema_version does not match.
+# WireDataForFUSE whose schema_version does not match.
 const SCHEMA_VERSION = Int32(1)
 
 # --- Protobuf over ZMQ helpers ---
@@ -73,8 +73,8 @@ end
 Coupling actor for exchanging data with external codes (e.g., GSLite/GSEvolve) via ZeroMQ.
 
 This actor uses a REQ/REP pattern where FUSE initiates each exchange:
-- `receive!`: FUSE sends "ready" → external code replies with DataForFUSE
-- `send!`: FUSE sends DataFromFUSE → external code replies with "ack"
+- `receive!`: FUSE sends "ready" → external code replies with WireDataForFUSE
+- `send!`: FUSE sends WireDataFromFUSE → external code replies with "ack"
 
 Intended integration in ActorDynamicPlasma:
 - Phase 1 start: `receive!(actor_zmq)` — receive ψ(R,Z), Ip, NBI, gas, coil currents
@@ -83,7 +83,7 @@ Intended integration in ActorDynamicPlasma:
 A timeout or protocol error during a ZMQ exchange terminates the coupled run; there is no automatic reconnect.
 
 Each exchange begins with a wire-contract version check: FUSE sends `SCHEMA_VERSION`
-in `FUSERequest`, and any mismatch with `DataForFUSE.schema_version` terminates the
+in `FUSERequest`, and any mismatch with `WireDataForFUSE.schema_version` terminates the
 run with a loud error (no negotiation). GSLite must reply with `Ack.ok = true` on
 accepted steps; `ok = false` (e.g. NaN input, solver divergence) likewise terminates
 the run, surfacing `Ack.error`.
@@ -150,7 +150,7 @@ end
 Receive data from GSLite and update dd.
 Called at the start of Phase 1 in the dynamic plasma loop.
 
-DataForFUSE fields (matching C++ struct):
+WireDataForFUSE fields (matching C++ struct):
 - `sim_time`:        double          — GSLite simulation time [s]
 - `Ip_latest`:       double          — Latest Ip measurement [A] → pulse_schedule
 - `Ip_avg`:          double          — Average Ip measurement [A] → dd._aux (for NN ne predictor)
@@ -173,7 +173,7 @@ function receive!(actor::ActorZMQ)
     # Fail-fast: any timeout / EFSM / decode error terminates the coupled run.
     msg = try
         _pb_send(actor.socket, FUSERequest("ready", dd.global_time, SCHEMA_VERSION))
-        _pb_recv(actor.socket, DataForFUSE)
+        _pb_recv(actor.socket, WireDataForFUSE)
     catch e
         @error "ActorZMQ.receive!: exchange with GSLite failed at t=$(dd.global_time) s — terminating coupled run" exception=(e, catch_backtrace())
         disconnect!(actor)
@@ -395,7 +395,7 @@ end
 Send FUSE results back to GSLite after Phase 2.
 Called at the end of Phase 2 in the dynamic plasma loop.
 
-DataFromFUSE fields (matching C++ struct):
+WireDataFromFUSE fields (matching C++ struct):
 - `sim_time`:     double        — Current simulation time [s]
 - `valid`:        bool          — false on first send (derivatives unreliable), true thereafter
 - `betap`:        double        — Poloidal beta (beta_pol)
@@ -433,7 +433,7 @@ function send!(actor::ActorZMQ)
         p_res = max((psipla_now - actor.prev_psipla) / dt / Ip_val, 1e-9)
     end
 
-    msg = DataFromFUSE(
+    msg = WireDataFromFUSE(
         time_now,
         !isnan(actor.prev_time),  # valid: false on first send (no prior data for derivatives)
         betap,
@@ -462,7 +462,7 @@ function send!(actor::ActorZMQ)
     # Application-level rejection: GSLite parsed the message but is refusing it
     # (NaN input, solver divergence, etc.). Surface its diagnostic and bail.
     if !ack.ok
-        error("ActorZMQ.send!: GSLite rejected DataFromFUSE at t=$(time_now) s — status=$(ack.status), ok=$(ack.ok), error=$(ack.error)")
+        error("ActorZMQ.send!: GSLite rejected WireDataFromFUSE at t=$(time_now) s — status=$(ack.status), ok=$(ack.ok), error=$(ack.error)")
     end
     @info "ActorZMQ: sent betap=$betap, li=$li, p_res=$p_res at t=$(time_now) s"
 

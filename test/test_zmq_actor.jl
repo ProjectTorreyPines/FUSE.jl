@@ -7,28 +7,28 @@ using ProtoBuf
 # Pull in the generated protobuf types via the same path the actor uses,
 # so we encode/decode against the exact stub the actor was compiled against.
 const _ZMQ_PB = include(joinpath(dirname(pathof(FUSE)), "actors", "zmq_proto_generated", "zmq_messages_pb.jl"))
-using ._ZMQ_PB: FUSERequest, DataForFUSE, DataFromFUSE, Ack
+using ._ZMQ_PB: FUSERequest, WireDataForFUSE, WireDataFromFUSE, Ack
 
 # Tiny encode/decode helpers — mirror _pb_send/_pb_recv inside the actor.
 _zmq_encode(msg) = (io = IOBuffer(); ProtoBuf.encode(ProtoBuf.ProtoEncoder(io), msg); take!(io))
 _zmq_decode(::Type{T}, raw) where {T} = ProtoBuf.decode(ProtoBuf.ProtoDecoder(IOBuffer(raw)), T)
 
-# Keyword-style constructor for DataForFUSE that survives future field additions:
+# Keyword-style constructor for WireDataForFUSE that survives future field additions:
 # uses ProtoBuf.default_values (generated alongside the struct) for any field the
 # caller doesn't override.
-function _make_DataForFUSE(; kwargs...)
-    defaults = ProtoBuf.default_values(DataForFUSE)
+function _make_WireDataForFUSE(; kwargs...)
+    defaults = ProtoBuf.default_values(WireDataForFUSE)
     overrides = NamedTuple(kwargs)
     vals = (haskey(overrides, f) ? overrides[f] : defaults[f] for f in keys(defaults))
-    return DataForFUSE(vals...)
+    return WireDataForFUSE(vals...)
 end
 
 @testset "ActorZMQ round-trip" begin
     # ipc:// + tempname() avoids TCP port collisions on shared CI; Linux-only.
     endpoint = "ipc://" * tempname()
 
-    # --- Round-trip happy path: metadata-only DataForFUSE (no psizr) ---
-    # This exercises the wire format, the FUSERequest/DataForFUSE/Ack handshake,
+    # --- Round-trip happy path: metadata-only WireDataForFUSE (no psizr) ---
+    # This exercises the wire format, the FUSERequest/WireDataForFUSE/Ack handshake,
     # the version handshake (FUSE.SCHEMA_VERSION echoed on both sides), the try/catch
     # wrappers, and the Bt-storage branch — without dragging in a fully-initialized
     # equilibrium (which would require a full FUSE.init).
@@ -46,7 +46,7 @@ end
             req = _zmq_decode(FUSERequest, ZMQ.recv(sock))
             @test req.status == "ready"
             @test req.schema_version == FUSE.SCHEMA_VERSION
-            resp = _make_DataForFUSE(;
+            resp = _make_WireDataForFUSE(;
                 sim_time=0.1,
                 Bt=2.1,
                 has_Bt=true,
@@ -54,8 +54,8 @@ end
             )
             ZMQ.send(sock, _zmq_encode(resp))
 
-            # Then a DataFromFUSE arrives; reply with an Ack with ok=true.
-            _ = _zmq_decode(DataFromFUSE, ZMQ.recv(sock))
+            # Then a WireDataFromFUSE arrives; reply with an Ack with ok=true.
+            _ = _zmq_decode(WireDataFromFUSE, ZMQ.recv(sock))
             ZMQ.send(sock, _zmq_encode(Ack("ack", true, "")))
         finally
             ZMQ.close(sock)
@@ -91,7 +91,7 @@ end
         ZMQ.bind(sock, endpoint)
         try
             _ = _zmq_decode(FUSERequest, ZMQ.recv(sock))
-            resp = _make_DataForFUSE(; sim_time=0.0, schema_version=Int32(0))
+            resp = _make_WireDataForFUSE(; sim_time=0.0, schema_version=Int32(0))
             ZMQ.send(sock, _zmq_encode(resp))
         finally
             ZMQ.close(sock)
@@ -133,13 +133,13 @@ end
         ZMQ.bind(sock, endpoint)
         try
             _ = _zmq_decode(FUSERequest, ZMQ.recv(sock))
-            ZMQ.send(sock, _zmq_encode(_make_DataForFUSE(;
+            ZMQ.send(sock, _zmq_encode(_make_WireDataForFUSE(;
                 sim_time=0.1,
                 Bt=2.1,
                 has_Bt=true,
                 schema_version=FUSE.SCHEMA_VERSION,
             )))
-            _ = _zmq_decode(DataFromFUSE, ZMQ.recv(sock))
+            _ = _zmq_decode(WireDataFromFUSE, ZMQ.recv(sock))
             ZMQ.send(sock, _zmq_encode(Ack("nack", false, "solver diverged")))
         finally
             ZMQ.close(sock)
@@ -183,7 +183,7 @@ end
         ZMQ.bind(sock, endpoint)
         try
             _ = _zmq_decode(FUSERequest, ZMQ.recv(sock))
-            ZMQ.send(sock, _zmq_encode(_make_DataForFUSE(;
+            ZMQ.send(sock, _zmq_encode(_make_WireDataForFUSE(;
                 sim_time=0.0,
                 Ip_avg=0.0,
                 has_Ip_avg=true,

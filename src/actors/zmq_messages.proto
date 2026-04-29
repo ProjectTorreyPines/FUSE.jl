@@ -10,14 +10,14 @@ syntax = "proto3";
 
 // Sent by FUSE to initiate each exchange.
 // Every exchange begins with a version check: FUSE sends `schema_version`,
-// GSLite MUST echo the same value in `DataForFUSE.schema_version`. Any mismatch
+// GSLite MUST echo the same value in `WireDataForFUSE.schema_version`. Any mismatch
 // (including 0 from a pre-versioning GSLite) terminates the coupled run with a
 // loud error — there is no negotiation. Rebuild the older side against the
 // matching zmq_messages.proto to recover.
 message FUSERequest {
     string status = 1;                    // "ready", "handshake"
     double time = 2;                      // FUSE simulation time [s]
-    int32  schema_version = 3;            // FUSE wire-contract version; bump in lockstep with SCHEMA_VERSION constant in zmq_actor.jl. GSLite MUST echo the same value in DataForFUSE.schema_version.
+    int32  schema_version = 3;            // FUSE wire-contract version; bump in lockstep with SCHEMA_VERSION constant in zmq_actor.jl. GSLite MUST echo the same value in WireDataForFUSE.schema_version.
 }
 
 // Sent by GSLite in response to FUSERequest with status="ready"
@@ -31,7 +31,7 @@ message FUSERequest {
 //   corresponding `has_<field> = true` on every message where the value is
 //   meaningful, including when the value itself is 0.0. A missing or false
 //   `has_<field>` means "not measured this step," NOT "zero."
-message DataForFUSE {
+message WireDataForFUSE {
     double sim_time = 1;                    // GSLite simulation time [s]
     bool   done = 2;                        // true on last time step
     double Ip_latest = 3;                   // latest Ip measurement [A]; only valid if has_Ip_latest
@@ -53,7 +53,7 @@ message DataForFUSE {
 }
 
 // Sent by FUSE after completing a time step
-message DataFromFUSE {
+message WireDataFromFUSE {
     double sim_time = 1;                  // current simulation time [s]
     bool   valid = 2;                     // false on first send
     double betap = 3;                     // poloidal beta

@@ -7,10 +7,10 @@ import ProtoBuf as PB
 using ProtoBuf: OneOf
 using ProtoBuf.EnumX: @enumx
 
-export DataForFUSE, DataFromFUSE, FUSERequest, Ack
+export WireDataForFUSE, WireDataFromFUSE, FUSERequest, Ack
 
 
-struct DataForFUSE
+struct WireDataForFUSE
     sim_time::Float64
     done::Bool
     Ip_latest::Float64
@@ -30,10 +30,10 @@ struct DataForFUSE
     has_pr15v::Bool
     schema_version::Int32
 end
-PB.default_values(::Type{DataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}(), has_Ip_latest = false, has_Ip_avg = false, has_Bt = false, has_pr15v = false, schema_version = zero(Int32))
-PB.field_numbers(::Type{DataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13, has_Ip_latest = 14, has_Ip_avg = 15, has_Bt = 16, has_pr15v = 17, schema_version = 18)
+PB.default_values(::Type{WireDataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}(), has_Ip_latest = false, has_Ip_avg = false, has_Bt = false, has_pr15v = false, schema_version = zero(Int32))
+PB.field_numbers(::Type{WireDataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13, has_Ip_latest = 14, has_Ip_avg = 15, has_Bt = 16, has_pr15v = 17, schema_version = 18)
 
-function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::Int=0, _group::Bool=false)
+function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataForFUSE}, _endpos::Int=0, _group::Bool=false)
     sim_time = zero(Float64)
     done = false
     Ip_latest = zero(Float64)
@@ -94,10 +94,10 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataForFUSE}, _endpos::I
             Base.skip(d, wire_type)
         end
     end
-    return DataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[], has_Ip_latest, has_Ip_avg, has_Bt, has_pr15v, schema_version)
+    return WireDataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[], has_Ip_latest, has_Ip_avg, has_Bt, has_pr15v, schema_version)
 end
 
-function PB.encode(e::PB.AbstractProtoEncoder, x::DataForFUSE)
+function PB.encode(e::PB.AbstractProtoEncoder, x::WireDataForFUSE)
     initpos = position(e.io)
     x.sim_time !== zero(Float64) && PB.encode(e, 1, x.sim_time)
     x.done != false && PB.encode(e, 2, x.done)
@@ -119,7 +119,7 @@ function PB.encode(e::PB.AbstractProtoEncoder, x::DataForFUSE)
     x.schema_version != zero(Int32) && PB.encode(e, 18, x.schema_version)
     return position(e.io) - initpos
 end
-function PB._encoded_size(x::DataForFUSE)
+function PB._encoded_size(x::WireDataForFUSE)
     encoded_size = 0
     x.sim_time !== zero(Float64) && (encoded_size += PB._encoded_size(x.sim_time, 1))
     x.done != false && (encoded_size += PB._encoded_size(x.done, 2))
@@ -142,7 +142,7 @@ function PB._encoded_size(x::DataForFUSE)
     return encoded_size
 end
 
-struct DataFromFUSE
+struct WireDataFromFUSE
     sim_time::Float64
     valid::Bool
     betap::Float64
@@ -152,10 +152,10 @@ struct DataFromFUSE
     p_res::Float64
     dens_co2_sig::Vector{Float64}
 end
-PB.default_values(::Type{DataFromFUSE}) = (;sim_time = zero(Float64), valid = false, betap = zero(Float64), betap_dot = zero(Float64), li = zero(Float64), li_dot = zero(Float64), p_res = zero(Float64), dens_co2_sig = Vector{Float64}())
-PB.field_numbers(::Type{DataFromFUSE}) = (;sim_time = 1, valid = 2, betap = 3, betap_dot = 4, li = 5, li_dot = 6, p_res = 7, dens_co2_sig = 8)
+PB.default_values(::Type{WireDataFromFUSE}) = (;sim_time = zero(Float64), valid = false, betap = zero(Float64), betap_dot = zero(Float64), li = zero(Float64), li_dot = zero(Float64), p_res = zero(Float64), dens_co2_sig = Vector{Float64}())
+PB.field_numbers(::Type{WireDataFromFUSE}) = (;sim_time = 1, valid = 2, betap = 3, betap_dot = 4, li = 5, li_dot = 6, p_res = 7, dens_co2_sig = 8)
 
-function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataFromFUSE}, _endpos::Int=0, _group::Bool=false)
+function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataFromFUSE}, _endpos::Int=0, _group::Bool=false)
     sim_time = zero(Float64)
     valid = false
     betap = zero(Float64)
@@ -186,10 +186,10 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:DataFromFUSE}, _endpos::
             Base.skip(d, wire_type)
         end
     end
-    return DataFromFUSE(sim_time, valid, betap, betap_dot, li, li_dot, p_res, dens_co2_sig[])
+    return WireDataFromFUSE(sim_time, valid, betap, betap_dot, li, li_dot, p_res, dens_co2_sig[])
 end
 
-function PB.encode(e::PB.AbstractProtoEncoder, x::DataFromFUSE)
+function PB.encode(e::PB.AbstractProtoEncoder, x::WireDataFromFUSE)
     initpos = position(e.io)
     x.sim_time !== zero(Float64) && PB.encode(e, 1, x.sim_time)
     x.valid != false && PB.encode(e, 2, x.valid)
@@ -201,7 +201,7 @@ function PB.encode(e::PB.AbstractProtoEncoder, x::DataFromFUSE)
     !isempty(x.dens_co2_sig) && PB.encode(e, 8, x.dens_co2_sig)
     return position(e.io) - initpos
 end
-function PB._encoded_size(x::DataFromFUSE)
+function PB._encoded_size(x::WireDataFromFUSE)
     encoded_size = 0
     x.sim_time !== zero(Float64) && (encoded_size += PB._encoded_size(x.sim_time, 1))
     x.valid != false && (encoded_size += PB._encoded_size(x.valid, 2))
