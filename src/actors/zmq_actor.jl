@@ -556,7 +556,7 @@ function _compute_co2_density(actor::ActorZMQ)
     for (i, ch) in enumerate(intf.channel)
         try
             result = IMAS.line_average(eqt, cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, ch.line_of_sight)
-            push!(dens_co2, result.line_integral * 1e-4)
+            push!(dens_co2, result.line_integral * 1e-6)
         catch e
             fallback = (i <= length(actor.prev_co2)) ? actor.prev_co2[i] : NaN
             @warn "ActorZMQ: CO2 channel $i failed, using fallback=$fallback" exception=e
