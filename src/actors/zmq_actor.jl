@@ -309,8 +309,9 @@ function receive!(actor::ActorZMQ)
             p2d.grid.dim1 = msg.r_grid
             p2d.grid.dim2 = msg.z_grid
         elseif isempty(p2d.grid.dim1)
-            @warn "ActorZMQ: psizr received but no R/Z grid available; skipping equilibrium update"
-            return actor
+            # Default DIII-D 33×33 grid (GSLite does not send r_grid/z_grid)
+            p2d.grid.dim1 = collect(range(0.84, 2.54, length=33))
+            p2d.grid.dim2 = collect(range(-1.6, 1.6, length=33))
         end
         nR = length(p2d.grid.dim1)
         nZ = length(p2d.grid.dim2)
