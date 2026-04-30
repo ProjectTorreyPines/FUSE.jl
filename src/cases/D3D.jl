@@ -44,7 +44,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
     cache_dir = get(ENV, "FUSE_D3D_CACHE_DIR", tempdir())
 
     # Calculate hash based on data query parameters only
-    phash = hash((shot, EFIT_tree, PROFILES_tree, CER_analysis_type, EFIT_run_id, PROFILES_run_id, omfit_root, omas_root))
+    phash = hash((shot, EFIT_tree, PROFILES_tree, CER_analysis_type, EFIT_run_id, PROFILES_run_id))
     filename = "D3D_$(shot)_$(phash).h5"
     local_path = joinpath(cache_dir, "D3D_$(shot)_$(phash)")
 
