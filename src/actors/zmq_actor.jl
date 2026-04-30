@@ -156,7 +156,13 @@ WireDataForFUSE fields (matching C++ struct):
 - `Ip_avg`:          double          — Average Ip measurement [A] → dd._aux (for NN ne predictor)
 - `Bt`:              double          — Vacuum toroidal field at R0 [T] (first message only)
 - `pr15v`:           double          — PR15V Ip measurement [A] → dd._aux (for NN ne predictor)
-- `I_coil`:          double[NCC_MEAS] — PF coil currents [A] → dd._aux (for NN ne predictor)
+- `I_coil`:          double[24]      — PCS coil currents [A] → dd._aux[:zmq_I_coil] (for NN pedestal predictor).
+                                       Order matches DIII-D `PCSpcsRtnetCoilNames`:
+                                         1:PCECOILA  2:PCE89DN   3:PCE567UP  4:PCECOILB
+                                         5:PCE89UP   6:PCE567DN  7:PCF1A..15:PCF9A
+                                        16:PCF1B..24:PCF9B
+                                       PedestalPredictor FPE consumes ecoila (idx 1), ecoilb (idx 4),
+                                       and f1a..f9b (idx 7..24); the C-coil entries (idx 2,3,5,6) are unused.
 - `psizr`:           double[NGG]      — Flat flux matrix ψ(R,Z) [Wb/rad], reshaped to (nR, nZ)
 - `pinj_per_beam`:   double[NNBI]     — NBI injected power per beam [W] → pulse_schedule.nbi
 - `nbi_acc_voltage`: double[NNBI]     — NBI acceleration voltage per beam [eV] → pulse_schedule.nbi
