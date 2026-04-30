@@ -397,15 +397,14 @@ function receive!(actor::ActorZMQ)
         @warn "ActorZMQ: failed to compute Pohm" exception=e
     end
 
-    try
-        Pnbi = @ddtime(dd.summary.heating_current_drive.power_launched_nbi.value)
+    # Pnbi: sum of per-beam injected power from GSLite (available from first step)
+    if !isempty(msg.pinj_per_beam)
+        Pnbi = sum(msg.pinj_per_beam)
         if :zmq_Pnbi ∉ keys(aux)
             aux[:zmq_Pnbi] = (times=Float64[], values=Float64[])
         end
         push!(aux[:zmq_Pnbi].times, dd.global_time)
         push!(aux[:zmq_Pnbi].values, Pnbi)
-    catch e
-        @warn "ActorZMQ: failed to compute Pnbi" exception=e
     end
 
     return actor
