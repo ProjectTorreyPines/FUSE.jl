@@ -435,7 +435,7 @@ WireDataFromFUSE fields (matching C++ struct):
 - `li`:           double        — Internal inductance (li_1)
 - `li_dot`:       double        — Time derivative of li_1 [1/s]
 - `p_res`:        double        — Plasma resistance [Ohm] (circuit-model: dψ_plasma/dt / Ip)
-- `dens_co2_sig`: double[NCO2]  — CO2 interferometer line-integrated density [m⁻²]
+- `dens_co2_sig`: double[NCO2]  — CO2 interferometer line-integrated density [m/cm³] (PCS convention)
 """
 function send!(actor::ActorZMQ)
     if !actor.par.enabled || !actor.is_connected
@@ -548,7 +548,7 @@ end
 Compute CO2 interferometer line-integrated electron density for each channel.
 Uses the same IMAS.line_average as ActorInterferometer.
 On failure, logs a warning and falls back to last valid values.
-Returns vector of line-integrated ne [m⁻²] for each interferometer channel.
+Returns vector of line-integrated ne [m/cm³] (PCS convention) for each interferometer channel.
 """
 function _compute_co2_density(actor::ActorZMQ)
     dd = actor.dd
