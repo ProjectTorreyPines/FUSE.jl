@@ -132,13 +132,24 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     # Run NN predictor once per time step (provides ne_ped, Te_ped, Ti_ped,
-    # T_rot_ped, and the L/H classifier in a single ensemble call).
+    # T_rot_ped, and the L/H classifier in a single ensemble call). Live ZMQ
+    # actuator signals (stored in dd._aux by ActorZMQ.receive!) are mapped onto
+    # the FPE channels; channels with no live source stay at the training mean
+    # via the per-channel z-score in normalized_signals.
     if par.ne_from == :nn_predictor
         if actor.nn_predictor === nothing
             actor.nn_predictor = load_pedestal_nn()
             @info "ActorPedestal: loaded NN pedestal predictor ensemble ($(length(actor.nn_predictor.bundles)) bundles) from $(actor.nn_predictor.onnx_dir)"
         end
-        actor.nn_prediction = predict_pedestal(actor.nn_predictor)
+        sequences, signal_mask = build_fpe_sequences_from_aux(actor.nn_predictor, dd)
+        # Live MSE history (from `dd._aux[:nn_history_buffer]` populated by
+        # end-of-shot `push_shot_history!` calls). When the buffer is empty we
+        # silently fall back to mean_normalized_history, equivalent to the
+        # pre-buffer behavior. norm_params_path stays `nothing` for now until
+        # the per-block source registries (compute_shot_stats) are wired —
+        # raw stats are biased but the buffer plumbing is exercised end-to-end.
+        history = mse_history_from_aux(dd, actor.nn_predictor)
+        actor.nn_prediction = predict_pedestal(actor.nn_predictor; sequences, signal_mask, history)
     end
 
     if !ismissing(par, :mode_transitions)
@@ -387,6 +398,139 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
     IMAS.scale_ion_densities_to_target_zeff!(cp1d, rho09, zeff_ped)
 
     return nothing
+end
+
+"""
+    build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=200) -> (Matrix{Float32}, Vector{Float32})
+
+Build a `(T, 32)` raw-physical FPE input matrix and a length-32 `signal_mask`
+from the live ZMQ signals stored in `dd._aux` (populated by `ActorZMQ.receive!`)
+and standard IMAS fields. Channels that have no live data source are filled
+with the per-channel training mean (so they z-score to zero inside
+[`predict_pedestal`](@ref), equivalent to the "missing" / mean-input fallback)
+and their `signal_mask` bit stays 0.
+
+DIII-D ZMQ → FPE channel mapping:
+- `dd._aux[:zmq_Ip_avg].values`           -> `ip`         (plasma current, A)
+- `dd._aux[:zmq_pr15v].values`            -> `ipspr15v`   (P-coil 15 V regulator current, A)
+- `dd._aux[:zmq_Pohm].values`             -> `pohm`       (ohmic power, W; passthrough)
+- `dd._aux[:zmq_Pnbi].values`             -> `pinj`       (total NBI power, W → MW for FPE)
+- `dd._aux[:zmq_gas[a-e]_cal].values`     -> `gas[a-e]_cal` (calibrated gas flow)
+- `dd._aux[:zmq_I_coil].values[1]`        -> `ecoila`     (E-coil A bank, PCECOILA)
+- `dd._aux[:zmq_I_coil].values[4]`        -> `ecoilb`     (E-coil B bank, PCECOILB)
+- `dd._aux[:zmq_I_coil].values[7..15]`    -> `f1a..f9a`   (F-coil A bank currents, A)
+- `dd._aux[:zmq_I_coil].values[16..24]`   -> `f1b..f9b`   (F-coil B bank currents, A)
+- `dd.equilibrium.vacuum_toroidal_field.b0[end]` -> `bt` (T)
+
+`I_coil` is a 24-element vector of DIII-D PCS coil-current pointnames in this
+order (confirmed against the `PCSpcsRtnetCoilNames` MATLAB lookup):
+
+| idx | pointname | FPE channel |
+|----:|-----------|-------------|
+|  1  | PCECOILA  | `ecoila`    |
+|  2  | PCE89DN   | (unused)    |
+|  3  | PCE567UP  | (unused)    |
+|  4  | PCECOILB  | `ecoilb`    |
+|  5  | PCE89UP   | (unused)    |
+|  6  | PCE567DN  | (unused)    |
+|  7  | PCF1A     | `f1a`       |
+| ... | ...       | ...         |
+| 15  | PCF9A     | `f9a`       |
+| 16  | PCF1B     | `f1b`       |
+| ... | ...       | ...         |
+| 24  | PCF9B     | `f9b`       |
+
+PedestalPredictor's FPE only uses the two E-coils (`ecoila`, `ecoilb`); the
+internal C-coil segments at indices 2,3,5,6 (`PCE89DN`, `PCE567UP`, `PCE89UP`,
+`PCE567DN`) are not consumed. Bounds checks (`length(v) >= idx`) make the
+mapping safe against shorter `I_coil` vectors.
+
+Channels still on training mean (no live source wired yet): `tinj`, `ech_total`.
+Pending GSLite-side `:zmq_Tnbi` (NBI total torque, N·m) and `:zmq_Pech` (ECH
+total power, W) records to be added to the wire contract.
+
+Returns:
+- `sequences::Matrix{Float32}` — `(T, 32)`, raw physical units, broadcast across time.
+- `signal_mask::Vector{Float32}` — length 32, 1.0 where a live value was found, 0.0 otherwise.
+"""
+function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=200)
+    # Initialize every channel to its training mean so an un-mapped channel
+    # z-scores to exactly zero (matching mean_normalized_history's convention).
+    sequences = repeat(reshape(nn.signal_means, 1, 32), T, 1)
+    mask = zeros(Float32, 32)
+
+    aux = getfield(dd, :_aux)
+    t_now = dd.global_time
+    mapped = String[]
+
+    function _set_channel!(name::AbstractString, value::Real)
+        idx = fpe_signal_index(nn, name)
+        if idx == 0
+            @warn "build_fpe_sequences_from_aux: FPE channel \"$name\" not in nn.signal_names; skipping"
+            return
+        end
+        sequences[:, idx] .= Float32(value)
+        mask[idx] = 1f0
+        push!(mapped, name)
+        return
+    end
+
+    # Latest causal sample (t_i <= t_now); fall back to the first sample if all
+    # entries are in the future (e.g. just after a time-rewind).
+    function _aux_value_at(key::Symbol)
+        haskey(aux, key) || return nothing
+        rec = aux[key]
+        (hasproperty(rec, :times) && hasproperty(rec, :values)) || return nothing
+        isempty(rec.times) && return nothing
+        idx = findlast(τ -> τ <= t_now, rec.times)
+        idx === nothing && (idx = 1)
+        return rec.values[idx]
+    end
+
+    # Scalar mappings
+    let v = _aux_value_at(:zmq_Ip_avg);  v === nothing || _set_channel!("ip",       v); end
+    let v = _aux_value_at(:zmq_pr15v);   v === nothing || _set_channel!("ipspr15v", v); end
+    # Powers — :zmq_Pohm (W) passes through; :zmq_Pnbi (W) is converted to MW
+    # because the FPE training set z-scored pinj using d3d_pedestal_dataset_clean
+    # stats (mean ≈ 2.81 MW, std ≈ 194 MW), unlike pohm which was kept in W.
+    let v = _aux_value_at(:zmq_Pohm);    v === nothing || _set_channel!("pohm", v); end
+    let v = _aux_value_at(:zmq_Pnbi);    v === nothing || _set_channel!("pinj", v / 1e6); end
+    # TODO: wire `tinj` from :zmq_Tnbi (N·m) and `ech_total` from :zmq_Pech (W)
+    # once GSLite ships those records.
+    for (k, name) in zip(
+            (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal),
+            ("gasa_cal",    "gasb_cal",    "gasc_cal",    "gasd_cal",    "gase_cal"))
+        v = _aux_value_at(k)
+        v === nothing || _set_channel!(name, v)
+    end
+
+    # PCS coil currents: 24-element vector PCECOILA, PCE89DN, PCE567UP, PCECOILB,
+    # PCE89UP, PCE567DN, PCF1A..PCF9A, PCF1B..PCF9B (see docstring table).
+    let v = _aux_value_at(:zmq_I_coil)
+        if v !== nothing
+            length(v) >= 1 && _set_channel!("ecoila", v[1])
+            length(v) >= 4 && _set_channel!("ecoilb", v[4])
+            f_names = ("f1a","f2a","f3a","f4a","f5a","f6a","f7a","f8a","f9a",
+                       "f1b","f2b","f3b","f4b","f5b","f6b","f7b","f8b","f9b")
+            for (k, name) in enumerate(f_names)
+                length(v) >= 6 + k || break
+                _set_channel!(name, v[6+k])
+            end
+        end
+    end
+
+    # Bt — pulled directly from IMAS equilibrium (set by ActorZMQ.receive! too)
+    if !isempty(dd.equilibrium.vacuum_toroidal_field.b0)
+        _set_channel!("bt", dd.equilibrium.vacuum_toroidal_field.b0[end])
+    end
+
+    if isempty(mapped)
+        @debug "ActorPedestal: nn_predictor — no live FPE channels available; running on training means"
+    else
+        @debug "ActorPedestal: nn_predictor mapped $(length(mapped)) live FPE channels: $(mapped)"
+    end
+
+    return sequences, mask
 end
 
 """

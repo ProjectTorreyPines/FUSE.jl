@@ -38,7 +38,10 @@ message WireDataForFUSE {
     double Ip_avg = 4;                      // average Ip measurement [A]; only valid if has_Ip_avg
     double Bt = 5;                          // vacuum toroidal field at R0 [T]; send on first message and any time it changes; only valid if has_Bt
     double pr15v = 6;                       // PR15V Ip measurement [A]; only valid if has_pr15v
-    repeated double I_coil = 7;             // PF coil currents [A]
+    repeated double I_coil = 7;             // PCS coil currents [A], 24 elements in PCSpcsRtnetCoilNames order:
+                                            //   1:PCECOILA  2:PCE89DN   3:PCE567UP  4:PCECOILB
+                                            //   5:PCE89UP   6:PCE567DN  7:PCF1A ... 15:PCF9A
+                                            //  16:PCF1B ... 24:PCF9B
     repeated double psizr = 8;              // flat flux matrix psi(R,Z) [Wb/rad], R-fast
     repeated double r_grid = 9;             // R grid points [m]
     repeated double z_grid = 10;            // Z grid points [m]
