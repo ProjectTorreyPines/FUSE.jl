@@ -570,8 +570,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     # throw in a 2pi to scale P' correctly
     pressure_sep_norm = pressure_sep / (B0^2 / μ_0)
     pprime_final = 2 * pi * pprime_at_s * R0^2 * μ_0 / B0
-    println("final pressure on axis = $(pprime_final[1]), final pressure at edge = $(pprime_final[end])")
-
+    
     # I suspect this logic is to make the q profile > 0, but NOT sure
     ip_sign = sign(Ip)
     bt_sign = sign(Bt_center)
