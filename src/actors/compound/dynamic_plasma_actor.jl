@@ -111,13 +111,14 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     else
         rho_ped = act.ActorPedestal.rho_ped
     end
+    ne_from = ismissing(act.ActorPedestal, :ne_from) ? :pulse_schedule : act.ActorPedestal.ne_from
     actor_ped = ActorPedestal(
         dd,
         act.ActorPedestal,
         act;
         ip_from=:pulse_schedule,
         βn_from=:core_profiles,
-        ne_from=:pulse_schedule,
+        ne_from,
         zeff_from=:pulse_schedule,
         rho_nml,
         rho_ped)
