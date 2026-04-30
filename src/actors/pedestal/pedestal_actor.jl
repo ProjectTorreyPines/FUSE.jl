@@ -195,7 +195,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             run_selected_pedestal_model(actor; density_factor=1.0, zeff_factor=1.0)
 
         elseif par.model == :dynamic
-            @assert par.ne_from == :pulse_schedule ":dynamic pedestal model requires `act.ActorPedestal.ne_from = :pulse_schedule`"
+            @assert par.ne_from in (:pulse_schedule, :nn_predictor) ":dynamic pedestal model requires `act.ActorPedestal.ne_from` ∈ (:pulse_schedule, :nn_predictor)"
             @assert actor.previous_time < dd.global_time "subsequent calls to :dynamic pedestal model require dd.global_time advance"
 
             if length(actor.state) < 2

@@ -137,15 +137,15 @@ function run_predictive_rt_case!(
     IMAS.fill!(dd_exp, dd)
 
     # identify LH transitions
-    @info "LH_analysis"
-    experiment_LH = FUSE.LH_analysis(dd; scale_LH=1.0,do_plot=false)
+    #@info "LH_analysis"
+    #experiment_LH = FUSE.LH_analysis(dd; scale_LH=1.0,do_plot=false)
 
     act.ActorPedestal.model = :dynamic
-    act.ActorPedestal.tau_n = experiment_LH.tau_n
-    act.ActorPedestal.tau_t = experiment_LH.tau_t
+    act.ActorPedestal.tau_n = 0.3 #experiment_LH.tau_n 
+    act.ActorPedestal.tau_t = 0.15 #experiment_LH.tau_t
     act.ActorEPED.ped_factor = 0.8
     act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
-    #act.ActorPedestal.ne_from = :nn_predictor
+    act.ActorPedestal.ne_from = :nn_predictor
     act.ActorWPED.ped_to_core_fraction = missing
 
     # density and Zeff from experiment
@@ -153,7 +153,7 @@ function run_predictive_rt_case!(
     act.ActorPedestal.zeff_ratio_L_over_H = 1.0
 
     # LH-transition at user-defined times
-    act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
+    #act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
 
     act.ActorEquilibrium.model = :FRESCO
     act.ActorFRESCO.nR = 65

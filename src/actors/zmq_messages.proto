@@ -58,13 +58,13 @@ message WireDataForFUSE {
 // Sent by FUSE after completing a time step
 message WireDataFromFUSE {
     double sim_time = 1;                  // current simulation time [s]
-    bool   valid = 2;                     // false on first send
+    bool   valid = 2;                     // false on first send (no previous time step, so betap_dot, li_dot, p_res have no meaningful value)
     double betap = 3;                     // poloidal beta
     double betap_dot = 4;                 // time derivative of beta_pol [1/s]
     double li = 5;                        // internal inductance (li_1)
     double li_dot = 6;                    // time derivative of li_1 [1/s]
     double p_res = 7;                     // plasma resistance [Ohm]
-    repeated double dens_co2_sig = 8;     // CO2 line-integrated density [m^-2]
+    repeated double dens_co2_sig = 8;     // CO2 line-integrated density [m/cm^3] (PCS convention)
 }
 
 // Sent by GSLite as acknowledgment.
