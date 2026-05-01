@@ -445,9 +445,8 @@ internal C-coil segments at indices 2,3,5,6 (`PCE89DN`, `PCE567UP`, `PCE89UP`,
 `PCE567DN`) are not consumed. Bounds checks (`length(v) >= idx`) make the
 mapping safe against shorter `I_coil` vectors.
 
-Channels still on training mean (no live source wired yet): `tinj`, `ech_total`.
-Pending GSLite-side `:zmq_Tnbi` (NBI total torque, N·m) and `:zmq_Pech` (ECH
-total power, W) records to be added to the wire contract.
+Channels still on training mean (no live source wired yet): `tinj`.
+Pending GSLite-side `:zmq_Tnbi` (NBI total torque, N·m) record to be added to the wire contract.
 
 Returns:
 - `sequences::Matrix{Float32}` — `(T, 32)`, raw physical units, broadcast across time.
@@ -495,8 +494,8 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=20
     # stats (mean ≈ 2.81 MW, std ≈ 194 MW), unlike pohm which was kept in W.
     let v = _aux_value_at(:zmq_Pohm);    v === nothing || _set_channel!("pohm", v); end
     let v = _aux_value_at(:zmq_Pnbi);    v === nothing || _set_channel!("pinj", v / 1e6); end
-    # TODO: wire `tinj` from :zmq_Tnbi (N·m) and `ech_total` from :zmq_Pech (W)
-    # once GSLite ships those records.
+    let v = _aux_value_at(:zmq_Pech);    v === nothing || _set_channel!("ech_total", v / 1e6); end
+    # TODO: wire `tinj` from :zmq_Tnbi (N·m) once GSLite ships that record.
     for (k, name) in zip(
             (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal),
             ("gasa_cal",    "gasb_cal",    "gasc_cal",    "gasd_cal",    "gase_cal"))

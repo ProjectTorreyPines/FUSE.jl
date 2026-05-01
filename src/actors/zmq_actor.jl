@@ -414,6 +414,19 @@ function receive!(actor::ActorZMQ)
         push!(aux[:zmq_Pnbi].values, Pnbi)
     end
 
+    # Pech: sum of launched EC power from dd.ec_launchers (no profile calculation needed)
+    if !isempty(dd.ec_launchers.beam)
+        Pech = sum(
+            IMAS.interp1d(beam.power_launched.time, beam.power_launched.data, :constant)(dd.global_time)
+            for beam in dd.ec_launchers.beam
+        )
+        if :zmq_Pech ∉ keys(aux)
+            aux[:zmq_Pech] = (times=Float64[], values=Float64[])
+        end
+        push!(aux[:zmq_Pech].times, dd.global_time)
+        push!(aux[:zmq_Pech].values, Pech)
+    end
+
     return actor
 end
 
