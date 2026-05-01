@@ -507,7 +507,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
     # choose B0 & R0 for CHEASE normalization
     B0 = abs(Bt_center)
-    R0 = r0
+    R0 = r_geo
 
     # inverse aspect ratio for CHEASE input
     ϵ = minor_radius / R0
