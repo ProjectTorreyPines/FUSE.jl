@@ -95,7 +95,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     offset::Entry{Float64} = Entry{Float64}("-", "Offset for first wall (RW) in meters"; default=0.2)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points for plasma boundary and surrounding walls "; default=301)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
-    PEST_input::Entry{Bool} = Entry{Bool}("-", "Use PEST input files"; default=false)
     number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
     pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
@@ -107,7 +106,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     mars_runin_path::Entry{String} =
         Entry{String}("-", "Path to base MARS RUN.IN file"; default="RUN.IN")
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
+    restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
+    run_tracer::Entry{Bool} = Entry{Bool}("-", "Whether to run particle tracing simulations"; default=false)
+    num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=1)  
 end
 
 
@@ -208,12 +210,19 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     chease_exec = par.chease_exec
     @assert nl !== nothing "CHEASE namelist not initialized"
 
-    # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
-    B0, R0 = write_EXPEQ_file(dd, par)
-    println("B0 for CHEASE normalization: $B0 T")
-    println("R0 for CHEASE normalization: $R0 m")
-    setfield!(nl, :B0EXP, B0)
-    setfield!(nl, :R0EXP, R0)
+    if restart_equilibrium
+        @info "Restarting CHEASE from existing equilibrium files."
+        # Implement logic to copy existing equilibrium files to current directory
+        cp("EXPEQ.OUT", "EXPEQ"; force=true)
+    else
+        @info "Clean CHEASE run from dd or NO equilibrium."
+        # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
+        B0, R0 = write_EXPEQ_file(dd, par)
+        println("B0 for CHEASE normalization: $B0 T")
+        println("R0 for CHEASE normalization: $R0 m")
+        setfield!(nl, :B0EXP, B0)
+        setfield!(nl, :R0EXP, R0)
+    end
    
     if par.number_surfaces == 1 && nl.NVEXP == 8
         @info "Overriding NVEXP in CHEASE namelist"
