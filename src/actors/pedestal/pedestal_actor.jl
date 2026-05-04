@@ -131,6 +131,27 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
+    # Store total NBI torque in dd._aux for NN predictor.
+    # Sources have already run this step (run_sources before run_pedestal in Phase 2).
+    # NBI source identifier index = 2 (IMAS convention).
+    if par.ne_from == :nn_predictor && !isempty(dd.core_sources.source)
+        aux = getfield(dd, :_aux)
+        tinj = 0.0
+        for src in dd.core_sources.source
+            if src.identifier.index == 2 && !isempty(src.global_quantities)
+                gq = src.global_quantities[]
+                if !ismissing(gq, :torque_tor)
+                    tinj += gq.torque_tor
+                end
+            end
+        end
+        if :zmq_Tnbi ∉ keys(aux)
+            aux[:zmq_Tnbi] = (times=Float64[], values=Float64[])
+        end
+        push!(aux[:zmq_Tnbi].times, dd.global_time)
+        push!(aux[:zmq_Tnbi].values, tinj)
+    end
+
     # Run NN predictor once per time step (provides ne_ped, Te_ped, Ti_ped,
     # T_rot_ped, and the L/H classifier in a single ensemble call). Live ZMQ
     # actuator signals (stored in dd._aux by ActorZMQ.receive!) are mapped onto
@@ -445,8 +466,7 @@ internal C-coil segments at indices 2,3,5,6 (`PCE89DN`, `PCE567UP`, `PCE89UP`,
 `PCE567DN`) are not consumed. Bounds checks (`length(v) >= idx`) make the
 mapping safe against shorter `I_coil` vectors.
 
-Channels still on training mean (no live source wired yet): `tinj`.
-Pending GSLite-side `:zmq_Tnbi` (NBI total torque, N·m) record to be added to the wire contract.
+All FPE channels are now wired to live sources.
 
 Returns:
 - `sequences::Matrix{Float32}` — `(T, 32)`, raw physical units, broadcast across time.
@@ -495,7 +515,7 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=20
     let v = _aux_value_at(:zmq_Pohm);    v === nothing || _set_channel!("pohm", v); end
     let v = _aux_value_at(:zmq_Pnbi);    v === nothing || _set_channel!("pinj", v / 1e6); end
     let v = _aux_value_at(:zmq_Pech);    v === nothing || _set_channel!("ech_total", v / 1e6); end
-    # TODO: wire `tinj` from :zmq_Tnbi (N·m) once GSLite ships that record.
+    let v = _aux_value_at(:zmq_Tnbi);    v === nothing || _set_channel!("tinj", v); end
     for (k, name) in zip(
             (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal),
             ("gasa_cal",    "gasb_cal",    "gasc_cal",    "gasd_cal",    "gase_cal"))

@@ -53,6 +53,8 @@ message WireDataForFUSE {
     bool   has_Bt = 16;                     // true if Bt carries a meaningful value (incl. 0.0)
     bool   has_pr15v = 17;                  // true if pr15v carries a meaningful value (incl. 0.0)
     int32  schema_version = 18;             // GSLite wire-contract version; MUST match FUSERequest.schema_version sent by FUSE. Bump in lockstep with SCHEMA_VERSION constant in zmq_actor.jl.
+    double Rp = 19;                         // plasma resistance [Ohm]; only valid if has_Rp. Used by FUSE to compute Pohm = Ip² × Rp for NN predictor.
+    bool   has_Rp = 20;                     // true if Rp carries a meaningful value (incl. 0.0)
 }
 
 // Sent by FUSE after completing a time step

@@ -58,13 +58,14 @@ mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
     prev_betap::Float64
     prev_li::Float64
     prev_psipla::Float64
+    prev_p_res::Float64        # previous step's plasma resistance [Ohm] for Pohm fallback
     prev_co2::Vector{Float64}  # last valid CO2 density values (fallback if computation fails)
 end
 
 function ActorZMQ(dd::IMAS.dd{D}, par::FUSEparameters__ActorZMQ{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorZMQ)
     par = OverrideParameters(par; kw...)
-    return ActorZMQ{D,P}(dd, par, nothing, nothing, false, false, NaN, NaN, NaN, NaN, Float64[])
+    return ActorZMQ{D,P}(dd, par, nothing, nothing, false, false, NaN, NaN, NaN, NaN, NaN, Float64[])
 end
 
 """
@@ -392,16 +393,22 @@ function receive!(actor::ActorZMQ)
         actor.had_psizr = true
     end
 
-    # --- Compute and store ohmic & NBI power in dd._aux for NN predictor ---
-    try
-        Pohm = IMAS.total_power_source(IMAS.ohmic_source!(dd).profiles_1d[])
+    # --- Compute and store ohmic power in dd._aux for NN predictor ---
+    # Pohm = Ip² × Rp (circuit-model). Use GSLite's Rp if provided, else FUSE's prev_p_res.
+    Rp = if msg.has_Rp
+        msg.Rp
+    elseif !isnan(actor.prev_p_res)
+        actor.prev_p_res
+    else
+        NaN
+    end
+    if !isnan(Rp) && msg.has_Ip_latest
+        Pohm = msg.Ip_latest^2 * Rp
         if :zmq_Pohm ∉ keys(aux)
             aux[:zmq_Pohm] = (times=Float64[], values=Float64[])
         end
         push!(aux[:zmq_Pohm].times, dd.global_time)
         push!(aux[:zmq_Pohm].values, Pohm)
-    catch e
-        @warn "ActorZMQ: failed to compute Pohm" exception=e
     end
 
     # Pnbi: sum of per-beam injected power from GSLite (available from first step)
@@ -516,6 +523,7 @@ function send!(actor::ActorZMQ)
     actor.prev_betap = betap
     actor.prev_li = li
     actor.prev_psipla = psipla_now
+    actor.prev_p_res = p_res
 
     return actor
 end
