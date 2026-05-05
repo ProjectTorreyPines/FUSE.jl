@@ -506,12 +506,18 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=20
         return rec.values[idx]
     end
 
-    # Scalar mappings
+    # Scalar mappings.
+    # Units reconciliation between the ZMQ wire (A / W / N·m) and the FPE
+    # training set (inspect per-bundle `normalization_params.json::means/stds`
+    # alongside `onnx_models/fpe_pre_normalization_params.json`):
+    # - `ip`       : wire A, training A (edensfit89 bundle mean≈3.5e4, std≈2e5)  -> passthrough
+    # - `ipspr15v` : wire A, training MA (bundle mean≈0.07, std≈1.06)            -> /1e6
+    # - `pohm`     : wire W, training W (bundle mean≈4e5, std≈4e5)               -> passthrough
+    # - `pinj`     : wire W, training MW (bundle mean≈2.8, std≈194)              -> /1e6
+    # - `ech_total`: wire W, training MW (bundle mean≈2.2, std≈6.0)              -> /1e6
+    # - `tinj`     : wire N·m, training N·m (bundle mean≈2.2, std≈2.4)           -> passthrough
     let v = _aux_value_at(:zmq_Ip_avg);  v === nothing || _set_channel!("ip",       v); end
-    let v = _aux_value_at(:zmq_pr15v);   v === nothing || _set_channel!("ipspr15v", v); end
-    # Powers — :zmq_Pohm (W) passes through; :zmq_Pnbi (W) is converted to MW
-    # because the FPE training set z-scored pinj using d3d_pedestal_dataset_clean
-    # stats (mean ≈ 2.81 MW, std ≈ 194 MW), unlike pohm which was kept in W.
+    let v = _aux_value_at(:zmq_pr15v);   v === nothing || _set_channel!("ipspr15v", v / 1e6); end
     let v = _aux_value_at(:zmq_Pohm);    v === nothing || _set_channel!("pohm", v); end
     let v = _aux_value_at(:zmq_Pnbi);    v === nothing || _set_channel!("pinj", v / 1e6); end
     let v = _aux_value_at(:zmq_Pech);    v === nothing || _set_channel!("ech_total", v / 1e6); end

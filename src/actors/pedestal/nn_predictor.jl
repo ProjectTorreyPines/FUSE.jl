@@ -549,9 +549,27 @@ end
     mse_history_from_aux(dd, nn::PedestalNN; norm_params_path=nothing) -> (hist, hmask, aux)
 
 Build the `(hist, hmask, aux)` triple that `predict_pedestal` consumes from
-the live history buffer in `dd._aux[:nn_history_buffer]`. Returns
+the MSE history buffer stored in `dd._aux[:nn_history_buffer]`. Returns
 [`mean_normalized_history`](@ref) when the buffer is absent or empty, so this
 is a drop-in replacement for the trained-mean fallback.
+
+# Data-source contract
+
+The MSE history is **not** supplied by GSLite on the real-time ZMQ wire —
+GSLite only provides the 32-channel FPE actuator state via `dd._aux[:zmq_*]`.
+The 50-slot × 446/458-feature history tensor captures a slow machine-state
+context (boronization age, last-week coil usage, gas mix, etc.) that
+requires fetching ~67 PTDATA signals from MDSplus per shot and rolling
+them up offline. It reaches `dd._aux[:nn_history_buffer]` via one of:
+
+1. **Static NPZ** (production path today) — loaded once at FUSE startup
+   from `ENV["FUSE_PEDESTAL_NN_HISTORY_NPZ"]` (e.g. the reference snapshot
+   in `FUSE/data/pedestal_nn/history_morning.npz`) via
+   [`load_history_npz`](@ref). Operator-refreshed between run-days.
+2. **Live FUSE-side bookkeeping** (future) — `compute_shot_stats(dd)` +
+   [`push_shot_history!`](@ref) at the end of each shot in FUSE itself.
+   Currently stubbed; wires up the feed-forward path so this function
+   becomes self-sufficient once the per-block source registries land.
 
 `norm_params_path` should point at the encoder's history-norm JSON (typically
 `onnx_models/normalization_params_prmtan67.json` or its `prmtan_clean`
