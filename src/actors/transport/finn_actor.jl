@@ -202,6 +202,14 @@ function _finalize(actor::ActorFINN)
 
         dw_drho = @. res.VEXB_SHEAR * q_loc / (a_cm * rmin_loc) * c_s * drmindx
 
+        # FINN was trained on inconsistent rotation sign conventions, so take the
+        # absolute magnitude and enforce the physically correct sign: the gradient
+        # must be opposite to the boundary condition so that |ω| always increases
+        # toward the core (i.e. sign(dω/dρ) = -sign(ω_BC))
+        bc_index = IMAS.argmin_abs(rho, rho_transport[end])
+        bc_rotation = cp1d.rotation_frequency_tor_sonic[bc_index]
+        dw_drho = -sign(bc_rotation) .* abs.(dw_drho)
+
         cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_rotation_shear_transport(
             cp1d.rotation_frequency_tor_sonic, rho, rho_transport, dw_drho)
     end
