@@ -344,4 +344,101 @@ include(joinpath(__FUSE__, "src", "actors", "pedestal", "nn_predictor.jl"))
             @test !isempty(v)
         end
     end
+
+    # ── HuggingFace auto-fetch surface (offline-only checks) ──────────────
+    @testset "download_pedestal_nn! manifest + cache-detection" begin
+        files = pedestal_nn_files()
+        # 1 top-level (manifest.json) + 4 regression bundles × 5 files + 1 classification × 4
+        @test length(files) == 1 + 4 * 5 + 1 * 4
+        @test "manifest.json" in files
+        @test "edensfit89/mse_encoder.onnx" in files
+        @test "edensfit89/fpe_encoder.onnx" in files
+        @test "edensfit89/target_norm.json" in files
+        # hmode_89 is classification — no target_norm.json
+        @test "hmode_89/mse_encoder.onnx" in files
+        @test !("hmode_89/target_norm.json" in files)
+        # All 5 canonical slugs present
+        for slug in _CANONICAL_SLUGS
+            @test any(startswith(f, slug * "/") for f in files)
+        end
+
+        # pedestal_nn_dir_complete: false on empty dir, true on a fake-populated one
+        mktempdir() do empty_tmp
+            @test pedestal_nn_dir_complete(empty_tmp) === false
+        end
+        mktempdir() do fake_tmp
+            for rel in files
+                p = joinpath(fake_tmp, rel)
+                mkpath(dirname(p))
+                write(p, "x")  # non-empty stub
+            end
+            @test pedestal_nn_dir_complete(fake_tmp) === true
+            # zero-byte file should make it incomplete again
+            zero_target = joinpath(fake_tmp, files[end])
+            write(zero_target, "")
+            @test pedestal_nn_dir_complete(fake_tmp) === false
+        end
+
+        # Auto-fetch hook: explicit opt-out (`0`/`false`/`no`/`off`) skips the
+        # download even on an empty dir. No network call expected.
+        for v in ("0", "false", "no", "off", "FALSE", "Off")
+            mktempdir() do tmp
+                old = get(ENV, PEDESTAL_NN_AUTOFETCH_ENV, nothing)
+                ENV[PEDESTAL_NN_AUTOFETCH_ENV] = v
+                try
+                    @test _maybe_autofetch!(tmp) === false
+                finally
+                    old === nothing ? delete!(ENV, PEDESTAL_NN_AUTOFETCH_ENV) :
+                                      (ENV[PEDESTAL_NN_AUTOFETCH_ENV] = old)
+                end
+            end
+        end
+
+        # Auto-fetch hook: when the dir is *already complete*, no fetch is
+        # attempted regardless of the env var (idempotency). This is the
+        # branch that protects against repeated downloads on every container
+        # restart and against `using FUSE` re-fetching when files exist.
+        for v in ("", "1", "true", "0", "false")
+            mktempdir() do tmp
+                # Stub a complete bundle dir.
+                for rel in pedestal_nn_files()
+                    p = joinpath(tmp, rel)
+                    mkpath(dirname(p))
+                    write(p, "x")
+                end
+                @assert pedestal_nn_dir_complete(tmp)
+                old = get(ENV, PEDESTAL_NN_AUTOFETCH_ENV, nothing)
+                if isempty(v)
+                    delete!(ENV, PEDESTAL_NN_AUTOFETCH_ENV)
+                else
+                    ENV[PEDESTAL_NN_AUTOFETCH_ENV] = v
+                end
+                try
+                    @test _maybe_autofetch!(tmp) === false
+                finally
+                    old === nothing ? delete!(ENV, PEDESTAL_NN_AUTOFETCH_ENV) :
+                                      (ENV[PEDESTAL_NN_AUTOFETCH_ENV] = old)
+                end
+            end
+        end
+
+        # Optional: real network round-trip, gated by env var (CI doesn't run).
+        # Set FUSE_PEDESTAL_NN_DOWNLOAD_TEST=1 to fetch a single small JSON
+        # from HuggingFace and verify the URL/header pipeline works.
+        if get(ENV, "FUSE_PEDESTAL_NN_DOWNLOAD_TEST", "0") == "1"
+            mktempdir() do tmp
+                # download just the cheapest file (manifest.json, ~few KB) by
+                # temporarily monkey-patching the file manifest at the call site
+                # via a stripped-down call.
+                base = "https://huggingface.co/$(PEDESTAL_NN_HF_REPO_DEFAULT)/resolve/$(PEDESTAL_NN_HF_REVISION_DEFAULT)"
+                dest = joinpath(tmp, "manifest.json")
+                Downloads.download("$base/manifest.json", dest)
+                @test isfile(dest)
+                @test filesize(dest) > 0
+                m = JSON.parsefile(dest)
+                @test haskey(m, "bundles")
+                @test "edensfit89" in keys(m["bundles"])
+            end
+        end
+    end
 end

@@ -61,21 +61,63 @@ still doesn't live on the GSLite wire, it would be FUSE-side bookkeeping.
    `ENV["FUSE_PEDESTAL_NN_DIR"]`, so containers just bind-mount or bake in
    a `onnx_models/` directory.
 
-## Real-time container wiring
+## Auto-fetch is on by default
 
-Two lines in the container's setup:
+A fresh `using FUSE; FUSE.load_pedestal_nn()` on a clean machine will
+notice the bundles aren't there and pull them from
+[`SCS-Lab/pedestal-predictor-onnx`](https://huggingface.co/SCS-Lab/pedestal-predictor-onnx)
+on the spot — no Python tooling, no manual setup. The downloader is a
+stdlib-only `Downloads.download` loop driven by the file manifest in
+[`download_pedestal_nn!`](../../src/actors/pedestal/nn_predictor.jl).
+
+This is intentional: the operator UX is "just run FUSE."
+
+```julia
+using FUSE
+nn = FUSE.load_pedestal_nn()  # ~700 MB on first call, idempotent on repeats
+```
+
+### Production containers — pre-bake at image build time
+
+Auto-fetch on first GSLite handshake means a one-time ~700 MB download
+during the first prediction. Pre-bake at build time to keep first-cycle
+latency tight:
 
 ```dockerfile
-# Build time: pull weights once into an image layer (pinned revision for reproducibility)
-RUN pip install --no-cache-dir "huggingface_hub>=0.24" && \
-    huggingface-cli download SCS-Lab/pedestal-predictor-onnx \
-        --revision <hf-commit-sha> \
-        --local-dir /opt/pedestal-onnx/onnx_models
-
-# Runtime: point FUSE at the weights + the history NPZ shipped with this repo
+ARG PEDESTAL_NN_HF_REVISION=main
 ENV FUSE_PEDESTAL_NN_DIR=/opt/pedestal-onnx/onnx_models
+RUN julia --project=$FUSE_DIR -e \
+    'using FUSE; FUSE.download_pedestal_nn!(ENV["FUSE_PEDESTAL_NN_DIR"]; \
+                                            revision = ENV["PEDESTAL_NN_HF_REVISION"])'
+
+# Runtime: point FUSE at the history NPZ shipped with this repo
 ENV FUSE_PEDESTAL_NN_HISTORY_NPZ=/opt/FUSE/data/pedestal_nn/history_morning.npz
 ```
+
+After the build step the directory is fully populated, so the runtime
+auto-fetch hook becomes a no-op (it checks for completeness before
+attempting any network call).
+
+### Bind-mount mode (no auto-fetch)
+
+If you mount the ONNX dir from an NFS share or a read-only volume, opt
+out of auto-fetch so the loader fails loudly on missing files instead of
+trying to write into the mount:
+
+```bash
+export FUSE_PEDESTAL_NN_DIR=/nfs/pedestal-onnx/onnx_models
+export FUSE_PEDESTAL_NN_AUTOFETCH=0
+```
+
+Accepted opt-out values: `0`, `false`, `no`, `off` (case-insensitive).
+
+### Pinning a revision
+
+`download_pedestal_nn!` defaults to `revision="main"` for ergonomics.
+Production containers should pin a specific HuggingFace commit SHA for
+reproducible image rebuilds — override via the `revision` kwarg or
+`ENV["FUSE_PEDESTAL_NN_HF_REVISION"]`. The repo URL itself is overridable
+via `ENV["FUSE_PEDESTAL_NN_HF_REPO"]` for in-house mirrors.
 
 ## Refreshing the NPZ
 
