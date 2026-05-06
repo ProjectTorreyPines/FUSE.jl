@@ -9,7 +9,7 @@ Base.@kwdef mutable struct CHEASEnamelist
     NBLOPT::Int     = 0
     NBSOPT::Int     = 0
     CPRESS::Float64 = 1.000
-    CFBAL::Float64  = 3.0000 # set to 1. if NSCAL = 4
+    CFBAL::Float64  = 1.0000 # set to 1. if NSCAL = 4
 
     NCSCAL::Int     = 2   # set to 4 if NOT scale q
     CSSPEC::Float64 = 0.000
@@ -212,9 +212,14 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     @assert nl !== nothing "CHEASE namelist not initialized"
 
     if par.restart_equilibrium
-        @info "Restarting CHEASE from existing equilibrium files."
-        # Implement logic to copy existing equilibrium files to current directory
-        cp("EXPEQ.OUT", "EXPEQ"; force=true)
+        if isfile("EXPEQ.OUT")
+            @info "Restarting CHEASE from existing equilibrium files."
+            # Implement logic to copy existing equilibrium files to current directory
+            @info "Replacing EXPEQ with EXPEQ.OUT from previous run for the restart."
+            cp("EXPEQ.OUT", "EXPEQ"; force=true)
+        else
+            error("Invalid CHEASE run configuration: there is NO EXPEQ.OUT to restart from. Do a CLEAN restart)")
+        end
     else
         @info "Clean CHEASE run from dd or NO equilibrium."
         # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
