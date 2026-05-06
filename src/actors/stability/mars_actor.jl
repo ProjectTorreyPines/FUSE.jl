@@ -108,6 +108,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
+    run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
     run_tracer::Entry{Bool} = Entry{Bool}("-", "Whether to run particle tracing simulations"; default=false)
     num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=1)  
 end
@@ -210,7 +211,7 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     chease_exec = par.chease_exec
     @assert nl !== nothing "CHEASE namelist not initialized"
 
-    if restart_equilibrium
+    if par.restart_equilibrium
         @info "Restarting CHEASE from existing equilibrium files."
         # Implement logic to copy existing equilibrium files to current directory
         cp("EXPEQ.OUT", "EXPEQ"; force=true)
@@ -300,13 +301,22 @@ function run_MARS(dd::IMAS.dd, par)
     mars_exec = par.mars_exec
     @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
     isfile(mars_exec) || error("MARS executable not found: $mars_exec")
-    cmd = pipeline(
+    
+    if par.run_mode == :batch
+        @info "Submitting MARS job to batch system with command: $(par.batch_submit_cmd) and script: mars_job.sh"
+        run_batch_mars(mars_exec, par)
+    elseif par.run_mode == :local
+        @info "Running MARS interactively with command: $mars_exec"
+        cmd = pipeline(
         `time $(mars_exec)`,
         stdout = "log_mars",
         stderr = "log_mars"
-    )
-
-    ok = success(cmd)
+        )
+        ok = success(cmd)
+    else
+        error("Unknown run mode: $(par.run_mode). Supported modes are :interactive and :batch.")
+    end
+    
 
     # Display growth rate and iteration count
     iter, growth, freq = parse_MARS_results("RESULT.OUT")
@@ -318,6 +328,32 @@ function run_MARS(dd::IMAS.dd, par)
 
 end
 
+
+
+function run_batch_mars(mars_exec, par)
+
+    script = """
+    #!/bin/bash
+    #SBATCH --job-name=mars_job
+    #SBATCH --output=log_mars
+    #SBATCH --error=log_mars
+
+    cd $(pwd())
+
+    time $mars_exec < RUN.IN
+    """
+
+    script_file = "mars_job.sh"
+    open(script_file, "w") do io
+        write(io, script)
+    end
+
+    run(`chmod +x $script_file`)
+
+    submit_cmd = par.batch_submit_cmd === nothing ? "sbatch" : par.batch_submit_cmd
+
+    run(`$submit_cmd $script_file`)
+end
 
 """
     collect_block_overrides(NamedTuple) -> Dict{Symbol,Any}
