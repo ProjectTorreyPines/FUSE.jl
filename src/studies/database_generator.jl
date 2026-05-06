@@ -42,6 +42,11 @@ end
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = OverrideParameters(sty; kw...)
     study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
+
+    check_and_create_file_save_mode(sty)
+
+    parallel_environment(sty.server, sty.n_workers)
+
     return study
 end
 
