@@ -222,7 +222,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     # Validate forward_ad requirements; fall back to finite_diff if not supported
     if jacobian_method === :forward_ad
-        turb_ok = actor.actor_ct.actor_turb isa ActorTGLF && actor.actor_ct.actor_turb.par.model in (:TJLF, :TGLFNN, :GKNN)
+        turb_ok = actor.actor_ct.actor_turb isa ActorTGLF && actor.actor_ct.actor_turb.par.model in (:TJLF, :TGLFNN, :GKNN, :QLNN)
         scale_ok = ismissing(par, :scale_turbulence_law)
         if !turb_ok || !scale_ok
             @warn "jacobian_method=:forward_ad not supported (turb=$(actor.actor_ct.actor_turb isa ActorTGLF ? actor.actor_ct.actor_turb.par.model : typeof(actor.actor_ct.actor_turb)), scale_turbulence_law=$(ismissing(par, :scale_turbulence_law) ? "unset" : par.scale_turbulence_law)); falling back to :finite_diff"
@@ -231,8 +231,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     algorithm = if par.algorithm === :default
-        if actor.actor_ct.actor_turb.par.model in (:TGLFNN, :GKNN)
+        if actor.actor_ct.actor_turb.par.model in (:TGLFNN, :GKNN, :QLNN)
             # combines speed and robustness, but needs smooth derivatives
+            # (:QLNN -> NN regressors + smooth TJLF saturation rule, no Fortran call)
             :basic_polyalg
         else
             if jacobian_method === :forward_ad
@@ -1614,6 +1615,21 @@ function ad_flux_match_errors!(
         # Run TGLFNN/GKNN neural network directly (Dual-compatible via AdaptiveArrayPools)
         # Unwrap InputTGLFs wrapper to Vector{InputTGLF{T}} expected by run_tglfnn
         flux_solutions = TurbulentTransport.run_tglfnn(input_tglfs_dual.tglfs; warn_nn_train_bounds=turb_par.warn_nn_train_bounds, model_filename=model_filename(turb_par), fidelity=turb_par.model)
+
+    elseif turb_par.model === :QLNN
+        # QLNN: NN regressors + TJLF saturation rule. Both halves preserve the
+        # `Dual` eltype (the regressors are plain Flux.Chains; TJLF.sum_ky_spectrum
+        # is parameterized on T<:Real), so we can route Dual-typed InputTJLFs
+        # straight through `run_qlnn` to get a Dual-typed FluxSolution.
+        # No FIND_WIDTH / WIDTH_SPECTRUM transfer is needed because QLNN never
+        # iterates the spectral width — it consumes the NN-predicted γ directly.
+        input_tjlfs_ad = Vector{InputTJLF{T}}(undef, length(par.rho_transport))
+        for k in eachindex(par.rho_transport)
+            input_tjlfs_ad[k] = InputTJLF{T}(input_tglfs_dual[k])
+        end
+        flux_solutions = TurbulentTransport.run_qlnn(input_tjlfs_ad;
+            bundle_name=model_filename(turb_par),
+            warn_nn_train_bounds=turb_par.warn_nn_train_bounds)
 
     else
         error("jacobian_method=:forward_ad does not support turbulence model :$(turb_par.model)")
