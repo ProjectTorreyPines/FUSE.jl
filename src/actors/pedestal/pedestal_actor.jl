@@ -19,7 +19,11 @@
     #== actor parameters==#
     density_match::Switch{Symbol} = Switch{Symbol}([:ne_line, :ne_ped], "-", "Matching density based on ne_ped or line averaged density"; default=:ne_ped)
     model::Switch{Symbol} = Switch{Symbol}([:EPED, :WPED, :dynamic, :analytic, :replay, :none], "-", "Pressure edge model"; default=:EPED)
-    rotation_model::Switch{Symbol} = Switch{Symbol}([:linear, :replay, :none], "-", "Rotation edge model"; default=:none)
+    rotation_model::Switch{Symbol} = Switch{Symbol}(
+        [:linear, :replay, :nn_pedestal, :none],
+        "-",
+        "Rotation edge model: `:linear` (linear edge), `:replay` (core+edge from replay_dd), `:nn_pedestal` (use NN-predicted ω_ped, requires `ne_from=:nn_predictor`), `:none` (do nothing — preserve existing rotation profile)";
+        default=:none)
     #== L to H and H to L transition model ==#
     tau_t::Entry{T} = Entry{T}("s", "Edge temperature LH transition tanh evolution time (95% of full transition)")
     tau_n::Entry{T} = Entry{T}("s", "Edge density LH transition tanh evolution time (95% of full transition)")
@@ -568,9 +572,11 @@ writes) reflect them.
 
 - `nn_prediction.te_ped`     (keV)   -> `cp1d.electrons.temperature`
 - `nn_prediction.ti_ped`     (keV)   -> every `cp1d.ion[*].temperature`
-- `nn_prediction.t_rot_ped`  (krad/s) -> every `cp1d.ion[*].rotation_frequency_tor`
-   when `par.rotation_model == :none` (an explicit `:linear`/`:replay`
-   rotation model takes precedence and overwrites this later in `_step`).
+- `nn_prediction.t_rot_ped`  (krad/s) -> every `cp1d.ion[*].rotation_frequency_tor`,
+   ONLY when `par.rotation_model == :nn_pedestal` (explicit opt-in). The default
+   `:none` is a true no-op — rotation is left untouched, mirroring `ActorFluxMatcher`'s
+   `evolve_rotation == :fixed` semantics. Use `:linear`/`:replay` for the historical
+   rotation BCs, or `:nn_pedestal` to drive the rotation pedestal off the NN.
 
 Each NN field is reduced to a scalar pedestal value by averaging over the
 FPE window — the same convention already used for `predictions_physical`
@@ -628,7 +634,7 @@ function pedestal_nn_apply!(actor::ActorPedestal)
     # We also refresh cp1d.rotation_frequency_tor_sonic so FINN's
     # `profile_from_rotation_shear_transport` sees the NN pedestal value as BC.
     T_rot_krads = _trace_mean(nn.t_rot_ped)
-    if isfinite(T_rot_krads) && par.rotation_model == :none
+    if isfinite(T_rot_krads) && par.rotation_model == :nn_pedestal
         ω_ped = T_rot_krads * 1e3
         any_ion_rot = false
         for ion in cp1d.ion
