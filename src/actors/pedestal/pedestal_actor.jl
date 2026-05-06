@@ -668,7 +668,7 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
     elseif par.density_match == :ne_line
         # NOTE: All pedestal actors take ne_ped as input
         # Here we convert the desirred pulse_schedule ne_line to ne_ped
-        @assert par.ne_from == :pulse_schedule
+        @assert par.ne_from in (:pulse_schedule, :nn_predictor) ":ne_line density_match requires ne_from ∈ (:pulse_schedule, :nn_predictor)"
 
         # run pedestal model on scaled density
         par.ne_from = :core_profiles
