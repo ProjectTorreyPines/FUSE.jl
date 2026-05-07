@@ -44,6 +44,7 @@ using Test
                     @test isfile("EXPEQ")|| error("CHEASE equilibrium file EXPEQ not found.")
                     #@test filesize("EXPEQ") > 0 "CHEASE equilibrium file EXPEQ is empty."
                     @test isfile("datain") || error("CHEASE datain file not found.")
+                    @test isfile("OUTRMAR") || error("CHEASE output file OUTPMARS not found.")
                 end
 
                 # next test the restart capability

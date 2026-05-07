@@ -184,6 +184,10 @@ function _step(actor::ActorMars)
         display(plt)
     end
 
+    # Get the D3D MARS wall file from the FUSE repository
+    #file_path = joinpath(@__DIR__, "D3D_MARS_wall.json")
+    #dd2 = IMAS.json2imas(file_path)
+
     #run equilibrium solver to generate initial conditions for MARS
     if par.run_equilibrium
         if par.eq_type == :CHEASE
