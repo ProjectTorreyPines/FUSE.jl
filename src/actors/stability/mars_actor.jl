@@ -99,6 +99,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
+    wall_type::Switch{Symbol} = Switch{Symbol}([:D3D, :ITER, :ASDEX, :MAST, :KSTAR], "-", "Machine wall shape to use for MARS"); default=:D3D)
     mars_overrides::Entry{NamedTuple} =
         Entry{NamedTuple}("-", "Runtime MARS namelist overrides"; default=NamedTuple())
     mars_exec::Entry{String} =
@@ -184,11 +185,6 @@ function _step(actor::ActorMars)
         display(plt)
     end
 
-    # Get the D3D MARS wall file from the FUSE repository
-    file_path = dirname(dirname(pathof(FUSE)))* "/sample/"
-    file_path = joinpath(file_path, "D3D_mars_wall.json")
-    dd_wall = IMAS.json2imas(file_path)
-
     #run equilibrium solver to generate initial conditions for MARS
     if par.run_equilibrium
         if par.eq_type == :CHEASE
@@ -216,6 +212,9 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     chease_exec = par.chease_exec
     @assert nl !== nothing "CHEASE namelist not initialized"
 
+    # Get the D3D MARS wall file from the FUSE repository
+    limiter = get_limiter_data(par.wall_type)
+
     if par.restart_equilibrium
         if isfile("EXPEQ.OUT")
             @info "Restarting CHEASE from existing equilibrium files."
@@ -228,7 +227,7 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     else
         @info "Clean CHEASE run from dd or NO equilibrium."
         # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
-        B0, R0 = write_EXPEQ_file(dd, par)
+        B0, R0 = write_EXPEQ_file(dd, par; wall_data = limiter)
         println("B0 for CHEASE normalization: $B0 T")
         println("R0 for CHEASE normalization: $R0 m")
         setfield!(nl, :B0EXP, B0)
@@ -363,6 +362,33 @@ function run_batch_mars(mars_exec, par)
     submit_cmd = par.batch_submit_cmd === nothing ? "sbatch" : par.batch_submit_cmd
 
     run(`$submit_cmd $script_file`)
+end
+
+"""
+    get_limiter_data(wall_type::Symbol) -> (r_wall::Vector{Float64}, z_wall::Vector{Float64})      
+"""
+
+function get_limiter_data(wall_type::Symbol)
+    if wall_type == :D3D
+        machine = "D3D"
+    elseif wall_type == :ITER
+        machine = "ITER"
+    elseif wall_type == :ASDEX
+        machine = "ASDEX"
+    elseif wall_type == :MAST
+        machine = "MAST"
+    elseif wall_type == :KSTAR
+        machine = "KSTAR"
+    else
+        error("Unknown wall type: $wall_type. Supported types are :D3D, :ITER, :ASDEX, :MAST, :KSTAR.")
+    end
+    
+    file_path = dirname(dirname(pathof(FUSE)))* "/sample/"
+    file_path = joinpath(file_path, "D3D_mars_wall.json")
+    dd_wall = IMAS.json2imas(file_path)
+    
+    return dd_wall.wall.description_2d[].limiter.unit[1].outline
+    
 end
 
 """
@@ -537,7 +563,7 @@ end
         NWBPS: Number of wall boundary points
         NSTTP: Number of steps in pressure and current profiles
 """
-function write_EXPEQ_file(dd::IMAS.dd, par)
+function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
 
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
@@ -658,12 +684,23 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
     # if there is another surface, calclate its cooridanes given an offset and save to file
     if NWBPS > 1. ## WHAT TO DO if > 2
+        if wall_data == nothing 
+            @info "Creating a conformal limiter offset from plasma boundary by $(par.offset)."
+            r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
+        else
+            @info "loading the smoothted limiter .json data."
+            r_d3d, z_d3d = 1.6955*wall_data.r, 1.6955*wall_data.z
+        end
         # add a smooth first wall (RW)
-        r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
+        
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
+         
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
-        plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal, title="Smoothed Boundary for EXPEQ")
+        r_d3d_norm = r_d3d / R0
+        z_d3d_norm = z_d3d / R0
+        #plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal)
+        plt = plot!(r_d3d, z_d3d; linewidth=1.5, aspect_ratio=:equal)
         display(plt)
         for (r, z) in zip(r_lim_norm, z_lim_norm)
             write_list = vcat(write_list, "$r    $z")
