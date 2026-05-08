@@ -655,7 +655,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
     # I suspect this logic is to make the q profile > 0, but NOT sure
     ip_sign = sign(Ip)
     bt_sign = sign(Bt_center)
-    println("Ip sign: $ip_sign, Bt sign: $bt_sign")
+    #println("Ip sign: $ip_sign, Bt sign: $bt_sign")
     # **** This logic is NOT needed in Martian CHEASE **** ##
     #if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
     #    j_tor_norm .*= -1
