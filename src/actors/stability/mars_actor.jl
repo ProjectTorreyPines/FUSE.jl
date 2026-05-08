@@ -99,7 +99,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
-    wall_type::Switch{Symbol} = Switch{Symbol}([:D3D, :ITER, :ASDEX, :MAST, :KSTAR], "-", "Machine wall shape to use for MARS"); default=:D3D)
+    wall_type::Switch{Symbol} = Switch{Symbol}([:D3D, :ITER, :ASDEX, :MAST, :KSTAR], "-", "Machine wall shape to use for MARS"; default=:D3D)
     mars_overrides::Entry{NamedTuple} =
         Entry{NamedTuple}("-", "Runtime MARS namelist overrides"; default=NamedTuple())
     mars_exec::Entry{String} =
@@ -588,7 +588,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
 
     # choose B0 & R0 for CHEASE normalization
     B0 = abs(Bt_center)
-    R0 = r_geo
+    R0 = r0
 
     # inverse aspect ratio for CHEASE input
     ϵ = minor_radius / R0
@@ -689,7 +689,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
             r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
         else
             @info "loading the smoothted limiter .json data."
-            r_d3d, z_d3d = 1.6955*wall_data.r, 1.6955*wall_data.z
+            r_lim, z_lim = wall_data.r, wall_data.z  # put the length scale back in
         end
         # add a smooth first wall (RW)
         
@@ -697,10 +697,9 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
          
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
-        r_d3d_norm = r_d3d / R0
-        z_d3d_norm = z_d3d / R0
-        #plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal)
-        plt = plot!(r_d3d, z_d3d; linewidth=1.5, aspect_ratio=:equal)
+        
+        plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal)
+        #plt = plot!(r_d3d, z_d3d; linewidth=1.5, aspect_ratio=:equal)
         display(plt)
         for (r, z) in zip(r_lim_norm, z_lim_norm)
             write_list = vcat(write_list, "$r    $z")
