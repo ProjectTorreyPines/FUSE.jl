@@ -188,6 +188,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     # simulation starts when both equilibrium and profiles are available
     ini.time.simulation_start = max(ini.general.dd.equilibrium.time_slice[2].time, ini.general.dd.core_profiles.profiles_1d[2].time)
+    t_eq = length(ini.general.dd.equilibrium.time_slice) >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : -Inf
     t_cp = length(ini.general.dd.core_profiles.profiles_1d) >= 2 ? ini.general.dd.core_profiles.profiles_1d[2].time : -Inf
     ini.time.simulation_start = max(t_eq, t_cp)
 
