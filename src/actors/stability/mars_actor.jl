@@ -683,7 +683,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
     end
 
     # if there is another surface, calclate its cooridanes given an offset and save to file
-    if NWBPS > 1. ## WHAT TO DO if > 2
+    if NWBPS > 1 ## WHAT TO DO if > 2
         if wall_data == nothing 
             @info "Creating a conformal limiter offset from plasma boundary by $(par.offset)."
             r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
