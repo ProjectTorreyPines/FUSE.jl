@@ -30,11 +30,25 @@
 import ONNXRunTime
 import JSON
 import NPZ
+import Downloads
 import OrderedCollections: OrderedDict
 
 const PEDESTAL_NN_ENV = "FUSE_PEDESTAL_NN_DIR"
+const PEDESTAL_NN_AUTOFETCH_ENV = "FUSE_PEDESTAL_NN_AUTOFETCH"
+const PEDESTAL_NN_HF_REPO_ENV = "FUSE_PEDESTAL_NN_HF_REPO"
+const PEDESTAL_NN_HF_REVISION_ENV = "FUSE_PEDESTAL_NN_HF_REVISION"
+
+const PEDESTAL_NN_HF_REPO_DEFAULT     = "SCS-Lab/pedestal-predictor-onnx"
+const PEDESTAL_NN_HF_REVISION_DEFAULT = "main"
 
 const _CANONICAL_SLUGS = ("edensfit89", "hmode_89", "te_ped_89", "ti_ped_89", "t_rot_ped_89")
+const _CLASSIFICATION_SLUGS = ("hmode_89",)
+const _BUNDLE_FILES_REGRESSION = ("mse_encoder.onnx", "fpe_encoder.onnx",
+                                  "model_config.json", "normalization_params.json",
+                                  "target_norm.json")
+const _BUNDLE_FILES_CLASSIFICATION = ("mse_encoder.onnx", "fpe_encoder.onnx",
+                                      "model_config.json", "normalization_params.json")
+const _TOPLEVEL_FILES = ("manifest.json",)
 const _DATASET_WIDTH = Dict("v1_446" => 446, "v2_458" => 458)
 const _MSE_HISTORY_LENGTH = 50
 const _FPE_SIGNAL_DIM = 32
@@ -110,6 +124,136 @@ function resolve_pedestal_nn_dir(; onnx_dir::Union{Nothing,AbstractString}=nothi
     return normpath(joinpath(__FUSE__, "..", "pedestal-predictor-onnx", "onnx_models"))
 end
 
+# ── HuggingFace auto-fetch ──────────────────────────────────────────────────
+
+"""
+    pedestal_nn_files() -> Vector{String}
+
+Manifest of relative paths (under the onnx-models root) that
+[`download_pedestal_nn!`](@ref) fetches from HuggingFace. Same set of files
+that `_load_bundle` reads, plus `manifest.json` for parity with the upstream
+layout. Exposed for test-side enumeration.
+"""
+function pedestal_nn_files()
+    files = String[String(f) for f in _TOPLEVEL_FILES]
+    for slug in _CANONICAL_SLUGS
+        per_bundle = slug in _CLASSIFICATION_SLUGS ?
+            _BUNDLE_FILES_CLASSIFICATION : _BUNDLE_FILES_REGRESSION
+        for f in per_bundle
+            push!(files, "$slug/$f")
+        end
+    end
+    return files
+end
+
+"""
+    download_pedestal_nn!(target_dir::AbstractString;
+                         repo=PEDESTAL_NN_HF_REPO_DEFAULT,
+                         revision=PEDESTAL_NN_HF_REVISION_DEFAULT,
+                         force=false,
+                         verbose=true) -> target_dir
+
+Pull the PedestalPredictor ONNX bundles from HuggingFace into `target_dir`,
+producing the exact directory layout `load_pedestal_nn` expects. Idempotent:
+files already present on disk are skipped unless `force=true`.
+
+Set `repo` / `revision` to pin a specific HF mirror or commit SHA — both are
+also overridable via `ENV[$(repr(PEDESTAL_NN_HF_REPO_ENV))]` and
+`ENV[$(repr(PEDESTAL_NN_HF_REVISION_ENV))]`.
+
+Total download for a fresh install: ~700 MB compressed (5 × `mse_encoder.onnx`
+≈ 31 MB + 5 × `fpe_encoder.onnx` ≈ 112 MB + JSON sidecars).
+
+# Default behavior
+
+`load_pedestal_nn` calls this automatically when the configured
+`onnx_dir` is missing or incomplete. Override by setting
+`ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"] = \"0\"` (or `"false"` / `"no"` / `"off"`)
+when you want to bind-mount a read-only ONNX dir and have the loader fail
+fast on missing files instead of trying to write into the mount.
+
+# Container build usage (eager, pre-baked)
+
+Pre-fetching at image-build time keeps first-cycle latency predictable —
+no 700 MB pull on the first GSLite handshake.
+
+```
+ARG PEDESTAL_NN_HF_REVISION=main
+ENV FUSE_PEDESTAL_NN_DIR=/opt/pedestal-onnx/onnx_models
+RUN julia --project=\$FUSE_DIR -e \\
+    'using FUSE; FUSE.download_pedestal_nn!(ENV["FUSE_PEDESTAL_NN_DIR"]; revision=ENV["PEDESTAL_NN_HF_REVISION"])'
+```
+
+# Runtime usage on a fresh dev machine
+
+Just call `using FUSE` — the auto-fetch hook in `load_pedestal_nn` handles
+it. To direct the cache somewhere specific, set `FUSE_PEDESTAL_NN_DIR`
+first; it'll be created and populated on first load.
+"""
+function download_pedestal_nn!(target_dir::AbstractString;
+        repo::AbstractString=get(ENV, PEDESTAL_NN_HF_REPO_ENV, PEDESTAL_NN_HF_REPO_DEFAULT),
+        revision::AbstractString=get(ENV, PEDESTAL_NN_HF_REVISION_ENV, PEDESTAL_NN_HF_REVISION_DEFAULT),
+        force::Bool=false,
+        verbose::Bool=true)
+    mkpath(target_dir)
+    files = pedestal_nn_files()
+    base_url = "https://huggingface.co/$repo/resolve/$revision"
+    verbose && @info "PedestalNN: fetching $(length(files)) files from $repo @ $revision -> $target_dir"
+    for (i, rel) in enumerate(files)
+        dest = joinpath(target_dir, rel)
+        if !force && isfile(dest) && filesize(dest) > 0
+            verbose && @info "  [$i/$(length(files))] cached $rel ($(filesize(dest)) B)"
+            continue
+        end
+        url = "$base_url/$rel"
+        mkpath(dirname(dest))
+        verbose && @info "  [$i/$(length(files))] fetching $rel"
+        try
+            Downloads.download(url, dest)
+        catch err
+            isfile(dest) && rm(dest; force=true)  # clean up partial file
+            error("download_pedestal_nn!: failed to fetch $url\n  -> $err")
+        end
+        if filesize(dest) == 0
+            rm(dest; force=true)
+            error("download_pedestal_nn!: $rel downloaded empty from $url")
+        end
+        verbose && @info "  [$i/$(length(files))] -> $(filesize(dest)) B"
+    end
+    verbose && @info "PedestalNN: download complete ($(length(files)) files)"
+    return String(target_dir)
+end
+
+"""
+    pedestal_nn_dir_complete(dir::AbstractString) -> Bool
+
+True iff `dir` already contains every file [`pedestal_nn_files`](@ref) lists
+(skips zero-byte stragglers from interrupted downloads). Useful for
+container-build cache checks.
+"""
+function pedestal_nn_dir_complete(dir::AbstractString)
+    isdir(dir) || return false
+    for rel in pedestal_nn_files()
+        path = joinpath(dir, rel)
+        (isfile(path) && filesize(path) > 0) || return false
+    end
+    return true
+end
+
+# Auto-fetch is on by default so a fresh `using FUSE; load_pedestal_nn()`
+# Just Works on a clean machine without manual setup. Opt out by setting
+# `ENV[PEDESTAL_NN_AUTOFETCH_ENV] = "0"` (or "false"/"no"/"off") — useful
+# when bind-mounting the ONNX dir from an NFS share or a read-only image
+# layer and you want the loader to fail fast instead of trying to write.
+function _maybe_autofetch!(dir::AbstractString)
+    autofetch = lowercase(strip(get(ENV, PEDESTAL_NN_AUTOFETCH_ENV, "")))
+    autofetch in ("0", "false", "no", "off") && return false
+    pedestal_nn_dir_complete(dir) && return false
+    @info "PedestalNN: ONNX bundles missing or incomplete; auto-fetching from HuggingFace ($(get(ENV, PEDESTAL_NN_HF_REPO_ENV, PEDESTAL_NN_HF_REPO_DEFAULT)) @ $(get(ENV, PEDESTAL_NN_HF_REVISION_ENV, PEDESTAL_NN_HF_REVISION_DEFAULT))) -> $dir\n  Set ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"] = \"0\" to opt out."
+    download_pedestal_nn!(dir)
+    return true
+end
+
 """
     load_pedestal_nn(; onnx_dir=nothing, only=nothing) -> PedestalNN
 
@@ -138,8 +282,13 @@ function _cached_pedestal_nn(dir::AbstractString, only)
     keep = only === nothing ? collect(_CANONICAL_SLUGS) : sort(String.(only))
     cache_key = (abspath(dir), keep)
     haskey(_PEDESTAL_NN_CACHE, cache_key) && return _PEDESTAL_NN_CACHE[cache_key]
+    _maybe_autofetch!(cache_key[1])
     isdir(cache_key[1]) || error("PedestalNN: onnx directory does not exist: $(cache_key[1])\n" *
-                                 "Set ENV[\"$PEDESTAL_NN_ENV\"] or pass onnx_dir=... to load_pedestal_nn.")
+        "Auto-fetch was skipped (ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"] is set to opt-out) " *
+        "or failed before creating the directory. Either:\n" *
+        "  • Unset / set ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"]=\"1\" and retry (downloads from HuggingFace)\n" *
+        "  • Run `FUSE.download_pedestal_nn!(\"$(cache_key[1])\")` explicitly\n" *
+        "  • Set ENV[\"$PEDESTAL_NN_ENV\"] or pass `onnx_dir=...` to point at an existing copy")
 
     bundles = OrderedDict{String,PedestalNNBundle}()
     for slug in _CANONICAL_SLUGS

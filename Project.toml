@@ -1,7 +1,7 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
 authors = ["Orso Meneghini <orso82@gmail.com>"]
-version = "1.1.1"
+version = "1.1.2"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -15,6 +15,7 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 EGGO = "25cd7528-e4e3-46fe-8df7-7ec8e1454e14"
 EPEDNN = "e64856f0-3bb8-4376-b4b7-c03396503991"
 FRESCO = "f2db6eb9-2c54-4c18-912b-ce467796777a"

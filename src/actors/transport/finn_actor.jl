@@ -10,7 +10,11 @@ import GACODE
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm grid for FINN predictions"; default=0.25:0.1:0.85)
     MXH_modes::Entry{Int} = Entry{Int}("-", "Number of MXH harmonics used when generating InputTGLF geometry for FINN"; default=1)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Warn if inputs are outside FINN training bounds"; default=false)
-    evolve_rotation::Entry{Bool} = Entry{Bool}("-", "Set rotation from predicted VEXB_SHEAR"; default=false)
+    evolve_rotation::Switch{Symbol} = Switch{Symbol}(
+        [:flux_match, :fixed, :replay],
+        "-",
+        "Rotation evolution: `:flux_match` (set rotation from predicted VEXB_SHEAR), `:fixed` (leave existing rotation profile alone), `:replay` (core from `replay_dd`, edge from current sim — mirrors `ActorFluxMatcher.evolve_rotation = :replay`)";
+        default=:fixed)
     z_max::Entry{Union{T,NamedTuple}} = Entry{Union{T,NamedTuple}}(
         "m⁻¹",
         """
@@ -37,6 +41,7 @@ mutable struct ActorFINN{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorFINN{P}}
     finn_results::NamedTuple
+    actor_replay::ActorReplay{D,P}
 end
 
 """
@@ -52,24 +57,34 @@ Predicted channels (updated from FINN):
 - Electron temperature (from RLTS_1)
 - Ion temperature (from RLTS_2, applied to all ion species)
 - Electron density (from RLNS_1)
-- Rotation (from VEXB_SHEAR, only if `evolve_rotation=true`)
+- Rotation: see `evolve_rotation` parameter
+   - `:flux_match` → set from predicted VEXB_SHEAR
+   - `:fixed` → leave existing rotation profile alone
+   - `:replay` → core from `replay_dd`, edge from current sim
+     (mirrors `ActorFluxMatcher.evolve_rotation == :replay`)
 
 Unpredicted channels (retain experimental/initialized values):
 - Individual ion densities (Deuterium, Tritium, impurities)
 - Any profiles outside the `rho_transport` grid (edge/pedestal region)
 """
 function ActorFINN(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorFINN(dd, act.ActorFINN; kw...)
+    actor = ActorFINN(dd, act.ActorFINN, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorFINN(dd::IMAS.dd{D}, par::FUSEparameters__ActorFINN; kw...) where {D<:Real}
+function ActorFINN(dd::IMAS.dd{D}, par::FUSEparameters__ActorFINN{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFINN)
     par = OverrideParameters(par; kw...)
     empty_results = (RLTS_1=Float64[], RLTS_2=Float64[], RLNS_1=Float64[], VEXB_SHEAR=Float64[], rho=Float64[])
-    return ActorFINN(dd, par, empty_results)
+    # Build a placeholder ActorReplay so the parent struct can be constructed,
+    # then reassign with the parent-actor reference so dispatch reaches
+    # `_step(::ActorReplay, ::ActorFINN, ::IMAS.dd)` (mirrors ActorFluxMatcher).
+    actor_replay = ActorReplay(dd, act.ActorReplay, ActorNoOperation(dd, act.ActorNoOperation))
+    actor = ActorFINN(dd, par, empty_results, actor_replay)
+    actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
+    return actor
 end
 
 """
@@ -86,6 +101,14 @@ Runs FINN to predict flux-matched gradients and sets plasma profiles.
 function _step(actor::ActorFINN{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
+
+    # Replay rotation from replay_dd if requested. Runs BEFORE FINN so that
+    # the replayed core/edge rotation profile is in place when downstream
+    # consumers query `cp1d.rotation_frequency_tor_sonic`. FINN's `_finalize`
+    # will then leave rotation untouched (it only writes when `:flux_match`).
+    if par.evolve_rotation == :replay
+        finalize(step(actor.actor_replay))
+    end
 
     model_filename = endswith(par.finn_model, ".bson") ? par.finn_model[begin:end-5] : par.finn_model
     actor.finn_results = TurbulentTransport.run_finn(
@@ -185,11 +208,12 @@ function _finalize(actor::ActorFINN)
     # gradients (e.g. Deuterium, Tritium, impurity densities).
     # These retain their experimental/initialized values.
 
-    # Rotation: optionally update from predicted VEXB_SHEAR
+    # Rotation: only update from predicted VEXB_SHEAR when explicitly :flux_match.
+    # `:fixed` leaves rotation alone; `:replay` was handled in `_step` via `actor_replay`.
     # From tglf.jl: w0 = -ω, gamma_e = (rmin/q)*dω/dr, VEXB_SHEAR = -gamma_e*(a/c_s)
     # Inverting: dω/drho = VEXB_SHEAR * q / rmin * c_s * DRMINDX
     # where rmin [cm] = a_cm * RMIN_LOC, and c_s [cm/s] from GACODE
-    if par.evolve_rotation && !isempty(res.VEXB_SHEAR)
+    if par.evolve_rotation == :flux_match && !isempty(res.VEXB_SHEAR)
         eqt1d = dd.equilibrium.time_slice[].profiles_1d
         rmin_full = GACODE.r_min_core_profiles(eqt1d, rho)
         a_cm = rmin_full[end]
@@ -209,4 +233,51 @@ function _finalize(actor::ActorFINN)
     IMAS.intrinsic_sources!(dd)
 
     return actor
+end
+
+"""
+    _step(replay_actor::ActorReplay, actor::ActorFINN, replay_dd::IMAS.dd)
+
+Replay rotation profile from `replay_dd` into the current `dd` when
+`actor.par.evolve_rotation == :replay`. Mirrors the rotation block of
+`ActorFluxMatcher`'s replay step (core from replay, edge from current sim,
+shifted at `rho_transport[end]` for continuity). Both `rotation_frequency_tor_sonic`
+and per-ion `rotation_frequency_tor` are copied — the latter is the measured
+quantity, and copying only sonic rotation would let it get recomputed from
+simulated pressure gradients via the IMAS expression.
+"""
+function _step(replay_actor::ActorReplay, actor::ActorFINN, replay_dd::IMAS.dd)
+    par = actor.par
+    par.evolve_rotation == :replay || return replay_actor
+
+    dd = actor.dd
+    time0 = dd.global_time
+    cp1d = dd.core_profiles.profiles_1d[time0]
+    replay_cp1d = replay_dd.core_profiles.profiles_1d[time0]
+    rho = cp1d.grid.rho_tor_norm
+
+    # Use the outer edge of the FINN transport grid as the blend point — this is
+    # the analog of FluxMatcher's `rho_nml`.
+    rho_blend = collect(par.rho_transport)[end]
+    i_blend = IMAS.argmin_abs(rho, rho_blend)
+
+    # Sonic rotation: core from replay, edge from simulation, shift to match at i_blend
+    ω_core = deepcopy(replay_cp1d.rotation_frequency_tor_sonic)
+    ω_edge = IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
+    ω_core[i_blend+1:end] = ω_edge[i_blend+1:end]
+    ω_core[1:i_blend] = ω_core[1:i_blend] .- ω_core[i_blend] .+ ω_edge[i_blend]
+    cp1d.rotation_frequency_tor_sonic = ω_core
+
+    # Ion rotation: same blending (core from replay, edge from simulation)
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
+            ω_ion_core = deepcopy(replay_ion.rotation_frequency_tor)
+            ω_ion_edge = IMAS.freeze!(ion, :rotation_frequency_tor)
+            ω_ion_core[i_blend+1:end] = ω_ion_edge[i_blend+1:end]
+            ω_ion_core[1:i_blend] = ω_ion_core[1:i_blend] .- ω_ion_core[i_blend] .+ ω_ion_edge[i_blend]
+            ion.rotation_frequency_tor = ω_ion_core
+        end
+    end
+
+    return replay_actor
 end
