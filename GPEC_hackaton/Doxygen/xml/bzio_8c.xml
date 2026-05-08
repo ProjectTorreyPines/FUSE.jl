@@ -1,0 +1,944 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.14.0" xml:lang="en-US">
+  <compounddef id="bzio_8c" kind="file" language="C++">
+    <compoundname>bzio.c</compoundname>
+    <includes local="no">stdio.h</includes>
+    <includes local="no">string.h</includes>
+    <includes local="no">fcntl.h</includes>
+    <includes local="no">sys/stat.h</includes>
+    <includes local="no">sys/types.h</includes>
+    <includes local="no">unistd.h</includes>
+    <incdepgraph>
+      <node id="1">
+        <label>/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c</label>
+        <link refid="bzio_8c"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>fcntl.h</label>
+      </node>
+      <node id="2">
+        <label>stdio.h</label>
+      </node>
+      <node id="3">
+        <label>string.h</label>
+      </node>
+      <node id="5">
+        <label>sys/stat.h</label>
+      </node>
+      <node id="6">
+        <label>sys/types.h</label>
+      </node>
+      <node id="7">
+        <label>unistd.h</label>
+      </node>
+    </incdepgraph>
+    <sectiondef kind="define">
+      <memberdef kind="define" id="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" prot="public" static="no">
+        <name>WORD_LENGTH</name>
+        <initializer>8      /* word length is 8 bytes */</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="11" column="9" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="11" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="define" id="bzio_8c_1a22a256eba8ad678cd6deb27b93aafa78" prot="public" static="no">
+        <name>MAXOPFILES</name>
+        <initializer>100</initializer>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="12" column="9" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="12" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="var">
+      <memberdef kind="variable" id="bzio_8c_1a8b219945b0f4672b8501e2f37bd50141" prot="public" static="yes" mutable="no">
+        <type>int</type>
+        <definition>int ofp[MAXOPFILES]</definition>
+        <argsstring>[MAXOPFILES]</argsstring>
+        <name>ofp</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="13" column="12" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="13" bodyend="-1"/>
+      </memberdef>
+    </sectiondef>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="bzio_8c_1aea3f351037a2aff65a70dafafbca42de" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zop_</definition>
+        <argsstring>(int *ioc, char *name, int *nsize, int *idisk, int *icode, int *ilab, int *name_length)</argsstring>
+        <name>zop_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>name</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nsize</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>idisk</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>icode</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>ilab</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>name_length</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="15" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="15" bodyend="48"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1aafd07b4fbf06711315251897c0aa190e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zcl_</definition>
+        <argsstring>(int *ioc)</argsstring>
+        <name>zcl_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="50" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="50" bodyend="54"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1ae53ff268ad47fecb8a9c781a55a0d565" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zwr_</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>zwr_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="56" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="56" bodyend="71"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1a7b4a21dc294f2fe1572396ebd5a14afc" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zrd_</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>zrd_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="73" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="73" bodyend="89"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1ace50586e1695caba2e4b849c4fb63be8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZOP_</definition>
+        <argsstring>(int *ioc, char *name, int *nsize, int *idisk, int *icode, int *ilab, int *name_length)</argsstring>
+        <name>ZOP_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>name</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nsize</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>idisk</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>icode</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>ilab</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>name_length</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="92" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="92" bodyend="125"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1a76bb287eaae630f1d69d5104baa0388a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZCL_</definition>
+        <argsstring>(int *ioc)</argsstring>
+        <name>ZCL_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="127" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="127" bodyend="131"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1ab1a119e4a5560bab3e0fa446706c0700" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZWR_</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>ZWR_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="133" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="133" bodyend="148"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1a05c487db15fe2207f756b8364b06e94f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZRD_</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>ZRD_</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="150" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="150" bodyend="166"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1afb89ff14949f87bedb1c2cdd53b6fd55" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zop</definition>
+        <argsstring>(int *ioc, char *name, int *nsize, int *idisk, int *icode, int *ilab, int *name_length)</argsstring>
+        <name>zop</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>name</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nsize</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>idisk</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>icode</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>ilab</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>name_length</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="168" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="168" bodyend="201"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1aa86717878dec14058f9016f863b6f798" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zcl</definition>
+        <argsstring>(int *ioc)</argsstring>
+        <name>zcl</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="203" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="203" bodyend="207"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1af185b72556616f80f4de8c5ea1a56adb" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zwr</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>zwr</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="209" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="209" bodyend="224"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1ac1b60b1e01331d1a3f4dea77beb59ef9" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int zrd</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>zrd</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="226" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="226" bodyend="242"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1a4449047677eb8c6b80aaf87ee81d0497" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZOP</definition>
+        <argsstring>(int *ioc, char *name, int *nsize, int *idisk, int *icode, int *ilab, int *name_length)</argsstring>
+        <name>ZOP</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>name</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nsize</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>idisk</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>icode</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>ilab</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>name_length</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="245" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="245" bodyend="278"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1a3a9efd844ae3a9a44cd15374015f34cf" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZCL</definition>
+        <argsstring>(int *ioc)</argsstring>
+        <name>ZCL</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="280" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="280" bodyend="284"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1a3c915fa7cfcf817380f2e3a132b19b7e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZWR</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>ZWR</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="286" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="286" bodyend="301"/>
+      </memberdef>
+      <memberdef kind="function" id="bzio_8c_1ae3e516f85e39dae3691b4b8ebc080fa6" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>int</type>
+        <definition>int ZRD</definition>
+        <argsstring>(int *ioc, char *a, int *nwords, int *adres, int *lgivup, int *irr)</argsstring>
+        <name>ZRD</name>
+        <param>
+          <type>int *</type>
+          <declname>ioc</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>a</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>nwords</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>adres</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>lgivup</declname>
+        </param>
+        <param>
+          <type>int *</type>
+          <declname>irr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" line="303" column="5" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c" bodystart="303" bodyend="319"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/*</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"></highlight></codeline>
+<codeline lineno="3"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="4"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdio.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="5"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;string.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="6"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;fcntl.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="7"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;sys/stat.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="8"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;sys/types.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="9"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;unistd.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="10"><highlight class="normal"></highlight></codeline>
+<codeline lineno="11"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>WORD_LENGTH<sp/>8<sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>word<sp/>length<sp/>is<sp/>8<sp/>bytes<sp/>*/</highlight><highlight class="preprocessor"></highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="12"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>MAXOPFILES<sp/>100</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="13"><highlight class="normal"></highlight><highlight class="keyword">static</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>ofp[<ref refid="bzio_8c_1a22a256eba8ad678cd6deb27b93aafa78" kindref="member">MAXOPFILES</ref>];</highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1aea3f351037a2aff65a70dafafbca42de" kindref="member">zop_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*name,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nsize,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*idisk,</highlight></codeline>
+<codeline lineno="16"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*icode,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ilab,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*name_length)</highlight></codeline>
+<codeline lineno="17"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="18"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>name_wrk[81];</highlight></codeline>
+<codeline lineno="19"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>length;</highlight></codeline>
+<codeline lineno="20"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>i,<sp/>ibeg;</highlight></codeline>
+<codeline lineno="21"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*c;</highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="comment">/*<sp/>Find<sp/>the<sp/>first<sp/>non-blank<sp/>character<sp/>in<sp/>string<sp/>&quot;name&quot;<sp/>blank=32*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"><sp/><sp/>i<sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>32<sp/>||<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>0)<sp/>{</highlight></codeline>
+<codeline lineno="27"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"><sp/><sp/>ibeg<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>32<sp/>&amp;&amp;<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>0<sp/>&amp;&amp;<sp/>i<sp/>&lt;<sp/>80)<sp/>{</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"><sp/><sp/>length<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/><sp/>strncpy(name_wrk,<sp/>name,<sp/>i);</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"><sp/><sp/>strncpy((name_wrk+i),<sp/></highlight><highlight class="stringliteral">&quot;\0&quot;</highlight><highlight class="normal">,<sp/>1);</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;%s<sp/><sp/><sp/>length=%d\n&quot;,<sp/>name_wrk,<sp/>name_length);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="43"><highlight class="normal"></highlight></codeline>
+<codeline lineno="44"><highlight class="normal"><sp/><sp/>ofp[*ioc]<sp/>=<sp/>open(name_wrk,<sp/>O_RDWR<sp/>|<sp/>O_CREAT,<sp/>0666);</highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;file<sp/>descriptor<sp/>=<sp/>%d\n\n&quot;</highlight><highlight class="normal">,<sp/>ofp[*ioc]);</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"></highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="48"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="49"><highlight class="normal"><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1aafd07b4fbf06711315251897c0aa190e" kindref="member">zcl_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc)</highlight></codeline>
+<codeline lineno="51"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"><sp/><sp/>close(ofp[*ioc]);</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="54"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1ae53ff268ad47fecb8a9c781a55a0d565" kindref="member">zwr_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="57"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_write,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight></codeline>
+<codeline lineno="60"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="62"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>offsets<sp/>=<sp/>*adres<sp/>*<sp/>WORD_LENGTH;<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_write<sp/>=<sp/>fwrite(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/>num_write<sp/>=<sp/>write(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>written=%d\n&quot;,<sp/>*nwords,<sp/>num_write);</highlight></codeline>
+<codeline lineno="68"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight></codeline>
+<codeline lineno="70"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="71"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"></highlight></codeline>
+<codeline lineno="73"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1a7b4a21dc294f2fe1572396ebd5a14afc" kindref="member">zrd_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="74"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_read,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="77"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"><sp/><sp/></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0<sp/>)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;In<sp/>zrdc:<sp/>offsets<sp/>=<sp/>%d<sp/><sp/><sp/><sp/>ioc=%d<sp/><sp/><sp/>ncurr=%d\n&quot;,<sp/>offsets,<sp/>*ioc,<sp/>ncurr);</highlight></codeline>
+<codeline lineno="81"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_read<sp/>=<sp/>read(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="84"><highlight class="normal"><sp/><sp/>num_read<sp/>=<sp/>read(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="85"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>read=%d\n&quot;,<sp/>*nwords,<sp/>num_read);</highlight></codeline>
+<codeline lineno="86"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="87"><highlight class="normal"></highlight></codeline>
+<codeline lineno="88"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="89"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="90"><highlight class="normal"></highlight></codeline>
+<codeline lineno="91"><highlight class="normal"></highlight></codeline>
+<codeline lineno="92"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1ace50586e1695caba2e4b849c4fb63be8" kindref="member">ZOP_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*name,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nsize,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*idisk,</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*icode,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ilab,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*name_length)</highlight></codeline>
+<codeline lineno="94"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>name_wrk[81];</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>length;</highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>i,<sp/>ibeg;</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*c;</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"></highlight></codeline>
+<codeline lineno="100"><highlight class="normal"></highlight><highlight class="comment">/*<sp/>Find<sp/>the<sp/>first<sp/>non-blank<sp/>character<sp/>in<sp/>string<sp/>&quot;name&quot;<sp/>blank=32*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/>i<sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>32<sp/>||<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>0)<sp/>{</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"><sp/><sp/>ibeg<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>32<sp/>&amp;&amp;<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>0<sp/>&amp;&amp;<sp/>i<sp/>&lt;<sp/>80)<sp/>{</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="111"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/>length<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"></highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/>strncpy(name_wrk,<sp/>name,<sp/>i);</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"><sp/><sp/>strncpy((name_wrk+i),<sp/></highlight><highlight class="stringliteral">&quot;\0&quot;</highlight><highlight class="normal">,<sp/>1);</highlight></codeline>
+<codeline lineno="118"><highlight class="normal"></highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;%s<sp/><sp/><sp/>length=%d\n&quot;,<sp/>name_wrk,<sp/>name_length);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="120"><highlight class="normal"></highlight></codeline>
+<codeline lineno="121"><highlight class="normal"><sp/><sp/>ofp[*ioc]<sp/>=<sp/>open(name_wrk,<sp/>O_RDWR<sp/>|<sp/>O_CREAT,<sp/>0666);</highlight></codeline>
+<codeline lineno="122"><highlight class="normal"><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;file<sp/>descriptor<sp/>=<sp/>%d\n\n&quot;</highlight><highlight class="normal">,<sp/>ofp[*ioc]);</highlight></codeline>
+<codeline lineno="123"><highlight class="normal"></highlight></codeline>
+<codeline lineno="124"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="125"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="127"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1a76bb287eaae630f1d69d5104baa0388a" kindref="member">ZCL_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc)</highlight></codeline>
+<codeline lineno="128"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/>close(ofp[*ioc]);</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="131"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"></highlight></codeline>
+<codeline lineno="133"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1ab1a119e4a5560bab3e0fa446706c0700" kindref="member">ZWR_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="134"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="135"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_write,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="136"><highlight class="normal"></highlight></codeline>
+<codeline lineno="137"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="138"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="139"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>offsets<sp/>=<sp/>*adres<sp/>*<sp/>WORD_LENGTH;<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="140"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="141"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_write<sp/>=<sp/>fwrite(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="143"><highlight class="normal"><sp/><sp/>num_write<sp/>=<sp/>write(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="144"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>written=%d\n&quot;,<sp/>*nwords,<sp/>num_write);</highlight></codeline>
+<codeline lineno="145"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="146"><highlight class="normal"></highlight></codeline>
+<codeline lineno="147"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="148"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="149"><highlight class="normal"></highlight></codeline>
+<codeline lineno="150"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1a05c487db15fe2207f756b8364b06e94f" kindref="member">ZRD_</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="151"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_read,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="153"><highlight class="normal"></highlight></codeline>
+<codeline lineno="154"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="155"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"><sp/><sp/></highlight></codeline>
+<codeline lineno="156"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0<sp/>)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="157"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;In<sp/>zrdc:<sp/>offsets<sp/>=<sp/>%d<sp/><sp/><sp/><sp/>ioc=%d<sp/><sp/><sp/>ncurr=%d\n&quot;,<sp/>offsets,<sp/>*ioc,<sp/>ncurr);</highlight></codeline>
+<codeline lineno="158"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="159"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="160"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_read<sp/>=<sp/>read(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="161"><highlight class="normal"><sp/><sp/>num_read<sp/>=<sp/>read(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="162"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>read=%d\n&quot;,<sp/>*nwords,<sp/>num_read);</highlight></codeline>
+<codeline lineno="163"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="164"><highlight class="normal"></highlight></codeline>
+<codeline lineno="165"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="166"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="167"><highlight class="normal"></highlight></codeline>
+<codeline lineno="168"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1afb89ff14949f87bedb1c2cdd53b6fd55" kindref="member">zop</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*name,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nsize,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*idisk,</highlight></codeline>
+<codeline lineno="169"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*icode,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ilab,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*name_length)</highlight></codeline>
+<codeline lineno="170"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="171"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>name_wrk[81];</highlight></codeline>
+<codeline lineno="172"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>length;</highlight></codeline>
+<codeline lineno="173"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>i,<sp/>ibeg;</highlight></codeline>
+<codeline lineno="174"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*c;</highlight></codeline>
+<codeline lineno="175"><highlight class="normal"></highlight></codeline>
+<codeline lineno="176"><highlight class="normal"></highlight><highlight class="comment">/*<sp/>Find<sp/>the<sp/>first<sp/>non-blank<sp/>character<sp/>in<sp/>string<sp/>&quot;name&quot;<sp/>blank=32*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="177"><highlight class="normal"><sp/><sp/>i<sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="178"><highlight class="normal"><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>32<sp/>||<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>0)<sp/>{</highlight></codeline>
+<codeline lineno="180"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="181"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="182"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="183"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="184"><highlight class="normal"><sp/><sp/>ibeg<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="185"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>32<sp/>&amp;&amp;<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>0<sp/>&amp;&amp;<sp/>i<sp/>&lt;<sp/>80)<sp/>{</highlight></codeline>
+<codeline lineno="186"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="187"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="188"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="189"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="190"><highlight class="normal"><sp/><sp/>length<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="191"><highlight class="normal"></highlight></codeline>
+<codeline lineno="192"><highlight class="normal"><sp/><sp/>strncpy(name_wrk,<sp/>name,<sp/>i);</highlight></codeline>
+<codeline lineno="193"><highlight class="normal"><sp/><sp/>strncpy((name_wrk+i),<sp/></highlight><highlight class="stringliteral">&quot;\0&quot;</highlight><highlight class="normal">,<sp/>1);</highlight></codeline>
+<codeline lineno="194"><highlight class="normal"></highlight></codeline>
+<codeline lineno="195"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;%s<sp/><sp/><sp/>length=%d\n&quot;,<sp/>name_wrk,<sp/>name_length);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="196"><highlight class="normal"></highlight></codeline>
+<codeline lineno="197"><highlight class="normal"><sp/><sp/>ofp[*ioc]<sp/>=<sp/>open(name_wrk,<sp/>O_RDWR<sp/>|<sp/>O_CREAT,<sp/>0666);</highlight></codeline>
+<codeline lineno="198"><highlight class="normal"><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;file<sp/>descriptor<sp/>=<sp/>%d\n\n&quot;</highlight><highlight class="normal">,<sp/>ofp[*ioc]);</highlight></codeline>
+<codeline lineno="199"><highlight class="normal"></highlight></codeline>
+<codeline lineno="200"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="201"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="202"><highlight class="normal"><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="203"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1aa86717878dec14058f9016f863b6f798" kindref="member">zcl</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc)</highlight></codeline>
+<codeline lineno="204"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="205"><highlight class="normal"><sp/><sp/>close(ofp[*ioc]);</highlight></codeline>
+<codeline lineno="206"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="207"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="208"><highlight class="normal"></highlight></codeline>
+<codeline lineno="209"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1af185b72556616f80f4de8c5ea1a56adb" kindref="member">zwr</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="210"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="211"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_write,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="212"><highlight class="normal"></highlight></codeline>
+<codeline lineno="213"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="214"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="215"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>offsets<sp/>=<sp/>*adres<sp/>*<sp/>WORD_LENGTH;<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="216"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="217"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="218"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_write<sp/>=<sp/>fwrite(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="219"><highlight class="normal"><sp/><sp/>num_write<sp/>=<sp/>write(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="220"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>written=%d\n&quot;,<sp/>*nwords,<sp/>num_write);</highlight></codeline>
+<codeline lineno="221"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="222"><highlight class="normal"></highlight></codeline>
+<codeline lineno="223"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="224"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="225"><highlight class="normal"></highlight></codeline>
+<codeline lineno="226"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1ac1b60b1e01331d1a3f4dea77beb59ef9" kindref="member">zrd</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="227"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="228"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_read,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="229"><highlight class="normal"></highlight></codeline>
+<codeline lineno="230"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="231"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"><sp/><sp/></highlight></codeline>
+<codeline lineno="232"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0<sp/>)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="233"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;In<sp/>zrdc:<sp/>offsets<sp/>=<sp/>%d<sp/><sp/><sp/><sp/>ioc=%d<sp/><sp/><sp/>ncurr=%d\n&quot;,<sp/>offsets,<sp/>*ioc,<sp/>ncurr);</highlight></codeline>
+<codeline lineno="234"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="235"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="236"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_read<sp/>=<sp/>read(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="237"><highlight class="normal"><sp/><sp/>num_read<sp/>=<sp/>read(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="238"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>read=%d\n&quot;,<sp/>*nwords,<sp/>num_read);</highlight></codeline>
+<codeline lineno="239"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="240"><highlight class="normal"></highlight></codeline>
+<codeline lineno="241"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="242"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="243"><highlight class="normal"></highlight></codeline>
+<codeline lineno="244"><highlight class="normal"></highlight></codeline>
+<codeline lineno="245"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1a4449047677eb8c6b80aaf87ee81d0497" kindref="member">ZOP</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*name,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nsize,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*idisk,</highlight></codeline>
+<codeline lineno="246"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*icode,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ilab,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*name_length)</highlight></codeline>
+<codeline lineno="247"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="248"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>name_wrk[81];</highlight></codeline>
+<codeline lineno="249"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>length;</highlight></codeline>
+<codeline lineno="250"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>i,<sp/>ibeg;</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*c;</highlight></codeline>
+<codeline lineno="252"><highlight class="normal"></highlight></codeline>
+<codeline lineno="253"><highlight class="normal"></highlight><highlight class="comment">/*<sp/>Find<sp/>the<sp/>first<sp/>non-blank<sp/>character<sp/>in<sp/>string<sp/>&quot;name&quot;<sp/>blank=32*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="254"><highlight class="normal"><sp/><sp/>i<sp/>=<sp/>0;</highlight></codeline>
+<codeline lineno="255"><highlight class="normal"><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>32<sp/>||<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>==<sp/>0)<sp/>{</highlight></codeline>
+<codeline lineno="257"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="258"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="259"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="260"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="261"><highlight class="normal"><sp/><sp/>ibeg<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="262"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">while</highlight><highlight class="normal"><sp/>((</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>32<sp/>&amp;&amp;<sp/>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal">)*c<sp/>!=<sp/>0<sp/>&amp;&amp;<sp/>i<sp/>&lt;<sp/>80)<sp/>{</highlight></codeline>
+<codeline lineno="263"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">/*<sp/>printf(&quot;i=%d<sp/><sp/><sp/>c=%c**<sp/><sp/>c=%d\n&quot;,i,*c,*c);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="264"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>i++;</highlight></codeline>
+<codeline lineno="265"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>c<sp/>=<sp/>(name+i);</highlight></codeline>
+<codeline lineno="266"><highlight class="normal"><sp/><sp/>}</highlight></codeline>
+<codeline lineno="267"><highlight class="normal"><sp/><sp/>length<sp/>=<sp/>i;</highlight></codeline>
+<codeline lineno="268"><highlight class="normal"></highlight></codeline>
+<codeline lineno="269"><highlight class="normal"><sp/><sp/>strncpy(name_wrk,<sp/>name,<sp/>i);</highlight></codeline>
+<codeline lineno="270"><highlight class="normal"><sp/><sp/>strncpy((name_wrk+i),<sp/></highlight><highlight class="stringliteral">&quot;\0&quot;</highlight><highlight class="normal">,<sp/>1);</highlight></codeline>
+<codeline lineno="271"><highlight class="normal"></highlight></codeline>
+<codeline lineno="272"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;%s<sp/><sp/><sp/>length=%d\n&quot;,<sp/>name_wrk,<sp/>name_length);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="273"><highlight class="normal"></highlight></codeline>
+<codeline lineno="274"><highlight class="normal"><sp/><sp/>ofp[*ioc]<sp/>=<sp/>open(name_wrk,<sp/>O_RDWR<sp/>|<sp/>O_CREAT,<sp/>0666);</highlight></codeline>
+<codeline lineno="275"><highlight class="normal"><sp/><sp/>printf(</highlight><highlight class="stringliteral">&quot;file<sp/>descriptor<sp/>=<sp/>%d\n\n&quot;</highlight><highlight class="normal">,<sp/>ofp[*ioc]);</highlight></codeline>
+<codeline lineno="276"><highlight class="normal"></highlight></codeline>
+<codeline lineno="277"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="278"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="279"><highlight class="normal"><sp/><sp/><sp/></highlight></codeline>
+<codeline lineno="280"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1a3a9efd844ae3a9a44cd15374015f34cf" kindref="member">ZCL</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc)</highlight></codeline>
+<codeline lineno="281"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="282"><highlight class="normal"><sp/><sp/>close(ofp[*ioc]);</highlight></codeline>
+<codeline lineno="283"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="284"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="285"><highlight class="normal"></highlight></codeline>
+<codeline lineno="286"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1a3c915fa7cfcf817380f2e3a132b19b7e" kindref="member">ZWR</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="287"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="288"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_write,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="289"><highlight class="normal"></highlight></codeline>
+<codeline lineno="290"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="291"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="292"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>offsets<sp/>=<sp/>*adres<sp/>*<sp/>WORD_LENGTH;<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="293"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="294"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="295"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_write<sp/>=<sp/>fwrite(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="296"><highlight class="normal"><sp/><sp/>num_write<sp/>=<sp/>write(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="297"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>written=%d\n&quot;,<sp/>*nwords,<sp/>num_write);</highlight></codeline>
+<codeline lineno="298"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="299"><highlight class="normal"></highlight></codeline>
+<codeline lineno="300"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="301"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="302"><highlight class="normal"></highlight></codeline>
+<codeline lineno="303"><highlight class="normal"></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="bzio_8c_1ae3e516f85e39dae3691b4b8ebc080fa6" kindref="member">ZRD</ref>(</highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*ioc,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*a,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*nwords,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*adres,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*lgivup,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>*irr)</highlight></codeline>
+<codeline lineno="304"><highlight class="normal">{</highlight></codeline>
+<codeline lineno="305"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>num_read,<sp/>ncurr,<sp/>offsets,<sp/>nbytes;</highlight></codeline>
+<codeline lineno="306"><highlight class="normal"></highlight></codeline>
+<codeline lineno="307"><highlight class="normal"><sp/><sp/>nbytes<sp/>=<sp/>*nwords<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="308"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>ncurr<sp/>=<sp/>ftell(ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"><sp/><sp/></highlight></codeline>
+<codeline lineno="309"><highlight class="normal"><sp/><sp/>offsets<sp/>=<sp/>(*adres<sp/>-<sp/>0<sp/>)<sp/>*<sp/><ref refid="bzio_8c_1a4c8b6e3f5b517ddc1b9f9670ea0ead8f" kindref="member">WORD_LENGTH</ref>;</highlight></codeline>
+<codeline lineno="310"><highlight class="normal"><sp/><sp/></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;In<sp/>zrdc:<sp/>offsets<sp/>=<sp/>%d<sp/><sp/><sp/><sp/>ioc=%d<sp/><sp/><sp/>ncurr=%d\n&quot;,<sp/>offsets,<sp/>*ioc,<sp/>ncurr);</highlight></codeline>
+<codeline lineno="311"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="312"><highlight class="normal"><sp/><sp/>lseek(ofp[*ioc],<sp/>offsets,<sp/>SEEK_SET);</highlight></codeline>
+<codeline lineno="313"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>num_read<sp/>=<sp/>read(a,<sp/>sizeof(char),<sp/>*nwords,<sp/>ofp[*ioc]);<sp/>*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="314"><highlight class="normal"><sp/><sp/>num_read<sp/>=<sp/>read(ofp[*ioc],<sp/>a,<sp/>nbytes);</highlight></codeline>
+<codeline lineno="315"><highlight class="normal"></highlight><highlight class="comment">/*<sp/><sp/>printf(&quot;nwords=%d<sp/><sp/><sp/><sp/><sp/>number<sp/>of<sp/>words<sp/>read=%d\n&quot;,<sp/>*nwords,<sp/>num_read);</highlight></codeline>
+<codeline lineno="316"><highlight class="comment">*/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="317"><highlight class="normal"></highlight></codeline>
+<codeline lineno="318"><highlight class="normal"><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/>0;</highlight></codeline>
+<codeline lineno="319"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="320"><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/bzio.c"/>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.14.0" xml:lang="en-US">
+  <compounddef id="debug_8f" kind="file" language="Fortran">
+    <compoundname>debug.f</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="debug_8f_1a4e06e5b20efa994bcf5224b0d6d5653f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine debug</definition>
+        <argsstring>(a, l, m, n, name, iunit)</argsstring>
+        <name>debug</name>
+        <param>
+          <type>real(r8), dimension(l,n), intent(in)</type>
+          <defname>a</defname>
+        </param>
+        <param>
+          <type>integer, intent(in)</type>
+          <defname>l</defname>
+        </param>
+        <param>
+          <type>integer, intent(in)</type>
+          <defname>m</defname>
+        </param>
+        <param>
+          <type>integer, intent(in)</type>
+          <defname>n</defname>
+        </param>
+        <param>
+          <type>character(*)</type>
+          <defname>name</defname>
+        </param>
+        <param>
+          <type>integer, intent(in)</type>
+          <defname>iunit</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/debug.f" line="8" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/debug.f" bodystart="9" bodyend="37"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="2"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>file<sp/>debug.f.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="3"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>prints<sp/>matrix<sp/>and<sp/>quits.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="4"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="5"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="6"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>declarations.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="7"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="8"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">SUBROUTINE<sp/></highlight><highlight class="normal"><ref refid="debug_8f_1a4e06e5b20efa994bcf5224b0d6d5653f" kindref="member">debug</ref>(a,l,m,n,name,iunit)</highlight></codeline>
+<codeline lineno="9"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">IMPLICIT<sp/>NONE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="10"><highlight class="normal"></highlight></codeline>
+<codeline lineno="11"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">CHARACTER(*)</highlight><highlight class="normal"><sp/>::<sp/>name</highlight></codeline>
+<codeline lineno="12"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">INTEGER</highlight><highlight class="normal">,<sp/></highlight><highlight class="keywordtype">INTENT(IN)</highlight><highlight class="normal"><sp/>::<sp/>l,m,n,iunit</highlight></codeline>
+<codeline lineno="13"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">DIMENSION(l,n)</highlight><highlight class="normal">,<sp/></highlight><highlight class="keywordtype">INTENT(IN)</highlight><highlight class="normal"><sp/>::<sp/>a</highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">INTEGER</highlight><highlight class="normal"><sp/>::<sp/>i,j</highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>format<sp/>statements.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"><sp/>10<sp/><sp/><sp/></highlight><highlight class="keyword">FORMAT</highlight><highlight class="normal">(/5x,</highlight><highlight class="stringliteral">&quot;i&quot;</highlight><highlight class="normal">,5x,</highlight><highlight class="stringliteral">&quot;j&quot;</highlight><highlight class="normal">,7x,</highlight><highlight class="stringliteral">&quot;element&quot;</highlight><highlight class="normal">/)</highlight></codeline>
+<codeline lineno="20"><highlight class="normal"><sp/>20<sp/><sp/><sp/></highlight><highlight class="keyword">FORMAT</highlight><highlight class="normal">(2i6,1p,e18.10)</highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>print<sp/>matrix.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">WRITE</highlight><highlight class="normal">(iunit,</highlight><highlight class="stringliteral">&apos;(2a,3(a,i4))&apos;</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/></highlight><highlight class="stringliteral">&quot;matrix<sp/>=<sp/>&quot;</highlight><highlight class="normal">,trim(name),</highlight><highlight class="stringliteral">&quot;,<sp/>l<sp/>=<sp/>&quot;</highlight><highlight class="normal">,l,</highlight><highlight class="stringliteral">&quot;,<sp/>m<sp/>=<sp/>&quot;</highlight><highlight class="normal">,m,</highlight><highlight class="stringliteral">&quot;,<sp/>n<sp/>=<sp/>&quot;</highlight><highlight class="normal">,n</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">WRITE</highlight><highlight class="normal">(iunit,10)</highlight></codeline>
+<codeline lineno="27"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">DO</highlight><highlight class="normal"><sp/>j=1,n</highlight></codeline>
+<codeline lineno="28"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">DO</highlight><highlight class="normal"><sp/>i=1,m</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">WRITE</highlight><highlight class="normal">(iunit,20)i,j,a(i,j)</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>ENDDO</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="31"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">WRITE</highlight><highlight class="normal">(iunit,10)</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/>ENDDO</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="33"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">WRITE</highlight><highlight class="normal">(iunit,</highlight><highlight class="stringliteral">&apos;(/)&apos;</highlight><highlight class="normal">)</highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>terminate.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">RETURN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">END<sp/>SUBROUTINE<sp/></highlight><highlight class="normal"><ref refid="debug_8f_1a4e06e5b20efa994bcf5224b0d6d5653f" kindref="member">debug</ref></highlight></codeline>
+    </programlisting>
+    <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/debug.f"/>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,471 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.14.0" xml:lang="en-US">
+  <compounddef id="aleg__new_8f" kind="file" language="Fortran">
+    <compoundname>aleg_new.f</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="aleg__new_8f_1a27874f5593cc69e67ce9c8798d651721" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine aleg_new</definition>
+        <argsstring>(x, nloc, pm, pn, pp, aleg0, aleg1)</argsstring>
+        <name>aleg_new</name>
+        <param>
+          <type>real(r8), intent(in)</type>
+          <defname>x</defname>
+        </param>
+        <param>
+          <type>integer, intent(in)</type>
+          <defname>nloc</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>pm</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>pn</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>pp</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>aleg0</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>aleg1</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/aleg_new.f" line="16" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/aleg_new.f" bodystart="17" bodyend="238"/>
+      </memberdef>
+      <memberdef kind="function" id="aleg__new_8f_1ac47bfe7a73c8f39502b0f64fe23a72ca" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine ek3</definition>
+        <argsstring>(eta, ier, error, maxit, cel1, cel2, convg, kounter)</argsstring>
+        <name>ek3</name>
+        <param>
+          <type>real(r8), intent(in)</type>
+          <defname>eta</defname>
+        </param>
+        <param>
+          <type>integer, intent(out)</type>
+          <defname>ier</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(in)</type>
+          <defname>error</defname>
+        </param>
+        <param>
+          <type>integer, intent(in)</type>
+          <defname>maxit</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>cel1</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>cel2</defname>
+        </param>
+        <param>
+          <type>real(r8), intent(out)</type>
+          <defname>convg</defname>
+        </param>
+        <param>
+          <type>integer, intent(out)</type>
+          <defname>kounter</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/aleg_new.f" line="243" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/aleg_new.f" bodystart="244" bodyend="369"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="2"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>file<sp/>aleg_old.f.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="3"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>computes<sp/>Legendre<sp/>functions,<sp/>old<sp/>way.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="4"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="5"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="6"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>code<sp/>organization.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="7"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="8"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>1.<sp/>aleg_old</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="9"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="10"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>subprogram<sp/>1.<sp/>aleg_new.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="11"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>computes<sp/>Legendre<sp/>functions.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="12"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="13"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>declarations.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="comment">c-----------------------------------------------------------------------</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">SUBROUTINE<sp/></highlight><highlight class="normal"><ref refid="aleg__new_8f_1a27874f5593cc69e67ce9c8798d651721" kindref="member">aleg_new</ref>(x,nloc,pm,pn,pp,<sp/>aleg0,aleg1<sp/>)</highlight></codeline>
+<codeline lineno="17"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">USE<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">ONLY</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="18"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">IMPLICIT<sp/>NONE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">INTENT(IN)</highlight><highlight class="normal"><sp/>::<sp/>x</highlight></codeline>
+<codeline lineno="21"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">INTEGER</highlight><highlight class="normal">,<sp/></highlight><highlight class="keywordtype">INTENT(IN)</highlight><highlight class="normal"><sp/>::<sp/>nloc</highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">INTENT(OUT)</highlight><highlight class="normal"><sp/>::<sp/>pm,pn,pp,aleg0,aleg1</highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">INTEGER</highlight><highlight class="normal"><sp/>::<sp/>i,ierbu,ig,ing,kcbu,kloc,ngauss,nng</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">,<sp/></highlight><highlight class="keywordtype">PARAMETER</highlight><highlight class="normal"><sp/>::<sp/>pye=3.141592653589793_8,pii=2.0_8/pye,</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>sqtwo=1.4142135623730951_8,half=0.5_8,</highlight></codeline>
+<codeline lineno="27"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>sqpi=1.7724538509055159_8</highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8)<sp/>::<sp/>agaus,ak,ak02,anumr,bgaus,convbu,dnom,dnomp,elipe,</highlight></codeline>
+<codeline lineno="29"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>elipk,errbu,gam,gamn,gamp,gint,ginti,gintip,gintp,</highlight></codeline>
+<codeline lineno="30"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>pcoef,pnp,rhohat,rhohatsq,sinhtg1,sinhtg12,</highlight></codeline>
+<codeline lineno="31"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>sinhtg12p,sinhtg1p,tg0,tg02,tg1,tg1p,twopi,w,xxq,y,ysq,</highlight></codeline>
+<codeline lineno="32"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>zk1,zk1i,zk1sq,zk1sqrt,zk1sqrti</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">DIMENSION(32)</highlight><highlight class="normal"><sp/>::<sp/>tg32,wg32,xg32</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">DIMENSION(5)</highlight><highlight class="normal"><sp/>::<sp/>xu,xl</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight><highlight class="comment">!....<sp/>Weights<sp/>and<sp/>abscissae<sp/>for<sp/>32<sp/>points<sp/>gaussian<sp/>quadrature.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="38"><highlight class="normal"></highlight></codeline>
+<codeline lineno="39"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(1)<sp/><sp/>=<sp/><sp/>0.007018610009470096600_8</highlight></codeline>
+<codeline lineno="40"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(2)<sp/><sp/>=<sp/><sp/>0.016274394730905670605_8</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(3)<sp/><sp/>=<sp/><sp/>0.025392065309262059456_8</highlight></codeline>
+<codeline lineno="42"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(4)<sp/><sp/>=<sp/><sp/>0.034273862913021433103_8</highlight></codeline>
+<codeline lineno="43"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(5)<sp/><sp/>=<sp/><sp/>0.042835898022226680657_8</highlight></codeline>
+<codeline lineno="44"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(6)<sp/><sp/>=<sp/><sp/>0.050998059262376176196_8</highlight></codeline>
+<codeline lineno="45"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(7)<sp/><sp/>=<sp/><sp/>0.058684093478535547145_8</highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(8)<sp/><sp/>=<sp/><sp/>0.065822222776361846838_8</highlight></codeline>
+<codeline lineno="47"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(9)<sp/><sp/>=<sp/><sp/>0.072345794108848506225_8</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(10)<sp/>=<sp/><sp/>0.078193895787070306472_8</highlight></codeline>
+<codeline lineno="49"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(11)<sp/>=<sp/><sp/>0.083311924226946755222_8</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(12)<sp/>=<sp/><sp/>0.087652093004403811143_8</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(13)<sp/>=<sp/><sp/>0.091173878695763884713_8</highlight></codeline>
+<codeline lineno="52"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(14)<sp/>=<sp/><sp/>0.093844399080804565639_8</highlight></codeline>
+<codeline lineno="53"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(15)<sp/>=<sp/><sp/>0.095638720079274859419_8</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>wg32(16)<sp/>=<sp/><sp/>0.096540088514727800567_8</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight></codeline>
+<codeline lineno="56"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">DO</highlight><highlight class="normal"><sp/>i<sp/>=<sp/>1,<sp/>16</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>wg32(16+i)<sp/>=<sp/>wg32(17-i)</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>DO</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="59"><highlight class="normal"></highlight></codeline>
+<codeline lineno="60"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>xg32(1:16)<sp/>=<sp/>(/<sp/>-0.997263861849481563545_8,</highlight></codeline>
+<codeline lineno="61"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.985611511545268335400_8,</highlight></codeline>
+<codeline lineno="62"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.964762255587506430774_8,</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.934906075937739689171_8,</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.896321155766052123965_8,</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.849367613732569970134_8,</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.794483795967942406963_8,</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.732182118740289680387_8,</highlight></codeline>
+<codeline lineno="68"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.663044266930215200975_8,</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.587715757240762329041_8,</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.506899908932229390024_8,</highlight></codeline>
+<codeline lineno="71"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.421351276130635345364_8,</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.331868602282127649780_8,</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.239287362252137074545_8,</highlight></codeline>
+<codeline lineno="74"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.144471961582796493485_8,</highlight></codeline>
+<codeline lineno="75"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/>0.048307665687738316235_8<sp/>/)</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="77"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/>xg32(17:32)<sp/>=<sp/>-<sp/>(/<sp/>xg32(16:1)<sp/>/)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight></codeline>
+<codeline lineno="79"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">DO</highlight><highlight class="normal"><sp/>i<sp/>=<sp/>1,<sp/>16</highlight></codeline>
+<codeline lineno="80"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>xg32(16+i)<sp/>=<sp/>-<sp/>xg32(17-i)</highlight></codeline>
+<codeline lineno="81"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>DO</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="82"><highlight class="normal"></highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight><highlight class="comment">!::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="84"><highlight class="normal"></highlight></codeline>
+<codeline lineno="85"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/>pii<sp/>=<sp/>2.0<sp/>/<sp/>pye</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="86"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/>sqpi<sp/>=<sp/>SQRT<sp/>(<sp/>pye<sp/>)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="87"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/>sqtwo<sp/>=<sp/>SQRT(2.0)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="88"><highlight class="normal"></highlight><highlight class="comment">c$$$c<sp/><sp/><sp/><sp/><sp/><sp/>init<sp/>=<sp/>init<sp/>+<sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="89"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/>half<sp/>=<sp/>0.5</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="90"><highlight class="normal"></highlight></codeline>
+<codeline lineno="91"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gam<sp/>=<sp/>sqpi</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>xxq<sp/>=<sp/>x*x</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>ysq<sp/>=<sp/>xxq<sp/>-<sp/>1.0</highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>y<sp/>=<sp/>sqrt(<sp/>ysq<sp/>)</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>w<sp/>=<sp/>x+y</highlight></codeline>
+<codeline lineno="96"><highlight class="normal"></highlight></codeline>
+<codeline lineno="97"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>rhohatsq<sp/>=<sp/>1.0<sp/>/<sp/>(<sp/>2.0<sp/>*<sp/>y*w<sp/>)</highlight></codeline>
+<codeline lineno="98"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>rhohat<sp/>=<sp/>sqrt(rhohatsq)</highlight></codeline>
+<codeline lineno="99"><highlight class="normal"></highlight></codeline>
+<codeline lineno="100"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>zk1i<sp/>=<sp/>w</highlight></codeline>
+<codeline lineno="101"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>zk1<sp/>=<sp/>1.0/w</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>zk1sq<sp/>=<sp/>zk1**2</highlight></codeline>
+<codeline lineno="103"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>zk1sqrt<sp/>=<sp/>sqrt(zk1)</highlight></codeline>
+<codeline lineno="104"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>zk1sqrti<sp/>=<sp/>sqrt(zk1i)</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"></highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>errbu<sp/>=<sp/>1.0e-8</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">CALL<sp/></highlight><highlight class="normal"><ref refid="aleg__new_8f_1ac47bfe7a73c8f39502b0f64fe23a72ca" kindref="member">ek3</ref><sp/>(<sp/>zk1sq,<sp/>ierbu,<sp/>errbu,<sp/>10,<sp/>elipk,<sp/>elipe,<sp/>convbu,<sp/>kcbu<sp/>)</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"></highlight></codeline>
+<codeline lineno="109"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pn<sp/>=<sp/>pii<sp/>*<sp/>zk1sqrt<sp/>*<sp/>elipk</highlight></codeline>
+<codeline lineno="110"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pnp<sp/>=<sp/>pii<sp/>*<sp/>zk1sqrti<sp/>*<sp/>elipe</highlight></codeline>
+<codeline lineno="111"><highlight class="normal"></highlight></codeline>
+<codeline lineno="112"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>aleg0<sp/>=<sp/>pn</highlight></codeline>
+<codeline lineno="113"><highlight class="normal"></highlight></codeline>
+<codeline lineno="114"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pp<sp/>=<sp/>(<sp/><sp/>pnp<sp/>-<sp/>x*pn<sp/>)<sp/>/<sp/>(2.0*y)</highlight></codeline>
+<codeline lineno="115"><highlight class="normal"></highlight></codeline>
+<codeline lineno="116"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>aleg1<sp/>=<sp/>pp</highlight></codeline>
+<codeline lineno="117"><highlight class="normal"></highlight></codeline>
+<codeline lineno="118"><highlight class="normal"></highlight><highlight class="comment">c...<sp/>Use<sp/>Gaussian<sp/>Integration<sp/>if<sp/>...</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight></codeline>
+<codeline lineno="120"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal"><sp/>(<sp/>nloc*rhohat<sp/>&gt;=<sp/>0.1<sp/>)<sp/></highlight><highlight class="keywordflow">GO<sp/>TO</highlight><highlight class="normal"><sp/>100</highlight></codeline>
+<codeline lineno="121"><highlight class="normal"></highlight></codeline>
+<codeline lineno="122"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/><sp/>GO<sp/>TO<sp/>100</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="123"><highlight class="normal"></highlight><highlight class="comment">c<sp/>85<sp/><sp/><sp/><sp/>CONTINUE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="124"><highlight class="normal"></highlight></codeline>
+<codeline lineno="125"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>kloc=0</highlight></codeline>
+<codeline lineno="126"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>ak<sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"></highlight></codeline>
+<codeline lineno="128"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal"><sp/>(<sp/>nloc<sp/>==<sp/>0<sp/>)<sp/><sp/></highlight><highlight class="keywordflow">GO<sp/>TO</highlight><highlight class="normal"><sp/>10</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"></highlight></codeline>
+<codeline lineno="130"><highlight class="normal"><sp/><sp/><sp/><sp/>5<sp/>kloc=kloc+1</highlight></codeline>
+<codeline lineno="131"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>ak<sp/>=<sp/>float(kloc)</highlight></codeline>
+<codeline lineno="132"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>ak02<sp/>=<sp/>0.5<sp/>-<sp/>ak</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pm<sp/>=<sp/>pn</highlight></codeline>
+<codeline lineno="134"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pn<sp/>=<sp/>pp</highlight></codeline>
+<codeline lineno="135"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pp<sp/>=<sp/>-2.0*ak*x*pn/y<sp/>-<sp/>ak02*ak02*pm</highlight></codeline>
+<codeline lineno="136"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gam<sp/>=<sp/>gam<sp/>/<sp/>ak02</highlight></codeline>
+<codeline lineno="137"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal"><sp/>(<sp/>kloc<sp/>/=<sp/>nloc<sp/>)<sp/><sp/></highlight><highlight class="keywordflow">GO<sp/>TO</highlight><highlight class="normal"><sp/>5</highlight></codeline>
+<codeline lineno="138"><highlight class="normal"></highlight></codeline>
+<codeline lineno="139"><highlight class="normal"><sp/>10<sp/><sp/><sp/></highlight><highlight class="keywordflow">CONTINUE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="140"><highlight class="normal"></highlight></codeline>
+<codeline lineno="141"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">GO<sp/>TO</highlight><highlight class="normal"><sp/>500</highlight></codeline>
+<codeline lineno="142"><highlight class="normal"></highlight></codeline>
+<codeline lineno="143"><highlight class="normal"><sp/>100<sp/><sp/></highlight><highlight class="keywordflow">CONTINUE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="144"><highlight class="normal"></highlight></codeline>
+<codeline lineno="145"><highlight class="normal"></highlight><highlight class="comment">c...<sp/><sp/>use<sp/>Gauss<sp/>integration<sp/>of<sp/>the<sp/>new<sp/>integral<sp/>representation</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="146"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>if<sp/>n*rhohat<sp/>&gt;=<sp/>0.1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="147"><highlight class="normal"></highlight><highlight class="comment">c...<sp/><sp/>The<sp/>integration<sp/>is<sp/>done<sp/>in<sp/>nng<sp/>segments<sp/>[xl(ing),xu(ing)].</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="148"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/><sp/><sp/>Each<sp/>stored<sp/>in<sp/>gint.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="149"><highlight class="normal"></highlight></codeline>
+<codeline lineno="150"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>ngauss<sp/>=<sp/>32</highlight></codeline>
+<codeline lineno="151"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>nng<sp/>=<sp/>1</highlight></codeline>
+<codeline lineno="152"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>xl(1)<sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="153"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>xu(1)<sp/>=<sp/>5.0</highlight></codeline>
+<codeline lineno="154"><highlight class="normal"></highlight></codeline>
+<codeline lineno="155"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gint<sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="156"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gintp<sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="157"><highlight class="normal"></highlight></codeline>
+<codeline lineno="158"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">DO</highlight><highlight class="normal"><sp/>165<sp/>ing<sp/>=<sp/>1,<sp/>nng</highlight></codeline>
+<codeline lineno="159"><highlight class="normal"></highlight></codeline>
+<codeline lineno="160"><highlight class="normal"></highlight><highlight class="comment">!.....xl,<sp/>xu<sp/>are<sp/>the<sp/>lower<sp/>and<sp/>upper<sp/>limits<sp/>of<sp/>the<sp/>gaussian<sp/>integration</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="161"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/>The<sp/>integration<sp/>is<sp/>done<sp/>in<sp/>nng<sp/>sections</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="162"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/>This<sp/>will<sp/>calculate<sp/>P(n)<sp/>and<sp/>P(n+1)<sp/>together.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="163"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>variables<sp/>for<sp/>P(n+1)<sp/>will<sp/>usually<sp/>have<sp/>p<sp/>appended.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="164"><highlight class="normal"></highlight></codeline>
+<codeline lineno="165"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>agaus<sp/>=<sp/>half*(<sp/>xu(ing)+xl(ing)<sp/>)</highlight></codeline>
+<codeline lineno="166"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bgaus<sp/>=<sp/>half*(<sp/>xu(ing)-xl(ing)<sp/>)</highlight></codeline>
+<codeline lineno="167"><highlight class="normal"></highlight></codeline>
+<codeline lineno="168"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tg32(1:32)<sp/>=<sp/>agaus<sp/>+<sp/>xg32(1:32)<sp/>*<sp/>bgaus</highlight></codeline>
+<codeline lineno="169"><highlight class="normal"></highlight></codeline>
+<codeline lineno="170"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>ginti<sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="171"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gintip<sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="172"><highlight class="normal"></highlight></codeline>
+<codeline lineno="173"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">DO</highlight><highlight class="normal"><sp/>ig<sp/>=<sp/>1,<sp/>ngauss</highlight></codeline>
+<codeline lineno="174"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tg0<sp/>=<sp/>tg32(ig)</highlight></codeline>
+<codeline lineno="175"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tg02<sp/>=<sp/>tg0**2</highlight></codeline>
+<codeline lineno="176"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tg1<sp/><sp/>=<sp/>tg02<sp/>/<sp/>(2.0*nloc)</highlight></codeline>
+<codeline lineno="177"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tg1p<sp/>=<sp/>tg02<sp/>/<sp/>(2.0*nloc+2.0)</highlight></codeline>
+<codeline lineno="178"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sinhtg1<sp/><sp/>=<sp/>sinh(tg1)</highlight></codeline>
+<codeline lineno="179"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sinhtg1p<sp/>=<sp/>sinh(tg1p)</highlight></codeline>
+<codeline lineno="180"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sinhtg12<sp/><sp/>=<sp/>sinhtg1<sp/><sp/>*<sp/>sinhtg1</highlight></codeline>
+<codeline lineno="181"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sinhtg12p<sp/>=<sp/>sinhtg1p<sp/>*<sp/>sinhtg1p</highlight></codeline>
+<codeline lineno="182"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>dnom<sp/><sp/>=<sp/>x<sp/>*<sp/>sinhtg12<sp/><sp/>+<sp/>sinhtg1<sp/>*sqrt(1.0<sp/>+<sp/>sinhtg12)</highlight></codeline>
+<codeline lineno="183"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>dnomp<sp/>=<sp/>x<sp/>*<sp/>sinhtg12p<sp/>+<sp/>sinhtg1p*sqrt(1.0<sp/>+<sp/>sinhtg12p)</highlight></codeline>
+<codeline lineno="184"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>dnom<sp/><sp/>=<sp/>sqrt(dnom)</highlight></codeline>
+<codeline lineno="185"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>dnomp<sp/>=<sp/>sqrt(dnomp)</highlight></codeline>
+<codeline lineno="186"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>anumr<sp/>=<sp/>tg0<sp/>*<sp/>exp(-tg02)</highlight></codeline>
+<codeline lineno="187"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>ginti<sp/><sp/>=<sp/>ginti<sp/><sp/>+<sp/>wg32(ig)*anumr<sp/>/<sp/>dnom</highlight></codeline>
+<codeline lineno="188"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gintip<sp/>=<sp/>gintip<sp/>+<sp/>wg32(ig)*anumr<sp/>/<sp/>dnomp</highlight></codeline>
+<codeline lineno="189"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>DO</highlight><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">!<sp/>32<sp/>point<sp/>Gaussian</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="190"><highlight class="normal"></highlight></codeline>
+<codeline lineno="191"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>ginti<sp/><sp/>=<sp/>bgaus<sp/>*<sp/>ginti</highlight></codeline>
+<codeline lineno="192"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gintip<sp/>=<sp/>bgaus<sp/>*<sp/>gintip</highlight></codeline>
+<codeline lineno="193"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gint<sp/><sp/>=<sp/>gint<sp/><sp/>+<sp/>ginti</highlight></codeline>
+<codeline lineno="194"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gintp<sp/>=<sp/>gintp<sp/>+<sp/>gintip</highlight></codeline>
+<codeline lineno="195"><highlight class="normal"></highlight></codeline>
+<codeline lineno="196"><highlight class="normal"><sp/>165<sp/><sp/></highlight><highlight class="keywordflow">CONTINUE</highlight><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="comment">!<sp/><sp/>Gaussian<sp/>integration<sp/>segments</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="197"><highlight class="normal"></highlight></codeline>
+<codeline lineno="198"><highlight class="normal"></highlight><highlight class="comment">c...<sp/>Now<sp/>calculate<sp/>the<sp/>coeficients<sp/>for<sp/>the<sp/>Legendre<sp/>functions.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="199"><highlight class="normal"></highlight></codeline>
+<codeline lineno="200"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pcoef<sp/>=<sp/>sqrt(<sp/>(x-1.0)/(x+1.0)<sp/>)</highlight></codeline>
+<codeline lineno="201"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>twopi<sp/>=<sp/>2.0<sp/>*<sp/>pye</highlight></codeline>
+<codeline lineno="202"><highlight class="normal"></highlight></codeline>
+<codeline lineno="203"><highlight class="normal"></highlight><highlight class="comment">c..<sp/>gamn<sp/>is<sp/><sp/>Gamma[1/2-n]</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="204"><highlight class="normal"></highlight><highlight class="comment">c<sp/><sp/><sp/>gamp<sp/>is<sp/><sp/>Gamma[1/2-(n+1)]</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="205"><highlight class="normal"></highlight></codeline>
+<codeline lineno="206"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gamn<sp/>=<sp/>sqpi</highlight></codeline>
+<codeline lineno="207"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gamp<sp/>=<sp/>-<sp/>2.0<sp/>*<sp/>sqpi</highlight></codeline>
+<codeline lineno="208"><highlight class="normal"></highlight></codeline>
+<codeline lineno="209"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal"><sp/>(<sp/>nloc<sp/>/=<sp/>0<sp/>)<sp/></highlight><highlight class="keywordflow">THEN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="210"><highlight class="normal"></highlight></codeline>
+<codeline lineno="211"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gamn<sp/>=<sp/>sqpi<sp/>/</highlight></codeline>
+<codeline lineno="212"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>product(<sp/>(/<sp/>(<sp/>-(i-1)-0.5,<sp/>i<sp/>=<sp/>1,<sp/>nloc<sp/>)<sp/>/)<sp/>)</highlight></codeline>
+<codeline lineno="213"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gamp<sp/>=<sp/>-<sp/>gamn<sp/>/<sp/>(nloc+0.5)</highlight></codeline>
+<codeline lineno="214"><highlight class="normal"></highlight></codeline>
+<codeline lineno="215"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>nwrt<sp/>=<sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="216"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>IF<sp/>(<sp/>nwrt<sp/>==<sp/>1<sp/>)<sp/>THEN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="217"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>WRITE<sp/>(6,<sp/>&apos;(&quot;nloc,<sp/>gamn,<sp/>gamp<sp/>=<sp/>&quot;,<sp/>i3,<sp/>2es12.4)&apos;<sp/>)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="218"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>nloc,<sp/>gamn,<sp/>gamp</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="219"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>nwrt<sp/>=<sp/>nwrt<sp/>+<sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="220"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>IF</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="221"><highlight class="normal"></highlight></codeline>
+<codeline lineno="222"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>IF</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="223"><highlight class="normal"></highlight></codeline>
+<codeline lineno="224"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gint<sp/><sp/>=<sp/>sqtwo<sp/>*<sp/>pcoef**nloc<sp/>*<sp/>gint<sp/>/<sp/>(nloc*sqpi*gamn)</highlight></codeline>
+<codeline lineno="225"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>gintp<sp/>=<sp/>sqtwo<sp/>*<sp/>pcoef**(nloc+1)<sp/>*<sp/>gintp<sp/>/<sp/>((nloc+1.0)*sqpi*gamp)</highlight></codeline>
+<codeline lineno="226"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pn<sp/>=<sp/>gint<sp/><sp/></highlight><highlight class="comment">!<sp/>P(n)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="227"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/>pp<sp/>=<sp/>gintp<sp/><sp/></highlight><highlight class="comment">!<sp/>P(n+1)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="228"><highlight class="normal"></highlight></codeline>
+<codeline lineno="229"><highlight class="normal"><sp/>500<sp/><sp/></highlight><highlight class="keywordflow">CONTINUE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="230"><highlight class="normal"></highlight><highlight class="comment">c$$$</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="231"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>nwrt<sp/>=<sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="232"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>IF<sp/>(<sp/>nwrt<sp/>==<sp/>1<sp/>)<sp/>THEN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="233"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>WRITE<sp/>(23,<sp/>&apos;(&quot;nloc,<sp/>x,<sp/>rhohat,<sp/>pn,<sp/>pp<sp/>=<sp/>&quot;,<sp/>i3,<sp/>4es12.4)&apos;<sp/>)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="234"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>nloc,<sp/>x,<sp/>rhohat,<sp/>pn,<sp/>pp</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="235"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>nwrt<sp/>=<sp/>nwrt<sp/>+<sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="236"><highlight class="normal"></highlight><highlight class="comment">c$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>IF</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="237"><highlight class="normal"></highlight></codeline>
+<codeline lineno="238"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">RETURN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="239"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">END</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="240"><highlight class="normal"></highlight><highlight class="comment">c</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="241"><highlight class="normal"></highlight></codeline>
+<codeline lineno="242"><highlight class="normal"></highlight><highlight class="comment">!...................................................</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="243"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">SUBROUTINE<sp/></highlight><highlight class="normal"><ref refid="aleg__new_8f_1ac47bfe7a73c8f39502b0f64fe23a72ca" kindref="member">ek3</ref>(eta,ier,error,maxit,cel1,cel2,convg,<sp/>kounter)</highlight></codeline>
+<codeline lineno="244"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">USE<sp/></highlight><highlight class="normal">local_mod,<sp/></highlight><highlight class="keywordtype">ONLY</highlight><highlight class="normal">:<sp/>r8</highlight></codeline>
+<codeline lineno="245"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">IMPLICIT<sp/>NONE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="246"><highlight class="normal"></highlight></codeline>
+<codeline lineno="247"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">INTENT(IN)</highlight><highlight class="normal"><sp/>::<sp/>eta,error</highlight></codeline>
+<codeline lineno="248"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">INTEGER</highlight><highlight class="normal">,<sp/></highlight><highlight class="keywordtype">INTENT(IN)</highlight><highlight class="normal"><sp/>::<sp/>maxit</highlight></codeline>
+<codeline lineno="249"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">INTEGER</highlight><highlight class="normal">,<sp/></highlight><highlight class="keywordtype">INTENT(OUT)</highlight><highlight class="normal"><sp/>::<sp/>ier,kounter</highlight></codeline>
+<codeline lineno="250"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">INTENT(OUT)</highlight><highlight class="normal"><sp/>::<sp/>cel1,cel2,convg</highlight></codeline>
+<codeline lineno="251"><highlight class="normal"></highlight></codeline>
+<codeline lineno="252"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">INTEGER</highlight><highlight class="normal"><sp/>::<sp/>logcnv</highlight></codeline>
+<codeline lineno="253"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8),<sp/></highlight><highlight class="keywordtype">PARAMETER</highlight><highlight class="normal"><sp/>::<sp/>pi=3.1415926535897932385,pi2=pi/2.0</highlight></codeline>
+<codeline lineno="254"><highlight class="normal"></highlight><highlight class="keywordtype"><sp/><sp/><sp/><sp/><sp/><sp/>REAL</highlight><highlight class="normal">(r8)<sp/>::<sp/>aa,aval0,aval1,aval2,bb1,bb2,bval1,bval2,cnvlog,emval,</highlight></codeline>
+<codeline lineno="255"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>eval,fval,gval,hval1,hval2,pp,pval,pval0,qcval,qval1,qval2,</highlight></codeline>
+<codeline lineno="256"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/>$<sp/><sp/><sp/><sp/><sp/>rval,snorm,sval,tval</highlight></codeline>
+<codeline lineno="257"><highlight class="normal"></highlight></codeline>
+<codeline lineno="258"><highlight class="normal"></highlight><highlight class="comment">!..................................................</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="259"><highlight class="normal"></highlight></codeline>
+<codeline lineno="260"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>Compute<sp/>the<sp/>complete<sp/>elliptic<sp/>integral<sp/>of<sp/>first<sp/>and<sp/>second<sp/>kind</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="261"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/>cel(kc,p,a,b).</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="262"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>Bulirsch&apos;s<sp/>method.<sp/>Numerical<sp/>Recipes,<sp/>modified<sp/>by<sp/>Turnbull<sp/>to</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="263"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/>calculate<sp/>both<sp/>K<sp/>and<sp/>E<sp/>simultaneously.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="264"><highlight class="normal"></highlight></codeline>
+<codeline lineno="265"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>Returns<sp/>cel1<sp/>=<sp/>K,<sp/>cel2<sp/>=<sp/>E.</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="266"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>Precision<sp/>is<sp/>error**2,</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="267"><highlight class="normal"></highlight></codeline>
+<codeline lineno="268"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>eta,<sp/>the<sp/>complementary<sp/>parameter,<sp/>(1<sp/>-<sp/>k^2),<sp/>is<sp/>the<sp/>square<sp/>of</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="269"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>the<sp/>argument<sp/>kc</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="270"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>p<sp/><sp/><sp/>is<sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="271"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>a<sp/><sp/><sp/>is<sp/>1</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="272"><highlight class="normal"></highlight><highlight class="comment">!<sp/><sp/>b<sp/><sp/><sp/>is<sp/>1<sp/>for<sp/>the<sp/>first<sp/>kind<sp/>and<sp/>b<sp/>is<sp/>eta(<sp/>=<sp/>kc**2)<sp/>for<sp/>the<sp/>second<sp/>kind</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="273"><highlight class="normal"></highlight></codeline>
+<codeline lineno="274"><highlight class="normal"></highlight></codeline>
+<codeline lineno="275"><highlight class="normal"></highlight></codeline>
+<codeline lineno="276"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>pp<sp/><sp/><sp/><sp/><sp/>=<sp/>1.0</highlight></codeline>
+<codeline lineno="277"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aa<sp/><sp/><sp/><sp/><sp/>=<sp/>1.0</highlight></codeline>
+<codeline lineno="278"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bb1<sp/><sp/><sp/><sp/>=<sp/>1.0</highlight></codeline>
+<codeline lineno="279"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bb2<sp/><sp/><sp/><sp/>=<sp/>abs(eta)</highlight></codeline>
+<codeline lineno="280"><highlight class="normal"></highlight></codeline>
+<codeline lineno="281"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>ier<sp/><sp/><sp/><sp/>=<sp/>0</highlight></codeline>
+<codeline lineno="282"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(eta<sp/>.LE.<sp/>0.0<sp/><sp/>.OR.<sp/><sp/>eta<sp/>&gt;<sp/>1.0)<sp/></highlight><highlight class="keywordflow">THEN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="283"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(eta<sp/>&lt;<sp/>0.0)<sp/>ier<sp/><sp/><sp/>=<sp/>1</highlight></codeline>
+<codeline lineno="284"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(eta<sp/>==<sp/>0.0)<sp/>ier<sp/><sp/><sp/>=<sp/>2</highlight></codeline>
+<codeline lineno="285"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(eta<sp/>&gt;<sp/>1.0)<sp/>ier<sp/><sp/><sp/>=<sp/>3</highlight></codeline>
+<codeline lineno="286"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cel1<sp/><sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="287"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cel2<sp/><sp/>=<sp/>0.0</highlight></codeline>
+<codeline lineno="288"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">RETURN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="289"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>IF</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="290"><highlight class="normal"></highlight></codeline>
+<codeline lineno="291"><highlight class="normal"></highlight></codeline>
+<codeline lineno="292"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>qcval<sp/><sp/>=<sp/>sqrt(abs(eta))</highlight></codeline>
+<codeline lineno="293"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aval0<sp/><sp/>=<sp/>aa</highlight></codeline>
+<codeline lineno="294"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval1<sp/><sp/>=<sp/>bb1</highlight></codeline>
+<codeline lineno="295"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval2<sp/><sp/>=<sp/>bb2</highlight></codeline>
+<codeline lineno="296"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>pval0<sp/><sp/>=<sp/>pp</highlight></codeline>
+<codeline lineno="297"><highlight class="normal"></highlight></codeline>
+<codeline lineno="298"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>eval<sp/><sp/><sp/>=<sp/>qcval</highlight></codeline>
+<codeline lineno="299"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>emval<sp/><sp/>=<sp/>1.0</highlight></codeline>
+<codeline lineno="300"><highlight class="normal"></highlight></codeline>
+<codeline lineno="301"><highlight class="normal"></highlight></codeline>
+<codeline lineno="302"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(pval0<sp/>&gt;<sp/>0.0)<sp/></highlight><highlight class="keywordflow">THEN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="303"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>pval<sp/><sp/>=<sp/>sqrt(pval0)</highlight></codeline>
+<codeline lineno="304"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aval1<sp/>=<sp/>aval0</highlight></codeline>
+<codeline lineno="305"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aval2<sp/>=<sp/>aval0</highlight></codeline>
+<codeline lineno="306"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval1<sp/>=<sp/>bval1/pval</highlight></codeline>
+<codeline lineno="307"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval2<sp/>=<sp/>bval2/pval</highlight></codeline>
+<codeline lineno="308"><highlight class="normal"></highlight></codeline>
+<codeline lineno="309"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="310"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>fval<sp/><sp/>=<sp/>qcval*qcval</highlight></codeline>
+<codeline lineno="311"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>tval<sp/><sp/>=<sp/>1.0<sp/><sp/>-<sp/>fval</highlight></codeline>
+<codeline lineno="312"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>gval<sp/><sp/>=<sp/>1.0<sp/><sp/>-<sp/>pval0</highlight></codeline>
+<codeline lineno="313"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>fval<sp/><sp/>=<sp/>fval<sp/>-<sp/>pval0</highlight></codeline>
+<codeline lineno="314"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>qval1<sp/>=<sp/>tval*(bval1<sp/>-<sp/>aval0*pval0)</highlight></codeline>
+<codeline lineno="315"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>qval2<sp/>=<sp/>tval*(bval2<sp/>-<sp/>aval0*pval0)</highlight></codeline>
+<codeline lineno="316"><highlight class="normal"></highlight></codeline>
+<codeline lineno="317"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>pval<sp/><sp/>=<sp/>sqrt(fval/gval)</highlight></codeline>
+<codeline lineno="318"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aval1<sp/>=<sp/>(aval0<sp/>-<sp/>bval1)<sp/>/<sp/>gval</highlight></codeline>
+<codeline lineno="319"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aval2<sp/>=<sp/>(aval0<sp/>-<sp/>bval2)<sp/>/<sp/>gval</highlight></codeline>
+<codeline lineno="320"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval1<sp/>=<sp/><sp/>aval1*pval<sp/>-<sp/>qval1/(gval*gval*pval)</highlight></codeline>
+<codeline lineno="321"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval2<sp/>=<sp/><sp/>aval2*pval<sp/>-<sp/>qval2/(gval*gval*pval)</highlight></codeline>
+<codeline lineno="322"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>IF</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="323"><highlight class="normal"></highlight></codeline>
+<codeline lineno="324"><highlight class="normal"></highlight></codeline>
+<codeline lineno="325"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>kounter<sp/>=<sp/>0</highlight></codeline>
+<codeline lineno="326"><highlight class="normal"><sp/>100<sp/><sp/><sp/></highlight><highlight class="keywordflow">CONTINUE</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="327"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>kounter<sp/>=<sp/>kounter<sp/>+<sp/>1</highlight></codeline>
+<codeline lineno="328"><highlight class="normal"></highlight></codeline>
+<codeline lineno="329"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>hval1<sp/><sp/>=<sp/>aval1</highlight></codeline>
+<codeline lineno="330"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>hval2<sp/><sp/>=<sp/>aval2</highlight></codeline>
+<codeline lineno="331"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aval1<sp/><sp/>=<sp/>aval1<sp/>+<sp/>bval1/pval</highlight></codeline>
+<codeline lineno="332"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>aval2<sp/><sp/>=<sp/>aval2<sp/>+<sp/>bval2/pval</highlight></codeline>
+<codeline lineno="333"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>rval<sp/><sp/><sp/>=<sp/>eval/pval</highlight></codeline>
+<codeline lineno="334"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval1<sp/><sp/>=<sp/>bval1<sp/>+<sp/>hval1*rval</highlight></codeline>
+<codeline lineno="335"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval1<sp/><sp/>=<sp/>bval1<sp/>+<sp/>bval1</highlight></codeline>
+<codeline lineno="336"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval2<sp/><sp/>=<sp/>bval2<sp/>+<sp/>hval2*rval</highlight></codeline>
+<codeline lineno="337"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>bval2<sp/><sp/>=<sp/>bval2<sp/>+<sp/>bval2</highlight></codeline>
+<codeline lineno="338"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>pval<sp/><sp/><sp/>=<sp/>rval<sp/>+<sp/>pval</highlight></codeline>
+<codeline lineno="339"><highlight class="normal"></highlight></codeline>
+<codeline lineno="340"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>sval<sp/><sp/><sp/>=<sp/>emval</highlight></codeline>
+<codeline lineno="341"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>emval<sp/><sp/>=<sp/>qcval<sp/>+<sp/>emval</highlight></codeline>
+<codeline lineno="342"><highlight class="normal"></highlight></codeline>
+<codeline lineno="343"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal"><sp/>(abs(sval-qcval)<sp/>&gt;<sp/>sval*error)<sp/></highlight><highlight class="keywordflow">THEN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="344"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>qcval<sp/><sp/>=<sp/>sqrt(eval)</highlight></codeline>
+<codeline lineno="345"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>qcval<sp/><sp/>=<sp/>qcval<sp/>+<sp/>qcval</highlight></codeline>
+<codeline lineno="346"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>eval<sp/><sp/><sp/>=<sp/>qcval*emval</highlight></codeline>
+<codeline lineno="347"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">GO<sp/>TO</highlight><highlight class="normal"><sp/>100</highlight></codeline>
+<codeline lineno="348"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>IF</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="349"><highlight class="normal"></highlight></codeline>
+<codeline lineno="350"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(sval<sp/>/=<sp/>0.0)<sp/>snorm<sp/>=<sp/>sval*sval</highlight></codeline>
+<codeline lineno="351"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(sval<sp/>==<sp/>0.0)<sp/>snorm<sp/>=<sp/>1.0</highlight></codeline>
+<codeline lineno="352"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>convg<sp/><sp/>=<sp/>(sval-qcval)*(sval-qcval)<sp/>/<sp/>snorm</highlight></codeline>
+<codeline lineno="353"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cnvlog<sp/>=<sp/>log10(abs(convg))</highlight></codeline>
+<codeline lineno="354"><highlight class="normal"></highlight><highlight class="comment">C$$$<sp/><sp/><sp/><sp/><sp/><sp/><sp/>logcnv<sp/>=<sp/>IFIX(cnvlog)</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="355"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>logcnv=cnvlog</highlight></codeline>
+<codeline lineno="356"><highlight class="normal"></highlight></codeline>
+<codeline lineno="357"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal"><sp/>(kounter<sp/>&gt;<sp/>maxit)<sp/></highlight><highlight class="keywordflow">THEN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="358"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(logcnv<sp/>&lt;<sp/>0)<sp/>ier<sp/><sp/><sp/>=<sp/>logcnv</highlight></codeline>
+<codeline lineno="359"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">IF</highlight><highlight class="normal">(logcnv<sp/>&gt;=<sp/>0)<sp/>ier<sp/><sp/><sp/>=<sp/>-1</highlight></codeline>
+<codeline lineno="360"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cel1<sp/><sp/>=<sp/>pi2*(bval1<sp/>+<sp/>aval1*emval)<sp/>/<sp/>(emval*(emval+pval))</highlight></codeline>
+<codeline lineno="361"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cel2<sp/><sp/>=<sp/>pi2*(bval2<sp/>+<sp/>aval2*emval)<sp/>/<sp/>(emval*(emval+pval))</highlight></codeline>
+<codeline lineno="362"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">RETURN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="363"><highlight class="normal"></highlight><highlight class="keywordflow"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>END<sp/>IF</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="364"><highlight class="normal"></highlight></codeline>
+<codeline lineno="365"><highlight class="normal"></highlight></codeline>
+<codeline lineno="366"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cel1<sp/><sp/>=<sp/>pi2*(bval1<sp/>+<sp/>aval1*emval)<sp/>/<sp/>(emval*(emval+pval))</highlight></codeline>
+<codeline lineno="367"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/>cel2<sp/><sp/>=<sp/>pi2*(bval2<sp/>+<sp/>aval2*emval)<sp/>/<sp/>(emval*(emval+pval))</highlight></codeline>
+<codeline lineno="368"><highlight class="normal"></highlight></codeline>
+<codeline lineno="369"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">RETURN</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="370"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">END</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/aleg_new.f"/>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,357 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.14.0" xml:lang="en-US">
+  <compounddef id="namespacevacuum__mod" kind="namespace" language="Fortran">
+    <compoundname>vacuum_mod</compoundname>
+    <sectiondef kind="func">
+      <memberdef kind="function" id="namespacevacuum__mod_1ab6f5d7e445b2985a9ca66f29902eb57d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::mscvac</definition>
+        <argsstring>(wv, mpert, mtheta, mthvac, complex_flag, kernelsignin, wall_flag, farwal_flag, grrio, xzptso, op_ahgfile)</argsstring>
+        <name>mscvac</name>
+        <qualifiedname>vacuum_mod::mscvac</qualifiedname>
+        <param>
+          <type>complex(r8), dimension(mpert,mpert)</type>
+          <defname>wv</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>mpert</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>mtheta</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>mthvac</defname>
+        </param>
+        <param>
+          <type>logical, intent(in)</type>
+          <defname>complex_flag</defname>
+        </param>
+        <param>
+          <type>real(r8)</type>
+          <defname>kernelsignin</defname>
+        </param>
+        <param>
+          <type>logical, intent(in)</type>
+          <defname>wall_flag</defname>
+        </param>
+        <param>
+          <type>logical, intent(in)</type>
+          <defname>farwal_flag</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(2*(mthvac+5),mpert*2)</type>
+          <defname>grrio</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(mthvac+5,4)</type>
+          <defname>xzptso</defname>
+        </param>
+        <param>
+          <type>character(128), intent(in), optional</type>
+          <defname>op_ahgfile</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="31" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="33" bodyend="163"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1a0575b2daf8cec8c1d4ee16bc9cf9c213" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::mscfld</definition>
+        <argsstring>(wv, mpert, mtheta, mthvac, complex_flag, lx, lz, vgdl, vgdx, vgdz, vbx, vbz, vbp, op_ahgfile)</argsstring>
+        <name>mscfld</name>
+        <qualifiedname>vacuum_mod::mscfld</qualifiedname>
+        <param>
+          <type>complex(r8), dimension(mpert,mpert)</type>
+          <defname>wv</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>mpert</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>mtheta</defname>
+        </param>
+        <param>
+          <type>integer</type>
+          <defname>mthvac</defname>
+        </param>
+        <param>
+          <type>logical, intent(in)</type>
+          <defname>complex_flag</defname>
+        </param>
+        <param>
+          <type>lx</type>
+          <defname>lx</defname>
+        </param>
+        <param>
+          <type>lz</type>
+          <defname>lz</defname>
+        </param>
+        <param>
+          <type>integer, dimension(0:lx,0:lz)</type>
+          <defname>vgdl</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(0:lx,0:lz)</type>
+          <defname>vgdx</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(0:lx,0:lz)</type>
+          <defname>vgdz</defname>
+        </param>
+        <param>
+          <type>complex(r8), dimension(0:lx,0:lz)</type>
+          <defname>vbx</defname>
+        </param>
+        <param>
+          <type>complex(r8), dimension(0:lx,0:lz)</type>
+          <defname>vbz</defname>
+        </param>
+        <param>
+          <type>complex(r8), dimension(0:lx,0:lz)</type>
+          <defname>vbp</defname>
+        </param>
+        <param>
+          <type>character(128), intent(in), optional</type>
+          <defname>op_ahgfile</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="172" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="174" bodyend="301"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1a869ac40a7e7d6530fb65a7e9d493dcc0" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::defglo</definition>
+        <argsstring>(mthvac)</argsstring>
+        <name>defglo</name>
+        <qualifiedname>vacuum_mod::defglo</qualifiedname>
+        <param>
+          <type>integer, intent(in)</type>
+          <defname>mthvac</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="310" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="311" bodyend="413"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1adeb7501b5fc551bdce337b7369c605e2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::ent33</definition>
+        <argsstring></argsstring>
+        <name>ent33</name>
+        <qualifiedname>vacuum_mod::ent33</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="422" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="423" bodyend="437"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1a383791fec462a829ca415679858178fa" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::funint</definition>
+        <argsstring></argsstring>
+        <name>funint</name>
+        <qualifiedname>vacuum_mod::funint</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="446" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="447" bodyend="499"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1a4f7d9052ebac5f507fbd2774668efd02" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::make_bltobp</definition>
+        <argsstring></argsstring>
+        <name>make_bltobp</name>
+        <qualifiedname>vacuum_mod::make_bltobp</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="508" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="509" bodyend="552"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1a28c917f1dfaf450147eae32424c18254" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::diaplt</definition>
+        <argsstring></argsstring>
+        <name>diaplt</name>
+        <qualifiedname>vacuum_mod::diaplt</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="561" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="562" bodyend="615"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1ab33d406314e3ab0ad02a32b4c442fb71" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::pickup</definition>
+        <argsstring>(blr, bli, lx, lz, vgdl, vgdx, vgdz, vbx, vbz, vbp)</argsstring>
+        <name>pickup</name>
+        <qualifiedname>vacuum_mod::pickup</qualifiedname>
+        <param>
+          <type>dimension(*)</type>
+          <defname>blr</defname>
+        </param>
+        <param>
+          <type>dimension(*)</type>
+          <defname>bli</defname>
+        </param>
+        <param>
+          <type>lx</type>
+          <defname>lx</defname>
+        </param>
+        <param>
+          <type>lz</type>
+          <defname>lz</defname>
+        </param>
+        <param>
+          <type>integer, dimension(0:lx,0:lz)</type>
+          <defname>vgdl</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(0:lx,0:lz)</type>
+          <defname>vgdx</defname>
+        </param>
+        <param>
+          <type>real(r8), dimension(0:lx,0:lz)</type>
+          <defname>vgdz</defname>
+        </param>
+        <param>
+          <type>complex(r8), dimension(0:lx,0:lz)</type>
+          <defname>vbx</defname>
+        </param>
+        <param>
+          <type>complex(r8), dimension(0:lx,0:lz)</type>
+          <defname>vbz</defname>
+        </param>
+        <param>
+          <type>complex(r8), dimension(0:lx,0:lz)</type>
+          <defname>vbp</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="624" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="625" bodyend="883"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1a309a2c4587ef15d045f90a9fab797e31" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::loops</definition>
+        <argsstring></argsstring>
+        <name>loops</name>
+        <qualifiedname>vacuum_mod::loops</qualifiedname>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="892" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="893" bodyend="960"/>
+      </memberdef>
+      <memberdef kind="function" id="namespacevacuum__mod_1ab53eec1bbe948d73162b8de0a1d9afd8" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type>subroutine</type>
+        <definition>subroutine vacuum_mod::chi</definition>
+        <argsstring>(xsce, zsce, xscp, zscp, isg, creal, cimag, ns, ip, chir, chii, nsew, blr, bli, rgdl)</argsstring>
+        <name>chi</name>
+        <qualifiedname>vacuum_mod::chi</qualifiedname>
+        <param>
+          <type>dimension(*)</type>
+          <defname>xsce</defname>
+        </param>
+        <param>
+          <type>dimension(*)</type>
+          <defname>zsce</defname>
+        </param>
+        <param>
+          <type>dimension(*)</type>
+          <defname>xscp</defname>
+        </param>
+        <param>
+          <type>dimension(*)</type>
+          <defname>zscp</defname>
+        </param>
+        <param>
+          <type>isg</type>
+          <defname>isg</defname>
+        </param>
+        <param>
+          <type>dimension(nths,nfm)</type>
+          <defname>creal</defname>
+        </param>
+        <param>
+          <type>dimension(nths,nfm)</type>
+          <defname>cimag</defname>
+        </param>
+        <param>
+          <type>ns</type>
+          <defname>ns</defname>
+        </param>
+        <param>
+          <type>ip</type>
+          <defname>ip</defname>
+        </param>
+        <param>
+          <type>dimension(5,ndimlp)</type>
+          <defname>chir</defname>
+        </param>
+        <param>
+          <type>dimension(5,ndimlp)</type>
+          <defname>chii</defname>
+        </param>
+        <param>
+          <type>nsew</type>
+          <defname>nsew</defname>
+        </param>
+        <param>
+          <type>dimension(*)</type>
+          <defname>blr</defname>
+        </param>
+        <param>
+          <type>dimension(*)</type>
+          <defname>bli</defname>
+        </param>
+        <param>
+          <type>dimension(ndimlp)</type>
+          <defname>rgdl</defname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="969" column="1" bodyfile="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" bodystart="971" bodyend="1031"/>
+      </memberdef>
+    </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="/Users/jaebeomcho/Desktop/code/GPEC_hackaton/GPEC/vacuum/vacuum_ma.f" line="19" column="1"/>
+  </compounddef>
+</doxygen>
