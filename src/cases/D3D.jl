@@ -34,7 +34,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
     rho_averaging::Float64=0.25,
     new_impurity_match_power_rad::Symbol=:none,
     use_local_cache::Bool=false,
-    use_interferometer::Bool=true
+    use_interferometer::Bool=true,
+    pull_gslite_min::Bool=false
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
@@ -87,6 +88,10 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
     if length(PROFILES_run_id) > 0
         omas_command *= " --PROFILES_RUN_ID $PROFILES_run_id"
+    end
+
+    if pull_gslite_min
+        omas_command *= " --PULL_GSLITE_MIN"
     end
 
     if omfit_host == "localhost"
@@ -183,6 +188,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     # simulation starts when both equilibrium and profiles are available
     ini.time.simulation_start = max(ini.general.dd.equilibrium.time_slice[2].time, ini.general.dd.core_profiles.profiles_1d[2].time)
+    t_cp = length(ini.general.dd.core_profiles.profiles_1d) >= 2 ? ini.general.dd.core_profiles.profiles_1d[2].time : -Inf
+    ini.time.simulation_start = max(t_eq, t_cp)
 
     # sanitize dd
     for nbu in dd1.nbi.unit
@@ -216,6 +223,19 @@ function case_parameters(::Val{:D3D}, shot::Int;
             ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium, use_interferometer)
         end
     end
+
+    if isempty(ini.general.dd.core_profiles)
+        ini.core_profiles.ne_setting = :greenwald_fraction_ped
+        ini.core_profiles.ne_value = 0.75 * 0.75
+        ini.core_profiles.ne_shaping = 0.9
+        ini.core_profiles.Te_shaping = 1.8
+        ini.core_profiles.Ti_Te_ratio = 1.0
+        ini.core_profiles.zeff = 2.0
+        ini.core_profiles.bulk = :D
+        ini.core_profiles.impurity = :C
+        ini.core_profiles.rot_core = 5E3
+    end
+    @show(ini.core_profiles.bulk)
 
     # add rotation information if missing
     for cp1d in dd1.core_profiles.profiles_1d
