@@ -55,10 +55,11 @@ using Test
 
                 # test RW surface generation
                 act.ActorMars.number_surfaces = 2
+                chease_overrides_RW = (CFBAL=2.)
 
                 # next test the restart capability
                 @info "=============================================================="
-                @info "    Test 2: Testing CHEASE restart capability"
+                @info "    Test 2: CHEASE restart capability with resistive wall & higher beta"
                 @info "=============================================================="
                 act.ActorMars.restart_equilibrium = true
                 FUSE.ActorMars(dd, act; chease_overrides=chease_overrides)
@@ -67,6 +68,7 @@ using Test
                 @info "=============================================================="
                 @info "       Test 3: Testing MARS MHD stability run"
                 @info "=============================================================="
+                act.ActorMars.restart_equilibrium = false
                 act.ActorMars.run_MHD = true
                 if !isfile("RUN.IN")
                     @test_skip "MARS input file MARS_INPUT not found after CHEASE run. Skipping MARS test."
