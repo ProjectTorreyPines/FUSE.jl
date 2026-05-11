@@ -26,7 +26,7 @@ end
     act.ActorMars.restart_equilibrium = false
     act.ActorMars.run_MHD = false
     act.ActorMars.run_mode = :local
-    act.ActorMars.chease_exec = "/Users/akcay/Codes/MarsQ_package/CheaseMerge/chease.x"  # <-- Update this path to your CHEASE executable
+    #act.ActorMars.chease_exec = "/fusion/projects/codes/mars/CHEASE/chease.x"  # <-- Update this path to your CHEASE executable
 
     # Configure CHEASE parameters for testing
     chease_overrides = (NPSI=64, NVEXP=2, NCSCAL=4)
