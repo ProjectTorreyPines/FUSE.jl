@@ -670,7 +670,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
     z_bound_norm = zb_new / R0
 
     #plt = plot()
-    plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, title="Smoothed Boundary")
+    plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, label="Plasma Boundary")
     display(plt)
 
     
@@ -698,8 +698,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
         
-        plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal)
-        #plt = plot!(r_d3d, z_d3d; linewidth=1.5, aspect_ratio=:equal)
+        plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal,label="MARS resistive wall", legend=:outertop)
         display(plt)
         for (r, z) in zip(r_lim_norm, z_lim_norm)
             write_list = vcat(write_list, "$r    $z")
