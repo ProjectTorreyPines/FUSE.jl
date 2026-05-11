@@ -137,6 +137,8 @@ include(joinpath("actors", "transport", "tglf_actor.jl"))
 include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
+include(joinpath("actors", "transport", "mode_id_actor.jl"))
+include(joinpath("actors", "transport", "finn_actor.jl"))
 include(joinpath("actors", "transport", "eped_profiles_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
@@ -183,6 +185,7 @@ include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
 include(joinpath("studies", "study_database.jl"))
 include(joinpath("studies", "experiment_postdictive.jl"))
+include(joinpath("studies", "experiment_predictive_rt.jl"))
 include(joinpath("studies", "HDB5_validation.jl"))
 
 #= ========= =#

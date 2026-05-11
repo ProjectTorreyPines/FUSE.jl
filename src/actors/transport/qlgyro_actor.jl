@@ -16,6 +16,7 @@ import GACODE
     max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.0)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
+    MXH_modes::Entry{Int} = Entry{Int}("-", "Number of MXH harmonic modes (1 = standard Miller geometry)"; default=1)
 end
 
 mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
@@ -92,7 +93,7 @@ function _step(actor::ActorQLGYRO)
             actor.input_qlgyros[k].SAT_RULE = 1
         end
 
-        actor.input_cgyros[k] = InputCGYRO(dd, gridpoint_cp, par.lump_ions)
+        actor.input_cgyros[k] = InputCGYRO(dd, gridpoint_cp, par.lump_ions; MXH_modes=par.MXH_modes)
         actor.input_cgyros[k].N_FIELD = par.n_field
         actor.input_cgyros[k].DELTA_T = par.delta_t
         actor.input_cgyros[k].MAX_TIME = par.max_time

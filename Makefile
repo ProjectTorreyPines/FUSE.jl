@@ -662,12 +662,23 @@ install_ci_master:
 install_ci_dev:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
+# Respects [sources] section in Project.toml for package overrides
 	julia --project=@. -e ';\
 	$(feature_or_master_julia);\
 	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg;\
+	import TOML;\
+	project = TOML.parsefile("Project.toml");\
+	sources_packages = haskey(project, "sources") ? collect(keys(project["sources"])) : String[];\
+	if !isempty(sources_packages);\
+		println(">>> Skipping packages defined in [sources]: ", join(sources_packages, ", "));\
+	end;\
 	dependencies = Pkg.PackageSpec[];\
 	for package in fuse_packages;\
+		if package in sources_packages;\
+			println(">>> $$(package) (using [sources] definition)");\
+			continue;\
+		end;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
         if branch == "master";\
             println(">>> $$(package)");\

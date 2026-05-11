@@ -1,6 +1,7 @@
 using LaTeXStrings
 import JSON
 import GACODE
+import Serialization
 
 #= ================= =#
 #  StudyTGLFdb  #
@@ -38,6 +39,11 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
     custom_tglf_models::Entry{Vector{String}} = Entry{Vector{String}}("-", "This will run custom TGLFNN models stored in TGLFNN/models")
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
+    save_input_tglf::Entry{Bool} = Entry{Bool}("-", "Save per-radius input.tglf files for each case"; default=true)
+    checkpoint_cases::Entry{Bool} = Entry{Bool}("-", "Serialize each successful case row to disk so a re-run can resume"; default=false)
+    resume_from_checkpoints::Entry{Bool} = Entry{Bool}("-", "On resume, skip cases that already have a checkpoint row and load it from disk"; default=false)
+    max_cases::Entry{Int} = Entry{Int}("-", "Maximum number of cases to dispatch (0 = all)"; default=0)
+    offset_cases::Entry{Int} = Entry{Int}("-", "Skip the first N cases (after sorting) before applying max_cases"; default=0)
 end
 
 mutable struct StudyTGLFdb{T<:Real} <: AbstractStudy
@@ -81,49 +87,114 @@ function _run(study::StudyTGLFdb)
     act = study.act
 
     @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
-    @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
 
-    cases_files = [
-        joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
-        item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
-    ]
+    is_finn = act.ActorCoreTransport.model == :FINN
 
-    if !ismissing(getproperty(sty, :sat_rules, missing))
-        iterator = sty.sat_rules
-    elseif !ismissing(sty.custom_tglf_models)
-        iterator = sty.custom_tglf_models
+    if is_finn
+        iterator = [act.ActorFINN.finn_model]
+    else
+        @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
+        if !ismissing(getproperty(sty, :sat_rules, missing))
+            iterator = sty.sat_rules
+        elseif !ismissing(sty.custom_tglf_models)
+            iterator = sty.custom_tglf_models
+        end
     end
+
+    # Accept JSON or HDF5 cases. Producers (e.g. parse_superfacility.jl)
+    # may write `*.h5` ODSs directly into `fuse_prepared_inputs/`; the
+    # `preprocess_dd` helper below dispatches on extension.
+    # Sort by (shot, time_ms) so offset/limit slicing is deterministic across jobs.
+    cases_files = sort(
+        [
+            joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
+            item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs"))
+            if endswith(item, ".json") || endswith(item, ".h5")
+        ];
+        by=case_sort_key,
+    )
+
+    n_total = length(cases_files)
+    if sty.offset_cases > 0
+        cases_files = cases_files[(min(sty.offset_cases, n_total) + 1):end]
+    end
+    if sty.max_cases > 0 && sty.max_cases < length(cases_files)
+        cases_files = cases_files[1:sty.max_cases]
+    end
+    chunk_suffix = (sty.offset_cases > 0 || sty.max_cases > 0) ?
+                   "_offset$(sty.offset_cases)_max$(sty.max_cases)" : ""
+
     study.iterator = iterator
-    study.dataframes_dict = Dict(string(name) => TGLF_dataframe() for name in study.iterator)
+    study.dataframes_dict = Dict(string(name) => (is_finn ? FINN_dataframe() : TGLF_dataframe()) for name in study.iterator)
 
     # loop serially through saturation rules
-    println("Running StudyTGLFdb on $(length(cases_files)) cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
+    println("Running StudyTGLFdb on $(length(cases_files))/$n_total cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
     for item in iterator
-        if !ismissing(getproperty(sty, :sat_rules, missing))
-            act.ActorTGLF.sat_rule = item
-        else
-            act.ActorTGLF.tglfnn_model = item
+        if !is_finn
+            if !ismissing(getproperty(sty, :sat_rules, missing))
+                act.ActorTGLF.sat_rule = item
+            else
+                act.ActorTGLF.tglfnn_model = item
+            end
+            act.ActorTGLF.lump_ions = sty.lump_ions
+            if item == "wrapped_model.onnx"
+                act.ActorTGLF.onnx_model=true
+                act.ActorTGLF.tglfnn_model = item
+            end
         end
-        act.ActorTGLF.lump_ions = sty.lump_ions
-        if item == "wrapped_model.onnx"
-            act.ActorTGLF.onnx_model=true
-            act.ActorTGLF.tglfnn_model = item
-        end
-        # paraller run
-        results = pmap(filename -> run_case(filename, study, item), cases_files)
 
-        # populate DataFrame
+        # filter out cases that already have a checkpoint, or that previously
+        # failed cleanly (an error.txt is present), when resuming
+        if sty.resume_from_checkpoints
+            cases_to_run = filter(cases_files) do f
+                !isfile(checkpoint_file(sty, f, item)) && !isfile(error_file(sty, f))
+            end
+        else
+            cases_to_run = cases_files
+        end
+        cases_to_run_set = Set(cases_to_run)
+        n_skipped = length(cases_files) - length(cases_to_run)
+        if n_skipped > 0
+            println("Resuming: skipping $n_skipped/$(length(cases_files)) already-completed-or-failed cases for $(item)")
+        end
+
+        # parallel run
+        results = pmap(filename -> run_case(filename, study, item), cases_to_run)
+
+        # populate DataFrame from this run
         for row in results
             if row isa NamedTuple || row isa AbstractArray || row isa DataFrameRow || row isa AbstractDict
                 push!(study.dataframes_dict[string(item)], row)
+            elseif row === nothing
+                # case failed cleanly; error.txt was written in run_case
             else
                 @warn "Invalid row type encountered: $row"
             end
         end
 
-        # Save JSON to a file
+        # rehydrate rows for cases skipped via checkpoints
+        if sty.resume_from_checkpoints
+            for filename in cases_files
+                if filename in cases_to_run_set
+                    continue
+                end
+                cf = checkpoint_file(sty, filename, item)
+                if isfile(cf)
+                    try
+                        row = Serialization.deserialize(cf)
+                        if row isa NamedTuple || row isa AbstractArray || row isa DataFrameRow || row isa AbstractDict
+                            push!(study.dataframes_dict[string(item)], row)
+                        end
+                    catch e
+                        @warn "Failed to load checkpoint $cf: $e"
+                    end
+                end
+            end
+        end
+
+        # Save JSON to a file (chunk_suffix prevents races between concurrent offset jobs)
         json_data = JSON.json(study.dataframes_dict[string(item)])
-        open("$(sty.save_folder)/data_frame_$(item).json", "w") do f
+        open("$(sty.save_folder)/data_frame_$(item)$(chunk_suffix).json", "w") do f
             return write(f, json_data)
         end
     end
@@ -142,8 +213,38 @@ function _analyze(study::StudyTGLFdb)
     return study
 end
 
+function case_name(filename::AbstractString)
+    return split(splitpath(filename)[end], ".")[1]
+end
+
+function case_output_dir(sty, filename::AbstractString)
+    return joinpath(sty.save_folder, case_name(filename))
+end
+
+function checkpoint_file(sty, filename::AbstractString, item)
+    return joinpath(case_output_dir(sty, filename), "checkpoint_row_$(item).jls")
+end
+
+function error_file(sty, filename::AbstractString)
+    return joinpath(case_output_dir(sty, filename), "error.txt")
+end
+
+# Sort key based on trailing `<shot>_<time_ms>` numbers in the filename
+# (e.g. ods_155003_980 -> (155003, 980)). Falls back to lexicographic
+# order when the pattern doesn't match so OMFIT-prepared inputs still work.
+function case_sort_key(filename::AbstractString)
+    name = case_name(filename)
+    m = match(r"(\d+)_(\d+)$", name)
+    if m === nothing
+        return (typemax(Int), typemax(Int), name)
+    end
+    return (parse(Int, m.captures[1]), parse(Int, m.captures[2]), name)
+end
+
 function preprocess_dd(filename::AbstractString)
-    dd = IMAS.json2imas(filename; show_warnings=false)
+    dd = endswith(filename, ".h5") ?
+        IMAS.hdf2imas(filename; show_warnings=false) :
+        IMAS.json2imas(filename; show_warnings=false)
 
     cp1d = dd.core_profiles.profiles_1d[]
     # Handle both single and multiple time slice cases
@@ -170,53 +271,76 @@ function run_case(filename::AbstractString, study::StudyTGLFdb, item)
     act = study.act
     sty = study.sty
 
-    dd = preprocess_dd(filename)
-
-    act.ActorFluxMatcher.evolve_densities = FUSE.setup_density_evolution_electron_flux_match_impurities_fixed(dd.core_profiles.profiles_1d[])
-
-    # find time from filename
-    timefn = match(r"(\d+)\.\w+$", filename)
-    if timefn !== nothing
-        timef = parse(Int,timefn.captures[1])
-    else
-        timef = 0
+    name = case_name(filename)
+    output_case = case_output_dir(sty, filename)
+    if !isdir(output_case)
+        try
+            mkpath(output_case)
+        catch
+            # another worker created it; safe to ignore
+        end
     end
 
-    cp1d = dd.core_profiles.profiles_1d[]
-    exp_values = [
-        cp1d.electrons.density_thermal[1],
-        cp1d.electrons.temperature[1],
-        cp1d.ion[1].temperature[1],
-        @ddtime(dd.summary.global_quantities.energy_thermal.value),
-        cp1d.rotation_frequency_tor_sonic[1], timef]
-
-    name = split(splitpath(filename)[end], ".")[1]
-    output_case = joinpath(sty.save_folder, name)
+    is_finn = act.ActorCoreTransport.model == :FINN
 
     try
-        if !isdir(output_case)
-            mkdir(output_case)
-        end
+        # NOTE: preprocess_dd is intentionally inside the try/catch so a
+        # single bad input (e.g. unsorted profiles, missing fields) writes
+        # error.txt and returns nothing instead of aborting the pmap chunk.
+        dd = preprocess_dd(filename)
+
+        act.ActorFluxMatcher.evolve_densities =
+            FUSE.setup_density_evolution_electron_flux_match_impurities_fixed(dd.core_profiles.profiles_1d[])
+
+        # find time from filename
+        timefn = match(r"(\d+)\.\w+$", filename)
+        timef = timefn !== nothing ? parse(Int, timefn.captures[1]) : 0
+
+        cp1d = dd.core_profiles.profiles_1d[]
+        exp_values = [
+            cp1d.electrons.density_thermal[1],
+            cp1d.electrons.temperature[1],
+            cp1d.ion[1].temperature[1],
+            @ddtime(dd.summary.global_quantities.energy_thermal.value),
+            cp1d.rotation_frequency_tor_sonic[1], timef,
+        ]
 
         actor_transport = workflow_actor(dd, act)
         empty!(dd.summary.global_quantities)
 
         if sty.save_dd
             IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(item).json"))
-            save_inputtglfs(actor_transport, output_case, name, item)
+            if !is_finn && sty.save_input_tglf
+                save_inputtglfs(actor_transport, output_case, name, item)
+            end
             if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
                 save(FUSE.memtrace, joinpath(output_case, "memtrace.txt"))
             end
         end
 
-        return create_data_frame_row(dd, exp_values)
+        row = is_finn ? create_finn_data_frame_row(dd, exp_values) : create_data_frame_row(dd, exp_values)
+
+        if sty.checkpoint_cases
+            try
+                Serialization.serialize(checkpoint_file(sty, filename, item), row)
+            catch e
+                @warn "Failed to write checkpoint for $name: $e"
+            end
+        end
+
+        return row
     catch e
         if isa(e, InterruptException)
             rethrow(e)
         end
-        open("$output_case/error.txt", "w") do file
-            return showerror(file, e, catch_backtrace())
+        try
+            open("$output_case/error.txt", "w") do file
+                return showerror(file, e, catch_backtrace())
+            end
+        catch
+            # ignore secondary IO failures so the worker keeps going
         end
+        return nothing
     end
 end
 
@@ -255,7 +379,7 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
       FUSE.flux_match_targets(dd, act_fm),
       nr, 4
     )
-    qi, qe, qp, qg = eachcol(q_mat)
+    qe, qi, qp, qg = eachcol(q_mat)
     gyro_bohms = [
       GACODE.gyrobohm_energy_flux(cp1d, eqt),
       GACODE.gyrobohm_particle_flux(cp1d, eqt),
@@ -300,6 +424,33 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
       Q_GB            = IMAS.interp1d(rho_cp, gyro_bohms[1]).(rho_transport),
       particle_GB     = IMAS.interp1d(rho_cp, gyro_bohms[2]).(rho_transport),
       momentum_GB     = IMAS.interp1d(rho_cp, gyro_bohms[3]).(rho_transport),
+    )
+end
+
+function FINN_dataframe()
+    return DataFrame(;
+        shot=Int[], time=Int[],
+        ne0=Float64[], Te0=Float64[], Ti0=Float64[], rot0=Float64[], WTH=Float64[],
+        ne0_exp=Float64[], Te0_exp=Float64[], Ti0_exp=Float64[], rot0_exp=Float64[], WTH_exp=Float64[],
+        timef=Int[])
+end
+
+function create_finn_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
+    cp1d = dd.core_profiles.profiles_1d[]
+    return (
+      shot    = dd.dataset_description.data_entry.pulse,
+      time    = Int(dd.summary.time[1] * 1000),
+      ne0     = cp1d.electrons.density_thermal[1],
+      Te0     = cp1d.electrons.temperature[1],
+      Ti0     = cp1d.ion[1].temperature[1],
+      rot0    = cp1d.rotation_frequency_tor_sonic[1],
+      WTH     = IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
+      ne0_exp = exp_values[1],
+      Te0_exp = exp_values[2],
+      Ti0_exp = exp_values[3],
+      rot0_exp = exp_values[5],
+      WTH_exp = exp_values[4],
+      timef   = exp_values[6],
     )
 end
 

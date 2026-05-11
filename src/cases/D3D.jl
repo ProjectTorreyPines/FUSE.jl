@@ -38,6 +38,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
+    omfit_host_original = omfit_host
 
     if omfit_host == "localhost"
         phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omfit_root, omas_root))
@@ -198,7 +199,22 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     # profile fitting starting from diagnostic measurements
     if fit_profiles
-        ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium, use_interferometer)
+        n_cer = count(ch -> !isempty(ch.ion) && IMAS.hasdata(ch.ion[1].t_i, :data), dd1.charge_exchange.channel)
+        if n_cer < 5 && CER_analysis_type != "CERQUICK"
+            @warn "Shot $shot: only $n_cer CER channels with $CER_analysis_type — retrying with CERQUICK"
+            return case_parameters(Val(:D3D), shot;
+                fit_profiles, EFIT_tree, PROFILES_tree,
+                CER_analysis_type="CERQUICK",
+                EFIT_run_id, PROFILES_run_id,
+                omfit_host=omfit_host_original, omfit_root, omas_root,
+                time_averaging, rho_averaging,
+                new_impurity_match_power_rad,
+                use_local_cache, use_interferometer)
+        elseif n_cer < 5
+            @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
+        else
+            ActorFitProfiles(dd1, act; time_averaging, rho_averaging, time_basis_ids=:equilibrium, use_interferometer)
+        end
     end
 
     # add rotation information if missing
