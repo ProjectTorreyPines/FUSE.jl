@@ -75,6 +75,11 @@ Base.@kwdef mutable struct CHEASEnamelist
     R0EXP::Float64  = 3.0
 end
 
+Base.@kwdef mutable struct MarsOverrides
+    BASIC::Union{Nothing,Dict{Symbol,Any}} = nothing
+    # other blocks as needed
+end
+
 
 struct MarsEq
     OutRVAR::Vector{Float64}
@@ -198,7 +203,7 @@ function _step(actor::ActorMars)
 
     # run MARS
     if par.run_MHD
-        @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type), PEST_input=$(par.PEST_input)"
+        @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type)"
         run_MARS(dd, par)
     end
 
@@ -295,11 +300,13 @@ function run_MARS(dd::IMAS.dd, par)
         @info "Overriding IWALL in RUN.IN"
         # Implement the override logic here
         NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
-        update_MARS_RUNIN!("RUN.IN", (BASIC=(IWALL=NW,),))
+        #update_MARS_RUNIN!("RUN.IN", (BASIC=(IWALL=NW,),))
+        update_MARS_RUNIN2!("RUN.IN", MarsOverrides(BASIC=Dict(:IWALL=>NW)))
     end
 
     # 3. Patch only requested entries
-    update_MARS_RUNIN!("RUN.IN", mars_overrides)
+    #update_MARS_RUNIN!("RUN.IN", mars_overrides)
+    update_MARS_RUNIN2!("RUN.IN", mars_overrides)
 
     # 4. Determine which profiles to pull from dd, i.e. experiment
     keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
@@ -405,6 +412,28 @@ function collect_block_overrides(mars_overrides::NamedTuple)
     )
 end
 
+"""
+    collect_block_overrides2(MarsOverrides) -> Dict{Symbol,Any}
+    Return a Dict{Symbol,Any} of only fields that are NOT `nothing`.
+"""
+
+function collect_block_overrides2(mo::MarsOverrides)
+
+    overrides = Dict{Tuple{Symbol,Symbol},Any}()
+
+    for block in fieldnames(typeof(mo))
+
+        blockdict = getfield(mo, block)
+
+        blockdict === nothing && continue
+
+        for (k,v) in blockdict
+            overrides[(block, k)] = v
+        end
+    end
+
+    return overrides
+end
 
 function update_MARS_RUNIN!(
     template::AbstractString,
@@ -470,6 +499,63 @@ function update_MARS_RUNIN!(
         for l in new_lines
             println(io, l)
         end
+    end
+end
+
+function update_MARS_RUNIN2!(
+    template::AbstractString,
+    mars_overrides::MarsOverrides
+)
+
+    overrides = collect_block_overrides2(mars_overrides)
+
+    lines = readlines(template)
+    out = String[]
+
+    current_block = nothing
+    written = Set{Tuple{Symbol,Symbol}}()
+
+    for line in lines
+
+        stripped = strip(line)
+
+        if startswith(stripped, "&")
+            current_block = Symbol(strip(stripped[2:end]))
+            push!(out, line)
+            continue
+
+        elseif stripped == "&END"
+
+            if current_block !== nothing
+                for ((blk,key), val) in overrides
+                    if blk == current_block && !((blk,key) in written)
+                        push!(out, " $key = $val,")
+                    end
+                end
+            end
+
+            current_block = nothing
+            push!(out, line)
+            continue
+        end
+
+        if current_block !== nothing && occursin("=", stripped)
+
+            key = Symbol(strip(first(split(stripped,"="))))
+            k = (current_block,key)
+
+            if haskey(overrides,k)
+                push!(out," $key = $(overrides[k]),")
+                push!(written,k)
+                continue
+            end
+        end
+
+        push!(out,line)
+    end
+
+    open(template,"w") do io
+        write(io,join(out,"\n"))
     end
 end
 
