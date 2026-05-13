@@ -26,11 +26,12 @@ function init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::Param
 end
 
 """
-    init_requirements!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_requirements!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
-Initialize dd.requirements `ini.requirements`
+Initialize dd.requirements from `ini.requirements`. Accepts any `IMAS.DD`
+subtype (e.g. IFEdd's `dd_ife`) that embeds `requirements`.
 """
-function init_requirements!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_requirements!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_requirements")
     TimerOutputs.@timeit timer "init_requirements" begin
 
