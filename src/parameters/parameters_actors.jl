@@ -5,11 +5,16 @@ Expands the subtypes into struct members
 """
 macro insert_subtype_members(T)
     expr = Expr(:block)
-    for s in subtypes(eval(T))
+    for s in subtypes(__module__.eval(T))
         full_parameters_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_parameters_actor_name, '_')
             mem = Symbol(split(full_parameters_actor_name, "__")[end])
-            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(s), esc(:T))))
+            # Splice the resolved type object directly so the expansion does
+            # not depend on the caller module having a binding by that name.
+            # This lets satellite packages (e.g. IFEdd) define their own
+            # ParametersAllActors container without re-importing every FUSE
+            # actor parameter struct.
+            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, s, esc(:T))))
         end
     end
     return expr
@@ -23,11 +28,13 @@ subtypes we can then splat into the larger constructor
 """
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
-    for s in subtypes(eval(T))
+    for s in subtypes(__module__.eval(T))
         full_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_actor_name, '_')
-            mem = Symbol(full_actor_name)
-            push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+            # Same splicing strategy as @insert_subtype_members — use the
+            # resolved type object directly, not a bare symbol that would
+            # require the caller module to bind the name.
+            push!(expr.args, Expr(:call, Expr(:curly, s, esc(:T))))
         end
     end
     return expr
