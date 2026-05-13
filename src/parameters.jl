@@ -93,10 +93,15 @@ macro actor_parameters_struct(name_expr, body)
     
     # Combine standard fields with user-defined fields
     all_fields = vcat(standard_fields, user_fields)
-    
+
+    # Capture the resolved supertype so the expansion does not depend on the
+    # caller module binding `ParametersActor` — lets satellite packages
+    # (e.g. IFEdd) use this macro without `using FUSE: ParametersActor`.
+    par_actor_type = ParametersActor
+
     # Generate the @kwdef struct
     return esc(quote
-        Base.@kwdef mutable struct $struct_name{$type_param<:Real} <: ParametersActor{$type_param}
+        Base.@kwdef mutable struct $struct_name{$type_param<:Real} <: $par_actor_type{$type_param}
             $(all_fields...)
         end
     end)

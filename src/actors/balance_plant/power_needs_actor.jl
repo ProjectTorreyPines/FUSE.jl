@@ -87,23 +87,23 @@ function _step(actor::ActorPowerNeeds)
         end
 
     elseif par.model == :IFE
-        _step_power_needs_ife!(actor)
+        _step_power_needs_ife!(actor.dd)
     end
     return actor
 end
 
 """
-    _step_power_needs_ife!(actor::ActorPowerNeeds)
+    _step_power_needs_ife!(dd::IMAS.DD)
 
 Hook for IFE-specific BOP integration. Default is a no-op; satellite packages
 (e.g. IFEdd) add methods dispatching on their own DD subtype (e.g. `dd_ife`)
-to populate IFE driver wall-plug power into `actor.dd.balance_of_plant`.
+to populate IFE driver wall-plug power into `dd.balance_of_plant`.
 
-This indirection keeps FUSE free of IFE-specific references — IFE knowledge
-lives entirely in the satellite that owns the IFE IDS types.
+Receives `dd` rather than the actor so satellite packages can dispatch on
+their own DD subtype without type-pirating `ActorPowerNeeds` (FUSE-owned).
 """
-function _step_power_needs_ife!(actor::ActorPowerNeeds)
-    return actor
+function _step_power_needs_ife!(::IMAS.DD)
+    return nothing
 end
 
 function heating_and_current_drive_calc(system_unit::Any)
