@@ -240,10 +240,10 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
     eqt.global_quantities.free_boundary = Int(par.free_boundary)
     if par.free_boundary
         # Boundary control points
-        iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999)
+        iso_cps = VacuumFields.boundary_iso_control_points(shot, 0.999; weight=act.ActorPFactive.boundary_weight)
 
         # Flux control points
-        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, iso_cps[1].weight)
+        mag = VacuumFields.FluxControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, psia, 1.0)
         flux_cps = VacuumFields.FluxControlPoint{D}[mag]
         strike_weight = act.ActorPFactive.strike_points_weight / length(eqt.boundary.strike_point)
         strike_cps = [VacuumFields.FluxControlPoint{D}(strike_point.r, strike_point.z, ψbound, strike_weight) for strike_point in eqt.boundary.strike_point]
@@ -252,7 +252,7 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
         # Saddle control points
         saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
         saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
-        push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, iso_cps[1].weight))
+        push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, act.ActorPFactive.x_points_weight))
 
         # Coils locations
         coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)

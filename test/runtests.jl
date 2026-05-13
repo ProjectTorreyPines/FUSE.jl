@@ -29,5 +29,7 @@ else
         include("runtests_study.jl")
     end
 
+    include("runtests_study_database.jl")
+    
     println(FUSE.timer)
 end

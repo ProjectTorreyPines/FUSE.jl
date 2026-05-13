@@ -15,10 +15,10 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
     actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
-    actor_hc::ActorHCD{D,P}
+    actor_src::ActorSources{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
-    actor_saw::ActorSawteeth{D,P}
+    actor_saw::ActorSawteethSource{D,P}
 end
 
 """
@@ -26,8 +26,8 @@ end
 
 Iteratively solves for self-consistent stationary plasma equilibrium and transport.
 
-This compound actor finds steady-state plasma solutions by iterating between plasma 
-physics models until convergence. It balances current drive, heating, transport, 
+This compound actor finds steady-state plasma solutions by iterating between plasma
+physics models until convergence. It balances current drive, heating, transport,
 and equilibrium to achieve a consistent stationary state.
 
 Core iteration workflow:
@@ -38,27 +38,27 @@ Core iteration workflow:
 5. **Sawteeth**: Applies sawtooth mixing to maintain realistic q-profiles
 6. **Equilibrium**: Solves MHD equilibrium with updated pressure and current profiles
 
-The iteration continues until the relative changes in current density and pressure 
+The iteration continues until the relative changes in current density and pressure
 profiles fall below the convergence threshold. Each iteration updates the flux surface
 geometry based on the latest equilibrium solution.
 
 Key convergence criteria:
 - Relative change in current density profile (volume-averaged)
-- Relative change in pressure profile (volume-averaged) 
+- Relative change in pressure profile (volume-averaged)
 - Combined error must be below `convergence_error` threshold
 - Maximum iterations limit prevents infinite loops
 
 Actors coordinated:
 - **ActorCurrent**: Current density evolution (Ohmic + driven + bootstrap)
-- **ActorHCD**: Heating and current drive power deposition  
+- **ActorSources**: Heating and current drive power deposition
 - **ActorPedestal**: Edge pressure and temperature boundary conditions
 - **ActorCoreTransport**: Core transport flux calculations
-- **ActorSawteeth**: Sawtooth crash mixing and q-profile flattening
+- **ActorSawteethSource**: Sawtooth crash mixing and q-profile flattening
 - **ActorEquilibrium**: MHD equilibrium solution with updated profiles
 
 !!! note
 
-    Stores converged plasma state in `dd.equilibrium`, `dd.core_profiles`, 
+    Stores converged plasma state in `dd.equilibrium`, `dd.core_profiles`,
     `dd.core_sources`, `dd.core_transport`
 """
 function ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
@@ -100,15 +100,15 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
         rho_nml,
         rho_ped)
 
-    actor_hc = ActorHCD(dd, act.ActorHCD, act)
+    actor_src = ActorSources(dd, act.ActorSources, act)
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
     actor_eq = ActorEquilibrium(dd, act.ActorEquilibrium, act; ip_from=:core_profiles)
 
-    actor_saw = ActorSawteeth(dd, act.ActorSawteeth)
+    actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_saw)
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_saw)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -145,7 +145,7 @@ function _step(actor::ActorStationaryPlasma)
         actor.actor_tr.tr_actor.par.Δt = Inf
     end
 
-    ProgressMeter.ijulia_behavior(:clear)
+    (par.verbose && !par.do_plot) && ProgressMeter.ijulia_behavior(:clear)
     was_logging = actor_logging(dd)
     is_logging = was_logging && !(par.verbose && !par.do_plot)
     actor_logging(dd, is_logging)
@@ -168,9 +168,9 @@ function _step(actor::ActorStationaryPlasma)
             # core_profiles, core_sources, core_transport grids from latest equilibrium
             latest_equilibrium_grids!(dd)
 
-            # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-            finalize(step(actor.actor_hc))
+            # run sources to get updated current drive
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_src))
+            finalize(step(actor.actor_src))
 
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))

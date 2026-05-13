@@ -33,7 +33,7 @@ function optimization_engine(
     # create working directory
     original_dir = pwd()
     savedir = abspath(joinpath(save_folder, "$(generation)__$(join(split(string(Dates.now()),":"),"-"))__$(getpid())"))
-    mkdir(savedir)
+    mkpath(savedir)
     cd(savedir)
 
     # Redirect stdout and stderr to the file
@@ -89,7 +89,7 @@ function optimization_engine(
         # save empty dd and error to directory
         save(savedir, nothing, ini, act; error=e, timer=true, freeze=false, overwrite_files=true)
 
-        # rethrow(e) # uncomment for debugging purposes
+        #rethrow(e) # uncomment for debugging purposes
 
         ff = Float64[Inf for f in objective_functions]
         gg = Float64[Inf for g in constraint_functions]
@@ -145,7 +145,7 @@ function optimization_engine(
     # create working directory
     original_dir = pwd()
     if !isdir(save_folder)
-        mkdir(save_folder)
+        mkpath(save_folder)
     end
     cd(save_folder)
 
@@ -206,13 +206,13 @@ function optimization_engine(
         df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
 
         # save simulation data
-        save_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
+        save_study_database("tmp_h5_output", parent_group, (save_dd ? dd : nothing), ini, act, tmp_log_io;
             timer=true, freeze=false, overwrite_groups=true)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
         if !isdir(tmp_csv_folder)
-            mkdir(tmp_csv_folder)
+            mkpath(tmp_csv_folder)
         end
         csv_filepath = joinpath(tmp_csv_folder, "extract_success_pid$(getpid()).csv")
         if isfile(csv_filepath)
@@ -250,13 +250,13 @@ function optimization_engine(
         df[!, :elapsed_time] = fill(time()-start_time, nrow(df))
 
         # save empty dd and error to directory
-        save_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
+        save_study_database("tmp_h5_output", parent_group, nothing, ini, act, tmp_log_io;
             error_info=e, timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
         if !isdir(tmp_csv_folder)
-            mkdir(tmp_csv_folder)
+            mkpath(tmp_csv_folder)
         end
         csv_filepath = joinpath(tmp_csv_folder, "extract_fail_pid$(getpid()).csv")
         if isfile(csv_filepath)
@@ -265,7 +265,7 @@ function optimization_engine(
             CSV.write(csv_filepath, df)
         end
 
-        # rethrow(e) # uncomment for debugging purposes
+        #rethrow(e) # uncomment for debugging purposes
 
         ff = Float64[Inf for f in objective_functions]
         gg = Float64[Inf for g in constraint_functions]

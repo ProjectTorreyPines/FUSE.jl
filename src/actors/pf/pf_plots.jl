@@ -204,5 +204,15 @@ Plot recipe for ActorPFdesign and ActorPFactive
                 [cpt.R for cpt in actor.saddle_control_points], [cpt.Z for cpt in actor.saddle_control_points]
             end
         end
+        if !isempty(actor.field_control_points)
+            @series begin
+                color := :blue
+                seriestype := scatter
+                markerstrokewidth := 0
+                marker := :square
+                label := "Field constraints"
+                [cpt.R for cpt in actor.field_control_points], [cpt.Z for cpt in actor.field_control_points]
+            end
+        end
     end
 end

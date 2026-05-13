@@ -1,6 +1,6 @@
 whatis("Name    : fuse")
 whatis("Version : " .. fuse_env)
-
+depends_on("julia-latest/1.0")
 depends_on("julia/1.11.4")
 
 local envdir = basedir .. "/environments/" .. fuse_env
@@ -29,6 +29,12 @@ else
       "It must be unset or end with ':'."
    )
 end
+
+-- Environment variables for data fetching
+setenv("FUSE_OMFIT_HOST", "localhost")
+setenv("FUSE_OMFIT_ROOT", "/global/common/software/m3739/perlmutter/OMFIT-CAKE")
+setenv("FUSE_OMAS_ROOT", "/global/common/software/m3739/perlmutter/FUSE_OMAS")
+setenv("FUSE_RESULT_ARCHIVE", pathJoin("/global/cfs/cdirs/m3739/FUSE/d3d-time-dependent", os.getenv("USER")))
 
 -- The FUSE sysimage enviornment is the last place julia looks for packages
 --   when a user does `using <package>`, but this allows Julia to automatically

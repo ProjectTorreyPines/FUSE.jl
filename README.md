@@ -1,5 +1,3 @@
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ProjectTorreyPines/FUSE.jl)
-
 # FUSE.jl
 
 FUSE (**FU**sion **S**ynthesis **E**ngine) is an open-source framework for integrated simulations of fusion devices.
@@ -12,12 +10,14 @@ The figure below is a sneakpeak of the models implemented in FUSE:
 
 Here are some key resources for getting started with FUSE:
 
+* 📨 **[Sign up for more info](https://forms.gle/iQGYKWfgeNkw2fCZ7)**
 * 📚 **[Online documentation](https://fuse.help)**
 * 🎓 **[Intro tutorial](https://fuse.help/dev/tutorial.html)**
 * 🎤 **[Recent presentation](https://github.com/ProjectTorreyPines/FUSE_extra_files/raw/master/2025_D3D/SET_mar_2025.pdf)**
 * 📜 **[Preprint publication](https://arxiv.org/abs/2409.05894)**
 * 🆘 **[Discord community](https://discord.gg/CbjpZH9SKM)**
 * 🗒️ **[Weekly devs meeting minutes](https://github.com/ProjectTorreyPines/FUSE.jl/discussions)**
+* 🤔 **[Ask DeepWiki](https://deepwiki.com/ProjectTorreyPines/FUSE.jl)**
 
 ## Objectives
 

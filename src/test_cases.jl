@@ -58,7 +58,7 @@ function test_case(::Val{:CAT}, dd::IMAS.dd)
     act.ActorStationaryPlasma.max_iterations = 1
     # There could be an engineering problem here but this shouldn't fail the tests
     act.ActorHFSsizing.error_on_performance = false
-    act.ActorHFSsizing.error_on_technology = false    
+    act.ActorHFSsizing.error_on_technology = false
 
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
@@ -75,8 +75,8 @@ function test_case(::Val{:ARC}, dd::IMAS.dd)
     ini, act = case_parameters(:ARC)
     # There could be an engineering problem here but this shouldn't fail the tests
     act.ActorHFSsizing.error_on_performance = false
-    act.ActorHFSsizing.error_on_technology = false    
-    
+    act.ActorHFSsizing.error_on_technology = false
+
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
@@ -143,32 +143,35 @@ function test_case(::Val{:ITER_time}, dd::IMAS.dd; verbose::Bool=false)
     # pulse_schedule fom scalars
 
     ini, _ = FUSE.case_parameters(:ITER; init_from=:scalars, time_dependent=true);
+    ini.time.simulation_start = 50.0
     FUSE.init(dd, ini, act; initialize_hardware=false);
 
     # ========
     # Our simulation should start in a self-consistent state. For this, we call the `ActorStationaryPlasma`
 
     act.ActorStationaryPlasma.convergence_error = 2E-2
-    act.ActorStationaryPlasma.max_iterations = 1
+    act.ActorStationaryPlasma.max_iterations = 10
 
     act.ActorFluxMatcher.verbose = verbose
-    act.ActorFluxMatcher.relax = 0.5
+    act.ActorFluxMatcher.relax = 1.0
+    act.ActorFluxMatcher.algorithm = :simple_dfsane
+    act.ActorSawteethSource.flat_factor = 1.0
 
     FUSE.ActorStationaryPlasma(dd, act; verbose)
 
     # ========
     # Now we're ready to actually run the time-dependent simulation
 
-    N = 60 # run 1/60th of the simulation, set this to 1 to run for more
-    act.ActorDynamicPlasma.Nt = Int(60 / N)
-    act.ActorDynamicPlasma.Δt = 300.0 / N
+    act.ActorDynamicPlasma.Nt = 60
+    act.ActorDynamicPlasma.Δt = 300.0
 
     act.ActorDynamicPlasma.evolve_current = true
     act.ActorDynamicPlasma.evolve_equilibrium = true
     act.ActorDynamicPlasma.evolve_transport = true
-    act.ActorDynamicPlasma.evolve_hcd = true
+    act.ActorDynamicPlasma.evolve_sources = true
     act.ActorDynamicPlasma.evolve_pf_active = false
     act.ActorDynamicPlasma.evolve_pedestal = true
+    act.ActorDynamicPlasma.evolve_sawteeth = true
 
     act.ActorDynamicPlasma.ip_controller = true
     act.ActorDynamicPlasma.time_derivatives_sources = true

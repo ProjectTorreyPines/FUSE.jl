@@ -1,0 +1,13 @@
+1) FUSE install needs a lot of memory, so log in to interactive full worker node:
+  salloc --x11 -p ga-ird -N 1 --cpus-per-task=64 -n 1 --mem-per-cpu=4000M -t 12:00:00 --exclusive
+
+2) Run ./deploy.sh
+
+3) Make new branch off master in <path-to-repo>/css-omega-modules
+
+4) Copy new module file from /fusion/projects/codes/julia/fuse/modules/fuse/
+     to <path-to-repo>/css-omega-modules/fuse
+
+5) Update default version in <path-to-repo>/css-omega-modules/fuse/.modulerc.lua
+
+6) Open PR on css-omega-modules git repo and assign Severin

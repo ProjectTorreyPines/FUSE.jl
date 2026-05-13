@@ -77,8 +77,8 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
     mode_transitions[0.0] = :L_mode
     if scale_LH == 0.0
         # auto-detect mode transitions based on pedestal structure
-        is_H_mask = [IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure; threshold) for cp1d in dd.core_profiles.profiles_1d]
-        is_H_mask = [is_H_mask[2:end]; is_H_mask[end]]
+        is_H_mask = [IMAS.h_mode_detector(cp1d.grid.rho_tor_norm, cp1d.electrons.pressure; threshold) for cp1d in dd.core_profiles.profiles_1d]                                                                                                                                                                                                             
+        is_H_mask = filter_short_runs(is_H_mask, 3)  # Filter out isolated H-mode detections (noise)
         if is_H_mask[1]
             @warn "First time slice detected as a H-mode!"
             cp1d = dd.core_profiles.profiles_1d[1]
@@ -88,7 +88,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
     else
         # auto-detect mode transitions based on LH-power threshold
         is_H_mask = Bool[false for time0 in time]
-        n = 1 # maximum number of H-mode transitions allowed
+        n = 3 # maximum number of H-mode transitions allowed
         for k in eachindex(time)
             if k == 1 || (n > 0 && is_H_mask[k-1] == true && injected_power[k] < scaling_power[k] * scale_LH * 1.1)
                 is_H_mask[k] = false
@@ -108,7 +108,6 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
             mode_transitions[time[h_end]] = :L_mode
         end
     end
-
     if transition_start < 0.0 || length(mode_transitions) == 1
         ne_L = ne_H = ne
         zeff_L = zeff_H = zeff
@@ -116,7 +115,6 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
         ne_L_over_H = 1.0
         zeff_L_over_H = 1.0
         transition_start = -1.0
-
     else
         if transition_start == 0.0
             transition_start = sort!(collect(keys(mode_transitions)))[2]
@@ -156,14 +154,13 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
         zeff_L = IMAS.interp1d(time[index_L], zeff_smoothed[index_L], :constant).(time)
         zeff_L_over_H = sum(zeff_L[index_H] / zeff_smoothed[index_H]) / sum(index_H)
         index = sortperm([time[index_L]; time[index_H]])
-        zeff_H = IMAS.interp1d([time[index_L]; time[index_H]][index], [zeff_smoothed[index_L] ./ zeff_L_over_H; zeff_smoothed[index_H]][index], :pchip).(time)
+        zeff_H = IMAS.interp1d([time[index_L]; time[index_H]][index], [zeff_smoothed[index_L] ./ zeff_L_over_H; zeff_smoothed[index_H]][index], :linear).(time)
         zeff_L = zeff_H .* zeff_L_over_H
 
         # WPED
         W_ped_to_core = [ped_to_core(IMAS.core_edge_energy(cp1d, 0.9)) for cp1d in dd.core_profiles.profiles_1d]
         W_ped_to_core_fraction = sum(W_ped_to_core[index_L]) / sum(index_L)
     end
-
     if do_plot
         p = plot(; layout=(4, 1), size=(1000, 1000), link=:x)
 
@@ -258,4 +255,23 @@ function get_true_ranges(mask::Vector{Bool})
         end
     end
     return ranges
+end
+
+"""
+    filter_short_runs(mask::Vector{Bool}, min_consecutive::Int)
+
+Filter out short runs of `true` values in a boolean mask.
+Only keeps runs of `true` values that are at least `min_consecutive` long.
+This helps avoid false H-mode detections from noise or transient events.
+"""
+function filter_short_runs(mask::Vector{Bool}, min_consecutive::Int)
+    filtered = copy(mask)
+    ranges = get_true_ranges(mask)
+    for (start_idx, end_idx) in ranges
+        run_length = end_idx - start_idx
+        if run_length < min_consecutive
+            filtered[start_idx:end_idx-1] .= false
+        end
+    end
+    return filtered
 end
