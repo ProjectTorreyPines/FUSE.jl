@@ -242,7 +242,19 @@ function Plots.plot(actor::ActorModeID, ::Val{:profiles}; kwargs...)
         end
     end
 
-    legend_shown = Set{TurbulenceMode}()
+    # Add invisible scatter series for ALL modes in subplot 2 (ne) so the legend
+    # is stable across time slices regardless of which modes are present.
+    for mode in instances(TurbulenceMode)
+        scatter!(p, [NaN], [NaN];
+            subplot=2,
+            label=MODE_LABELS[mode],
+            markercolor=_mode_color(mode),
+            markersize=6,
+            markershape=:circle,
+            markerstrokewidth=1,
+            markerstrokecolor=:white)
+    end
+    plot!(p; subplot=2, legend=:bottomleft, legend_columns=1)
 
     for (res_idx, ((label, mode_ids), (_, dd))) in enumerate(zip(actor.results, actor.labeled_dds))
         cp1d = dd.core_profiles.profiles_1d[]
@@ -258,10 +270,6 @@ function Plots.plot(actor::ActorModeID, ::Val{:profiles}; kwargs...)
         for mode in instances(TurbulenceMode)
             mask = [mid.dominant_mode == mode for mid in mode_ids]
             any(mask) || continue
-            show_label = mode ∉ legend_shown
-            if show_label
-                push!(legend_shown, mode)
-            end
 
             rho_vals = rho_transport[mask]
             nearest_idxs = [argmin_abs(rho, r) for r in rho_vals]
@@ -270,7 +278,7 @@ function Plots.plot(actor::ActorModeID, ::Val{:profiles}; kwargs...)
                 y_vals = profile[nearest_idxs]
                 scatter!(p, rho_vals, y_vals;
                     subplot=sp,
-                    label=(sp == 1 && show_label ? MODE_LABELS[mode] : ""),
+                    label="",
                     markercolor=_mode_color(mode),
                     markersize=6,
                     markershape=:circle,
