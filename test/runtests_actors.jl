@@ -32,8 +32,9 @@ end
     chease_overrides = (NPSI=64, NVEXP=2, NCSCAL=4)
 
     # configure MARS parameters for testing
-    mars_overrides=(BASIC=(NWALL=0, M1=-10, NPROFN=0, 
-                    NV=160, TALPHA1=(0.05, 0.)),)
+    mars_overrides = FUSE.MarsOverrides()
+    mars_overrides.BASIC[:M1]=-10; mars_overrides.BASIC[:NV]=100
+    
 
     mktempdir() do tempdir
         @info "Running CHEASE & MARS test in temporary directory: $tempdir"

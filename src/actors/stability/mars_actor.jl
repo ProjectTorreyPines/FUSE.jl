@@ -75,9 +75,147 @@ Base.@kwdef mutable struct CHEASEnamelist
     R0EXP::Float64  = 3.0
 end
 
+
+Base.@kwdef mutable struct MARS_BASIC
+    NCASE::Int = 1
+    TALPHA1::ComplexF64 = 1.e-4 + 0im
+    NITMAX::Int = 100
+    NSWEEP::Int = 1
+    GAMMA::Float64 = 1.66667
+    RNTOR::Float64 = -1.0
+    M1::Int = -9
+    M2::Int = 33
+    NPROFN::Int = 4
+    NPROFIE::Int = 0
+    NPROFT::Int = 2
+    ETA::Float64 = 0.0
+    NV::Int = 160
+    NWALL::Int = 1
+    TAUW::Float64 = 1.0e4
+    IWALL::Int = 22
+    IWO::Int = 1
+    IVISC::Int = 1
+    PVISC::Float64 = 0.1
+    NPROFR::Int = 0
+    ROTE::Float64 = 0.0
+    NPROFWE::Int = 0
+    ROTWE0::Float64 = 0.0
+    FRACPTH::Float64 = 1.0
+end
+
+Base.@kwdef mutable struct MARS_FEEDBACK
+    INCFEED::Int = 0
+    NCOIL::Int = 2
+    FCCHI::ComplexF64 = 0.34219 - 0.405470im
+    FWCHI::ComplexF64 = 0.12187 + 0.089063im
+    SCCHI::Float64 = 0.0
+    SWCHI::Float64 = 0.05
+    BTCHI::Float64 = 0.05
+    FEEDI::Vector{ComplexF64} = ComplexF64[0. + 0.0im, 0. + 0.0im]
+    IFEED::Int = 3
+    ISENS::Int = 3
+    NSENS::Int = 0
+    KKF::Int = -1
+    KREADECA::Int = 0
+end
+
+Base.@kwdef mutable struct MARS_KINETIC
+    INCKIN::Int = 0
+    ATAU::ComplexF64 = 1.0e-4 + 0.0im
+    ALTAU::Float64 = 0.5
+    ALPHAP::Float64 = 0.5
+    ALPHAD::Float64 = 1.0
+    OMEGACI0::Float64 = 38.056
+    IPERTURB::Int = 2
+    KFASTRUN::Int = 0
+    KENORM::Int = 2
+    NSPECIES::Int = 2
+    IFOWPSI0::Int = 1
+    ISPECIES_F0::Vector{Int} = [0, 0, 3]
+    KNBI::Int = 0
+    DZETA0::Float64 = 1.0
+    S0TYPE4::Float64 = 0.5
+    R0TYPE4::Float64 = 1.5
+    HHTYPE4C::Float64 = 0.5
+    ESPECIES_M::Vector{Float64} = [2.0, 5.4463e-4, 2.0]
+    ESPECIES_Z::Vector{Float64} = [1.0, -1.0, 1.0]
+    PSPECIES_AP::Vector{Float64} = [0.0, 0.0, 1.0]
+    PSPECIES_AT::Vector{Float64} = [0.0, 0.0, 0.0]
+    PSPECIES_NP::Vector{Float64} = [0.0, 0.0, 0.0]
+    PSPECIES_NTB::Vector{Float64} = [0.0, 0.0, 0.0]
+    PSPECIES_NTD::Vector{Float64} = [0.0, 0.0, 0.0]
+    PSPECIES_FOWP::Vector{Float64} = [0.0, 0.0, 1.0]
+    PSPECIES_FOWT::Vector{Float64} = [0.0, 0.0, 0.0]
+    NPROFK::Int = 0
+    INUTYPE::Int = 0
+    NPROFUI::Int = 0
+    NUEFFIA::Float64 = 0.0
+    NPROFUE::Int = 0
+    NUEFFEA::Float64 = 0.0
+end
+
+Base.@kwdef mutable struct MARS_QLIN
+    TALPHA2::Float64 = 1.0
+    TALPHA3::Float64 = 1.0
+    TALPHA6::Float64 = 1.0
+    TALPHA8::Float64 = 0.9
+    TDELTAMIN::Float64 = 0.04
+    TDELTAMAX::Float64 = 0.08
+    TDELTALIM::Float64 = 100.0
+    TDELTALOW::Float64 = 2.0
+    CTJXB::Float64 = 1.0
+    CTNTV::Float64 = 1.0
+    CTREY::Float64 = 1.0
+    ITSATURAT::Int = 2
+    NPROFVD::Int = 3
+    TCHIM0::Float64 = 8.4571e-7
+    NPROFVP::Int = 0
+    TVPINCH0::Float64 = 0.0
+    CTEDGE::Float64 = 0.995
+    KSOLSAVE::Int = 0
+    KSOLREAD::Int = 0
+end
+
+Base.@kwdef mutable struct MARS_NUMERIC
+    PTRAPI::Float64 = 1.0
+    PTRAPH::Float64 = 0.9
+    NRES::Int = 7
+    NFIT::Int = 3
+    NTORQ::Int = 5
+    IPDIVB::Int = 1
+    NCONVB1::Int = 0
+    NCONVCS::Int = 1
+    IOMPNUM::Int = 1
+    NVACJ::Int = 0
+    V2XKEY::Int = 2
+end
+
+Base.@kwdef mutable struct MARS_OUTOPT
+    JSOUT::Int = 7
+    ORMIN::Float64 = 0.0
+    ORMAX::Float64 = 2.0
+    OZMIN::Float64 = -2.0
+    OZMAX::Float64 = 2.0
+    NORR::Int = 0
+    NOZZ::Int = 0
+end
+
+Base.@kwdef mutable struct MARSnamelist
+    BASIC::MARS_BASIC = MARS_BASIC()
+    FEEDBACK::MARS_FEEDBACK = MARS_FEEDBACK()
+    KINETIC::MARS_KINETIC = MARS_KINETIC()
+    QLIN::MARS_QLIN = MARS_QLIN()
+    NUMERIC::MARS_NUMERIC = MARS_NUMERIC()
+    OUTOPT::MARS_OUTOPT = MARS_OUTOPT()
+end
+
 Base.@kwdef mutable struct MarsOverrides
-    BASIC::Union{Nothing,Dict{Symbol,Any}} = nothing
-    # other blocks as needed
+    BASIC::Dict{Symbol,Any} = Dict{Symbol,Any}()
+    FEEDBACK::Dict{Symbol,Any} = Dict{Symbol,Any}()
+    KINETIC::Dict{Symbol,Any} = Dict{Symbol,Any}()
+    QLIN::Dict{Symbol,Any} = Dict{Symbol,Any}()
+    NUMERIC::Dict{Symbol,Any} = Dict{Symbol,Any}()
+    OUTOPT::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 
@@ -94,7 +232,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     eq_type::Switch{Symbol} = Switch{Symbol}([:CHEASE, :TEQUILA], "-", "Type of equilibrium to use: :CHEASE or :TEQUILA"; default=:CHEASE)
     EQDSK::Entry{Bool} = Entry{Bool}("-", "Enable EQDSK"; default=false)
-    MHD_code::Switch{Symbol} = Switch{Symbol}([:MARS_Q, :MARS_F, :MARS_K], "-", "MHD code to use: :MARS or :MARS_F"; default=:MARS_F)
     chease_exec::Entry{String} =
         Entry{String}("-", "Path to CHEASE executable"; default="/fusion/projects/codes/mars/CHEASE/chease.x")
     offset::Entry{Float64} = Entry{Float64}("-", "Offset for first wall (RW) in meters"; default=0.2)
@@ -105,18 +242,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
     wall_type::Switch{Symbol} = Switch{Symbol}([:D3D, :ITER, :ASDEX, :MAST, :KSTAR], "-", "Machine wall shape to use for MARS"; default=:D3D)
-    mars_overrides::Entry{NamedTuple} =
-        Entry{NamedTuple}("-", "Runtime MARS namelist overrides"; default=NamedTuple())
     mars_exec::Entry{String} =
         Entry{String}("-", "Path to MARS executable"; default="/fusion/projects/codes/mars/MARSQ/marsq.x")
-    mars_runin_path::Entry{String} =
-        Entry{String}("-", "Path to base MARS RUN.IN file"; default="RUN.IN")
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
-    run_tracer::Entry{Bool} = Entry{Bool}("-", "Whether to run particle tracing simulations"; default=false)
-    num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=1)  
+    num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=0)  
 end
 
 
@@ -124,13 +256,15 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorMars{P}}
     chease_inputs::Union{Nothing,CHEASEnamelist}
-    #mars_inputs::Union{Nothing,Vector{MarsInput}}
+    mars_inputs::Union{Nothing,MARSnamelist}
 
     function ActorMars(
         dd::IMAS.dd{D}, 
         par::FUSEparameters__ActorMars{P}; 
         chease_overrides = NamedTuple(),
+        mars_overrides = MarsOverrides(),
         chease_inputs = nothing,
+        mars_inputs = nothing,
         kw...
     ) where {D<:Real,P<:Real}
 
@@ -155,9 +289,15 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         end
 
         # -------------------------
+        # Create default MARS namelist and apply overrides
+        # -------------------------
+        mars_nl = mars_inputs === nothing ? MARSnamelist() : mars_inputs
+        apply_overrides!(mars_nl, mars_overrides)
+
+        # ------------------------- 
         # Final actor construction
         # -------------------------
-        return new{D,P}(dd, par, nl)
+        return new{D,P}(dd, par, nl, mars_nl)
     end
 end
 
@@ -178,6 +318,7 @@ function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
     chease_namelist = actor.chease_inputs
+    mars_namelist = actor.mars_inputs
 
     # plot equilibrium if requested
     if par.do_plot
@@ -203,8 +344,8 @@ function _step(actor::ActorMars)
 
     # run MARS
     if par.run_MHD
-        @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), MHD_code=$(par.MHD_code), tracer_type=$(par.tracer_type)"
-        run_MARS(dd, par)
+        @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), tracer_type=$(par.tracer_type)"
+        run_MARS(dd, par, mars_namelist)
     end
 
     #run_PARTICLE_TRACING(dd, par)
@@ -212,10 +353,10 @@ function _step(actor::ActorMars)
 end
 
 
-function run_CHEASE(dd::IMAS.dd, par, nl)
+function run_CHEASE(dd::IMAS.dd, par, chease_namelist)
     
     chease_exec = par.chease_exec
-    @assert nl !== nothing "CHEASE namelist not initialized"
+    @assert chease_namelist !== nothing "CHEASE namelist not initialized"
 
     # Get the D3D MARS wall file from the FUSE repository
     limiter = get_limiter_data(par.wall_type)
@@ -230,23 +371,21 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
             error("Invalid CHEASE run configuration: there is NO EXPEQ.OUT to restart from. Do a CLEAN restart)")
         end
     else
-        @info "Clean CHEASE run from dd or NO equilibrium."
+        @info "Clean CHEASE run from dd."
         # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
         B0, R0 = write_EXPEQ_file(dd, par; wall_data = limiter)
-        println("B0 for CHEASE normalization: $B0 T")
-        println("R0 for CHEASE normalization: $R0 m")
-        setfield!(nl, :B0EXP, B0)
-        setfield!(nl, :R0EXP, R0)
+        setfield!(chease_namelist, :B0EXP, B0)
+        setfield!(chease_namelist, :R0EXP, R0)
     end
    
-    if par.number_surfaces == 1 && nl.NVEXP == 8
+    if par.number_surfaces == 1 && chease_namelist.NVEXP == 8
         @info "Overriding NVEXP in CHEASE namelist"
         NVEXP = 1
-        setfield!(nl, :NVEXP, NVEXP)
+        setfield!(chease_namelist, :NVEXP, NVEXP)
     end
     
     # Write CHEASE namelist file 
-    write_CHEASEnamelist(nl, "datain")
+    write_CHEASEnamelist(chease_namelist, "datain")
 
     # Clean up any stale CHEASE output files
     for f in readdir(pwd())
@@ -278,37 +417,24 @@ function run_CHEASE(dd::IMAS.dd, par, nl)
     return nothing
 end
 
-function run_MARS(dd::IMAS.dd, par)
+function run_MARS(dd::IMAS.dd, par, mars_namelist)
 
-    mars_overrides = par.mars_overrides
     core_profiles = dd.core_profiles.profiles_1d[]
-    mars_namelist = par.mars_runin_path
     
-
-    # Placeholder function to run MARS MHD stability code
-    @info "Running MARS with MHD_code=$(par.MHD_code)"
-    
-    #@assert nl !== nothing "MARS namelist not initialized"
-
-    # 1. Copy default namelist into working directory
-    cp(mars_namelist, "RUN.IN"; force=true)
-
-    # 2. override IWALL in mars_namelist if number_surfaces > 1
+    # override IWALL in mars_namelist if number_surfaces > 1
     # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
     # the next step because if NWALL = 0, IWALL does NOT matter
     if par.number_surfaces > 1
         @info "Overriding IWALL in RUN.IN"
         # Implement the override logic here
         NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
-        #update_MARS_RUNIN!("RUN.IN", (BASIC=(IWALL=NW,),))
-        update_MARS_RUNIN2!("RUN.IN", MarsOverrides(BASIC=Dict(:IWALL=>NW)))
+        setfield!(mars_namelist.BASIC, :IWALL, NW)
     end
 
-    # 3. Patch only requested entries
-    #update_MARS_RUNIN!("RUN.IN", mars_overrides)
-    update_MARS_RUNIN2!("RUN.IN", mars_overrides)
+    # Write final MARS namelist into run directory for MARS execution
+    write_MARS_namelist(mars_namelist, "RUN.IN")
 
-    # 4. Determine which profiles to pull from dd, i.e. experiment
+    # Determine which profiles to pull from dd, i.e. experiment
     keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
     prof_dict = extract_lines_for_keys("RUN.IN", keys, Int)
     write_exp_profiles(core_profiles, prof_dict, "1")
@@ -373,7 +499,12 @@ end
 
 """
     get_limiter_data(wall_type::Symbol) -> (r_wall::Vector{Float64}, z_wall::Vector{Float64})      
-"""
+    Retrieve limiter boundary data for specified machine wall type. 
+    This function reads pre-defined JSON files containing the R,Z coordinates of the limiter for 
+        different machines (e.g., D3D, ITER, ASDEX, MAST, KSTAR) and returns the R and Z coordinates as vectors. 
+        The wall_type argument specifies which machine's limiter data to retrieve.
+
+    """
 
 function get_limiter_data(wall_type::Symbol)
     if wall_type == :D3D
@@ -391,171 +522,86 @@ function get_limiter_data(wall_type::Symbol)
     end
     
     file_path = dirname(dirname(pathof(FUSE)))* "/sample/"
-    file_path = joinpath(file_path, "D3D_mars_wall.json")
-    dd_wall = IMAS.json2imas(file_path)
+    file_path = joinpath(file_path, machine * "_mars_wall.json")
+    dd_wall = IMAS.json2imas(file_path).wall.description_2d[].limiter.unit[1].outline
     
-    return dd_wall.wall.description_2d[].limiter.unit[1].outline
+    return dd_wall
     
 end
 
-"""
-    collect_block_overrides(NamedTuple) -> Dict{Symbol,Any}
-
-Return a Dict{Symbol,Any} of only fields that are NOT `nothing`.
-"""
-
-function collect_block_overrides(mars_overrides::NamedTuple)
-    Dict(
-        (Symbol(block), Symbol(key)) => val
-        for (block, kvs) in pairs(mars_overrides)
-        for (key, val) in pairs(kvs)
-    )
-end
-
-"""
-    collect_block_overrides2(MarsOverrides) -> Dict{Symbol,Any}
-    Return a Dict{Symbol,Any} of only fields that are NOT `nothing`.
+""" 
+  apply_overrides!(MARSnamelist, MarsOverrides) -> MARSnamelist 
+    Apply user-specified runtime overrides to a MARSnamelist instance. 
+    The MarsOverrides struct contains Dicts for each MARS namelist block (e.g., BASIC, FEEDBACK, NUMERIC, OUTOPT, KINETIC), where the keys are the parameter names to override and the values are the new values to set. This function modifies the MARSnamelist in-place based on the provided overrides.
 """
 
-function collect_block_overrides2(mo::MarsOverrides)
-
-    overrides = Dict{Tuple{Symbol,Symbol},Any}()
+function apply_overrides!(
+    nl::MARSnamelist,
+    mo::MarsOverrides
+)
 
     for block in fieldnames(typeof(mo))
 
-        blockdict = getfield(mo, block)
+        overrides = getfield(mo, block)
+        overrides === nothing && continue
 
-        blockdict === nothing && continue
-
-        for (k,v) in blockdict
-            overrides[(block, k)] = v
-        end
-    end
-
-    return overrides
-end
-
-function update_MARS_RUNIN!(
-    template::AbstractString,
-    mars_overrides::NamedTuple
-)
-    overrides = collect_block_overrides(mars_overrides)
-
-    lines = readlines(template)
-    new_lines = String[]
-
-    current_block = nothing
-
-    # Track which overrides were applied
-    used = Dict{Tuple{Symbol,Symbol},Bool}()
-    for k in keys(overrides)
-        used[k] = false
-    end
-
-    for line in lines
-        stripped = strip(line)
-
-        # Detect block start
-        if startswith(stripped, "&") && !startswith(stripped, "&END")
-            current_block = Symbol(strip(stripped[2:end]))
-            push!(new_lines, line)
-            continue
+        if block ∉ fieldnames(typeof(nl))
+            error("Unknown MARS block '$block'")
         end
 
-        # Detect block end → INSERT missing keys here
-        if startswith(stripped, "&END")
-            if current_block !== nothing
-                for ((block, key), val) in overrides
-                    if block == current_block && !used[(block,key)]
-                        println("Inserting new parameter for $block.$key = $val")
-                        push!(new_lines, " $key = $val,")
-                    end
-                end
+        target_block = getfield(nl, block)
+
+        for (k,v) in overrides
+
+            if k ∉ fieldnames(typeof(target_block))
+                error("Unknown entry '$k' in block '$block'")
             end
 
-            current_block = nothing
-            push!(new_lines, line)
-            continue
-        end
-
-        # Override existing keys
-        if current_block !== nothing && occursin("=", stripped)
-            key = Symbol(strip(first(split(stripped, "="))))
-            k = (current_block, key)
-
-            if haskey(overrides, k)
-                val = overrides[k]
-                push!(new_lines, " $key = $val,")
-                used[k] = true
-                continue
-            end
-        end
-
-        push!(new_lines, line)
-    end
-
-    # Write back to file
-    open(template, "w") do io
-        for l in new_lines
-            println(io, l)
+            setfield!(target_block, k, v)
         end
     end
 end
 
-function update_MARS_RUNIN2!(
-    template::AbstractString,
-    mars_overrides::MarsOverrides
+
+function write_MARS_namelist(
+    nl::MARSnamelist,
+    filename::AbstractString
 )
 
-    overrides = collect_block_overrides2(mars_overrides)
+    open(filename,"w") do io
 
-    lines = readlines(template)
-    out = String[]
+        for block in fieldnames(typeof(nl))
 
-    current_block = nothing
-    written = Set{Tuple{Symbol,Symbol}}()
+            println(io,"&",block)
 
-    for line in lines
+            b = getfield(nl,block)
 
-        stripped = strip(line)
+            for k in fieldnames(typeof(b))
 
-        if startswith(stripped, "&")
-            current_block = Symbol(strip(stripped[2:end]))
-            push!(out, line)
-            continue
+                v = getfield(b,k)
 
-        elseif stripped == "&END"
+                if v isa Complex
+                    sval = "($(real(v)), $(imag(v)))"
 
-            if current_block !== nothing
-                for ((blk,key), val) in overrides
-                    if blk == current_block && !((blk,key) in written)
-                        push!(out, " $key = $val,")
-                    end
+                elseif v isa AbstractVector{<:Complex}
+                    sval = join(
+                        ["($(real(z)), $(imag(z)))" for z in v],
+                        ", "
+                )
+
+                elseif v isa AbstractVector
+                    sval = join(v,", ")
+
+                else
+                    sval = v
                 end
+                
+
+                println(io," $k = $sval,")
             end
 
-            current_block = nothing
-            push!(out, line)
-            continue
+            println(io,"&END\n")
         end
-
-        if current_block !== nothing && occursin("=", stripped)
-
-            key = Symbol(strip(first(split(stripped,"="))))
-            k = (current_block,key)
-
-            if haskey(overrides,k)
-                push!(out," $key = $(overrides[k]),")
-                push!(written,k)
-                continue
-            end
-        end
-
-        push!(out,line)
-    end
-
-    open(template,"w") do io
-        write(io,join(out,"\n"))
     end
 end
 
