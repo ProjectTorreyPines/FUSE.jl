@@ -101,6 +101,7 @@ Base.@kwdef mutable struct MARS_BASIC
     NPROFWE::Int = 0
     ROTWE0::Float64 = 0.0
     FRACPTH::Float64 = 1.0
+    extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 Base.@kwdef mutable struct MARS_FEEDBACK
@@ -117,6 +118,7 @@ Base.@kwdef mutable struct MARS_FEEDBACK
     NSENS::Int = 0
     KKF::Int = -1
     KREADECA::Int = 0
+    extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 Base.@kwdef mutable struct MARS_KINETIC
@@ -152,6 +154,7 @@ Base.@kwdef mutable struct MARS_KINETIC
     NUEFFIA::Float64 = 0.0
     NPROFUE::Int = 0
     NUEFFEA::Float64 = 0.0
+    extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 Base.@kwdef mutable struct MARS_QLIN
@@ -174,6 +177,7 @@ Base.@kwdef mutable struct MARS_QLIN
     CTEDGE::Float64 = 0.995
     KSOLSAVE::Int = 0
     KSOLREAD::Int = 0
+    extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 Base.@kwdef mutable struct MARS_NUMERIC
@@ -188,6 +192,7 @@ Base.@kwdef mutable struct MARS_NUMERIC
     IOMPNUM::Int = 1
     NVACJ::Int = 0
     V2XKEY::Int = 2
+    extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 Base.@kwdef mutable struct MARS_OUTOPT
@@ -198,6 +203,7 @@ Base.@kwdef mutable struct MARS_OUTOPT
     OZMAX::Float64 = 2.0
     NORR::Int = 0
     NOZZ::Int = 0
+    extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 Base.@kwdef mutable struct MARSnamelist
@@ -435,9 +441,7 @@ function run_MARS(dd::IMAS.dd, par, mars_namelist)
     write_MARS_namelist(mars_namelist, "RUN.IN")
 
     # Determine which profiles to pull from dd, i.e. experiment
-    keys = ["NPROFN", "NPROFR", "NPROFIE", "NPROFTTCA", "NPROFTTCE", "NPROFWE"]
-    prof_dict = extract_lines_for_keys("RUN.IN", keys, Int)
-    write_exp_profiles(core_profiles, prof_dict, "1")
+    write_exp_profiles(core_profiles, mars_namelist)
 
     # 5. Execute MARS
     mars_exec = par.mars_exec
@@ -545,19 +549,19 @@ function apply_overrides!(
         overrides = getfield(mo, block)
         overrides === nothing && continue
 
-        if block ∉ fieldnames(typeof(nl))
-            error("Unknown MARS block '$block'")
-        end
-
         target_block = getfield(nl, block)
 
         for (k,v) in overrides
 
-            if k ∉ fieldnames(typeof(target_block))
-                error("Unknown entry '$k' in block '$block'")
+            if k ∈ fieldnames(typeof(target_block))
+
+                setfield!(target_block, k, v)
+            else
+
+                target_block.extras[k] = v
+
             end
 
-            setfield!(target_block, k, v)
         end
     end
 end
@@ -578,6 +582,8 @@ function write_MARS_namelist(
 
             for k in fieldnames(typeof(b))
 
+                k == :extras && continue
+
                 v = getfield(b,k)
 
                 if v isa Complex
@@ -590,12 +596,32 @@ function write_MARS_namelist(
                 )
 
                 elseif v isa AbstractVector
-                    sval = join(v,", ")
+                    sval = "(" * join(v,", ") * ")"
 
                 else
                     sval = v
                 end
-                
+
+                println(io," $k = $sval,")
+            end
+
+            for (k,v) in b.extras
+
+                if v isa Complex
+                    sval = "($(real(v)), $(imag(v)))"
+
+                elseif v isa AbstractVector{<:Complex}
+                    sval = "(" * join(
+                        ["($(real(z)), $(imag(z)))" for z in v],
+                        ", "
+                    ) * ")"
+
+                elseif v isa AbstractVector
+                    sval = "(" * join(v,", ") * ")"
+
+                else
+                    sval = string(v)
+                end
 
                 println(io," $k = $sval,")
             end
@@ -606,48 +632,45 @@ function write_MARS_namelist(
 end
 
 
-function write_exp_profiles(profiles, prof_dict, KEY="1")
+function write_exp_profiles(profiles, mars_namelist)
     @info "Generating additional PROF*.IN files from experiment or dd."
     
     s = sqrt.(profiles.grid.psi_norm)  # radial coordinate
 
-    for (field, value) in prof_dict
-        if field == "NPROFR" && value == 4
-            profile = profiles.rotation_frequency_tor_sonic
-            profile = profile / maximum(profile)  # normalize
-            write_profile_IN("PROFROT.IN", s, profile, KEY)
-        elseif field == "NPROFN" && value == 4
-            profile = profiles.ion[1].density
-            profile = profile / maximum(profile)  # normalize
-            write_profile_IN("PROFDEN.IN", s, profile, KEY)   
-        elseif field == "NPROFP" && value == 4
-            profile = profiles.pressure
-            profile = profile / maximum(profile)
-            write_profile_IN("PROFPRES.IN", s, profile, KEY)
-        elseif field == "NPROFTTCA" && value == 4 # normalize
-            profile = profiles.conductivity_parallel
-            profile = profile / maximum(profile)
-        elseif field == "NPROFTTCE" && value == 4 # normalize
-            @info "Need Chi_perpendicular profile for MARS."
-            #profile = profiles.conductivity_perpendicular
-            #profile = profile / maximum(profile)
-        elseif field == "NPROFWE" && value == 4 
-            @info "Need ExB profile for MARS."
-            #profile = profiles.viscosity
-            #profile = profile / maximum(profile)
-        else
-            continue
-            #error("Unknown field $field for MARS profile specification")
+    for (flag, file, getter, msg) in (
+    (:NPROFR,   "PROFROT.IN",      p -> p.rotation_frequency_tor_sonic, nothing),
+    (:NPROFN,   "PROFDEN.IN",      p -> p.density,                 nothing),
+    (:NPROFP,   "PROFPRES.IN",     p -> p.pressure,                    nothing),
+    (:NPROFWE,  "PROFWE.IN",       p -> p.rotation_frequency_tor,              "NO ExB profile in IMAS dd profiles."),
+    (:NPROFTTCA,"PROFTTCPARA.IN",  p -> p.conductivity_parallel,       nothing),
+    (:NPROFTTCE,"PROFTTCPERP.IN",  nothing,                            "NO Chi_perpendicular in IMAS dd profiles")
+)
+
+        if getfield(mars_namelist.BASIC, flag) == 4
+
+            msg !== nothing && @info msg
+
+            getter === nothing && continue
+
+            profile = getter(profiles)
+            profile ./= maximum(profile)
+
+            write_profile_IN(file, s, profile)
         end
     end
 
 end
 
+    
+
+
 
 
 # write the *.IN files for each quantity
-function write_profile_IN(filename::AbstractString, s::Vector{Float64}, profile::Vector{Float64}, KEY::AbstractString)
-    @assert length(s) == length(profile) "density and rotation arrays must have the same shape"
+function write_profile_IN(filename::AbstractString, s::Vector{Float64}, profile::Vector{Float64})
+    @assert length(s) == length(profile) "normal coordinate and profile arrays must have the same shape"
+    
+    KEY = "1"   # just an extra string the MARS profiles files need in the top line
     write_list = string(length(profile), "    ", KEY)
     for (r, z) in zip(s, profile)
         write_list = vcat(write_list, "$r    $z")
