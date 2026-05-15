@@ -100,6 +100,8 @@ Base.@kwdef mutable struct MARS_BASIC
     ROTE::Float64 = 0.0
     NPROFWE::Int = 0
     ROTWE0::Float64 = 0.0
+    NPROFTTCA::Int = 0
+    NPROFTTCE::Int = 0
     FRACPTH::Float64 = 1.0
     extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
@@ -632,33 +634,65 @@ function write_MARS_namelist(
 end
 
 
+
 function write_exp_profiles(profiles, mars_namelist)
     @info "Generating additional PROF*.IN files from experiment or dd."
     
     s = sqrt.(profiles.grid.psi_norm)  # radial coordinate
 
-    for (flag, file, getter, msg) in (
-    (:NPROFR,   "PROFROT.IN",      p -> p.rotation_frequency_tor_sonic, nothing),
-    (:NPROFN,   "PROFDEN.IN",      p -> p.density,                 nothing),
-    (:NPROFP,   "PROFPRES.IN",     p -> p.pressure,                    nothing),
-    (:NPROFWE,  "PROFWE.IN",       p -> p.rotation_frequency_tor,              "NO ExB profile in IMAS dd profiles."),
-    (:NPROFTTCA,"PROFTTCPARA.IN",  p -> p.conductivity_parallel,       nothing),
-    (:NPROFTTCE,"PROFTTCPERP.IN",  nothing,                            "NO Chi_perpendicular in IMAS dd profiles")
-)
+    for (flag, outputs, msg) in (
+        (
+            :NPROFR,
+            [("PROFROT.IN", p -> p.rotation_frequency_tor_sonic)],
+            nothing
+        ),
+
+        (
+            :NPROFN,
+            [("PROFDEN.IN", p -> p.ion[1].density)],
+            nothing
+        ),
+
+        (
+            :NPROFWE,
+            [("PROFNE.IN", p -> p.ion[1].rotation_frequency_tor)],
+            "NO ExB rotation in dd, using bulk plasma rotation instead."
+        ),
+
+        (
+            :NPROFTTCA,
+            [("PROFTTCPARA.IN", p -> p.conductivity_parallel)],
+            nothing
+        ),
+
+        (
+            :NPROFTTCE,
+            [],
+            "NO χ_perpendicular in IMAS dd"
+        ),
+
+        (
+            :NPROFIE,
+            [
+                ("PROFTI.IN", p -> p.ion[1].temperature),
+                ("PROFTE.IN", p -> p.electron.temperature)
+            ],
+            nothing
+        )
+        
+    )
 
         if getfield(mars_namelist.BASIC, flag) == 4
 
             msg !== nothing && @info msg
 
-            getter === nothing && continue
-
-            profile = getter(profiles)
-            profile ./= maximum(profile)
-
-            write_profile_IN(file, s, profile)
+            for (file, getter) in outputs
+                profile = getter(profiles)
+                profile ./= maximum(profile)
+                write_profile_IN(file, s, profile)
+            end
         end
-    end
-
+    end 
 end
 
     
