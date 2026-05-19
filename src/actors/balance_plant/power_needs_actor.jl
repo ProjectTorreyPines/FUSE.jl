@@ -26,10 +26,10 @@ Power needs actor that calculates the needed power to operate the plant
   - `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
   - `model = :FUSE` subdivides power plant needs into subsystems and calculates their power needs.
 
-The signature accepts any `IMAS.DD` subtype, so satellite packages (e.g.
-IFEdd) can add their own `ActorPowerNeeds(dd::TheirDD, act)` outer
-constructor to handle scenarios not covered by the standard models, with
-no IFE-specific (or other scenario-specific) knowledge baked into FUSE.
+The signature accepts any `IMAS.DD` subtype, so external packages can add
+their own `ActorPowerNeeds(dd::TheirDD, act)` outer constructor to handle
+scenarios not covered by the standard models, with no scenario-specific
+knowledge baked into FUSE.
 
 !!! note
 

@@ -2,7 +2,7 @@
     init_balance_of_plant!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.balance_of_plant` starting from `ini` and `act` parameters.
-Accepts any `IMAS.DD` subtype (e.g. IFEdd's `dd_ife`) that embeds `balance_of_plant`.
+Accepts any `IMAS.DD` subtype that embeds `balance_of_plant`.
 """
 function init_balance_of_plant!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_bop")

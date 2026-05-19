@@ -94,9 +94,10 @@ macro actor_parameters_struct(name_expr, body)
     # Combine standard fields with user-defined fields
     all_fields = vcat(standard_fields, user_fields)
 
-    # Capture the resolved supertype so the expansion does not depend on the
-    # caller module binding `ParametersActor` — lets satellite packages
-    # (e.g. IFEdd) use this macro without `using FUSE: ParametersActor`.
+    # Resolve the supertype here (in this module) and splice the type object
+    # into the expansion. Otherwise the bare symbol `ParametersActor` inside
+    # the escaped quote would be looked up in the caller module's scope,
+    # forcing every caller to `using FUSE: ParametersActor`.
     par_actor_type = ParametersActor
 
     # Generate the @kwdef struct

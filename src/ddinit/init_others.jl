@@ -29,7 +29,7 @@ end
     init_requirements!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize dd.requirements from `ini.requirements`. Accepts any `IMAS.DD`
-subtype (e.g. IFEdd's `dd_ife`) that embeds `requirements`.
+subtype that embeds `requirements`.
 """
 function init_requirements!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_requirements")

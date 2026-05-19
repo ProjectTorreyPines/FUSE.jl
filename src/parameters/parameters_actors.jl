@@ -9,11 +9,10 @@ macro insert_subtype_members(T)
         full_parameters_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_parameters_actor_name, '_')
             mem = Symbol(split(full_parameters_actor_name, "__")[end])
-            # Splice the resolved type object directly so the expansion does
-            # not depend on the caller module having a binding by that name.
-            # This lets satellite packages (e.g. IFEdd) define their own
-            # ParametersAllActors container without re-importing every FUSE
-            # actor parameter struct.
+            # Splice the resolved subtype object directly into the AST. Using
+            # an escaped symbol would defer the lookup to the caller module's
+            # scope, requiring the caller to import every subtype by name —
+            # which defeats the point of auto-discovering them via `subtypes`.
             push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, s, esc(:T))))
         end
     end
@@ -31,9 +30,9 @@ macro insert_constructor_members(T)
     for s in subtypes(__module__.eval(T))
         full_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_actor_name, '_')
-            # Same splicing strategy as @insert_subtype_members — use the
-            # resolved type object directly, not a bare symbol that would
-            # require the caller module to bind the name.
+            # Same hygiene rationale as @insert_subtype_members: splice the
+            # resolved subtype object so the caller module does not have to
+            # import each subtype's name.
             push!(expr.args, Expr(:call, Expr(:curly, s, esc(:T))))
         end
     end
