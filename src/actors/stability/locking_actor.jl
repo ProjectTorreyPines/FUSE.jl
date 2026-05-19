@@ -21,11 +21,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     control_type::Switch{Symbol} = Switch{Symbol}([:EF, :LinStab, :NLsaturation], # EF: error field
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
-    task::Switch{String} = Switch{String}(
-        ["solve-system", "single-case", "Monte-Carlo"],
+    task::Switch{Symbol} = Switch{Symbol}(
+        [:solve_system, :single_case, :Monte_Carlo, :evaluate_probability, :transfer_learning],
         "-",  
         "Choose whether to simulate system on full-grid, do a single case, or Monte Carlo (NOT implmented) which does 1e4 simulations on the full grid",  # docstring
-        default = "solve-system"
+        default = :solve_system
     )
     application::Switch{String} = Switch{String}(
         ["RP-RW", "RP-IW", "RP-RP-RW", "RP-RW-IW"],
@@ -83,11 +83,18 @@ Base.@kwdef mutable struct ODEparams
     # keep adding default and magic things
 end
 
+Base.@kwdef struct ContourData
+    x::Vector{Float64}
+    y::Vector{Float64}
+    z::Matrix{Float64}
+end
+
 mutable struct LockingResults
     ode_sols
     prob
     norm_sols
     locking_labels
+    contour_data::ContourData
 end
 
 mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
@@ -154,13 +161,13 @@ function _step(actor::ActorLocking)
     #bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
     ## Time evolve the ODEs
-    if par.task == "single-case"
+    if task == :single_case
         rot_freq = 1.
         solve_one_case(par, actor.ode_params, application, rot_freq)
         return actor
-    elseif par.task == "Monte-Carlo"
+    elseif task == :Monte_Carlo
         error("Monte-Carlo not implemented yet")
-    elseif par.task == "solve-system"
+    elseif task == :solve_system
         # Solve the ODE system on the whole control grid):
         control1 = actor.ode_params.Control1
         control2 = actor.ode_params.Control2
@@ -169,7 +176,7 @@ function _step(actor::ActorLocking)
              control2, control1, par.control_type)
 
         # ## plot normalize solution scatters
-        plot_sols_scatter(norm_sols; xcol=1,ycol=3)
+        #plot_sols_scatter(norm_sols; xcol=1,ycol=3)
         #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
         #inputs = vec(inputs)  # flatten
 
@@ -177,7 +184,7 @@ function _step(actor::ActorLocking)
         N, M = size(norm_sols)
         norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size, M))
         psi_tN = norm_sols_2D[:,:,1]
-        make_contour(control2, control1, psi_tN)
+        #make_contour(control2, control1, psi_tN)
         
         #plt = plot(psi_tN; seriestype=:heatmap)
         #dummy = DummyIDS(control2, control1, psi_tN)
@@ -188,27 +195,34 @@ function _step(actor::ActorLocking)
         R = hcat(norm_sols[:,1], norm_sols[:,3])
         kmc = kmeans(R', 2)
         locking_labels = kmc.assignments 
-        plot_sols_scatter(norm_sols; labels=locking_labels)
+        #plot_sols_scatter(norm_sols; labels=locking_labels)
+
+        contour = ContourData(
+            x = control2,
+            y = control1,
+            z = psi_tN
+)
 
         # store back in the actor
         prob = 0 # placeholder for now, can store the ODEProblem if you want to keep it
         actor.results = LockingResults(
-        ode_sols,
-        prob,
-        norm_sols,
-        locking_labels
+            ode_sols,
+            prob,
+            norm_sols,
+            locking_labels,
+            contour
         )
 
-    elseif par.task == "evaluate-probability"
+    elseif task == :evaluate_probability
         @info   "Evaluating saved Locking probability (not implemented yet)"
         # C1 = .5; C2 = .5 # place holders for now, need to implement a way to specify which case(s) to evaluate probability for
         #probability = actor.results.prob(C1, C2) # placeholder for now, need to implement a way to evaluate probability from the ODE solutions
 
-    elseif par.task == "transfer-learning"
+    elseif task == :transfer_learning
         @info   "Transfer Learning training (not implemented yet)"    
 
     else
-        error("Unknown task: $(par.task)")
+        error("Unknown task: $(task)")
     end
     
     return actor
@@ -229,23 +243,25 @@ function _finalize(actor::ActorLocking)
     return actor
 end
 
-function update_dd!(dd::IMAS.dd, par, ode_params::ODEparams, norm_sols::Vector{Vector{Float64}})
-    """
-    # write back to dd
-    """
-    @info "Writing back to IMAS dd mhd_linear structure"
 
-    ts = dd.mhd_linear.time_slice
+function plot_sols(actor)
 
-    isempty(ts) && resize!(ts, 1)
-    #dd.mhd_linear.time_slice[1].toroidal_mode[1].m_pol_dominant=2
-    tor_mode = toroidal_mode
-    isempty(ts) && resize!(ts, 1)
-    tor_mode.n_tor = 1
-    #dd.mhd_linear.time_slice[1].toroidal_mode[1].frequency = norm_sols[3] # in kHz
+    r = actor.results
 
-    return
+    make_contour(
+        r.contour_data.x,
+        r.contour_data.y,
+        r.contour_data.z
+    )
+    
+
+    plot_sols_scatter(
+        r.norm_sols;
+        labels=r.locking_labels
+    )
 end
+
+
 
 function solve_one_case(par, ode_params::ODEparams, task::String, control1::Float64)    
     
@@ -548,17 +564,17 @@ function rhs_basic!(dydt, y, t, Control2, Om0, ode_params::ODEparams, n_mode::In
     dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (Om0 - Om)) / I
 end
 
-"Return the correct RHS function for a given task"
-function make_rhs_function(task::String)
-    task == "RP-RW" ? rhs_RW! :
-    task == "RP-IW"   ? rhs_basic! :
-    error("Unknown task: $task")
+"Return the correct RHS function for a given application"
+function make_rhs_function(phys_type::String)
+    phys_type == "RP-RW" ? rhs_RW! :
+    phys_type == "RP-IW"   ? rhs_basic! :
+    error("Unknown application type: $phys_type")
    
 end
 
-function make_initial_condition(dims::Vector{Float64}, task::String)
+function make_initial_condition(dims::Vector{Float64}, application::String)
 
-    if task == "RP-RW"
+    if application == "RP-RW"
         # 5D system
         return [
             rand() * (dims[1] - 0.001) + 0.001,   # y1
@@ -568,7 +584,7 @@ function make_initial_condition(dims::Vector{Float64}, task::String)
             rand() * 2π - π                       # y5
         ]
 
-    elseif task == "RP-IW"
+    elseif application == "RP-IW"
         # 3D system
         return [
             rand() * (dims[1] - 0.001) + 0.001,   # y1
@@ -577,7 +593,7 @@ function make_initial_condition(dims::Vector{Float64}, task::String)
         ]
 
     else
-       error("Unknown task: $task")
+       error("Unknown application: $application")
     end
 end
 
