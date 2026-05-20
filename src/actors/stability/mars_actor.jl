@@ -238,20 +238,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     _name::Symbol = :not_set
     _time::Float64 = NaN
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
-    eq_type::Switch{Symbol} = Switch{Symbol}([:CHEASE, :TEQUILA], "-", "Type of equilibrium to use: :CHEASE or :TEQUILA"; default=:CHEASE)
     EQDSK::Entry{Bool} = Entry{Bool}("-", "Enable EQDSK"; default=false)
     chease_exec::Entry{String} =
         Entry{String}("-", "Path to CHEASE executable"; default="/fusion/projects/codes/mars/CHEASE/chease.x")
-    offset::Entry{Float64} = Entry{Float64}("-", "Offset for first wall (RW) in meters"; default=0.2)
-    n_points::Entry{Int} = Entry{Int}("-", "Number of points for plasma boundary and surrounding walls "; default=301)
+    mars_exec::Entry{String} =
+        Entry{String}("-", "Path to MARS executable"; default="/fusion/projects/codes/mars/MARSQ/marsq.x")
+    offset::Entry{Float64} = Entry{Float64}("-", "Offset for conforming first wall (RW) in units of length"; default=0.2)
+    n_points::Entry{Int} = Entry{Int}("-", "Number of points for discretizing plasma boundary and surrounding walls "; default=301)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
-    number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
     pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
-    wall_type::Switch{Symbol} = Switch{Symbol}([:No_wall, :D3D, :ITER, :ASDEX, :MAST, :KSTAR], "-", "Machine wall shape to use for MARS"; default=:D3D)
-    mars_exec::Entry{String} =
-        Entry{String}("-", "Path to MARS executable"; default="/fusion/projects/codes/mars/MARSQ/marsq.x")
+    wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :limiter], "-", "Machine wall shape to use for MARS"; default=:no_wall)
+    number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
@@ -341,18 +340,13 @@ function _step(actor::ActorMars)
 
     #run equilibrium solver to generate initial conditions for MARS
     if par.run_equilibrium
-        if par.eq_type == :CHEASE
-            @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
-            run_CHEASE(dd, par, chease_namelist)
-        elseif par.eq_type == :TEQUILA
-            @info "Running TEQUILA equilibrium solver with EQDSK=$(par.EQDSK)."
-            # run TEQUILA equilibrium solver
-        end
+        @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
+        run_CHEASE(dd, par, chease_namelist)
     end
 
     # run MARS
     if par.run_MHD
-        @info "Running MARS actor with parameters: eq_type=$(par.eq_type), EQDSK=$(par.EQDSK), tracer_type=$(par.tracer_type)"
+        @info "Running MARS actor with parameters: tracer_type=$(par.tracer_type)"
         run_MARS(dd, par, mars_namelist)
     end
 
@@ -368,15 +362,10 @@ function run_CHEASE(dd::IMAS.dd, par, chease_namelist)
 
     # Do the No-wall checks and get MARS wall file from the FUSE repository
     limiter = nothing
-    if par.wall_type == :No_wall && par.number_surfaces > 1
-         error("Invalid configuration: number_surfaces > 1 but wall_type is set to :
+    if par.wall_type == :no_wall && par.number_surfaces > 1
+        error("Invalid configuration: number_surfaces > 1 but wall_type is set to :
 No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
     end
-
-    if par.wall_type != :No_wall
-        @info "Using wall data .Json for CHEASE equilibrium generation."
-        limiter = get_limiter_data(par.wall_type)
-    
 
     if par.restart_equilibrium
         if isfile("EXPEQ.OUT")
@@ -390,7 +379,7 @@ No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
     else
         @info "Clean CHEASE run from dd."
         # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
-        B0, R0 = write_EXPEQ_file(dd, par; wall_data = limiter)
+        B0, R0 = write_EXPEQ_file(dd, par)
         setfield!(chease_namelist, :B0EXP, B0)
         setfield!(chease_namelist, :R0EXP, R0)
     end
@@ -441,7 +430,7 @@ function run_MARS(dd::IMAS.dd, par, mars_namelist)
     # override IWALL in mars_namelist if number_surfaces > 1
     # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
     # the next step because if NWALL = 0, IWALL does NOT matter
-    if !par.no_wall
+    if par.wall_type != :no_wall && par.number_surfaces > 1
         @info "Overriding IWALL in RUN.IN"
         # Implement the override logic here
         NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
@@ -521,19 +510,9 @@ end
 
     """
 
-function get_limiter_data(wall_type::Symbol)
-    if wall_type == :D3D
-        machine = "D3D"
-    elseif wall_type == :ITER
-        machine = "ITER"
-    elseif wall_type == :ASDEX
-        machine = "ASDEX"
-    elseif wall_type == :MAST
-        machine = "MAST"
-    elseif wall_type == :KSTAR
-        machine = "KSTAR"
-    else
-        error("Unknown wall type: $wall_type. Supported types are :D3D, :ITER, :ASDEX, :MAST, :KSTAR.")
+function get_limiter_data(machine::String)
+    if machine != "D3D" && machine != "ITER"
+        error("Unknown machine: $machine. Supported machines are 'D3D', 'ITER' for now.")
     end
     
     file_path = dirname(dirname(pathof(FUSE)))* "/sample/"
@@ -761,11 +740,12 @@ end
         NWBPS: Number of wall boundary points
         NSTTP: Number of steps in pressure and current profiles
 """
-function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
+function write_EXPEQ_file(dd::IMAS.dd, par)
 
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
-
+    NWBPS = par.number_surfaces
+    
     # initialize eqt from pulse_schedule and core_profiles
     time_slice = dd.equilibrium.time_slice[]
     eqt1d = time_slice.profiles_1d
@@ -811,9 +791,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
         error("Offset too large: boundary crosses R < 0 (min R = $(minimum(r_bound)))")
     end
 
-    ## get additional parameters from user
-    NWBPS = par.number_surfaces
-
     ## GS current density specification and de-dimensionalization for CHEASE input
     if par.GS_rhs == :FFpr
         NSTTP = 1
@@ -827,8 +804,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
         NSTTP = 3
         Jpar = abs.(eqt1d.j_parallel) # NOT right!
         GS_RHS_norm = Jpar / (B0 / R0 * μ_0)
-    else
-        0
     end
 
     if par.wall_resistivity_type == :Constant
@@ -882,12 +857,14 @@ function write_EXPEQ_file(dd::IMAS.dd, par; wall_data=nothing)
 
     # if there is another surface, calclate its cooridanes given an offset and save to file
     if NWBPS > 1 ## WHAT TO DO if > 2
-        if wall_data == nothing 
+        if par.wall_type == :conformal 
             @info "Creating a conformal limiter offset from plasma boundary by $(par.offset)."
             r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
-        else
-            @info "loading the smoothted limiter .json data."
-            r_lim, z_lim = wall_data.r, wall_data.z  # put the length scale back in
+        elseif par.wall_type == :limiter
+            @info "Using wall data .Json for CHEASE equilibrium generation."
+            machine = dd.dataset_description.data_entry.machine
+            limiter = get_limiter_data(machine)
+            r_lim, z_lim = limiter.r, limiter.z  # put the length scale back in
         end
         # add a smooth first wall (RW)
         
