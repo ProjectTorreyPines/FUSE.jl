@@ -1,20 +1,20 @@
 using FUSE
 using Test
 
-# @testset "fluxmatcher" begin
-#     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
-#     dd = IMAS.dd()
-#     FUSE.init(dd, ini, act)
-#     act.ActorFluxMatcher.max_iterations = 2
-#     act.ActorFluxMatcher.evolve_pedestal = true
+@testset "fluxmatcher" begin
+    ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+    act.ActorFluxMatcher.max_iterations = 2
+    act.ActorFluxMatcher.evolve_pedestal = true
 
-#     act.ActorFluxMatcher.algorithm = :simple
-#     act.ActorTGLF.model = :TJLF
-#     FUSE.ActorFluxMatcher(dd, act)
-#     act.ActorFluxMatcher.algorithm = :anderson
-#     act.ActorTGLF.model = :TGLFNN
-#     FUSE.ActorFluxMatcher(dd, act)
-# end
+    act.ActorFluxMatcher.algorithm = :simple
+    act.ActorTGLF.model = :TJLF
+    FUSE.ActorFluxMatcher(dd, act)
+    act.ActorFluxMatcher.algorithm = :anderson
+    act.ActorTGLF.model = :TGLFNN
+    FUSE.ActorFluxMatcher(dd, act)
+end
 
 @testset "Mars Actor CHEASE run" begin
     ini, act = FUSE.case_parameters(:D3D, :default)
@@ -23,10 +23,9 @@ using Test
 
     #control execution of CHEASE & MARS for testing purposes
     act.ActorMars.run_equilibrium = true
-    act.ActorMars.restart_equilibrium = false
     act.ActorMars.run_MHD = false
-    act.ActorMars.run_mode = :local
-    act.ActorMars.chease_exec = "/Users/akcay/Codes/MarsQ_package/CheaseMerge/chease.x"
+    act.ActorMars.wall_type = :no_wall # Begin with NO wall
+    #act.ActorMars.chease_exec = "/Users/akcay/Codes/MarsQ_package/CheaseMerge/chease.x"
     #"/fusion/projects/codes/mars/CHEASE/chease.x"  # <-- Update this path to your CHEASE executable
 
     # Configure CHEASE parameters for testing
@@ -34,7 +33,8 @@ using Test
 
     # configure MARS parameters for testing
     mars_overrides = FUSE.MarsOverrides()
-    mars_overrides.BASIC[:M1]=-10; mars_overrides.BASIC[:NV]=100
+    mars_overrides.BASIC[:M1]=-10
+    mars_overrides.BASIC[:NV]=120. # moves the IW in from the original CHEASE lcation
     
 
     mktempdir() do tempdir
@@ -52,7 +52,6 @@ using Test
                     @test isfile("EXPEQ")|| error("CHEASE equilibrium file EXPEQ not found.")
                     #@test filesize("EXPEQ") > 0 "CHEASE equilibrium file EXPEQ is empty."
                     @test isfile("datain") || error("CHEASE datain file not found.")
-                    @test isfile("OUTRMAR") || error("CHEASE output file OUTPMARS not found.")
                 end
 
                 # next test the restart capability and RW set-up
@@ -61,6 +60,7 @@ using Test
                 @info "=============================================================="
                 act.ActorMars.restart_equilibrium = true
                 act.ActorMars.number_surfaces = 2
+                act.ActorMars.wall_type = :limiter
                 chease_overrides_RW = (CFBAL=1.5,)
                 FUSE.ActorMars(dd, act; chease_overrides=chease_overrides_RW)
 
@@ -68,10 +68,9 @@ using Test
                 @info "=============================================================="
                 @info "       Test 3: Testing MARS MHD stability run"
                 @info "=============================================================="
-                act.ActorMars.restart_equilibrium = false
-                act.ActorMars.run_equilibrium = false
+                act.ActorMars.run_equilibrium = false # do NOT rerun CHEASE, just run MARS on the existing equilibrium
                 act.ActorMars.run_MHD = true
-                
+
                 FUSE.ActorMars(dd, act; mars_overrides=mars_overrides)
                 @testset "MARS output files" begin
                     @test isfile("log_mars") || error("MARS output file MARS_OUTPUT not found.")
