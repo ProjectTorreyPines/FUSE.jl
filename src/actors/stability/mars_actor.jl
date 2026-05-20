@@ -1,4 +1,6 @@
 using Interpolations
+import CHEASE
+
 const μ_0 = 4pi * 1E-7
 
 Base.@kwdef mutable struct CHEASEnamelist
@@ -246,7 +248,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     offset::Entry{Float64} = Entry{Float64}("-", "Offset for conforming first wall (RW) in units of length"; default=0.2)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points for discretizing plasma boundary and surrounding walls "; default=301)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
-    pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
     wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :limiter], "-", "Machine wall shape to use for MARS"; default=:no_wall)
@@ -380,6 +381,7 @@ No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
         @info "Clean CHEASE run from dd."
         # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
         B0, R0 = write_EXPEQ_file(dd, par)
+        #CHEASE.write_EXPEQ_file(eq_chease)
         setfield!(chease_namelist, :B0EXP, B0)
         setfield!(chease_namelist, :R0EXP, R0)
     end
@@ -777,11 +779,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     s = sqrt.(psi_norm)
     #s_grid = range(0.0, 1.0; length=length(psi))
     pressure = eqt1d.pressure
-    if par.pressure_sep == nothing
-        pressure_sep = pressure[end]
-    else
-        pressure_sep = par.pressure_sep
-    end
+    pressure_sep = pressure[end]
     pprime = eqt1d.dpressure_dpsi
 
     ### Currently NOT used, but may be useful later
@@ -825,16 +823,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     pressure_sep_norm = pressure_sep / (B0^2 / μ_0)
     pprime_final = 2 * pi * pprime_at_s * R0^2 * μ_0 / B0
     
-    # I suspect this logic is to make the q profile > 0, but NOT sure
-    ip_sign = sign(Ip)
-    bt_sign = sign(Bt_center)
-    #println("Ip sign: $ip_sign, Bt sign: $bt_sign")
-    # **** This logic is NOT needed in Martian CHEASE **** ##
-    #if (ip_sign == -1 && bt_sign == 1) || (ip_sign == 1 && bt_sign == -1)
-    #    j_tor_norm .*= -1
-    #end
-
-
     # Remove/smooth the X-point along the boundary
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
@@ -895,6 +883,112 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         end
     end
     return B0, R0
+end
+
+function write_EXPEQ_file2(dd::IMAS.dd, par)
+    # Placeholder function to write EXPEQ file for CHEASE
+    @info "Writing EXPEQ file for CHEASE equilibrium solver."
+
+    
+    offset = par.offset  # offset for first wall (RW) in meters
+    n_points = par.n_points  # number of points for first wall (RW)
+    NWBPS = par.number_surfaces
+    
+    # initialize eqt from pulse_schedule and core_profiles
+    time_slice = dd.equilibrium.time_slice[]
+    eqt1d = time_slice.profiles_1d
+    
+    # populate the input file lines
+    minor_radius = time_slice.boundary.minor_radius
+    z_axis = time_slice.global_quantities.magnetic_axis.z
+    Bt_center = time_slice.global_quantities.vacuum_toroidal_field.b0
+    Bt_axis = time_slice.global_quantities.magnetic_axis.b_field_tor
+    r_center = time_slice.global_quantities.vacuum_toroidal_field.r0
+    r0 = dd.equilibrium.vacuum_toroidal_field.r0
+    Ip = time_slice.global_quantities.ip
+    r_bound = time_slice.boundary.outline.r
+    z_bound = time_slice.boundary.outline.z
+    r_geo = time_slice.boundary.geometric_axis.r
+    z_geo = time_slice.boundary.geometric_axis.z
+    #Bt_geo = Bt_center * r_center / r_geo
+
+    # choose B0 & R0 for CHEASE normalization
+    B0 = abs(Bt_center)
+    R0 = r0
+
+    # inverse aspect ratio for CHEASE input
+    ϵ = minor_radius / R0
+
+    # get the normalized psi and convert d/dPsi to d/ds coordinate for CHEASE input
+    psi_norm = eqt1d.psi_norm
+    psi = eqt1d.psi
+    s = sqrt.(psi_norm)
+    #s_grid = range(0.0, 1.0; length=length(psi))
+    pressure = eqt1d.pressure
+    pressure_sep = pressure[end]
+    pprime = eqt1d.dpressure_dpsi
+
+    ### Currently NOT used, but may be useful later
+    #wall_RZ = [dd.wall.description_2d[].limiter.unit[1].outline.r, dd.wall.description_2d[].limiter.unit[1].outline.z]
+
+    if minimum(r_bound) - offset < 0
+        error("Offset too large: boundary crosses R < 0 (min R = $(minimum(r_bound)))")
+    end
+
+    ## GS current density specification and de-dimensionalization for CHEASE input
+    if par.GS_rhs == :FFpr
+        NSTTP = 1
+        FFpr = 2 * pi * eqt1d.f_df_dpsi
+        GS_RHS_norm = FFpr / B0
+    elseif par.GS_rhs == :Jtor
+        NSTTP = 2
+        Jtor = abs.(eqt1d.j_tor)
+        GS_RHS_norm = Jtor / (B0 / R0 * μ_0)
+    elseif par.GS_rhs == :Jpar
+        NSTTP = 3
+        Jpar = abs.(eqt1d.j_parallel) # NOT right!
+        GS_RHS_norm = Jpar / (B0 / R0 * μ_0)
+    end
+
+    if par.wall_resistivity_type == :Constant
+        NDATA = 2
+        # set wall resistivity model to constant
+    elseif par.wall_resistivity_type == :Variable
+        NDATA = 3
+        # set wall resistivity model to variable
+    else
+        NDATA = 1   
+    end
+    
+    # Make pressure terms dimensionless for CHEASE input
+    # throw in a 2pi to scale P' correctly
+    pressure_sep_norm = pressure_sep / (B0^2 / μ_0)
+    pprime_final = 2 * pi * pprime * R0^2 * μ_0 / B0
+    
+    # Remove/smooth the X-point along the boundary
+    ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
+    pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
+    rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
+    r_bound_norm = rb_new / R0
+    z_bound_norm = zb_new / R0
+
+    eq = CHEASE.MartianChease(
+        ϵ=ϵ,
+        z_axis=z_geo/r_geo,
+        pressure_sep=pressure_sep,
+        r_center=R0,
+        Bt_center=B0,
+        Ip=Ip,
+        r_bound=rb_new,
+        z_bound=zb_new,
+        mode=NSTTP,
+        rho_pol=s,
+        pressure=pprime_final,
+        j_tor=GS_RHS_norm,
+        wall_surfaces=walls
+    )
+
+    println("EXPEQ file generation completed.")
 end
 
 function write_CHEASEnamelist(
