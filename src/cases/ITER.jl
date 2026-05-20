@@ -126,7 +126,6 @@ function case_parameters(
     ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.helium_fraction = 0.01
-    ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 
@@ -140,6 +139,17 @@ function case_parameters(
     ini.nb_unit[2].beam_energy = 1e6
     ini.nb_unit[2].beam_mass = 2.0
     ini.nb_unit[2].template_beam = :iter_offaxis
+
+    # Rotation scales linearly with NBI power between intrinsic rotation (no NBI) and full NBI values.
+    # Intrinsic pedestal rotation ~4 krad/s from dimensionless empirical scaling,
+    # full NBI pedestal rotation ~40 krad/s, core ~20 krad/s.
+    # Chrystal et al., "Predicting the rotation profile in ITER", Nucl. Fusion 60 (2020) 036003
+    # https://doi.org/10.1088/1741-4326/ab5c86
+    P_NBI = sum(nb.power_launched for nb in ini.nb_unit)
+    P_NBI_max = 33.4e6
+    nbi_fraction = clamp(P_NBI / P_NBI_max, 0.0, 1.0)
+    ini.core_profiles.rot_ped = 4e3
+    ini.core_profiles.rot_core = 4e3 + nbi_fraction * (20e3 - 4e3)
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6

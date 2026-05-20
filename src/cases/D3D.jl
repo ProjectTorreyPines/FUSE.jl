@@ -322,6 +322,7 @@ function case_parameters(::Val{:D3D}, scenario::Symbol)
         ini.core_profiles.bulk = :D
         ini.core_profiles.impurity = :C
         ini.core_profiles.rot_core = 5E3
+        ini.core_profiles.rot_ped = 3.571e3 # rot_core / 1.4
     end
 
     return ini, act
@@ -372,6 +373,7 @@ function case_parameters(::Val{:D3D_machine})
     ini.tf.shape = :triple_arc
 
     ini.core_profiles.rot_core = 5E3
+    ini.core_profiles.rot_ped = 3.571e3 # rot_core / 1.4
 
     #### ACT ####
 

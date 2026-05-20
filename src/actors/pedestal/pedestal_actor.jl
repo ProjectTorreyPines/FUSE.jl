@@ -303,6 +303,12 @@ function _finalize(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(position)
     end
 
+    # Store EPED extrapolation distance as pedestal t_e uncertainty
+    if actor.par.model == :EPED
+        te_ped = IMAS.interp1d(rho, cp1d.electrons.temperature).(1 - IMAS.pedestal_tanh_width_half_maximum(rho, cp1d.electrons.temperature))
+        @ddtime summary_ped.t_e.value_σ = te_ped * actor.eped_actor.extrapolation
+    end
+
     return actor
 end
 

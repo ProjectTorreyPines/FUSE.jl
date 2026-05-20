@@ -68,6 +68,7 @@ function init_core_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.bulk,
                 ini.core_profiles.impurity,
                 ini.core_profiles.rot_core,
+                rot_ped=getproperty(ini.core_profiles, :rot_ped, missing),
                 ejima=getproperty(ini.core_profiles, :ejima, missing),
                 ini.core_profiles.polarized_fuel_fraction,
                 ini.core_profiles.Ti_Te_ratio,
@@ -111,6 +112,7 @@ function init_core_profiles!(
     bulk::Symbol,
     impurity::Symbol,
     rot_core::Real,
+    rot_ped::Union{Real,Missing},
     ejima::Union{Real,Missing},
     polarized_fuel_fraction::Real,
     Ti_Te_ratio::Real,
@@ -250,10 +252,13 @@ function init_core_profiles!(
     @ddtime summary.local.pedestal.t_i_average.value = Te_ped * Ti_Te_ratio
 
     # rotation
+    if rot_ped === missing
+        error("ini.core_profiles.rot_ped must be set. A reasonable assumption is rot_core / ne_core_to_ped_ratio = $(rot_core / ne_core_to_ped_ratio)")
+    end
     if plasma_mode == :H_mode
-        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_ped, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
     else
-        cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_ped, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
     end
 
     # ejima

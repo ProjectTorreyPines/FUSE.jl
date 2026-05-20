@@ -28,6 +28,7 @@ mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
     inputs::EPEDNN.InputEPED
     wped::Union{Missing,Real} # pedestal width using EPED definition (1/2 width as fraction of psi_norm)
     pped::Union{Missing,Real} # pedestal height using EPED units (MPa)
+    extrapolation::Float64 # max normalized extrapolation distance from training bounds (0 = within bounds)
 end
 
 """
@@ -67,7 +68,7 @@ function ActorEPED(dd::IMAS.dd, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
     par = OverrideParameters(par; kw...)
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return ActorEPED(dd, par, epedmod, EPEDNN.InputEPED(), missing, missing)
+    return ActorEPED(dd, par, epedmod, EPEDNN.InputEPED(), missing, missing, 0.0)
 end
 
 """
@@ -86,6 +87,14 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
 
     cp1d = dd.core_profiles.profiles_1d[]
     sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+
+    # Check extrapolation distance from training bounds
+    extrap = EPEDNN.extrapolation_distance(actor.epedmod, actor.inputs)
+    actor.extrapolation = extrap.max_distance
+    if extrap.max_distance > 0.0
+        details = join(["$k=$(round(v; digits=2))" for (k, v) in extrap.per_input if v > 0.0], ", ")
+        @warn "EPED-NN extrapolation: max_distance=$(round(extrap.max_distance; digits=2)) on $(extrap.worst_input) [$details]"
+    end
 
     if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
