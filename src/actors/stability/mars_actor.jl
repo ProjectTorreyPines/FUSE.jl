@@ -249,7 +249,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     pressure_sep::Entry{Union{Nothing,Float64}} = Entry{Union{Nothing,Float64}}("-", "Pressure at separatrix in Pa"; default=nothing)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
-    wall_type::Switch{Symbol} = Switch{Symbol}([:D3D, :ITER, :ASDEX, :MAST, :KSTAR], "-", "Machine wall shape to use for MARS"; default=:D3D)
+    wall_type::Switch{Symbol} = Switch{Symbol}([:No_wall, :D3D, :ITER, :ASDEX, :MAST, :KSTAR], "-", "Machine wall shape to use for MARS"; default=:D3D)
     mars_exec::Entry{String} =
         Entry{String}("-", "Path to MARS executable"; default="/fusion/projects/codes/mars/MARSQ/marsq.x")
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
@@ -366,8 +366,17 @@ function run_CHEASE(dd::IMAS.dd, par, chease_namelist)
     chease_exec = par.chease_exec
     @assert chease_namelist !== nothing "CHEASE namelist not initialized"
 
-    # Get the D3D MARS wall file from the FUSE repository
-    limiter = get_limiter_data(par.wall_type)
+    # Do the No-wall checks and get MARS wall file from the FUSE repository
+    limiter = nothing
+    if par.wall_type == :No_wall && par.number_surfaces > 1
+         error("Invalid configuration: number_surfaces > 1 but wall_type is set to :
+No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
+    end
+
+    if par.wall_type != :No_wall
+        @info "Using wall data .Json for CHEASE equilibrium generation."
+        limiter = get_limiter_data(par.wall_type)
+    
 
     if par.restart_equilibrium
         if isfile("EXPEQ.OUT")
@@ -432,7 +441,7 @@ function run_MARS(dd::IMAS.dd, par, mars_namelist)
     # override IWALL in mars_namelist if number_surfaces > 1
     # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
     # the next step because if NWALL = 0, IWALL does NOT matter
-    if par.number_surfaces > 1
+    if !par.no_wall
         @info "Overriding IWALL in RUN.IN"
         # Implement the override logic here
         NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
