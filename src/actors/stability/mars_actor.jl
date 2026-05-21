@@ -819,11 +819,26 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     pressure_sep_norm = pressure_sep / (B0^2 / μ_0)
     pprime_final = 2 * pi * pprime * R0^2 * μ_0 / B0
 
-
     # Remove/smooth the X-point along the boundary
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
     rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
+    
+    chease_struct = CHEASE.MartianChease(
+        ϵ=ϵ,
+        z_axis=z_geo/R0,
+        pressure_sep=pressure_sep,
+        r_center=R0,
+        Bt_center=B0,
+        Ip=Ip,
+        r_bound=rb_new,
+        z_bound=zb_new,
+        mode=NSTTP,
+        rho_pol=s,
+        pressure=pprime,
+        j_tor=GS_RHS
+    )
+
     r_bound_norm = rb_new / R0
     z_bound_norm = zb_new / R0
 
@@ -853,7 +868,10 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
         r_lim, z_lim = limiter.r, limiter.z  
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
-         
+        
+        chease_struct.r_lim = r_lim
+        chease_struct.z_lim = z_lim
+
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
         
