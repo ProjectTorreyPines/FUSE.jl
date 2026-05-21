@@ -34,7 +34,7 @@ end
     # configure MARS parameters for testing
     mars_overrides = FUSE.MarsOverrides()
     mars_overrides.BASIC[:M1]=-10
-    mars_overrides.BASIC[:NV]=120. # moves the IW in from the original CHEASE lcation
+    mars_overrides.BASIC[:NV]=120 # moves the IW in from the original CHEASE lcation
     
 
     mktempdir() do tempdir
