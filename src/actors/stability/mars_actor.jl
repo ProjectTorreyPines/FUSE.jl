@@ -824,19 +824,28 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
     rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
     
-    chease_struct = CHEASE.MartianChease(
-        ϵ=ϵ,
-        z_axis=z_geo/R0,
-        pressure_sep=pressure_sep,
-        r_center=R0,
-        Bt_center=B0,
-        Ip=Ip,
-        r_bound=rb_new,
-        z_bound=zb_new,
-        mode=NSTTP,
-        rho_pol=s,
-        pressure=pprime,
-        j_tor=GS_RHS
+    chease_struct = CHEASE.Chease(
+        ϵ,
+        z_geo/R0,
+        pressure_sep,
+        R0,
+        B0,
+        Ip,
+        rb_new,
+        zb_new,
+        NSTTP,
+        s,
+        pprime,
+        GS_RHS
+    )
+
+    chease_struct2 = CHEASE.MartianCHEASE(
+        chease_struct,
+        pprime,
+        NWBPS,
+        NDATA,
+        missing,
+        missing,
     )
 
     r_bound_norm = rb_new / R0
@@ -848,7 +857,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
 
     
     ##----------------- Write the file -----------------##
-    write_list = [string(ϵ), string(z_geo/r_geo), string(pressure_sep_norm)]
+    write_list = [string(ϵ), string(z_geo/R0), string(pressure_sep_norm)]
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
     write_list = vcat(write_list, string(length(rb_new), " ", NWBPS, " ", NDATA))
     for (r, z) in zip(r_bound_norm, z_bound_norm)
@@ -903,9 +912,9 @@ function write_EXPEQ_file2(dd::IMAS.dd, par)
     # Placeholder function to write EXPEQ file for CHEASE
     @info "Writing EXPEQ file for CHEASE equilibrium solver."
 
-    eq = CHEASE.MartianChease(
+    eq = CHEASE.MartianCHEASE(
         ϵ=ϵ,
-        z_axis=z_geo/r_geo,
+        z_axis=z_geo/R0,
         pressure_sep=pressure_sep,
         r_center=R0,
         Bt_center=B0,
