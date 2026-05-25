@@ -824,7 +824,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     pr, pz = limit_curvature(r_bound, z_bound, ab / 20.0)
     rb_new, zb_new = IMAS.resample_2d_path(pr, pz; n_points=n_points, method=:linear)
     
-    chease_struct = CHEASE.Chease(
+    chease_struct = CHEASE.MartianCHEASE(
         ϵ,
         z_geo/R0,
         pressure_sep,
@@ -835,12 +835,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         zb_new,
         NSTTP,
         s,
-        pprime,
-        GS_RHS
-    )
-
-    chease_struct2 = CHEASE.MartianCHEASE(
-        chease_struct,
+        GS_RHS,
         pprime,
         NWBPS,
         NDATA,
@@ -878,8 +873,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         r_lim, z_lim = limiter.r, limiter.z  
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
         
-        chease_struct.r_lim = r_lim
-        chease_struct.z_lim = z_lim
+        chease_struct.r_limiter = r_lim
+        chease_struct.z_limiter = z_lim
 
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
@@ -898,7 +893,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     write_list = vcat(write_list, map(string, pprime_final))
     write_list = vcat(write_list, map(string, GS_RHS))
 
-    # write to EXPEQ file   
+    # write to EXPEQ file
+    CHEASE.write_EXPEQ_file(chease_struct)   
     touch("EXPEQ")
     open("EXPEQ", "w") do file
         for line in write_list
@@ -908,28 +904,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     return B0, R0
 end
 
-function write_EXPEQ_file2(dd::IMAS.dd, par)
-    # Placeholder function to write EXPEQ file for CHEASE
-    @info "Writing EXPEQ file for CHEASE equilibrium solver."
-
-    eq = CHEASE.MartianCHEASE(
-        ϵ=ϵ,
-        z_axis=z_geo/R0,
-        pressure_sep=pressure_sep,
-        r_center=R0,
-        Bt_center=B0,
-        Ip=Ip,
-        r_bound=rb_new,
-        z_bound=zb_new,
-        mode=NSTTP,
-        rho_pol=s,
-        pressure=pprime_final,
-        j_tor=GS_RHS,
-        wall_surfaces=walls
-    )
-
-    println("EXPEQ file generation completed.")
-end
 
 function write_CHEASEnamelist(
     nl::CHEASEnamelist, 
