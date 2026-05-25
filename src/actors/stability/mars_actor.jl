@@ -850,15 +850,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, label="Plasma Boundary")
     display(plt)
 
-    
-    ##----------------- Write the file -----------------##
-    write_list = [string(ϵ), string(z_geo/R0), string(pressure_sep_norm)]
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
-    write_list = vcat(write_list, string(length(rb_new), " ", NWBPS, " ", NDATA))
-    for (r, z) in zip(r_bound_norm, z_bound_norm)
-        write_list = vcat(write_list, "$r    $z")
-    end
-
+    
     # if there is another surface, calclate its cooridanes given an offset and save to file
     if NWBPS > 1 ## WHAT TO DO if > 2
         if par.wall_type == :conformal 
@@ -881,26 +874,12 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         
         plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal,label="MARS resistive wall", legend=:outertop)
         display(plt)
-        for (r, z) in zip(r_lim_norm, z_lim_norm)
-            write_list = vcat(write_list, "$r    $z")
-        end
+        
     end
-
-    @assert length(s) == length(pprime_final) == length(GS_RHS) "s, presssure and GS_RHS arrays must have the same shape"
-    write_list = vcat(write_list, "$(length(s))")
-    write_list = vcat(write_list, "$(string(NSTTP))")
-    write_list = vcat(write_list, map(string, s))
-    write_list = vcat(write_list, map(string, pprime_final))
-    write_list = vcat(write_list, map(string, GS_RHS))
-
+  
     # write to EXPEQ file
     CHEASE.write_EXPEQ_file(chease_struct)   
-    touch("EXPEQ")
-    open("EXPEQ", "w") do file
-        for line in write_list
-            write(file, "$line\n")
-        end
-    end
+    
     return B0, R0
 end
 
