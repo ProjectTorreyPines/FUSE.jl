@@ -828,8 +828,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
         ϵ,
         z_geo/R0,
         pressure_sep,
-        R0,
         B0,
+        R0,
         Ip,
         rb_new,
         zb_new,
@@ -898,7 +898,7 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     touch("EXPEQ")
     open("EXPEQ", "w") do file
         for line in write_list
-            write(file, "$line \n")
+            write(file, "$line\n")
         end
     end
     return B0, R0
