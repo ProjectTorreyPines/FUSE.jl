@@ -3,80 +3,6 @@ import CHEASE
 
 const μ_0 = 4pi * 1E-7
 
-Base.@kwdef mutable struct CHEASEnamelist
-    NEQDSK::Int     = 0
-    NSURF::Int      = 6
-    NTCASE::Int     = 0
-
-    NBLOPT::Int     = 0
-    NBSOPT::Int     = 0
-    CPRESS::Float64 = 1.000
-    CFBAL::Float64  = 1.0000 # set to 1. if NSCAL = 4
-
-    NCSCAL::Int     = 2   # set to 4 if NOT scale q
-    CSSPEC::Float64 = 0.000
-    QSPEC::Float64  = 1.6185
-
-    NTMF0::Int      = 0
-    CURRT::Float64  = 0.3000
-
-    NSTTP::Int      = 2
-    NFUNC::Int      = 4
-    NIPR::Int       = 1
-    NISO::Int       = 100
-    NIDEAL::Int     = 0
-
-    NPPFUN::Int     = 4
-    NPP::Int        = 1
-    NPPR::Int       = 30
-
-    NSOUR::Int      = 2
-    NPROPT::Int     = 2
-
-    NS::Int         = 60
-    NT::Int         = 60
-    NPSI::Int       = 240
-    NCHI::Int       = 200
-
-    NV::Int         = 160
-    REXT::Float64   = 6.0
-    NVEXP::Int      = 8
-    R0W::Float64    = 0.90
-    RZ0W::Float64   = 0.0
-
-    NMESHA::Int     = 2
-    SOLPDA::Float64 = 0.60
-    QWIDTH0::Float64 = 0.30
-    ROTE::Float64   = 0.0000
-    NTOR::Int       = 1
-
-    NPOIDQ::Int     = 6
-    QSHAVE::Float64 = 100.0
-
-    QPLACE::Vector{Float64} =
-        [2.0000, 3.0000, 4.0000, 5.0000, 6.0000, 7.0000]
-
-    QWIDTH::Vector{Float64} =
-        [0.0009, 0.0007, 0.0006, 0.0006, 0.0005, 0.0005]
-
-    NEGP::Int       = -1
-    NER::Int        = 1
-
-    EPSLON::Float64 = 1.0e-10
-    GAMMA::Float64  = 1.6666666667
-
-    MSMAX::Int      = 40
-    NINMAP::Int     = 50
-    NINSCA::Int     = 50
-
-    NOPT::Int       = 0
-    NPLOT::Int      = 1
-    NBAL::Int       = 0
-
-    B0EXP::Float64  = 1.5
-    R0EXP::Float64  = 3.0
-end
-
 
 Base.@kwdef mutable struct MARS_BASIC
     NCASE::Int = 1
@@ -263,7 +189,7 @@ end
 mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorMars{P}}
-    chease_inputs::Union{Nothing,CHEASEnamelist}
+    chease_inputs::Union{Nothing,CHEASE.CHEASEnamelist}
     mars_inputs::Union{Nothing,MARSnamelist}
 
     function ActorMars(
@@ -284,13 +210,13 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Create default CHEASE namelist
         # -------------------------
-        nl = chease_inputs === nothing ? CHEASEnamelist() : chease_inputs
+        nl = chease_inputs === nothing ? CHEASE.CHEASEnamelist() : chease_inputs
 
         # -------------------------
         # Apply user overrides
         # -------------------------
         for (k, v) in pairs(chease_overrides)
-            if k ∉ fieldnames(CHEASEnamelist)
+            if k ∉ fieldnames(CHEASE.CHEASEnamelist)
                 error("Unknown namelist entry '$k'")
             end
             setfield!(nl, k, v)
@@ -392,8 +318,8 @@ No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
         setfield!(chease_namelist, :NVEXP, NVEXP)
     end
     
-    # Write CHEASE namelist file 
-    write_CHEASEnamelist(chease_namelist, "datain")
+    # Write CHEASE namelist file
+    CHEASE.write_CHEASEnamelist(chease_namelist, "datain")
 
     # Clean up any stale CHEASE output files
     for f in readdir(pwd())
@@ -881,44 +807,6 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     CHEASE.write_EXPEQ_file(chease_struct)   
     
     return B0, R0
-end
-
-
-function write_CHEASEnamelist(
-    nl::CHEASEnamelist, 
-    filename::AbstractString="datain", 
-    #overrides::NamedTuple=NamedTuple()
-)
-
-    # for (k, v) in pairs(overrides)
-    #     if hasproperty(nl, k)
-    #         setproperty!(nl, k, v)
-    #     else
-    #         @warn "Unknown CHEASE namelist key: $k"
-    #     end
-    # end
-    
-    open(filename, "w") do io
-        println(io, "***")
-        println(io, "***    Example Torus")
-        println(io, "***")
-        println(io, "***")
-        println(io, "&EQDATA")
-
-        for field in fieldnames(CHEASEnamelist)
-            val = getfield(nl, field)
-
-            if val isa Vector
-                println(io, "  $(field)(1) = ", join(val, ", "), ",")
-            else
-                println(io, "  $(field) = ", val, ",")
-            end
-        end
-
-        println(io, "&END")
-    end
-
-    return filename
 end
 
 
