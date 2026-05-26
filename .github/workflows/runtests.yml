@@ -70,6 +70,18 @@ jobs:
         run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install git-lfs
+        run: |
+          if [ "${{ matrix.flavor.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y git-lfs
+          elif [ "${{ matrix.flavor.os }}" = "macos-latest" ]; then
+            brew install git-lfs
+          fi
+          git lfs install
 
       # Julia setup
       - uses: julia-actions/setup-julia@v1
