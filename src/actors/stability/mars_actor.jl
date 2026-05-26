@@ -371,7 +371,7 @@ function run_MARS(dd::IMAS.dd, par, mars_namelist)
     # Determine which profiles to pull from dd, i.e. experiment
     write_exp_profiles(core_profiles, mars_namelist)
 
-    # 5. Execute MARS
+    # Execute MARS
     mars_exec = par.mars_exec
     @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
     isfile(mars_exec) || error("MARS executable not found: $mars_exec")
@@ -401,7 +401,6 @@ function run_MARS(dd::IMAS.dd, par, mars_namelist)
     ok || error("MARS failed — see log_mars")
 
 end
-
 
 
 function run_batch_mars(mars_exec, par)
