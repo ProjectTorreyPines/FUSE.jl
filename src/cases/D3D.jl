@@ -40,141 +40,160 @@ function case_parameters(::Val{:D3D}, shot::Int;
     ini.general.casename = "D3D $shot"
     omfit_host_original = omfit_host
 
-    if omfit_host == "localhost"
-        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, ENV["USER"], omfit_root, omas_root))
-        filename = "D3D_$(shot)_$(phash).h5"
-        local_path = joinpath(tempdir(), ENV["USER"]*"_D3D_$(shot)")
-    else
-        # Resolve remote username using the ssh config
-        output = read(`ssh -T -G $omfit_host`, String)
-        omfit_user = nothing
-        for line in split(output, '\n')
-            if startswith(line, "user ")
-                omfit_user = strip(split(line, ' ', limit=2)[2])
-                break
-            end
-        end
-        if isnothing(omfit_user)
-            throw(ErrorException("Need to add $omfit_host to ~/.ssh"))
-        end
-        omfit_host = "$omfit_user@$omfit_host"
-        phash = hash((EFIT_tree, PROFILES_tree, CER_analysis_type, omfit_user, omfit_root, omas_root))
-        remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*omfit_user*"/d3d_data/$shot")
-        filename = "D3D_$(shot)_$(phash).h5"
-        local_path = joinpath(tempdir(), "$(omfit_user)_D3D_$(shot)")
-    end
+    # Determine cache directory - check FUSE_D3D_CACHE_DIR first, fallback to tempdir()
+    cache_dir = get(ENV, "FUSE_D3D_CACHE_DIR", tempdir())
+
+    # Calculate hash based on data query parameters only
+    phash = hash((shot, EFIT_tree, PROFILES_tree, CER_analysis_type, EFIT_run_id, PROFILES_run_id))
+    filename = "D3D_$(shot)_$(phash).h5"
+    local_path = joinpath(cache_dir, "D3D_$(shot)_$(phash)")
+
+    # Check if cached files already exist BEFORE doing any heavy work (like SSH config parsing)
+    cached_omas_file = joinpath(local_path, filename)
+    cached_nbi_file = joinpath(local_path, "nbi_ods_$shot.h5")
+    cached_beams_file = joinpath(local_path, "beams_$shot.dat")
+    files_already_cached = isfile(cached_omas_file) && isfile(cached_nbi_file) && isfile(cached_beams_file)
+
+    # If use_local_cache is false, clear the directory even if files exist
     if isdir(local_path) && !use_local_cache
+        @info "Clearing cached data and refetching"
         rm(local_path; recursive=true)
-    end
-    if !isdir(local_path)
-        mkdir(local_path)
+        files_already_cached = false
     end
 
-
-    # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
-    if contains(EFIT_tree, "USER")
-        efit_shot = parse(Int, "$(shot)$(EFIT_tree[5:end])")
-        EFIT_tree = "EFIT"
-    else
-        efit_shot = shot
-    end
-
-    # Build OMAS command string (same for both localhost and remote execution)
-    # Note: OUTPUT_FILE is a placeholder that gets replaced with actual path (local or remote)
-    omas_command = "python -u $(omas_root)/omas/examples/fuse_data_export.py OUTPUT_FILE d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"
-    if length(EFIT_run_id) > 0
-        omas_command *= " --EFIT_RUN_ID $EFIT_run_id"
-    end
-    if length(PROFILES_run_id) > 0
-        omas_command *= " --PROFILES_RUN_ID $PROFILES_run_id"
-    end
-
-    if omfit_host == "localhost"
-        setup_block = """#!/bin/bash -l
-        module purge
-        module load omfit
-        cd $local_path
-        export PYTHONPATH=$(omas_root):\$PYTHONPATH
-        """
-        omfit_block = """
-        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null
-        """
-        # Substitute OUTPUT_FILE placeholder with actual path for localhost
-        omas_block = replace(omas_command, "OUTPUT_FILE" => "$local_path/$filename")
-        omfit_sh = joinpath(local_path, "omfit.sh")
-        open(omfit_sh, "w") do io
-            return write(io, setup_block*omfit_block)
+    # Only proceed with data fetching if files don't exist
+    if !files_already_cached
+        @info "No cache fileS: at $cached_omas_file $cached_nbi_file $cached_beams_file. Attempting to fetch D3D data with OMFIT and OMAS."
+        # Ensure directory exists
+        if !isdir(local_path)
+            mkpath(local_path)
         end
-        omas_sh = joinpath(local_path, "omas.sh")
-        open(omas_sh, "w") do io
-            return write(io, setup_block*omas_block)
-        end
-        Base.run(`chmod +x $omfit_sh`)
-        Base.run(`chmod +x $omas_sh`)
-        task = @async Base.run(`$omfit_sh`)
-        Base.run(`$omas_sh`)
-        wait(task)
-    else
-        # remote bash/slurm script
-        remote_slurm = """#!/bin/bash -l
-            #SBATCH --job-name=fetch_d3d_omas
-            #SBATCH --partition=short
-            #SBATCH --cpus-per-task=1
-            #SBATCH --ntasks=2
-            #SBATCH --output=$remote_path/%j.out
-            #SBATCH --error=$remote_path/%j.err
-            #SBATCH --wait
 
-            # Load any required modules
+        # Determine username only when we need to fetch data
+        if omfit_host == "localhost"
+            username = ENV["USER"]
+        else
+            # Resolve remote username using the ssh config
+            output = read(`ssh -T -G $omfit_host`, String)
+            username = nothing
+            for line in split(output, '\n')
+                if startswith(line, "user ")
+                    username = strip(split(line, ' ', limit=2)[2])
+                    break
+                end
+            end
+            if isnothing(username)
+                throw(ErrorException("Need to add $omfit_host to ~/.ssh"))
+            end
+            omfit_host = "$(username)@$omfit_host"
+            remote_path = get(ENV, "FUSE_SCRATCH", "/cscratch/"*username*"/d3d_data/$shot")
+        end
+
+        # to get user EFITs use (shot, USER01) to get (shot01, EFIT)
+        if contains(EFIT_tree, "USER")
+            efit_shot = parse(Int, "$(shot)$(EFIT_tree[5:end])")
+            EFIT_tree = "EFIT"
+        else
+            efit_shot = shot
+        end
+
+        # Build OMAS command string (same for both localhost and remote execution)
+        # Note: OUTPUT_FILE is a placeholder that gets replaced with actual path (local or remote)
+        omas_command = "python -u $(omas_root)/omas/examples/fuse_data_export.py OUTPUT_FILE d3d $shot $EFIT_tree $PROFILES_tree --CER_ANALYSIS_TYPE=$CER_analysis_type"
+        if length(EFIT_run_id) > 0
+            omas_command *= " --EFIT_RUN_ID $EFIT_run_id"
+        end
+        if length(PROFILES_run_id) > 0
+            omas_command *= " --PROFILES_RUN_ID $PROFILES_run_id"
+        end
+
+        if omfit_host == "localhost"
+            setup_block = """#!/bin/bash -l
             module purge
             module load omfit
-
-            echo "Starting parallel tasks..." >&2
-
-            # Run both tasks in parallel
-            mkdir -p $remote_path
-            cd $remote_path
-
+            cd $local_path
             export PYTHONPATH=$(omas_root):\$PYTHONPATH
-
-            python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
-
-            $(replace(omas_command, "OUTPUT_FILE" => "$remote_path/$(filename)"))
-
-            echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
-            wait
-            echo "Transfering data from remote" >&2
             """
-        open(joinpath(local_path, "remote_slurm.sh"), "w") do io
-            return write(io, remote_slurm)
-        end
-        # local driver script
-        local_driver = """
-            #!/bin/bash
+            omfit_block = """
+            python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null
+            """
+            # Substitute OUTPUT_FILE placeholder with actual path for localhost
+            omas_block = replace(omas_command, "OUTPUT_FILE" => "$local_path/$filename")
+            omfit_sh = joinpath(local_path, "omfit.sh")
+            open(omfit_sh, "w") do io
+                return write(io, setup_block*omfit_block)
+            end
+            omas_sh = joinpath(local_path, "omas.sh")
+            open(omas_sh, "w") do io
+                return write(io, setup_block*omas_block)
+            end
+            Base.run(`chmod +x $omfit_sh`)
+            Base.run(`chmod +x $omas_sh`)
+            task = @async Base.run(`$omfit_sh`)
+            Base.run(`$omas_sh`)
+            wait(task)
+        else
+            # remote bash/slurm script
+            remote_slurm = """#!/bin/bash -l
+                #SBATCH --job-name=fetch_d3d_omas
+                #SBATCH --partition=short
+                #SBATCH --cpus-per-task=1
+                #SBATCH --ntasks=2
+                #SBATCH --output=$remote_path/%j.out
+                #SBATCH --error=$remote_path/%j.err
+                #SBATCH --wait
 
-            # Use rsync to create directory if it doesn't exist and copy the script
-            $(ssh_command(omfit_host, "\"mkdir -p $remote_path\""))
-            $(upsync_command(omfit_host, ["$(local_path)/remote_slurm.sh"], remote_path))
+                # Load any required modules
+                module purge
+                module load omfit
 
-            # Execute script remotely
-            $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
+                echo "Starting parallel tasks..." >&2
 
-            # Retrieve results using rsync
-            $(downsync_command(omfit_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
-        """
+                # Run both tasks in parallel
+                mkdir -p $remote_path
+                cd $remote_path
 
-        open(joinpath(local_path, "local_driver.sh"), "w") do io
-            return write(io, local_driver)
-        end
+                export PYTHONPATH=$(omas_root):\$PYTHONPATH
 
-        # run data fetching
-        @info "Connecting to $omfit_host"
-        @info("Remote D3D data fetching for shot $shot")
-        @info("Path on $omfit_host: $remote_path")
-        @info("Path on Localhost: $local_path")
-        if !isfile(joinpath(local_path, filename)) || !use_local_cache
+                python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+
+                $(replace(omas_command, "OUTPUT_FILE" => "$remote_path/$(filename)"))
+
+                echo "Waiting for OMFIT D3D BEAMS data fetching to complete..." >&2
+                wait
+                echo "Transfering data from remote" >&2
+                """
+            open(joinpath(local_path, "remote_slurm.sh"), "w") do io
+                return write(io, remote_slurm)
+            end
+            # local driver script
+            local_driver = """
+                #!/bin/bash
+
+                # Use rsync to create directory if it doesn't exist and copy the script
+                $(ssh_command(omfit_host, "\"mkdir -p $remote_path\""))
+                $(upsync_command(omfit_host, ["$(local_path)/remote_slurm.sh"], remote_path))
+
+                # Execute script remotely
+                $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
+
+                # Retrieve results using rsync
+                $(downsync_command(omfit_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
+            """
+
+            open(joinpath(local_path, "local_driver.sh"), "w") do io
+                return write(io, local_driver)
+            end
+
+            # run data fetching
+            @info "Connecting to $omfit_host"
+            @info("Remote D3D data fetching for shot $shot")
+            @info("Path on $omfit_host: $remote_path")
+            @info("Path on Localhost: $local_path")
             Base.run(`bash $local_path/local_driver.sh`)
         end
+    else
+        @info "Using cached D3D data for shot $shot from $local_path"
     end
     # load experimental ods
     ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
