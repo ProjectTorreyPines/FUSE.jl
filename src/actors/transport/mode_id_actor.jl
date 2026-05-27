@@ -1,21 +1,23 @@
-import TurbulentTransport: TurbulenceMode, AbstractModeIdentification, TJLFModeIdentification, NNModeIdentification, identify_modes, run_modeid_nn, MODE_COLORS, MODE_LABELS
+import TurbulentTransport: TurbulenceMode, AbstractModeIdentification, TJLFModeIdentification, NNModeIdentification, identify_modes, run_modeid_nn, run_modeid_qlnn, MODE_COLORS, MODE_LABELS
 using LaTeXStrings
 
 #= =========== =#
 #  ActorModeID  #
 #= =========== =#
 @actor_parameters_struct ActorModeID{T} begin
-    model::Switch{Symbol} = Switch{Symbol}([:TJLF, :ModeIDNN], "-", "Mode identification method: :TJLF (full quasilinear analysis) or :ModeIDNN (neural network, < 1 ms)"; default=:TJLF)
+    model::Switch{Symbol} = Switch{Symbol}([:TJLF, :ModeIDNN, :QLNN], "-", "Mode identification method: :TJLF (full quasilinear analysis), :ModeIDNN (classifier NN, < 1 ms), or :QLNN (QL-weight NN + TJLF saturation rule, produces full flux-weighted mode identification)"; default=:TJLF)
     modeid_model::Entry{String} = Entry{String}("-", "ModeID NN model filename (BSON), only used when model=:ModeIDNN"; default="modeid_qlgyro_sat3_azf-1")
+    qlnn_bundle::Entry{String} = Entry{String}("-", "QLNN bundle directory name, only used when model=:QLNN"; default="QLNN")
+    stability_threshold::Entry{T} = Entry{T}("-", "P(unstable) threshold for the QLNN stability classifier gate (only for QLNN)"; default=0.5)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "ρ transport grid for mode identification"; default=0.25:0.1:0.85)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat3)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
     MXH_modes::Entry{Int} = Entry{Int}("-", "Number of MXH harmonics"; default=1)
-    warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Warn if NN inputs are outside training bounds (only for ModeIDNN)"; default=false)
-    em_threshold::Entry{T} = Entry{T}("-", "EM/ES QL weight ratio threshold for MTM/KBM vs ITG/TEM/ETG classification (only for TJLF)"; default=0.5)
-    ion_electron_threshold::Entry{T} = Entry{T}("-", "Ion/electron ES QL weight ratio threshold for TEM vs ETG classification (only for TJLF)"; default=0.5)
-    ky_etg::Entry{T} = Entry{T}("-", "ky threshold above which ES electron-direction modes are classified as ETG (only for TJLF)"; default=2.0)
+    warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Warn if NN inputs are outside training bounds (for ModeIDNN and QLNN)"; default=false)
+    em_threshold::Entry{T} = Entry{T}("-", "EM/ES QL weight ratio threshold for MTM/KBM vs ITG/TEM/ETG classification (for TJLF and QLNN)"; default=0.5)
+    ion_electron_threshold::Entry{T} = Entry{T}("-", "Ion/electron ES QL weight ratio threshold for TEM vs ETG classification (for TJLF and QLNN)"; default=0.5)
+    ky_etg::Entry{T} = Entry{T}("-", "ky threshold above which ES electron-direction modes are classified as ETG (for TJLF and QLNN)"; default=2.0)
 end
 
 mutable struct ActorModeID{D,P} <: SingleAbstractActor{D,P}
@@ -32,12 +34,17 @@ end
 Identifies the dominant turbulence mode (ITG, TEM, KBM, ETG, MTM) driving heat flux
 at each radial location.
 
-Supports two methods:
+Supports three methods:
 - `model=:TJLF` (default): Full TJLF quasilinear analysis — runs TJLF at each radial point,
   classifies modes from QL weight ratios and frequencies. Accurate but slow (~seconds per ρ).
 - `model=:ModeIDNN`: Neural network classification — directly predicts the dominant mode from
   TGLF input parameters in < 1 ms for all radial points. Uses ensemble of residual networks
   trained on QLGYRO SAT3 mode identification data.
+- `model=:QLNN`: QLNN bundle (QL-weight regressors + eigenvalue head) with TJLF saturation
+  rule. Classifies modes from NN-predicted QL weight ratios and frequencies, then partitions
+  the saturated flux spectrum by mode — producing the same `TJLFModeIdentification` output
+  as the `:TJLF` path (including `flux_solution`, `energy_flux_per_mode`, `ky_spectrum`, etc.)
+  at a fraction of the cost.
 
 Accepts either a single `dd` or a vector of `"label" => dd` pairs for side-by-side comparison
 of mode identification across different equilibria (e.g. initial vs flux-matched).
@@ -52,8 +59,12 @@ stacked vertically when comparing multiple equilibria.
 # Single dd with TJLF (default, slow)
 actor = ActorModeID(dd, act)
 
-# Single dd with ModeID NN (fast)
+# Single dd with ModeID NN (fast classifier)
 act.ActorModeID.model = :ModeIDNN
+actor = ActorModeID(dd, act)
+
+# Single dd with QLNN (fast, full flux-weighted mode ID)
+act.ActorModeID.model = :QLNN
 actor = ActorModeID(dd, act)
 
 # Compare initial vs flux-matched
@@ -92,6 +103,8 @@ Identifies the dominant turbulence mode at each `rho_transport` location.
 
 When `model=:TJLF`: constructs TJLF inputs, runs full quasilinear analysis, classifies from QL weights.
 When `model=:ModeIDNN`: constructs TGLF inputs, runs neural network forward pass (< 1 ms).
+When `model=:QLNN`: constructs TJLF inputs, runs QLNN bundle forward pass, classifies from
+NN-predicted QL weights and frequencies, integrates via TJLF saturation rule.
 """
 function _step(actor::ActorModeID{D,P}) where {D<:Real,P<:Real}
     par = actor.par
@@ -115,6 +128,22 @@ function _step(actor::ActorModeID{D,P}) where {D<:Real,P<:Real}
                 model_filename=par.modeid_model,
                 warn_nn_train_bounds=par.warn_nn_train_bounds,
                 MXH_modes=par.MXH_modes)
+
+            push!(actor.results, label => mode_ids)
+        end
+    elseif par.model == :QLNN
+        for (label, dd) in actor.labeled_dds
+            mode_ids = run_modeid_qlnn(dd, par.rho_transport;
+                bundle_name=par.qlnn_bundle,
+                sat_rule=par.sat_rule,
+                electromagnetic=par.electromagnetic,
+                lump_ions=par.lump_ions,
+                MXH_modes=par.MXH_modes,
+                warn_nn_train_bounds=par.warn_nn_train_bounds,
+                stability_threshold=par.stability_threshold,
+                em_threshold=par.em_threshold,
+                ion_electron_threshold=par.ion_electron_threshold,
+                ky_etg=par.ky_etg)
 
             push!(actor.results, label => mode_ids)
         end
@@ -213,7 +242,19 @@ function Plots.plot(actor::ActorModeID, ::Val{:profiles}; kwargs...)
         end
     end
 
-    legend_shown = Set{TurbulenceMode}()
+    # Add invisible scatter series for ALL modes in subplot 2 (ne) so the legend
+    # is stable across time slices regardless of which modes are present.
+    for mode in instances(TurbulenceMode)
+        scatter!(p, [NaN], [NaN];
+            subplot=2,
+            label=MODE_LABELS[mode],
+            markercolor=_mode_color(mode),
+            markersize=6,
+            markershape=:circle,
+            markerstrokewidth=1,
+            markerstrokecolor=:white)
+    end
+    plot!(p; subplot=2, legend=:bottomleft, legend_columns=1)
 
     for (res_idx, ((label, mode_ids), (_, dd))) in enumerate(zip(actor.results, actor.labeled_dds))
         cp1d = dd.core_profiles.profiles_1d[]
@@ -229,10 +270,6 @@ function Plots.plot(actor::ActorModeID, ::Val{:profiles}; kwargs...)
         for mode in instances(TurbulenceMode)
             mask = [mid.dominant_mode == mode for mid in mode_ids]
             any(mask) || continue
-            show_label = mode ∉ legend_shown
-            if show_label
-                push!(legend_shown, mode)
-            end
 
             rho_vals = rho_transport[mask]
             nearest_idxs = [argmin_abs(rho, r) for r in rho_vals]
@@ -241,7 +278,7 @@ function Plots.plot(actor::ActorModeID, ::Val{:profiles}; kwargs...)
                 y_vals = profile[nearest_idxs]
                 scatter!(p, rho_vals, y_vals;
                     subplot=sp,
-                    label=(sp == 1 && show_label ? MODE_LABELS[mode] : ""),
+                    label="",
                     markercolor=_mode_color(mode),
                     markersize=6,
                     markershape=:circle,
