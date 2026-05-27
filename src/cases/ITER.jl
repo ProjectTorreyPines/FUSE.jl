@@ -149,7 +149,7 @@ function case_parameters(
     P_NBI_max = 33.4e6
     nbi_fraction = clamp(P_NBI / P_NBI_max, 0.0, 1.0)
     ini.core_profiles.rot_ped = 4e3
-    ini.core_profiles.rot_core = 4e3 + nbi_fraction * (20e3 - 4e3)
+    ini.core_profiles.rot_core = ini.core_profiles.rot_ped + nbi_fraction * (20e3 - ini.core_profiles.rot_ped)
 
     resize!(ini.ec_launcher, 1)
     ini.ec_launcher[1].power_launched = 20E6
