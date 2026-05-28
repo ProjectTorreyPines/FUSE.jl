@@ -3,11 +3,11 @@
 #
 # Create and activate:
 #   conda env create -f docs/jupyter_environment.yml
-#   conda activate fuse-jupyter
+#   conda activate fuse
 #
 # Then run `fusebot install_IJulia` (or `make install_IJulia` from the FUSE repo).
 
-name: fuse-jupyter
+name: fuse
 channels:
   - conda-forge
 dependencies:

@@ -56,14 +56,14 @@ On NERSC this often means loading a Python module or activating a personal conda
 ```bash
 module load python   # if available on your system
 # or:
-conda activate fuse-jupyter   # see docs/jupyter_environment.yml
+conda activate fuse   # see docs/jupyter_environment.yml
 ```
 
 Create the optional conda environment from the FUSE repository (clone or use your checkout path):
 
 ```bash
 conda env create -f /path/to/FUSE.jl/docs/jupyter_environment.yml
-conda activate fuse-jupyter
+conda activate fuse
 fusebot install_IJulia
 ```
 

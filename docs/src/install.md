@@ -84,7 +84,7 @@ A known-good optional stack is provided in [`docs/jupyter_environment.yml`](http
 
 ```bash
 conda env create -f docs/jupyter_environment.yml
-conda activate fuse-jupyter
+conda activate fuse
 ```
 
 ### Install Jupyter / JupyterLab

@@ -43,7 +43,7 @@ WARNING: Jupyter is not installed for this Python.
 Install a Jupyter stack, for example:
 
   conda env create -f ${repo_root}/docs/jupyter_environment.yml
-  conda activate fuse-jupyter
+  conda activate fuse
 
 Kernels will still be written under ~/.local/share/jupyter/kernels (or
 JUPYTER_DATA_DIR/kernels) even if the jupyter command is missing.
