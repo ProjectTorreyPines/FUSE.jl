@@ -1028,19 +1028,30 @@ end
 """
     install_fusebot()
 
-Installs the `fusebot` executable in the directory where the `juliaup` executable is located
+Installs the `fusebot` executable in the directory where the `juliaup` executable is located,
+or next to the `julia` executable when juliaup is not used (typical on HPC systems).
 """
 function install_fusebot()
-    try
-        if Sys.iswindows()
-            folder = dirname(readchomp(`where juliaup`))
-        else
-            folder = dirname(readchomp(`which juliaup`))
-        end
-        return install_fusebot(folder)
-    catch e
-        error("error locating `juliaup` executable: $(string(e))\nPlease use `FUSE.install_fusebot(folder)` specifying a folder in your \$PATH")
+    if Sys.iswindows()
+        juliaup_cmd = `where juliaup`
+        julia_cmd = `where julia`
+    else
+        juliaup_cmd = `which juliaup`
+        julia_cmd = `which julia`
     end
+    for cmd in (juliaup_cmd, julia_cmd)
+        try
+            folder = dirname(readchomp(cmd))
+            return install_fusebot(folder)
+        catch
+            continue
+        end
+    end
+    error(
+        "Could not locate `juliaup` or `julia` on PATH.\n" *
+        "Use `FUSE.install_fusebot(folder)` with a directory in your PATH " *
+        "(for example `joinpath(homedir(), \".local\", \"bin\")`)."
+    )
 end
 
 """

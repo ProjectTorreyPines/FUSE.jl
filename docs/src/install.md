@@ -2,18 +2,32 @@
 
 ## Julia installation
 
-We highly recommend using the [Juliaup](https://github.com/JuliaLang/juliaup) manager to install Julia
+### Desktop and laptop (juliaup)
+
+We recommend [Juliaup](https://github.com/JuliaLang/juliaup) on personal machines:
+
 * Mac & Linux: `curl -fsSL https://install.julialang.org | sh`
 * Windows: `winget install julia -s msstore --accept-source-agreements --accept-package-agreements`
 
-Once installed, restart your terminal to pick-up the `julia` executable.
+After installation, restart your terminal so the `julia` command is available.
 
-## FUSE installation
+### HPC systems (environment modules)
+
+On many clusters—including **NERSC Perlmutter**—Julia is provided by the site module system instead of juliaup:
+
+```bash
+module load julia
+julia --version
+```
+
+See [On NERSC (Perlmutter)](@ref nersc-install) for depot layout, `fusebot`, and Jupyter notes specific to NERSC.
+
+## FUSE installation {#fuse-installation}
 
 FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
-For installation start your Julia interpreter by typing `julia` at the terminal, then:
+Start Julia (`julia` at the terminal), then:
 
-1. Add the `FuseRegistry` and the `FUSE` package as you would for any other julia package (for a fresh install this can take 5+ mins):
+1. Add the `FuseRegistry` and the `FUSE` package (a fresh install can take 5+ minutes):
 
    ```julia
    using Pkg
@@ -22,93 +36,128 @@ For installation start your Julia interpreter by typing `julia` at the terminal,
    Pkg.add("FUSE")
    ```
 
-1. Now you should be able to import the FUSE package:
+1. Import FUSE:
 
    ```julia
    using FUSE
    ```
 
-1. Install the `fusebot` utility to simplify install/updates later on. Now `fusebot` should be a command that you can type anywhere from the terminal.
+1. Install the `fusebot` helper (optional but recommended):
 
    ```julia
    FUSE.install_fusebot()
    ```
 
-1. Run the regression tests (optional, this can take 1h+)
+   On systems **without** juliaup (typical on HPC), install into a directory already on your `PATH`:
+
+   ```julia
+   FUSE.install_fusebot(joinpath(homedir(), ".local", "bin"))
+   ```
+
+1. Run the regression tests (optional; can take 1+ hour):
 
     ```julia
     ] test FUSE
     ```
 
-1. Exit julia and clone [`FUSE examples`](https://github.com/ProjectTorreyPines/FuseExamples) in the current working directory. To see/run those `.ipynb` files, you'll need to use Jupyter-Lab or VScode.
+1. Exit Julia and clone [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples) in your working directory:
 
    ```bash
    git clone https://github.com/ProjectTorreyPines/FuseExamples
    ```
 
-   This is a git repository that you are in control of. Do a `git fetch && git reset --hard origin/master` to gather the latest updates (**NOTE: this will wipe out any changes you have made to those examples!**)
+   Update later with `git fetch && git reset --hard origin/master` (**this discards local changes to those examples**).
 
 ## Install Jupyter-Lab with Julia support
 
-1. You will need to [install `jupyter-lab`](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if that's not already available on your system
+### Python on `PATH`
 
-   !!! note
-       The WebIO jupyter-lab extension is needed for the [`Interact.jl`](https://github.com/JuliaGizmos/Interact.jl?tab=readme-ov-file#usage) package to work.
+`fusebot install_IJulia` runs `Pkg.build("IJulia")`, which **requires a Python interpreter on your `PATH`**. If build fails with a missing-Python error:
 
-       Make sure WebIO is working with `jupyter labextension list`. If it is working properly, you should see something like: webio-jupyterlab-provider v0.1.0 enabled OK (python, webio_jupyter_extension). This can also be checked with `jupyter nbextension list`, which should show something like: webio-jupyter-nbextension/nbextension  enabled.
+* Activate a conda environment, or
+* Install Python and Jupyter, or
+* On HPC, `module load python` (site-specific) before running the install.
 
-       If the extension has compatibility issues, install an older version of Jupyter (eg. `conda install jupyterlab=3.6.7`). Also ensure that the WebIO and Interact packages are fully up-to-date, and restart the notebook session before testing that it works. Finally, it may be necessary to downgrade your system's version of Python - the recommended version for compatibility with Interact is 3.11.11.
+A known-good optional stack is provided in [`docs/jupyter_environment.yml`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/docs/jupyter_environment.yml):
 
-1. Install the `IJulia` package by running:
+```bash
+conda env create -f docs/jupyter_environment.yml
+conda activate fuse-jupyter
+```
 
-   ```bash
-   fusebot install_IJulia
-   ```
+### Install Jupyter / JupyterLab
 
-   !!! note
-       This will setup the single- and multi-thread julia kernels in Jupyter.
+Install [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/getting_started/installation.html) if it is not already available.
 
-       The number of threads of the multi-threaded julia kernels can be set via the `JULIA_NUM_THREADS` environmental variable.
+!!! note "WebIO and Interact"
+    The WebIO JupyterLab extension is needed for [`Interact.jl`](https://github.com/JuliaGizmos/Interact.jl?tab=readme-ov-file#usage).
 
-       This needs to be done every time a new version of Julia is installed.
+    * JupyterLab 3.x: check with `python -m jupyter labextension list`. You should see `webio-jupyterlab-provider` enabled.
+    * Classic Notebook below version 7: check with `python -m jupyter nbextension list` for `webio-jupyter-nbextension`.
+    * Notebook **7+** no longer uses classic `nbextension` commands; use the Lab extension only.
 
-1. Start a new Jupyter-lab session (this should open a web-browser page with Jupyter running)
+    If extensions conflict, pin JupyterLab 3.x (for example `conda install jupyterlab=3.6.7`) and keep WebIO/Interact up to date. Python 3.11 is a good compatibility target for Interact.
 
-   ```bash
-   jupyter-lab
-   ```
+### Install IJulia kernels
 
-1.  Now you can browse the examples in the `FuseExamples` folder that you have cloned, and take a tour of the example Jupyter notebooks there.
+```bash
+fusebot install_IJulia
+```
+
+This installs single- and multi-thread Julia kernels. Thread count for the multi-thread kernel follows `JULIA_NUM_THREADS` (default: number of CPUs). Re-run after installing a new Julia version.
+
+Kernels are written directly under `~/.local/share/jupyter/kernels` (or `$JUPYTER_DATA_DIR/kernels`), so registration does **not** depend on the `jupyter` command being on `PATH`. Listing kernels still requires Jupyter:
+
+```bash
+python -m jupyter kernelspec list
+```
+
+### Start JupyterLab
+
+**Linux and macOS:**
+
+```bash
+python -m jupyter lab
+```
+
+**Windows** (prefer the Python module form so the correct environment is used):
+
+```powershell
+python -m jupyter lab
+```
+
+If `python` is not on `PATH`, use the launcher from your conda or Python install, for example `py -m jupyter lab`.
+
+Open the cloned `FuseExamples` folder and run the tutorial notebooks.
 
 ## Updating FUSE
 
-1. Get notified of new FUSE releases by "watching" the [FUSE repo on GitHub](https://github.com/ProjectTorreyPines/FUSE.jl)
+1. Watch the [FUSE repository](https://github.com/ProjectTorreyPines/FUSE.jl) for releases.
 
-1. FUSE is [updated like any other Julia package](https://pkgdocs.julialang.org/v1/managing-packages/#updating):
+1. Update like any Julia package:
 
     ```julia
     ] up
     ```
 
 !!! tip
-    Become familiar with how [managing Julia packages](https://pkgdocs.julialang.org/v1/managing-packages/) works.
+    See [Managing packages](https://pkgdocs.julialang.org/v1/managing-packages/) in the Julia manual.
 
 ## Updating Julia
 
-1. Use `juliaup update` to install the latest version of Julia
+### With juliaup
 
-1. Install FUSE to the new version of Julia
+1. `juliaup update`
+1. In the new Julia version: `using Pkg; Pkg.add("FUSE")`
+1. `fusebot install_IJulia`
 
-   ```julia
-   using Pkg
-   Pkg.add("FUSE")
-   ```
+### With environment modules
 
-1. Run `fusebot install_IJulia` to install the Kernel for the latest version of Julia in Jupyter-Lab
+Load the new Julia module, reinstall FUSE in that version's depot if needed, then run `fusebot install_IJulia`.
 
-## Working on GA clusters
+## Cluster-specific notes
 
 ```@contents
-Pages = ["install_omega.md", "install_saga.md"]
+Pages = ["install_nersc.md", "install_omega.md", "install_saga.md"]
 Depth = 2
 ```
