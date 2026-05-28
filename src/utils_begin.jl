@@ -183,11 +183,17 @@ function parallel_environment(
     kw...
 )
 
-    if release_existing_workers
-        Distributed.rmprocs(Distributed.workers())
-    end
-
     current_nworkers = Distributed.nprocs() - 1
+
+    if release_existing_workers
+        if nworkers == 0
+            !isempty(Distributed.workers()) && Distributed.rmprocs(Distributed.workers())
+            current_nworkers = 0
+        elseif current_nworkers != nworkers
+            !isempty(Distributed.workers()) && Distributed.rmprocs(Distributed.workers())
+            current_nworkers = 0
+        end
+    end
 
     if nworkers == 0
         pid_list = Int[]
