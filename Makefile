@@ -963,19 +963,8 @@ help_common:
 
 # @user
 install_IJulia:
-# Install IJulia
-	julia -e '\
-	using Pkg;\
-	Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
-	Pkg.build("IJulia");\
-	import IJulia;\
-	n=get(ENV, "JULIA_NUM_THREADS", string(length(Sys.cpu_info())));\
-	IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
-	'
-	jupyter kernelspec list
-	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter labextension list
-	jupyter nbextension list
+# Install IJulia (Python must be on PATH; see docs/src/install.md)
+	bash scripts/install_ijulia.sh
 
 # @user
 install_examples:

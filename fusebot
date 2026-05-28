@@ -3,8 +3,8 @@
 # This script executes the FUSE makefile from wherever FUSE is installed.
 # Copy this script to a directory that is included in your $PATH environment variable.
 #
-# Recommended: Copy the script to the same directory where your juliaup executable resides.
-# You can determine this directory with `dirname $(which juliaup)`.
+# Recommended: Copy the script next to your `julia` executable (or juliaup launcher).
+# You can determine this directory with `dirname $(which julia)`.
 
 using Pkg
 using UUIDs
