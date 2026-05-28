@@ -13,7 +13,35 @@ module load julia    # or: module avail julia && module load julia/<version>
 julia --version
 ```
 
-Use a project depot on `$SCRATCH` if your home quota is tight:
+### Home quota / memory pressure
+
+If your home directory is tight on space or inode quota, keep the full Julia depot off `$HOME` by
+symlinking `~/.julia` to `$PSCRATCH`:
+
+!!! warning "PSCRATCH is purged"
+    NERSC periodically purges unused files on `$PSCRATCH`. Treat it as scratch storage, not
+    long-term archive. Back up anything you need to keep (for example under `$HOME`, `$CFS`, or
+    project storage) before it is removed.
+
+```bash
+# If ~/.julia already exists as a directory, move it first
+if [ -d ~/.julia ] && [ ! -L ~/.julia ]; then
+    mv ~/.julia $PSCRATCH/.julia
+else
+    mkdir -p $PSCRATCH/.julia
+fi
+
+# Create the symlink
+ln -s $PSCRATCH/.julia ~/.julia
+
+# Verify
+ls -la ~/.julia
+```
+
+After this, Julia and `Pkg` use `$PSCRATCH/.julia` transparently. You do not need a separate
+`JULIA_DEPOT_PATH` unless you want multiple depots (for example a read-only site depot).
+
+Alternatively, without moving `~/.julia`, you can prepend a scratch depot:
 
 ```bash
 export JULIA_DEPOT_PATH="${SCRATCH}/.julia:${JULIA_DEPOT_PATH:-}"
