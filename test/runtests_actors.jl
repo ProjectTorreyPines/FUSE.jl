@@ -26,8 +26,8 @@ end
     act.ActorMars.run_MHD = false
     act.ActorMars.wall_type = :no_wall # Begin with NO wall
     #act.ActorMars.chease_exec = "/Users/akcay/Codes/MarsQ_package/CheaseMerge/chease.x"
-    #"/fusion/projects/codes/mars/CHEASE/chease.x"  # <-- Update this path to your CHEASE executable
-
+    #act.ActorMars.mars_exec = "/Users/akcay/Codes/MarsQ_package/MarsQ/marsq.x"
+    
     # Configure CHEASE parameters for testing
     chease_overrides = (NPSI=64, NVEXP=2, NCSCAL=4)
 
@@ -56,17 +56,23 @@ end
 
                 # next test the restart capability and RW set-up
                 @info "=============================================================="
-                @info "    Test 2: CHEASE restart capability with resistive wall & higher beta"
+                @info "    Test 2: CHEASE capability with resistive wall & higher beta"
                 @info "=============================================================="
-                act.ActorMars.restart_equilibrium = true
                 act.ActorMars.number_surfaces = 2
                 act.ActorMars.wall_type = :limiter
-                chease_overrides_RW = (CFBAL=1.5,)
+                chease_overrides_RW = (CFBAL=1.1,)
                 FUSE.ActorMars(dd, act; chease_overrides=chease_overrides_RW)
+
+                @info "=============================================================="
+                @info "    Test 3: CHEASE capability with resistive wall & higher beta"
+                @info "=============================================================="
+                act.ActorMars.restart_equilibrium = true
+                chease_overrides_restart = (NCSCAL=2,) # keep Ip fixed
+                FUSE.ActorMars(dd, act; chease_overrides=chease_overrides_restart)
 
                 # test MARS MHD stability run
                 @info "=============================================================="
-                @info "       Test 3: Testing MARS MHD stability run"
+                @info "       Test 4: Testing MARS MHD stability run"
                 @info "=============================================================="
                 act.ActorMars.run_equilibrium = false # do NOT rerun CHEASE, just run MARS on the existing equilibrium
                 act.ActorMars.run_MHD = true

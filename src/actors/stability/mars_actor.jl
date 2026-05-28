@@ -37,8 +37,8 @@ end
 Base.@kwdef mutable struct MARS_FEEDBACK
     INCFEED::Int = 0
     NCOIL::Int = 2
-    FCCHI::ComplexF64 = 0.34219 - 0.405470im
-    FWCHI::ComplexF64 = 0.12187 + 0.089063im
+    FCCHI::Vector{Float64} = [0.34219, -0.405470]
+    FWCHI::Vector{Float64} = [0.12187,  0.089063]
     SCCHI::Float64 = 0.0
     SWCHI::Float64 = 0.05
     BTCHI::Float64 = 0.05
@@ -54,7 +54,7 @@ end
 Base.@kwdef mutable struct MARS_KINETIC
     INCKIN::Int = 0
     ATAU::ComplexF64 = 1.0e-4 + 0.0im
-    ALTAU::Float64 = 0.5
+    ALTAU::ComplexF64 = 0.5 + 0.0im
     ALPHAP::Float64 = 0.5
     ALPHAD::Float64 = 1.0
     OMEGACI0::Float64 = 38.056
@@ -359,10 +359,17 @@ function run_MARS(dd::IMAS.dd, par, mars_namelist)
     # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
     # the next step because if NWALL = 0, IWALL does NOT matter
     if par.wall_type != :no_wall && par.number_surfaces > 1
-        @info "Overriding IWALL in RUN.IN"
-        # Implement the override logic here
-        NW = julia_grep(["NW"], "log_chease"; extract_values=true)["NW"]
-        setfield!(mars_namelist.BASIC, :IWALL, NW)
+        if par.run_equilibrium && isfile("log_chease")
+            NW_dict = julia_grep(["NW"], "log_chease"; extract_values=true)
+            if haskey(NW_dict, "NW")
+                @info "Overriding IWALL in RUN.IN with NW = $(NW_dict["NW"]) from log_chease"
+                setfield!(mars_namelist.BASIC, :IWALL, NW_dict["NW"])
+            else
+                @warn "number_surfaces > 1 but NW not found in log_chease; IWALL left at $(mars_namelist.BASIC.IWALL)"
+            end
+        else
+            @warn "number_surfaces > 1 but CHEASE was not run (run_equilibrium=false) or log_chease not found; IWALL left at $(mars_namelist.BASIC.IWALL)"
+        end
     end
 
     # Write final MARS namelist into run directory for MARS execution
@@ -513,7 +520,7 @@ function write_MARS_namelist(
                 )
 
                 elseif v isa AbstractVector
-                    sval = "(" * join(v,", ") * ")"
+                    sval = join(v, ", ")
 
                 else
                     sval = v
@@ -528,13 +535,13 @@ function write_MARS_namelist(
                     sval = "($(real(v)), $(imag(v)))"
 
                 elseif v isa AbstractVector{<:Complex}
-                    sval = "(" * join(
+                    sval = join(
                         ["($(real(z)), $(imag(z)))" for z in v],
                         ", "
-                    ) * ")"
+                    )
 
                 elseif v isa AbstractVector
-                    sval = "(" * join(v,", ") * ")"
+                    sval = join(v, ", ")
 
                 else
                     sval = string(v)
