@@ -1025,46 +1025,148 @@ function extract_dds_to_dataframe(dds::Vector{IMAS.dd{Float64}}, xtract=IMAS.Ext
     return df
 end
 
-"""
-    install_fusebot()
+const FUSEBOT_SHELL_MARKER = "# FUSE fusebot PATH"
 
-Installs the `fusebot` executable in the directory where the `juliaup` executable is located,
-or next to the `julia` executable when juliaup is not used (typical on HPC systems).
 """
-function install_fusebot()
+    default_fusebot_dir() -> String
+
+Return the recommended directory for the `fusebot` executable.
+
+* **juliaup installs**: same directory as `juliaup` / `julia` (already on `PATH` via the juliaup shell hook).
+* **HPC / `module load julia`**: `~/.local/bin` (writable; the module only adds the site Julia tree to `PATH`, not user tools).
+"""
+function default_fusebot_dir()
+    local_bin = joinpath(homedir(), ".local", "bin")
     if Sys.iswindows()
-        juliaup_cmd = `where juliaup`
-        julia_cmd = `where julia`
-    else
-        juliaup_cmd = `which juliaup`
-        julia_cmd = `which julia`
+        local_bin = joinpath(homedir(), "AppData", "Local", "Programs", "fusebot")
     end
-    for cmd in (juliaup_cmd, julia_cmd)
-        try
-            folder = dirname(readchomp(cmd))
-            return install_fusebot(folder)
-        catch
-            continue
+
+    juliaup_exe = _which_executable("juliaup")
+    if juliaup_exe !== nothing
+        return dirname(juliaup_exe)
+    end
+
+    julia_exe = _which_executable("julia")
+    if julia_exe !== nothing
+        julia_dir = dirname(julia_exe)
+        if occursin("juliaup", julia_dir)
+            return julia_dir
+        end
+        if iswritable(julia_dir)
+            return julia_dir
         end
     end
-    error(
-        "Could not locate `juliaup` or `julia` on PATH.\n" *
-        "Use `FUSE.install_fusebot(folder)` with a directory in your PATH " *
-        "(for example `joinpath(homedir(), \".local\", \"bin\")`)."
-    )
+
+    return local_bin
+end
+
+function _which_executable(name::AbstractString)
+    cmd = if Sys.iswindows()
+        `where $name`
+    else
+        `which $name`
+    end
+    try
+        return readchomp(cmd)
+    catch
+        return nothing
+    end
 end
 
 """
-    install_fusebot(folder::String)
+    setup_fusebot_shell!(folder::AbstractString=default_fusebot_dir())
 
-Installs the `fusebot` executable in a specified folder
+Append a `PATH` entry for `folder` to the user's shell startup file (`~/.bashrc`, `~/.zshrc`),
+similar to the hook that [juliaup](https://github.com/JuliaLang/juliaup) adds for `~/.juliaup/bin`.
+
+This is a one-time step on HPC systems where `module load julia` only exposes the site Julia
+binary and does not configure user-local tools. Idempotent: safe to run more than once.
+
+Returns `true` if a new line was written, `false` if the entry was already present.
 """
-function install_fusebot(folder::String)
+function setup_fusebot_shell!(folder::AbstractString=default_fusebot_dir())
+    folder = abspath(folder)
+    path_line = "export PATH=\"$(folder):\$PATH\""
+    block = "$FUSEBOT_SHELL_MARKER\n$path_line"
+
+    updated = false
+    for rc in _fusebot_shell_rc_files()
+        if !isfile(rc)
+            continue
+        end
+        contents = read(rc, String)
+        if occursin(FUSEBOT_SHELL_MARKER, contents) || occursin(path_line, contents)
+            continue
+        end
+        open(rc, "a") do io
+            println(io)
+            print(io, block)
+            println(io)
+        end
+        println("Updated $(rc) so `fusebot` is on PATH in new login shells.")
+        updated = true
+    end
+
+    if !updated
+        if !any(isfile, _fusebot_shell_rc_files())
+            rc = joinpath(homedir(), ".bashrc")
+            open(rc, "a") do io
+                println(io)
+                print(io, block)
+                println(io)
+            end
+            println("Created $(rc) with fusebot PATH entry.")
+            updated = true
+        else
+            println("fusebot PATH entry already present in shell startup file(s).")
+        end
+    end
+
+    println("Current shell: run `export PATH=\"$(folder):\$PATH\"` or open a new login shell.")
+    return updated
+end
+
+function _fusebot_shell_rc_files()
+    files = String[]
+    shell = get(ENV, "SHELL", "")
+    if endswith(shell, "zsh") || isfile(joinpath(homedir(), ".zshrc"))
+        push!(files, joinpath(homedir(), ".zshrc"))
+    end
+    push!(files, joinpath(homedir(), ".bashrc"))
+    return unique(files)
+end
+
+"""
+    install_fusebot(; setup_shell::Bool=false)
+
+Install `fusebot` into [`default_fusebot_dir()`](@ref).
+
+On NERSC and other HPC sites, pass `setup_shell=true` once to add `~/.local/bin` to your shell
+startup file (the juliaup-style hook that `module load julia` does not provide).
+
+See also [`setup_fusebot_shell!`](@ref).
+"""
+function install_fusebot(; setup_shell::Bool=false)
+    folder = default_fusebot_dir()
+    mkpath(folder)
+    install_fusebot(folder; setup_shell=setup_shell)
+    return folder
+end
+
+"""
+    install_fusebot(folder::String; setup_shell::Bool=false)
+
+Install the `fusebot` executable in `folder`.
+"""
+function install_fusebot(folder::String; setup_shell::Bool=false)
+    mkpath(folder)
     fusebot_path = joinpath(dirname(dirname(pathof(FUSE))), "fusebot")
     target_path = joinpath(folder, "fusebot")
     @assert isfile(fusebot_path) "The `fusebot` executable does not exist in the FUSE directory!?"
     cp(fusebot_path, target_path; force=true)
-    return println("`fusebot` has been successfully installed: $target_path")
+    println("`fusebot` has been successfully installed: $target_path")
+    setup_shell && setup_fusebot_shell!(folder)
+    return target_path
 end
 
 """

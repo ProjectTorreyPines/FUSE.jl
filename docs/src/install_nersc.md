@@ -24,15 +24,29 @@ mkdir -p "${SCRATCH}/.julia"
 
 Start Julia and follow the [FUSE installation](@ref fuse-installation) steps (registry + `Pkg.add("FUSE")`).
 
-Install `fusebot` into a directory that is already on your `PATH` (juliaup is usually not present on NERSC):
+Install `fusebot` and add it to your shell startup file (the juliaup-style step that `module load julia` does **not** do for you):
 
 ```julia
 using FUSE
-# Example: ~/.local/bin — create the directory first if needed
-FUSE.install_fusebot(joinpath(homedir(), ".local", "bin"))
+FUSE.install_fusebot(; setup_shell=true)
 ```
 
-Add `~/.local/bin` to `PATH` in your `~/.bashrc` if it is not there already.
+| | **juliaup (laptop)** | **`module load julia` (NERSC)** |
+|---|---|---|
+| Puts `julia` on `PATH` | Yes, via installer hook in `~/.bashrc` | Yes, **only while the module is loaded** |
+| Puts `fusebot` on `PATH` | Yes, if installed next to juliaup | **No** — you must install to `~/.local/bin` (or similar) |
+| Persistent user-tool `PATH` | `~/.juliaup/bin` added automatically | Use `FUSE.install_fusebot(; setup_shell=true)` once |
+
+`setup_shell=true` appends a marked block to `~/.bashrc` / `~/.zshrc`:
+
+```bash
+# FUSE fusebot PATH
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+In the **current** shell (before re-login), either run `export PATH="$HOME/.local/bin:$PATH"` or `module load julia` and then use the full path once: `~/.local/bin/fusebot`.
+
+Alternatively, run `FUSE.setup_fusebot_shell!()` if you already installed `fusebot` but it is not on `PATH`.
 
 ## Python and Jupyter
 

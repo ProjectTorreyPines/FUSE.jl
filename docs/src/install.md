@@ -48,11 +48,13 @@ Start Julia (`julia` at the terminal), then:
    FUSE.install_fusebot()
    ```
 
-   On systems **without** juliaup (typical on HPC), install into a directory already on your `PATH`:
+   On HPC (`module load julia`), the site Julia module does not configure `PATH` for user tools the way juliaup does. Install to `~/.local/bin` and update your shell startup file once:
 
    ```julia
-   FUSE.install_fusebot(joinpath(homedir(), ".local", "bin"))
+   FUSE.install_fusebot(; setup_shell=true)
    ```
+
+   See [On NERSC (Perlmutter)](@ref nersc-install) for details.
 
 1. Run the regression tests (optional; can take 1+ hour):
 
