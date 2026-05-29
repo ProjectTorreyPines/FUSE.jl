@@ -711,9 +711,15 @@ end
     mars_flux_surface_RZ(RM, ZM, R0EXP, Ns1; nchi=257) -> (chi, R, Z)
 
 Reconstruct the real-space flux-surface geometry `R(s,χ)`, `Z(s,χ)` [m] over the plasma
-region from the MARS R,Z Fourier harmonics, following the package's `MacGetRZ.m`:
+region from the MARS R,Z Fourier harmonics.
 
-    R(s,χ) = R0EXP · Re[ Σₘ R̂ₘ(s) e^{i m χ} ],   m = 0 … Nm0-1,   χ ∈ [0, 2π]
+`R̂ₘ`/`Ẑₘ` are the *one-sided* (m ≥ 0) Fourier spectrum of the real curves R(χ), Z(χ),
+so the physical reconstruction carries the real-Fourier factor of 2 on the m ≥ 1 harmonics:
+
+    R(s,χ) = R0EXP · [ Re(R̂₀) + 2·Σ_{m≥1} Re(R̂ₘ(s) e^{i m χ}) ],   χ ∈ [0, 2π]
+
+(Note: this differs from the package's `MacGetRZ.m`, which omits the factor of 2; with the
+factor included the reconstructed boundary matches the equilibrium boundary fed to CHEASE.)
 
 Returns the poloidal-angle grid `chi` (length `nchi`) and `R`, `Z` of size `(Ns1, nchi)`.
 """
@@ -721,7 +727,8 @@ function mars_flux_surface_RZ(RM::Matrix{ComplexF64}, ZM::Matrix{ComplexF64}, R0
     Nm0 = size(RM, 2)
     m = 0:(Nm0-1)
     chi = collect(range(0.0, 2π; length=nchi))
-    expmchi = [exp(im * mm * cc) for mm in m, cc in chi]   # (Nm0 × nchi)
+    # one-sided real-Fourier basis: weight 1 for m=0, 2 for m≥1
+    expmchi = [(mm == 0 ? 1.0 : 2.0) * exp(im * mm * cc) for mm in m, cc in chi]   # (Nm0 × nchi)
     R = real.(view(RM, 1:Ns1, :) * expmchi) .* R0EXP       # (Ns1 × nchi)
     Z = real.(view(ZM, 1:Ns1, :) * expmchi) .* R0EXP
     return chi, R, Z
