@@ -21,70 +21,81 @@ end
     dd = IMAS.dd()
     FUSE.init(dd, ini, act)
 
-    #control execution of CHEASE & MARS for testing purposes
+    # control execution of CHEASE & MARS for testing purposes
     act.ActorMars.run_equilibrium = true
     act.ActorMars.run_MHD = false
     act.ActorMars.wall_type = :no_wall # Begin with NO wall
-    #act.ActorMars.chease_exec = "/Users/akcay/Codes/MarsQ_package/CheaseMerge/chease.x"
-    #act.ActorMars.mars_exec = "/Users/akcay/Codes/MarsQ_package/MarsQ/marsq.x"
-    
+    #act.ActorMars.chease_exec = "/path/to/MarsQ_package/CheaseMerge/chease.x"
+    #act.ActorMars.mars_exec = "/path/to/MarsQ_package/MarsQ/marsq.x"
+
     # Configure CHEASE parameters for testing
     chease_overrides = (NPSI=64, NVEXP=2, NCSCAL=4)
 
     # configure MARS parameters for testing
     mars_overrides = FUSE.MarsOverrides()
-    mars_overrides.BASIC[:M1]=-10
-    mars_overrides.BASIC[:NV]=120 # moves the IW in from the original CHEASE lcation
-    
+    mars_overrides.BASIC[:M1] = -10
+    mars_overrides.BASIC[:NV] = 120 # moves the IW in from the original CHEASE location
 
-    mktempdir() do tempdir
-        @info "Running CHEASE & MARS test in temporary directory: $tempdir"
+    if !isfile(act.ActorMars.chease_exec)
+        @test_skip "CHEASE executable not found at $(act.ActorMars.chease_exec). Skipping CHEASE & MARS test."
+    else
+        # The actor creates and manages its own run directory; keep it across the
+        # chained runs below (restart / MHD-only depend on each other's files).
+        act.ActorMars.clear_workdir = false
 
-        cd(tempdir) do  
-            @info "=============================================================="
-            @info "       Test 1: Clean CHEASE equilibrium run"
-            @info "=============================================================="
-            if !isfile(act.ActorMars.chease_exec)
-                @test_skip "CHEASE executable not found at $(act.ActorMars.chease_exec). Skipping CHEASE & MARS test."
-            else
-                FUSE.ActorMars(dd, act; chease_overrides=chease_overrides)
-                @testset "CHEASE output files" begin
-                    @test isfile("EXPEQ")|| error("CHEASE equilibrium file EXPEQ not found.")
-                    #@test filesize("EXPEQ") > 0 "CHEASE equilibrium file EXPEQ is empty."
-                    @test isfile("datain") || error("CHEASE datain file not found.")
-                end
+        @info "Test 1: Clean CHEASE equilibrium run"
+        actor = FUSE.ActorMars(dd, act; chease_overrides)
+        run_dir = actor.par.save_dir
+        @testset "CHEASE output files" begin
+            @test isfile(joinpath(run_dir, "EXPEQ"))
+            @test isfile(joinpath(run_dir, "datain"))
+        end
 
-                # next test the restart capability and RW set-up
-                @info "=============================================================="
-                @info "    Test 2: CHEASE capability with resistive wall & higher beta"
-                @info "=============================================================="
-                act.ActorMars.number_surfaces = 2
-                act.ActorMars.wall_type = :limiter
-                chease_overrides_RW = (CFBAL=1.1,)
-                FUSE.ActorMars(dd, act; chease_overrides=chease_overrides_RW)
+        @info "Test 2: CHEASE with resistive wall & higher beta"
+        act.ActorMars.number_surfaces = 2
+        act.ActorMars.wall_type = :limiter
+        FUSE.ActorMars(dd, act; chease_overrides=(CFBAL=1.1,), save_dir=run_dir)
 
-                @info "=============================================================="
-                @info "    Test 3: CHEASE capability with resistive wall & higher beta"
-                @info "=============================================================="
-                act.ActorMars.restart_equilibrium = true
-                chease_overrides_restart = (NCSCAL=2,) # keep Ip fixed
-                FUSE.ActorMars(dd, act; chease_overrides=chease_overrides_restart)
+        @info "Test 3: CHEASE restart from existing equilibrium"
+        act.ActorMars.restart_equilibrium = true
+        FUSE.ActorMars(dd, act; chease_overrides=(NCSCAL=2,), save_dir=run_dir) # keep Ip fixed
 
-                # test MARS MHD stability run
-                @info "=============================================================="
-                @info "       Test 4: Testing MARS MHD stability run"
-                @info "=============================================================="
-                act.ActorMars.run_equilibrium = false # do NOT rerun CHEASE, just run MARS on the existing equilibrium
-                act.ActorMars.run_MHD = true
+        @info "Test 4: MARS MHD stability run"
+        act.ActorMars.run_equilibrium = false # do NOT rerun CHEASE, just run MARS on the existing equilibrium
+        act.ActorMars.run_MHD = true
+        FUSE.ActorMars(dd, act; mars_overrides, save_dir=run_dir)
 
-                FUSE.ActorMars(dd, act; mars_overrides=mars_overrides)
-                @testset "MARS output files" begin
-                    @test isfile("log_mars") || error("MARS output file MARS_OUTPUT not found.")
-                    #@test filesize("MARS_OUTPUT") > 0 "MARS output file MARS_OUTPUT is empty."
-                end
-                
+        @testset "MARS output files" begin
+            @test isfile(joinpath(run_dir, "log_mars"))
+            @test isfile(joinpath(run_dir, "RESULT.OUT"))
+        end
 
-            end
+        @testset "MARS outputs in dd.mhd_linear" begin
+            mode = dd.mhd_linear.time_slice[].toroidal_mode[1]
+
+            # growth rate & frequency (converted to SI in _finalize)
+            @test mode.n_tor == -1
+            @test isfinite(mode.growthrate)
+            @test isfinite(mode.frequency)
+
+            # displacement eigenfunction on the (s, m) grid
+            ns = length(mode.plasma.grid.dim1)
+            nm = length(mode.plasma.grid.dim2)
+            @test size(mode.plasma.displacement_perpendicular.real) == (ns, nm)
+            @test size(mode.plasma.displacement_perpendicular.imaginary) == (ns, nm)
+
+            # Alfvén-time profile on the radial grid
+            @test length(mode.plasma.tau_alfven) == ns
+            @test all(mode.plasma.tau_alfven .> 0)
+
+            # real-space R,Z geometry on the (s, χ) grid
+            cs = mode.plasma.coordinate_system
+            @test size(cs.r) == size(cs.z)
+            @test size(cs.r, 1) == length(cs.grid.dim1)
+            @test size(cs.r, 2) == length(cs.grid.dim2)
+
+            # plot recipe for the mode structure works
+            @test (FUSE.plot(dd.mhd_linear); true)
         end
     end
 end
