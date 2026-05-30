@@ -1,4 +1,4 @@
-# On NERSC (Perlmutter) {#nersc-install}
+# [On NERSC (Perlmutter)](@id nersc-install)
 
 These instructions are for **personal** FUSE installs on NERSC login or compute nodes.
 For the pre-built `module load fuse` environment maintained by the FUSE team, see the
@@ -22,6 +22,16 @@ symlinking `~/.julia` to `$PSCRATCH`:
     NERSC periodically purges unused files on `$PSCRATCH`. Treat it as scratch storage, not
     long-term archive. Back up anything you need to keep (for example under `$HOME`, `$CFS`, or
     project storage) before it is removed.
+
+!!! tip "Keep the depot from being purged"
+    NERSC resets the purge timer whenever a file is accessed, so periodically refreshing the access
+    time on the depot keeps it alive (sufficient if you log in at least about every two months):
+
+    ```bash
+    find $PSCRATCH/.julia -exec touch -a {} +   # reset atime so the depot is not purged
+    ```
+
+    This is a mitigation, not a guarantee - still back up anything you cannot afford to lose.
 
 ```bash
 # If ~/.julia already exists as a directory, move it first
@@ -52,29 +62,51 @@ mkdir -p "${SCRATCH}/.julia"
 
 Start Julia and follow the [FUSE installation](@ref fuse-installation) steps (registry + `Pkg.add("FUSE")`).
 
-Install `fusebot` and add it to your shell startup file (the juliaup-style step that `module load julia` does **not** do for you):
+Then install `fusebot`. You do **not** pick the directory: under `module load julia` it is installed
+automatically to `~/.local/bin`, and `setup_shell=true` adds that directory to your shell `PATH`:
 
 ```julia
 using FUSE
-FUSE.install_fusebot(; setup_shell=true)
+FUSE.install_fusebot(; setup_shell=true)   # installs to ~/.local/bin and adds it to your PATH
 ```
 
-| | **juliaup (laptop)** | **`module load julia` (NERSC)** |
-|---|---|---|
-| Puts `julia` on `PATH` | Yes, via installer hook in `~/.bashrc` | Yes, **only while the module is loaded** |
-| Puts `fusebot` on `PATH` | Yes, if installed next to juliaup | **No** — you must install to `~/.local/bin` (or similar) |
-| Persistent user-tool `PATH` | `~/.juliaup/bin` added automatically | Use `FUSE.install_fusebot(; setup_shell=true)` once |
+!!! note "Why `setup_shell=true` is needed on NERSC"
+    `module load julia` puts `julia` on your `PATH` **only while the module is loaded** and never adds
+    user tools like `fusebot` (unlike juliaup, which configures `~/.juliaup/bin` automatically). Running
+    this once writes a marked block to `~/.bashrc` / `~/.zshrc` so `fusebot` is on `PATH` in new shells:
 
-`setup_shell=true` appends a marked block to `~/.bashrc` / `~/.zshrc`:
+    ```bash
+    # FUSE fusebot PATH
+    export PATH="$HOME/.local/bin:$PATH"
+    ```
 
-```bash
-# FUSE fusebot PATH
-export PATH="$HOME/.local/bin:$PATH"
-```
+!!! tip "Why `~/.local/bin`?"
+    `~/.local/bin` lives in `$HOME` (global homes), which is mounted on both login and compute nodes and,
+    unlike `$PSCRATCH`, is persistent and not purged (it does have a quota). Run the install from a login
+    node. To use a different location, pass it explicitly: `FUSE.install_fusebot("/custom/bin"; setup_shell=true)`.
 
-In the **current** shell (before re-login), either run `export PATH="$HOME/.local/bin:$PATH"` or `module load julia` and then use the full path once: `~/.local/bin/fusebot`.
+To use `fusebot` in the **current** shell before re-login, run `export PATH="$HOME/.local/bin:$PATH"`
+(or call it once by full path: `~/.local/bin/fusebot`). If you already installed `fusebot` but it is not
+on `PATH`, run `FUSE.setup_fusebot_shell!()`.
 
-Alternatively, run `FUSE.setup_fusebot_shell!()` if you already installed `fusebot` but it is not on `PATH`.
+!!! tip "NERSC quick-start (all-in-one)"
+    From a login node, after the one-time `~/.julia` depot setup above:
+
+    ```bash
+    module load julia
+    julia
+    ```
+
+    then, inside Julia:
+
+    ```julia
+    using Pkg
+    Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+    Pkg.Registry.add("General")
+    Pkg.add("FUSE")
+    using FUSE
+    FUSE.install_fusebot(; setup_shell=true)
+    ```
 
 ## Python and Jupyter
 

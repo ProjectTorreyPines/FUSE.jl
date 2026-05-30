@@ -1,5 +1,17 @@
 # Setup the FUSE environment
 
+This guide walks you through setting up everything you need to run FUSE: the **Julia** language, the **FUSE** package, the **`fusebot`** helper, and an optional **JupyterLab** environment with Julia kernels.
+
+!!! note "Prerequisites"
+    * **Julia 1.10 or newer** (installed below via juliaup or your site's module system).
+    * **`git`** on your `PATH` (to clone the examples).
+    * Works on **Linux, macOS, and Windows**, as well as HPC systems.
+    * Budget **~15 minutes** for the install, plus a one-time precompilation the first time you run `using FUSE`.
+
+!!! tip "What is `fusebot`?"
+    `fusebot` is a small command-line helper bundled with FUSE. Its main job is to install the Julia
+    Jupyter kernels (`fusebot install_IJulia`), plus a few related utilities. It is optional but recommended.
+
 ## Julia installation
 
 ### Desktop and laptop (juliaup)
@@ -22,7 +34,7 @@ julia --version
 
 See [On NERSC (Perlmutter)](@ref nersc-install) for depot layout, `fusebot`, and Jupyter notes specific to NERSC.
 
-## FUSE installation {#fuse-installation}
+## [FUSE installation](@id fuse-installation)
 
 FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
 Start Julia (`julia` at the terminal), then:
@@ -42,19 +54,31 @@ Start Julia (`julia` at the terminal), then:
    using FUSE
    ```
 
-1. Install the `fusebot` helper (optional but recommended):
+   !!! note "First import is slow"
+       The first `using FUSE` (and your first simulation run) triggers precompilation that can take
+       several minutes. This is normal and happens only once per Julia/FUSE version, not on every startup.
+
+1. Install the `fusebot` helper (optional but recommended). You do **not** choose the directory:
+   `install_fusebot()` picks it automatically - the juliaup `bin` directory on a laptop, or
+   `~/.local/bin` under `module load julia` on HPC:
 
    ```julia
-   FUSE.install_fusebot()
+   FUSE.install_fusebot()                                  # auto: juliaup bin, or ~/.local/bin on HPC
+   FUSE.install_fusebot(; setup_shell=true)                # HPC: also add ~/.local/bin to your shell PATH
+   FUSE.install_fusebot("/custom/bin"; setup_shell=true)   # optional: explicit install directory
    ```
 
-   On HPC (`module load julia`), the site Julia module does not configure `PATH` for user tools the way juliaup does. Install to `~/.local/bin` and update your shell startup file once:
-
-   ```julia
-   FUSE.install_fusebot(; setup_shell=true)
-   ```
-
+   On HPC (`module load julia`), the site Julia module does not put user tools on `PATH` the way juliaup
+   does, so pass `setup_shell=true` once to add the install directory to your shell startup file.
    See [On NERSC (Perlmutter)](@ref nersc-install) for details.
+
+1. Verify the install works with a quick smoke test:
+
+   ```julia
+   using FUSE
+   ini, act = FUSE.case_parameters(:ITER)
+   dd = FUSE.init(ini, act)   # if this completes without error, your install is working
+   ```
 
 1. Run the regression tests (optional; can take 1+ hour):
 
@@ -69,6 +93,18 @@ Start Julia (`julia` at the terminal), then:
    ```
 
    Update later with `git fetch && git reset --hard origin/master` (**this discards local changes to those examples**).
+
+!!! tip "Laptop quick-start (all-in-one)"
+    On a personal machine with juliaup, the full sequence is:
+
+    ```julia
+    using Pkg
+    Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git"))
+    Pkg.Registry.add("General")
+    Pkg.add("FUSE")
+    using FUSE
+    FUSE.install_fusebot()
+    ```
 
 ## Install Jupyter-Lab with Julia support
 
@@ -163,3 +199,30 @@ Load the new Julia module, reinstall FUSE in that version's depot if needed, the
 Pages = ["install_nersc.md", "install_omega.md", "install_saga.md"]
 Depth = 2
 ```
+
+## Troubleshooting
+
+!!! warning "`fusebot: command not found`"
+    The install directory is not on your `PATH` in the current shell. Either open a new login shell, or
+    add it now and re-run, for example `export PATH="$HOME/.local/bin:$PATH"`. To make this permanent,
+    run `FUSE.install_fusebot(; setup_shell=true)` (or `FUSE.setup_fusebot_shell!()` if `fusebot` is
+    already installed).
+
+!!! warning "`fusebot install_IJulia` fails with a missing-Python error"
+    `Pkg.build("IJulia")` needs a Python interpreter on your `PATH`. Activate a conda environment,
+    install Python/Jupyter, or on HPC `module load python` (site-specific) before re-running.
+
+!!! warning "`Pkg.Registry.add` fails"
+    Make sure `git` is installed and that you can reach GitHub. Behind a proxy or offline node, configure
+    your proxy first. You can re-run the registry/add commands; they are safe to repeat.
+
+!!! warning "Wrong Jupyter kernel"
+    `fusebot install_IJulia` registers single- and multi-thread Julia kernels. In JupyterLab pick the
+    kernel matching the Julia version you installed FUSE into; list them with
+    `python -m jupyter kernelspec list`.
+
+## Next steps
+
+* Follow the [introductory tutorial](https://fuse.help/dev/tutorial.html).
+* Explore the [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples) notebooks.
+* Stuck or have questions? Join the [Discord community](https://discord.gg/CbjpZH9SKM).
