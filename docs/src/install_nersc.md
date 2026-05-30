@@ -31,7 +31,23 @@ symlinking `~/.julia` to `$PSCRATCH`:
     find $PSCRATCH/.julia -exec touch -a {} +   # reset atime so the depot is not purged
     ```
 
-    This is a mitigation, not a guarantee - still back up anything you cannot afford to lose.
+    To automate this, add the following to your `~/.bashrc`. It runs only on interactive shells, at
+    most once per day, and in the background so it never delays your prompt:
+
+    ```bash
+    # Refresh atime on the Julia depot so the PSCRATCH purge does not remove it.
+    if [[ $- == *i* && -d "$PSCRATCH/.julia" ]]; then
+        _depot_stamp="$PSCRATCH/.julia/.last_atime_refresh"
+        if [[ ! -e "$_depot_stamp" || -n $(find "$_depot_stamp" -mtime +1 -print 2>/dev/null) ]]; then
+            ( touch "$_depot_stamp"
+              find "$PSCRATCH/.julia" -exec touch -a {} + ) >/dev/null 2>&1 &
+        fi
+        unset _depot_stamp
+    fi
+    ```
+
+    This is a mitigation, not a guarantee - still back up anything you cannot afford to lose, and note
+    that if you go longer than the full purge window without logging in, the depot can still be removed.
 
 ```bash
 # If ~/.julia already exists as a directory, move it first
