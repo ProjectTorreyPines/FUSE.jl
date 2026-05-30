@@ -8,7 +8,7 @@
 If you only intend to use FUSE and don't plan to develop the source code, release versions of FUSE
 have been installed on the Omega cluster. All available versions can be found with `module avail fuse`.
 To load the latest version, do:
-```
+```bash
 module load fuse
 ```
 
@@ -63,14 +63,14 @@ The FUSE module does several things:
 
 1. Then start the Jupyter lab server from the `screen` session (`screen` will keep `jupyter`
    running even when you log out)
-   ```
+   ```bash
    jupyter lab --no-browser --port 55667
    ```
 
-   Copy the token that you see on this session it should look something like ```token=1f1e0259cbc1..................```
+   Copy the token that you see on this session it should look something like `token=1f1e0259cbc1..................`
 
 1. On your computer setup your `~/.ssh/config` this way (need to do this only once):
-   ```
+   ```text
    Host cybele cybele.gat.com
    Hostname cybele.gat.com
    User meneghini
@@ -89,7 +89,7 @@ The FUSE module does several things:
    ```
 
 1. On your computer start a tunnel going through `cybele` to `omega`
-   ```
+   ```bash
    ssh -N -L localhost:33445:localhost:55667 omegae
    ```
    !!! note
@@ -145,7 +145,7 @@ Now Julia scripts and notebooks can be run directly from this remote VScode sess
 
 ## Using Revise on Omega
 When working on omega it seems ones need to manually trigger revise to pick up code changes:
-```
+```julia
 import Revise
 Revise.revise()  # manual trigger
 ```
@@ -156,7 +156,7 @@ This is even if setting [`JULIA_REVISE_POLL=1`](https://timholy.github.io/Revise
 Julia may be incompatible with some environments and will crash when launched.
 This is the case for the GACODE environment on Omega.
 To be able to run both GACODE and Julia on Omega (eg. to run NEO and TGLF) do the following:
-```
+```bash
 module load atom
 module unload gcc
 module unload env
