@@ -162,8 +162,8 @@ function _step(actor::ActorLocking)
 
     ## Time evolve the ODEs
     if task == :single_case
-        rot_freq = 1.
-        solve_one_case(par, actor.ode_params, application, rot_freq)
+        C1 = 1.
+        solve_one_case(par, actor.ode_params, application, C1)
         return actor
     elseif task == :Monte_Carlo
         error("Monte-Carlo not implemented yet")
@@ -245,38 +245,73 @@ end
 
 
 function plot_sols(actor)
+    r   = actor.results
+    par = actor.par
 
-    r = actor.results
+    xlabel_ctrl = par.control_type == :EF          ? "Error Field (a.u.)"  :
+                  par.control_type == :LinStab      ? "Linear Stability Δ′" :
+                  par.control_type == :NLsaturation ? "NL Saturation α"     : "Control 2"
 
-    make_contour(
-        r.contour_data.x,
-        r.contour_data.y,
-        r.contour_data.z
+    # Unique 1-D axes (contour_data stores the full N*M vectors)
+    x = unique(r.contour_data.x)   # Control2 axis  (length M)
+    y = unique(r.contour_data.y)   # Control1 axis  (length N)
+    z = r.contour_data.z           # N × M matrix of ψ at t_final
+
+    # Locking boundary: reshape 1-D label vector back to (N, M) grid
+    labels_2D = reshape(r.locking_labels, par.grid_size, par.grid_size)
+
+    p1 = heatmap(x, y, z;
+        xlabel         = xlabel_ctrl,
+        ylabel         = "Rotation Frequency (a.u.)",
+        title          = "ψ at t_final",
+        colorbar_title = "ψ_N",
     )
-    
-
-    plot_sols_scatter(
-        r.norm_sols;
-        labels=r.locking_labels
+    # Overlay the locking boundary as a white contour at the class transition
+    contour!(p1, x, y, float.(labels_2D);
+        levels    = [1.5],
+        linecolor = :white,
+        linewidth = 2,
+        colorbar  = false,
+        label     = "locking boundary",
     )
+
+    # Scatter: ψ_N vs Ω_N coloured by locking class
+    xs      = r.norm_sols[:, 1]
+    ys      = r.norm_sols[:, 3]
+    classes = sort(unique(r.locking_labels))
+    shapes  = [:circle, :x]
+
+    p2 = plot(;
+        xlabel = "TM amplitude ψ_N",
+        ylabel = "Rotation Ω_N",
+        title  = "Locking classification",
+    )
+    for (cl, sh) in zip(classes, shapes)
+        idx = findall(r.locking_labels .== cl)
+        scatter!(p2, xs[idx], ys[idx]; markershape=sh, label="Class $cl", markersize=5)
+    end
+
+    plt = plot(p1, p2; layout=(1, 2), size=(1100, 450))
+    display(plt)
+    return plt
 end
 
 
 
-function solve_one_case(par, ode_params::ODEparams, task::String, control1::Float64)    
-    
+function solve_one_case(par, ode_params::ODEparams, task::String, C1::Float64)
+    # C2 is the swept control parameter (EF, Δ′, or α); placeholder values here
     if par.control_type == :EF
-        control2 = 0.5
+        C2 = 0.5
     elseif par.control_type == :LinStab
-        control2 = -6.
+        C2 = -6.
     else
-        control2 = 0.2 
+        C2 = 0.2
     end
 
-    final_sol = solve_ODEs(par, ode_params, task, control2, control1)
+    final_sol = solve_ODEs(par, ode_params, task, C1, C2)
     println("final raw solution = ", final_sol)
-    
-    sols_norm = normalize_ode_results(final_sol, ode_params, control2, control1, par.control_type)
+
+    sols_norm = normalize_ode_results(final_sol, ode_params, C2, C1, par.control_type)
     println("final normalized solution = ", sols_norm)
 
     return
@@ -336,8 +371,8 @@ function find_rat_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_sur
     q_interp = IMAS.interp1d(rho, q_prof)
     x0 = findfirst(x -> abs(x) > rat_surface, q_prof)
     f = x -> abs(q_interp(x)) - rat_surface
-    @time rho_rat = Roots.secant_method(f, (rho[x0-1], rho[x0]))
-    @info "Found q=$rat_surface surface at: ", rho_rat
+    rho_rat = Roots.secant_method(f, (rho[x0-1], rho[x0]))
+    @info "Found q=$rat_surface surface at: $rho_rat"
     return rho_rat
 end
 
@@ -507,25 +542,73 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
 end
 
 
-"Apply control_type adjustments"
-function control_adjustments(ode_params::ODEparams, Control2::Float64, control_type::Symbol)
-    alpha = ode_params.saturation_param
-    errF = ode_params.error_field
-    Deltat = ode_params.stability_index
+"""
+    resolve_control(ode_params, control_type, C2) → NamedTuple
 
-    if control_type == :NLsaturation
-        alpha = Control2
-    elseif control_type == :EF
-        errF = Control2
-    elseif control_type == :LinStab
-        Deltat = Control2
-    end
+Scalar resolver: map a single raw Control2 value to concrete physical quantities.
+This is the *only* place in the code where control-type branching lives.
 
-    return alpha, errF, Deltat
+Returns `(; Deltat, eps, alpha, DeltatRW)`.
+- `Deltat`    : effective tearing stability index
+- `eps`       : error-field amplitude
+- `alpha`     : nonlinear saturation parameter
+- `DeltatRW`  : effective resistive-wall stability  (Deltat − l21·l12/ΔW)
+"""
+function resolve_control(ode_params::ODEparams, control_type::Symbol, C2::Real)
+    Deltat = control_type == :EF           ? ode_params.stability_index :
+             control_type == :LinStab      ? Float64(C2) :
+             control_type == :NLsaturation ? ode_params.stability_index :
+             error("Unknown control_type: $control_type")
+
+    eps    = control_type == :EF           ? Float64(C2) :
+             control_type == :LinStab      ? ode_params.error_field :
+             control_type == :NLsaturation ? ode_params.error_field :
+             error("Unknown control_type: $control_type")
+
+    alpha  = control_type == :NLsaturation ? Float64(C2) : ode_params.saturation_param
+
+    DeltatRW = Deltat - ode_params.l21 * ode_params.l12 / ode_params.DeltaW
+
+    return (; Deltat, eps, alpha, DeltatRW)
+end
+
+"""
+    resolve_control(ode_params, par) → NamedTuple
+
+Vector resolver: operates over the full Control1/Control2 grid stored in `ode_params`.
+Returns `(; X, Y, Deltat, eps, alpha, DeltatRW)` — all `Vector{Float64}`.
+"""
+function resolve_control(ode_params::ODEparams, par)
+    ctrl = par.control_type
+    X    = ode_params.Control2   # swept control axis
+    Y    = ode_params.Control1   # rotation-frequency axis
+    n    = length(X)
+
+    Deltat = ctrl == :EF           ? fill(ode_params.stability_index, n) :
+             ctrl == :LinStab      ? copy(X) :
+             ctrl == :NLsaturation ? fill(ode_params.stability_index, n) :
+             error("Unknown control_type: $ctrl")
+
+    eps    = ctrl == :EF           ? copy(X) :
+             ctrl == :LinStab      ? fill(ode_params.error_field, n) :
+             ctrl == :NLsaturation ? fill(ode_params.error_field, n) :
+             error("Unknown control_type: $ctrl")
+
+    alpha  = ctrl == :NLsaturation ? copy(X) : fill(ode_params.saturation_param, n)
+
+    DeltatRW = @. Deltat - ode_params.l21 * ode_params.l12 / ode_params.DeltaW
+
+    return (; X, Y, Deltat, eps, alpha, DeltatRW)
+end
+
+"Apply control_type adjustments — delegates to resolve_control"
+function control_adjustments(ode_params::ODEparams, C2::Float64, control_type::Symbol)
+    sc = resolve_control(ode_params, control_type, C2)
+    return sc.alpha, sc.eps, sc.Deltat
 end
 
 "Right-hand side for RW system"
-function rhs_RW!(dydt, y, t, Control2::Float64, Om0::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+function rhs_RW!(dydt, y, t, Control2::Float64, C1::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
     m0 = n_mode
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
@@ -542,13 +625,13 @@ function rhs_RW!(dydt, y, t, Control2::Float64, Om0::Float64, ode_params::ODEpar
 
     dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * psiW * cos(theta - thW)
     dydt[2] = -m0 * Om - l21 * psiW * sin(theta - thW) / psi
-    dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (Om0 - Om)) / I
+    dydt[3] = (rt * l21 * psiW * psi * sin(theta - thW) + mu * (C1 - Om)) / I
     dydt[4] = Tt_Tw * (DeltaW * psiW + l12 * psi * cos(theta - thW) + l32 * errF * cos(thW))
     dydt[5] = Tt_Tw * (l12 * psi * sin(theta - thW) - l32 * errF * sin(thW)) / psiW
 end
 
 "Right-hand side for basic system"
-function rhs_basic!(dydt, y, t, Control2, Om0, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
+function rhs_basic!(dydt, y, t, Control2::Float64, C1::Float64, ode_params::ODEparams, n_mode::Int, control_type::Symbol)
     m0 = n_mode
     rt = ode_params.rat_surface
     l21 = ode_params.l21
@@ -561,7 +644,7 @@ function rhs_basic!(dydt, y, t, Control2, Om0, ode_params::ODEparams, n_mode::In
 
     dydt[1] = Deltat * psi * (1.0 + alpha * abs(psi)) + l21 * errF * cos(theta)
     dydt[2] = -m0 * Om - l21 * errF * sin(theta) / psi
-    dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (Om0 - Om)) / I
+    dydt[3] = (rt * l21 * errF * psi * sin(theta) + mu * (C1 - Om)) / I
 end
 
 "Return the correct RHS function for a given application"
@@ -599,127 +682,103 @@ end
 
 function make_ode_func(rhs!)
     return function (du, u, p, t)
-        # p must match this tuple layout:
-        # (ode_params, eps, Om0, n, control_type)
-        X1, X2, ode_params, n_mode, control_type = p
-        rhs!(du, u, t, X1, X2, ode_params, n_mode, control_type)
+        # p layout: (C2, C1, ode_params, n_mode, control_type)
+        # C2 = swept control param (EF / Δ′ / α); C1 = rotation frequency
+        # This matches the argument order of rhs_RW! and rhs_basic!
+        C2, C1, ode_params, n_mode, control_type = p
+        rhs!(du, u, t, C2, C1, ode_params, n_mode, control_type)
     end
 end
 
 
-function calculate_bifurcation_bounds(dd::IMAS.DD, par, ode_params::ODEparams)
-    """
-    Calculate the bifurcation boundaries analytically
-    Note: Output will NOT be correct if NLsatON is true
-    """
+"""
+    calculate_bifurcation_bounds(dd, par, ode_params) → Matrix{Float64}
 
-    N = par.grid_size
-    M = par.grid_size
+Compute the cubic-discriminant bifurcation boundary analytically over the full
+control grid.  Returns a (grid_size × grid_size) matrix; negative entries mark
+the parameter region where locking is possible.
 
-    Y = ode_params.Control1
-    m0 = par.n_mode
-    mu = ode_params.mu
-    DeltatRW = par.RPRW_stability_index
+Two wall configurations are supported via `par.application`:
+  - "RP-RW"  (5th-order system): uses DeltatRW and the full RW geometry factors.
+  - "RP-IW"  (3rd-order system): uses Deltat directly, no wall inductance factors.
+
+Note: result is not meaningful when NL saturation is active.
+"""
+function calculate_bifurcation_bounds(dd::IMAS.dd, par, ode_params::ODEparams)
+    m0     = par.n_mode
+    mu     = ode_params.mu
+    rt     = ode_params.rat_surface
+    l21    = ode_params.l21
+    l32    = ode_params.l32
     DeltaW = ode_params.DeltaW
-    rt = ode_params.rat_surface
-    l21 = ode_params.l21
-    l12 = ode_params.l12
-    l32 = ode_params.l32
-    
-    RWon = false
-    if par.RPRW_stability_index !== nothing
-        RWon = true
-    end
-    
-    if par.control_type == :EF
-        X = ode_params.Control2
-        Deltat = ode_params.stability_index
-        if RWon
-            q = (DeltatRW / m0)^2 .+ rt * (l32 * l21 * X / DeltaW).^2 / (m0 * mu)
-            r = -Y * DeltatRW^2 / m0^2
-        else
-            q = (Deltat / m0)^2 .+ (l21 * X).^2 / mu
-            r = -Y * Deltat^2 / m0^2
-        end
-    elseif par.control_type == :LinStab
-        Eps = ode_params.error_field
-        X = ode_params.Control2
-        DeltatRW = X .- l21*l21/DeltaW # overwrite the stability index since Deltat is control
-        if RWon
-            q = (DeltatRW / m0).^2 .+ rt * (l32 * l21 * Eps / DeltaW).^2 / (m0 * mu)
-            r = -Y .* DeltatRW.^2 / m0^2
-        else
-            q = (X / m0).^2 + (l21 * Eps).^2 / mu
-            r = -Om0s * Deltat^2 / m0^2
-        end
-    elseif par.control_type == :NLsaturation
-        Eps = ode_params.error_field
-        Deltat = ode_params.stability_index
-        X = ode_params.Control2
-        DeltatRW = Deltat - l21*l21/DeltaW # overwrite the stability index since Deltat is control
-        if RWon
-            q = (DeltatRW / m0).^2 .+ rt * (l32 * l21 * Eps / DeltaW).^2 / (m0 * mu)
-            r = -Y .* DeltatRW.^2 / m0^2
-        else
-            q = (Deltat / m0).^2 + (l21 * Eps).^2 / mu
-            r = -Om0s * Deltat^2 / m0^2
-        end
-    end
-    
-    # remaining coefficients
-    a = -(Y.^2) / 3.0 .+ q
-    b = 2.0 * (-Y).^3 / 27.0 - q .* (-Y) / 3.0 .+ r
-    bifurcation_bounds = b.^2 / 4 + a.^3 / 27 
-    bifurcation_bounds = reshape(bifurcation_bounds, M, N)
-    
-    make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds, [0.0, 1e-10], par.control_type)
-    #make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds)
 
+    # resolve_control handles all control-type branching; wall branching is separate
+    sc = resolve_control(ode_params, par)
+    (; Y, Deltat, eps, DeltatRW) = sc
+
+    # Cubic-discriminant coefficients — formula depends on wall configuration
+    if par.application == "RP-RW"
+        # 5th-order system: rational surface + resistive wall
+        q = @. (DeltatRW / m0)^2 + rt * (l32 * l21 * eps / DeltaW)^2 / (m0 * mu)
+        r = @. -Y * DeltatRW^2 / m0^2
+    elseif par.application == "RP-IW"
+        # 3rd-order system: rational surface + ideal wall only
+        q = @. (Deltat / m0)^2 + (l21 * eps)^2 / mu
+        r = @. -Y * Deltat^2 / m0^2
+    else
+        error("calculate_bifurcation_bounds not implemented for application: $(par.application)")
+    end
+
+    a = @. -(Y^2) / 3.0 + q
+    b = @. 2.0 * (-Y)^3 / 27.0 - q * (-Y) / 3.0 + r
+
+    bifurcation_bounds = reshape(@. b^2 / 4 + a^3 / 27, par.grid_size, par.grid_size)
+
+    make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds, [0.0, 1e-10], par.control_type)
 
     return bifurcation_bounds
 end
 
 
-function solve_ODEs(par, ode_params::ODEparams, task::String,
-                        control1::Float64, control2::Float64)
-        
-    n_mode = par.n_mode
+function solve_ODEs(par, ode_params::ODEparams, task::String, C1::Float64, C2::Float64)
+    n_mode       = par.n_mode
     control_type = par.control_type
-    t_final = par.t_final
+    t_final      = par.t_final
 
-    rhs! = make_rhs_function(task)
+    rhs!     = make_rhs_function(task)
     ode_rhs! = make_ode_func(rhs!)
     ode_params.hyper_cube_dims = [3., 3., 3.]
     y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
-    p = (control1, control2, ode_params, n_mode, control_type)
+
+    # rhs! expects (C2, C1) as its first two positional args — swap once here so
+    # all callers use the natural (C1, C2) convention
+    p = (C2, C1, ode_params, n_mode, control_type)
     tspan = (0.0, t_final)
 
     prob = ODEProblem(ode_rhs!, y0, tspan, p)
-    sol = solve(prob, Tsit5(); saveat=t_final, reltol=1e-8, abstol=1e-10)
+    sol  = solve(prob, Tsit5(); saveat=t_final, reltol=1e-8, abstol=1e-10)
 
-    final = sol.u[end]
-
-    return final
+    return sol.u[end]
 end
 
 """
-normalize_ode_results(results, ode_params, eps, Om0)
+normalize_ode_results(results, ode_params, eps_vec, C1_vec, control_type)
 
 Normalize the final solutions from ODE runs.
 
 - `results` may be:
     * a single solution vector (Vector{Float64}), or
     * a Vector of solution vectors (Vector{Vector{Float64}}).
-- `eps` and `Om0` may be:
+- `eps_vec` (Control2 values) and `C1_vec` (Control1 values) may be:
     * single Float64 values (if results is one vector), or
     * Vector{Float64} of the same length as results.
 
 Normalization:
     psiN  = final_sol[1] * (Deltat * DeltaW - l12 * l21) / (l32 * l21 * eps)
     psiwN = final_sol[4] * (Deltat * DeltaW - l12 * l21) / (l32 * abs(Deltat) * eps)
-    OmN   = final_sol[3] / Om0
+    OmN   = final_sol[3] / C1
 """
-function normalize_ode_results(results, ode_params::ODEparams, Control1, Control2, control_type)
+function normalize_ode_results(results, ode_params::ODEparams, eps_vec, C1_vec, control_type)
     # Extract parameters
     l12    = ode_params.l12
     l21    = ode_params.l21
@@ -727,56 +786,44 @@ function normalize_ode_results(results, ode_params::ODEparams, Control1, Control
     DeltaW = ode_params.DeltaW
 
     
-    # Normalization for one solution
-    function normalize_one(final_sol::AbstractVector{<:Real}, Control2::Float64, Om0::Float64)
-        # check controls
-        if control_type == :EF 
-            Deltat = ode_params.stability_index
-            eps = Control2
-        elseif control_type == :LinStab
-            Deltat = Control2
-            eps = ode_params.error_field
-        elseif control_type == :NLsaturation
-            Deltat = ode_params.stability_index
-            eps = ode_params.error_field
-            alpha = Control2
-        end
+    # Normalization for one solution — control branching handled by resolve_control
+    function normalize_one(final_sol::AbstractVector{<:Real}, C2::Float64, C1::Float64)
+        sc     = resolve_control(ode_params, control_type, C2)
+        Deltat = sc.Deltat
+        eps    = sc.eps
 
-        
-        if length(final_sol) == 5 # assumes RP-RW layout
-            num = Deltat * DeltaW - l12 * l21
-
-            psiN   = final_sol[1] * num / (l32 * l21 * eps)
-            theta_t = mod(final_sol[2], 2π)  # Normalize phase
-            OmN    = final_sol[3] / Om0
-            psiwN = final_sol[4] * num / (l32 * abs(Deltat) * eps)  
-            theta_w = mod(final_sol[5], 2π)  # Normalize phase
+        if length(final_sol) == 5 # RP-RW layout
+            num     = Deltat * DeltaW - l12 * l21
+            psiN    = final_sol[1] * num / (l32 * l21 * eps)
+            theta_t = mod(final_sol[2], 2π)
+            OmN     = final_sol[3] / C1
+            psiwN   = final_sol[4] * num / (l32 * abs(Deltat) * eps)
+            theta_w = mod(final_sol[5], 2π)
             return [psiN, theta_t, OmN, psiwN, theta_w]
 
-        elseif length(final_sol) == 3
-            psiN   = final_sol[1] / (l21 * eps_val)
-            theta_t = mod(final_sol[2], 2π)  # Normalize phase
-            OmN    = final_sol[3] / Om0_val
+        elseif length(final_sol) == 3 # RP-IW layout
+            psiN    = final_sol[1] / (l21 * eps)
+            theta_t = mod(final_sol[2], 2π)
+            OmN     = final_sol[3] / C1
             return [psiN, theta_t, OmN]
 
         else
             throw(ArgumentError("Unexpected final_sol length: $(length(final_sol))"))
         end
-    end  
+    end
 
-    if isa(results, AbstractVector{<:Real}) && isa(Control1, Real) && isa(Control2, Real)
+    if isa(results, AbstractVector{<:Real}) && isa(eps_vec, Real) && isa(C1_vec, Real)
         # Single case
-        return normalize_one(results, Control1, Control2)
+        return normalize_one(results, eps_vec, C1_vec)
 
     elseif isa(results, AbstractVector{<:AbstractVector{<:Real}}) &&
-           isa(Control1, AbstractVector{<:Real}) &&
-           isa(Control2, AbstractVector{<:Real})
+           isa(eps_vec, AbstractVector{<:Real}) &&
+           isa(C1_vec, AbstractVector{<:Real})
         # Many cases
-        length(results) == length(Control1) == length(Control2) ||
-            throw(ArgumentError("results, eps, and Om0 must all have the same length"))
-        #return [normalize_one(sol, e, o) for (sol, e, o) in zip(results, Control1, Control2)]
-        return reduce(vcat, (normalize_one(sol,e,o)' 
-              for (sol,e,o) in zip(results,Control1,Control2)))
+        length(results) == length(eps_vec) == length(C1_vec) ||
+            throw(ArgumentError("results, eps_vec, and C1_vec must all have the same length"))
+        return reduce(vcat, (normalize_one(sol, e, c1)'
+              for (sol, e, c1) in zip(results, eps_vec, C1_vec)))
 
     else
         throw(ArgumentError("Input types do not match expected patterns"))
@@ -795,21 +842,19 @@ function solve_system(actor::ActorLocking, task::String)
     control_type = par.control_type
     t_final = par.t_final
     
-    # Get the control params
+    # Control1 = C1 (rotation, Y-axis), Control2 = C2 = EF/Δ′/α (X-axis)
     control1 = ode_params.Control1
     control2 = ode_params.Control2
+    inputs = collect(zip(control1, control2))   # (C1, C2) pairs — natural order
 
-    # NOTE: rhs expects (eps, Om0), and in your EF case Control2 = eps, Control1 = Om0  
-    inputs = collect(zip(control1, control2))
-
-    # Optional: shrink what we ship by clearing large control arrays
+    # Shrink what we ship to workers by clearing large control arrays
     ode_params_send = deepcopy(ode_params)
     ode_params_send.Control1 = Float64[]
     ode_params_send.Control2 = Float64[]
 
     # Parallel map over the grid, returning final states
     finals = pmap(inputs) do (C1, C2)
-        solve_ODEs(par, ode_params_send, task, C2, C1)
+        solve_ODEs(par, ode_params_send, task, C1, C2)
     end
     
     return finals
