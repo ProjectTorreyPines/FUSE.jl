@@ -452,7 +452,7 @@ end
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust{T}, dd::IMAS.dd) where {T<:Real}
+function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust{T}, dd::IMAS.DD) where {T<:Real}
     da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_generated = power_electric_generated / 1E6

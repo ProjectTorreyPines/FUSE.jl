@@ -55,7 +55,7 @@ mutable struct DollarAdjust{T<:Real}
     year::Union{Missing,Int}
 end
 
-function DollarAdjust(dd::IMAS.dd{T}) where {T<:Real}
+function DollarAdjust(dd::IMAS.DD{T}) where {T<:Real}
     return DollarAdjust{T}(dd.costing.future.inflation_rate, dd.costing.construction_start_year, missing, missing)
 end
 Base.eltype(::Type{DollarAdjust{T}}) where {T} = T

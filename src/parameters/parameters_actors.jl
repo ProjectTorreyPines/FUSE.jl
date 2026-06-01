@@ -5,11 +5,15 @@ Expands the subtypes into struct members
 """
 macro insert_subtype_members(T)
     expr = Expr(:block)
-    for s in subtypes(eval(T))
+    for s in subtypes(__module__.eval(T))
         full_parameters_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_parameters_actor_name, '_')
             mem = Symbol(split(full_parameters_actor_name, "__")[end])
-            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(s), esc(:T))))
+            # Splice the resolved subtype object directly into the AST. Using
+            # an escaped symbol would defer the lookup to the caller module's
+            # scope, requiring the caller to import every subtype by name —
+            # which defeats the point of auto-discovering them via `subtypes`.
+            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, s, esc(:T))))
         end
     end
     return expr
@@ -23,11 +27,13 @@ subtypes we can then splat into the larger constructor
 """
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
-    for s in subtypes(eval(T))
+    for s in subtypes(__module__.eval(T))
         full_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_actor_name, '_')
-            mem = Symbol(full_actor_name)
-            push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+            # Same hygiene rationale as @insert_subtype_members: splice the
+            # resolved subtype object so the caller module does not have to
+            # import each subtype's name.
+            push!(expr.args, Expr(:call, Expr(:curly, s, esc(:T))))
         end
     end
     return expr
