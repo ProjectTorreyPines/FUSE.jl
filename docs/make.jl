@@ -174,6 +174,7 @@ pages = [
     "Tutorial" => "tutorial.md",
     "Examples" => "examples.md",
     "Use Cases" => "cases.md",
+    "DIII-D Time-Dependent" => "d3d_study_workflows.md",
     "Actors" => "actors.md",
     "Initialization" => "inits.md",
     "`dd` Data Structure" => "dd.md",
