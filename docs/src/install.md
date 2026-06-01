@@ -2,16 +2,6 @@
 
 This guide walks you through setting up everything you need to run FUSE: the **Julia** language, the **FUSE** package, the **`fusebot`** helper, and an optional **JupyterLab** environment with Julia kernels.
 
-!!! note "Prerequisites"
-    * **Julia 1.10 or newer** (installed below via juliaup or your site's module system).
-    * **`git`** on your `PATH` (to clone the examples).
-    * Works on **Linux, macOS, and Windows**, as well as HPC systems.
-    * Budget **~15 minutes** for the install, plus a one-time precompilation the first time you run `using FUSE`.
-
-!!! tip "What is `fusebot`?"
-    `fusebot` is a small command-line helper bundled with FUSE. Its main job is to install the Julia
-    Jupyter kernels (`fusebot install_IJulia`), plus a few related utilities. It is optional but recommended.
-
 ## Julia installation
 
 ### Desktop and laptop (juliaup)
@@ -58,9 +48,9 @@ Start Julia (`julia` at the terminal), then:
        The first `using FUSE` (and your first simulation run) triggers precompilation that can take
        several minutes. This is normal and happens only once per Julia/FUSE version, not on every startup.
 
-1. Install the `fusebot` helper (optional but recommended). You do **not** choose the directory:
-   `install_fusebot()` picks it automatically - the juliaup `bin` directory on a laptop, or
-   `~/.local/bin` under `module load julia` on HPC:
+1. Install the `fusebot` helper (optional but recommended). `fusebot` is a small command-line tool
+   bundled with FUSE; its main job is to install the Julia Jupyter kernels (`fusebot install_IJulia`),
+   plus a few related utilities. Install directory is picked by `install_fusebot()` automatically - the juliaup `bin` directory on a laptop, or `~/.local/bin` under `module load julia` on HPC:
 
    ```julia
    FUSE.install_fusebot()                                  # auto: juliaup bin, or ~/.local/bin on HPC
@@ -80,7 +70,7 @@ Start Julia (`julia` at the terminal), then:
    dd = FUSE.init(ini, act)   # if this completes without error, your install is working
    ```
 
-1. Run the regression tests (optional; can take 1+ hour):
+1. Run the regression tests (optional; can take 1+ hour). At the Julia prompt, typing `]` switches to the package prompt:
 
     ```julia
     ] test FUSE
@@ -95,7 +85,7 @@ Start Julia (`julia` at the terminal), then:
    Update later with `git fetch && git reset --hard origin/master` (**this discards local changes to those examples**).
 
 !!! tip "Laptop quick-start (all-in-one)"
-    On a personal machine with juliaup, the full sequence is:
+    On a personal machine with juliaup, the full sequence is (after typing `julia` at the terminal):
 
     ```julia
     using Pkg
@@ -116,12 +106,45 @@ Start Julia (`julia` at the terminal), then:
 * Install Python and Jupyter, or
 * On HPC, `module load python` (site-specific) before running the install.
 
-A known-good optional stack is provided in [`docs/jupyter_environment.yml`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/docs/jupyter_environment.yml):
+A known-good optional stack is provided in [`docs/jupyter_environment.yml`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/docs/jupyter_environment.yml).
+That file ships inside the FUSE package, so its location depends on whether FUSE is installed under
+`~/.julia/packages` (a normal `Pkg.add`) or `~/.julia/dev` (a `Pkg.develop` checkout). Let Julia resolve
+the path for you with `pkgdir(FUSE, ...)` so the commands are copy-paste regardless of where FUSE lives.
+Run this in your **terminal** (it calls `julia` for you to locate the file - you do not need to start the
+Julia prompt yourself). `julia` must be on your `PATH`: with juliaup it already is, while on HPC you need
+`module load julia` first. The guarded line below loads the module on HPC and is a harmless no-op on a laptop:
 
 ```bash
-conda env create -f docs/jupyter_environment.yml
+command -v module >/dev/null && module load julia   # HPC only; skipped automatically on a laptop
+conda env create -f "$(julia -e 'using FUSE; print(pkgdir(FUSE, "docs", "jupyter_environment.yml"))')"
 conda activate fuse
 ```
+
+!!! tip "Developing FUSE (or any other package)"
+    To edit FUSE itself, run:
+
+    ```julia
+    using Pkg
+    Pkg.develop("FUSE")   # any package registered in the FuseRegistry or General registry
+    ```
+
+    This clones the source into the standard editable location `~/.julia/dev/FUSE` and points your
+    environment at it (instead of the read-only versioned copy under `~/.julia/packages`), so local edits
+    take effect immediately.
+
+    The same works for **any** package you want to develop - for example a FUSE dependency like `IMAS`
+    or `TJLF`, or a third-party package. The package does **not** have to be registered; `Pkg.develop`
+    accepts three forms:
+
+    * **By name** (`Pkg.develop("Foo")`) - requires the package to be in a registry you have added
+      (General or the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/)), since
+      Julia reads the repo URL from there to clone it into `~/.julia/dev/Foo`.
+    * **By URL** (`Pkg.develop(url="https://github.com/Org/Foo.jl")`) - for unregistered packages; Julia
+      clones directly from the given URL.
+    * **By path** (`Pkg.develop(path="/path/to/Foo")`) - no registration needed; points the environment
+      at an existing local checkout (clone it yourself first).
+
+    Run `Pkg.free("Foo")` to stop developing and return to the registered, versioned copy.
 
 ### Install Jupyter / JupyterLab
 
@@ -137,6 +160,8 @@ Install [JupyterLab](https://jupyterlab.readthedocs.io/en/stable/getting_started
     If extensions conflict, pin JupyterLab 3.x (for example `conda install jupyterlab=3.6.7`) and keep WebIO/Interact up to date. Python 3.11 is a good compatibility target for Interact.
 
 ### Install IJulia kernels
+
+In your **terminal** (with Python on your `PATH`, and `fusebot` installed earlier):
 
 ```bash
 fusebot install_IJulia
@@ -172,7 +197,7 @@ Open the cloned `FuseExamples` folder and run the tutorial notebooks.
 
 1. Watch the [FUSE repository](https://github.com/ProjectTorreyPines/FUSE.jl) for releases.
 
-1. Update like any Julia package:
+1. Update like any Julia package, from the `]` package prompt (type `]` at the Julia prompt):
 
     ```julia
     ] up
@@ -201,6 +226,14 @@ Depth = 2
 ```
 
 ## Troubleshooting
+
+!!! note "Where to run each command"
+    Commands in this guide run in one of two places, indicated by the code-block label and the lead-in text:
+
+    * **Terminal** (your shell) - blocks marked `bash`/`powershell`, e.g. `module load julia`, `git ...`,
+      `conda ...`, `fusebot ...`, `python -m jupyter ...`.
+    * **Julia prompt** - blocks marked `julia`, run *after* you start Julia's interactive session by
+      typing `julia` in the terminal. These use `using`, `Pkg`, `FUSE.`, or the `]` package prompt.
 
 !!! warning "`fusebot: command not found`"
     The install directory is not on your `PATH` in the current shell. Either open a new login shell, or
