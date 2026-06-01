@@ -18,6 +18,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     grid_size::Entry{Int} = Entry{Int}("-", "grid resolution for control space"; default=100)
     t_final::Entry{Float64} = Entry{Float64}("-", "Final integration time in units of tearing time (~ms)"; default=100.)
     time_steps::Entry{Int} = Entry{Int}("-", "number of time steps for the ODE integration"; default=200)
+    overwrite_params::Entry{Bool} = Entry{Bool}("-", "Whether to overwrite ODE parameters to reproduce PoP2024 results"; default=false)
     control_type::Switch{Symbol} = Switch{Symbol}([:EF, :LinStab, :NLsaturation], # EF: error field
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
@@ -48,7 +49,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "Scale for magnetic perturbations, usually ~10Gauss"; default=1.e-3)
     t0::Entry{Float64} = Entry{Float64}(
         "seconds", 
-        "Time scale for the integration , usually TM/RW growth rate"; default=1.e-3)
+        "Characteristic time scale for normalization , usually TM/RW growth rate"; default=1.e-3)
     r0::Entry{Float64} = Entry{Float64}(
         "meter", 
         "Length scale for the integration , usually minor radius"; default=1.)
@@ -90,10 +91,10 @@ Base.@kwdef struct ContourData
 end
 
 mutable struct LockingResults
-    ode_sols
-    prob
-    norm_sols
-    locking_labels
+    ode_sols::Matrix{Float64}            # (N*M × n_states) raw final states
+    prob::Any                            # NN model once Task 1 is done; callable as prob(C1, C2)
+    norm_sols::Matrix{Float64}           # (N*M × n_states) normalized solutions
+    locking_labels::Vector{Int}          # k-means class assignments, one per grid point
     contour_data::ContourData
 end
 
@@ -131,7 +132,6 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
 end
 
 
-
 """
     ActorLocking(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
@@ -162,11 +162,9 @@ function _step(actor::ActorLocking)
 
     ## Time evolve the ODEs
     if task == :single_case
-        C1 = 1.
-        solve_one_case(par, actor.ode_params, application, C1)
+        control1 = 1. # normalized rotation frequency.
+        solve_one_case(par, actor.ode_params, application, control1)
         return actor
-    elseif task == :Monte_Carlo
-        error("Monte-Carlo not implemented yet")
     elseif task == :solve_system
         # Solve the ODE system on the whole control grid):
         control1 = actor.ode_params.Control1
@@ -184,12 +182,7 @@ function _step(actor::ActorLocking)
         N, M = size(norm_sols)
         norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size, M))
         psi_tN = norm_sols_2D[:,:,1]
-        #make_contour(control2, control1, psi_tN)
         
-        #plt = plot(psi_tN; seriestype=:heatmap)
-        #dummy = DummyIDS(control2, control1, psi_tN)
-        #plt = plot(dummy, :Z; seriestype=:heatmap)
-        #display(plt)
 
         ## classify normalized solutions
         R = hcat(norm_sols[:,1], norm_sols[:,3])
@@ -204,7 +197,7 @@ function _step(actor::ActorLocking)
 )
 
         # store back in the actor
-        prob = 0 # placeholder for now, can store the ODEProblem if you want to keep it
+        prob = nothing # placeholder until Task 1 (NN classifier) is implemented
         actor.results = LockingResults(
             ode_sols,
             prob,
@@ -217,7 +210,8 @@ function _step(actor::ActorLocking)
         @info   "Evaluating saved Locking probability (not implemented yet)"
         # C1 = .5; C2 = .5 # place holders for now, need to implement a way to specify which case(s) to evaluate probability for
         #probability = actor.results.prob(C1, C2) # placeholder for now, need to implement a way to evaluate probability from the ODE solutions
-
+    elseif task == :Monte_Carlo
+        error("Monte-Carlo not implemented yet")
     elseif task == :transfer_learning
         @info   "Transfer Learning training (not implemented yet)"    
 
@@ -263,7 +257,7 @@ function plot_sols(actor)
     p1 = heatmap(x, y, z;
         xlabel         = xlabel_ctrl,
         ylabel         = "Rotation Frequency (a.u.)",
-        title          = "ψ at t_final",
+        #title          = "ψ at t_final",
         colorbar_title = "ψ_N",
     )
     # Overlay the locking boundary as a white contour at the class transition
@@ -282,8 +276,8 @@ function plot_sols(actor)
     shapes  = [:circle, :x]
 
     p2 = plot(;
-        xlabel = "TM amplitude ψ_N",
-        ylabel = "Rotation Ω_N",
+        xlabel = "NormalizedTM amplitude ψ_N",
+        ylabel = "Normalized Rotation Ω_N",
         title  = "Locking classification",
     )
     for (cl, sh) in zip(classes, shapes)
@@ -298,20 +292,20 @@ end
 
 
 
-function solve_one_case(par, ode_params::ODEparams, task::String, C1::Float64)
-    # C2 is the swept control parameter (EF, Δ′, or α); placeholder values here
+function solve_one_case(par, ode_params::ODEparams, task::String, control1::Float64)    
+    
     if par.control_type == :EF
-        C2 = 0.5
+        control2 = 0.5
     elseif par.control_type == :LinStab
-        C2 = -6.
+        control2 = -6.
     else
-        C2 = 0.2
+        control2 = 0.2 
     end
 
-    final_sol = solve_ODEs(par, ode_params, task, C1, C2)
+    final_sol = solve_ODEs(par, ode_params, task, control1, control2)
     println("final raw solution = ", final_sol)
 
-    sols_norm = normalize_ode_results(final_sol, ode_params, C2, C1, par.control_type)
+    sols_norm = normalize_ode_results(final_sol, ode_params, control2, control1, par.control_type)
     println("final normalized solution = ", sols_norm)
 
     return
@@ -329,15 +323,11 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
         ode_params: Initialized ODE parameters
     """
     
-    # SIM time is obsolete since the integrator uses adaptive stepping
-    #ode_params.sim_time = set_sim_time(dd.global_time, par.t_final, par.time_steps)
-    
     # find the normalized radius of the q=2 surface
     q_prof = dd.equilibrium.time_slice[].profiles_1d.q
     rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
     ode_params.rat_surface = find_rat_surface(q_prof, rho, par.q_surf)
-    ode_params.rat_surface = 0.67 # overwrite for now
-
+    
     # calculate the stability indices and mutual inductances
     ode_params = calculate_stability_index!(dd, par, ode_params)
 
@@ -345,8 +335,13 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     ode_params = set_phys_params!(dd, par, ode_params)
     
     # Overwrite params to reproduce PoP2024
-    ode_params.mu = 0.1
-    ode_params.Inertia = 1
+    if par.overwrite_params
+        @info "Overwriting ODE parameters to reproduce PoP2024 results"
+        ode_params.mu = 0.1
+        ode_params.Inertia = 1
+        ode_params.rat_surface = 0.67 # overwrite for now
+    end
+
     
     # Prepare control parameters based on the control type
     ode_params = set_control_parameters!(dd, par, ode_params)
@@ -419,7 +414,7 @@ function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
     return ode_params
 end
 
-function set_phys_params!(dd::IMAS.DD, par, ode_params::ODEparams)
+function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     """
     Set the physical parameters in dimensionless form
     
@@ -778,7 +773,7 @@ Normalization:
     psiwN = final_sol[4] * (Deltat * DeltaW - l12 * l21) / (l32 * abs(Deltat) * eps)
     OmN   = final_sol[3] / C1
 """
-function normalize_ode_results(results, ode_params::ODEparams, eps_vec, C1_vec, control_type)
+function normalize_ode_results(results, ode_params::ODEparams, C2_vec, C1_vec, control_type)
     # Extract parameters
     l12    = ode_params.l12
     l21    = ode_params.l21
@@ -788,17 +783,32 @@ function normalize_ode_results(results, ode_params::ODEparams, eps_vec, C1_vec, 
     
     # Normalization for one solution — control branching handled by resolve_control
     function normalize_one(final_sol::AbstractVector{<:Real}, C2::Float64, C1::Float64)
-        sc     = resolve_control(ode_params, control_type, C2)
-        Deltat = sc.Deltat
-        eps    = sc.eps
+        sc       = resolve_control(ode_params, control_type, C2)
+        Deltat   = sc.Deltat
+        eps      = sc.eps
+        alpha    = sc.alpha
+        DeltatRW = sc.DeltatRW
 
         if length(final_sol) == 5 # RP-RW layout
-            num     = Deltat * DeltaW - l12 * l21
-            psiN    = final_sol[1] * num / (l32 * l21 * eps)
+            psit    = final_sol[1]
             theta_t = mod(final_sol[2], 2π)
             OmN     = final_sol[3] / C1
-            psiwN   = final_sol[4] * num / (l32 * abs(Deltat) * eps)
+            psiw    = final_sol[4]
             theta_w = mod(final_sol[5], 2π)
+
+            if iszero(alpha)  # linear regime: saturation_param set to 0. when NL_saturation_ON=false
+                num     = abs(Deltat * DeltaW) - l12 * l21
+                psitMax = l32 * l21 * eps / num
+                psiwMax = l32 * abs(DeltaW) * eps / num
+            else              # NL saturation active
+                psitMax = -(DeltatRW + sqrt(DeltatRW^2 + 4*alpha*l21*l32*eps*Deltat/DeltaW)) /
+                           (2*alpha*Deltat)
+                psiwMax = -(l32*eps + l12*psitMax) / DeltaW
+            end
+
+            psiN  = abs(psit / psitMax)
+            psiwN = abs(psiw / psiwMax)
+
             return [psiN, theta_t, OmN, psiwN, theta_w]
 
         elseif length(final_sol) == 3 # RP-IW layout
@@ -812,18 +822,18 @@ function normalize_ode_results(results, ode_params::ODEparams, eps_vec, C1_vec, 
         end
     end
 
-    if isa(results, AbstractVector{<:Real}) && isa(eps_vec, Real) && isa(C1_vec, Real)
+    if isa(results, AbstractVector{<:Real}) && isa(C2_vec, Real) && isa(C1_vec, Real)
         # Single case
-        return normalize_one(results, eps_vec, C1_vec)
+        return normalize_one(results, C2_vec, C1_vec)
 
-    elseif isa(results, AbstractVector{<:AbstractVector{<:Real}}) &&
-           isa(eps_vec, AbstractVector{<:Real}) &&
+    elseif isa(results, AbstractMatrix{<:Real}) &&
+           isa(C2_vec, AbstractVector{<:Real}) &&
            isa(C1_vec, AbstractVector{<:Real})
-        # Many cases
-        length(results) == length(eps_vec) == length(C1_vec) ||
-            throw(ArgumentError("results, eps_vec, and C1_vec must all have the same length"))
+        # Many cases — results is (N*M × n_states), iterate over rows
+        size(results, 1) == length(C2_vec) == length(C1_vec) ||
+            throw(ArgumentError("results, C2_vec, and C1_vec must all have the same length"))
         return reduce(vcat, (normalize_one(sol, e, c1)'
-              for (sol, e, c1) in zip(results, eps_vec, C1_vec)))
+              for (sol, e, c1) in zip(eachrow(results), C2_vec, C1_vec)))
 
     else
         throw(ArgumentError("Input types do not match expected patterns"))
@@ -852,12 +862,12 @@ function solve_system(actor::ActorLocking, task::String)
     ode_params_send.Control1 = Float64[]
     ode_params_send.Control2 = Float64[]
 
-    # Parallel map over the grid, returning final states
+    # Parallel map over the grid, returning final states as a (N*M × n_states) matrix
     finals = pmap(inputs) do (C1, C2)
         solve_ODEs(par, ode_params_send, task, C1, C2)
     end
-    
-    return finals
+
+    return Matrix(reduce(hcat, finals)')  # Vector{Vector} → Matrix{Float64} (N*M × n_states)
 end
 
 
