@@ -91,11 +91,12 @@ Base.@kwdef struct ContourData
 end
 
 mutable struct LockingResults
-    ode_sols::Matrix{Float64}            # (N*M × n_states) raw final states
-    prob::Any                            # NN model once Task 1 is done; callable as prob(C1, C2)
-    norm_sols::Matrix{Float64}           # (N*M × n_states) normalized solutions
-    locking_labels::Vector{Int}          # k-means class assignments, one per grid point
+    ode_sols::Matrix{Float64}                        # (N*M × n_states) raw final states
+    prob::Any                                        # NN model once Task 1 is done; callable as prob(C1, C2)
+    norm_sols::Matrix{Float64}                       # (N*M × n_states) normalized solutions
+    locking_labels::Vector{Int}                      # k-means class assignments, one per grid point
     contour_data::ContourData
+    bifurcation_bounds::Union{Matrix{Float64}, Nothing}  # nothing when NL saturation is active
 end
 
 mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
@@ -196,6 +197,10 @@ function _step(actor::ActorLocking)
             z = psi_tN
 )
 
+        # Analytic bifurcation boundary — not defined when NL saturation is active
+        bifurcation_bounds = par.NL_saturation_ON ? nothing :
+            calculate_bifurcation_bounds(dd, par, actor.ode_params)
+
         # store back in the actor
         prob = nothing # placeholder until Task 1 (NN classifier) is implemented
         actor.results = LockingResults(
@@ -203,7 +208,8 @@ function _step(actor::ActorLocking)
             prob,
             norm_sols,
             locking_labels,
-            contour
+            contour,
+            bifurcation_bounds
         )
 
     elseif task == :evaluate_probability
@@ -260,14 +266,25 @@ function plot_sols(actor)
         #title          = "ψ at t_final",
         colorbar_title = "ψ_N",
     )
-    # Overlay the locking boundary as a white contour at the class transition
+    # Overlay the k-means locking boundary (white, solid)
     contour!(p1, x, y, float.(labels_2D);
         levels    = [1.5],
         linecolor = :white,
         linewidth = 2,
         colorbar  = false,
-        label     = "locking boundary",
+        label     = "locking boundary (k-means)",
     )
+    # Overlay the analytic bifurcation boundary (yellow, dashed) — only when NL saturation is off
+    if r.bifurcation_bounds !== nothing
+        contour!(p1, x, y, r.bifurcation_bounds;
+            levels    = [0.0],
+            linecolor = :yellow,
+            linestyle = :dash,
+            linewidth = 2,
+            colorbar  = false,
+            label     = "bifurcation boundary (analytic)",
+        )
+    end
 
     # Scatter: ψ_N vs Ω_N coloured by locking class
     xs      = r.norm_sols[:, 1]
@@ -728,8 +745,6 @@ function calculate_bifurcation_bounds(dd::IMAS.dd, par, ode_params::ODEparams)
     b = @. 2.0 * (-Y)^3 / 27.0 - q * (-Y) / 3.0 + r
 
     bifurcation_bounds = reshape(@. b^2 / 4 + a^3 / 27, par.grid_size, par.grid_size)
-
-    make_contour(ode_params.Control2, ode_params.Control1, bifurcation_bounds, [0.0, 1e-10], par.control_type)
 
     return bifurcation_bounds
 end
