@@ -145,7 +145,7 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
         # Saddle control points
         saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
         saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
-        push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, act.ActorPFactive.x_points_weight))
+        push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(actor.chease.gfile.rmaxis, actor.chease.gfile.zmaxis, act.ActorPFactive.x_points_weight))
 
         # Coils locations
         coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)
