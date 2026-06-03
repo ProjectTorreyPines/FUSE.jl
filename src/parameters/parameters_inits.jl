@@ -101,7 +101,9 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
     bulk::Switch{Symbol} = Switch{Symbol}([:H, :D, :DT, :D_T], "-", "Hydrogenic bulk ion species. Use :D_T for unbundled :D and :T species.")
-    impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
+    impurity::Entry{Symbol} = Entry{Symbol}("-", "Seeding impurity ion species (fraction calculated to match zeff given wall_impurity)")
+    wall_impurity::Entry{Symbol} = Entry{Symbol}("-", "Wall material impurity ion species")
+    wall_impurity_fraction::Entry{T} = Entry{T}("-", "Wall impurity fraction n_wall/n_e"; check=x -> @assert x >= 0.0 "must be: wall_impurity_fraction >= 0.0")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
     polarized_fuel_fraction::Entry{T} =

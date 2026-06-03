@@ -176,6 +176,17 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     # make intrinsic sources consistent to start
     IMAS.intrinsic_sources!(dd)
+    # merge fast density into thermal for flux-matched ions so optimizer
+    # starts from smooth total-density profile instead of hollow density_thermal
+    if par.evolve_plasma_sources
+        for ion in cp1d.ion
+            if !ismissing(ion, :density_fast) && get(evolve_densities, Symbol(ion.label), :fixed) == :flux_match
+                ion.density_thermal .+= ion.density_fast
+                ion.density_fast .= 0.0
+                IMAS.unfreeze!(ion, :density)
+            end
+        end
+    end
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -411,6 +422,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
     dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
     ProgressMeter.finish!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
+    par.evolve_plasma_sources && IMAS.fast_particles_profiles!(dd)
 
     # plotting of the channels that have been evolved
     if par.do_plot
@@ -641,7 +653,7 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate intrinsic sources (i.e., target fluxes)
-    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false)
+    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false, fast_ion_densities=false)
 
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
