@@ -76,3 +76,4 @@ tmp.gif
 
 # Local Claude context (not shipped)
 CLAUDE.md
+.claude/
