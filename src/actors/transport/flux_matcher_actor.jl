@@ -174,6 +174,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.actor_replay))
     end
 
+    # snapshot before any modifications for "before" plot
+    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
+
     # make intrinsic sources consistent to start
     IMAS.intrinsic_sources!(dd)
     # merge fast density into thermal for flux-matched ions so optimizer
@@ -192,8 +195,6 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
     IMAS.refreeze!(cp1d, :j_ohmic)
     IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
-
-    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
 
     if !isinf(par.Δt)
         # "∂/∂t" is to account to changes in the profiles that
