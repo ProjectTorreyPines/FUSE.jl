@@ -25,9 +25,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
     task::Switch{Symbol} = Switch{Symbol}(
-        [:solve_system, :single_case, :Monte_Carlo, :evaluate_probability, :transfer_learning],
-        "-",  
-        "Choose whether to simulate system on full-grid, do a single case, or Monte Carlo (NOT implmented) which does 1e4 simulations on the full grid",  # docstring
+        [:solve_system, :single_case, :calc_prob, :Monte_Carlo, :evaluate_probability, :transfer_learning],
+        "-",
+        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)",
         default = :solve_system
     )
     application::Switch{String} = Switch{String}(
@@ -63,27 +63,30 @@ end
 # (Same field order/types as your definition.)
 #if !isdefined(Main, :ODEparams)
 Base.@kwdef mutable struct ODEparams
-    #sim_time::Vector{Float64} = Float64[]# simulation time vector
-    saturation_param::Float64 = 0.2 # controls nonlinear island saturation
-    error_field::Float64 = 0.5 # Set this when control_type is NOT :EF
-    DeltaW::Float64 = 0.0 # intrinsic stability of RW mode
-    stability_index::Float64 = 0.0 # intrinsic stability of the mode: Delta'
-    layer_width::Float64 = 1.e-3 # linear layer width from tearing theory, ususally ~1 mm
-    rat_surface::Float64 = 0.67 # q=2 surface location in dimensionless units"; default=0.67)
-    res_wall::Float64 = 1.0  # Resistive wall location in dimensionless units"; default=1.0)
-    control_surf::Float64 = 1.25    # Control surface location in dimensionless units"; default=1.25)
-    mu::Float64 = 0.1              # anomalous perp. plasma viscosity
-    Inertia::Float64 = 0.1          # moment of inertia of the layer
-    Control1::Vector{Float64} = Float64[] # control parameter 1, e.g. error field
-    Control2::Vector{Float64} = Float64[] # control parameter 2,
-    l12::Float64 = 1.0        # mutual inductance between rational surface and RW
-    l21::Float64 = 1.0        # mutual inductance between RW and rational surface
-    l32::Float64 = 1.0        # mutual inductance between the control surface and RW
-    Taut_Tauw::Float64 = 1.0  # ratio of tearing time to wall time
-    hyper_cube_dims::Vector{Float64} = [1., 1., 1.] # dimensions of the initial condtion hypercube
-    Control2_min::Float64 = 0.01
-    Control2_max::Float64 = 1.0
-    # keep adding default and magic things
+    # --- user-set physical parameters (sensible defaults) ---
+    saturation_param::Float64 = 0.2   # controls nonlinear island saturation
+    error_field::Float64      = 0.5   # fixed error field when control_type is NOT :EF
+    layer_width::Float64      = 1e-3  # resistive layer width from tearing theory (~1 mm)
+    rat_surface::Float64      = 0.67  # q=2 surface location (dimensionless)
+    res_wall::Float64         = 1.0   # resistive wall location (dimensionless)
+    control_surf::Float64     = 1.25  # control surface location (dimensionless)
+    mu::Float64               = 0.1   # anomalous perpendicular plasma viscosity
+    Inertia::Float64          = 0.1   # moment of inertia of the layer
+    Taut_Tauw::Float64        = 1.0   # ratio of tearing time to wall time
+    hyper_cube_dims::Vector{Float64} = [1., 1., 1.] # initial condition hypercube dimensions
+    Control2_min::Float64     = 0.01
+    Control2_max::Float64     = 1.0
+
+    # --- computed at run time by calculate_stability_index! ---
+    DeltaW::Float64          = NaN  # intrinsic RW stability — calculated at run time
+    stability_index::Float64 = NaN  # tearing mode Delta' — calculated at run time
+    l12::Float64             = NaN  # mutual inductance rational surface → RW — calculated at run time
+    l21::Float64             = NaN  # mutual inductance RW → rational surface — calculated at run time
+    l32::Float64             = NaN  # mutual inductance control surface → RW — calculated at run time
+
+    # --- populated by set_control_parameters! ---
+    Control1::Vector{Float64} = Float64[]  # rotation frequency grid — populated at run time
+    Control2::Vector{Float64} = Float64[]  # swept control parameter grid — populated at run time
 end
 
 Base.@kwdef struct ContourData
@@ -128,11 +131,13 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     par::OverrideParameters{P,FUSEparameters__ActorLocking{P}}
     ode_params::Union{Nothing, ODEparams}
     results::Union{Nothing, LockingResults}
+    nn_params::NNparams
 
     function ActorLocking(
         dd::IMAS.dd{D},
         par::FUSEparameters__ActorLocking{P};
         ode_params = nothing,
+        nn_params  = NNparams(),
         kw...
     ) where {D<:Real,P<:Real}
 
@@ -152,7 +157,7 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
             error("ode_params must be nothing, ODEparams, or NamedTuple")
         end
 
-        return new{D,P}(dd, par, ode, nothing)
+        return new{D,P}(dd, par, ode, nothing, nn_params)
     end
 end
 
@@ -242,9 +247,14 @@ function _step(actor::ActorLocking)
             bifurcation_bounds
         )
 
-        # Train NN probability classifier with default hyperparameters.
-        # Call tune_locking_nn(actor) from the REPL for hyperparameter search.
-        train_locking_nn(actor)
+        # Train NN with hyperparameters stored on the actor
+        train_locking_nn(actor, actor.nn_params)
+
+    elseif task == :calc_prob
+        # Retrain NN only — ODEs are NOT re-solved
+        actor.results === nothing && error("No ODE results found — run task=:solve_system first")
+        @info "Retraining NN classifier (ODEs not re-solved)"
+        train_locking_nn(actor, actor.nn_params)
 
     elseif task == :evaluate_probability
         @info   "Evaluating saved Locking probability (not implemented yet)"
@@ -532,12 +542,23 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic[10]
     
     # get the actual torque from dd
-    #cp1d = dd.core_profiles.profiles_1d[]
-    #total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:torque_tor_inside])
+    cp1d = dd.core_profiles.profiles_1d[]
+    total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:torque_tor_inside])
     #dd.core_sources.source[15].global_quantities[1].torque_tor
+    #                 time0=dd.global_time, fields=[:torque_tor_inside])
 
+    # Interpolate to get NBI torque at the rational surface
+    rho_src = total_source1d.grid.rho_tor_norm
+    torque_interp = IMAS.interp1d(rho_src, total_source1d.torque_tor_inside)
+    torque_at_rat_surf = torque_interp(rt)   # N·m, inside rat_surface
+
+    muSI = torque_at_rat_surf / rot_core
+    @info "Calculated NBI torque at rational surface: $(torque_at_rat_surf) N·m"
+    @info "mu in SI units: $muSI N·m·s"
     # Calculate the drag coefficient in SI
     muSI = par.NBItorque / rot_core
+    @info "Overwriting NBI torque with user-specified value: $(par.NBItorque) N·m"
+    @info "mu in SI units: $muSI N·m·s"
     # Calculate first the moment of inertia in the layer  
     inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
 
