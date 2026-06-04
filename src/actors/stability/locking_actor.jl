@@ -1,6 +1,8 @@
 using Distributed
 using DifferentialEquations
 import Roots
+using Flux
+using Random
 using Plots
 using Clustering
 #import FUSE: coordinates
@@ -88,6 +90,28 @@ Base.@kwdef struct ContourData
     x::Vector{Float64}
     y::Vector{Float64}
     z::Matrix{Float64}
+end
+
+"Hyperparameters for the locking NN classifier"
+Base.@kwdef struct NNparams
+    hidden_sizes::Vector{Int}  = [100, 100, 100]  # neurons in each hidden layer
+    activation::Symbol         = :relu             # :tanh, :relu, :sigmoid
+    learning_rate::Float64     = 1e-3
+    n_epochs::Int              = 1000
+    batch_size::Int            = 200
+    weight_decay::Float64      = 1e-8              # L2 regularisation coefficient
+    val_fraction::Float64      = 0.0               # fraction held out for early stopping; 0 = disabled
+    patience::Int              = 20                # early-stopping patience (epochs); ignored when val_fraction=0
+end
+
+"Trained NN model; callable as prob(C1, C2) → P(locked) ∈ [0,1]"
+struct LockingNNModel
+    model::Any          # Flux Chain — kept as Any for Task 2 transfer learning
+    nn_params::NNparams
+end
+
+function (m::LockingNNModel)(C1::Real, C2::Real)
+    return Float64(first(m.model(Float32[C1, C2])))
 end
 
 mutable struct LockingResults
@@ -188,7 +212,14 @@ function _step(actor::ActorLocking)
         ## classify normalized solutions
         R = hcat(norm_sols[:,1], norm_sols[:,3])
         kmc = kmeans(R', 2)
-        locking_labels = kmc.assignments 
+        locking_labels = kmc.assignments
+
+        # Fix label polarity: the point with maximum OmN (col 3) is always unlocked.
+        # k-means labels are {1,2}; we want that point to carry label 1 so that
+        # after the {1,2}→{0,1} shift in prepare_nn_data it maps to 0 (unlocked).
+        if locking_labels[argmax(norm_sols[:, 3])] != 1
+            locking_labels = 3 .- locking_labels   # flip 1↔2
+        end
         #plot_sols_scatter(norm_sols; labels=locking_labels)
 
         contour = ContourData(
@@ -201,16 +232,19 @@ function _step(actor::ActorLocking)
         bifurcation_bounds = par.NL_saturation_ON ? nothing :
             calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
-        # store back in the actor
-        prob = nothing # placeholder until Task 1 (NN classifier) is implemented
+        # Store results (prob=nothing; filled in-place by train_locking_nn below)
         actor.results = LockingResults(
             ode_sols,
-            prob,
+            nothing,
             norm_sols,
             locking_labels,
             contour,
             bifurcation_bounds
         )
+
+        # Train NN probability classifier with default hyperparameters.
+        # Call tune_locking_nn(actor) from the REPL for hyperparameter search.
+        train_locking_nn(actor)
 
     elseif task == :evaluate_probability
         @info   "Evaluating saved Locking probability (not implemented yet)"
@@ -302,7 +336,42 @@ function plot_sols(actor)
         scatter!(p2, xs[idx], ys[idx]; markershape=sh, label="Class $cl", markersize=5)
     end
 
-    plt = plot(p1, p2; layout=(1, 2), size=(1100, 450))
+    # Panel 3: NN probability contour — only when a model has been trained
+    if r.prob !== nothing
+        prob_grid = [r.prob(c1, c2) for c1 in y, c2 in x]
+        p3 = contourf(x, y, prob_grid;
+            xlabel         = xlabel_ctrl,
+            ylabel         = "Rotation Frequency (a.u.)",
+            title          = "Locking probability P(locked) — NN",
+            colorbar_title = "P(locked)",
+            clims          = (0.0, 1.0),
+            levels         = 20,
+            color          = cgrad(:RdYlGn, rev=true),
+        )
+        # Overlay P=0.5 isocontour (decision boundary)
+        contour!(p3, x, y, prob_grid;
+            levels    = [0.5],
+            linecolor = :black,
+            linestyle = :dash,
+            linewidth = 2,
+            colorbar  = false,
+            label     = "P=0.5",
+        )
+        # Overlay analytic bifurcation boundary when available
+        if r.bifurcation_bounds !== nothing
+            contour!(p3, x, y, r.bifurcation_bounds;
+                levels    = [0.0],
+                linecolor = :yellow,
+                linestyle = :dash,
+                linewidth = 2,
+                colorbar  = false,
+                label     = "bifurcation boundary (analytic)",
+            )
+        end
+        plt = plot(p1, p2, p3; layout=(1, 3), size=(1650, 450))
+    else
+        plt = plot(p1, p2; layout=(1, 2), size=(1100, 450))
+    end
     display(plt)
     return plt
 end
@@ -731,20 +800,20 @@ function calculate_bifurcation_bounds(dd::IMAS.dd, par, ode_params::ODEparams)
     # Cubic-discriminant coefficients — formula depends on wall configuration
     if par.application == "RP-RW"
         # 5th-order system: rational surface + resistive wall
-        q = @. (DeltatRW / m0)^2 + rt * (l32 * l21 * eps / DeltaW)^2 / (m0 * mu)
-        r = @. -Y * DeltatRW^2 / m0^2
+        q = (DeltatRW ./ m0).^2 .+ rt .* (l32 .* l21 .* eps ./ DeltaW).^2 ./ (m0 * mu)
+        r = -Y .* DeltatRW.^2 ./ m0^2
     elseif par.application == "RP-IW"
         # 3rd-order system: rational surface + ideal wall only
-        q = @. (Deltat / m0)^2 + (l21 * eps)^2 / mu
-        r = @. -Y * Deltat^2 / m0^2
+        q = (Deltat ./ m0).^2 .+ (l21 .* eps).^2 ./ mu
+        r = -Y .* Deltat.^2 ./ m0^2
     else
         error("calculate_bifurcation_bounds not implemented for application: $(par.application)")
     end
 
-    a = @. -(Y^2) / 3.0 + q
-    b = @. 2.0 * (-Y)^3 / 27.0 - q * (-Y) / 3.0 + r
+    a = -(Y.^2) ./ 3.0 .+ q
+    b = 2.0 .* (-Y).^3 ./ 27.0 .- q .* (-Y) ./ 3.0 .+ r
 
-    bifurcation_bounds = reshape(@. b^2 / 4 + a^3 / 27, par.grid_size, par.grid_size)
+    bifurcation_bounds = reshape(b.^2 ./ 4 .+ a.^3 ./ 27, par.grid_size, par.grid_size)
 
     return bifurcation_bounds
 end
@@ -885,6 +954,200 @@ function solve_system(actor::ActorLocking, task::String)
     return Matrix(reduce(hcat, finals)')  # Vector{Vector} → Matrix{Float64} (N*M × n_states)
 end
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Neural-network classifier  (Task 1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+"Map activation symbol to the corresponding Flux function"
+function get_activation(act::Symbol)
+    act == :tanh    ? tanh    :
+    act == :relu    ? relu    :
+    act == :sigmoid ? sigmoid :
+    error("Unknown activation symbol: $act.  Choose :tanh, :relu, or :sigmoid")
+end
+
+"Build a Flux Chain from NNparams: 2 inputs → hidden layers → 1 sigmoid output"
+function build_locking_nn(nn_params::NNparams)
+    act   = get_activation(nn_params.activation)
+    sizes = [2; nn_params.hidden_sizes; 1]
+    layers = []
+    for i in 1:length(sizes)-2
+        push!(layers, Dense(sizes[i], sizes[i+1], act))
+    end
+    push!(layers, Dense(sizes[end-1], 1, sigmoid))
+    return Chain(layers...)
+end
+
+"""
+    prepare_nn_data(locking_labels, control1, control2) → (X, y)
+
+Prepare (X, y) training data from ODE results.
+  X : (2 × N) Float32 — raw [C1, C2] values
+  y : (1 × N) Float32 — k-means labels shifted from {1,2} → {0,1}
+"""
+function prepare_nn_data(locking_labels::Vector{Int},
+                          control1::Vector{Float64}, control2::Vector{Float64})
+    X = Float32.(hcat(control1, control2)')   # (2 × N)
+    y = reshape(Float32.(locking_labels .- 1), 1, :)   # (1 × N) Matrix{Float32}, {1,2} → {0,1}
+    return X, y
+end
+
+"""
+Train a Flux model on (X, y) with L2 regularisation.
+When `nn_params.val_fraction > 0`, a validation split is held out and
+early stopping is applied (patience = `nn_params.patience`).
+When `val_fraction == 0` (default), all data is used and training runs
+for the full `n_epochs` — appropriate for physics-driven classification
+problems where the labels are deterministic.
+Returns the best model found (or the final model when validation is off).
+"""
+function _fit_nn_model(model, X::Matrix{Float32}, y::Matrix{Float32}, nn_params::NNparams)
+    use_val = nn_params.val_fraction > 0.0
+
+    if use_val
+        n_val   = max(1, round(Int, nn_params.val_fraction * size(X, 2)))
+        n_train = size(X, 2) - n_val
+        X_tr = X[:, 1:n_train];     y_tr = y[:, 1:n_train]
+        X_va = X[:, n_train+1:end]; y_va = y[:, n_train+1:end]
+    else
+        X_tr = X;  y_tr = y
+    end
+
+    opt_state  = Flux.setup(Adam(nn_params.learning_rate), model)
+    data       = Flux.DataLoader((X_tr, y_tr); batchsize=nn_params.batch_size, shuffle=true)
+    wd         = Float32(nn_params.weight_decay)
+    best_val   = Inf
+    n_wait     = 0
+    best_model = model
+
+    for epoch in 1:nn_params.n_epochs
+        for (xb, yb) in data
+            _, grads = Flux.withgradient(model) do m
+                l2 = sum(l -> sum(abs2, l.weight), m.layers)
+                Flux.binarycrossentropy(m(xb), yb) + wd * l2
+            end
+            Flux.update!(opt_state, model, grads[1])
+        end
+
+        if use_val
+            val = Flux.binarycrossentropy(model(X_va), y_va)
+            if val < best_val
+                best_val = val;  n_wait = 0;  best_model = deepcopy(model)
+            else
+                n_wait += 1
+                if n_wait >= nn_params.patience
+                    @info "  Early stopping at epoch $epoch  best_val=$(round(best_val; digits=4))"
+                    break
+                end
+            end
+            epoch % 200 == 0 && @info "  NN epoch $epoch/$(nn_params.n_epochs)  val=$(round(val; digits=4))"
+        else
+            epoch % 200 == 0 && @info "  NN epoch $epoch/$(nn_params.n_epochs)  loss=$(round(Flux.binarycrossentropy(model(X), y); digits=4))"
+        end
+    end
+    return best_model
+end
+
+"""
+    train_locking_nn(actor, nn_params=NNparams()) → LockingNNModel
+
+Train a binary NN classifier (C1, C2) → P(locked) on the k-means labels in
+`actor.results`.  Updates `actor.results.prob` in-place and returns the model.
+
+The stored model is callable: `actor.results.prob(C1, C2)` ∈ [0, 1].
+To search for better hyperparameters first, call `tune_locking_nn(actor)`.
+"""
+function train_locking_nn(actor::ActorLocking, nn_params::NNparams=NNparams())
+    r  = actor.results
+    op = actor.ode_params
+    r === nothing && error("No results — run the actor with task=:solve_system first")
+
+    X, y = prepare_nn_data(r.locking_labels, op.Control1, op.Control2)
+
+    @info "Training NN: architecture=$(nn_params.hidden_sizes)  epochs=$(nn_params.n_epochs)"
+    model = _fit_nn_model(build_locking_nn(nn_params), X, y, nn_params)
+    @info "NN training complete. Final loss=$(round(Flux.binarycrossentropy(model(X), y); digits=4))"
+
+    prob_model = LockingNNModel(model, nn_params)
+    actor.results.prob = prob_model
+    return prob_model
+end
+
+"""
+    tune_locking_nn(actor; n_trials=20, n_folds=3, rng=GLOBAL_RNG) → NNparams
+
+Random hyperparameter search using k-fold CV on the current actor results.
+After finding the best configuration, retrains the full model with those
+hyperparameters and updates `actor.results.prob` in-place.
+
+Returns the best `NNparams` (useful for Task 2 transfer learning).
+"""
+function tune_locking_nn(actor::ActorLocking; n_trials::Int=20, n_folds::Int=3,
+                          rng::AbstractRNG=Random.GLOBAL_RNG)
+    r  = actor.results
+    op = actor.ode_params
+    r === nothing && error("No results — run the actor with task=:solve_system first")
+
+    X, y = prepare_nn_data(r.locking_labels, op.Control1, op.Control2)
+
+    # Search space — mirrors Python's RandomizedSearchCV param_dist
+    hidden_pool = [[10,10], [10,20,10], [100,100], [200,100,100], [200,100,100,200]]
+    lr_pool     = exp10.(range(-4, -2; length=5))   # logspace(-4,-2,5)
+    wd_pool     = exp10.(range(-10, -6; length=5))  # logspace(-10,-6,5)
+    batch_pool  = [100, 200, 400, 800]
+    epoch_pool  = [400, 1000]                        # CV uses half; final uses full
+
+    N         = size(X, 2)
+    fold_size = N ÷ n_folds
+    best_params = NNparams()
+    best_loss   = Inf
+
+    @info "Hyperparameter search: $n_trials trials, $n_folds-fold CV"
+    for trial in 1:n_trials
+        params = NNparams(
+            hidden_sizes  = rand(rng, hidden_pool),
+            activation    = :relu,                       # Python fixes relu
+            learning_rate = rand(rng, lr_pool),
+            n_epochs      = rand(rng, epoch_pool) ÷ 2,  # half epochs for CV speed
+            batch_size    = rand(rng, batch_pool),
+            weight_decay  = rand(rng, wd_pool),
+            patience      = 20,
+        )
+
+        # k-fold cross-validation loss
+        cv_loss = 0.0
+        for k in 1:n_folds
+            val_idx   = ((k-1)*fold_size + 1):min(k*fold_size, N)
+            train_idx = setdiff(1:N, val_idx)
+            m = _fit_nn_model(build_locking_nn(params), X[:, train_idx], y[:, train_idx], params)
+            cv_loss += Flux.binarycrossentropy(m(X[:, val_idx]), y[:, val_idx])
+        end
+        cv_loss /= n_folds
+
+        @info "  Trial $trial/$n_trials  cv_loss=$(round(cv_loss; digits=4))  arch=$(params.hidden_sizes)  lr=$(round(params.learning_rate;sigdigits=2))  wd=$(round(params.weight_decay;sigdigits=2))"
+        if cv_loss < best_loss
+            best_loss   = cv_loss
+            best_params = params
+        end
+    end
+
+    @info "Best: arch=$(best_params.hidden_sizes)  act=$(best_params.activation)  lr=$(best_params.learning_rate)  CV_loss=$(round(best_loss; digits=4))"
+
+    # Retrain on full data restoring full epoch count (CV used half)
+    full_params = NNparams(
+        hidden_sizes  = best_params.hidden_sizes,
+        activation    = best_params.activation,
+        learning_rate = best_params.learning_rate,
+        n_epochs      = best_params.n_epochs * 2,
+        batch_size    = best_params.batch_size,
+        weight_decay  = best_params.weight_decay,
+        patience      = best_params.patience,
+    )
+    @info "Retraining final model ($(full_params.n_epochs) epochs)..."
+    train_locking_nn(actor, full_params)
+    return full_params
+end
 
 """
 plot_sols_scatter(norm_sol; xcol=1, ycol=3)
