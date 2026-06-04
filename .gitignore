@@ -74,8 +74,5 @@ tmp.gif
 *.pyc
 *.log
 
-# Generated knowledge base files
-knowledge/actors/
-
 # Local Claude context (not shipped)
 CLAUDE.md
