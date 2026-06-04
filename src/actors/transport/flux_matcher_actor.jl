@@ -161,7 +161,7 @@ end
     _step(actor::ActorFluxMatcher)
 
 ActorFluxMatcher step
-"""
+""" flux_match_errors
 function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
@@ -174,8 +174,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.actor_replay))
     end
 
-    # snapshot before any modifications for "before" plot
-    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
+    # snapshot before intrinsic_sources! for "before" plot — captures true thermal density
+    plot_cp1d = cp1d_copy_primary_quantities(cp1d)
 
     # make intrinsic sources consistent to start
     IMAS.intrinsic_sources!(dd)
@@ -190,6 +190,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             end
         end
     end
+
+    # snapshot after merge block — used as flux matcher baseline (reset on each solver iteration)
+    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -495,7 +498,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             plot!(IMAS.goto(total_flux1d, fluxes_path), Val(:flux); subplot=2 * ch - 1, color=:red, label="total transport", linewidth=2)
 
             title = profiles_title(cp1d, profiles_path)
-            plot!(IMAS.goto(initial_cp1d, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="before", linestyle=:dash, color=:black)
+            plot!(IMAS.goto(plot_cp1d, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="before", linestyle=:dash, color=:black)
             plot!(IMAS.goto(cp1d, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="after", title)
             if profiles_path[end] != :momentum_tor
                 plot!(; subplot=2 * ch, ylim=[0, Inf])
