@@ -121,6 +121,9 @@ function case_parameters(
         ini.core_profiles.ne_value = 0.9
         act.ActorPedestal.density_match = :ne_line
     end
+    # ITER-scale, reactor-relevant: use the 12-input EPED-NN deep ensemble (ne_sep/ne_ped & Te_sep
+    # as inputs, with calibrated UQ) instead of the legacy fixed-ne_sep/ne_ped single net.
+    act.ActorEPED.nn_model = :variable_nesep_ratio
     ini.core_profiles.ne_shaping = 1.0
     ini.core_profiles.Te_shaping = 1.8
     ini.core_profiles.Ti_Te_ratio = 1.0
