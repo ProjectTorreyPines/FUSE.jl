@@ -39,10 +39,11 @@ jobs:
           git config --global url."https://github.com/".insteadOf "git@github.com:"
           julia --color=yes -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
 
-      # dev the local package + Tim's IMAS_Design/EPEDNN_Design forks (their additions — e.g.
-      # IMAS.pedestal_poloidal_beta, EPEDNN.ensemble_uncertainty — are not in the registry), then
-      # resolve everything else from the FuseRegistry.
-      - name: Instantiate (dev forks)
+      # Always test against the FORK versions of IMAS/EPEDNN — their additions (e.g.
+      # IMAS.pedestal_poloidal_beta, EPEDNN.ensemble_uncertainty) are not in the registry. dev the
+      # forks, instantiate (rest resolves from FuseRegistry), and run the tests in the SAME session
+      # so Pkg.test() inherits the dev'd paths and can never fall back to the registry versions.
+      - name: Test (fork IMAS_Design / EPEDNN_Design)
         run: |
           julia --project=. --color=yes -e '
             using Pkg
@@ -50,6 +51,5 @@ jobs:
                 PackageSpec(url="https://github.com/TimSlendebroek/IMAS_Design.jl.git"),
                 PackageSpec(url="https://github.com/TimSlendebroek/EPEDNN_Design.jl.git"),
             ])
-            Pkg.instantiate()'
-
-      - uses: julia-actions/julia-runtest@v1
+            Pkg.instantiate()
+            Pkg.test()'
