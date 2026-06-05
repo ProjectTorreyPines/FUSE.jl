@@ -54,6 +54,7 @@ define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	@echo $(JULIA_PKG_DEVDIR)/$(1)
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull 2>&1 | sed 's/^/$(1): /'; fi
+	@ cd $(JULIA_PKG_DEVDIR)/$(1) && git lfs pull 2>/dev/null || true
 endef
 
 define feature_or_master_julia
@@ -69,7 +70,28 @@ function feature_or_master(package, feature_branch) ;\
     token = "$(PTP_READ_TOKEN)" ;\
     url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
     headers = ["Authorization" => "Bearer $$(token)", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"] ;\
-    response = HTTP.get(url, headers; status_exception=false) ;\
+    max_attempts = 5 ;\
+    response = nothing ;\
+    last_err = nothing ;\
+    for attempt in 1:max_attempts ;\
+        try ;\
+            response = HTTP.get(url, headers; status_exception=false, retry=true, retries=4, readtimeout=30, connect_timeout=30) ;\
+            last_err = nothing ;\
+            break ;\
+        catch err ;\
+            last_err = err ;\
+            if attempt == max_attempts ;\
+                break ;\
+            end ;\
+            sleep_seconds = min(2.0^attempt, 30.0) ;\
+            @warn "GitHub API request failed for $$(package) (attempt $$(attempt)/$$(max_attempts)); retrying in $$(sleep_seconds)s" exception=(err, catch_backtrace()) ;\
+            sleep(sleep_seconds) ;\
+        end ;\
+    end ;\
+    if response === nothing ;\
+        @warn "GitHub API request for $$(package) failed after $$(max_attempts) attempts; falling back to master" exception=last_err ;\
+        return "master" ;\
+    end ;\
     if response.status == 200 ;\
         return feature_branch ;\
     elseif response.status == 404 ;\
@@ -962,19 +984,8 @@ help_common:
 
 # @user
 install_IJulia:
-# Install IJulia
-	julia -e '\
-	using Pkg;\
-	Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
-	Pkg.build("IJulia");\
-	import IJulia;\
-	n=get(ENV, "JULIA_NUM_THREADS", string(length(Sys.cpu_info())));\
-	IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
-	'
-	jupyter kernelspec list
-	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter labextension list
-	jupyter nbextension list
+# Install IJulia (Python must be on PATH; see docs/src/install.md)
+	bash scripts/install_ijulia.sh
 
 # @user
 install_examples:

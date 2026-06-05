@@ -1,6 +1,6 @@
 #!/bin/bash
 
-module load julia
+module load julia/1.11.7
 module load env/gcc11.x
 
 basedir="/fusion/projects/codes/julia/fuse"
