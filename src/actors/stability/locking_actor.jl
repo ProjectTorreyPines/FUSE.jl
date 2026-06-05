@@ -3,6 +3,7 @@ using DifferentialEquations
 import Roots
 using Flux
 using Random
+import BSON
 using Plots
 using Clustering
 #import FUSE: coordinates
@@ -203,10 +204,6 @@ function _step(actor::ActorLocking)
         norm_sols = normalize_ode_results(ode_sols, actor.ode_params,
              control2, control1, par.control_type)
 
-        # ## plot normalize solution scatters
-        #plot_sols_scatter(norm_sols; xcol=1,ycol=3)
-        #inputs = [(c1, c2) for (c1, c2) in zip(control1, control2)]
-        #inputs = vec(inputs)  # flatten
 
         # If you want them back on a 2D grid (N x M), reshape here:
         N, M = size(norm_sols)
@@ -225,7 +222,6 @@ function _step(actor::ActorLocking)
         if locking_labels[argmax(norm_sols[:, 3])] != 1
             locking_labels = 3 .- locking_labels   # flip 1↔2
         end
-        #plot_sols_scatter(norm_sols; labels=locking_labels)
 
         contour = ContourData(
             x = control2,
@@ -250,16 +246,29 @@ function _step(actor::ActorLocking)
         # Train NN with hyperparameters stored on the actor
         train_locking_nn(actor, actor.nn_params)
 
+        # Checkpoint ODE results to disk so calc_prob can run in a future session
+        save_ode_results(actor)
+
     elseif task == :calc_prob
-        # Retrain NN only — ODEs are NOT re-solved
-        actor.results === nothing && error("No ODE results found — run task=:solve_system first")
+        # Retrain NN only — ODEs are NOT re-solved.
+        # Use in-memory results if available; otherwise load from disk.
+        if actor.results === nothing
+            @info "No in-memory ODE results — loading from disk"
+            load_ode_results!(actor)
+        end
         @info "Retraining NN classifier (ODEs not re-solved)"
         train_locking_nn(actor, actor.nn_params)
 
     elseif task == :evaluate_probability
-        @info   "Evaluating saved Locking probability (not implemented yet)"
-        # C1 = .5; C2 = .5 # place holders for now, need to implement a way to specify which case(s) to evaluate probability for
-        #probability = actor.results.prob(C1, C2) # placeholder for now, need to implement a way to evaluate probability from the ODE solutions
+        # Load NN model from disk (cached after first load).
+        # Also load ODE results if not already in memory (needed for plot_sols).
+        if actor.results === nothing
+            @info "No in-memory ODE results — loading from disk"
+            load_ode_results!(actor)
+        end
+        prob_model = load_locking_nn()
+        actor.results.prob = prob_model
+        @info "Locking NN model ready — call actor.results.prob(C1, C2) or plot_sols(actor)"
     elseif task == :Monte_Carlo
         error("Monte-Carlo not implemented yet")
     elseif task == :transfer_learning
@@ -307,7 +316,7 @@ function plot_sols(actor)
     p1 = heatmap(x, y, z;
         xlabel         = xlabel_ctrl,
         ylabel         = "Rotation Frequency (a.u.)",
-        #title          = "ψ at t_final",
+        title          = "Normalized TM amplitude",
         colorbar_title = "ψ_N",
     )
     # Overlay the k-means locking boundary (white, solid)
@@ -316,7 +325,7 @@ function plot_sols(actor)
         linecolor = :white,
         linewidth = 2,
         colorbar  = false,
-        label     = "locking boundary (k-means)",
+        #label     = "locking boundary (k-means)",
     )
     # Overlay the analytic bifurcation boundary (yellow, dashed) — only when NL saturation is off
     if r.bifurcation_bounds !== nothing
@@ -337,9 +346,9 @@ function plot_sols(actor)
     shapes  = [:circle, :x]
 
     p2 = plot(;
-        xlabel = "NormalizedTM amplitude ψ_N",
+        xlabel = "Normalized TM amplitude ψ_N",
         ylabel = "Normalized Rotation Ω_N",
-        title  = "Locking classification",
+        #title  = "Locking classification",
     )
     for (cl, sh) in zip(classes, shapes)
         idx = findall(r.locking_labels .== cl)
@@ -445,14 +454,6 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     return ode_params
 end
 
-# function set_sim_time(time0::Float64, tfinal::Float64, time_steps::Int64) 
-#     """
-#     initialize time for the ODE integration
-#     """
-#     sim_time = collect(range(time0, tfinal, length=time_steps))
-    
-#     return sim_time
-# end
 
 
 function find_rat_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surface::Float64)
@@ -541,24 +542,28 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     # approximate core rotation
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic[10]
     
-    # get the actual torque from dd
-    cp1d = dd.core_profiles.profiles_1d[]
-    total_source1d = IMAS.total_sources(dd.core_sources, cp1d; time0=dd.global_time, fields=[:torque_tor_inside])
-    #dd.core_sources.source[15].global_quantities[1].torque_tor
-    #                 time0=dd.global_time, fields=[:torque_tor_inside])
+    # NBI torque at the rational surface:
+    # Prefer the FUSE NBI actor output (dd.core_sources) if it has been populated upstream;
+    # fall back to the user-specified par.NBItorque scalar if not.
+    torque_at_rat_surf = try
+        cp1d          = dd.core_profiles.profiles_1d[]
+        src1d         = IMAS.total_sources(dd.core_sources, cp1d;
+                            time0=dd.global_time, fields=[:torque_tor_inside])
+        rho_src       = src1d.grid.rho_tor_norm
+        torque_inside = src1d.torque_tor_inside
+        if isempty(rho_src) || all(iszero, torque_inside)
+            error("empty")
+        end
+        torque_val = IMAS.interp1d(rho_src, torque_inside)(rt)
+        @info "NBI torque at rational surface from dd.core_sources: $(round(torque_val; sigdigits=4)) N·m"
+        torque_val
+    catch
+        @warn "dd.core_sources torque not available — falling back to par.NBItorque = $(par.NBItorque) N·m"
+        par.NBItorque
+    end
 
-    # Interpolate to get NBI torque at the rational surface
-    rho_src = total_source1d.grid.rho_tor_norm
-    torque_interp = IMAS.interp1d(rho_src, total_source1d.torque_tor_inside)
-    torque_at_rat_surf = torque_interp(rt)   # N·m, inside rat_surface
-
-    muSI = torque_at_rat_surf / rot_core
-    @info "Calculated NBI torque at rational surface: $(torque_at_rat_surf) N·m"
-    @info "mu in SI units: $muSI N·m·s"
     # Calculate the drag coefficient in SI
-    muSI = par.NBItorque / rot_core
-    @info "Overwriting NBI torque with user-specified value: $(par.NBItorque) N·m"
-    @info "mu in SI units: $muSI N·m·s"
+    muSI = torque_at_rat_surf / rot_core
     # Calculate first the moment of inertia in the layer  
     inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
 
@@ -1068,6 +1073,104 @@ function _fit_nn_model(model, X::Matrix{Float32}, y::Matrix{Float32}, nn_params:
         end
     end
     return best_model
+end
+
+# Local directory for all locking actor results (ODE grid + NN model)
+const LOCKING_RESULTS_DIR = joinpath(homedir(), ".julia", "locking_results")
+
+# In-memory cache — avoids reloading from disk on every evaluate_probability call
+const _locking_nn_cache = Dict{String, LockingNNModel}()
+
+"""
+    save_ode_results(actor; filename="ode_results.bson", dir=LOCKING_RESULTS_DIR) → path
+
+Save the ODE grid results to disk so that `task=:calc_prob` can be run in a
+future session without re-solving the ODEs.  Saves: ode_sols, norm_sols,
+locking_labels, bifurcation_bounds, Control1, Control2, contour_data.
+"""
+function save_ode_results(actor::ActorLocking;
+                           filename::String = "ode_results.bson",
+                           dir::String      = LOCKING_RESULTS_DIR)
+    actor.results === nothing && error("No ODE results — run task=:solve_system first")
+    mkpath(dir)
+    path = joinpath(dir, filename)
+    r    = actor.results
+    op   = actor.ode_params
+    ode_sols           = r.ode_sols
+    norm_sols          = r.norm_sols
+    locking_labels     = r.locking_labels
+    bifurcation_bounds = r.bifurcation_bounds
+    contour_data       = r.contour_data
+    Control1           = op.Control1
+    Control2           = op.Control2
+    BSON.@save path ode_sols norm_sols locking_labels bifurcation_bounds contour_data Control1 Control2
+    @info "Saved ODE results → $path"
+    return path
+end
+
+"""
+    load_ode_results(actor; filename="ode_results.bson", dir=LOCKING_RESULTS_DIR)
+
+Load previously saved ODE results from disk into `actor.results` and
+`actor.ode_params.Control1/Control2`.  Called by `task=:calc_prob` when
+`actor.results` is nothing (fresh session).
+"""
+function load_ode_results!(actor::ActorLocking;
+                            filename::String = "ode_results.bson",
+                            dir::String      = LOCKING_RESULTS_DIR)
+    path = joinpath(dir, filename)
+    isfile(path) || error("No saved ODE results at $path — run task=:solve_system first")
+    d = BSON.load(path, @__MODULE__)
+    actor.ode_params === nothing && (actor.ode_params = ODEparams())
+    actor.ode_params.Control1 = d[:Control1]
+    actor.ode_params.Control2 = d[:Control2]
+    actor.results = LockingResults(
+        d[:ode_sols],
+        nothing,
+        d[:norm_sols],
+        d[:locking_labels],
+        d[:contour_data],
+        d[:bifurcation_bounds],
+    )
+    @info "Loaded ODE results ← $path"
+    return actor.results
+end
+
+"""
+    save_locking_nn(actor; filename="nn_model.bson", dir=LOCKING_RESULTS_DIR) → path
+
+Save the trained LockingNNModel to disk.
+Default location: ~/.julia/locking_results/
+"""
+function save_locking_nn(actor::ActorLocking;
+                          filename::String = "nn_model.bson",
+                          dir::String      = LOCKING_RESULTS_DIR)
+    actor.results === nothing        && error("No results — run task=:solve_system first")
+    actor.results.prob === nothing   && error("No trained model — run train_locking_nn first")
+    mkpath(dir)
+    path      = joinpath(dir, filename)
+    model     = actor.results.prob.model
+    nn_params = actor.results.prob.nn_params
+    BSON.@save path model nn_params
+    @info "Saved locking NN model → $path"
+    return path
+end
+
+"""
+    load_locking_nn(; filename="nn_model.bson", dir=LOCKING_RESULTS_DIR) → LockingNNModel
+
+Load a saved LockingNNModel from disk. Cached in memory after first load.
+"""
+function load_locking_nn(; filename::String = "nn_model.bson",
+                           dir::String      = LOCKING_RESULTS_DIR)
+    path = joinpath(dir, filename)
+    haskey(_locking_nn_cache, path) && return _locking_nn_cache[path]
+    isfile(path) || error("No saved model at $path — run save_locking_nn first")
+    d = BSON.load(path, @__MODULE__)
+    prob_model = LockingNNModel(d[:model], d[:nn_params])
+    _locking_nn_cache[path] = prob_model
+    @info "Loaded locking NN model ← $path"
+    return prob_model
 end
 
 """
