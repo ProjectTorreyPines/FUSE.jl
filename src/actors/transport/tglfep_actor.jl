@@ -1,0 +1,203 @@
+import TJLFEP
+import ALPHA
+
+#= =========== =#
+#  ActorTJLFEP  #
+#= =========== =#
+@actor_parameters_struct ActorTJLFEP{T} begin
+    rho_scan::Entry{AbstractVector{T}} =
+        Entry{AbstractVector{T}}("-", "rho_tor_norm radii at which TGLF-EP finds the critical EP-density scale SFmin"; default=[0.01, 0.21, 0.41, 0.61, 0.81, 0.95])
+    is_ep::Entry{Int} = Entry{Int}("-", "ion index of the energetic-particle (EP) driver species in dd.core_profiles.ion"; default=3)
+    process_in::Entry{Int} = Entry{Int}("-", "TGLF-EP PROCESS_IN (4 or 5: critical-EP-density-gradient scan)"; default=5)
+    threshold_flag::Entry{Int} = Entry{Int}("-", "TGLF-EP THRESHOLD_FLAG"; default=0)
+    scan_method::Entry{Int} = Entry{Int}("-", "TGLF-EP SCAN_METHOD"; default=1)
+    n_basis::Entry{Int} = Entry{Int}("-", "TGLF-EP N_BASIS (number of Hermite basis functions)"; default=2)
+    ky_model::Entry{Int} = Entry{Int}("-", "TGLF-EP KY_MODEL"; default=2)
+    nmodes::Entry{Int} = Entry{Int}("-", "number of eigenmodes"; default=4)
+    nn::Entry{Int} = Entry{Int}("-", "TGLF-EP nn (number of scalefactor iterations)"; default=5)
+    width_min::Entry{T} = Entry{T}("-", "minimum Gaussian width"; default=1.0)
+    width_max::Entry{T} = Entry{T}("-", "maximum Gaussian width"; default=2.0)
+    factor_in::Entry{T} = Entry{T}("-", "initial EP-density scalefactor"; default=1.0)
+    reject_i_pinch::Entry{Bool} = Entry{Bool}("-", "reject ion-pinch modes"; default=false)
+    reject_e_pinch::Entry{Bool} = Entry{Bool}("-", "reject electron-pinch modes"; default=false)
+    reject_th_pinch::Entry{Bool} = Entry{Bool}("-", "reject thermal-pinch modes"; default=true)
+    reject_ep_pinch::Entry{Bool} = Entry{Bool}("-", "reject EP-pinch modes"; default=false)
+    reject_tearing::Entry{Bool} = Entry{Bool}("-", "reject tearing-parity modes"; default=true)
+    rotational_suppression::Entry{Bool} = Entry{Bool}("-", "apply rotational suppression"; default=true)
+    alpha_method::Switch{Symbol} =
+        Switch{Symbol}([:density, :pressure], "-", "ALPHA critical-gradient variable (density or pressure threshold)"; default=:density)
+    alpha_solver::Switch{Symbol} =
+        Switch{Symbol}([:stiff, :marginal], "-", "ALPHA solver (:stiff = Fortran stiff-CGM; :marginal = analytic min(classical,marginal))"; default=:stiff)
+    alpha_use_ql::Entry{Bool} =
+        Entry{Bool}("-", "use TGLF-EP-derived gamma_star/diff_star in stiff-CGM QL diffusivity"; default=false)
+    E_alpha::Entry{T} = Entry{T}("MeV", "EP birth energy (3.5 MeV for fusion alphas)"; default=3.5)
+    use_gpu::Entry{Bool} = Entry{Bool}("-", "run TJLF on GPU when available"; default=false)
+end
+
+mutable struct ActorTJLFEP{D,P} <: SingleAbstractActor{D,P}
+    dd::IMAS.dd{D}
+    par::OverrideParameters{P,FUSEparameters__ActorTJLFEP{P}}
+    rho_grid::Vector{D}            # full rho_tor_norm grid the critical gradients live on
+    SFmin::Vector{D}               # critical EP-density scalefactor per scan radius (stability metric)
+    width::Vector{D}               # Gaussian width per scan radius
+    kymark::Vector{D}              # marginal ky per scan radius
+    dndr_crit::Vector{D}           # critical EP density gradient on rho_grid [10^19 m^-3 / m]
+    dpdr_crit::Vector{D}           # critical EP pressure gradient on rho_grid [10 kPa / m]
+    alpha::Union{Nothing,ALPHA.AlphaResult{D}}
+end
+
+"""
+    ActorTJLFEP(dd::IMAS.dd, act::ParametersAllActors; kw...)
+
+Energetic-particle (EP) transport actor combining TGLF-EP and ALPHA.
+
+TGLF-EP (`TJLFEP.runTHD`) finds the critical EP-density scale `SFmin` per radius —
+the EP density at which the linear Alfvén-eigenmode (AE) drive turns on — and from
+it the critical EP density- and pressure-gradient profiles. ALPHA (`ALPHA.run_alpha`)
+then integrates those critical gradients (a steady-state critical-gradient model) to
+obtain the EP radial profiles: density `n_EP`, pressure `p_EP`, temperature
+`T_EP = p_EP / n_EP`, and the associated EP particle/energy flux.
+
+`_finalize` writes the integrated EP profiles to `dd.core_profiles` as a fast-ion
+population on the EP species and the EP flux to `dd.core_transport`. AE-stability
+metrics (`SFmin`, `width`, `kymark`) are kept on the actor struct.
+"""
+function ActorTJLFEP(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorTJLFEP(dd, act.ActorTJLFEP; kw...)
+    step(actor)
+    finalize(actor)
+    return actor
+end
+
+function ActorTJLFEP(dd::IMAS.dd{D}, par::FUSEparameters__ActorTJLFEP; kw...) where {D<:Real}
+    logging_actor_init(ActorTJLFEP)
+    par = OverrideParameters(par; kw...)
+    return ActorTJLFEP(dd, par, D[], D[], D[], D[], D[], D[], nothing)
+end
+
+"""
+    _optionsdict(par) -> Dict{String,Any}
+
+Build the TGLF-EP `OptionsDict` consumed by `TJLFEP.runTHD` from the actor parameters.
+"""
+function _optionsdict(par::OverrideParameters{P,FUSEparameters__ActorTJLFEP{P}}) where {P<:Real}
+    scan_n = length(par.rho_scan)
+    return Dict{String,Any}(
+        "nn" => par.nn, "jtscale_max" => 1, "nmodes" => par.nmodes,
+        "PROCESS_IN" => par.process_in, "THRESHOLD_FLAG" => par.threshold_flag, "N_BASIS" => par.n_basis,
+        "SCAN_METHOD" => par.scan_method,
+        "REJECT_I_PINCH_FLAG" => Int(par.reject_i_pinch), "REJECT_E_PINCH_FLAG" => Int(par.reject_e_pinch),
+        "REJECT_TH_PINCH_FLAG" => Int(par.reject_th_pinch), "REJECT_EP_PINCH_FLAG" => Int(par.reject_ep_pinch),
+        "REJECT_TEARING_FLAG" => Int(par.reject_tearing), "ROTATIONAL_SUPPRESSION_FLAG" => Int(par.rotational_suppression),
+        "QL_RATIO_THRESH" => 0.001, "THETA_SQ_THRESH" => 100.0, "Q_SCALE" => 1.0,
+        "WRITE_WAVEFUNCTION" => 0, "KY_MODEL" => par.ky_model, "SCAN_N" => scan_n, "IRS" => 2,
+        "FACTOR_IN_PROFILE" => false, "FACTOR_IN" => par.factor_in,
+        "WIDTH_IN_FLAG" => false, "WIDTH_MIN" => par.width_min, "WIDTH_MAX" => par.width_max,
+        "INPUT_PROFILE_METHOD" => 2, "N_ION" => 3, "IS_EP" => par.is_ep, "REAL_FREQ" => 1)
+end
+
+"""
+    _step(actor::ActorTJLFEP)
+
+Runs TGLF-EP (`TJLFEP.runTHD`) to obtain the critical EP density/pressure gradients,
+then integrates them with ALPHA (`ALPHA.run_alpha`) into the EP profiles and flux.
+"""
+function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
+    dd = actor.dd
+    par = actor.par
+
+    rho_scan = collect(Float64, par.rho_scan)
+    OptionsDict = _optionsdict(par)
+
+    use_ql = par.alpha_use_ql && par.alpha_solver == :stiff
+    width, kymark_out, SFmin, dpdr_crit_out, dndr_crit_out, marginal_ql =
+        TJLFEP.runTHD(dd, rho_scan, OptionsDict; use_gpu=par.use_gpu, ql_flux_scan=use_ql)
+
+    actor.rho_grid = D.(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
+    actor.SFmin = D.(SFmin)
+    actor.width = D.(width)
+    actor.kymark = D.(kymark_out)
+    actor.dndr_crit = D.(dndr_crit_out)
+    actor.dpdr_crit = D.(dpdr_crit_out)
+
+    # Where TGLF-EP found no AE limit the critical gradient is NaN / >=9000 sentinel;
+    # map those to a large gradient so the integrated marginal profile stays well above
+    # the classical slowing-down profile and `min(classical, marginal)` keeps the
+    # (un-flattened) classical EP density there.
+    dndr = _sanitize_crit_grad(dndr_crit_out)
+    dpdr = _sanitize_crit_grad(dpdr_crit_out) ./ 0.16022   # 10 kPa/m -> 10^19 m^-3·keV /m (see runTHD)
+
+    crit_grad = (; dndr_crit=dndr, dpdr_crit=dpdr)
+
+    ql_modes = nothing
+    transport_params = nothing
+    if use_ql
+        km = par.nmodes
+        raw = TJLFEP.build_alpha_ql_modes(marginal_ql, rho_scan, actor.rho_grid, dndr; km_max=km)
+        ql_modes = [
+            ALPHA.QLModeInput{D}(;
+                gamma_star=m.gamma_star,
+                diff_star=m.diff_star,
+                rg_n_crit=m.rg_n_crit,
+                crit_index_shift=m.crit_index_shift,
+                crit_scale=m.crit_scale,
+            ) for m in raw
+        ]
+        transport_params = ALPHA.AlphaTransportParams{D}(; use_ql_diffusivity=true)
+    end
+
+    actor.alpha = ALPHA.run_alpha(dd, actor.rho_grid, crit_grad;
+        solver=par.alpha_solver, method=par.alpha_method, E_alpha=Float64(par.E_alpha),
+        transport_params=transport_params, ql_modes=ql_modes)
+
+    return actor
+end
+
+"""Replace NaN / `>=9000` "no AE limit" sentinels with a large finite gradient (10^4)."""
+function _sanitize_crit_grad(g::AbstractVector)
+    return [(!isfinite(x) || abs(x) >= 9000.0) ? 1.0e4 : x for x in g]
+end
+
+"""
+    _finalize(actor::ActorTJLFEP)
+
+Writes the integrated EP profiles to `dd.core_profiles` (fast-ion population on the
+EP species: `density_fast`, `pressure_fast_parallel`, `pressure_fast_perpendicular`)
+and the EP particle/energy flux to `dd.core_transport`.
+"""
+function _finalize(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
+    dd = actor.dd
+    par = actor.par
+    res = actor.alpha
+    res === nothing && return actor
+
+    cp1d = dd.core_profiles.profiles_1d[]
+    rho_cp = cp1d.grid.rho_tor_norm
+
+    # keV (10^19 m^-3) -> Pa : n[m^-3]·T[keV]·1e3·e
+    keV19_to_Pa = 1.0e19 * 1.0e3 * IMAS.mks.e
+
+    n_fast = IMAS.interp1d(res.rho, res.n_EP).(rho_cp) .* 1e19           # m^-3
+    p_fast = IMAS.interp1d(res.rho, res.p_EP).(rho_cp) .* keV19_to_Pa   # Pa
+
+    ep_ion = cp1d.ion[par.is_ep]
+    ep_ion.density_fast = max.(n_fast, 0.0)
+    # isotropic fast pressure: p_par + 2·p_perp = p_fast  =>  p_par = p_perp = p_fast/3
+    ep_ion.pressure_fast_parallel = max.(p_fast ./ 3.0, 0.0)
+    ep_ion.pressure_fast_perpendicular = max.(p_fast ./ 3.0, 0.0)
+
+    # EP flux to core_transport. These are local flux *densities* (Γ [m^-2 s^-1],
+    # q [W/m^2]); unlike the GACODE->IMAS anomalous fluxes they carry no V' Miller
+    # weighting, since ALPHA is a standalone steady-state EP solver (diagnostic
+    # output, not iterated by the FUSE flux-matcher).
+    model = resize!(dd.core_transport.model, :anomalous; wipe=false)
+    model.identifier.name = "TJLFEP-ALPHA EP ($(par.alpha_method))"
+    m1d = resize!(model.profiles_1d)
+    m1d.grid_flux.rho_tor_norm = collect(res.rho)
+    ion = resize!(m1d.ion, 1)[1]
+    ion.label = ismissing(ep_ion, :label) ? "EP" : ep_ion.label
+    ion.particles.flux = res.flux_particle .* 1e19              # m^-2 s^-1
+    ion.energy.flux = res.flux_energy .* keV19_to_Pa           # W/m^2 (keV·10^19 m^-2 s^-1 -> W/m^2)
+
+    return actor
+end

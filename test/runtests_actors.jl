@@ -100,4 +100,52 @@ end
     end
 end
 
-         
+@testset "ActorTJLFEP" begin
+    # ActorTJLFEP = TGLF-EP critical EP-density gradients -> ALPHA EP profiles + flux.
+    #
+    # The TGLF-EP eigenvalue solve (TJLFEP.runTHD) is validated separately by
+    # TJLFEP's own nb6 regression test; for some equilibria it can hit TJLF
+    # Hermite-matrix singularities that are unrelated to this integration. Here we
+    # validate the parts FUSE owns -- ALPHA.run_alpha building EP profiles from the
+    # IMAS dd, and _finalize writing them to core_profiles (fast-ion species) and
+    # core_transport -- by feeding synthetic critical gradients, so the test is fast
+    # and deterministic.
+    ini, act = FUSE.case_parameters(:ITER; init_from=:ods)
+    ini.core_profiles.ngrid = 51
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+
+    is_ep = 3
+    act.ActorTJLFEP.is_ep = is_ep
+    act.ActorTJLFEP.rho_scan = [0.41, 0.61]
+
+    actor = FUSE.ActorTJLFEP(dd, act.ActorTJLFEP)   # construct only (no _step / TJLF solve)
+    rho_grid = collect(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
+    crit = (; dndr_crit=fill(5.0, length(rho_grid)), dpdr_crit=fill(5.0, length(rho_grid)))
+    actor.rho_grid = rho_grid
+    actor.alpha = FUSE.ALPHA.run_alpha(dd, rho_grid, crit; solver=:marginal, method=:density)
+    FUSE.finalize(actor)
+
+    @testset "EP profiles in dd.core_profiles" begin
+        cp1d = dd.core_profiles.profiles_1d[]
+        ep_ion = cp1d.ion[is_ep]
+        nfast = ep_ion.density_fast
+        @test length(nfast) == length(cp1d.grid.rho_tor_norm)
+        @test all(isfinite, nfast)
+        @test all(nfast .>= 0.0)
+        @test maximum(nfast) > 0.0
+        pfast = ep_ion.pressure_fast_parallel .+ 2.0 .* ep_ion.pressure_fast_perpendicular
+        @test all(isfinite, pfast)
+        @test all(pfast .>= 0.0)
+        @test maximum(pfast) > 0.0
+    end
+
+    @testset "EP flux in dd.core_transport" begin
+        model = dd.core_transport.model[:anomalous]
+        m1d = model.profiles_1d[]
+        @test occursin("TJLFEP-ALPHA", model.identifier.name)
+        @test length(m1d.ion) >= 1
+        @test all(isfinite, m1d.ion[1].particles.flux)
+        @test all(isfinite, m1d.ion[1].energy.flux)
+    end
+end
