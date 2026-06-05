@@ -11,9 +11,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  PTP_READ_TOKEN: ${{ secrets.PTP_READ_TOKEN }}
-
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }}
@@ -34,13 +31,13 @@ jobs:
 
       - uses: julia-actions/cache@v2
 
-      # FUSE pulls private ProjectTorreyPines packages from the FuseRegistry, which references them
-      # via git@ SSH; rewrite to HTTPS + PTP_READ_TOKEN so CI can fetch them.
-      - name: Add FuseRegistry
+      # The FuseRegistry lists packages via git@ SSH URLs; route GitHub over HTTPS so the public
+      # repos clone without SSH keys or a token. (Any private deps simply won't resolve — and a
+      # public FUSE shouldn't depend on private packages anyway.)
+      - name: Add FuseRegistry (public, over HTTPS)
         run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
           julia --color=yes -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
-          find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' \
-            -exec perl -pi -e 's{git\@github\.com:}{https://project-torrey-pines:${{ secrets.PTP_READ_TOKEN }}\@github.com/}g' {} +
 
       # dev the local package + Tim's IMAS_Design/EPEDNN_Design forks (their additions — e.g.
       # IMAS.pedestal_poloidal_beta, EPEDNN.ensemble_uncertainty — are not in the registry), then
