@@ -20,7 +20,7 @@ import EPEDNN
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
     nn_model::Switch{Symbol} = Switch{Symbol}([:fixed_nesep_ratio, :variable_nesep_ratio], "-",
-        "EPED-NN model: :fixed_nesep_ratio (legacy 10-input net, ne_sep/ne_ped fixed ~0.25) or :variable_nesep_ratio (12-input deep ensemble with UQ; ne_sep/ne_ped and Te_sep as inputs)"; default=:fixed_nesep_ratio)
+        "EPED-NN model: :fixed_nesep_ratio (legacy 10-input net, ne_sep/ne_ped fixed ~0.25) or :variable_nesep_ratio (12-input deep ensemble with UQ; ne_sep/ne_ped and Te_sep as inputs)"; default=:variable_nesep_ratio)
 end
 
 mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
@@ -109,7 +109,7 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
         pped_pred = u.height
         actor.σ_frac = u.sigma_frac_combined # ensemble σ% in-box, geometric distance out-of-box
         if u.extrapolation > 0.0
-            @warn "EPED-NN ensemble extrapolation: max_distance=$(round(u.extrapolation; digits=2))"
+            @warn "EPED-NN ensemble extrapolation: max_distance=$(round(u.extrapolation; digits=2))" maxlog=1
         end
     else
         # legacy single net (ne_sep/ne_ped fixed at the training default ~0.25)
@@ -117,7 +117,7 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
         actor.σ_frac = actor.extrapolation   # geometric-only (no ensemble σ available)
         if extrap.max_distance > 0.0
             details = join(["$k=$(round(v; digits=2))" for (k, v) in extrap.per_input if v > 0.0], ", ")
-            @warn "EPED-NN extrapolation: max_distance=$(round(extrap.max_distance; digits=2)) on $(extrap.worst_input) [$details]"
+            @warn "EPED-NN extrapolation: max_distance=$(round(extrap.max_distance; digits=2)) on $(extrap.worst_input) [$details]" maxlog=1
         end
     end
 
