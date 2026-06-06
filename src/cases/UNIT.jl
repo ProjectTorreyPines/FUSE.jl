@@ -31,6 +31,7 @@ function case_parameters(::Val{:UNIT})
     ini.core_profiles.Te_core = 1E3
     ini.core_profiles.zeff = 1.0 # note zeff = 1 means no impurity
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
     ini.core_profiles.ngrid = 101
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C

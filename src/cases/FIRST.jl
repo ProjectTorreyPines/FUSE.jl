@@ -42,6 +42,7 @@ function case_parameters(::Val{:FIRST})
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Ar
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
 
     ini.build.layers[:OH].coils_inside = 1
     ini.build.layers[:gap_world].coils_inside = 6

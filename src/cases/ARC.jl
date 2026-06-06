@@ -71,6 +71,7 @@ function case_parameters(::Val{:ARC}; flux_matcher::Bool=false)
     ini.core_profiles.impurity = :Ne
     ini.core_profiles.helium_fraction = 0.10
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
 
     resize!(ini.ic_antenna, 1)
     ini.ic_antenna[1].power_launched = 4 * 1e6 #rf power coupled

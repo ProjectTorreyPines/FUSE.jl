@@ -74,6 +74,6 @@ tmp.gif
 *.pyc
 *.log
 
-# Generated knowledge base files
-knowledge/actors/
-knowledge/mcp_server/start_server.sh
+# Local Claude context (not shipped)
+CLAUDE.md
+.claude/

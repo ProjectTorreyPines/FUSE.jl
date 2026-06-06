@@ -54,6 +54,7 @@ function case_parameters(::Val{:MANTA}; flux_matcher::Bool=false)
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.helium_fraction = 0.025
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
 

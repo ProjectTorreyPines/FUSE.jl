@@ -74,7 +74,6 @@ using FUSE.SimulationParameters.Distributions
         mkdir(sty.save_folder)
 
         study = FUSE.StudyDatabaseGenerator(sty, ini_list, act_list)
-        study.workflow = workflow_DatabaseGenerator
 
         @info "Running study for predefined `inis` and `acts` (w/ :separate_folders policy)..."
         study.sty.database_policy = :separate_folders

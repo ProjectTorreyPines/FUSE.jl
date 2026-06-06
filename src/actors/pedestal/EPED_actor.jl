@@ -19,15 +19,20 @@ import EPEDNN
     only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
+    nn_model::Switch{Symbol} = Switch{Symbol}([:fixed_nesep_ratio, :variable_nesep_ratio], "-",
+        "EPED-NN model: :fixed_nesep_ratio (legacy 10-input net, ne_sep/ne_ped fixed ~0.25) or :variable_nesep_ratio (12-input deep ensemble with UQ; ne_sep/ne_ped and Te_sep as inputs)"; default=:variable_nesep_ratio)
 end
 
 mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorEPED{P}}
     epedmod::EPEDNN.EPEDmodel
+    ensemble::Union{Nothing,EPEDNN.EPEDNNEnsemble} # 12-input deep ensemble (loaded only for :variable_nesep_ratio)
     inputs::EPEDNN.InputEPED
     wped::Union{Missing,Real} # pedestal width using EPED definition (1/2 width as fraction of psi_norm)
     pped::Union{Missing,Real} # pedestal height using EPED units (MPa)
+    extrapolation::Float64 # max normalized extrapolation distance from training bounds (0 = within bounds)
+    σ_frac::Float64 # fractional pedestal-height uncertainty written to dd (combined for the ensemble; geometric for the legacy net)
 end
 
 """
@@ -67,7 +72,8 @@ function ActorEPED(dd::IMAS.dd, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
     par = OverrideParameters(par; kw...)
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return ActorEPED(dd, par, epedmod, EPEDNN.InputEPED(), missing, missing)
+    ensemble = par.nn_model == :variable_nesep_ratio ? EPEDNN.loadensemble() : nothing
+    return ActorEPED(dd, par, epedmod, ensemble, EPEDNN.InputEPED(), missing, missing, 0.0, 0.0)
 end
 
 """
@@ -85,15 +91,50 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
+    eqt = dd.equilibrium.time_slice[]
+    # The legacy net is always evaluated: it populates actor.inputs, supplies the legacy width, and
+    # is itself the prediction for the :fixed_nesep_ratio model.
     sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
 
-    if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
+    # legacy geometric extrapolation distance (10-input training box)
+    extrap = EPEDNN.extrapolation_distance(actor.epedmod, actor.inputs)
+    actor.extrapolation = extrap.max_distance
+
+    if par.nn_model == :variable_nesep_ratio
+        # 12-input deep ensemble: predicts the pedestal HEIGHT only (+ calibrated UQ), with
+        # ne_sep/ne_ped and Te_sep as inputs.
+        ne_sep = cp1d.electrons.density_thermal[end]
+        nesep_ratio = ne_sep / (actor.inputs.neped * 1e19)
+        u = EPEDNN.ensemble_uncertainty(actor.ensemble, actor.inputs; nesep_ratio, tesep=par.Te_sep)
+        pped_pred = u.height
+        actor.σ_frac = u.sigma_frac_combined # ensemble σ% in-box, geometric distance out-of-box
+        if u.extrapolation > 0.0
+            @warn "EPED-NN ensemble extrapolation: max_distance=$(round(u.extrapolation; digits=2))" maxlog=1
+        end
+    else
+        # legacy single net (ne_sep/ne_ped fixed at the training default ~0.25)
+        pped_pred = sol.pressure.GH.H
+        actor.σ_frac = actor.extrapolation   # geometric-only (no ensemble σ available)
+        if extrap.max_distance > 0.0
+            details = join(["$k=$(round(v; digits=2))" for (k, v) in extrap.per_input if v > 0.0], ", ")
+            @warn "EPED-NN extrapolation: max_distance=$(round(extrap.max_distance; digits=2)) on $(extrap.worst_input) [$details]" maxlog=1
+        end
+    end
+
+    if pped_pred < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
-        actor.wped = max(sol.width.GH.H, 0.005)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.1 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
-        actor.pped = sol.pressure.GH.H
-        actor.wped = sol.width.GH.H
+        actor.pped = pped_pred
+    end
+
+    if par.nn_model == :variable_nesep_ratio
+        # The ensemble is height-only → take the width from EPED's analytic law w = 0.076·√βₚ,ped
+        # (verified R²=1.0, MAPE 0.05% against our EPED runs; 0.076 = EPED1 coefficient, Snyder NF 2011).
+        βp_ped = IMAS.pedestal_poloidal_beta(eqt, actor.pped * 1e6)  # pped MPa -> Pa
+        actor.wped = max(0.076 * sqrt(βp_ped), 0.005)
+    else
+        actor.wped = max(sol.width.GH.H, 0.005)
     end
 
     return actor

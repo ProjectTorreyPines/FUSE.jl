@@ -77,6 +77,7 @@ function case_parameters(::Val{:SPARC}; init_from::Symbol)
     ini.core_profiles.zeff = 1.5
     ini.core_profiles.helium_fraction = 0.1
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 

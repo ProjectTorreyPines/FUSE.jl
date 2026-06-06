@@ -72,6 +72,7 @@ function case_parameters(::Val{:FPP}; flux_matcher::Bool=false)
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Kr
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:gap_cryostat].coils_inside = 5
