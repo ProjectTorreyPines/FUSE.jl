@@ -101,15 +101,15 @@ end
 end
 
 @testset "ActorTJLFEP" begin
-    # ActorTJLFEP = TGLF-EP critical EP-density gradients -> ALPHA EP profiles + flux.
-    #
-    # The TGLF-EP eigenvalue solve (TJLFEP.runTHD) is validated separately by
-    # TJLFEP's own nb6 regression test; for some equilibria it can hit TJLF
-    # Hermite-matrix singularities that are unrelated to this integration. Here we
-    # validate the parts FUSE owns -- ALPHA.run_alpha building EP profiles from the
-    # IMAS dd, and _finalize writing them to core_profiles (fast-ion species) and
-    # core_transport -- by feeding synthetic critical gradients, so the test is fast
-    # and deterministic.
+    # End-to-end TGLF-EP -> ALPHA EP transport on an ITER dd:
+    #   TJLFEP.runTHD finds the critical EP density/pressure gradients (the scan's last
+    #   point is the separatrix ir=NR (rho~1), where a singular TGLF Hermite matrix now
+    #   degrades gracefully to "stable" instead of erroring), ALPHA.run_alpha integrates
+    #   them into the EP profiles/flux, and _finalize writes the fast-ion population to
+    #   core_profiles and the EP flux to core_transport.
+    # Kept small (ngrid=51, SCAN_N=2, N_BASIS=2, :marginal solver) for a fast, robust
+    # integration test. The TGLF-EP eigenvalue solve itself is also covered by TJLFEP's
+    # own nb6 regression.
     ini, act = FUSE.case_parameters(:ITER; init_from=:ods)
     ini.core_profiles.ngrid = 51
     dd = IMAS.dd()
@@ -117,14 +117,19 @@ end
 
     is_ep = 3
     act.ActorTJLFEP.is_ep = is_ep
-    act.ActorTJLFEP.rho_scan = [0.41, 0.61]
+    act.ActorTJLFEP.rho_scan = [0.41, 0.61]   # SCAN_N=2; INPUT_PROFILE_METHOD=2 makes the last point ir=NR (separatrix)
+    act.ActorTJLFEP.n_basis = 2
+    act.ActorTJLFEP.alpha_solver = :marginal
 
-    actor = FUSE.ActorTJLFEP(dd, act.ActorTJLFEP)   # construct only (no _step / TJLF solve)
-    rho_grid = collect(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
-    crit = (; dndr_crit=fill(5.0, length(rho_grid)), dpdr_crit=fill(5.0, length(rho_grid)))
-    actor.rho_grid = rho_grid
-    actor.alpha = FUSE.ALPHA.run_alpha(dd, rho_grid, crit; solver=:marginal, method=:density)
-    FUSE.finalize(actor)
+    actor = FUSE.ActorTJLFEP(dd, act)         # full pipeline: runTHD -> run_alpha -> finalize
+
+    @testset "TGLF-EP stability metrics" begin
+        @test length(actor.SFmin) == length(act.ActorTJLFEP.rho_scan)
+        @test all(isfinite, actor.SFmin)
+        @test all(actor.SFmin .> 0)
+        @test actor.alpha !== nothing
+        @test length(actor.rho_grid) == length(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
+    end
 
     @testset "EP profiles in dd.core_profiles" begin
         cp1d = dd.core_profiles.profiles_1d[]
