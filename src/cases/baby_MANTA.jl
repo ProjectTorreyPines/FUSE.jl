@@ -56,6 +56,7 @@ function case_parameters(::Val{:baby_MANTA}; flux_matcher::Bool=false)
     ini.core_profiles.impurity = :Ar
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
 
     ini.build.layers[:OH].coils_inside = 6
     ini.build.layers[:lfs_gap_coils].coils_inside = 4

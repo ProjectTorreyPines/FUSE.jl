@@ -65,6 +65,7 @@ function case_parameters(data_row::DataFrames.DataFrameRow; verbose::Bool=true)
     ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = data_row[:ZEFF]
     ini.core_profiles.rot_core = 10e3
+    ini.core_profiles.rot_ped = 7.143e3 # rot_core / 1.4
     ini.core_profiles.ngrid = 201
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C

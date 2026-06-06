@@ -60,6 +60,7 @@ function case_parameters(::Val{:STEP}; init_from::Symbol=:scalars, pf_from::Symb
     ini.core_profiles.helium_fraction = 0.01  # No helium fraction in PyTok
     ini.core_profiles.impurity = :Ne #Barium :Ba
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
     ini.core_profiles.ejima = 0.1
 
     ini.build.layers[:OH].coils_inside = 5

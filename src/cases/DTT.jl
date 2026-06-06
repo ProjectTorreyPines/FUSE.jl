@@ -74,6 +74,7 @@ function case_parameters(::Val{:DTT})
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :Ne
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
 
     ini.core_profiles.ejima = 0.4
 

@@ -57,6 +57,7 @@ function case_parameters(::Val{:KDEMO})
     ini.core_profiles.Te_shaping = 1.8
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
     ini.core_profiles.helium_fraction = 0.01
@@ -148,6 +149,7 @@ function case_parameters(::Val{:KDEMO_compact})
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.helium_fraction = 0.01
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
 

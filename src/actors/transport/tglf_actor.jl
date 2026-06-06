@@ -102,9 +102,10 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
                 end
             end
         end
-        if isdir(par.save_input_tglfs_to_folder)
+        if !isempty(par.save_input_tglfs_to_folder)
+            mkpath(par.save_input_tglfs_to_folder)
             name = lowercase(string(par.model))
-            save(actor.input_tglfs[k] ,joinpath(par.save_input_tglfs_to_folder, "input.$(name)_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])"))
+            save(actor.input_tglfs[k], joinpath(par.save_input_tglfs_to_folder, "input.$(name)_$(Dates.format(Dates.now(), "yyyymmddHHMMSS"))_$(par.rho_transport[k])"))
         end
 
     end

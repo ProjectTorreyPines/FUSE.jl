@@ -50,6 +50,7 @@ function case_parameters(::Val{:NSTX}; init_from::Symbol)
     ini.core_profiles.w_ped = 0.12
     ini.core_profiles.zeff = 2.0
     ini.core_profiles.rot_core = 0.0
+    ini.core_profiles.rot_ped = 0.0
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
     ini.tf.technology = :copper
