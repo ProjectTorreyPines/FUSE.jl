@@ -174,8 +174,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.actor_replay))
     end
 
-    # snapshot before intrinsic_sources! for "before" plot — captures true thermal density
-    plot_cp1d = cp1d_copy_primary_quantities(cp1d)
+    # snapshot before intrinsic_sources! and merge block — captures true thermal density for "before" plot and relaxation
+    cp1d_before = cp1d_copy_primary_quantities(cp1d)
 
     # make intrinsic sources consistent to start
     IMAS.intrinsic_sources!(dd)
@@ -498,7 +498,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             plot!(IMAS.goto(total_flux1d, fluxes_path), Val(:flux); subplot=2 * ch - 1, color=:red, label="total transport", linewidth=2)
 
             title = profiles_title(cp1d, profiles_path)
-            plot!(IMAS.goto(plot_cp1d, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="before", linestyle=:dash, color=:black)
+            plot!(IMAS.goto(cp1d_before, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="before", linestyle=:dash, color=:black)
             plot!(IMAS.goto(cp1d, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="after", title)
             if profiles_path[end] != :momentum_tor
                 plot!(; subplot=2 * ch, ylim=[0, Inf])
@@ -515,7 +515,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         for profiles_path in profiles_paths
             field = profiles_path[end]
             ids1 = IMAS.goto(cp1d, profiles_path[1:end-1])
-            ids2 = IMAS.goto(initial_cp1d, profiles_path[1:end-1])
+            ids2 = IMAS.goto(cp1d_before, profiles_path[1:end-1])
             if !ismissing(ids1, field) && !ismissing(ids2, field)
                 value1 = getproperty(ids1, field)
                 value2 = getproperty(ids2, field)
