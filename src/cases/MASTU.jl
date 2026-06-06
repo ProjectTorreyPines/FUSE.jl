@@ -51,6 +51,7 @@ function case_parameters(::Val{:MASTU}; init_from::Symbol)
     ini.core_profiles.w_ped = 0.08
     ini.core_profiles.zeff = 1.5
     ini.core_profiles.rot_core = 57441.57
+    ini.core_profiles.rot_ped = 41029.69 # rot_core / 1.4
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
     ini.tf.technology = :copper

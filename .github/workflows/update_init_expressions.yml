@@ -1,0 +1,56 @@
+name: Update init_expressions
+
+# Regenerates src/ddinit/init_expressions.json — the set of `dd` fields that are expressions after
+# init() (intersection over all FUSE use-cases). Run this when the `init_expressions` test fails
+# after an IMASdd / data-dictionary change. Replaces the old `make`/`fusebot init_expressions` target;
+# it commits to a branch and opens a PR (so it works with master branch protection).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.11"
+
+      - uses: julia-actions/cache@v2
+
+      - name: Add FuseRegistry (public, over HTTPS)
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          julia --color=yes -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url="https://github.com/ProjectTorreyPines/FuseRegistry.jl.git")); Pkg.Registry.add("General"); Pkg.Registry.update()'
+
+      # Same env as CI: dev the forks so init() runs against the fork versions of IMAS/EPEDNN.
+      - name: Regenerate init_expressions.json
+        run: |
+          julia --project=. --color=yes -e '
+            using Pkg
+            Pkg.develop([
+                PackageSpec(url="https://github.com/TimSlendebroek/IMAS_Design.jl.git"),
+                PackageSpec(url="https://github.com/TimSlendebroek/EPEDNN_Design.jl.git"),
+            ])
+            Pkg.instantiate()
+            using FUSE
+            FUSE.init_expressions(; save=true)'
+
+      - name: Open PR if changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: src/ddinit/init_expressions.json
+          branch: update-init-expressions
+          delete-branch: true
+          commit-message: "Update init_expressions.json (regenerated after dd/IMASdd change)"
+          title: "Update init_expressions.json"
+          body: |
+            Regenerated `FUSE.init_expressions(; save=true)` — the set of `dd` fields that are
+            expressions after `init()` changed (e.g. after an IMASdd bump). Merge to fix the
+            `init_expressions` test.

@@ -44,7 +44,7 @@ FUSE is entirely written in Julia and is structured around the following core co
 7. **🌍 Interoperability**: FUSE interfaces via `dd` with existing modeling tools like OMFIT/OMAS and the IMAS ecosystem.
 
 A diagram illustrating these concepts is provided below:
-![FUSE Diagram](./docs/src/assets/FUSE.svg)
+![FUSE Diagram](./assets/FUSE.svg)
 
 ## Usage Example
 
