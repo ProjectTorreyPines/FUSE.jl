@@ -18,6 +18,15 @@ If this software contributes to an academic publication, please cite it as follo
     year = {2024}
     }
 
+## Fork Additions
+
+This fork (FUSE_Design — https://github.com/TimSlendebroek/FUSE_Design.jl) adds work by
+Tim Slendebroek, notably the EPED-NN deep-ensemble pedestal model with uncertainty quantification
+(see https://github.com/TimSlendebroek/EPEDNN_Design.jl and the EPEDexplorer at
+https://iter.fuseexplorer.com/EPED). T. Slendebroek is also a co-author of the FUSE paper cited
+above; until a dedicated EPED-NN-ensemble publication exists, please cite those repositories
+(each provides a `CITATION.cff`).
+
 ## Trademark Notice
 
 The names "General Atomics", and any associated logos or images, are trademarks of General Atomics. Use of these trademarks without prior written consent from General Atomics is strictly prohibited. Users cannot imply endorsement by General Atomics or contributors to the project simply because the project is part of their work.
