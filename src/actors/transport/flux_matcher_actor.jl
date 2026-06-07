@@ -1005,7 +1005,7 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
             if evolve_densities[Symbol(ion.label)] == :flux_match
                 z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :backward)[cp_gridpoints]
                 append!(z_profiles, z_ni)
-                push!(profiles_paths, (:ion, k, :density_thermal))
+                push!(profiles_paths, (:ion, k, :density))
                 push!(fluxes_paths, [:ion, k, :particles])
             end
         end
