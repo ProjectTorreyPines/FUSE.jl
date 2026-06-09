@@ -90,12 +90,6 @@ Base.@kwdef mutable struct ODEparams
     Control2::Vector{Float64} = Float64[]  # swept control parameter grid — populated at run time
 end
 
-Base.@kwdef struct ContourData
-    x::Vector{Float64}
-    y::Vector{Float64}
-    z::Matrix{Float64}
-end
-
 "Hyperparameters for the locking NN classifier"
 Base.@kwdef struct NNparams
     hidden_sizes::Vector{Int}  = [100, 100, 100]  # neurons in each hidden layer
@@ -123,7 +117,6 @@ mutable struct LockingResults
     prob::Any                                        # NN model once Task 1 is done; callable as prob(C1, C2)
     norm_sols::Matrix{Float64}                       # (N*M × n_states) normalized solutions
     locking_labels::Vector{Int}                      # k-means class assignments, one per grid point
-    contour_data::ContourData
     bifurcation_bounds::Union{Matrix{Float64}, Nothing}  # nothing when NL saturation is active
 end
 
@@ -205,12 +198,6 @@ function _step(actor::ActorLocking)
              control2, control1, par.control_type)
 
 
-        # If you want them back on a 2D grid (N x M), reshape here:
-        N, M = size(norm_sols)
-        norm_sols_2D= reshape(norm_sols, (par.grid_size, par.grid_size, M))
-        psi_tN = norm_sols_2D[:,:,1]
-        
-
         ## classify normalized solutions
         R = hcat(norm_sols[:,1], norm_sols[:,3])
         kmc = kmeans(R', 2)
@@ -223,12 +210,6 @@ function _step(actor::ActorLocking)
             locking_labels = 3 .- locking_labels   # flip 1↔2
         end
 
-        contour = ContourData(
-            x = control2,
-            y = control1,
-            z = psi_tN
-)
-
         # Analytic bifurcation boundary — not defined when NL saturation is active
         bifurcation_bounds = par.NL_saturation_ON ? nothing :
             calculate_bifurcation_bounds(dd, par, actor.ode_params)
@@ -239,7 +220,6 @@ function _step(actor::ActorLocking)
             nothing,
             norm_sols,
             locking_labels,
-            contour,
             bifurcation_bounds
         )
 
@@ -297,102 +277,273 @@ function _finalize(actor::ActorLocking)
 end
 
 
-function plot_sols(actor)
+# ─────────────────────────────────────────────────────────────────────────────
+#  Plotting helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+"Return the x-axis label for the swept control parameter C2"
+function _ctrl_xlabel(par)
+    par.control_type == :EF           ? "Error Field (a.u.)"  :
+    par.control_type == :LinStab      ? "Linear Stability Δ′" :
+    par.control_type == :NLsaturation ? "NL Saturation α"     : "Control 2"
+end
+
+"Overlay analytic bifurcation boundary (D=0 contour) — no-op when bb is nothing"
+function _overlay_bifurcation!(p, x, y, bb; color=:black, style=:solid)
+    bb === nothing && return
+    contour!(p, x, y, bb;
+        levels    = [0.0],
+        linecolor = color,
+        linestyle = style,
+        linewidth = 2.5,
+    )
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Figure 1 — multi-panel scatter of state variables
+# ─────────────────────────────────────────────────────────────────────────────
+"""
+    plot_scatter(actor) → Figure 1
+
+Multi-panel scatter of raw and normalised ODE state variables.
+
+RP-RW (5-state) — 2×2 layout:
+  (a) raw ψ_t vs Ω_t
+  (b) ψ_tn vs Ω_n, coloured by k-means class (unlocked = blue, locked = red)
+  (c) ψ_tn vs ψ_wn
+  (d) θ_t vs θ_w
+
+RP-IW (3-state) — 2×1 layout:
+  (a) raw ψ_t vs Ω_t
+  (b) ψ_tn vs Ω_n, coloured by k-means class
+"""
+function plot_scatter(actor)
+    r = actor.results
+    r === nothing && error("No results — run the actor first")
+
+    is_RPRW = size(r.norm_sols, 2) == 5
+
+    psi_t   = r.ode_sols[:, 1]
+    omega_t = r.ode_sols[:, 3]
+    psi_tn  = r.norm_sols[:, 1]
+    omega_n = r.norm_sols[:, 3]
+
+    idx_U = findall(r.locking_labels .== 1)   # unlocked
+    idx_L = findall(r.locking_labels .== 2)   # locked
+
+    # ── (a) raw ψ_t vs Ω_t ──────────────────────────────────────────────────
+    p_a = scatter(psi_t, omega_t;
+        xlabel          = "ψ_t (a.u.)",
+        ylabel          = "Ω_t (a.u.)",
+        label           = false,
+        alpha           = 0.3,
+        markersize      = 3,
+        markerstrokewidth = 0,
+        grid            = true,
+    )
+    xra = extrema(psi_t); yra = extrema(omega_t)
+    annotate!(p_a, xra[1] + 0.02*(xra[2]-xra[1]),
+                   yra[1] + 0.04*(yra[2]-yra[1]),
+                   Plots.text("(a)", 12, :left))
+
+    # ── (b) ψ_tn vs Ω_n coloured by class ───────────────────────────────────
+    p_b = scatter(psi_tn[idx_U], omega_n[idx_U];
+        xlabel          = "ψ_tn",
+        ylabel          = "Ω_n",
+        label           = "Unlocked",
+        color           = :steelblue,
+        alpha           = 0.3,
+        markershape     = :circle,
+        markersize      = 4,
+        markerstrokewidth = 0,
+        grid            = true,
+    )
+    scatter!(p_b, psi_tn[idx_L], omega_n[idx_L];
+        label       = "Locked",
+        color       = :red,
+        alpha       = 0.5,
+        markershape = :xcross,
+        markersize  = 5,
+    )
+    xlims!(p_b, -0.02, 1.06)
+    ylims!(p_b, -0.02, 1.06)
+    annotate!(p_b, 0.02, 0.02, Plots.text("(b)", 12, :left))
+
+    if is_RPRW
+        psi_wn  = r.norm_sols[:, 4]
+        theta_t = r.norm_sols[:, 2]
+        theta_w = r.norm_sols[:, 5]
+
+        # ── (c) ψ_tn vs ψ_wn ────────────────────────────────────────────────
+        p_c = scatter(psi_tn, psi_wn;
+            xlabel          = "ψ_tn",
+            ylabel          = "ψ_wn",
+            label           = false,
+            color           = :steelblue,
+            alpha           = 0.3,
+            markersize      = 3,
+            markerstrokewidth = 0,
+            grid            = true,
+        )
+        xrc = extrema(psi_tn); yrc = extrema(psi_wn)
+        annotate!(p_c, xrc[1] + 0.02*(xrc[2]-xrc[1]),
+                       yrc[1] + 0.04*(yrc[2]-yrc[1]),
+                       Plots.text("(c)", 12, :left))
+
+        # ── (d) θ_t vs θ_w ──────────────────────────────────────────────────
+        p_d = scatter(theta_t, theta_w;
+            xlabel          = "θ_t (rad)",
+            ylabel          = "θ_w (rad)",
+            label           = false,
+            color           = :steelblue,
+            alpha           = 0.3,
+            markersize      = 3,
+            markerstrokewidth = 0,
+            grid            = true,
+        )
+        xrd = extrema(theta_t); yrd = extrema(theta_w)
+        annotate!(p_d, xrd[1] + 0.02*(xrd[2]-xrd[1]),
+                       yrd[1] + 0.04*(yrd[2]-yrd[1]),
+                       Plots.text("(d)", 12, :left))
+
+        plt = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(900, 750))
+    else
+        plt = plot(p_a, p_b; layout=(2, 1), size=(600, 750))
+    end
+
+    return plt
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Figure 2 — phase diagrams (pcolor of Ω_n and ψ_tn over control space)
+# ─────────────────────────────────────────────────────────────────────────────
+"""
+    plot_phase_diagrams(actor) → Figure 2
+
+Two stacked pcolor panels of normalised solutions over the (C2, C1) control space.
+  (a) Ω_n — normalised rotation      (RdBu colormap)
+  (b) ψ_tn — normalised TM amplitude (RdBu_r colormap)
+Analytic bifurcation boundary (D = 0) overlaid in black when NL saturation is off.
+"""
+function plot_phase_diagrams(actor)
     r   = actor.results
     par = actor.par
+    r === nothing && error("No results — run the actor first")
 
-    xlabel_ctrl = par.control_type == :EF          ? "Error Field (a.u.)"  :
-                  par.control_type == :LinStab      ? "Linear Stability Δ′" :
-                  par.control_type == :NLsaturation ? "NL Saturation α"     : "Control 2"
+    gs = par.grid_size
+    x  = unique(actor.ode_params.Control2)   # Control2 values  (x-axis)
+    y  = unique(actor.ode_params.Control1)   # Control1/Ω0 values (y-axis)
 
-    # Unique 1-D axes (contour_data stores the full N*M vectors)
-    x = unique(r.contour_data.x)   # Control2 axis  (length M)
-    y = unique(r.contour_data.y)   # Control1 axis  (length N)
-    z = r.contour_data.z           # N × M matrix of ψ at t_final
+    OmN_grid   = reshape(r.norm_sols[:, 3], gs, gs)   # Ω_n   (rows=C1, cols=C2)
+    PsiTN_grid = reshape(r.norm_sols[:, 1], gs, gs)   # ψ_tn  (rows=C1, cols=C2)
 
-    # Locking boundary: reshape 1-D label vector back to (N, M) grid
-    labels_2D = reshape(r.locking_labels, par.grid_size, par.grid_size)
+    xlabel_ctrl = _ctrl_xlabel(par)
+    xr = extrema(x); yr = extrema(y)
 
-    p1 = heatmap(x, y, z;
+    # ── (a) Ω_n ─────────────────────────────────────────────────────────────
+    p_a = heatmap(x, y, OmN_grid;
         xlabel         = xlabel_ctrl,
-        ylabel         = "Rotation Frequency (a.u.)",
-        title          = "Normalized TM amplitude",
-        colorbar_title = "ψ_N",
+        ylabel         = "Ω_0 (a.u.)",
+        title          = "Ω_n",
+        color          = cgrad(:RdBu),
+        colorbar_title = "Ω_n",
+        clims          = (0.0, 1.0),
     )
-    # Overlay the k-means locking boundary (white, solid)
-    contour!(p1, x, y, float.(labels_2D);
-        levels    = [1.5],
-        linecolor = :white,
+    _overlay_bifurcation!(p_a, x, y, r.bifurcation_bounds)
+    annotate!(p_a, xr[1]+0.05*(xr[2]-xr[1]), yr[1]+0.85*(yr[2]-yr[1]),
+              Plots.text("UNLOCKED", 14, :white, :left))
+    annotate!(p_a, xr[1]+0.65*(xr[2]-xr[1]), yr[1]+0.05*(yr[2]-yr[1]),
+              Plots.text("LOCKED",   14, :white, :left))
+    annotate!(p_a, xr[1]+0.01*(xr[2]-xr[1]), yr[1]+0.05*(yr[2]-yr[1]),
+              Plots.text("(a)", 12, :white, :left))
+
+    # ── (b) ψ_tn ────────────────────────────────────────────────────────────
+    p_b = heatmap(x, y, PsiTN_grid;
+        xlabel         = xlabel_ctrl,
+        ylabel         = "Ω_0 (a.u.)",
+        title          = "ψ_tn",
+        color          = cgrad(:RdBu, rev=true),
+        colorbar_title = "ψ_tn",
+        clims          = (0.0, 1.0),
+    )
+    _overlay_bifurcation!(p_b, x, y, r.bifurcation_bounds)
+    annotate!(p_b, xr[1]+0.05*(xr[2]-xr[1]), yr[1]+0.85*(yr[2]-yr[1]),
+              Plots.text("UNLOCKED", 14, :white, :left))
+    annotate!(p_b, xr[1]+0.65*(xr[2]-xr[1]), yr[1]+0.05*(yr[2]-yr[1]),
+              Plots.text("LOCKED",   14, :white, :left))
+    annotate!(p_b, xr[1]+0.01*(xr[2]-xr[1]), yr[1]+0.05*(yr[2]-yr[1]),
+              Plots.text("(b)", 12, :white, :left))
+
+    plt = plot(p_a, p_b; layout=(2, 1), size=(700, 850))
+    return plt
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Figure 3 — NN locking probability
+# ─────────────────────────────────────────────────────────────────────────────
+"""
+    plot_probability(actor) → Figure 3
+
+Contourf of NN locking probability P(locked) over the (C2, C1) control space.
+  • dashed black  : P = 0.5 decision boundary
+  • dashed yellow : analytic bifurcation boundary (D = 0), when available
+"""
+function plot_probability(actor)
+    r   = actor.results
+    par = actor.par
+    r === nothing      && error("No results — run the actor first")
+    r.prob === nothing && error("No trained NN model — run train_locking_nn first")
+
+    x = unique(actor.ode_params.Control2)   # Control2 (x-axis)
+    y = unique(actor.ode_params.Control1)   # Control1/Ω0 (y-axis)
+
+    prob_grid   = [r.prob(c1, c2) for c1 in y, c2 in x]
+    xlabel_ctrl = _ctrl_xlabel(par)
+    xr = extrema(x); yr = extrema(y)
+
+    plt = contourf(x, y, prob_grid;
+        xlabel         = xlabel_ctrl,
+        ylabel         = "Ω_0 (a.u.)",
+        title          = "Locking probability P(locked) — NN",
+        colorbar_title = "P(locked)",
+        clims          = (0.0, 1.0),
+        levels         = 20,
+        color          = cgrad(:RdYlGn, rev=true),
+    )
+    contour!(plt, x, y, prob_grid;
+        levels    = [0.5],
+        linecolor = :black,
+        linestyle = :dash,
         linewidth = 2,
         colorbar  = false,
-        #label     = "locking boundary (k-means)",
+        label     = "P = 0.5",
     )
-    # Overlay the analytic bifurcation boundary (yellow, dashed) — only when NL saturation is off
-    if r.bifurcation_bounds !== nothing
-        contour!(p1, x, y, r.bifurcation_bounds;
-            levels    = [0.0],
-            linecolor = :yellow,
-            linestyle = :dash,
-            linewidth = 2,
-            colorbar  = false,
-            label     = "bifurcation boundary (analytic)",
-        )
-    end
+    _overlay_bifurcation!(plt, x, y, r.bifurcation_bounds; color=:yellow, style=:dash)
 
-    # Scatter: ψ_N vs Ω_N coloured by locking class
-    xs      = r.norm_sols[:, 1]
-    ys      = r.norm_sols[:, 3]
-    classes = sort(unique(r.locking_labels))
-    shapes  = [:circle, :x]
+    annotate!(plt, xr[1]+0.25*(xr[2]-xr[1]), yr[1]+0.50*(yr[2]-yr[1]),
+              Plots.text("UNLOCKED", 14, :left))
+    annotate!(plt, xr[1]+0.70*(xr[2]-xr[1]), yr[1]+0.05*(yr[2]-yr[1]),
+              Plots.text("LOCKED",   14, :left))
 
-    p2 = plot(;
-        xlabel = "Normalized TM amplitude ψ_N",
-        ylabel = "Normalized Rotation Ω_N",
-        #title  = "Locking classification",
-    )
-    for (cl, sh) in zip(classes, shapes)
-        idx = findall(r.locking_labels .== cl)
-        scatter!(p2, xs[idx], ys[idx]; markershape=sh, label="Class $cl", markersize=5)
-    end
-
-    # Panel 3: NN probability contour — only when a model has been trained
-    if r.prob !== nothing
-        prob_grid = [r.prob(c1, c2) for c1 in y, c2 in x]
-        p3 = contourf(x, y, prob_grid;
-            xlabel         = xlabel_ctrl,
-            ylabel         = "Rotation Frequency (a.u.)",
-            title          = "Locking probability P(locked) — NN",
-            colorbar_title = "P(locked)",
-            clims          = (0.0, 1.0),
-            levels         = 20,
-            color          = cgrad(:RdYlGn, rev=true),
-        )
-        # Overlay P=0.5 isocontour (decision boundary)
-        contour!(p3, x, y, prob_grid;
-            levels    = [0.5],
-            linecolor = :black,
-            linestyle = :dash,
-            linewidth = 2,
-            colorbar  = false,
-            label     = "P=0.5",
-        )
-        # Overlay analytic bifurcation boundary when available
-        if r.bifurcation_bounds !== nothing
-            contour!(p3, x, y, r.bifurcation_bounds;
-                levels    = [0.0],
-                linecolor = :yellow,
-                linestyle = :dash,
-                linewidth = 2,
-                colorbar  = false,
-                label     = "bifurcation boundary (analytic)",
-            )
-        end
-        plt = plot(p1, p2, p3; layout=(1, 3), size=(1650, 450))
-    else
-        plt = plot(p1, p2; layout=(1, 2), size=(1100, 450))
-    end
-    display(plt)
     return plt
+end
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Convenience wrapper
+# ─────────────────────────────────────────────────────────────────────────────
+"""
+    plot_sols(actor) → (fig1, fig2, fig3)
+
+Calls plot_scatter, plot_phase_diagrams, and (when a trained NN model is
+available) plot_probability.  Returns all three handles; fig3 is nothing
+when no model has been trained yet.
+"""
+function plot_sols(actor)
+    fig1 = plot_scatter(actor);      display(fig1)
+    fig2 = plot_phase_diagrams(actor); display(fig2)
+    fig3 = (actor.results !== nothing && actor.results.prob !== nothing) ?
+           (p = plot_probability(actor); display(p); p) : nothing
+    return fig1, fig2, fig3
 end
 
 
@@ -1086,7 +1237,7 @@ const _locking_nn_cache = Dict{String, LockingNNModel}()
 
 Save the ODE grid results to disk so that `task=:calc_prob` can be run in a
 future session without re-solving the ODEs.  Saves: ode_sols, norm_sols,
-locking_labels, bifurcation_bounds, Control1, Control2, contour_data.
+locking_labels, bifurcation_bounds, Control1, Control2.
 """
 function save_ode_results(actor::ActorLocking;
                            filename::String = "ode_results.bson",
@@ -1100,10 +1251,9 @@ function save_ode_results(actor::ActorLocking;
     norm_sols          = r.norm_sols
     locking_labels     = r.locking_labels
     bifurcation_bounds = r.bifurcation_bounds
-    contour_data       = r.contour_data
     Control1           = op.Control1
     Control2           = op.Control2
-    BSON.@save path ode_sols norm_sols locking_labels bifurcation_bounds contour_data Control1 Control2
+    BSON.@save path ode_sols norm_sols locking_labels bifurcation_bounds Control1 Control2
     @info "Saved ODE results → $path"
     return path
 end
@@ -1129,7 +1279,6 @@ function load_ode_results!(actor::ActorLocking;
         nothing,
         d[:norm_sols],
         d[:locking_labels],
-        d[:contour_data],
         d[:bifurcation_bounds],
     )
     @info "Loaded ODE results ← $path"
