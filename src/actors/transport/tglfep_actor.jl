@@ -1,5 +1,6 @@
 import TJLFEP
 import ALPHA
+import TurbulentTransport
 
 #= =========== =#
 #  ActorTJLFEP  #
@@ -32,6 +33,9 @@ import ALPHA
         Entry{Bool}("-", "use TGLF-EP-derived gamma_star/diff_star in stiff-CGM QL diffusivity"; default=false)
     E_alpha::Entry{T} = Entry{T}("MeV", "EP birth energy (3.5 MeV for fusion alphas)"; default=3.5)
     use_gpu::Entry{Bool} = Entry{Bool}("-", "run TJLF on GPU when available"; default=false)
+    inner::Switch{Symbol} =
+        Switch{Symbol}([:threads, :mps_team], "-", "within-radius parallelism: :threads (serial-per-GPU baseline) or :mps_team (MPS clients sharing each GPU)"; default=:threads)
+    mps_team::Entry{Int} = Entry{Int}("-", "MPS-team size per GPU when inner=:mps_team (0 disables)"; default=8)
 end
 
 mutable struct ActorTJLFEP{D,P} <: SingleAbstractActor{D,P}
@@ -111,7 +115,8 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
 
     use_ql = par.alpha_use_ql && par.alpha_solver == :stiff
     width, kymark_out, SFmin, dpdr_crit_out, dndr_crit_out, marginal_ql =
-        TJLFEP.runTHD(dd, rho_scan, OptionsDict; use_gpu=par.use_gpu, ql_flux_scan=use_ql)
+        TJLFEP.runTHD(dd, rho_scan, OptionsDict; use_gpu=par.use_gpu, ql_flux_scan=use_ql,
+            inner=par.inner, mps_team=par.mps_team)
 
     actor.rho_grid = D.(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
     actor.SFmin = D.(SFmin)
@@ -200,4 +205,117 @@ function _finalize(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     ion.energy.flux = res.flux_energy .* keV19_to_Pa           # W/m^2 (keV·10^19 m^-2 s^-1 -> W/m^2)
 
     return actor
+end
+
+#= ================= =#
+#  TGLF-EP run recipe  #
+#= ================= =#
+"""
+    plot(state::TurbulentTransport.TGLFEPRunState; isep=nothing, E_alpha=3.5)
+
+Before/after energetic-particle profile plot for a completed `run_tjlfep` scan
+(analogous to `plot(dd.core_profiles)`). Reads the post-run `dd_out.json` from the run
+directory and overlays the fast-alpha content that `ActorTJLFEP`+ALPHA modify, in three
+panels: EP fast-ion density, EP fast-ion pressure, and total core pressure.
+
+  - `after`  = the AE-limited profile written to `dd_out.json`.
+  - `before` = the classical (unlimited) slowing-down alpha profile reconstructed from the
+    `dd_out` background plasma, so the plot works even when `dd_in.json` was not saved.
+
+The EP/alpha species is auto-detected by element (helium, `z_n ≈ 2`); override with `isep`.
+"""
+@recipe function plot_TGLFEPRunState(state::TurbulentTransport.TGLFEPRunState; isep=nothing, E_alpha=3.5)
+    dd_out = joinpath(state.basedir, "dd_out.json")
+    isfile(dd_out) || error("plot(TGLFEPRunState): missing $(dd_out) — is the run complete?")
+    ddo = IMAS.json2imas(dd_out)
+    cp1d = ddo.core_profiles.profiles_1d[]
+    rho = cp1d.grid.rho_tor_norm
+    nz = zeros(length(rho))
+    vget(o, f) = try (v = getproperty(o, f); (v === missing || isempty(v)) ? nz : v) catch; nz end
+    dfast(ion) = vget(ion, :density_fast)
+    pfast(ion) = vget(ion, :pressure_fast_parallel) .+ 2 .* vget(ion, :pressure_fast_perpendicular)
+
+    # EP/alpha species: prefer helium (z_n ≈ 2), else the ion with the largest fast density
+    znum(e) = try e.z_n catch; missing end
+    is_he(ion) = any(e -> (z = znum(e); z !== missing && abs(z - 2) < 0.5), ion.element)
+    if isep === nothing
+        isep = something(findfirst(k -> is_he(cp1d.ion[k]), eachindex(cp1d.ion)),
+            argmax([maximum(dfast(ion)) for ion in cp1d.ion]))
+    end
+    lab = cp1d.ion[isep].label
+
+    # classical (unlimited) slowing-down alpha profile from the dd_out background plasma
+    inp = ALPHA.AlphaInput(ddo, rho; E_alpha=E_alpha)
+    n_cl, T_eq, _, _ = ALPHA.slowing_down(inp.ne, inp.Te, inp.Ti, inp.ni;
+        E_alpha=inp.E_alpha, Z1=inp.Z1, ln_lambda=inp.ln_lambda)
+    n_before = n_cl .* 1e19                          # 10^19 -> m^-3
+    p_before = n_before .* (T_eq .* 1e3 .* IMAS.mks.e)  # keV -> Pa
+    n_after = dfast(cp1d.ion[isep])
+    p_after = pfast(cp1d.ion[isep])
+    p_th = IMAS.pressure_thermal(cp1d)
+    p_tot = p_th .+ sum(pfast(ion) for ion in cp1d.ion)
+
+    layout := (1, 3)
+    size --> (1300, 380)
+    left_margin --> 6 * Plots.Measures.mm
+    bottom_margin --> 8 * Plots.Measures.mm
+    top_margin --> 5 * Plots.Measures.mm
+
+    @series begin
+        subplot := 1
+        seriestype := :path
+        linestyle := :dash
+        linewidth := 2
+        linecolor := :gray45
+        label := " before (classical)"
+        xguide := "rho_tor_norm"
+        yguide := "n_fast [10¹⁹ m⁻³]"
+        title := "$(lab) fast-ion density"
+        rho, n_before ./ 1e19
+    end
+    @series begin
+        subplot := 1
+        linewidth := 2.5
+        linecolor := :crimson
+        label := " after (TJLFEP+ALPHA)"
+        rho, n_after ./ 1e19
+    end
+
+    @series begin
+        subplot := 2
+        linestyle := :dash
+        linewidth := 2
+        linecolor := :gray45
+        label := " before (classical)"
+        xguide := "rho_tor_norm"
+        yguide := "p_fast [kPa]"
+        title := "$(lab) fast-ion pressure"
+        rho, p_before ./ 1e3
+    end
+    @series begin
+        subplot := 2
+        linewidth := 2.5
+        linecolor := :crimson
+        label := " after"
+        rho, p_after ./ 1e3
+    end
+
+    @series begin
+        subplot := 3
+        linestyle := :dash
+        linewidth := 2
+        linecolor := :black
+        label := " thermal only"
+        xguide := "rho_tor_norm"
+        yguide := "pressure [kPa]"
+        title := "total core pressure"
+        rho, p_th ./ 1e3
+    end
+    @series begin
+        subplot := 3
+        linewidth := 2.5
+        linecolor := :red
+        label := " thermal + EP"
+        rho, p_tot ./ 1e3
+    end
 end
