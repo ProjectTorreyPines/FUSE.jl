@@ -1,5 +1,5 @@
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
-JULIA_DIR ?= $(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia))
+JULIA_DIR ?= $(if $(JULIA_DEPOT_PATH),$(firstword $(subst :, ,$(JULIA_DEPOT_PATH))),$(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia)))
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -21,7 +21,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NeoclassicalTransport NNeutronics QED RABBIT SimulationParameters TEQUILA TJLF TORBEAM TroyonBetaNN TurbulentTransport VacuumFields
+FUSE_PACKAGES_MAKEFILE := ADAS ALPHA BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NeoclassicalTransport NNeutronics QED RABBIT SimulationParameters TEQUILA TJLF TJLFEP TORBEAM TroyonBetaNN TurbulentTransport VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
 FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
@@ -107,6 +107,9 @@ help: header help_info
 ADAS:
 	$(call clone_pull_repo,$@)
 
+ALPHA:
+	$(call clone_pull_repo,$@)
+
 BalanceOfPlantSurrogate:
 	$(call clone_pull_repo$@)
 
@@ -180,6 +183,9 @@ TurbulentTransport:
 	$(call clone_pull_repo,$@)
 
 TJLF:
+	$(call clone_pull_repo,$@)
+
+TJLFEP:
 	$(call clone_pull_repo,$@)
 
 TORBEAM:
