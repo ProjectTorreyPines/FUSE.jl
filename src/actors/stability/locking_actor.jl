@@ -178,13 +178,10 @@ function _step(actor::ActorLocking)
 
     # Populate the physical parameters needed to solve the ODEs
     actor.ode_params = ODEparams(;)
-    #pressure = dd.equilibrium.time_slice[].pressure
-
     actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
-    
-    #bifurcation_bounds = calculate_bifurcation_bounds(dd, par, actor.ode_params)
 
-    ## Time evolve the ODEs
+    # Main driver routine
+    # Time evolve the ODEs, calculate locking probability, or load/evaluate model
     if task == :single_case
         control1 = 1. # normalized rotation frequency.
         solve_one_case(par, actor.ode_params, application, control1)
@@ -196,7 +193,6 @@ function _step(actor::ActorLocking)
         ode_sols = solve_system(actor, application)
         norm_sols = normalize_ode_results(ode_sols, actor.ode_params,
              control2, control1, par.control_type)
-
 
         ## classify normalized solutions
         R = hcat(norm_sols[:,1], norm_sols[:,3])
@@ -283,20 +279,75 @@ end
 
 "Return the x-axis label for the swept control parameter C2"
 function _ctrl_xlabel(par)
-    par.control_type == :EF           ? "Error Field (a.u.)"  :
+    par.control_type == :EF           ? "Error Field"         :
     par.control_type == :LinStab      ? "Linear Stability Δ′" :
     par.control_type == :NLsaturation ? "NL Saturation α"     : "Control 2"
 end
 
-"Overlay analytic bifurcation boundary (D=0 contour) — no-op when bb is nothing"
+"""
+    _zero_isoline(x, y, z) → (xs, ys)
+
+Compute the D=0 isoline of a 2-D scalar field `z` defined on grid `(x, y)`
+by linear interpolation along cell edges (simplified marching squares).
+Returns flat vectors suitable for `plot!`; NaN separates disjoint segments.
+`z` must be (length(y) × length(x)) — the same convention as Plots.jl heatmap.
+"""
+function _zero_isoline(x::AbstractVector, y::AbstractVector, z::AbstractMatrix)
+    xs = Float64[]
+    ys = Float64[]
+    nx, ny = length(x), length(y)   # x → columns, y → rows
+
+    for i in 1:ny-1, j in 1:nx-1
+        pts = NTuple{2,Float64}[]
+
+        # bottom edge: row i,   col j → j+1
+        v1, v2 = z[i,j], z[i,j+1]
+        if v1 * v2 < 0
+            t = v1 / (v1 - v2)
+            push!(pts, (x[j] + t*(x[j+1]-x[j]), y[i]))
+        end
+        # top edge:    row i+1, col j → j+1
+        v1, v2 = z[i+1,j], z[i+1,j+1]
+        if v1 * v2 < 0
+            t = v1 / (v1 - v2)
+            push!(pts, (x[j] + t*(x[j+1]-x[j]), y[i+1]))
+        end
+        # left edge:   col j,   row i → i+1
+        v1, v2 = z[i,j], z[i+1,j]
+        if v1 * v2 < 0
+            t = v1 / (v1 - v2)
+            push!(pts, (x[j], y[i] + t*(y[i+1]-y[i])))
+        end
+        # right edge:  col j+1, row i → i+1
+        v1, v2 = z[i,j+1], z[i+1,j+1]
+        if v1 * v2 < 0
+            t = v1 / (v1 - v2)
+            push!(pts, (x[j+1], y[i] + t*(y[i+1]-y[i])))
+        end
+
+        if length(pts) >= 2
+            push!(xs, pts[1][1], pts[2][1], NaN)
+            push!(ys, pts[1][2], pts[2][2], NaN)
+        end
+    end
+    return xs, ys
+end
+
+"""
+Overlay analytic bifurcation boundary (D=0 isoline) — no-op when bb is nothing.
+
+Drawn as a plain `plot!` line series from manually-computed crossing points,
+rather than a `contour!` series: heatmap + contour! on one subplot share a
+single color/z-scale in GR, and `bb`'s native range (e.g. up to ~700) versus
+the heatmap's `[0,1]` range makes that shared scale unworkable either way
+(heatmap goes flat, or the D=0 level gets clipped away). A line series has no
+z/colormap at all, so it cannot disturb the heatmap's color scale.
+"""
 function _overlay_bifurcation!(p, x, y, bb; color=:black, style=:solid)
     bb === nothing && return
-    contour!(p, x, y, bb;
-        levels    = [0.0],
-        linecolor = color,
-        linestyle = style,
-        linewidth = 2.5,
-    )
+    xs, ys = _zero_isoline(x, y, bb)
+    isempty(xs) && return
+    plot!(p, xs, ys; linecolor=color, linestyle=style, linewidth=2.5, label=false)
 end
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -333,8 +384,8 @@ function plot_scatter(actor)
 
     # ── (a) raw ψ_t vs Ω_t ──────────────────────────────────────────────────
     p_a = scatter(psi_t, omega_t;
-        xlabel          = "ψ_t (a.u.)",
-        ylabel          = "Ω_t (a.u.)",
+        xlabel          = "ψ_t",
+        ylabel          = "Ω_t",
         label           = false,
         alpha           = 0.3,
         markersize      = 3,
@@ -370,12 +421,52 @@ function plot_scatter(actor)
     annotate!(p_b, 0.02, 0.02, Plots.text("(b)", 12, :left))
 
     if is_RPRW
+        psi_w   = r.ode_sols[:, 4]
         psi_wn  = r.norm_sols[:, 4]
         theta_t = r.norm_sols[:, 2]
         theta_w = r.norm_sols[:, 5]
 
-        # ── (c) ψ_tn vs ψ_wn ────────────────────────────────────────────────
-        p_c = scatter(psi_tn, psi_wn;
+        # ── (c) raw ψ_w vs Ω_t ──────────────────────────────────────────────
+        p_c = scatter(psi_w, omega_t;
+            xlabel          = "ψ_w",
+            ylabel          = "Ω_t",
+            label           = false,
+            color           = :steelblue,
+            alpha           = 0.3,
+            markersize      = 3,
+            markerstrokewidth = 0,
+            grid            = true,
+        )
+        xrc = extrema(psi_w); yrc = extrema(omega_t)
+        annotate!(p_c, xrc[1] + 0.02*(xrc[2]-xrc[1]),
+                       yrc[1] + 0.04*(yrc[2]-yrc[1]),
+                       Plots.text("(c)", 12, :left))
+
+        # ── (d) ψ_wn vs Ω_n coloured by class ──────────────────────────────
+        p_d = scatter(psi_wn[idx_U], omega_n[idx_U];
+            xlabel          = "ψ_wn",
+            ylabel          = "Ω_n",
+            label           = "Unlocked",
+            color           = :steelblue,
+            alpha           = 0.3,
+            markershape     = :circle,
+            markersize      = 4,
+            markerstrokewidth = 0,
+            grid            = true,
+        )
+        scatter!(p_d, psi_wn[idx_L], omega_n[idx_L];
+            label       = "Locked",
+            color       = :red,
+            alpha       = 0.5,
+            markershape = :xcross,
+            markersize  = 5,
+        )
+        xlims!(p_d, -0.02, 1.06)
+        ylims!(p_d, -0.02, 1.06)
+        annotate!(p_d, 0.02, 0.02, Plots.text("(d)", 12, :left))
+
+        # ── (e) ψ_tn vs ψ_wn ────────────────────────────────────────────────
+        p_e = scatter(psi_tn, psi_wn;
             xlabel          = "ψ_tn",
             ylabel          = "ψ_wn",
             label           = false,
@@ -385,13 +476,13 @@ function plot_scatter(actor)
             markerstrokewidth = 0,
             grid            = true,
         )
-        xrc = extrema(psi_tn); yrc = extrema(psi_wn)
-        annotate!(p_c, xrc[1] + 0.02*(xrc[2]-xrc[1]),
-                       yrc[1] + 0.04*(yrc[2]-yrc[1]),
-                       Plots.text("(c)", 12, :left))
+        xre = extrema(psi_tn); yre = extrema(psi_wn)
+        annotate!(p_e, xre[1] + 0.02*(xre[2]-xre[1]),
+                       yre[1] + 0.04*(yre[2]-yre[1]),
+                       Plots.text("(e)", 12, :left))
 
-        # ── (d) θ_t vs θ_w ──────────────────────────────────────────────────
-        p_d = scatter(theta_t, theta_w;
+        # ── (f) θ_t vs θ_w ──────────────────────────────────────────────────
+        p_f = scatter(theta_t, theta_w;
             xlabel          = "θ_t (rad)",
             ylabel          = "θ_w (rad)",
             label           = false,
@@ -401,12 +492,12 @@ function plot_scatter(actor)
             markerstrokewidth = 0,
             grid            = true,
         )
-        xrd = extrema(theta_t); yrd = extrema(theta_w)
-        annotate!(p_d, xrd[1] + 0.02*(xrd[2]-xrd[1]),
-                       yrd[1] + 0.04*(yrd[2]-yrd[1]),
-                       Plots.text("(d)", 12, :left))
+        xrf = extrema(theta_t); yrf = extrema(theta_w)
+        annotate!(p_f, xrf[1] + 0.02*(xrf[2]-xrf[1]),
+                       yrf[1] + 0.04*(yrf[2]-yrf[1]),
+                       Plots.text("(f)", 12, :left))
 
-        plt = plot(p_a, p_b, p_c, p_d; layout=(2, 2), size=(900, 750))
+        plt = plot(p_a, p_b, p_c, p_d, p_e, p_f; layout=(3, 2), size=(900, 1050))
     else
         plt = plot(p_a, p_b; layout=(2, 1), size=(600, 750))
     end
@@ -443,11 +534,12 @@ function plot_phase_diagrams(actor)
     # ── (a) Ω_n ─────────────────────────────────────────────────────────────
     p_a = heatmap(x, y, OmN_grid;
         xlabel         = xlabel_ctrl,
-        ylabel         = "Ω_0 (a.u.)",
+        ylabel         = "Ω_0",
         title          = "Ω_n",
         color          = cgrad(:RdBu),
         colorbar_title = "Ω_n",
         clims          = (0.0, 1.0),
+        left_margin    = 8Plots.mm,
     )
     _overlay_bifurcation!(p_a, x, y, r.bifurcation_bounds)
     annotate!(p_a, xr[1]+0.05*(xr[2]-xr[1]), yr[1]+0.85*(yr[2]-yr[1]),
@@ -460,11 +552,12 @@ function plot_phase_diagrams(actor)
     # ── (b) ψ_tn ────────────────────────────────────────────────────────────
     p_b = heatmap(x, y, PsiTN_grid;
         xlabel         = xlabel_ctrl,
-        ylabel         = "Ω_0 (a.u.)",
+        ylabel         = "Ω_0",
         title          = "ψ_tn",
         color          = cgrad(:RdBu, rev=true),
         colorbar_title = "ψ_tn",
         clims          = (0.0, 1.0),
+        left_margin    = 8Plots.mm,
     )
     _overlay_bifurcation!(p_b, x, y, r.bifurcation_bounds)
     annotate!(p_b, xr[1]+0.05*(xr[2]-xr[1]), yr[1]+0.85*(yr[2]-yr[1]),
@@ -474,7 +567,7 @@ function plot_phase_diagrams(actor)
     annotate!(p_b, xr[1]+0.01*(xr[2]-xr[1]), yr[1]+0.05*(yr[2]-yr[1]),
               Plots.text("(b)", 12, :white, :left))
 
-    plt = plot(p_a, p_b; layout=(2, 1), size=(700, 850))
+    plt = plot(p_a, p_b; layout=(2, 1), size=(650, 1100))
     return plt
 end
 
@@ -503,12 +596,12 @@ function plot_probability(actor)
 
     plt = contourf(x, y, prob_grid;
         xlabel         = xlabel_ctrl,
-        ylabel         = "Ω_0 (a.u.)",
+        ylabel         = "Ω_0",
         title          = "Locking probability P(locked) — NN",
         colorbar_title = "P(locked)",
         clims          = (0.0, 1.0),
         levels         = 20,
-        color          = cgrad(:RdYlGn, rev=true),
+        color          = cgrad(:RdBu, rev=true),
     )
     contour!(plt, x, y, prob_grid;
         levels    = [0.5],
@@ -520,10 +613,10 @@ function plot_probability(actor)
     )
     _overlay_bifurcation!(plt, x, y, r.bifurcation_bounds; color=:yellow, style=:dash)
 
-    annotate!(plt, xr[1]+0.25*(xr[2]-xr[1]), yr[1]+0.50*(yr[2]-yr[1]),
-              Plots.text("UNLOCKED", 14, :left))
+    annotate!(plt, xr[1]+0.05*(xr[2]-xr[1]), yr[1]+0.85*(yr[2]-yr[1]),
+              Plots.text("UNLOCKED", 14, :white, :left))
     annotate!(plt, xr[1]+0.70*(xr[2]-xr[1]), yr[1]+0.05*(yr[2]-yr[1]),
-              Plots.text("LOCKED",   14, :left))
+              Plots.text("LOCKED",   14, :white, :left))
 
     return plt
 end
@@ -1420,123 +1513,6 @@ function tune_locking_nn(actor::ActorLocking; n_trials::Int=20, n_folds::Int=3,
     @info "Retraining final model ($(full_params.n_epochs) epochs)..."
     train_locking_nn(actor, full_params)
     return full_params
-end
-
-"""
-plot_sols_scatter(norm_sol; xcol=1, ycol=3)
-
-Make a scatter plot from normalized solutions.
-
-Arguments:
-- `norm_sol`: 
-    * Vector{Vector{Float64}} or 
-    * Vector{NTuple{N,Float64}} (N=3 or 5 typically).
-  Each entry is one normalized solution.
-- `xcol`, `ycol`: column indices (1-based) to plot.
-
-Example:
-    plot_normalized_scatter(norm_sol; xcol=1, ycol=3)
-"""
-function plot_sols_scatter(
-        norm_sol; 
-        xcol::Int=1, 
-        ycol::Int=3,
-        xlabel::AbstractString="TM amplitude",
-        ylabel::AbstractString="Rotation at the rat. surf.",
-        title::AbstractString="Normalized solution scatter"
-    )
-    
-    if eltype(norm_sol) <: AbstractVector{<:Real}
-        # Convert vector-of-vectors to a matrix
-        data = reduce(vcat, (x' for x in norm_sol))
-    elseif eltype(norm_sol) <: NTuple
-        # Convert vector-of-tuples to a matrix
-        data = reduce(vcat, (collect(x)' for x in norm_sol))
-    else
-        throw(ArgumentError("norm_sol must be Vector{Vector{Float64}} or Vector{NTuple{N,Float64}}"))
-    end
-
-    plt = plot()
-    plt = scatter!(plt, data[:, xcol], data[:, ycol],
-                  xlabel=xlabel,
-                  ylabel=ylabel,
-                  title=title)
-
-    display(plt)
-    return plt
-end
-
-
-function plot_sols_scatter(
-        norm_sols::AbstractMatrix{<:Real};
-        xcol::Int = 1,
-        ycol::Int = 3,
-        labels::Union{Nothing,AbstractVector{<:Integer}} = nothing,
-        xlabel::AbstractString = "TM amplitude",
-        ylabel::AbstractString = "Rotation at the rat. surf.",
-        title::AbstractString = "Normalized solution scatter"
-    )
-
-    N, M = size(norm_sols)
-
-    @assert 1 ≤ xcol ≤ M "xcol out of bounds"
-    @assert 1 ≤ ycol ≤ M "ycol out of bounds"
-
-    x = norm_sols[:, xcol]
-    y = norm_sols[:, ycol]
-
-    plt = plot()
-
-    if labels === nothing
-        scatter!(
-            plt,
-            x, y;
-            xlabel = xlabel,
-            ylabel = ylabel,
-            title  = title,
-            legend = false,
-            markersize = 4
-        )
-    else
-        @assert length(labels) == N "labels must match number of rows"
-        # Ensure two unique classes
-        classes = unique(labels)
-        @assert length(classes) == 2 "This version expects exactly 2 classes"
-
-        class1, class2 = classes
-
-        idx1 = findall(labels .== class1)
-        idx2 = findall(labels .== class2)
-
-        scatter!(
-            plt,
-            x[idx1], y[idx1];
-            markershape = :circle,
-            label = "Class $class1",
-            markersize = 5
-        )
-
-        scatter!(
-            plt,
-            x[idx2], y[idx2];
-            markershape = :x,
-            label = "Class $class2",
-            markersize = 6
-        )
-        # scatter!(
-        #     plt,
-        #     x, y;
-        #     group = labels,
-        #     xlabel = xlabel,
-        #     ylabel = ylabel,
-        #     title  = title,
-        #     legend = :topright,
-        #     markersize = 4
-        # )
-    end
-
-    display(plt)
-    return plt
 end
 
 
