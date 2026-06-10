@@ -29,6 +29,8 @@
     tau_n::Entry{T} = Entry{T}("s", "Edge density LH transition tanh evolution time (95% of full transition)")
     density_ratio_L_over_H::Entry{T} = Entry{T}("-", "n_Lmode / n_Hmode")
     zeff_ratio_L_over_H::Entry{T} = Entry{T}("-", "zeff_Lmode / zeff_Hmode")
+    #== nn_predictor FPE source ==#
+    fpe_source::Switch{Symbol} = Switch{Symbol}([:zmq, :dd], "-", "Source of FPE actuator inputs for nn_predictor: `:zmq` (from ActorZMQ via dd._aux) or `:dd` (directly from dd fields, no ZMQ required)"; default=:zmq)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -135,27 +137,6 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
 
-    # Store total NBI torque in dd._aux for NN predictor.
-    # Sources have already run this step (run_sources before run_pedestal in Phase 2).
-    # NBI source identifier index = 2 (IMAS convention).
-    if par.ne_from == :nn_predictor && !isempty(dd.core_sources.source)
-        aux = getfield(dd, :_aux)
-        tinj = 0.0
-        for src in dd.core_sources.source
-            if src.identifier.index == 2 && !isempty(src.global_quantities)
-                gq = src.global_quantities[]
-                if !ismissing(gq, :torque_tor)
-                    tinj += gq.torque_tor
-                end
-            end
-        end
-        if :zmq_Tnbi ∉ keys(aux)
-            aux[:zmq_Tnbi] = (times=Float64[], values=Float64[])
-        end
-        push!(aux[:zmq_Tnbi].times, dd.global_time)
-        push!(aux[:zmq_Tnbi].values, tinj)
-    end
-
     # Run NN predictor once per time step (provides ne_ped, Te_ped, Ti_ped,
     # T_rot_ped, and the L/H classifier in a single ensemble call). Live ZMQ
     # actuator signals (stored in dd._aux by ActorZMQ.receive!) are mapped onto
@@ -166,7 +147,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             actor.nn_predictor = load_pedestal_nn()
             @info "ActorPedestal: loaded NN pedestal predictor ensemble ($(length(actor.nn_predictor.bundles)) bundles) from $(actor.nn_predictor.onnx_dir)"
         end
-        sequences, signal_mask = build_fpe_sequences_from_aux(actor.nn_predictor, dd)
+        sequences, signal_mask = build_fpe_sequences_from_aux(actor.nn_predictor, dd; use_dd=(par.fpe_source == :dd))
         # Live MSE history (from `dd._aux[:nn_history_buffer]` populated by
         # end-of-shot `push_shot_history!` calls). When the buffer is empty we
         # silently fall back to mean_normalized_history, equivalent to the
@@ -476,7 +457,7 @@ Returns:
 - `sequences::Matrix{Float32}` — `(T, 32)`, raw physical units, broadcast across time.
 - `signal_mask::Vector{Float32}` — length 32, 1.0 where a live value was found, 0.0 otherwise.
 """
-function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=200)
+function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=200, use_dd::Bool=false)
     # Initialize every channel to its training mean so an un-mapped channel
     # z-scores to exactly zero (matching mean_normalized_history's convention).
     sequences = repeat(reshape(nn.signal_means, 1, 32), T, 1)
@@ -520,35 +501,85 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=20
     # - `pinj`     : wire W, training MW (bundle mean≈2.8, std≈194)              -> /1e6
     # - `ech_total`: wire W, training MW (bundle mean≈2.2, std≈6.0)              -> /1e6
     # - `tinj`     : wire N·m, training N·m (bundle mean≈2.2, std≈2.4)           -> passthrough
-    let v = _aux_value_at(:zmq_Ip_avg);  v === nothing || _set_channel!("ip",       v); end
-    let v = _aux_value_at(:zmq_pr15v);   v === nothing || _set_channel!("ipspr15v", v / 1e6); end
-    let v = _aux_value_at(:zmq_Pohm);    v === nothing || _set_channel!("pohm", v); end
-    let v = _aux_value_at(:zmq_Pnbi);    v === nothing || _set_channel!("pinj", v / 1e6); end
-    let v = _aux_value_at(:zmq_Pech);    v === nothing || _set_channel!("ech_total", v / 1e6); end
-    let v = _aux_value_at(:zmq_Tnbi);    v === nothing || _set_channel!("tinj", v); end
-    for (k, name) in zip(
-            (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal),
-            ("gasa_cal",    "gasb_cal",    "gasc_cal",    "gasd_cal",    "gase_cal"))
-        v = _aux_value_at(k)
-        v === nothing || _set_channel!(name, v)
-    end
+    if use_dd
+        # dd path: read FPE inputs directly from dd fields (no ZMQ required)
+        t_now = dd.global_time
 
-    # PCS coil currents: 24-element vector PCECOILA, PCE89DN, PCE567UP, PCECOILB,
-    # PCE89UP, PCE567DN, PCF1A..PCF9A, PCF1B..PCF9B (see docstring table).
-    let v = _aux_value_at(:zmq_I_coil)
-        if v !== nothing
-            length(v) >= 1 && _set_channel!("ecoila", v[1])
-            length(v) >= 4 && _set_channel!("ecoilb", v[4])
-            f_names = ("f1a","f2a","f3a","f4a","f5a","f6a","f7a","f8a","f9a",
-                       "f1b","f2b","f3b","f4b","f5b","f6b","f7b","f8b","f9b")
-            for (k, name) in enumerate(f_names)
-                length(v) >= 6 + k || break
-                _set_channel!(name, v[6+k])
+        # ip
+        if !isempty(dd.equilibrium.time_slice)
+            _set_channel!("ip", dd.equilibrium.time_slice[].global_quantities.ip)
+        end
+
+        # pohm — from core_sources ohmic source
+        ohmic_srcs = IMAS.findall(dd.core_sources.source, "identifier.name" => "ohmic")
+        if !isempty(ohmic_srcs) && !isempty(ohmic_srcs[1].profiles_1d)
+            _set_channel!("pohm", IMAS.total_power_source(ohmic_srcs[1].profiles_1d[end]))
+        end
+
+        # pinj — total NBI power from pulse_schedule
+        if !isempty(dd.pulse_schedule.nbi.unit)
+            Pnbi = 0.0
+            for unit in dd.pulse_schedule.nbi.unit
+                if !ismissing(unit.power, :reference) && !isempty(unit.power.reference.time)
+                    Pnbi += IMAS.interp1d(unit.power.reference.time, unit.power.reference.data, :constant)(t_now)
+                end
+            end
+            _set_channel!("pinj", Pnbi / 1e6)
+        end
+
+        # pech — total EC power from ec_launchers
+        if !isempty(dd.ec_launchers.beam)
+            Pech = sum(
+                IMAS.interp1d(beam.power_launched.time, beam.power_launched.data, :constant)(t_now)
+                for beam in dd.ec_launchers.beam
+            )
+            _set_channel!("ech_total", Pech / 1e6)
+        end
+
+        # ipspr15v, gasa..gase_cal, ecoila, ecoilb, f1a..f9b — not available from dd; fall back to training mean
+
+    else
+        # zmq path: read FPE inputs from dd._aux populated by ActorZMQ.receive!
+        let v = _aux_value_at(:zmq_Ip_avg);  v === nothing || _set_channel!("ip",       v); end
+        let v = _aux_value_at(:zmq_pr15v);   v === nothing || _set_channel!("ipspr15v", v / 1e6); end
+        let v = _aux_value_at(:zmq_Pohm);    v === nothing || _set_channel!("pohm", v); end
+        let v = _aux_value_at(:zmq_Pnbi);    v === nothing || _set_channel!("pinj", v / 1e6); end
+        let v = _aux_value_at(:zmq_Pech);    v === nothing || _set_channel!("ech_total", v / 1e6); end
+        for (k, name) in zip(
+                (:zmq_gasa_cal, :zmq_gasb_cal, :zmq_gasc_cal, :zmq_gasd_cal, :zmq_gase_cal),
+                ("gasa_cal",    "gasb_cal",    "gasc_cal",    "gasd_cal",    "gase_cal"))
+            v = _aux_value_at(k)
+            v === nothing || _set_channel!(name, v)
+        end
+
+        # PCS coil currents
+        let v = _aux_value_at(:zmq_I_coil)
+            if v !== nothing
+                length(v) >= 1 && _set_channel!("ecoila", v[1])
+                length(v) >= 4 && _set_channel!("ecoilb", v[4])
+                f_names = ("f1a","f2a","f3a","f4a","f5a","f6a","f7a","f8a","f9a",
+                           "f1b","f2b","f3b","f4b","f5b","f6b","f7b","f8b","f9b")
+                for (k, name) in enumerate(f_names)
+                    length(v) >= 6 + k || break
+                    _set_channel!(name, v[6+k])
+                end
             end
         end
     end
 
-    # Bt — pulled directly from IMAS equilibrium (set by ActorZMQ.receive! too)
+    # tinj — NBI torque from core_sources for both paths (NBI identifier index = 2)
+    tinj = 0.0
+    for src in dd.core_sources.source
+        if src.identifier.index == 2 && !isempty(src.global_quantities)
+            gq = src.global_quantities[]
+            if !ismissing(gq, :torque_tor)
+                tinj += gq.torque_tor
+            end
+        end
+    end
+    _set_channel!("tinj", tinj)
+
+    # bt — from dd.equilibrium for both paths
     if !isempty(dd.equilibrium.vacuum_toroidal_field.b0)
         _set_channel!("bt", dd.equilibrium.vacuum_toroidal_field.b0[end])
     end
