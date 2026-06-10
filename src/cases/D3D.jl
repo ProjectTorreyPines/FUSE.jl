@@ -236,7 +236,6 @@ function case_parameters(::Val{:D3D}, shot::Int;
         ini.core_profiles.impurity = :C
         ini.core_profiles.rot_core = 5E3
     end
-    @show(ini.core_profiles.bulk)
 
     # add rotation information if missing
     for cp1d in dd1.core_profiles.profiles_1d
