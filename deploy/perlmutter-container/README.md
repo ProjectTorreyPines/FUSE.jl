@@ -10,7 +10,7 @@ single OCI image instead of an environment module.
 
 | File | Purpose |
 |------|---------|
-| `Containerfile` | Image definition (`FROM julia:1.11.7`), installs FUSE + builds the sysimage. |
+| `Containerfile` | Image definition (`FROM docker.io/library/julia:1.11.7`), installs FUSE + builds the sysimage. |
 | `install_fuse_container.jl` | Runs inside the build: adds registries, installs packages, compiles `sys_fuse.so`. |
 | `build.sh` | Builds and migrates the image on Perlmutter. |
 | `kernel.json.template` | Jupyter kernelspec template wrapping `podman-hpc run --jupyter`. |
@@ -45,6 +45,37 @@ architecture consistent.
 > Re-run `build.sh` (build + migrate) after any change. A migrated image is
 > read-only; you must re-`migrate` to pick up a rebuild.
 
+## Testing the shared image
+
+The project image is published to `/global/cfs/cdirs/m3739/shared_images` and is
+usable by anyone in `m3739` (no build or pull needed) by adding `--squash-dir`.
+On a Perlmutter login node:
+
+```bash
+# shortcut so every command uses the shared image store
+alias fuse-podman='podman-hpc --squash-dir /global/cfs/cdirs/m3739/shared_images'
+
+# 1) confirm the image is visible
+fuse-podman images | grep fuse
+# expect: localhost/fuse  v1.1.3  ...  R/O
+
+# 2) fast smoke test (loads FUSE from the baked-in sysimage, starts in seconds)
+fuse-podman run --rm fuse:v1.1.3 \
+  julia --sysimage=/opt/fuse/sys_fuse.so \
+  -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); println("FUSE OK: ", pkgversion(FUSE))'
+
+# 3) offline test (proves it is fully self-contained: no "Downloading artifact" lines)
+fuse-podman run --rm --network none fuse:v1.1.3 \
+  julia --sysimage=/opt/fuse/sys_fuse.so \
+  -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); dd=FUSE.init(ini,act); println("OFFLINE OK")'
+
+# 4) interactive REPL (optional)
+fuse-podman run --rm -it fuse:v1.1.3
+```
+
+For the Jupyter equivalent, see [Interactive use via Jupyter](#3-interactive-use-via-jupyter)
+(install the kernel with `SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images`).
+
 ## 2. Run the FUSE REPL
 
 ```bash
@@ -78,8 +109,34 @@ whose `argv` runs the in-container Julia via `podman-hpc run --rm --jupyter`.
 The `--jupyter` flag bind-mounts `/tmp` and `$HOME` so the kernel can connect
 and create notebooks in your home directory.
 
-Then open [NERSC JupyterHub](https://jupyter.nersc.gov) on a Perlmutter login
-node and select the **Julia FUSE-<version>** kernel.
+To use an image from a shared squash dir (instead of your per-user store), set
+`SQUASH_DIR`; the generated kernel will pass `podman-hpc --squash-dir <dir> run`:
+
+```bash
+SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images \
+FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
+```
+
+### Test the kernel
+
+1. Open [NERSC JupyterHub](https://jupyter.nersc.gov) and start a server on a
+   Perlmutter login node.
+2. Create a new notebook and select the **Julia FUSE-<version>** kernel
+   (display name e.g. `Julia FUSE-v1.1.3 (1 thread(s))`).
+3. Run this test cell:
+
+   ```julia
+   using FUSE
+   ini, act = FUSE.case_parameters(:D3D, :L_mode)
+   dd = FUSE.init(ini, act)
+   @show pkgversion(FUSE)
+   ```
+
+Expected: the kernel connects within a few seconds, `using FUSE` returns almost
+instantly (sysimage), the actors run, and `pkgversion(FUSE)` prints the image
+version. If the kernel fails to start, check the kernelspec at
+`$HOME/.local/share/jupyter/kernels/fuse-<version>/kernel.json` and confirm
+`podman-hpc images` (add `--squash-dir <dir>` if shared) lists `fuse:<version>`.
 
 ## Mounting data (optional)
 

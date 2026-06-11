@@ -1,6 +1,7 @@
 {
   "argv": [
     "podman-hpc",
+__SQUASH_ARGS__
     "run",
     "--rm",
     "--jupyter",

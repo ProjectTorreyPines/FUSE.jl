@@ -10,7 +10,13 @@
 #   FUSE_ENVIRONMENT=v1.1.3 ./deploy/perlmutter-container/install_kernel.sh
 #
 # Optional:
-#   THREADS=8   number of Julia threads the kernel starts with (default 1)
+#   THREADS=8      number of Julia threads the kernel starts with (default 1)
+#   SQUASH_DIR=... use an image from a shared squash dir instead of the
+#                  per-user store. The generated kernel will pass
+#                  `podman-hpc --squash-dir <dir> run ...`. Example (project
+#                  image shared with all of m3739):
+#                    SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images \
+#                    FUSE_ENVIRONMENT=v1.1.3 ./install_kernel.sh
 
 set -euo pipefail
 
@@ -28,6 +34,13 @@ fi
 
 threads="${THREADS:-1}"
 image="localhost/fuse:$version"
+squash_dir="${SQUASH_DIR:-}"
+
+# Global podman-hpc flags applied both when probing the image and in the kernel.
+podman_global=()
+if [[ -n "$squash_dir" ]]; then
+    podman_global=(--squash-dir "$squash_dir")
+fi
 
 if ! command -v podman-hpc >/dev/null 2>&1; then
     echo "ERROR: podman-hpc not found. Run this on Perlmutter." >&2
@@ -36,8 +49,8 @@ fi
 
 # Pull the IJulia kernel.jl path that install_fuse_container.jl recorded in the
 # image, so the kernelspec points at the right file inside the container.
-echo "### Resolving IJulia kernel path from $image"
-kernel_jl="$(podman-hpc run --rm "$image" cat /opt/fuse/ijulia_kernel_path.txt | tr -d '\r\n')"
+echo "### Resolving IJulia kernel path from $image${squash_dir:+ (squash-dir: $squash_dir)}"
+kernel_jl="$(podman-hpc "${podman_global[@]}" run --rm "$image" cat /opt/fuse/ijulia_kernel_path.txt | tr -d '\r\n')"
 if [[ -z "$kernel_jl" ]]; then
     echo "ERROR: could not read /opt/fuse/ijulia_kernel_path.txt from $image." >&2
     echo "       Did you run build.sh (build + migrate) first?" >&2
@@ -50,13 +63,24 @@ mkdir -p "$kernel_dir"
 
 display="Julia FUSE-$version ($threads thread(s))"
 
+# Build the optional "--squash-dir", "<dir>", argv entries (as JSON lines), or
+# leave empty so the placeholder line is dropped.
+if [[ -n "$squash_dir" ]]; then
+    squash_repl="    \"--squash-dir\",\\n    \"$squash_dir\","
+else
+    squash_repl=""
+fi
+
 sed -e "s|__IMAGE__|$image|g" \
     -e "s|__KERNEL_JL__|$kernel_jl|g" \
     -e "s|__THREADS__|$threads|g" \
     -e "s|__DISPLAY__|$display|g" \
-    "$scriptdir/kernel.json.template" > "$kernel_dir/kernel.json"
+    -e "s|^__SQUASH_ARGS__\$|$squash_repl|" \
+    "$scriptdir/kernel.json.template" \
+  | sed '/^[[:space:]]*$/d' > "$kernel_dir/kernel.json"
 
 echo
 echo "### Installed kernelspec at $kernel_dir/kernel.json"
+[[ -n "$squash_dir" ]] && echo "    (kernel runs the image from squash-dir: $squash_dir)"
 echo "Open NERSC JupyterHub (Perlmutter login node) and select the"
 echo "'$display' kernel."
