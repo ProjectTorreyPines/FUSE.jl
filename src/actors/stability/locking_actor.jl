@@ -44,9 +44,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
         "Stability index of the system (set to Neg. value for now)"; default=-0.5)
-    MaxErrorField::Entry{Float64} = Entry{Float64}(
-        "Tesla*meter", 
-        "Maximum error field perturbation for control, usually ~10 Gauss.meter"; default=1e-3)
     b0::Entry{Float64} = Entry{Float64}(
         "Tesla", 
         "Scale for magnetic perturbations, usually ~10Gauss"; default=1.e-3)
@@ -56,7 +53,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     r0::Entry{Float64} = Entry{Float64}(
         "meter", 
         "Length scale for the integration , usually minor radius"; default=1.)
-    NBItorque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)    
+    source_torque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)    
 end
 
 
@@ -189,9 +186,8 @@ function _step(actor::ActorLocking)
     # Time evolve the ODEs, calculate locking probability, or load/evaluate model
     if task == :single_case
         @info "Solveing one case for system"
-        control1 = 1. # normalized rotation frequency.
-        solve_one_case(par, actor.ode_params, application, control1)
-        return actor
+        solve_one_case(par, actor.ode_params, application)
+    
     elseif task == :solve_system
         @info "Solving the ODEs for $(application) system"
         # Solve the ODE system on the whole control grid, normalize, and
@@ -403,7 +399,7 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     
     # NBI torque at the rational surface:
     # Prefer the FUSE NBI actor output (dd.core_sources) if it has been populated upstream;
-    # fall back to the user-specified par.NBItorque scalar if not.
+    # fall back to the user-specified par.source_torque scalar if not.
     torque_at_rat_surf = try
         cp1d          = dd.core_profiles.profiles_1d[]
         src1d         = IMAS.total_sources(dd.core_sources, cp1d;
@@ -417,8 +413,8 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
         @info "NBI torque at rational surface from dd.core_sources: $(round(torque_val; sigdigits=4)) N·m"
         torque_val
     catch
-        @warn "dd.core_sources torque not available — falling back to par.NBItorque = $(par.NBItorque) N·m"
-        par.NBItorque
+        @warn "dd.core_sources torque not available — falling back to par.source_torque = $(par.source_torque) N·m"
+        par.source_torque
     end
 
     # Calculate the drag coefficient in SI
@@ -474,21 +470,17 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     @info("Calculated toroidal rotation frequency at rational surface: $Omega0_calc kHz")
     println("Using Control1 (Ω0) range: [$(ode_params.Control1_min), $(ode_params.Control1_max)]")
 
-    Om0Vals = range(ode_params.Control1_min, ode_params.Control1_max, length=N) |> collect
-    Om0s = repeat(Om0Vals, 1, M)
-    Control1 = vec(Om0s)
-    ode_params.Control1 = Control1
+    Control1_vals = range(ode_params.Control1_min, ode_params.Control1_max, length=N) |> collect
+    ode_params.Control1 = vec(repeat(Control1_vals, 1, M))
 
     # Initialize the other control parameter based on the control type
     Control2_vals = range(c2min, c2max, length=M) |> collect
     if control_type == :EF
-        println("Overwriting default Control2 range with Max Error Field")
-        EpsUp = par.MaxErrorField / (par.b0 * par.r0)  # Convert to dimensionless units
-        Control2_vals = range(1e-2, EpsUp, length=M) |> collect
+        EpsUp = c2max * par.b0 * 1.e-4  # Convert to Gauss
+        @info("Maximum error field is $(EpsUp) Gauss")
 
     elseif control_type == :LinStab
         #ode_params.error_field = 0.6  # Example value for error field
-        #Control2_vals = range(ode_params.Delta_lower, ode_params.Delta_upper, length=M) |> collect
         ## Check to make sure the system is still weakly stable
         DeltatRW = Control2_vals .- l21*l12/DeltaW
         if any(DeltatRW .> 0)
@@ -496,12 +488,11 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
             println("*** Maximum RP-RW stability set to ", maximum(DeltatRW))
             error("Deltat_RW > 0 for your range of TM stability values ***")
         end
-
+        ode_params.stability_index = Control2_vals
     elseif control_type == :NLsaturation
         println("Do nothing for NL saturation control")
-        #Control2_vals = range(ode_params.alpha_lower, ode_params.alpha_upper, length=M) |> collect
         
-        #ode_params.saturation_param = Control2
+        ode_params.saturation_param = Control2
     end
     
     Control2 = vec(repeat(Control2_vals', N, 1))
@@ -516,24 +507,30 @@ end
 #  task = :single_case — solve and plot one trajectory
 # ─────────────────────────────────────────────────────────────────────────────
 
-function solve_one_case(par, ode_params::ODEparams, task::String, control1::Float64)
+function solve_one_case(par, ode_params::ODEparams, application::String)
 
+    control1 = par.source_torque
+   
+    # harvest what's already under the hood to set these inputs 
     if par.control_type == :EF
-        control2 = 0.5
+        control2 = ode_params.error_field
     elseif par.control_type == :LinStab
-        control2 = -6.
+        control2 = ode_params.stability_index - 0.5 # small adjustment to move away from marginality
+    elseif par.control_type == :NLsaturation
+        control2 = ode_params.saturation_param
     else
-        control2 = 0.2
+        @info "Control scenario NOT set, guessing the value of control2"
+        control2 = 0.5
     end
 
-    final_sol = solve_ODEs(par, ode_params, task, control1, control2)
-    println("final raw solution = ", final_sol)
+    sol = solve_ODEs(par, ode_params, application, control1, control2; full_output=true)
 
-    sols_norm = normalize_ode_results(final_sol, ode_params, control2, control1, par.control_type)
-    println("final normalized solution = ", sols_norm)
+    norm_t = reduce(vcat, (normalize_ode_results(u, ode_params, control2, control1, par.control_type)'
+                            for u in sol.u))
+    println("final normalized solution = ", norm_t[end, :])
 
     # Time-dependent figures: TM (ψ_tN), RWM (ψ_wN, RP-RW only), and Ω_tN vs time
-    fig = plot_time_traces(par, ode_params, task, control1, control2)
+    fig = plot_time_traces(norm_t, sol.t)
     display(fig)
 
     return fig
@@ -542,33 +539,35 @@ end
 
 
 """
-    plot_time_traces(par, ode_params, task, control1, control2) → Plot
+    plot_time_traces(norm_t, t) → Plot
 
-Solve a single ODE trajectory for the given controls and plot the
-time-dependent, normalized tearing-mode amplitude (TM, ψ_tn), resistive-wall-mode
-amplitude (RWM, ψ_wn — only for the RP-RW system), and normalized rotation
-frequency (Ω_tN) vs time.
+Plot the time-dependent, normalized tearing-mode amplitude (TM, ψ_tn) and
+resistive-wall-mode amplitude (RWM, ψ_wn — only for the RP-RW system) on the
+left y-axis, and the normalized rotation frequency (Ω_tN) vs time on a
+secondary (right) y-axis, all on a single labeled plot.
+
+`norm_t` is the (n_times × n_states) matrix of per-timestep normalized
+states (as produced by `normalize_ode_results` applied to each `sol.u[i]`),
+and `t` is the corresponding vector of times (`sol.t`).
 """
-function plot_time_traces(par, ode_params::ODEparams, task::String, control1::Float64, control2::Float64)
-    sol = solve_ODEs(par, ode_params, task, control1, control2; full_output=true)
-
-    t = sol.t
-    norm_t = reduce(vcat, (normalize_ode_results(u, ode_params, control2, control1, par.control_type)'
-                            for u in sol.u))
+function plot_time_traces(norm_t::AbstractMatrix{<:Real}, t::AbstractVector{<:Real})
 
     psi_tN = norm_t[:, 1]
     Om_tN  = norm_t[:, 3]
 
-    p1 = plot(t, psi_tN; xlabel="time", ylabel="ψ_tN", label=false, lw=2, title="TM (tearing mode)")
-    p3 = plot(t, Om_tN; xlabel="time", ylabel="Ω_tN", label=false, lw=2, title="Normalized rotation")
+    plt = plot(t, psi_tN; xlabel="time", ylabel="Normalized ψ", label="ψ_tN (TM)",
+               lw=2, color=:steelblue, title="Time-dependent traces", legend=:topleft)
 
     if size(norm_t, 2) == 5 # RP-RW layout includes the resistive-wall-mode state
         psi_wN = norm_t[:, 4]
-        p2 = plot(t, psi_wN; xlabel="time", ylabel="ψ_wN", label=false, lw=2, title="RWM (resistive wall mode)")
-        return plot(p1, p2, p3; layout=(3, 1), size=(600, 900))
-    else
-        return plot(p1, p3; layout=(2, 1), size=(600, 600))
+        plot!(plt, t, psi_wN; label="ψ_wN (RWM)", lw=2, color=:darkorange)
     end
+
+    # Ω_tN on its own scale on the right y-axis
+    plot!(twinx(plt), t, Om_tN; ylabel="Ω_tN", label="Ω_tN", lw=2,
+          color=:firebrick, linestyle=:dash, legend=:topright)
+
+    return plt
 end
 
 
@@ -716,7 +715,6 @@ function solve_ODEs(par, ode_params::ODEparams, task::String, C1::Float64, C2::F
 
     rhs!     = make_rhs_function(task)
     ode_rhs! = make_ode_func(rhs!)
-    ode_params.hyper_cube_dims = [3., 3., 3.]
     y0 = make_initial_condition(ode_params.hyper_cube_dims, task)
 
     # rhs! expects (C2, C1) as its first two positional args — swap once here so
@@ -778,26 +776,40 @@ function normalize_ode_results(results, ode_params::ODEparams, C2_vec, C1_vec, c
             OmN     = final_sol[3] / C1
             psiw    = final_sol[4]
             theta_w = mod(final_sol[5], 2π)
+            rho = abs(DeltatRW / Deltat)
 
             if iszero(alpha)  # linear regime: saturation_param set to 0. when NL_saturation_ON=false
                 num     = abs(Deltat * DeltaW) - l12 * l21
                 psitMax = l32 * l21 * eps / num
-                psiwMax = l32 * abs(DeltaW) * eps / num
+                psiwMax = l32 * abs(Deltat) * eps / abs(DeltatRW * DeltaW)
+                psiwMin = l32 * eps / abs(DeltaW)
             else              # NL saturation active
                 psitMax = -(DeltatRW + sqrt(DeltatRW^2 + 4*alpha*l21*l32*eps*Deltat/DeltaW)) /
                            (2*alpha*Deltat)
                 psiwMax = -(l32*eps + l12*psitMax) / DeltaW
+                psiwMin = l32 * eps / abs(DeltaW)
             end
 
             psiN  = abs(psit / psitMax)
             psiwN = abs(psiw / psiwMax)
+            psiwN = (psiwN - rho) / (1 - rho)
+            #psiwN = abs((psiw - psiwMin) / (psiwMax - psiwMin))
 
             return [psiN, theta_t, OmN, psiwN, theta_w]
 
         elseif length(final_sol) == 3 # RP-IW layout
-            psiN    = final_sol[1] / (l21 * eps)
+            psit    = final_sol[1]
             theta_t = mod(final_sol[2], 2π)
             OmN     = final_sol[3] / C1
+
+            if iszero(alpha)  # linear regime: saturation_param set to 0. when NL_saturation_ON=false
+                psitMax = l21 * eps / abs(Deltat)
+            else              # NL saturation active
+                psitMax = (-1.0 + sqrt(1.0 - 4*l21*alpha*eps/Deltat)) / (2*alpha)
+            end
+
+            psiN = abs(psit / psitMax)
+
             return [psiN, theta_t, OmN]
 
         else
