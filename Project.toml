@@ -80,12 +80,7 @@ ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [sources]
-BoundaryPlasmaModels = {rev = "compat/json_optim", url = "https://github.com/ProjectTorreyPines/BoundaryPlasmaModels.jl.git"}
-FuseExchangeProtocol = {rev = "compat/json_v1", url = "https://github.com/ProjectTorreyPines/FuseExchangeProtocol.jl.git"}
 IMASdd = {rev = "refac/json_v1", url = "https://github.com/ProjectTorreyPines/IMASdd.jl.git"}
-QED = {rev = "master", url = "https://github.com/ProjectTorreyPines/QED.jl.git"}
-SimulationParameters = {rev = "compat/json_v1", url = "https://github.com/ProjectTorreyPines/SimulationParameters.jl.git"}
-MillerExtendedHarmonic = {rev = "compat/optim", url = "https://github.com/ProjectTorreyPines/MillerExtendedHarmonic.jl.git"}
 
 [extensions]
 ThermalSystemModelsExt = "ThermalSystemModels"
