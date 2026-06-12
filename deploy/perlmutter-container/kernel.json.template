@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "podman-hpc",
+__SQUASH_ARGS__
+    "run",
+    "--rm",
+    "--jupyter",
+    "__IMAGE__",
+    "julia",
+    "--sysimage=/opt/fuse/sys_fuse.so",
+    "--threads=__THREADS__",
+    "__KERNEL_JL__",
+    "{connection_file}"
+  ],
+  "display_name": "__DISPLAY__",
+  "language": "julia",
+  "metadata": {
+    "debugger": true
+  }
+}

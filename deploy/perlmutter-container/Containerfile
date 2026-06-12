@@ -1,0 +1,72 @@
+# FUSE in a container for podman-hpc on NERSC Perlmutter
+#
+# Build context MUST be the FUSE repo root so the Makefile (which holds the
+# canonical list of ProjectTorreyPines packages) can be copied in:
+#
+#   podman-hpc build -t fuse:<version> -f deploy/perlmutter-container/Containerfile .
+#
+# See deploy/perlmutter-container/build.sh for the full build + migrate flow.
+
+# Fully-qualified base image: on Perlmutter the default registries.conf resolves
+# bare names against registry.suse.com, so we pin Docker Hub explicitly.
+FROM docker.io/library/julia:1.11.7
+
+# --- system dependencies -----------------------------------------------------
+# git + CLI git is used by Pkg to clone the FuseRegistry packages; gcc is the
+# C compiler PackageCompiler invokes when building the system image.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        build-essential \
+        gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# The FuseRegistry stores package repos as git@github.com: (SSH) URLs, which
+# require SSH keys. All ProjectTorreyPines packages are public, so rewrite SSH
+# GitHub URLs to anonymous HTTPS so the build needs no credentials. Written to
+# the system gitconfig (read regardless of $HOME) as a backstop; the install
+# script also rewrites the registry files directly.
+RUN git config --system url."https://github.com/".insteadOf "git@github.com:" \
+    && git config --system url."https://github.com/".insteadOf "ssh://git@github.com/" \
+    && git config --global url."https://github.com/".insteadOf "git@github.com:" \
+    && git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
+# --- build-time Julia configuration ------------------------------------------
+# These mirror deploy/perlmutter/deploy.sh. JULIA_NUM_THREADS=1 is REQUIRED by
+# install_fuse_container.jl (PackageCompiler sysimage build asserts 1 thread).
+# The znver3 CPU target matches Perlmutter's AMD Milan login/compute/GPU nodes;
+# building the image on a Perlmutter node keeps the arch consistent.
+ENV FUSE_INSTALL_DIR=/opt/fuse \
+    JULIA_DEPOT_PATH=/opt/fuse/.julia \
+    JULIA_PKG_USE_CLI_GIT=1 \
+    JULIA_CC="gcc -O3" \
+    JULIA_NUM_THREADS=1 \
+    JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+
+# --- install FUSE + build the sysimage ---------------------------------------
+WORKDIR /opt/build
+COPY deploy/perlmutter-container/install_fuse_container.jl /opt/build/install_fuse_container.jl
+COPY Makefile /opt/build/Makefile
+
+# Installs FUSE and all PTP packages into $FUSE_INSTALL_DIR, builds IJulia, and
+# compiles /opt/fuse/sys_fuse.so. This step is heavy (runs the FUSE test suite
+# and tutorial as precompile workload) and is best run inside a CPU allocation.
+RUN julia /opt/build/install_fuse_container.jl
+
+# --- runtime configuration ---------------------------------------------------
+# At runtime the project + depot point at the baked install. Threads are left
+# unset so users can choose (e.g. JULIA_NUM_THREADS=8) when they run the image.
+ENV JULIA_PROJECT=/opt/fuse \
+    JULIA_DEPOT_PATH=/opt/fuse/.julia \
+    JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+
+# `fuse` launches a Julia REPL preloaded with the FUSE sysimage.
+RUN printf '%s\n' \
+    '#!/bin/bash' \
+    'exec julia --sysimage=/opt/fuse/sys_fuse.so "$@"' \
+    > /usr/local/bin/fuse \
+    && chmod 0555 /usr/local/bin/fuse
+
+WORKDIR /root
+CMD ["fuse"]
