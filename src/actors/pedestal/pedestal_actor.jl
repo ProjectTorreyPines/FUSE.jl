@@ -512,16 +512,17 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=20
 
         # pohm — from core_sources ohmic source
         ohmic_srcs = IMAS.findall(dd.core_sources.source, "identifier.name" => "ohmic")
-        if !isempty(ohmic_srcs) && !isempty(ohmic_srcs[1].profiles_1d)
-            _set_channel!("pohm", IMAS.total_power_source(ohmic_srcs[1].profiles_1d[end]))
+        if !isempty(ohmic_srcs) && !isempty(first(ohmic_srcs).profiles_1d)
+            _set_channel!("pohm", IMAS.total_power_source(first(ohmic_srcs).profiles_1d[end]))
         end
 
         # pinj — total NBI power from pulse_schedule
-        if !isempty(dd.pulse_schedule.nbi.unit)
+        if !isempty(dd.pulse_schedule.nbi.unit) && !isempty(dd.pulse_schedule.nbi.time)
             Pnbi = 0.0
+            nbi_time = dd.pulse_schedule.nbi.time
             for unit in dd.pulse_schedule.nbi.unit
-                if !ismissing(unit.power, :reference) && !isempty(unit.power.reference.time)
-                    Pnbi += IMAS.interp1d(unit.power.reference.time, unit.power.reference.data, :constant)(t_now)
+                if !ismissing(unit.power, :reference) && !isempty(unit.power.reference)
+                    Pnbi += IMAS.interp1d(nbi_time, unit.power.reference, :constant)(t_now)
                 end
             end
             _set_channel!("pinj", Pnbi / 1e6)
@@ -529,10 +530,12 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=20
 
         # pech — total EC power from ec_launchers
         if !isempty(dd.ec_launchers.beam)
-            Pech = sum(
-                IMAS.interp1d(beam.power_launched.time, beam.power_launched.data, :constant)(t_now)
-                for beam in dd.ec_launchers.beam
-            )
+            Pech = 0.0
+            for beam in dd.ec_launchers.beam
+                if !ismissing(beam, :power_launched) && !isempty(beam.power_launched.time)
+                    Pech += IMAS.interp1d(beam.power_launched.time, beam.power_launched.data, :constant)(t_now)
+                end
+            end
             _set_channel!("ech_total", Pech / 1e6)
         end
 
