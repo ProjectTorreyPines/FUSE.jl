@@ -78,6 +78,7 @@ include("actors.jl")
 
 include(joinpath("actors", "noop_actor.jl"))
 include(joinpath("actors", "replay_actor.jl"))
+include(joinpath("actors", "zmq_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
 include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
@@ -127,6 +128,7 @@ include(joinpath("actors", "hcd", "sources_actor.jl"))
 include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
 include(joinpath("actors", "pedestal", "WPED_actor.jl"))
+include(joinpath("actors", "pedestal", "nn_predictor.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
