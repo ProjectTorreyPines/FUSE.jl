@@ -10,6 +10,8 @@ import TurbulentTransport
         Entry{AbstractVector{T}}("-", "rho_tor_norm radii at which TGLF-EP finds the critical EP-density scale SFmin"; default=[0.01, 0.21, 0.41, 0.61, 0.81, 0.95])
     is_ep::Entry{Int} = Entry{Int}("-", "ion index of the energetic-particle (EP) driver species in dd.core_profiles.ion"; default=3)
     process_in::Entry{Int} = Entry{Int}("-", "TGLF-EP PROCESS_IN (4 or 5: critical-EP-density-gradient scan)"; default=5)
+    solver::Switch{Symbol} =
+        Switch{Symbol}([:grid, :ad], "-", "critical-factor engine: :grid (Fortran-equivalent kwscale_scan sweep; SFmin matches Fortran) or :ad (autodiff AE-onset Newton + IFT (kyhat,width) descent; grid-independent so SFmin can differ from/be more accurate than :grid, and is much faster on GPU)"; default=:grid)
     threshold_flag::Entry{Int} = Entry{Int}("-", "TGLF-EP THRESHOLD_FLAG"; default=0)
     scan_method::Entry{Int} = Entry{Int}("-", "TGLF-EP SCAN_METHOD"; default=1)
     n_basis::Entry{Int} = Entry{Int}("-", "TGLF-EP N_BASIS (number of Hermite basis functions)"; default=2)
@@ -34,8 +36,8 @@ import TurbulentTransport
     E_alpha::Entry{T} = Entry{T}("MeV", "EP birth energy (3.5 MeV for fusion alphas)"; default=3.5)
     use_gpu::Entry{Bool} = Entry{Bool}("-", "run TJLF on GPU when available"; default=false)
     inner::Switch{Symbol} =
-        Switch{Symbol}([:threads, :mps_team], "-", "within-radius parallelism: :threads (serial-per-GPU baseline) or :mps_team (MPS clients sharing each GPU)"; default=:threads)
-    mps_team::Entry{Int} = Entry{Int}("-", "MPS-team size per GPU when inner=:mps_team (0 disables)"; default=8)
+        Switch{Symbol}([:threads, :mps_team], "-", "within-radius parallelism (SPMD per-radius layout only; the in-process actor run always uses :threads): :threads (serial-per-GPU baseline; fastest for solver=:ad) or :mps_team (MPS clients sharing each GPU; fastest for solver=:grid)"; default=:threads)
+    mps_team::Entry{Int} = Entry{Int}("-", "MPS-team size per GPU when inner=:mps_team (0 disables); recommended only for solver=:grid (the :ad path is faster with :threads)"; default=8)
 end
 
 mutable struct ActorTJLFEP{D,P} <: SingleAbstractActor{D,P}
@@ -113,10 +115,15 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     rho_scan = collect(Float64, par.rho_scan)
     OptionsDict = _optionsdict(par)
 
-    use_ql = par.alpha_use_ql && par.alpha_solver == :stiff
+    # The AD solver returns the critical factor/marking only (no per-mode QL buffers),
+    # so QL-diffusivity coupling is unavailable on that path.
+    if par.alpha_use_ql && par.alpha_solver == :stiff && par.solver == :ad
+        @warn "ActorTJLFEP: alpha_use_ql is not supported with solver=:ad (no QL buffers from the AD path); falling back to non-QL stiff-CGM."
+    end
+    use_ql = par.alpha_use_ql && par.alpha_solver == :stiff && par.solver == :grid
     width, kymark_out, SFmin, dpdr_crit_out, dndr_crit_out, marginal_ql =
         TJLFEP.runTHD(dd, rho_scan, OptionsDict; use_gpu=par.use_gpu, ql_flux_scan=use_ql,
-            inner=par.inner, mps_team=par.mps_team)
+            inner=par.inner, mps_team=par.mps_team, solver=par.solver)
 
     actor.rho_grid = D.(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
     actor.SFmin = D.(SFmin)
