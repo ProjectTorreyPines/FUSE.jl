@@ -81,6 +81,7 @@ Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [sources]
 IMASdd = {rev = "refac/json_v1", url = "https://github.com/ProjectTorreyPines/IMASdd.jl.git"}
+SimulationParameters = {rev = "refac/json_v1", url = "https://github.com/ProjectTorreyPines/SimulationParameters.jl.git"}
 
 [extensions]
 ThermalSystemModelsExt = "ThermalSystemModels"
