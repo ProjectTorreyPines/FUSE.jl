@@ -148,8 +148,8 @@ function run_predictive_rt_case!(
     act.ActorWPED.ped_to_core_fraction = missing
 
     # ZMQ coupling to GSLite/GSEvolve
-    act.ActorZMQ.enabled = false
-    act.ActorPedestal.fpe_source = :dd # :zmq
+    act.ActorZMQ.enabled = true
+    act.ActorPedestal.fpe_source = :zmq # dd
     act.ActorPedestal.ne_from = :nn_predictor  #:pulse_schedule 
 
     # density and Zeff from experiment
