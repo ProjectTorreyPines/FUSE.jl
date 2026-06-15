@@ -16,6 +16,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
+    m_mode::Entry{Float64} = Entry{Float64}(
+        "-", 
+        "Poloidal mode number of the perturbation (for EF flux-equivalent conversion)"; default=2.0)
     n_mode::Entry{Int} = Entry{Int}("_", "toroidal mode number of the mode"; default=1)
     q_surf::Entry{Float64} = Entry{Float64}("_", "rational surface of interest, usually 2.0"; default=2.)
     grid_size::Entry{Int} = Entry{Int}("-", "grid resolution for control space"; default=100)
@@ -474,27 +477,29 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     ode_params.Control1 = vec(repeat(Control1_vals, 1, M))
 
     # Initialize the other control parameter based on the control type
-    Control2_vals = range(c2min, c2max, length=M) |> collect
     if control_type == :EF
-        EpsUp = c2max * par.b0 * 1.e-4  # Convert to Gauss
-        @info("Maximum error field is $(EpsUp) Gauss")
+        # For :EF, Control2_min/max are interpreted directly as the EF amplitude
+        # in Gauss. Convert to the flux-equivalent perturbation psi_eps (still
+        # referred to as "Eps" in the code), which carries units of b0*r0 (same
+        # as psi0):
+        #   EF_Tesla = EF_Gauss * 1e-4
+        #   psi_eps  = -i * r_c * EF_Tesla / m_pol   (magnitude = r_c*EF_Tesla/m_pol)
+        # The -i indicates psi_eps is -90deg out of phase with the true EF — not
+        # yet propagated as an actual phase offset in the RHS (TODO, left as-is).
+        EF_Gauss_vals = range(c2min, c2max, length=M) |> collect
+        EF_Tesla_vals = EF_Gauss_vals .* 1.e-4   # Gauss -> Tesla
+        rc    = ode_params.control_surf
+        m_pol = par.m_mode
+        Control2_vals = rc .* EF_Tesla_vals ./ m_pol  # psi_eps, units of b0*r0
 
-    elseif control_type == :LinStab
-        #ode_params.error_field = 0.6  # Example value for error field
-        ## Check to make sure the system is still weakly stable
-        DeltatRW = Control2_vals .- l21*l12/DeltaW
-        if any(DeltatRW .> 0)
-            println("*** ALERT: You set up a case with an unstable RP-RW mode! ***")
-            println("*** Maximum RP-RW stability set to ", maximum(DeltatRW))
-            error("Deltat_RW > 0 for your range of TM stability values ***")
-        end
-        ode_params.stability_index = Control2_vals
-    elseif control_type == :NLsaturation
-        println("Do nothing for NL saturation control")
-        
-        ode_params.saturation_param = Control2
+        @info("Maximum error field is $(c2max) Gauss")
+    else
+        Control2_vals = range(c2min, c2max, length=M) |> collect
+
+        EpsUp = ode_params.error_field * par.b0 / 1.e-4  # Convert to Gauss
+        @info("Maximum error field is $(EpsUp) Gauss")
     end
-    
+
     Control2 = vec(repeat(Control2_vals', N, 1))
     ode_params.Control2 = Control2
 
@@ -955,6 +960,15 @@ function resolve_control(ode_params::ODEparams, control_type::Symbol, C2::Real)
     alpha  = control_type == :NLsaturation ? Float64(C2) : ode_params.saturation_param
 
     DeltatRW = Deltat - ode_params.l21 * ode_params.l12 / ode_params.DeltaW
+
+    # This check is only meaningful for :LinStab, where Deltat=C2 is the swept
+    # quantity and DeltatRW must stay negative for the RP-RW system to remain
+    # weakly stable. For :EF/:NLsaturation, Deltat=stability_index is fixed and
+    # DeltatRW reduces to RPRW_stability_index — not a "sweep range" to validate.
+    if control_type == :LinStab && DeltatRW > 0
+        println("*** ALERT: You set up a case with an unstable RP-RW mode! ***")
+        error("Deltat_RW > 0 for your range of TM stability values ***")
+    end
 
     return (; Deltat, eps, alpha, DeltatRW)
 end
