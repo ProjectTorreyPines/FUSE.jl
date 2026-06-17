@@ -1,25 +1,35 @@
 #= ================== =#
 #  ActorCoreTransport  #
 #= ================== =#
-Base.@kwdef mutable struct FUSEparameters__ActorCoreTransport{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
-    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
-    do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+@actor_parameters_struct ActorCoreTransport{T} begin
+    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :FINN, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
 end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorCoreTransport{P}}
     act::ParametersAllActors{P}
-    tr_actor::Union{ActorFluxMatcher{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    tr_actor::Union{ActorFluxMatcher{D,P},ActorFINN{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
     ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run multiple core transport actors
+Provides a unified interface to run core transport evolution models.
+
+This compound actor manages different approaches to core transport evolution:
+
+Transport model options:
+- `:FluxMatcher`: Self-consistent flux-matching transport evolution using turbulent and
+  neoclassical models to evolve temperature and density profiles
+- `:FINN`: Direct gradient prediction using the Flux-matcher Inversion Neural Network,
+  bypassing iterative flux matching for 10-millisecond profile prediction
+- `:EPEDProfiles`: Use EPED model predictions for pedestal and core profiles
+- `:replay`: Replay profiles from experimental data or previous simulations
+- `:none`: No core transport evolution (fixed profiles)
+
+The selected model determines how the core plasma profiles (temperature, density, rotation)
+evolve in response to heating, particle sources, and transport processes.
 """
 function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorCoreTransport(dd, act.ActorCoreTransport, act; kw...)
@@ -36,7 +46,9 @@ function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport
     actor = ActorCoreTransport(dd, par, act, noop)
 
     if par.model == :FluxMatcher
-        actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; par.do_plot)
+        actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act)
+    elseif par.model == :FINN
+        actor.tr_actor = ActorFINN(dd, act.ActorFINN, act)
     elseif par.model == :EPEDProfiles
         actor.tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
     elseif par.model == :replay
@@ -81,18 +93,36 @@ function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::
     rho_nml = actor.act.ActorFluxMatcher.rho_transport[end]
     rho_ped = actor.act.ActorFluxMatcher.rho_transport[end]
 
+    # densities
     cp1d.electrons.density_thermal = IMAS.blend_core_edge(replay_cp1d.electrons.density_thermal, cp1d.electrons.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+    IMAS.unfreeze!(cp1d.electrons, :density)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
-        if !ismissing(ion, :density_thermal)
-            ion.density_thermal = IMAS.blend_core_edge(replay_ion.density_thermal, ion.density_thermal, rho, rho_nml, rho_ped; method=:scale)
+        if !ismissing(ion, :density)
+            ion.density = IMAS.blend_core_edge(replay_ion.density, ion.density, rho, rho_nml, rho_ped; method=:scale)
+            IMAS.unfreeze!(ion, :density_thermal)
+            if IMAS.hasdata(ion, :density_fast)
+                ion.density_fast .= min.(ion.density_fast, ion.density)  # can't have more fast than total
+            end
+            ion.density_thermal = ion.density_thermal  # freeze: evaluate expression and store so that hasdata(ion, :density_thermal) is true
         end
     end
-    IMAS.scale_ion_densities_to_target_zeff!(cp1d, replay_cp1d.zeff)
 
+    # temperatures
     cp1d.electrons.temperature = IMAS.blend_core_edge(replay_cp1d.electrons.temperature, cp1d.electrons.temperature, rho, rho_nml, rho_ped)
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if !ismissing(ion, :temperature)
             ion.temperature = IMAS.blend_core_edge(replay_ion.temperature, ion.temperature, rho, rho_nml, rho_ped)
+        end
+    end
+
+    # rotation
+    cp1d.rotation_frequency_tor_sonic = replay_cp1d.rotation_frequency_tor_sonic
+
+    # Ion rotation: must also copy ion.rotation_frequency_tor, not just sonic rotation,
+    # because ion rotation is the measured quantity
+    for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
+        if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
+            ion.rotation_frequency_tor = replay_ion.rotation_frequency_tor
         end
     end
 

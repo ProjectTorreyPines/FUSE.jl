@@ -1,5 +1,5 @@
 realpath = $(shell cd $(dir $(1)); pwd)/$(notdir $(1))
-JULIA_DIR ?= $(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia))
+JULIA_DIR ?= $(if $(JULIA_DEPOT_PATH),$(firstword $(subst :, ,$(JULIA_DEPOT_PATH))),$(if $(wildcard $(JULIA_USER_DEPOT)),$(JULIA_USER_DEPOT),$(call realpath,$(HOME)/.julia)))
 JULIA_CONF := $(JULIA_DIR)/config/startup.jl
 JULIA_PKG_REGDIR ?= $(JULIA_DIR)/registries
 JULIA_PKG_DEVDIR ?= $(JULIA_DIR)/dev
@@ -21,7 +21,7 @@ else
 endif
 
 GENERAL_REGISTRY_PACKAGES := CoordinateConventions EFIT FuseExchangeProtocol MillerExtendedHarmonic HelpPlots IMAS IMASdd IMASutils
-FUSE_PACKAGES_MAKEFILE := ADAS BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NeoclassicalTransport NNeutronics QED RABBIT SimulationParameters TEQUILA TJLF TORBEAM TroyonBetaNN TurbulentTransport VacuumFields
+FUSE_PACKAGES_MAKEFILE := ADAS ALPHA BalanceOfPlantSurrogate BoundaryPlasmaModels CHEASE CoordinateConventions EGGO EPEDNN FiniteElementHermite FRESCO FusionMaterials FuseExchangeProtocol GACODE HelpPlots IMAS IMASdd IMASutils MXHEquilibrium MillerExtendedHarmonic NeoclassicalTransport NNeutronics QED RABBIT SimulationParameters TEQUILA TJLF TJLFEP TORBEAM TroyonBetaNN TurbulentTransport VacuumFields
 FUSE_PACKAGES_MAKEFILE_EXTENSION := ThermalSystemModels
 FUSE_PACKAGES_MAKEFILE_ALL := $(FUSE_PACKAGES_MAKEFILE) $(FUSE_PACKAGES_MAKEFILE_EXTENSION)
 FUSE_PACKAGES_MAKEFILE_ALL := $(sort $(FUSE_PACKAGES_MAKEFILE_ALL))
@@ -54,6 +54,7 @@ define clone_pull_repo
 	@ if [ ! -d "$(JULIA_PKG_DEVDIR)" ]; then mkdir -p $(JULIA_PKG_DEVDIR); fi
 	@echo $(JULIA_PKG_DEVDIR)/$(1)
 	@ cd $(JULIA_PKG_DEVDIR); if [ ! -d "$(JULIA_PKG_DEVDIR)/$(1)" ]; then git clone git@github.com:ProjectTorreyPines/$(1).jl.git $(1) ; else cd $(1) && git pull 2>&1 | sed 's/^/$(1): /'; fi
+	@ cd $(JULIA_PKG_DEVDIR)/$(1) && git lfs pull 2>/dev/null || true
 endef
 
 define feature_or_master_julia
@@ -69,7 +70,28 @@ function feature_or_master(package, feature_branch) ;\
     token = "$(PTP_READ_TOKEN)" ;\
     url = "https://api.github.com/repos/ProjectTorreyPines/$$(package).jl/branches/$$(feature_branch)" ;\
     headers = ["Authorization" => "Bearer $$(token)", "Accept" => "application/vnd.github+json", "X-GitHub-Api-Version" => "2022-11-28"] ;\
-    response = HTTP.get(url, headers; status_exception=false) ;\
+    max_attempts = 5 ;\
+    response = nothing ;\
+    last_err = nothing ;\
+    for attempt in 1:max_attempts ;\
+        try ;\
+            response = HTTP.get(url, headers; status_exception=false, retry=true, retries=4, readtimeout=30, connect_timeout=30) ;\
+            last_err = nothing ;\
+            break ;\
+        catch err ;\
+            last_err = err ;\
+            if attempt == max_attempts ;\
+                break ;\
+            end ;\
+            sleep_seconds = min(2.0^attempt, 30.0) ;\
+            @warn "GitHub API request failed for $$(package) (attempt $$(attempt)/$$(max_attempts)); retrying in $$(sleep_seconds)s" exception=(err, catch_backtrace()) ;\
+            sleep(sleep_seconds) ;\
+        end ;\
+    end ;\
+    if response === nothing ;\
+        @warn "GitHub API request for $$(package) failed after $$(max_attempts) attempts; falling back to master" exception=last_err ;\
+        return "master" ;\
+    end ;\
     if response.status == 200 ;\
         return feature_branch ;\
     elseif response.status == 404 ;\
@@ -83,6 +105,9 @@ endef
 help: header help_info
 
 ADAS:
+	$(call clone_pull_repo,$@)
+
+ALPHA:
 	$(call clone_pull_repo,$@)
 
 BalanceOfPlantSurrogate:
@@ -158,6 +183,9 @@ TurbulentTransport:
 	$(call clone_pull_repo,$@)
 
 TJLF:
+	$(call clone_pull_repo,$@)
+
+TJLFEP:
 	$(call clone_pull_repo,$@)
 
 TORBEAM:
@@ -651,15 +679,34 @@ install_PyCall:
 	'
 
 # @devs
-install_ci_add:
+install_ci_master:
+	julia --project=@. -e ';\
+	using Pkg;\
+	Pkg.instantiate();\
+	Pkg.add("Test");\
+	Pkg.status()'
+
+# @devs
+install_ci_dev:
 # Install (add) FUSE via HTTPS and $PTP_READ_TOKEN
 # Looks for same branch name for all repositories otherwise falls back to master
+# Respects [sources] section in Project.toml for package overrides
 	julia --project=@. -e ';\
 	$(feature_or_master_julia);\
 	fuse_packages = $(FUSE_PACKAGES);\
 	using Pkg;\
+	import TOML;\
+	project = TOML.parsefile("Project.toml");\
+	sources_packages = haskey(project, "sources") ? collect(keys(project["sources"])) : String[];\
+	if !isempty(sources_packages);\
+		println(">>> Skipping packages defined in [sources]: ", join(sources_packages, ", "));\
+	end;\
 	dependencies = Pkg.PackageSpec[];\
 	for package in fuse_packages;\
+		if package in sources_packages;\
+			println(">>> $$(package) (using [sources] definition)");\
+			continue;\
+		end;\
 		branch = feature_or_master(package, "$(FUSE_LOCAL_BRANCH)");\
         if branch == "master";\
             println(">>> $$(package)");\
@@ -683,6 +730,42 @@ install_playground: .PHONY
 # Clone FusePlayground repository under FUSE/playground folder
 	if [ -d playground ] && [ ! -f playground/.gitattributes ]; then mv playground playground_private ; fi
 	if [ ! -d "playground" ]; then git clone https://github.com/ProjectTorreyPines/FusePlayground.git playground ; else cd playground && git pull origin `git rev-parse --abbrev-ref HEAD` ; fi
+
+# @devs
+knowledge: .PHONY
+# Extract FUSE actor knowledge base using Claude analysis
+	@echo "Extracting FUSE actor knowledge base..."
+	@cd knowledge && julia --threads=$(JULIA_NUM_THREADS) -e 'include("extract_knowledge.jl"); extract_fuse_knowledge_parallel()'
+	@echo "Knowledge extraction complete! Check knowledge/fuse_knowledge_base.json"
+
+# @devs
+knowledge_clean: .PHONY
+# Clean up orphaned actor files in knowledge base
+	@echo "Checking for orphaned actor files..."
+	@cd knowledge && julia -e 'include("extract_knowledge.jl"); clean_orphaned_fuse_actors()'
+
+# @dev
+learn_usage:
+# Learn FUSE usage from Jupyter notebooks and update knowledge/how_to_use_fuse.md
+	cd knowledge ; ./learn_fuse_usage.sh ../examples/tutorial.ipynb ../examples/tutorial_imas.ipynb ../examples/fluxmatcher.ipynb ../examples/study_TGLFdb.ipynb ../examples/time_dependent_d3d.ipynb ../examples/time_dependent_iter.ipynb ../examples/study_database_generator.ipynb ../examples/study_multi_objective_optimizer.ipynb
+
+# @devs
+learn_init:
+# Create comprehensive guide on how to initialize FUSE by analyzing case files and parameter structures
+	claude "Write a how_to_init_fuse.md knowledge file, structured for users and LLMs to learn how to define FUSE use cases. You should looking at each individual *.jl files under FUSE/src/cases (don't skip any, they are all important!). Also add a note about the parameters definitions being in FUSE/src/parameters/parameters_inits.jl and use this file to build your .md documentation as necessary."
+
+# @devs
+learn_actors_docstrings:
+# update actors docstrings
+	claude "Go through each and every actor file (***_actor.jl) and (in parallel) spawn a claude session to improve the docstring of each. \
+	Don't add any docstring to the \`@actor_parameters_struct\` or the Actor constructor. \
+	Instead you should focus on the \`ActorXXX(dd,act)\` function which in the end is what is going to appear in the online documentation. \
+	You can add some extra details to the docstrings of \`_step()\` and \`_finalize()\`. \
+	NEVER document boilerplate arguments, like \`dd\`, \`par\`, \`act\`, \`kw...\`. \
+	To know what an actor does, look at the executable code. \
+	If there's already a docstring, verify it against the executable code. \
+	If there's any conflicting information the executable code should take precendence. \
+	To know what actors need documentation, search for \`actor_parameters_struct\`, and process them in parallel claude sessions."
 
 # @devs
 list_open_compats:
@@ -807,7 +890,7 @@ status:
 		elif [ "$$latest_tag" = "(no tag)" ]; then \
 			commit_info="(no tag)"; \
 		fi; \
-		line_text=`printf "%25s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
+		line_text=`printf "%26s %10s @ %-15s %-10s %s" "$$package" "$$version" "$$branch" "$$dirty" "$$commit_info"`; \
 		line_length=`echo "$$line_text" | wc -c | tr -d ' '`; \
 		padding=$$((term_width - line_length)); \
 		printf "$$color%s%*s$$reset\n" "$$line_text" $$padding ""; \
@@ -907,19 +990,8 @@ help_common:
 
 # @user
 install_IJulia:
-# Install IJulia
-	julia -e '\
-	using Pkg;\
-	Pkg.add(["Plots", "IJulia", "WebIO", "Interact"]);\
-	Pkg.build("IJulia");\
-	import IJulia;\
-	n=get(ENV, "JULIA_NUM_THREADS", string(length(Sys.cpu_info())));\
-	IJulia.installkernel("Julia ("*n*" threads)"; env=Dict("JULIA_NUM_THREADS"=>n));\
-	'
-	jupyter kernelspec list
-	python3 -m pip install --upgrade webio_jupyter_extension
-	jupyter labextension list
-	jupyter nbextension list
+# Install IJulia (Python must be on PATH; see docs/src/install.md)
+	bash scripts/install_ijulia.sh
 
 # @user
 install_examples:

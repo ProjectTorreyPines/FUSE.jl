@@ -12,22 +12,10 @@ function name(study::AbstractStudy)
 end
 
 function study_parameters(study::Symbol; kw...)
-    if length(methods(study_parameters, (Type{Val{study}},))) == 0
+    if length(methods(study_parameters, (Val{study},))) == 0
         error("study `$study` does not exist.\nPossible options are:\n\n$(join(["$method" for method in methods(study_parameters)],"\n"))")
     end
-    return study_parameters(Val{study}; kw...)
-end
-
-function setup(study::AbstractStudy)
-    return _setup(study)
-end
-
-function analyze(study::AbstractStudy; kw...)
-    return _analyze(study; kw...)
-end
-
-function _analyze(study::AbstractStudy; kw...)
-    return study
+    return study_parameters(Val(study); kw...)
 end
 
 function run(study::T, args...; kw...) where {T<:AbstractStudy}
@@ -60,7 +48,10 @@ function check_and_create_file_save_mode(sty)
         rm(sty.save_folder; force=true, recursive=true)
         mkdir(sty.save_folder)
     elseif sty.file_save_mode == :append
-        # this is fine
+        if !isdir(sty.save_folder)
+            @assert !isfile(sty.save_folder) "$(sty.save_folder) can't be a file"
+            mkpath(sty.save_folder)
+        end
     end
 end
 

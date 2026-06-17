@@ -1,6 +1,6 @@
 #!/bin/bash
 
-module load julia
+module load julia/1.11.7
 module load env/gcc11.x
 
 basedir="/fusion/projects/codes/julia/fuse"
@@ -21,7 +21,8 @@ export FUSE_ENVIRONMENT="$fuse_env"
 export JULIA_DEPOT_PATH="$envdir/.julia:"
 export JULIA_PKG_USE_CLI_GIT=1
 export JULIA_CC="gcc -O3"
-export JULIA_NUM_THREADS=1
+export JULIA_NUM_THREADS=10
+export JULIA_NUM_PRECOMPILE_TASKS=10
 
 # cascadelake for Intel login; znver2 for worker; generic fallback
 # remove xsaveopt since that's what julia distributions do

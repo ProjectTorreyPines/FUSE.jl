@@ -1,21 +1,18 @@
 #= ======== =#
-#  ActorHCD  #
+#  ActorSources  #
 #= ======== =#
-Base.@kwdef mutable struct FUSEparameters__ActorHCD{T<:Real} <: ParametersActor{T}
-    _parent::WeakRef = WeakRef(nothing)
-    _name::Symbol = :not_set
-    _time::Float64 = NaN
+@actor_parameters_struct ActorSources{T} begin
     ec_model::Switch{Symbol} = Switch{Symbol}([:ECsimple, :TORBEAM, :replay, :none], "-", "EC source actor to run"; default=:ECsimple)
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :replay, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
-    neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Pellet source actor to run"; default=:NEUCG)
+    neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Neutral gas fueling actor to run"; default=:NEUCG)
 end
 
-mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
+mutable struct ActorSources{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
-    par::OverrideParameters{P,FUSEparameters__ActorHCD{P}}
+    par::OverrideParameters{P,FUSEparameters__ActorSources{P}}
     act::ParametersAllActors{P}
     ec_actor::Union{ActorSimpleEC{D,P},ActorTORBEAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
@@ -26,23 +23,55 @@ mutable struct ActorHCD{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorHCD(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSources(dd::IMAS.dd, act::ParametersAllActors; kw...)
 
-Provides a common interface to run HCD actors
+Unified heating, current drive, and fueling system coordinator for all auxiliary power systems.
+
+This compound actor orchestrates multiple heating and current drive subsystem actors through a
+single interface, providing centralized control over all auxiliary power and particle sources.
+
+Managed subsystems:
+- **Electron Cyclotron (EC)**: ECsimple, TORBEAM, or replay modes
+- **Ion Cyclotron (IC)**: ICsimple or replay modes
+- **Lower Hybrid (LH)**: LHsimple or replay modes
+- **Neutral Beam Injection (NB)**: NBsimple, RABBIT, or replay modes
+- **Pellet fueling**: PLsimple or replay modes
+- **Neutral gas fueling**: NEUCG model or replay modes
+
+Key features:
+- Model selection switches for each subsystem (simple physics, advanced codes, replay, or off)
+- Automatic hardware setup and validation (launcher/antenna count consistency)
+- Sequential execution with proper dependencies (neutral fueling runs last)
+- Centralized intrinsic source integration via IMAS.intrinsic_sources!()
+- Unified replay capability for all subsystems
+
+Execution order:
+1. EC heating/current drive
+2. IC heating
+3. LH current drive
+4. NB heating/current drive/momentum
+5. Pellet particle sources
+6. Neutral gas fueling (depends on energy confinement time from HCD)
+7. Source integration and consistency checks
+
+!!! note
+
+    Reads from hardware descriptions (`dd.ec_launchers`, `dd.ic_antennas`, etc.) and
+    pulse schedules (`dd.pulse_schedule`), and coordinates updates to `dd.core_sources`, `dd.waves`, etc.
 """
-function ActorHCD(dd::IMAS.dd, act::ParametersAllActors; kw...)
-    actor = ActorHCD(dd, act.ActorHCD, act; kw...)
+function ActorSources(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    actor = ActorSources(dd, act.ActorSources, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAllActors; kw...)
-    logging_actor_init(ActorHCD)
+function ActorSources(dd::IMAS.dd, par::FUSEparameters__ActorSources, act::ParametersAllActors; kw...)
+    logging_actor_init(ActorSources)
     par = OverrideParameters(par; kw...)
 
     noop = ActorNoOperation(dd, act.ActorNoOperation)
-    actor = ActorHCD(dd, par, act, noop, noop, noop, noop, noop, noop)
+    actor = ActorSources(dd, par, act, noop, noop, noop, noop, noop, noop)
 
     @assert length(dd.pulse_schedule.ec.beam) == length(dd.ec_launchers.beam) "length(dd.pulse_schedule.ec.beam)=$(length(dd.pulse_schedule.ec.beam)) VS length(dd.ec_launchers.beam)=$(length(dd.ec_launchers.beam))"
     # fill missing EC launcher hardware details
@@ -100,11 +129,11 @@ function ActorHCD(dd::IMAS.dd, par::FUSEparameters__ActorHCD, act::ParametersAll
 end
 
 """
-    _step(actor::ActorHCD)
+    _step(actor::ActorSources)
 
-Runs through the selected HCD actor's step
+Runs through the selected source actor's step
 """
-function _step(actor::ActorHCD)
+function _step(actor::ActorSources)
     dd = actor.dd
 
     if !isempty(dd.ec_launchers.beam)
@@ -130,18 +159,18 @@ function _step(actor::ActorHCD)
     # neutral actor must be last since it relies on tau_e_thermal calculation, which depends on HCD sources
     step(actor.neutral_actor)
 
-    # Call IMAS.sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.sources!(dd)
+    # Call IMAS.intrinsic_sources!(dd) since most would expect sources to be consistent when coming out of this actor
+    IMAS.intrinsic_sources!(dd)
 
     return actor
 end
 
 """
-    _finalize(actor::ActorHCD)
+    _finalize(actor::ActorSources)
 
 Finalizes the selected CHD actor's finalize
 """
-function _finalize(actor::ActorHCD)
+function _finalize(actor::ActorSources)
     dd = actor.dd
 
     if !isempty(dd.ec_launchers.beam)

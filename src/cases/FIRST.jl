@@ -3,7 +3,7 @@
 
 Formosa Integrated Research Spherical Tokamak
 """
-function case_parameters(::Type{Val{:FIRST}})
+function case_parameters(::Val{:FIRST})
     ini = ParametersInits()
     act = ParametersActors()
 

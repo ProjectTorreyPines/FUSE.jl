@@ -45,11 +45,11 @@ function case_parameters(case::Symbol, args...; kw...)
         end
     end
 
-    if length(methods(case_parameters, (Type{Val{case}}, map(typeof, args)...))) == 0
+    if length(methods(case_parameters, (Val{case}, map(typeof, args)...))) == 0
         error("case `$case` does not exist.\nPossible options are:\n\n$(join(["$method" for method in methods(case_parameters)],"\n"))")
     end
 
-    ini, act = case_parameters(Val{case}, args...; kw...)
+    ini, act = case_parameters(Val(case), args...; kw...)
 
     if startswith(case_str, "test__")
         ini_act_tests_customizations!(ini, act)

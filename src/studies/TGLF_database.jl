@@ -1,15 +1,16 @@
 using LaTeXStrings
 import JSON
 import GACODE
+import Serialization
 
 #= ================= =#
 #  StudyTGLFdb  #
 #= ================= =#
 
 """
-    study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+    study_parameters(::Val{:TGLFdb})
 """
-function study_parameters(::Type{Val{:TGLFdb}})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
+function study_parameters(::Val{:TGLFdb})::Tuple{FUSEparameters__ParametersStudyTGLFdb,ParametersAllActors}
     sty = FUSEparameters__ParametersStudyTGLFdb{Real}()
     act = ParametersActors()
 
@@ -38,6 +39,11 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyTGLFdb{T<:Real} <: Par
     custom_tglf_models::Entry{Vector{String}} = Entry{Vector{String}}("-", "This will run custom TGLFNN models stored in TGLFNN/models")
     save_folder::Entry{String} = Entry{String}("-", "Folder to save the database runs into")
     database_folder::Entry{String} = Entry{String}("-", "Folder with input database")
+    save_input_tglf::Entry{Bool} = Entry{Bool}("-", "Save per-radius input.tglf files for each case"; default=true)
+    checkpoint_cases::Entry{Bool} = Entry{Bool}("-", "Serialize each successful case row to disk so a re-run can resume"; default=false)
+    resume_from_checkpoints::Entry{Bool} = Entry{Bool}("-", "On resume, skip cases that already have a checkpoint row and load it from disk"; default=false)
+    max_cases::Entry{Int} = Entry{Int}("-", "Maximum number of cases to dispatch (0 = all)"; default=0)
+    offset_cases::Entry{Int} = Entry{Int}("-", "Skip the first N cases (after sorting) before applying max_cases"; default=0)
 end
 
 mutable struct StudyTGLFdb{T<:Real} <: AbstractStudy
@@ -52,7 +58,7 @@ function TGLF_dataframe()
         shot=Int[], time=Int[], ne0=Float64[],
         Te0=Float64[], Ti0=Float64[], ne0_exp=Float64[],
         Te0_exp=Float64[], Ti0_exp=Float64[], WTH_exp=Float64[],
-        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], rho=Vector{Float64}[],
+        rot0_exp=Float64[], WTH=Float64[], rot0=Float64[], timef=Int[], rho=Vector{Float64}[],
         Qe_target=Vector{Float64}[], Qe_TGLF=Vector{Float64}[], Qe_neoc=Vector{Float64}[],
         Qi_target=Vector{Float64}[], Qi_TGLF=Vector{Float64}[], Qi_neoc=Vector{Float64}[],
         particle_target=Vector{Float64}[], particle_TGLF=Vector{Float64}[], particle_neoc=Vector{Float64}[],
@@ -60,14 +66,9 @@ function TGLF_dataframe()
         Q_GB=Vector{Float64}[], particle_GB=Vector{Float64}[], momentum_GB=Vector{Float64}[])
 end
 
-function StudyTGLFdb(sty, act; kw...)
+function StudyTGLFdb(sty::ParametersStudy, act::ParametersAllActors; kw...)
     sty = OverrideParameters(sty; kw...)
     study = StudyTGLFdb(sty, act, missing, missing)
-    return setup(study)
-end
-
-function _setup(study::StudyTGLFdb)
-    sty = study.sty
 
     @assert !ismissing(getproperty(sty, :database_folder, missing)) "Specify the database_folder in sty"
     @assert !ismissing(readdir(sty.database_folder)) "There are no input cases in $(sty.database_folder)"
@@ -85,45 +86,115 @@ function _run(study::StudyTGLFdb)
     sty = study.sty
     act = study.act
 
-    @assert sty.n_workers == length(Distributed.workers()) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
-    @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
+    @assert (sty.n_workers == 0 || sty.n_workers == length(Distributed.workers())) "The number of workers =  $(length(Distributed.workers())) isn't the number of workers you requested = $(sty.n_workers)"
 
-    cases_files = [
-        joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
-        item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs")) if endswith(item, ".json")
-    ]
+    is_finn = act.ActorCoreTransport.model == :FINN
 
-    if !ismissing(getproperty(sty, :sat_rules, missing))
-        iterator = sty.sat_rules
-    elseif !ismissing(sty.custom_tglf_models)
-        iterator = sty.custom_tglf_models
+    if is_finn
+        iterator = [act.ActorFINN.finn_model]
+    else
+        @assert ismissing(getproperty(sty, :sat_rules, missing)) ⊻ ismissing(getproperty(sty, :custom_tglf_models, missing)) "Specify either sat_rules or custom_tglf_models"
+        if !ismissing(getproperty(sty, :sat_rules, missing))
+            iterator = sty.sat_rules
+        elseif !ismissing(sty.custom_tglf_models)
+            iterator = sty.custom_tglf_models
+        end
     end
+
+    # Accept JSON or HDF5 cases. Producers (e.g. parse_superfacility.jl)
+    # may write `*.h5` ODSs directly into `fuse_prepared_inputs/`; the
+    # `preprocess_dd` helper below dispatches on extension.
+    # Sort by (shot, time_ms) so offset/limit slicing is deterministic across jobs.
+    cases_files = sort(
+        [
+            joinpath(sty.database_folder, "fuse_prepared_inputs", item) for
+            item in readdir(joinpath(sty.database_folder, "fuse_prepared_inputs"))
+            if endswith(item, ".json") || endswith(item, ".h5")
+        ];
+        by=case_sort_key,
+    )
+
+    n_total = length(cases_files)
+    if sty.offset_cases > 0
+        cases_files = cases_files[(min(sty.offset_cases, n_total) + 1):end]
+    end
+    if sty.max_cases > 0 && sty.max_cases < length(cases_files)
+        cases_files = cases_files[1:sty.max_cases]
+    end
+    chunk_suffix = (sty.offset_cases > 0 || sty.max_cases > 0) ?
+                   "_offset$(sty.offset_cases)_max$(sty.max_cases)" : ""
+
     study.iterator = iterator
-    study.dataframes_dict = Dict(string(name) => TGLF_dataframe() for name in study.iterator)
+    study.dataframes_dict = Dict(string(name) => (is_finn ? FINN_dataframe() : TGLF_dataframe()) for name in study.iterator)
 
     # loop serially through saturation rules
-    println("Running StudyTGLFdb on $(length(cases_files)) cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
+    println("Running StudyTGLFdb on $(length(cases_files))/$n_total cases on $(iterator) with $(sty.n_workers) workers on $(sty.server)")
     for item in iterator
-        if !ismissing(getproperty(sty, :sat_rules, missing))
-            act.ActorTGLF.sat_rule = item
-        else
-            act.ActorTGLF.tglfnn_model = item
-        end
-        act.ActorTGLF.lump_ions = sty.lump_ions
-
-        # paraller run
-        results = pmap(filename -> run_case(filename, study, item), cases_files)
-
-        # populate DataFrame
-        for row in results
-            if !isnothing(row)
-                push!(study.dataframes_dict[string(item)], row)
+        if !is_finn
+            if !ismissing(getproperty(sty, :sat_rules, missing))
+                act.ActorTGLF.sat_rule = item
+            else
+                act.ActorTGLF.tglfnn_model = item
+            end
+            act.ActorTGLF.lump_ions = sty.lump_ions
+            if item == "wrapped_model.onnx"
+                act.ActorTGLF.onnx_model=true
+                act.ActorTGLF.tglfnn_model = item
             end
         end
 
-        # Save JSON to a file
+        # filter out cases that already have a checkpoint, or that previously
+        # failed cleanly (an error.txt is present), when resuming
+        if sty.resume_from_checkpoints
+            cases_to_run = filter(cases_files) do f
+                !isfile(checkpoint_file(sty, f, item)) && !isfile(error_file(sty, f))
+            end
+        else
+            cases_to_run = cases_files
+        end
+        cases_to_run_set = Set(cases_to_run)
+        n_skipped = length(cases_files) - length(cases_to_run)
+        if n_skipped > 0
+            println("Resuming: skipping $n_skipped/$(length(cases_files)) already-completed-or-failed cases for $(item)")
+        end
+
+        # parallel run
+        results = pmap(filename -> run_case(filename, study, item), cases_to_run)
+
+        # populate DataFrame from this run
+        for row in results
+            if row isa NamedTuple || row isa AbstractArray || row isa DataFrameRow || row isa AbstractDict
+                push!(study.dataframes_dict[string(item)], row)
+            elseif row === nothing
+                # case failed cleanly; error.txt was written in run_case
+            else
+                @warn "Invalid row type encountered: $row"
+            end
+        end
+
+        # rehydrate rows for cases skipped via checkpoints
+        if sty.resume_from_checkpoints
+            for filename in cases_files
+                if filename in cases_to_run_set
+                    continue
+                end
+                cf = checkpoint_file(sty, filename, item)
+                if isfile(cf)
+                    try
+                        row = Serialization.deserialize(cf)
+                        if row isa NamedTuple || row isa AbstractArray || row isa DataFrameRow || row isa AbstractDict
+                            push!(study.dataframes_dict[string(item)], row)
+                        end
+                    catch e
+                        @warn "Failed to load checkpoint $cf: $e"
+                    end
+                end
+            end
+        end
+
+        # Save JSON to a file (chunk_suffix prevents races between concurrent offset jobs)
         json_data = JSON.json(study.dataframes_dict[string(item)])
-        open("$(sty.save_folder)/data_frame_$(item).json", "w") do f
+        open("$(sty.save_folder)/data_frame_$(item)$(chunk_suffix).json", "w") do f
             return write(f, json_data)
         end
     end
@@ -142,60 +213,138 @@ function _analyze(study::StudyTGLFdb)
     return study
 end
 
-function preprocess_dd(filename)
-    dd = IMAS.json2imas(filename; verbose=false)
+function case_name(filename::AbstractString)
+    return split(splitpath(filename)[end], ".")[1]
+end
 
-    dd.summary.local.pedestal.n_e.value = [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].electrons.density_thermal, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
-    dd.summary.local.pedestal.zeff.value = [2.2] # [IMAS.pedestal_finder(dd.core_profiles.profiles_1d[].zeff, dd.core_profiles.profiles_1d[].grid.psi_norm).height]
+function case_output_dir(sty, filename::AbstractString)
+    return joinpath(sty.save_folder, case_name(filename))
+end
+
+function checkpoint_file(sty, filename::AbstractString, item)
+    return joinpath(case_output_dir(sty, filename), "checkpoint_row_$(item).jls")
+end
+
+function error_file(sty, filename::AbstractString)
+    return joinpath(case_output_dir(sty, filename), "error.txt")
+end
+
+# Sort key based on trailing `<shot>_<time_ms>` numbers in the filename
+# (e.g. ods_155003_980 -> (155003, 980)). Falls back to lexicographic
+# order when the pattern doesn't match so OMFIT-prepared inputs still work.
+function case_sort_key(filename::AbstractString)
+    name = case_name(filename)
+    m = match(r"(\d+)_(\d+)$", name)
+    if m === nothing
+        return (typemax(Int), typemax(Int), name)
+    end
+    return (parse(Int, m.captures[1]), parse(Int, m.captures[2]), name)
+end
+
+function preprocess_dd(filename::AbstractString)
+    dd = endswith(filename, ".h5") ?
+        IMAS.hdf2imas(filename; show_warnings=false) :
+        IMAS.json2imas(filename; show_warnings=false)
+
+    cp1d = dd.core_profiles.profiles_1d[]
+    # Handle both single and multiple time slice cases
+    ne_interp_result = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal)(0.9)
+    zeff_interp_result = IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.zeff)(0.9)
+
+    # Convert to vector format: handle scalar (single time slice) or vector (multiple time slices)
+    if ndims(ne_interp_result) == 0 || (ndims(ne_interp_result) == 2 && size(ne_interp_result) == (1,1))
+        # Single time slice case: scalar or 1x1 matrix
+        dd.summary.local.pedestal.n_e.value = [Float64(ne_interp_result)]
+        dd.summary.local.pedestal.zeff.value = [Float64(zeff_interp_result)]
+    else
+        # Multiple time slice case: already a vector
+        dd.summary.local.pedestal.n_e.value = vec(ne_interp_result)
+        dd.summary.local.pedestal.zeff.value = vec(zeff_interp_result)
+    end
     dd.pulse_schedule.tf.time = dd.summary.time
     dd.pulse_schedule.tf.b_field_tor_vacuum_r.reference = dd.equilibrium.vacuum_toroidal_field.b0
 
     return dd
 end
 
-function run_case(filename, study, item)
+function run_case(filename::AbstractString, study::StudyTGLFdb, item)
     act = study.act
     sty = study.sty
 
-    dd = preprocess_dd(filename)
+    name = case_name(filename)
+    output_case = case_output_dir(sty, filename)
+    if !isdir(output_case)
+        try
+            mkpath(output_case)
+        catch
+            # another worker created it; safe to ignore
+        end
+    end
 
-    cp1d = dd.core_profiles.profiles_1d[]
-    exp_values = [
-        cp1d.electrons.density_thermal[1], cp1d.electrons.temperature[1],
-        cp1d.ion[1].temperature[1], @ddtime(dd.summary.global_quantities.energy_thermal.value),
-        cp1d.rotation_frequency_tor_sonic[1]]
-
-    name = split(splitpath(filename)[end], ".")[1]
-    output_case = joinpath(sty.save_folder, name)
+    is_finn = act.ActorCoreTransport.model == :FINN
 
     try
-        if !isdir(output_case)
-            mkdir(output_case)
-        end
+        # NOTE: preprocess_dd is intentionally inside the try/catch so a
+        # single bad input (e.g. unsorted profiles, missing fields) writes
+        # error.txt and returns nothing instead of aborting the pmap chunk.
+        dd = preprocess_dd(filename)
+
+        act.ActorFluxMatcher.evolve_densities =
+            FUSE.setup_density_evolution_electron_flux_match_impurities_fixed(dd.core_profiles.profiles_1d[])
+
+        # find time from filename
+        timefn = match(r"(\d+)\.\w+$", filename)
+        timef = timefn !== nothing ? parse(Int, timefn.captures[1]) : 0
+
+        cp1d = dd.core_profiles.profiles_1d[]
+        exp_values = [
+            cp1d.electrons.density_thermal[1],
+            cp1d.electrons.temperature[1],
+            cp1d.ion[1].temperature[1],
+            @ddtime(dd.summary.global_quantities.energy_thermal.value),
+            cp1d.rotation_frequency_tor_sonic[1], timef,
+        ]
 
         actor_transport = workflow_actor(dd, act)
         empty!(dd.summary.global_quantities)
 
         if sty.save_dd
             IMAS.imas2json(dd, joinpath(output_case, "result_dd_$(item).json"))
-            save_inputtglfs(actor_transport, output_case, name, item)
+            if !is_finn && sty.save_input_tglf
+                save_inputtglfs(actor_transport, output_case, name, item)
+            end
             if parse(Bool, get(ENV, "FUSE_MEMTRACE", "false"))
                 save(FUSE.memtrace, joinpath(output_case, "memtrace.txt"))
             end
         end
 
-        return create_data_frame_row(dd, exp_values)
+        row = is_finn ? create_finn_data_frame_row(dd, exp_values) : create_data_frame_row(dd, exp_values)
+
+        if sty.checkpoint_cases
+            try
+                Serialization.serialize(checkpoint_file(sty, filename, item), row)
+            catch e
+                @warn "Failed to write checkpoint for $name: $e"
+            end
+        end
+
+        return row
     catch e
         if isa(e, InterruptException)
             rethrow(e)
         end
-        open("$output_case/error.txt", "w") do file
-            return showerror(file, e, catch_backtrace())
+        try
+            open("$output_case/error.txt", "w") do file
+                return showerror(file, e, catch_backtrace())
+            end
+        catch
+            # ignore secondary IO failures so the worker keeps going
         end
+        return nothing
     end
 end
 
-function workflow_actor(dd, act)
+function workflow_actor(dd::IMAS.dd, act::ParametersAllActors)
     # Actors to run on the input dd
 
     actor_transport = ActorCoreTransport(dd, act)
@@ -217,44 +366,91 @@ function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
     eqt = dd.equilibrium.time_slice[]
 
     rho_transport = dd.core_transport.model[1].profiles_1d[].grid_flux.rho_tor_norm
+    ct1d_tglf   = dd.core_transport.model[1].profiles_1d[]
 
-    ct1d_tglf = dd.core_transport.model[1].profiles_1d[]
-    ct1d_target = IMAS.total_fluxes(dd.core_transport, cp1d, rho_transport; time0=dd.global_time)
+    gyro_bohms = [GACODE.gyrobohm_energy_flux(cp1d, eqt), GACODE.gyrobohm_particle_flux(cp1d, eqt), GACODE.gyrobohm_momentum_flux(cp1d, eqt)]
+    ini, act_temp = FUSE.case_parameters(:ITER; init_from = :scalars)
+    act_fm = OverrideParameters(act_temp.ActorFluxMatcher;
+                               rho_transport = rho_transport,
+                               evolve_rotation = :flux_match)
 
-    qybro_bohms = [GACODE.gyrobohm_energy_flux(cp1d, eqt), GACODE.gyrobohm_particle_flux(cp1d, eqt), GACODE.gyrobohm_momentum_flux(cp1d, eqt)]
+    nr    = length(rho_transport)
+    q_mat = reshape(
+      FUSE.flux_match_targets(dd, act_fm),
+      nr, 4
+    )
+    qe, qi, qp, qg = eachcol(q_mat)
+    gyro_bohms = [
+      GACODE.gyrobohm_energy_flux(cp1d, eqt),
+      GACODE.gyrobohm_particle_flux(cp1d, eqt),
+      GACODE.gyrobohm_momentum_flux(cp1d, eqt),
+    ]
     rho_cp = cp1d.grid.rho_tor_norm
 
-    IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport)
-    rho_cp = cp1d.grid.rho_tor_norm
+    IMAS.interp1d(rho_cp, gyro_bohms[1]).(rho_transport)
 
     return (
-        shot=dd.dataset_description.data_entry.pulse,
-        time=dd.dataset_description.data_entry.pulse,
-        ne0=cp1d.electrons.density_thermal[1],
-        Te0=cp1d.electrons.temperature[1],
-        Ti0=cp1d.ion[1].temperature[1],
-        WTH=IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
-        rot0=cp1d.rotation_frequency_tor_sonic[1],
-        ne0_exp=exp_values[1],
-        Te0_exp=exp_values[2],
-        Ti0_exp=exp_values[3],
-        WTH_exp=exp_values[4],
-        rot0_exp=exp_values[5],
-        rho=rho_transport,
-        Qe_target=ct1d_target.electrons.energy.flux,
-        Qe_TGLF=ct1d_tglf.electrons.energy.flux,
-        Qe_neoc=dd.core_transport.model[2].profiles_1d[].electrons.energy.flux,
-        Qi_target=ct1d_target.total_ion_energy.flux,
-        Qi_TGLF=ct1d_tglf.total_ion_energy.flux,
-        Qi_neoc=dd.core_transport.model[2].profiles_1d[].total_ion_energy.flux,
-        particle_target=ct1d_target.electrons.particles.flux,
-        particle_TGLF=ct1d_tglf.electrons.particles.flux,
-        particle_neoc=dd.core_transport.model[2].profiles_1d[].electrons.particles.flux,
-        momentum_target=ct1d_target.momentum_tor.flux,
-        momentum_TGLF=ct1d_tglf.momentum_tor.flux,
-        Q_GB=IMAS.interp1d(rho_cp, qybro_bohms[1]).(rho_transport),
-        particle_GB=IMAS.interp1d(rho_cp, qybro_bohms[2]).(rho_transport),
-        momentum_GB=IMAS.interp1d(rho_cp, qybro_bohms[3]).(rho_transport)
+      shot            = dd.dataset_description.data_entry.pulse,
+      time            = Int(dd.summary.time[1] * 1000),
+      ne0             = cp1d.electrons.density_thermal[1],
+      Te0             = cp1d.electrons.temperature[1],
+      Ti0             = cp1d.ion[1].temperature[1],
+      WTH             = IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
+      rot0            = cp1d.rotation_frequency_tor_sonic[1],
+
+      ne0_exp         = exp_values[1],
+      Te0_exp         = exp_values[2],
+      Ti0_exp         = exp_values[3],
+      WTH_exp         = exp_values[4],
+      rot0_exp        = exp_values[5],
+      timef           = exp_values[6],
+
+      rho             = rho_transport,
+      Qe_target       = qe,
+      Qe_TGLF         = ct1d_tglf.electrons.energy.flux,
+      Qe_neoc         = dd.core_transport.model[2].profiles_1d[].electrons.energy.flux,
+
+      Qi_target       = qi,
+      Qi_TGLF         = ct1d_tglf.total_ion_energy.flux,
+      Qi_neoc         = dd.core_transport.model[2].profiles_1d[].total_ion_energy.flux,
+
+      particle_target = qg,
+      particle_TGLF   = ct1d_tglf.electrons.particles.flux,
+      particle_neoc   = dd.core_transport.model[2].profiles_1d[].electrons.particles.flux,
+
+      momentum_target = qp,
+      momentum_TGLF   = ct1d_tglf.momentum_tor.flux,
+
+      Q_GB            = IMAS.interp1d(rho_cp, gyro_bohms[1]).(rho_transport),
+      particle_GB     = IMAS.interp1d(rho_cp, gyro_bohms[2]).(rho_transport),
+      momentum_GB     = IMAS.interp1d(rho_cp, gyro_bohms[3]).(rho_transport),
+    )
+end
+
+function FINN_dataframe()
+    return DataFrame(;
+        shot=Int[], time=Int[],
+        ne0=Float64[], Te0=Float64[], Ti0=Float64[], rot0=Float64[], WTH=Float64[],
+        ne0_exp=Float64[], Te0_exp=Float64[], Ti0_exp=Float64[], rot0_exp=Float64[], WTH_exp=Float64[],
+        timef=Int[])
+end
+
+function create_finn_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
+    cp1d = dd.core_profiles.profiles_1d[]
+    return (
+      shot    = dd.dataset_description.data_entry.pulse,
+      time    = Int(dd.summary.time[1] * 1000),
+      ne0     = cp1d.electrons.density_thermal[1],
+      Te0     = cp1d.electrons.temperature[1],
+      Ti0     = cp1d.ion[1].temperature[1],
+      rot0    = cp1d.rotation_frequency_tor_sonic[1],
+      WTH     = IMAS.@ddtime(dd.summary.global_quantities.energy_thermal.value),
+      ne0_exp = exp_values[1],
+      Te0_exp = exp_values[2],
+      Ti0_exp = exp_values[3],
+      rot0_exp = exp_values[5],
+      WTH_exp = exp_values[4],
+      timef   = exp_values[6],
     )
 end
 
@@ -290,7 +486,6 @@ function preparse_input(database_folder)
             json_data["core_sources"]["source"][source]["profiles_1d"][1]["time"] = time
         end
 
-
         json_data["summary"]["time"] = [time]
         json_string = JSON.json(json_data)
 
@@ -300,43 +495,75 @@ function preparse_input(database_folder)
     end
 end
 
-
-function plot_xy_wth_hist2d(study; quantity=:WTH, save_fig=false, save_path="")
+@recipe function plot_xy_wth_hist2d(study::StudyTGLFdb; quantity=:WTH, item_index=nothing)
     if study.act.ActorTGLF.electromagnetic
         EM_contribution = :EM
     else
         EM_contribution = :ES
     end
 
-    for item in study.iterator
-        plot_xy_wth_hist2d(study.dataframes_dict[string(item)], string(item), EM_contribution, quantity, save_fig, save_path)
-    end
-end
-
-function plot_xy_wth_hist2d(df::DataFrame, name::String, EM_contribution::Symbol, quantity::Symbol, save_fig::Bool, save_path::String)
-    x = df[!, "$(quantity)_exp"]
-    y = df[!, "$(quantity)"]
-
-    MRE = round(100 * mean_relative_error(x, y); digits=2)
-
-    bins = 10 .^ (4:0.05:7)
-
-    ticks = ([10^4, 10^5, 10^6, 10^7, 10^8], [L"10^4", L"10^5", L"10^6", L"10^7", L"10^8"])
-    xy_lim = [bins[1], bins[end]]
-
-    p = histogram2d(x, y; xscale=:log10, yscale=:log10, bins=(bins, bins), xticks=ticks, yticks=ticks,
-        color=cgrad(:magma; rev=true), colorbar=true, show_empty_bins=true,
-        ylabel="Thermal stored energy predicted [J]", xlabel="Thermal stored energy experiment [J]",
-        ylim=xy_lim, xlim=xy_lim, tickfont=font(12, "Computer Modern"), fontfamily="Computer Modern",
-        xguidefontsize=15, yguidefontsize=14)
-
-    plot!(xy_lim, xy_lim; linestyle=:dash, color=:black, label=nothing, title="SAT$name $EM_contribution")
-
-    println("MRE SAT$name $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
-
-    if save_fig
-        savefig(p, save_path)
+    # If item_index is specified, plot only that item, otherwise plot all
+    items_to_plot = if item_index === nothing
+        collect(1:length(study.iterator))
     else
-        display(p)
+        [item_index]
     end
+
+    for (i, idx) in enumerate(items_to_plot)
+        item = study.iterator[idx]
+        df = study.dataframes_dict[string(item)]
+        
+        # Check that quantity is supported based on DataFrame columns
+        exp_col = "$(quantity)_exp"
+        pred_col = "$(quantity)"
+        @assert exp_col in names(df) "Quantity $(quantity) not supported: column '$exp_col' not found in DataFrame. Available columns: $(names(df))"
+        @assert pred_col in names(df) "Quantity $(quantity) not supported: column '$pred_col' not found in DataFrame. Available columns: $(names(df))"
+        
+        x = df[!, exp_col]
+        y = df[!, pred_col]
+
+        MRE = round(100 * sum(abs, (y .- x) ./ x) / length(x); digits=2)
+
+        bins = 10 .^ (4:0.05:7)
+        ticks_vals = [10^4, 10^5, 10^6, 10^7, 10^8]
+        ticks_labels = [L"10^4", L"10^5", L"10^6", L"10^7", L"10^8"]
+        xy_lim = [bins[1], bins[end]]
+
+        @series begin
+            seriestype := :histogram2d
+            xscale := :log10
+            yscale := :log10
+            bins := (bins, bins)
+            xticks := (ticks_vals, ticks_labels)
+            yticks := (ticks_vals, ticks_labels)
+            color := cgrad(:magma; rev=true)
+            colorbar := true
+            show_empty_bins := true
+            ylabel := "Thermal stored energy predicted [J]"
+            xlabel := "Thermal stored energy experiment [J]"
+            ylims := xy_lim
+            xlims := xy_lim
+            tickfontsize := 12
+            tickfontfamily := "Computer Modern"
+            guidefontfamily := "Computer Modern"
+            xguidefontsize := 15
+            yguidefontsize := 14
+            title := "SAT$item $EM_contribution"
+            subplot := i
+            x, y
+        end
+
+        @series begin
+            seriestype := :line
+            linestyle := :dash
+            color := :black
+            label := ""
+            subplot := i
+            xy_lim, xy_lim
+        end
+
+        @info("MRE SAT$item $(EM_contribution) W_thermal = $MRE % with N = $(length(x))")
+    end
+
+    layout := length(items_to_plot) > 1 ? length(items_to_plot) : 1
 end

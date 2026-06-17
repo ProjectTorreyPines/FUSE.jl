@@ -180,8 +180,8 @@ function princeton_D_approx(r_start::T, r_end::T; n_points::Integer=100, resolut
     ra_e2 = r2 - r0
     zb_e2 = coil_maxz
     e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
-    n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
-    n2_points = Int(round(n_points * resolution))
+    n1_points = max(3, round(Int, n_points * resolution * e1_e2_ratio))
+    n2_points = round(Int, n_points * resolution)
 
     # make ellipses to approximate equal-tension arc
     r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points=n1_points)
@@ -220,8 +220,8 @@ function princeton_D_scaled(r_start::T, r_end::T, height::T; n_points::Integer=1
     ra_e2 = r2 - r0
     zb_e2 = coil_maxz
     e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
-    n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
-    n2_points = Int(round(n_points * resolution))
+    n1_points = max(3, round(Int, n_points * resolution * e1_e2_ratio))
+    n2_points = round(Int, n_points * resolution)
 
     # make ellipses to approximate equal-tension arc
     r1, z1 = ellipse(r0 - r1, coil_maxz - centerpost_maxz, float(π), float(π / 2), r0, centerpost_maxz; n_points=n1_points)
@@ -265,8 +265,8 @@ function double_ellipse(r_start::T, r_end::T, r_center::T, centerpost_height::T,
 
     # number of points
     e1_e2_ratio = sqrt(ra_e1^2 + zb_e1^2) / sqrt(ra_e2^2 + zb_e2^2)
-    n1_points = max(3, Int(round(n_points * resolution * e1_e2_ratio)))
-    n2_points = Int(round(n_points * resolution))
+    n1_points = max(3, round(Int, n_points * resolution * e1_e2_ratio))
+    n2_points = round(Int, n_points * resolution)
 
     # ellipses
     r1, z1 = ellipse(ra_e1, zb_e1, float(π), float(π / 2), r_e1, z_e1; n_points=n1_points)
@@ -304,7 +304,7 @@ The inner part of the TF is actually a rectangle
 function rectangle_ellipse(r_start::T, r_end::T, r_center::T, height::T; n_points::Integer=100, resolution::Float64=1.0) where {T<:Real}
     height = abs(height)
     r_center = mirror_bound(r_center, r_start, r_end)
-    n_points = Int(round(n_points * resolution))
+    n_points = round(Int, n_points * resolution)
     r2, z2 = ellipse(r_end - r_center, height / 2.0, float(π / 2), float(0.0), r_center, 0.0; n_points)
     R = [r_start; r_start; r2[1:end-1]; r2[end:-1:1]; r_start]
     Z = [-z2[1]; z2[1]; z2[1:end-1]; -z2[end:-1:1]; -z2[1]]
@@ -323,7 +323,7 @@ function rectangle_shape(r_start::T, r_end::T, z_low::T, z_high::T; n_points::In
         R = [r_start, r_start, r_end, r_end, r_start]
         Z = [z_low, z_high, z_high, z_low, z_low]
     else
-        n_points = Int(round(n_points / 4 * resolution))
+        n_points = round(Int, n_points / 4 * resolution)
         R = vcat(
             range(r_start, r_start, n_points),
             range(r_start, r_end, n_points)[2:end],
@@ -403,7 +403,7 @@ function triple_arc(
     n_points::Integer=400,
     resolution::Float64=1.0) where {T<:Real}
 
-    n_points = Int(round(n_points / 4.0 * resolution))
+    n_points = round(Int, n_points / 4.0 * resolution)
 
     height = abs(height) / 2.0
     small_radius = mirror_bound(small_radius, 0.01, 1.0) * height
@@ -660,7 +660,7 @@ end
     silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
 """
 function silo(r_start::Real, r_end::Real, height_start::Real, curved_fraction::Real; n_points::Int=100, resolution::Float64=1.0)
-    n_points = Int(round(n_points * resolution))
+    n_points = round(Int, n_points * resolution)
     height_start = abs(height_start)
     curved_fraction = mirror_bound(curved_fraction, 0.01, 0.99)
     height_end = height_start * (1 - curved_fraction)

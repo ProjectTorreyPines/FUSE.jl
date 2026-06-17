@@ -195,7 +195,7 @@ function init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActor
         end
         init_pl!(dd, ini, act, dd1)
 
-        ActorHCD(dd, act)
+        ActorSources(dd, act)
 
         return dd
     end
@@ -270,7 +270,7 @@ function add_beam_examples!(nbu, name::Symbol)
         beamlet.direction = 1
     elseif name == :kstar_nb1
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
-        beamlet.position.r = 4.0 
+        beamlet.position.r = 4.0
         beamlet.position.z = 0.0
         beamlet.position.phi = 0.0
         beamlet.tangency_radius = 1.486

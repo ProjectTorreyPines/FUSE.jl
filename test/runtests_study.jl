@@ -6,8 +6,8 @@ import FUSE.HDF5 as HDF5
 using FUSE.DataFrames
 using FUSE.SimulationParameters.Distributions
 
-@testset "study" begin
-    sty, act = FUSE.study_parameters(:DatabaseGenerator)
+@testset "study_db_gen" begin
+    sty = FUSE.study_parameters(:DatabaseGenerator)
     sty.server = "localhost"
     sty.n_workers = 2
     sty.file_save_mode = :append
@@ -39,15 +39,8 @@ using FUSE.SimulationParameters.Distributions
     # The study must be created first, inside of which the parallel_environment is set.
     study = FUSE.StudyDatabaseGenerator(sty, ini, act)
 
-    @everywhere import FUSE
-    @everywhere ProgressMeter = FUSE.ProgressMeter
-
-    @everywhere function workflow_DatabaseGenerator(dd::FUSE.IMAS.dd, ini::FUSE.ParametersAllInits, act::FUSE.ParametersAllActors)
-        FUSE.init(dd, ini, act)
-        return nothing
-    end
-
-    study.workflow = workflow_DatabaseGenerator
+    # Use a FUSE-module workflow so pmap survives worker restarts (Julia 1.12+ serialization).
+    study.workflow = FUSE.database_generator_workflow_default
 
     @info "Running study with `:separate_folder` policy... "
     study.sty.database_policy = :separate_folders
@@ -74,7 +67,7 @@ using FUSE.SimulationParameters.Distributions
         mkdir(sty.save_folder)
 
         study = FUSE.StudyDatabaseGenerator(sty, ini_list, act_list)
-        study.workflow = workflow_DatabaseGenerator
+        study.workflow = FUSE.database_generator_workflow_default
 
         @info "Running study for predefined `inis` and `acts` (w/ :separate_folders policy)..."
         study.sty.database_policy = :separate_folders
@@ -92,22 +85,22 @@ using FUSE.SimulationParameters.Distributions
         sorted_dirs = sort(db_folders; by=x -> parse(Int, split(splitpath(x)[end], "__")[1]))
         @test length(db_folders) == length(ini_list)
 
-        dds1 = typeof(IMAS.dd())[]
+        dds1 = Union{Nothing, typeof(IMAS.dd())}[]
         inis1 = FUSE.ParametersInits[]
         acts1 = FUSE.ParametersActors[]
         for folder in sorted_dirs
             out = FUSE.load(folder)
-            push!(dds1, ismissing(out.dd) ? IMAS.dd() : out.dd)
+            push!(dds1, ismissing(out.dd) ? nothing : out.dd)
             push!(inis1, out.ini)
             push!(acts1, out.act)
         end
         df1 = CSV.read(joinpath(save_dir, "output.csv"), DataFrame)
 
-        out = FUSE.load_database(joinpath(save_dir, "database.h5"))
-        dds2 = out.dds
-        inis2 = out.inis
-        acts2 = out.acts
-        df2 = out.df
+        db = FUSE.load_study_database(joinpath(save_dir, "database.h5"));
+        dds2 = [ i.dd for i in db.items ];
+        inis2 = [ i.ini for i in db.items ];
+        acts2 = [ i.act for i in db.items ];
+        df2 = db.df
 
         # Comparison
         @test dds1 == dds2

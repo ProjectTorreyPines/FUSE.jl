@@ -43,6 +43,8 @@ jobs:
         flavor:
           - { os: ubuntu-latest, arch: x64, version: "1.x" }
           - { os: macos-latest, arch: arm64, version: "1.x" }
+          - { os: ubuntu-latest, arch: x64, version: "1.11" }
+          - { os: macos-latest, arch: arm64, version: "1.11" }
 #          - { os: windows-latest, arch: x86, version: "1.x" }
     env:
       GKSwstype: 100 # disable Plots.jl interactive output
@@ -68,6 +70,18 @@ jobs:
         run: echo "JULIA_NUM_THREADS=${{ steps.cpu-cores.outputs.count }}" >> $GITHUB_ENV
 
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install git-lfs
+        run: |
+          if [ "${{ matrix.flavor.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y git-lfs
+          elif [ "${{ matrix.flavor.os }}" = "macos-latest" ]; then
+            brew install git-lfs
+          fi
+          git lfs install
 
       # Julia setup
       - uses: julia-actions/setup-julia@v1
@@ -126,17 +140,27 @@ jobs:
 
       - name: 'Install (without extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'false'
-        run: make install_ci_add NO_FUSE_EXTENSION=true
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            make install_ci_master NO_FUSE_EXTENSION=true
+          else
+            make install_ci_dev NO_FUSE_EXTENSION=true
+          fi
 
       - name: 'Install (with extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'true'
-        run: make install_ci_add
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            make install_ci_master
+          else
+            make install_ci_dev
+          fi
 
       # Save Manifest.toml
       - name: 'Save Manifest.toml'
         uses: actions/upload-artifact@v4
         with:
-          name: Manifest-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
+          name: Manifest-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}
           path: Manifest.toml
 
       # Build
@@ -145,9 +169,9 @@ jobs:
       # Run tests
       - uses: julia-actions/julia-runtest@v1
 
-      # Code coverage
-      - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v5
-        if: github.ref != 'refs/heads/master'
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+    #   # Code coverage
+    #   - uses: julia-actions/julia-processcoverage@v1
+    #   - uses: codecov/codecov-action@v5
+    #     if: github.ref != 'refs/heads/master'
+    #     with:
+    #       token: ${{ secrets.CODECOV_TOKEN }}

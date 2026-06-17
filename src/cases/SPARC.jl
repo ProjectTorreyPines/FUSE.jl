@@ -3,7 +3,7 @@
 
 CFS/MIT SPARC design
 """
-function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::Bool=false)
+function case_parameters(::Val{:SPARC}; init_from::Symbol)
     ini = ParametersInits()
     act = ParametersActors()
     ini.general.casename = "SPARC"
@@ -86,21 +86,13 @@ function case_parameters(::Type{Val{:SPARC}}; init_from::Symbol, flux_matcher::B
     #### ACT ####
     act.ActorPFdesign.symmetric = true
 
-    if !flux_matcher
-        act.ActorCoreTransport.model = :none
-    end
-
-    act.ActorFluxMatcher.max_iterations = 50
-    act.ActorFluxMatcher.verbose = true
-
-    act.ActorTGLF.electromagnetic = false
-    act.ActorTGLF.sat_rule = :sat0
-    act.ActorTGLF.model = :TJLF
+    act.ActorEquilibrium.model=:FRESCO
+    act.ActorTGLF.tglfnn_model = "sat1_em_d3d_azf-1"
 
     return ini, act
 end
 
-function TraceCAD(::Type{Val{:SPARC}})
+function TraceCAD(::Val{:SPARC})
     x_length = 4.66
     x_offset = -0.58
     y_offset = 0.29

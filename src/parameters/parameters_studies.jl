@@ -14,7 +14,7 @@ function study_common_parameters(; kw...)
     if name == :server
         return Switch{String}(["localhost", "omega", "saga", "feynman", "engaging"], "-", "Where to run"; default)
     elseif name == :n_workers
-        return Entry{Int}("-", "Number of workers to run with"; default)
+        return Entry{Int}("-", "Number of workers to run with (use 0 for no-distributed)"; default)
     elseif name == :file_save_mode
         return Switch{Symbol}([:safe_write, :overwrite, :append], "-", "Saving file policy, `safe_write` only writes when the folder is empty"; default)
     elseif name == :release_workers_after_run

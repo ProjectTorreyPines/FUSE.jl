@@ -51,7 +51,7 @@ A crucial part of our PR process is **code review**. It is where your peers get 
 ## Add/modify entries in `dd`
 
 The `dd` data structure is defined under the [IMASdd.jl](https://github.com/ProjectTorreyPines/IMASdd.jl) package.
-See the documentation there to how add/modify entries in `dd`.
+See the documentation there for how to add/modify entries in `dd`.
 
 ## Write a new actor
 
@@ -59,14 +59,14 @@ See the Jupyter [new actor tutorial](https://github.com/ProjectTorreyPines/FuseE
 
 ## Add/modify examples
 
-The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebook that showcase some possible uses of FUSE.
+The [FuseExamples repository](https://github.com/ProjectTorreyPines/FuseExamples) contains jupyter notebooks that showcase some possible uses of FUSE.
 
 !!! note
-    When committing changes to in a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
+    When committing changes to a jupyter notebook, make sure that all the output cells are cleared! This is important to keep the size of the repository in check.
 
 ## Add/modify a new cluster
 
-The `parallel_environment()` function is used to easily setup the working environment for distributed jobs. Edit it [here](https://github.com/search?q=repo%3AProjectTorreyPines%2FFUSE.jl+%22function+parallel_environment%22&type=code) with your own cluster, folllowing the others as a template.
+The `parallel_environment()` function is used to easily setup the working environment for distributed jobs. Edit it [here](https://github.com/search?q=repo%3AProjectTorreyPines%2FFUSE.jl+%22function+parallel_environment%22&type=code) with your own cluster, following the others as a template.
 
 ## Write IMAS physics functions
 
@@ -94,14 +94,14 @@ end
 
 ## Add/modify entries in `ini` and `act`
 
-The functinoality of the `ini` and `act` parameters is implemented in the [SimulationParameters.jl](https://github.com/ProjectTorreyPines/SimulationParameters.jl) package.
+The functionality of the `ini` and `act` parameters is implemented in the [SimulationParameters.jl](https://github.com/ProjectTorreyPines/SimulationParameters.jl) package.
 
 * The `ini` parameters are all defined in the `FUSE/src/parameters_init.jl` file. Add/edit entries there.
 * The `act` parameters of each actor are defined where that actor is defined. Add/edit entries there.
 
 ## Profiling and writing fast Julia code
 
-First let's do some profiling to identify problemetic functions:
+First let's do some profiling to identify problematic functions:
 
 1. Run FUSE from the VScode Julia REPL (`<Command-Shift-p>` and then `Julia: Start REPL`)
    ```julia
@@ -118,7 +118,7 @@ First let's do some profiling to identify problemetic functions:
 
 1. Use `@time` to monitor execution time and allocations
 
-1. For functions that return very quickly one can use `BenchmarkTooks.@benchmark`
+1. For functions that return very quickly one can use `BenchmarkTools.@benchmark`
 
 1. Graphical profiling of the execution time is a powerful way to understand where time is spent
    ```julia
@@ -265,7 +265,7 @@ This can be particularly useful for benchmarking FUSE physics against existing P
    ```
 
    !!! note
-       If you have more than one Julia version on our system, we could specify it with an argument:
+       If you have more than one Julia version on your system, we could specify it with an argument:
        ```
        julia.install(julia="/Users/meneghini/.julia/juliaup/julia-1.8.5+0.x64.apple.darwin14/bin/julia")
        ```
