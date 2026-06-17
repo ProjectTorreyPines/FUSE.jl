@@ -12,7 +12,8 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :not_set
     _time::Float64 = NaN
-    n_mode::Entry{Int} = Entry{Int}("_", "toroidal mode number of the mode"; default=1)
+    m_pol::Entry{Int} = Entry{Int}("_", "poloidal mode number of the mode"; default=2)
+    n_tor::Entry{Int} = Entry{Int}("_", "toroidal mode number of the mode"; default=1)
     q_surf::Entry{Float64} = Entry{Float64}("_", "rational surface of interest, usually 2.0"; default=2.)
     grid_size::Entry{Int} = Entry{Int}("-", "grid resolution for control space"; default=100)
     t_final::Entry{Float64} = Entry{Float64}("-", "Final integration time in units of tearing time (~ms)"; default=100.)
@@ -24,7 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     task::Switch{Symbol} = Switch{Symbol}(
         [:solve_system, :single_case, :calc_prob, :Monte_Carlo, :evaluate_probability, :transfer_learning],
         "-",
-        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)",
+        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)";
         default = :solve_system
     )
     application::Switch{String} = Switch{String}(
@@ -36,7 +37,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
                               'RP-RW-IW' for resistive plasma with a single rational surface interacting with both walls"; 
         default="RP-RW"
     )
-    NL_saturation_ON::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=false)
+    NL_saturation::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=false)
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
         "Stability index of the system (set to Neg. value for now)"; default=-0.5)
@@ -49,7 +50,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     r0::Entry{Float64} = Entry{Float64}(
         "meter", 
         "Length scale for the integration , usually minor radius"; default=1.)
-    source_torque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)    
+    source_torque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)
+    plot_orientation::Switch{Symbol} = Switch{Symbol}([:portrait, :landscape], "-",
+        "Tile-plot layout: :portrait = 3×2 (paper), :landscape = 2×3 (slides)"; default=:portrait)
 end
 
 
@@ -151,7 +154,7 @@ function _step(actor::ActorLocking)
             @info "No in-memory ODE results — loading from disk"
             load_ode_results!(actor)
         end
-        prob_model = load_locking_nn()
+        prob_model = load_locking_nn(; control_type=par.control_type)
         actor.results.prob = prob_model
         @info "Locking NN model ready — call actor.results.prob(C1, C2) or plot_sols(actor)"
 
@@ -164,7 +167,7 @@ function _step(actor::ActorLocking)
         # Fine-tune the saved base NN model on the new equilibrium's data,
         # freezing all but the last layer.
         @info "Loading base NN model for transfer learning"
-        base_model = load_locking_nn()
+        base_model = load_locking_nn(; control_type=par.control_type)
 
         X_new, y_new = ModeLocking.prepare_nn_data(actor.results.locking_labels,
                                         actor.ode_params.Control1, actor.ode_params.Control2)
@@ -261,7 +264,7 @@ function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
     rt = ode_params.rat_surface  
     rw = ode_params.res_wall
     rc = ode_params.control_surf
-    m0 = par.n_mode
+    m0 = par.m_pol
     
     rat21 = (rw / rt)^m0
     rat12 = rat21^(-1)
@@ -358,7 +361,7 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
 
     # set nonlinear saturation
-    if par.NL_saturation_ON == false
+    if par.NL_saturation == false
         ode_params.saturation_param = 0.
     end
 
@@ -385,6 +388,7 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     control_type = par.control_type
     N = par.grid_size
     M = par.grid_size
+    b0 = par.b0
 
     l21 = ode_params.l21
     l12 = ode_params.l12
@@ -419,9 +423,9 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
         # The -i indicates psi_eps is -90deg out of phase with the true EF — not
         # yet propagated as an actual phase offset in the RHS (TODO, left as-is).
         EF_Gauss_vals = range(c2min, c2max, length=M) |> collect
-        EF_Tesla_vals = EF_Gauss_vals .* 1.e-4   # Gauss -> Tesla
+        EF_Tesla_vals = EF_Gauss_vals .* 1.e-4 / b0   # Gauss -> Tesla -> dimensionless
         rc    = ode_params.control_surf
-        m_pol = ode_params.m_pol
+        m_pol = par.m_pol
         Control2_vals = rc .* EF_Tesla_vals ./ m_pol  # psi_eps, units of b0*r0
 
         @info("Maximum error field is $(c2max) Gauss")
@@ -451,7 +455,7 @@ solve to `ModeLocking.simulate_one_case` and the plotting to
 `ModeLocking.plot_time_traces`.
 """
 function solve_one_case(par, ode_params::ODEparams, application::String)
-    sol, norm_t = ModeLocking.simulate_one_case(ode_params, application, par.n_mode, par.control_type,
+    sol, norm_t = ModeLocking.simulate_one_case(ode_params, application, par.n_tor, par.control_type,
                                                   par.source_torque, par.t_final, par.time_steps)
 
     # Time-dependent figures: TM (ψ_tN), RWM (ψ_wN, RP-RW only), and Ω_tN vs time
@@ -483,8 +487,8 @@ Returns a `LockingResults` with `prob = nothing` — callers fill that in
 """
 function _solve_grid_and_classify(actor::ActorLocking, application::String)
     par = actor.par
-    return ModeLocking.solve_and_classify(actor.ode_params, application, par.n_mode, par.control_type,
-                                           par.t_final, par.time_steps, par.NL_saturation_ON, par.grid_size)
+    return ModeLocking.solve_and_classify(actor.ode_params, application, par.n_tor, par.control_type,
+                                           par.t_final, par.time_steps, par.NL_saturation, par.grid_size)
 end
 
 
@@ -526,7 +530,8 @@ future session without re-solving the ODEs.
 """
 function save_ode_results(actor::ActorLocking; kwargs...)
     actor.results === nothing && error("No ODE results — run task=:solve_system first")
-    return ModeLocking.save_ode_results(actor.results, actor.ode_params; kwargs...)
+    return ModeLocking.save_ode_results(actor.results, actor.ode_params;
+        control_type=actor.par.control_type, kwargs...)
 end
 
 
@@ -538,7 +543,8 @@ Load previously saved ODE results from disk into `actor.results` and
 `actor.results` is nothing (fresh session).
 """
 function load_ode_results!(actor::ActorLocking; kwargs...)
-    results, Control1, Control2 = ModeLocking.load_ode_results(; kwargs...)
+    results, Control1, Control2 = ModeLocking.load_ode_results(;
+        control_type=actor.par.control_type, kwargs...)
     actor.ode_params === nothing && (actor.ode_params = ODEparams())
     actor.ode_params.Control1 = Control1
     actor.ode_params.Control2 = Control2
@@ -555,7 +561,7 @@ Save the trained LockingNNModel to disk.
 function save_locking_nn(actor::ActorLocking; kwargs...)
     actor.results === nothing      && error("No results — run task=:solve_system first")
     actor.results.prob === nothing && error("No trained model — run train_locking_nn first")
-    return ModeLocking.save_locking_nn(actor.results.prob; kwargs...)
+    return ModeLocking.save_locking_nn(actor.results.prob; control_type=actor.par.control_type, kwargs...)
 end
 
 
@@ -578,13 +584,16 @@ Calls plot_scatter, plot_phase_diagrams, and (when a trained NN model is
 available) plot_probability.  Returns all three handles; fig3 is nothing
 when no model has been trained yet.
 """
-plot_sols(actor::ActorLocking) = ModeLocking.plot_sols(actor.results, actor.ode_params, actor.par.grid_size, actor.par.control_type)
+plot_sols(actor::ActorLocking) = ModeLocking.plot_sols(actor.results, actor.ode_params, actor.par.grid_size, actor.par.control_type;
+    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation)
 
 "plot_scatter(actor) → Figure 1 — multi-panel scatter of state variables"
-plot_scatter(actor::ActorLocking) = ModeLocking.plot_scatter(actor.results)
+plot_scatter(actor::ActorLocking) = ModeLocking.plot_scatter(actor.results; orientation=actor.par.plot_orientation)
 
 "plot_phase_diagrams(actor) → Figure 2 — pcolor of Ω_n and ψ_tn over control space"
-plot_phase_diagrams(actor::ActorLocking) = ModeLocking.plot_phase_diagrams(actor.results, actor.ode_params, actor.par.grid_size, actor.par.control_type)
+plot_phase_diagrams(actor::ActorLocking) = ModeLocking.plot_phase_diagrams(actor.results, actor.ode_params, actor.par.grid_size, actor.par.control_type;
+    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol))
 
 "plot_probability(actor) → Figure 3 — NN locking probability"
-plot_probability(actor::ActorLocking) = ModeLocking.plot_probability(actor.results, actor.ode_params, actor.par.control_type)
+plot_probability(actor::ActorLocking) = ModeLocking.plot_probability(actor.results, actor.ode_params, actor.par.control_type;
+    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol))
