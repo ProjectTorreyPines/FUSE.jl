@@ -457,7 +457,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         display(p)
 
-        channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
+        # drop the leading `N_specials` elements (e.g. `turbulence_scale`) so that only the z-profiles remain
+        channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z[N_specials+1:end])), z_scaled_history)...))
         data = reshape(channels_evolution, (length(err_history), N_radii, N_channels))
         p = plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
@@ -724,7 +725,11 @@ function flux_match_errors(
     end
 
     # update history
-    push!(z_scaled_history, z_profiles_scaled)
+    if ismissing(par, :scale_turbulence_law)
+        push!(z_scaled_history, z_profiles_scaled)
+    else
+        push!(z_scaled_history, [turbulence_scale; z_profiles_scaled])
+    end
     push!(err_history, errors)
 
     return (targets=targets, fluxes=fluxes, errors=errors)
@@ -900,11 +905,9 @@ function flux_match_simple(
         zprofiles_old = zprofiles
     end
 
-    if ismissing(par, :scale_turbulence_law)
-        return (zero=z_scaled_history[argmin(map(norm, err_history))],)
-    else
-        return (zero=[turbulence_scale; z_scaled_history[argmin(map(norm, err_history))]],)
-    end
+    # `z_scaled_history` already stores the full scaled vector (including the leading
+    # `turbulence_scale` element when `scale_turbulence_law` is set)
+    return (zero=z_scaled_history[argmin(map(norm, err_history))],)
 end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Real)

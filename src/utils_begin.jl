@@ -195,8 +195,9 @@ function parallel_environment(
         end
     end
 
+    pid_list = Int[]
+
     if nworkers == 0
-        pid_list = Int[]
         #pass
 
     elseif cluster == "omega"
