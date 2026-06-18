@@ -25,7 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     task::Switch{Symbol} = Switch{Symbol}(
         [:solve_system, :single_case, :calc_prob, :Monte_Carlo, :evaluate_probability, :transfer_learning],
         "-",
-        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)";
+        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)",
         default = :solve_system
     )
     application::Switch{String} = Switch{String}(
@@ -37,10 +37,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
                               'RP-RW-IW' for resistive plasma with a single rational surface interacting with both walls"; 
         default="RP-RW"
     )
+    EF_phase::Entry{Float64} = Entry{Float64}("-", "Phase of the applied error field (degrees)"; default=0.)
     NL_saturation::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=false)
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
-        "Stability index of the system (set to Neg. value for now)"; default=-0.5)
+        "Stability index of the system (set to Neg. value for now)", default=-0.5)
     b0::Entry{Float64} = Entry{Float64}(
         "Tesla", 
         "Scale for magnetic perturbations, usually ~10Gauss"; default=1.e-3)
