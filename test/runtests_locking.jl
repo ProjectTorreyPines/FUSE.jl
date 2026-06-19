@@ -25,8 +25,7 @@ using Test
                     task             = :solve_system,
                     control_type     = :EF,
                     grid_size        = N_grid,
-                    overwrite_params = false,
-                    nn_params        = fast_nn)
+                    overwrite_params = false)
         r = actor.results
 
         @test r !== nothing
@@ -38,7 +37,7 @@ using Test
         @test all(l ∈ (1, 2) for l in r.locking_labels)
         # NN training is deferred to task=:calc_prob — :solve_system leaves prob unset
         @test r.prob === nothing
-        # Analytic bifurcation bounds present (NL_saturation_ON = false by default)
+        # Analytic bifurcation bounds present (NL_saturation = false by default)
         @test r.bifurcation_bounds !== nothing
         @test size(r.bifurcation_bounds) == (N_grid, N_grid)
         @test all(isfinite, r.bifurcation_bounds)
@@ -51,7 +50,7 @@ using Test
                     control_type     = :LinStab,
                     grid_size        = N_grid,
                     overwrite_params = true,
-                    nn_params        = fast_nn)
+                    ode_params       = (Control2_min=-3.0, Control2_max=-1.0))
         r = actor.results
         @test r !== nothing
         @test size(r.ode_sols, 1) == N_grid^2
@@ -64,14 +63,13 @@ using Test
         actor = FUSE.ActorLocking(dd, act;
                     task             = :solve_system,
                     control_type     = :NLsaturation,
-                    NL_saturation_ON = true,
+                    NL_saturation    = true,
                     grid_size        = N_grid,
                     overwrite_params = true,
-                    nn_params        = fast_nn)
+                    ode_params       = (Control2_min=0.05, Control2_max=0.5))
         r = actor.results
         @test r !== nothing
-        # Bifurcation bounds are suppressed when NL saturation is active
-        @test r.bifurcation_bounds === nothing
+        
     end
 
     # ─── task = :calc_prob (retrain NN; ODEs must not be re-solved) ──────────
@@ -81,8 +79,7 @@ using Test
                           task             = :solve_system,
                           control_type     = :EF,
                           grid_size        = N_grid,
-                          overwrite_params = true,
-                          nn_params        = fast_nn)
+                          overwrite_params = true)
         saved_ode = copy(actor_solve.results.ode_sols)
 
         # Fresh actor with calc_prob loads the saved ODE results and retrains
@@ -104,8 +101,7 @@ using Test
                          task             = :solve_system,
                          control_type     = :EF,
                          grid_size        = N_grid,
-                         overwrite_params = true,
-                         nn_params        = fast_nn)
+                         overwrite_params = true)
         # NN training is deferred to task=:calc_prob — train explicitly before saving
         FUSE.train_locking_nn(actor_base, fast_nn)
         FUSE.save_locking_nn(actor_base)

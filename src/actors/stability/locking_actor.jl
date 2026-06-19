@@ -25,7 +25,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     task::Switch{Symbol} = Switch{Symbol}(
         [:solve_system, :single_case, :calc_prob, :Monte_Carlo, :evaluate_probability, :transfer_learning],
         "-",
-        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)",
+        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)";
         default = :solve_system
     )
     application::Switch{String} = Switch{String}(
@@ -41,7 +41,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     NL_saturation::Entry{Bool} = Entry{Bool}("-", "Nonlinear saturation parameter for the mode"; default=false)
     RPRW_stability_index::Entry{Float64} = Entry{Float64}(
         "-", 
-        "Stability index of the system (set to Neg. value for now)", default=-0.5)
+        "Stability index of the system (set to Neg. value for now)"; default=-0.5)
     b0::Entry{Float64} = Entry{Float64}(
         "Tesla", 
         "Scale for magnetic perturbations, usually ~10Gauss"; default=1.e-3)
@@ -147,6 +147,7 @@ function _step(actor::ActorLocking)
         end
         @info "Training NN classifier to calculate probability of locking as a function of Controls"
         train_locking_nn(actor, actor.nn_params)
+        save_locking_nn(actor)
 
     elseif task == :evaluate_probability
         # Load NN model from disk (cached after first load).
@@ -174,7 +175,7 @@ function _step(actor::ActorLocking)
                                         actor.ode_params.Control1, actor.ode_params.Control2)
 
         actor.results.prob = ModeLocking.transfer_learn_locking_nn(base_model, X_new, y_new; nn_params=actor.nn_params)
-
+        save_locking_nn(actor)
 
     elseif task == :Monte_Carlo
         error("Monte-Carlo not implemented yet")
@@ -593,7 +594,7 @@ plot_scatter(actor::ActorLocking) = ModeLocking.plot_scatter(actor.results; orie
 
 "plot_phase_diagrams(actor) → Figure 2 — pcolor of Ω_n and ψ_tn over control space"
 plot_phase_diagrams(actor::ActorLocking) = ModeLocking.plot_phase_diagrams(actor.results, actor.ode_params, actor.par.grid_size, actor.par.control_type;
-    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol))
+    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation)
 
 "plot_probability(actor) → Figure 3 — NN locking probability"
 plot_probability(actor::ActorLocking) = ModeLocking.plot_probability(actor.results, actor.ode_params, actor.par.control_type;
