@@ -1,6 +1,8 @@
 using FUSE
 using Test
 
+#include("test_zmq_actor.jl")  # requires GSLite connection — disabled until GSLite integration is merged
+
 @testset "fluxmatcher" begin
     ini, act = FUSE.case_parameters(:ITER; init_from=:scalars)
     dd = IMAS.dd()
@@ -100,3 +102,59 @@ end
     end
 end
          
+=======
+
+@testset "ActorTJLFEP" begin
+    # End-to-end TGLF-EP -> ALPHA EP transport on an ITER dd:
+    #   TJLFEP.runTHD finds the critical EP density/pressure gradients (the scan's last
+    #   point is the separatrix ir=NR (rho~1), where a singular TGLF Hermite matrix now
+    #   degrades gracefully to "stable" instead of erroring), ALPHA.run_alpha integrates
+    #   them into the EP profiles/flux, and _finalize writes the fast-ion population to
+    #   core_profiles and the EP flux to core_transport.
+    # Kept small (ngrid=51, SCAN_N=2, N_BASIS=2, :marginal solver) for a fast, robust
+    # integration test. The TGLF-EP eigenvalue solve itself is also covered by TJLFEP's
+    # own nb6 regression.
+    ini, act = FUSE.case_parameters(:ITER; init_from=:ods)
+    ini.core_profiles.ngrid = 51
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+
+    is_ep = 3
+    act.ActorTJLFEP.is_ep = is_ep
+    act.ActorTJLFEP.rho_scan = [0.41, 0.61]   # SCAN_N=2; INPUT_PROFILE_METHOD=2 makes the last point ir=NR (separatrix)
+    act.ActorTJLFEP.n_basis = 2
+    act.ActorTJLFEP.alpha_solver = :marginal
+
+    actor = FUSE.ActorTJLFEP(dd, act)         # full pipeline: runTHD -> run_alpha -> finalize
+
+    @testset "TGLF-EP stability metrics" begin
+        @test length(actor.SFmin) == length(act.ActorTJLFEP.rho_scan)
+        @test all(isfinite, actor.SFmin)
+        @test all(actor.SFmin .> 0)
+        @test actor.alpha !== nothing
+        @test length(actor.rho_grid) == length(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
+    end
+
+    @testset "EP profiles in dd.core_profiles" begin
+        cp1d = dd.core_profiles.profiles_1d[]
+        ep_ion = cp1d.ion[is_ep]
+        nfast = ep_ion.density_fast
+        @test length(nfast) == length(cp1d.grid.rho_tor_norm)
+        @test all(isfinite, nfast)
+        @test all(nfast .>= 0.0)
+        @test maximum(nfast) > 0.0
+        pfast = ep_ion.pressure_fast_parallel .+ 2.0 .* ep_ion.pressure_fast_perpendicular
+        @test all(isfinite, pfast)
+        @test all(pfast .>= 0.0)
+        @test maximum(pfast) > 0.0
+    end
+
+    @testset "EP flux in dd.core_transport" begin
+        model = dd.core_transport.model[:anomalous]
+        m1d = model.profiles_1d[]
+        @test occursin("TJLFEP-ALPHA", model.identifier.name)
+        @test length(m1d.ion) >= 1
+        @test all(isfinite, m1d.ion[1].particles.flux)
+        @test all(isfinite, m1d.ion[1].energy.flux)
+    end
+end

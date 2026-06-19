@@ -1118,6 +1118,8 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
             r_lim, z_lim = limiter.r, limiter.z  
         end
 
+
+
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
         
         chease_struct.r_limiter = r_lim

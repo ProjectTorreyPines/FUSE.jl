@@ -97,6 +97,7 @@ using FUSE.SimulationParameters.Distributions
         df1 = CSV.read(joinpath(save_dir, "output.csv"), DataFrame)
 
         db = FUSE.load_study_database(joinpath(save_dir, "database.h5"));
+        dds2 = [ i.dd for i in db.items ];
         inis2 = [ i.ini for i in db.items ];
         acts2 = [ i.act for i in db.items ];
         df2 = db.df

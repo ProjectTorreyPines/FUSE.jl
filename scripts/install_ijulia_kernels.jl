@@ -19,18 +19,17 @@ function kernels_parent_dir()
 end
 
 function kernel_slug(name::AbstractString)
-    slug = lowercase(replace(strip(name), r"[^a-z0-9]+" => "-"))
+    slug = lowercase(strip(name))
+    slug = replace(slug, r"[^a-z0-9]+" => "-")
+    slug = strip(slug, '-')
     return isempty(slug) ? "julia" : slug
 end
 
 function install_one_kernel!(display_name::AbstractString, nthreads::AbstractString)
-    import IJulia
-    parent = kernels_parent_dir()
-    specdir = joinpath(parent, kernel_slug(display_name))
-    mkpath(specdir)
-    IJulia.installkernel(
+    specdir = IJulia.installkernel(
         display_name;
-        specdir,
+        specname=kernel_slug(display_name),
+        displayname=display_name,
         env=Dict("JULIA_NUM_THREADS" => nthreads),
     )
     println("Installed kernel \"", display_name, "\" at ", specdir)

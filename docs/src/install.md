@@ -66,7 +66,7 @@ Start Julia (`julia` at the terminal), then:
 
    ```julia
    using FUSE
-   ini, act = FUSE.case_parameters(:ITER)
+   ini, act = FUSE.case_parameters(:FPP)
    dd = FUSE.init(ini, act)   # if this completes without error, your install is working
    ```
 
