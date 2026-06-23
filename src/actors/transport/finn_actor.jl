@@ -37,7 +37,7 @@ import GACODE
     )
 end
 
-mutable struct ActorFINN{D,P} <: SingleAbstractActor{D,P}
+mutable struct ActorFINN{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.dd{D}
     par::OverrideParameters{P,FUSEparameters__ActorFINN{P}}
     finn_results::NamedTuple
