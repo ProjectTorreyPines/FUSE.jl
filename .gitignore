@@ -82,3 +82,4 @@ knowledge/mcp_server/start_server.sh
 # not committed here. See data/pedestal_nn/README.md for the container wiring.
 data/pedestal_nn/**/*.onnx
 data/pedestal_nn/onnx_models/
+src/actors/stability/.locking_actor.jl.swp
