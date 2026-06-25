@@ -170,6 +170,13 @@ Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInit{
         "Vector of geometric dimensions describing the pellet size for a given shape (spherical: [r], cylindrical: [d, l], rectangular: [x,y,z])";
         check=x -> @assert all(x .> 0.0) "All pellet shape dimensions must be > 0.0"
     )
+    velocity_initial::Entry{T} = Entry{T}("m/s", "Initial pellet velocity (used by ActorPAM)"; default=200.0, check=x -> @assert x > 0.0 "must be: velocity_initial > 0.0")
+    injection_angle::Entry{T} = Entry{T}(
+        "rad",
+        "Poloidal angle of the pellet injection location (0 = outboard midplane, increasing counter-clockwise); aimed at the magnetic axis (used by ActorPAM)";
+        default=0.0,
+        check=x -> @assert 0.0 <= x <= 2π "must be: 0 <= injection_angle <= 2π"
+    )
 end
 
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit{T}

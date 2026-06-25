@@ -6,7 +6,7 @@
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :replay, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
-    pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
+    pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :PAM, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
     neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Neutral gas fueling actor to run"; default=:NEUCG)
 end
 
@@ -18,7 +18,7 @@ mutable struct ActorSources{D,P} <: CompoundAbstractActor{D,P}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     lh_actor::Union{ActorSimpleLH{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
-    pellet_actor::Union{ActorSimplePL{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    pellet_actor::Union{ActorSimplePL{D,P},ActorPAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     neutral_actor::Union{ActorNeutralFueling{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
@@ -35,7 +35,7 @@ Managed subsystems:
 - **Ion Cyclotron (IC)**: ICsimple or replay modes
 - **Lower Hybrid (LH)**: LHsimple or replay modes
 - **Neutral Beam Injection (NB)**: NBsimple, RABBIT, or replay modes
-- **Pellet fueling**: PLsimple or replay modes
+- **Pellet fueling**: PLsimple, PAM, or replay modes
 - **Neutral gas fueling**: NEUCG model or replay modes
 
 Key features:
@@ -115,6 +115,8 @@ function ActorSources(dd::IMAS.dd, par::FUSEparameters__ActorSources, act::Param
     @assert length(dd.pulse_schedule.pellet.launcher) == length(dd.pellets.launcher) "length(dd.pulse_schedule.pellet.launcher)=$(length(dd.pulse_schedule.pellet.launcher)) VS length(dd.pellets.launcher)=$(length(dd.pellets.launcher))"
     if par.pellet_model == :PLsimple
         actor.pellet_actor = ActorSimplePL(dd, act.ActorSimplePL)
+    elseif par.pellet_model == :PAM
+        actor.pellet_actor = ActorPAM(dd, act.ActorPAM)
     elseif par.pellet_model == :replay
         actor.pellet_actor = ActorReplay(dd, act.ActorReplay, ActorSimplePL(dd, act.ActorSimplePL))
     end

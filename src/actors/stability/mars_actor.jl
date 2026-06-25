@@ -1112,14 +1112,15 @@ function write_EXPEQ_file(dd::IMAS.dd, par)
     if NWBPS > 1 ## WHAT TO DO if > 2
         if par.wall_type == :conformal 
             @info "Creating a conformal limiter offset from plasma boundary by $(par.offset)."
-            limiter = offset_boundary(rb_new, zb_new, offset)
+            r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
         elseif par.wall_type == :limiter
             @info "Using wall data .Json for CHEASE equilibrium generation."
             machine = dd.dataset_description.data_entry.machine
             limiter = get_limiter_data(machine)
+            r_lim, z_lim = limiter.r, limiter.z  
         end
 
-        r_lim, z_lim = limiter.r, limiter.z  
+
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
         
         chease_struct.r_limiter = r_lim

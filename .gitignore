@@ -77,3 +77,8 @@ tmp.gif
 # Generated knowledge base files
 knowledge/actors/
 knowledge/mcp_server/start_server.sh
+
+# Pedestal NN ONNX weights — distributed via HuggingFace SCS-Lab/pedestal-predictor-onnx,
+# not committed here. See data/pedestal_nn/README.md for the container wiring.
+data/pedestal_nn/**/*.onnx
+data/pedestal_nn/onnx_models/
