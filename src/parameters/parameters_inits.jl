@@ -248,6 +248,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     log10_flattop_duration::Entry{T} =
         Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio; check=x -> @assert x >= 0.0 "must be: tritium_breeding_ratio >= 0.0")
+    peak_escape_flux::Entry{T} = Entry{T}(IMAS.requirements, :peak_escape_flux; check=x -> @assert x >= 0.0 "must be: peak_escape_flux >= 0.0")
     cost::Entry{T} = Entry{T}(IMAS.requirements, :cost; check=x -> @assert x >= 0.0 "must be: cost >= 0.0")
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking; check=x -> @assert x >= 0.0 "must be: ne_peaking >= 0.0")
     q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp; check=x -> @assert x >= 0.0 "must be: q_pol_omp >= 0.0")

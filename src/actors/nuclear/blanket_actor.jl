@@ -242,7 +242,8 @@ function _step(actor::ActorBlanket)
         else
             cost = norm((
                 (total_tritium_breeding_ratio - target) / target,
-                exp(Li6) / exp(100.0),
+                1e-6*maximum(modules_peak_escape_flux) / (sum(modules_peak_wall_flux) / length(modules_peak_wall_flux)),
+                1e-6*exp(0.01*Li6) / exp(1.0),
                 extra_cost
             ))
             return cost
