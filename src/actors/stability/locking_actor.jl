@@ -23,9 +23,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
     task::Switch{Symbol} = Switch{Symbol}(
-        [:solve_system, :single_case, :calc_prob, :Monte_Carlo, :evaluate_probability, :transfer_learning],
+        [:solve_system, :single_case, :calc_prob, :calc_conv_prob, :calc_kde_prob, :Monte_Carlo, :evaluate_probability, :transfer_learning],
         "-",
-        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), or Monte Carlo (NOT implemented)";
+        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), convolution (:calc_conv_prob), KDE (:calc_kde_prob), or Monte Carlo (NOT implemented)";
         default = :solve_system
     )
     application::Switch{String} = Switch{String}(
@@ -62,6 +62,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "-",
         "Operating-point Control2 for probability evaluation in _finalize (units match control_type); NaN = skip";
         default=NaN)
+    conv_window_C1::Entry{Int} = Entry{Int}(
+        "-",
+        "Convolution window size along C1 (Ω₀) axis (must be odd); 0 = use NN instead";
+        default=5)
+    conv_window_C2::Entry{Int} = Entry{Int}(
+        "-",
+        "Convolution window size along C2 (EF/Δ'/α) axis (must be odd); 0 = use NN instead";
+        default=5)
 end
 
 
@@ -154,19 +162,46 @@ function _step(actor::ActorLocking)
             load_ode_results!(actor)
         end
         @info "Training NN classifier to calculate probability of locking as a function of Controls"
-        train_locking_nn(actor, actor.nn_params)
+        train_locking_nn(actor)
         save_locking_nn(actor)
 
+    elseif task == :calc_conv_prob
+        if actor.results === nothing
+            @info "No in-memory ODE results — loading from disk"
+            load_ode_results!(actor)
+        end
+        @info "Computing convolution probability (window = $(par.conv_window_C1)×$(par.conv_window_C2))"
+        conv_locking_probability(actor)
+        save_prob_model(actor)
+
+    elseif task == :calc_kde_prob
+        if actor.results === nothing
+            @info "No in-memory ODE results — loading from disk"
+            load_ode_results!(actor)
+        end
+        @info "Computing KDE probability (window = $(par.conv_window_C1)×$(par.conv_window_C2))"
+        kde_locking_probability(actor)
+        save_prob_model(actor)
+
     elseif task == :evaluate_probability
-        # Load NN model from disk (cached after first load).
+        # Load saved probability model from disk (NN or convolution).
+        # Try convolution first; if not found, fall back to NN.
         # Also load ODE results if not already in memory (needed for plot_sols).
         if actor.results === nothing
             @info "No in-memory ODE results — loading from disk"
             load_ode_results!(actor)
         end
-        prob_model = load_locking_nn(; control_type=par.control_type)
+        prob_model = try
+            load_prob_model(actor; method=:kde)
+        catch
+            try
+                load_prob_model(actor; method=:conv)
+            catch
+                load_prob_model(actor; method=:nn)
+            end
+        end
         actor.results.prob = prob_model
-        @info "Locking NN model ready — call actor.results.prob(C1, C2) or plot_sols(actor)"
+        @info "Loaded $(typeof(prob_model)) — call actor.results.prob(C1, C2) or plot_sols(actor)"
 
     elseif task == :transfer_learning
         # Solve the (typically focused/sparse, via ode_params.Control1_min/max
@@ -379,8 +414,12 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     psi0 = par.b0 * par.r0
     U0 = psi0^2 * par.r0 / mu0_val
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    # approximate core rotation
-    rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic[10]
+    # rotation: core (ρ=0.1) and at the rational surface
+    rho_cp = cp1d.grid.rho_tor_norm
+    rot_profile = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
+    rot_interp = IMAS.interp1d(rho_cp, rot_profile)
+    rot_core  = rot_interp(0.1)
+    rot_at_rs = rot_interp(rt)
     
     # NBI torque at the rational surface:
     # Prefer the FUSE NBI actor output (dd.core_sources) if it has been populated upstream;
@@ -421,9 +460,13 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     ode_params.mu = muSI / (U0 * par.t0)
     ode_params.Inertia = inertia / (U0 * par.t0^2)
 
+    rot_core_kHz = rot_core / (2π * 1e3)
+    rot_rs_kHz   = rot_at_rs / (2π * 1e3)
+
     @info """Physical parameters set:
       torque_at_rat_surf = $(round(torque_at_rat_surf; sigdigits=4)) N·m
-      rot_core(ρ=0.1)   = $(round(rot_core; sigdigits=4)) rad/s
+      rot_core(ρ≈0.1)   = $(round(rot_core_kHz; sigdigits=4)) kHz
+      rot(q=2, ρ=$(round(rt; digits=3))) = $(round(rot_rs_kHz; sigdigits=4)) kHz
       μ_SI               = $(round(muSI; sigdigits=4)) N·m·s
       inertia            = $(round(inertia; sigdigits=4)) kg·m²
       mass_dens(q=2)     = $(round(mass_dens_atq2; sigdigits=4)) kg/m³
@@ -568,17 +611,18 @@ end
 
 
 """
-    train_locking_nn(actor, nn_params=NNparams()) → LockingNNModel
+    train_locking_nn(actor) → LockingNNModel
 
 Train a binary NN classifier (C1, C2) → P(locked) on the k-means labels in
-`actor.results`.  Updates `actor.results.prob` in-place and returns the model.
+`actor.results`, using `actor.nn_params`.  Updates `actor.results.prob`
+in-place and returns the model.
 
 The stored model is callable: `actor.results.prob(C1, C2)` ∈ [0, 1].
 To search for better hyperparameters first, call `tune_locking_nn(actor)`.
 """
-function train_locking_nn(actor::ActorLocking, nn_params::NNparams=NNparams())
+function train_locking_nn(actor::ActorLocking)
     actor.results === nothing && error("No results — run the actor with task=:solve_system first")
-    return ModeLocking.train_locking_nn(actor.results, actor.ode_params, nn_params)
+    return ModeLocking.train_locking_nn(actor.results, actor.ode_params, actor.nn_params)
 end
 
 
@@ -594,6 +638,45 @@ Returns the best `NNparams` (useful for Task 2 transfer learning).
 function tune_locking_nn(actor::ActorLocking; kwargs...)
     actor.results === nothing && error("No results — run the actor with task=:solve_system first")
     return ModeLocking.tune_locking_nn(actor.results, actor.ode_params; kwargs...)
+end
+
+
+"""
+    conv_locking_probability(actor; window_C1=par.conv_window_C1, window_C2=par.conv_window_C2)
+
+Compute locking probability via 2D box-filter convolution and store in
+`actor.results.prob`.  The result is callable as `actor.results.prob(C1, C2)`.
+
+Call after `:solve_system` or `load_ode_results!(actor)`.
+"""
+function conv_locking_probability(actor::ActorLocking;
+                                   window_C1::Int=actor.par.conv_window_C1,
+                                   window_C2::Int=actor.par.conv_window_C2)
+    actor.results === nothing && error("No results — run the actor with task=:solve_system first")
+    actor.results.prob = ModeLocking.conv_locking_probability(
+        actor.results, actor.ode_params, actor.par.grid_size;
+        window_C1, window_C2)
+    return actor.results.prob
+end
+
+
+"""
+    kde_locking_probability(actor; window_C1=par.conv_window_C1, window_C2=par.conv_window_C2)
+
+Compute locking probability via Gaussian KDE and store in
+`actor.results.prob`.  The result is callable as `actor.results.prob(C1, C2)`.
+
+Uses the same window parameters as `conv_locking_probability`;
+the Gaussian σ along each axis is `window / 4`.
+"""
+function kde_locking_probability(actor::ActorLocking;
+                                  window_C1::Int=actor.par.conv_window_C1,
+                                  window_C2::Int=actor.par.conv_window_C2)
+    actor.results === nothing && error("No results — run the actor with task=:solve_system first")
+    actor.results.prob = ModeLocking.kde_locking_probability(
+        actor.results, actor.ode_params, actor.par.grid_size;
+        window_C1, window_C2)
+    return actor.results.prob
 end
 
 
@@ -629,22 +712,55 @@ end
 
 
 """
-    save_locking_nn(actor; filename="nn_model.bson", dir=ModeLocking.LOCKING_RESULTS_DIR) → path
+    save_prob_model(actor; kwargs...) → path
 
-Save the trained LockingNNModel to disk.
+Save the current probability model (NN, convolution, or KDE) to disk.
+Dispatches based on the type of `actor.results.prob`.
+  - `LockingNNModel` → `nn_model_<control_type>.bson`
+  - `ConvProbModel`  → `conv<w1>x<w2>_model_<control_type>.bson`
+  - `KDEProbModel`   → `kde<w1>x<w2>_model_<control_type>.bson`
 """
-function save_locking_nn(actor::ActorLocking; kwargs...)
+function save_prob_model(actor::ActorLocking; kwargs...)
     actor.results === nothing      && error("No results — run task=:solve_system first")
-    actor.results.prob === nothing && error("No trained model — run train_locking_nn first")
-    return ModeLocking.save_locking_nn(actor.results.prob; control_type=actor.par.control_type, kwargs...)
+    actor.results.prob === nothing && error("No trained model — run train_locking_nn, conv_, or kde_locking_probability first")
+    ct = actor.par.control_type
+    wc1 = actor.par.conv_window_C1
+    wc2 = actor.par.conv_window_C2
+    prob = actor.results.prob
+    if prob isa LockingNNModel
+        return ModeLocking.save_locking_nn(prob; control_type=ct, kwargs...)
+    elseif prob isa ModeLocking.ConvProbModel
+        return ModeLocking.save_conv_prob(prob; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+    elseif prob isa ModeLocking.KDEProbModel
+        return ModeLocking.save_kde_prob(prob; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+    else
+        error("Unknown prob model type: $(typeof(prob))")
+    end
 end
-
+save_locking_nn(actor::ActorLocking; kwargs...) = save_prob_model(actor; kwargs...)
 
 """
-    load_locking_nn(; filename="nn_model.bson", dir=ModeLocking.LOCKING_RESULTS_DIR) → LockingNNModel
+    load_prob_model(actor; method=:nn, kwargs...)
 
-Load a saved LockingNNModel from disk. Cached in memory after first load.
+Load a saved probability model from disk.
+  - `method=:nn`   → loads `nn_model_<control_type>.bson`
+  - `method=:conv` → loads `conv<w1>x<w2>_model_<control_type>.bson`
+  - `method=:kde`  → loads `kde<w1>x<w2>_model_<control_type>.bson`
 """
+function load_prob_model(actor::ActorLocking; method::Symbol=:nn, kwargs...)
+    ct  = actor.par.control_type
+    wc1 = actor.par.conv_window_C1
+    wc2 = actor.par.conv_window_C2
+    if method == :nn
+        return ModeLocking.load_locking_nn(; control_type=ct, kwargs...)
+    elseif method == :conv
+        return ModeLocking.load_conv_prob(; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+    elseif method == :kde
+        return ModeLocking.load_kde_prob(; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+    else
+        error("Unknown method: $method — use :nn, :conv, or :kde")
+    end
+end
 load_locking_nn(; kwargs...) = ModeLocking.load_locking_nn(; kwargs...)
 
 
@@ -722,7 +838,17 @@ function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:pn
     Plots.savefig(plot_scatter(actor),       joinpath(dir, "scatter_$(tag).$(ext)"))
     Plots.savefig(plot_phase_diagrams(actor), joinpath(dir, "phase_$(tag).$(ext)"))
     if actor.results.prob !== nothing
-        Plots.savefig(plot_probability(actor), joinpath(dir, "probability_$(tag).$(ext)"))
+        prob = actor.results.prob
+        prob_prefix = if prob isa LockingNNModel
+            "NN_probability"
+        elseif prob isa ModeLocking.ConvProbModel
+            "Conv$(par.conv_window_C1)x$(par.conv_window_C2)_probability"
+        elseif prob isa ModeLocking.KDEProbModel
+            "KDE$(par.conv_window_C1)x$(par.conv_window_C2)_probability"
+        else
+            "probability"
+        end
+        Plots.savefig(plot_probability(actor), joinpath(dir, "$(prob_prefix)_$(tag).$(ext)"))
     end
     @info "Saved locking plots to $dir"
     return nothing
