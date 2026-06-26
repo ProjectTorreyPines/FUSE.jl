@@ -218,9 +218,10 @@ function _step(actor::ActorBlanket)
                 ed2 = modules_effective_thickness[ibm][k, 2] * x2
                 ed3 = modules_effective_thickness[ibm][k, 3] * x3
                 module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
-                #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
+                # NOTE: leakeage_energy is total number of neutrons in each energy bin, so need to sum times energy grid
                 LE = NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)::Vector{Float64}
-                escape_flux = sum(LE) * modules_wall_loading_power[ibm][k] * modules_flux_geometric_scale[ibm][k]
+                escape_power_fraction = sum(LE .* energy_grid) / 14.1
+                escape_flux = escape_power_fraction * modules_wall_loading_power[ibm][k] * modules_flux_geometric_scale[ibm][k]
                 if escape_flux > modules_peak_escape_flux[ibm]
                     modules_peak_escape_flux[ibm] = escape_flux
                 end
