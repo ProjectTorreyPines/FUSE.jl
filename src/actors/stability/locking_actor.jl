@@ -54,6 +54,14 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     source_torque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)
     plot_orientation::Switch{Symbol} = Switch{Symbol}([:portrait, :landscape], "-",
         "Tile-plot layout: :portrait = 3×2 (paper), :landscape = 2×3 (slides)"; default=:portrait)
+    op_C1::Entry{Float64} = Entry{Float64}(
+        "-",
+        "Operating-point Control1 (normalized Ω₀) for probability evaluation in _finalize; NaN = skip";
+        default=NaN)
+    op_C2::Entry{Float64} = Entry{Float64}(
+        "-",
+        "Operating-point Control2 for probability evaluation in _finalize (units match control_type); NaN = skip";
+        default=NaN)
 end
 
 
@@ -102,7 +110,7 @@ function ActorLocking(dd::IMAS.dd, act::ParametersAllActors; kw...)
     #par = act.ActorLocking(kw...)
     actor = ActorLocking(dd, act.ActorLocking; kw...)
     step(actor)
-    finalize(actor)
+    #finalize(actor)
     return actor
 end
 
@@ -189,17 +197,40 @@ function _step(actor::ActorLocking)
 end
 
 function _finalize(actor::ActorLocking)
-    dd = actor.dd
+    dd  = actor.dd
     par = actor.par
+    results    = actor.results
+    ode_params = actor.ode_params
 
-    @info "Finalizing ActorLocking at time"
-    mhd = dd.mhd_linear
-    mhd_ts = resize!(mhd.time_slice; wipe=false)
-    mode = resize!(mhd_ts.toroidal_mode, "perturbation_type.name" => "Locked mode", "n_tor" => 1)
-    mode.perturbation_type.description = "Locked mode limit from ActorLocking"
-    mode.amplitude_multiplier = 1.0 / (par.b0*par.r0)
-    #mode.plasma.b_field_perturbed.coordinate1.coefficients_real = AbstractArray(1.0, 0., 0.)
-        
+    results === nothing && return actor
+
+    # ── Tier 1: always available after :solve_system ──────────────────────────
+    # Store a raw "fraction locked" metric on mhd_linear so other actors / plots
+    # can find it under a consistent node regardless of whether the NN is trained.
+    mhd_ts = resize!(dd.mhd_linear.time_slice; wipe=false)
+    mode = resize!(mhd_ts.toroidal_mode,
+        "perturbation_type.name" => "Island locking m=$(par.m_pol)/n=$(par.n_tor)",
+        "n_tor" => par.n_tor)
+    mode.perturbation_type.description = "Tearing-mode locking hazard (ActorLocking)"
+    mode.m_pol = par.m_pol
+
+    frac_locked = count(==(2), results.locking_labels) / length(results.locking_labels)
+    mode.stability_metric = frac_locked   # overwritten below if NN is available
+
+    # ── Tier 2: NN-based operating-point probability ──────────────────────────
+    # Requires (a) a trained model and (b) explicit operating-point inputs.
+    # If either is missing we keep the Tier-1 metric and skip the limits entry.
+    if results.prob !== nothing && !isnan(par.op_C1) && !isnan(par.op_C2)
+        prob_op = results.prob(par.op_C1, par.op_C2)
+        mode.stability_metric = prob_op
+
+        model = resize!(dd.limits.model,
+            "identifier.name" => "Island locking m=$(par.m_pol)/n=$(par.n_tor)")
+        model.identifier.description =
+            "Locking probability at operating point < 0.5 (ActorLocking)"
+        @ddtime(model.fraction = prob_op / 0.5)   # > 1 → locked
+    end
+
     return actor
 end
 
@@ -223,7 +254,7 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     q_prof = dd.equilibrium.time_slice[].profiles_1d.q
     rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
     ode_params.rat_surface = find_rat_surface(q_prof, rho, par.q_surf)
-    
+
     # calculate the stability indices and mutual inductances
     ode_params = calculate_stability_index!(dd, par, ode_params)
 
@@ -235,7 +266,8 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
         @info "Overwriting ODE parameters to reproduce PoP2024 results"
         ode_params.mu = 0.1
         ode_params.Inertia = 1
-        ode_params.rat_surface = 0.67 # overwrite for now
+        ode_params.rat_surface = 0.67
+        par.EF_phase = -90.0
     end
 
     
@@ -325,9 +357,22 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
 
     rt = ode_params.rat_surface
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
-    mass_dens = mass_ion * cp1d.ion[1].density_thermal
-    rho_interp = IMAS.interp1d(rho, mass_dens)
-    mass_dens_atq2 = rho_interp(rt)  # Get the mass density at the q=2 surface
+
+    # Mass density at the rational surface: prefer ion density_thermal,
+    # fall back to electron density / Z_i (quasi-neutrality) if ion density
+    # is missing or zero.
+    ion_dens = cp1d.ion[1].density_thermal
+    if !ismissing(ion_dens) && !isempty(ion_dens) && any(!iszero, ion_dens)
+        rho_ion = cp1d.grid.rho_tor_norm
+        mass_dens_atq2 = mass_ion * IMAS.interp1d(rho_ion, ion_dens)(rt)
+    else
+        Z_i = cp1d.ion[1].element[1].z_n
+        rho_e = cp1d.grid.rho_tor_norm
+        ne = cp1d.electrons.density_thermal
+        ni_from_ne = ne ./ Z_i
+        mass_dens_atq2 = mass_ion * IMAS.interp1d(rho_e, ni_from_ne)(rt)
+        @warn "ion density_thermal unavailable — using n_e/Z_i (quasi-neutrality) for mass density"
+    end
     #Zeff = dd.core_profiles.profiles_1d.zeff[40]
  
     # Set all the scales
@@ -357,9 +402,14 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
         par.source_torque
     end
 
-    # Calculate the drag coefficient in SI
+    # Calculate the drag coefficient in SI — must be positive (viscous drag, not drive)
     muSI = torque_at_rat_surf / rot_core
-    # Calculate first the moment of inertia in the layer  
+    if muSI < 0
+        @warn "Negative viscous drag μ_SI = $(round(muSI; sigdigits=4)) (torque and rotation have opposite signs); using |μ|"
+        muSI = abs(muSI)
+    end
+
+    # Calculate first the moment of inertia in the layer
     inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
 
     # set nonlinear saturation
@@ -370,6 +420,25 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     # Set the dimensionless quantities
     ode_params.mu = muSI / (U0 * par.t0)
     ode_params.Inertia = inertia / (U0 * par.t0^2)
+
+    @info """Physical parameters set:
+      torque_at_rat_surf = $(round(torque_at_rat_surf; sigdigits=4)) N·m
+      rot_core(ρ=0.1)   = $(round(rot_core; sigdigits=4)) rad/s
+      μ_SI               = $(round(muSI; sigdigits=4)) N·m·s
+      inertia            = $(round(inertia; sigdigits=4)) kg·m²
+      mass_dens(q=2)     = $(round(mass_dens_atq2; sigdigits=4)) kg/m³
+      R0                 = $(round(R0; sigdigits=4)) m
+      ψ₀ = b0·r0         = $(round(psi0; sigdigits=4)) T·m
+      U0                 = $(round(U0; sigdigits=4)) N·m
+      μ (dimensionless)  = $(round(ode_params.mu; sigdigits=4))
+      I (dimensionless)  = $(round(ode_params.Inertia; sigdigits=4))
+      Δ'                 = $(round(ode_params.stability_index; sigdigits=4))
+      ΔW                 = $(round(ode_params.DeltaW; sigdigits=4))
+      l12                = $(round(ode_params.l12; sigdigits=4))
+      l21                = $(round(ode_params.l21; sigdigits=4))
+      l32                = $(round(ode_params.l32; sigdigits=4))
+      error_field        = $(ode_params.error_field) Gauss
+      EF_phase           = $(par.EF_phase)°"""
 
     return ode_params
 end
@@ -391,11 +460,13 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     N = par.grid_size
     M = par.grid_size
     b0 = par.b0
+    m_pol = par.m_pol
 
     l21 = ode_params.l21
     l12 = ode_params.l12
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
+    rc    = ode_params.control_surf
     c2min = ode_params.Control2_min
     c2max = ode_params.Control2_max
 
@@ -406,13 +477,14 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
     rot_core = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho, rot_core)
-    Omega0_calc = rot_interp(rt) * 2 * π * par.t0 # in units of kHz
+    Omega0_calc = rot_interp(rt) * 2 * π * par.t0 # in units of 2*pi*kHz
     @info("Calculated toroidal rotation frequency at rational surface: $Omega0_calc kHz")
     println("Using Control1 (Ω0) range: [$(ode_params.Control1_min), $(ode_params.Control1_max)]")
 
     # finally set Control1: currently HARD-coded to be momentum source
     Control1_vals = range(ode_params.Control1_min, ode_params.Control1_max, length=N) |> collect
     ode_params.Control1 = vec(repeat(Control1_vals, 1, M))
+
 
     # Initialize the other control parameter based on the control type
     if control_type == :EF
@@ -426,17 +498,18 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
         # yet propagated as an actual phase offset in the RHS (TODO, left as-is).
         EF_Gauss_vals = range(c2min, c2max, length=M) |> collect
         EF_Tesla_vals = EF_Gauss_vals .* 1.e-4 / b0   # Gauss -> Tesla -> dimensionless
-        rc    = ode_params.control_surf
-        m_pol = par.m_pol
         Control2_vals = rc .* EF_Tesla_vals ./ m_pol  # psi_eps, units of b0*r0
-
         @info("Maximum error field is $(c2max) Gauss")
     else
         Control2_vals = range(c2min, c2max, length=M) |> collect
-
-        EpsUp = ode_params.error_field * par.b0 / 1.e-4  # Convert to Gauss
-        @info("Maximum error field is $(EpsUp) Gauss")
+        @info("Fixed error field: $(ode_params.error_field) Gauss")
     end
+
+    # Convert error_field from Gauss to the same dimensionless normalization as
+    # EF Control2: errF = EF_Gauss * 1e-4 / b0 * rc / m_pol.
+    # After this point ode_params.error_field is dimensionless and ready for
+    # direct use in resolve_control and simulate_one_case.
+    ode_params.error_field = ode_params.error_field * (1e-4 / b0) * rc / m_pol
 
     Control2 = vec(repeat(Control2_vals', N, 1))
     ode_params.Control2 = Control2
@@ -457,18 +530,18 @@ solve to `ModeLocking.simulate_one_case` and the plotting to
 `ModeLocking.plot_time_traces`.
 """
 function solve_one_case(par, ode_params::ODEparams, application::String)
-    sol, norm_t = ModeLocking.simulate_one_case(ode_params, application, par.n_tor, par.control_type,
+    sol, norm_t = ModeLocking.simulate_one_case(ode_params, application, par.n_tor, deg2rad(par.EF_phase), par.control_type,
                                                   par.source_torque, par.t_final, par.time_steps)
 
     # Time-dependent figures: TM (ψ_tN), RWM (ψ_wN, RP-RW only), and Ω_tN vs time
-    fig = ModeLocking.plot_time_traces(norm_t, sol.t)
+    fig = ModeLocking.plot_time_traces(norm_t, sol.t; t0=par.t0)
 
     # Same traces, but in physical units (Gauss for magnetic amplitudes, kHz for rotation)
     fig_phys = ModeLocking.plot_time_traces(sol, [par.b0, par.t0, par.r0])
 
     # Stack both figures in a single combined plot so the second doesn't
     # overtake/replace the first on display
-    fig_combined = plot(fig, fig_phys; layout=(2, 1), size=(800, 800))
+    fig_combined = plot(fig_phys, fig; layout=(2, 1), size=(800, 800))
     display(fig_combined)
 
     return fig
@@ -489,7 +562,7 @@ Returns a `LockingResults` with `prob = nothing` — callers fill that in
 """
 function _solve_grid_and_classify(actor::ActorLocking, application::String)
     par = actor.par
-    return ModeLocking.solve_and_classify(actor.ode_params, application, par.n_tor, par.control_type,
+    return ModeLocking.solve_and_classify(actor.ode_params, application, par.n_tor, deg2rad(par.EF_phase), par.control_type,
                                            par.t_final, par.time_steps, par.NL_saturation, par.grid_size)
 end
 
@@ -587,15 +660,70 @@ available) plot_probability.  Returns all three handles; fig3 is nothing
 when no model has been trained yet.
 """
 plot_sols(actor::ActorLocking) = ModeLocking.plot_sols(actor.results, actor.ode_params, actor.par.grid_size, actor.par.control_type;
-    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation)
+    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation,
+    shot_label=_shot_label(actor.dd; overwrite=actor.par.overwrite_params))
+
+function _shot_label(dd::IMAS.dd; overwrite::Bool=false)
+    lbl = try
+        pulse = dd.dataset_description.data_entry.pulse
+        time  = dd.global_time
+        t_ms  = round(time * 1e3; digits=1)
+        (pulse > 0) ? "Shot $(pulse), t = $(t_ms) ms" : "default"
+    catch
+        "default"
+    end
+    overwrite ? lbl * " (OW)" : lbl
+end
 
 "plot_scatter(actor) → Figure 1 — multi-panel scatter of state variables"
-plot_scatter(actor::ActorLocking) = ModeLocking.plot_scatter(actor.results; orientation=actor.par.plot_orientation)
+plot_scatter(actor::ActorLocking) = ModeLocking.plot_scatter(actor.results;
+    orientation=actor.par.plot_orientation, shot_label=_shot_label(actor.dd; overwrite=actor.par.overwrite_params))
 
 "plot_phase_diagrams(actor) → Figure 2 — pcolor of Ω_n and ψ_tn over control space"
 plot_phase_diagrams(actor::ActorLocking) = ModeLocking.plot_phase_diagrams(actor.results, actor.ode_params, actor.par.grid_size, actor.par.control_type;
-    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation)
+    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation,
+    shot_label=_shot_label(actor.dd; overwrite=actor.par.overwrite_params))
 
 "plot_probability(actor) → Figure 3 — NN locking probability"
 plot_probability(actor::ActorLocking) = ModeLocking.plot_probability(actor.results, actor.ode_params, actor.par.control_type;
-    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol))
+    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol),
+    shot_label=_shot_label(actor.dd; overwrite=actor.par.overwrite_params))
+
+"""
+    save_locking_plots(actor; dir, format=:png)
+
+Save all available locking plots to `dir` with descriptive filenames encoding
+the run metadata: control type, grid size, application, m_pol, n_tor.
+
+Example filenames:
+  scatter_EF_100x100_RPRW_m2_n1_175060_2500.0ms.png   (shot 175060, t=2500ms)
+  phase_EF_100x100_RPRW_m2_n1_default.png              (default dd)
+"""
+function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:png)
+    actor.results === nothing && error("No results to plot — run the actor first")
+    isdir(dir) || mkpath(dir)
+
+    par = actor.par
+    dd  = actor.dd
+
+    ow = par.overwrite_params ? "_OW" : ""
+    shot_tag = try
+        pulse = dd.dataset_description.data_entry.pulse
+        time  = dd.global_time
+        t_ms  = round(Int, time * 1e3)
+        (pulse > 0) ? "_$(pulse).$(t_ms)$(ow)" : "_default$(ow)"
+    catch
+        "_default$(ow)"
+    end
+
+    tag = "$(par.control_type)_$(par.grid_size)x$(par.grid_size)_$(replace(par.application, "-" => ""))_m$(par.m_pol)_n$(par.n_tor)$(shot_tag)"
+    ext = string(format)
+
+    Plots.savefig(plot_scatter(actor),       joinpath(dir, "scatter_$(tag).$(ext)"))
+    Plots.savefig(plot_phase_diagrams(actor), joinpath(dir, "phase_$(tag).$(ext)"))
+    if actor.results.prob !== nothing
+        Plots.savefig(plot_probability(actor), joinpath(dir, "probability_$(tag).$(ext)"))
+    end
+    @info "Saved locking plots to $dir"
+    return nothing
+end
