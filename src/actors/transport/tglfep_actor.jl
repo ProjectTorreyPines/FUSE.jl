@@ -120,6 +120,12 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
+    # ActorTJLFEP is a critical-EP-density-gradient -> EP-profile actor: it consumes SFmin
+    # and feeds ALPHA. Only PROCESS_IN 4/5 produce that. Other modes (e.g. 3 = diagnostic
+    # gamma/omega spectra) have no critical-gradient output and must use TJLFEP directly.
+    par.process_in in (4, 5) ||
+        error("ActorTJLFEP: process_in=$(par.process_in) is unsupported; only 4 or 5 (critical-EP-density-gradient scan) yield EP profiles. For the spectrum diagnostic (process_in=3) call TJLFEP directly (e.g. run_gacode_scan_task).")
+
     rho_scan = collect(Float64, par.rho_scan)
     OptionsDict = _optionsdict(par)
 
