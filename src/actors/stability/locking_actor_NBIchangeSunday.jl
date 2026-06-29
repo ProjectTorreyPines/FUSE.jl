@@ -334,6 +334,7 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
         ode_params.Inertia = 1
         ode_params.rat_surface = 0.67
         par.EF_phase = -90.0
+        # nbi_torque already set in set_phys_params! from torque_at_rat_surf — no overwrite needed
     end
 
     
@@ -491,6 +492,9 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     ode_params.mu = muSI / (U0 * par.t0)
     ode_params.Inertia = inertia / (U0 * par.t0^2)
 
+    # Dimensionless NBI torque: normalize by b0²/μ₀ (energy scale)
+    ode_params.nbi_torque = torque_at_rat_surf / (par.b0^2 / mu0_val)
+
     rot_core_kHz = rot_core / (2π * 1e3)
     rot_rs_kHz   = rot_at_rs / (2π * 1e3)
 
@@ -505,6 +509,7 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
       ψ₀ = b0·r0         = $(round(psi0; sigdigits=4)) T·m
       U0                 = $(round(U0; sigdigits=4)) N·m
       μ (dimensionless)  = $(round(ode_params.mu; sigdigits=4))
+      T_NBI (dimens'less) = $(round(ode_params.nbi_torque; sigdigits=4))
       I (dimensionless)  = $(round(ode_params.Inertia; sigdigits=4))
       Δ'                 = $(round(ode_params.stability_index; sigdigits=4))
       ΔW                 = $(round(ode_params.DeltaW; sigdigits=4))
