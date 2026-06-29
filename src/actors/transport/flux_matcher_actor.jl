@@ -67,7 +67,8 @@ import NonlinearSolve, FixedPointAcceleration
     z_max::Entry{Union{T,NamedTuple}} = Entry{Union{T,NamedTuple}}(
         "m⁻¹",
         """
-        Maximum allowed normalized gradient (inverse scale length). Can be:
+        Maximum allowed inverse scale length, used to cap each evolved gradient as |dy/dr| <= z_max * |y_local|
+        (not applied to rotation, which is a shear that can cross zero). Can be:
         * Single value: applies to all channels and radii (e.g., 10.0)
         * NamedTuple for spatially varying limits:
           (core=20.0, edge=100.0, rho_transition=0.80)
@@ -96,7 +97,8 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_replay::ActorReplay{D,P}
     actor_ped::ActorPedestal{D,P}
-    norms::Vector{D}
+    error_norms::Vector{D}
+    profile_norms::Vector{D}
     error::D
     err_history::Vector{Vector{D}}
 end
@@ -126,9 +128,9 @@ Available nonlinear solver `algorithm` options:
 On solver exception, the actor automatically falls back to `:simple_dfsane`.
 
 Advanced features include turbulence scaling to target confinement laws (H98, DS03),
-time-dependent evolution with ∂/∂t terms, and the `z_max` parameter to cap normalized
-gradient (inverse scale lengths) during the iteration — either as a uniform scalar or
-as a spatially varying `NamedTuple(core, edge, rho_transition)`.
+time-dependent evolution with ∂/∂t terms, and the `z_max` parameter to cap the evolved
+gradients at an effective inverse-scale-length limit during the iteration — either as a
+uniform scalar or as a spatially varying `NamedTuple(core, edge, rho_transition)`.
 """
 function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; kw...)
@@ -152,7 +154,7 @@ function ActorFluxMatcher(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}())
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D[], D(Inf), Vector{Vector{D}}())
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -175,7 +177,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # make intrinsic sources consistent to start
-    IMAS.intrinsic_sources!(dd)
+    @show(evolve_densities)
+    IMAS.intrinsic_sources!(dd,bootstrap=false)
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -194,24 +197,34 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     @assert nand(typeof(actor.actor_ct.actor_neoc) <: ActorNoOperation, typeof(actor.actor_ct.actor_turb) <: ActorNoOperation) "Unable to fluxmatch when all transport actors are turned off"
 
-    z_init, profiles_paths, fluxes_paths = pack_z_profiles(cp1d, par)
-    z_init_scaled = scale_z_profiles(z_init) # scale z_profiles to get smaller stepping using NLsolve
+    grad_init, profiles_paths, fluxes_paths = pack_gradients(cp1d, par)
     N_radii = length(par.rho_transport)
-    N_channels = round(Int, length(z_init) / N_radii, RoundDown)
+    N_channels = round(Int, length(grad_init) / N_radii, RoundDown)
 
-    z_scaled_history = []
+    # Per-channel gradient normalization: raw gradients (e.g. dTe/dr vs dne/dr) span very
+    # different magnitudes, so normalize each channel by the mean of its initial gradients
+    # so that the scaled optimization variables are all order-unity for the nonlinear solver.
+    actor.profile_norms = ones(D, length(grad_init))
+    for i in 1:N_channels
+        block = (i-1)*N_radii+1:i*N_radii
+        channel_mean = sum(@view grad_init[block]) / N_radii
+        actor.profile_norms[block] .= abs(channel_mean) > 0 ? 1.0 / channel_mean : 1.0
+    end
+    grad_init_scaled = scale_gradients(grad_init, actor.profile_norms) # scale gradients to order-unity for NLsolve
+
+    gradients_scale_history = []
     err_history = Vector{Vector{D}}()
 
-    actor.norms = fill(D(NaN), N_channels)
+    actor.error_norms = fill(D(NaN), N_channels)
 
     par.verbose && ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.ProgressUnknown(; dt=0.1, desc="Calls:", enabled=par.verbose)
     old_logging = actor_logging(dd, false)
 
     if ismissing(par, :scale_turbulence_law)
-        opt_parameters = z_init_scaled
+        opt_parameters = grad_init_scaled
     else
-        opt_parameters = [1.0; z_init_scaled]
+        opt_parameters = [1.0; grad_init_scaled]
     end
 
     # Resolve :default jacobian_method based on algorithm
@@ -269,7 +282,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
         elseif algorithm == :simple
             ftol = Inf # always use xtol condition as in NonlinearSolve.jl
-            res = flux_match_simple(actor, opt_parameters, initial_cp1d, z_scaled_history, err_history, max_iterations, ftol, par.xtol, prog)
+            res = flux_match_simple(actor, opt_parameters, initial_cp1d, gradients_scale_history, err_history, max_iterations, ftol, par.xtol, prog)
 
         else
             # 1. In-place residual
@@ -277,10 +290,10 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 try
                     if eltype(u) <: ForwardDiff.Dual && jacobian_method === :forward_ad
                         # AD Jacobian evaluation — skip history (same residual as primal call)
-                        ad_flux_match_errors!(F, u, actor, initial_cp1d; z_scaled_history=nothing, err_history=nothing, prog)
+                        ad_flux_match_errors!(F, u, actor, initial_cp1d; gradients_scale_history=nothing, err_history=nothing, prog)
                     else
                         # Standard path: full pipeline through dd
-                        result = flux_match_errors(actor, u, initial_cp1d; z_scaled_history, err_history, prog)
+                        result = flux_match_errors(actor, u, initial_cp1d; gradients_scale_history, err_history, prog)
                         F .= result.errors
                     end
                 catch e
@@ -379,13 +392,13 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             # reach the desired tolerance
             if !isempty(err_history) && length(err_history) > 1 && norm(err_history[end]) == norm(err_history[1])
                 pop!(err_history)
-                pop!(z_scaled_history)
+                pop!(gradients_scale_history)
             end
 
             # Extract the solution vector
             if !isempty(err_history)
                 k = argmin(map(norm, err_history))
-                res = (zero=z_scaled_history[k],)
+                res = (zero=gradients_scale_history[k],)
             else
                 res = (zero=opt_parameters,)
             end
@@ -402,7 +415,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # evaluate profiles at the best-matching gradients
-    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # gradients for the smallest error iteration
 
     # statistics
     actor.error = norm(out.errors)
@@ -441,8 +454,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         display(p)
 
-        # drop the leading `N_specials` elements (e.g. `turbulence_scale`) so that only the z-profiles remain
-        channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z[N_specials+1:end])), z_scaled_history)...))
+        # drop the leading `N_specials` elements (e.g. `turbulence_scale`) so that only the gradients remain
+        channels_evolution = transpose(hcat(map(z -> collect(unscale_gradients(z[N_specials+1:end]; norm=actor.profile_norms)), gradients_scale_history)...))
         data = reshape(channels_evolution, (length(err_history), N_radii, N_channels))
         p = plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
@@ -579,16 +592,20 @@ function errors_by_channel(errors::Vector{T}, N_radii::Int, N_channels::Int, N_s
 end
 
 """
-    scale_z_profiles(z_profiles)
+    scale_gradients(gradients, norm=1.0)
 
-scale z_profiles to get smaller stepping in nlsolve
+scale gradients to get smaller stepping in nlsolve.
+
+`norm` is a per-channel normalization (see `_step`) chosen so that the initial
+gradients map to order-unity values, since raw gradients (e.g. dTe/dr vs dne/dr)
+span very different magnitudes across channels.
 """
-function scale_z_profiles(z_profiles)
-    return z_profiles .* 100
+function scale_gradients(gradients, norm=1.0)
+    return gradients .* norm
 end
 
-function unscale_z_profiles(z_profiles_scaled)
-    return z_profiles_scaled ./ 100
+function unscale_gradients(gradients_scaled; norm=1.0)
+    return gradients_scaled ./ norm
 end
 
 """
@@ -596,7 +613,7 @@ end
         actor::ActorFluxMatcher{D,P},
         opt_parameters::Vector{<:Real},
         initial_cp1d::IMAS.core_profiles__profiles_1d;
-        z_scaled_history::Vector=[],
+        gradients_scale_history::Vector=[],
         err_history::Vector{Vector{D}}=Vector{Vector{D}}(),
         prog::Any=nothing) where {D<:Real,P<:Real}
 
@@ -608,7 +625,7 @@ function flux_match_errors(
     actor::ActorFluxMatcher{D,P},
     opt_parameters::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d;
-    z_scaled_history::Vector=[],
+    gradients_scale_history::Vector=[],
     err_history::Vector{Vector{D}}=Vector{Vector{D}}(),
     prog::Any=nothing) where {D<:Real,P<:Real}
 
@@ -617,29 +634,29 @@ function flux_match_errors(
     cp1d = dd.core_profiles.profiles_1d[]
 
     if ismissing(par, :scale_turbulence_law)
-        z_profiles_scaled = deepcopy(opt_parameters)
+        gradients_scaled = deepcopy(opt_parameters)
     else
         turbulence_scale = opt_parameters[1]
-        z_profiles_scaled = deepcopy(opt_parameters[2:end])
+        gradients_scaled = deepcopy(opt_parameters[2:end])
     end
 
-    # unscale z_profiles
-    z_profiles = unscale_z_profiles(z_profiles_scaled)
+    # unscale gradients
+    gradients = unscale_gradients(gradients_scaled; norm=actor.profile_norms)
 
     # restore profiles at initial conditions
     cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
 
     # evolve pedestal
     if par.evolve_pedestal
-        # modify cp1d with new z_profiles
-        unpack_z_profiles(cp1d, par, z_profiles)
+        # modify cp1d with new gradients
+        unpack_gradients(cp1d, par, gradients)
         # run pedestal
         actor.actor_ped.par.βn_from = :core_profiles
         finalize(step(actor.actor_ped))
     end
 
-    # modify cp1d with new z_profiles
-    unpack_z_profiles(cp1d, par, z_profiles)
+    # modify cp1d with new gradients
+    unpack_gradients(cp1d, par, gradients)
 
     # evaluate intrinsic sources (i.e., target fluxes)
     par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false)
@@ -678,12 +695,12 @@ function flux_match_errors(
     # Evaluate the flux_matching errors
     nrho = length(par.rho_transport)
     errors = similar(fluxes)
-    for (inorm, norm0) in enumerate(actor.norms)
+    for (inorm, norm0) in enumerate(actor.error_norms)
         index = (inorm-1)*nrho+1:inorm*nrho
         if isnan(norm0)
             # this sets the norm to be the based on the average of the fluxes and targets
-            # actor.norm is only used if the targets are zero
-            actor.norms[inorm] = norm0 = (norm(fluxes[index] .* surface0) + norm(targets[index] .* surface0)) / 2.0
+            # actor.error_norms is only used if the targets are zero
+            actor.error_norms[inorm] = norm0 = (norm(fluxes[index] .* surface0) + norm(targets[index] .* surface0)) / 2.0
         end
         errors[index] .= @views (targets[index] .- fluxes[index]) ./ norm0 .* surface0
     end
@@ -710,9 +727,9 @@ function flux_match_errors(
 
     # update history
     if ismissing(par, :scale_turbulence_law)
-        push!(z_scaled_history, z_profiles_scaled)
+        push!(gradients_scale_history, gradients_scaled)
     else
-        push!(z_scaled_history, [turbulence_scale; z_profiles_scaled])
+        push!(gradients_scale_history, [turbulence_scale; gradients_scaled])
     end
     push!(err_history, errors)
 
@@ -830,20 +847,20 @@ end
         actor::ActorFluxMatcher{D,P},
         opt_parameters::Vector{<:Real},
         initial_cp1d::IMAS.core_profiles__profiles_1d,
-        z_scaled_history::Vector,
+        gradients_scale_history::Vector,
         err_history::Vector{Vector{D}},
         max_iterations::Int,
         ftol::Float64,
         xtol::Float64,
         prog::Any) where {D<:Real,P<:Real}
 
-Updates zprofiles based on TGYRO simple algorithm
+Updates gradients based on TGYRO simple algorithm
 """
 function flux_match_simple(
     actor::ActorFluxMatcher{D,P},
     opt_parameters::Vector{<:Real},
     initial_cp1d::IMAS.core_profiles__profiles_1d,
-    z_scaled_history::Vector,
+    gradients_scale_history::Vector,
     err_history::Vector{Vector{D}},
     max_iterations::Int,
     ftol::Float64,
@@ -855,15 +872,15 @@ function flux_match_simple(
     i = 0
 
     if ismissing(par, :scale_turbulence_law)
-        z_init_scaled = opt_parameters
+        grad_init_scaled = opt_parameters
     else
         turbulence_scale = opt_parameters[1]
         @assert turbulence_scale == 1.0
-        z_init_scaled = @views opt_parameters[2:end]
+        grad_init_scaled = @views opt_parameters[2:end]
     end
 
-    zprofiles_old = unscale_z_profiles(z_init_scaled)
-    targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d; z_scaled_history, err_history, prog)
+    gradients_old = unscale_gradients(grad_init_scaled; norm=actor.profile_norms)
+    targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d; gradients_scale_history, err_history, prog)
     ferror = norm(errors)
     xerror = Inf
     step_size = par.step_size
@@ -876,22 +893,22 @@ function flux_match_simple(
             break
         end
 
-        zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        gradients = gradients_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
         if ismissing(par, :scale_turbulence_law)
-            targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
+            targets, fluxes, errors = flux_match_errors(actor, scale_gradients(gradients, actor.profile_norms), initial_cp1d; gradients_scale_history, err_history, prog)
         else
             turbulence_scale += errors[1] * step_size
             targets, fluxes, errors =
-                flux_match_errors(actor, [turbulence_scale; scale_z_profiles(zprofiles)], initial_cp1d; z_scaled_history, err_history, prog)
+                flux_match_errors(actor, [turbulence_scale; scale_gradients(gradients, actor.profile_norms)], initial_cp1d; gradients_scale_history, err_history, prog)
         end
-        xerror = maximum(abs.(zprofiles .- zprofiles_old)) / step_size
+        xerror = maximum(abs.(gradients .- gradients_old)) / step_size
         ferror = norm(errors)
-        zprofiles_old = zprofiles
+        gradients_old = gradients
     end
 
-    # `z_scaled_history` already stores the full scaled vector (including the leading
+    # `gradients_scale_history` already stores the full scaled vector (including the leading
     # `turbulence_scale` element when `scale_turbulence_law` is set)
-    return (zero=z_scaled_history[argmin(map(norm, err_history))],)
+    return (zero=gradients_scale_history[argmin(map(norm, err_history))],)
 end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Real)
@@ -930,51 +947,38 @@ function evolve_densities_dictionary(cp1d::IMAS.core_profiles__profiles_1d, par:
 end
 
 """
-    pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
+    pack_gradients(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
 
-Packs the z_profiles based on evolution parameters
+Packs the profile gradients (dy/dr) based on evolution parameters
 
 NOTE: the order for packing and unpacking is always: [Te, Ti, Rotation, ne, nis...]
 """
-function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
+function pack_gradients(cp1d::IMAS.core_profiles__profiles_1d{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
 
-    z_profiles = D[]
+    gradients = D[]
     profiles_paths = []
     fluxes_paths = []
 
     if par.evolve_Te == :flux_match
-        z_Te = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature, :backward)[cp_gridpoints]
-        append!(z_profiles, z_Te)
+        dTe_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.electrons.temperature; method=:backward)[cp_gridpoints]
+        append!(gradients, dTe_dr)
         push!(profiles_paths, (:electrons, :temperature))
         push!(fluxes_paths, (:electrons, :energy))
     end
 
     if par.evolve_Ti == :flux_match
-        z_Ti = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.t_i_average, :backward)[cp_gridpoints]
-        append!(z_profiles, z_Ti)
+        dTi_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.t_i_average; method=:backward)[cp_gridpoints]
+        append!(gradients, dTi_dr)
         push!(profiles_paths, (:t_i_average,))
         push!(fluxes_paths, (:total_ion_energy,))
     end
 
     if par.evolve_rotation == :flux_match
-        max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
-        rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
-        if !(any(x -> x >= 0, rot_check) && any(x -> x < 0, rot_check))
-            z_rot = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic, :backward)[cp_gridpoints]
-            append!(z_profiles, z_rot)
-        else
-            # Use TGYRO approach: evolve normalized rotation shear f_rot = (dω/dr) / w0_norm
-            w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
-
-            # Calculate rotation shear dω/dr
-            dw_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic)[cp_gridpoints]
-
-            # Convert to normalized rotation shear f_rot
-            f_rot = dw_dr ./ w0_norm
-
-            append!(z_profiles, f_rot)
-        end
+        # Evolve the rotation shear dω/dr directly; this naturally handles rotation
+        # profiles that change sign (no need for the calc_z special-casing).
+        dw_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.rotation_frequency_tor_sonic; method=:backward)[cp_gridpoints]
+        append!(gradients, dw_dr)
         push!(profiles_paths, (:rotation_frequency_tor_sonic,))
         push!(fluxes_paths, (:momentum_tor,))
     end
@@ -983,15 +987,15 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     if !isempty(evolve_densities)
         check_evolve_densities(cp1d, evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
-            append!(z_profiles, z_ne)
+            dne_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal; method=:backward)[cp_gridpoints]
+            append!(gradients, dne_dr)
             push!(profiles_paths, (:electrons, :density_thermal))
             push!(fluxes_paths, (:electrons, :particles))
         end
         for (k, ion) in enumerate(cp1d.ion)
             if evolve_densities[Symbol(ion.label)] == :flux_match
-                z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :backward)[cp_gridpoints]
-                append!(z_profiles, z_ni)
+                dni_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, ion.density_thermal; method=:backward)[cp_gridpoints]
+                append!(gradients, dni_dr)
                 push!(profiles_paths, (:ion, k, :density_thermal))
                 push!(fluxes_paths, [:ion, k, :particles])
             end
@@ -1002,66 +1006,52 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
     #       to make it easier to show what's going on
     par.evolve_densities = evolve_densities
 
-    return (z_profiles=z_profiles, profiles_paths=profiles_paths, fluxes_paths=fluxes_paths)
+    return (gradients=gradients, profiles_paths=profiles_paths, fluxes_paths=fluxes_paths)
 end
 
 """
-    unpack_z_profiles(
+    unpack_gradients(
         cp1d::IMAS.core_profiles__profiles_1d,
         par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
-        z_profiles::AbstractVector{<:Real}) where {P<:Real}
+        gradients::AbstractVector{<:Real}) where {P<:Real}
 
-Unpacks z_profiles based on evolution parameters
+Unpacks profile gradients (dy/dr) based on evolution parameters
 
 NOTE: The order for packing and unpacking is always: [Ti, Te, Rotation, ne, nis...]
 """
-function unpack_z_profiles(
+function unpack_gradients(
     cp1d::IMAS.core_profiles__profiles_1d,
     par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}},
-    z_profiles::AbstractVector{<:Real}) where {P<:Real}
+    gradients::AbstractVector{<:Real}) where {P<:Real}
 
     cp_gridpoints = [argmin_abs(cp1d.grid.rho_tor_norm, rho_x) for rho_x in par.rho_transport]
     cp_rho_transport = cp1d.grid.rho_tor_norm[cp_gridpoints]
 
     N = length(par.rho_transport)
 
-    # Build spatially varying z_max profile and apply clamping
-    # Avoid allocations by clamping directly with modulo indexing
+    # Build the spatially varying `z_max` (inverse scale length) limit along the transport grid.
+    # In the gradient formulation `z_max` is interpreted as a per-point cap on the gradient:
+    # |dy/dr| <= z_max * |y_local|, which keeps the same effective inverse-scale-length bound.
+    z_max_profile = Vector{Float64}(undef, N)
     if par.z_max isa Real
-        # Uniform limit - simple scalar clamping
-        z_max_val = par.z_max
-        @inbounds for i in eachindex(z_profiles)
-            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
-        end
+        fill!(z_max_profile, par.z_max)
     elseif par.z_max isa NamedTuple
-        # Spatially varying limit - compute slope once outside loop
         core_limit = par.z_max.core
         edge_limit = par.z_max.edge
         rho_trans = par.z_max.rho_transition
         slope = (edge_limit - core_limit) / (1.0 - rho_trans)
-
-        # Clamp each z_profile element using spatially varying limit
-        @inbounds for i in eachindex(z_profiles)
-            rho_idx = mod1(i, N)  # Map to radial position
-            rho = cp_rho_transport[rho_idx]
-
-            # Compute z_max for this radial location
-            z_max_val = if rho <= rho_trans
-                core_limit
-            else
-                core_limit + slope * (rho - rho_trans)
-            end
-
-            # Apply clamping in-place
-            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
+        for i in 1:N
+            rho = cp_rho_transport[i]
+            z_max_profile[i] = rho <= rho_trans ? core_limit : core_limit + slope * (rho - rho_trans)
         end
     else
-        # Default fallback
-        z_max_val = 100.0
-        @inbounds for i in eachindex(z_profiles)
-            z_profiles[i] = clamp(z_profiles[i], -z_max_val, z_max_val)
-        end
+        fill!(z_max_profile, 100.0)
     end
+
+    # Clamp a per-channel gradient block to ±(z_max * |y_local|), using the channel's
+    # profile values at the transport gridpoints as the local reference.
+    clamp_grad(block, y_ref) =
+        [clamp(block[i], -z_max_profile[i] * abs(y_ref[i]), z_max_profile[i] * abs(y_ref[i])) for i in eachindex(block)]
 
     counter = 0
 
@@ -1071,12 +1061,14 @@ function unpack_z_profiles(
     end
 
     if par.evolve_Te == :flux_match
-        cp1d.electrons.temperature = IMAS.profile_from_z_transport(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+        dTe_dr = clamp_grad(gradients[counter+1:counter+N], cp1d.electrons.temperature[cp_gridpoints])
+        cp1d.electrons.temperature = IMAS.profile_from_grad(cp1d.electrons.temperature, cp1d.grid.rho_tor_norm, cp_rho_transport, dTe_dr)
         counter += N
     end
 
     if par.evolve_Ti == :flux_match
-        Ti_new = IMAS.profile_from_z_transport(cp1d.t_i_average, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+        dTi_dr = clamp_grad(gradients[counter+1:counter+N], cp1d.t_i_average[cp_gridpoints])
+        Ti_new = IMAS.profile_from_grad(cp1d.t_i_average, cp1d.grid.rho_tor_norm, cp_rho_transport, dTi_dr)
         counter += N
         for ion in cp1d.ion
             ion.temperature = Ti_new
@@ -1084,50 +1076,41 @@ function unpack_z_profiles(
     end
 
     if par.evolve_rotation == :flux_match
-        max_rho_idx = IMAS.argmin_abs(cp1d.grid.rho_tor_norm, maximum(par.rho_transport))
-        rot_check = cp1d.rotation_frequency_tor_sonic[1:max_rho_idx]
-        if !(any(x -> x >= 0, rot_check) && any(x -> x < 0, rot_check))
-            cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_z_transport(cp1d.rotation_frequency_tor_sonic .+ 1, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
-        else
-            # Use TGYRO approach: convert normalized rotation shear back to rotation frequency
-            w0_norm = calculate_w0_norm(cp1d.electrons.temperature[1])
-
-            # Get normalized rotation shear f_rot from z_profiles
-            f_rot_evolved = z_profiles[counter+1:counter+N]
-
-            # Convert to rotation shear: dω/dr = f_rot * w0_norm
-            dw_dr_evolved = f_rot_evolved .* w0_norm
-
-            # Use the new profile_from_rotation_shear_transport function
-            cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_rotation_shear_transport(
-                cp1d.rotation_frequency_tor_sonic,
-                cp1d.grid.rho_tor_norm,
-                cp_rho_transport,
-                dw_dr_evolved
-            )
-        end
+        # Integrate the rotation shear dω/dr directly. No z_max cap is applied here:
+        # rotation is a shear that can cross zero, so an inverse-scale-length bound
+        # (∝ |ω_local|) is not meaningful.
+        dw_dr_evolved = gradients[counter+1:counter+N]
+        cp1d.rotation_frequency_tor_sonic = IMAS.profile_from_grad(
+            cp1d.rotation_frequency_tor_sonic,
+            cp1d.grid.rho_tor_norm,
+            cp_rho_transport,
+            dw_dr_evolved
+        )
         counter += N
     end
 
     if !isempty(evolve_densities)
         if evolve_densities[:electrons] == :flux_match
-            z_ne = z_profiles[counter+1:counter+N]
-            cp1d.electrons.density_thermal = IMAS.profile_from_z_transport(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
+            dne_dr = clamp_grad(gradients[counter+1:counter+N], cp1d.electrons.density_thermal[cp_gridpoints])
+            cp1d.electrons.density_thermal = IMAS.profile_from_grad(cp1d.electrons.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, dne_dr)
             IMAS.unfreeze!(cp1d.electrons, :density)
             counter += N
         else
-            z_ne = IMAS.calc_z(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal, :backward)[cp_gridpoints]
+            dne_dr = IMAS.gradient(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal; method=:backward)[cp_gridpoints]
         end
         for ion in cp1d.ion
             if evolve_densities[Symbol(ion.label)] == :zeff
                 IMAS.scale_ion_densities_to_target_zeff!(cp1d, old_zeff)
                 break
             elseif evolve_densities[Symbol(ion.label)] == :flux_match
-                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_profiles[counter+1:counter+N])
+                dni_dr = clamp_grad(gradients[counter+1:counter+N], ion.density_thermal[cp_gridpoints])
+                ion.density_thermal = IMAS.profile_from_grad(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, dni_dr)
                 IMAS.unfreeze!(ion, :density)
                 counter += N
             elseif evolve_densities[Symbol(ion.label)] == :match_ne_scale
-                ion.density_thermal = IMAS.profile_from_z_transport(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, z_ne)
+                # Match the electron inverse scale length: dni/dr = (ni/ne) * dne/dr
+                ni_over_ne = ion.density_thermal[cp_gridpoints[end]] / cp1d.electrons.density_thermal[cp_gridpoints[end]]
+                ion.density_thermal = IMAS.profile_from_grad(ion.density_thermal, cp1d.grid.rho_tor_norm, cp_rho_transport, ni_over_ne .* dne_dr)
                 IMAS.unfreeze!(ion, :density)
             end
         end
@@ -1343,19 +1326,6 @@ function cp1d_copy_primary_quantities!(to_cp1d::T, cp1d::T) where {T<:IMAS.core_
 end
 
 """
-    calculate_w0_norm(cp1d::IMAS.core_profiles__profiles_1d)
-
-Calculate TGYRO normalization frequency w0_norm = cs/R₀ where:
-
-    cs = sound speed at axis = √(kB*Te(0)/md)
-"""
-function calculate_w0_norm(Te_axis)
-    cs_axis = sqrt(IMAS.mks.k_B * Te_axis / IMAS.mks.m_d)  # sound speed at axis
-    R0 = 1.0 # 1 [m]
-    return cs_axis / R0
-end
-
-"""
     _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IMAS.dd)
 
 Replay profiles from replay_dd to current dd for channels set to :replay
@@ -1562,7 +1532,7 @@ function ad_flux_match_errors!(
     opt_parameters::AbstractVector,
     actor::ActorFluxMatcher{D,P},
     initial_cp1d::IMAS.core_profiles__profiles_1d;
-    z_scaled_history=nothing,
+    gradients_scale_history=nothing,
     err_history=nothing,
     prog=nothing) where {D<:Real,P<:Real}
 
@@ -1579,11 +1549,11 @@ function ad_flux_match_errors!(
     # now restore primary quantities from initial_cp1d to match flux_match_errors behavior
     cp1d_copy_primary_quantities_promote!(cp1d_ad, initial_cp1d, T)
 
-    # Unscale z-profiles
-    z_profiles = unscale_z_profiles(opt_parameters)
+    # Unscale gradients
+    gradients = unscale_gradients(opt_parameters; norm=actor.profile_norms)
 
-    # Unpack z-profiles into cp1d (writes Dual profiles)
-    unpack_z_profiles(cp1d_ad, par, z_profiles)
+    # Unpack gradients into cp1d (writes Dual profiles)
+    unpack_gradients(cp1d_ad, par, gradients)
 
     # Evaluate intrinsic sources (reads Dual cp1d + equilibrium, writes to dd_ad.core_sources)
     if par.evolve_plasma_sources
@@ -1683,7 +1653,7 @@ function ad_flux_match_errors!(
     # Compute errors (same logic as flux_match_errors)
     surface0 = cp1d_ad.grid.surface[cp_gridpoints] ./ cp1d_ad.grid.surface[end]
     nrho = length(par.rho_transport)
-    for (inorm, norm0) in enumerate(actor.norms)
+    for (inorm, norm0) in enumerate(actor.error_norms)
         index = (inorm - 1) * nrho + 1:inorm * nrho
         if isnan(norm0)
             # Norms should be set from the primal evaluation, but handle gracefully
@@ -1693,8 +1663,8 @@ function ad_flux_match_errors!(
     end
 
     # Log primal values for history/plotting (extract Float64 from Dual)
-    if z_scaled_history !== nothing
-        push!(z_scaled_history, ForwardDiff.value.(opt_parameters))
+    if gradients_scale_history !== nothing
+        push!(gradients_scale_history, ForwardDiff.value.(opt_parameters))
     end
     if err_history !== nothing
         push!(err_history, ForwardDiff.value.(F))
