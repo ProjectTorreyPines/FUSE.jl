@@ -177,8 +177,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # make intrinsic sources consistent to start
-    @show(evolve_densities)
-    IMAS.intrinsic_sources!(dd,bootstrap=false)
+    modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+
+    IMAS.intrinsic_sources!(dd;bootstrap=false,modify_electron_density=modify_electron_density)
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -207,7 +208,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     actor.profile_norms = ones(D, length(grad_init))
     for i in 1:N_channels
         block = (i-1)*N_radii+1:i*N_radii
-        channel_mean = sum(@view grad_init[block]) / N_radii
+        channel_mean = sum( abs.(@view grad_init[block])) / N_radii
         actor.profile_norms[block] .= abs(channel_mean) > 0 ? 1.0 / channel_mean : 1.0
     end
     grad_init_scaled = scale_gradients(grad_init, actor.profile_norms) # scale gradients to order-unity for NLsolve
@@ -335,7 +336,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
                 NonlinearSolve.SimpleTrustRegion(; autodiff)
 
             elseif algorithm == :simple_dfsane
-                NonlinearSolve.SimpleDFSane()
+                NonlinearSolve.SimpleDFSane(sigma_1=par.step_size)
 
             elseif algorithm === :basic_polyalg
                 broyden_alg = if jacobian_method === :forward_ad
@@ -529,7 +530,9 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.unfreeze!(cp1d, :t_i_average)
 
         # refresh intrinsic sources with relaxed profiles
-        IMAS.intrinsic_sources!(dd)
+        modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+
+        IMAS.intrinsic_sources!(dd;modify_electron_density=modify_electron_density)
 
         # Ensure quasi neutrality if densities are evolved
         # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
@@ -600,11 +603,11 @@ scale gradients to get smaller stepping in nlsolve.
 gradients map to order-unity values, since raw gradients (e.g. dTe/dr vs dne/dr)
 span very different magnitudes across channels.
 """
-function scale_gradients(gradients, norm=1.0)
+function scale_gradients(gradients, norm=1000.0)
     return gradients .* norm
 end
 
-function unscale_gradients(gradients_scaled; norm=1.0)
+function unscale_gradients(gradients_scaled; norm=1000.0)
     return gradients_scaled ./ norm
 end
 
@@ -659,7 +662,9 @@ function flux_match_errors(
     unpack_gradients(cp1d, par, gradients)
 
     # evaluate intrinsic sources (i.e., target fluxes)
-    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false)
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false,modify_electron_density=modify_electron_density)
 
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
@@ -879,7 +884,7 @@ function flux_match_simple(
         grad_init_scaled = @views opt_parameters[2:end]
     end
 
-    gradients_old = unscale_gradients(grad_init_scaled; norm=actor.profile_norms)
+    gradients_old = deepcopy(grad_init_scaled)
     targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d; gradients_scale_history, err_history, prog)
     ferror = norm(errors)
     xerror = Inf
@@ -893,13 +898,13 @@ function flux_match_simple(
             break
         end
 
-        gradients = gradients_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        gradients = gradients_old .- (step_size * 0.1 .*  (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^2))
         if ismissing(par, :scale_turbulence_law)
-            targets, fluxes, errors = flux_match_errors(actor, scale_gradients(gradients, actor.profile_norms), initial_cp1d; gradients_scale_history, err_history, prog)
+            targets, fluxes, errors = flux_match_errors(actor, gradients, initial_cp1d; gradients_scale_history, err_history, prog)
         else
             turbulence_scale += errors[1] * step_size
             targets, fluxes, errors =
-                flux_match_errors(actor, [turbulence_scale; scale_gradients(gradients, actor.profile_norms)], initial_cp1d; gradients_scale_history, err_history, prog)
+                flux_match_errors(actor, [turbulence_scale; gradients], initial_cp1d; gradients_scale_history, err_history, prog)
         end
         xerror = maximum(abs.(gradients .- gradients_old)) / step_size
         ferror = norm(errors)
@@ -909,6 +914,7 @@ function flux_match_simple(
     # `gradients_scale_history` already stores the full scaled vector (including the leading
     # `turbulence_scale` element when `scale_turbulence_law` is set)
     return (zero=gradients_scale_history[argmin(map(norm, err_history))],)
+    return (zero=gradients_scale_history[end],)
 end
 
 function progress_ActorFluxMatcher(dd::IMAS.dd, error::Real)
@@ -1556,8 +1562,10 @@ function ad_flux_match_errors!(
     unpack_gradients(cp1d_ad, par, gradients)
 
     # Evaluate intrinsic sources (reads Dual cp1d + equilibrium, writes to dd_ad.core_sources)
+    modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+
     if par.evolve_plasma_sources
-        IMAS.intrinsic_sources!(dd_ad; bootstrap=false)
+        IMAS.intrinsic_sources!(dd_ad; bootstrap=false,modify_electron_density=modify_electron_density)
     end
 
     # Build InputTGLF from dd_ad (Dual-typed)
