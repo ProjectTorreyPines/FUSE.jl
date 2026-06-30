@@ -11,7 +11,15 @@ import TurbulentTransport
     is_ep::Entry{Int} = Entry{Int}("-", "ion index of the energetic-particle (EP) driver species in dd.core_profiles.ion"; default=3)
     process_in::Entry{Int} = Entry{Int}("-", "TGLF-EP PROCESS_IN (4 or 5: critical-EP-density-gradient scan)"; default=5)
     solver::Switch{Symbol} =
-        Switch{Symbol}([:grid, :ad], "-", "critical-factor engine: :grid (Fortran-equivalent kwscale_scan sweep; SFmin matches Fortran) or :ad (autodiff AE-onset Newton + IFT (kyhat,width) descent; grid-independent so SFmin can differ from/be more accurate than :grid, and is much faster on GPU)"; default=:grid)
+        Switch{Symbol}([:grid, :ad, :robust_ad, :truth], "-", "critical-factor engine: :ad (default; fast autodiff AE-onset Newton + IFT (kyhat,width) descent, width-extended via extend_mode=:locate — tracks :robust_ad's accuracy closely at a fraction of the cost: the speed/accuracy sweet spot), :grid (Fortran-equivalent kwscale_scan sweep; SFmin matches Fortran — use for Fortran equivalence or QL-diffusivity coupling), :robust_ad (robust autodiff: global-min of the all-filter onset over the (kyhat,width) grid + refine_rounds of window narrowing; most accurate AD path), or :truth (extends width below WIDTH_MIN for the genuine narrow-width EP-driven AEs; NOT Fortran-faithful, returns the most-unstable physical threshold)"; default=:ad)
+    refine_rounds::Entry{Int} =
+        Entry{Int}("-", "accuracy/speed knob for solver=:robust_ad: rounds of (kyhat,width) window narrowing around the running best (0 = coarse-grid min; higher = better resolution of off-node binding points such as the plasma edge, at proportionally higher cost). Ignored by :grid and :ad."; default=1)
+    extend_mode::Switch{Symbol} =
+        Switch{Symbol}([:locate, :wide], "-", "solver=:ad width-extension strategy: :locate (dense log-grid + multistart descents + grid-floor guard; tracks :robust_ad closely) or :wide (fast single-pass log-seeded multistart, ~2x cheaper than :locate and conservative — always >= robust_ad, within ~1-2x; recommended for bulk NN-database generation). Ignored by :grid/:robust_ad/:truth."; default=:locate)
+    wide_kdesc::Entry{Int} =
+        Entry{Int}("-", "solver=:ad extend_mode=:wide multistart breadth (number of well-separated descents). Higher closes the residual over-prediction gap to :robust_ad at proportionally higher cost; 2 is the accuracy/cost sweet spot. Ignored unless solver=:ad and extend_mode=:wide."; default=2)
+    faithful_confirm::Entry{Bool} =
+        Entry{Bool}("-", "solver=:ad: confirm the located onset with the expensive all-filter (IFLUX=true) keep-onset (true, production: conservative and matches :robust_ad's filtering). false = cheap 'pure AD' AE-band onset only (faster but can dangerously under-predict; not recommended). Ignored by :grid/:robust_ad/:truth."; default=true)
     threshold_flag::Entry{Int} = Entry{Int}("-", "TGLF-EP THRESHOLD_FLAG"; default=0)
     scan_method::Entry{Int} = Entry{Int}("-", "TGLF-EP SCAN_METHOD"; default=1)
     n_basis::Entry{Int} = Entry{Int}("-", "TGLF-EP N_BASIS (number of Hermite basis functions)"; default=2)
@@ -112,18 +120,25 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
+    # ActorTJLFEP is a critical-EP-density-gradient -> EP-profile actor: it consumes SFmin
+    # and feeds ALPHA. Only PROCESS_IN 4/5 produce that. Other modes (e.g. 3 = diagnostic
+    # gamma/omega spectra) have no critical-gradient output and must use TJLFEP directly.
+    par.process_in in (4, 5) ||
+        error("ActorTJLFEP: process_in=$(par.process_in) is unsupported; only 4 or 5 (critical-EP-density-gradient scan) yield EP profiles. For the spectrum diagnostic (process_in=3) call TJLFEP directly (e.g. run_gacode_scan_task).")
+
     rho_scan = collect(Float64, par.rho_scan)
     OptionsDict = _optionsdict(par)
 
-    # The AD solver returns the critical factor/marking only (no per-mode QL buffers),
-    # so QL-diffusivity coupling is unavailable on that path.
-    if par.alpha_use_ql && par.alpha_solver == :stiff && par.solver == :ad
-        @warn "ActorTJLFEP: alpha_use_ql is not supported with solver=:ad (no QL buffers from the AD path); falling back to non-QL stiff-CGM."
+    # The AD solvers (:ad, :faithful_grid) return the critical factor/marking only (no
+    # per-mode QL buffers), so QL-diffusivity coupling is unavailable on those paths.
+    if par.alpha_use_ql && par.alpha_solver == :stiff && par.solver != :grid
+        @warn "ActorTJLFEP: alpha_use_ql is not supported with solver=$(par.solver) (no QL buffers from the AD path); falling back to non-QL stiff-CGM."
     end
     use_ql = par.alpha_use_ql && par.alpha_solver == :stiff && par.solver == :grid
     width, kymark_out, SFmin, dpdr_crit_out, dndr_crit_out, marginal_ql =
         TJLFEP.runTHD(dd, rho_scan, OptionsDict; use_gpu=par.use_gpu, ql_flux_scan=use_ql,
-            inner=par.inner, mps_team=par.mps_team, solver=par.solver)
+            inner=par.inner, mps_team=par.mps_team, solver=par.solver, refine_rounds=par.refine_rounds,
+            extend_mode=par.extend_mode, wide_kdesc=par.wide_kdesc, faithful_confirm=par.faithful_confirm)
 
     actor.rho_grid = D.(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
     actor.SFmin = D.(SFmin)
