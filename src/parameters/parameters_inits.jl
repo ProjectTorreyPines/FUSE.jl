@@ -170,6 +170,13 @@ Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInit{
         "Vector of geometric dimensions describing the pellet size for a given shape (spherical: [r], cylindrical: [d, l], rectangular: [x,y,z])";
         check=x -> @assert all(x .> 0.0) "All pellet shape dimensions must be > 0.0"
     )
+    velocity_initial::Entry{T} = Entry{T}("m/s", "Initial pellet velocity (used by ActorPAM)"; default=200.0, check=x -> @assert x > 0.0 "must be: velocity_initial > 0.0")
+    injection_angle::Entry{T} = Entry{T}(
+        "rad",
+        "Poloidal angle of the pellet injection location (0 = outboard midplane, increasing counter-clockwise); aimed at the magnetic axis (used by ActorPAM)";
+        default=0.0,
+        check=x -> @assert 0.0 <= x <= 2π "must be: 0 <= injection_angle <= 2π"
+    )
 end
 
 Base.@kwdef mutable struct FUSEparameters__ods{T} <: ParametersInit{T}
@@ -241,6 +248,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     log10_flattop_duration::Entry{T} =
         Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio; check=x -> @assert x >= 0.0 "must be: tritium_breeding_ratio >= 0.0")
+    peak_escape_flux::Entry{T} = Entry{T}(IMAS.requirements, :peak_escape_flux; check=x -> @assert x >= 0.0 "must be: peak_escape_flux >= 0.0")
     cost::Entry{T} = Entry{T}(IMAS.requirements, :cost; check=x -> @assert x >= 0.0 "must be: cost >= 0.0")
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking; check=x -> @assert x >= 0.0 "must be: ne_peaking >= 0.0")
     q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp; check=x -> @assert x >= 0.0 "must be: q_pol_omp >= 0.0")

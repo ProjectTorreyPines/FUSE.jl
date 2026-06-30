@@ -514,21 +514,48 @@ function blanket_regions!(bd::IMAS.build, eqt::IMAS.equilibrium__time_slice)
         ring_poly = LibGEOS.difference(ring_poly, structure_poly)
     end
 
+    # Sever the blanket at magnetic axis so HFS and LFS are optimized in blanket actor
+    ZA = eqt.global_quantities.magnetic_axis.z
+    rmin, rmax = extrema(layer.outline.r)
+    zmin, zmax = extrema(layer.outline.z)
+    dr = rmax - rmin
+    dz = zmax - zmin
+    divertor_zc = [sum(s.outline.z) / length(s.outline.z) for s in bd.structure if s.type == Int(_divertor_)]
+    if !any(>(ZA), divertor_zc) # no upper divertor: sever over the top
+        slot = xy_polygon(rectangle_shape(RA - 0.005 * dr, RA + 0.005 * dr, ZA, zmax + dz)...)
+        ring_poly = LibGEOS.difference(ring_poly, slot)
+    end
+    if !any(<(ZA), divertor_zc) # no lower divertor: sever under the bottom
+        slot = xy_polygon(rectangle_shape(RA - 0.005 * dr, RA + 0.005 * dr, zmin - dz, ZA)...)
+        ring_poly = LibGEOS.difference(ring_poly, slot)
+    end
+
     geometries = LibGEOS.getGeometries(ring_poly)
-    for poly in geometries
+
+    # The boolean subtraction of the divertor polygons from the blanket ring can leave
+    # behind spurious slivers (especially for compact double-null geometries). Drop any
+    # fragment that is negligible compared to the total blanket area
+    areas = [LibGEOS.area(poly) for poly in geometries]
+    total_area = sum(areas)
+    geometries = [poly for (poly, area) in zip(geometries, areas) if area > 0.01 * total_area]
+
+    # classify each fragment as HFS/LFS by the side of the magnetic axis its centroid falls on
+    sides = [sum(v[1] for v in GeoInterface.coordinates(poly)[1]) / length(GeoInterface.coordinates(poly)[1]) > RA ? "LFS" : "HFS" for poly in geometries]
+    n_hfs = count(==("HFS"), sides)
+    n_lfs = count(==("LFS"), sides)
+    counters = Dict("HFS" => 0, "LFS" => 0)
+
+    for (poly, side) in zip(geometries, sides)
         coords = GeoInterface.coordinates(poly)
         pr = [v[1] for v in coords[1]]
         pz = [v[2] for v in coords[1]]
 
-        # assign to build structure
-        if length(geometries) == 2
-            if sum(pr) / length(pr) > RA
-                name = "LFS blanket"
-            else
-                name = "HFS blanket"
-            end
+        # unique names so multiple segments on a side don't overwrite each other
+        if (side == "HFS" ? n_hfs : n_lfs) == 1
+            name = "$side blanket"
         else
-            name = "blanket"
+            counters[side] += 1
+            name = "$side blanket $(counters[side])"
         end
 
         structure = resize!(bd.structure, "type" => Int(_blanket_), "name" => name)
@@ -638,8 +665,6 @@ function build_cx!(bd::IMAS.build{T}, wall::IMAS.wall{T}, pfa::IMAS.pf_active{T}
 
     plasma_to_tf = reverse(IMAS.get_build_indexes(bd.layer; fs=IMAS._hfs_))
     pushfirst!(plasma_to_tf, plasma_to_tf[1] + 1) # this is the plasma
-    # @show plasma_to_tf
-    # plot(bd.layer[plasma_to_tf[1]])
 
     vertical_clearance = 1.0
     kl = 2
