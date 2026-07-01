@@ -9,13 +9,13 @@ import TurbulentTransport
     rho_scan::Entry{AbstractVector{T}} =
         Entry{AbstractVector{T}}("-", "rho_tor_norm radii at which TGLF-EP finds the critical EP-density scale SFmin"; default=[0.01, 0.21, 0.41, 0.61, 0.81, 0.95])
     is_ep::Entry{Int} = Entry{Int}("-", "ion index of the energetic-particle (EP) driver species in dd.core_profiles.ion"; default=3)
-    process_in::Entry{Int} = Entry{Int}("-", "TGLF-EP PROCESS_IN (4 or 5: critical-EP-density-gradient scan)"; default=5)
+    process_in::Entry{Int} = Entry{Int}("-", "TGLF-EP PROCESS_IN (critical-EP-density-gradient scan): 5 = EP drive only, 6 = thermal+EP gradients on / ITG-TEM basis (grid solver only)"; default=5)
     solver::Switch{Symbol} =
         Switch{Symbol}([:grid, :ad, :robust_ad, :truth], "-", "critical-factor engine: :ad (default; fast autodiff AE-onset Newton + IFT (kyhat,width) descent, width-extended via extend_mode=:locate — tracks :robust_ad's accuracy closely at a fraction of the cost: the speed/accuracy sweet spot), :grid (Fortran-equivalent kwscale_scan sweep; SFmin matches Fortran — use for Fortran equivalence or QL-diffusivity coupling), :robust_ad (robust autodiff: global-min of the all-filter onset over the (kyhat,width) grid + refine_rounds of window narrowing; most accurate AD path), or :truth (extends width below WIDTH_MIN for the genuine narrow-width EP-driven AEs; NOT Fortran-faithful, returns the most-unstable physical threshold)"; default=:ad)
     refine_rounds::Entry{Int} =
         Entry{Int}("-", "accuracy/speed knob for solver=:robust_ad: rounds of (kyhat,width) window narrowing around the running best (0 = coarse-grid min; higher = better resolution of off-node binding points such as the plasma edge, at proportionally higher cost). Ignored by :grid and :ad."; default=1)
     extend_mode::Switch{Symbol} =
-        Switch{Symbol}([:locate, :wide], "-", "solver=:ad width-extension strategy: :locate (dense log-grid + multistart descents + grid-floor guard; tracks :robust_ad closely) or :wide (fast single-pass log-seeded multistart, ~2x cheaper than :locate and conservative — always >= robust_ad, within ~1-2x; recommended for bulk NN-database generation). Ignored by :grid/:robust_ad/:truth."; default=:locate)
+        Switch{Symbol}([:locate, :wide, :only], "-", "solver=:ad width-extension strategy, best understood as two faithful/approximate pairs (speedups are node-hours vs the Fortran CPU reference at N_BASIS=32). The :only mode stays in Fortran's w>=1 box: together with solver=:grid (the faithful Fortran-equivalent, ~13x faster) it forms the match-Fortran pair, where :only is faster than :grid but only an approximation thereof (~20x faster). :locate and :wide instead extend Fortran to the lower-width (w<1) EP-driven AE modes in the outer core: :locate (default) is the faithful extension (4.7x faster) and :wide is the faster approximation thereof (9x faster). Ignored by :grid/:robust_ad/:truth."; default=:locate)
     wide_kdesc::Entry{Int} =
         Entry{Int}("-", "solver=:ad extend_mode=:wide multistart breadth (number of well-separated descents). Higher closes the residual over-prediction gap to :robust_ad at proportionally higher cost; 2 is the accuracy/cost sweet spot. Ignored unless solver=:ad and extend_mode=:wide."; default=2)
     faithful_confirm::Entry{Bool} =
@@ -121,10 +121,18 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     # ActorTJLFEP is a critical-EP-density-gradient -> EP-profile actor: it consumes SFmin
-    # and feeds ALPHA. Only PROCESS_IN 4/5 produce that. Other modes (e.g. 3 = diagnostic
-    # gamma/omega spectra) have no critical-gradient output and must use TJLFEP directly.
-    par.process_in in (4, 5) ||
-        error("ActorTJLFEP: process_in=$(par.process_in) is unsupported; only 4 or 5 (critical-EP-density-gradient scan) yield EP profiles. For the spectrum diagnostic (process_in=3) call TJLFEP directly (e.g. run_gacode_scan_task).")
+    # and feeds ALPHA. Only the threshold-scan modes 5 (EP drive only) and 6 (thermal+EP
+    # gradients on / ITG-TEM basis) produce that; both run mainsub's kwscale_scan and yield
+    # SFmin. Other Fortran modes (e.g. 3 = diagnostic gamma/omega spectra) have no
+    # critical-gradient output and must use TJLFEP directly; mode 4 (the older per-toroidal-n
+    # TGLFEP_scalefactor scan) is not ported (mainsub throws), so it is rejected here too.
+    par.process_in in (5, 6) ||
+        error("ActorTJLFEP: process_in=$(par.process_in) is unsupported; only 5 (EP drive only) or 6 (thermal+EP / ITG-TEM) critical-EP-density-gradient scans yield EP profiles. Mode 4 (per-n TGLFEP_scalefactor) is not ported. For the spectrum diagnostic (process_in=3) call TJLFEP directly (e.g. run_gacode_scan_task).")
+    # Mode 6 (MODE_IN=4) is only faithful through the grid scan; the AD engines model the
+    # EP-drive-only (mode-5) onset. Fail fast with guidance instead of surfacing mainsub's
+    # error from inside the per-radius pmap.
+    (par.process_in == 6 && par.solver != :grid) &&
+        error("ActorTJLFEP: process_in=6 (thermal+EP / ITG-TEM threshold) requires solver=:grid; got solver=$(par.solver). Set solver=:grid, or use process_in=5 with the AD solvers.")
 
     rho_scan = collect(Float64, par.rho_scan)
     OptionsDict = _optionsdict(par)
