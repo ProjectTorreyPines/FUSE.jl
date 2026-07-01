@@ -161,7 +161,7 @@ end
     _step(actor::ActorFluxMatcher)
 
 ActorFluxMatcher step
-"""
+""" flux_match_errors
 function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
@@ -174,15 +174,30 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.actor_replay))
     end
 
+    # snapshot before intrinsic_sources! and merge block — captures true thermal density for "before" plot and relaxation
+    cp1d_before = cp1d_copy_primary_quantities(cp1d)
+
     # make intrinsic sources consistent to start
     IMAS.intrinsic_sources!(dd)
+    # merge fast density into thermal for flux-matched ions so optimizer
+    # starts from smooth total-density profile instead of hollow density_thermal
+    if par.evolve_plasma_sources
+        for ion in cp1d.ion
+            if !ismissing(ion, :density_fast) && get(evolve_densities, Symbol(ion.label), :fixed) == :flux_match
+                ion.density_thermal .+= ion.density_fast
+                ion.density_fast .= 0.0
+                IMAS.unfreeze!(ion, :density)
+            end
+        end
+    end
+
+    # snapshot after merge block — used as flux matcher baseline (reset on each solver iteration)
+    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
     IMAS.refreeze!(cp1d, :j_ohmic)
     IMAS.freeze!(cp1d, :rotation_frequency_tor_sonic)
-
-    initial_cp1d = cp1d_copy_primary_quantities(cp1d)
 
     if !isinf(par.Δt)
         # "∂/∂t" is to account to changes in the profiles that
@@ -411,6 +426,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
     dd.transport_solver_numerics.ids_properties.name = "FluxMatcher"
     ProgressMeter.finish!(prog; showvalues=progress_ActorFluxMatcher(dd, norm(out.errors)))
+    par.evolve_plasma_sources && IMAS.fast_particles_profiles!(dd)
 
     # plotting of the channels that have been evolved
     if par.do_plot
@@ -483,7 +499,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             plot!(IMAS.goto(total_flux1d, fluxes_path), Val(:flux); subplot=2 * ch - 1, color=:red, label="total transport", linewidth=2)
 
             title = profiles_title(cp1d, profiles_path)
-            plot!(IMAS.goto(initial_cp1d, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="before", linestyle=:dash, color=:black)
+            plot!(IMAS.goto(cp1d_before, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="before", linestyle=:dash, color=:black)
             plot!(IMAS.goto(cp1d, profiles_path[1:end-1]), profiles_path[end]; subplot=2 * ch, label="after", title)
             if profiles_path[end] != :momentum_tor
                 plot!(; subplot=2 * ch, ylim=[0, Inf])
@@ -500,7 +516,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         for profiles_path in profiles_paths
             field = profiles_path[end]
             ids1 = IMAS.goto(cp1d, profiles_path[1:end-1])
-            ids2 = IMAS.goto(initial_cp1d, profiles_path[1:end-1])
+            ids2 = IMAS.goto(cp1d_before, profiles_path[1:end-1])
             if !ismissing(ids1, field) && !ismissing(ids2, field)
                 value1 = getproperty(ids1, field)
                 value2 = getproperty(ids2, field)
@@ -642,7 +658,7 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate intrinsic sources (i.e., target fluxes)
-    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false)
+    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false, fast_ion_densities=false)
 
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
@@ -992,7 +1008,7 @@ function pack_z_profiles(cp1d::IMAS.core_profiles__profiles_1d{D}, par::Override
             if evolve_densities[Symbol(ion.label)] == :flux_match
                 z_ni = IMAS.calc_z(cp1d.grid.rho_tor_norm, ion.density_thermal, :backward)[cp_gridpoints]
                 append!(z_profiles, z_ni)
-                push!(profiles_paths, (:ion, k, :density_thermal))
+                push!(profiles_paths, (:ion, k, :density))
                 push!(fluxes_paths, [:ion, k, :particles])
             end
         end
