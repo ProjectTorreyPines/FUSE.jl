@@ -29,7 +29,8 @@ See [On NERSC (Perlmutter)](@ref nersc-install) for depot layout, `fusebot`, and
 FUSE and related packages are registered at the [FuseRegistry](https://github.com/ProjectTorreyPines/FuseRegistry.jl/).
 Start Julia (`julia` at the terminal), then:
 
-1. Add the `FuseRegistry` and the `FUSE` package (a fresh install can take 5+ minutes):
+1. Add the `FuseRegistry` and the `FUSE` package (a fresh install typically takes **15–30 minutes** to
+   download and precompile dependencies):
 
    ```julia
    using Pkg
@@ -45,12 +46,16 @@ Start Julia (`julia` at the terminal), then:
    ```
 
    !!! note "First import is slow"
-       The first `using FUSE` (and your first simulation run) triggers precompilation that can take
-       several minutes. This is normal and happens only once per Julia/FUSE version, not on every startup.
+       `Pkg.add("FUSE")` already precompiles most dependencies. The first `using FUSE` and your first
+       `FUSE.init(...)` smoke test can still take **5–15 minutes** extra while remaining packages and
+       actor code compile. This is normal and happens only once per Julia/FUSE version, not on every
+       startup.
 
 1. Install the `fusebot` helper (optional but recommended). `fusebot` is a small command-line tool
    bundled with FUSE; its main job is to install the Julia Jupyter kernels (`fusebot install_IJulia`),
-   plus a few related utilities. Install directory is picked by `install_fusebot()` automatically - the juliaup `bin` directory on a laptop, or `~/.local/bin` under `module load julia` on HPC:
+   plus a few related utilities. Run `fusebot --help` for the list of user commands. Install directory
+   is picked by `install_fusebot()` automatically - the juliaup `bin` directory on a laptop, or
+   `~/.local/bin` under `module load julia` on HPC:
 
    ```julia
    FUSE.install_fusebot()                                  # auto: juliaup bin, or ~/.local/bin on HPC
