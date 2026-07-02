@@ -92,8 +92,13 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     if pull_gslite_min
         omas_command *= " --PULL_GSLITE_MIN"
+        omfit_block = """
+        """
+    else
+        omfit_block = """
+    python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null    
+        """
     end
-
     if omfit_host == "localhost"
         setup_block = """#!/bin/bash -l
         module purge
@@ -101,9 +106,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         cd $local_path
         export PYTHONPATH=$(omas_root):\$PYTHONPATH
         """
-        omfit_block = """
-        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null
-        """
+
         # Substitute OUTPUT_FILE placeholder with actual path for localhost
         omas_block = replace(omas_command, "OUTPUT_FILE" => "$local_path/$filename")
         omfit_sh = joinpath(local_path, "omfit.sh")
@@ -142,7 +145,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
             export PYTHONPATH=$(omas_root):\$PYTHONPATH
 
-            python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+            $(omfit_block)
 
             $(replace(omas_command, "OUTPUT_FILE" => "$remote_path/$(filename)"))
 
@@ -165,7 +168,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
             $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
 
             # Retrieve results using rsync
-            $(downsync_command(omfit_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
+            $(downsync_command(omfit_host, pull_gslite_min ? ["$remote_path/$(filename)"] : ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
         """
 
         open(joinpath(local_path, "local_driver.sh"), "w") do io
@@ -182,29 +185,57 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
     # load experimental ods
-    ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
+    if pull_gslite_min
+        # gslite-min pull: nbi geometry comes from DIII-D templates (no nbi_ods file)
+        ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename))"
+    else
+        ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
+    end
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
     # simulation starts when both equilibrium and profiles are available
-    ini.time.simulation_start = max(ini.general.dd.equilibrium.time_slice[2].time, ini.general.dd.core_profiles.profiles_1d[2].time)
     t_eq = length(ini.general.dd.equilibrium.time_slice) >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : -Inf
     t_cp = length(ini.general.dd.core_profiles.profiles_1d) >= 2 ? ini.general.dd.core_profiles.profiles_1d[2].time : -Inf
     ini.time.simulation_start = max(t_eq, t_cp)
 
     # sanitize dd
     for nbu in dd1.nbi.unit
-        nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
-        nbu.beam_power_fraction.time = [0.0]
+        # gslite-min pull provides beam power but not the energy-species power fractions
+        if IMAS.hasdata(nbu.beam_power_fraction, :data)
+            nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
+            nbu.beam_power_fraction.time = [0.0]
+        end
+    end
+
+    if pull_gslite_min
+        # gslite-min pull only provides beam power (no geometry); fill each source's
+        # beamlets_group from a DIII-D template selected by its beamline (name like "30L",
+        # "150R", "210L", "330R"). NOTE: verify this co/counter/off-axis mapping for your shot.
+        for nbu in dd1.nbi.unit
+            if isempty(nbu.beamlets_group)
+                add_beam_examples!(nbu, d3d_beam_template(nbu.name))
+            end
+        end
+
+        # raw actuator signals can dip slightly negative (baseline noise when a source is off);
+        # clamp to zero so the power_launched >= 0 checks in set_ini_act_from_ods! don't trip
+        for launcher in dd1.ec_launchers.beam
+            IMAS.hasdata(launcher.power_launched, :data) && (launcher.power_launched.data = max.(launcher.power_launched.data, 0.0))
+        end
+        for unit in dd1.nbi.unit
+            IMAS.hasdata(unit.power_launched, :data) && (unit.power_launched.data = max.(unit.power_launched.data, 0.0))
+        end
     end
 
     # set time basis
-    tt = dd1.equilibrium.time
-    ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
+    if ~pull_gslite_min
+        tt = dd1.equilibrium.time
+        ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
 
-    # add flux_surfaces information to experimental dd
-    IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
-
+        # add flux_surfaces information to experimental dd
+        IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
+    end
     # profile fitting starting from diagnostic measurements
     if fit_profiles
         n_cer = count(ch -> !isempty(ch.ion) && IMAS.hasdata(ch.ion[1].t_i, :data), dd1.charge_exchange.channel)
@@ -272,6 +303,25 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
 
     return ini, act
+end
+
+"""
+    d3d_beam_template(name::AbstractString)
+
+Map a DIII-D neutral-beam source name to a geometry template used by `add_beam_examples!`.
+The OMAS export truncates the beamline angle to two digits, so names look like "30L", "15R",
+"21L", "33R" (150/210/330 → 15/21/33); full three-digit names are also handled. The 150
+beamline is steerable/off-axis, the 210 beamline injects counter to the plasma current, and
+the 30/330 beamlines inject co-current.
+"""
+function d3d_beam_template(name::AbstractString)
+    if occursin("15", name)     # 150 beamline (steerable / off-axis)
+        return :d3d_offaxis
+    elseif occursin("21", name) # 210 beamline (counter-Ip)
+        return :d3d_counter
+    else                        # 30 and 330 beamlines (co-Ip)
+        return :d3d_co
+    end
 end
 
 """
