@@ -229,7 +229,7 @@ function init_core_profiles!(
 
     # rotation
     if plasma_mode == :H_mode
-        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
+        cp1d.rotation_frequency_tor_sonic = IMAS.Hmode_profiles(0.0, rot_core / 8.0 , rot_core, length(cp1d.grid.rho_tor_norm), 2*Te_shaping, 2*Te_shaping, w_ped)
     else
         cp1d.rotation_frequency_tor_sonic = IMAS.Lmode_profiles(0.0, rot_core / ne_core_to_ped_ratio, rot_core, length(cp1d.grid.rho_tor_norm), Te_shaping, 1.0, w_ped)
     end

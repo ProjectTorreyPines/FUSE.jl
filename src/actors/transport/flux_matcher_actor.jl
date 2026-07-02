@@ -175,7 +175,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # make intrinsic sources consistent to start
-    IMAS.intrinsic_sources!(dd)
+    modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+    IMAS.intrinsic_sources!(dd; modify_electron_density)
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -516,7 +517,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.unfreeze!(cp1d, :t_i_average)
 
         # refresh intrinsic sources with relaxed profiles
-        IMAS.intrinsic_sources!(dd)
+        IMAS.intrinsic_sources!(dd; modify_electron_density)
 
         # Ensure quasi neutrality if densities are evolved
         # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
@@ -642,7 +643,9 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate intrinsic sources (i.e., target fluxes)
-    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false)
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false, modify_electron_density)
 
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
@@ -863,6 +866,18 @@ function flux_match_simple(
     end
 
     zprofiles_old = unscale_z_profiles(z_init_scaled)
+
+    N_radii = length(par.rho_transport)
+    N_channels = length(zprofiles_old) ÷ N_radii
+    zweight = similar(zprofiles_old)
+    
+    for ch in 1:N_channels
+        block = (ch-1)*N_radii+1:ch*N_radii
+        channel_mean = sum(abs, @view zprofiles_old[block]) / N_radii
+        floor_val = channel_mean > 0 ? channel_mean : one(eltype(zweight))
+        zweight[block] .= max.(abs.(@view zprofiles_old[block]), floor_val)
+    end
+    
     targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d; z_scaled_history, err_history, prog)
     ferror = norm(errors)
     xerror = Inf
@@ -876,7 +891,8 @@ function flux_match_simple(
             break
         end
 
-        zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        # Additive step on z, weighted by the fixed per-element scale (see zweight above).
+        zprofiles = zprofiles_old .- step_size * 0.1 .* zweight .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 .+ targets .^ 2)
         if ismissing(par, :scale_turbulence_law)
             targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         else
@@ -1586,8 +1602,11 @@ function ad_flux_match_errors!(
     unpack_z_profiles(cp1d_ad, par, z_profiles)
 
     # Evaluate intrinsic sources (reads Dual cp1d + equilibrium, writes to dd_ad.core_sources)
+    # match the primal flux_match_errors source treatment so the AD Jacobian stays consistent
     if par.evolve_plasma_sources
-        IMAS.intrinsic_sources!(dd_ad; bootstrap=false)
+        evolve_densities = evolve_densities_dictionary(cp1d_ad, par)
+        modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+        IMAS.intrinsic_sources!(dd_ad; bootstrap=false, modify_electron_density)
     end
 
     # Build InputTGLF from dd_ad (Dual-typed)

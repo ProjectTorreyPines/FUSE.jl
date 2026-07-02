@@ -234,7 +234,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         ini.core_profiles.zeff = 2.0
         ini.core_profiles.bulk = :D
         ini.core_profiles.impurity = :C
-        ini.core_profiles.rot_core = 5E3
+        ini.core_profiles.rot_core = 30E3
     end
 
     # add rotation information if missing
@@ -362,7 +362,7 @@ function case_parameters(::Val{:D3D}, scenario::Symbol)
         ini.core_profiles.zeff = 2.0
         ini.core_profiles.bulk = :D
         ini.core_profiles.impurity = :C
-        ini.core_profiles.rot_core = 5E3
+        ini.core_profiles.rot_core = 60E3
     end
 
     return ini, act
@@ -412,7 +412,7 @@ function case_parameters(::Val{:D3D_machine})
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
 
-    ini.core_profiles.rot_core = 5E3
+    ini.core_profiles.rot_core = 30E3
 
     #### ACT ####
 
