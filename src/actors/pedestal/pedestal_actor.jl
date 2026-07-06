@@ -31,6 +31,10 @@
     zeff_ratio_L_over_H::Entry{T} = Entry{T}("-", "zeff_Lmode / zeff_Hmode")
     #== nn_predictor FPE source ==#
     fpe_source::Switch{Symbol} = Switch{Symbol}([:zmq, :dd], "-", "Source of FPE actuator inputs for nn_predictor: `:zmq` (from ActorZMQ via dd._aux) or `:dd` (directly from dd fields, no ZMQ required)"; default=:zmq)
+    nn_ped_quantities::Switch{Symbol} = Switch{Symbol}(
+        [:ne_lh, :all], "-",
+        "NN predictor outputs to apply: `:ne_lh` (ne_ped and L/H classification only, Te/Ti from EPED/WPED) or `:all` (ne_ped, te_ped, ti_ped, and rotation from NN)";
+        default=:ne_lh)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -161,7 +165,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
     elseif par.ne_from == :nn_predictor && actor.nn_prediction !== nothing
-        nn_mode = actor.nn_prediction.is_h_mode ? :H_mode : :L_mode
+        nn_mode = actor.nn_prediction.hmode_prob >= 0.4f0 ? :H_mode : :L_mode
         # Persist raw NN predictions in dd._aux so history survives actor recreation
         if !haskey(dd._aux, :nn_mode_history)
             dd._aux[:nn_mode_history] = Symbol[]
@@ -564,7 +568,8 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=20
             ch_name = get(coil_name_map, coil.name, nothing)
             ch_name === nothing && continue
             if !ismissing(coil.current, :data) && !isempty(coil.current.data)
-                v = IMAS.interp1d(coil.current.time, coil.current.data, :linear)(t_now)
+                turns = isempty(coil.element) ? 1.0 : coil.element[1].turns_with_sign
+                v = IMAS.interp1d(coil.current.time, coil.current.data, :linear)(t_now) / turns
                 _set_channel!(ch_name, v)
             end
         end
@@ -654,6 +659,19 @@ function pedestal_nn_apply!(actor::ActorPedestal)
     par = actor.par
     nn = actor.nn_prediction
     (par.ne_from == :nn_predictor && nn !== nothing) || return actor
+
+    # NN regression bundles (te_ped, ti_ped) are trained on H-mode data only.
+    # Applying their outputs during L-mode creates an artificial steep pedestal.
+    # Skip te/ti overwrite when in L-mode — WPED already gives the correct flat profile.
+    is_h_mode = !isempty(actor.state) && actor.state[end] == :H_mode
+    if !is_h_mode
+        return actor
+    end
+
+    # When :ne_lh, Te/Ti/rotation come from EPED/WPED; NN used only for ne_ped and L/H.
+    if par.nn_ped_quantities == :ne_lh
+        return actor
+    end
 
     cp1d = actor.dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm

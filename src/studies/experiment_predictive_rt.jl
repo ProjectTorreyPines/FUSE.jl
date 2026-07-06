@@ -153,6 +153,7 @@ function run_predictive_rt_case!(
     act.ActorZMQ.enabled = false # true
     act.ActorPedestal.fpe_source = :dd #:zmq # dd
     act.ActorPedestal.ne_from = :nn_predictor  #:pulse_schedule 
+    act.ActorPedestal.nn_ped_quantities = :ne_lh # :ne_lh (ne_ped + L/H only, Te/Ti from EPED/WPED) or :all (also apply NN te_ped, ti_ped, rotation)
 
     # density and Zeff from experiment
     act.ActorPedestal.density_ratio_L_over_H = 1.0
