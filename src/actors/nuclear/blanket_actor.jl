@@ -14,10 +14,10 @@ import NNeutronics
 end
 
 mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorBlanket{P}}
     act::ParametersAllActors{P}
-    function ActorBlanket(dd::IMAS.dd{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
+    function ActorBlanket(dd::IMAS.DD{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorBlanket)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -25,7 +25,7 @@ mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorBlanket(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates blanket performance including tritium breeding ratio (TBR), thermal power
 generation, and neutron leakage using 1D neutronics models. The actor optimizes
@@ -46,7 +46,7 @@ geometric and material configurations.
 
     Stores data in `dd.blanket`
 """
-function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorBlanket(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorBlanket(dd, act.ActorBlanket, act; kw...)
     step(actor)
     finalize(actor)
@@ -183,7 +183,7 @@ function _step(actor::ActorBlanket)
         blanket_model::NNeutronics.Blanket,
         modules_relative_thickness13::Vector{<:Real},
         Li6::Real,
-        dd::IMAS.dd,
+        dd::IMAS.DD,
         modules_effective_thickness::Vector{Matrix{Float64}},
         modules_wall_loading_power::Vector{<:Any},
         total_power_neutrons::Real,

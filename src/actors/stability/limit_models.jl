@@ -3,7 +3,7 @@ const default_limit_models = Symbol[]
 
 ##### VERTICAL STABILITY #####
 
-function vertical_stability(dd::IMAS.dd, act::ParametersAllActors)
+function vertical_stability(dd::IMAS.DD, act::ParametersAllActors)
     ActorVerticalStability(dd, act)
     mhd = dd.mhd_linear.time_slice[]
 
@@ -38,7 +38,7 @@ push!(default_limit_models, :vertical_stability)
 
 ##### BETA LIMIT MODELS #####
 
-function beta_troyon_nn(dd::IMAS.dd, act::ParametersAllActors)
+function beta_troyon_nn(dd::IMAS.DD, act::ParametersAllActors)
     ActorTroyonBetaNN(dd, act)
     mhd = dd.mhd_linear.time_slice[]
     for n in 1:3
@@ -61,7 +61,7 @@ push!(supported_limit_models, :beta_troyon_nn)
 push!(default_limit_models, :beta_troyon_nn)
 
 """
-    beta_troyon_1984(dd::IMAS.dd, act::ParametersAllActors)
+    beta_troyon_1984(dd::IMAS.DD, act::ParametersAllActors)
 
 Limit in normalized beta using Troyon scaling
 
@@ -69,7 +69,7 @@ Model formulation: `βn < 3.5`
 
 Citation:  F Troyon et al 1984 Plasma Phys. Control. Fusion 26 209
 """
-function beta_troyon_1984(dd::IMAS.dd, act::ParametersAllActors)
+function beta_troyon_1984(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "Troyon 1984")
     model.identifier.description = "βn < 3.5"
 
@@ -82,7 +82,7 @@ end
 push!(supported_limit_models, :beta_troyon_1984)
 
 """
-    beta_troyon_1985(dd::IMAS.dd, act::ParametersAllActors)
+    beta_troyon_1985(dd::IMAS.DD, act::ParametersAllActors)
 
 Limit in normalized beta using classical scaling using combined kink and ballooning stability
 
@@ -90,7 +90,7 @@ Model formulation: `βn < 2.8`
 
 Citation:
 """
-function beta_troyon_1985(dd::IMAS.dd, act::ParametersAllActors)
+function beta_troyon_1985(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "Troyon 1985")
     model.identifier.description = "βn < 2.8"
 
@@ -103,7 +103,7 @@ end
 push!(supported_limit_models, :beta_troyon_1985)
 
 """
-    beta_tuda_1985(dd::IMAS.dd, act::ParametersAllActors)
+    beta_tuda_1985(dd::IMAS.DD, act::ParametersAllActors)
 
 Limit in beta_normal using classical scaling using only kink stability
 
@@ -111,7 +111,7 @@ Model formulation: `βn < 3.2`
 
 Citation:
 """
-function beta_tuda_1985(dd::IMAS.dd, act::ParametersAllActors)
+function beta_tuda_1985(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "Tuda 1985")
     model.identifier.description = "βn < 3.2"
 
@@ -124,7 +124,7 @@ end
 push!(supported_limit_models, :beta_tuda_1985)
 
 """
-    beta_bernard1983(dd::IMAS.dd, act::ParametersAllActors)
+    beta_bernard1983(dd::IMAS.DD, act::ParametersAllActors)
 
 Limit in normalized beta using classical scaling using only ballooning stability
 
@@ -132,7 +132,7 @@ Model formulation: `βn < 2.8`
 
 Citation:
 """
-function beta_bernard_1983(dd::IMAS.dd, act::ParametersAllActors)
+function beta_bernard_1983(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "Bernard 1983")
     model.identifier.description = "βn < 2.8"
 
@@ -145,7 +145,7 @@ end
 push!(supported_limit_models, :beta_bernard_1983)
 
 """
-    beta_betali_a(dd::IMAS.dd, act::ParametersAllActors)
+    beta_betali_a(dd::IMAS.DD, act::ParametersAllActors)
 
 Modern limit in normlaized beta normalized by plasma inductance
 
@@ -153,7 +153,7 @@ Model formulation: `βn / li < C_{beta}`
 
 Citation:
 """
-function beta_betali_a(dd::IMAS.dd, act::ParametersAllActors)
+function beta_betali_a(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "BetaLi::Troyon")
     model.identifier.description = "βn / Li < 4.4"
 
@@ -171,7 +171,7 @@ push!(supported_limit_models, :beta_betali_a)
 ##### CURRENT LIMIT MODELS #####
 
 """
-    q95_gt_2(dd::IMAS.dd, act::ParametersAllActors)
+    q95_gt_2(dd::IMAS.DD, act::ParametersAllActors)
 
 Standard limit in edge current via the safety factor
 
@@ -179,7 +179,7 @@ Model formulation: `q95 > 2.0`
 
 Citation:
 """
-function q95_gt_2(dd::IMAS.dd, act::ParametersAllActors)
+function q95_gt_2(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "q95 > 2.0")
     model.identifier.description = "q(rho=0.95) > 2.0"
 
@@ -193,13 +193,13 @@ push!(supported_limit_models, :q95_gt_2)
 push!(default_limit_models, :q95_gt_2)
 
 """
-    q80_gt_2(dd::IMAS.dd, act::ParametersAllActors)
+    q80_gt_2(dd::IMAS.DD, act::ParametersAllActors)
 
 Limit in edge current via the safety factor `q(rho=0.8) > 2.0`
 
 Model formulation: `q(rho=0.8) > 2.0`
 """
-function q80_gt_2(dd::IMAS.dd, act::ParametersAllActors)
+function q80_gt_2(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "q80 > 2.0")
     model.identifier.description = "q(rho=0.8) > 2.0"
 
@@ -216,7 +216,7 @@ push!(supported_limit_models, :q80_gt_2)
 ##### DENSITY LIMIT MODELS #####
 
 """
-    gw_density(dd::IMAS.dd, act::ParametersAllActors)
+    gw_density(dd::IMAS.DD, act::ParametersAllActors)
 
 Standard limit in density using IMAS greenwald fraction
 
@@ -224,7 +224,7 @@ Model formulation: `f_{GW,IMAS} < 1.0`
 
 Citation:
 """
-function gw_density(dd::IMAS.dd, act::ParametersAllActors)
+function gw_density(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "greenwald_fraction < 1.0")
     model.identifier.description = "greenwald_fraction < 1.0"
 
@@ -241,7 +241,7 @@ push!(default_limit_models, :gw_density)
 
 ##### SHAPE LIMIT MODELS #####
 
-function κ_controllability(dd::IMAS.dd, act::ParametersAllActors)
+function κ_controllability(dd::IMAS.DD, act::ParametersAllActors)
     model = resize!(dd.limits.model, "identifier.name" => "κ < elongation_limit")
     model.identifier.description = "elongation < IMAS.elongation_limit"
 

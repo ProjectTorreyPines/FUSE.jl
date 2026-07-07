@@ -292,11 +292,11 @@ function case_parameters(::Val{:D3D}, ods_file::AbstractString)
 end
 
 """
-    case_parameters(::Val{:D3D}, dd::IMAS.dd)
+    case_parameters(::Val{:D3D}, dd::IMAS.DD)
 
 DIII-D from dd file
 """
-function case_parameters(::Val{:D3D}, dd::IMAS.dd)
+function case_parameters(::Val{:D3D}, dd::IMAS.DD)
     ini, act = case_parameters(Val(:D3D_machine))
 
     ini.general.casename = "D3D from dd"

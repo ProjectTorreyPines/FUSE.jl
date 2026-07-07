@@ -21,7 +21,7 @@ import TEQUILA
 end
 
 mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorTEQUILA{P}}
     act::ParametersAllActors{P}
     shot::Union{Nothing,TEQUILA.Shot}
@@ -31,7 +31,7 @@ mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorTEQUILA(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Solves tokamak MHD equilibria using the TEQUILA fixed-boundary equilibrium solver with MXH flux surface representation.
 
@@ -63,14 +63,14 @@ Grid options:
     `dd.pulse_schedule.position_control`, and PF coil setup from `dd.pf_active`. 
     Updates `dd.equilibrium` with solved equilibrium and coil currents.
 """
-function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTEQUILA(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTEQUILA(dd, act.ActorTEQUILA, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorTEQUILA(dd::IMAS.DD{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = OverrideParameters(par; kw...)
     return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])

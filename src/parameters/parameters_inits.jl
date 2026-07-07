@@ -515,7 +515,7 @@ function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
     return MXHboundary(ini, dd; kw...)
 end
 
-function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
+function MXHboundary(ini::ParametersAllInits, dd::IMAS.DD; kw...)::MXHboundary
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
         eqt = dd.equilibrium.time_slice[ini.time.simulation_start]

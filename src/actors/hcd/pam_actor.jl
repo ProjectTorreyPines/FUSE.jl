@@ -16,10 +16,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorPAM{T<:Real} <: ParametersActor{
 end
 
 mutable struct ActorPAM{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorPAM{P}}
     outputs::Union{Nothing,PAM.Pellet}
-    function ActorPAM(dd::IMAS.dd{D}, par::FUSEparameters__ActorPAM{P}; kw...) where {D<:Real,P<:Real}
+    function ActorPAM(dd::IMAS.DD{D}, par::FUSEparameters__ActorPAM{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPAM)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, nothing)
@@ -28,7 +28,7 @@ end
 
 
 """
-    ActorPAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPAM(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Estimates the Pellet particle direction, ablation rate, density source deposition
 
@@ -36,7 +36,7 @@ Estimates the Pellet particle direction, ablation rate, density source depositio
 
     Reads data in `pellet`, `pulse_schedule`, `equilibrium`, and stores data in `pellet`
 """
-function ActorPAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPAM(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPAM(dd, act.ActorPAM; kw...)
     step(actor)
     finalize(actor)

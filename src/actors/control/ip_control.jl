@@ -7,19 +7,19 @@
 end
 
 mutable struct ActorControllerIp{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorControllerIp{P}}
     controller::Union{Nothing,IMAS.controllers__linear_controller{<:D},IMAS.controllers__nonlinear_controller{<:D}}
 end
 
-function ActorControllerIp(dd::IMAS.dd{D}, par::FUSEparameters__ActorControllerIp{P}; kw...) where {D<:Real,P<:Real}
+function ActorControllerIp(dd::IMAS.DD{D}, par::FUSEparameters__ActorControllerIp{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorControllerIp)
     par = OverrideParameters(par; kw...)
     return ActorControllerIp{D,P}(dd, par, nothing)
 end
 
 """
-    ActorControllerIp(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorControllerIp(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Controls the loop voltage Vloop to obtain the target plasma cuurent Ip pulse_schedule
 
@@ -39,7 +39,7 @@ Algorithm names that have "PID" in their name will be considered linear and oper
             ...
         end
 """
-function ActorControllerIp(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorControllerIp(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorControllerIp(dd, act.ActorControllerIp; kw...)
     step(actor)
     finalize(actor)

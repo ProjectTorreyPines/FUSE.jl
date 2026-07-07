@@ -25,14 +25,14 @@ using DataFrames
 end
 
 mutable struct ActorCosting{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCosting{P}}
     act::ParametersAllActors{P}
     cst_actor::Union{ActorCostingSheffield{Measurement{Float64},P},ActorCostingARIES{Measurement{Float64},P}}
 end
 
 """
-    ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCosting(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Estimates the comprehensive cost of building, operating, and decommissioning a fusion power plant.
 
@@ -54,14 +54,14 @@ Key economic outputs include levelized cost of electricity (LCOE) and lifetime p
 
     Results are stored in `dd.costing` with detailed breakdown by system and subsystem
 """
-function ActorCosting(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCosting(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCosting(dd, act.ActorCosting, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCosting(dd::IMAS.dd, par::FUSEparameters__ActorCosting, act::ParametersAllActors; kw...)
+function ActorCosting(dd::IMAS.DD, par::FUSEparameters__ActorCosting, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCosting)
     par = OverrideParameters(par; kw...)
 

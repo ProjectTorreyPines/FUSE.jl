@@ -235,14 +235,14 @@ end
 
 
 mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorMars{P}}
     chease_inputs::Union{Nothing,CHEASE.CHEASEnamelist}
     mars_inputs::Union{Nothing,MARSnamelist}
     mars_outputs::Union{Nothing,MarsOutputs}
 
     function ActorMars(
-        dd::IMAS.dd{D}, 
+        dd::IMAS.DD{D}, 
         par::FUSEparameters__ActorMars{P}; 
         chease_overrides = NamedTuple(),
         mars_overrides = MarsOverrides(),
@@ -286,10 +286,10 @@ end
 
 
 """
-    ActorMars(dd::IMAS.dd, act::ParametersAllActors; kw...) 
+    ActorMars(dd::IMAS.DD, act::ParametersAllActors; kw...) 
 
 """
-function ActorMars(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorMars(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorMars(dd, act.ActorMars; kw...)
     step(actor)
     finalize(actor)
@@ -453,13 +453,13 @@ end
 
 
 """
-    chease_normalization(dd::IMAS.dd) -> (B0, R0)
+    chease_normalization(dd::IMAS.DD) -> (B0, R0)
 
 CHEASE/MARS normalization extracted from the equilibrium: `B0 = |B₀|` (vacuum toroidal
 field at `R0`) and `R0` (vacuum toroidal field reference major radius). Used for both clean
 and restart CHEASE runs so the equilibrium normalization is preserved across restarts.
 """
-function chease_normalization(dd::IMAS.dd)
+function chease_normalization(dd::IMAS.DD)
     time_slice = dd.equilibrium.time_slice[]
     B0 = abs(time_slice.global_quantities.vacuum_toroidal_field.b0)
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
@@ -467,7 +467,7 @@ function chease_normalization(dd::IMAS.dd)
 end
 
 
-function run_CHEASE(dd::IMAS.dd, par, chease_namelist)
+function run_CHEASE(dd::IMAS.DD, par, chease_namelist)
 
     chease_exec = par.chease_exec
     @assert chease_namelist !== nothing "CHEASE namelist not initialized"
@@ -542,7 +542,7 @@ No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
     return nothing
 end
 
-function run_MARS(dd::IMAS.dd, par, mars_namelist)
+function run_MARS(dd::IMAS.DD, par, mars_namelist)
 
     core_profiles = dd.core_profiles.profiles_1d[]
     
@@ -985,7 +985,7 @@ function parse_MARS_results(filename::AbstractString)
     return iter, growth, freq
 end
 
-function run_PARTICLE_TRACING(dd::IMAS.dd, par)
+function run_PARTICLE_TRACING(dd::IMAS.DD, par)
     # Placeholder function to run particle tracing simulations
     @info "Running particle tracing with tracer_type=$(par.tracer_type)."
 
@@ -999,7 +999,7 @@ end
         NWBPS: Number of wall boundary points
         NSTTP: Number of steps in pressure and current profiles
 """
-function write_EXPEQ_file(dd::IMAS.dd, par)
+function write_EXPEQ_file(dd::IMAS.DD, par)
 
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
