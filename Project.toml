@@ -85,7 +85,7 @@ ThermalSystemModels = "68b8b4ac-b179-4f07-8ae9-c1f1360acbca"
 Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [sources]
-IMAS = {rev = "feat/refine_fluxsurface", url = "https://github.com/ProjectTorreyPines/IMAS.jl.git"}
+IMAS = {rev = "refac/widen_to_DD", url = "https://github.com/ProjectTorreyPines/IMAS.jl.git"}
 
 [extensions]
 ThermalSystemModelsExt = "ThermalSystemModels"
