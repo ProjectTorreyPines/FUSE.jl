@@ -325,10 +325,7 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                 end
                 # make beam energy constant
                 ini.nb_unit[k].beam_energy = maximum(unit.energy.data)
-                # normalized_tangency_radius/offaxis only feed init_nb! when a unit has no
-                # geometry; normalize against the edge geometric major radius. Prefer the
-                # flux-surface r_inboard/r_outboard, but fall back to the boundary outline when
-                # flux surfaces haven't been computed (e.g. a boundary-only gslite equilibrium).
+
                 if eqt !== nothing && !isempty(unit.beamlets_group)
                     R_geo = if !ismissing(eqt.profiles_1d, :r_inboard) && !ismissing(eqt.profiles_1d, :r_outboard)
                         0.5 * (eqt.profiles_1d.r_inboard[end] + eqt.profiles_1d.r_outboard[end])

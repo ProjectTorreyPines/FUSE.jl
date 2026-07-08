@@ -203,8 +203,6 @@ function case_parameters(::Val{:D3D}, shot::Int;
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
-    # simulation starts when both equilibrium and profiles are available; with a single-slice
-    # equilibrium (e.g. gslite-min pull) start at that slice's time rather than falling to -Inf
     n_eq = length(ini.general.dd.equilibrium.time_slice)
     t_eq = n_eq >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : (n_eq == 1 ? ini.general.dd.equilibrium.time_slice[1].time : -Inf)
     t_cp = length(ini.general.dd.core_profiles.profiles_1d) >= 2 ? ini.general.dd.core_profiles.profiles_1d[2].time : -Inf
@@ -220,17 +218,12 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
 
     if pull_gslite_min
-        # gslite-min pull only provides beam power (no geometry); fill each source's
-        # beamlets_group from a DIII-D template selected by its beamline (name like "30L",
-        # "150R", "210L", "330R"), using the offaxis_beams/counter_beams mapping for this shot.
         for nbu in dd1.nbi.unit
             if isempty(nbu.beamlets_group)
                 add_beam_examples!(nbu, d3d_beam_template(nbu.name, offaxis_beams, counter_beams))
             end
         end
 
-        # raw actuator signals can dip slightly negative (baseline noise when a source is off);
-        # clamp to zero so the power_launched >= 0 checks in set_ini_act_from_ods! don't trip
         for launcher in dd1.ec_launchers.beam
             IMAS.hasdata(launcher.power_launched, :data) && (launcher.power_launched.data = max.(launcher.power_launched.data, 0.0))
         end
@@ -239,9 +232,6 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
 
-    # add flux_surfaces information to experimental dd: the equilibrium is fetched with the psi
-    # map but no boundary/flux surfaces, so trace them here (needed by set_ini_act_from_ods! and
-    # downstream). Runs for the gslite-min pull too, now that it includes an equilibrium.
     if !isempty(dd1.equilibrium.time_slice)
         IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
     end
@@ -304,9 +294,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         dd1.core_sources = dd1_core_sources_old
     end
 
-    # by default match line averaged density, but only when there are experimental profiles /
-    # interferometer data to match against; otherwise keep the Greenwald-fraction fallback set
-    # above (e.g. gslite-min pull has no core_profiles, so :ne_line has no target)
+    # by default match line averaged density, but only when there are experimental profiles
     if !isempty(ini.general.dd.core_profiles)
         ini.core_profiles.ne_setting = :ne_line
         act.ActorPedestal.density_match = :ne_line
@@ -329,11 +317,6 @@ end
     d3d_beam_template(name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
 
 Map a DIII-D neutral-beam source name to a geometry template used by `add_beam_examples!`.
-The OMAS export truncates the beamline angle to two digits, so names look like "30L", "15R",
-"21L", "33R" (150/210/330 → 15/21/33); full three-digit names also match. A source is off-axis
-if its name contains any entry in `offaxis_beams` (default the steerable 150 beamline), counter-Ip
-if it contains any entry in `counter_beams` (default the 210 beamline), otherwise co-Ip. These
-defaults are shot-dependent, so pass the appropriate beamlines through `case_parameters`.
 """
 function d3d_beam_template(name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
     if any(b -> occursin(b, name), offaxis_beams)   # steerable / off-axis beamline(s)
