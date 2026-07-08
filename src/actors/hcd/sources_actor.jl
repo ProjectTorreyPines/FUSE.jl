@@ -8,6 +8,7 @@
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
     pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :PAM, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
     neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Neutral gas fueling actor to run"; default=:NEUCG)
+    modify_electron_density::Entry{Bool} = Entry{Bool}( "-", "Modify electron density"; default=false)
 end
 
 mutable struct ActorSources{D,P} <: CompoundAbstractActor{D,P}
@@ -162,7 +163,7 @@ function _step(actor::ActorSources)
     step(actor.neutral_actor)
 
     # Call IMAS.intrinsic_sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.intrinsic_sources!(dd)
+    IMAS.intrinsic_sources!(dd;modify_electron_density=actor.par.modify_electron_density)
 
     return actor
 end
