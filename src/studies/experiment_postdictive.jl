@@ -26,6 +26,9 @@ Base.@kwdef mutable struct FUSEparameters__ParametersStudyPostdictive{T<:Real} <
     device::Entry{Symbol} = Entry{Symbol}("-", "Device to run postdictive simulations for")
     shots::Entry{Vector{Int}} = Entry{Vector{Int}}("-", "List of shot numbers")
     reconstruction::Entry{Bool} = Entry{Bool}("-", "Run postdiction in reconstruction mode")
+    start_time::Entry{Float64} = Entry{Float64}("-", "Override simulation start time [s]"; default=missing)
+    end_time::Entry{Float64} = Entry{Float64}("-", "Override simulation end time [s]"; default=missing)
+    tglf_model::Switch{Symbol} = Switch{Symbol}([:TGLFNN, :GKNN], "-", "ActorTGLF model to use"; default=:TGLFNN)
 end
 
 mutable struct StudyPostdictive{T<:Real} <: AbstractStudy
@@ -84,7 +87,7 @@ function run_postdictive_case(study::StudyPostdictive, shot::Int; kw_case_parame
     io_err = sty.redirect_output ? joinpath(savedir, "log.txt") : nothing
     redirect_stdio(stdout=io_out, stderr=io_err) do
         cd(savedir) do
-            run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, kw_case_parameters)
+            run_postdictive_case(device, shot; savedir, sty.reconstruction, sty.verbose, sty.start_time, sty.end_time, sty.tglf_model, kw_case_parameters)
         end
     end
 end
@@ -105,6 +108,9 @@ function run_postdictive_case!(
     save_gif::Bool=false,
     reconstruction::Bool,
     verbose::Bool,
+    start_time::Union{Float64,Missing}=missing,
+    end_time::Union{Float64,Missing}=missing,
+    tglf_model::Symbol=:TGLFNN,
     kw_case_parameters::Dict{Symbol,Any}
 )
 
@@ -117,6 +123,11 @@ function run_postdictive_case!(
     # Get case parameters
     @info "StudyPostdictive: case_parameters($(repr(device)), $shot; $(repr(kw_case_parameters))...)"
     ini, act = FUSE.case_parameters(device, shot; kw_case_parameters...)
+
+    # Override start/end time if specified
+    if !ismissing(start_time)
+        ini.time.simulation_start = start_time
+    end
 
     # init
     @info "StudyPostdictive: ini.time.simulation_start = $(ini.time.simulation_start)"
@@ -132,8 +143,8 @@ function run_postdictive_case!(
     act.ActorPedestal.model = :dynamic
     act.ActorPedestal.tau_n = experiment_LH.tau_n
     act.ActorPedestal.tau_t = experiment_LH.tau_t
-    act.ActorEPED.ped_factor = 0.8
-    act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
+    act.ActorEPED.ped_factor = 1.0
+    act.ActorPedestal.T_ratio_pedestal = 1. # Ti/Te in the pedestal
     act.ActorWPED.ped_to_core_fraction = missing
 
     # density and Zeff from experiment
@@ -166,13 +177,13 @@ function run_postdictive_case!(
 
     act.ActorSawteethSource.flat_factor = 1.0
     act.ActorSawteethSource.period = 0.25 # turn off flattening after 0.25s of no sawteeth events
-    act.ActorTGLF.model = :GKNN
+    act.ActorTGLF.model = tglf_model
     act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     # time
     δt = 0.05
     dd.global_time = ini.time.simulation_start # start_time should be early in the shot, when otherwise ohmic current will be wrong
-    final_time = ini.general.dd.equilibrium.time[end]
+    final_time = ismissing(end_time) ? ini.general.dd.equilibrium.time[end] : end_time
     act.ActorDynamicPlasma.Nt = Int(ceil((final_time - dd.global_time) / δt))
     act.ActorDynamicPlasma.Δt = final_time - dd.global_time
 
