@@ -10,7 +10,7 @@
 end
 
 mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorStationaryPlasma{P}}
     act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
@@ -22,7 +22,7 @@ mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorStationaryPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Iteratively solves for self-consistent stationary plasma equilibrium and transport.
 
@@ -61,14 +61,14 @@ Actors coordinated:
     Stores converged plasma state in `dd.equilibrium`, `dd.core_profiles`,
     `dd.core_sources`, `dd.core_transport`
 """
-function ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorStationaryPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorStationaryPlasma(dd, act.ActorStationaryPlasma, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
+function ActorStationaryPlasma(dd::IMAS.DD, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorStationaryPlasma)
     par = OverrideParameters(par; kw...)
 

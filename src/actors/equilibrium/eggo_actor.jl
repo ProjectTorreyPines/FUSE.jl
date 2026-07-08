@@ -18,7 +18,7 @@ end
 
 
 mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorEGGO{P}}
     act::ParametersAllActors{P}
     green::EGGO.GreenFunctionTables{Float64}
@@ -30,7 +30,7 @@ mutable struct ActorEGGO{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorEGGO(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Solves free-boundary tokamak MHD equilibria using the EGGO machine learning-based equilibrium reconstruction code.
 
@@ -66,14 +66,14 @@ while maintaining good accuracy for scenarios within the training data domain.
     `dd.pulse_schedule.position_control`, and wall geometry from `dd.wall`. 
     Updates `dd.equilibrium` with ML-predicted equilibrium solution.
 """
-function ActorEGGO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorEGGO(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorEGGO(dd, act.ActorEGGO, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEGGO(dd::IMAS.dd{D}, par::FUSEparameters__ActorEGGO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorEGGO(dd::IMAS.DD{D}, par::FUSEparameters__ActorEGGO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorEGGO)
     par = OverrideParameters(par; kw...)
     model_name = :d3d_efit01efit02cake02

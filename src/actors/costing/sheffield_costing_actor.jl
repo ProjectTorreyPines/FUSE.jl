@@ -12,9 +12,9 @@
 end
 
 mutable struct ActorCostingSheffield{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCostingSheffield{P}}
-    function ActorCostingSheffield(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingSheffield{P}; kw...) where {D<:Real,P<:Real}
+    function ActorCostingSheffield(dd::IMAS.DD{D}, par::FUSEparameters__ActorCostingSheffield{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCostingSheffield)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -22,7 +22,7 @@ mutable struct ActorCostingSheffield{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCostingSheffield(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Estimates fusion power plant costs using the Sheffield and Milora methodology from Fusion Science & Technology 70 (2016).
 
@@ -52,7 +52,7 @@ realistic assumptions about component lifetimes, availability, and economic para
 
     Results are stored in `dd.costing` with costs referenced to Sheffield & Milora (2016)
 """
-function ActorCostingSheffield(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCostingSheffield(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCostingSheffield(dd, act.ActorCostingSheffield; kw...)
     step(actor)
     finalize(actor)
@@ -347,7 +347,7 @@ function cost_direct_capital_Sheffield(::Val{:buildings}, bd::IMAS.build, da::Do
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.dd, da::DollarAdjust{T}) where {T<:Real}
+function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.DD, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
 
     cost = 0.0
@@ -367,7 +367,7 @@ function cost_direct_capital_Sheffield(::Val{:blanket}, cap::Bool, dd::IMAS.dd, 
     return future_dollars(cost, da)
 end
 
-function cost_direct_capital_Sheffield(::Val{:divertor}, cap::Bool, dd::IMAS.dd, da::DollarAdjust{T}) where {T<:Real}
+function cost_direct_capital_Sheffield(::Val{:divertor}, cap::Bool, dd::IMAS.DD, da::DollarAdjust{T}) where {T<:Real}
     da.year_assessed = 2016
 
     if cap == false
@@ -389,7 +389,7 @@ end
 function cost_fuel_Sheffield(
     ::Val{:blanket},
     cap::Bool,
-    dd::IMAS.dd,
+    dd::IMAS.DD,
     fixed_charge_rate::Real,
     availability::Real,
     plant_lifetime::Real,
@@ -428,7 +428,7 @@ end
 function cost_fuel_Sheffield(
     ::Val{:divertor},
     cap::Bool,
-    dd::IMAS.dd,
+    dd::IMAS.DD,
     fixed_charge_rate::Real,
     availability::Real,
     plant_lifetime::Real,

@@ -83,19 +83,19 @@ function Base.show(io::IO, ::MIME"text/plain", solbox::SOLBox)
 end
 
 mutable struct ActorSOLBox{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSOLBox{P}}
     solbox::SOLBox{D}
 end
 
-function ActorSOLBox(dd::IMAS.dd{D}, par::FUSEparameters__ActorSOLBox{P}; kw...) where {D<:Real,P<:Real}
+function ActorSOLBox(dd::IMAS.DD{D}, par::FUSEparameters__ActorSOLBox{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorSOLBox)
     par = OverrideParameters(par; kw...)
     return ActorSOLBox(dd, par, SOLBox{D}())
 end
 
 """
-    ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSOLBox(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Implements a 0D box model for scrape-off layer (SOL) physics to calculate upstream 
 plasma conditions at the separatrix from target boundary conditions. Based on the 
@@ -115,7 +115,7 @@ magnetic balance assessment.
     Reads data from `dd.equilibrium`, `dd.core_sources`, `dd.wall` and stores 
     results in `dd.edge_profiles`
 """
-function ActorSOLBox(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSOLBox(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSOLBox(dd, act.ActorSOLBox; kw...)
     step(actor)
     finalize(actor)
