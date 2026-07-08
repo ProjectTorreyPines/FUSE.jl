@@ -15,10 +15,17 @@
         rho_averaging::Float64=0.25,
         new_impurity_match_power_rad::Symbol=:none,
         use_local_cache::Bool=false,
-        use_interferometer::Bool=true
+        use_interferometer::Bool=true,
+        pull_gslite_min::Bool=false,
+        offaxis_beams::Vector{String}=["15"],
+        counter_beams::Vector{String}=["21"]
     )
 
 DIII-D from experimental shot
+
+`offaxis_beams` and `counter_beams` select which neutral-beam beamlines are treated as
+off-axis / counter-Ip when filling beam geometry from templates in the `pull_gslite_min` path
+(matched against the source name, e.g. "15"/"21"); everything else is co-Ip.
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     fit_profiles::Bool=true,
@@ -35,7 +42,9 @@ function case_parameters(::Val{:D3D}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
     use_local_cache::Bool=false,
     use_interferometer::Bool=true,
-    pull_gslite_min::Bool=false
+    pull_gslite_min::Bool=false,
+    offaxis_beams::Vector{String}=["15"],
+    counter_beams::Vector{String}=["21"]
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
@@ -194,8 +203,10 @@ function case_parameters(::Val{:D3D}, shot::Int;
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
-    # simulation starts when both equilibrium and profiles are available
-    t_eq = length(ini.general.dd.equilibrium.time_slice) >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : -Inf
+    # simulation starts when both equilibrium and profiles are available; with a single-slice
+    # equilibrium (e.g. gslite-min pull) start at that slice's time rather than falling to -Inf
+    n_eq = length(ini.general.dd.equilibrium.time_slice)
+    t_eq = n_eq >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : (n_eq == 1 ? ini.general.dd.equilibrium.time_slice[1].time : -Inf)
     t_cp = length(ini.general.dd.core_profiles.profiles_1d) >= 2 ? ini.general.dd.core_profiles.profiles_1d[2].time : -Inf
     ini.time.simulation_start = max(t_eq, t_cp)
 
@@ -211,10 +222,10 @@ function case_parameters(::Val{:D3D}, shot::Int;
     if pull_gslite_min
         # gslite-min pull only provides beam power (no geometry); fill each source's
         # beamlets_group from a DIII-D template selected by its beamline (name like "30L",
-        # "150R", "210L", "330R"). NOTE: verify this co/counter/off-axis mapping for your shot.
+        # "150R", "210L", "330R"), using the offaxis_beams/counter_beams mapping for this shot.
         for nbu in dd1.nbi.unit
             if isempty(nbu.beamlets_group)
-                add_beam_examples!(nbu, d3d_beam_template(nbu.name))
+                add_beam_examples!(nbu, d3d_beam_template(nbu.name, offaxis_beams, counter_beams))
             end
         end
 
@@ -228,13 +239,17 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
 
+    # add flux_surfaces information to experimental dd: the equilibrium is fetched with the psi
+    # map but no boundary/flux surfaces, so trace them here (needed by set_ini_act_from_ods! and
+    # downstream). Runs for the gslite-min pull too, now that it includes an equilibrium.
+    if !isempty(dd1.equilibrium.time_slice)
+        IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
+    end
+
     # set time basis
     if ~pull_gslite_min
         tt = dd1.equilibrium.time
         ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
-
-        # add flux_surfaces information to experimental dd
-        IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
     end
     # profile fitting starting from diagnostic measurements
     if fit_profiles
@@ -248,7 +263,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 omfit_host=omfit_host_original, omfit_root, omas_root,
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
-                use_local_cache, use_interferometer)
+                use_local_cache, use_interferometer,
+                pull_gslite_min, offaxis_beams, counter_beams)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
         else
@@ -288,9 +304,13 @@ function case_parameters(::Val{:D3D}, shot::Int;
         dd1.core_sources = dd1_core_sources_old
     end
 
-    # by default match line averaged density
-    ini.core_profiles.ne_setting = :ne_line
-    act.ActorPedestal.density_match = :ne_line
+    # by default match line averaged density, but only when there are experimental profiles /
+    # interferometer data to match against; otherwise keep the Greenwald-fraction fallback set
+    # above (e.g. gslite-min pull has no core_profiles, so :ne_line has no target)
+    if !isempty(ini.general.dd.core_profiles)
+        ini.core_profiles.ne_setting = :ne_line
+        act.ActorPedestal.density_match = :ne_line
+    end
 
     set_ini_act_from_ods!(ini, act)
 
@@ -306,20 +326,21 @@ function case_parameters(::Val{:D3D}, shot::Int;
 end
 
 """
-    d3d_beam_template(name::AbstractString)
+    d3d_beam_template(name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
 
 Map a DIII-D neutral-beam source name to a geometry template used by `add_beam_examples!`.
 The OMAS export truncates the beamline angle to two digits, so names look like "30L", "15R",
-"21L", "33R" (150/210/330 → 15/21/33); full three-digit names are also handled. The 150
-beamline is steerable/off-axis, the 210 beamline injects counter to the plasma current, and
-the 30/330 beamlines inject co-current.
+"21L", "33R" (150/210/330 → 15/21/33); full three-digit names also match. A source is off-axis
+if its name contains any entry in `offaxis_beams` (default the steerable 150 beamline), counter-Ip
+if it contains any entry in `counter_beams` (default the 210 beamline), otherwise co-Ip. These
+defaults are shot-dependent, so pass the appropriate beamlines through `case_parameters`.
 """
-function d3d_beam_template(name::AbstractString)
-    if occursin("15", name)     # 150 beamline (steerable / off-axis)
+function d3d_beam_template(name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
+    if any(b -> occursin(b, name), offaxis_beams)   # steerable / off-axis beamline(s)
         return :d3d_offaxis
-    elseif occursin("21", name) # 210 beamline (counter-Ip)
+    elseif any(b -> occursin(b, name), counter_beams) # counter-Ip beamline(s)
         return :d3d_counter
-    else                        # 30 and 330 beamlines (co-Ip)
+    else                                             # co-Ip beamline(s)
         return :d3d_co
     end
 end
