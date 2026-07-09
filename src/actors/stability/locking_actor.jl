@@ -1,5 +1,6 @@
 import Roots
 using Plots
+using LaTeXStrings
 import ModeLocking
 using ModeLocking: ODEparams, NNparams, LockingNNModel, LockingResults
 #import FUSE: coordinates
@@ -14,7 +15,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     _time::Float64 = NaN
     m_pol::Entry{Int} = Entry{Int}("_", "poloidal mode number of the mode"; default=2)
     n_tor::Entry{Int} = Entry{Int}("_", "toroidal mode number of the mode"; default=1)
-    q_surf::Entry{Float64} = Entry{Float64}("_", "rational surface of interest, usually 2.0"; default=2.)
     grid_size::Entry{Int} = Entry{Int}("-", "grid resolution for control space"; default=100)
     t_final::Entry{Float64} = Entry{Float64}("-", "Final integration time in units of tearing time (~ms)"; default=100.)
     time_steps::Entry{Int} = Entry{Int}("-", "number of time steps for the ODE integration"; default=200)
@@ -54,13 +54,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     source_torque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)
     plot_orientation::Switch{Symbol} = Switch{Symbol}([:portrait, :landscape], "-",
         "Tile-plot layout: :portrait = 3×2 (paper), :landscape = 2×3 (slides)"; default=:portrait)
-    op_C1::Entry{Float64} = Entry{Float64}(
-        "-",
-        "Operating-point Control1 (normalized Ω₀) for probability evaluation in _finalize; NaN = skip";
-        default=NaN)
+    op_times::Entry{Vector{Float64}} = Entry{Vector{Float64}}(
+        "s",
+        "Times at which to evaluate locking probability; empty = use current dd.global_time";
+        default=Float64[])
     op_C2::Entry{Float64} = Entry{Float64}(
         "-",
-        "Operating-point Control2 for probability evaluation in _finalize (units match control_type); NaN = skip";
+        "Operating-point Control2 (units match control_type: Gauss for :EF); NaN = skip";
         default=NaN)
     conv_window_C1::Entry{Int} = Entry{Int}(
         "-",
@@ -79,6 +79,9 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     ode_params::Union{Nothing, ODEparams}
     results::Union{Nothing, LockingResults}
     nn_params::NNparams
+    op_times::Vector{Float64}   # actual times evaluated (set during :evaluate_probability)
+    op_C1::Vector{Float64}      # dimensionless rotation at each op time
+    op_C2::Vector{Float64}      # C2 in user-facing units (Gauss for :EF) at each op time
 
     function ActorLocking(
         dd::IMAS.dd{D},
@@ -104,7 +107,7 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
             error("ode_params must be nothing, ODEparams, or NamedTuple")
         end
 
-        return new{D,P}(dd, par, ode, nothing, nn_params)
+        return new{D,P}(dd, par, ode, nothing, nn_params, Float64[], Float64[], Float64[])
     end
 end
 
@@ -144,6 +147,7 @@ function _step(actor::ActorLocking)
     
     elseif task == :solve_system
         @info "Solving the ODEs for $(application) system"
+        compute_br_max(actor)   # log br_max implied by current Drw + max(EF)
         # Solve the ODE system on the whole control grid, normalize, and
         # classify (prob=nothing; filled in-place by train_locking_nn below)
         actor.results = _solve_grid_and_classify(actor, application)
@@ -189,50 +193,52 @@ function _step(actor::ActorLocking)
             @info "No in-memory ODE results — loading from disk"
             load_ode_results!(actor)
         end
-        prob_model = try
-            load_prob_model(actor; method=:kde)
-        catch
-            try
-                load_prob_model(actor; method=:conv)
-            catch
+        # Prefer the model already in memory (e.g. just trained by :calc_prob);
+        # only hit disk when nothing has been loaded yet this session.
+        if actor.results.prob === nothing
+            prob_model = try
                 load_prob_model(actor; method=:nn)
+            catch
+                try
+                    load_prob_model(actor; method=:conv)
+                catch
+                    load_prob_model(actor; method=:kde)
+                end
             end
+            actor.results.prob = prob_model
         end
-        actor.results.prob = prob_model
+        prob_model = actor.results.prob
 
-        # Extract operating point from dd
-        if actor.ode_params === nothing
-            actor.ode_params = ODEparams(;)
-        end
-        actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
+        # Determine times to evaluate — default to current dd.global_time
+        times = isempty(par.op_times) ? [dd.global_time] : collect(par.op_times)
+        C2_op = par.op_C2
 
-        # C1_op: dimensionless rotation at rational surface
-        rt = actor.ode_params.rat_surface
-        rho_cp = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
-        rot_profile = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
-        rot_rs_rads = IMAS.interp1d(rho_cp, rot_profile)(rt)
-        C1_op = rot_rs_rads / (2π) * par.t0   # dimensionless frequency: f * t0
-
-        # C2_op: depends on control_type
-        C2_op = if par.control_type == :EF
-            actor.ode_params.error_field  # already dimensionless after set_control_parameters!
-        elseif par.control_type == :LinStab
-            actor.ode_params.stability_index
-        elseif par.control_type == :NLsaturation
-            actor.ode_params.saturation_param
+        rt      = actor.ode_params.rat_surface
+        rc      = actor.ode_params.control_surf
+        op_C2_nn_scalar = if par.control_type == :EF
+            C2_op * 1e-4 / par.b0 * rc / Float64(par.m_pol)
         else
-            NaN
+            C2_op
         end
 
-        par.op_C1 = C1_op
-        par.op_C2 = C2_op
+        actor.op_times = times
+        actor.op_C1    = Float64[]
+        actor.op_C2    = Float64[]
 
-        P_locked = prob_model(C1_op, C2_op)
-        @info """Operating-point evaluation:
-          C1_op (Ω₀)     = $(round(C1_op; sigdigits=4))
-          C2_op           = $(round(C2_op; sigdigits=4))
-          P(locked)       = $(round(P_locked; sigdigits=4))
-          Model           = $(typeof(prob_model))"""
+        t_orig = dd.global_time
+        for t in times
+            dd.global_time  = t
+            rho_cp      = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
+            rot_profile = dd.core_profiles.profiles_1d[].ion[1].rotation_frequency_tor
+            rot_rs_rads = IMAS.interp1d(rho_cp, rot_profile)(rt)
+            C1_op       = (rot_rs_rads / (2π)) * par.t0
+            P_locked    = prob_model(C1_op, op_C2_nn_scalar)
+            push!(actor.op_C1, C1_op)
+            push!(actor.op_C2, C2_op)
+            @info "  t=$(round(t*1e3; digits=1)) ms  C1=$(round(C1_op; sigdigits=4))  C2=$(round(C2_op; sigdigits=4))  P=$(round(P_locked; sigdigits=4))"
+        end
+        dd.global_time = t_orig
+        @info "evaluate_probability: $(length(times)) point(s)  model=$(typeof(prob_model))"
 
     elseif task == :transfer_learning
         # Solve the (typically focused/sparse, via ode_params.Control1_min/max
@@ -286,8 +292,12 @@ function _finalize(actor::ActorLocking)
     # ── Tier 2: NN-based operating-point probability ──────────────────────────
     # Requires (a) a trained model and (b) explicit operating-point inputs.
     # If either is missing we keep the Tier-1 metric and skip the limits entry.
-    if results.prob !== nothing && !isnan(par.op_C1) && !isnan(par.op_C2)
-        prob_op = results.prob(par.op_C1, par.op_C2)
+    if results.prob !== nothing && !isempty(actor.op_C1)
+        rc = actor.ode_params.control_surf
+        P_vals = [results.prob(c1, par.control_type == :EF ?
+                      c2 * 1e-4 / par.b0 * rc / Float64(par.m_pol) : c2)
+                  for (c1, c2) in zip(actor.op_C1, actor.op_C2)]
+        prob_op = last(P_vals)   # use most recent time point
         mode.stability_metric = prob_op
 
         model = resize!(dd.limits.model,
@@ -317,9 +327,10 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     """
     
     # find the normalized radius of the q=2 surface
+    q_surf = par.m_pol / par.n_tor
     q_prof = dd.equilibrium.time_slice[].profiles_1d.q
     rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
-    ode_params.rat_surface = find_rat_surface(q_prof, rho, par.q_surf)
+    ode_params.rat_surface = find_rat_surface(q_prof, rho, q_surf)
 
     # calculate the stability indices and mutual inductances
     ode_params = calculate_stability_index!(dd, par, ode_params)
@@ -347,14 +358,12 @@ end
 
 
 function find_rat_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surface::Float64)
-    """
-    Find the location of the q=rat_surface surface given the q profile
-    """
     q_interp = IMAS.interp1d(rho, q_prof)
-    x0 = findfirst(x -> abs(x) > rat_surface, q_prof)
     f = x -> abs(q_interp(x)) - rat_surface
-    rho_rat = Roots.secant_method(f, (rho[x0-1], rho[x0]))
-    @info "Found q=$rat_surface surface at: $rho_rat"
+    roots = Roots.find_zeros(f, rho[begin], rho[end])
+    isempty(roots) && error("No q=$rat_surface surface found in rho ∈ [$(rho[begin]), $(rho[end])]")
+    rho_rat = maximum(roots)
+    @info "Found q=$rat_surface surface at: $rho_rat ($(length(roots)) crossing(s))"
     return rho_rat
 end
 
@@ -417,46 +426,49 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
 
     # Define some constants
     #      Also NEED Zeff
-    cp1d = dd.core_profiles.profiles_1d[1]
+    cp1d = dd.core_profiles.profiles_1d[]
+    eqp1d = dd.equilibrium.time_slice[].profiles_1d
     mu0_val = IMAS.mks.μ_0
+    
+    # Set the scales for non-dimensionalization
+    psi0 = par.b0 * par.r0
+    U0 = psi0^2 * par.r0 / mu0_val
+    
     mass_ion = cp1d.ion[1].element[1].a * IMAS.mks.m_p  # kg, mass of the main ion species
 
-    rt = ode_params.rat_surface
-    rho = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
+    rt = ode_params.rat_surface  # dimensionless, scaled by r0
+    rho_cp = cp1d.grid.rho_tor_norm
+    rho_eq = eqp1d.rho_tor_norm
 
     # Mass density at the rational surface: prefer ion density_thermal,
     # fall back to electron density / Z_i (quasi-neutrality) if ion density
     # is missing or zero.
     ion_dens = cp1d.ion[1].density_thermal
     if !ismissing(ion_dens) && !isempty(ion_dens) && any(!iszero, ion_dens)
-        rho_ion = cp1d.grid.rho_tor_norm
-        mass_dens_atq2 = mass_ion * IMAS.interp1d(rho_ion, ion_dens)(rt)
+        mass_dens_atq2 = mass_ion * IMAS.interp1d(rho_cp, ion_dens)(rt)
     else
         Z_i = cp1d.ion[1].element[1].z_n
-        rho_e = cp1d.grid.rho_tor_norm
         ne = cp1d.electrons.density_thermal
         ni_from_ne = ne ./ Z_i
-        mass_dens_atq2 = mass_ion * IMAS.interp1d(rho_e, ni_from_ne)(rt)
+        mass_dens_atq2 = mass_ion * IMAS.interp1d(rho_cp, ni_from_ne)(rt)
         @warn "ion density_thermal unavailable — using n_e/Z_i (quasi-neutrality) for mass density"
     end
-    #Zeff = dd.core_profiles.profiles_1d.zeff[40]
  
-    # Set all the scales
-    psi0 = par.b0 * par.r0
-    U0 = psi0^2 * par.r0 / mu0_val
-    R0 = dd.equilibrium.vacuum_toroidal_field.r0
+    # flux-surface quantities at the rational surface
+    R0           = IMAS.interp1d(rho_eq, eqp1d.gm8)(rt)     # <R>  [m]
+    R2_avg       = IMAS.interp1d(rho_eq, eqp1d.gm10)(rt)    # <R²> [m²]
+    area_rt = IMAS.interp1d(rho_eq, eqp1d.surface)(rt)  # S = 2π∫R dl [m²]
+    gm2_rt       = IMAS.interp1d(rho_eq, eqp1d.gm2)(rt)     # <|∇ρ_tor|²/R²> [m⁻²]
+
     # rotation: core (ρ=0.1) and at the rational surface
-    rho_cp = cp1d.grid.rho_tor_norm
-    rot_profile = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
-    rot_interp = IMAS.interp1d(rho_cp, rot_profile)
-    rot_core  = rot_interp(0.1)
-    rot_at_rs = rot_interp(rt)
+    rot_profile = cp1d.ion[1].rotation_frequency_tor
+    rot_core  = IMAS.interp1d(rho_cp, rot_profile)(0.1)
+    rot_at_rs = IMAS.interp1d(rho_cp, rot_profile)(rt)
     
     # NBI torque at the rational surface:
     # Prefer the FUSE NBI actor output (dd.core_sources) if it has been populated upstream;
     # fall back to the user-specified par.source_torque scalar if not.
     torque_at_rat_surf = try
-        cp1d          = dd.core_profiles.profiles_1d[]
         src1d         = IMAS.total_sources(dd.core_sources, cp1d;
                             time0=dd.global_time, fields=[:torque_tor_inside])
         rho_src       = src1d.grid.rho_tor_norm
@@ -473,14 +485,16 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     end
 
     # Calculate the drag coefficient in SI — must be positive (viscous drag, not drive)
-    muSI = torque_at_rat_surf / rot_core
+    muSI = torque_at_rat_surf / rot_at_rs
     if muSI < 0
         @warn "Negative viscous drag μ_SI = $(round(muSI; sigdigits=4)) (torque and rotation have opposite signs); using |μ|"
         muSI = abs(muSI)
     end
 
-    # Calculate first the moment of inertia in the layer
-    inertia = (2*π)^2 * mass_dens_atq2 * R0 * rt^3 * ode_params.layer_width
+    # Moment of inertia of toroidal shell: I = ρ · δ · S · <R²>
+    # S = flux surface area (m²), δ = physical layer width (m)
+    delta_phys = ode_params.layer_width * par.r0
+    inertia = mass_dens_atq2 * delta_phys * area_rt * R2_avg
 
     # set nonlinear saturation
     if par.NL_saturation == false
@@ -488,9 +502,11 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     end
 
     # Set the dimensionless quantities
-    ode_params.mu = muSI / (U0 * par.t0)
-    ode_params.Inertia = inertia / (U0 * par.t0^2)
+    ode_params.mu          = muSI / (U0 * par.t0)
+    ode_params.Inertia     = inertia / (U0 * par.t0^2)
+    ode_params.tor_fac      = area_rt * gm2_rt
 
+    tau_mu = inertia / muSI
     rot_core_kHz = rot_core / (2π * 1e3)
     rot_rs_kHz   = rot_at_rs / (2π * 1e3)
 
@@ -500,10 +516,16 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
       rot(q=2, ρ=$(round(rt; digits=3))) = $(round(rot_rs_kHz; sigdigits=4)) kHz
       μ_SI               = $(round(muSI; sigdigits=4)) N·m·s
       inertia            = $(round(inertia; sigdigits=4)) kg·m²
+      tau_μ               = $(round(tau_mu; sigdigits=4)) s
       mass_dens(q=2)     = $(round(mass_dens_atq2; sigdigits=4)) kg/m³
-      R0                 = $(round(R0; sigdigits=4)) m
+      ⟨R⟩(q=2)   = gm8  = $(round(R0; sigdigits=4)) m
+      ⟨R²⟩(q=2)  = gm10 = $(round(R2_avg; sigdigits=4)) m²
+      S(q=2)             = $(round(area_rt; sigdigits=4)) m²
+      gm2(q=2)           = $(round(gm2_rt; sigdigits=4)) m⁻²
+      S·gm2              = $(round(area_rt * gm2_rt; sigdigits=4))
+      δ_phys             = $(round(delta_phys; sigdigits=4)) m
       ψ₀ = b0·r0         = $(round(psi0; sigdigits=4)) T·m
-      U0                 = $(round(U0; sigdigits=4)) N·m
+      U0 = ψ₀²·r0/μ₀    = $(round(U0; sigdigits=4)) N·m
       μ (dimensionless)  = $(round(ode_params.mu; sigdigits=4))
       I (dimensionless)  = $(round(ode_params.Inertia; sigdigits=4))
       Δ'                 = $(round(ode_params.stability_index; sigdigits=4))
@@ -552,7 +574,6 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
 
     # Control1_min/max are in kHz; ensure max covers the actual rotation
     ode_params.Control1_max = max(ode_params.Control1_max, rot_at_rs_kHz)
-    @info("Rotation at rational surface: $(round(rot_at_rs_kHz; sigdigits=4)) kHz")
     @info("Control1 (f₀) range: [$(ode_params.Control1_min), $(round(ode_params.Control1_max; sigdigits=4))] kHz")
 
     # Build grid in kHz, convert to dimensionless frequency units: f_dim = f_kHz * 1e3 * t0
@@ -812,12 +833,16 @@ plot_sols(actor::ActorLocking) = ModeLocking.plot_sols(actor.results, actor.ode_
     b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation,
     shot_label=_shot_label(actor.dd; overwrite=actor.par.overwrite_params))
 
-function _shot_label(dd::IMAS.dd; overwrite::Bool=false)
+function _shot_label(dd::IMAS.dd; overwrite::Bool=false, with_time::Bool=true)
     lbl = try
         pulse = dd.dataset_description.data_entry.pulse
         time  = dd.global_time
         t_ms  = round(time * 1e3; digits=1)
-        (pulse > 0) ? "Shot $(pulse), t = $(t_ms) ms" : "default"
+        if pulse > 0
+            with_time ? "$(pulse), t = $(t_ms) ms" : "$(pulse)"
+        else
+            "default"
+        end
     catch
         "default"
     end
@@ -833,21 +858,31 @@ plot_phase_diagrams(actor::ActorLocking) = ModeLocking.plot_phase_diagrams(actor
     b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol), orientation=actor.par.plot_orientation,
     shot_label=_shot_label(actor.dd; overwrite=actor.par.overwrite_params))
 
-"plot_probability(actor) → Figure 3 — locking probability with optional operating-point marker"
-plot_probability(actor::ActorLocking) = ModeLocking.plot_probability(actor.results, actor.ode_params, actor.par.control_type;
-    b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol),
-    shot_label=_shot_label(actor.dd; overwrite=actor.par.overwrite_params),
-    op_C1=actor.par.op_C1, op_C2=actor.par.op_C2)
+"plot_probability(actor) → Figure 3 — locking probability with optional operating-point markers"
+function plot_probability(actor::ActorLocking;
+                          op_C1::Vector{Float64}=actor.op_C1,
+                          op_C2::Vector{Float64}=actor.op_C2,
+                          op_label::Vector{String}=["t = $(round(t*1e3; digits=1)) ms" for t in actor.op_times],
+                          show_shot_label::Bool=true)
+    drw      = round(actor.par.RPRW_stability_index; sigdigits=3)
+    base_lbl = _shot_label(actor.dd; overwrite=actor.par.overwrite_params, with_time=false)
+    shot_lbl = show_shot_label ?
+                   latexstring("\\mathrm{$(base_lbl)},\\;\\Delta^t_{rw} = $(drw)") : ""
+    ModeLocking.plot_probability(actor.results, actor.ode_params, actor.par.control_type;
+        b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol),
+        shot_label=shot_lbl, op_label=op_label,
+        op_C1=op_C1, op_C2=op_C2)
+end
 
 """
     save_locking_plots(actor; dir, format=:png)
 
 Save all available locking plots to `dir` with descriptive filenames encoding
-the run metadata: control type, grid size, application, m_pol, n_tor.
+the run metadata: control type, grid size, application, shot, time.
 
 Example filenames:
-  scatter_EF_100x100_RPRW_m2_n1_175060_2500.0ms.png   (shot 175060, t=2500ms)
-  phase_EF_100x100_RPRW_m2_n1_default.png              (default dd)
+  scatter_EF_100x100_RPRW_175060.2500_Drw0.5.png       (shot 175060, t=2500ms)
+  NN_probability_op_EF_100x100_RPRW_175060.450_Drw0.5.png  (snapshot at t=450ms)
 """
 function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:png)
     actor.results === nothing && error("No results to plot — run the actor first")
@@ -866,7 +901,9 @@ function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:pn
         "_default$(ow)"
     end
 
-    tag = "$(par.control_type)_$(par.grid_size)x$(par.grid_size)_$(replace(par.application, "-" => ""))_m$(par.m_pol)_n$(par.n_tor)$(shot_tag)"
+    drw     = round(abs(par.RPRW_stability_index); sigdigits=3)
+    drw_tag = "_Drw$(drw)"
+    tag = "$(par.control_type)_$(par.grid_size)x$(par.grid_size)_$(replace(par.application, "-" => ""))_$(shot_tag)$(drw_tag)"
     ext = string(format)
 
     Plots.savefig(plot_scatter(actor),       joinpath(dir, "scatter_$(tag).$(ext)"))
@@ -882,8 +919,113 @@ function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:pn
         else
             "probability"
         end
-        Plots.savefig(plot_probability(actor), joinpath(dir, "$(prob_prefix)_$(tag).$(ext)"))
+        # Clean plot (no operating-point overlay)
+        Plots.savefig(plot_probability(actor; op_C1=Float64[], op_C2=Float64[]),
+                      joinpath(dir, "$(prob_prefix)_$(tag).$(ext)"))
+        # Duplicate with all operating-point markers
+        if !isempty(actor.op_C1)
+            Plots.savefig(plot_probability(actor; show_shot_label=false),
+                          joinpath(dir, "$(prob_prefix)_op_$(tag).$(ext)"))
+            # One figure per snapshot with a single yellow star;
+            # filename encodes the snapshot time in place of dd.global_time
+            for i in eachindex(actor.op_C1)
+                t_snap = round(actor.op_times[i] * 1e3; digits=1)
+                snap_shot_tag = try
+                    pulse = dd.dataset_description.data_entry.pulse
+                    ow_str = par.overwrite_params ? "_OW" : ""
+                    (pulse > 0) ? "_$(pulse).$(t_snap)$(ow_str)" : "_default$(ow_str)"
+                catch
+                    "_default$(par.overwrite_params ? "_OW" : "")"
+                end
+                snap_tag = "$(par.control_type)_$(par.grid_size)x$(par.grid_size)_$(replace(par.application, "-" => ""))$(snap_shot_tag)$(drw_tag)"
+                lbl_i = ["t = $(t_snap) ms"]
+                Plots.savefig(
+                    plot_probability(actor;
+                        op_C1=[actor.op_C1[i]], op_C2=[actor.op_C2[i]],
+                        op_label=lbl_i, show_shot_label=false),
+                    joinpath(dir, "$(prob_prefix)_op_$(snap_tag).$(ext)"))
+            end
+        end
     end
     @info "Saved locking plots to $dir"
     return nothing
+end
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  br diagnostic: max normal b-field at r_t ↔ RPRW_stability_index
+# ─────────────────────────────────────────────────────────────────────────────
+
+"""
+    compute_br_max(actor; drw, eps_max) -> (br_norm, br_Gauss)
+
+Compute the peak normal b-field at the rational surface from the locked-state
+equilibrium formula:
+
+    psit_max = (Δt / Δw) · l₂₁ · l₃₂ · ε_max / Drw
+    br_max   = (rt / m) · psit_max
+
+where Δt = `ode_params.stability_index`, Δw = `ode_params.DeltaW`, and
+ε_max = `maximum(ode_params.Control2)` (normalized psi_eps).
+
+Returns the normalized value and the physical value in Gauss.
+"""
+function compute_br_max(actor::ActorLocking;
+                        drw::Float64=actor.par.RPRW_stability_index,
+                        eps_max::Float64=NaN)
+    op = actor.ode_params
+    m  = Float64(actor.par.m_pol)
+    b0 = actor.par.b0
+
+    eps = if !isnan(eps_max)
+        eps_max
+    elseif !isempty(op.Control2)
+        maximum(op.Control2)
+    else
+        op.Control2_max * 1e-4 / b0 * op.control_surf / m
+    end
+
+    psit_max = (op.stability_index / op.DeltaW) * op.l21 * op.l32 * eps / drw
+    br_norm  = (op.rat_surface / m) * psit_max
+    br_Gauss = br_norm * b0 * 1e4
+
+    @info @sprintf(
+        "br_max: Δt=%.4g  Δw=%.4g  l₂₁=%.4g  l₃₂=%.4g  ε_max=%.4g  Drw=%.4g  →  ψt_max=%.4g  br=%.4g G",
+        op.stability_index, op.DeltaW, op.l21, op.l32, eps, drw, psit_max, br_Gauss)
+
+    return br_norm, br_Gauss
+end
+
+"""
+    compute_drw_from_br(actor, br_Gauss; eps_max) -> Drw
+
+Invert the locked-state br formula to solve for `RPRW_stability_index` given
+a measured normal b-field amplitude in Gauss:
+
+    Drw = (Δt / Δw) · l₂₁ · l₃₂ · ε_max · (rt / m) / br_norm
+    br_norm = br_Gauss / (b0 · 1e4)
+"""
+function compute_drw_from_br(actor::ActorLocking, br_Gauss::Float64;
+                              eps_max::Float64=NaN)
+    op = actor.ode_params
+    m  = Float64(actor.par.m_pol)
+    b0 = actor.par.b0
+
+    eps = if !isnan(eps_max)
+        eps_max
+    elseif !isempty(op.Control2)
+        maximum(op.Control2)
+    else
+        op.Control2_max * 1e-4 / b0 * op.control_surf / m
+    end
+
+    br_norm  = br_Gauss / (b0 * 1e4)
+    psit_max = br_norm * m / op.rat_surface
+    drw      = (op.stability_index / op.DeltaW) * op.l21 * op.l32 * eps / psit_max
+
+    @info @sprintf(
+        "Drw from br: br=%.4g G  ψt_max=%.4g  Δt=%.4g  Δw=%.4g  l₂₁=%.4g  l₃₂=%.4g  ε_max=%.4g  →  Drw=%.4g",
+        br_Gauss, psit_max, op.stability_index, op.DeltaW, op.l21, op.l32, eps, drw)
+
+    return drw
 end

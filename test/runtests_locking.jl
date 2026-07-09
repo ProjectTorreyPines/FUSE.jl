@@ -6,6 +6,11 @@ using Test
     dd = IMAS.dd()
     FUSE.init(dd, ini, act)
 
+    # UPDATE sources to chosen time,if fetching a shot from MD
+    #dd.global_time=3.0
+    #act.ActorSources.nb_model=:NBsimple
+    #FUSE.ActorSources(dd, act)  
+
     # Small grid and minimal NN for test speed
     N_grid  = 10
     fast_nn = FUSE.NNparams(hidden_sizes=[10], n_epochs=10, batch_size=8)

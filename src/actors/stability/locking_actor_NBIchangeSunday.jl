@@ -448,7 +448,7 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     R0 = dd.equilibrium.vacuum_toroidal_field.r0
     # rotation: core (ρ=0.1) and at the rational surface
     rho_cp = cp1d.grid.rho_tor_norm
-    rot_profile = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
+    rot_profile = dd.core_profiles.profiles_1d[].rotation_frequency_tor_sonic
     rot_interp = IMAS.interp1d(rho_cp, rot_profile)
     rot_core  = rot_interp(0.1)
     rot_at_rs = rot_interp(rt)
@@ -474,7 +474,8 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     end
 
     # Calculate the drag coefficient in SI — must be positive (viscous drag, not drive)
-    muSI = torque_at_rat_surf / rot_core
+    #muSI = torque_at_rat_surf / rot_core
+    muSI = torque_at_rat_surf / rot_at_rs
     if muSI < 0
         @warn "Negative viscous drag μ_SI = $(round(muSI; sigdigits=4)) (torque and rotation have opposite signs); using |μ|"
         muSI = abs(muSI)
