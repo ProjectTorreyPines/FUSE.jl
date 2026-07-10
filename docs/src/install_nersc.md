@@ -4,6 +4,33 @@ These instructions are for **personal** FUSE installs on NERSC login or compute 
 For the pre-built `module load fuse` environment maintained by the FUSE team, see the
 [Perlmutter deployment scripts](https://github.com/ProjectTorreyPines/FUSE.jl/tree/master/deploy/perlmutter).
 
+## NERSC one-command install
+
+From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is tight). Loads `julia/1.11.7` and `conda`, installs FUSE, Revise, fusebot (under `~/.local/bin` or `~/.local/shared/bin` if `bin` is not writable), the Jupyter conda environment, IJulia kernels, and clones [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples). All steps run from the shell — no Julia REPL.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_nersc.sh)
+```
+
+From a local `FUSE.jl` clone: `bash scripts/install_fuse_nersc.sh`
+
+Override the Julia module with `FUSE_JULIA_MODULE=julia/1.12.0 bash scripts/install_fuse_nersc.sh` when needed.
+
+If `fusebot` cannot be installed (for example when `~/.local/bin` does not exist), the script runs the same underlying `make` targets (`install_IJulia`, `install_examples`, …) directly from the FUSE package directory.
+
+### Step 2: verify `fluxmatcher.ipynb`
+
+Confirms **cell 0** (`using Revise`, `using Plots`, `using FUSE`) and **cell 1** (markdown) in `FuseExamples/fluxmatcher.ipynb`:
+
+```bash
+module load julia/1.11.7
+bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/verify_fluxmatcher_notebook.sh)
+```
+
+Or from a `FUSE.jl` clone: `bash scripts/verify_fluxmatcher_notebook.sh`
+
+Then start JupyterLab (with `module load conda` and `conda activate fuse`) and open `FuseExamples/fluxmatcher.ipynb`.
+
 ## Julia
 
 NERSC provides Julia through the module system. **Do not use juliaup** for a typical NERSC workflow.

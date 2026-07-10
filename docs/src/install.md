@@ -2,6 +2,41 @@
 
 This guide walks you through setting up everything you need to run FUSE: the **Julia** language, the **FUSE** package, the **`fusebot`** helper, and an optional **JupyterLab** environment with Julia kernels.
 
+## Laptop one-command install
+
+From any directory on a personal machine (Linux or macOS). Installs [juliaup](https://github.com/JuliaLang/juliaup) when `julia` is missing, installs [Miniconda](https://docs.anaconda.com/miniconda/) when `conda` is missing, then installs FUSE, Revise, fusebot, the Jupyter stack, IJulia kernels, and clones [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples). Everything runs from the shell — no Julia REPL.
+
+```bash
+curl -fsSL https://install.julialang.org | sh -s -- -y && \
+bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_laptop.sh)
+```
+
+From a local `FUSE.jl` clone you can use `bash scripts/install_fuse_laptop.sh` instead of the `curl` line for the install script.
+
+A fresh install typically takes **20–45 minutes** (Julia packages + conda environment + IJulia kernels).
+
+### Step 2: verify `fluxmatcher.ipynb`
+
+After the install finishes, confirm you can run the **first two cells** of [`FuseExamples/fluxmatcher.ipynb`](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/fluxmatcher.ipynb):
+
+* **Cell 0** (code): `using Revise`, `using Plots`, `using FUSE`
+* **Cell 1** (markdown): flux-matcher introduction (checked for presence, not executed)
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/verify_fluxmatcher_notebook.sh)
+```
+
+Or from a `FUSE.jl` clone: `bash scripts/verify_fluxmatcher_notebook.sh`
+
+Then start JupyterLab in the directory that contains `FuseExamples/`:
+
+```bash
+conda activate fuse
+python -m jupyter lab
+```
+
+Open `FuseExamples/fluxmatcher.ipynb` and run cells 0–1 in the notebook UI.
+
 ## Julia installation
 
 ### Desktop and laptop (juliaup)
