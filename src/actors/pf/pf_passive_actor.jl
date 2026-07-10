@@ -10,9 +10,9 @@
 end
 
 mutable struct ActorPassiveStructures{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorPassiveStructures{P}}
-    function ActorPassiveStructures(dd::IMAS.dd{D}, par::FUSEparameters__ActorPassiveStructures{P}; kw...) where {D<:Real,P<:Real}
+    function ActorPassiveStructures(dd::IMAS.DD{D}, par::FUSEparameters__ActorPassiveStructures{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPassiveStructures)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -20,7 +20,7 @@ mutable struct ActorPassiveStructures{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPassiveStructures(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Generates passive conducting structure models for electromagnetic analysis by discretizing
 vacuum vessel layers into quadrilateral current loops. These passive elements are essential
@@ -53,7 +53,7 @@ conducting structures that interact with changing magnetic fields.
 
     Populates `dd.pf_passive` based on vacuum vessel layer(s)
 """
-function ActorPassiveStructures(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPassiveStructures(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPassiveStructures(dd, act.ActorPassiveStructures; kw...)
     step(actor)
     finalize(actor)

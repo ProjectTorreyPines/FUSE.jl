@@ -8,12 +8,12 @@
 end
 
 mutable struct ActorMagnetics{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorMagnetics{P}}
 end
 
 """
-    ActorMagnetics(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorMagnetics(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates magnetic field diagnostics from equilibrium data.
 
@@ -36,14 +36,14 @@ Key outputs:
     Requires `dd.equilibrium` to be populated with equilibrium data.
     Results are stored in `dd.magnetics`.
 """
-function ActorMagnetics(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorMagnetics(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorMagnetics(dd, act.ActorMagnetics; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorMagnetics(dd::IMAS.dd, par::FUSEparameters__ActorMagnetics; kw...)
+function ActorMagnetics(dd::IMAS.DD, par::FUSEparameters__ActorMagnetics; kw...)
     logging_actor_init(ActorMagnetics)
     par = OverrideParameters(par; kw...)
     return ActorMagnetics(dd, par)

@@ -125,7 +125,7 @@ function case_parameters(
     ini.core_profiles.Te_shaping = 1.8
     ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.helium_fraction = 0.01
+    ini.core_profiles.helium_fraction = 0.05
     ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne

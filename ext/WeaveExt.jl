@@ -6,7 +6,7 @@ import Weave
 using Logging
 
 """
-    weave_digest(::WeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; 
+    weave_digest(::WeaveBackend, dd::IMAS.DD, title::AbstractString, description::AbstractString=""; 
                 ini::Union{Nothing,ParametersAllInits}=nothing,
                 act::Union{Nothing,ParametersAllActors}=nothing)
 
@@ -14,7 +14,7 @@ Generate PDF digest using Weave. This method is only available when Weave.jl is 
 
 # Arguments
 - `::WeaveBackend`: Dispatch type indicating Weave functionality is available
-- `dd::IMAS.dd`: IMAS data structure containing simulation results
+- `dd::IMAS.DD`: IMAS data structure containing simulation results
 - `title::AbstractString`: Title for the PDF report
 - `description::AbstractString=""`: Optional description for the report
 - `ini::Union{Nothing,ParametersAllInits}=nothing`: Optional initialization parameters
@@ -27,7 +27,7 @@ Generate PDF digest using Weave. This method is only available when Weave.jl is 
 This function processes the Weave template files (`digest.jmd` and `digest.tpl`) located
 in the same directory as this extension to generate a comprehensive PDF report.
 """
-function FUSE.weave_digest(::WeaveBackend, dd::IMAS.dd,
+function FUSE.weave_digest(::WeaveBackend, dd::IMAS.DD,
     title::AbstractString,
     description::AbstractString="";
     ini::Union{Nothing,ParametersAllInits}=nothing,

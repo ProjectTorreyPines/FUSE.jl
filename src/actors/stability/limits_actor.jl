@@ -10,10 +10,10 @@
 end
 
 mutable struct ActorPlasmaLimits{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorPlasmaLimits{P}}
     act::ParametersAllActors{P}
-    function ActorPlasmaLimits(dd::IMAS.dd{D}, par::FUSEparameters__ActorPlasmaLimits{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    function ActorPlasmaLimits(dd::IMAS.DD{D}, par::FUSEparameters__ActorPlasmaLimits{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPlasmaLimits)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -21,7 +21,7 @@ mutable struct ActorPlasmaLimits{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorPlasmaLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPlasmaLimits(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evaluates plasma operational limits by running all selected limit models and checking 
 for violations. The actor executes various stability and operational limit assessments
@@ -35,7 +35,7 @@ of each limit threshold reached.
 
     Reads data from various sources and stores results in `dd.limits`
 """
-function ActorPlasmaLimits(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPlasmaLimits(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPlasmaLimits(dd, act.ActorPlasmaLimits, act; kw...)
     step(actor)
     finalize(actor)
