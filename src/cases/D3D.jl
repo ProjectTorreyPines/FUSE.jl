@@ -218,9 +218,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
 
     if pull_gslite_min
+        # apply known shot-dependent 150/210 beamline geometry on top of the user configuration
+        eff_offaxis, eff_counter = d3d_beam_config(shot, offaxis_beams, counter_beams)
         for nbu in dd1.nbi.unit
             if isempty(nbu.beamlets_group)
-                add_beam_examples!(nbu, d3d_beam_template(nbu.name, offaxis_beams, counter_beams))
+                add_beam_examples!(nbu, d3d_beam_template(nbu.name, eff_offaxis, eff_counter))
             end
         end
 
@@ -326,6 +328,70 @@ function d3d_beam_template(name::AbstractString, offaxis_beams=["15"], counter_b
     else                                             # co-Ip beamline(s)
         return :d3d_co
     end
+end
+
+"""
+    get_210_source(shot::Integer)
+
+Known DIII-D 210° beamline injection geometry as a function of shot number: co-current for
+`shot < 123500`, counter-Ip for `123500 ≤ shot < 177300`, and `:user` (defer to the
+`counter_beams` configuration) for later shots (which historically were read from MDS+).
+"""
+function get_210_source(shot::Integer)
+    if shot < 123500
+        return :co
+    elseif shot < 177300
+        return :counter
+    else
+        return :user
+    end
+end
+
+"""
+    get_150_source(shot::Integer)
+
+Known DIII-D 150° beamline injection geometry as a function of shot number: on-axis for
+`shot < 143701`, and `:user` (defer to the `offaxis_beams` configuration) for later shots
+(which historically were read from MDS+).
+"""
+function get_150_source(shot::Integer)
+    if shot < 143701
+        return :on_axis
+    else
+        return :user
+    end
+end
+
+"""
+    d3d_beam_config(shot::Integer, offaxis_beams, counter_beams)
+
+Return the effective `(offaxis_beams, counter_beams)` for `shot`: start from the user
+configuration and apply the known shot-dependent geometry of the 150 and 210 beamlines (see
+[`get_150_source`](@ref) and [`get_210_source`](@ref)). Earlier shots are corrected to their
+historical configuration; a `:user` result leaves that beamline as configured. The inputs are
+not mutated.
+"""
+function d3d_beam_config(shot::Integer, offaxis_beams, counter_beams)
+    offaxis_beams = copy(offaxis_beams)
+    counter_beams = copy(counter_beams)
+
+    # 210 beamline: co / counter / (user for modern shots)
+    src210 = get_210_source(shot)
+    if src210 == :co
+        filter!(b -> b != "21", offaxis_beams)
+        filter!(b -> b != "21", counter_beams)
+    elseif src210 == :counter
+        filter!(b -> b != "21", offaxis_beams)
+        "21" in counter_beams || push!(counter_beams, "21")
+    end
+
+    # 150 beamline: on-axis / (user for modern shots)
+    if get_150_source(shot) == :on_axis
+        filter!(b -> b != "15", offaxis_beams)
+        filter!(b -> b != "15", counter_beams)
+    end
+
+    return offaxis_beams, counter_beams
 end
 
 """
