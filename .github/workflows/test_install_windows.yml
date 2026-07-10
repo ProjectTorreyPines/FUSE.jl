@@ -47,19 +47,14 @@ jobs:
         shell: pwsh
         run: ./scripts/install_fuse_windows.ps1 -BootstrapOnly
 
-      - name: Clone FuseExamples for verify script smoke check
+      - name: Clone FuseExamples for notebook structure check
         shell: pwsh
         run: git clone --depth 1 https://github.com/ProjectTorreyPines/FuseExamples.git
 
       - name: Verify fluxmatcher notebook structure (no FUSE import)
         shell: pwsh
-        env:
-          FUSE_SKIP_SMOKE: '1'
         run: |
-          $env:Path = "$env:USERPROFILE\.local\miniconda3\Scripts;$env:USERPROFILE\.local\miniconda3\condabin;$env:Path"
-          . "$env:USERPROFILE\.local\miniconda3\shell\condabin\conda-hook.ps1"
-          conda activate fuse
-          $python = @'
+          python -c @'
           import json
           from pathlib import Path
           nb = json.loads(Path("FuseExamples/fluxmatcher.ipynb").read_text(encoding="utf-8"))
@@ -68,4 +63,3 @@ jobs:
           assert nb["cells"][1]["cell_type"] == "markdown"
           print("fluxmatcher.ipynb structure OK")
           '@
-          python -c $python
