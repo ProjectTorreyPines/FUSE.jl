@@ -1,0 +1,71 @@
+name: test-install-windows
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/install_fuse_windows.ps1'
+      - 'scripts/verify_fluxmatcher_notebook.ps1'
+      - 'scripts/install_fuse_julia.jl'
+      - '.github/workflows/test_install_windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-bootstrap:
+    name: Windows install script bootstrap
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1.11'
+          show-versioninfo: true
+
+      - name: Parse PowerShell install scripts
+        shell: pwsh
+        run: |
+          foreach ($script in @(
+            'scripts/install_fuse_windows.ps1',
+            'scripts/verify_fluxmatcher_notebook.ps1'
+          )) {
+            $errors = $null
+            $tokens = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
+            if ($errors) {
+              $errors | ForEach-Object { Write-Error $_ }
+              exit 1
+            }
+            Write-Host "Parsed $script OK"
+          }
+
+      - name: Bootstrap Julia + Miniconda (Windows install script)
+        shell: pwsh
+        run: ./scripts/install_fuse_windows.ps1 -BootstrapOnly
+
+      - name: Clone FuseExamples for verify script smoke check
+        shell: pwsh
+        run: git clone --depth 1 https://github.com/ProjectTorreyPines/FuseExamples.git
+
+      - name: Verify fluxmatcher notebook structure (no FUSE import)
+        shell: pwsh
+        env:
+          FUSE_SKIP_SMOKE: '1'
+        run: |
+          $env:Path = "$env:USERPROFILE\.local\miniconda3\Scripts;$env:USERPROFILE\.local\miniconda3\condabin;$env:Path"
+          . "$env:USERPROFILE\.local\miniconda3\shell\condabin\conda-hook.ps1"
+          conda activate fuse
+          $python = @'
+          import json
+          from pathlib import Path
+          nb = json.loads(Path("FuseExamples/fluxmatcher.ipynb").read_text(encoding="utf-8"))
+          assert len(nb["cells"]) >= 2
+          assert nb["cells"][0]["cell_type"] == "code"
+          assert nb["cells"][1]["cell_type"] == "markdown"
+          print("fluxmatcher.ipynb structure OK")
+          '@
+          python -c $python
