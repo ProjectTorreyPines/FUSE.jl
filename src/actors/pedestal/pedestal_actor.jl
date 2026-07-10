@@ -165,14 +165,15 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
     elseif par.ne_from == :nn_predictor && actor.nn_prediction !== nothing
-        nn_mode = actor.nn_prediction.hmode_prob >= 0.4f0 ? :H_mode : :L_mode
+        @info "t = $(dd.global_time) s | hmode_prob = $(actor.nn_prediction.hmode_prob)"
+        nn_mode = actor.nn_prediction.hmode_prob >= 0.35f0 ? :H_mode : :L_mode
         # Persist raw NN predictions in dd._aux so history survives actor recreation
         if !haskey(dd._aux, :nn_mode_history)
             dd._aux[:nn_mode_history] = Symbol[]
         end
         push!(dd._aux[:nn_mode_history], nn_mode)
         history = dd._aux[:nn_mode_history]
-        N = 3
+        N = 2
         previous_mode = haskey(dd._aux, :nn_decided_mode) ? dd._aux[:nn_decided_mode] : nn_mode
         if length(history) >= N && all(s == nn_mode for s in history[end-N+1:end])
             mode = nn_mode
@@ -226,6 +227,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
                 actor.t_lh = -Inf
                 actor.t_hl = -Inf
                 actor.cp1d_transition = deepcopy(cp1d)
+                # save initial L-mode ratio for use in future H→L back-transitions
 
             elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode]
                 # L to H
