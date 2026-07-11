@@ -132,7 +132,7 @@ function test_case(::Val{:UNIT}, dd::IMAS.DD)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:ITER_time}, dd::IMAS.DD; verbose::Bool=false)
+function test_case(::Val{:ITER_time}, dd::IMAS.DD; verbose::Bool=false, Δt::Float64=60.0, Nt::Int=12)
     # ========
     # hardware setup from ODS
 
@@ -162,8 +162,10 @@ function test_case(::Val{:ITER_time}, dd::IMAS.DD; verbose::Bool=false)
     # ========
     # Now we're ready to actually run the time-dependent simulation
 
-    act.ActorDynamicPlasma.Nt = 60
-    act.ActorDynamicPlasma.Δt = 300.0
+    # defaults evolve 60s at the same 5s time step as the full 300s simulation,
+    # to keep this test short: test_case(:ITER_time; Δt=300.0, Nt=60) for the full run
+    act.ActorDynamicPlasma.Nt = Nt
+    act.ActorDynamicPlasma.Δt = Δt
 
     act.ActorDynamicPlasma.evolve_current = true
     act.ActorDynamicPlasma.evolve_equilibrium = true
