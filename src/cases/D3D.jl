@@ -25,7 +25,9 @@ DIII-D from experimental shot
 
 `offaxis_beams` and `counter_beams` select which neutral-beam beamlines are treated as
 off-axis / counter-Ip when filling beam geometry from templates in the `pull_gslite_min` path
-(matched against the source name, e.g. "15"/"21"); everything else is co-Ip.
+(matched against the source name, e.g. "15"/"21"); everything else is co-Ip. The known
+shot-dependent history of the 150° and 210° beamlines overrides this configuration
+(see [`d3d_beam_template`](@ref)).
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     fit_profiles::Bool=true,
@@ -219,10 +221,9 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     if pull_gslite_min
         # apply known shot-dependent 150/210 beamline geometry on top of the user configuration
-        eff_offaxis, eff_counter = d3d_beam_config(shot, offaxis_beams, counter_beams)
         for nbu in dd1.nbi.unit
             if isempty(nbu.beamlets_group)
-                add_beam_examples!(nbu, d3d_beam_template(nbu.name, eff_offaxis, eff_counter))
+                add_beam_examples!(nbu, d3d_beam_template(shot, nbu.name, offaxis_beams, counter_beams))
             end
         end
 
@@ -316,82 +317,41 @@ function case_parameters(::Val{:D3D}, shot::Int;
 end
 
 """
-    d3d_beam_template(name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
+    d3d_beam_template(shot::Integer, name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
 
-Map a DIII-D neutral-beam source name to a geometry template used by `add_beam_examples!`.
+Map a DIII-D neutral-beam source name to a geometry template for `add_beam_examples!`,
+combining the user's off-axis/counter configuration (matched against the source name,
+e.g. "15"/"21") with the known shot-dependent history of the 150° and 210° beamlines.
+A beam that is both off-axis and counter-Ip maps to `:d3d_counter_offaxis`.
 """
-function d3d_beam_template(name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
-    if any(b -> occursin(b, name), offaxis_beams)   # steerable / off-axis beamline(s)
+function d3d_beam_template(shot::Integer, name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
+    offaxis = any(b -> occursin(b, name), offaxis_beams)
+    counter = any(b -> occursin(b, name), counter_beams)
+
+    if occursin("21", name)
+        # 210° beamline: co before 123500, counter until 177300,
+        # then always off-axis with user-configured direction
+        if shot < 123500
+            offaxis, counter = false, false
+        elseif shot < 177300
+            offaxis, counter = false, true
+        else
+            offaxis = true
+        end
+    elseif occursin("15", name) && shot < 143701
+        # 150° beamline was on-axis before 143701
+        offaxis = false
+    end
+
+    if offaxis && counter
+        return :d3d_counter_offaxis
+    elseif offaxis
         return :d3d_offaxis
-    elseif any(b -> occursin(b, name), counter_beams) # counter-Ip beamline(s)
+    elseif counter
         return :d3d_counter
-    else                                             # co-Ip beamline(s)
+    else
         return :d3d_co
     end
-end
-
-"""
-    get_210_source(shot::Integer)
-
-Known DIII-D 210° beamline injection geometry as a function of shot number: co-current for
-`shot < 123500`, counter-Ip for `123500 ≤ shot < 177300`, and `:user` (defer to the
-`counter_beams` configuration) for later shots (which historically were read from MDS+).
-"""
-function get_210_source(shot::Integer)
-    if shot < 123500
-        return :co
-    elseif shot < 177300
-        return :counter
-    else
-        return :user
-    end
-end
-
-"""
-    get_150_source(shot::Integer)
-
-Known DIII-D 150° beamline injection geometry as a function of shot number: on-axis for
-`shot < 143701`, and `:user` (defer to the `offaxis_beams` configuration) for later shots
-(which historically were read from MDS+).
-"""
-function get_150_source(shot::Integer)
-    if shot < 143701
-        return :on_axis
-    else
-        return :user
-    end
-end
-
-"""
-    d3d_beam_config(shot::Integer, offaxis_beams, counter_beams)
-
-Return the effective `(offaxis_beams, counter_beams)` for `shot`: start from the user
-configuration and apply the known shot-dependent geometry of the 150 and 210 beamlines (see
-[`get_150_source`](@ref) and [`get_210_source`](@ref)). Earlier shots are corrected to their
-historical configuration; a `:user` result leaves that beamline as configured. The inputs are
-not mutated.
-"""
-function d3d_beam_config(shot::Integer, offaxis_beams, counter_beams)
-    offaxis_beams = copy(offaxis_beams)
-    counter_beams = copy(counter_beams)
-
-    # 210 beamline: co / counter / (user for modern shots)
-    src210 = get_210_source(shot)
-    if src210 == :co
-        filter!(b -> b != "21", offaxis_beams)
-        filter!(b -> b != "21", counter_beams)
-    elseif src210 == :counter
-        filter!(b -> b != "21", offaxis_beams)
-        "21" in counter_beams || push!(counter_beams, "21")
-    end
-
-    # 150 beamline: on-axis / (user for modern shots)
-    if get_150_source(shot) == :on_axis
-        filter!(b -> b != "15", offaxis_beams)
-        filter!(b -> b != "15", counter_beams)
-    end
-
-    return offaxis_beams, counter_beams
 end
 
 """
