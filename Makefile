@@ -30,7 +30,7 @@ ifndef NO_FUSE_EXTENSION
 endif
 FUSE_PACKAGES := $(shell echo '$(FUSE_PACKAGES_MAKEFILE)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
 FUSE_PACKAGES_ALL := $(shell echo '$(FUSE_PACKAGES_MAKEFILE_ALL)' | awk '{printf("[\"%s\"", $$1); for (i=2; i<=NF; i++) printf(", \"%s\"", $$i); print "]"}')
-DEV_PACKAGES_MAKEFILE := $(shell find ../*/.git/config -exec grep ProjectTorreyPines \{\} /dev/null \; | cut -d'/' -f 2)
+DEV_PACKAGES_MAKEFILE := $(shell find .. -mindepth 2 -maxdepth 2 -name config -path '*/.git/config' 2>/dev/null -exec grep -l ProjectTorreyPines {} \; 2>/dev/null | cut -d'/' -f 2)
 
 # ANSI color codes
 RESET=\033[0m

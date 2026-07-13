@@ -1,9 +1,9 @@
 """
-    warmup(dd::IMAS.dd)
+    warmup(dd::IMAS.DD)
 
 Function used to precompile the majority of FUSE
 """
-function warmup(dd::IMAS.dd)
+function warmup(dd::IMAS.DD)
     empty!(dd)
 
     ini, act = case_parameters(:KDEMO)

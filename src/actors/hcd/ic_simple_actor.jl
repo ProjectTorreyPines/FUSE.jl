@@ -12,9 +12,9 @@ end
 end
 
 mutable struct ActorSimpleIC{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSimpleIC{P}}
-    function ActorSimpleIC(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleIC{P}; kw...) where {D<:Real,P<:Real}
+    function ActorSimpleIC(dd::IMAS.DD{D}, par::FUSEparameters__ActorSimpleIC{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimpleIC)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -22,7 +22,7 @@ mutable struct ActorSimpleIC{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleIC(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates ion cyclotron (IC) heating and current drive using simplified Gaussian 
 deposition profiles. The actor models IC wave absorption with configurable power
@@ -42,7 +42,7 @@ suitable for reactor-relevant conditions with significant beta_toroidal.
 
     Reads data in `dd.ic_antennas`, `dd.pulse_schedule` and stores data in `dd.waves` and `dd.core_sources`
 """
-function ActorSimpleIC(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSimpleIC(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSimpleIC(dd, act.ActorSimpleIC; kw...)
     step(actor)
     finalize(actor)

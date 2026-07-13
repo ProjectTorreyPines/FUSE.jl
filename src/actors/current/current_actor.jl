@@ -9,14 +9,14 @@
 end
 
 mutable struct ActorCurrent{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCurrent{P}}
     act::ParametersAllActors{P}
     jt_actor::Union{ActorSteadyStateCurrent{D,P},ActorQED{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
-    ActorCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCurrent(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Provides a unified interface for current evolution using different current diffusion models.
 
@@ -38,14 +38,14 @@ Updates to the data structure:
 
     The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
 """
-function ActorCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCurrent(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCurrent(dd, act.ActorCurrent, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCurrent(dd::IMAS.dd, par::FUSEparameters__ActorCurrent, act::ParametersAllActors; kw...)
+function ActorCurrent(dd::IMAS.DD, par::FUSEparameters__ActorCurrent, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCurrent)
     par = OverrideParameters(par; kw...)
 
@@ -126,7 +126,7 @@ function _finalize(actor::ActorCurrent)
     return actor
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorCurrent, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorCurrent, replay_dd::IMAS.DD)
     dd = actor.dd
 
     time0 = dd.global_time

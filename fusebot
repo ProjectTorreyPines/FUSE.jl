@@ -40,10 +40,15 @@ if fuse_dir === nothing
     exit(1)
 end
 
-# Handle the --get-dir argument
+# Handle special arguments before delegating to make
 if !isempty(ARGS)
-    if ARGS[1] == "--get-dir"
+    arg = ARGS[1]
+    if arg == "--get-dir"
         println(fuse_dir)
+        exit(0)
+    elseif arg in ("--help", "-h")
+        cd(fuse_dir)
+        run(`make header help_info help_user`)
         exit(0)
     end
 end
