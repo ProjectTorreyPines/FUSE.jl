@@ -22,10 +22,10 @@ import GeoInterface
 end
 
 mutable struct ActorCXbuild{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCXbuild{P}}
     act::ParametersAllActors{P}
-    function ActorCXbuild(dd::IMAS.dd{D}, par::FUSEparameters__ActorCXbuild{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    function ActorCXbuild(dd::IMAS.DD{D}, par::FUSEparameters__ActorCXbuild{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCXbuild)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -33,7 +33,7 @@ mutable struct ActorCXbuild{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCXbuild(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Generates 2D cross-sectional geometry of the tokamak build by converting the 1D radial build 
 layers into full poloidal cross-sections. Creates detailed outlines for all build layers,
@@ -64,7 +64,7 @@ and engineering requirements.
 
     Manipulates data in `dd.build`
 """
-function ActorCXbuild(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCXbuild(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCXbuild(dd, act.ActorCXbuild, act; kw...)
     step(actor)
     finalize(actor)

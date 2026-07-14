@@ -12,10 +12,10 @@
 end
 
 mutable struct ActorFitProfiles{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFitProfiles{P}}
     act::ParametersAllActors{P}
-    function ActorFitProfiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorFitProfiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    function ActorFitProfiles(dd::IMAS.DD{D}, par::FUSEparameters__ActorFitProfiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFitProfiles)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -23,7 +23,7 @@ mutable struct ActorFitProfiles{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFitProfiles(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Fits experimental diagnostic data from Thomson scattering and charge exchange recombination spectroscopy to create smooth plasma profiles.
 
@@ -37,7 +37,7 @@ This actor performs several key operations:
 
 The resulting fitted profiles are stored in `dd.core_profiles.profiles_1d[]` and provide the foundation for physics modeling.
 """
-function ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorFitProfiles(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFitProfiles(dd, act.ActorFitProfiles, act; kw...)
     step(actor)
     finalize(actor)

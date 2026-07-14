@@ -1,9 +1,9 @@
 """
-    init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_ec!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
-function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_ec!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     eqt = dd.equilibrium.time_slice[]
     resize!(dd.ec_launchers.beam, length(ini.ec_launcher); wipe=false)
     @assert length(dd.ec_launchers.beam) == length(ini.ec_launcher) == length(dd.pulse_schedule.ec.beam)
@@ -23,11 +23,11 @@ function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_ic!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_ic!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 """
-function init_ic!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_ic!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.ic_antennas.antenna, length(ini.ic_antenna); wipe=false)
     @assert length(dd.ic_antennas.antenna) == length(ini.ic_antenna) == length(dd.pulse_schedule.ic.antenna)
     for (idx, (ica, ini_ica, ps_ica)) in enumerate(zip(dd.ic_antennas.antenna, ini.ic_antenna, dd.pulse_schedule.ic.antenna))
@@ -45,11 +45,11 @@ function init_ic!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_lh!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_lh!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_lh!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_lh!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.lh_antennas.antenna, length(ini.lh_antenna); wipe=false)
     @assert length(dd.lh_antennas.antenna) == length(ini.lh_antenna) == length(dd.pulse_schedule.lh.antenna)
     for (idx, (lha, ini_lha, ps_lha)) in enumerate(zip(dd.lh_antennas.antenna, ini.lh_antenna, dd.pulse_schedule.lh.antenna))
@@ -67,11 +67,11 @@ function init_lh!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_nb!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
-function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_nb!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.nbi.unit, length(ini.nb_unit); wipe=false)
     @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
 
@@ -159,11 +159,11 @@ function pam_pellet_species(species::Symbol)
 end
 
 """
-    init_pl!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_pl!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.pellet_launcher` starting from `ini` and `act` parameters
 """
-function init_pl!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_pl!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.pellets.launcher, length(ini.pellet_launcher); wipe=false)
     @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
 
@@ -223,11 +223,11 @@ function init_pl!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_hcd!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_hcd!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_hcd")
     TimerOutputs.@timeit timer "init_hcd" begin
         init_from = ini.general.init_from

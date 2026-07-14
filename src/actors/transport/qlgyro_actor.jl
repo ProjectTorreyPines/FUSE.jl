@@ -20,7 +20,7 @@ import GACODE
 end
 
 mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorQLGYRO{P}}
     input_qlgyros::Vector{InputQLGYRO}
     input_cgyros::Vector{InputCGYRO}
@@ -28,7 +28,7 @@ mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorQLGYRO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorQLGYRO(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evaluates turbulent transport using the QLGYRO quasi-linear gyrokinetic model.
 
@@ -44,14 +44,14 @@ vs electromagnetic), simulation time parameters, and saturation rules. The model
 comprehensive electron/ion energy, particle, and momentum fluxes with gyrokinetic fidelity
 while being more computationally efficient than full nonlinear simulations.
 """
-function ActorQLGYRO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorQLGYRO(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorQLGYRO(dd, act.ActorQLGYRO; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorQLGYRO(dd::IMAS.dd{D}, par::FUSEparameters__ActorQLGYRO{P}; kw...) where {D<:Real,P<:Real}
+function ActorQLGYRO(dd::IMAS.DD{D}, par::FUSEparameters__ActorQLGYRO{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorQLGYRO)
     par = OverrideParameters(par; kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))

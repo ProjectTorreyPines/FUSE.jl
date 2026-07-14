@@ -5,11 +5,11 @@ import OrderedCollections
 #  init build  #
 #= ========== =#
 """
-    init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.build` starting from `ini` and `act` parameters
 """
-function init_build!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_build")
     TimerOutputs.@timeit timer "init_build" begin
         init_from = ini.general.init_from
@@ -212,7 +212,7 @@ function wall_radii(pr::Vector{Float64}, pz::Vector{Float64}, Z0::Real)
     return (r_hfs=r_hfs, r_lfs=r_lfs)
 end
 
-function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
+function assign_build_layers_materials(dd::IMAS.DD, ini::ParametersAllInits)
     bd = dd.build
     for (k, layer) in enumerate(bd.layer)
         if !ismissing(layer, :material)
@@ -248,7 +248,7 @@ function assign_build_layers_materials(dd::IMAS.dd, ini::ParametersAllInits)
     end
 end
 
-function assign_technologies(dd::IMAS.dd, ini::ParametersAllInits)
+function assign_technologies(dd::IMAS.DD, ini::ParametersAllInits)
     # plug
     if ini.center_stack.plug
         IMAS.mechanical_technology(dd, :pl)

@@ -10,6 +10,7 @@ The figure below is a sneakpeak of the models implemented in FUSE:
 
 Here are some key resources for getting started with FUSE:
 
+* 🛠️ **[Installation instructions](https://fuse.help/dev/install.html)**
 * 📨 **[Sign up for more info](https://forms.gle/iQGYKWfgeNkw2fCZ7)**
 * 📚 **[Online documentation](https://fuse.help)**
 * 🎓 **[Intro tutorial](https://fuse.help/dev/tutorial.html)**

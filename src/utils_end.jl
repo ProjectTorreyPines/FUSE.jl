@@ -80,7 +80,7 @@ Base.@kwdef struct Checkpoint
     history::OrderedCollections.OrderedDict = OrderedCollections.OrderedDict()
 end
 
-function Base.setindex!(chk::Checkpoint, dd::IMAS.dd, key::Symbol)
+function Base.setindex!(chk::Checkpoint, dd::IMAS.DD, key::Symbol)
     return chk.history[key] = (dd=deepcopy(dd),)
 end
 
@@ -465,7 +465,7 @@ end
 
 """
     digest(
-        dd::IMAS.dd;
+        dd::IMAS.DD;
         terminal_width::Int=136,
         line_char::Char='─',
         section::Int=0)
@@ -478,7 +478,7 @@ NOTES:
   - this function is defined in FUSE and not IMAS because it uses Plots.jl and not BaseRecipies.jl
 """
 function digest(
-    dd::IMAS.dd;
+    dd::IMAS.DD;
     terminal_width::Int=136,
     line_char::Char='─',
     section::Int=0)
@@ -627,11 +627,11 @@ function digest(
 end
 
 """
-    weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; kwargs...)
+    weave_digest(::NoWeaveBackend, dd::IMAS.DD, title::AbstractString, description::AbstractString=""; kwargs...)
 
 Fallback method when Weave.jl is not available. Provides helpful error message.
 """
-function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, description::AbstractString=""; 
+function weave_digest(::NoWeaveBackend, dd::IMAS.DD, title::AbstractString, description::AbstractString=""; 
                      ini::Union{Nothing,ParametersAllInits}=nothing,
                      act::Union{Nothing,ParametersAllActors}=nothing)
     error("""
@@ -647,7 +647,7 @@ function weave_digest(::NoWeaveBackend, dd::IMAS.dd, title::AbstractString, desc
 end
 
 """
-    digest(dd::IMAS.dd,
+    digest(dd::IMAS.DD,
         title::AbstractString,
         description::AbstractString="";
         ini::Union{Nothing,ParametersAllInits}=nothing,
@@ -663,7 +663,7 @@ import Pkg; Pkg.add("Weave")
 import Weave
 ```
 """
-function digest(dd::IMAS.dd,
+function digest(dd::IMAS.DD,
     title::AbstractString,
     description::AbstractString="";
     ini::Union{Nothing,ParametersAllInits}=nothing,

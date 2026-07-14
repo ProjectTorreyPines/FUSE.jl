@@ -49,7 +49,7 @@ import TurbulentTransport
 end
 
 mutable struct ActorTJLFEP{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorTJLFEP{P}}
     rho_grid::Vector{D}            # full rho_tor_norm grid the critical gradients live on
     SFmin::Vector{D}               # critical EP-density scalefactor per scan radius (stability metric)
@@ -61,7 +61,7 @@ mutable struct ActorTJLFEP{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorTJLFEP(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorTJLFEP(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Energetic-particle (EP) transport actor combining TGLF-EP and ALPHA.
 
@@ -76,14 +76,14 @@ obtain the EP radial profiles: density `n_EP`, pressure `p_EP`, temperature
 population on the EP species and the EP flux to `dd.core_transport`. AE-stability
 metrics (`SFmin`, `width`, `kymark`) are kept on the actor struct.
 """
-function ActorTJLFEP(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTJLFEP(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTJLFEP(dd, act.ActorTJLFEP; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTJLFEP(dd::IMAS.dd{D}, par::FUSEparameters__ActorTJLFEP; kw...) where {D<:Real}
+function ActorTJLFEP(dd::IMAS.DD{D}, par::FUSEparameters__ActorTJLFEP; kw...) where {D<:Real}
     logging_actor_init(ActorTJLFEP)
     par = OverrideParameters(par; kw...)
     return ActorTJLFEP(dd, par, D[], D[], D[], D[], D[], D[], nothing)
