@@ -272,7 +272,7 @@ install_fuse_stack() {
     run_julia_install smoke
 
     log "FUSE install complete."
-    log "Step 2 — verify fluxmatcher.ipynb cells 0–1:"
+    log "Step 2 — verify fluxmatcher.ipynb cells 0–2:"
     log "  bash ${SCRIPT_DIR}/verify_fluxmatcher_notebook.sh"
 }
 

@@ -337,7 +337,7 @@ function Install-FuseStack {
     }
 
     Write-InstallLog "FUSE install complete."
-    Write-InstallLog "Step 2 — verify fluxmatcher.ipynb cells 0–1:"
+    Write-InstallLog "Step 2 — verify fluxmatcher.ipynb cells 0–2:"
     Write-InstallLog "  .\scripts\verify_fluxmatcher_notebook.ps1"
 }
 

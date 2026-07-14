@@ -20,7 +20,7 @@ If `fusebot` cannot be installed (for example when `~/.local/bin` does not exist
 
 ### Step 2: verify `fluxmatcher.ipynb`
 
-Confirms **cell 0** (`using Revise`, `using Plots`, `using FUSE`) and **cell 1** (markdown) in `FuseExamples/fluxmatcher.ipynb`:
+Runs the **first three cells** of `FuseExamples/fluxmatcher.ipynb` — **cell 0** (`using Revise`, `using Plots`, `using FUSE`), **cell 1** (markdown, checked for presence), and **cell 2**, which flux-matches the DIII-D L-mode case (allow **15+ minutes** on the first run):
 
 ```bash
 module load julia/1.11.7

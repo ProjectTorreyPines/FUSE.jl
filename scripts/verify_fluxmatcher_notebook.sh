@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Step 2 after install: verify fluxmatcher.ipynb cells 0–1 from the command line.
+# Step 2 after install: verify fluxmatcher.ipynb cells 0–2 from the command line.
 #
 # Laptop:
 #   bash scripts/verify_fluxmatcher_notebook.sh
@@ -41,24 +41,43 @@ else
     exit 1
 fi
 
+# Extract the code from the first three cells (cells 0 & 2; cell 1 is markdown)
+# into a temp file that verify_fluxmatcher_notebook.jl runs, so the test stays
+# faithful to whatever the notebook actually contains.
+export FUSE_VERIFY_CELLS="$(mktemp)"
+trap 'rm -f "${FUSE_VERIFY_CELLS}"' EXIT
+
 "${PYTHON}" - <<'PY'
 import json
+import os
 import sys
 from pathlib import Path
 
+out_path = Path(os.environ["FUSE_VERIFY_CELLS"])
 path = Path("FuseExamples/fluxmatcher.ipynb")
 nb = json.loads(path.read_text())
-if len(nb["cells"]) < 2:
-    sys.exit("fluxmatcher.ipynb must have at least 2 cells")
-if nb["cells"][0]["cell_type"] != "code":
+cells = nb["cells"]
+if len(cells) < 3:
+    sys.exit("fluxmatcher.ipynb must have at least 3 cells")
+if cells[0]["cell_type"] != "code":
     sys.exit("Cell 0 must be a code cell")
-if nb["cells"][1]["cell_type"] != "markdown":
+if cells[1]["cell_type"] != "markdown":
     sys.exit("Cell 1 must be a markdown cell")
-text = "".join(nb["cells"][1].get("source", [])).lower()
+if cells[2]["cell_type"] != "code":
+    sys.exit("Cell 2 must be a code cell")
+text = "".join(cells[1].get("source", [])).lower()
 if "flux-matcher" not in text and "flux matcher" not in text:
     sys.exit("Cell 1 markdown does not mention flux-matcher")
-print("[verify_fluxmatcher] Cell 1 (markdown) present")
+
+chunks = []
+for i, cell in enumerate(cells[:3]):
+    if cell["cell_type"] != "code":
+        continue
+    chunks.append("# --- fluxmatcher.ipynb cell %d ---" % i)
+    chunks.append("".join(cell.get("source", [])))
+out_path.write_text("\n".join(chunks) + "\n")
+print("[verify_fluxmatcher] Cells 0-2 present (cell 1 markdown, cells 0 & 2 code)")
 PY
 
 julia "${SCRIPT_DIR}/verify_fluxmatcher_notebook.jl"
-log "fluxmatcher.ipynb cells 0–1 verification PASSED"
+log "fluxmatcher.ipynb cells 0–2 verification PASSED"
