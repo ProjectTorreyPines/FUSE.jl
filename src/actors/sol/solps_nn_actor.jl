@@ -3,6 +3,28 @@
 #= =========== =#
 import SOLPSNN
 
+# SOLPS2imas is a declared FUSE dependency but is loaded *lazily* (only when
+# grid=:solps2imas is requested). It is NOT imported at top level on purpose:
+# SOLPS2imas pulls in IMASggd, whose plot recipes for IMASdd.interferometer
+# collide with IMAS's, and method-overwriting is fatal during precompilation.
+# A runtime load turns that collision into a harmless warning and keeps FUSE
+# precompiling cleanly. See _solpsnn_load_solps2imas!.
+const _SOLPS2IMAS_PKGID = Base.PkgId(Base.UUID("09becab6-0636-4c23-a92a-2b3723265c31"), "SOLPS2imas")
+
+"""Load SOLPS2imas at runtime (activating SOLPSNN's SOLPS2imasExt) if not already loaded."""
+function _solpsnn_load_solps2imas!()
+    if !haskey(Base.loaded_modules, _SOLPS2IMAS_PKGID)
+        try
+            Base.require(_SOLPS2IMAS_PKGID)
+        catch err
+            error("ActorSOLPSNN: grid=:solps2imas needs SOLPS2imas.jl, which failed to load: $err")
+        end
+    end
+    isempty(methods(SOLPSNN.build_edge_profiles_ggd_solps2imas!)) &&
+        error("ActorSOLPSNN: SOLPS2imas loaded but SOLPSNN.SOLPS2imasExt did not activate")
+    return nothing
+end
+
 # Map an actor-level quantity symbol onto a (SOLPS-NN item, species) pair.
 const _SOLPSNN_QMAP = Dict{Symbol,Tuple{String,Union{Nothing,String}}}(
     :te => ("te", nothing),        # electron temperature field
@@ -37,6 +59,11 @@ const _SOLPSNN_BOUNDS = (
     D_perp::Entry{T} = Entry{T}("m^2/s", "Cross-field particle diffusivity"; default=0.3)
     chi_perp::Entry{T} = Entry{T}("m^2/s", "Cross-field heat diffusivity"; default=1.0)
     write_ggd::Entry{Bool} = Entry{Bool}("-", "Write 2D fields to dd.edge_profiles GGD"; default=true)
+    grid::Switch{Symbol} = Switch{Symbol}([:native, :solps2imas], "-",
+        "GGD grid builder: :native (lightweight SOLPSNN builder) or :solps2imas (SOLPS2imas.jl, "*
+        "reproduces a real SOLPS run's mesh with the full set of physical subsets)"; default=:native)
+    b2fgmtry::Entry{String} = Entry{String}("-",
+        "Path to the SOLPS b2fgmtry for grid=:solps2imas (defaults to the file bundled with SOLPSNN)"; default="")
     write_divertor::Entry{Bool} = Entry{Bool}("-", "Write peak heat flux to dd.divertors outer target"; default=true)
     dir::Entry{String} = Entry{String}("-", "Override directory holding the converted ONNX artifacts"; default="")
     verify::Entry{Bool} = Entry{Bool}("-", "SHA-256 verify artifacts on load"; default=false)
@@ -72,6 +99,12 @@ slice; the peak heat flux is written to the outer divertor target when target
 geometry is available. `psol` is kept as a diagnostic (compared against
 `IMAS.power_sol`) and is *not* written back, to avoid corrupting the Psol/R
 design constraint that FUSE computes from core power balance.
+
+The GGD grid is built either with SOLPSNN's lightweight internal builder
+(`grid=:native`, default) or through `SOLPS2imas.jl` (`grid=:solps2imas`), which
+reproduces the exact mesh and full set of physical grid subsets (separatrix,
+inner/outer target, OMP/IMP, core/SOL, …) of a real SOLPS run — making the
+output a drop-in for GGDUtils / SOLPS2ctrl tooling.
 
 !!! note
 
@@ -161,23 +194,35 @@ function _finalize(actor::ActorSOLPSNN)
     field_qs = [q for q in keys(preds) if preds[q] isa AbstractMatrix]
 
     if par.write_ggd && !isempty(field_qs)
-        if actor.geo === nothing
-            actor.geo = SOLPSNN.load_geometry(_solpsnn_dir(par))
+        if par.grid == :solps2imas
+            # Build the grid through SOLPS2imas so the surrogate populates the same
+            # IMAS mesh (+ full physical subsets) a real SOLPS run does. The cell
+            # ordering is transposed vs the native builder, hence order=:solps.
+            _solpsnn_load_solps2imas!()
+            b2 = isempty(par.b2fgmtry) ? SOLPSNN.bundled_b2fgmtry() : par.b2fgmtry
+            # invokelatest: the ext method may have been defined in a newer world age
+            grid_index = Base.invokelatest(SOLPSNN.build_edge_profiles_ggd_solps2imas!, dd, b2; R, R_JET=SOLPSNN.R_JET, time0)
+            ggd_order = :solps
+        else
+            if actor.geo === nothing
+                actor.geo = SOLPSNN.load_geometry(_solpsnn_dir(par))
+            end
+            grid_index = SOLPSNN.build_edge_profiles_ggd!(dd, actor.geo; R, time0)
+            ggd_order = :native
         end
-        grid_index = SOLPSNN.build_edge_profiles_ggd!(dd, actor.geo; R, time0)
         ep = SOLPSNN.ggd_time_slice!(dd, time0)
 
         if haskey(preds, :te) && preds[:te] isa AbstractMatrix
-            SOLPSNN.add_ggd_field!(ep.electrons.temperature, preds[:te]; grid_index)
+            SOLPSNN.add_ggd_field!(ep.electrons.temperature, preds[:te]; grid_index, order=ggd_order)
         end
         if haskey(preds, :ne) && preds[:ne] isa AbstractMatrix
-            SOLPSNN.add_ggd_field!(ep.electrons.density, preds[:ne]; grid_index)
+            SOLPSNN.add_ggd_field!(ep.electrons.density, preds[:ne]; grid_index, order=ggd_order)
         end
         if haskey(preds, :ti) && preds[:ti] isa AbstractMatrix
             resize!(ep.ion, 1)
             ep.ion[1].label = "D+"
             ep.ion[1].z_ion = 1.0
-            SOLPSNN.add_ggd_field!(ep.ion[1].temperature, preds[:ti]; grid_index)
+            SOLPSNN.add_ggd_field!(ep.ion[1].temperature, preds[:ti]; grid_index, order=ggd_order)
         end
     end
 
