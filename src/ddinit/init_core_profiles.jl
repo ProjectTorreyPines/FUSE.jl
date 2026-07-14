@@ -66,6 +66,8 @@ function init_core_profiles!(dd::IMAS.DD, ini::ParametersAllInits, act::Paramete
                 ini.core_profiles.zeff,
                 ini.core_profiles.bulk,
                 ini.core_profiles.impurity,
+                wall_impurity=getproperty(ini.core_profiles, :wall_impurity, missing),
+                wall_impurity_fraction=getproperty(ini.core_profiles, :wall_impurity_fraction, missing),
                 ini.core_profiles.rot_core,
                 ejima=getproperty(ini.core_profiles, :ejima, missing),
                 ini.core_profiles.polarized_fuel_fraction,
@@ -108,6 +110,8 @@ function init_core_profiles!(
     zeff::Real,
     bulk::Symbol,
     impurity::Symbol,
+    wall_impurity::Union{Symbol,Missing},
+    wall_impurity_fraction::Union{Real,Missing},
     rot_core::Real,
     ejima::Union{Real,Missing},
     polarized_fuel_fraction::Real,
@@ -167,41 +171,85 @@ function init_core_profiles!(
 
     # Set ions:
     cp1d.zeff = ones(ngrid) .* zeff
-    bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
-    # 1. DT
-    IMAS.ion_element!(bulk_ion, bulk)
-    # 2. Impurity
-    IMAS.ion_element!(imp_ion, impurity)
-    # 3. He
-    IMAS.ion_element!(he_ion, :He4)
+    if wall_impurity === missing
+        # 3-ion path: bulk, seeding impurity, He
+        bulk_ion, imp_ion, he_ion = resize!(cp1d.ion, 3)
+        IMAS.ion_element!(bulk_ion, bulk)
+        IMAS.ion_element!(imp_ion, impurity)
+        IMAS.ion_element!(he_ion, :He4)
 
-    # Zeff and quasi neutrality for a helium constant fraction with one impurity specie
-    niFraction = zeros(3)
-    # DT == 1
-    # Imp == 2
-    # He == 3
-    zimp = imp_ion.element[1].z_n
-    niFraction[3] = helium_fraction
-    niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
-    niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
-    @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium fraction [$helium_fraction] and zeff [$zeff]"
-    ni_core = 0.0
-    for i in eachindex(cp1d.ion)
-        cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
-        ni_core += cp1d.electrons.density_thermal[1] * niFraction[i]
-    end
-    # remove He if not present
-    if sum(niFraction[3]) == 0.0
-        deleteat!(cp1d.ion, 3)
-    end
+        # Pass 1: use z_n as bootstrap to compute ni_core → Te_core → Te_ped
+        niFraction = zeros(3)
+        zimp = imp_ion.element[1].z_n
+        niFraction[3] = helium_fraction
+        niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
+        niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
+        @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium_fraction [$helium_fraction] and zeff [$zeff]"
+        ni_core = sum(cp1d.electrons.density_thermal[1] * niFraction[i] for i in eachindex(niFraction))
 
-    # temperatures
-    @assert Te_core !== missing || pressure_core !== missing "Must specify either `ini.core_profiles.Te_core` or `ini.equilibrium.pressure_core`"
-    if Te_core === missing
-        Te_core = pressure_core / (Ti_Te_ratio * ni_core + ne_core) / IMAS.mks.e
-    end
-    if Te_ped === missing
-        Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
+        # temperatures
+        @assert Te_core !== missing || pressure_core !== missing "Must specify either `ini.core_profiles.Te_core` or `ini.equilibrium.pressure_core`"
+        if Te_core === missing
+            Te_core = pressure_core / (Ti_Te_ratio * ni_core + ne_core) / IMAS.mks.e
+        end
+        if Te_ped === missing
+            Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
+        end
+
+        # Pass 2: recompute using avgZ at Te_ped
+        zimp = IMAS.avgZ(imp_ion.element[1].z_n, Te_ped)
+        niFraction[3] = helium_fraction
+        niFraction[1] = (zimp - zeff + 4 * niFraction[3] - 2 * zimp * niFraction[3]) / (zimp - 1)
+        niFraction[2] = (zeff - niFraction[1] - 4 * niFraction[3]) / zimp^2
+        @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium_fraction [$helium_fraction] and zeff [$zeff] with avgZ=$(round(zimp; digits=1)) at Te_ped=$(round(Te_ped; digits=0)) eV"
+        for i in eachindex(cp1d.ion)
+            cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
+        end
+        if sum(niFraction[3]) == 0.0
+            deleteat!(cp1d.ion, 3)
+        end
+    else
+        # 4-ion path: bulk, wall impurity (fixed fraction), seeding impurity (from zeff gap), He
+        bulk_ion, wall_ion, imp_ion, he_ion = resize!(cp1d.ion, 4)
+        IMAS.ion_element!(bulk_ion, bulk)
+        IMAS.ion_element!(wall_ion, wall_impurity)
+        IMAS.ion_element!(imp_ion, impurity)
+        IMAS.ion_element!(he_ion, :He4)
+
+        # Pass 1: use z_n as bootstrap to compute ni_core → Te_core → Te_ped
+        niFraction = zeros(4)
+        zwall = wall_ion.element[1].z_n
+        zimp = imp_ion.element[1].z_n
+        niFraction[2] = wall_impurity_fraction
+        niFraction[4] = helium_fraction
+        niFraction[3] = (zeff - 1 - zwall * (zwall - 1) * niFraction[2] - 2 * niFraction[4]) / (zimp * (zimp - 1))
+        niFraction[1] = 1 - zwall * niFraction[2] - zimp * niFraction[3] - 2 * niFraction[4]
+        @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium_fraction [$helium_fraction], wall_impurity_fraction [$wall_impurity_fraction], and zeff [$zeff]"
+        ni_core = sum(cp1d.electrons.density_thermal[1] * niFraction[i] for i in eachindex(niFraction))
+
+        # temperatures
+        @assert Te_core !== missing || pressure_core !== missing "Must specify either `ini.core_profiles.Te_core` or `ini.equilibrium.pressure_core`"
+        if Te_core === missing
+            Te_core = pressure_core / (Ti_Te_ratio * ni_core + ne_core) / IMAS.mks.e
+        end
+        if Te_ped === missing
+            Te_ped = (Te_core - Te_sep) * w_ped .+ Te_sep
+        end
+
+        # Pass 2: recompute using avgZ at Te_ped
+        zwall = IMAS.avgZ(wall_ion.element[1].z_n, Te_ped)
+        zimp = IMAS.avgZ(imp_ion.element[1].z_n, Te_ped)
+        niFraction[2] = wall_impurity_fraction
+        niFraction[4] = helium_fraction
+        niFraction[3] = (zeff - 1 - zwall * (zwall - 1) * niFraction[2] - 2 * niFraction[4]) / (zimp * (zimp - 1))
+        niFraction[1] = 1 - zwall * niFraction[2] - zimp * niFraction[3] - 2 * niFraction[4]
+        @assert !any(niFraction .< 0.0) "zeff impossible to match for given helium_fraction [$helium_fraction], wall_impurity_fraction [$wall_impurity_fraction], and zeff [$zeff] with avgZ_wall=$(round(zwall; digits=1)), avgZ_seed=$(round(zimp; digits=1)) at Te_ped=$(round(Te_ped; digits=0)) eV"
+        for i in eachindex(cp1d.ion)
+            cp1d.ion[i].density_thermal = cp1d.electrons.density_thermal .* niFraction[i]
+        end
+        if sum(niFraction[4]) == 0.0
+            deleteat!(cp1d.ion, 4)
+        end
     end
     if plasma_mode == :H_mode
         cp1d.electrons.temperature = IMAS.Hmode_profiles(Te_sep, Te_ped, Te_core, ngrid, Te_shaping, Te_shaping, w_ped)
