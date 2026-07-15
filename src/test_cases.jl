@@ -7,7 +7,6 @@ function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersA
     if get(ENV, "FUSE_WITH_EXTENSIONS", "false") == "true"
         act.ActorThermalPlant.model = :network
     end
-    # select the TEQUILA fixed-boundary solver ("picard" or "veq") for cases that use TEQUILA
     return (ini=ini, act=act)
 end
 
