@@ -287,6 +287,14 @@ function add_beam_examples!(nbu, name::Symbol)
         beamlet.tangency_radius = 0.9
         beamlet.angle = 0.0
         beamlet.direction = -1
+    elseif name == :d3d_counter_offaxis
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
+        beamlet.position.r = 8.2
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 0.9
+        beamlet.angle = -0.3
+        beamlet.direction = -1
     elseif name == :d3d_offaxis
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
         beamlet.position.r = 8.2
