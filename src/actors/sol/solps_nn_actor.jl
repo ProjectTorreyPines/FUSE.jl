@@ -110,8 +110,14 @@ output a drop-in for GGDUtils / SOLPS2ctrl tooling.
 
     Reads `dd.equilibrium`, `dd.core_profiles`, `dd.core_sources`.
     Stores 2D fields in `dd.edge_profiles` and peak heat flux in `dd.divertors`.
-    Requires the converted ONNX artifacts (see the `SOLPSNN/convert` pipeline);
-    set `ENV["FUSE_SOLPS_NN_DIR"]` or the `dir` parameter.
+    Upstream SOLPS-NN ships TensorFlow weights, not ONNX, so on first use the
+    bundled `convert/` pipeline fetches the needed quantities from SURFdrive and
+    converts them to ONNX in a conda env (created on demand; needs `conda` on
+    `PATH`, e.g. `module load conda` or the FUSE conda env). Artifacts cache
+    under `\$PSCRATCH/solps-nn-onnx`; override with `ENV["FUSE_SOLPS_NN_DIR"]`
+    or the `dir` parameter, point `ENV["FUSE_SOLPS_NN_BASE_URL"]` at a
+    pre-converted mirror to download instead, or disable auto-conversion with
+    `ENV["FUSE_SOLPS_NN_AUTOCONVERT"] = "0"`.
 """
 function ActorSOLPSNN(dd::IMAS.dd, act::ParametersAllActors; kw...)
     actor = ActorSOLPSNN(dd, act.ActorSOLPSNN; kw...)
