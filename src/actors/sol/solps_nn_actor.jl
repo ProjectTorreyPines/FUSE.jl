@@ -115,8 +115,7 @@ output a drop-in for GGDUtils / SOLPS2ctrl tooling.
     converts them to ONNX in a conda env (created on demand; needs `conda` on
     `PATH`, e.g. `module load conda` or the FUSE conda env). Artifacts cache
     under `\$PSCRATCH/solps-nn-onnx`; override with `ENV["FUSE_SOLPS_NN_DIR"]`
-    or the `dir` parameter, point `ENV["FUSE_SOLPS_NN_BASE_URL"]` at a
-    pre-converted mirror to download instead, or disable auto-conversion with
+    or the `dir` parameter, or disable auto-conversion with
     `ENV["FUSE_SOLPS_NN_AUTOCONVERT"] = "0"`.
 """
 function ActorSOLPSNN(dd::IMAS.dd, act::ParametersAllActors; kw...)
