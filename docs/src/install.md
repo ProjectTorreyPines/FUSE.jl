@@ -44,10 +44,11 @@ If `winget` is unavailable, install Julia with `Add-AppxPackage -AppInstallerFil
 
 ### Step 2: verify `fluxmatcher.ipynb`
 
-After the install finishes, confirm you can run the **first two cells** of [`FuseExamples/fluxmatcher.ipynb`](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/fluxmatcher.ipynb):
+After the install finishes, confirm you can run the **first three cells** of [`FuseExamples/fluxmatcher.ipynb`](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/fluxmatcher.ipynb):
 
 * **Cell 0** (code): `using Revise`, `using Plots`, `using FUSE`
 * **Cell 1** (markdown): flux-matcher introduction (checked for presence, not executed)
+* **Cell 2** (code): flux-matches the DIII-D L-mode case — this actually runs the flux-matcher, so allow **15+ minutes** on the first run (compilation plus the solve)
 
 **Linux, macOS, and NERSC:**
 
@@ -77,7 +78,7 @@ conda activate fuse
 python -m jupyter lab
 ```
 
-Open `FuseExamples/fluxmatcher.ipynb` and run cells 0–1 in the notebook UI.
+Open `FuseExamples/fluxmatcher.ipynb` and run cells 0–2 in the notebook UI.
 
 ## Julia installation
 

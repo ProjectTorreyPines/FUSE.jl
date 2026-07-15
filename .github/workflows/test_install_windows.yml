@@ -58,8 +58,9 @@ jobs:
           import json
           from pathlib import Path
           nb = json.loads(Path("FuseExamples/fluxmatcher.ipynb").read_text(encoding="utf-8"))
-          assert len(nb["cells"]) >= 2
+          assert len(nb["cells"]) >= 3
           assert nb["cells"][0]["cell_type"] == "code"
           assert nb["cells"][1]["cell_type"] == "markdown"
+          assert nb["cells"][2]["cell_type"] == "code"
           print("fluxmatcher.ipynb structure OK")
           '@

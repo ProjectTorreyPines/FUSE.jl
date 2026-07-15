@@ -1,4 +1,4 @@
-# Step 2 after install: verify fluxmatcher.ipynb cells 0–1 from PowerShell.
+# Step 2 after install: verify fluxmatcher.ipynb cells 0–2 from PowerShell.
 #
 #   .\scripts\verify_fluxmatcher_notebook.ps1
 
@@ -48,29 +48,55 @@ if (-not $Python) {
     Write-Error "python not on PATH (activate the fuse conda env first)"
 }
 
-& $Python - @"
+# Extract the code from the first three cells (cells 0 & 2; cell 1 is markdown)
+# into a temp file that verify_fluxmatcher_notebook.jl runs, so the test stays
+# faithful to whatever the notebook actually contains.
+$env:FUSE_VERIFY_CELLS = [System.IO.Path]::GetTempFileName()
+
+$pySource = @"
 import json
+import os
 import sys
 from pathlib import Path
 
+out_path = Path(os.environ["FUSE_VERIFY_CELLS"])
 path = Path(r"$Notebook")
 nb = json.loads(path.read_text(encoding="utf-8"))
-if len(nb["cells"]) < 2:
-    sys.exit("fluxmatcher.ipynb must have at least 2 cells")
-if nb["cells"][0]["cell_type"] != "code":
+cells = nb["cells"]
+if len(cells) < 3:
+    sys.exit("fluxmatcher.ipynb must have at least 3 cells")
+if cells[0]["cell_type"] != "code":
     sys.exit("Cell 0 must be a code cell")
-if nb["cells"][1]["cell_type"] != "markdown":
+if cells[1]["cell_type"] != "markdown":
     sys.exit("Cell 1 must be a markdown cell")
-text = "".join(nb["cells"][1].get("source", [])).lower()
+if cells[2]["cell_type"] != "code":
+    sys.exit("Cell 2 must be a code cell")
+text = "".join(cells[1].get("source", [])).lower()
 if "flux-matcher" not in text and "flux matcher" not in text:
     sys.exit("Cell 1 markdown does not mention flux-matcher")
-print("[verify_fluxmatcher] Cell 1 (markdown) present")
+
+chunks = []
+for i, cell in enumerate(cells[:3]):
+    if cell["cell_type"] != "code":
+        continue
+    chunks.append("# --- fluxmatcher.ipynb cell %d ---" % i)
+    chunks.append("".join(cell.get("source", [])))
+out_path.write_text("\n".join(chunks) + "\n", encoding="utf-8")
+print("[verify_fluxmatcher] Cells 0-2 present (cell 1 markdown, cells 0 & 2 code)")
 "@
+
+$pySource | & $Python -
+if ($LASTEXITCODE -ne 0) {
+    Remove-Item -Force $env:FUSE_VERIFY_CELLS -ErrorAction SilentlyContinue
+    Write-Error "Notebook structure check failed"
+}
 
 $juliaVerify = Join-Path $ScriptDir "verify_fluxmatcher_notebook.jl"
 & julia $juliaVerify
-if ($LASTEXITCODE -ne 0) {
+$juliaExit = $LASTEXITCODE
+Remove-Item -Force $env:FUSE_VERIFY_CELLS -ErrorAction SilentlyContinue
+if ($juliaExit -ne 0) {
     Write-Error "Julia verification failed"
 }
 
-Write-VerifyLog "fluxmatcher.ipynb cells 0–1 verification PASSED"
+Write-VerifyLog "fluxmatcher.ipynb cells 0–2 verification PASSED"
