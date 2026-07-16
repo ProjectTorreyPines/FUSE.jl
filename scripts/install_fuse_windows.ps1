@@ -366,7 +366,7 @@ function Resolve-FuseScript {
 
 function Verify-FluxmatcherNotebook {
     $verifyPs1 = Resolve-FuseScript "verify_fluxmatcher_notebook.ps1"
-    Write-InstallLog "Verifying fluxmatcher.ipynb cells 0–2 (cell 2 can take 15+ minutes on first run)"
+    Write-InstallLog "Verifying fluxmatcher.ipynb cells 0–2 (often ~6 minutes on one thread the first time)"
     if (-not (Test-Command python)) {
         Ensure-FuseCondaEnv
     }

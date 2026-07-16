@@ -6,7 +6,7 @@ For the pre-built `module load fuse` environment maintained by the FUSE team, se
 
 ## NERSC one-command install
 
-From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is tight). Loads `julia/1.11.7` and `conda`, installs FUSE, Revise, fusebot (under `~/.local/bin` or `~/.local/shared/bin` if `bin` is not writable), the Jupyter conda environment, IJulia kernels, and clones [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples). All steps run from the shell — no Julia REPL.
+From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is tight). Loads `julia/1.11.7` and `conda`, installs FUSE, Revise, fusebot (under `~/.local/bin` or `~/.local/shared/bin` if `bin` is not writable), the Jupyter conda environment, IJulia kernels, clones [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples), and finishes by running the **first three cells** of `fluxmatcher.ipynb` (typically ~6 minutes on one thread — fine on a login node). All steps run from the shell — no Julia REPL.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_nersc.sh)
@@ -14,22 +14,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/m
 
 From a local `FUSE.jl` clone: `bash scripts/install_fuse_nersc.sh`
 
-Override the Julia module with `FUSE_JULIA_MODULE=julia/1.12.0 bash scripts/install_fuse_nersc.sh` when needed.
+Override the Julia module with `FUSE_JULIA_MODULE=julia/1.12.0 bash scripts/install_fuse_nersc.sh` when needed. Skip the notebook solve with `FUSE_SKIP_VERIFY=1` if you only want packages + kernels.
 
 If `fusebot` cannot be installed or `fusebot install_IJulia` fails (for example when `make` is missing), the script falls back to `make install_IJulia` and then to `scripts/install_ijulia.sh` from the FUSE package directory.
 
-### Step 2: verify `fluxmatcher.ipynb`
-
-Runs the **first three cells** of `FuseExamples/fluxmatcher.ipynb` — **cell 0** (`using Revise`, `using Plots`, `using FUSE`), **cell 1** (markdown, checked for presence), and **cell 2**, which flux-matches the DIII-D L-mode case (allow **15+ minutes** on the first run):
-
-```bash
-module load julia/1.11.7
-bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/verify_fluxmatcher_notebook.sh)
-```
-
-Or from a `FUSE.jl` clone: `bash scripts/verify_fluxmatcher_notebook.sh`
-
-Then start JupyterLab (with `module load conda` and `conda activate fuse`) and open `FuseExamples/fluxmatcher.ipynb`.
+Then start JupyterLab (with `module load conda` and `conda activate fuse`) and open `FuseExamples/fluxmatcher.ipynb`. To re-run the notebook cells from the shell later: `bash scripts/verify_fluxmatcher_notebook.sh`.
 
 ## Julia
 

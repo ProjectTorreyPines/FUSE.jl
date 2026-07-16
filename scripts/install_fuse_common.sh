@@ -312,7 +312,7 @@ clone_fuse_examples() {
 verify_fluxmatcher_notebook() {
     local verify_sh
     verify_sh="$(resolve_fuse_script verify_fluxmatcher_notebook.sh)"
-    log "Verifying fluxmatcher.ipynb cells 0–2 (cell 2 can take 15+ minutes on first run)"
+    log "Verifying fluxmatcher.ipynb cells 0–2 (often ~6 minutes on one thread the first time)"
     # Cell extraction needs Python from the fuse env.
     if ! command -v python >/dev/null 2>&1; then
         ensure_fuse_conda_env
@@ -366,8 +366,8 @@ case "${platform}" in
         ;;
     nersc)
         export FUSE_SETUP_SHELL="${FUSE_SETUP_SHELL:-true}"
-        # Keep the long flux-matcher solve as an explicit Step 2 on login nodes.
-        export FUSE_VERIFY_FLUXMATCHER="${FUSE_VERIFY_FLUXMATCHER:-false}"
+        # Same finish as laptop: fluxmatcher cells 0–2 (~6 minutes on 1 thread is fine on a login node).
+        export FUSE_VERIFY_FLUXMATCHER="${FUSE_VERIFY_FLUXMATCHER:-true}"
         load_nersc_modules
         install_fuse_stack
         ;;

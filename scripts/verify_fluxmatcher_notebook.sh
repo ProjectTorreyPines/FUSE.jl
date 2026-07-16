@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Verify fluxmatcher.ipynb cells 0–2 from the command line.
-# On laptops this is the final step of the one-command install; on NERSC it is
-# still an explicit Step 2 after install_fuse_nersc.sh.
+# Also the final step of the laptop and NERSC one-command installs.
 #
 # Laptop:
 #   bash scripts/verify_fluxmatcher_notebook.sh
