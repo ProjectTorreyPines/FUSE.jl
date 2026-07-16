@@ -4,7 +4,7 @@ This guide walks you through setting up everything you need to run FUSE: the **J
 
 ## One-command install
 
-These scripts install FUSE, Revise, fusebot, the Jupyter stack (`fuse` conda env), IJulia kernels, and clone [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples). Everything runs from the shell — no Julia REPL.
+These scripts install FUSE, Revise, fusebot, the Jupyter stack (`fuse` conda env), IJulia kernels, and clone [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples).
 
 They then activate the `fuse` env, run `fusebot install_IJulia` (or `make install_IJulia` / `scripts/install_ijulia.sh` if fusebot fails), and finish by executing the **first three cells** of `FuseExamples/fluxmatcher.ipynb`. A fresh install typically takes **20–40 minutes** (Julia packages + conda + IJulia + the first flux-matcher solve; the notebook cells are often ~6 minutes on one thread).
 
@@ -23,7 +23,7 @@ Skip the notebook solve with `FUSE_SKIP_VERIFY=1 bash scripts/install_fuse_lapto
 
 ### NERSC (Perlmutter)
 
-From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is tight). Loads `julia/1.11.7` and `conda` by default, then continues through IJulia, `FuseExamples`, and the fluxmatcher cells (fine on a login node — typically ~6 minutes on one thread for the notebook solve).
+From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is under memory pressure). Loads `julia/1.11.7` and `conda` by default, then continues through IJulia, `FuseExamples`, and the fluxmatcher cells (fine on a login node — typically ~6 minutes on one thread for the notebook solve).
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_nersc.sh)
