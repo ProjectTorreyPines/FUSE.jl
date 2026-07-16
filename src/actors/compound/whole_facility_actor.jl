@@ -7,7 +7,7 @@
 end
 
 mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorWholeFacility{P}}
     act::ParametersAllActors
     StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
@@ -29,7 +29,7 @@ mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorWholeFacility(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Integrates all physics, engineering, and economic models for complete tokamak facility design.
 
@@ -72,14 +72,14 @@ based on the final equilibrium solution.
 
     Stores comprehensive facility design data across all `dd` structures
 """
-function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorWholeFacility(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorWholeFacility(dd, act.ActorWholeFacility, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
+function ActorWholeFacility(dd::IMAS.DD, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
     logging_actor_init(ActorWholeFacility)
     par = OverrideParameters(par; kw...)
 

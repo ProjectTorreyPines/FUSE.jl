@@ -90,7 +90,7 @@ import NonlinearSolve, FixedPointAcceleration
 end
 
 mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}
     act::ParametersAllActors{P}
     actor_ct::ActorFluxCalculator{D,P}
@@ -102,7 +102,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFluxMatcher(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Performs self-consistent transport evolution by matching turbulent/neoclassical transport fluxes to source fluxes.
 
@@ -130,14 +130,14 @@ time-dependent evolution with ∂/∂t terms, and the `z_max` parameter to cap n
 gradient (inverse scale lengths) during the iteration — either as a uniform scalar or
 as a spatially varying `NamedTuple(core, edge, rho_transition)`.
 """
-function ActorFluxMatcher(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorFluxMatcher(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorFluxMatcher(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxMatcher{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorFluxMatcher(dd::IMAS.DD{D}, par::FUSEparameters__ActorFluxMatcher{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFluxMatcher)
     par = OverrideParameters(par; kw...)
     actor_ct = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; par.rho_transport)
@@ -175,7 +175,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     # make intrinsic sources consistent to start
-    IMAS.intrinsic_sources!(dd)
+    modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+    IMAS.intrinsic_sources!(dd; modify_electron_density)
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -441,7 +442,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         end
         display(p)
 
-        channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z)), z_scaled_history)...))
+        # drop the leading `N_specials` elements (e.g. `turbulence_scale`) so that only the z-profiles remain
+        channels_evolution = transpose(hcat(map(z -> collect(unscale_z_profiles(z[N_specials+1:end])), z_scaled_history)...))
         data = reshape(channels_evolution, (length(err_history), N_radii, N_channels))
         p = plot()
         for (ch, profiles_path) in enumerate(profiles_paths)
@@ -515,7 +517,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.unfreeze!(cp1d, :t_i_average)
 
         # refresh intrinsic sources with relaxed profiles
-        IMAS.intrinsic_sources!(dd)
+        IMAS.intrinsic_sources!(dd; modify_electron_density)
 
         # Ensure quasi neutrality if densities are evolved
         # NOTE: check_evolve_densities() takes care of doing proper error handling for user inputs
@@ -641,7 +643,9 @@ function flux_match_errors(
     unpack_z_profiles(cp1d, par, z_profiles)
 
     # evaluate intrinsic sources (i.e., target fluxes)
-    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false)
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+    par.evolve_plasma_sources && IMAS.intrinsic_sources!(dd; bootstrap=false, modify_electron_density)
 
     if par.Δt < Inf
         IMAS.time_derivative_source!(dd, initial_cp1d, par.Δt; name="∂/∂t implicit")
@@ -708,7 +712,11 @@ function flux_match_errors(
     end
 
     # update history
-    push!(z_scaled_history, z_profiles_scaled)
+    if ismissing(par, :scale_turbulence_law)
+        push!(z_scaled_history, z_profiles_scaled)
+    else
+        push!(z_scaled_history, [turbulence_scale; z_profiles_scaled])
+    end
     push!(err_history, errors)
 
     return (targets=targets, fluxes=fluxes, errors=errors)
@@ -719,13 +727,13 @@ function norm_transformation(norm_source::Vector{T}, norm_transp::Vector{T}) whe
 end
 
 """
-    flux_match_targets(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
+    flux_match_targets(dd::IMAS.DD, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {P<:Real}
 
 Evaluates the flux_matching targets for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_targets(dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
+function flux_match_targets(dd::IMAS.DD{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_source = resize!(dd.core_sources.source, :total; wipe=false)
@@ -768,13 +776,13 @@ function flux_match_targets(dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparame
 end
 
 """
-    flux_match_fluxes(dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
+    flux_match_fluxes(dd::IMAS.DD{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real, P<:Real}
 
 Evaluates the flux_matching fluxes for the :flux_match species and channels
 
 NOTE: flux matching is done in physical units
 """
-function flux_match_fluxes(dd::IMAS.dd{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
+function flux_match_fluxes(dd::IMAS.DD{D}, par::OverrideParameters{P,FUSEparameters__ActorFluxMatcher{P}}) where {D<:Real,P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
 
     total_flux = resize!(dd.core_transport.model, :combined; wipe=false)
@@ -858,6 +866,18 @@ function flux_match_simple(
     end
 
     zprofiles_old = unscale_z_profiles(z_init_scaled)
+
+    N_radii = length(par.rho_transport)
+    N_channels = length(zprofiles_old) ÷ N_radii
+    zweight = similar(zprofiles_old)
+    
+    for ch in 1:N_channels
+        block = (ch-1)*N_radii+1:ch*N_radii
+        channel_mean = sum(abs, @view zprofiles_old[block]) / N_radii
+        floor_val = channel_mean > 0 ? channel_mean : one(eltype(zweight))
+        zweight[block] .= max.(abs.(@view zprofiles_old[block]), floor_val)
+    end
+    
     targets, fluxes, errors = flux_match_errors(actor, opt_parameters, initial_cp1d; z_scaled_history, err_history, prog)
     ferror = norm(errors)
     xerror = Inf
@@ -871,7 +891,8 @@ function flux_match_simple(
             break
         end
 
-        zprofiles = zprofiles_old .* (1.0 .+ step_size * 0.1 .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 + targets .^ 2))
+        # Additive step on z, weighted by the fixed per-element scale (see zweight above).
+        zprofiles = zprofiles_old .- step_size * 0.1 .* zweight .* (targets .- fluxes) ./ sqrt.(1.0 .+ fluxes .^ 2 .+ targets .^ 2)
         if ismissing(par, :scale_turbulence_law)
             targets, fluxes, errors = flux_match_errors(actor, scale_z_profiles(zprofiles), initial_cp1d; z_scaled_history, err_history, prog)
         else
@@ -884,14 +905,12 @@ function flux_match_simple(
         zprofiles_old = zprofiles
     end
 
-    if ismissing(par, :scale_turbulence_law)
-        return (zero=z_scaled_history[argmin(map(norm, err_history))],)
-    else
-        return (zero=[turbulence_scale; z_scaled_history[argmin(map(norm, err_history))]],)
-    end
+    # `z_scaled_history` already stores the full scaled vector (including the leading
+    # `turbulence_scale` element when `scale_turbulence_law` is set)
+    return (zero=z_scaled_history[argmin(map(norm, err_history))],)
 end
 
-function progress_ActorFluxMatcher(dd::IMAS.dd, error::Real)
+function progress_ActorFluxMatcher(dd::IMAS.DD, error::Real)
     cp1d = dd.core_profiles.profiles_1d[]
     out = Tuple{String,Float64}[]
     push!(out, ("         error", IMAS.force_float64(error)))
@@ -1353,11 +1372,11 @@ function calculate_w0_norm(Te_axis)
 end
 
 """
-    _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IMAS.dd)
+    _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IMAS.DD)
 
 Replay profiles from replay_dd to current dd for channels set to :replay
 """
-function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IMAS.DD)
     dd = actor.dd
     par = actor.par
 
@@ -1493,7 +1512,7 @@ function copy_ids_data!(dst::IMAS.IDS{T}, src::IMAS.IDS) where {T<:Real}
 end
 
 """
-    prepare_dd_for_ad(dd_float::IMAS.dd{D}, initial_cp1d::IMAS.core_profiles__profiles_1d, ::Type{T}) where {D<:Real, T<:Real}
+    prepare_dd_for_ad(dd_float::IMAS.DD{D}, initial_cp1d::IMAS.core_profiles__profiles_1d, ::Type{T}) where {D<:Real, T<:Real}
 
 Create a lightweight `dd{T}` populated with only the data needed for flux matching:
 - `equilibrium.time_slice[1]` — full geometry (promoted to T with zero partials)
@@ -1503,7 +1522,7 @@ Create a lightweight `dd{T}` populated with only the data needed for flux matchi
 This avoids copying the entire dd while providing all data needed by
 `intrinsic_sources!`, `InputTGLF`, `flux_gacode_to_imas`, `total_fluxes!`, and `total_sources!`.
 """
-function prepare_dd_for_ad(dd_float::IMAS.dd{D}, initial_cp1d::IMAS.core_profiles__profiles_1d, ::Type{T}) where {D<:Real,T<:Real}
+function prepare_dd_for_ad(dd_float::IMAS.DD{D}, initial_cp1d::IMAS.core_profiles__profiles_1d, ::Type{T}) where {D<:Real,T<:Real}
     dd_ad = IMAS.dd{T}()
     dd_ad.global_time = dd_float.global_time
 
@@ -1583,8 +1602,11 @@ function ad_flux_match_errors!(
     unpack_z_profiles(cp1d_ad, par, z_profiles)
 
     # Evaluate intrinsic sources (reads Dual cp1d + equilibrium, writes to dd_ad.core_sources)
+    # match the primal flux_match_errors source treatment so the AD Jacobian stays consistent
     if par.evolve_plasma_sources
-        IMAS.intrinsic_sources!(dd_ad; bootstrap=false)
+        evolve_densities = evolve_densities_dictionary(cp1d_ad, par)
+        modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
+        IMAS.intrinsic_sources!(dd_ad; bootstrap=false, modify_electron_density)
     end
 
     # Build InputTGLF from dd_ad (Dual-typed)

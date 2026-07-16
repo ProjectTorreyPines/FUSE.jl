@@ -14,10 +14,10 @@ import NNeutronics
 end
 
 mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorBlanket{P}}
     act::ParametersAllActors{P}
-    function ActorBlanket(dd::IMAS.dd{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
+    function ActorBlanket(dd::IMAS.DD{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorBlanket)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -25,7 +25,7 @@ mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorBlanket(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates blanket performance including tritium breeding ratio (TBR), thermal power
 generation, and neutron leakage using 1D neutronics models. The actor optimizes
@@ -46,7 +46,7 @@ geometric and material configurations.
 
     Stores data in `dd.blanket`
 """
-function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorBlanket(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorBlanket(dd, act.ActorBlanket, act; kw...)
     step(actor)
     finalize(actor)
@@ -183,7 +183,7 @@ function _step(actor::ActorBlanket)
         blanket_model::NNeutronics.Blanket,
         modules_relative_thickness13::Vector{<:Real},
         Li6::Real,
-        dd::IMAS.dd,
+        dd::IMAS.DD,
         modules_effective_thickness::Vector{Matrix{Float64}},
         modules_wall_loading_power::Vector{<:Any},
         total_power_neutrons::Real,
@@ -218,9 +218,10 @@ function _step(actor::ActorBlanket)
                 ed2 = modules_effective_thickness[ibm][k, 2] * x2
                 ed3 = modules_effective_thickness[ibm][k, 3] * x3
                 module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
-                #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
+                # NOTE: leakeage_energy is total number of neutrons in each energy bin, so need to sum times energy grid
                 LE = NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)::Vector{Float64}
-                escape_flux = sum(LE) * modules_wall_loading_power[ibm][k] * modules_flux_geometric_scale[ibm][k]
+                escape_power_fraction = sum(LE .* energy_grid) / 14.1
+                escape_flux = escape_power_fraction * modules_wall_loading_power[ibm][k] * modules_flux_geometric_scale[ibm][k]
                 if escape_flux > modules_peak_escape_flux[ibm]
                     modules_peak_escape_flux[ibm] = escape_flux
                 end
@@ -242,7 +243,8 @@ function _step(actor::ActorBlanket)
         else
             cost = norm((
                 (total_tritium_breeding_ratio - target) / target,
-                exp(Li6) / exp(100.0),
+                1e-6*maximum(modules_peak_escape_flux) / (sum(modules_peak_wall_flux) / length(modules_peak_wall_flux)),
+                1e-6*exp(0.01*Li6) / exp(1.0),
                 extra_cost
             ))
             return cost

@@ -11,14 +11,14 @@
 end
 
 mutable struct ActorPFdesign{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorPFdesign{P}}
     act::ParametersAllActors{P}
     actor_pf::ActorPFactive{D,P}
 end
 
 """
-    ActorPFdesign(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPFdesign(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Optimizes poloidal field (PF) coil placement and sizing to achieve target equilibrium configurations.
 Uses optimization algorithms to find coil positions that minimize current requirements while satisfying
@@ -51,13 +51,13 @@ magnetic flux and force balance constraints for plasma control.
 
     Manupulates data in `dd.pf_active`
 """
-function ActorPFdesign(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPFdesign(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPFdesign(dd, act.ActorPFdesign, act; kw...)
     finalize(step(actor))
     return actor
 end
 
-function ActorPFdesign(dd::IMAS.dd, par::FUSEparameters__ActorPFdesign, act::ParametersAllActors; kw...)
+function ActorPFdesign(dd::IMAS.DD, par::FUSEparameters__ActorPFdesign, act::ParametersAllActors; kw...)
     logging_actor_init(ActorPFdesign)
     par = OverrideParameters(par; kw...)
     actor_pf = ActorPFactive(dd, act.ActorPFactive; par.update_equilibrium)

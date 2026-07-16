@@ -6,6 +6,7 @@ import TEQUILA
 @actor_parameters_struct ActorTEQUILA{T} begin
     #== actor parameters ==#
     free_boundary::Entry{Bool} = Entry{Bool}("-", "Convert fixed boundary equilibrium to free boundary one"; default=true)
+    solver::Switch{Symbol} = Switch{Symbol}([:picard, :veq], "-", "Fixed-boundary solver: Picard iteration or VEQ direct solve"; default=:veq)
     number_of_radial_grid_points::Entry{Int} = Entry{Int}("-", "Number of TEQUILA radial grid points"; default=31)
     number_of_fourier_modes::Entry{Int} = Entry{Int}("-", "Number of modes for Fourier decomposition"; default=8)
     number_of_MXH_harmonics::Entry{Int} = Entry{Int}("-", "Number of Fourier harmonics in MXH representation of flux surfaces"; default=4)
@@ -15,13 +16,14 @@ import TEQUILA
     fixed_grid::Switch{Symbol} = Switch{Symbol}([:poloidal, :toroidal], "-", "Fix P and Jt on this rho grid"; default=:toroidal)
     R::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi R axis")
     Z::Entry{Vector{Float64}} = Entry{Vector{Float64}}("m", "Psi Z axis")
+    nψ_grid::Entry{Int} = Entry{Int}("m", "Number of psi grid points"; default=129)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
     debug::Entry{Bool} = Entry{Bool}("-", "Print debug information withing TEQUILA solve"; default=false)
 end
 
 mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorTEQUILA{P}}
     act::ParametersAllActors{P}
     shot::Union{Nothing,TEQUILA.Shot}
@@ -31,7 +33,7 @@ mutable struct ActorTEQUILA{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorTEQUILA(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Solves tokamak MHD equilibria using the TEQUILA fixed-boundary equilibrium solver with MXH flux surface representation.
 
@@ -52,6 +54,10 @@ Solver workflow:
 3. **Control optimization**: Adjusts coil currents to satisfy geometric and flux control targets
 4. **Grid mapping**: Converts spectral solution to rectangular R-Z grids for analysis
 
+Solver options:
+- **:picard** (default): TEQUILA's Picard iteration on the Ψ finite-element/Fourier representation
+- **:veq**: VEQ direct solve (arXiv:2606.11821)
+
 Grid options:
 - **Profile grids**: :poloidal (√ψ_norm) or :toroidal (ρ_tor_norm) flux coordinate systems
 - **Spatial resolution**: Configurable radial points (31 default) and Fourier modes (8 default)  
@@ -63,14 +69,14 @@ Grid options:
     `dd.pulse_schedule.position_control`, and PF coil setup from `dd.pf_active`. 
     Updates `dd.equilibrium` with solved equilibrium and coil currents.
 """
-function ActorTEQUILA(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTEQUILA(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTEQUILA(dd, act.ActorTEQUILA, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTEQUILA(dd::IMAS.dd{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorTEQUILA(dd::IMAS.DD{D}, par::FUSEparameters__ActorTEQUILA{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorTEQUILA)
     par = OverrideParameters(par; kw...)
     return ActorTEQUILA(dd, par, act, nothing, D(0.0), D[], D[])
@@ -143,7 +149,22 @@ function _step(actor::ActorTEQUILA)
 
     # solve
     try
-        actor.shot = solve_function(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first)
+        if par.solver === :veq
+            # VEQ direct solve: one small root-find instead of Picard iterations
+            L = par.number_of_MXH_harmonics
+            harmonic_counts = [m <= 4 ? (4, 4, 3, 3)[m] : 3 for m in 1:L]
+            # radial collocation must oversample the largest Chebyshev count:
+            # Nr ≲ psin_count gives an ill-conditioned projection (inner Newton
+            # stalls at |r| ~ 1e-2 and the solution is invalid)
+            psin_count = 13
+            Nr = max(24, 2 * psin_count)
+            actor.shot = TEQUILA.veq_solve!(actor.shot;
+                h_count=5, v_count=5, kappa_count=8, c0_count=5, psin_count,
+                c_counts=harmonic_counts, s_counts=harmonic_counts,
+                Nr, Nt=32, outer_tol=par.tolerance, par.debug)
+        else
+            actor.shot = solve_function(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first)
+        end
     catch e
         plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:circle, aspect_ratio=:equal)
         display(plot!(IMAS.MXH(actor.shot.surfaces[:, end])))
@@ -185,7 +206,7 @@ function _finalize(actor::ActorTEQUILA{D,P}) where {D<:Real,P<:Real}
     κ = shot.surfaces[4, end]
     a = R0 * ϵ
 
-    nψ_grid = 129
+    nψ_grid = par.nψ_grid
 
     psit = shot.C[2:2:end, 1]
     psia = psit[1]

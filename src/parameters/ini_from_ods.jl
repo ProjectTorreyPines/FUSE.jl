@@ -325,8 +325,20 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                 end
                 # make beam energy constant
                 ini.nb_unit[k].beam_energy = maximum(unit.energy.data)
-                ini.nb_unit[k].normalized_tangency_radius = unit.beamlets_group[1].tangency_radius / (0.5 * (eqt.profiles_1d.r_inboard[end] + eqt.profiles_1d.r_outboard[end]))
-                ini.nb_unit[k].offaxis = abs(unit.beamlets_group[1].angle) > (0.1 * deg)
+
+                if eqt !== nothing && !isempty(unit.beamlets_group)
+                    R_geo = if !ismissing(eqt.profiles_1d, :r_inboard) && !ismissing(eqt.profiles_1d, :r_outboard)
+                        0.5 * (eqt.profiles_1d.r_inboard[end] + eqt.profiles_1d.r_outboard[end])
+                    elseif !ismissing(eqt.boundary.outline, :r)
+                        0.5 * (minimum(eqt.boundary.outline.r) + maximum(eqt.boundary.outline.r))
+                    else
+                        missing
+                    end
+                    if !ismissing(R_geo)
+                        ini.nb_unit[k].normalized_tangency_radius = unit.beamlets_group[1].tangency_radius / R_geo
+                        ini.nb_unit[k].offaxis = abs(unit.beamlets_group[1].angle) > (0.1 * deg)
+                    end
+                end
             end
         end
 

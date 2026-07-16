@@ -15,10 +15,19 @@
         rho_averaging::Float64=0.25,
         new_impurity_match_power_rad::Symbol=:none,
         use_local_cache::Bool=false,
-        use_interferometer::Bool=true
+        use_interferometer::Bool=true,
+        pull_gslite_min::Bool=false,
+        offaxis_beams::Vector{String}=["15"],
+        counter_beams::Vector{String}=["21"]
     )
 
 DIII-D from experimental shot
+
+`offaxis_beams` and `counter_beams` select which neutral-beam beamlines are treated as
+off-axis / counter-Ip when filling beam geometry from templates in the `pull_gslite_min` path
+(matched against the source name, e.g. "15"/"21"); everything else is co-Ip. The known
+shot-dependent history of the 150° and 210° beamlines overrides this configuration
+(see [`d3d_beam_template`](@ref)).
 """
 function case_parameters(::Val{:D3D}, shot::Int;
     fit_profiles::Bool=true,
@@ -35,7 +44,9 @@ function case_parameters(::Val{:D3D}, shot::Int;
     new_impurity_match_power_rad::Symbol=:none,
     use_local_cache::Bool=false,
     use_interferometer::Bool=true,
-    pull_gslite_min::Bool=false
+    pull_gslite_min::Bool=false,
+    offaxis_beams::Vector{String}=["15"],
+    counter_beams::Vector{String}=["21"]
 )
     ini, act = case_parameters(Val(:D3D_machine))
     ini.general.casename = "D3D $shot"
@@ -92,8 +103,13 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
     if pull_gslite_min
         omas_command *= " --PULL_GSLITE_MIN"
+        omfit_block = """
+        """
+    else
+        omfit_block = """
+    python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null    
+        """
     end
-
     if omfit_host == "localhost"
         setup_block = """#!/bin/bash -l
         module purge
@@ -101,9 +117,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         cd $local_path
         export PYTHONPATH=$(omas_root):\$PYTHONPATH
         """
-        omfit_block = """
-        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null
-        """
+
         # Substitute OUTPUT_FILE placeholder with actual path for localhost
         omas_block = replace(omas_command, "OUTPUT_FILE" => "$local_path/$filename")
         omfit_sh = joinpath(local_path, "omfit.sh")
@@ -142,7 +156,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
 
             export PYTHONPATH=$(omas_root):\$PYTHONPATH
 
-            python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null &
+            $(omfit_block)
 
             $(replace(omas_command, "OUTPUT_FILE" => "$remote_path/$(filename)"))
 
@@ -165,7 +179,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
             $(ssh_command(omfit_host, "\"module load omfit; cd $remote_path && bash remote_slurm.sh\""))
 
             # Retrieve results using rsync
-            $(downsync_command(omfit_host, ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
+            $(downsync_command(omfit_host, pull_gslite_min ? ["$remote_path/$(filename)"] : ["$remote_path/$(filename)", "$remote_path/nbi_ods_$shot.h5", "$remote_path/beams_$shot.dat"], local_path))
         """
 
         open(joinpath(local_path, "local_driver.sh"), "w") do io
@@ -182,29 +196,54 @@ function case_parameters(::Val{:D3D}, shot::Int;
         end
     end
     # load experimental ods
-    ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
+    if pull_gslite_min
+        # gslite-min pull: nbi geometry comes from DIII-D templates (no nbi_ods file)
+        ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename))"
+    else
+        ini.ods.filename = "$(ini.ods.filename),$(joinpath(local_path,filename)),$(joinpath(local_path,"nbi_ods_$shot.h5"))"
+    end
     @info("Loading files: $(join(map(basename,split(ini.ods.filename,","))," ; "))")
     ini.general.dd = dd1 = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
 
-    # simulation starts when both equilibrium and profiles are available
-    ini.time.simulation_start = max(ini.general.dd.equilibrium.time_slice[2].time, ini.general.dd.core_profiles.profiles_1d[2].time)
-    t_eq = length(ini.general.dd.equilibrium.time_slice) >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : -Inf
+    n_eq = length(ini.general.dd.equilibrium.time_slice)
+    t_eq = n_eq >= 2 ? ini.general.dd.equilibrium.time_slice[2].time : (n_eq == 1 ? ini.general.dd.equilibrium.time_slice[1].time : -Inf)
     t_cp = length(ini.general.dd.core_profiles.profiles_1d) >= 2 ? ini.general.dd.core_profiles.profiles_1d[2].time : -Inf
     ini.time.simulation_start = max(t_eq, t_cp)
 
     # sanitize dd
     for nbu in dd1.nbi.unit
-        nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
-        nbu.beam_power_fraction.time = [0.0]
+        # gslite-min pull provides beam power but not the energy-species power fractions
+        if IMAS.hasdata(nbu.beam_power_fraction, :data)
+            nbu.beam_power_fraction.data = maximum(nbu.beam_power_fraction.data; dims=2)
+            nbu.beam_power_fraction.time = [0.0]
+        end
+    end
+
+    if pull_gslite_min
+        # apply known shot-dependent 150/210 beamline geometry on top of the user configuration
+        for nbu in dd1.nbi.unit
+            if isempty(nbu.beamlets_group)
+                add_beam_examples!(nbu, d3d_beam_template(shot, nbu.name, offaxis_beams, counter_beams))
+            end
+        end
+
+        for launcher in dd1.ec_launchers.beam
+            IMAS.hasdata(launcher.power_launched, :data) && (launcher.power_launched.data = max.(launcher.power_launched.data, 0.0))
+        end
+        for unit in dd1.nbi.unit
+            IMAS.hasdata(unit.power_launched, :data) && (unit.power_launched.data = max.(unit.power_launched.data, 0.0))
+        end
+    end
+
+    if !isempty(dd1.equilibrium.time_slice)
+        IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
     end
 
     # set time basis
-    tt = dd1.equilibrium.time
-    ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
-
-    # add flux_surfaces information to experimental dd
-    IMAS.flux_surfaces(dd1.equilibrium, IMAS.first_wall(dd1.wall)...)
-
+    if ~pull_gslite_min
+        tt = dd1.equilibrium.time
+        ini.time.pulse_shedule_time_basis = range(tt[1], tt[end], 100)
+    end
     # profile fitting starting from diagnostic measurements
     if fit_profiles
         n_cer = count(ch -> !isempty(ch.ion) && IMAS.hasdata(ch.ion[1].t_i, :data), dd1.charge_exchange.channel)
@@ -217,7 +256,8 @@ function case_parameters(::Val{:D3D}, shot::Int;
                 omfit_host=omfit_host_original, omfit_root, omas_root,
                 time_averaging, rho_averaging,
                 new_impurity_match_power_rad,
-                use_local_cache, use_interferometer)
+                use_local_cache, use_interferometer,
+                pull_gslite_min, offaxis_beams, counter_beams)
         elseif n_cer < 5
             @warn "Shot $shot: only $n_cer CER channels with CERQUICK — falling back to ZIPFIT profiles"
         else
@@ -234,7 +274,7 @@ function case_parameters(::Val{:D3D}, shot::Int;
         ini.core_profiles.zeff = 2.0
         ini.core_profiles.bulk = :D
         ini.core_profiles.impurity = :C
-        ini.core_profiles.rot_core = 5E3
+        ini.core_profiles.rot_core = 30E3
     end
 
     # add rotation information if missing
@@ -257,9 +297,11 @@ function case_parameters(::Val{:D3D}, shot::Int;
         dd1.core_sources = dd1_core_sources_old
     end
 
-    # by default match line averaged density
-    ini.core_profiles.ne_setting = :ne_line
-    act.ActorPedestal.density_match = :ne_line
+    # by default match line averaged density, but only when there are experimental profiles
+    if !isempty(ini.general.dd.core_profiles)
+        ini.core_profiles.ne_setting = :ne_line
+        act.ActorPedestal.density_match = :ne_line
+    end
 
     set_ini_act_from_ods!(ini, act)
 
@@ -272,6 +314,44 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
 
     return ini, act
+end
+
+"""
+    d3d_beam_template(shot::Integer, name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
+
+Map a DIII-D neutral-beam source name to a geometry template for `add_beam_examples!`,
+combining the user's off-axis/counter configuration (matched against the source name,
+e.g. "15"/"21") with the known shot-dependent history of the 150° and 210° beamlines.
+A beam that is both off-axis and counter-Ip maps to `:d3d_counter_offaxis`.
+"""
+function d3d_beam_template(shot::Integer, name::AbstractString, offaxis_beams=["15"], counter_beams=["21"])
+    offaxis = any(b -> occursin(b, name), offaxis_beams)
+    counter = any(b -> occursin(b, name), counter_beams)
+
+    if occursin("21", name)
+        # 210° beamline: co before 123500, counter until 177300,
+        # then always off-axis with user-configured direction
+        if shot < 123500
+            offaxis, counter = false, false
+        elseif shot < 177300
+            offaxis, counter = false, true
+        else
+            offaxis = true
+        end
+    elseif occursin("15", name) && shot < 143701
+        # 150° beamline was on-axis before 143701
+        offaxis = false
+    end
+
+    if offaxis && counter
+        return :d3d_counter_offaxis
+    elseif offaxis
+        return :d3d_offaxis
+    elseif counter
+        return :d3d_counter
+    else
+        return :d3d_co
+    end
 end
 
 """
@@ -292,11 +372,11 @@ function case_parameters(::Val{:D3D}, ods_file::AbstractString)
 end
 
 """
-    case_parameters(::Val{:D3D}, dd::IMAS.dd)
+    case_parameters(::Val{:D3D}, dd::IMAS.DD)
 
 DIII-D from dd file
 """
-function case_parameters(::Val{:D3D}, dd::IMAS.dd)
+function case_parameters(::Val{:D3D}, dd::IMAS.DD)
     ini, act = case_parameters(Val(:D3D_machine))
 
     ini.general.casename = "D3D from dd"
@@ -362,7 +442,7 @@ function case_parameters(::Val{:D3D}, scenario::Symbol)
         ini.core_profiles.zeff = 2.0
         ini.core_profiles.bulk = :D
         ini.core_profiles.impurity = :C
-        ini.core_profiles.rot_core = 5E3
+        ini.core_profiles.rot_core = 60E3
     end
 
     return ini, act
@@ -412,7 +492,7 @@ function case_parameters(::Val{:D3D_machine})
     ini.tf.n_coils = 24
     ini.tf.shape = :triple_arc
 
-    ini.core_profiles.rot_core = 5E3
+    ini.core_profiles.rot_core = 30E3
 
     #### ACT ####
 

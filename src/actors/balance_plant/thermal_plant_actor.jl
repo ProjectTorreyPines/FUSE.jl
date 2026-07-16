@@ -18,13 +18,13 @@ end
 end
 
 mutable struct ActorThermalPlant{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorThermalPlant{P}}
     act::ParametersAllActors{P}
     plant_actor::Union{ActorNoOperation{D,P}, AbstractActorThermalPlant{D,P}}
 end
 
-function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlant{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorThermalPlant(dd::IMAS.DD{D}, par::FUSEparameters__ActorThermalPlant{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorThermalPlant)
     par = OverrideParameters(par; kw...)
     noop = ActorNoOperation(dd,act.ActorNoOperation)
@@ -32,7 +32,7 @@ function ActorThermalPlant(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalPlan
 end
 
 """
-    ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorThermalPlant(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates thermal plant efficiency and electrical power generation based on heat loads from the tokamak.
 Uses different models to convert thermal power from blanket, divertor, and wall heat loads into electrical power.
@@ -57,7 +57,7 @@ Acts as a dispatcher to different thermal plant models based on the `model` para
 
     Stores data in `dd.balance_of_plant`
 """
-function ActorThermalPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorThermalPlant(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorThermalPlant(dd, act.ActorThermalPlant, act; kw...)
     step(actor)
     finalize(actor)

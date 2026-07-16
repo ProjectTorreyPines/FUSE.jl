@@ -40,7 +40,7 @@
 end
 
 mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}
     act::ParametersAllActors{P}
     ped_actor::Union{ActorWPED{D,P},ActorEPED{D,P},ActorAnalyticPedestal{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
@@ -59,7 +59,7 @@ mutable struct ActorPedestal{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPedestal(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Comprehensive pedestal modeling with support for multiple models and L-H mode transitions.
 
@@ -88,14 +88,14 @@ Mode transition physics:
 - Separate evolution times for temperature and density transitions
 - Configurable density and Zeff ratios between L-mode and H-mode
 """
-function ActorPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPedestal(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPedestal(dd, act.ActorPedestal, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorPedestal(dd::IMAS.dd{D}, par::FUSEparameters__ActorPedestal{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorPedestal(dd::IMAS.DD{D}, par::FUSEparameters__ActorPedestal{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorPedestal)
     par = OverrideParameters(par; kw...)
     eped_actor =
@@ -373,13 +373,13 @@ function LH_dynamics(τ::Float64, t_LH::Float64, t_now::Float64)
 end
 
 """
-    pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
+    pedestal_density_tanh(dd::IMAS.DD, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}}; density_factor::Float64, zeff_factor::Float64) where {P<:Real}
 
 The edge density must be defined independently of the pedestal model
 
 The EPED and WPED models only operate on the temperature profiles
 """
-function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}};
+function pedestal_density_tanh(dd::IMAS.DD, par::OverrideParameters{P,FUSEparameters__ActorPedestal{P}};
                                density_factor::Float64, zeff_factor::Float64,
                                nn_prediction::Union{Nothing,NamedTuple}=nothing) where {P<:Real}
     cp1d = dd.core_profiles.profiles_1d[]
@@ -426,7 +426,7 @@ function pedestal_density_tanh(dd::IMAS.dd, par::OverrideParameters{P,FUSEparame
 end
 
 """
-    build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=200) -> (Matrix{Float32}, Vector{Float32})
+    build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.DD; T::Integer=200) -> (Matrix{Float32}, Vector{Float32})
 
 Build a `(T, 32)` raw-physical FPE input matrix and a length-32 `signal_mask`
 from the live ZMQ signals stored in `dd._aux` (populated by `ActorZMQ.receive!`)
@@ -476,7 +476,7 @@ Returns:
 - `sequences::Matrix{Float32}` — `(T, 32)`, raw physical units, broadcast across time.
 - `signal_mask::Vector{Float32}` — length 32, 1.0 where a live value was found, 0.0 otherwise.
 """
-function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.dd; T::Integer=200, use_dd::Bool=false)
+function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.DD; T::Integer=200, use_dd::Bool=false)
     # Initialize every channel to its training mean so an un-mapped channel
     # z-scores to exactly zero (matching mean_normalized_history's convention).
     sequences = repeat(reshape(nn.signal_means, 1, 32), T, 1)
@@ -818,7 +818,7 @@ function ti_te_ratio(cp1d, T_ratio_pedestal, rho_nml, rho_ped)
     end
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.DD)
     dd = actor.dd
     par = actor.par
 
