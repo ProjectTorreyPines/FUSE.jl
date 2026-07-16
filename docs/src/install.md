@@ -6,7 +6,7 @@ This guide walks you through setting up everything you need to run FUSE: the **J
 
 These scripts install FUSE, Revise, fusebot, the Jupyter stack (`fuse` conda env), IJulia kernels, and clone [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples). Everything runs from the shell — no Julia REPL.
 
-On a **laptop**, the script then activates the `fuse` env, runs `fusebot install_IJulia` (or `make install_IJulia` / `scripts/install_ijulia.sh` if fusebot fails), and finishes by executing the **first three cells** of `FuseExamples/fluxmatcher.ipynb`. A fresh laptop install typically takes **35–60+ minutes** (Julia packages + conda + IJulia + the first flux-matcher solve).
+On a **laptop**, the script then activates the `fuse` env, runs `fusebot install_IJulia` (or `make install_IJulia` / `scripts/install_ijulia.sh` if fusebot fails), and finishes by executing the **first three cells** of `FuseExamples/fluxmatcher.ipynb`. A fresh laptop install typically takes **20–40 minutes** (Julia packages + conda + IJulia + the first flux-matcher solve).
 
 ### Laptop (Linux or macOS)
 
