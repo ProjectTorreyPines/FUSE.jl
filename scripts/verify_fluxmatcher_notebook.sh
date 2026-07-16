@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Step 2 after install: verify fluxmatcher.ipynb cells 0–2 from the command line.
+# Verify fluxmatcher.ipynb cells 0–2 from the command line.
+# On laptops this is the final step of the one-command install; on NERSC it is
+# still an explicit Step 2 after install_fuse_nersc.sh.
 #
 # Laptop:
 #   bash scripts/verify_fluxmatcher_notebook.sh
@@ -9,7 +11,25 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_BASE_URL="${FUSE_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts}"
+
+resolve_script_dir() {
+    local self_dir
+    self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -f "${self_dir}/verify_fluxmatcher_notebook.jl" ]]; then
+        echo "${self_dir}"
+        return 0
+    fi
+
+    # curl | bash / process-substitution: download the Julia runner next to us.
+    local bundle_dir="${TMPDIR:-/tmp}/fuse-verify-$$"
+    mkdir -p "${bundle_dir}"
+    curl -fsSL "${SCRIPT_BASE_URL}/verify_fluxmatcher_notebook.jl" \
+        -o "${bundle_dir}/verify_fluxmatcher_notebook.jl"
+    echo "${bundle_dir}"
+}
+
+SCRIPT_DIR="$(resolve_script_dir)"
 
 log() { echo "[verify_fluxmatcher] $*"; }
 

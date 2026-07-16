@@ -215,18 +215,47 @@ install_fusebot_cli() {
     fi
 }
 
+resolve_fuse_script() {
+    local name="$1"
+    if [[ -f "${SCRIPT_DIR}/${name}" ]]; then
+        echo "${SCRIPT_DIR}/${name}"
+        return 0
+    fi
+    local from_pkg=""
+    if from_pkg="$(julia -e "using FUSE; print(joinpath(pkgdir(FUSE), \"scripts\", \"${name}\"))" 2>/dev/null)" \
+        && [[ -n "${from_pkg}" && -f "${from_pkg}" ]]; then
+        echo "${from_pkg}"
+        return 0
+    fi
+    # Last resort for curl-bootstrap / older registry packages.
+    local base_url="${FUSE_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts}"
+    local bundle_dir="${TMPDIR:-/tmp}/fuse-install-scripts-$$"
+    mkdir -p "${bundle_dir}"
+    curl -fsSL "${base_url}/${name}" -o "${bundle_dir}/${name}"
+    if [[ "${name}" == *.sh ]]; then
+        local companion="${name%.sh}.jl"
+        curl -fsSL "${base_url}/${companion}" -o "${bundle_dir}/${companion}" 2>/dev/null || true
+    fi
+    [[ -f "${bundle_dir}/${name}" ]] || die "Could not locate scripts/${name}"
+    echo "${bundle_dir}/${name}"
+}
+
 run_fusebot_or_make() {
     local target="$1"
     shift || true
     if command -v fusebot >/dev/null 2>&1; then
         log "fusebot ${target} $*"
-        fusebot "${target}" "$@"
-        return 0
+        if fusebot "${target}" "$@"; then
+            return 0
+        fi
+        log "fusebot ${target} failed — falling back to make"
+    else
+        log "fusebot not on PATH — falling back to make"
     fi
 
     local fuse_dir
     fuse_dir="$(fuse_pkg_dir)"
-    log "fusebot not on PATH — running make ${target} in ${fuse_dir}"
+    log "Running make ${target} in ${fuse_dir}"
     (
         cd "${fuse_dir}"
         export PTP_ORIGINAL_DIR="${INSTALL_DIR}"
@@ -235,7 +264,36 @@ run_fusebot_or_make() {
 }
 
 install_ijulia_kernels() {
-    run_fusebot_or_make install_IJulia
+    # fusebot → make → direct install_ijulia.sh (no make required).
+    # Keeps going when fusebot is missing/broken or make is not installed.
+    if command -v fusebot >/dev/null 2>&1; then
+        log "fusebot install_IJulia"
+        if fusebot install_IJulia; then
+            return 0
+        fi
+        log "fusebot install_IJulia failed — trying make / direct install"
+    else
+        log "fusebot not on PATH — trying make / direct install"
+    fi
+
+    local fuse_dir
+    fuse_dir="$(fuse_pkg_dir)"
+
+    if command -v make >/dev/null 2>&1; then
+        log "make install_IJulia in ${fuse_dir}"
+        if (
+            cd "${fuse_dir}"
+            export PTP_ORIGINAL_DIR="${INSTALL_DIR}"
+            make install_IJulia
+        ); then
+            return 0
+        fi
+        log "make install_IJulia failed — running scripts/install_ijulia.sh directly"
+    else
+        log "make not found — running scripts/install_ijulia.sh directly"
+    fi
+
+    bash "${fuse_dir}/scripts/install_ijulia.sh"
 }
 
 clone_fuse_examples() {
@@ -248,6 +306,17 @@ clone_fuse_examples() {
         log "Cloning FuseExamples into ${INSTALL_DIR}"
         git clone https://github.com/ProjectTorreyPines/FuseExamples.git
     fi
+}
+
+verify_fluxmatcher_notebook() {
+    local verify_sh
+    verify_sh="$(resolve_fuse_script verify_fluxmatcher_notebook.sh)"
+    log "Verifying fluxmatcher.ipynb cells 0–2 (cell 2 can take 15+ minutes on first run)"
+    # Cell extraction needs Python from the fuse env.
+    if ! command -v python >/dev/null 2>&1; then
+        ensure_fuse_conda_env
+    fi
+    FUSE_WORK_DIR="${INSTALL_DIR}" bash "${verify_sh}"
 }
 
 run_julia_install() {
@@ -271,20 +340,33 @@ install_fuse_stack() {
     clone_fuse_examples
     run_julia_install smoke
 
-    log "FUSE install complete."
-    log "Step 2 — verify fluxmatcher.ipynb cells 0–2:"
-    log "  bash ${SCRIPT_DIR}/verify_fluxmatcher_notebook.sh"
+    if [[ "${FUSE_SKIP_VERIFY:-0}" == "1" ]]; then
+        export FUSE_VERIFY_FLUXMATCHER=false
+    fi
+
+    if [[ "${FUSE_VERIFY_FLUXMATCHER:-false}" == "true" ]]; then
+        verify_fluxmatcher_notebook
+        log "FUSE install complete (including fluxmatcher.ipynb cells 0–2)."
+    else
+        log "FUSE install complete."
+        log "Step 2 — verify fluxmatcher.ipynb cells 0–2:"
+        log "  bash $(resolve_fuse_script verify_fluxmatcher_notebook.sh)"
+    fi
 }
 
 platform="${1:-}"
 case "${platform}" in
     laptop)
         export FUSE_SETUP_SHELL="${FUSE_SETUP_SHELL:-false}"
+        # Laptop one-command install finishes by running fluxmatcher cells 0–2.
+        export FUSE_VERIFY_FLUXMATCHER="${FUSE_VERIFY_FLUXMATCHER:-true}"
         ensure_juliaup
         install_fuse_stack
         ;;
     nersc)
         export FUSE_SETUP_SHELL="${FUSE_SETUP_SHELL:-true}"
+        # Keep the long flux-matcher solve as an explicit Step 2 on login nodes.
+        export FUSE_VERIFY_FLUXMATCHER="${FUSE_VERIFY_FLUXMATCHER:-false}"
         load_nersc_modules
         install_fuse_stack
         ;;

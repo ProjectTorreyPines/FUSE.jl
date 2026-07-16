@@ -4,7 +4,9 @@ This guide walks you through setting up everything you need to run FUSE: the **J
 
 ## One-command install
 
-These scripts install FUSE, Revise, fusebot, the Jupyter stack, IJulia kernels, and clone [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples). Everything runs from the shell — no Julia REPL. A fresh install typically takes **20–45 minutes** (Julia packages + conda environment + IJulia kernels).
+These scripts install FUSE, Revise, fusebot, the Jupyter stack (`fuse` conda env), IJulia kernels, and clone [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples). Everything runs from the shell — no Julia REPL.
+
+On a **laptop**, the script then activates the `fuse` env, runs `fusebot install_IJulia` (or `make install_IJulia` / `scripts/install_ijulia.sh` if fusebot fails), and finishes by executing the **first three cells** of `FuseExamples/fluxmatcher.ipynb`. A fresh laptop install typically takes **35–60+ minutes** (Julia packages + conda + IJulia + the first flux-matcher solve).
 
 ### Laptop (Linux or macOS)
 
@@ -17,9 +19,11 @@ bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/m
 
 From a local `FUSE.jl` clone: `bash scripts/install_fuse_laptop.sh`
 
+Skip the notebook solve with `FUSE_SKIP_VERIFY=1 bash scripts/install_fuse_laptop.sh` if you only want packages + kernels.
+
 ### NERSC (Perlmutter)
 
-From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is tight). Loads `julia/1.11.7` and `conda` by default.
+From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is tight). Loads `julia/1.11.7` and `conda` by default. NERSC stops after the smoke test; run the fluxmatcher verify command below as Step 2 (avoids a long solve on a login node).
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_nersc.sh)
@@ -31,7 +35,7 @@ Override the Julia module with `FUSE_JULIA_MODULE=julia/1.12.0 bash scripts/inst
 
 ### Windows
 
-From any directory in **PowerShell**. Installs Julia via [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (Microsoft Store) or the Julia App Installer when `julia` is missing, and Miniconda when `conda` is missing.
+From any directory in **PowerShell**. Installs Julia via [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (Microsoft Store) or the Julia App Installer when `julia` is missing, and Miniconda when `conda` is missing. Like the laptop script, it finishes by running the first three `fluxmatcher.ipynb` cells unless you set `FUSE_SKIP_VERIFY=1`.
 
 ```powershell
 winget install julia -s msstore --accept-source-agreements --accept-package-agreements --disable-interactivity; `
@@ -42,13 +46,13 @@ From a local `FUSE.jl` clone: `.\scripts\install_fuse_windows.ps1`
 
 If `winget` is unavailable, install Julia with `Add-AppxPackage -AppInstallerFile https://install.julialang.org/Julia.appinstaller`, open a new terminal, then run the install script.
 
-### Step 2: verify `fluxmatcher.ipynb`
+### Verify `fluxmatcher.ipynb` (NERSC Step 2 / re-run)
 
-After the install finishes, confirm you can run the **first three cells** of [`FuseExamples/fluxmatcher.ipynb`](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/fluxmatcher.ipynb):
+The laptop and Windows one-command installs already run the **first three cells** of [`FuseExamples/fluxmatcher.ipynb`](https://github.com/ProjectTorreyPines/FuseExamples/blob/master/fluxmatcher.ipynb). On NERSC — or to re-run after install — use:
 
 * **Cell 0** (code): `using Revise`, `using Plots`, `using FUSE`
 * **Cell 1** (markdown): flux-matcher introduction (checked for presence, not executed)
-* **Cell 2** (code): flux-matches the DIII-D L-mode case — this actually runs the flux-matcher, so allow **15+ minutes** on the first run (compilation plus the solve)
+* **Cell 2** (code): flux-matches the DIII-D L-mode case — allow **15+ minutes** on the first run (compilation plus the solve)
 
 **Linux, macOS, and NERSC:**
 

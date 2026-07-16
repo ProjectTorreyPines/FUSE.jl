@@ -16,7 +16,7 @@ From a local `FUSE.jl` clone: `bash scripts/install_fuse_nersc.sh`
 
 Override the Julia module with `FUSE_JULIA_MODULE=julia/1.12.0 bash scripts/install_fuse_nersc.sh` when needed.
 
-If `fusebot` cannot be installed (for example when `~/.local/bin` does not exist), the script runs the same underlying `make` targets (`install_IJulia`, `install_examples`, …) directly from the FUSE package directory.
+If `fusebot` cannot be installed or `fusebot install_IJulia` fails (for example when `make` is missing), the script falls back to `make install_IJulia` and then to `scripts/install_ijulia.sh` from the FUSE package directory.
 
 ### Step 2: verify `fluxmatcher.ipynb`
 
