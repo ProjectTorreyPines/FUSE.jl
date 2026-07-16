@@ -15,7 +15,19 @@
 
 set -euo pipefail
 
+# Companions are fetched from the same scripts/ directory as this file's
+# published URL. Override with FUSE_SCRIPT_BASE_URL. Default matches the
+# documented one-command install (ProjectTorreyPines/master).
 SCRIPT_BASE_URL="${FUSE_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts}"
+
+# If the caller passed this script's own raw URL as $1 (optional), derive the
+# companion base from it so a single curl to any fork/branch stays self-contained:
+#   u=https://raw.githubusercontent.com/ORG/FUSE.jl/REF/scripts/install_fuse_laptop.sh
+#   bash <(curl -fsSL "$u") "$u"
+if [[ "${1:-}" == http://* || "${1:-}" == https://* ]]; then
+    SCRIPT_BASE_URL="${FUSE_SCRIPT_BASE_URL:-${1%/*}}"
+    shift
+fi
 
 resolve_script_dir() {
     local self_dir
@@ -37,4 +49,4 @@ resolve_script_dir() {
 }
 
 SCRIPT_DIR="$(resolve_script_dir)"
-exec bash "${SCRIPT_DIR}/install_fuse_common.sh" laptop
+exec bash "${SCRIPT_DIR}/install_fuse_common.sh" laptop "$@"
