@@ -80,7 +80,8 @@ install_miniconda() {
     cat > "${helper}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-tmp="\$(mktemp)"
+# Constructor installers require the filename to end in ".sh" (they check \$0).
+tmp="\$(mktemp "\${TMPDIR:-/tmp}/miniconda-installer-XXXXXX.sh")"
 curl -fsSL "${installer}" -o "\${tmp}"
 bash "\${tmp}" -b -p "${MINICONDA_DIR}"
 rm -f "\${tmp}"
