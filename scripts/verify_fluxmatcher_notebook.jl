@@ -19,7 +19,7 @@ cells_file = get(ENV, "FUSE_VERIFY_CELLS", "")
 
 if !isempty(cells_file) && isfile(cells_file)
     println("[verify_fluxmatcher] Running the first three cells (code cells 0 and 2; cell 1 is markdown)")
-    println("[verify_fluxmatcher] NOTE: cell 2 flux-matches a DIII-D L-mode case and can take 15+ minutes on first run")
+    println("[verify_fluxmatcher] NOTE: cell 2 flux-matches a DIII-D L-mode case (often ~6 minutes on one thread the first time)")
     flush(stdout)
     @time include(cells_file)
     println("[verify_fluxmatcher] First three cells passed")
