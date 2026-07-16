@@ -6,7 +6,7 @@ For the pre-built `module load fuse` environment maintained by the FUSE team, se
 
 ## NERSC one-command install
 
-From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is tight). Loads `julia/1.11.7` and `conda`, installs FUSE, Revise, fusebot (under `~/.local/bin` or `~/.local/shared/bin` if `bin` is not writable), the Jupyter conda environment, IJulia kernels, clones [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples), and finishes by running the **first three cells** of `fluxmatcher.ipynb` (typically ~6 minutes on one thread — fine on a login node). All steps run from the shell — no Julia REPL.
+From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is under memory pressure). Loads `julia/1.11.7` and `conda`, installs FUSE, Revise, fusebot (under `~/.local/bin` or `~/.local/shared/bin` if `bin` is not writable), the Jupyter conda environment, IJulia kernels, clones [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples), and finishes by running the **first three cells** of `fluxmatcher.ipynb`.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_nersc.sh)
@@ -127,7 +127,7 @@ That environment includes sysimage-accelerated `fuse` and `julia` wrappers and p
 
 ### [Home quota / memory pressure](@id nersc-home-quota)
 
-If your home directory is tight on space or inode quota, keep the full Julia depot off `$HOME` by
+If your home directory is under memory or inode pressure, keep the full Julia depot off `$HOME` by
 symlinking `~/.julia` to `$PSCRATCH`:
 
 ```bash
