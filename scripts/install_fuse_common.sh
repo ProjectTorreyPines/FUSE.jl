@@ -92,15 +92,28 @@ EOF
     [[ -x "${MINICONDA_DIR}/bin/conda" ]] || die "Miniconda install failed (conda not found at ${MINICONDA_DIR}/bin/conda)"
 }
 
+# conda's shell functions (activation, `shell.bash hook`, sourced conda.sh)
+# reference $PS1, which is unbound under `set -u` in a non-interactive shell.
+# Run them with nounset temporarily disabled so the install does not abort with
+# "PS1: unbound variable" (see conda/conda#3200).
+conda_activate() {
+    set +u
+    conda activate "$@"
+    set -u
+}
+
 activate_conda() {
   # shellcheck disable=SC1091
+    set +u
     if [[ -f "${MINICONDA_DIR}/etc/profile.d/conda.sh" ]]; then
         source "${MINICONDA_DIR}/etc/profile.d/conda.sh"
     elif command -v conda >/dev/null 2>&1; then
         eval "$("$(command -v conda)" shell.bash hook 2>/dev/null)" || true
     else
+        set -u
         die "conda is not available (install Miniconda or module load conda)"
     fi
+    set -u
 }
 
 bootstrap_conda_channels() {
@@ -166,7 +179,7 @@ ensure_fuse_conda_env() {
         log "Creating conda env '${CONDA_ENV_NAME}'"
         conda env create -f "${yml}"
     fi
-    conda activate "${CONDA_ENV_NAME}"
+    conda_activate "${CONDA_ENV_NAME}"
     log "Active Python: $(python -c 'import sys; print(sys.executable)')"
 }
 
