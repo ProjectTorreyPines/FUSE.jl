@@ -143,7 +143,7 @@ function run_postdictive_case!(
     act.ActorPedestal.model = :dynamic
     act.ActorPedestal.tau_n = experiment_LH.tau_n
     act.ActorPedestal.tau_t = experiment_LH.tau_t
-    act.ActorEPED.ped_factor = 1.0
+    act.ActorEPED.ped_factor = 0.8
     act.ActorPedestal.T_ratio_pedestal = 1. # Ti/Te in the pedestal
     act.ActorWPED.ped_to_core_fraction = missing
 
