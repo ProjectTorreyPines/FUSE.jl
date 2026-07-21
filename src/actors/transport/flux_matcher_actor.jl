@@ -471,12 +471,8 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         IMAS.unfreeze!(cp1d, field)
     end
 
-    # free rotation expressions (skip if replaying to keep copied data)
-    if par.evolve_rotation != :replay
-        for ion in cp1d.ion
-            IMAS.unfreeze!(ion, :rotation_frequency_tor)
-        end
-    end
+    # NOTE: ion.rotation_frequency_tor is no longer a dynamic expression, so there is
+    # nothing to unfreeze here. Sonic rotation (the primary variable) is handled above.
 
     return actor
 end
@@ -1309,7 +1305,8 @@ function _step(replay_actor::ActorReplay, actor::ActorFluxMatcher, replay_dd::IM
         for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
             if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
                 ω_ion_core = deepcopy(replay_ion.rotation_frequency_tor)
-                ω_ion_edge = IMAS.freeze!(ion, :rotation_frequency_tor)
+                # simulated edge: derive ion rotation from the (simulated) sonic rotation
+                ω_ion_edge = IMAS.sonic2ωtor(cp1d, ion)
                 ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
                 ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]
                 ion.rotation_frequency_tor = ω_ion_core

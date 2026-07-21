@@ -235,7 +235,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             rho = cp1d.grid.rho_tor_norm
             i_nml = IMAS.argmin_abs(rho, par.rho_nml)
             i_ped = IMAS.argmin_abs(rho, par.rho_ped)
-            ω_core = IMAS.freeze!(cp1d.ion[1], :rotation_frequency_tor)
+            ω_core = IMAS.sonic2ωtor(cp1d, cp1d.ion[1])
             if i_nml == i_ped
                 dωdr_nml = IMAS.gradient(rho, -ω_core; method=:backward)[i_nml]
             else
@@ -269,7 +269,8 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
             # Ion rotation: same blending (core from simulation, edge from replay)
             for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
                 if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
-                    ω_ion_core = IMAS.freeze!(ion, :rotation_frequency_tor)
+                    # simulated core: derive ion rotation from the (simulated) sonic rotation
+                    ω_ion_core = IMAS.sonic2ωtor(cp1d, ion)
                     ω_ion_edge = replay_ion.rotation_frequency_tor
                     ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
                     ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]
@@ -487,7 +488,8 @@ function _step(replay_actor::ActorReplay, actor::ActorPedestal, replay_dd::IMAS.
     # Ion rotation: same blending
     for (ion, replay_ion) in zip(cp1d.ion, replay_cp1d.ion)
         if IMAS.hasdata(replay_ion, :rotation_frequency_tor)
-            ω_ion_core = ion.rotation_frequency_tor
+            # simulated core: derive ion rotation from the (simulated) sonic rotation
+            ω_ion_core = IMAS.sonic2ωtor(cp1d, ion)
             ω_ion_edge = replay_ion.rotation_frequency_tor
             ω_ion_core[i_nml+1:end] = ω_ion_edge[i_nml+1:end]
             ω_ion_core[1:i_nml] = ω_ion_core[1:i_nml] .- ω_ion_core[i_nml] .+ ω_ion_edge[i_nml]

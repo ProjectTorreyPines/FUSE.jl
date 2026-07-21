@@ -442,7 +442,6 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
     min_power::Float64=0.0,
     aggregate_radiation::Bool=true,
     aggregate_hcd::Bool=true,
-    rotation_quantity::Symbol=:sonic,
     dd1::Union{Nothing,IMAS.DD}=nothing,
     size=(1800, 1000),
     kw...)
@@ -618,39 +617,22 @@ function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
         end
         plot!(; title="Densities [m⁻³]", xlabel="", ylabel="", label="", legend_foreground_color=:transparent)
 
-        # core_profiles rotation
+        # core_profiles rotation (sonic rotation is the primary rotation variable)
         plot_rotation = plot()
-        @assert rotation_quantity in (:toroidal, :sonic)
-        if rotation_quantity == :sonic
-            if dd1 !== nothing
-                if !ismissing(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic)
-                    plot!(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
-                end
-                if IMAS.hasdata(dd1.charge_exchange)
-                    plot!(dd1.charge_exchange, :ω_tor; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
-                end
+        if dd1 !== nothing
+            if !ismissing(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic)
+                plot!(dd1.core_profiles.profiles_1d[time0], :rotation_frequency_tor_sonic; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
             end
-            if dd !== dd1
-                if !ismissing(cp1d, :rotation_frequency_tor_sonic)
-                    plot!(cp1d, :rotation_frequency_tor_sonic; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
-                end
-            end
-        else
-            if dd1 !== nothing
-                if !ismissing(dd1.core_profiles.profiles_1d[time0].ion[1], :rotation_frequency_tor)
-                    plot!(dd1.core_profiles.profiles_1d[time0].ion[1], :rotation_frequency_tor; color=:black, only=1, normalization=1E-3, xlabel="", ylabel="", label="")
-                end
-                if IMAS.hasdata(dd1.charge_exchange)
-                    plot!(dd1.charge_exchange, :ω_tor; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
-                end
-            end
-            if dd !== dd1
-                if !ismissing(cp1d.ion[1], :rotation_frequency_tor)
-                    plot!(cp1d.ion[1], :rotation_frequency_tor; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
-                end
+            if IMAS.hasdata(dd1.charge_exchange)
+                plot!(dd1.charge_exchange, :ω_tor; time0, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="", primary=false)
             end
         end
-        plot!(; title="Toroidal Rotation [Krad/s]", xlabel="", ylabel="", label="")
+        if dd !== dd1
+            if !ismissing(cp1d, :rotation_frequency_tor_sonic)
+                plot!(cp1d, :rotation_frequency_tor_sonic; only=1, lw=2.0, normalization=1E-3, xlabel="", ylabel="", label="")
+            end
+        end
+        plot!(; title="Sonic Rotation [Krad/s]", xlabel="", ylabel="", label="")
 
         # ========
 
