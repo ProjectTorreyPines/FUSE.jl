@@ -91,11 +91,11 @@ end
 import FileIO, JpegTurbo
 
 """
-    dd_build_layers_to_ini(dd::IMAS.dd)
+    dd_build_layers_to_ini(dd::IMAS.DD)
 
 Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()`
 """
-function dd_build_layers_to_ini(dd::IMAS.dd)
+function dd_build_layers_to_ini(dd::IMAS.DD)
     for layer in dd.build.layer
         name = replace(layer.name, " " => "_")
         println("layers[:$name] = $(layer.thickness)")
@@ -183,14 +183,21 @@ function parallel_environment(
     kw...
 )
 
-    if release_existing_workers
-        Distributed.rmprocs(Distributed.workers())
-    end
-
     current_nworkers = Distributed.nprocs() - 1
 
+    if release_existing_workers
+        if nworkers == 0
+            !isempty(Distributed.workers()) && Distributed.rmprocs(Distributed.workers())
+            current_nworkers = 0
+        elseif current_nworkers != nworkers
+            !isempty(Distributed.workers()) && Distributed.rmprocs(Distributed.workers())
+            current_nworkers = 0
+        end
+    end
+
+    pid_list = Int[]
+
     if nworkers == 0
-        pid_list = Int[]
         #pass
 
     elseif cluster == "omega"

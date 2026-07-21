@@ -1,6 +1,7 @@
 {
 "dataset_description": {
 "data_entry": {
+"machine": "D3D",
 "pulse": 133221
 }
 },

@@ -20,6 +20,20 @@ function study_parameters(::Val{:DatabaseGenerator})
     return FUSEparameters__ParametersStudyDatabaseGenerator{Real}()
 end
 
+"""
+    database_generator_workflow_default(dd, ini, act)
+
+Default [`StudyDatabaseGenerator`](@ref) workflow: initialize `dd` from `ini` and `act`.
+
+Define custom workflows in the `FUSE` module (or another module loaded on all workers) so
+`Distributed.pmap` can serialize them under Julia 1.12+. A `Main`-scoped `@everywhere function`
+is lost when workers are restarted by [`parallel_environment`](@ref).
+"""
+function database_generator_workflow_default(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors)
+    init(dd, ini, act)
+    return nothing
+end
+
 Base.@kwdef mutable struct FUSEparameters__ParametersStudyDatabaseGenerator{T<:Real} <: ParametersStudy{T}
     _parent::WeakRef = WeakRef(nothing)
     _name::Symbol = :StudyDatabaseGenerator

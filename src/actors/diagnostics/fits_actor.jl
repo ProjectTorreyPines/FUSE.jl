@@ -12,10 +12,10 @@
 end
 
 mutable struct ActorFitProfiles{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFitProfiles{P}}
     act::ParametersAllActors{P}
-    function ActorFitProfiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorFitProfiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    function ActorFitProfiles(dd::IMAS.DD{D}, par::FUSEparameters__ActorFitProfiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFitProfiles)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -23,7 +23,7 @@ mutable struct ActorFitProfiles{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFitProfiles(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Fits experimental diagnostic data from Thomson scattering and charge exchange recombination spectroscopy to create smooth plasma profiles.
 
@@ -37,7 +37,7 @@ This actor performs several key operations:
 
 The resulting fitted profiles are stored in `dd.core_profiles.profiles_1d[]` and provide the foundation for physics modeling.
 """
-function ActorFitProfiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorFitProfiles(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFitProfiles(dd, act.ActorFitProfiles, act; kw...)
     step(actor)
     finalize(actor)
@@ -55,7 +55,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     smooth1 = 0.1
     smooth2 = par.rho_averaging
 
-    # set aside original raw data, since we'll be overwriting it internally 
+    # set aside original raw data, since we'll be overwriting it internally
     dd1 = IMAS.dd{D}()
     for field in (:thomson_scattering, :charge_exchange)
         setproperty!(dd1, field, deepcopy(getproperty(dd, field)))
@@ -90,12 +90,12 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
     method = IMAS.NaturalNeighbours.Triangle()
 
-    # fit Te
-    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=abs)
+    # fit Te in log space to guarantee positivity
+    itp_te = IMAS.fit2d(Val(:t_e), dd; transform=x -> log(abs(x)))
     for (kt, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[kt]
         data = itp_te(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        cp1d.electrons.temperature = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.temperature = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
     end
 
     # scale thomson scattering density based on interferometer measurements
@@ -135,7 +135,7 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
 
         # optimization scales density for groups of thomson scattering channels
         function cost(scales0)
-            scales = abs.(1.0 .+ scales0)
+            scales = 1.0 .+ scales0
             data = deepcopy(nes)
             c_simulated = Float64[]
             c_continuity = Float64[]
@@ -159,10 +159,14 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
             end
             return sqrt(norm(c_simulated)^2 + norm(c_continuity)^2)
         end
-        res = Optim.optimize(cost, fill(0.0, length(ts_subsystems_mapper)), Optim.NelderMead())
+        n_subsystems = length(ts_subsystems_mapper)
+        res = Optim.optimize(cost, fill(-0.05, n_subsystems), fill(0.05, n_subsystems), fill(0.0, n_subsystems), Optim.Fminbox(Optim.NelderMead()))
+        if !Optim.converged(res)
+            @warn "Thomson-interferometer calibration optimization did not converge; using unit scales"
+        end
 
         # scale raw data in thomson_scattering IDS
-        scales = abs.(1.0 .+ res.minimizer)
+        scales = Optim.converged(res) ? 1.0 .+ res.minimizer : ones(n_subsystems)
         scales_string = join(["$subsystem_name=$(@sprintf("%3.3f",scale))" for (subsystem_name, scale) in zip(keys(ts_subsystems_mapper), scales)], ", ")
         @info "Thomson subsystems scaled to match interferometer measurements: $scales_string"
         for (kch, subsystem) in enumerate(keys(ts_subsystems_mapper))
@@ -173,12 +177,13 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         end
     end
 
-    # fit ne
-    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=abs)
+    # fit ne in log space to guarantee positivity
+    itp_ne = IMAS.fit2d(Val(:n_e), dd; transform=x -> log(abs(x)))
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        cp1d.electrons.density_thermal = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        cp1d.electrons.density_thermal = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
+        IMAS.unfreeze!(cp1d.electrons, :density)
     end
 
     # time average CER data
@@ -200,19 +205,21 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
         imp_ion = cp1d.ion[2]
 
         data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        data .*= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        data .*= exp.(itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method))
         n_i = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
         imp_ion.density_thermal = n_i
+        IMAS.unfreeze!(bulk_ion, :density)
+        IMAS.unfreeze!(imp_ion, :density)
     end
-
-    # fit Ti
-    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=abs)
+    
+    # fit Ti in log space to guarantee positivity (prevents avgZ DomainError)
+    itp_ti = IMAS.fit2d(Val(:t_i), dd; transform=x -> log(abs(x)))
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         data = itp_ti(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        ti = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        ti = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
         for ion in cp1d.ion
             ion.temperature = ti
         end
@@ -221,6 +228,25 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     # quasi neutrality
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
+        # CER and Thomson are independent diagnostics and can be inconsistent at the edge.
+        # Clip each impurity density against the remaining electron budget after accounting
+        # for all other impurities, so that n_D >= 0 after enforce_quasi_neutrality!.
+        ne = cp1d.electrons.density_thermal
+        for ion in cp1d.ion
+            if !IMAS.is_hydrogenic(ion) && !ismissing(ion, :density_thermal)
+                # sum charge from all OTHER impurities
+                other_charge = zeros(length(ne))
+                for other in cp1d.ion
+                    if other !== ion && !IMAS.is_hydrogenic(other) && !ismissing(other, :density_thermal)
+                        other_charge .+= other.density_thermal .* IMAS.avgZ(other)
+                    end
+                end
+                # electron budget remaining for this impurity
+                ne_remaining = ne .- other_charge
+                Z_imp = IMAS.avgZ(ion)
+                ion.density_thermal = min.(ion.density_thermal, ne_remaining ./ Z_imp .* 0.99)
+            end
+        end
         IMAS.enforce_quasi_neutrality!(cp1d, :D)
     end
 

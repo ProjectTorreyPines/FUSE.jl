@@ -17,10 +17,10 @@ function case_parameters(::Val{:JET})
 
     #### ACT ####
 
-    act.ActorHCD.ec_model = :none
-    act.ActorHCD.ic_model = :none
-    act.ActorHCD.lh_model = :none
-    act.ActorHCD.nb_model = :none
+    act.ActorSources.ec_model = :none
+    act.ActorSources.ic_model = :none
+    act.ActorSources.lh_model = :none
+    act.ActorSources.nb_model = :none
     act.ActorFluxMatcher.max_iterations = 500
     act.ActorFluxMatcher.verbose = true
 

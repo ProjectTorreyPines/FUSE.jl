@@ -10,19 +10,19 @@
 end
 
 mutable struct ActorStationaryPlasma{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorStationaryPlasma{P}}
     act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
     actor_ped::Union{ActorPedestal{D,P},ActorNoOperation{D,P}}
-    actor_hc::ActorHCD{D,P}
+    actor_src::ActorSources{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_saw::ActorSawteethSource{D,P}
 end
 
 """
-    ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorStationaryPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Iteratively solves for self-consistent stationary plasma equilibrium and transport.
 
@@ -50,7 +50,7 @@ Key convergence criteria:
 
 Actors coordinated:
 - **ActorCurrent**: Current density evolution (Ohmic + driven + bootstrap)
-- **ActorHCD**: Heating and current drive power deposition
+- **ActorSources**: Heating and current drive power deposition
 - **ActorPedestal**: Edge pressure and temperature boundary conditions
 - **ActorCoreTransport**: Core transport flux calculations
 - **ActorSawteethSource**: Sawtooth crash mixing and q-profile flattening
@@ -61,14 +61,14 @@ Actors coordinated:
     Stores converged plasma state in `dd.equilibrium`, `dd.core_profiles`,
     `dd.core_sources`, `dd.core_transport`
 """
-function ActorStationaryPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorStationaryPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorStationaryPlasma(dd, act.ActorStationaryPlasma, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
+function ActorStationaryPlasma(dd::IMAS.DD, par::FUSEparameters__ActorStationaryPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorStationaryPlasma)
     par = OverrideParameters(par; kw...)
 
@@ -100,7 +100,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
         rho_nml,
         rho_ped)
 
-    actor_hc = ActorHCD(dd, act.ActorHCD, act)
+    actor_src = ActorSources(dd, act.ActorSources, act)
 
     actor_jt = ActorCurrent(dd, act.ActorCurrent, act; ip_from=:pulse_schedule, vloop_from=:pulse_schedule)
 
@@ -108,7 +108,7 @@ function ActorStationaryPlasma(dd::IMAS.dd, par::FUSEparameters__ActorStationary
 
     actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource)
 
-    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_saw)
+    return ActorStationaryPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_saw)
 end
 
 function _step(actor::ActorStationaryPlasma)
@@ -168,9 +168,9 @@ function _step(actor::ActorStationaryPlasma)
             # core_profiles, core_sources, core_transport grids from latest equilibrium
             latest_equilibrium_grids!(dd)
 
-            # run HCD to get updated current drive
-            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_hc))
-            finalize(step(actor.actor_hc))
+            # run sources to get updated current drive
+            ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_src))
+            finalize(step(actor.actor_src))
 
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))

@@ -8,9 +8,9 @@
 end
 
 mutable struct ActorPowerNeeds{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorPowerNeeds{P}}
-    function ActorPowerNeeds(dd::IMAS.dd{D}, par::FUSEparameters__ActorPowerNeeds{P}; kw...) where {D<:Real,P<:Real}
+    function ActorPowerNeeds(dd::IMAS.DD{D}, par::FUSEparameters__ActorPowerNeeds{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorPowerNeeds)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -18,7 +18,7 @@ mutable struct ActorPowerNeeds{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPowerNeeds(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Power needs actor that calculates the needed power to operate the plant
 
@@ -26,11 +26,16 @@ Power needs actor that calculates the needed power to operate the plant
   - `model = :EU_DEMO` subdivides the power plant electrical needs to [:cryostat, :tritium_handling, :pumping] using  EU-DEMO numbers.
   - `model = :FUSE` subdivides power plant needs into subsystems and calculates their power needs.
 
+The signature accepts any `IMAS.DD` subtype, so external packages can add
+their own `ActorPowerNeeds(dd::TheirDD, act)` outer constructor to handle
+scenarios not covered by the standard models, with no scenario-specific
+knowledge baked into FUSE.
+
 !!! note
 
     Stores data in `dd.balance_of_plant.power_electric_plant_operation`
 """
-function ActorPowerNeeds(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPowerNeeds(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPowerNeeds(dd, act.ActorPowerNeeds; kw...)
     step(actor)
     finalize(actor)

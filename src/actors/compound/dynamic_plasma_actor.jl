@@ -2,11 +2,11 @@
 #  ActorDynamicPlasma  #
 #= ================== =#
 @actor_parameters_struct ActorDynamicPlasma{T} begin
-    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt")
-    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution")
+    Δt::Entry{Float64} = Entry{Float64}("s", "Evolve for Δt"; default=missing)
+    Nt::Entry{Int} = Entry{Int}("-", "Number of time steps during evolution"; default=missing)
     evolve_transport::Entry{Bool} = Entry{Bool}("-", "Evolve the transport"; default=true)
     evolve_pedestal::Entry{Bool} = Entry{Bool}("-", "Evolve the pedestal"; default=true)
-    evolve_hcd::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
+    evolve_sources::Entry{Bool} = Entry{Bool}("-", "Evolve the heating and current drive"; default=true)
     evolve_current::Entry{Bool} = Entry{Bool}("-", "Evolve the plasma current"; default=true)
     evolve_equilibrium::Entry{Bool} = Entry{Bool}("-", "Evolve the equilibrium"; default=true)
     evolve_pf_active::Entry{Bool} = Entry{Bool}("-", "Evolve the PF currents"; default=false)
@@ -18,20 +18,21 @@
 end
 
 mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorDynamicPlasma{P}}
     act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
     actor_ped::ActorPedestal{D,P}
-    actor_hc::ActorHCD{D,P}
+    actor_src::ActorSources{D,P}
     actor_jt::ActorCurrent{D,P}
     actor_eq::ActorEquilibrium{D,P}
     actor_pf::ActorPFactive{D,P}
     actor_saw::ActorSawteethSource{D,P}
+    actor_zmq::ActorZMQ{D,P}
 end
 
 """
-    ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorDynamicPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evolves plasma profiles forward in time using coupled physics models.
 
@@ -64,7 +65,7 @@ Key features:
 Physics models coordinated:
 
   - **ActorCurrent**: Current density diffusion and resistive evolution
-  - **ActorHCD**: Time-dependent heating and current drive
+  - **ActorSources**: Time-dependent heating and current drive
   - **ActorPedestal**: Pedestal evolution and L-H transitions
   - **ActorCoreTransport**: Transport flux evolution
   - **ActorSawteethSource**: Sawtooth instability cycling
@@ -77,14 +78,14 @@ Control options:
   - Individual physics component enable/disable switches
   - Configurable time step size and number of steps
 """
-function ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorDynamicPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorDynamicPlasma(dd, act.ActorDynamicPlasma, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
+function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorDynamicPlasma)
     par = OverrideParameters(par; kw...)
 
@@ -110,18 +111,19 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     else
         rho_ped = act.ActorPedestal.rho_ped
     end
+    ne_from = ismissing(act.ActorPedestal, :ne_from) ? :pulse_schedule : act.ActorPedestal.ne_from
     actor_ped = ActorPedestal(
         dd,
         act.ActorPedestal,
         act;
         ip_from=:pulse_schedule,
         βn_from=:core_profiles,
-        ne_from=:pulse_schedule,
+        ne_from,
         zeff_from=:pulse_schedule,
         rho_nml,
         rho_ped)
 
-    actor_hc = ActorHCD(dd, act.ActorHCD, act)
+    actor_src = ActorSources(dd, act.ActorSources, act)
 
     # Enforce ActorCurrent.model = :QED if evolving sawteeth
     if par.evolve_sawteeth && act.ActorCurrent.model != :QED
@@ -156,7 +158,9 @@ function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma
     end
     actor_saw = ActorSawteethSource(dd, act.ActorSawteethSource; period=max(par.Δt / par.Nt, act.ActorSawteethSource.period), qmin_desired=qmin_saw)
 
-    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_hc, actor_jt, actor_eq, actor_pf, actor_saw)
+    actor_zmq = ActorZMQ(dd, act)
+
+    return ActorDynamicPlasma(dd, par, act, actor_tr, actor_ped, actor_src, actor_jt, actor_eq, actor_pf, actor_saw, actor_zmq)
 end
 
 function _step(actor::ActorDynamicPlasma)
@@ -167,7 +171,7 @@ function _step(actor::ActorDynamicPlasma)
     t0 = prepare_dynamic_step!(actor)
     t1 = t0 + par.Δt
 
-    substeps_per_2loop = 9
+    substeps_per_2loop = 11
     par.verbose && ProgressMeter.ijulia_behavior(:clear)
     prog = ProgressMeter.Progress(Nt * substeps_per_2loop; dt=0.0, showspeed=true, enabled=par.verbose)
     old_logging = actor_logging(dd, false)
@@ -177,6 +181,11 @@ function _step(actor::ActorDynamicPlasma)
             phase = mod(kk + 1, 2) + 1
             progr = (prog, t0, t1, phase)
             dynamic_step!(actor, kk, t0; progr)
+            # # Stop early if GSLite signaled end of simulation (uncomment when done signal is confirmed)
+            # if actor.actor_zmq.par.enabled && !actor.actor_zmq.is_connected
+            #     @info "ActorDynamicPlasma: GSLite signaled end of simulation, stopping early at t=$(dd.global_time) s"
+            #     break
+            # end
         end
 
     catch e
@@ -185,6 +194,7 @@ function _step(actor::ActorDynamicPlasma)
         rethrow(e)
     finally
         actor_logging(dd, old_logging)
+        disconnect!(actor.actor_zmq)
     end
 
     return actor
@@ -216,9 +226,9 @@ Execute a single half-step iteration of the dynamic plasma evolution.
 
 # Notes
 - Phase is computed as `mod(kk + 1, 2) + 1` (1 for odd kk, 2 for even)
-- Phase 1 (odd kk): evolves j_ohmic, runs HCD
+- Phase 1 (odd kk): evolves j_ohmic
 - Phase 2 (even kk): runs pedestal, transport, time derivative sources
-- Both phases: runs sawteeth, equilibrium, PF active
+- Both phases: runs sawteeth, equilibrium, PF active, and sources
 
 # Example
 ```julia
@@ -254,7 +264,12 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
     dd.global_time = time0  # this is the --end-- time, the one we are working on
     substep(actor, Val(:time_advance), δt / 2; progr, retime_core_profiles=(phase == 2))
 
-    substep(actor, Val(:run_hcd), δt / 2; progr)
+    # ZMQ: receive data from GSLite at Phase 1 start
+    if phase == 1
+        receive!(actor.actor_zmq)
+    end
+
+    substep(actor, Val(:run_sources), δt / 2; progr)
 
     # apply sawteeth to sources after sources have been recomputed
     substep(actor, Val(:run_sawteeth), δt / 2; progr)
@@ -266,8 +281,17 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
         substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
     end
 
+    # sync core_profiles/core_sources/core_transport grids to the equilibrium used in core_profiles,
+    # so that new_timeslice! in the next step copies consistent (not stale) grid values
+    latest_equilibrium_grids!(actor.dd)
+
     substep(actor, Val(:run_equilibrium), δt / 2; progr)
     substep(actor, Val(:run_pf_active), δt / 2; progr)
+
+    # ZMQ: send results to GSLite at Phase 2 end
+    if phase == 2
+        send!(actor.actor_zmq)
+    end
 
     return actor
 end
@@ -366,15 +390,15 @@ function substep(actor::ActorDynamicPlasma, ::Val{:run_equilibrium}, δt::Float6
     end
 end
 
-function substep(actor::ActorDynamicPlasma, ::Val{:run_hcd}, δt::Float64; progr=nothing, kw...)
+function substep(actor::ActorDynamicPlasma, ::Val{:run_sources}, δt::Float64; progr=nothing, kw...)
     par = actor.par
-    # run HCD actor
+    # run sources actor
     if progr !== nothing
         prog, t0, t1, phase = progr
-        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_hc, phase))
+        ProgressMeter.next!(prog; showvalues=progress_ActorDynamicPlasma(t0, t1, actor.actor_src, phase))
     end
-    if par.evolve_hcd
-        finalize(step(actor.actor_hc))
+    if par.evolve_sources
+        finalize(step(actor.actor_src))
     end
 end
 
@@ -419,7 +443,7 @@ function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractAc
 end
 
 """
-    plot_plasma_overview(dd::IMAS.dd, time0::Float64)
+    plot_plasma_overview(dd::IMAS.DD, time0::Float64)
 
 Plot layout useful to get an overview of a (time dependent) plasma simulation.
 
@@ -438,7 +462,7 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
+function plot_plasma_overview(dd::IMAS.DD, time0::Float64=dd.global_time;
     min_power::Float64=0.0,
     aggregate_radiation::Bool=true,
     aggregate_hcd::Bool=true,

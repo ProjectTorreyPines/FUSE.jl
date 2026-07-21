@@ -11,14 +11,14 @@ import CHEASE
 end
 
 mutable struct ActorCHEASE{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCHEASE{P}}
     act::ParametersAllActors{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 
 """
-    ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCHEASE(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Runs the CHEASE fixed-boundary equilibrium solver to compute a 2D equilibrium from the plasma boundary,
 pressure profile, and current density profile. The solver takes the R-Z boundary coordinates from
@@ -43,14 +43,14 @@ to find PF coil currents that reproduce the same plasma shape and flux surfaces.
     
     Stores data in `dd.equilibrium`
 """
-function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCHEASE(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCHEASE(dd, act.ActorCHEASE, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorCHEASE(dd::IMAS.DD{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCHEASE)
     par = OverrideParameters(par; kw...)
     return ActorCHEASE(dd, par, act, nothing)
@@ -145,7 +145,7 @@ function _finalize(actor::ActorCHEASE{D,P}) where {D<:Real, P<:Real}
         # Saddle control points
         saddle_weight = act.ActorPFactive.x_points_weight / length(eqt.boundary.x_point)
         saddle_cps = [VacuumFields.SaddleControlPoint{D}(x_point.r, x_point.z, saddle_weight) for x_point in eqt.boundary.x_point]
-        push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(eqt.global_quantities.magnetic_axis.r, eqt.global_quantities.magnetic_axis.z, act.ActorPFactive.x_points_weight))
+        push!(saddle_cps, VacuumFields.SaddleControlPoint{D}(actor.chease.gfile.rmaxis, actor.chease.gfile.zmaxis, act.ActorPFactive.x_points_weight))
 
         # Coils locations
         coils = VacuumFields.MultiCoils(dd.pf_active; active_only=true)

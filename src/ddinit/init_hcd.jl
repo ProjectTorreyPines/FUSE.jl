@@ -1,9 +1,9 @@
 """
-    init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_ec!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.ec_launchers` starting from `ini` and `act` parameters
 """
-function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_ec!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     eqt = dd.equilibrium.time_slice[]
     resize!(dd.ec_launchers.beam, length(ini.ec_launcher); wipe=false)
     @assert length(dd.ec_launchers.beam) == length(ini.ec_launcher) == length(dd.pulse_schedule.ec.beam)
@@ -23,11 +23,11 @@ function init_ec!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_ic!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_ic!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.ic_antennas` starting from `ini` and `act` parameters
 """
-function init_ic!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_ic!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.ic_antennas.antenna, length(ini.ic_antenna); wipe=false)
     @assert length(dd.ic_antennas.antenna) == length(ini.ic_antenna) == length(dd.pulse_schedule.ic.antenna)
     for (idx, (ica, ini_ica, ps_ica)) in enumerate(zip(dd.ic_antennas.antenna, ini.ic_antenna, dd.pulse_schedule.ic.antenna))
@@ -45,11 +45,11 @@ function init_ic!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_lh!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_lh!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_lh!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_lh!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.lh_antennas.antenna, length(ini.lh_antenna); wipe=false)
     @assert length(dd.lh_antennas.antenna) == length(ini.lh_antenna) == length(dd.pulse_schedule.lh.antenna)
     for (idx, (lha, ini_lha, ps_lha)) in enumerate(zip(dd.lh_antennas.antenna, ini.lh_antenna, dd.pulse_schedule.lh.antenna))
@@ -67,11 +67,11 @@ function init_lh!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_nb!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.nbi` starting from `ini` and `act` parameters
 """
-function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_nb!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.nbi.unit, length(ini.nb_unit); wipe=false)
     @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
 
@@ -134,13 +134,56 @@ function init_nb!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
 end
 
 """
-    init_pl!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    pam_pellet_species(species::Symbol)
+
+Map a FUSE pellet species to the per-layer (labels, fractions) expected by PAM's ablation models.
+
+PAM implements ablation for specific mixtures: D+T (any D/T fraction, including pure D or pure T),
+Ne20+D, and C12. D/T pellets always list both "D" and "T" species (with the appropriate fractions)
+so they route through PAM's DT ablation model.
+"""
+function pam_pellet_species(species::Symbol)
+    if species == :DT
+        return (["D", "T"], [0.5, 0.5])
+    elseif species == :D
+        return (["D", "T"], [1.0, 0.0])
+    elseif species == :T
+        return (["D", "T"], [0.0, 1.0])
+    elseif species == :C
+        return (["C12"], [1.0])
+    elseif species == :Ne
+        return (["Ne20"], [1.0])
+    else
+        return ([string(species)], [1.0])
+    end
+end
+
+"""
+    init_pl!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.pellet_launcher` starting from `ini` and `act` parameters
 """
-function init_pl!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_pl!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     resize!(dd.pellets.launcher, length(ini.pellet_launcher); wipe=false)
     @assert length(dd.nbi.unit) == length(ini.nb_unit) == length(dd.pulse_schedule.nbi.unit)
+
+    # time-dependent pellet state consumed by ActorPAM (dd.pellets.time_slice[].pellet)
+    populate_time_slice = !isempty(ini.pellet_launcher) && !isempty(dd.equilibrium.time_slice)
+    if populate_time_slice
+        eqt = dd.equilibrium.time_slice[]
+        Raxis = eqt.global_quantities.magnetic_axis.r
+        Zaxis = eqt.global_quantities.magnetic_axis.z
+        # radius of the launch circle around the magnetic axis: outside the separatrix for any
+        # poloidal angle (1.2× the largest magnetic-axis-to-boundary distance)
+        if !isempty(eqt.boundary.outline.r)
+            Rlaunch = 1.2 * maximum(hypot.(eqt.boundary.outline.r .- Raxis, eqt.boundary.outline.z .- Zaxis))
+        else
+            Rlaunch = 1.2 * eqt.boundary.minor_radius * max(1.0, eqt.boundary.elongation)
+        end
+        pts = resize!(dd.pellets.time_slice)
+        resize!(pts.pellet, length(ini.pellet_launcher); wipe=false)
+    end
+
     for (idx, (pll, ini_pll)) in enumerate(zip(dd.pellets.launcher, ini.pellet_launcher))
         if ismissing(pll, :name)
             pll.name = length(ini.pellet_launcher) > 1 ? "pellet_$idx" : "pellet"
@@ -151,16 +194,40 @@ function init_pl!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors
         pll.shape.size = ini_pll.size
         resize!(pll.species, 1)
         pll.species[1].label = string(ini_pll.species)
+
+        if populate_time_slice
+            radius = ini_pll.size[1]
+            pellet = pts.pellet[idx]
+            pellet.velocity_initial = ini_pll.velocity_initial
+            pellet.shape.size = [radius]
+            # launch point at the requested poloidal angle (0 = outboard midplane), aimed at the magnetic axis
+            θ = ini_pll.injection_angle
+            pellet.path_geometry.first_point.r = Raxis + Rlaunch * cos(θ)
+            pellet.path_geometry.first_point.z = Zaxis + Rlaunch * sin(θ)
+            pellet.path_geometry.first_point.phi = 0.0
+            pellet.path_geometry.second_point.r = Raxis
+            pellet.path_geometry.second_point.z = Zaxis
+            pellet.path_geometry.second_point.phi = 0.0
+            # single layer spanning the full radius; species composition mapped to PAM's conventions
+            labels, fractions = pam_pellet_species(ini_pll.species)
+            resize!(pellet.layer, 1)
+            pellet.layer[1].thickness = radius
+            resize!(pellet.layer[1].species, length(labels))
+            for (sp, label, fraction) in zip(pellet.layer[1].species, labels, fractions)
+                sp.label = label
+                sp.fraction = fraction
+            end
+        end
     end
     return dd
 end
 
 """
-    init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_hcd!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.nbi`, `dd.ec_launchers`, `dd.ic_antennas`, `dd.lh_antennas` starting from `ini` and `act` parameters
 """
-function init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_hcd!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_hcd")
     TimerOutputs.@timeit timer "init_hcd" begin
         init_from = ini.general.init_from
@@ -195,7 +262,7 @@ function init_hcd!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActor
         end
         init_pl!(dd, ini, act, dd1)
 
-        ActorHCD(dd, act)
+        ActorSources(dd, act)
 
         return dd
     end
@@ -219,6 +286,14 @@ function add_beam_examples!(nbu, name::Symbol)
         beamlet.position.phi = 0.0
         beamlet.tangency_radius = 0.9
         beamlet.angle = 0.0
+        beamlet.direction = -1
+    elseif name == :d3d_counter_offaxis
+        @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
+        beamlet.position.r = 8.2
+        beamlet.position.z = 0.0
+        beamlet.position.phi = 0.0
+        beamlet.tangency_radius = 0.9
+        beamlet.angle = -0.3
         beamlet.direction = -1
     elseif name == :d3d_offaxis
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.15, 0.05])
@@ -270,7 +345,7 @@ function add_beam_examples!(nbu, name::Symbol)
         beamlet.direction = 1
     elseif name == :kstar_nb1
         @ddtime(nbu.beam_current_fraction.data = [0.8, 0.16, 0.04])
-        beamlet.position.r = 4.0 
+        beamlet.position.r = 4.0
         beamlet.position.z = 0.0
         beamlet.position.phi = 0.0
         beamlet.tangency_radius = 1.486

@@ -2,11 +2,11 @@
 #  init pulse_schedule IDS  #
 #= ======================= =#
 """
-    init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_pulse_schedule!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.pulse_schedule` starting from `ini` and `act` parameters
 """
-function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_pulse_schedule!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_pulse_schedule")
     TimerOutputs.@timeit timer "init_pulse_schedule" begin
         init_from = ini.general.init_from
@@ -78,7 +78,7 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                 mxhb = MXHboundary(ini, dd1)
 
                 if ismissing(ini.rampup, :ends_at)
-                    init_pulse_schedule_postion_control(ps.position_control, mxhb, time0)
+                    init_pulse_schedule_position_control(ps.position_control, mxhb, time0)
                 else
                     if isempty(dd.wall)
                         wr = wall_radii(mxhb.mxh.R0, mxhb.mxh.minor_radius, ini.build.plasma_gap)
@@ -87,15 +87,15 @@ function init_pulse_schedule!(dd::IMAS.dd, ini::ParametersAllInits, act::Paramet
                     end
                     mxh_bore, mxh_lim2div = limited_to_diverted(0.75, mxhb, wr.r_hfs, wr.r_lfs, ini.rampup.side)
                     if time0 <= 0.0
-                        init_pulse_schedule_postion_control(ps.position_control, mxh_bore, time0)
+                        init_pulse_schedule_position_control(ps.position_control, mxh_bore, time0)
                     elseif time0 == ini.rampup.diverted_at
-                        init_pulse_schedule_postion_control(ps.position_control, mxh_lim2div, ini.rampup.diverted_at)
+                        init_pulse_schedule_position_control(ps.position_control, mxh_lim2div, ini.rampup.diverted_at)
                     else
-                        init_pulse_schedule_postion_control(ps.position_control, mxhb, time0)
+                        init_pulse_schedule_position_control(ps.position_control, mxhb, time0)
                     end
                 end
                 if k == length(time) - 1 && time[k+1] == Inf
-                    init_pulse_schedule_postion_control(ps.position_control, mxhb, Inf)
+                    init_pulse_schedule_position_control(ps.position_control, mxhb, Inf)
                     break
                 end
             end
@@ -259,11 +259,11 @@ function get_time_dependent(par::AbstractParameters, field::Symbol, all_times::V
 end
 
 """
-    init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
+    init_pulse_schedule_position_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
 
-Initialize pulse_schedule.postion_control based on MXH boundary and number of x_points
+Initialize pulse_schedule.position_control based on MXH boundary and number of x_points
 """
-function init_pulse_schedule_postion_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
+function init_pulse_schedule_position_control(pc::IMAS.pulse_schedule__position_control, mxhb::MXHboundary, time0::Float64)
     # X-point information
     # NOTE: always fill for both X-points and set things to NaN if no X-point
     # NOTE: upper X-point always in first slot, lower X-point in second slot

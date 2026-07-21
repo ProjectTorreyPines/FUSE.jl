@@ -16,10 +16,11 @@ import GACODE
     max_time::Entry{Float64} = Entry{Float64}("-", "Max simulation time (a/cs)"; default=100.0)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute QLGYRO fluxes on"; default=0.25:0.1:0.85)
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
+    MXH_modes::Entry{Int} = Entry{Int}("-", "Number of MXH harmonic modes (1 = standard Miller geometry)"; default=1)
 end
 
 mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorQLGYRO{P}}
     input_qlgyros::Vector{InputQLGYRO}
     input_cgyros::Vector{InputCGYRO}
@@ -27,7 +28,7 @@ mutable struct ActorQLGYRO{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorQLGYRO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorQLGYRO(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evaluates turbulent transport using the QLGYRO quasi-linear gyrokinetic model.
 
@@ -43,14 +44,14 @@ vs electromagnetic), simulation time parameters, and saturation rules. The model
 comprehensive electron/ion energy, particle, and momentum fluxes with gyrokinetic fidelity
 while being more computationally efficient than full nonlinear simulations.
 """
-function ActorQLGYRO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorQLGYRO(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorQLGYRO(dd, act.ActorQLGYRO; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorQLGYRO(dd::IMAS.dd{D}, par::FUSEparameters__ActorQLGYRO{P}; kw...) where {D<:Real,P<:Real}
+function ActorQLGYRO(dd::IMAS.DD{D}, par::FUSEparameters__ActorQLGYRO{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorQLGYRO)
     par = OverrideParameters(par; kw...)
     input_QLGYROs = Vector{InputQLGYRO}(undef, length(par.rho_transport))
@@ -92,7 +93,7 @@ function _step(actor::ActorQLGYRO)
             actor.input_qlgyros[k].SAT_RULE = 1
         end
 
-        actor.input_cgyros[k] = InputCGYRO(dd, gridpoint_cp, par.lump_ions)
+        actor.input_cgyros[k] = InputCGYRO(dd, gridpoint_cp, par.lump_ions; MXH_modes=par.MXH_modes)
         actor.input_cgyros[k].N_FIELD = par.n_field
         actor.input_cgyros[k].DELTA_T = par.delta_t
         actor.input_cgyros[k].MAX_TIME = par.max_time

@@ -39,15 +39,8 @@ using FUSE.SimulationParameters.Distributions
     # The study must be created first, inside of which the parallel_environment is set.
     study = FUSE.StudyDatabaseGenerator(sty, ini, act)
 
-    @everywhere import FUSE
-    @everywhere ProgressMeter = FUSE.ProgressMeter
-
-    @everywhere function workflow_DatabaseGenerator(dd::FUSE.IMAS.dd, ini::FUSE.ParametersAllInits, act::FUSE.ParametersAllActors)
-        FUSE.init(dd, ini, act)
-        return nothing
-    end
-
-    study.workflow = workflow_DatabaseGenerator
+    # Use a FUSE-module workflow so pmap survives worker restarts (Julia 1.12+ serialization).
+    study.workflow = FUSE.database_generator_workflow_default
 
     @info "Running study with `:separate_folder` policy... "
     study.sty.database_policy = :separate_folders
@@ -74,6 +67,7 @@ using FUSE.SimulationParameters.Distributions
         mkdir(sty.save_folder)
 
         study = FUSE.StudyDatabaseGenerator(sty, ini_list, act_list)
+        study.workflow = FUSE.database_generator_workflow_default
 
         @info "Running study for predefined `inis` and `acts` (w/ :separate_folders policy)..."
         study.sty.database_policy = :separate_folders
@@ -103,6 +97,7 @@ using FUSE.SimulationParameters.Distributions
         df1 = CSV.read(joinpath(save_dir, "output.csv"), DataFrame)
 
         db = FUSE.load_study_database(joinpath(save_dir, "database.h5"));
+        dds2 = [ i.dd for i in db.items ];
         inis2 = [ i.ini for i in db.items ];
         acts2 = [ i.act for i in db.items ];
         df2 = db.df

@@ -16,28 +16,43 @@ Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: Parameters
 end
 
 mutable struct ActorDivertors{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorDivertors{P}}
     boundary_plasma_models::Vector{BoundaryPlasmaModels.SOLBoundaryModel}
 end
 
 """
-    ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorDivertors(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
-Evaluates divertor loading and deposited power
+Calculates divertor heat fluxes and power loads using reduced SOL boundary models.
+
+The actor evaluates heat and particle fluxes striking divertor targets by tracing power flow
+from the main plasma through the scrape-off layer (SOL) to material surfaces, using simplified
+two-point or coupled boundary models.
+
+Available `boundary_model` options:
+- `:slcoupled` (default): Coupled SOL boundary model from BoundaryPlasmaModels
+- `:lengyel`: Simple exponential decay model with flux expansion
+- `:stangeby`: More sophisticated model including impurity effects
+
+Key parameters:
+- `boundary_model`: SOL boundary physics model selection
+- `impurities` / `impurities_fraction`: Impurity species and their fractions
+- `heat_spread_factor`: Heat flux expansion in private flux region (≥ 1.0)
+- `thermal_power_extraction_efficiency`: Fraction of thermal power extracted by coolant
 
 !!! note
 
-    Stores data in `dd.divertors`
+    Stores results in `dd.divertors`. Requires `dd.equilibrium` and `dd.core_sources`.
 """
-function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorDivertors(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorDivertors(dd, act.ActorDivertors; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorDivertors(dd::IMAS.dd, par::FUSEparameters__ActorDivertors; kw...)
+function ActorDivertors(dd::IMAS.DD, par::FUSEparameters__ActorDivertors; kw...)
     logging_actor_init(ActorDivertors)
     par = OverrideParameters(par; kw...)
     return ActorDivertors(dd, par, Vector{BoundaryPlasmaModels.SOLBoundaryModel}())

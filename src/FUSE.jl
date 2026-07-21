@@ -78,6 +78,7 @@ include("actors.jl")
 
 include(joinpath("actors", "noop_actor.jl"))
 include(joinpath("actors", "replay_actor.jl"))
+include(joinpath("actors", "zmq_actor.jl"))
 
 include(joinpath("actors", "equilibrium", "tequila_actor.jl"))
 include(joinpath("actors", "equilibrium", "fresco_actor.jl"))
@@ -118,15 +119,19 @@ include(joinpath("actors", "hcd", "ec", "torbeam_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "nb_simple_actor.jl"))
+
+include(joinpath("actors", "hcd", "pam_actor.jl"))
+
 include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
 include(joinpath("actors", "hcd", "pl_simple_actor.jl"))
 include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
 include(joinpath("actors", "hcd", "sawteeth_source_actor.jl"))
-include(joinpath("actors", "hcd", "hcd_actor.jl"))
+include(joinpath("actors", "hcd", "sources_actor.jl"))
 
 include(joinpath("actors", "pedestal", "analytic_pedestal_actor.jl"))
 include(joinpath("actors", "pedestal", "EPED_actor.jl"))
 include(joinpath("actors", "pedestal", "WPED_actor.jl"))
+include(joinpath("actors", "pedestal", "nn_predictor.jl"))
 include(joinpath("actors", "pedestal", "pedestal_actor.jl"))
 
 include(joinpath("actors", "divertors", "divertors_actor.jl"))
@@ -134,9 +139,12 @@ include(joinpath("actors", "divertors", "divertors_actor.jl"))
 include(joinpath("actors", "transport", "neoclassical_actor.jl"))
 include(joinpath("actors", "transport", "analytic_turbulence_actor.jl"))
 include(joinpath("actors", "transport", "tglf_actor.jl"))
+include(joinpath("actors", "transport", "tglfep_actor.jl"))
 include(joinpath("actors", "transport", "qlgyro_actor.jl"))
 include(joinpath("actors", "transport", "flux_calculator_actor.jl"))
 include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
+include(joinpath("actors", "transport", "mode_id_actor.jl"))
+include(joinpath("actors", "transport", "finn_actor.jl"))
 include(joinpath("actors", "transport", "eped_profiles_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
@@ -144,6 +152,7 @@ include(joinpath("actors", "stability", "limits_actor.jl"))
 include(joinpath("actors", "stability", "limit_models.jl"))
 include(joinpath("actors", "stability", "troyon_actor.jl"))
 include(joinpath("actors", "stability", "vertical_actor.jl"))
+include(joinpath("actors", "stability", "mars_actor.jl"))
 
 include(joinpath("actors", "balance_plant", "thermal_plant_actor.jl"))
 include(joinpath("actors", "balance_plant", "power_needs_actor.jl"))
@@ -158,6 +167,7 @@ include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
 
 include(joinpath("actors", "sol", "sol_box_actor.jl"))
+include(joinpath("actors", "sol", "solps_nn_actor.jl"))
 include(joinpath("actors", "sol", "sol_actor.jl"))
 
 # NOTE: compound actors should be defined last
@@ -182,6 +192,7 @@ include(joinpath("studies", "multi_objective_optimization.jl"))
 include(joinpath("studies", "TGLF_database.jl"))
 include(joinpath("studies", "study_database.jl"))
 include(joinpath("studies", "experiment_postdictive.jl"))
+include(joinpath("studies", "experiment_predictive_rt.jl"))
 include(joinpath("studies", "HDB5_validation.jl"))
 
 #= ============ =#
@@ -193,6 +204,7 @@ include("extract_ini.jl")
 #  WORKFLOWS  #
 #= ========= =#
 include(joinpath("workflows", "optimization_workflow.jl"))
+include(joinpath("workflows", "pedestal_transport_workflow.jl"))
 
 #= ======= =#
 #  LOGGING  #

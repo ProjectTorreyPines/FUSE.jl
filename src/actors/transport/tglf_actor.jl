@@ -8,14 +8,14 @@ import GACODE
 #  ActorTGLF  #
 #= ========= =#
 @actor_parameters_struct ActorTGLF{T} begin
-    model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :GKNN, :TJLF], "-", "Implementation of TGLF"; default=:TGLFNN)
+    model::Switch{Symbol} = Switch{Symbol}([:TGLF, :TGLFNN, :GKNN, :TJLF, :QLNN], "-", "Implementation of TGLF"; default=:TGLFNN)
     onnx_model::Entry{Bool} = Entry{Bool}("-", "use onnx model"; default=false)
     sat_rule::Switch{Symbol} = Switch{Symbol}([:sat0, :sat0quench, :sat1, :sat1geo, :sat2, :sat3], "-", "Saturation rule"; default=:sat1)
     electromagnetic::Entry{Bool} = Entry{Bool}("-", "Electromagnetic or electrostatic"; default=true)
     tglfnn_model::Entry{String} = Entry{String}(
         "-",
-        "Use a user specified TGLF-NN model stored in TGLFNN/models";
-        check=x -> @assert x in TurbulentTransport.available_models() "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(TurbulentTransport.available_models(),"\"\n  \""))\""
+        "Use a user specified TGLF-NN model stored in TGLFNN/models (or QLNN bundle directory when model=:QLNN)";
+        check=x -> @assert (x in TurbulentTransport.available_models()) || (x in TurbulentTransport.available_qlnn_bundles()) "ActorTGLF.tglfnn_model must be one of:\n  \"$(join(vcat(TurbulentTransport.available_models(), TurbulentTransport.available_qlnn_bundles()),"\"\n  \""))\""
     )
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute tglf fluxes on"; default=0.25:0.1:0.85)
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "Raise warnings if querying cases that are certainly outside of the training range"; default=false)
@@ -23,17 +23,18 @@ import GACODE
         Entry{Union{Vector{<:InputTGLF},Vector{<:InputTJLF}}}("-", "Sets up the input file that will be run with the custom input file as a mask")
     lump_ions::Entry{Bool} = Entry{Bool}("-", "Lumps the fuel species (D,T) as well as the impurities together"; default=true)
     save_input_tglfs_to_folder::Entry{String} = Entry{String}("-", "Save the intput.tglf files in designated folder"; default="")
+    MXH_modes::Entry{Int} = Entry{Int}("-","number of MXH harmonics",default=1)
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}
     input_tglfs::Union{Vector{InputTGLF{D}},Vector{InputTJLF{D}}}
     flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
-    ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorTGLF(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evaluates turbulent transport fluxes using TGLF-based models including TGLF, TGLFNN, GKNN, and TJLF.
 
@@ -48,20 +49,29 @@ runs the transport calculation, and stores results as FluxSolution objects conta
 electron/ion energy fluxes, particle fluxes, and momentum flux. Results are normalized
 in gyro-Bohm units and written to `dd.core_transport` as anomalous transport.
 """
-function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTGLF(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTGLF(dd, act.ActorTGLF; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTGLF(dd::IMAS.dd{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real}
+function ActorTGLF(dd::IMAS.DD{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real}
     logging_actor_init(ActorTGLF)
     par = OverrideParameters(par; kw...)
+    # `:QLNN` reuses the InputTJLF path so the saturation rule (SAT_RULE,
+    # ALPHA_ZF, KYGRID_MODEL...) can drive `TJLF.sum_ky_spectrum` on the
+    # NN-predicted QL weights, and so width memory is preserved across iterations.
     if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
         input_tglfs = Vector{InputTGLF{D}}(undef, length(par.rho_transport))
-    elseif par.model == :TJLF
+    elseif par.model in (:TJLF, :QLNN)
         input_tglfs = Vector{InputTJLF{D}}(undef, length(par.rho_transport))
+    end
+    # Default the QLNN bundle name to the canonical "QLNN" subdirectory so the
+    # user can just write `act.ActorTGLF.model = :QLNN` without also setting
+    # `tglfnn_model`. We only set it if the user hasn't picked a name yet.
+    if par.model == :QLNN && ismissing(par, :tglfnn_model)
+        par.tglfnn_model = "QLNN"
     end
     return ActorTGLF(dd, par, input_tglfs, GACODE.FluxSolution{D}[])
 end
@@ -81,12 +91,16 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
     par = actor.par
     dd = actor.dd
 
-    input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions)
+    input_tglfs = InputTGLF(dd, par.rho_transport, par.sat_rule, par.electromagnetic, par.lump_ions; MXH_modes=par.MXH_modes)
     for k in eachindex(par.rho_transport)
         input_tglf = input_tglfs[k]
         if par.model ∈ [:TGLF, :TGLFNN, :GKNN]
             actor.input_tglfs[k] = input_tglf
-        elseif par.model == :TJLF
+        elseif par.model in (:TJLF, :QLNN)
+            # Same InputTJLF maintenance for both: width memory survives between
+            # transport iterations (matters for :TJLF; harmless for :QLNN since
+            # the NN doesn't read WIDTH but we want SAT_RULE/ALPHA_ZF/KY_SPECTRUM
+            # to live in a stable, reused struct).
             if !isassigned(actor.input_tglfs, k) # this is done to keep memory of the widths
                 actor.input_tglfs[k] = InputTJLF{D}(input_tglf)
             else
@@ -177,6 +191,16 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
         QL_fluxes_out = TJLF.run_tjlf(actor.input_tglfs)
         actor.flux_solutions =
             [GACODE.FluxSolution{D}(TJLF.Qe(QL_flux_out), TJLF.Qi(QL_flux_out), TJLF.Γe(QL_flux_out), TJLF.Γi(QL_flux_out), TJLF.Πi(QL_flux_out)) for QL_flux_out in QL_fluxes_out]
+
+    elseif par.model == :QLNN
+        # QLNN: per-(shot, ky) NN regressors + TJLF sat_rule integration.
+        # `actor.input_tglfs` is Vector{InputTJLF{D}} so SAT_RULE / ALPHA_ZF /
+        # KYGRID_MODEL flow into TJLF.sum_ky_spectrum unchanged.
+        actor.flux_solutions = TurbulentTransport.run_qlnn(
+            actor.input_tglfs;
+            bundle_name=model_filename(par),
+            warn_nn_train_bounds=par.warn_nn_train_bounds
+        )
     end
 
     return actor
@@ -214,6 +238,10 @@ end
 function model_filename(par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}) where {P<:Real}
     if par.model ∈ [:TGLFNN, :GKNN]
         filename = par.tglfnn_model
+    elseif par.model == :QLNN
+        # QLNN: `tglfnn_model` names the bundle subdirectory under `models/`
+        # (defaults to "QLNN" when unset; see `ActorTGLF` constructor).
+        filename = ismissing(par, :tglfnn_model) ? "QLNN" : par.tglfnn_model
     else
         filename = string(par.sat_rule) * "_" * (par.electromagnetic ? "em" : "es")
     end

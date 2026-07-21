@@ -12,9 +12,9 @@
 end
 
 mutable struct ActorCostingARIES{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCostingARIES{P}}
-    function ActorCostingARIES(dd::IMAS.dd{D}, par::FUSEparameters__ActorCostingARIES{P}; kw...) where {D<:Real,P<:Real}
+    function ActorCostingARIES(dd::IMAS.DD{D}, par::FUSEparameters__ActorCostingARIES{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorCostingARIES)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -22,7 +22,7 @@ mutable struct ActorCostingARIES{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCostingARIES(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Estimates fusion power plant costs using the ARIES (Advanced Reactor Innovation and Evaluation Study) methodology.
 
@@ -57,7 +57,7 @@ realistic cost estimates for commercial-scale fusion power plants.
 
     Results stored in `dd.costing` following ARIES cost account documentation (UCSD-CER-13-01)
 """
-function ActorCostingARIES(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCostingARIES(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCostingARIES(dd, act.ActorCostingARIES; kw...)
     step(actor)
     finalize(actor)
@@ -448,11 +448,11 @@ function cost_direct_capital_ARIES(::Val{:heat_transfer_loop_materials}, power_t
 end
 
 """
-    cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.dd)
+    cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust, dd::IMAS.DD)
 
 NOTE: ARIES https://cer.ucsd.edu/_files/publications/UCSD-CER-13-01.pdf
 """
-function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust{T}, dd::IMAS.dd) where {T<:Real}
+function cost_direct_capital_ARIES(::Val{:balance_of_plant_equipment}, power_thermal::Real, power_electric_generated::Real, da::DollarAdjust{T}, dd::IMAS.DD) where {T<:Real}
     da.year_assessed = 2009
     power_thermal = power_thermal / 1E6
     power_electric_generated = power_electric_generated / 1E6

@@ -1,6 +1,12 @@
 """
     case_parameters(:MASTU; init_from::Symbol)
 
+MAST-U (Mega Ampere Spherical Tokamak Upgrade) — the UK spherical tokamak at UKAEA/Culham.
+
+Initialization options:
+- `init_from = :ods`: Load from the IMAS ODS machine description file (full geometry)
+- `init_from = :scalars`: Initialize from scalar plasma parameters (default)
+
 """
 function case_parameters(::Val{:MASTU}; init_from::Symbol)
     ini = FUSE.ParametersInits()
@@ -39,7 +45,7 @@ function case_parameters(::Val{:MASTU}; init_from::Symbol)
     ini.equilibrium.Z0 = 0.0
     ini.equilibrium.ip = 0.744e6
     ini.equilibrium.xpoints = :upper
-    
+
     ini.core_profiles.ne_setting = :greenwald_fraction_ped
     ini.core_profiles.ne_value = 0.533
     ini.core_profiles.ne_shaping = 0.9
@@ -57,18 +63,18 @@ function case_parameters(::Val{:MASTU}; init_from::Symbol)
     ini.tf.technology = :copper
     ini.oh.technology = :copper
     ini.pf_active.technology = :copper
-    
+
     resize!(ini.nb_unit, 2)
     ini.nb_unit[1].power_launched = 0.95E6
     ini.nb_unit[1].beam_energy = 80e3
     ini.nb_unit[1].beam_mass = 2.0
     ini.nb_unit[1].template_beam = :mast_onaxis
-    
+
     ini.nb_unit[2].power_launched = 0.95E6
     ini.nb_unit[2].beam_energy = 80e3
     ini.nb_unit[2].beam_mass = 2.0
     ini.nb_unit[2].template_beam = :mast_offaxis
-    
+
     act.ActorEquilibrium.model =:FRESCO
     act.ActorFluxMatcher.max_iterations = 50
     act.ActorFluxMatcher.verbose = true
@@ -88,19 +94,19 @@ MAST-U from ODS file path
 """
 function case_parameters(::Val{:MASTU}, ods_file::AbstractString)
     ini, act = case_parameters(Val(:MASTU); init_from=:ods)
-    
+
     ini.general.casename = "MASTU $ods_file"
     ini.ods.filename = "$(ini.ods.filename),$(ods_file)"
-    
+
     ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
     set_ini_act_from_ods!(ini, act)
-    
+
     # Set simulation time from the loaded ODS
     if !isempty(ini.general.dd.core_profiles)
         IMAS.last_global_time(ini.general.dd)
         ini.time.simulation_start = ini.general.dd.global_time
     end
-    
+
     return ini, act
 end
 
@@ -114,44 +120,44 @@ function case_parameters(::Val{:MASTU}, scenario::Symbol)
         :H_mode => "$(joinpath("__FUSE__", "sample", "MASTU_Hmode.json"))",
         :default => "$(joinpath("__FUSE__", "sample", "MASTU_Hmode.json"))"
     )
-    
+
     if !haskey(filenames, scenario)
         error("Scenario :$scenario not available for MASTU. Available scenarios: $(keys(filenames))")
     end
-    
+
     ini, act = case_parameters(Val(:MASTU), filenames[scenario])
     ini.general.casename = "MASTU $scenario"
-    
-    act.ActorHCD.nb_model = :none
-    act.ActorHCD.ec_model = :none
-    act.ActorHCD.lh_model = :none
-    act.ActorHCD.ic_model = :none
-    act.ActorHCD.pellet_model = :none
-    
+
+    act.ActorSources.nb_model = :none
+    act.ActorSources.ec_model = :none
+    act.ActorSources.lh_model = :none
+    act.ActorSources.ic_model = :none
+    act.ActorSources.pellet_model = :none
+
     return ini, act
 end
 
 """
-    case_parameters(:MASTU, ods::IMAS.dd)
+    case_parameters(:MASTU, ods::IMAS.DD)
 
 MAST-U from ODS/dd object with experimental data
 """
-function case_parameters(::Val{:MASTU}, dd::IMAS.dd)
+function case_parameters(::Val{:MASTU}, dd::IMAS.DD)
     # Get base MASTU machine parameters
     ini, act = case_parameters(Val(:MASTU); init_from=:ods)
-    
+
     ini.general.casename = "MASTU from dd"
-    
+
     # Load and merge the provided ODS data
     ini.general.dd = load_ods(ini; error_on_missing_coordinates=false, time_from_ods=true)
     merge!(ini.general.dd, dd)
-    
+
     # Set time from the ODS
     IMAS.last_global_time(ini.general.dd)
     ini.time.simulation_start = dd.global_time
-    
+
     # Extract parameters from the ODS (equilibrium, profiles, etc.)
     set_ini_act_from_ods!(ini, act)
-    
+
     return ini, act
 end

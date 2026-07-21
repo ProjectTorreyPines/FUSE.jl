@@ -47,8 +47,8 @@ function case_parameters(::Val{:KSTAR}; init_from::Symbol)
     ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.w_ped = 0.08
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.rot_core = 0.0
-    ini.core_profiles.rot_ped = 0.0
+    ini.core_profiles.rot_core = 30E3
+    ini.core_profiles.rot_ped = 21.43E3 # rot_core / 1.4
     ini.core_profiles.bulk = :D
     ini.core_profiles.impurity = :C
     ini.tf.technology = :copper
@@ -78,7 +78,6 @@ function case_parameters(::Val{:KSTAR}; init_from::Symbol)
     act.ActorTGLF.sat_rule = :sat0
     act.ActorTGLF.model = :TJLF
     ini.time.simulation_start = 0.0
-
 
     return ini, act
 end

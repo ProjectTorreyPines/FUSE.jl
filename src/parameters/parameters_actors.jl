@@ -5,11 +5,15 @@ Expands the subtypes into struct members
 """
 macro insert_subtype_members(T)
     expr = Expr(:block)
-    for s in subtypes(eval(T))
+    for s in subtypes(__module__.eval(T))
         full_parameters_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_parameters_actor_name, '_')
             mem = Symbol(split(full_parameters_actor_name, "__")[end])
-            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, esc(s), esc(:T))))
+            # Splice the resolved subtype object directly into the AST. Using
+            # an escaped symbol would defer the lookup to the caller module's
+            # scope, requiring the caller to import every subtype by name —
+            # which defeats the point of auto-discovering them via `subtypes`.
+            push!(expr.args, Expr(:(::), esc(mem), Expr(:curly, s, esc(:T))))
         end
     end
     return expr
@@ -23,11 +27,13 @@ subtypes we can then splat into the larger constructor
 """
 macro insert_constructor_members(T)
     expr = Expr(:tuple)
-    for s in subtypes(eval(T))
+    for s in subtypes(__module__.eval(T))
         full_actor_name = split(String(Symbol(s)), '.')[end]
         if !startswith(full_actor_name, '_')
-            mem = Symbol(full_actor_name)
-            push!(expr.args, Expr(:call, Expr(:curly, esc(mem), esc(:T))))
+            # Same hygiene rationale as @insert_subtype_members: splice the
+            # resolved subtype object so the caller module does not have to
+            # import each subtype's name.
+            push!(expr.args, Expr(:call, Expr(:curly, s, esc(:T))))
         end
     end
     return expr
@@ -77,6 +83,43 @@ end
 ###############
 # save / load #
 ###############
+
+# Backward compatibility: rename old parameter keys to new names
+const ACT_ACTOR_MIGRATIONS = Dict(
+    "ActorHCD" => "ActorSources",
+    "ActorSawteeth" => "ActorSawteethSource"
+)
+
+function _migrate_act_string(str::String)
+    for (old, new) in ACT_ACTOR_MIGRATIONS
+        str = replace(str, "\":$old\"" => "\":$new\"")
+    end
+    return str
+end
+
+function _assert_migrations_valid(act::ParametersAllActors)
+    schema_keys = Set(string(k) for k in keys(act))
+    for old_name in keys(ACT_ACTOR_MIGRATIONS)
+        if old_name ∈ schema_keys
+            error("Migration source '$old_name' conflicts with an existing actor — remove or update the entry in ACT_ACTOR_MIGRATIONS")
+        end
+    end
+end
+
+function _validate_act_keys(str::String, act::ParametersAllActors)
+    known = Set("\":" * string(k) * "\"" for k in keys(act))
+    unknown = String[]
+    for m in eachmatch(r"\":(Actor\w+)\"", str)
+        key = "\":$(m.captures[1])\""
+        if key ∉ known
+            push!(unknown, m.captures[1])
+        end
+    end
+    unique!(unknown)
+    if !isempty(unknown)
+        error("Unknown actor(s) in act file: $(join(sort!(unknown), ", "))")
+    end
+end
 """
     act2json(act::ParametersAllActors, filename::AbstractString; kw...)
 
@@ -94,7 +137,10 @@ end
 Load the ACT act parameters from a JSON file with given `filename`
 """
 function json2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.json2par(filename, act)
+    _assert_migrations_valid(act)
+    str = _migrate_act_string(read(filename, String))
+    _validate_act_keys(str, act)
+    return SimulationParameters.jstr2par(str, act)
 end
 
 """
@@ -114,7 +160,10 @@ end
 Load the ACT act parameters from a YAML file with given `filename`
 """
 function yaml2act(filename::AbstractString, act::ParametersAllActors=ParametersActors())
-    return SimulationParameters.yaml2par(filename, act)
+    _assert_migrations_valid(act)
+    str = _migrate_act_string(read(filename, String))
+    _validate_act_keys(str, act)
+    return SimulationParameters.ystr2par(str, act)
 end
 
 """

@@ -19,7 +19,7 @@ import VacuumFields: GS_IMAS_pf_active__coil
 end
 
 mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorPFactive{P}}
     eqt_out::IMAS.equilibrium__time_slice{D}
     iso_control_points::Vector{VacuumFields.IsoControlPoint{D}}
@@ -32,7 +32,7 @@ mutable struct ActorPFactive{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorPFactive(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorPFactive(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Optimizes poloidal field coil currents to match target equilibrium constraints.
 
@@ -60,13 +60,13 @@ Control points:
 
     Manipulates data in `dd.pf_active`
 """
-function ActorPFactive(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorPFactive(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorPFactive(dd, act.ActorPFactive; kw...)
     finalize(step(actor))
     return actor
 end
 
-function ActorPFactive(dd::IMAS.dd, par::FUSEparameters__ActorPFactive; kw...)
+function ActorPFactive(dd::IMAS.DD, par::FUSEparameters__ActorPFactive; kw...)
     logging_actor_init(ActorPFactive)
     par = OverrideParameters(par; kw...)
 

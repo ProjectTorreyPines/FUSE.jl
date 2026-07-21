@@ -7,7 +7,7 @@
 end
 
 mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorWholeFacility{P}}
     act::ParametersAllActors
     StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
@@ -29,7 +29,7 @@ mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorWholeFacility(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Integrates all physics, engineering, and economic models for complete tokamak facility design.
 
@@ -41,7 +41,7 @@ Execution workflow:
 1. **Plasma Design**: Self-consistent plasma solutions with optimized PF coil positions
 2. **Plasma Physics**: Stationary plasma equilibrium with all transport and heating
 3. **Engineering Design**: Radial build optimization for all major tokamak systems
-4. **Magnetic Systems**: PF coil repositioning and passive structure analysis  
+4. **Magnetic Systems**: PF coil repositioning and passive structure analysis
 5. **Nuclear Analysis**: Neutronics, blanket optimization, and tritium breeding
 6. **Plasma-Facing Components**: Divertor heat loads and thermal management
 7. **Power Systems**: Balance of plant and thermal-to-electric conversion
@@ -72,14 +72,14 @@ based on the final equilibrium solution.
 
     Stores comprehensive facility design data across all `dd` structures
 """
-function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorWholeFacility(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorWholeFacility(dd, act.ActorWholeFacility, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
+function ActorWholeFacility(dd::IMAS.DD, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
     logging_actor_init(ActorWholeFacility)
     par = OverrideParameters(par; kw...)
 
@@ -114,7 +114,7 @@ function _step(actor::ActorWholeFacility)
     end
 
     if par.update_plasma
-        # ActorStationaryPlasma iterates between ActorCurrent, ActorHCD, ActorCoreTransport, and ActorEquilibrium to find a self-consistent stationary plasma solution
+        # ActorStationaryPlasma iterates between ActorCurrent, ActorSources, ActorCoreTransport, and ActorEquilibrium to find a self-consistent stationary plasma solution
         actor.StationaryPlasma = ActorStationaryPlasma(dd, act)
     end
 

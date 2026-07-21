@@ -1,12 +1,12 @@
 """
-    LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, do_plot::Bool=true)
+    LH_analysis(dd::IMAS.DD; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, do_plot::Bool=true)
 
 Analyze L-H mode transitions in tokamak plasma data and generate smooth time traces for electron density and effective charge (Zeff).
 
 This function processes experimental data to detect L-mode to H-mode transitions and creates smoothed time traces suitable for pulse schedule applications. It can either auto-detect transitions based on pedestal structure or power threshold scaling, or use a manually specified transition time.
 
 # Arguments
-- `dd::IMAS.dd`: IMAS data dictionary containing experimental tokamak data
+- `dd::IMAS.DD`: IMAS data dictionary containing experimental tokamak data
 - `scale_LH::Real=0.0`: L-H power threshold scaling factor. If 0.0, auto-detects based on pedestal structure. If >0.0, uses power threshold method
 - `transition_start::Real=0.0`: Manual transition start time [s]. If 0.0, uses auto-detected time. If <0.0, treats entire discharge as single mode
 - `tau_n::Real=0.3`: Duration [s] of the density transition from L-mode to H-mode
@@ -44,7 +44,7 @@ The function performs the following analysis steps:
 - Diagnostic plots show density, Zeff, temperature evolution and L-H power threshold analysis
 - The smoothing uses low-pass filtering based on the transition timescales
 """
-function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, threshold::Float64=0.4, do_plot::Bool=true)
+function LH_analysis(dd::IMAS.DD; scale_LH::Real=0.0, transition_start::Real=0.0, tau_n::Real=0.3, tau_t::Real=tau_n * 0.5, threshold::Float64=0.4, do_plot::Bool=true)
     rho = dd.core_profiles.profiles_1d[1].grid.rho_tor_norm
     index09 = argmin_abs(rho, 0.9)
     time = dd.core_profiles.time
@@ -88,7 +88,7 @@ function LH_analysis(dd::IMAS.dd; scale_LH::Real=0.0, transition_start::Real=0.0
     else
         # auto-detect mode transitions based on LH-power threshold
         is_H_mask = Bool[false for time0 in time]
-        n = 1 # maximum number of H-mode transitions allowed
+        n = 3 # maximum number of H-mode transitions allowed
         for k in eachindex(time)
             if k == 1 || (n > 0 && is_H_mask[k-1] == true && injected_power[k] < scaling_power[k] * scale_LH * 1.1)
                 is_H_mask[k] = false
