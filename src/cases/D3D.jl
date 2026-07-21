@@ -106,9 +106,15 @@ function case_parameters(::Val{:D3D}, shot::Int;
         omfit_block = """
         """
     else
-        omfit_block = """
-    python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null    
-        """
+        if omfit_host == "localhost"
+            omfit_block = """
+        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$local_path'" > /dev/null 2> /dev/null    
+            """
+        else
+            omfit_block = """
+        python -u $(omfit_root)/omfit/omfit.py $(omfit_root)/modules/RABBIT/SCRIPTS/rabbit_input_no_gui.py "shot=$shot" "output_path='$remote_path'" > /dev/null 2> /dev/null    
+            """
+        end
     end
     if omfit_host == "localhost"
         setup_block = """#!/bin/bash -l
