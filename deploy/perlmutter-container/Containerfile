@@ -11,6 +11,12 @@
 # bare names against registry.suse.com, so we pin Docker Hub explicitly.
 FROM docker.io/library/julia:1.11.7
 
+# CPU target(s) baked into the sysimage. The default matches Perlmutter's AMD
+# Milan nodes; other sites override at build time, e.g. omega (Intel
+# cascadelake + AMD znver2 nodes, see deploy/omega-container/build.sh):
+#   --build-arg JULIA_CPU_TARGET="generic;cascadelake,...;znver2,..."
+ARG JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+
 # --- system dependencies -----------------------------------------------------
 # git + CLI git is used by Pkg to clone the FuseRegistry packages; gcc is the
 # C compiler PackageCompiler invokes when building the system image.
@@ -35,14 +41,13 @@ RUN git config --system url."https://github.com/".insteadOf "git@github.com:" \
 # --- build-time Julia configuration ------------------------------------------
 # These mirror deploy/perlmutter/deploy.sh. JULIA_NUM_THREADS=1 is REQUIRED by
 # install_fuse_container.jl (PackageCompiler sysimage build asserts 1 thread).
-# The znver3 CPU target matches Perlmutter's AMD Milan login/compute/GPU nodes;
-# building the image on a Perlmutter node keeps the arch consistent.
+# JULIA_CPU_TARGET comes from the build ARG above (default: Perlmutter).
 ENV FUSE_INSTALL_DIR=/opt/fuse \
     JULIA_DEPOT_PATH=/opt/fuse/.julia \
     JULIA_PKG_USE_CLI_GIT=1 \
     JULIA_CC="gcc -O3" \
     JULIA_NUM_THREADS=1 \
-    JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+    JULIA_CPU_TARGET="${JULIA_CPU_TARGET}"
 
 # --- install FUSE + build the sysimage ---------------------------------------
 WORKDIR /opt/build
@@ -59,14 +64,27 @@ RUN julia /opt/build/install_fuse_container.jl
 # unset so users can choose (e.g. JULIA_NUM_THREADS=8) when they run the image.
 ENV JULIA_PROJECT=/opt/fuse \
     JULIA_DEPOT_PATH=/opt/fuse/.julia \
-    JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+    JULIA_CPU_TARGET="${JULIA_CPU_TARGET}"
 
-# `fuse` launches a Julia REPL preloaded with the FUSE sysimage.
+# `fuse` launches a Julia REPL preloaded with the FUSE sysimage. When the
+# image runs fully read-only (e.g. a Singularity SIF — unlike podman-hpc there
+# is no writable overlay), Julia must get a writable first depot or package
+# init crashes writing logs/scratch (Scratch.jl via GPUCompiler). Prepend one
+# only when the current first depot is not writable.
 RUN printf '%s\n' \
     '#!/bin/bash' \
+    'if [ ! -w "${JULIA_DEPOT_PATH%%:*}" ]; then' \
+    '    export JULIA_DEPOT_PATH="$HOME/.julia_fuse_container:$JULIA_DEPOT_PATH"' \
+    'fi' \
     'exec julia --sysimage=/opt/fuse/sys_fuse.so "$@"' \
     > /usr/local/bin/fuse \
     && chmod 0555 /usr/local/bin/fuse
+
+# Precompile the interactive stack UNDER the sysimage: package caches produced
+# by the install (plain julia) are invalid once sys_fuse.so is loaded, so
+# without this every user would re-precompile IJulia/Plots/... on first use —
+# in a read-only image, into their own home depot.
+RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse'
 
 WORKDIR /root
 CMD ["fuse"]
