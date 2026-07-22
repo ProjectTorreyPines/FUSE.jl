@@ -58,8 +58,7 @@ Jupyter kernel). A prebuilt image lives at
 ```bash
 module load singularity/3.11.3
 export SIF_DIR=/fusion/projects/dt/fuse_containers
-export PATH=$SIF_DIR/bin:$PATH
-singularity run --cleanenv --sif-fuse --bind /fusion $SIF_DIR/fuse_v1.1.5.sif
+$SIF_DIR/fuse-container $SIF_DIR/fuse_v1.1.5.sif
 ```
 
 See

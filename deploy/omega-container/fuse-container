@@ -1,0 +1,77 @@
+#!/bin/bash
+# Safe launcher for the FUSE Singularity container on omega.
+#
+#   fuse-container <sif>              # interactive FUSE REPL
+#   fuse-container <sif> [args...]    # args passed to the in-container `fuse`
+#                                     # (e.g. -e '...script...', --threads=N)
+#
+# Why this exists instead of `singularity run/exec --sif-fuse <sif>`:
+# omega's singularity is unprivileged (no setuid starter), so a SIF is served
+# by a `squashfuse` FUSE process. With `--sif-fuse`, singularity DETACHES that
+# process to init (ppid=1); when the caller is killed abruptly — a Jupyter
+# kernel shutdown, a Slurm time-limit/scancel, anything using SIGKILL — the
+# squashfuse mount is orphaned and lingers on the node (accumulating stale
+# processes/mounts and pinning the SIF open on NFS).
+#
+# This launcher instead mounts the SIF with `squashfuse -f` (foreground) as a
+# tracked child in the same process group / cgroup, so:
+#   * normal or signalled exit  -> the trap unmounts explicitly;
+#   * process-group / cgroup SIGKILL (Jupyter/Slurm) -> squashfuse is in the
+#     killed group and dies with it, the kernel drops the stale mount.
+# Either way nothing is left behind.
+#
+# Requires `singularity` on PATH (module load singularity/3.11.3). `squashfuse`
+# is picked up from <dir-of-sif>/bin automatically. Extra bind mounts via
+# FUSE_BIND (default /fusion).
+set -u
+
+sif="${1:?usage: fuse-container <sif> [args passed to the in-container fuse]}"
+shift
+if [[ ! -r "$sif" ]]; then
+    echo "fuse-container: SIF not found/readable: $sif" >&2
+    exit 1
+fi
+
+# squashfuse ships next to the published SIF; put it on PATH.
+bindir="$(cd "$(dirname "$sif")/bin" 2>/dev/null && pwd || true)"
+[[ -n "$bindir" ]] && export PATH="$bindir:$PATH"
+
+if ! command -v singularity >/dev/null 2>&1; then
+    echo "fuse-container: 'singularity' not found — run 'module load singularity/3.11.3' first." >&2
+    exit 127
+fi
+if ! command -v squashfuse >/dev/null 2>&1; then
+    echo "fuse-container: 'squashfuse' not found (looked in ${bindir:-<none>} and PATH)." >&2
+    exit 127
+fi
+
+# Byte offset of the squashfs partition inside the SIF (robust, not hardcoded).
+offset="$(singularity sif list "$sif" 2>/dev/null \
+          | awk -F'|' '/Squashfs/ {split($4,a,"-"); gsub(/ /,"",a[1]); print a[1]; exit}')"
+if [[ -z "$offset" ]]; then
+    echo "fuse-container: could not read squashfs offset from $sif" >&2
+    exit 1
+fi
+
+mnt="$(mktemp -d "${TMPDIR:-/tmp}/fuse-mnt.XXXXXX")"
+sqpid=""
+cleanup() {
+    [[ -n "$sqpid" ]] && kill "$sqpid" 2>/dev/null
+    fusermount -u "$mnt" 2>/dev/null
+    rmdir "$mnt" 2>/dev/null
+}
+trap cleanup EXIT INT TERM
+
+# -f = foreground: squashfuse stays a child of this script (does NOT daemonize),
+# so it shares our process group / cgroup and is reaped by a group kill.
+squashfuse -f -o ro,offset="$offset" "$sif" "$mnt" &
+sqpid=$!
+for _ in $(seq 1 100); do mountpoint -q "$mnt" && break; sleep 0.1; done
+if ! mountpoint -q "$mnt"; then
+    echo "fuse-container: squashfuse failed to mount $sif" >&2
+    exit 1
+fi
+
+# The in-image `fuse` entrypoint loads the sysimage and, on this read-only
+# rootfs, prepends a writable $HOME depot. No args -> interactive REPL.
+singularity exec --cleanenv --bind "${FUSE_BIND:-/fusion}" "$mnt" fuse "$@"

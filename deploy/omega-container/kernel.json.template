@@ -2,7 +2,7 @@
   "argv": [
     "/bin/bash",
     "-c",
-    "export PATH=\"__SQUASHFUSE_DIR__:$PATH\"; exec \"__SINGULARITY__\" exec --cleanenv __SIF_FUSE__ --bind /fusion \"__SIF__\" fuse --threads=__THREADS__ -e 'import IJulia; IJulia.run_kernel()' \"$1\"",
+    "export PATH=\"__SINGULARITY_DIR__:$PATH\"; exec \"__LAUNCHER__\" \"__SIF__\" --threads=__THREADS__ -e 'import IJulia; IJulia.run_kernel()' \"$1\"",
     "fuse-kernel",
     "{connection_file}"
   ],
