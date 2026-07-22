@@ -52,7 +52,17 @@ As an alternative to the `fuse` module, FUSE also ships as a self-contained
 Singularity image: a single `.sif` file with FUSE, all ProjectTorreyPines
 packages, and a precompiled sysimage baked in — no modules, no private depot,
 startup in seconds, runnable on any omega node (REPL, Slurm jobs, or as a
-Jupyter kernel). See
+Jupyter kernel). A prebuilt image lives at
+`/fusion/projects/dt/fuse_containers/` and is easiest to use via its module:
+
+```bash
+module use /fusion/projects/dt/fuse_containers/modules   # once, or add to ~/.bashrc
+module load fuse-container
+fuse-container                                            # FUSE REPL
+fuse-container -e 'using FUSE; @show pkgversion(FUSE)'    # run a script
+```
+
+See
 [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md)
 for how to build, run, and install the Jupyter kernel.
 

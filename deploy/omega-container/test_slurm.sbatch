@@ -27,25 +27,18 @@ set -euo pipefail
 
 module load singularity/3.11.3
 
-# squashfuse (for fast SIF FUSE-mounting) lives next to the SIF in the shared
-# containers layout; fall back to extraction if absent.
-sif_fuse_flag="--sif-fuse"
-if [[ -x "$(dirname "$SIF")/bin/squashfuse" ]]; then
-    export PATH="$(dirname "$SIF")/bin:$PATH"
-elif ! command -v squashfuse >/dev/null 2>&1; then
-    echo "WARNING: squashfuse not found — falling back to SIF extraction (slow)"
-    sif_fuse_flag=""
-fi
+launcher="$(dirname "$SIF")/fuse-container"
+[[ -x "$launcher" ]] || launcher="$(dirname "$0")/fuse-container"
 
 echo "node: $(hostname)"
 lscpu | grep 'Model name'
 
-# The in-image `fuse` wrapper runs julia with the sysimage and, on read-only
-# images like a SIF, prepends a writable $HOME depot (required — package init
-# crashes otherwise).
-singularity exec --cleanenv $sif_fuse_flag --bind /fusion \
-    "$SIF" \
-    fuse --threads="$SLURM_CPUS_PER_TASK" -e '
+# Run through fuse-container: it FUSE-mounts the SIF via squashfuse as a tracked
+# child, so a Slurm time-limit / scancel (SIGKILL of the job cgroup) tears the
+# mount down instead of orphaning it. The in-image `fuse` wrapper loads the
+# sysimage and prepends a writable $HOME depot for the read-only rootfs.
+"$launcher" "$SIF" \
+    --threads="$SLURM_CPUS_PER_TASK" -e '
         println("sysimage: ", unsafe_string(Base.JLOptions().image_file))
         println("cpu: ", Sys.CPU_NAME, "  threads: ", Threads.nthreads())
         @time using FUSE

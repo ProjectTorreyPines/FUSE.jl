@@ -19,26 +19,83 @@ targets as the omega module deploy). The compute fleet is all AMD — EPYC 7502
 which run the znver2 clone — while the cascadelake target covers Intel
 login/head nodes and `generic` catches anything else.
 
+## Quick start (use the published image — no build needed)
+
+A prebuilt image, the `fuse-container` launcher, an Lmod module, and the
+`squashfuse` helper live at:
+
+```
+/fusion/projects/dt/fuse_containers/            # shared with the digital_twin group
+├── fuse_<version>.sif
+├── fuse-container                              # launcher
+├── modules/fuse-container.lua                  # Lmod module
+└── bin/squashfuse
+```
+
+**Easiest — via the module** (one-time `module use`, or add it to `~/.bashrc`):
+
+```bash
+module use /fusion/projects/dt/fuse_containers/modules
+module load fuse-container
+
+fuse-container                                  # interactive FUSE REPL
+fuse-container -e 'using FUSE; @show pkgversion(FUSE)'   # run a script/one-liner
+```
+
+The module puts `fuse-container` on PATH and loads singularity; the launcher
+picks the newest image automatically. That's the whole thing — no SIF path, no
+manual `module load singularity`.
+
+**Without the module**, call the launcher by path (it still auto-loads
+singularity and auto-selects the newest image):
+
+```bash
+/fusion/projects/dt/fuse_containers/fuse-container -e 'using FUSE; @show pkgversion(FUSE)'
+```
+
+Pin a specific version by passing the `.sif` explicitly:
+`fuse-container /fusion/projects/dt/fuse_containers/fuse_v1.1.5.sif ...`.
+
+Install the Jupyter kernel for the published image:
+
+```bash
+SIF=/fusion/projects/dt/fuse_containers/fuse_<version>.sif \
+  ./deploy/omega-container/install_kernel.sh
+```
+
+The rest of this README covers building a new image and the full test flow.
+
 ## Contents
 
 | File | Purpose |
 |------|---------|
 | `build.sh` | podman build → SIF export (uses `../perlmutter-container/Containerfile`). |
-| `install_kernel.sh` | Installs a Jupyter kernelspec wrapping `singularity exec`. |
+| `fuse-container` | Launcher: mounts the SIF and runs it with leak-free cleanup. |
+| `fuse-container.lua` | Lmod modulefile (`module load fuse-container`). |
+| `install_kernel.sh` | Installs a Jupyter kernelspec that runs via `fuse-container`. |
 | `kernel.json.template` | Template for the kernelspec. |
 | `test_slurm.sbatch` | Smoke test as a Slurm job (submit per architecture). |
 | `test_kernel_headless.py` | Headless Jupyter-kernel smoke test via `jupyter_client`. |
 
-## Prerequisite: squashfuse (fast SIF startup)
+## How the image is run: the `fuse-container` launcher
 
-Omega's singularity install is unprivileged (no setuid starter) and the nodes
-have no `squashfuse`, so by default singularity **extracts** the SIF to a
-temporary sandbox on every run — minutes of overhead for an image this size.
-With `squashfuse` on `PATH` and the `--sif-fuse` flag, the SIF is FUSE-mounted
-directly and startup takes seconds.
+Omega's singularity is unprivileged (no setuid starter) and the nodes have no
+`squashfuse`, so by default singularity **extracts** the whole 5.8 GB SIF to a
+temporary sandbox on every run — minutes of overhead. `squashfuse` avoids that
+by FUSE-mounting the SIF directly (startup in seconds), but singularity's own
+`--sif-fuse` **detaches** the squashfuse process to init: if the caller is then
+killed abruptly (a Jupyter kernel shutdown, a Slurm time-limit or `scancel` —
+anything that sends SIGKILL), the mount is orphaned and lingers on the node,
+accumulating stale processes/mounts and pinning the SIF open on NFS.
 
-A shared build lives next to the published SIFs (`<sif-dir>/bin/squashfuse`);
-all scripts in this directory pick it up automatically. To (re)build it:
+`fuse-container` fixes this by mounting the SIF with `squashfuse -f`
+(foreground) as a **tracked child in the same process group / cgroup**, so a
+group kill reaps it and a normal or signalled exit unmounts it via a trap.
+Either way nothing is left behind. Always run the image through
+`fuse-container` (the kernel and the Slurm test already do); it needs only
+`module load singularity/3.11.3` and finds `squashfuse` next to the SIF.
+
+To (re)build the `squashfuse` helper for a new location:
 
 ```bash
 git clone https://github.com/vasi/squashfuse.git && cd squashfuse
@@ -74,37 +131,26 @@ SIF_DIR=/fusion/ga/projects/ird/ptp/$USER/fuse_containers ./deploy/omega-contain
 
 ```bash
 module load singularity/3.11.3
-export PATH=<sif-dir>/bin:$PATH   # squashfuse, see above
-
-singularity run --cleanenv --sif-fuse --bind /fusion <sif-dir>/fuse_<version>.sif
+<sif-dir>/fuse-container <sif-dir>/fuse_<version>.sif
 ```
 
-This launches a Julia REPL with the FUSE sysimage preloaded (via the
-in-image `fuse` wrapper — the container's entrypoint). Notes on flags:
+This launches a Julia REPL with the FUSE sysimage preloaded. `fuse-container`
+handles the details:
 
-- `--cleanenv` keeps host Julia variables (`JULIA_PROJECT`,
-  `JULIA_DEPOT_PATH`, ... from the module-based workflow) out of the
-  container. Pass runtime knobs explicitly, e.g.
-  `--env JULIA_NUM_THREADS=8`.
-- `--bind /fusion` exposes the shared filesystems (`$HOME`, `/tmp`, and the
-  current directory are bound by default).
+- It FUSE-mounts the SIF with tracked cleanup (see the launcher section above)
+  and runs it with `--cleanenv` so host Julia variables (`JULIA_PROJECT`,
+  `JULIA_DEPOT_PATH`, ... from the module workflow) don't leak in.
+- `/fusion` is bound (plus `$HOME`, `/tmp`, `$PWD` by default). Bind more via
+  `FUSE_BIND=/fusion,/local-scratch`.
 - The SIF is fully read-only, and Julia package init **crashes** if it cannot
-  write logs/scratch to a depot. The `fuse` wrapper handles this: when the
-  baked depot is not writable it prepends `$HOME/.julia_fuse_container` as a
-  writable first depot. Always run through `fuse` (not bare `julia`), or set
-  `--env JULIA_DEPOT_PATH=$HOME/.julia_fuse_container:/opt/fuse/.julia`
-  yourself.
+  write logs/scratch to a depot. The in-image `fuse` entrypoint handles this:
+  it prepends `$HOME/.julia_fuse_container` as a writable first depot.
 
-> Use `singularity run` only for the bare interactive REPL. For one-liners and
-> scripts use `singularity exec ... <sif> fuse ...`: singularity `run`
-> re-word-splits its arguments (docker-CMD emulation `eval`s them), which
-> mangles quoted `-e '...'` code.
-
-Quick smoke test:
+Quick smoke test (everything after the SIF is passed to Julia):
 
 ```bash
-singularity exec --cleanenv --sif-fuse --bind /fusion <sif> \
-  fuse -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); println("FUSE OK: ", pkgversion(FUSE))'
+<sif-dir>/fuse-container <sif> \
+  -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); println("FUSE OK: ", pkgversion(FUSE))'
 ```
 
 Offline/self-contained test (unprivileged singularity cannot drop the network
@@ -112,15 +158,15 @@ like podman's `--network none`; `JULIA_PKG_OFFLINE` plus watching for
 `Downloading` lines is the omega equivalent):
 
 ```bash
-singularity exec --cleanenv --sif-fuse --bind /fusion \
-  --env JULIA_PKG_OFFLINE=true <sif> \
-  fuse -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); dd=FUSE.init(ini,act); println("OFFLINE OK")'
+JULIA_PKG_OFFLINE=true <sif-dir>/fuse-container <sif> \
+  -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); dd=FUSE.init(ini,act); println("OFFLINE OK")'
 ```
 
 ## 3. Slurm jobs
 
-Use the same `singularity exec` line inside `sbatch`/`srun`. The provided
-test job validates the image on both compute-node generations:
+Run the image through `fuse-container` inside `sbatch`/`srun` (so a time-limit
+or `scancel` tears the mount down instead of orphaning it). The provided test
+job validates the image on both compute-node generations:
 
 ```bash
 SIF=<sif-dir>/fuse_<version>.sif
@@ -144,8 +190,10 @@ SIF=<sif-dir>/fuse_<version>.sif ./deploy/omega-container/install_kernel.sh
 ```
 
 This writes `$HOME/.local/share/jupyter/kernels/fuse-<version>/kernel.json`,
-whose argv runs the in-container Julia via `singularity exec` (with the
-absolute singularity path baked in, since Jupyter cannot `module load`).
+whose argv runs the in-container Julia through `fuse-container` (with the
+absolute singularity bin dir baked onto PATH, since Jupyter cannot
+`module load`). Because the kernel runs via the launcher, shutting the kernel
+down — gracefully or by JupyterHub killing it — leaves no orphaned mount.
 Singularity's default `$HOME` bind makes the Jupyter connection file visible
 inside the container.
 
@@ -167,27 +215,33 @@ Jupyter session (SSH-tunnel workflow from `install_omega.md`), select the
 
 ## 5. Mounting data
 
-Singularity binds `$HOME`, `/tmp`, and the current directory by default; add
-`--bind /fusion` for the shared project areas. Bind anything else the same
-way:
+`$HOME`, `/tmp`, `$PWD`, and `/fusion` are available by default. Bind more with
+`FUSE_BIND` (comma-separated), e.g. to also expose node-local scratch:
 
 ```bash
-singularity exec --cleanenv --sif-fuse --bind /fusion,/local-scratch <sif> ...
+FUSE_BIND=/fusion,/local-scratch <sif-dir>/fuse-container <sif> ...
 ```
 
 ## 6. Publishing a shared image
 
-To make an image available to all FUSE users, copy the SIF (and the
-`bin/squashfuse` helper) into the group-owned containers area:
+Images are published to the digital_twin project area
+`/fusion/projects/dt/fuse_containers` (writable by the `digital_twin` group).
+To publish a newly built image, copy the SIF, the `fuse-container` launcher,
+and the `bin/squashfuse` helper there and make them world-readable:
 
 ```bash
-# requires membership in the 'julia' group
-mkdir -p /fusion/projects/codes/julia/fuse/containers/bin
-cp <sif-dir>/fuse_<version>.sif /fusion/projects/codes/julia/fuse/containers/
-cp <sif-dir>/bin/squashfuse     /fusion/projects/codes/julia/fuse/containers/bin/
-chmod a+rX -R /fusion/projects/codes/julia/fuse/containers
+dest=/fusion/projects/dt/fuse_containers
+mkdir -p $dest/bin $dest/modules
+cp <sif-dir>/fuse_<version>.sif                     $dest/
+cp deploy/omega-container/fuse-container            $dest/
+cp deploy/omega-container/fuse-container.lua        $dest/modules/
+cp <sif-dir>/bin/squashfuse                         $dest/bin/
+chmod a+rX -R $dest
 ```
 
-Users then run with
-`<containers>/fuse_<version>.sif` and get `squashfuse` from
-`<containers>/bin` automatically (all scripts here look next to the SIF).
+Users then `module use $dest/modules; module load fuse-container` (or call
+`$dest/fuse-container` directly). The launcher finds `squashfuse` in `$dest/bin`
+and selects the newest `fuse_*.sif` automatically. A site admin with write
+access to the shared Lmod tree (e.g. `/fusion/usc/c8/modulefiles-git`) can drop
+`fuse-container.lua` there so plain `module load fuse-container` works with no
+`module use`.
