@@ -9,7 +9,8 @@ __SQUASH_ARGS__
     "julia",
     "--sysimage=/opt/fuse/sys_fuse.so",
     "--threads=__THREADS__",
-    "__KERNEL_JL__",
+    "-e",
+    "import IJulia; IJulia.run_kernel()",
     "{connection_file}"
   ],
   "display_name": "__DISPLAY__",

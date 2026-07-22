@@ -47,16 +47,15 @@ if ! command -v podman-hpc >/dev/null 2>&1; then
     exit 1
 fi
 
-# Pull the IJulia kernel.jl path that install_fuse_container.jl recorded in the
-# image, so the kernelspec points at the right file inside the container.
-echo "### Resolving IJulia kernel path from $image${squash_dir:+ (squash-dir: $squash_dir)}"
-kernel_jl="$(podman-hpc "${podman_global[@]}" run --rm "$image" cat /opt/fuse/ijulia_kernel_path.txt | tr -d '\r\n')"
-if [[ -z "$kernel_jl" ]]; then
-    echo "ERROR: could not read /opt/fuse/ijulia_kernel_path.txt from $image." >&2
+# Confirm the image is usable before installing the kernelspec. The kernel
+# launches IJulia with `-e "import IJulia; IJulia.run_kernel()"` (the modern
+# IJulia entrypoint — running src/kernel.jl as a script no longer works).
+echo "### Checking $image${squash_dir:+ (squash-dir: $squash_dir)}"
+if ! podman-hpc "${podman_global[@]}" run --rm "$image" julia -e 'import IJulia' >/dev/null; then
+    echo "ERROR: could not import IJulia from $image." >&2
     echo "       Did you run build.sh (build + migrate) first?" >&2
     exit 1
 fi
-echo "    $kernel_jl"
 
 kernel_dir="$HOME/.local/share/jupyter/kernels/fuse-$version"
 mkdir -p "$kernel_dir"
@@ -72,7 +71,6 @@ else
 fi
 
 sed -e "s|__IMAGE__|$image|g" \
-    -e "s|__KERNEL_JL__|$kernel_jl|g" \
     -e "s|__THREADS__|$threads|g" \
     -e "s|__DISPLAY__|$display|g" \
     -e "s|^__SQUASH_ARGS__\$|$squash_repl|" \
