@@ -1,9 +1,16 @@
 #!/bin/bash
 # Safe launcher for the FUSE Singularity container on omega.
 #
-#   fuse-container <sif>              # interactive FUSE REPL
-#   fuse-container <sif> [args...]    # args passed to the in-container `fuse`
-#                                     # (e.g. -e '...script...', --threads=N)
+#   fuse-container                   # interactive FUSE REPL (newest image)
+#   fuse-container [args...]         # args passed to the in-container `fuse`
+#                                    # (e.g. -e '...script...', --threads=N)
+#   fuse-container <sif> [args...]   # pin a specific image (explicit .sif path)
+#
+# With no explicit SIF, the newest fuse_*.sif is used — from $FUSE_SIF_DIR if
+# set, else from the directory this launcher lives in (the published layout).
+# `singularity` is auto-loaded (module singularity/3.11.3) if not already on
+# PATH, and `squashfuse` is picked up from <dir-of-sif>/bin. Extra bind mounts
+# via FUSE_BIND (default /fusion).
 #
 # Why this exists instead of `singularity run/exec --sif-fuse <sif>`:
 # omega's singularity is unprivileged (no setuid starter), so a SIF is served
@@ -19,23 +26,39 @@
 #   * process-group / cgroup SIGKILL (Jupyter/Slurm) -> squashfuse is in the
 #     killed group and dies with it, the kernel drops the stale mount.
 # Either way nothing is left behind.
-#
-# Requires `singularity` on PATH (module load singularity/3.11.3). `squashfuse`
-# is picked up from <dir-of-sif>/bin automatically. Extra bind mounts via
-# FUSE_BIND (default /fusion).
 set -u
 
-sif="${1:?usage: fuse-container <sif> [args passed to the in-container fuse]}"
-shift
-if [[ ! -r "$sif" ]]; then
-    echo "fuse-container: SIF not found/readable: $sif" >&2
-    exit 1
+self_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+
+# Optional first arg: an explicit .sif to pin a version. Otherwise pick the
+# newest fuse_*.sif from $FUSE_SIF_DIR (default: this launcher's directory).
+if [[ "${1:-}" == *.sif ]]; then
+    sif="$1"; shift
+    if [[ ! -r "$sif" ]]; then
+        echo "fuse-container: SIF not found/readable: $sif" >&2
+        exit 1
+    fi
+else
+    sif_dir="${FUSE_SIF_DIR:-$self_dir}"
+    sif="$(ls -1 "$sif_dir"/fuse_*.sif 2>/dev/null | sort -V | tail -1)"
+    if [[ -z "$sif" ]]; then
+        echo "fuse-container: no fuse_*.sif in $sif_dir — pass one explicitly or set FUSE_SIF_DIR." >&2
+        exit 1
+    fi
 fi
 
 # squashfuse ships next to the published SIF; put it on PATH.
 bindir="$(cd "$(dirname "$sif")/bin" 2>/dev/null && pwd || true)"
 [[ -n "$bindir" ]] && export PATH="$bindir:$PATH"
 
+# Auto-load singularity if it isn't already available (best effort).
+if ! command -v singularity >/dev/null 2>&1; then
+    if ! type module >/dev/null 2>&1; then
+        source /etc/profile.d/z00_lmod.sh 2>/dev/null \
+            || source /usr/share/lmod/lmod/init/bash 2>/dev/null || true
+    fi
+    module load singularity/3.11.3 2>/dev/null || true
+fi
 if ! command -v singularity >/dev/null 2>&1; then
     echo "fuse-container: 'singularity' not found — run 'module load singularity/3.11.3' first." >&2
     exit 127

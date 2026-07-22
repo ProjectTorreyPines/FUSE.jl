@@ -21,30 +21,40 @@ login/head nodes and `generic` catches anything else.
 
 ## Quick start (use the published image — no build needed)
 
-A prebuilt image, the `squashfuse` helper, and the `fuse-container` launcher
-live at:
+A prebuilt image, the `fuse-container` launcher, an Lmod module, and the
+`squashfuse` helper live at:
 
 ```
 /fusion/projects/dt/fuse_containers/            # shared with the digital_twin group
 ├── fuse_<version>.sif
-├── fuse-container                              # launcher (use this to run)
+├── fuse-container                              # launcher
+├── modules/fuse-container.lua                  # Lmod module
 └── bin/squashfuse
 ```
 
-Run the FUSE REPL from any omega node:
+**Easiest — via the module** (one-time `module use`, or add it to `~/.bashrc`):
 
 ```bash
-module load singularity/3.11.3
-export SIF_DIR=/fusion/projects/dt/fuse_containers
-$SIF_DIR/fuse-container $SIF_DIR/fuse_<version>.sif
+module use /fusion/projects/dt/fuse_containers/modules
+module load fuse-container
+
+fuse-container                                  # interactive FUSE REPL
+fuse-container -e 'using FUSE; @show pkgversion(FUSE)'   # run a script/one-liner
 ```
 
-Run a script or one-liner (anything after the SIF is passed to Julia):
+The module puts `fuse-container` on PATH and loads singularity; the launcher
+picks the newest image automatically. That's the whole thing — no SIF path, no
+manual `module load singularity`.
+
+**Without the module**, call the launcher by path (it still auto-loads
+singularity and auto-selects the newest image):
 
 ```bash
-$SIF_DIR/fuse-container $SIF_DIR/fuse_<version>.sif \
-  -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); println(pkgversion(FUSE))'
+/fusion/projects/dt/fuse_containers/fuse-container -e 'using FUSE; @show pkgversion(FUSE)'
 ```
+
+Pin a specific version by passing the `.sif` explicitly:
+`fuse-container /fusion/projects/dt/fuse_containers/fuse_v1.1.5.sif ...`.
 
 Install the Jupyter kernel for the published image:
 
@@ -61,6 +71,7 @@ The rest of this README covers building a new image and the full test flow.
 |------|---------|
 | `build.sh` | podman build → SIF export (uses `../perlmutter-container/Containerfile`). |
 | `fuse-container` | Launcher: mounts the SIF and runs it with leak-free cleanup. |
+| `fuse-container.lua` | Lmod modulefile (`module load fuse-container`). |
 | `install_kernel.sh` | Installs a Jupyter kernelspec that runs via `fuse-container`. |
 | `kernel.json.template` | Template for the kernelspec. |
 | `test_slurm.sbatch` | Smoke test as a Slurm job (submit per architecture). |
@@ -220,12 +231,17 @@ and the `bin/squashfuse` helper there and make them world-readable:
 
 ```bash
 dest=/fusion/projects/dt/fuse_containers
-mkdir -p $dest/bin
+mkdir -p $dest/bin $dest/modules
 cp <sif-dir>/fuse_<version>.sif                     $dest/
 cp deploy/omega-container/fuse-container            $dest/
+cp deploy/omega-container/fuse-container.lua        $dest/modules/
 cp <sif-dir>/bin/squashfuse                         $dest/bin/
 chmod a+rX -R $dest
 ```
 
-Users then run `$dest/fuse-container $dest/fuse_<version>.sif`; the launcher
-finds `squashfuse` in `$dest/bin` automatically.
+Users then `module use $dest/modules; module load fuse-container` (or call
+`$dest/fuse-container` directly). The launcher finds `squashfuse` in `$dest/bin`
+and selects the newest `fuse_*.sif` automatically. A site admin with write
+access to the shared Lmod tree (e.g. `/fusion/usc/c8/modulefiles-git`) can drop
+`fuse-container.lua` there so plain `module load fuse-container` works with no
+`module use`.

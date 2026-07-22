@@ -53,12 +53,13 @@ Singularity image: a single `.sif` file with FUSE, all ProjectTorreyPines
 packages, and a precompiled sysimage baked in — no modules, no private depot,
 startup in seconds, runnable on any omega node (REPL, Slurm jobs, or as a
 Jupyter kernel). A prebuilt image lives at
-`/fusion/projects/dt/fuse_containers/`:
+`/fusion/projects/dt/fuse_containers/` and is easiest to use via its module:
 
 ```bash
-module load singularity/3.11.3
-export SIF_DIR=/fusion/projects/dt/fuse_containers
-$SIF_DIR/fuse-container $SIF_DIR/fuse_v1.1.5.sif
+module use /fusion/projects/dt/fuse_containers/modules   # once, or add to ~/.bashrc
+module load fuse-container
+fuse-container                                            # FUSE REPL
+fuse-container -e 'using FUSE; @show pkgversion(FUSE)'    # run a script
 ```
 
 See
