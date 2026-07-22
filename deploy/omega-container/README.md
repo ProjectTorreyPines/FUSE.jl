@@ -19,6 +19,34 @@ targets as the omega module deploy). The compute fleet is all AMD — EPYC 7502
 which run the znver2 clone — while the cascadelake target covers Intel
 login/head nodes and `generic` catches anything else.
 
+## Quick start (use the published image — no build needed)
+
+A prebuilt image and the `squashfuse` helper live at:
+
+```
+/fusion/projects/dt/fuse_containers/            # shared with the digital_twin group
+├── fuse_<version>.sif
+└── bin/squashfuse
+```
+
+Run the FUSE REPL from any omega node:
+
+```bash
+module load singularity/3.11.3
+export SIF_DIR=/fusion/projects/dt/fuse_containers
+export PATH=$SIF_DIR/bin:$PATH                  # squashfuse, for fast SIF mounting
+singularity run --cleanenv --sif-fuse --bind /fusion $SIF_DIR/fuse_<version>.sif
+```
+
+Install the Jupyter kernel for the published image:
+
+```bash
+SIF=/fusion/projects/dt/fuse_containers/fuse_<version>.sif \
+  ./deploy/omega-container/install_kernel.sh
+```
+
+The rest of this README covers building a new image and the full test flow.
+
 ## Contents
 
 | File | Purpose |
@@ -177,17 +205,18 @@ singularity exec --cleanenv --sif-fuse --bind /fusion,/local-scratch <sif> ...
 
 ## 6. Publishing a shared image
 
-To make an image available to all FUSE users, copy the SIF (and the
-`bin/squashfuse` helper) into the group-owned containers area:
+Images are published to the digital_twin project area
+`/fusion/projects/dt/fuse_containers` (writable by the `digital_twin` group).
+To publish a newly built image, copy the SIF and the `bin/squashfuse` helper
+there and make them world-readable:
 
 ```bash
-# requires membership in the 'julia' group
-mkdir -p /fusion/projects/codes/julia/fuse/containers/bin
-cp <sif-dir>/fuse_<version>.sif /fusion/projects/codes/julia/fuse/containers/
-cp <sif-dir>/bin/squashfuse     /fusion/projects/codes/julia/fuse/containers/bin/
-chmod a+rX -R /fusion/projects/codes/julia/fuse/containers
+dest=/fusion/projects/dt/fuse_containers
+mkdir -p $dest/bin
+cp <sif-dir>/fuse_<version>.sif $dest/
+cp <sif-dir>/bin/squashfuse     $dest/bin/
+chmod a+rX -R $dest
 ```
 
-Users then run with
-`<containers>/fuse_<version>.sif` and get `squashfuse` from
-`<containers>/bin` automatically (all scripts here look next to the SIF).
+Users then run with `$dest/fuse_<version>.sif` and get `squashfuse` from
+`$dest/bin` automatically (all scripts here look next to the SIF).
