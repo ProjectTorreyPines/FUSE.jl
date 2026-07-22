@@ -86,6 +86,8 @@ Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 
 [sources]
 FRESCO = {rev = "perf/fast_interp", url = "https://github.com/ProjectTorreyPines/FRESCO.jl.git"}
+VacuumFields = {rev = "master", url = "https://github.com/ProjectTorreyPines/VacuumFields.jl.git"}
+
 
 [extensions]
 ThermalSystemModelsExt = "ThermalSystemModels"
