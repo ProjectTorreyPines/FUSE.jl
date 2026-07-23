@@ -102,6 +102,19 @@ using FUSE.SimulationParameters.Distributions
         acts2 = [ i.act for i in db.items ];
         df2 = db.df
 
+        # ActorSOLPSNN.Psol defaults to NaN (sentinel for "use IMAS.power_sol"), but
+        # SimulationParameters.diff errors on NaN==NaN (fixed in SimulationParameters > 2.1.3,
+        # after which this resolution step can be removed). Resolve the sentinel to its
+        # runtime default before comparing; only when both sides are NaN, so a genuine
+        # difference would still be caught.
+        for (act1, act2, dd) in zip(acts1, acts2, dds1)
+            if isnan(act1.ActorSOLPSNN.Psol) && isnan(act2.ActorSOLPSNN.Psol)
+                Psol = dd === nothing ? 0.0 : IMAS.power_sol(dd.core_sources, dd.core_profiles.profiles_1d[])
+                act1.ActorSOLPSNN.Psol = Psol
+                act2.ActorSOLPSNN.Psol = Psol
+            end
+        end
+
         # Comparison
         @test dds1 == dds2
         @test all(.!diff.(inis1, inis2))
