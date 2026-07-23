@@ -12,12 +12,15 @@ on `/fusion` that any omega node can run. The pipeline is:
 3. run everywhere with `singularity exec/run` (module `singularity/3.11.3`).
 
 The image is built from the shared
-[`Containerfile`](../perlmutter-container/Containerfile) with
-`--build-arg JULIA_CPU_TARGET="generic;cascadelake,...;znver2,..."` (same
-targets as the omega module deploy). The compute fleet is all AMD — EPYC 7502
-(znver2, unflagged nodes) and EPYC 7513 (znver3, feature flag `amd`), both of
-which run the znver2 clone — while the cascadelake target covers Intel
-login/head nodes and `generic` catches anything else.
+[`Containerfile`](../perlmutter-container/Containerfile), whose default
+`JULIA_CPU_TARGET` is a **universal** set —
+`generic;cascadelake;znver2;znver3` (each with `-xsaveopt,-rdrnd,clone_all`) —
+so one image is performance-optimal on omega's compute fleet (EPYC 7502 =
+znver2 on the unflagged nodes, EPYC 7513 = znver3 on the `amd`-flagged ones),
+on NERSC Perlmutter (znver3 Milan), on Intel cascadelake login nodes, and
+falls back to `generic` on any other x86_64 machine (laptops included). The
+same image is therefore published both as the omega SIF and to GHCR (see
+[Publishing](#6-publishing-a-shared-image)).
 
 ## Quick start (use the published image — no build needed)
 
@@ -245,3 +248,35 @@ and selects the newest `fuse_*.sif` automatically. A site admin with write
 access to the shared Lmod tree (e.g. `/fusion/usc/c8/modulefiles-git`) can drop
 `fuse-container.lua` there so plain `module load fuse-container` works with no
 `module use`.
+
+### Publishing to GHCR (all sites and laptops)
+
+Because the image uses the universal CPU target, the same build can be
+published once to the GitHub Container Registry and pulled everywhere:
+
+```bash
+# after build.sh, on the same node; needs gh auth with write:packages
+FUSE_ENVIRONMENT=<version> ./deploy/omega-container/publish_ghcr.sh
+```
+
+This pushes `ghcr.io/projecttorreypines/fuse:<version>`. The first push
+creates the package **private**; a package admin must make it public once
+(package settings → Change visibility) so it can be pulled unauthenticated.
+Consuming it:
+
+```bash
+# Laptop / any machine with Docker or podman (x86_64)
+docker run -it ghcr.io/projecttorreypines/fuse:<version>
+# Apple Silicon Macs: add --platform linux/amd64 (runs emulated — slow but works)
+
+# NERSC Perlmutter
+podman-hpc pull ghcr.io/projecttorreypines/fuse:<version>
+podman-hpc migrate ghcr.io/projecttorreypines/fuse:<version>
+podman-hpc run --rm -it ghcr.io/projecttorreypines/fuse:<version>
+
+# Any cluster with singularity/apptainer (omega included)
+singularity build fuse_<version>.sif docker://ghcr.io/projecttorreypines/fuse:<version>
+```
+
+The image is x86_64-only (the sysimage is architecture-specific); on Apple
+Silicon it runs under emulation.

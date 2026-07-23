@@ -11,11 +11,13 @@
 # bare names against registry.suse.com, so we pin Docker Hub explicitly.
 FROM docker.io/library/julia:1.11.7
 
-# CPU target(s) baked into the sysimage. The default matches Perlmutter's AMD
-# Milan nodes; other sites override at build time, e.g. omega (Intel
-# cascadelake + AMD znver2 nodes, see deploy/omega-container/build.sh):
-#   --build-arg JULIA_CPU_TARGET="generic;cascadelake,...;znver2,..."
-ARG JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+# CPU target(s) baked into the sysimage. The default is a universal set that
+# is performance-optimal on NERSC Perlmutter (znver3 Milan), GA omega
+# (cascadelake login nodes, znver2/znver3 compute), and falls back to `generic`
+# on anything else (e.g. x86_64 laptops) — so one published image runs
+# everywhere. Sites can still override for a leaner single-target build:
+#   --build-arg JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"
+ARG JULIA_CPU_TARGET="generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all;znver3,-xsaveopt,-rdrnd,clone_all"
 
 # --- system dependencies -----------------------------------------------------
 # git + CLI git is used by Pkg to clone the FuseRegistry packages; gcc is the
