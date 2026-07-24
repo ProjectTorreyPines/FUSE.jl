@@ -32,9 +32,11 @@ scriptdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # FUSE repo root == build context (Containerfile copies the Makefile from here)
 repo_root="$(cd "$scriptdir/../.." && pwd)"
 
-# CPU targets baked into the sysimage: omega mixes Intel cascadelake and AMD
-# znver2 (EPYC 7502) nodes. Mirrors deploy/omega/deploy.sh.
-omega_cpu_target="generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all"
+# CPU targets baked into the sysimage. Default: the Containerfile's universal
+# set (generic + cascadelake + znver2 + znver3), optimal on omega, Perlmutter,
+# and laptops alike — the same image can be published to GHCR for all sites.
+# Override with FUSE_CPU_TARGET for a leaner site-specific build.
+cpu_target="${FUSE_CPU_TARGET:-generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all;znver3,-xsaveopt,-rdrnd,clone_all}"
 
 # Resolve the image tag: explicit override, else latest GitHub release name.
 if [[ -n "${FUSE_ENVIRONMENT:-}" ]]; then
@@ -79,9 +81,9 @@ sif_dir="${SIF_DIR:-$scratch}"
 mkdir -p "$sif_dir"
 sif="$sif_dir/fuse_${version}.sif"
 
-echo "### Building $image (context: $repo_root, CPU target: $omega_cpu_target)"
+echo "### Building $image (context: $repo_root, CPU target: $cpu_target)"
 "${podman[@]}" build -t "$image" \
-    --build-arg JULIA_CPU_TARGET="$omega_cpu_target" \
+    --build-arg JULIA_CPU_TARGET="$cpu_target" \
     -f "$scriptdir/../perlmutter-container/Containerfile" "$repo_root"
 
 echo "### Exporting $image -> $sif"

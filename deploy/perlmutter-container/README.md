@@ -38,9 +38,22 @@ cd $PSCRATCH/.julia/dev/FUSE        # the FUSE repo root (build context)
    (Set `SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images` to share it across
    the project.)
 
-The Containerfile sets `JULIA_CPU_TARGET="generic;znver3,..."` to match
-Perlmutter's AMD Milan CPUs; building on a Perlmutter node keeps the sysimage
-architecture consistent.
+The Containerfile's default `JULIA_CPU_TARGET` is a universal set
+(`generic;cascadelake;znver2;znver3`) that includes Perlmutter's AMD Milan
+(znver3) among its optimized targets, so the same image also runs on GA's
+omega cluster and on laptops. Override with
+`--build-arg JULIA_CPU_TARGET="generic;znver3,-xsaveopt,-rdrnd,clone_all"`
+for a leaner Perlmutter-only build.
+
+> Instead of building, you can pull the published universal image from the
+> GitHub Container Registry (see
+> [`../omega-container/README.md`](../omega-container/README.md) for how it is
+> published):
+>
+> ```bash
+> podman-hpc pull ghcr.io/projecttorreypines/fuse:<version>
+> podman-hpc migrate ghcr.io/projecttorreypines/fuse:<version>
+> ```
 
 > Re-run `build.sh` (build + migrate) after any change. A migrated image is
 > read-only; you must re-`migrate` to pick up a rebuild.
