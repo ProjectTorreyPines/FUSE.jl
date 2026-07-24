@@ -52,7 +52,7 @@ const _SOLPSNN_BOUNDS = (
     quantities::Entry{Vector{Symbol}} =
         Entry{Vector{Symbol}}("-", "SOLPS-NN quantities to evaluate (subset of $(sort(collect(keys(_SOLPSNN_QMAP)))))";
             default=[:te, :ti, :ne, :pwmxap, :psol])
-    Psol::Entry{T} = Entry{T}("W", "Power across the separatrix (defaults to IMAS.power_sol when NaN)"; default=T(NaN))
+    Psol::Entry{T} = Entry{T}("W", "Power across the separatrix (defaults to IMAS.power_sol when not set)")
     D_puff::Entry{T} = Entry{T}("particles/s", "Main-ion (D) gas puff rate"; default=1.0e22)
     N_puff::Entry{T} = Entry{T}("particles/s", "Impurity (N) seeding rate (must be > 0; model uses log10)"; default=1.0e20)
     D_core::Entry{T} = Entry{T}("particles/s", "Main-ion core fuelling rate"; default=1.0e22)
@@ -92,7 +92,7 @@ onto either scalar boundary quantities (peak outer-target heat flux `pwmxap`,
 integrated ion flux `fnixap`, power across the separatrix `psol`) or full 2D
 fields on the fixed SOLPS-ITER B2 grid (`te`, `ti`, `ne`), rescaled to the
 machine major radius. `R` and `B` are taken from `dd.equilibrium`; `Psol` defaults to `IMAS.power_sol`
-(override via the `Psol` parameter); the gas-puff/transport inputs are actor parameters.
+when the `Psol` parameter is not set; the gas-puff/transport inputs are actor parameters.
 
 2D fields are written to `dd.edge_profiles` as a General Grid Description (GGD)
 slice; the peak heat flux is written to the outer divertor target when target
@@ -153,7 +153,8 @@ function _step(actor::ActorSOLPSNN)
 
     R = eqt.boundary.geometric_axis.r
     B = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
-    Psol = isnan(par.Psol) ? IMAS.power_sol(dd.core_sources, dd.core_profiles.profiles_1d[]) : Float64(par.Psol)
+    Psol_par = getproperty(par, :Psol, missing)
+    Psol = ismissing(Psol_par) ? IMAS.power_sol(dd.core_sources, dd.core_profiles.profiles_1d[]) : Float64(Psol_par)
 
     X = Float64[R, B, Psol, par.D_puff, par.N_puff, par.D_core, par.D_perp, par.chi_perp]
     actor.inputs = X
