@@ -2,6 +2,17 @@
 
 This guide walks you through setting up everything you need to run FUSE: the **Julia** language, the **FUSE** package, the **`fusebot`** helper, and an optional **JupyterLab** environment with Julia kernels.
 
+!!! tip "No-install alternative: the FUSE container"
+    If you just want to *run* released FUSE (not develop it), a self-contained
+    container image with FUSE, all ProjectTorreyPines packages, and a
+    precompiled sysimage is published to
+    `ghcr.io/projecttorreypines/fuse:<version>`. It starts in seconds on any
+    x86_64 machine with Docker/podman
+    (`docker run -it ghcr.io/projecttorreypines/fuse:<version>`; on Apple
+    Silicon add `--platform linux/amd64`, which runs emulated), and on HPC
+    systems via podman-hpc (NERSC) or Singularity (omega). See
+    [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md).
+
 ## One-command install
 
 These scripts install FUSE, Revise, fusebot, the Jupyter stack (`fuse` conda env), IJulia kernels, and clone [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples).
