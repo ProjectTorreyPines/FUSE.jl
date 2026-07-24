@@ -190,6 +190,10 @@ if skip_tutorial
     pages = [page for page in pages if page.first != "Tutorial"]
 end
 
+if isfile(joinpath(@__DIR__, "src", "d3dsummerschool.md"))
+    insert!(pages, (idx === nothing ? length(pages) : idx) + 1, "DIII-D Summer School" => "d3dsummerschool.md")
+end
+
 # ============== #
 # build the docs #
 # ============== #
