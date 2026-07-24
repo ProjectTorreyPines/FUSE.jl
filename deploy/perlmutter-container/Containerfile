@@ -88,5 +88,10 @@ RUN printf '%s\n' \
 # in a read-only image, into their own home depot.
 RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse'
 
+# Links the GHCR package to this repository (kept last: label-only changes
+# then rebuild from cache in seconds).
+LABEL org.opencontainers.image.source="https://github.com/ProjectTorreyPines/FUSE.jl" \
+      org.opencontainers.image.description="FUSE with all ProjectTorreyPines packages and a precompiled sysimage"
+
 WORKDIR /root
 CMD ["fuse"]
