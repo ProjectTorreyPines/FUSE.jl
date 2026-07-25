@@ -63,6 +63,24 @@ jobs:
                       /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h /
 
+      # sysimage object emission peaks beyond the 16 GB runner RAM (the OOM
+      # starves the runner agent -> "runner lost communication"); swap lets
+      # the peak spill to disk at the cost of some speed
+      - name: Add swap
+        run: |
+          for loc in /mnt /; do
+            avail=$(df -BG --output=avail "$loc" | tail -1 | tr -dc '0-9')
+            if   [ "$avail" -ge 30 ]; then size=28G
+            elif [ "$avail" -ge 20 ]; then size=18G
+            else continue; fi
+            sudo fallocate -l "$size" "$loc/swapfile-ci" \
+              && sudo chmod 600 "$loc/swapfile-ci" \
+              && sudo mkswap "$loc/swapfile-ci" \
+              && sudo swapon "$loc/swapfile-ci" \
+              && break
+          done
+          free -h
+
       - uses: actions/checkout@v4
 
       - name: Log in to GHCR
