@@ -5,10 +5,6 @@ name: container
 # built in parallel on GitHub-hosted runners and combined into one multi-arch
 # tag, so `docker pull ghcr.io/projecttorreypines/fuse:latest` gets the right
 # architecture everywhere.
-#
-# One-time setup: the ghcr.io/projecttorreypines/fuse package must grant this
-# repository "Write" role under Package settings -> Manage Actions access,
-# so the workflow's GITHUB_TOKEN may push.
 
 on:
   release:
