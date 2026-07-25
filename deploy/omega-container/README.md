@@ -256,8 +256,7 @@ builds the image for **linux/amd64** (universal x86_64 targets) and
 **linux/arm64** (native Apple Silicon) on GitHub-hosted runners and publishes
 them as one multi-arch tag: `ghcr.io/projecttorreypines/fuse:<version>` (+
 `latest`), so `docker pull` gets the right architecture everywhere. It can
-also be run manually (workflow dispatch). One-time setup: the package must
-grant this repo Write role under Package settings → Manage Actions access.
+also be run manually (workflow dispatch).
 
 To publish an x86_64 build by hand instead (e.g. from omega):
 
