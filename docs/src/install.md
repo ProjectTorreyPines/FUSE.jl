@@ -4,14 +4,25 @@ This guide walks you through setting up everything you need to run FUSE: the **J
 
 !!! tip "No-install alternative: the FUSE container"
     If you just want to *run* released FUSE (not develop it), a self-contained
-    container image with FUSE, all ProjectTorreyPines packages, and a
-    precompiled sysimage is published to
-    `ghcr.io/projecttorreypines/fuse:<version>`. It starts in seconds on any
-    x86_64 machine with Docker/podman
-    (`docker run -it ghcr.io/projecttorreypines/fuse:<version>`; on Apple
-    Silicon add `--platform linux/amd64`, which runs emulated), and on HPC
-    systems via podman-hpc (NERSC) or Singularity (omega). See
-    [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md).
+    image with FUSE, all ProjectTorreyPines packages, and a precompiled
+    sysimage (startup in seconds) is published to
+    [ghcr.io/projecttorreypines/fuse](https://github.com/orgs/ProjectTorreyPines/packages/container/package/fuse);
+    `latest` is the most recent FUSE release, and version tags (`v1.1.5`, ...)
+    are available for reproducibility.
+
+    Laptop (Docker; on Apple Silicon add `--platform linux/amd64`):
+    ```bash
+    docker run -it ghcr.io/projecttorreypines/fuse:latest
+    ```
+    omega:
+    ```bash
+    module use /fusion/projects/dt/fuse_containers/modules && module load fuse-container && fuse-container
+    ```
+    NERSC (Perlmutter):
+    ```bash
+    podman-hpc pull ghcr.io/projecttorreypines/fuse:latest && podman-hpc migrate ghcr.io/projecttorreypines/fuse:latest && podman-hpc run --rm -it ghcr.io/projecttorreypines/fuse:latest
+    ```
+    Details: [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md).
 
 ## One-command install
 

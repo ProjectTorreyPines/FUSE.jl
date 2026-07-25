@@ -251,18 +251,21 @@ access to the shared Lmod tree (e.g. `/fusion/usc/c8/modulefiles-git`) can drop
 
 ### Publishing to GHCR (all sites and laptops)
 
-Because the image uses the universal CPU target, the same build can be
-published once to the GitHub Container Registry and pulled everywhere:
+On every FUSE release, the [`container` workflow](../../.github/workflows/container.yml)
+builds the image for **linux/amd64** (universal x86_64 targets) and
+**linux/arm64** (native Apple Silicon) on GitHub-hosted runners and publishes
+them as one multi-arch tag: `ghcr.io/projecttorreypines/fuse:<version>` (+
+`latest`), so `docker pull` gets the right architecture everywhere. It can
+also be run manually (workflow dispatch).
+
+To publish an x86_64 build by hand instead (e.g. from omega):
 
 ```bash
 # after build.sh, on the same node; needs gh auth with write:packages
 FUSE_ENVIRONMENT=<version> ./deploy/omega-container/publish_ghcr.sh
 ```
 
-This pushes `ghcr.io/projecttorreypines/fuse:<version>`. The first push
-creates the package **private**; a package admin must make it public once
-(package settings → Change visibility) so it can be pulled unauthenticated.
-Consuming it:
+Consuming the published image:
 
 ```bash
 # Laptop / any machine with Docker or podman (x86_64)

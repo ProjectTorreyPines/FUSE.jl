@@ -1,0 +1,102 @@
+name: container
+
+# Build and publish the FUSE container to ghcr.io/projecttorreypines/fuse on
+# every FUSE release: linux/amd64 and linux/arm64 (native Apple Silicon) are
+# built in parallel on GitHub-hosted runners and combined into one multi-arch
+# tag, so `docker pull ghcr.io/projecttorreypines/fuse:latest` gets the right
+# architecture everywhere.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      fuse_version:
+        description: "FUSE release to build (e.g. v1.1.5); empty = latest release"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/projecttorreypines/fuse
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          v="${{ github.event.release.tag_name }}"
+          [ -z "$v" ] && v="${{ inputs.fuse_version }}"
+          [ -z "$v" ] && v="$(curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releases/latest | jq -r .tag_name)"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "building FUSE $v"
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            # universal x86_64 set: NERSC Perlmutter (znver3), GA omega
+            # (cascadelake/znver2/znver3), generic fallback for laptops
+            cpu_target: "generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all;znver3,-xsaveopt,-rdrnd,clone_all"
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            # Apple Silicon (Docker/podman VMs on Macs) + generic aarch64
+            cpu_target: "generic;apple-m1,clone_all"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 355
+    steps:
+      # the unpacked image is ~19 GB and the runner disk is shared with
+      # preinstalled toolchains we don't need
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+                      /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build image (heavy — compiles the FUSE sysimage)
+        run: |
+          docker build \
+            -f deploy/perlmutter-container/Containerfile \
+            --build-arg JULIA_CPU_TARGET="${{ matrix.cpu_target }}" \
+            -t "$IMAGE:${{ needs.version.outputs.version }}-${{ matrix.arch }}" \
+            .
+
+      - name: Verify the image contains the released FUSE version
+        run: |
+          got="$(docker run --rm "$IMAGE:${{ needs.version.outputs.version }}-${{ matrix.arch }}" \
+                 fuse -e 'import FUSE; print(pkgversion(FUSE))')"
+          echo "image has FUSE v$got, release is ${{ needs.version.outputs.version }}"
+          [ "v$got" = "${{ needs.version.outputs.version }}" ]
+
+      - name: Push per-arch tag
+        run: docker push "$IMAGE:${{ needs.version.outputs.version }}-${{ matrix.arch }}"
+
+  manifest:
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Publish multi-arch manifest (version + latest)
+        run: |
+          v="${{ needs.version.outputs.version }}"
+          docker buildx imagetools create \
+            -t "$IMAGE:$v" -t "$IMAGE:latest" \
+            "$IMAGE:$v-amd64" "$IMAGE:$v-arm64"
+          docker buildx imagetools inspect "$IMAGE:$v"
