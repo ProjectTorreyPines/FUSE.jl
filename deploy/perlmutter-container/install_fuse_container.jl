@@ -120,12 +120,25 @@ println("    installed/verified ", install_all_artifacts(first(DEPOT_PATH)), " d
 
 println()
 println("### Create precompile script")
+# FUSE_PRECOMPILE_WORKLOAD=light traces only the tutorial (one full
+# ActorWholeFacility pipeline) instead of tutorial + test suite — a smaller
+# sysimage emission for memory-constrained builders (e.g. 16 GB CI runners),
+# at the cost of precompile coverage for the per-case/actor variants.
 precompile_execution_file = joinpath(install_dir, "precompile_script.jl")
-precompile_cmds = """
-using FUSE, EFIT, $pkgs_using
-include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
-include(joinpath(pkgdir(FUSE), "test", "runtests.jl"))
-"""
+workload = get(ENV, "FUSE_PRECOMPILE_WORKLOAD", "full")
+println("    workload: $workload")
+precompile_cmds = if workload == "light"
+    """
+    using FUSE, EFIT, $pkgs_using
+    include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
+    """
+else
+    """
+    using FUSE, EFIT, $pkgs_using
+    include(joinpath(pkgdir(FUSE), "docs", "src", "tutorial.jl"))
+    include(joinpath(pkgdir(FUSE), "test", "runtests.jl"))
+    """
+end
 write(precompile_execution_file, precompile_cmds)
 
 println()

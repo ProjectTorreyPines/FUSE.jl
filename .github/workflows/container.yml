@@ -15,6 +15,11 @@ on:
         description: "FUSE release to build (e.g. v1.1.5); empty = latest release"
         required: false
         default: ""
+      workload:
+        description: "Sysimage trace workload"
+        type: choice
+        options: [full, light]
+        default: full
 
 permissions:
   contents: read
@@ -95,6 +100,7 @@ jobs:
           docker build \
             -f deploy/perlmutter-container/Containerfile \
             --build-arg JULIA_CPU_TARGET="${{ matrix.cpu_target }}" \
+            --build-arg FUSE_PRECOMPILE_WORKLOAD="${{ inputs.workload || 'full' }}" \
             -t "$IMAGE:${{ needs.version.outputs.version }}-${{ matrix.arch }}" \
             .
 

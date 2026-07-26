@@ -40,10 +40,15 @@ RUN git config --system url."https://github.com/".insteadOf "git@github.com:" \
     && git config --global url."https://github.com/".insteadOf "git@github.com:" \
     && git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
+# Sysimage trace workload: "full" (tutorial + test suite, the default) or
+# "light" (tutorial only — smaller emission for memory-constrained builders).
+ARG FUSE_PRECOMPILE_WORKLOAD="full"
+
 # --- build-time Julia configuration ------------------------------------------
 # These mirror deploy/perlmutter/deploy.sh. JULIA_NUM_THREADS=1 is REQUIRED by
 # install_fuse_container.jl (PackageCompiler sysimage build asserts 1 thread).
 # JULIA_CPU_TARGET comes from the build ARG above (default: Perlmutter).
+ENV FUSE_PRECOMPILE_WORKLOAD="${FUSE_PRECOMPILE_WORKLOAD}"
 ENV FUSE_INSTALL_DIR=/opt/fuse \
     JULIA_DEPOT_PATH=/opt/fuse/.julia \
     JULIA_PKG_USE_CLI_GIT=1 \
