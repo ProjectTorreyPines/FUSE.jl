@@ -95,15 +95,22 @@ if ! mountpoint -q "$mnt"; then
     exit 1
 fi
 
-# Shared pedestal-NN weights published next to the SIF (saves each user the
-# ~700 MB HuggingFace download); the in-image `fuse` entrypoint falls back to
-# a writable per-user cache when neither this nor the caller sets the var.
+# Shared NN weight dirs published next to the SIF (too large to bake into the
+# image: pedestal-NN ~0.7 GB from HuggingFace, SOLPS-NN ~4 GB converted ONNX
+# that additionally needs a conda pipeline to produce). Pass caller-set vars
+# through --cleanenv, else point at the shared copies when they exist; the
+# in-image `fuse` entrypoint falls back to a writable per-user cache for
+# pedestal-NN when neither is set.
 extra_env=()
-if [[ -n "${FUSE_PEDESTAL_NN_DIR:-}" ]]; then
-    extra_env+=(--env "FUSE_PEDESTAL_NN_DIR=$FUSE_PEDESTAL_NN_DIR")
-elif [[ -d "$(dirname "$sif")/pedestal_nn" ]]; then
-    extra_env+=(--env "FUSE_PEDESTAL_NN_DIR=$(dirname "$sif")/pedestal_nn")
-fi
+for var_dir in "FUSE_PEDESTAL_NN_DIR:pedestal_nn" "FUSE_SOLPS_NN_DIR:solps_nn_onnx"; do
+    var="${var_dir%%:*}"
+    shared="$(dirname "$sif")/${var_dir##*:}"
+    if [[ -n "${!var:-}" ]]; then
+        extra_env+=(--env "$var=${!var}")
+    elif [[ -d "$shared" ]]; then
+        extra_env+=(--env "$var=$shared")
+    fi
+done
 
 # The in-image `fuse` entrypoint loads the sysimage and, on this read-only
 # rootfs, prepends a writable $HOME depot. No args -> interactive REPL.
