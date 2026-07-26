@@ -43,7 +43,7 @@ if [[ -z "${SLURM_JOB_ID:-}" ]]; then
 fi
 
 echo "### Building $image (context: $repo_root)"
-podman-hpc build -t "$image" -f "$scriptdir/Containerfile" "$repo_root"
+podman-hpc build -t "$image" --build-arg FUSE_VERSION="$version" -f "$scriptdir/Containerfile" "$repo_root"
 
 echo "### Migrating $image to a squashed read-only image"
 if [[ -n "${SQUASH_DIR:-}" ]]; then

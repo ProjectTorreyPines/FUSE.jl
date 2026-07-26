@@ -166,6 +166,7 @@ jobs:
             -f deploy/perlmutter-container/Containerfile \
             --build-arg JULIA_CPU_TARGET="${{ matrix.cpu_target }}" \
             --build-arg FUSE_PRECOMPILE_WORKLOAD="${{ matrix.workload }}" \
+            --build-arg FUSE_VERSION="${{ needs.version.outputs.version }}" \
             -t "$IMAGE:${{ needs.version.outputs.version }}-${{ matrix.arch }}" \
             .
 

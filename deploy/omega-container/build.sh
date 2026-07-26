@@ -84,6 +84,7 @@ sif="$sif_dir/fuse_${version}.sif"
 echo "### Building $image (context: $repo_root, CPU target: $cpu_target)"
 "${podman[@]}" build -t "$image" \
     --build-arg JULIA_CPU_TARGET="$cpu_target" \
+    --build-arg FUSE_VERSION="$version" \
     -f "$scriptdir/../perlmutter-container/Containerfile" "$repo_root"
 
 echo "### Verifying the image contains FUSE $version"

@@ -68,6 +68,14 @@ COPY Makefile /opt/build/Makefile
 # A failed warm-up is harmless — the sysimage bakes REPL regardless.
 RUN timeout 600 julia -e 'import REPL' || timeout 600 julia -e 'import REPL' || true
 
+# Bust the install layer's cache per FUSE version: layer caching is
+# registry-blind, so without this a same-node rebuild for a NEW release would
+# cache-hit the old install and silently bake the previous FUSE version.
+# Same-version rebuilds still reuse the cache. Kept AFTER the REPL warm-up so a
+# version change does not needlessly invalidate that (version-independent) layer.
+ARG FUSE_VERSION=""
+ENV FUSE_BUILD_VERSION="${FUSE_VERSION}"
+
 # Installs FUSE and all PTP packages into $FUSE_INSTALL_DIR, builds IJulia, and
 # compiles /opt/fuse/sys_fuse.so. This step is heavy (runs the FUSE test suite
 # and tutorial as precompile workload) and is best run inside a CPU allocation.
