@@ -119,6 +119,28 @@ end
 println("    installed/verified ", install_all_artifacts(first(DEPOT_PATH)), " downloadable artifact(s)")
 
 println()
+println("### Materialize TurbulentTransport Git LFS model files")
+# TurbulentTransport ships its NN weights via Git LFS; a Pkg install leaves
+# ~130-byte pointer stubs that the package downloads into its own package dir
+# on first use — impossible later in a read-only image (SIF). Materialize
+# every model now so the image is complete and works offline/read-only.
+import TurbulentTransport
+if isdefined(TurbulentTransport, :ensure_model_file!) && isdefined(TurbulentTransport, :is_lfs_pointer)
+    let root = joinpath(pkgdir(TurbulentTransport), "models"), n = 0
+        for (dir, _, files) in walkdir(root), f in files
+            path = joinpath(dir, f)
+            if TurbulentTransport.is_lfs_pointer(path)
+                TurbulentTransport.ensure_model_file!(path)
+                n += 1
+            end
+        end
+        println("    materialized $n model file(s)")
+    end
+else
+    @warn "TurbulentTransport LFS helpers not found — models may remain pointer stubs in the image"
+end
+
+println()
 println("### Create precompile script")
 # FUSE_PRECOMPILE_WORKLOAD=light traces only the tutorial (one full
 # ActorWholeFacility pipeline) instead of tutorial + test suite — a smaller
