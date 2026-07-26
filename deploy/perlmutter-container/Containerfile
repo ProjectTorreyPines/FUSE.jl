@@ -105,6 +105,11 @@ RUN printf '%s\n' \
 # in a read-only image, into their own home depot.
 RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse'
 
+# Revise, standard kit in every FUSE install. Added in a late layer (cheap,
+# cache-friendly). Note: it can only track user code from the writable depot —
+# FUSE and the PTP packages are frozen inside the sysimage.
+RUN fuse -e 'import Pkg; Pkg.add("Revise"); import Revise'
+
 # Links the GHCR package to this repository (kept last: label-only changes
 # then rebuild from cache in seconds).
 LABEL org.opencontainers.image.source="https://github.com/ProjectTorreyPines/FUSE.jl" \
