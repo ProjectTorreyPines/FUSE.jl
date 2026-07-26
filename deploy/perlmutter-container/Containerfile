@@ -83,6 +83,11 @@ RUN printf '%s\n' \
     'if [ ! -w "${JULIA_DEPOT_PATH%%:*}" ]; then' \
     '    export JULIA_DEPOT_PATH="$HOME/.julia_fuse_container:$JULIA_DEPOT_PATH"' \
     'fi' \
+    '# pedestal-NN weights auto-fetch (~700 MB, HuggingFace) defaults to a dir' \
+    '# inside the read-only package tree; give it a writable per-user cache.' \
+    'if [ -z "${FUSE_PEDESTAL_NN_DIR:-}" ]; then' \
+    '    export FUSE_PEDESTAL_NN_DIR="$HOME/.julia_fuse_container/pedestal_nn"' \
+    'fi' \
     'exec julia --sysimage=/opt/fuse/sys_fuse.so "$@"' \
     > /usr/local/bin/fuse \
     && chmod 0555 /usr/local/bin/fuse

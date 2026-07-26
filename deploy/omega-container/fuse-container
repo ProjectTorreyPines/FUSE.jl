@@ -95,6 +95,16 @@ if ! mountpoint -q "$mnt"; then
     exit 1
 fi
 
+# Shared pedestal-NN weights published next to the SIF (saves each user the
+# ~700 MB HuggingFace download); the in-image `fuse` entrypoint falls back to
+# a writable per-user cache when neither this nor the caller sets the var.
+extra_env=()
+if [[ -n "${FUSE_PEDESTAL_NN_DIR:-}" ]]; then
+    extra_env+=(--env "FUSE_PEDESTAL_NN_DIR=$FUSE_PEDESTAL_NN_DIR")
+elif [[ -d "$(dirname "$sif")/pedestal_nn" ]]; then
+    extra_env+=(--env "FUSE_PEDESTAL_NN_DIR=$(dirname "$sif")/pedestal_nn")
+fi
+
 # The in-image `fuse` entrypoint loads the sysimage and, on this read-only
 # rootfs, prepends a writable $HOME depot. No args -> interactive REPL.
-singularity exec --cleanenv --bind "${FUSE_BIND:-/fusion}" "$mnt" fuse "$@"
+singularity exec --cleanenv "${extra_env[@]}" --bind "${FUSE_BIND:-/fusion}" "$mnt" fuse "$@"
