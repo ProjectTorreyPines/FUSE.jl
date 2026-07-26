@@ -251,14 +251,14 @@ access to the shared Lmod tree (e.g. `/fusion/usc/c8/modulefiles-git`) can drop
 
 ### Publishing to GHCR (all sites and laptops)
 
-On every FUSE release, the [`container` workflow](../../.github/workflows/container.yml)
-builds the image for **linux/amd64** (universal x86_64 targets) and
-**linux/arm64** (native Apple Silicon) on GitHub-hosted runners and publishes
-them as one multi-arch tag: `ghcr.io/projecttorreypines/fuse:<version>` (+
-`latest`), so `docker pull` gets the right architecture everywhere. It can
-also be run manually (workflow dispatch).
+Release images are built on omega and pushed to
+`ghcr.io/projecttorreypines/fuse:<version>` (+ `latest`) with the script
+below. (A [`container` workflow](../../.github/workflows/container.yml)
+exists for CI builds but is manual-dispatch-only and currently disabled: the
+sysimage emission peaks at ~98.5 GiB RSS, far beyond standard GitHub-hosted
+runners — it would need the 32-core/128 GB larger-runner class.)
 
-To publish an x86_64 build by hand instead (e.g. from omega):
+To publish after `build.sh` on the same omega node:
 
 ```bash
 # after build.sh, on the same node; needs gh auth with write:packages

@@ -1,14 +1,17 @@
 name: container
 
-# Build and publish the FUSE container to ghcr.io/projecttorreypines/fuse on
-# every FUSE release: linux/amd64 and linux/arm64 (native Apple Silicon) are
-# built in parallel on GitHub-hosted runners and combined into one multi-arch
-# tag, so `docker pull ghcr.io/projecttorreypines/fuse:latest` gets the right
-# architecture everywhere.
+# Build and publish the FUSE container to ghcr.io/projecttorreypines/fuse:
+# linux/amd64 and linux/arm64 (native Apple Silicon) built in parallel and
+# combined into one multi-arch tag.
+#
+# MANUAL DISPATCH ONLY — not viable on standard GitHub-hosted runners: the
+# sysimage object emission peaks at ~98.5 GiB RSS (measured on omega,
+# 2026-07-26), far beyond their 16 GB (swap and workload trimming both fail;
+# runs 30170851378, 30177176119, 30185669953). Requires 32-core/128 GB larger
+# runners to ever run in CI. Until then, release images are built on omega
+# and pushed with deploy/omega-container/publish_ghcr.sh.
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       fuse_version:
