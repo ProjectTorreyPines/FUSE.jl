@@ -40,10 +40,15 @@ RUN git config --system url."https://github.com/".insteadOf "git@github.com:" \
     && git config --global url."https://github.com/".insteadOf "git@github.com:" \
     && git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
+# Sysimage trace workload: "full" (tutorial + test suite, the default) or
+# "light" (tutorial only — smaller emission for memory-constrained builders).
+ARG FUSE_PRECOMPILE_WORKLOAD="full"
+
 # --- build-time Julia configuration ------------------------------------------
 # These mirror deploy/perlmutter/deploy.sh. JULIA_NUM_THREADS=1 is REQUIRED by
 # install_fuse_container.jl (PackageCompiler sysimage build asserts 1 thread).
 # JULIA_CPU_TARGET comes from the build ARG above (default: Perlmutter).
+ENV FUSE_PRECOMPILE_WORKLOAD="${FUSE_PRECOMPILE_WORKLOAD}"
 ENV FUSE_INSTALL_DIR=/opt/fuse \
     JULIA_DEPOT_PATH=/opt/fuse/.julia \
     JULIA_PKG_USE_CLI_GIT=1 \
@@ -77,6 +82,11 @@ RUN printf '%s\n' \
     '#!/bin/bash' \
     'if [ ! -w "${JULIA_DEPOT_PATH%%:*}" ]; then' \
     '    export JULIA_DEPOT_PATH="$HOME/.julia_fuse_container:$JULIA_DEPOT_PATH"' \
+    'fi' \
+    '# pedestal-NN weights auto-fetch (~700 MB, HuggingFace) defaults to a dir' \
+    '# inside the read-only package tree; give it a writable per-user cache.' \
+    'if [ -z "${FUSE_PEDESTAL_NN_DIR:-}" ]; then' \
+    '    export FUSE_PEDESTAL_NN_DIR="$HOME/.julia_fuse_container/pedestal_nn"' \
     'fi' \
     'exec julia --sysimage=/opt/fuse/sys_fuse.so "$@"' \
     > /usr/local/bin/fuse \
