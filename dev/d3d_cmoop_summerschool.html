@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>DIII-D Summer School: CMOOP · FUSE</title><meta name="title" content="DIII-D Summer School: CMOOP · FUSE"/><meta property="og:title" content="DIII-D Summer School: CMOOP · FUSE"/><meta property="twitter:title" content="DIII-D Summer School: CMOOP · FUSE"/><meta name="description" content="Documentation for FUSE."/><meta property="og:description" content="Documentation for FUSE."/><meta property="twitter:description" content="Documentation for FUSE."/><script async src="https://www.googletagmanager.com/gtag/js?id=G-65D8V8C8VQ"></script><script>  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-65D8V8C8VQ', {'page_path': location.pathname + location.search + location.hash});
+</script><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="search_index.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script><link href="assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="index.html"><img class="docs-light-only" src="assets/logo.svg" alt="FUSE logo"/><img class="docs-dark-only" src="assets/logo-dark.svg" alt="FUSE logo"/></a><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="index.html">Home</a></li><li><a class="tocitem" href="install.html">Install</a></li><li><a class="tocitem" href="pubs.html">References</a></li><li><a class="tocitem" href="tutorial.html">Tutorial</a></li><li><a class="tocitem" href="examples.html">Examples</a></li><li><a class="tocitem" href="cases.html">Use Cases</a></li><li><a class="tocitem" href="d3d_study_workflows.html">DIII-D Time-Dependent</a></li><li><a class="tocitem" href="d3dsummerschool.html">DIII-D Summer School</a></li><li class="is-active"><a class="tocitem" href="d3d_cmoop_summerschool.html">DIII-D Summer School: CMOOP</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Idealized-DIII-D:-a-single-FUSE-run"><span>Idealized DIII-D: a single FUSE run</span></a></li><li><a class="tocitem" href="#Load-the-idealized-DIII-D-case"><span>Load the idealized DIII-D case</span></a></li><li><a class="tocitem" href="#Modify-ini-—-the-physics-starting-point"><span>Modify ini — the physics starting point</span></a></li><li><a class="tocitem" href="#Modify-act-—-the-models"><span>Modify act — the models</span></a></li><li class="toplevel"><a class="tocitem" href="#Make-sure-to-run-less-of-it!"><span>Make sure to run less of it!</span></a></li><li><a class="tocitem" href="#Initialize:-ini-dd"><span>Initialize: ini → dd</span></a></li><li><a class="tocitem" href="#Run-the-stationary-plasma"><span>Run the stationary plasma</span></a></li><li><a class="tocitem" href="#Operational-limits-(the-stability-NN!)"><span>Operational limits (the stability NN!)</span></a></li><li><a class="tocitem" href="#Did-the-transport-solver-converge?"><span>Did the transport solver converge?</span></a></li><li class="toplevel"><a class="tocitem" href="#An-idealized-DIII-D-CMOOP"><span>An idealized DIII-D CMOOP</span></a></li><li><a class="tocitem" href="#Start-from-the-same-idealized-DIII-D"><span>Start from the same idealized DIII-D</span></a></li><li><a class="tocitem" href="#Turn-ini-parameters-into-actuators"><span>Turn ini parameters into actuators</span></a></li><li><a class="tocitem" href="#Requirements-(used-by-some-constraint-functions)"><span>Requirements (used by some constraint functions)</span></a></li><li><a class="tocitem" href="#Objectives-and-constraints"><span>Objectives and constraints</span></a></li><li><a class="tocitem" href="#Setup-the-study"><span>Setup the study</span></a></li><li><a class="tocitem" href="#Run-it-(commented-out-for-the-demo)"><span>Run it (commented out for the demo)</span></a></li><li class="toplevel"><a class="tocitem" href="#Analyzing-the-DIII-D-CMOOP-results"><span>Analyzing the DIII-D CMOOP results</span></a></li><li><a class="tocitem" href="#Feasibility"><span>Feasibility</span></a></li><li><a class="tocitem" href="#The-objective-space"><span>The objective space</span></a></li><li><a class="tocitem" href="#The-Pareto-front"><span>The Pareto front</span></a></li><li><a class="tocitem" href="#How-did-it-get-there?-Look-at-the-actuators"><span>How did it get there? Look at the actuators</span></a></li><li><a class="tocitem" href="#Which-knobs-got-us-here?-Recover-the-genes"><span>Which knobs got us here? Recover the genes</span></a></li><li><a class="tocitem" href="#Deep-dive-a-single-individual"><span>Deep-dive a single individual</span></a></li><li class="toplevel"><a class="tocitem" href="#The-audience-challenge:-beat-the-optimizer!"><span>The audience challenge: beat the optimizer!</span></a></li><li><a class="tocitem" href="#Your-shot-—-pick-values-inside-the-optimizer&#39;s-ranges!"><span>Your shot — pick values inside the optimizer&#39;s ranges!</span></a></li><li><a class="tocitem" href="#Set-up-the-same-idealized-DIII-D-the-optimizer-used"><span>Set up the same idealized DIII-D the optimizer used</span></a></li><li><a class="tocitem" href="#Run-it-—-exactly-what-the-optimizer-runs-for-every-individual-(2-min)"><span>Run it — exactly what the optimizer runs for every individual (~2 min)</span></a></li><li><a class="tocitem" href="#Where-did-you-land?"><span>Where did you land?</span></a></li><li><a class="tocitem" href="#...and-against-the-optimizer&#39;s-database"><span>...and against the optimizer&#39;s database</span></a></li><li><a class="tocitem" href="#More-data-more-better-—-the-same-CMOOP-at-scale"><span>More data more better — the same CMOOP at scale</span></a></li><li class="toplevel"><a class="tocitem" href="#The-new-age:-physics-models-as-public-web-APIs"><span>The new age: physics models as public web APIs</span></a></li><li><a class="tocitem" href="#The-API-documents-itself"><span>The API documents itself</span></a></li><li><a class="tocitem" href="#One-prediction-one-POST"><span>One prediction = one POST</span></a></li><li><a class="tocitem" href="#Parameter-scans-against-a-live-model"><span>Parameter scans against a live model</span></a></li><li><a class="tocitem" href="#Trust,-but-verify:-uncertainty-grows-out-of-distribution"><span>Trust, but verify: uncertainty grows out of distribution</span></a></li></ul></li><li><a class="tocitem" href="actors.html">Actors</a></li><li><a class="tocitem" href="inits.html">Initialization</a></li><li><a class="tocitem" href="dd.html"><code>dd</code> Data Structure</a></li><li><a class="tocitem" href="ini.html"><code>ini</code> Parameters</a></li><li><a class="tocitem" href="act.html"><code>act</code> Parameters</a></li><li><a class="tocitem" href="develop.html">Development</a></li><li><a class="tocitem" href="deps.html">Ecosystem</a></li><li><a class="tocitem" href="license.html">License</a></li><li><a class="tocitem" href="notice.html">Notice</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="d3d_cmoop_summerschool.html">DIII-D Summer School: CMOOP</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="d3d_cmoop_summerschool.html">DIII-D Summer School: CMOOP</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/ProjectTorreyPines/FUSE.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/docs/src/d3d_cmoop_summerschool.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="FUSE-workshop-—-D3D-Summer-School"><a class="docs-heading-anchor" href="#FUSE-workshop-—-D3D-Summer-School">FUSE workshop — D3D Summer School</a><a id="FUSE-workshop-—-D3D-Summer-School-1"></a><a class="docs-heading-anchor-permalink" href="#FUSE-workshop-—-D3D-Summer-School" title="Permalink"></a></h1><p><em>Runnable notebook: <a href="assets/d3d_workshop.ipynb">d3d_workshop.ipynb</a></em></p><p>One notebook, the whole workshop: an idealized DIII-D run, a constrained multi-objective optimization (CMOOP), its analysis, the audience challenge, and the public EPED API.</p><ul><li>FUSE docs: https://fuse.help — FPP database explorer: https://fuseexplorer.com</li><li>EPED explorer + API: https://iter.fuseexplorer.com/EPED</li></ul><p><em>Kernel: Julia FUSE 1.12 (project preset — just run the cells).</em></p><blockquote><p><strong>Note on data:</strong> the run databases this notebook reads (<code>../runs/d3d_cmoop_summerschool</code>, <code>../runs/d3d_cmoop_big</code>, ...) are not included in the repository — they are a few GB of FUSE simulation output. If you would like them to play with, email <strong>tslendebroek@ucsd.edu</strong> and I&#39;ll happily share them.</p></blockquote><h1 id="Idealized-DIII-D:-a-single-FUSE-run"><a class="docs-heading-anchor" href="#Idealized-DIII-D:-a-single-FUSE-run">Idealized DIII-D: a single FUSE run</a><a id="Idealized-DIII-D:-a-single-FUSE-run-1"></a><a class="docs-heading-anchor-permalink" href="#Idealized-DIII-D:-a-single-FUSE-run" title="Permalink"></a></h1><p>This is the starting point for the CMOOP study in <code>02_d3d_cmoop.jl</code>: one self-consistent stationary DIII-D simulation, so we understand what the optimizer will be running hundreds of times.</p><p>Run with:  julia –project=../FUSE</p><p>The two core input structures in FUSE:   ini — &quot;how do we start&quot;  : machine description + initial plasma guesses   act — &quot;how do we model&quot;  : the knobs of every actor (model choices, settings) and everything lives in <code>dd</code>, the IMAS data dictionary.</p><pre><code class="language-julia hljs">using Plots
+using FUSE
+</code></pre><h2 id="Load-the-idealized-DIII-D-case"><a class="docs-heading-anchor" href="#Load-the-idealized-DIII-D-case">Load the idealized DIII-D case</a><a id="Load-the-idealized-DIII-D-case-1"></a><a class="docs-heading-anchor-permalink" href="#Load-the-idealized-DIII-D-case" title="Permalink"></a></h2><p><code>:default</code> loads the DIII-D machine description + an equilibrium ODS, and (since there are no experimental profiles/sources) sets up an idealized plasma: 3 neutral beams (co / counter / off-axis), 1 EC launcher, Zeff=2 with carbon impurity.</p><pre><code class="language-julia hljs">ini, act = FUSE.case_parameters(:D3D, :default);
+
+# Have a look around — ini is organized in sections;
+# highlighted are the ones we&#39;ll play with today:
+for name in keys(ini)
+    if name in (:equilibrium, :core_profiles)
+        printstyled(&quot;  ▶ ini.&quot;, name, &quot;\n&quot;; bold=true, color=:cyan)
+    else
+        println(&quot;    ini.&quot;, name)
+    end
+end
+
+# ...and each section prints nicely:
+ini.equilibrium
+ini.core_profiles
+
+</code></pre><pre><code class="nohighlight hljs">    ini.general
+    ini.time
+    ini.ods
+[36m[1m  ▶ ini.equilibrium[22m[39m
+[36m[1m  ▶ ini.core_profiles[22m[39m
+    ini.pf_active
+    ini.rampup
+    ini.nb_unit
+    ini.ec_launcher
+    ini.pellet_launcher
+    ini.ic_antenna
+    ini.lh_antenna
+    ini.hcd
+    ini.build
+    ini.center_stack
+    ini.tf
+    ini.oh
+    ini.bop
+    ini.requirements
+
+
+
+
+
+[0m[1mcore_profiles[22m
+├─ [0m[1mplasma_mode[22m[0m{Symbol}[0m ➡ [32m:H_mode[39m [97mPlasma configuration [:H_mode, :L_mode][39m
+├─ [0m[1mw_ped[22m[0m{Float64}[0m ➡ [32m0.05[39m [97mPedestal full width expressed in fraction of rho_tor_norm (NOTE: different from EPED 1/2 width as[39m
+│  [97mfraction of psi)[39m
+├─ [0m[1mne_value[22m[0m{Float64}[0m ➡ [34m0.5625[39m [97mValue based on setup method[39m
+├─ [0m[1mne_setting[22m[0m{Symbol}[0m ➡ [34m:greenwald_fraction_ped[39m [97mWay to set the electron density [:ne_ped, :ne_line, :greenwald_fraction,[39m
+│  [97m:greenwald_fraction_ped][39m
+├─ [0m[1mne_sep_to_ped_ratio[22m[0m{Float64}[0m ➡ [32m0.25[39m [97mRatio used to set the sepeartrix density based on the pedestal density[39m
+├─ [0m[1mne_core_to_ped_ratio[22m[0m{Float64}[0m ➡ [32m1.4[39m [97mRatio used to set the core density based on the pedestal density[39m
+├─ [0m[1mne_shaping[22m[0m{Float64}[0m ➡ [34m0.9[39m [97mDensity shaping factor[39m
+├─ [0m[1mTi_Te_ratio[22m[0m{Float64}[0m ➡ [34m1.0[39m [97mTi/Te ratio[39m
+├─ [0m[1mTe_shaping[22m[0m{Float64}[0m ➡ [34m1.8[39m [97mTemperature shaping factor[39m
+├─ [0m[1mTe_sep[22m[0m{Float64}[0m ➡ [32m80.0[39m[32m[1m [eV][22m[39m [97mSeparatrix temperature[39m
+├─ [0m[1mTe_ped[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mPedestal temperature[39m
+├─ [0m[1mTe_core[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mCore temperature (NOTE: `Te_core` can be calculated from `ini.equilibrium.presssure_core`)[39m
+├─ [0m[1mzeff[22m[0m{Float64}[0m ➡ [34m2.0[39m [97mEffective ion charge[39m
+├─ [0m[1mrot_core[22m[0m{Float64}[0m ➡ [34m60000.0[39m[34m[1m [s^-1][22m[39m [97mDerivative of the flux surface averaged electrostatic potential with respect to the[39m
+│  [97mpoloidal flux, multiplied by -1. This quantity is the toroidal angular rotation frequency due to the ExB drift,[39m
+│  [97mintroduced in formula (43) of Hinton and Wong, Physics of Fluids 3082 (1985), also referred to as sonic flow in regimes[39m
+│  [97min which the toroidal velocity is dominant over the poloidal velocity[39m
+├─ [0m[1mngrid[22m[0m{Int64}[0m ➡ [32m101[39m [97mResolution of the core_profiles grid[39m
+├─ [0m[1mbulk[22m[0m{Symbol}[0m ➡ [34m:D[39m [97mHydrogenic bulk ion species. Use :D_T for unbundled :D and :T species. [:H, :D, :DT, :D_T][39m
+├─ [0m[1mimpurity[22m[0m{Symbol}[0m ➡ [34m:C[39m [97mSeeding impurity ion species (fraction calculated to match zeff given wall_impurity)[39m
+├─ [0m[1mwall_impurity[22m[0m{Symbol}[0m ➡ [33mmissing[39m [97mWall material impurity ion species[39m
+├─ [0m[1mwall_impurity_fraction[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mWall impurity fraction n_wall/n_e[39m
+├─ [0m[1mhelium_fraction[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mHelium density / electron density fraction[39m
+├─ [0m[1mejima[22m[0m{Float64}[0m ➡ [32m0.4[39m [97mEjima coefficient[39m
+├─ [0m[1mpolarized_fuel_fraction[22m[0m{Float64}[0m ➡ [32m0.0[39m [97mSpin polarized fuel fraction[39m
+└─ [0m[1mITB[22m
+   ├─ [0m[1mradius[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mRho at which the ITB starts[39m
+   ├─ [0m[1mne_width[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mWidth of the electron density ITB[39m
+   ├─ [0m[1mne_height_ratio[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mHeight of the electron density ITB, expressed as the ratio of the density without ITB[39m
+   │  [97mevaluated on axis[39m
+   ├─ [0m[1mTe_width[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mWidth of the electron temperature ITB[39m
+   └─ [0m[1mTe_height_ratio[22m[0m{Float64}[0m ➡ [33mmissing[39m [97mHeight of the electron temperature ITB, expressed as the ratio of the temperature[39m
+      [97mwithout ITB evaluated on axis[39m</code></pre><h2 id="Modify-ini-—-the-physics-starting-point"><a class="docs-heading-anchor" href="#Modify-ini-—-the-physics-starting-point">Modify ini — the physics starting point</a><a id="Modify-ini-—-the-physics-starting-point-1"></a><a class="docs-heading-anchor-permalink" href="#Modify-ini-—-the-physics-starting-point" title="Permalink"></a></h2><pre><code class="language-julia hljs">ini.equilibrium.ip = 1.0E6        # plasma current [A]
+ini.core_profiles.zeff = 2.0      # effective charge
+ini.core_profiles.impurity = :C   # seeding impurity species
+
+# density: absolute pedestal density (kept low to stay clear of the EC cutoff)
+ini.core_profiles.ne_setting = :ne_ped
+ini.core_profiles.ne_value = 4.0e19
+
+ini.core_profiles.Te_core = 1.5e3
+ini.core_profiles.Te_ped = 1e3
+
+</code></pre><pre><code class="nohighlight hljs">1000.0</code></pre><h2 id="Modify-act-—-the-models"><a class="docs-heading-anchor" href="#Modify-act-—-the-models">Modify act — the models</a><a id="Modify-act-—-the-models-1"></a><a class="docs-heading-anchor-permalink" href="#Modify-act-—-the-models" title="Permalink"></a></h2><pre><code class="language-julia hljs">act.ActorEquilibrium.model = :TEQUILA
+
+# Aim the EC deposition location (this is an `act` parameter — the actuator
+# aiming — not an `ini` parameter):
+for actuator in act.ActorSimpleEC.actuator
+    actuator.rho_0 = 0.1
+end
+
+# Pedestal from EPED, not evolved by the transport solver:
+act.ActorPedestal.model = :EPED
+act.ActorFluxMatcher.evolve_pedestal = false
+
+# This is the TGLF NN that we use:
+act.ActorTGLF.tglfnn_model = &quot;sat3_em_d3d+mastu+nstx_azf-1&quot;
+
+# If instead you want to run the full TGLF model then:
+#
+# act.ActorTGLF.model = :TJLF # Julia version of TGLF
+</code></pre><pre><code class="nohighlight hljs">&quot;sat3_em_d3d+mastu+nstx_azf-1&quot;</code></pre><h1 id="Make-sure-to-run-less-of-it!"><a class="docs-heading-anchor" href="#Make-sure-to-run-less-of-it!">Make sure to run less of it!</a><a id="Make-sure-to-run-less-of-it!-1"></a><a class="docs-heading-anchor-permalink" href="#Make-sure-to-run-less-of-it!" title="Permalink"></a></h1><p>act.ActorFluxMatcher.max_iterations = 50</p><p>But we are not going to run with the full model as that would take too long</p><h2 id="Initialize:-ini-dd"><a class="docs-heading-anchor" href="#Initialize:-ini-dd">Initialize: ini → dd</a><a id="Initialize:-ini-dd-1"></a><a class="docs-heading-anchor-permalink" href="#Initialize:-ini-dd" title="Permalink"></a></h2><pre><code class="language-julia hljs">dd = IMAS.dd();
+FUSE.init(dd, ini, act);
+
+eq_plot_init = plot(dd.equilibrium)
+core_profiles_plot_init = plot(dd.core_profiles)
+
+display(core_profiles_plot_init)
+display(eq_plot_init)
+
+</code></pre><pre><code class="nohighlight hljs">[36m[1mactors[22m[39m[0m[1m: [22m[0mCXbuild
+[36m[1mactors[22m[39m[0m[1m: [22m[0mSources
+[36m[1mactors[22m[39m[0m[1m: [22m[0m SimpleEC
+[36m[1mactors[22m[39m[0m[1m: [22m[0m SimpleNB
+[36m[1mactors[22m[39m[0m[1m: [22m[0m NeutralFueling</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_12_1.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_12_2.png" alt="png"/></p><h2 id="Run-the-stationary-plasma"><a class="docs-heading-anchor" href="#Run-the-stationary-plasma">Run the stationary plasma</a><a id="Run-the-stationary-plasma-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-stationary-plasma" title="Permalink"></a></h2><p>DIII-D already exists — no need for the power-plant machinery that ActorWholeFacility would drag in (sizing, blanket, balance of plant, costing...). ActorStationaryPlasma iterates equilibrium ⇄ transport ⇄ sources ⇄ current to a self-consistent stationary solution:</p><pre><code class="language-julia hljs">FUSE.ActorStationaryPlasma(dd, act);
+
+# before vs after:
+display(plot!(core_profiles_plot_init, dd.core_profiles, label=&quot; after stationary plasma&quot;))
+display(plot!(eq_plot_init, dd.equilibrium, label=&quot; after stationary plasma&quot;))
+
+# Transport fluxes versus source for the Electron energy, Ion energy and electron particle flux
+display(plot(dd.core_transport; only=1))
+display(plot(dd.core_transport; only=2))
+display(plot(dd.core_transport; only=3))
+
+# what is our beta_normal?</code></pre><pre><code class="nohighlight hljs">[36m[1mactors[22m[39m[0m[1m: [22m[0mStationaryPlasma
+[36m[1mactors[22m[39m[0m[1m: [22m[0m --------------- 1/5
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Sources
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleEC
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleNB
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  NeutralFueling
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Pedestal
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  EPED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m CoreTransport
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  FluxMatcher
+[36m[1mactors[22m[39m[0m[1m: [22m[0m   FluxCalculator
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    TGLF
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    Neoclassical
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Current
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  QED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m SawteethSource
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Equilibrium
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  TEQUILA
+[36m[1mactors[22m[39m[0m[1m: [22m[0m --------------- 1/5 @ 905.40%
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Sources
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleEC
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleNB
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  NeutralFueling
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Pedestal
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  EPED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m CoreTransport
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  FluxMatcher
+[36m[1mactors[22m[39m[0m[1m: [22m[0m   FluxCalculator
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    TGLF
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    Neoclassical
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Current
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  QED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m SawteethSource
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Equilibrium
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  TEQUILA
+[36m[1mactors[22m[39m[0m[1m: [22m[0m --------------- 2/5 @ 603.13%
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Sources
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleEC
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleNB
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  NeutralFueling
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Pedestal
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  EPED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m CoreTransport
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  FluxMatcher
+[36m[1mactors[22m[39m[0m[1m: [22m[0m   FluxCalculator
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    TGLF
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    Neoclassical
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Current
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  QED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m SawteethSource
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Equilibrium
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  TEQUILA
+[36m[1mactors[22m[39m[0m[1m: [22m[0m --------------- 3/5 @ 988.15%
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Sources
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleEC
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleNB
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  NeutralFueling
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Pedestal
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  EPED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m CoreTransport
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  FluxMatcher
+[36m[1mactors[22m[39m[0m[1m: [22m[0m   FluxCalculator
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    TGLF
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    Neoclassical
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Current
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  QED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m SawteethSource
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Equilibrium
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  TEQUILA
+[36m[1mactors[22m[39m[0m[1m: [22m[0m --------------- 4/5 @ 667.67%
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Sources
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleEC
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  SimpleNB
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  NeutralFueling
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Pedestal
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  EPED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m CoreTransport
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  FluxMatcher
+[36m[1mactors[22m[39m[0m[1m: [22m[0m   FluxCalculator
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    TGLF
+[36m[1mactors[22m[39m[0m[1m: [22m[0m    Neoclassical
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Current
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  QED
+[36m[1mactors[22m[39m[0m[1m: [22m[0m SawteethSource
+[36m[1mactors[22m[39m[0m[1m: [22m[0m Equilibrium
+[36m[1mactors[22m[39m[0m[1m: [22m[0m  TEQUILA
+[36m[1mactors[22m[39m[0m[1m: [22m[0m --------------- 5/5 @ 306.97%
+[33m[1m┌ [22m[39m[33m[1mWarning: [22m[39mMax number of iterations (5) has been reached with convergence error of (1)[0.453, 0.302, 0.494, 0.334, 0.153](5) compared to threshold of 0.05
+[33m[1m└ [22m[39m[90m@ FUSE ~/d3dsummerschool/FUSE/src/actors/compound/stationary_plasma_actor.jl:237[39m</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_14_1.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_14_2.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_14_3.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_14_4.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_14_5.png" alt="png"/></p><pre><code class="language-julia hljs">IMAS.extract(dd)</code></pre><pre><code class="nohighlight hljs">[0m[1mGEOMETRY                               [22m[0m[1mEQUILIBRIUM                            [22m[0m[1mTEMPERATURES                           [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mR0[22m[39m[0m → [0m1.67[0m [m]                          [34m[1mB0[22m[39m[0m → [0m-1.71[0m [T]                         [34m[1mTe0[22m[39m[0m → [0m3.42[0m [keV]                       
+[34m[1ma[22m[39m[0m → [0m0.599[0m [m]                          [34m[1mip[22m[39m[0m → [0m0.984[0m [MA]                        [34m[1mTi0[22m[39m[0m → [0m2.21[0m [keV]                       
+[34m[1m1/ϵ[22m[39m[0m → [0m2.78                             [34m[1mq95[22m[39m[0m → [0m-4.79                            [34m[1m&lt;Te&gt;[22m[39m[0m → [0m1.39[0m [keV]                      
+[34m[1mκ[22m[39m[0m → [0m1.79                               [34m[1m&lt;Bpol&gt;[22m[39m[0m → [0m0.226[0m [T]                     [34m[1m&lt;Ti&gt;[22m[39m[0m → [0m1.17[0m [keV]                      
+[34m[1mδ[22m[39m[0m → [0m0.372                              [34m[1mβpol_MHD[22m[39m[0m → [0m1.11                        [34m[1mTe0/&lt;Te&gt;[22m[39m[0m → [0m2.46                        
+[34m[1mζ[22m[39m[0m → [0m-0.121                             [34m[1mβtor_MHD[22m[39m[0m → [0m0.0206                      [34m[1mTi0/&lt;Ti&gt;[22m[39m[0m → [0m1.89                        
+[34m[1mVolume[22m[39m[0m → [0m18.8[0m [m³]                     [34m[1mβn_MHD[22m[39m[0m → [0m2.13                                                                 
+[34m[1mSurface[22m[39m[0m → [0m53.7[0m [m²]                                                                                                  
+                                                                                                                     
+[0m[1mDENSITIES                              [22m[0m[1mPRESSURES                              [22m[0m[1mTRANSPORT                              [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mne0[22m[39m[0m → [0m7.38e+19[0m [m⁻³]                   [34m[1mP0[22m[39m[0m → [0m0.0679[0m [MPa]                      [34m[1mτe[22m[39m[0m → [0m0.097[0m [s]                         
+[34m[1mne_ped[22m[39m[0m → [0m3.67e+19[0m [m⁻³]                [34m[1m&lt;P&gt;[22m[39m[0m → [0m0.0239[0m [MPa]                     [34m[1mτe_exp[22m[39m[0m → [0m0.095[0m [s]                     
+[34m[1mne_line[22m[39m[0m → [0m5.66e+19[0m [m⁻³]               [34m[1mP0/&lt;P&gt;[22m[39m[0m → [0m2.85                          [34m[1mH98y2[22m[39m[0m → [0m1.08                           
+[34m[1m&lt;ne&gt;[22m[39m[0m → [0m4.76e+19[0m [m⁻³]                  [34m[1mβn[22m[39m[0m → [0m2.14                              [34m[1mH98y2_exp[22m[39m[0m → [0m1.08                       
+[34m[1mne0/&lt;ne&gt;[22m[39m[0m → [0m1.55                        [34m[1mβn_th[22m[39m[0m → [0m1.82                           [34m[1mHds03[22m[39m[0m → [0m1.08                           
+[34m[1mfGW[22m[39m[0m → [0m0.648                                                                   [34m[1mHds03_exp[22m[39m[0m → [0m1.07                       
+[34m[1mzeff_ped[22m[39m[0m → [0m2                                                                  [34m[1mτα_thermalization[22m[39m[0m → [0m0.176[0m [s]          
+[34m[1m&lt;zeff&gt;[22m[39m[0m → [0m1.99                                                                 [34m[1mτα_slowing_down[22m[39m[0m → [0m0.105[0m [s]            
+[34m[1mimpurities[22m[39m[0m → [0mD C12                                                                                                   
+                                                                                                                     
+[0m[1mSOURCES                                [22m[0m[1mEXHAUST                                [22m[0m[1mCURRENTS                               [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mPec[22m[39m[0m → [0m3[0m [MW]                           [34m[1mPsol[22m[39m[0m → [0m5.95[0m [MW]                       [34m[1mip_bs_aux_ohm[22m[39m[0m → [0m0.992[0m [MA]             
+[34m[1mrho0_ec[22m[39m[0m → [0m0.08[0m [MW]                    [34m[1mPLH[22m[39m[0m → [0m2.11[0m [MW]                        [34m[1mip_ni[22m[39m[0m → [0m0.479[0m [MA]                     
+[34m[1mPnbi[22m[39m[0m → [0m3[0m [MW]                          [34m[1mPLH_FUSE[22m[39m[0m → [0m4.19[0m [MW]                   [34m[1mip_bs[22m[39m[0m → [0m0.321[0m [MA]                     
+[34m[1mEnbi1[22m[39m[0m → [0m0.08[0m [MeV]                     [34m[1mBpol_omp[22m[39m[0m → [0m0.336[0m [T]                   [34m[1mip_aux[22m[39m[0m → [0m0.158[0m [MA]                    
+[34m[1mPic[22m[39m[0m → [31mNaN[39m[0m [MW]                         [34m[1mλq[22m[39m[0m → [0m3.15[0m [mm]                         [34m[1mip_ohm[22m[39m[0m → [0m0.513[0m [MA]                    
+[34m[1mPlh[22m[39m[0m → [31mNaN[39m[0m [MW]                         [34m[1mqpol[22m[39m[0m → [0m133[0m [MW/m²]                     [34m[1mejima[22m[39m[0m → [0m0.4                            
+[34m[1mPaux_tot[22m[39m[0m → [0m6[0m [MW]                      [34m[1mqpar[22m[39m[0m → [0m-514[0m [MW/m²]                    [34m[1mflattop[22m[39m[0m → [31mNaN[39m[0m [Hours]                  
+[34m[1mPα[22m[39m[0m → [0m1.74e-05[0m [MW]                     [34m[1mP/R0[22m[39m[0m → [0m3.57[0m [MW/m]                                                            
+[34m[1mPohm[22m[39m[0m → [0m0.139[0m [MW]                      [34m[1mPB/R0[22m[39m[0m → [0m-6.1[0m [MW T/m]                                                         
+[34m[1mPheat[22m[39m[0m → [0m6.14[0m [MW]                      [34m[1mPBp/R0[22m[39m[0m → [0m0.807[0m [MW T/m]                                                       
+[34m[1mPrad_tot[22m[39m[0m → [0m-0.125[0m [MW]                 [34m[1mPBϵ/R0q95[22m[39m[0m → [0m0.457[0m [MW T/m]                                                    
+                                       [34m[1mneutrons_peak[22m[39m[0m → [31mNaN[39m[0m [MW/m²]                                                   
+                                                                                                                     
+[0m[1mBOP                                    [22m[0m[1mBUILD                                  [22m[0m[1mCOSTING                                [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mPfusion[22m[39m[0m → [0m0[0m [MW]                       [34m[1mPF_material[22m[39m[0m → [0mcopper                   [34m[1mcapital_cost[22m[39m[0m → [31mNaN[39m[0m [$B]                
+[34m[1mQfusion[22m[39m[0m → [0m0                            [34m[1mTF_material[22m[39m[0m → [0mcopper                   [34m[1mlevelized_CoE[22m[39m[0m → [31mNaN[39m[0m [$/kWh]            
+[34m[1mthermal_cycle_type[22m[39m[0m → [0mrankine           [34m[1mOH_material[22m[39m[0m → [0mcopper                   [34m[1mTF_of_total[22m[39m[0m → [31mNaN[39m[0m [%]                  
+[34m[1mthermal_efficiency_plant[22m[39m[0m → [31mNaN[39m[0m [%]     [34m[1mTF_max_b[22m[39m[0m → [31mNaN[39m[0m [T]                     [34m[1mBOP_of_total[22m[39m[0m → [31mNaN[39m[0m [%]                 
+[34m[1mthermal_efficiency_cycle[22m[39m[0m → [31mNaN[39m[0m [%]     [34m[1mOH_max_b[22m[39m[0m → [31mNaN[39m[0m [T]                     [34m[1mblanket_of_total[22m[39m[0m → [31mNaN[39m[0m [%]             
+[34m[1mpower_electric_generated[22m[39m[0m → [31mNaN[39m[0m [MW]    [34m[1mTF_j_margin[22m[39m[0m → [31mNaN[39m                      [34m[1mcryostat_of_total[22m[39m[0m → [31mNaN[39m[0m [%]            
+[34m[1mPelectric_net[22m[39m[0m → [31mNaN[39m[0m [MW]               [34m[1mOH_j_margin[22m[39m[0m → [31mNaN[39m                                                             
+[34m[1mQplant[22m[39m[0m → [31mNaN[39m                           [34m[1mTF_stress_margin[22m[39m[0m → [31mNaN[39m                                                        
+[34m[1mTBR[22m[39m[0m → [31mNaN[39m                              [34m[1mOH_stress_margin[22m[39m[0m → [31mNaN[39m</code></pre><h2 id="Operational-limits-(the-stability-NN!)"><a class="docs-heading-anchor" href="#Operational-limits-(the-stability-NN!)">Operational limits (the stability NN!)</a><a id="Operational-limits-(the-stability-NN!)-1"></a><a class="docs-heading-anchor-permalink" href="#Operational-limits-(the-stability-NN!)" title="Permalink"></a></h2><p>Let&#39;s see if our idealized run stays within the no-wall limit with TroyonBetaNN. For each toroidal mode number n=1,2,3 it predicts the no-wall βₙ limit for THIS equilibrium shape and profiles. <code>fraction</code> = βₙ / βₙ_limit, so fraction &lt; 1 means stable.</p><p>TroyonBetaNN is trained by CHEASE and MarsF  [Y.Q. Liu, et al., PPCF (2020)]</p><pre><code class="language-julia hljs">act.ActorPlasmaLimits.models = [:beta_troyon_nn]
+act.ActorPlasmaLimits.verbose = true
+FUSE.ActorPlasmaLimits(dd, act);
+
+</code></pre><pre><code class="nohighlight hljs">[36m[1mactors[22m[39m[0m[1m: [22m[0mPlasmaLimits
+[36m[1mactors[22m[39m[0m[1m: [22m[0m TroyonBetaNN
+
+
+act.ActorPlasmaLimits.models = [:beta_troyon_nn]
+
+Some stability rules satisfy their limit threshold:
+ 64% of: βn &lt; BetaTroyonNN n=1
+ 44% of: βn &lt; BetaTroyonNN n=2
+ 48% of: βn &lt; BetaTroyonNN n=3</code></pre><h2 id="Did-the-transport-solver-converge?"><a class="docs-heading-anchor" href="#Did-the-transport-solver-converge?">Did the transport solver converge?</a><a id="Did-the-transport-solver-converge?-1"></a><a class="docs-heading-anchor-permalink" href="#Did-the-transport-solver-converge?" title="Permalink"></a></h2><pre><code class="language-julia hljs">display(plot(dd.core_transport))
+
+@show dd.transport_solver_numerics.convergence.time_step.data[1]
+
+
+# This is the field we&#39;ll use as a constraint in the optimization to
+# automatically reject unconverged runs:
+
+
+# Save for later comparison:
+file_name = joinpath(@__DIR__, &quot;..&quot;, &quot;runs&quot;, &quot;d3d_single_run.json&quot;)
+
+
+
+IMAS.imas2json(dd, file_name);
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_19_0.png" alt="png"/></p><pre><code class="nohighlight hljs">dd.transport_solver_numerics.convergence.time_step.data[1] = 4.810556065029565e-5</code></pre><h1 id="An-idealized-DIII-D-CMOOP"><a class="docs-heading-anchor" href="#An-idealized-DIII-D-CMOOP">An idealized DIII-D CMOOP</a><a id="An-idealized-DIII-D-CMOOP-1"></a><a class="docs-heading-anchor-permalink" href="#An-idealized-DIII-D-CMOOP" title="Permalink"></a></h1><p>Constrained Multi-Objective Optimization: take the single run from <code>01_d3d_single_run.jl</code>, declare some <code>ini</code> parameters as actuators (with <code>↔</code> ranges), pick objectives and constraints, and let a genetic algorithm (SPEA2) explore the operational space.</p><p>Run with:  julia –project=../FUSE ...or, with a sysimage (make<em>sysimage.jl — currently Linux only, see README):            julia -J ../fuse</em>d3d.so –project=../FUSE The CMOOP workers inherit the sysimage automatically (Distributed spawns them with the master&#39;s julia command) — fast startup, shared image memory.</p><pre><code class="language-julia hljs">using FUSE
+import IMAS
+using Plots
+
+</code></pre><h2 id="Start-from-the-same-idealized-DIII-D"><a class="docs-heading-anchor" href="#Start-from-the-same-idealized-DIII-D">Start from the same idealized DIII-D</a><a id="Start-from-the-same-idealized-DIII-D-1"></a><a class="docs-heading-anchor-permalink" href="#Start-from-the-same-idealized-DIII-D" title="Permalink"></a></h2><pre><code class="language-julia hljs">ini, act = FUSE.case_parameters(:D3D, :default);
+
+# We&#39;re setting up act the same as before:
+act.ActorPedestal.model = :EPED
+act.ActorFluxMatcher.evolve_pedestal = false
+
+# This is the TGLF NN that we use:
+act.ActorTGLF.tglfnn_model = &quot;sat3_em_d3d+mastu+nstx_azf-1&quot;
+act.ActorPlasmaLimits.models = [:beta_troyon_nn]
+act.ActorEquilibrium.model = :TEQUILA
+
+</code></pre><pre><code class="nohighlight hljs">:TEQUILA</code></pre><h2 id="Turn-ini-parameters-into-actuators"><a class="docs-heading-anchor" href="#Turn-ini-parameters-into-actuators">Turn ini parameters into actuators</a><a id="Turn-ini-parameters-into-actuators-1"></a><a class="docs-heading-anchor-permalink" href="#Turn-ini-parameters-into-actuators" title="Permalink"></a></h2><p><code>value ↔ [lower, upper]</code> declares an optimization range; <code>value ↔ (choice1, choice2)</code> declares a categorical choice. Anything with a <code>↔</code> becomes a gene of the optimizer — everything else stays fixed.</p><pre><code class="language-julia hljs"># plasma current
+ini.equilibrium.ip = ini.equilibrium.ip ↔ [0.6E6, 1.5E6]
+
+# heating &amp; current drive: the three beamlines and the gyrotrons
+ini.nb_unit[1].power_launched = ini.nb_unit[1].power_launched ↔ [0.1E6, 3.3E6]  # co
+ini.nb_unit[2].power_launched = ini.nb_unit[2].power_launched ↔ [0.1E6, 3.3E6]  # counter
+ini.nb_unit[3].power_launched = ini.nb_unit[3].power_launched ↔ [0.1E6, 3.3E6]  # off-axis
+ini.ec_launcher[1].power_launched = ini.ec_launcher[1].power_launched ↔ [0.1E6, 4.5E6]
+
+# EC deposition location: aiming is really an act parameter
+# (act.ActorSimpleEC.actuator[].rho_0) and only ini parameters can carry ↔
+# ranges — so the gene rides on ini.ec_launcher[].rho_0 and our custom
+# workflow (cmoop_definitions.jl) maps it onto act before each run
+ini.ec_launcher[1].rho_0 = 0.4 ↔ [0.1, 0.8]
+
+# density and impurities — absolute pedestal density (not Greenwald fraction),
+# kept low to stay clear of the EC cutoff
+ini.core_profiles.ne_setting = :ne_ped
+ini.core_profiles.ne_value = 4.0e19 ↔ [3.5e19, 4.5e19]                        # pedestal density [m⁻³]
+ini.core_profiles.zeff = ini.core_profiles.zeff ↔ [1.5, 3.5]
+ini.core_profiles.impurity = ini.core_profiles.impurity ↔ (:C, :Ne)             # categorical!
+
+# more ideas:
+# ini.core_profiles.ne_sep_to_ped_ratio = ini.core_profiles.ne_sep_to_ped_ratio ↔ [0.15, 0.5]
+
+</code></pre><pre><code class="nohighlight hljs">SimulationParameters.OptParameterChoice{Symbol}(:C, missing, missing, 1, [:C, :Ne])</code></pre><h2 id="Requirements-(used-by-some-constraint-functions)"><a class="docs-heading-anchor" href="#Requirements-(used-by-some-constraint-functions)">Requirements (used by some constraint functions)</a><a id="Requirements-(used-by-some-constraint-functions)-1"></a><a class="docs-heading-anchor-permalink" href="#Requirements-(used-by-some-constraint-functions)" title="Permalink"></a></h2><pre><code class="language-julia hljs">ini.requirements.lh_power_threshold_fraction = 1.0   # stay in H-mode
+
+</code></pre><pre><code class="nohighlight hljs">1.0</code></pre><h2 id="Objectives-and-constraints"><a class="docs-heading-anchor" href="#Objectives-and-constraints">Objectives and constraints</a><a id="Objectives-and-constraints-1"></a><a class="docs-heading-anchor-permalink" href="#Objectives-and-constraints" title="Permalink"></a></h2><p>The custom functions live in cmoop<em>definitions.jl — open it! It defines: max</em>prad, max<em>βn, max</em>fni and the stable<em>troyon</em>nn constraint.</p><pre><code class="language-julia hljs"># (these definitions also live in cmoop_definitions.jl — that&#39;s the file the
+#  CMOOP workers load, so keep the two in sync if you edit them here)
+
+# Custom objective &amp; constraint functions for the DIII-D CMOOP
+#
+# The stock libraries (IMAS.ObjectiveFunctionsLibrary / ConstraintFunctionsLibrary)
+# are just collections of functions of `dd` — none of them talk about radiation
+# or non-inductive fraction, so we define our own. Constructing an
+# ObjectiveFunction/ConstraintFunction registers it in the library.
+#
+# NOTE: this file is `include`d on the master AND on every worker
+# (via `@everywhere`) so that the workers can also evaluate these
+# functions when building the results database.
+
+import FUSE
+import IMAS
+
+# What the optimizer runs for every individual.
+# DIII-D already exists, so no ActorWholeFacility (sizing, blanket, costing...):
+# just the self-consistent stationary plasma + the operational limit models.
+function d3d_stationary_workflow(ini::FUSE.ParametersAllInits, act::FUSE.ParametersAllActors)
+    # act parameters are not scanned for ↔ optimization ranges — so the EC
+    # aiming gene rides on ini (ini.ec_launcher[].rho_0) and we map it onto
+    # the act-side actuator here, before running the actors
+    for k in 1:min(length(ini.ec_launcher), length(act.ActorSimpleEC.actuator))
+        if !ismissing(ini.ec_launcher[k], :rho_0)
+            act.ActorSimpleEC.actuator[k].rho_0 = ini.ec_launcher[k].rho_0
+        end
+    end
+    dd = IMAS.dd()
+    FUSE.init(dd, ini, act)
+    FUSE.ActorEquilibrium(dd,act;ip_from=:pulse_schedule);
+    # the input ODS carried in ini.general.dd was only needed by init —
+    # drop it so the per-case ini saved in the database is small and serializable
+    ini.general.dd = missing
+    FUSE.ActorStationaryPlasma(dd, act)
+    FUSE.ActorPlasmaLimits(dd, act)
+    return dd
+end
+
+IMAS.update_ObjectiveFunctionsLibrary!()
+IMAS.update_ConstraintFunctionsLibrary!()
+
+# maximize radiated power (radiative divertor operation)
+# NB: IMAS convention — radiation sources are sinks, radiation_losses() &lt; 0,
+#     so the radiated power in positive MW is -radiation_losses()
+IMAS.ObjectiveFunction(:max_prad, &quot;MW&quot;,
+    dd -&gt; -IMAS.radiation_losses(dd.core_sources) / 1E6,
+    Inf)
+
+# maximize normalized beta (performance)
+IMAS.ObjectiveFunction(:max_βn, &quot;-&quot;,
+    dd -&gt; dd.equilibrium.time_slice[].global_quantities.beta_normal,
+    Inf)
+
+# maximize the non-inductive current fraction (steady-state operation)
+IMAS.ObjectiveFunction(:max_fni, &quot;-&quot;,
+    dd -&gt; IMAS.@ddtime(dd.summary.global_quantities.current_non_inductive.value) /
+          dd.equilibrium.time_slice[].global_quantities.ip,
+    Inf)
+
+# constraint: stay below the TroyonBetaNN no-wall βₙ limit (n=1,2,3).
+# The stability NN runs in ActorPlasmaLimits (part of our workflow below) and
+# stores fraction = βₙ / βₙ_limit in dd.limits — we require the worst mode &lt; 1
+IMAS.ConstraintFunction(:stable_troyon_nn, &quot;-&quot;,
+    dd -&gt; maximum([IMAS.@ddtime(model.fraction) for model in dd.limits.model if startswith(model.identifier.name, &quot;BetaTroyonNN&quot;)]; init=0.0),
+    &lt;, 1.0)
+
+</code></pre><pre><code class="nohighlight hljs">[34m[1mstable_troyon_nn[22m[39m &lt; 1.0 [-]</code></pre><pre><code class="language-julia hljs">OFL = deepcopy(IMAS.ObjectiveFunctionsLibrary)
+CFL = deepcopy(IMAS.ConstraintFunctionsLibrary)
+
+# pick your fight — 2 objectives make a nice 2D Pareto front to look at
+objective_functions = [OFL[:max_βn], OFL[:max_prad]]
+# ... or: [OFL[:max_βn], OFL[:max_fni]], [OFL[:max_prad], OFL[:max_fni]], ...
+
+constraint_functions = [
+    CFL[:max_transport_error],             # transport solver must have converged
+    CFL[:min_lh_power_threshold_fraction], # enough power over the separatrix to stay in H-mode
+    CFL[:stable_troyon_nn],                # below the NN no-wall beta limit
+]
+
+println(&quot;== ACTUATORS ==&quot;)
+display(FUSE.SimulationParameters.opt_parameters(ini))
+println(&quot;\n== OBJECTIVE FUNCTIONS ==&quot;)
+display(objective_functions)
+println(&quot;\n== CONSTRAINT FUNCTIONS ==&quot;)
+display(constraint_functions)
+</code></pre><pre><code class="nohighlight hljs">== ACTUATORS ==
+
+
+
+9-element Vector{SimulationParameters.AbstractParameter}:
+ [34m[1mini.equilibrium.ip[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0mA
+[0m[1m- description: [22m[0mPlasma current (toroidal component). Positive sign means anti-clockwise when viewed from above.
+[0m[1m- value: [22m[0m1.08374265e6
+[0m[1m- base: [22m[0m1.08374265e6
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(1.08374265e6, 600000.0, 1.5e6, 1, missing)
+[0m[1m- check: [22m[0mnothing
+ [31m[1mini.core_profiles.ne_value[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0m-
+[0m[1m- description: [22m[0mValue based on setup method
+[0m[1m- value: [22m[0m4.0e19
+[0m[1m- base: [22m[0m0.5625
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(4.0e19, 3.5e19, 4.5e19, 1, missing)
+[0m[1m- check: [22m[0m#284
+ [34m[1mini.core_profiles.zeff[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0m-
+[0m[1m- description: [22m[0mEffective ion charge
+[0m[1m- value: [22m[0m2.0
+[0m[1m- base: [22m[0m2.0
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(2.0, 1.5, 3.5, 1, missing)
+[0m[1m- check: [22m[0m#298
+ [34m[1mini.core_profiles.impurity[22m[39m
+[0m[1m- type: [22m[0mSymbol
+[0m[1m- units: [22m[0m-
+[0m[1m- description: [22m[0mSeeding impurity ion species (fraction calculated to match zeff given wall_impurity)
+[0m[1m- value: [22m[0mC
+[0m[1m- base: [22m[0mC
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterChoice{Symbol}(:C, missing, missing, 1, [:C, :Ne])
+[0m[1m- check: [22m[0mnothing
+ [34m[1mini.nb_unit[1].power_launched[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0mW
+[0m[1m- description: [22m[0mBeam power
+[0m[1m- value: [22m[0m1.0e6
+[0m[1m- base: [22m[0m1.0e6
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(1.0e6, 100000.0, 3.3e6, 1, missing)
+[0m[1m- check: [22m[0m#370
+ [34m[1mini.nb_unit[2].power_launched[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0mW
+[0m[1m- description: [22m[0mBeam power
+[0m[1m- value: [22m[0m1.0e6
+[0m[1m- base: [22m[0m1.0e6
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(1.0e6, 100000.0, 3.3e6, 1, missing)
+[0m[1m- check: [22m[0m#370
+ [34m[1mini.nb_unit[3].power_launched[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0mW
+[0m[1m- description: [22m[0mBeam power
+[0m[1m- value: [22m[0m1.0e6
+[0m[1m- base: [22m[0m1.0e6
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(1.0e6, 100000.0, 3.3e6, 1, missing)
+[0m[1m- check: [22m[0m#370
+ [34m[1mini.ec_launcher[1].power_launched[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0mW
+[0m[1m- description: [22m[0mEC launched power
+[0m[1m- value: [22m[0m3.0e6
+[0m[1m- base: [22m[0m3.0e6
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(3.0e6, 100000.0, 4.5e6, 1, missing)
+[0m[1m- check: [22m[0m#416
+ [31m[1mini.ec_launcher[1].rho_0[22m[39m
+[0m[1m- type: [22m[0mFloat64
+[0m[1m- units: [22m[0m-
+[0m[1m- description: [22m[0mDesired radial location of the EC deposition (used by ActorSimpleEC)
+[0m[1m- value: [22m[0m0.4
+[0m[1m- base: [22m[0mmissing
+[0m[1m- default: [22m[0mmissing
+[0m[1m- opt: [22m[0mSimulationParameters.OptParameterRange{Float64}(0.4, 0.1, 0.8, 1, missing)
+[0m[1m- check: [22m[0m#418
+
+
+
+== OBJECTIVE FUNCTIONS ==
+
+
+
+2-element Vector{IMAS.ObjectiveFunction}:
+ [34m[1mmax_βn[22m[39m → Inf [-]
+ [34m[1mmax_prad[22m[39m → Inf [MW]
+
+
+
+== CONSTRAINT FUNCTIONS ==
+
+
+
+3-element Vector{IMAS.ConstraintFunction}:
+ [34m[1mmax_transport_error[22m[39m &lt; 0.1 []
+ [34m[1mmin_lh_power_threshold_fraction[22m[39m &gt; 1.0 [%]
+ [34m[1mstable_troyon_nn[22m[39m &lt; 1.0 [-]</code></pre><h2 id="Setup-the-study"><a class="docs-heading-anchor" href="#Setup-the-study">Setup the study</a><a id="Setup-the-study-1"></a><a class="docs-heading-anchor-permalink" href="#Setup-the-study" title="Permalink"></a></h2><p><code>sty</code> is to a study what <code>act</code> is to an actor</p><pre><code class="language-julia hljs">sty = FUSE.study_parameters(:MultiObjectiveOptimizer);
+
+sty.server = &quot;localhost&quot;    # or saga / omega / nersc ...
+sty.n_workers = 4           # ~2-3 GB RAM each — don&#39;t oversubscribe your laptop
+sty.save_folder = joinpath(@__DIR__, &quot;..&quot;, &quot;runs&quot;, &quot;d3d_cmoop__summerschool&quot;)
+mkpath(sty.save_folder)
+# note: the default sty.file_save_mode = :safe_write requires an EMPTY folder —
+# when re-running, point to a fresh folder (or set sty.file_save_mode = :append)
+
+# workshop scale — enough to see the optimizer move (~15 min on a laptop).
+# For a real study: population_size ≈ 300, number_of_generations ≈ 100, on a cluster.
+sty.population_size = 8          # must be even
+sty.number_of_generations = 3
+
+</code></pre><pre><code class="nohighlight hljs">3</code></pre><h2 id="Run-it-(commented-out-for-the-demo)"><a class="docs-heading-anchor" href="#Run-it-(commented-out-for-the-demo)">Run it (commented out for the demo)</a><a id="Run-it-(commented-out-for-the-demo)-1"></a><a class="docs-heading-anchor-permalink" href="#Run-it-(commented-out-for-the-demo)" title="Permalink"></a></h2><pre><code class="language-julia hljs"># study = FUSE.StudyMultiObjectiveOptimizer(sty, ini, act, constraint_functions, objective_functions);
+
+# # what each individual runs: init → ActorStationaryPlasma → ActorPlasmaLimits
+# # (defined in cmoop_definitions.jl; the default would be ActorWholeFacility)
+# study.workflow = d3d_stationary_workflow
+
+# # distributed computing: code must exist on every worker, not just here
+# using Distributed
+# @everywhere import FUSE
+# @everywhere import IMAS
+# @everywhere include($(joinpath(@__DIR__, &quot;cmoop_definitions.jl&quot;)))
+
+# FUSE.run(study);
+
+</code></pre><h1 id="Analyzing-the-DIII-D-CMOOP-results"><a class="docs-heading-anchor" href="#Analyzing-the-DIII-D-CMOOP-results">Analyzing the DIII-D CMOOP results</a><a id="Analyzing-the-DIII-D-CMOOP-results-1"></a><a class="docs-heading-anchor-permalink" href="#Analyzing-the-DIII-D-CMOOP-results" title="Permalink"></a></h1><p>The study left us a database: every individual the genetic algorithm tried is one row in extract.csv (plus the full dd&#39;s in database.h5). This is the same kind of database that powers fuseexplorer.com — there it&#39;s ~10⁵ power-plant runs from NERSC, here it&#39;s our workshop-sized DIII-D scan.</p><p>Run with:  julia –project=../FUSE</p><pre><code class="language-julia hljs">using CSV
+using DataFrames
+using Statistics
+using Plots
+import FUSE
+import IMAS
+
+folder = joinpath(@__DIR__, &quot;..&quot;, &quot;runs&quot;, &quot;d3d_cmoop_summerschool&quot;)
+df = CSV.read(joinpath(folder, &quot;extract.csv&quot;), DataFrame)
+
+# figures get saved alongside the study results
+figdir = joinpath(folder, &quot;figures&quot;)
+mkpath(figdir)
+
+println(&quot;total runs:  &quot;, nrow(df))
+println(&quot;successful:  &quot;, sum(df.status .== &quot;success&quot;))
+println(&quot;median time: &quot;, round(median(skipmissing(df.elapsed_time)); digits=1), &quot; s / run&quot;)
+
+</code></pre><pre><code class="nohighlight hljs">total runs:  40
+successful:  33
+median time: 6.2 s / run</code></pre><h2 id="Feasibility"><a class="docs-heading-anchor" href="#Feasibility">Feasibility</a><a id="Feasibility-1"></a><a class="docs-heading-anchor-permalink" href="#Feasibility" title="Permalink"></a></h2><p>Constraint columns hold the constraint &quot;cost&quot;: 0.0 = satisfied.</p><pre><code class="language-julia hljs">constraints = [:max_transport_error, :min_lh_power_threshold_fraction, :stable_troyon_nn]
+ok = df.status .== &quot;success&quot;
+for c in constraints
+    ok .&amp;= coalesce.(df[!, c] .== 0.0, false)
+    println(rpad(c, 35), &quot; pass: &quot;, sum(coalesce.(df[!, c] .== 0.0, false)), &quot;/&quot;, nrow(df))
+end
+feasible = df[ok, :]
+infeasible = df[.!ok, :]
+println(&quot;feasible: &quot;, nrow(feasible), &quot;/&quot;, nrow(df))
+
+</code></pre><pre><code class="nohighlight hljs">max_transport_error                 pass: 32/40
+min_lh_power_threshold_fraction     pass: 31/40
+stable_troyon_nn                    pass: 30/40
+feasible: 28/40</code></pre><h2 id="The-objective-space"><a class="docs-heading-anchor" href="#The-objective-space">The objective space</a><a id="The-objective-space-1"></a><a class="docs-heading-anchor-permalink" href="#The-objective-space" title="Permalink"></a></h2><p>Feasible points colored by generation — watch the optimizer walk towards the Pareto front:</p><pre><code class="language-julia hljs"># NB: extract&#39;s Prad_tot follows the IMAS sink convention (negative) —
+# flip the sign to plot radiated power in positive MW
+p = scatter(infeasible.βn, -infeasible.Prad_tot;
+    color=:lightgray, label=&quot;infeasible&quot;, xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;)
+scatter!(p, feasible.βn, -feasible.Prad_tot;
+    zcolor=feasible.gen, colorbar_title=&quot;generation&quot;, label=&quot;feasible&quot;)
+display(p)
+savefig(p, joinpath(figdir, &quot;objective_space_by_generation.png&quot;))
+
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_40_0.png" alt="png"/></p><pre><code class="nohighlight hljs">&quot;/Users/tims/d3dsummerschool/runs/d3d_cmoop_summerschool/figures/objective_space_by_generation.png&quot;</code></pre><h2 id="The-Pareto-front"><a class="docs-heading-anchor" href="#The-Pareto-front">The Pareto front</a><a id="The-Pareto-front-1"></a><a class="docs-heading-anchor-permalink" href="#The-Pareto-front" title="Permalink"></a></h2><p>FUSE.pareto_front expects &quot;smaller is better&quot;, so negate what we maximize:</p><pre><code class="language-julia hljs"># maximize βₙ and maximize radiated power (= minimize the negative Prad_tot)
+solutions = [[-row.βn, row.Prad_tot] for row in eachrow(feasible)]
+ipareto = FUSE.pareto_front(solutions)
+front = sort(feasible[ipareto, :], :βn)
+
+p = scatter(feasible.βn, -feasible.Prad_tot; color=:lightgray, label=&quot;feasible&quot;, xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;)
+plot!(p, front.βn, -front.Prad_tot; marker=:circle, lw=2, color=:crimson, label=&quot;Pareto front&quot;)
+display(p)
+savefig(p, joinpath(figdir, &quot;pareto_front.png&quot;))
+
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_42_0.png" alt="png"/></p><pre><code class="nohighlight hljs">&quot;/Users/tims/d3dsummerschool/runs/d3d_cmoop_summerschool/figures/pareto_front.png&quot;</code></pre><h2 id="How-did-it-get-there?-Look-at-the-actuators"><a class="docs-heading-anchor" href="#How-did-it-get-there?-Look-at-the-actuators">How did it get there? Look at the actuators</a><a id="How-did-it-get-there?-Look-at-the-actuators-1"></a><a class="docs-heading-anchor-permalink" href="#How-did-it-get-there?-Look-at-the-actuators" title="Permalink"></a></h2><p>Color the objective space by the knobs — this is where discoveries happen:</p><pre><code class="language-julia hljs"># colorbars clamped to the ranges we gave the optimizer
+knob_ranges = [
+    :Paux_tot =&gt; (0.4, 14.4),   # sum of the power gene bounds [MW]
+    :ip =&gt; (0.6, 1.5),          # [MA]
+    :zeff_ped =&gt; (1.5, 3.5),
+]
+for (knob, cl) in knob_ranges
+    if String(knob) in names(feasible)
+        local p = scatter(feasible.βn, -feasible.Prad_tot;
+            zcolor=feasible[!, knob], clims=cl, colorbar_title=string(knob),
+            xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;, label=&quot;&quot;)
+        display(p)
+        savefig(p, joinpath(figdir, &quot;objective_space_by_$(knob).png&quot;))
+    end
+end
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_44_0.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_44_1.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_44_2.png" alt="png"/></p><h2 id="Which-knobs-got-us-here?-Recover-the-genes"><a class="docs-heading-anchor" href="#Which-knobs-got-us-here?-Recover-the-genes">Which knobs got us here? Recover the genes</a><a id="Which-knobs-got-us-here?-Recover-the-genes-1"></a><a class="docs-heading-anchor-permalink" href="#Which-knobs-got-us-here?-Recover-the-genes" title="Permalink"></a></h2><p>The colorings above used <em>outputs</em> that mirror knobs. But the actual gene values (e.g. the EC aiming ρ₀ — invisible in the outputs) live in each case&#39;s stored <code>ini</code>. The database keeps everything: dd, ini, act, logs.</p><pre><code class="language-julia hljs">db = FUSE.load_study_database(joinpath(folder, &quot;database.h5&quot;), String.(feasible.gparent); pattern=r&quot;ini&quot;)
+rho0 = [item.ini.ec_launcher[1].rho_0 for item in db.items]
+p = scatter(feasible.βn, -feasible.Prad_tot;
+    zcolor=rho0, clims=(0.1, 0.8), colorbar_title=&quot;EC deposition ρ₀&quot;,
+    xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;, label=&quot;&quot;)
+display(p)
+savefig(p, joinpath(figdir, &quot;objective_space_by_ec_rho0.png&quot;))
+
+# ...and the categorical gene: which impurity did the optimizer pick where?
+imp = [string(item.ini.core_profiles.impurity) for item in db.items]
+p = plot(; xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;)
+for (species, color) in ((&quot;C&quot;, :royalblue), (&quot;Ne&quot;, :darkorange))
+    sel = imp .== species
+    scatter!(p, feasible.βn[sel], -feasible.Prad_tot[sel]; color, label=&quot;impurity: $species&quot;)
+end
+display(p)
+savefig(p, joinpath(figdir, &quot;objective_space_by_impurity.png&quot;))
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_46_0.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_46_1.png" alt="png"/></p><pre><code class="nohighlight hljs">&quot;/Users/tims/d3dsummerschool/runs/d3d_cmoop_summerschool/figures/objective_space_by_impurity.png&quot;</code></pre><h2 id="Deep-dive-a-single-individual"><a class="docs-heading-anchor" href="#Deep-dive-a-single-individual">Deep-dive a single individual</a><a id="Deep-dive-a-single-individual-1"></a><a class="docs-heading-anchor-permalink" href="#Deep-dive-a-single-individual" title="Permalink"></a></h2><p>Pick a Pareto-front point and reload the entire simulation:</p><pre><code class="language-julia hljs">best = front[end, :]   # highest βₙ on the front
+println(&quot;best individual: &quot;, best.gparent)
+db1 = FUSE.load_study_database(joinpath(folder, &quot;database.h5&quot;), String(best.gparent))
+dd_best = db1.items[1].dd
+
+p = plot(dd_best.equilibrium)
+display(p)
+savefig(p, joinpath(figdir, &quot;best_equilibrium.png&quot;))
+
+p = plot(dd_best.core_profiles)
+display(p)
+savefig(p, joinpath(figdir, &quot;best_core_profiles.png&quot;))
+
+p = plot(dd_best.core_sources)
+display(p)
+savefig(p, joinpath(figdir, &quot;best_core_sources.png&quot;))
+
+IMAS.extract(dd_best)
+</code></pre><pre><code class="nohighlight hljs">best individual: /gen3/case13</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_48_1.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_48_2.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_48_3.png" alt="png"/></p><pre><code class="nohighlight hljs">[0m[1mGEOMETRY                               [22m[0m[1mEQUILIBRIUM                            [22m[0m[1mTEMPERATURES                           [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mR0[22m[39m[0m → [0m1.67[0m [m]                          [34m[1mB0[22m[39m[0m → [0m-1.71[0m [T]                         [34m[1mTe0[22m[39m[0m → [0m2.35[0m [keV]                       
+[34m[1ma[22m[39m[0m → [0m0.599[0m [m]                          [34m[1mip[22m[39m[0m → [0m0.836[0m [MA]                        [34m[1mTi0[22m[39m[0m → [0m2.89[0m [keV]                       
+[34m[1m1/ϵ[22m[39m[0m → [0m2.78                             [34m[1mq95[22m[39m[0m → [0m-5.95                            [34m[1m&lt;Te&gt;[22m[39m[0m → [0m1.19[0m [keV]                      
+[34m[1mκ[22m[39m[0m → [0m1.79                               [34m[1m&lt;Bpol&gt;[22m[39m[0m → [0m0.192[0m [T]                     [34m[1m&lt;Ti&gt;[22m[39m[0m → [0m1.28[0m [keV]                      
+[34m[1mδ[22m[39m[0m → [0m0.372                              [34m[1mβpol_MHD[22m[39m[0m → [0m1.74                        [34m[1mTe0/&lt;Te&gt;[22m[39m[0m → [0m1.97                        
+[34m[1mζ[22m[39m[0m → [0m-0.121                             [34m[1mβtor_MHD[22m[39m[0m → [0m0.0234                      [34m[1mTi0/&lt;Ti&gt;[22m[39m[0m → [0m2.25                        
+[34m[1mVolume[22m[39m[0m → [0m18.9[0m [m³]                     [34m[1mβn_MHD[22m[39m[0m → [0m2.84                                                                 
+[34m[1mSurface[22m[39m[0m → [0m53.7[0m [m²]                                                                                                  
+                                                                                                                     
+[0m[1mDENSITIES                              [22m[0m[1mPRESSURES                              [22m[0m[1mTRANSPORT                              [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mne0[22m[39m[0m → [0m7.88e+19[0m [m⁻³]                   [34m[1mP0[22m[39m[0m → [0m0.07[0m [MPa]                        [34m[1mτe[22m[39m[0m → [0m0.0761[0m [s]                        
+[34m[1mne_ped[22m[39m[0m → [0m4.09e+19[0m [m⁻³]                [34m[1m&lt;P&gt;[22m[39m[0m → [0m0.027[0m [MPa]                      [34m[1mτe_exp[22m[39m[0m → [0m0.0747[0m [s]                    
+[34m[1mne_line[22m[39m[0m → [0m5.8e+19[0m [m⁻³]                [34m[1mP0/&lt;P&gt;[22m[39m[0m → [0m2.59                          [34m[1mH98y2[22m[39m[0m → [0m1.13                           
+[34m[1m&lt;ne&gt;[22m[39m[0m → [0m4.93e+19[0m [m⁻³]                  [34m[1mβn[22m[39m[0m → [0m2.85                              [34m[1mH98y2_exp[22m[39m[0m → [0m1.13                       
+[34m[1mne0/&lt;ne&gt;[22m[39m[0m → [0m1.6                         [34m[1mβn_th[22m[39m[0m → [0m2.08                           [34m[1mHds03[22m[39m[0m → [0m1.08                           
+[34m[1mfGW[22m[39m[0m → [0m0.781                                                                   [34m[1mHds03_exp[22m[39m[0m → [0m1.07                       
+[34m[1mzeff_ped[22m[39m[0m → [0m2                                                                  [34m[1mτα_thermalization[22m[39m[0m → [0m0.107[0m [s]          
+[34m[1m&lt;zeff&gt;[22m[39m[0m → [0m2                                                                    [34m[1mτα_slowing_down[22m[39m[0m → [0m0.0575[0m [s]           
+[34m[1mimpurities[22m[39m[0m → [0mD C12                                                                                                   
+                                                                                                                     
+[0m[1mSOURCES                                [22m[0m[1mEXHAUST                                [22m[0m[1mCURRENTS                               [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mPec[22m[39m[0m → [0m0.397[0m [MW]                       [34m[1mPsol[22m[39m[0m → [0m7.36[0m [MW]                       [34m[1mip_bs_aux_ohm[22m[39m[0m → [0m0.846[0m [MA]             
+[34m[1mrho0_ec[22m[39m[0m → [0m0.22[0m [MW]                    [34m[1mPLH[22m[39m[0m → [0m2.15[0m [MW]                        [34m[1mip_ni[22m[39m[0m → [0m0.396[0m [MA]                     
+[34m[1mPnbi[22m[39m[0m → [0m7.12[0m [MW]                       [34m[1mPLH_FUSE[22m[39m[0m → [0m4.26[0m [MW]                   [34m[1mip_bs[22m[39m[0m → [0m0.353[0m [MA]                     
+[34m[1mEnbi1[22m[39m[0m → [0m0.08[0m [MeV]                     [34m[1mBpol_omp[22m[39m[0m → [0m0.301[0m [T]                   [34m[1mip_aux[22m[39m[0m → [0m0.0425[0m [MA]                   
+[34m[1mPic[22m[39m[0m → [31mNaN[39m[0m [MW]                         [34m[1mλq[22m[39m[0m → [0m3.47[0m [mm]                         [34m[1mip_ohm[22m[39m[0m → [0m0.45[0m [MA]                     
+[34m[1mPlh[22m[39m[0m → [31mNaN[39m[0m [MW]                         [34m[1mqpol[22m[39m[0m → [0m149[0m [MW/m²]                     [34m[1mejima[22m[39m[0m → [0m0.4                            
+[34m[1mPaux_tot[22m[39m[0m → [0m7.52[0m [MW]                   [34m[1mqpar[22m[39m[0m → [0m-641[0m [MW/m²]                    [34m[1mflattop[22m[39m[0m → [31mNaN[39m[0m [Hours]                  
+[34m[1mPα[22m[39m[0m → [0m4.24e-05[0m [MW]                     [34m[1mP/R0[22m[39m[0m → [0m4.41[0m [MW/m]                                                            
+[34m[1mPohm[22m[39m[0m → [0m0.121[0m [MW]                      [34m[1mPB/R0[22m[39m[0m → [0m-7.54[0m [MW T/m]                                                        
+[34m[1mPheat[22m[39m[0m → [0m7.64[0m [MW]                      [34m[1mPBp/R0[22m[39m[0m → [0m0.849[0m [MW T/m]                                                       
+[34m[1mPrad_tot[22m[39m[0m → [0m-0.136[0m [MW]                 [34m[1mPBϵ/R0q95[22m[39m[0m → [0m0.456[0m [MW T/m]                                                    
+                                       [34m[1mneutrons_peak[22m[39m[0m → [31mNaN[39m[0m [MW/m²]                                                   
+                                                                                                                     
+[0m[1mBOP                                    [22m[0m[1mBUILD                                  [22m[0m[1mCOSTING                                [22m
+───────────────────────────────────    ───────────────────────────────────    ───────────────────────────────────    
+[34m[1mPfusion[22m[39m[0m → [0m0[0m [MW]                       [34m[1mPF_material[22m[39m[0m → [0mcopper                   [34m[1mcapital_cost[22m[39m[0m → [31mNaN[39m[0m [$B]                
+[34m[1mQfusion[22m[39m[0m → [0m0                            [34m[1mTF_material[22m[39m[0m → [0mcopper                   [34m[1mlevelized_CoE[22m[39m[0m → [31mNaN[39m[0m [$/kWh]            
+[34m[1mthermal_cycle_type[22m[39m[0m → [0mrankine           [34m[1mOH_material[22m[39m[0m → [0mcopper                   [34m[1mTF_of_total[22m[39m[0m → [31mNaN[39m[0m [%]                  
+[34m[1mthermal_efficiency_plant[22m[39m[0m → [31mNaN[39m[0m [%]     [34m[1mTF_max_b[22m[39m[0m → [31mNaN[39m[0m [T]                     [34m[1mBOP_of_total[22m[39m[0m → [31mNaN[39m[0m [%]                 
+[34m[1mthermal_efficiency_cycle[22m[39m[0m → [31mNaN[39m[0m [%]     [34m[1mOH_max_b[22m[39m[0m → [31mNaN[39m[0m [T]                     [34m[1mblanket_of_total[22m[39m[0m → [31mNaN[39m[0m [%]             
+[34m[1mpower_electric_generated[22m[39m[0m → [31mNaN[39m[0m [MW]    [34m[1mTF_j_margin[22m[39m[0m → [31mNaN[39m                      [34m[1mcryostat_of_total[22m[39m[0m → [31mNaN[39m[0m [%]            
+[34m[1mPelectric_net[22m[39m[0m → [31mNaN[39m[0m [MW]               [34m[1mOH_j_margin[22m[39m[0m → [31mNaN[39m                                                             
+[34m[1mQplant[22m[39m[0m → [31mNaN[39m                           [34m[1mTF_stress_margin[22m[39m[0m → [31mNaN[39m                                                        
+[34m[1mTBR[22m[39m[0m → [31mNaN[39m                              [34m[1mOH_stress_margin[22m[39m[0m → [31mNaN[39m</code></pre><h1 id="The-audience-challenge:-beat-the-optimizer!"><a class="docs-heading-anchor" href="#The-audience-challenge:-beat-the-optimizer!">The audience challenge: beat the optimizer!</a><a id="The-audience-challenge:-beat-the-optimizer!-1"></a><a class="docs-heading-anchor-permalink" href="#The-audience-challenge:-beat-the-optimizer!" title="Permalink"></a></h1><p>Pick the actuators yourself — inside the same ranges the optimizer had — and let&#39;s see where YOUR shot lands in the objective space.</p><p>Run with:  julia –project=../FUSE</p><pre><code class="language-julia hljs">using Plots
+using CSV
+using DataFrames
+using FUSE
+import IMAS
+
+include(joinpath(@__DIR__, &quot;cmoop_definitions.jl&quot;))
+
+</code></pre><pre><code class="nohighlight hljs">[34m[1mstable_troyon_nn[22m[39m &lt; 1.0 [-]</code></pre><h2 id="Your-shot-—-pick-values-inside-the-optimizer&#39;s-ranges!"><a class="docs-heading-anchor" href="#Your-shot-—-pick-values-inside-the-optimizer&#39;s-ranges!">Your shot — pick values inside the optimizer&#39;s ranges!</a><a id="Your-shot-—-pick-values-inside-the-optimizer&#39;s-ranges!-1"></a><a class="docs-heading-anchor-permalink" href="#Your-shot-—-pick-values-inside-the-optimizer&#39;s-ranges!" title="Permalink"></a></h2><pre><code class="language-julia hljs">ip       = 1.1E6      # plasma current [A]           range: [0.6E6, 1.5E6]
+Pnbi_co  = 2.0E6      # co-current beam [W]          range: [0.1E6, 3.3E6]
+Pnbi_ctr = 0.5E6      # counter-current beam [W]     range: [0.1E6, 3.3E6]
+Pnbi_off = 1.0E6      # off-axis beam [W]            range: [0.1E6, 3.3E6]
+Pec      = 3.0E6      # gyrotron power [W]           range: [0.1E6, 4.5E6]
+ec_rho0  = 0.3        # EC deposition location ρ     range: [0.1, 0.8]
+ne_ped   = 4.0e19     # pedestal density [m⁻³]       range: [3.5e19, 4.5e19]
+zeff     = 2.0        # effective charge             range: [1.5, 3.5]
+impurity = :C         # seeding impurity             choices: :C or :Ne
+# (warning: dumping ALL the power into a low-current plasma is a good way
+#  to disrupt — see note below)</code></pre><pre><code class="nohighlight hljs">:C</code></pre><h2 id="Set-up-the-same-idealized-DIII-D-the-optimizer-used"><a class="docs-heading-anchor" href="#Set-up-the-same-idealized-DIII-D-the-optimizer-used">Set up the same idealized DIII-D the optimizer used</a><a id="Set-up-the-same-idealized-DIII-D-the-optimizer-used-1"></a><a class="docs-heading-anchor-permalink" href="#Set-up-the-same-idealized-DIII-D-the-optimizer-used" title="Permalink"></a></h2><pre><code class="language-julia hljs">ini, act = FUSE.case_parameters(:D3D, :default);
+
+act.ActorPedestal.model = :EPED
+act.ActorFluxMatcher.evolve_pedestal = false
+act.ActorStationaryPlasma.max_iterations = 3
+act.ActorPlasmaLimits.models = [:beta_troyon_nn]
+act.ActorEquilibrium.model = :TEQUILA
+act.ActorTGLF.tglfnn_model = &quot;sat3_em_d3d+mastu+nstx_azf-1&quot;
+
+act.ActorStationaryPlasma.verbose = true
+
+ini.equilibrium.ip = ip
+ini.nb_unit[1].power_launched = Pnbi_co
+ini.nb_unit[2].power_launched = Pnbi_ctr
+ini.nb_unit[3].power_launched = Pnbi_off
+ini.ec_launcher[1].power_launched = Pec
+ini.ec_launcher[1].rho_0 = ec_rho0
+ini.core_profiles.ne_setting = :ne_ped
+ini.core_profiles.ne_value = ne_ped
+ini.core_profiles.zeff = zeff
+ini.core_profiles.impurity = impurity
+ini.requirements.lh_power_threshold_fraction = 1.0
+
+</code></pre><pre><code class="nohighlight hljs">1.0</code></pre><h2 id="Run-it-—-exactly-what-the-optimizer-runs-for-every-individual-(2-min)"><a class="docs-heading-anchor" href="#Run-it-—-exactly-what-the-optimizer-runs-for-every-individual-(2-min)">Run it — exactly what the optimizer runs for every individual (~2 min)</a><a id="Run-it-—-exactly-what-the-optimizer-runs-for-every-individual-(2-min)-1"></a><a class="docs-heading-anchor-permalink" href="#Run-it-—-exactly-what-the-optimizer-runs-for-every-individual-(2-min)" title="Permalink"></a></h2><p>NB: extreme picks (all the power into the lowest density...) can crash the simulation — congratulations, you disrupted the plasma! Pick again ;) (the optimizer hits these corners too — those individuals just get marked  as failed and it moves on)</p><pre><code class="language-julia hljs">dd = d3d_stationary_workflow(ini, act);
+
+</code></pre><pre><code class="nohighlight hljs">[32mProgress: 100%|███████████████████████████| Time: 0:01:09 ( 2.68  s/it)[39m
+[34m            iteration (min 2): 3/3[39m
+[34m   required convergence error: 0.05[39m
+[34m          convergence history: [0.10338815417441714, 0.15765097572780387, 0.26937162755320804][39m
+[34m                        stage: N/A[39m
+[34m                      Ip [MA]: 1.082727696093039[39m
+[34m                    Ti0 [keV]: 1.5256322533190432[39m
+[34m                    Te0 [keV]: 1.5935779957609266[39m
+[34m               ne0 [10²⁰ m⁻³]: 0.6222401316601909[39m
+[34m                    max(zeff): 1.9971016770851704[39m
+[34m                  ω0 [krad/s]: 60.0[39m
+[36m[1mactors[22m[39m[0m[1m: [22m[0mPlasmaLimits
+[36m[1mactors[22m[39m[0m[1m: [22m[0m TroyonBetaNN</code></pre><h2 id="Where-did-you-land?"><a class="docs-heading-anchor" href="#Where-did-you-land?">Where did you land?</a><a id="Where-did-you-land?-1"></a><a class="docs-heading-anchor-permalink" href="#Where-did-you-land?" title="Permalink"></a></h2><pre><code class="language-julia hljs">βn_you = dd.equilibrium.time_slice[].global_quantities.beta_normal
+prad_you = -IMAS.radiation_losses(dd.core_sources) / 1E6
+
+troyon_you = maximum([IMAS.@ddtime(model.fraction) for model in dd.limits.model if startswith(model.identifier.name, &quot;BetaTroyonNN&quot;)]; init=0.0)
+transport_error_you = IMAS.@ddtime(dd.transport_solver_numerics.convergence.time_step.data)
+
+println(&quot;your shot:  βₙ = &quot;, round(βn_you; digits=2), &quot;   Prad = &quot;, round(prad_you; digits=2), &quot; MW&quot;)
+println(&quot;stability:  βₙ/βₙ_limit(NN) = &quot;, round(troyon_you; digits=2), troyon_you &lt; 1 ? &quot;  ✔ stable&quot; : &quot;  ✘ UNSTABLE&quot;)
+println(&quot;converged:  transport error = &quot;, round(transport_error_you; digits=3), transport_error_you &lt; 0.1 ? &quot;  ✔&quot; : &quot;  ✘ not converged&quot;)
+
+</code></pre><pre><code class="nohighlight hljs">your shot:  βₙ = 1.9   Prad = 0.12 MW
+stability:  βₙ/βₙ_limit(NN) = 0.62  ✔ stable
+converged:  transport error = 0.026  ✔</code></pre><h2 id="...and-against-the-optimizer&#39;s-database"><a class="docs-heading-anchor" href="#...and-against-the-optimizer&#39;s-database">...and against the optimizer&#39;s database</a><a id="...and-against-the-optimizer&#39;s-database-1"></a><a class="docs-heading-anchor-permalink" href="#...and-against-the-optimizer&#39;s-database" title="Permalink"></a></h2><pre><code class="language-julia hljs">folder = joinpath(@__DIR__, &quot;..&quot;, &quot;runs&quot;, &quot;d3d_cmoop_summerschool&quot;)   # or d3d_cmoop_big!
+df = CSV.read(joinpath(folder, &quot;extract.csv&quot;), DataFrame)
+
+constraints = [:max_transport_error, :min_lh_power_threshold_fraction, :stable_troyon_nn]
+ok = df.status .== &quot;success&quot;
+for c in constraints
+    global ok .&amp;= coalesce.(df[!, c] .== 0.0, false)
+end
+
+p = scatter(df.βn[df.status.==&quot;success&quot;], -df.Prad_tot[df.status.==&quot;success&quot;];
+    color=:lightgray, label=&quot;optimizer tried&quot;, xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;)
+scatter!(p, df.βn[ok], -df.Prad_tot[ok]; color=:steelblue, label=&quot;feasible&quot;)
+scatter!(p, [βn_you], [prad_you]; marker=:star5, markersize=14,
+    color=troyon_you &lt; 1 ? :gold : :red, label=&quot;YOU&quot;)
+display(p)
+savefig(p, joinpath(@__DIR__, &quot;..&quot;, &quot;runs&quot;, &quot;audience_challenge.png&quot;))
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_60_0.png" alt="png"/></p><pre><code class="nohighlight hljs">&quot;/Users/tims/d3dsummerschool/runs/audience_challenge.png&quot;</code></pre><h2 id="More-data-more-better-—-the-same-CMOOP-at-scale"><a class="docs-heading-anchor" href="#More-data-more-better-—-the-same-CMOOP-at-scale">More data more better — the same CMOOP at scale</a><a id="More-data-more-better-—-the-same-CMOOP-at-scale-1"></a><a class="docs-heading-anchor-permalink" href="#More-data-more-better-—-the-same-CMOOP-at-scale" title="Permalink"></a></h2><p>The exact same study, run overnight on a server with a sysimage (population 200 × 20 generations, 10 workers): <strong>~7,800 evaluations instead of our 40</strong>. More data more better :)</p><pre><code class="language-julia hljs">folder_big = joinpath(@__DIR__, &quot;..&quot;, &quot;runs&quot;, &quot;d3d_cmoop_big&quot;)
+df_big = CSV.read(joinpath(folder_big, &quot;extract.csv&quot;), DataFrame)
+
+ok_big = df_big.status .== &quot;success&quot;
+for c in constraints
+    global ok_big .&amp;= coalesce.(df_big[!, c] .== 0.0, false)
+end
+feas_big = df_big[ok_big, :]
+println(&quot;server run: &quot;, nrow(df_big), &quot; cases, &quot;, nrow(feas_big), &quot; feasible  (laptop: &quot;, nrow(df), &quot; / &quot;, nrow(feasible), &quot;)&quot;)
+
+sol_big = [[-row.βn, row.Prad_tot] for row in eachrow(feas_big)]
+front_big = sort(feas_big[FUSE.pareto_front(sol_big), :], :βn)
+
+p = scatter(feas_big.βn, -feas_big.Prad_tot; color=:lightgray, ms=2, malpha=0.4,
+    label=&quot;server: $(nrow(feas_big)) feasible&quot;, xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;)
+plot!(p, front_big.βn, -front_big.Prad_tot; marker=:circle, lw=2, color=:crimson,
+    label=&quot;server Pareto front&quot;)
+plot!(p, front.βn, -front.Prad_tot; marker=:diamond, lw=2, color=:royalblue,
+    label=&quot;laptop Pareto front&quot;)
+scatter!(p, [βn_you], [prad_you]; marker=:star5, markersize=14,
+    color=troyon_you &lt; 1 ? :gold : :red, label=&quot;YOU&quot;)
+display(p)
+savefig(p, joinpath(figdir, &quot;pareto_laptop_vs_server.png&quot;))
+</code></pre><pre><code class="nohighlight hljs">server run: 7855 cases, 4274 feasible  (laptop: 40 / 28)</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_62_1.png" alt="png"/></p><pre><code class="nohighlight hljs">&quot;/Users/tims/d3dsummerschool/runs/d3d_cmoop_summerschool/figures/pareto_laptop_vs_server.png&quot;</code></pre><pre><code class="language-julia hljs"># the genes of the big run (extracted from the per-case inis in its database):
+genes = CSV.read(joinpath(folder_big, &quot;genes_big.csv&quot;), DataFrame)
+big = leftjoin(feas_big, genes; on=:gparent)
+
+p = plot(; xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;)
+for (species, color) in ((&quot;C&quot;, :royalblue), (&quot;Ne&quot;, :darkorange))
+    sel = coalesce.(big.impurity .== species, false)
+    scatter!(p, big.βn[sel], -big.Prad_tot[sel]; color, ms=3, malpha=0.6, label=&quot;impurity: $species&quot;)
+end
+display(p)
+savefig(p, joinpath(figdir, &quot;objective_space_by_impurity_big.png&quot;))
+
+p = scatter(big.βn, -big.Prad_tot; zcolor=big.ec_rho0, clims=(0.1, 0.8), ms=3,
+    colorbar_title=&quot;EC deposition ρ₀&quot;, xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;, label=&quot;&quot;)
+display(p)
+savefig(p, joinpath(figdir, &quot;objective_space_by_ec_rho0_big.png&quot;))
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_63_0.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_63_1.png" alt="png"/></p><pre><code class="nohighlight hljs">&quot;/Users/tims/d3dsummerschool/runs/d3d_cmoop_summerschool/figures/objective_space_by_ec_rho0_big.png&quot;</code></pre><pre><code class="language-julia hljs"># all the actuator views, now on the full dataset
+for (knob, cl) in knob_ranges
+    if String(knob) in names(feas_big)
+        local p = scatter(feas_big.βn, -feas_big.Prad_tot;
+            zcolor=feas_big[!, knob], clims=cl, ms=3, colorbar_title=string(knob),
+            xlabel=&quot;βₙ&quot;, ylabel=&quot;Prad [MW]&quot;, label=&quot;&quot;)
+        display(p)
+        savefig(p, joinpath(figdir, &quot;objective_space_by_$(knob)_big.png&quot;))
+    end
+end
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_64_0.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_64_1.png" alt="png"/></p><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_64_2.png" alt="png"/></p><h1 id="The-new-age:-physics-models-as-public-web-APIs"><a class="docs-heading-anchor" href="#The-new-age:-physics-models-as-public-web-APIs">The new age: physics models as public web APIs</a><a id="The-new-age:-physics-models-as-public-web-APIs-1"></a><a class="docs-heading-anchor-permalink" href="#The-new-age:-physics-models-as-public-web-APIs" title="Permalink"></a></h1><p>EPED-NN (the same pedestal model the CMOOP used through ActorPedestal) is served as a public API at https://iter.fuseexplorer.com/EPED — no FUSE installation, no Julia, no GA account. Just HTTP.</p><p>Browse it:      https://iter.fuseexplorer.com/EPED     (interactive explorer) Self-docs:      curl -s https://iter.fuseexplorer.com/EPED/api</p><p>Run with:  julia –project=../FUSE   (only needs JSON + Plots + curl)</p><pre><code class="language-julia hljs">import JSON
+using Plots
+
+</code></pre><h2 id="The-API-documents-itself"><a class="docs-heading-anchor" href="#The-API-documents-itself">The API documents itself</a><a id="The-API-documents-itself-1"></a><a class="docs-heading-anchor-permalink" href="#The-API-documents-itself" title="Permalink"></a></h2><pre><code class="language-julia hljs">api_docs = JSON.parse(read(`curl -s https://iter.fuseexplorer.com/EPED/api`, String))
+println(api_docs[&quot;description&quot;], &quot;\n&quot;)
+for (name, spec) in api_docs[&quot;inputs&quot;]
+    println(rpad(name, 14), rpad(spec[&quot;unit&quot;], 10), rpad(join(spec[&quot;range&quot;], &quot; … &quot;), 14), spec[&quot;description&quot;])
+end
+
+</code></pre><pre><code class="nohighlight hljs">EPED-NN surrogate: predicts the H-mode pedestal height (total pressure) for a tokamak operating point, with an ensemble (5-network) uncertainty.
+
+a             m         0.5 … 2.0     minor radius
+betan         -         0.5 … 4       normalized beta, betaN
+bt            T         2 … 8         vacuum toroidal magnetic field
+delta         -         0.1 … 0.65    triangularity (delta95)
+ip            MA        8 … 15        plasma current
+kappa         -         1.2 … 2.5     elongation (kappa95)
+m             amu       1 … 2.5       main ion mass (2.0=D, 2.5=DT)
+neped         1e19 m^-3 1 … 20        pedestal-top electron density
+nesep_ratio   -         0.05 … 0.6    separatrix-to-pedestal density ratio, ne_sep/ne_ped
+r             m         1.5 … 7       major radius
+tesep         eV        70 … 200      separatrix electron temperature
+zeffped       -         0.8 … 4       effective charge at the pedestal, Zeff</code></pre><h2 id="One-prediction-one-POST"><a class="docs-heading-anchor" href="#One-prediction-one-POST">One prediction = one POST</a><a id="One-prediction-one-POST-1"></a><a class="docs-heading-anchor-permalink" href="#One-prediction-one-POST" title="Permalink"></a></h2><pre><code class="language-julia hljs">function eped_predict(; kw...)
+    payload = JSON.json(Dict(kw...))
+    return JSON.parse(read(`curl -s https://iter.fuseexplorer.com/EPED/predict -H &quot;Content-Type: application/json&quot; -d $payload`, String))
+end
+
+# a DIII-D-like point:
+d3d = (a=0.56, betan=2.0, bt=2.0, delta=0.5, ip=1.0, kappa=1.8, m=2.0,
+    neped=5.0, nesep_ratio=0.25, r=1.67, tesep=75.0, zeffped=2.0)
+println(eped_predict(; d3d...))
+
+# an ITER-like point:
+iter = (a=2.0, betan=2.0, bt=5.3, delta=0.49, ip=15.0, kappa=1.85, m=2.5,
+    neped=7.0, nesep_ratio=0.25, r=6.2, tesep=75.0, zeffped=1.5)
+println(eped_predict(; iter...))
+
+</code></pre><pre><code class="nohighlight hljs">JSON.Object{String, Any}(&quot;pedestal_height_kPa&quot; =&gt; 13.71, &quot;uncertainty_kPa&quot; =&gt; 0.15, &quot;diamagnetic_model&quot; =&gt; &quot;H&quot;)
+JSON.Object{String, Any}(&quot;pedestal_height_kPa&quot; =&gt; 78.02, &quot;uncertainty_kPa&quot; =&gt; 0.52, &quot;diamagnetic_model&quot; =&gt; &quot;H&quot;)</code></pre><h2 id="Parameter-scans-against-a-live-model"><a class="docs-heading-anchor" href="#Parameter-scans-against-a-live-model">Parameter scans against a live model</a><a id="Parameter-scans-against-a-live-model-1"></a><a class="docs-heading-anchor-permalink" href="#Parameter-scans-against-a-live-model" title="Permalink"></a></h2><p>This is the point: a scan that used to require an account on a cluster and a batch queue is now a for-loop over HTTP.</p><pre><code class="language-julia hljs">nepeds = 2.0:0.5:12.0
+results = [eped_predict(; iter..., neped) for neped in nepeds]
+height = [r[&quot;pedestal_height_kPa&quot;] for r in results]
+σ = [r[&quot;uncertainty_kPa&quot;] for r in results]
+
+display(plot(nepeds, height; ribbon=2σ, fillalpha=0.2, lw=2, label=&quot;EPED-NN ±2σ&quot;,
+    xlabel=&quot;ne_ped [10¹⁹ m⁻³]&quot;, ylabel=&quot;pedestal height [kPa]&quot;,
+    title=&quot;ITER pedestal height vs density — via public API&quot;))
+
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_72_0.png" alt="png"/></p><h2 id="Trust,-but-verify:-uncertainty-grows-out-of-distribution"><a class="docs-heading-anchor" href="#Trust,-but-verify:-uncertainty-grows-out-of-distribution">Trust, but verify: uncertainty grows out of distribution</a><a id="Trust,-but-verify:-uncertainty-grows-out-of-distribution-1"></a><a class="docs-heading-anchor-permalink" href="#Trust,-but-verify:-uncertainty-grows-out-of-distribution" title="Permalink"></a></h2><p>The docs give the training range for each input. Walk βₙ beyond it and watch the ensemble spread — the model tells you when to stop trusting it:</p><pre><code class="language-julia hljs">betans = 0.5:0.25:5.0
+results = [eped_predict(; iter..., betan) for betan in betans]
+height = [r[&quot;pedestal_height_kPa&quot;] for r in results]
+σ = [r[&quot;uncertainty_kPa&quot;] for r in results]
+
+p = plot(betans, height; ribbon=2σ, fillalpha=0.2, lw=2, label=&quot;EPED-NN ±2σ&quot;,
+    xlabel=&quot;βₙ&quot;, ylabel=&quot;pedestal height [kPa]&quot;)
+vspan!(p, [4.0, 5.0]; alpha=0.15, color=:red, label=&quot;outside training range&quot;)
+display(p)
+</code></pre><p><img src="assets/d3d_cmoop_summerschool_files/d3d_cmoop_summerschool_74_0.png" alt="png"/></p><pre><code class="language-julia hljs">ip       = 1.1E6      # plasma current [A]           range: [0.6E6, 1.5E6]
+Pnbi_co  = 2.0E6      # co-current beam [W]          range: [0.1E6, 3.3E6]
+Pnbi_ctr = 0.5E6      # counter-current beam [W]     range: [0.1E6, 3.3E6]
+Pnbi_off = 1.0E6      # off-axis beam [W]            range: [0.1E6, 3.3E6]
+Pec      = 3.0E6      # gyrotron power [W]           range: [0.1E6, 4.5E6]
+ec_rho0  = 0.3        # EC deposition location ρ     range: [0.1, 0.8]
+ne_ped   = 4.0e19     # pedestal density [m⁻³]       range: [3.5e19, 4.5e19]
+zeff     = 2.0        # effective charge             range: [1.5, 3.5]
+impurity = :C         # seeding impurity             choices: :C or :Ne
+# (warning: dumping ALL the power into a low-current plasma is a good way
+#  to disrupt — see note below)
+
+# Remember we are maximizing beta_normal and Prad
+</code></pre><pre><code class="nohighlight hljs">:C</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="d3dsummerschool.html">« DIII-D Summer School</a><a class="docs-footer-nextpage" href="actors.html">Actors »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Monday 27 July 2026 18:34">Monday 27 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
