@@ -149,6 +149,25 @@ handles the details:
   write logs/scratch to a depot. The in-image `fuse` entrypoint handles this:
   it prepends `$HOME/.julia_fuse_container` as a writable first depot.
 
+### Home directory over quota
+
+The per-user depot above needs only a few MB, but if `$HOME` is at its quota
+even the initial `mkdir` fails (`quota -s` to check). The launcher pre-creates
+the depot and reports this clearly; without that check Julia dies at package
+init with a cryptic `InitError(mkdir ... Unknown system error -122)` (EDQUOT).
+Either free up home space, or redirect the writable depot to node-local
+scratch (`SINGULARITYENV_` survives `--cleanenv`, plain env vars do not; the
+launcher auto-binds the redirected path into the container):
+
+```bash
+mkdir -p /local-scratch/$USER/.julia_fuse_container
+export SINGULARITYENV_JULIA_DEPOT_PATH="/local-scratch/$USER/.julia_fuse_container:/opt/fuse/.julia"
+fuse-container
+```
+
+Note `/local-scratch` is per-node: on another Slurm node the depot starts
+empty, which is fine — it only holds logs and scratch files.
+
 Quick smoke test (everything after the SIF is passed to Julia):
 
 ```bash
