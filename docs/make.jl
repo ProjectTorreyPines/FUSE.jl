@@ -191,6 +191,7 @@ if skip_tutorial
 end
 
 if isfile(joinpath(@__DIR__, "src", "d3dsummerschool.md"))
+    idx = findfirst(p -> p.first == "DIII-D Time-Dependent", pages)
     insert!(pages, (idx === nothing ? length(pages) : idx) + 1, "DIII-D Summer School" => "d3dsummerschool.md")
 end
 
