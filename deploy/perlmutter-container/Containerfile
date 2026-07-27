@@ -98,6 +98,10 @@ RUN printf '%s\n' \
 # in a read-only image, into their own home depot.
 RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse'
 
+# Registries are cloned 0700; without world-read every in-container Pkg
+# operation fails for non-root users.
+RUN chmod -R a+rX /opt/fuse/.julia/registries
+
 # Links the GHCR package to this repository (kept last: label-only changes
 # then rebuild from cache in seconds).
 LABEL org.opencontainers.image.source="https://github.com/ProjectTorreyPines/FUSE.jl" \
