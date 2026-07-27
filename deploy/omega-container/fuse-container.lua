@@ -31,12 +31,6 @@ your home directory is over quota, redirect it to node-local scratch:
   mkdir -p /local-scratch/$USER/.julia_fuse_container
   export SINGULARITYENV_JULIA_DEPOT_PATH="/local-scratch/$USER/.julia_fuse_container:/opt/fuse/.julia"
 
-The container writes a small per-user depot to ~/.julia_fuse_container. If
-your home directory is over quota, redirect it to node-local scratch:
-
-  mkdir -p /local-scratch/$USER/.julia_fuse_container
-  export SINGULARITYENV_JULIA_DEPOT_PATH="/local-scratch/$USER/.julia_fuse_container:/opt/fuse/.julia"
-
 See deploy/omega-container/README.md in the FUSE.jl repo.
 ]])
 
