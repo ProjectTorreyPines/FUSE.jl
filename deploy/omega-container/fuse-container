@@ -5,6 +5,8 @@
 #   fuse-container [args...]         # args passed to the in-container `fuse`
 #                                    # (e.g. -e '...script...', --threads=N)
 #   fuse-container <sif> [args...]   # pin a specific image (explicit .sif path)
+#   fuse-container notebook|lab      # install the Jupyter kernelspec and start
+#                                    # Jupyter (worker nodes only; THREADS=N)
 #
 # With no explicit SIF, the newest fuse_*.sif is used — from $FUSE_SIF_DIR if
 # set, else from the directory this launcher lives in (the published layout).
@@ -68,6 +70,67 @@ if ! command -v squashfuse >/dev/null 2>&1; then
     exit 127
 fi
 
+# `fuse-container [sif] notebook|lab [jupyter args...]`: install/refresh the
+# Jupyter kernelspec for this SIF, then start the host's Jupyter with it. The
+# kernelspec launches this script per kernel, so no mount is needed here.
+if [[ "${1:-}" == "notebook" || "${1:-}" == "lab" ]]; then
+    mode="$1"; shift
+    # Jupyter servers belong on worker nodes (omegaNN), not the login node.
+    node="$(hostname -s)"
+    if [[ ! "$node" =~ ^omega[0-9]+$ && -z "${FUSE_NOTEBOOK_ANYWHERE:-}" ]]; then
+        echo "fuse-container: refusing to start Jupyter on '$node' — use a worker node:" >&2
+        echo "    srun -p medium -t 8:00:00 -c 8 --pty bash" >&2
+        echo "  (FUSE_NOTEBOOK_ANYWHERE=1 overrides this check)" >&2
+        exit 1
+    fi
+    if ! command -v jupyter >/dev/null 2>&1; then
+        echo "fuse-container: 'jupyter' not found on PATH — activate your Python/conda env first." >&2
+        exit 127
+    fi
+    version="$(basename "$sif")"; version="${version#fuse_}"; version="${version%.sif}"
+    threads="${THREADS:-1}"
+    singularity_dir="$(dirname "$(command -v singularity)")"
+    launcher="$self_dir/$(basename "${BASH_SOURCE[0]:-$0}")"
+    kdir="$HOME/.local/share/jupyter/kernels/fuse-$version"
+    mkdir -p "$kdir"
+    cat > "$kdir/kernel.json" <<EOF
+{
+  "argv": [
+    "/bin/bash",
+    "-c",
+    "export PATH=\"$singularity_dir:\$PATH\"; exec \"$launcher\" \"$sif\" --threads=$threads --color=yes -e 'import IJulia; IJulia.run_kernel()' \"\$1\"",
+    "fuse-kernel",
+    "{connection_file}"
+  ],
+  "display_name": "Julia FUSE-$version container ($threads thread(s))",
+  "language": "julia",
+  "metadata": {
+    "debugger": true
+  }
+}
+EOF
+    echo "fuse-container: kernelspec 'fuse-$version' installed ($threads thread(s); set THREADS=N to change)"
+    exec jupyter "$mode" "$@"
+fi
+
+# Pre-flight: on the read-only SIF rootfs the in-image `fuse` entrypoint needs
+# a writable first depot — $HOME/.julia_fuse_container by default, overridable
+# with SINGULARITYENV_JULIA_DEPOT_PATH (plain env vars are stripped by
+# --cleanenv; the SINGULARITYENV_ prefix survives it). Create it here so a
+# full home quota fails with a clear message instead of Julia dying at package
+# init with InitError(mkdir ... error -122 EDQUOT).
+depot="${SINGULARITYENV_JULIA_DEPOT_PATH:-}"; depot="${depot%%:*}"
+[[ -z "$depot" ]] && depot="$HOME/.julia_fuse_container"
+if ! mkdir -p "$depot" 2>/dev/null || ! touch "$depot/.fuse_container_write_test" 2>/dev/null; then
+    echo "fuse-container: cannot write to $depot" >&2
+    echo "  Most likely your home directory is over quota ('quota -s' to check)." >&2
+    echo "  Free up space, or redirect the writable depot to node-local scratch:" >&2
+    echo "    mkdir -p /local-scratch/\$USER/.julia_fuse_container" >&2
+    echo "    export SINGULARITYENV_JULIA_DEPOT_PATH=\"/local-scratch/\$USER/.julia_fuse_container:/opt/fuse/.julia\"" >&2
+    exit 1
+fi
+rm -f "$depot/.fuse_container_write_test"
+
 # Byte offset of the squashfs partition inside the SIF (robust, not hardcoded).
 offset="$(singularity sif list "$sif" 2>/dev/null \
           | awk -F'|' '/Squashfs/ {split($4,a,"-"); gsub(/ /,"",a[1]); print a[1]; exit}')"
@@ -112,6 +175,12 @@ for var_dir in "FUSE_PEDESTAL_NN_DIR:pedestal_nn" "FUSE_SOLPS_NN_DIR:solps_nn_on
     fi
 done
 
+# A redirected depot (e.g. /local-scratch) is outside the default binds —
+# bind it explicitly so it exists inside the container. Nested/duplicate
+# binds (depot under /fusion or $HOME) are harmless.
+binds="${FUSE_BIND:-/fusion}"
+[[ -n "${SINGULARITYENV_JULIA_DEPOT_PATH:-}" ]] && binds="$binds,$depot"
+
 # The in-image `fuse` entrypoint loads the sysimage and, on this read-only
 # rootfs, prepends a writable $HOME depot. No args -> interactive REPL.
-singularity exec --cleanenv "${extra_env[@]}" --bind "${FUSE_BIND:-/fusion}" "$mnt" fuse "$@"
+singularity exec --cleanenv "${extra_env[@]}" --bind "$binds" "$mnt" fuse "$@"
