@@ -3,9 +3,9 @@
 This tutorial walks through a complete **time-dependent** workflow in FUSE for a real DIII-D
 discharge (shot 200000). Starting from experimental data, we run three complementary cases:
 
-1. **Replay** — follow the experimental kinetic profiles to reproduce the shot and validate FUSE against the measurements.
-2. **Simulation** — let the physics models *predict* the profiles (dynamic pedestal + flux-matched transport).
-3. **Modified simulation** — a *"what if?"* counterfactual with extra electron-cyclotron heating (ECH).
+1. **Replay**: follow the experimental kinetic profiles to reproduce the shot and validate FUSE against the measurements.
+2. **Simulation**: let the physics models *predict* the profiles (dynamic pedestal + flux-matched transport).
+3. **Modified simulation**: a *"what if?" example with extra electron-cyclotron heating (ECH).
 
 All three share the same configured starting point (`:replay_init`), so their differences isolate
 the effect of the modeling choices and the added heating.
@@ -29,7 +29,7 @@ the effect of the modeling choices and the added heating.
 
 We load FUSE together with `Plots` for figures and `Interact` for interactive widgets.
 
-The first `using FUSE` triggers Julia's just-in-time compilation, so it takes a while — every
+The first `using FUSE` triggers Julia's just-in-time compilation, so it takes a while, while every
 subsequent call is fast.
 
 
@@ -139,7 +139,7 @@ experiment_LH = FUSE.LH_analysis(dd; do_plot=true);
     
 
 
-## 5. Replay — reproduce the shot
+## 5. Replay: reproduce the shot
 
 In **replay** mode we follow the experiment: the transport and pedestal actors are set to
 `:replay`, so FUSE uses the measured kinetic profiles as boundary conditions while still evolving
@@ -240,8 +240,7 @@ FUSE.ActorInterferometer(dd, act)
 
 ## 6. Animate the replay
 
-We build an animation of the plasma overview — one frame per `core_profiles` time slice — and save
-it as a GIF. `plot_plasma_overview` packs the equilibrium, profiles, and heating into a single
+We build an animation of the plasma overview as a GIF. `plot_plasma_overview` packs the equilibrium, profiles, and heating into a single
 multi-panel figure. *(On this page the animation is shown as a single representative frame.)*
 
 
@@ -317,6 +316,8 @@ act.ActorTGLF.model = :TGLFNN
 # synthetic diagnostics
 FUSE.ActorMagnetics(dd, act)
 FUSE.ActorInterferometer(dd, act)
+
+@checkin :predict dd act;
 ```
 
     Progress: 100%|███████████████████████████| Time: 0:01:08 ( 0.25  s/it)
@@ -346,9 +347,9 @@ FUSE.ActorInterferometer(dd, act)
 
 
 
-## 8. Modified simulation — extra ECH
+## 8. Modified simulation with extra ECH
 
-Finally, a *"what if?"* counterfactual. Starting once more from `:replay_init`, we modify the **EC
+Finally, a *"what if?"*. Starting once more from `:replay_init`, we modify the **EC
 launcher pulse schedule**: re-aim all five gyrotrons (via `convert_DIII_D_to_IMAS_launch_angles`,
 which maps DIII-D AZIANG/POLANG conventions to IMAS steering angles) and add 0.5 MW per beam after
 t = 2 s. Rerunning `ActorDynamicPlasma` shows how the extra electron-cyclotron heating changes the plasma.
@@ -397,6 +398,9 @@ act.ActorDynamicPlasma.evolve_sawteeth = true
 # synthetic diagnostics
 FUSE.ActorMagnetics(dd, act)
 FUSE.ActorInterferometer(dd, act)
+
+@checkin :predict_modify dd act;
+
 ```
 
     Progress: 100%|███████████████████████████| Time: 0:00:33 ( 0.12  s/it)
@@ -433,8 +437,7 @@ replay animation from step 6 to see the effect of the extra heating.
 
 
 ```@julia
-FUSE.plot_plasma_overview(dd, 2.5;aggregate_hcd=true, rotation_quantity=:sonic)#, min_power=1E4)
-
+FUSE.plot_plasma_overview(dd, 2.5;aggregate_hcd=true, rotation_quantity=:sonic)
 ```
 
 
