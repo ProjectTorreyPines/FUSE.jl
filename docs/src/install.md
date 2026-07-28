@@ -32,9 +32,9 @@ These scripts install FUSE, Revise, fusebot, the Jupyter stack (`fuse` conda env
 
 They then activate the `fuse` env, run `fusebot install_IJulia` (or `make install_IJulia` / `scripts/install_ijulia.sh` if fusebot fails), and finish by executing the **first three cells** of `FuseExamples/fluxmatcher.ipynb`. A fresh install typically takes **20–40 minutes** (Julia packages + conda + IJulia + the first flux-matcher solve; the notebook cells are often ~6 minutes on one thread).
 
-### Laptop (Linux or macOS)
+### Laptop (Linux or macOS), omega, and other non-NERSC HPC
 
-From any directory on a personal machine. Installs [juliaup](https://github.com/JuliaLang/juliaup) when `julia` is missing and [Miniconda](https://docs.anaconda.com/miniconda/) when `conda` is missing.
+From any directory on a personal machine, omega, or another non-NERSC HPC system. Installs [juliaup](https://github.com/JuliaLang/juliaup) when `julia` is missing and [Miniconda](https://docs.anaconda.com/miniconda/) when `conda` is missing.
 
 ```bash
 curl -fsSL https://install.julialang.org | sh -s -- -y && \
