@@ -84,7 +84,7 @@ if [[ "${1:-}" == "notebook" || "${1:-}" == "lab" ]]; then
         exit 1
     fi
     if ! command -v jupyter >/dev/null 2>&1; then
-        echo "fuse-container: 'jupyter' not found on PATH — activate your Python/conda env first." >&2
+        echo "fuse-container: 'jupyter' not found on PATH — activate a Python/conda env that has it (on omega: 'module load fuse')." >&2
         exit 127
     fi
     version="$(basename "$sif")"; version="${version#fuse_}"; version="${version%.sif}"
