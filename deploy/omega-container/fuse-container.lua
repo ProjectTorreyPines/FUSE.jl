@@ -23,6 +23,13 @@ all ProjectTorreyPines packages, and a precompiled sysimage. No private depot.
   fuse-container                       interactive FUSE REPL (newest image)
   fuse-container -e 'using FUSE; ...'  run a script / one-liner
   fuse-container <path.sif> ...        pin a specific image version
+  fuse-container notebook|lab          Jupyter on the container (worker nodes)
+
+The container writes a small per-user depot to ~/.julia_fuse_container. If
+your home directory is over quota, redirect it to node-local scratch:
+
+  mkdir -p /local-scratch/$USER/.julia_fuse_container
+  export SINGULARITYENV_JULIA_DEPOT_PATH="/local-scratch/$USER/.julia_fuse_container:/opt/fuse/.julia"
 
 See deploy/omega-container/README.md in the FUSE.jl repo.
 ]])

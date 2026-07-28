@@ -59,7 +59,14 @@ singularity and auto-selects the newest image):
 Pin a specific version by passing the `.sif` explicitly:
 `fuse-container /fusion/projects/dt/fuse_containers/fuse_v1.1.5.sif ...`.
 
-Install the Jupyter kernel for the published image:
+Start a Jupyter notebook on the container (worker nodes only; installs the
+kernelspec automatically, `THREADS=N` to change the kernel's thread count):
+
+```bash
+/fusion/projects/dt/fuse_containers/fuse-container notebook   # or: lab
+```
+
+Or install just the Jupyter kernel for the published image:
 
 ```bash
 SIF=/fusion/projects/dt/fuse_containers/fuse_<version>.sif \
@@ -149,6 +156,25 @@ handles the details:
   write logs/scratch to a depot. The in-image `fuse` entrypoint handles this:
   it prepends `$HOME/.julia_fuse_container` as a writable first depot.
 
+### Home directory over quota
+
+The per-user depot above needs only a few MB, but if `$HOME` is at its quota
+even the initial `mkdir` fails (`quota -s` to check). The launcher pre-creates
+the depot and reports this clearly; without that check Julia dies at package
+init with a cryptic `InitError(mkdir ... Unknown system error -122)` (EDQUOT).
+Either free up home space, or redirect the writable depot to node-local
+scratch (`SINGULARITYENV_` survives `--cleanenv`, plain env vars do not; the
+launcher auto-binds the redirected path into the container):
+
+```bash
+mkdir -p /local-scratch/$USER/.julia_fuse_container
+export SINGULARITYENV_JULIA_DEPOT_PATH="/local-scratch/$USER/.julia_fuse_container:/opt/fuse/.julia"
+fuse-container
+```
+
+Note `/local-scratch` is per-node: on another Slurm node the depot starts
+empty, which is fine — it only holds logs and scratch files.
+
 Quick smoke test (everything after the SIF is passed to Julia):
 
 ```bash
@@ -185,6 +211,15 @@ newer EPYC 7513 nodes also select the znver2 sysimage clone), and end with
 `SLURM SMOKE OK`.
 
 ## 4. Interactive use via Jupyter
+
+One-step, on a worker node (refuses to run on the login node; add
+`--no-browser` and an SSH tunnel for remote use):
+
+```bash
+fuse-container notebook        # or: lab; THREADS=8 fuse-container notebook
+```
+
+Or install just the kernelspec and use any Jupyter later:
 
 ```bash
 module load singularity/3.11.3
