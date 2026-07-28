@@ -61,6 +61,13 @@ WORKDIR /opt/build
 COPY deploy/perlmutter-container/install_fuse_container.jl /opt/build/install_fuse_container.jl
 COPY Makefile /opt/build/Makefile
 
+# Build the REPL stdlib cache up front, time-boxed and retried: with a custom
+# JULIA_CPU_TARGET the shipped cache is invalid, and REPL's precompile drives a
+# scripted pseudo-terminal session that can deadlock forever on a missed prompt
+# under podman's no-TTY environment (REPL/src/precompile.jl has no timeout).
+# A failed warm-up is harmless — the sysimage bakes REPL regardless.
+RUN timeout 600 julia -e 'import REPL' || timeout 600 julia -e 'import REPL' || true
+
 # Installs FUSE and all PTP packages into $FUSE_INSTALL_DIR, builds IJulia, and
 # compiles /opt/fuse/sys_fuse.so. This step is heavy (runs the FUSE test suite
 # and tutorial as precompile workload) and is best run inside a CPU allocation.
@@ -101,6 +108,12 @@ RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse'
 # Registries are cloned 0700; without world-read every in-container Pkg
 # operation fails for non-root users.
 RUN chmod -R a+rX /opt/fuse/.julia/registries
+
+# procps: FUSE's memory monitor shells out to `ps -o rss=` (utils_end.jl).
+# openssh-client + rsync: FUSE's remote D3D data fetching (src/cases/D3D.jl).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends procps openssh-client rsync \
+    && rm -rf /var/lib/apt/lists/*
 
 # Links the GHCR package to this repository (kept last: label-only changes
 # then rebuild from cache in seconds).
