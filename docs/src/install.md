@@ -14,9 +14,11 @@ This guide walks you through setting up everything you need to run FUSE: the **J
     ```bash
     docker run -it ghcr.io/projecttorreypines/fuse:latest
     ```
-    omega (JupyterLab, worker nodes; use plain `fuse-container` for a REPL):
+    omega (JupyterLab, worker nodes; use plain `fuse-container` for a REPL).
+    JupyterLab itself runs on the host, so `jupyter` must be on `PATH`
+    (e.g. via `module load fuse`):
     ```bash
-    module use /fusion/projects/dt/fuse_containers/modules && module load fuse-container && fuse-container lab
+    module use /fusion/projects/dt/fuse_containers/modules && module load fuse-container && THREADS=8 fuse-container lab
     ```
     NERSC (Perlmutter):
     ```bash
