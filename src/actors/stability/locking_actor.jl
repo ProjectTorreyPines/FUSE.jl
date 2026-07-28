@@ -23,7 +23,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
     task::Switch{Symbol} = Switch{Symbol}(
-        [:solve_system, :single_case, :calc_prob, :calc_conv_prob, :calc_kde_prob, :Monte_Carlo, :evaluate_probability, :transfer_learning],
+        [:solve_system, :single_case, :calc_prob, :calc_conv_prob, :calc_kde_prob, :Monte_Carlo, :eval_prob, :transfer_learning],
         "-",
         "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), convolution (:calc_conv_prob), KDE (:calc_kde_prob), or Monte Carlo (NOT implemented)";
         default = :solve_system
@@ -58,9 +58,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "s",
         "Times at which to evaluate locking probability; empty = use current dd.global_time";
         default=Float64[])
+    op_C1::Entry{Float64} = Entry{Float64}(
+        "kHz",
+        "Operating-point rotation frequency for :single_case; NaN = use source_torque default";
+        default=NaN)
     op_C2::Entry{Float64} = Entry{Float64}(
         "-",
-        "Operating-point Control2 (units match control_type: Gauss for :EF); NaN = skip";
+        "Operating-point Control2 (units match control_type: Gauss for :EF); NaN = use ode_params default";
         default=NaN)
     conv_window_C1::Entry{Int} = Entry{Int}(
         "-",
@@ -79,7 +83,7 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     ode_params::Union{Nothing, ODEparams}
     results::Union{Nothing, LockingResults}
     nn_params::NNparams
-    op_times::Vector{Float64}   # actual times evaluated (set during :evaluate_probability)
+    op_times::Vector{Float64}   # actual times evaluated (set during :eval_prob)
     op_C1::Vector{Float64}      # dimensionless rotation at each op time
     op_C2::Vector{Float64}      # C2 in user-facing units (Gauss for :EF) at each op time
 
@@ -142,8 +146,17 @@ function _step(actor::ActorLocking)
     # Main driver routine
     # Time evolve the ODEs, calculate locking probability, or load/evaluate model
     if task == :single_case
-        @info "Solving one case for system"
-        solve_one_case(par, actor.ode_params, application)
+        rc = actor.ode_params.control_surf
+        C1 = isnan(par.op_C1) ? nothing : par.op_C1 * 1e3 * par.t0  # kHz → dimensionless f·t₀
+        C2 = if isnan(par.op_C2)
+            nothing
+        elseif par.control_type == :EF
+            par.op_C2 * 1e-4 / par.b0 * rc / Float64(par.m_pol)
+        else
+            par.op_C2
+        end
+        @info "Solving one case: C1=$(something(C1, "default"))  C2=$(something(par.op_C2, "default"))"
+        solve_one_case(par, actor.ode_params, application; C1, C2)
     
     elseif task == :solve_system
         @info "Solving the ODEs for $(application) system"
@@ -187,7 +200,7 @@ function _step(actor::ActorLocking)
         kde_locking_probability(actor)
         save_prob_model(actor)
 
-    elseif task == :evaluate_probability
+    elseif task == :eval_prob
         # Load saved probability model from disk (KDE → conv → NN fallback).
         if actor.results === nothing
             @info "No in-memory ODE results — loading from disk"
@@ -238,7 +251,7 @@ function _step(actor::ActorLocking)
             @info "  t=$(round(t*1e3; digits=1)) ms  C1=$(round(C1_op; sigdigits=4))  C2=$(round(C2_op; sigdigits=4))  P=$(round(P_locked; sigdigits=4))"
         end
         dd.global_time = t_orig
-        @info "evaluate_probability: $(length(times)) point(s)  model=$(typeof(prob_model))"
+        @info "eval_prob: $(length(times)) point(s)  model=$(typeof(prob_model))"
 
     elseif task == :transfer_learning
         # Solve the (typically focused/sparse, via ode_params.Control1_min/max
@@ -255,7 +268,7 @@ function _step(actor::ActorLocking)
                                         actor.ode_params.Control1, actor.ode_params.Control2)
 
         actor.results.prob = ModeLocking.transfer_learn_locking_nn(base_model, X_new, y_new; nn_params=actor.nn_params)
-        save_locking_nn(actor)
+        save_locking_nn(actor; filename="nn_model_$(par.control_type)_TL.bson")
 
     elseif task == :Monte_Carlo
         error("Monte-Carlo not implemented yet")
@@ -626,9 +639,10 @@ Solve and plot a single trajectory (task = :single_case). Delegates the ODE
 solve to `ModeLocking.simulate_one_case` and the plotting to
 `ModeLocking.plot_time_traces`.
 """
-function solve_one_case(par, ode_params::ODEparams, application::String)
+function solve_one_case(par, ode_params::ODEparams, application::String;
+                        C1::Union{Float64,Nothing}=nothing, C2::Union{Float64,Nothing}=nothing)
     sol, norm_t = ModeLocking.simulate_one_case(ode_params, application, par.n_tor, deg2rad(par.EF_phase), par.control_type,
-                                                  par.source_torque, par.t_final, par.time_steps)
+                                                  par.source_torque, par.t_final, par.time_steps; C1, C2)
 
     # Time-dependent figures: TM (ψ_tN), RWM (ψ_wN, RP-RW only), and Ω_tN vs time
     fig = ModeLocking.plot_time_traces(norm_t, sol.t; t0=par.t0)
@@ -777,16 +791,17 @@ Dispatches based on the type of `actor.results.prob`.
 function save_prob_model(actor::ActorLocking; kwargs...)
     actor.results === nothing      && error("No results — run task=:solve_system first")
     actor.results.prob === nothing && error("No trained model — run train_locking_nn, conv_, or kde_locking_probability first")
-    ct = actor.par.control_type
+    ct  = actor.par.control_type
+    nl  = actor.par.NL_saturation
     wc1 = actor.par.conv_window_C1
     wc2 = actor.par.conv_window_C2
     prob = actor.results.prob
     if prob isa LockingNNModel
-        return ModeLocking.save_locking_nn(prob; control_type=ct, kwargs...)
+        return ModeLocking.save_locking_nn(prob; control_type=ct, nl_sat=nl, kwargs...)
     elseif prob isa ModeLocking.ConvProbModel
-        return ModeLocking.save_conv_prob(prob; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.save_conv_prob(prob; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
     elseif prob isa ModeLocking.KDEProbModel
-        return ModeLocking.save_kde_prob(prob; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.save_kde_prob(prob; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
     else
         error("Unknown prob model type: $(typeof(prob))")
     end
@@ -803,14 +818,15 @@ Load a saved probability model from disk.
 """
 function load_prob_model(actor::ActorLocking; method::Symbol=:nn, kwargs...)
     ct  = actor.par.control_type
+    nl  = actor.par.NL_saturation
     wc1 = actor.par.conv_window_C1
     wc2 = actor.par.conv_window_C2
     if method == :nn
-        return ModeLocking.load_locking_nn(; control_type=ct, kwargs...)
+        return ModeLocking.load_locking_nn(; control_type=ct, nl_sat=nl, kwargs...)
     elseif method == :conv
-        return ModeLocking.load_conv_prob(; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.load_conv_prob(; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
     elseif method == :kde
-        return ModeLocking.load_kde_prob(; control_type=ct, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.load_kde_prob(; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
     else
         error("Unknown method: $method — use :nn, :conv, or :kde")
     end
