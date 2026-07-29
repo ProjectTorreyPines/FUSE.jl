@@ -6,14 +6,14 @@
 end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCoreTransport{P}}
     act::ParametersAllActors{P}
     tr_actor::Union{ActorFluxMatcher{D,P},ActorFINN{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
-    ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCoreTransport(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Provides a unified interface to run core transport evolution models.
 
@@ -31,14 +31,14 @@ Transport model options:
 The selected model determines how the core plasma profiles (temperature, density, rotation)
 evolve in response to heating, particle sources, and transport processes.
 """
-function ActorCoreTransport(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCoreTransport(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCoreTransport(dd, act.ActorCoreTransport, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCoreTransport(dd::IMAS.dd, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
+function ActorCoreTransport(dd::IMAS.DD, par::FUSEparameters__ActorCoreTransport, act::ParametersAllActors; kw...)
     logging_actor_init(ActorCoreTransport)
     par = OverrideParameters(par; kw...)
 
@@ -78,7 +78,7 @@ function _finalize(actor::ActorCoreTransport)
     return actor
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorCoreTransport, replay_dd::IMAS.DD)
     dd = actor.dd
 
     time0 = dd.global_time

@@ -10,19 +10,19 @@ using Plots
 end
 
 mutable struct ActorRABBIT{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorRABBIT{P}}
     outputs::Union{RABBIT.RABBIToutput,Vector{<:RABBIT.RABBIToutput}}
 end
 
-function ActorRABBIT(dd::IMAS.dd, par::FUSEparameters__ActorRABBIT; kw...)
+function ActorRABBIT(dd::IMAS.DD, par::FUSEparameters__ActorRABBIT; kw...)
     logging_actor_init(ActorRABBIT)
     par = OverrideParameters(par; kw...)
     return ActorRABBIT(dd, par, RABBIT.RABBIToutput[])
 end
 
 """
-    ActorRABBIT(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorRABBIT(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates neutral beam injection (NBI) heating, current drive, and fast ion physics
 using the RABBIT Monte Carlo code. RABBIT provides detailed modeling of beam-plasma
@@ -43,7 +43,7 @@ physics and requires equilibrium data over the specified time window.
     Requires RABBIT external code. Reads data from `dd.nbi`, `dd.pulse_schedule` 
     and equilibrium data, stores results in `dd.core_sources`
 """
-function ActorRABBIT(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorRABBIT(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorRABBIT(dd, act.ActorRABBIT; kw...)
     step(actor)
     finalize(actor)
@@ -128,7 +128,7 @@ function _finalize(actor::ActorRABBIT)
     return actor
 end
 
-function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
+function FUSEtoRABBITinput(dd::IMAS.DD, Δt_history::Float64)
     eV_to_keV = 1e-3
     cm3_to_m3 = 1e-6
 
@@ -206,7 +206,7 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
         push!(all_inputs, inp)
     end
 
-    function gather_beams(dd::IMAS.dd)
+    function gather_beams(dd::IMAS.DD)
         nbeams = length(dd.nbi.unit)
         nv = 3
 
@@ -263,7 +263,7 @@ function FUSEtoRABBITinput(dd::IMAS.dd, Δt_history::Float64)
         return nbeams, nv, xyz_src, xyz_vec, beamwidthpoly, Einj, part_frac, abeam
     end
 
-    function get_pnbi(dd::IMAS.dd, selected_equilibrium_times::Vector{Float64})
+    function get_pnbi(dd::IMAS.DD, selected_equilibrium_times::Vector{Float64})
         pnbis = Vector{Float64}[]
         if length(selected_equilibrium_times) == 1
             for ps in dd.pulse_schedule.nbi.unit

@@ -101,7 +101,9 @@ Base.@kwdef mutable struct FUSEparameters__core_profiles{T} <: ParametersInit{T}
     rot_core::Entry{T} = Entry{T}(IMAS.core_profiles__profiles_1d, :rotation_frequency_tor_sonic)
     ngrid::Entry{Int} = Entry{Int}("-", "Resolution of the core_profiles grid"; default=101, check=x -> @assert x >= 11 "must be: ngrid >= 11")
     bulk::Switch{Symbol} = Switch{Symbol}([:H, :D, :DT, :D_T], "-", "Hydrogenic bulk ion species. Use :D_T for unbundled :D and :T species.")
-    impurity::Entry{Symbol} = Entry{Symbol}("-", "Impurity ion species")
+    impurity::Entry{Symbol} = Entry{Symbol}("-", "Seeding impurity ion species (fraction calculated to match zeff given wall_impurity)")
+    wall_impurity::Entry{Symbol} = Entry{Symbol}("-", "Wall material impurity ion species")
+    wall_impurity_fraction::Entry{T} = Entry{T}("-", "Wall impurity fraction n_wall/n_e"; check=x -> @assert x >= 0.0 "must be: wall_impurity_fraction >= 0.0")
     helium_fraction::Entry{T} = Entry{T}("-", "Helium density / electron density fraction"; check=x -> @assert 0.0 <= x <= 0.5 "must be: 0.0 <= helium_fraction <= 0.5")
     ejima::Entry{T} = Entry{T}("-", "Ejima coefficient"; default=0.4, check=x -> @assert 0.0 <= x < 1.0 "must be: 0.0 <= ejima < 1.0")
     polarized_fuel_fraction::Entry{T} =
@@ -169,6 +171,13 @@ Base.@kwdef mutable struct FUSEparameters__pellet_launcher{T} <: ParametersInit{
         "m",
         "Vector of geometric dimensions describing the pellet size for a given shape (spherical: [r], cylindrical: [d, l], rectangular: [x,y,z])";
         check=x -> @assert all(x .> 0.0) "All pellet shape dimensions must be > 0.0"
+    )
+    velocity_initial::Entry{T} = Entry{T}("m/s", "Initial pellet velocity (used by ActorPAM)"; default=200.0, check=x -> @assert x > 0.0 "must be: velocity_initial > 0.0")
+    injection_angle::Entry{T} = Entry{T}(
+        "rad",
+        "Poloidal angle of the pellet injection location (0 = outboard midplane, increasing counter-clockwise); aimed at the magnetic axis (used by ActorPAM)";
+        default=0.0,
+        check=x -> @assert 0.0 <= x <= 2π "must be: 0 <= injection_angle <= 2π"
     )
 end
 
@@ -241,6 +250,7 @@ Base.@kwdef mutable struct FUSEparameters__requirements{T} <: ParametersInit{T}
     log10_flattop_duration::Entry{T} =
         Entry{T}("log10(s)", "Log10 value of the duration of the flattop (use Inf for steady-state). Preferred over `flattop_duration` for optimization studies.")
     tritium_breeding_ratio::Entry{T} = Entry{T}(IMAS.requirements, :tritium_breeding_ratio; check=x -> @assert x >= 0.0 "must be: tritium_breeding_ratio >= 0.0")
+    peak_escape_flux::Entry{T} = Entry{T}(IMAS.requirements, :peak_escape_flux; check=x -> @assert x >= 0.0 "must be: peak_escape_flux >= 0.0")
     cost::Entry{T} = Entry{T}(IMAS.requirements, :cost; check=x -> @assert x >= 0.0 "must be: cost >= 0.0")
     ne_peaking::Entry{T} = Entry{T}(IMAS.requirements, :ne_peaking; check=x -> @assert x >= 0.0 "must be: ne_peaking >= 0.0")
     q_pol_omp::Entry{T} = Entry{T}(IMAS.requirements, :q_pol_omp; check=x -> @assert x >= 0.0 "must be: q_pol_omp >= 0.0")
@@ -507,7 +517,7 @@ function MXHboundary(ini::ParametersAllInits; kw...)::MXHboundary
     return MXHboundary(ini, dd; kw...)
 end
 
-function MXHboundary(ini::ParametersAllInits, dd::IMAS.dd; kw...)::MXHboundary
+function MXHboundary(ini::ParametersAllInits, dd::IMAS.DD; kw...)::MXHboundary
     boundary_from = ini.equilibrium.boundary_from
     if boundary_from == :ods
         eqt = dd.equilibrium.time_slice[ini.time.simulation_start]

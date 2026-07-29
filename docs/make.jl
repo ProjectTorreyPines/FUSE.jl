@@ -190,6 +190,17 @@ if skip_tutorial
     pages = [page for page in pages if page.first != "Tutorial"]
 end
 
+idx = findfirst(page -> page.first == "DIII-D Time-Dependent", pages)
+
+if isfile(joinpath(@__DIR__, "src", "d3dsummerschool.md"))
+    idx = findfirst(p -> p.first == "DIII-D Time-Dependent", pages)
+    insert!(pages, (idx === nothing ? length(pages) : idx) + 1, "DIII-D Summer School" => "d3dsummerschool.md")
+end
+
+if isfile(joinpath(@__DIR__, "src", "d3d_cmoop_summerschool.md"))
+    insert!(pages, (idx === nothing ? length(pages) : idx) + 2, "DIII-D Summer School: CMOOP" => "d3d_cmoop_summerschool.md")
+end
+
 # ============== #
 # build the docs #
 # ============== #

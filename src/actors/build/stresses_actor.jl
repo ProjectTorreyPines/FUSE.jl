@@ -7,9 +7,9 @@
 end
 
 mutable struct ActorStresses{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorStresses{P}}
-    function ActorStresses(dd::IMAS.dd{D}, par::FUSEparameters__ActorStresses{P}; kw...) where {D<:Real,P<:Real}
+    function ActorStresses(dd::IMAS.DD{D}, par::FUSEparameters__ActorStresses{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorStresses)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -17,7 +17,7 @@ mutable struct ActorStresses{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorStresses(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates mechanical stresses in the tokamak center stack (TF coils, OH coils, and plug) using
 1D analytical solutions based on Leuer's solid mechanics equations. Analyzes both scenarios
@@ -45,7 +45,7 @@ with OH coils on and off to find the worst-case stress conditions for structural
 
     Stores data in `dd.solid_mechanics`
 """
-function ActorStresses(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorStresses(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorStresses(dd, act.ActorStresses; kw...)
     step(actor)
     finalize(actor)

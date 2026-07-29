@@ -13,19 +13,19 @@
 end
 
 mutable struct ActorCoreRadHeatFlux{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCoreRadHeatFlux{P}}
     wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
 end
 
-function ActorCoreRadHeatFlux(dd::IMAS.dd{D}, par::FUSEparameters__ActorCoreRadHeatFlux{P}; kw...) where {D<:Real,P<:Real}
+function ActorCoreRadHeatFlux(dd::IMAS.DD{D}, par::FUSEparameters__ActorCoreRadHeatFlux{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCoreRadHeatFlux)
     par = OverrideParameters(par; kw...)
     return ActorCoreRadHeatFlux(dd, par, nothing)
 end
 
 """
-    ActorCoreRadHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCoreRadHeatFlux(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Computes wall heat flux from core plasma radiation using Monte Carlo photon transport.
 
@@ -60,7 +60,7 @@ wall loading and cooling requirements.
 This calculation provides essential data for first wall and blanket thermal design,
 complementing particle heat flux calculations for comprehensive wall loading analysis.
 """
-function ActorCoreRadHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCoreRadHeatFlux(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCoreRadHeatFlux(dd, act.ActorCoreRadHeatFlux; kw...)
     step(actor)
     finalize(actor)

@@ -11,7 +11,7 @@ import VacuumFields
 end
 
 mutable struct ActorVerticalStability{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorVerticalStability{P}}
     act::ParametersAllActors{P}
     stability_margin::D
@@ -20,7 +20,7 @@ mutable struct ActorVerticalStability{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorVerticalStability(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Computes vertical stability metrics for tokamak plasmas using the equilibrium and coil configuration.
 
@@ -31,14 +31,14 @@ This actor calculates two key stability metrics:
 The analysis considers both active PF coils and passive conducting structures. Results are stored in
 `dd.mhd_linear.time_slice[].toroidal_mode` where stability margin > 0.15 and γτ < 10 indicate stability.
 """
-function ActorVerticalStability(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorVerticalStability(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorVerticalStability(dd, act.ActorVerticalStability, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorVerticalStability(dd::IMAS.dd{D}, par::FUSEparameters__ActorVerticalStability{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorVerticalStability(dd::IMAS.DD{D}, par::FUSEparameters__ActorVerticalStability{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorVerticalStability)
     par = OverrideParameters(par; kw...)
     return ActorVerticalStability(dd, par, act, D(NaN), D(NaN), VacuumFields.MultiCoil[])

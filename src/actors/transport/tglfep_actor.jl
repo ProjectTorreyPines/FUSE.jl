@@ -9,9 +9,17 @@ import TurbulentTransport
     rho_scan::Entry{AbstractVector{T}} =
         Entry{AbstractVector{T}}("-", "rho_tor_norm radii at which TGLF-EP finds the critical EP-density scale SFmin"; default=[0.01, 0.21, 0.41, 0.61, 0.81, 0.95])
     is_ep::Entry{Int} = Entry{Int}("-", "ion index of the energetic-particle (EP) driver species in dd.core_profiles.ion"; default=3)
-    process_in::Entry{Int} = Entry{Int}("-", "TGLF-EP PROCESS_IN (4 or 5: critical-EP-density-gradient scan)"; default=5)
+    process_in::Entry{Int} = Entry{Int}("-", "TGLF-EP PROCESS_IN (critical-EP-density-gradient scan): 5 = EP drive only, 6 = thermal+EP gradients on / ITG-TEM basis (grid solver only)"; default=5)
     solver::Switch{Symbol} =
-        Switch{Symbol}([:grid, :ad], "-", "critical-factor engine: :grid (Fortran-equivalent kwscale_scan sweep; SFmin matches Fortran) or :ad (autodiff AE-onset Newton + IFT (kyhat,width) descent; grid-independent so SFmin can differ from/be more accurate than :grid, and is much faster on GPU)"; default=:grid)
+        Switch{Symbol}([:grid, :ad, :robust_ad, :truth], "-", "critical-factor engine: :ad (default; fast autodiff AE-onset Newton + IFT (kyhat,width) descent, width-extended via extend_mode=:locate — tracks :robust_ad's accuracy closely at a fraction of the cost: the speed/accuracy sweet spot), :grid (Fortran-equivalent kwscale_scan sweep; SFmin matches Fortran — use for Fortran equivalence or QL-diffusivity coupling), :robust_ad (robust autodiff: global-min of the all-filter onset over the (kyhat,width) grid + refine_rounds of window narrowing; most accurate AD path), or :truth (extends width below WIDTH_MIN for the genuine narrow-width EP-driven AEs; NOT Fortran-faithful, returns the most-unstable physical threshold)"; default=:ad)
+    refine_rounds::Entry{Int} =
+        Entry{Int}("-", "accuracy/speed knob for solver=:robust_ad: rounds of (kyhat,width) window narrowing around the running best (0 = coarse-grid min; higher = better resolution of off-node binding points such as the plasma edge, at proportionally higher cost). Ignored by :grid and :ad."; default=1)
+    extend_mode::Switch{Symbol} =
+        Switch{Symbol}([:locate, :wide, :only], "-", "solver=:ad width-extension strategy, best understood as two faithful/approximate pairs (speedups are node-hours vs the Fortran CPU reference at N_BASIS=32). The :only mode stays in Fortran's w>=1 box: together with solver=:grid (the faithful Fortran-equivalent, ~13x faster) it forms the match-Fortran pair, where :only is faster than :grid but only an approximation thereof (~20x faster). :locate and :wide instead extend Fortran to the lower-width (w<1) EP-driven AE modes in the outer core: :locate (default) is the faithful extension (4.7x faster) and :wide is the faster approximation thereof (9x faster). Ignored by :grid/:robust_ad/:truth."; default=:locate)
+    wide_kdesc::Entry{Int} =
+        Entry{Int}("-", "solver=:ad extend_mode=:wide multistart breadth (number of well-separated descents). Higher closes the residual over-prediction gap to :robust_ad at proportionally higher cost; 2 is the accuracy/cost sweet spot. Ignored unless solver=:ad and extend_mode=:wide."; default=2)
+    faithful_confirm::Entry{Bool} =
+        Entry{Bool}("-", "solver=:ad: confirm the located onset with the expensive all-filter (IFLUX=true) keep-onset (true, production: conservative and matches :robust_ad's filtering). false = cheap 'pure AD' AE-band onset only (faster but can dangerously under-predict; not recommended). Ignored by :grid/:robust_ad/:truth."; default=true)
     threshold_flag::Entry{Int} = Entry{Int}("-", "TGLF-EP THRESHOLD_FLAG"; default=0)
     scan_method::Entry{Int} = Entry{Int}("-", "TGLF-EP SCAN_METHOD"; default=1)
     n_basis::Entry{Int} = Entry{Int}("-", "TGLF-EP N_BASIS (number of Hermite basis functions)"; default=2)
@@ -41,7 +49,7 @@ import TurbulentTransport
 end
 
 mutable struct ActorTJLFEP{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorTJLFEP{P}}
     rho_grid::Vector{D}            # full rho_tor_norm grid the critical gradients live on
     SFmin::Vector{D}               # critical EP-density scalefactor per scan radius (stability metric)
@@ -53,7 +61,7 @@ mutable struct ActorTJLFEP{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorTJLFEP(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorTJLFEP(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Energetic-particle (EP) transport actor combining TGLF-EP and ALPHA.
 
@@ -68,14 +76,14 @@ obtain the EP radial profiles: density `n_EP`, pressure `p_EP`, temperature
 population on the EP species and the EP flux to `dd.core_transport`. AE-stability
 metrics (`SFmin`, `width`, `kymark`) are kept on the actor struct.
 """
-function ActorTJLFEP(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTJLFEP(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTJLFEP(dd, act.ActorTJLFEP; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTJLFEP(dd::IMAS.dd{D}, par::FUSEparameters__ActorTJLFEP; kw...) where {D<:Real}
+function ActorTJLFEP(dd::IMAS.DD{D}, par::FUSEparameters__ActorTJLFEP; kw...) where {D<:Real}
     logging_actor_init(ActorTJLFEP)
     par = OverrideParameters(par; kw...)
     return ActorTJLFEP(dd, par, D[], D[], D[], D[], D[], D[], nothing)
@@ -112,18 +120,33 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
 
+    # ActorTJLFEP is a critical-EP-density-gradient -> EP-profile actor: it consumes SFmin
+    # and feeds ALPHA. Only the threshold-scan modes 5 (EP drive only) and 6 (thermal+EP
+    # gradients on / ITG-TEM basis) produce that; both run mainsub's kwscale_scan and yield
+    # SFmin. Other Fortran modes (e.g. 3 = diagnostic gamma/omega spectra) have no
+    # critical-gradient output and must use TJLFEP directly; mode 4 (the older per-toroidal-n
+    # TGLFEP_scalefactor scan) is not ported (mainsub throws), so it is rejected here too.
+    par.process_in in (5, 6) ||
+        error("ActorTJLFEP: process_in=$(par.process_in) is unsupported; only 5 (EP drive only) or 6 (thermal+EP / ITG-TEM) critical-EP-density-gradient scans yield EP profiles. Mode 4 (per-n TGLFEP_scalefactor) is not ported. For the spectrum diagnostic (process_in=3) call TJLFEP directly (e.g. run_gacode_scan_task).")
+    # Mode 6 (MODE_IN=4) is only faithful through the grid scan; the AD engines model the
+    # EP-drive-only (mode-5) onset. Fail fast with guidance instead of surfacing mainsub's
+    # error from inside the per-radius pmap.
+    (par.process_in == 6 && par.solver != :grid) &&
+        error("ActorTJLFEP: process_in=6 (thermal+EP / ITG-TEM threshold) requires solver=:grid; got solver=$(par.solver). Set solver=:grid, or use process_in=5 with the AD solvers.")
+
     rho_scan = collect(Float64, par.rho_scan)
     OptionsDict = _optionsdict(par)
 
-    # The AD solver returns the critical factor/marking only (no per-mode QL buffers),
-    # so QL-diffusivity coupling is unavailable on that path.
-    if par.alpha_use_ql && par.alpha_solver == :stiff && par.solver == :ad
-        @warn "ActorTJLFEP: alpha_use_ql is not supported with solver=:ad (no QL buffers from the AD path); falling back to non-QL stiff-CGM."
+    # The AD solvers (:ad, :faithful_grid) return the critical factor/marking only (no
+    # per-mode QL buffers), so QL-diffusivity coupling is unavailable on those paths.
+    if par.alpha_use_ql && par.alpha_solver == :stiff && par.solver != :grid
+        @warn "ActorTJLFEP: alpha_use_ql is not supported with solver=$(par.solver) (no QL buffers from the AD path); falling back to non-QL stiff-CGM."
     end
     use_ql = par.alpha_use_ql && par.alpha_solver == :stiff && par.solver == :grid
     width, kymark_out, SFmin, dpdr_crit_out, dndr_crit_out, marginal_ql =
         TJLFEP.runTHD(dd, rho_scan, OptionsDict; use_gpu=par.use_gpu, ql_flux_scan=use_ql,
-            inner=par.inner, mps_team=par.mps_team, solver=par.solver)
+            inner=par.inner, mps_team=par.mps_team, solver=par.solver, refine_rounds=par.refine_rounds,
+            extend_mode=par.extend_mode, wide_kdesc=par.wide_kdesc, faithful_confirm=par.faithful_confirm)
 
     actor.rho_grid = D.(dd.core_profiles.profiles_1d[].grid.rho_tor_norm)
     actor.SFmin = D.(SFmin)

@@ -47,7 +47,7 @@ end
 end
 
 mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorZMQ{P}}
     context::Union{Nothing,ZMQ.Context}
     socket::Union{Nothing,ZMQ.Socket}
@@ -62,14 +62,14 @@ mutable struct ActorZMQ{D,P} <: SingleAbstractActor{D,P}
     prev_co2::Vector{Float64}  # last valid CO2 density values (fallback if computation fails)
 end
 
-function ActorZMQ(dd::IMAS.dd{D}, par::FUSEparameters__ActorZMQ{P}; kw...) where {D<:Real,P<:Real}
+function ActorZMQ(dd::IMAS.DD{D}, par::FUSEparameters__ActorZMQ{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorZMQ)
     par = OverrideParameters(par; kw...)
     return ActorZMQ{D,P}(dd, par, nothing, nothing, false, false, NaN, NaN, NaN, NaN, NaN, Float64[])
 end
 
 """
-    ActorZMQ(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorZMQ(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Coupling actor for exchanging data with external codes (e.g., GSLite/GSEvolve) via ZeroMQ.
 
@@ -89,7 +89,7 @@ run with a loud error (no negotiation). GSLite must reply with `Ack.ok = true` o
 accepted steps; `ok = false` (e.g. NaN input, solver divergence) likewise terminates
 the run, surfacing `Ack.error`.
 """
-function ActorZMQ(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorZMQ(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorZMQ(dd, act.ActorZMQ; kw...)
     if actor.par.enabled
         connect!(actor)

@@ -8,19 +8,19 @@ using Plots
 end
 
 mutable struct ActorTORBEAM{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorTORBEAM{P}}
     torbeam_params::TORBEAM.TorbeamParams
 end
 
-function ActorTORBEAM(dd::IMAS.dd, par::FUSEparameters__ActorTORBEAM; kw...)
+function ActorTORBEAM(dd::IMAS.DD, par::FUSEparameters__ActorTORBEAM; kw...)
     logging_actor_init(ActorTORBEAM)
     par = OverrideParameters(par; kw...)
     return ActorTORBEAM(dd, par, TORBEAM.TorbeamParams())
 end
 
 """
-    ActorTORBEAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorTORBEAM(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Performs electron cyclotron (EC) heating and current drive calculations using the 
 TORBEAM ray-tracing code. TORBEAM provides detailed 3D beam propagation modeling
@@ -35,7 +35,7 @@ and realistic wave-plasma interactions.
     Requires TORBEAM external code. Reads data from `dd.ec_launchers` and 
     equilibrium data, stores results in appropriate IMAS data structures.
 """
-function ActorTORBEAM(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTORBEAM(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTORBEAM(dd, act.ActorTORBEAM; kw...)
     step(actor)
     finalize(actor)

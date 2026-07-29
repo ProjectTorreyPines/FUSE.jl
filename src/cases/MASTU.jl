@@ -137,11 +137,11 @@ function case_parameters(::Val{:MASTU}, scenario::Symbol)
 end
 
 """
-    case_parameters(:MASTU, ods::IMAS.dd)
+    case_parameters(:MASTU, ods::IMAS.DD)
 
 MAST-U from ODS/dd object with experimental data
 """
-function case_parameters(::Val{:MASTU}, dd::IMAS.dd)
+function case_parameters(::Val{:MASTU}, dd::IMAS.DD)
     # Get base MASTU machine parameters
     ini, act = case_parameters(Val(:MASTU); init_from=:ods)
 

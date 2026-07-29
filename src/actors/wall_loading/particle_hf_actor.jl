@@ -13,19 +13,19 @@
 end
 
 mutable struct ActorParticleHeatFlux{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorParticleHeatFlux{P}}
     wall_heat_flux::Union{Nothing,IMAS.WallHeatFlux}
 end
 
-function ActorParticleHeatFlux(dd::IMAS.dd{D}, par::FUSEparameters__ActorParticleHeatFlux{P}; kw...) where {D<:Real,P<:Real}
+function ActorParticleHeatFlux(dd::IMAS.DD{D}, par::FUSEparameters__ActorParticleHeatFlux{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorParticleHeatFlux)
     par = OverrideParameters(par; kw...)
     return ActorParticleHeatFlux(dd, par, nothing)
 end
 
 """
-    ActorParticleHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorParticleHeatFlux(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Computes wall heat flux from charged particle transport across the scrape-off layer (SOL).
 
@@ -53,7 +53,7 @@ The calculation accounts for:
 The results provide essential input for material design, cooling system requirements,
 and component lifetime assessments in tokamak reactor studies.
 """
-function ActorParticleHeatFlux(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorParticleHeatFlux(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorParticleHeatFlux(dd, act.ActorParticleHeatFlux; kw...)
     step(actor)
     finalize(actor)

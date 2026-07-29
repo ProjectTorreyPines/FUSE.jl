@@ -25,13 +25,13 @@ mutable struct OptimizationWPED
 end
 
 mutable struct ActorWPED{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorWPED{P}}
     optimization_guesses::OptimizationWPED
 end
 
 """
-    ActorWPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorWPED(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Adjusts pedestal temperature profiles to match a target energy ratio between pedestal and core regions.
 
@@ -46,14 +46,14 @@ Key operations:
 - Preserves separatrix temperature boundary conditions
 - Updates temperature profiles through H-mode blending functions
 """
-function ActorWPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorWPED(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorWPED(dd, act.ActorWPED; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorWPED(dd::IMAS.dd, par::FUSEparameters__ActorWPED; kw...)
+function ActorWPED(dd::IMAS.DD, par::FUSEparameters__ActorWPED; kw...)
     logging_actor_init(ActorWPED)
     par = OverrideParameters(par; kw...)
     return ActorWPED(dd, par, OptimizationWPED(0.0, 0.0, 3e3))

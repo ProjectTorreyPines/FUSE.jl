@@ -4,6 +4,22 @@ These instructions are for **personal** FUSE installs on NERSC login or compute 
 For the pre-built `module load fuse` environment maintained by the FUSE team, see the
 [Perlmutter deployment scripts](https://github.com/ProjectTorreyPines/FUSE.jl/tree/master/deploy/perlmutter).
 
+## NERSC one-command install
+
+From a login node (run the depot symlink under [Home quota / memory pressure](@ref nersc-home-quota) first if `$HOME` is under memory pressure). Loads `julia/1.11.7` and `conda`, installs FUSE, Revise, fusebot (under `~/.local/bin` or `~/.local/shared/bin` if `bin` is not writable), the Jupyter conda environment, IJulia kernels, clones [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples), and finishes by running the **first three cells** of `fluxmatcher.ipynb`.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_nersc.sh)
+```
+
+From a local `FUSE.jl` clone: `bash scripts/install_fuse_nersc.sh`
+
+Override the Julia module with `FUSE_JULIA_MODULE=julia/1.12.0 bash scripts/install_fuse_nersc.sh` when needed. Skip the notebook solve with `FUSE_SKIP_VERIFY=1` if you only want packages + kernels.
+
+If `fusebot` cannot be installed or `fusebot install_IJulia` fails (for example when `make` is missing), the script falls back to `make install_IJulia` and then to `scripts/install_ijulia.sh` from the FUSE package directory.
+
+Then start JupyterLab (with `module load conda` and `conda activate fuse`) and open `FuseExamples/fluxmatcher.ipynb`. To re-run the notebook cells from the shell later: `bash scripts/verify_fluxmatcher_notebook.sh`.
+
 ## Julia
 
 NERSC provides Julia through the module system. **Do not use juliaup** for a typical NERSC workflow.
@@ -111,7 +127,7 @@ That environment includes sysimage-accelerated `fuse` and `julia` wrappers and p
 
 ### [Home quota / memory pressure](@id nersc-home-quota)
 
-If your home directory is tight on space or inode quota, keep the full Julia depot off `$HOME` by
+If your home directory is under memory or inode pressure, keep the full Julia depot off `$HOME` by
 symlinking `~/.julia` to `$PSCRATCH`:
 
 ```bash

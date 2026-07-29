@@ -8,7 +8,7 @@
 end
 
 mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFluxCalculator{P}}
     act::ParametersAllActors{P}
     actor_turb::Union{ActorTGLF{D,P},ActorQLGYRO{D,P},ActorAnalyticTurbulence{D,P},ActorNoOperation{D,P}}
@@ -16,7 +16,7 @@ mutable struct ActorFluxCalculator{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFluxCalculator(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Provides a unified interface to run turbulent and neoclassical transport model actors.
 
@@ -35,14 +35,14 @@ Neoclassical model options:
 - `:neoclassical`: Collisional transport (Chang-Hinton, NEO, Hirshman-Sigmar)
 - `:none`: No neoclassical transport
 """
-function ActorFluxCalculator(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorFluxCalculator(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFluxCalculator(dd, act.ActorFluxCalculator, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorFluxCalculator(dd::IMAS.dd, par::FUSEparameters__ActorFluxCalculator, act::ParametersAllActors; kw...)
+function ActorFluxCalculator(dd::IMAS.DD, par::FUSEparameters__ActorFluxCalculator, act::ParametersAllActors; kw...)
     logging_actor_init(ActorFluxCalculator)
     par = OverrideParameters(par; kw...)
 

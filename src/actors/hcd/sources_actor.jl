@@ -6,24 +6,25 @@
     ic_model::Switch{Symbol} = Switch{Symbol}([:ICsimple, :replay, :none], "-", "IC source actor to run"; default=:ICsimple)
     lh_model::Switch{Symbol} = Switch{Symbol}([:LHsimple, :replay, :none], "-", "LH source actor to run"; default=:LHsimple)
     nb_model::Switch{Symbol} = Switch{Symbol}([:NBsimple, :RABBIT, :replay, :none], "-", "NB source actor to run"; default=:NBsimple)
-    pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
+    pellet_model::Switch{Symbol} = Switch{Symbol}([:PLsimple, :PAM, :replay, :none], "-", "Pellet source actor to run"; default=:PLsimple)
     neutral_model::Switch{Symbol} = Switch{Symbol}([:NEUCG, :replay, :none], "-", "Neutral gas fueling actor to run"; default=:NEUCG)
+    modify_electron_density::Entry{Bool} = Entry{Bool}( "-", "Modify electron density"; default=false)
 end
 
 mutable struct ActorSources{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSources{P}}
     act::ParametersAllActors{P}
     ec_actor::Union{ActorSimpleEC{D,P},ActorTORBEAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     ic_actor::Union{ActorSimpleIC{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     lh_actor::Union{ActorSimpleLH{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     nb_actor::Union{ActorSimpleNB{D,P},ActorRABBIT{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
-    pellet_actor::Union{ActorSimplePL{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    pellet_actor::Union{ActorSimplePL{D,P},ActorPAM{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
     neutral_actor::Union{ActorNeutralFueling{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
-    ActorSources(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSources(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Unified heating, current drive, and fueling system coordinator for all auxiliary power systems.
 
@@ -35,7 +36,7 @@ Managed subsystems:
 - **Ion Cyclotron (IC)**: ICsimple or replay modes
 - **Lower Hybrid (LH)**: LHsimple or replay modes
 - **Neutral Beam Injection (NB)**: NBsimple, RABBIT, or replay modes
-- **Pellet fueling**: PLsimple or replay modes
+- **Pellet fueling**: PLsimple, PAM, or replay modes
 - **Neutral gas fueling**: NEUCG model or replay modes
 
 Key features:
@@ -59,14 +60,14 @@ Execution order:
     Reads from hardware descriptions (`dd.ec_launchers`, `dd.ic_antennas`, etc.) and
     pulse schedules (`dd.pulse_schedule`), and coordinates updates to `dd.core_sources`, `dd.waves`, etc.
 """
-function ActorSources(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSources(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSources(dd, act.ActorSources, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorSources(dd::IMAS.dd, par::FUSEparameters__ActorSources, act::ParametersAllActors; kw...)
+function ActorSources(dd::IMAS.DD, par::FUSEparameters__ActorSources, act::ParametersAllActors; kw...)
     logging_actor_init(ActorSources)
     par = OverrideParameters(par; kw...)
 
@@ -115,6 +116,8 @@ function ActorSources(dd::IMAS.dd, par::FUSEparameters__ActorSources, act::Param
     @assert length(dd.pulse_schedule.pellet.launcher) == length(dd.pellets.launcher) "length(dd.pulse_schedule.pellet.launcher)=$(length(dd.pulse_schedule.pellet.launcher)) VS length(dd.pellets.launcher)=$(length(dd.pellets.launcher))"
     if par.pellet_model == :PLsimple
         actor.pellet_actor = ActorSimplePL(dd, act.ActorSimplePL)
+    elseif par.pellet_model == :PAM
+        actor.pellet_actor = ActorPAM(dd, act.ActorPAM)
     elseif par.pellet_model == :replay
         actor.pellet_actor = ActorReplay(dd, act.ActorReplay, ActorSimplePL(dd, act.ActorSimplePL))
     end
@@ -160,7 +163,7 @@ function _step(actor::ActorSources)
     step(actor.neutral_actor)
 
     # Call IMAS.intrinsic_sources!(dd) since most would expect sources to be consistent when coming out of this actor
-    IMAS.intrinsic_sources!(dd)
+    IMAS.intrinsic_sources!(dd;modify_electron_density=actor.par.modify_electron_density)
 
     return actor
 end
@@ -200,44 +203,44 @@ end
 
 # ==========
 
-function _step(replay_actor::ActorReplay, actor::ActorSimpleEC, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorSimpleEC, replay_dd::IMAS.DD)
     IMAS.copy_timeslice!(actor.dd.ec_launcher, replay_dd.ec_launcher, actor.dd.global_time)
     copy_source_timeslice!(actor.dd, replay_dd, :ec)
     return replay_actor
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorSimpleIC, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorSimpleIC, replay_dd::IMAS.DD)
     IMAS.copy_timeslice!(actor.dd.ic_antenna, replay_dd.ic_antenna, actor.dd.global_time)
     copy_source_timeslice!(actor.dd, replay_dd, :ic)
     return replay_actor
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorSimpleLH, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorSimpleLH, replay_dd::IMAS.DD)
     IMAS.copy_timeslice!(actor.dd.lh_antenna, replay_dd.lh_antenna, actor.dd.global_time)
     copy_source_timeslice!(actor.dd, replay_dd, :lh)
     return replay_actor
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorSimpleNB, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorSimpleNB, replay_dd::IMAS.DD)
     IMAS.copy_timeslice!(actor.dd.nbi, replay_dd.nbi, actor.dd.global_time)
     copy_source_timeslice!(actor.dd, replay_dd, :nbi)
     return replay_actor
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorSimplePL, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorSimplePL, replay_dd::IMAS.DD)
     IMAS.copy_timeslice!(actor.dd.pellet, replay_dd.pellet, actor.dd.global_time)
     copy_source_timeslice!(actor.dd, replay_dd, :pellet)
     return replay_actor
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorNeutralFueling, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorNeutralFueling, replay_dd::IMAS.DD)
     copy_source_timeslice!(actor.dd, replay_dd, :gas_puff)
     return replay_actor
 end
 
 # ==========
 
-function copy_source_timeslice!(dd::IMAS.dd, replay_dd::IMAS.dd, identifier::Symbol)
+function copy_source_timeslice!(dd::IMAS.DD, replay_dd::IMAS.DD, identifier::Symbol)
     for replay_source in findall(identifier, replay_dd.core_sources.source)
         source = resize!(dd.core_sources.source, :identifier, "identifier.name" => replay_source.name; wipe=false)
         IMAS.copy_timeslice!(source, replay_source, actor.dd.global_time)

@@ -7,9 +7,9 @@
 end
 
 mutable struct ActorNeutronics{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorNeutronics{P}}
-    function ActorNeutronics(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutronics{P}; kw...) where {D<:Real,P<:Real}
+    function ActorNeutronics(dd::IMAS.DD{D}, par::FUSEparameters__ActorNeutronics{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNeutronics)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -17,7 +17,7 @@ mutable struct ActorNeutronics{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorNeutronics(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates neutron wall loading on the first wall using Monte Carlo particle tracing.
 The actor defines neutron sources from fusion reactions, traces their paths to the 
@@ -33,7 +33,7 @@ The calculation includes:
 
     Stores data in `dd.neutronics`
 """
-function ActorNeutronics(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorNeutronics(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorNeutronics(dd, act.ActorNeutronics; kw...)
     step(actor)
     finalize(actor)
@@ -85,7 +85,7 @@ function define_neutrons(actor::ActorNeutronics; N::Int=actor.par.N)
     return define_neutrons(actor.dd, N)
 end
 
-function define_neutrons(dd::IMAS.dd, N::Int)
+function define_neutrons(dd::IMAS.DD, N::Int)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
     source_1d = IMAS.D_T_to_He4_heating(cp1d) .* 4.0 .+ IMAS.D_D_to_He3_heating(cp1d) .* 3.0

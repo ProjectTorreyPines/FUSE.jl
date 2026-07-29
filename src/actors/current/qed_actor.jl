@@ -14,7 +14,7 @@ import QED
 end
 
 mutable struct ActorQED{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorQED{P}}
     act::ParametersAllActors{P}
     ip_controller::ActorControllerIp{D,P}
@@ -22,7 +22,7 @@ mutable struct ActorQED{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorQED(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evolves plasma current using the QED (quasi-steady-state equilibrium diffusion) solver for realistic current diffusion.
 
@@ -53,14 +53,14 @@ current drive scenarios including bootstrap current, ECCD, NBCD, and other sourc
 
     The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
 """
-function ActorQED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorQED(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorQED(dd, act.ActorQED, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorQED(dd::IMAS.dd, par::FUSEparameters__ActorQED, act::ParametersAllActors; kw...)
+function ActorQED(dd::IMAS.DD, par::FUSEparameters__ActorQED, act::ParametersAllActors; kw...)
     logging_actor_init(ActorQED)
     par = OverrideParameters(par; kw...)
     ip_controller = ActorControllerIp(dd, act.ActorControllerIp)

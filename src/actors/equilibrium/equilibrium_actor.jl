@@ -14,14 +14,14 @@
 end
 
 mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorEquilibrium{P}}
     act::ParametersAllActors{P}
     eq_actor::Union{Nothing,ActorTEQUILA{D,P},ActorFRESCO{D,P},ActorEGGO{D,P},ActorCHEASE{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
-    ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorEquilibrium(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Unified interface for tokamak MHD equilibrium solvers with automatic data preparation and postprocessing.
 
@@ -56,14 +56,14 @@ flux surface reconstruction → validation and visualization.
     Reads from `dd.core_profiles`, `dd.pulse_schedule.position_control`, and optionally `dd.wall`, 
     `dd.pf_active`. Updates `dd.equilibrium` with the solved MHD equilibrium.
 """
-function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.DD, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = OverrideParameters(par; kw...)
 
@@ -368,7 +368,7 @@ when iterating between equilibrium and other actors.
 
 See: IMAS/src/expressions/onetime.jl
 """
-function latest_equilibrium_grids!(dd::IMAS.dd)
+function latest_equilibrium_grids!(dd::IMAS.DD)
     # core_profiles
     old_rho_tor_norm = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
     empty!(dd.core_profiles.profiles_1d[].grid)
@@ -418,7 +418,7 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     )
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorEquilibrium, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorEquilibrium, replay_dd::IMAS.DD)
     IMAS.copy_timeslice!(actor.dd.equilibrium, replay_dd.equilibrium, actor.dd.global_time)
     return replay_actor
 end

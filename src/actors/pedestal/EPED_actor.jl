@@ -22,7 +22,7 @@ import EPEDNN
 end
 
 mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorEPED{P}}
     epedmod::EPEDNN.EPEDmodel
     inputs::EPEDNN.InputEPED
@@ -31,7 +31,7 @@ mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorEPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorEPED(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Predicts pedestal pressure and width using the EPED neural network model.
 
@@ -55,7 +55,7 @@ Outputs:
 - Pedestal width as fraction of normalized poloidal flux (wped)
 - Automatic fallback to edge pressure + 10% if EPED prediction is too low
 """
-function ActorEPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorEPED(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorEPED(dd, act.ActorEPED; kw...)
     step(actor)
     finalize(actor)
@@ -63,7 +63,7 @@ function ActorEPED(dd::IMAS.dd, act::ParametersAllActors; kw...)
 end
 
 
-function ActorEPED(dd::IMAS.dd, par::FUSEparameters__ActorEPED; kw...)
+function ActorEPED(dd::IMAS.DD, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
     par = OverrideParameters(par; kw...)
     epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
@@ -160,7 +160,7 @@ function __finalize(actor::Union{ActorEPED,ActorAnalyticPedestal})
 end
 
 function run_EPED(
-    dd::IMAS.dd;
+    dd::IMAS.DD;
     ne_from::Symbol,
     zeff_from::Symbol,
     βn_from::Symbol,
@@ -175,7 +175,7 @@ end
 
 """
     run_EPED!(
-        dd::IMAS.dd,
+        dd::IMAS.DD,
         eped_inputs::EPEDNN.InputEPED,
         epedmod::EPEDNN.EPED1NNmodel;
         ne_from::Symbol,
@@ -188,7 +188,7 @@ end
 Runs EPED from dd and outputs the EPED solution as the sol struct
 """
 function run_EPED!(
-    dd::IMAS.dd,
+    dd::IMAS.DD,
     eped_inputs::EPEDNN.InputEPED,
     epedmod::EPEDNN.EPED1NNmodel;
     ne_from::Symbol,

@@ -1,9 +1,9 @@
 """
-    init_edge_profiles!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_edge_profiles!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize `dd.edge_profiles` starting from `ini` and `act` parameters
 """
-function init_edge_profiles!(dd::IMAS.dd{T}, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd()) where {T<:Real}
+function init_edge_profiles!(dd::IMAS.DD{T}, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd()) where {T<:Real}
     TimerOutputs.reset_timer!("init_edge_profiles")
     TimerOutputs.@timeit timer "init_edge_profiles" begin
         init_from = ini.general.init_from

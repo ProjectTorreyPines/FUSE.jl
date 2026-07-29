@@ -16,13 +16,13 @@ import IMAS
 end
 
 mutable struct ActorAnalyticTurbulence{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorAnalyticTurbulence{P}}
     flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
-    ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorAnalyticTurbulence(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evaluates analytic turbulent transport models including GyroBohm and Bohm+gyro-Bohm (BgB) models.
 
@@ -37,14 +37,14 @@ The BgB model computes transport coefficients using local temperature and densit
 safety factor profiles, and magnetic field geometry. Results are normalized to gyro-Bohm
 and stored in `dd.core_transport` as anomalous transport fluxes.
 """
-function ActorAnalyticTurbulence(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorAnalyticTurbulence(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorAnalyticTurbulence(dd, act.ActorAnalyticTurbulence; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorAnalyticTurbulence(dd::IMAS.dd{D}, par::FUSEparameters__ActorAnalyticTurbulence{P}; kw...) where {D<:Real,P<:Real}
+function ActorAnalyticTurbulence(dd::IMAS.DD{D}, par::FUSEparameters__ActorAnalyticTurbulence{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorAnalyticTurbulence)
     par = OverrideParameters(par; kw...)
     return ActorAnalyticTurbulence(dd, par, GACODE.FluxSolution{D}[])

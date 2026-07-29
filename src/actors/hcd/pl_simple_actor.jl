@@ -11,9 +11,9 @@ end
 end
 
 mutable struct ActorSimplePL{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSimplePL{P}}
-    function ActorSimplePL(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimplePL{P}; kw...) where {D<:Real,P<:Real}
+    function ActorSimplePL(dd::IMAS.DD{D}, par::FUSEparameters__ActorSimplePL{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimplePL)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -21,7 +21,7 @@ mutable struct ActorSimplePL{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimplePL(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates pellet fueling particle deposition using a simplified deposition model.
 
@@ -45,7 +45,7 @@ The deposition profile uses a beta function with parameters tuned for pellet-lik
 
     Reads data in `dd.pellets.launcher`, `dd.pulse_schedule` and stores results in `dd.core_sources`
 """
-function ActorSimplePL(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSimplePL(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSimplePL(dd, act.ActorSimplePL; kw...)
     step(actor)
     finalize(actor)

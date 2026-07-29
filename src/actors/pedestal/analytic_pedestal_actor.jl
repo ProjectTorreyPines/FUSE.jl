@@ -22,7 +22,7 @@ import EPEDNN
 end
 
 mutable struct ActorAnalyticPedestal{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorAnalyticPedestal{P}}
     inputs::EPEDNN.InputEPED
     wped::Union{Missing,Real}
@@ -30,7 +30,7 @@ mutable struct ActorAnalyticPedestal{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorAnalyticPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorAnalyticPedestal(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates pedestal pressure and width using analytic scaling laws for spherical tokamaks.
 
@@ -48,14 +48,14 @@ Key outputs:
 - Pedestal width (wped) as half-width fraction of ψ_norm
 - Scaling coefficients can be customized via height_coefficient and width_coefficient parameters
 """
-function ActorAnalyticPedestal(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorAnalyticPedestal(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorAnalyticPedestal(dd, act.ActorAnalyticPedestal; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorAnalyticPedestal(dd::IMAS.dd, par::FUSEparameters__ActorAnalyticPedestal; kw...)
+function ActorAnalyticPedestal(dd::IMAS.DD, par::FUSEparameters__ActorAnalyticPedestal; kw...)
     logging_actor_init(ActorAnalyticPedestal)
     par = OverrideParameters(par; kw...)
     return ActorAnalyticPedestal(dd, par, EPEDNN.InputEPED(), missing, missing)
@@ -155,13 +155,13 @@ function pedestal_poloidal_βn_scaling_from_βn(βn::Float64)
 end
 
 """
-    pedestal_poloidal_βn(dd::IMAS.dd)
+    pedestal_poloidal_βn(dd::IMAS.DD)
 
 Scaling law to obtain the pedestal pressure for STs according to:
 Figure 1d from Parisi, J. F., et al. "HIPED: Machine Learning Framework for Spherical Tokamak Pedestal Prediction and Optimization." arXiv preprint arXiv:2504.19861 (2025).
 Expression is a refit of that plot
 """
-function pedestal_poloidal_βn(dd::IMAS.dd)
+function pedestal_poloidal_βn(dd::IMAS.DD)
     eqt = dd.equilibrium.time_slice[]
     ip = eqt.global_quantities.ip
 

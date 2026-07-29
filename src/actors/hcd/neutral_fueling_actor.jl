@@ -7,9 +7,9 @@
 end
 
 mutable struct ActorNeutralFueling{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorNeutralFueling{P}}
-    function ActorNeutralFueling(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeutralFueling{P}; kw...) where {D<:Real,P<:Real}
+    function ActorNeutralFueling(dd::IMAS.DD{D}, par::FUSEparameters__ActorNeutralFueling{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNeutralFueling)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -17,7 +17,7 @@ mutable struct ActorNeutralFueling{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorNeutralFueling(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorNeutralFueling(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates neutral gas fueling particle source using the neucg model for wall recycling.
 
@@ -48,7 +48,7 @@ The solver uses:
     Reads data from `dd.equilibrium`, `dd.core_profiles` and stores results in 
     `dd.core_profiles.profiles_1d.neutral` and `dd.core_sources`
 """
-function ActorNeutralFueling(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorNeutralFueling(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorNeutralFueling(dd, act.ActorNeutralFueling; kw...)
     step(actor)
     finalize(actor)

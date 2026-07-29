@@ -101,8 +101,8 @@ function run_predictive_rt_case(device::Symbol, shot::Int; kw_case_parameters::D
 end
 
 function run_predictive_rt_case!(
-    dd::IMAS.dd,
-    dd_exp::IMAS.dd,
+    dd::IMAS.DD,
+    dd_exp::IMAS.DD,
     device::Symbol,
     shot::Int;
     savedir::AbstractString=abspath("."),
@@ -291,12 +291,12 @@ function run_predictive_rt_case!(
 end
 
 """
-    extract_traces(dd::IMAS.dd, dd_exp::IMAS.dd)
+    extract_traces(dd::IMAS.DD, dd_exp::IMAS.DD)
 
 Extract time traces of li and beta_pol from FUSE simulation and EFIT,
 both on FUSE's time grid (EFIT is interpolated to match).
 """
-function extract_traces(dd::IMAS.dd, dd_exp::IMAS.dd)
+function extract_traces(dd::IMAS.DD, dd_exp::IMAS.DD)
     times_sim = dd.equilibrium.time
     times_exp = dd_exp.equilibrium.time
 
@@ -322,14 +322,14 @@ function _median(x::AbstractVector)
 end
 
 """
-    compute_validation_residuals(dd::IMAS.dd, dd_exp::IMAS.dd)
+    compute_validation_residuals(dd::IMAS.DD, dd_exp::IMAS.DD)
 
 Compute validation residuals comparing time derivatives of FUSE vs EFIT.
 Residual = dq_FUSE/dt - dq_EFIT/dt at each consecutive FUSE time step.
 EFIT quantities are interpolated onto FUSE's time grid before differencing.
 Returns max_abs and median for: dli_dt, dbetap_dt. Rp is TODO.
 """
-function compute_validation_residuals(dd::IMAS.dd, dd_exp::IMAS.dd)
+function compute_validation_residuals(dd::IMAS.DD, dd_exp::IMAS.DD)
     times_sim = dd.equilibrium.time
     times_exp = dd_exp.equilibrium.time
 

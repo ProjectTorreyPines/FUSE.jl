@@ -16,13 +16,13 @@ Base.@kwdef mutable struct FUSEparameters__ActorDivertors{T<:Real} <: Parameters
 end
 
 mutable struct ActorDivertors{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorDivertors{P}}
     boundary_plasma_models::Vector{BoundaryPlasmaModels.SOLBoundaryModel}
 end
 
 """
-    ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorDivertors(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates divertor heat fluxes and power loads using reduced SOL boundary models.
 
@@ -45,14 +45,14 @@ Key parameters:
 
     Stores results in `dd.divertors`. Requires `dd.equilibrium` and `dd.core_sources`.
 """
-function ActorDivertors(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorDivertors(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorDivertors(dd, act.ActorDivertors; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorDivertors(dd::IMAS.dd, par::FUSEparameters__ActorDivertors; kw...)
+function ActorDivertors(dd::IMAS.DD, par::FUSEparameters__ActorDivertors; kw...)
     logging_actor_init(ActorDivertors)
     par = OverrideParameters(par; kw...)
     return ActorDivertors(dd, par, Vector{BoundaryPlasmaModels.SOLBoundaryModel}())

@@ -16,7 +16,7 @@ import SimulationParameters: OverrideParameters
 MTK.@independent_variables t
 
 mutable struct ActorThermalSystemModels{D,P} <: AbstractActorThermalPlant{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorThermalSystemModels{P}}
     components::Vector{MTK.ODESystem}           # Vector of type ODESystem
     connections::Vector{MTK.Equation}           # Connection equations
@@ -35,7 +35,7 @@ mutable struct ActorThermalSystemModels{D,P} <: AbstractActorThermalPlant{D,P}
     u                                           # Load vector
 end
 
-function ActorThermalSystemModels(dd::IMAS.dd{D}, par::FUSEparameters__ActorThermalSystemModels{P}; kw...) where {D<:Real,P<:Real}
+function ActorThermalSystemModels(dd::IMAS.DD{D}, par::FUSEparameters__ActorThermalSystemModels{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorThermalSystemModels)
     par = OverrideParameters(par; kw...)
     return ActorThermalSystemModels(
@@ -59,13 +59,13 @@ function ActorThermalSystemModels(dd::IMAS.dd{D}, par::FUSEparameters__ActorTher
 end
 
 """
-    ActorThermalSystemModels(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorThermalSystemModels(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 !!! note
 
     Stores data in `dd.balance_of_plant`
 """
-function ActorThermalSystemModels(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorThermalSystemModels(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorThermalSystemModels(dd, act.ActorThermalSystemModels; kw...)
     step(actor)
     finalize(actor)

@@ -9,10 +9,10 @@
 end
 
 mutable struct ActorEPEDprofiles{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorEPEDprofiles{P}}
     act::ParametersAllActors{P}
-    function ActorEPEDprofiles(dd::IMAS.dd{D}, par::FUSEparameters__ActorEPEDprofiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+    function ActorEPEDprofiles(dd::IMAS.DD{D}, par::FUSEparameters__ActorEPEDprofiles{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorEPEDprofiles)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -20,7 +20,7 @@ mutable struct ActorEPEDprofiles{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorEPEDprofiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorEPEDprofiles(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Constructs complete plasma profiles by blending EPED pedestal predictions with shaped core profiles.
 
@@ -55,7 +55,7 @@ to match both EPED pedestal predictions and prescribed core-pedestal transitions
 
     Does not modify on-axis values of plasma profiles, only shapes and pedestal conditions
 """
-function ActorEPEDprofiles(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorEPEDprofiles(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act; kw...)
     step(actor)
     finalize(actor)

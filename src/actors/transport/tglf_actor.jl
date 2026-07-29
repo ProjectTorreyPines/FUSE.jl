@@ -26,14 +26,14 @@ import GACODE
 end
 
 mutable struct ActorTGLF{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorTGLF{P}}
     input_tglfs::Union{Vector{InputTGLF{D}},Vector{InputTJLF{D}}}
     flux_solutions::Vector{GACODE.FluxSolution{D}}
 end
 
 """
-    ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorTGLF(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evaluates turbulent transport fluxes using TGLF-based models including TGLF, TGLFNN, GKNN, and TJLF.
 
@@ -48,14 +48,14 @@ runs the transport calculation, and stores results as FluxSolution objects conta
 electron/ion energy fluxes, particle fluxes, and momentum flux. Results are normalized
 in gyro-Bohm units and written to `dd.core_transport` as anomalous transport.
 """
-function ActorTGLF(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorTGLF(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTGLF(dd, act.ActorTGLF; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorTGLF(dd::IMAS.dd{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real}
+function ActorTGLF(dd::IMAS.DD{D}, par::FUSEparameters__ActorTGLF; kw...) where {D<:Real}
     logging_actor_init(ActorTGLF)
     par = OverrideParameters(par; kw...)
     # `:QLNN` reuses the InputTJLF path so the saturation rule (SAT_RULE,

@@ -11,9 +11,9 @@ end
 end
 
 mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSimpleNB{P}}
-    function ActorSimpleNB(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleNB{P}; kw...) where {D<:Real,P<:Real}
+    function ActorSimpleNB(dd::IMAS.DD{D}, par::FUSEparameters__ActorSimpleNB{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimpleNB)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -21,7 +21,7 @@ mutable struct ActorSimpleNB{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleNB(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates neutral beam injection (NBI) heating and current drive using a simplified pencil beam model.
 
@@ -42,7 +42,7 @@ The model includes:
 
     Reads data in `dd.nbi`, `dd.pulse_schedule` and stores results in `dd.core_sources` and `dd.waves.coherent_wave`
 """
-function ActorSimpleNB(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSimpleNB(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSimpleNB(dd, act.ActorSimpleNB; kw...)
     step(actor)
     finalize(actor)

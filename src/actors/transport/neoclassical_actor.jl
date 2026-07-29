@@ -10,7 +10,7 @@ import GACODE
 end
 
 mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorNeoclassical{P}}
     input_neos::Vector{<:NeoclassicalTransport.InputNEO}
     flux_solutions::Vector{GACODE.FluxSolution{D}}
@@ -18,7 +18,7 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorNeoclassical(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evaluates neoclassical (collisional) transport fluxes using established theoretical models.
 
@@ -33,14 +33,14 @@ The models account for collisional effects, magnetic geometry, and trapped parti
 to calculate transport coefficients. Results are stored in `dd.core_transport.model[:neoclassical]`
 and include contributions to bootstrap current, thermal transport, and particle transport.
 """
-function ActorNeoclassical(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorNeoclassical(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorNeoclassical(dd, act.ActorNeoclassical; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorNeoclassical(dd::IMAS.dd{D}, par::FUSEparameters__ActorNeoclassical{P}; kw...) where {D<:Real,P<:Real}
+function ActorNeoclassical(dd::IMAS.DD{D}, par::FUSEparameters__ActorNeoclassical{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorNeoclassical)
     par = OverrideParameters(par; kw...)
     return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing)

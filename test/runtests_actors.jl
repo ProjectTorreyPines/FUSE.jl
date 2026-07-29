@@ -121,6 +121,7 @@ end
     act.ActorTJLFEP.is_ep = is_ep
     act.ActorTJLFEP.rho_scan = [0.41, 0.61]   # SCAN_N=2; INPUT_PROFILE_METHOD=2 makes the last point ir=NR (separatrix)
     act.ActorTJLFEP.n_basis = 2
+    act.ActorTJLFEP.solver = :grid            # fast Fortran-equivalent path for this smoke test (actor default is now :ad)
     act.ActorTJLFEP.alpha_solver = :marginal
 
     actor = FUSE.ActorTJLFEP(dd, act)         # full pipeline: runTHD -> run_alpha -> finalize
