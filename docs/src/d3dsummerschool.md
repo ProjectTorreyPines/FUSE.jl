@@ -455,3 +455,7 @@ FUSE.plot_plasma_overview(dd, 2.5;aggregate_hcd=true, rotation_quantity=:sonic)
 - Explore the individual physics/engineering models in the [Actors documentation](https://fuse.help/dev/actors.html)
 - Learn the core data structures (`ini`, `act`, `dd`) in the [introductory tutorial](https://fuse.help/dev/tutorial.html)
 
+
+## Acknowledgements
+
+Work supported by US DOE under DE-FC02-04ER54698.
