@@ -1,7 +1,7 @@
 name = "FUSE"
 uuid = "e64856f0-3bb8-4376-b4b7-c03396503992"
-authors = ["Orso Meneghini <orso82@gmail.com>"]
 version = "1.1.6"
+authors = ["Orso Meneghini <orso82@gmail.com>"]
 
 [deps]
 ALPHA = "41b9a3b0-da1d-4d91-9200-eef57ddbf7f7"
@@ -29,6 +29,7 @@ GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 HelpPlots = "5880b2e8-ad0a-48c9-bacd-30dc9c1357e0"
 IMAS = "13ead8c1-b7d1-41bb-a6d0-5b8b65ed587a"
+IMASdd = "c5a45a97-b3f9-491c-b9a7-aa88c3bc0067"
 IMASutils = "b8e4ee59-9bed-3a6a-a553-8dd24d6374ad"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
@@ -62,9 +63,9 @@ QED = "8bcbec86-48c7-11ec-16a6-c1bc83299373"
 QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 RABBIT = "98960a00-302f-469e-9595-275b70d10766"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SOLPS2imas = "09becab6-0636-4c23-a92a-2b3723265c31"
 SOLPSNN = "2249bde5-56eb-4cc4-a5e9-f29213b9e947"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 SimulationParameters = "32ab26d3-25d6-405d-a295-367385e16093"
 SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
@@ -87,6 +88,10 @@ Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 [extensions]
 ThermalSystemModelsExt = "ThermalSystemModels"
 WeaveExt = "Weave"
+
+[sources]
+IMASdd = {url = "https://github.com/ProjectTorreyPines/IMASdd.jl", rev = "feat/ife_dd"}
+
 
 [compat]
 ALPHA = "1"
@@ -111,6 +116,7 @@ GeoInterface = "1"
 HDF5 = "0.17.2"
 HelpPlots = "1"
 IMAS = "6, 7"
+IMASdd = "8.6.1"
 IMASutils = "1.5.1"
 Interpolations = "0.15, 0.16.1"
 JSON = "0.21, 1"
