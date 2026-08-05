@@ -4,12 +4,20 @@ name: container
 # linux/amd64 and linux/arm64 (native Apple Silicon) built in parallel and
 # combined into one multi-arch tag.
 #
-# MANUAL DISPATCH ONLY — not viable on standard GitHub-hosted runners: the
-# sysimage object emission peaks at ~98.5 GiB RSS (measured on omega,
-# 2026-07-26), far beyond their 16 GB (swap and workload trimming both fail;
-# runs 30170851378, 30177176119, 30185669953). Requires 32-core/128 GB larger
-# runners to ever run in CI. Until then, release images are built on omega
-# and pushed with deploy/omega-container/publish_ghcr.sh.
+# MANUAL DISPATCH ONLY — the amd64 leg is not viable on standard GitHub-hosted
+# runners: the sysimage object emission peaks at ~98.5 GiB RSS (measured on
+# omega, 2026-07-26), far beyond their 16 GB (swap and workload trimming both
+# fail; runs 30170851378, 30177176119, 30185669953). Requires 32-core/128 GB
+# larger runners to ever run in CI. Until then, amd64 release images are built
+# on omega and pushed with deploy/omega-container/publish_ghcr.sh.
+#
+# The arm64 leg builds WITHOUT a sysimage (FUSE_PRECOMPILE_WORKLOAD=none):
+# no aarch64 FUSE sysimage can link — the image data blob (~3.2 GB) overflows
+# the ±2 GiB R_AARCH64_PREL32 relocation span, for any CPU target and even the
+# light workload (verified on an M2 Max, 2026-08-04, FUSE v1.1.6 / Julia
+# 1.11.7; x86_64 escapes via the medium code model's .ldata section, which
+# aarch64 lacks). Skipping the sysimage keeps the arm64 peak well under 16 GB,
+# so this leg IS viable on ubuntu-24.04-arm.
 
 on:
   workflow_dispatch:
@@ -56,10 +64,15 @@ jobs:
             # universal x86_64 set: NERSC Perlmutter (znver3), GA omega
             # (cascadelake/znver2/znver3), generic fallback for laptops
             cpu_target: "generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all;znver3,-xsaveopt,-rdrnd,clone_all"
+            workload: ${{ inputs.workload || 'full' }}
           - arch: arm64
             runner: ubuntu-24.04-arm
-            # Apple Silicon (Docker/podman VMs on Macs) + generic aarch64
-            cpu_target: "generic;apple-m1,clone_all"
+            # generic aarch64 (Apple Silicon Docker/podman VMs, Graviton, …).
+            # No sysimage on aarch64 (see header) — cpu_target only shapes the
+            # pkgimages, and the fuse launcher unsets it at runtime so the JIT
+            # goes native.
+            cpu_target: "generic"
+            workload: none
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 355
     steps:
@@ -103,7 +116,7 @@ jobs:
           docker build \
             -f deploy/perlmutter-container/Containerfile \
             --build-arg JULIA_CPU_TARGET="${{ matrix.cpu_target }}" \
-            --build-arg FUSE_PRECOMPILE_WORKLOAD="${{ inputs.workload || 'full' }}" \
+            --build-arg FUSE_PRECOMPILE_WORKLOAD="${{ matrix.workload }}" \
             -t "$IMAGE:${{ needs.version.outputs.version }}-${{ matrix.arch }}" \
             .
 
