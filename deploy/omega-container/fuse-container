@@ -79,7 +79,7 @@ if [[ "${1:-}" == "notebook" || "${1:-}" == "lab" ]]; then
     node="$(hostname -s)"
     if [[ ! "$node" =~ ^omega[0-9]+$ && -z "${FUSE_NOTEBOOK_ANYWHERE:-}" ]]; then
         echo "fuse-container: refusing to start Jupyter on '$node' — use a worker node:" >&2
-        echo "    srun -p medium -t 8:00:00 -c 8 --pty bash" >&2
+        echo "    ssh -XY somega.gat.com" >&2
         echo "  (FUSE_NOTEBOOK_ANYWHERE=1 overrides this check)" >&2
         exit 1
     fi
