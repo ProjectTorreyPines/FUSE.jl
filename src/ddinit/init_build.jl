@@ -14,9 +14,16 @@ function init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllAct
     TimerOutputs.@timeit timer "init_build" begin
         init_from = ini.general.init_from
 
+        # When the ODS carries a complete build, keep it verbatim -- including the 2D
+        # `layer[].outline`s and `build.structure`. Rebuilding the layers from
+        # `ini.build.layers` and re-running `ActorCXbuild` would discard those outlines and
+        # regenerate them by offsetting from the first wall, throwing away whatever real
+        # machine geometry the ODS was carrying.
+        build_from_ods = false
         if init_from == :ods
             if length(dd1.build.layer) > 0
                 dd.build = deepcopy(dd1.build)
+                build_from_ods = true
             else
                 init_from = :scalars
             end
@@ -24,13 +31,15 @@ function init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllAct
 
         eqt = dd.equilibrium.time_slice[]
 
-        # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
-        if ini.build.scale_layers_to_R0
-            scale_build_layers!(ini.build.layers, eqt.boundary.geometric_axis.r, eqt.boundary.minor_radius, ini.build.plasma_gap)
-        end
+        if !build_from_ods
+            # scale radial build layers based on equilibrium R0, a, and the requested plasma_gap
+            if ini.build.scale_layers_to_R0
+                scale_build_layers!(ini.build.layers, eqt.boundary.geometric_axis.r, eqt.boundary.minor_radius, ini.build.plasma_gap)
+            end
 
-        # populate dd.build with radial build layers
-        init_build!(dd.build, ini.build.layers)
+            # populate dd.build with radial build layers
+            init_build!(dd.build, ini.build.layers)
+        end
 
         # divertors
         if ini.build.divertors == :from_x_points
@@ -61,29 +70,31 @@ function init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllAct
             dd.build.divertors.lower.installed = 0
         end
 
-        # set build layer shapes
-        plama_to_tf = IMAS.get_build_indexes(dd.build.layer; fs=_lfs_)
+        if !build_from_ods
+            # set build layer shapes
+            plama_to_tf = IMAS.get_build_indexes(dd.build.layer; fs=_lfs_)
 
-        # everything inside of the TF is _negative_offset_ by default
-        for k in plama_to_tf
-            dd.build.layer[k].shape = Int(_negative_offset_)
+            # everything inside of the TF is _negative_offset_ by default
+            for k in plama_to_tf
+                dd.build.layer[k].shape = Int(_negative_offset_)
+            end
+
+            # Allow first few layers to have shapes conformal with the first wall
+            for k in 1:ini.build.n_first_wall_conformal_layers
+                dd.build.layer[plama_to_tf[k]].shape = Int(_convex_hull_)
+            end
+
+            # first wall is of type offset instead of convex hull, to allow for concave shape
+            k = plama_to_tf[1]
+            if (dd.build.layer[k].type == Int(_wall_)) &&
+               ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)) || (dd.build.layer[k+1].type == Int(_wall_)))
+                dd.build.layer[k].shape = Int(_offset_)
+            end
+
+            # set TF shape (shape is set by inner layer)
+            dd.build.layer[plama_to_tf[end-1]].shape = Int(ini.tf.shape)
+            dd.build.layer[plama_to_tf[end]].shape = Int(_convex_hull_)
         end
-
-        # Allow first few layers to have shapes conformal with the first wall
-        for k in 1:ini.build.n_first_wall_conformal_layers
-            dd.build.layer[plama_to_tf[k]].shape = Int(_convex_hull_)
-        end
-
-        # first wall is of type offset instead of convex hull, to allow for concave shape
-        k = plama_to_tf[1]
-        if (dd.build.layer[k].type == Int(_wall_)) &&
-           ((dd.build.layer[k+1].type == Int(_blanket_)) || (dd.build.layer[k+1].type == Int(_shield_)) || (dd.build.layer[k+1].type == Int(_wall_)))
-            dd.build.layer[k].shape = Int(_offset_)
-        end
-
-        # set TF shape (shape is set by inner layer)
-        dd.build.layer[plama_to_tf[end-1]].shape = Int(ini.tf.shape)
-        dd.build.layer[plama_to_tf[end]].shape = Int(_convex_hull_)
 
         # number of TF coils
         dd.build.tf.coils_n = ini.tf.n_coils
@@ -93,7 +104,9 @@ function init_build!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllAct
         dd.build.tf.nose_hfs_fraction = ini.tf.nose_hfs_fraction
 
         # 2D build cross-section
-        ActorCXbuild(dd, act)
+        if !build_from_ods
+            ActorCXbuild(dd, act)
+        end
 
         # center stack solid mechanics
         dd.solid_mechanics.center_stack.bucked = Int(ini.center_stack.bucked)

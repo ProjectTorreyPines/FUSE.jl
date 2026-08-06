@@ -10,6 +10,7 @@ import NNeutronics
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
     max_Li6_enrichment_fraction::Entry{T} = Entry{T}("-", "Maximum allowed Li6 enrichment_fraction"; default=0.9)
+    update_build::Entry{Bool} = Entry{Bool}("-", "Let the TBR optimization re-split the first wall / blanket / shield thicknesses in dd.build.layer"; default=true)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
@@ -251,25 +252,50 @@ function _step(actor::ActorBlanket)
         end
     end
 
-    res = Optim.optimize(
-        x -> target_TBR2D(
-            blanket_model_1d,
-            x[1:end-1],
-            x[end],
-            dd,
-            modules_effective_thickness,
-            modules_wall_loading_power,
-            total_power_neutrons,
-            par.minimum_first_wall_thickness,
-            dd.requirements.tritium_breeding_ratio
-        ),
-        vcat(modules_relative_thickness13, 50.0),
-        Optim.NelderMead()
-    )#; autodiff=:forward)#, rel_tol=1E-6)
+    if par.update_build
+        res = Optim.optimize(
+            x -> target_TBR2D(
+                blanket_model_1d,
+                x[1:end-1],
+                x[end],
+                dd,
+                modules_effective_thickness,
+                modules_wall_loading_power,
+                total_power_neutrons,
+                par.minimum_first_wall_thickness,
+                dd.requirements.tritium_breeding_ratio
+            ),
+            vcat(modules_relative_thickness13, 50.0),
+            Optim.NelderMead()
+        )#; autodiff=:forward)#, rel_tol=1E-6)
+        best_relative_thickness13 = res.minimizer[1:end-1]
+        best_Li6 = abs(res.minimizer[end])
+    else
+        # the radial build is frozen: the layer split stays as it is in dd.build.layer
+        # (relative thicknesses of 1.0) and Li6 enrichment is the only free variable
+        res = Optim.optimize(
+            Li6 -> target_TBR2D(
+                blanket_model_1d,
+                modules_relative_thickness13,
+                Li6,
+                dd,
+                modules_effective_thickness,
+                modules_wall_loading_power,
+                total_power_neutrons,
+                par.minimum_first_wall_thickness,
+                dd.requirements.tritium_breeding_ratio
+            ),
+            0.0,
+            100.0 * par.max_Li6_enrichment_fraction,
+            Optim.Brent()
+        )
+        best_relative_thickness13 = modules_relative_thickness13
+        best_Li6 = abs(res.minimizer)
+    end
     total_tritium_breeding_ratio = target_TBR2D(
         blanket_model_1d,
-        res.minimizer[1:end-1],
-        abs(res.minimizer[end]),
+        best_relative_thickness13,
+        best_Li6,
         dd,
         modules_effective_thickness,
         modules_wall_loading_power,
@@ -281,17 +307,19 @@ function _step(actor::ActorBlanket)
     end
 
     # assign the thicknesses back to the dd.build.layer
-    for (istructure, structure) in enumerate(blankets)
-        bm = dd.blanket.module[istructure]
+    if par.update_build
+        for (istructure, structure) in enumerate(blankets)
+            bm = dd.blanket.module[istructure]
 
-        d1, d2, d3 = d1_d2_d3_layers(structure, dd.build.layer, eqt.boundary.geometric_axis.r, length(blankets))
+            d1, d2, d3 = d1_d2_d3_layers(structure, dd.build.layer, eqt.boundary.geometric_axis.r, length(blankets))
 
-        if !isempty(d1)
-            d1.thickness = bm.layer[1].midplane_thickness
-        end
-        d2.thickness = bm.layer[2].midplane_thickness
-        if !isempty(d3)
-            d3.thickness = bm.layer[3].midplane_thickness
+            if !isempty(d1)
+                d1.thickness = bm.layer[1].midplane_thickness
+            end
+            d2.thickness = bm.layer[2].midplane_thickness
+            if !isempty(d3)
+                d3.thickness = bm.layer[3].midplane_thickness
+            end
         end
     end
 
