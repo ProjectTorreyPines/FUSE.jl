@@ -361,6 +361,13 @@ install_ijulia_kernels() {
 clone_fuse_examples() {
     cd "${INSTALL_DIR}"
     if [[ -d FuseExamples/.git ]]; then
+        if ! git -C FuseExamples rev-parse --is-inside-work-tree >/dev/null; then
+            # git's ownership check (CVE-2022-24765) rejects clones created by
+            # another user. Unlike the registries, FuseExamples may hold user
+            # work, so mark it safe instead of deleting it.
+            log "git rejected FuseExamples (ownership check) — adding safe.directory"
+            git config --global --add safe.directory "${INSTALL_DIR}/FuseExamples"
+        fi
         log "Updating FuseExamples"
         git -C FuseExamples fetch origin
         git -C FuseExamples reset --hard origin/master

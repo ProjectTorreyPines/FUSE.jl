@@ -384,17 +384,37 @@ function Install-IJuliaKernels {
     }
 }
 
+function Repair-FuseExamplesOwnership {
+    param([string]$Directory)
+    # git's ownership check (CVE-2022-24765) rejects clones created under a
+    # different user / elevation context (e.g. an elevated PowerShell). Unlike
+    # the registries, FuseExamples may hold user work, so mark it safe instead
+    # of deleting it.
+    Write-InstallLog "git rejected $Directory (ownership check) — adding safe.directory"
+    & git config --global --add safe.directory ($Directory -replace '\\', '/')
+}
+
 function Clone-FuseExamples {
     Set-Location $InstallDir
     $examplesDir = Join-Path $InstallDir "FuseExamples"
     if (Test-Path (Join-Path $examplesDir ".git")) {
+        & git -C $examplesDir rev-parse --is-inside-work-tree | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Repair-FuseExamplesOwnership $examplesDir
+        }
         Write-InstallLog "Updating FuseExamples"
-        git -C $examplesDir fetch origin
-        git -C $examplesDir reset --hard origin/master
+        & git -C $examplesDir fetch origin
+        & git -C $examplesDir reset --hard origin/master
+        if ($LASTEXITCODE -ne 0) {
+            Write-InstallError "Could not update FuseExamples in $examplesDir — fix or delete that directory and re-run"
+        }
     }
     else {
         Write-InstallLog "Cloning FuseExamples into $InstallDir"
         git clone https://github.com/ProjectTorreyPines/FuseExamples.git
+        if ($LASTEXITCODE -ne 0) {
+            Write-InstallError "Could not clone FuseExamples into $InstallDir"
+        }
     }
 }
 
