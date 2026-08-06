@@ -362,6 +362,13 @@ Depth = 2
     Make sure `git` is installed and that you can reach GitHub. Behind a proxy or offline node, configure
     your proxy first. You can re-run the registry/add commands; they are safe to repeat.
 
+!!! warning "`GitError(Code:EOWNER, ...) repository path ... is not owned by current user`"
+    libgit2 refuses to open a registry that was cloned under a different ownership context — on Windows
+    this typically means an earlier install ran in an elevated ("Run as administrator") PowerShell.
+    The install scripts recover from this automatically by re-adding the registries. To fix it manually,
+    delete the offending directory (e.g. `~/.julia/registries/FuseRegistry`) and re-run the install;
+    registries are disposable caches and will be re-cloned.
+
 !!! warning "Wrong Jupyter kernel"
     `fusebot install_IJulia` registers single- and multi-thread Julia kernels. In JupyterLab pick the
     kernel matching the Julia version you installed FUSE into; list them with
