@@ -73,9 +73,51 @@ function Add-ToPath {
     $env:Path = ($Directory, ($parts -join ';')) -join ';'
 }
 
+# Oldest Julia in the FUSE regression matrix (see .github/workflows/runtests.yml
+# and the julia compat entry in Project.toml).
+$MinimumJuliaVersion = [version]"1.11.0"
+
+function Get-JuliaVersion {
+    try {
+        $output = & julia --version 2>&1 | Out-String
+    }
+    catch {
+        return $null
+    }
+    if ($output -match '(\d+)\.(\d+)\.(\d+)') {
+        return [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])"
+    }
+    return $null
+}
+
+function Assert-JuliaVersion {
+    $version = Get-JuliaVersion
+    if ($null -eq $version) {
+        Write-InstallError "Could not determine the Julia version from 'julia --version'"
+    }
+    if ($version -ge $MinimumJuliaVersion) { return }
+
+    Write-InstallLog "Julia $version is older than the minimum supported $MinimumJuliaVersion"
+    if (Test-Command juliaup) {
+        Write-InstallLog "Switching juliaup to the 'release' channel"
+        # 'juliaup add' fails harmlessly if the channel is already installed.
+        & juliaup add release
+        & juliaup default release
+        & juliaup update release
+        $version = Get-JuliaVersion
+        if ($version -ge $MinimumJuliaVersion) {
+            Write-InstallLog "Julia: $(julia --version)"
+            return
+        }
+    }
+    Write-InstallError ("FUSE requires Julia >= $MinimumJuliaVersion (found $version). " +
+        "Update Julia (e.g. 'juliaup add release; juliaup default release') and re-run this script.")
+}
+
 function Ensure-Julia {
     if (Test-Command julia) {
         Write-InstallLog "Julia: $(julia --version)"
+        Assert-JuliaVersion
         return
     }
 
@@ -84,6 +126,7 @@ function Ensure-Julia {
     if (Test-Path $juliaupExe) {
         Add-ToPath $juliaupBin
         Write-InstallLog "Julia: $(julia --version)"
+        Assert-JuliaVersion
         return
     }
 
@@ -109,6 +152,7 @@ function Ensure-Julia {
         Write-InstallError "julia is not on PATH after setup. Open a new terminal and re-run this script."
     }
     Write-InstallLog "Julia: $(julia --version)"
+    Assert-JuliaVersion
 }
 
 function Install-Miniconda {

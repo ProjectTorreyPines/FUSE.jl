@@ -2,6 +2,8 @@
 
 This guide walks you through setting up everything you need to run FUSE: the **Julia** language, the **FUSE** package, the **`fusebot`** helper, and an optional **JupyterLab** environment with Julia kernels.
 
+FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the latest stable release). The install scripts verify this and leave your Julia untouched when it is compatible or switch juliaup to the `release` channel if necessary.
+
 !!! tip "No-install alternative: the FUSE container"
     If you just want to *run* released FUSE (not develop it), a self-contained
     image with FUSE, all ProjectTorreyPines packages, and a precompiled
