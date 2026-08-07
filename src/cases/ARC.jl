@@ -97,22 +97,31 @@ function case_parameters(::Val{:ARC}; init_from::Symbol=:scalars, flux_matcher::
     # table 3 and table 4, with core values from input.gacode_V3A
     # f_G in the paper is a line-averaged Greenwald fraction, hence :ne_line below
     ini.core_profiles.ne_setting = :greenwald_fraction
-    ini.core_profiles.ne_value = 0.9                 # f_G, table 4
+    ini.core_profiles.ne_value = 0.90                # f_G, table 4
     act.ActorPedestal.density_match = :ne_line
-    ini.core_profiles.ne_shaping = 0.9
+    act.ActorEPED.ped_factor = 1.00
+    #act.ActorPedestal.model = :none
+    ini.core_profiles.ne_shaping = 3.0
     ini.core_profiles.Te_core = 24.45e3
+    ini.core_profiles.Te_ped = 5.0e3
+    ini.core_profiles.ne_core_to_ped_ratio = 1.8
+
+
     ini.core_profiles.Te_shaping = 1.8
-    ini.core_profiles.Ti_Te_ratio = 0.9              # table 3
-    ini.core_profiles.zeff = 1.52                    # table 3
+    ini.core_profiles.Ti_Te_ratio = 0.85     
+    ini.core_profiles.zeff = 1.52
     ini.core_profiles.bulk = :DT
-    ini.core_profiles.impurity = :B          # input.gacode_V3A seeds boron (~2% of ne) plus trace W
-    ini.core_profiles.helium_fraction = 0.10
+    ini.core_profiles.impurity = :Ar      
+    ini.core_profiles.wall_impurity = :W
+    ini.core_profiles.wall_impurity_fraction = 1e-5
+    ini.core_profiles.helium_fraction = 0.03
     ini.core_profiles.rot_core = 0.0
 
     # ICRF is the sole auxiliary heating system (50 MW max coupled; 21.5 MW absorbed
     # in the nominal flattop scenario of table 4)
-    resize!(ini.ic_antenna, 1)
-    ini.ic_antenna[1].power_launched = 21.5e6
+    resize!(ini.ic_antenna,1)
+    ini.ic_antenna[1].power_launched = 50.e6
+
 
     #### ACT ####
 
@@ -128,6 +137,8 @@ function case_parameters(::Val{:ARC}; init_from::Symbol=:scalars, flux_matcher::
     act.ActorTGLF.electromagnetic = false
     act.ActorTGLF.sat_rule = :sat0
     act.ActorTGLF.model = :TJLF
+
+    act.ActorEquilibrium.model = :FRESCO
 
     return ini, act
 end
