@@ -2,6 +2,8 @@
 
 This guide walks you through setting up everything you need to run FUSE: the **Julia** language, the **FUSE** package, the **`fusebot`** helper, and an optional **JupyterLab** environment with Julia kernels.
 
+FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the latest stable release). The install scripts verify this and leave your Julia untouched when it is compatible or switch juliaup to the `release` channel if necessary.
+
 !!! tip "No-install alternative: the FUSE container"
     If you just want to *run* released FUSE (not develop it), a self-contained
     image with FUSE, all ProjectTorreyPines packages, and a precompiled
@@ -359,6 +361,13 @@ Depth = 2
 !!! warning "`Pkg.Registry.add` fails"
     Make sure `git` is installed and that you can reach GitHub. Behind a proxy or offline node, configure
     your proxy first. You can re-run the registry/add commands; they are safe to repeat.
+
+!!! warning "`GitError(Code:EOWNER, ...) repository path ... is not owned by current user`"
+    libgit2 refuses to open a registry that was cloned under a different ownership context — on Windows
+    this typically means an earlier install ran in an elevated ("Run as administrator") PowerShell.
+    The install scripts recover from this automatically by re-adding the registries. To fix it manually,
+    delete the offending directory (e.g. `~/.julia/registries/FuseRegistry`) and re-run the install;
+    registries are disposable caches and will be re-cloned.
 
 !!! warning "Wrong Jupyter kernel"
     `fusebot install_IJulia` registers single- and multi-thread Julia kernels. In JupyterLab pick the

@@ -1,8 +1,8 @@
 # One-shot FUSE install for Windows laptops (juliaup + Miniconda if needed).
 #
-# After creating the fuse conda env this activates it, runs
-# fusebot install_IJulia (with make / install_ijulia_kernels.jl fallbacks),
-# clones FuseExamples, and runs the first three cells of fluxmatcher.ipynb.
+# After creating the fuse conda env this activates it, registers the IJulia
+# Jupyter kernels via scripts/install_ijulia_kernels.jl, clones FuseExamples,
+# and runs the first three cells of fluxmatcher.ipynb.
 # Set FUSE_SKIP_VERIFY=1 to skip the notebook solve.
 #
 # Copy-paste (PowerShell, from any working directory):
@@ -38,7 +38,7 @@ function Resolve-ScriptDir {
 
     $bundleDir = Join-Path $env:TEMP "fuse-install-$PID"
     New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
-    foreach ($file in @("install_fuse_julia.jl")) {
+    foreach ($file in @("install_fuse_julia.jl", "install_ijulia_kernels.jl")) {
         $dest = Join-Path $bundleDir $file
         Invoke-WebRequest -Uri "$ScriptBaseUrl/$file" -OutFile $dest
     }
@@ -73,9 +73,51 @@ function Add-ToPath {
     $env:Path = ($Directory, ($parts -join ';')) -join ';'
 }
 
+# Oldest Julia in the FUSE regression matrix (see .github/workflows/runtests.yml
+# and the julia compat entry in Project.toml).
+$MinimumJuliaVersion = [version]"1.11.0"
+
+function Get-JuliaVersion {
+    try {
+        $output = & julia --version 2>&1 | Out-String
+    }
+    catch {
+        return $null
+    }
+    if ($output -match '(\d+)\.(\d+)\.(\d+)') {
+        return [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])"
+    }
+    return $null
+}
+
+function Assert-JuliaVersion {
+    $version = Get-JuliaVersion
+    if ($null -eq $version) {
+        Write-InstallError "Could not determine the Julia version from 'julia --version'"
+    }
+    if ($version -ge $MinimumJuliaVersion) { return }
+
+    Write-InstallLog "Julia $version is older than the minimum supported $MinimumJuliaVersion"
+    if (Test-Command juliaup) {
+        Write-InstallLog "Switching juliaup to the 'release' channel"
+        # 'juliaup add' fails harmlessly if the channel is already installed.
+        & juliaup add release
+        & juliaup default release
+        & juliaup update release
+        $version = Get-JuliaVersion
+        if ($version -ge $MinimumJuliaVersion) {
+            Write-InstallLog "Julia: $(julia --version)"
+            return
+        }
+    }
+    Write-InstallError ("FUSE requires Julia >= $MinimumJuliaVersion (found $version). " +
+        "Update Julia (e.g. 'juliaup add release; juliaup default release') and re-run this script.")
+}
+
 function Ensure-Julia {
     if (Test-Command julia) {
         Write-InstallLog "Julia: $(julia --version)"
+        Assert-JuliaVersion
         return
     }
 
@@ -84,6 +126,7 @@ function Ensure-Julia {
     if (Test-Path $juliaupExe) {
         Add-ToPath $juliaupBin
         Write-InstallLog "Julia: $(julia --version)"
+        Assert-JuliaVersion
         return
     }
 
@@ -109,6 +152,7 @@ function Ensure-Julia {
         Write-InstallError "julia is not on PATH after setup. Open a new terminal and re-run this script."
     }
     Write-InstallLog "Julia: $(julia --version)"
+    Assert-JuliaVersion
 }
 
 function Install-Miniconda {
@@ -266,72 +310,33 @@ function Install-FusebotCli {
     }
 }
 
-function Invoke-FusebotOrMake {
-    param(
-        [Parameter(Mandatory = $true)][string]$Target,
-        [Parameter(ValueFromRemainingArguments = $true)][string[]]$ExtraArgs
-    )
-
-    if (Test-Command fusebot) {
-        Write-InstallLog "fusebot $Target $($ExtraArgs -join ' ')"
-        & fusebot $Target @ExtraArgs
-        if ($LASTEXITCODE -eq 0) { return }
-        Write-InstallLog "fusebot $Target failed — falling back to make"
+function Get-JupyterKernelsDir {
+    # Mirrors IJulia.kerneldir(): JUPYTER_DATA_DIR wins, otherwise %APPDATA%\jupyter.
+    if ($env:JUPYTER_DATA_DIR) {
+        return Join-Path $env:JUPYTER_DATA_DIR "kernels"
     }
-    else {
-        Write-InstallLog "fusebot not on PATH — falling back to make"
-    }
-
-    $fuseDir = Get-FusePkgDir
-    Write-InstallLog "Running make $Target in $fuseDir"
-    Push-Location $fuseDir
-    try {
-        $env:PTP_ORIGINAL_DIR = $InstallDir
-        & make $Target @ExtraArgs
-        if ($LASTEXITCODE -ne 0) {
-            Write-InstallError "make $Target failed"
-        }
-    }
-    finally {
-        Pop-Location
-    }
+    return Join-Path $env:APPDATA "jupyter\kernels"
 }
 
 function Install-IJuliaKernels {
-    # fusebot → make → direct install_ijulia_kernels.jl (no make required).
-    if (Test-Command fusebot) {
-        Write-InstallLog "fusebot install_IJulia"
-        & fusebot install_IJulia
-        if ($LASTEXITCODE -eq 0) { return }
-        Write-InstallLog "fusebot install_IJulia failed — trying make / direct install"
-    }
-    else {
-        Write-InstallLog "fusebot not on PATH — trying make / direct install"
-    }
-
-    $fuseDir = Get-FusePkgDir
-    if (Test-Command make) {
-        Write-InstallLog "make install_IJulia in $fuseDir"
-        Push-Location $fuseDir
-        try {
-            $env:PTP_ORIGINAL_DIR = $InstallDir
-            & make install_IJulia
-            if ($LASTEXITCODE -eq 0) { return }
-        }
-        finally {
-            Pop-Location
-        }
-        Write-InstallLog "make install_IJulia failed — running install_ijulia_kernels.jl directly"
-    }
-    else {
-        Write-InstallLog "make not found — running install_ijulia_kernels.jl directly"
-    }
-
-    $kernelScript = Join-Path $fuseDir "scripts\install_ijulia_kernels.jl"
+    # fusebot is a Unix shebang script that delegates to make + bash, none of
+    # which work natively on Windows — invoking `& fusebot` from PowerShell can
+    # even return exit code 0 without running anything. Drive the kernel
+    # install through Julia directly and verify kernelspecs landed on disk.
+    $kernelScript = Resolve-FuseScript "install_ijulia_kernels.jl"
+    Write-InstallLog "Installing IJulia kernels via $kernelScript"
     & julia $kernelScript
     if ($LASTEXITCODE -ne 0) {
-        Write-InstallError "Direct IJulia kernel install failed"
+        Write-InstallError "IJulia kernel install failed"
     }
+
+    $kernelsDir = Get-JupyterKernelsDir
+    $kernels = @(Get-ChildItem $kernelsDir -Directory -ErrorAction SilentlyContinue)
+    if ($kernels.Count -eq 0) {
+        Write-InstallError "IJulia finished but no kernels were registered under $kernelsDir"
+    }
+    Write-InstallLog "Registered Jupyter kernels: $(($kernels | ForEach-Object Name) -join ', ')"
+
     try {
         python -m pip install --upgrade webio_jupyter_extension
     }
@@ -340,17 +345,37 @@ function Install-IJuliaKernels {
     }
 }
 
+function Repair-FuseExamplesOwnership {
+    param([string]$Directory)
+    # git's ownership check (CVE-2022-24765) rejects clones created under a
+    # different user / elevation context (e.g. an elevated PowerShell). Unlike
+    # the registries, FuseExamples may hold user work, so mark it safe instead
+    # of deleting it.
+    Write-InstallLog "git rejected $Directory (ownership check) — adding safe.directory"
+    & git config --global --add safe.directory ($Directory -replace '\\', '/')
+}
+
 function Clone-FuseExamples {
     Set-Location $InstallDir
     $examplesDir = Join-Path $InstallDir "FuseExamples"
     if (Test-Path (Join-Path $examplesDir ".git")) {
+        & git -C $examplesDir rev-parse --is-inside-work-tree | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Repair-FuseExamplesOwnership $examplesDir
+        }
         Write-InstallLog "Updating FuseExamples"
-        git -C $examplesDir fetch origin
-        git -C $examplesDir reset --hard origin/master
+        & git -C $examplesDir fetch origin
+        & git -C $examplesDir reset --hard origin/master
+        if ($LASTEXITCODE -ne 0) {
+            Write-InstallError "Could not update FuseExamples in $examplesDir — fix or delete that directory and re-run"
+        }
     }
     else {
         Write-InstallLog "Cloning FuseExamples into $InstallDir"
         git clone https://github.com/ProjectTorreyPines/FuseExamples.git
+        if ($LASTEXITCODE -ne 0) {
+            Write-InstallError "Could not clone FuseExamples into $InstallDir"
+        }
     }
 }
 
