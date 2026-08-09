@@ -123,7 +123,7 @@ function __finalize(actor::Union{ActorEPED,ActorAnalyticPedestal})
     #       Instead FUSE, IMAS and the Hmode_profiles functions use the full width as a function of rho_tor_norm.
     from_ped_to_full_width = 2.0
     position = IMAS.interp1d(cp1d.grid.psi_norm, rho).(1 - actor.wped * from_ped_to_full_width * sqrt(par.ped_factor))
-    w_ped = 1.0 - position
+    w_ped = (1.0 - position) .* par.ped_factor .^0.5
     old_t_i_ped = IMAS.interp1d(rho, cp1d.t_i_average).(position)
 
     impurity = [IMAS.avgZ(ion.element[1].z_n, old_t_i_ped) for ion in cp1d.ion if !IMAS.is_hydrogenic(ion)][1]
