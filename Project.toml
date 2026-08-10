@@ -90,7 +90,7 @@ ThermalSystemModelsExt = "ThermalSystemModels"
 WeaveExt = "Weave"
 
 [sources]
-IMASdd = {url = "https://github.com/ProjectTorreyPines/IMASdd.jl", rev = "feat/ife_dd"}
+IMAS = {url = "https://github.com/ProjectTorreyPines/IMAS.jl", rev = "fix/deepcopy_dd_subtypes"}
 
 
 [compat]
