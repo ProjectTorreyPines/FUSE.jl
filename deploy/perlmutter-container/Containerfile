@@ -95,7 +95,15 @@ RUN printf '%s\n' \
     'if [ -z "${FUSE_PEDESTAL_NN_DIR:-}" ]; then' \
     '    export FUSE_PEDESTAL_NN_DIR="$HOME/.julia_fuse_container/pedestal_nn"' \
     'fi' \
-    'exec julia --sysimage=/opt/fuse/sys_fuse.so "$@"' \
+    '# aarch64 images ship without a sysimage (FUSE_PRECOMPILE_WORKLOAD=none:' \
+    '# the image data blob overflows the ±2 GiB R_AARCH64_PREL32 relocation' \
+    '# span at link time). Fall back to plain julia on pkgimages, and let the' \
+    '# JIT target the native CPU instead of the generic build-time target.' \
+    'if [ -f /opt/fuse/sys_fuse.so ]; then' \
+    '    exec julia --sysimage=/opt/fuse/sys_fuse.so "$@"' \
+    'fi' \
+    'unset JULIA_CPU_TARGET' \
+    'exec julia "$@"' \
     > /usr/local/bin/fuse \
     && chmod 0555 /usr/local/bin/fuse
 

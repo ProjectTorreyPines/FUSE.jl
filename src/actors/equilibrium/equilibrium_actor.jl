@@ -201,6 +201,12 @@ function prepare(actor::ActorEquilibrium)
         rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
+        if !issorted(rho_pol_norm_sqrt0)
+            idx = sortperm(rho_pol_norm_sqrt0)
+            rho_pol_norm_sqrt0 = rho_pol_norm_sqrt0[idx]
+            j_tor0 = j_tor0[idx]
+            pressure0 = pressure0[idx]
+        end
         j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
         p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     else

@@ -2,21 +2,15 @@
 """
 Install IJulia kernels for FUSE without requiring `jupyter` on PATH.
 
-Kernels are written under JUPYTER_DATA_DIR/kernels when set, otherwise
-~/.local/share/jupyter/kernels. Pass specdir via IJulia.installkernel so
-registration does not depend on the `jupyter` executable.
+Kernels are written to IJulia's kernel directory: JUPYTER_DATA_DIR/kernels
+when set, otherwise the platform default (%APPDATA%\\jupyter\\kernels on
+Windows, ~/Library/Jupyter/kernels on macOS, ~/.local/share/jupyter/kernels
+elsewhere). Registration does not depend on the `jupyter` executable.
 """
 
 using Pkg
 
 const KERNEL_PACKAGES = ["Plots", "IJulia", "WebIO", "Interact"]
-
-function kernels_parent_dir()
-    if haskey(ENV, "JUPYTER_DATA_DIR") && !isempty(ENV["JUPYTER_DATA_DIR"])
-        return joinpath(ENV["JUPYTER_DATA_DIR"], "kernels")
-    end
-    return joinpath(homedir(), ".local", "share", "jupyter", "kernels")
-end
 
 function kernel_slug(name::AbstractString)
     slug = lowercase(strip(name))
@@ -45,5 +39,5 @@ install_one_kernel!("Julia (1 thread)", "1")
 install_one_kernel!("Julia ($n threads)", n)
 
 println()
-println("Kernels directory: ", kernels_parent_dir())
+println("Kernels directory: ", IJulia.kerneldir())
 println("List kernels with: python -m jupyter kernelspec list")
