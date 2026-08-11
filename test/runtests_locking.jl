@@ -6,7 +6,7 @@ using Test
     dd = IMAS.dd()
     FUSE.init(dd, ini, act)
 
-    # UPDATE sources to chosen time,if fetching a shot from MD
+    # UPDATE sources to chosen time,if fetching a shot from MDS
     #dd.global_time=3.0
     #act.ActorSources.nb_model=:NBsimple
     #FUSE.ActorSources(dd, act)  
