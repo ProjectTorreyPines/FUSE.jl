@@ -1,0 +1,101 @@
+locking_actor.jl — dd output rework, per-time op_C2, :LinStab br→Δt inversion
+
+Three related changes to ActorLocking: how results reach dd, how operating
+points are specified, and how :LinStab operating points are interpreted.
+
+
+1. m_pol_dominant type fix
+--------------------------
+par.m_pol is Entry{Int} but mhd_linear...toroidal_mode.m_pol_dominant is
+declared ::T (Float64). The Int assignment hit an ambiguous __convert! in
+IMASdd rather than its intended "wrong type" error message.
+
+
+2. One meaning for stability_metric
+-----------------------------------
+stability_metric now carries exactly one quantity: P(locked) at the operating
+point. It previously held the locked fraction of the scanned grid, overwritten
+by the operating-point probability when a model was available — two different
+quantities under one name, indistinguishable downstream.
+
+The grid fraction is logged instead of written. It moves with
+Control1/Control2_min/max, so it characterised the scan box rather than the
+plasma.
+
+With no operating point, the toroidal_mode entry is still created with its
+identity fields and stability_metric is left unfilled.
+
+One mhd_linear time_slice is now written per operating time, replacing
+prob_op = last(P_vals). The node is dynamic and op_times/op_C1/op_C2 were
+already vectors, so the time-resolved answer was being computed and discarded.
+
+
+3. Bistability limit
+--------------------
+_lower_fold_C2 reduces results.bifurcation_bounds to the fold location at the
+operating rotation — the lower (small-Control2) edge of the hysteretic band.
+Exposed as a second limits.model entry alongside the probability limit;
+`cleared` follows from the IMAS dynamic expression (fraction < 1).
+
+This is a different quantity from P(locked), not a substitute. bifurcation_bounds
+marks where multiple equilibria exist and is history-independent, while the grid
+scan integrates from one initial condition, so P is branch-dependent.
+
+Written all-or-nothing across operating times: set_time_array fills gaps by
+repeating the previous value (or NaN-padding a late-created array), so a ragged
+fraction would read back as a real limit at times where the fold never resolved.
+
+Skipped when the Control2 axis is not strictly positive — :LinStab sweeps Δt < 0
+(Control2_max = l21·l12/Δw − 0.05), where the ratio of two negatives loses the
+"further past the fold" ordering the fraction > 1 convention depends on.
+
+The hardcoded 0.5 locking threshold is now par.P_locked_threshold.
+
+
+4. Per-time op_C2
+-----------------
+op_C2 accepts a scalar or one value per op_times. A scalar broadcasts; a vector
+must match op_times one-for-one or errors with both lengths named.
+
+_op_C2_to_control2 is now the single user-units → Control2 mapping, shared by
+_step, _finalize, and :single_case. Without this, _finalize would have fed raw
+br-Gauss to the probability model for :LinStab.
+
+
+5. :LinStab br → Δt inversion
+-----------------------------
+For control_type=:LinStab, op_C2 is the n=1 br amplitude at the rational surface
+in Gauss, inverted to Δt by the locked-state br relation followed by
+Δt = Δ_RW + l21·l12/Δw (the inverse of the stability_index assignment in
+calculate_stability_index!).
+
+Δ_RW is forced negative on the backward pass — br is an amplitude and carries no
+sign, while Δ_RW < 0 is the weak-stability invariant enforced both by the
+:LinStab sweep range and by ModeLocking.resolve_control. Warns when the raw sign
+disagreed, and when the resulting Δt falls outside the scanned Control2 range,
+where the probability model is extrapolating.
+
+compute_br_max and compute_drw_from_br are merged into br_drw with
+direction=:forward|:backward. Both names are kept as thin wrappers, and
+compute_br_max still returns its (br_norm, br_Gauss) tuple.
+
+The ε default is fixed. It was maximum(Control2) unconditionally, which is only
+the error field for :EF; for :LinStab that is the max Δt and for :NLsaturation
+the max α. Those branches now use ode_params.error_field.
+
+
+Notes
+-----
+BREAKING: :LinStab op_C2 previously meant raw Δt.
+
+The probability limits.model identifier gained a " probability" suffix, so
+anything matching the old exact string will not find it.
+
+The br relation retained here is the actor's existing
+psit_max = (Δt/Δw)·l21·l32·ε/Δ_RW. A steady-state solve of the RP-RW RHS
+(dydt[1] and dydt[4] with Ω=0, α=0) and the Q=0 limit of the RP-RW branch of
+_nl_bifurcation_indicator both give psit = l21·l32·ε/(Δw·|Δ_RW|), without the
+explicit Δt factor, and are dimensionally consistent with ε where the current
+form is not. Kept as-is by decision; flagged here for later resolution.
+
+Not executed — the :LinStab inversion path in particular is unrun.
