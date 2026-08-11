@@ -91,6 +91,7 @@ WeaveExt = "Weave"
 
 [sources]
 IMAS = {url = "https://github.com/ProjectTorreyPines/IMAS.jl", rev = "fix/deepcopy_dd_subtypes"}
+IMASdd = {url = "https://github.com/ProjectTorreyPines/IMASdd.jl", rev = "fix/units_satellite_ids"}
 
 
 [compat]
