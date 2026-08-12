@@ -99,6 +99,65 @@ using Test
         @test actor_prob.results.ode_sols ≈ saved_ode
     end
 
+    # ─── task = :eval_prob ───────────────────────────────────────────────────
+    @testset "eval_prob" begin
+        # Seed disk with ODE results (:solve_system) and a probability model
+        # (:calc_prob) — :eval_prob loads both rather than recomputing
+        FUSE.ActorLocking(dd, act;
+            task             = :solve_system,
+            control_type     = :EF,
+            grid_size        = N_grid,
+            overwrite_params = true)
+        FUSE.ActorLocking(dd, act;
+            task             = :calc_prob,
+            control_type     = :EF,
+            grid_size        = N_grid,
+            overwrite_params = true,
+            nn_params        = fast_nn)
+
+        # op_times must be ≥ dd.global_time: earlier testsets already appended an
+        # mhd_linear slice there, and resize! rejects a time below the last one
+        t_ref    = dd.global_time
+        op_times = t_ref .+ [0.0, 1e-3, 2e-3]
+
+        # A scalar op_C2 broadcasts across every op_time
+        actor = FUSE.ActorLocking(dd, act;
+                    task             = :eval_prob,
+                    control_type     = :EF,
+                    grid_size        = N_grid,
+                    overwrite_params = true,
+                    op_times         = op_times,
+                    op_C2            = 5.0)
+
+        @test length(actor.op_times) == length(op_times)
+        @test length(actor.op_C1)    == length(op_times)
+        @test actor.op_C2 == fill(5.0, length(op_times))   # scalar broadcast
+        @test all(isfinite, actor.op_C1)
+
+        # One mhd_linear time_slice per op time, each carrying P(locked) —
+        # previously only the last time survived
+        for t in op_times
+            dd.global_time = t
+            mode = dd.mhd_linear.time_slice[].toroidal_mode[1]
+            @test 0.0 ≤ mode.stability_metric ≤ 1.0
+        end
+        dd.global_time = t_ref
+
+        # Probability limit written over the same time base
+        probs = filter(m -> occursin("probability", m.identifier.name), dd.limits.model)
+        @test length(probs) == 1
+        @test length(probs[1].fraction) == length(op_times)
+        @test all(isfinite, probs[1].fraction)
+
+        # A vector op_C2 must match op_times one-for-one
+        @test_throws ErrorException FUSE.ActorLocking(dd, act;
+            task         = :eval_prob,
+            control_type = :EF,
+            grid_size    = N_grid,
+            op_times     = op_times,
+            op_C2        = [1.0, 5.0])
+    end
+
     # ─── task = :transfer_learning ───────────────────────────────────────────
     @testset "transfer_learning" begin
         # Seed a base NN model on disk via a full :solve_system run
@@ -106,9 +165,10 @@ using Test
                          task             = :solve_system,
                          control_type     = :EF,
                          grid_size        = N_grid,
-                         overwrite_params = true)
+                         overwrite_params = true,
+                         nn_params        = fast_nn)
         # NN training is deferred to task=:calc_prob — train explicitly before saving
-        FUSE.train_locking_nn(actor_base, fast_nn)
+        FUSE.train_locking_nn(actor_base)
         FUSE.save_locking_nn(actor_base)
 
         # Fine-tune (last layer only) on a focused/sparser control-space sweep
