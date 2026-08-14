@@ -4,26 +4,34 @@ name: container
 # linux/amd64 and linux/arm64 (native Apple Silicon) built in parallel and
 # combined into one multi-arch tag.
 #
-# MANUAL DISPATCH ONLY — the amd64 leg is not viable on standard GitHub-hosted
-# runners: the sysimage object emission peaks at ~98.5 GiB RSS (measured on
-# omega, 2026-07-26), far beyond their 16 GB (swap and workload trimming both
-# fail; runs 30170851378, 30177176119, 30185669953). Requires 32-core/128 GB
-# larger runners to ever run in CI. Until then, amd64 release images are built
-# on omega and pushed with deploy/omega-container/publish_ghcr.sh.
+# MANUAL DISPATCH ONLY, AND NOT CURRENTLY A WORKING RELEASE PATH. Release
+# images are built by hand — amd64 on omega, arm64 on an Apple Silicon laptop —
+# and combined into the multi-arch tag with:
 #
-# The arm64 leg builds WITHOUT a sysimage (FUSE_PRECOMPILE_WORKLOAD=none):
+#     MANIFEST=1 FUSE_ENVIRONMENT=<version> deploy/omega-container/publish_ghcr.sh
+#
+# See deploy/omega-container/README.md, "Publishing to GHCR".
+#
+# The blocker is memory. The sysimage object emission peaks at ~98.5 GiB RSS
+# (measured on omega, 2026-07-26), far beyond the 16 GB of standard
+# GitHub-hosted runners; swap and workload trimming both fail (runs
+# 30170851378, 30177176119, 30185669953). It would take the 32-core/128 GB
+# larger-runner class to build in CI at all.
+#
+# The arm64 leg below builds WITHOUT a sysimage (FUSE_PRECOMPILE_WORKLOAD=none):
 # no aarch64 FUSE sysimage can link — the image data blob (~3.2 GB) overflows
 # the ±2 GiB R_AARCH64_PREL32 relocation span, for any CPU target and even the
 # light workload (verified on an M2 Max, 2026-08-04, FUSE v1.1.6 / Julia
 # 1.11.7; x86_64 escapes via the medium code model's .ldata section, which
-# aarch64 lacks). Skipping the sysimage keeps the arm64 peak well under 16 GB,
-# so this leg IS viable on ubuntu-24.04-arm.
+# aarch64 lacks). Skipping the sysimage should keep the arm64 peak under 16 GB,
+# but that path has never completed on ubuntu-24.04-arm — the three failed runs
+# above all predate it, so treat this leg as untested rather than proven.
 
 on:
   workflow_dispatch:
     inputs:
       fuse_version:
-        description: "FUSE release to build (e.g. v1.1.5); empty = latest release"
+        description: "FUSE release to build (e.g. v1.2.0); empty = latest release"
         required: false
         default: ""
       workload:
@@ -47,8 +55,7 @@ jobs:
     steps:
       - id: v
         run: |
-          v="${{ github.event.release.tag_name }}"
-          [ -z "$v" ] && v="${{ inputs.fuse_version }}"
+          v="${{ inputs.fuse_version }}"
           [ -z "$v" ] && v="$(curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releases/latest | jq -r .tag_name)"
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "building FUSE $v"

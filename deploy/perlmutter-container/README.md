@@ -31,7 +31,7 @@ cd $PSCRATCH/.julia/dev/FUSE        # the FUSE repo root (build context)
 `build.sh` will:
 
 1. Resolve the image tag (`fuse:<version>`) from the latest FUSE.jl release
-   (override with `FUSE_ENVIRONMENT=v1.1.3`).
+   (override with `FUSE_ENVIRONMENT=v1.2.0`).
 2. `podman-hpc build -t fuse:<version> -f deploy/perlmutter-container/Containerfile .`
 3. `podman-hpc migrate fuse:<version>` — converts the image to a read-only
    squashfs under `$SCRATCH` so it can be used in jobs and on any login node.
@@ -70,20 +70,20 @@ alias fuse-podman='podman-hpc --squash-dir /global/cfs/cdirs/m3739/shared_images
 
 # 1) confirm the image is visible
 fuse-podman images | grep fuse
-# expect: localhost/fuse  v1.1.3  ...  R/O
+# expect: localhost/fuse  v1.2.0  ...  R/O
 
 # 2) fast smoke test (loads FUSE from the baked-in sysimage, starts in seconds)
-fuse-podman run --rm fuse:v1.1.3 \
+fuse-podman run --rm fuse:v1.2.0 \
   julia --sysimage=/opt/fuse/sys_fuse.so \
   -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); println("FUSE OK: ", pkgversion(FUSE))'
 
 # 3) offline test (proves it is fully self-contained: no "Downloading artifact" lines)
-fuse-podman run --rm --network none fuse:v1.1.3 \
+fuse-podman run --rm --network none fuse:v1.2.0 \
   julia --sysimage=/opt/fuse/sys_fuse.so \
   -e 'using FUSE; ini,act=FUSE.case_parameters(:D3D,:L_mode); dd=FUSE.init(ini,act); println("OFFLINE OK")'
 
 # 4) interactive REPL (optional)
-fuse-podman run --rm -it fuse:v1.1.3
+fuse-podman run --rm -it fuse:v1.2.0
 ```
 
 For the Jupyter equivalent, see [Interactive use via Jupyter](#3-interactive-use-via-jupyter)
@@ -135,7 +135,7 @@ FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
 1. Open [NERSC JupyterHub](https://jupyter.nersc.gov) and start a server on a
    Perlmutter login node.
 2. Create a new notebook and select the **Julia FUSE-<version>** kernel
-   (display name e.g. `Julia FUSE-v1.1.3 (1 thread(s))`).
+   (display name e.g. `Julia FUSE-v1.2.0 (1 thread(s))`).
 3. Run this test cell:
 
    ```julia

@@ -16,7 +16,7 @@
 #   ./deploy/omega-container/build.sh
 #
 # Override the image tag (defaults to the latest FUSE.jl release):
-#   FUSE_ENVIRONMENT=v2.6.0 ./deploy/omega-container/build.sh
+#   FUSE_ENVIRONMENT=v1.2.0 ./deploy/omega-container/build.sh
 #
 # Write the SIF to shared storage (instead of node-local /local-scratch),
 # so it is visible from every omega node:
@@ -85,6 +85,15 @@ echo "### Building $image (context: $repo_root, CPU target: $cpu_target)"
 "${podman[@]}" build -t "$image" \
     --build-arg JULIA_CPU_TARGET="$cpu_target" \
     -f "$scriptdir/../perlmutter-container/Containerfile" "$repo_root"
+
+echo "### Verifying the image contains FUSE $version"
+# Guards against a stale cached install layer shipping under the wrong tag.
+got="$("${podman[@]}" run --rm "localhost/$image" fuse -e 'import FUSE; print(pkgversion(FUSE))')"
+if [[ "v$got" != "$version" ]]; then
+    echo "ERROR: image has FUSE v$got, expected $version (stale podman cache?)." >&2
+    echo "       Wipe the store ('${podman[*]} system reset --force') and rebuild." >&2
+    exit 1
+fi
 
 echo "### Exporting $image -> $sif"
 tar="$scratch/fuse_${version}.tar"

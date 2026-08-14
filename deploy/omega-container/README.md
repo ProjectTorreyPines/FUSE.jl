@@ -57,7 +57,7 @@ singularity and auto-selects the newest image):
 ```
 
 Pin a specific version by passing the `.sif` explicitly:
-`fuse-container /fusion/projects/dt/fuse_containers/fuse_v1.1.5.sif ...`.
+`fuse-container /fusion/projects/dt/fuse_containers/fuse_v1.2.0.sif ...`.
 
 Start a Jupyter notebook on the container (worker nodes only; installs the
 kernelspec automatically, `THREADS=N` to change the kernel's thread count):
@@ -130,7 +130,7 @@ SIF_DIR=/fusion/ga/projects/ird/ptp/$USER/fuse_containers ./deploy/omega-contain
 `build.sh` will:
 
 1. Resolve the image tag (`fuse:<version>`) from the latest FUSE.jl release
-   (override with `FUSE_ENVIRONMENT=v2.6.0`).
+   (override with `FUSE_ENVIRONMENT=v1.2.0`).
 2. `podman build` with omega's dual CPU target, storing images on
    `/local-scratch/$USER` (no NFS, no persistent config).
 3. `podman save` → `singularity build` → `SIF_DIR/fuse_<version>.sif`
@@ -286,26 +286,64 @@ access to the shared Lmod tree (e.g. `/fusion/usc/c8/modulefiles-git`) can drop
 
 ### Publishing to GHCR (all sites and laptops)
 
-Release images are built on omega and pushed to
-`ghcr.io/projecttorreypines/fuse:<version>` (+ `latest`) with the script
-below. (A [`container` workflow](../../.github/workflows/container.yml)
-exists for CI builds but is manual-dispatch-only and currently disabled: the
-sysimage emission peaks at ~98.5 GiB RSS, far beyond standard GitHub-hosted
-runners — it would need the 32-core/128 GB larger-runner class.)
+`ghcr.io/projecttorreypines/fuse:<version>` and `:latest` are **manifest
+lists**: one tag pointing at both per-architecture images, so users get the
+right one automatically from a single command.
 
-To publish after `build.sh` on the same omega node:
+```
+ghcr.io/projecttorreypines/fuse:<version>        manifest list
+    ├── ghcr.io/projecttorreypines/fuse:<version>-amd64    built on omega
+    └── ghcr.io/projecttorreypines/fuse:<version>-arm64    built on Apple Silicon
+```
+
+Neither leg is a working CI path — a [`container`
+workflow](../../.github/workflows/container.yml) exists but is
+manual-dispatch-only: the sysimage emission peaks at ~98.5 GiB RSS, far beyond
+standard GitHub-hosted runners (it would need the 32-core/128 GB larger-runner
+class). Release images are therefore built by hand, amd64 on omega and arm64 on
+an Apple Silicon laptop, then combined with `publish_ghcr.sh MANIFEST=1`.
+
+Publishing is three steps. All need `gh` authenticated with `write:packages`
+(`gh auth refresh --hostname github.com -s write:packages`).
+
+**1. amd64, after `build.sh` on the same omega node** (the podman store is
+node-local). This pushes only `:<version>-amd64` and does not move `latest`:
 
 ```bash
-# after build.sh, on the same node; needs gh auth with write:packages
 FUSE_ENVIRONMENT=<version> ./deploy/omega-container/publish_ghcr.sh
+```
+
+**2. arm64, on an Apple Silicon machine with Docker.** No aarch64 FUSE sysimage
+can link (the ~3.2 GB image data blob overflows the ±2 GiB `R_AARCH64_PREL32`
+relocation span), so this leg builds with `FUSE_PRECOMPILE_WORKLOAD=none` —
+package precompilation only, and the in-image `fuse` launcher falls back to
+plain `julia`:
+
+```bash
+docker build -f deploy/perlmutter-container/Containerfile \
+  --build-arg JULIA_CPU_TARGET="generic" \
+  --build-arg FUSE_PRECOMPILE_WORKLOAD="none" \
+  -t ghcr.io/projecttorreypines/fuse:<version>-arm64 .
+docker run --rm ghcr.io/projecttorreypines/fuse:<version>-arm64 \
+  fuse -e 'import FUSE; print(pkgversion(FUSE))'
+gh auth token | docker login ghcr.io -u "$(gh api /user --jq .login)" --password-stdin
+docker push ghcr.io/projecttorreypines/fuse:<version>-arm64
+```
+
+**3. The manifest, from either machine, once both arch tags exist and have
+passed their acceptance tests.** This is the step that moves `latest` for
+everyone:
+
+```bash
+MANIFEST=1 FUSE_ENVIRONMENT=<version> ./deploy/omega-container/publish_ghcr.sh
+docker manifest inspect ghcr.io/projecttorreypines/fuse:latest  # expect amd64 + arm64
 ```
 
 Consuming the published image:
 
 ```bash
-# Laptop / any machine with Docker or podman (x86_64)
+# Laptop / any machine with Docker or podman — architecture selected automatically
 docker run -it ghcr.io/projecttorreypines/fuse:<version>
-# Apple Silicon Macs: add --platform linux/amd64 (runs emulated — slow but works)
 
 # NERSC Perlmutter
 podman-hpc pull ghcr.io/projecttorreypines/fuse:<version>
@@ -316,5 +354,8 @@ podman-hpc run --rm -it ghcr.io/projecttorreypines/fuse:<version>
 singularity build fuse_<version>.sif docker://ghcr.io/projecttorreypines/fuse:<version>
 ```
 
-The image is x86_64-only (the sysimage is architecture-specific); on Apple
-Silicon it runs under emulation.
+The x86_64 image is built with the universal `JULIA_CPU_TARGET`
+(`generic;cascadelake;znver2;znver3`), so one image is optimal on omega and
+NERSC Perlmutter alike and falls back to `generic` on laptops. It carries the
+precompiled sysimage; the arm64 image does not, so its first-call latency is
+higher.
