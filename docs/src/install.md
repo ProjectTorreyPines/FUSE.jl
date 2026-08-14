@@ -12,8 +12,9 @@ FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the
     are available for reproducibility. The tags are multi-architecture, so the
     same command pulls the right image on x86_64 and on Apple Silicon — no
     `--platform` flag and no emulation. The x86_64 image carries a precompiled
-    sysimage (startup in seconds); the arm64 one ships package precompilation
-    only, so its first-call latency is higher.
+    sysimage, so `import FUSE` takes ~5 s; the arm64 image ships per-package
+    precompilation instead (no aarch64 sysimage can be linked), so `import FUSE`
+    takes ~30–60 s there. Compute speed after loading is the same.
 
     Laptop (Docker or podman):
     ```bash

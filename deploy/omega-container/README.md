@@ -292,18 +292,34 @@ right one automatically from a single command.
 
 ```
 ghcr.io/projecttorreypines/fuse:<version>        manifest list
-    ├── ghcr.io/projecttorreypines/fuse:<version>-amd64    built on omega
-    └── ghcr.io/projecttorreypines/fuse:<version>-arm64    built on Apple Silicon
+    ├── ghcr.io/projecttorreypines/fuse:<version>-amd64    built by hand on omega
+    └── ghcr.io/projecttorreypines/fuse:<version>-arm64    built in CI on release
 ```
 
-Neither leg is a working CI path — a [`container`
-workflow](../../.github/workflows/container.yml) exists but is
-manual-dispatch-only: the sysimage emission peaks at ~98.5 GiB RSS, far beyond
-standard GitHub-hosted runners (it would need the 32-core/128 GB larger-runner
-class). Release images are therefore built by hand, amd64 on omega and arm64 on
-an Apple Silicon laptop, then combined with `publish_ghcr.sh MANIFEST=1`.
+The two legs are built in different places, because they hit two unrelated
+walls.
 
-Publishing is three steps. All need `gh` authenticated with `write:packages`
+**amd64 is blocked by memory.** Emitting the sysimage object peaks at ~98.5 GiB
+RSS, far beyond the 16 GB of standard GitHub-hosted runners (it would need the
+32-core/128 GB larger-runner class), so amd64 is built by hand on omega.
+
+**arm64 cannot have a sysimage at all** — a linker limit, not a resource one.
+FUSE's sysimage embeds a ~3.2 GB blob of serialized program state, and on
+aarch64 the linker must bridge it with 32-bit relative references
+(`R_AARCH64_PREL32`) that max out at 2.147 GB. The build compiles for 5+ hours
+successfully and then fails in the final second at the link step, identically
+for every variant tried. x86_64 escapes only because the medium code model
+gives it a large-data section (`.ldata`) that moves the blob out of the
+critical span; aarch64 has no equivalent. The arm64 image therefore builds with
+`FUSE_PRECOMPILE_WORKLOAD=none` and ships per-package pkgimages — many small
+libraries instead of one giant one — so `import FUSE` takes ~30–60 s instead of
+~5 s, with identical compute speed after that. Skipping the sysimage emission
+is also what keeps the peak under 16 GB, so **arm64 builds automatically in CI
+on every published release** ([`container`
+workflow](../../.github/workflows/container.yml)).
+
+Publishing is therefore two manual steps (arm64 takes care of itself). Both
+need `gh` authenticated with `write:packages`
 (`gh auth refresh --hostname github.com -s write:packages`).
 
 **1. amd64, after `build.sh` on the same omega node** (the podman store is
@@ -313,26 +329,10 @@ node-local). This pushes only `:<version>-amd64` and does not move `latest`:
 FUSE_ENVIRONMENT=<version> ./deploy/omega-container/publish_ghcr.sh
 ```
 
-**2. arm64, on an Apple Silicon machine with Docker.** No aarch64 FUSE sysimage
-can link (the ~3.2 GB image data blob overflows the ±2 GiB `R_AARCH64_PREL32`
-relocation span), so this leg builds with `FUSE_PRECOMPILE_WORKLOAD=none` —
-package precompilation only, and the in-image `fuse` launcher falls back to
-plain `julia`:
-
-```bash
-docker build -f deploy/perlmutter-container/Containerfile \
-  --build-arg JULIA_CPU_TARGET="generic" \
-  --build-arg FUSE_PRECOMPILE_WORKLOAD="none" \
-  -t ghcr.io/projecttorreypines/fuse:<version>-arm64 .
-docker run --rm ghcr.io/projecttorreypines/fuse:<version>-arm64 \
-  fuse -e 'import FUSE; print(pkgversion(FUSE))'
-gh auth token | docker login ghcr.io -u "$(gh api /user --jq .login)" --password-stdin
-docker push ghcr.io/projecttorreypines/fuse:<version>-arm64
-```
-
-**3. The manifest, from either machine, once both arch tags exist and have
-passed their acceptance tests.** This is the step that moves `latest` for
-everyone:
+**2. The manifest, once both arch tags exist and have passed their acceptance
+tests.** This is the step that moves `latest` for everyone. The CI run that
+built arm64 skips the manifest when amd64 is not yet published, so this is
+normally run from omega right after step 1:
 
 ```bash
 MANIFEST=1 FUSE_ENVIRONMENT=<version> ./deploy/omega-container/publish_ghcr.sh

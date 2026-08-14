@@ -4,38 +4,64 @@ name: container
 # linux/amd64 and linux/arm64 (native Apple Silicon) built in parallel and
 # combined into one multi-arch tag.
 #
-# MANUAL DISPATCH ONLY, AND NOT CURRENTLY A WORKING RELEASE PATH. Release
-# images are built by hand — amd64 on omega, arm64 on an Apple Silicon laptop —
-# and combined into the multi-arch tag with:
+# WHICH LEG RUNS WHERE
+#
+#   arm64  — built automatically here on every published release.
+#   amd64  — built by hand on omega; CANNOT run on GitHub-hosted runners.
+#
+# The two legs differ because they hit two unrelated walls.
+#
+# amd64 is blocked by MEMORY: emitting the sysimage object peaks at ~98.5 GiB
+# RSS (measured on omega, 2026-07-26), far beyond the 16 GB of standard
+# GitHub-hosted runners. Swap and workload trimming both fail (runs
+# 30170851378, 30177176119, 30185669953); it would take the 32-core/128 GB
+# larger-runner class. So amd64 release images are built on omega with
+# deploy/omega-container/build.sh and pushed with publish_ghcr.sh.
+#
+# arm64 is blocked from having a sysimage AT ALL, by a LINKER limit rather than
+# a memory one. FUSE's sysimage embeds a ~3.2 GB blob of serialized program
+# state, and on aarch64 the linker must bridge that blob with 32-bit relative
+# references (R_AARCH64_PREL32) that max out at 2.147 GB. It is an
+# architecture-level object-file-format limit, not a resource shortage: the
+# build compiles for 5+ hours successfully and then fails in the final second at
+# the link step, identically for every variant tried (dual-target, single
+# target, light workload; verified on an M2 Max, 2026-08-04, FUSE v1.1.6 /
+# Julia 1.11.7). x86_64 escapes only because the medium code model gives it a
+# large-data section (.ldata) that moves the blob out of the critical span;
+# aarch64 has no equivalent.
+#
+# So the arm64 leg builds with FUSE_PRECOMPILE_WORKLOAD=none and ships per-
+# package pkgimages — many small libraries instead of one giant one — and the
+# in-image `fuse` launcher falls back to plain julia. Trade-off: `import FUSE`
+# takes ~30-60 s instead of ~5 s; compute speed after that is identical. Losing
+# the sysimage emission is also what drops the peak under 16 GB, which is why
+# this leg fits on ubuntu-24.04-arm at all.
+#
+# The multi-arch manifest (:<version> + :latest) can only be created once BOTH
+# per-arch tags exist. The manifest job below therefore skips itself when the
+# amd64 tag is missing — the usual case on a release run, since omega builds
+# later. Finish the release from omega with:
 #
 #     MANIFEST=1 FUSE_ENVIRONMENT=<version> deploy/omega-container/publish_ghcr.sh
 #
 # See deploy/omega-container/README.md, "Publishing to GHCR".
-#
-# The blocker is memory. The sysimage object emission peaks at ~98.5 GiB RSS
-# (measured on omega, 2026-07-26), far beyond the 16 GB of standard
-# GitHub-hosted runners; swap and workload trimming both fail (runs
-# 30170851378, 30177176119, 30185669953). It would take the 32-core/128 GB
-# larger-runner class to build in CI at all.
-#
-# The arm64 leg below builds WITHOUT a sysimage (FUSE_PRECOMPILE_WORKLOAD=none):
-# no aarch64 FUSE sysimage can link — the image data blob (~3.2 GB) overflows
-# the ±2 GiB R_AARCH64_PREL32 relocation span, for any CPU target and even the
-# light workload (verified on an M2 Max, 2026-08-04, FUSE v1.1.6 / Julia
-# 1.11.7; x86_64 escapes via the medium code model's .ldata section, which
-# aarch64 lacks). Skipping the sysimage should keep the arm64 peak under 16 GB,
-# but that path has never completed on ubuntu-24.04-arm — the three failed runs
-# above all predate it, so treat this leg as untested rather than proven.
 
 on:
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       fuse_version:
         description: "FUSE release to build (e.g. v1.2.0); empty = latest release"
         required: false
         default: ""
+      arch:
+        description: "Which leg(s) to build (amd64 needs a >=128 GB runner)"
+        type: choice
+        options: [arm64, amd64, both]
+        default: arm64
       workload:
-        description: "Sysimage trace workload"
+        description: "Sysimage trace workload (amd64 only; arm64 is always none)"
         type: choice
         options: [full, light]
         default: full
@@ -52,34 +78,45 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.v.outputs.version }}
+      matrix: ${{ steps.m.outputs.matrix }}
     steps:
       - id: v
         run: |
-          v="${{ inputs.fuse_version }}"
+          v="${{ github.event.release.tag_name }}"
+          [ -z "$v" ] && v="${{ inputs.fuse_version }}"
           [ -z "$v" ] && v="$(curl -s https://api.github.com/repos/ProjectTorreyPines/FUSE.jl/releases/latest | jq -r .tag_name)"
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "building FUSE $v"
+
+      # A release build is arm64-only: amd64 needs ~98.5 GiB to emit the
+      # sysimage and is built on omega (see header). Manual dispatch can still
+      # ask for amd64, e.g. to retry it on a larger-runner class.
+      - id: m
+        run: |
+          arch="${{ inputs.arch }}"
+          [ -z "$arch" ] && arch="arm64"
+
+          # universal x86_64 set: NERSC Perlmutter (znver3), GA omega
+          # (cascadelake/znver2/znver3), generic fallback for laptops
+          amd64='{"arch":"amd64","runner":"ubuntu-24.04","cpu_target":"generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all;znver3,-xsaveopt,-rdrnd,clone_all","workload":"${{ inputs.workload || 'full' }}"}'
+          # generic aarch64 (Apple Silicon Docker/podman VMs, Graviton, …).
+          # cpu_target only shapes the pkgimages here — there is no sysimage,
+          # and the fuse launcher unsets it at runtime so the JIT goes native.
+          arm64='{"arch":"arm64","runner":"ubuntu-24.04-arm","cpu_target":"generic","workload":"none"}'
+
+          case "$arch" in
+            amd64) include="[$amd64]" ;;
+            both)  include="[$amd64,$arm64]" ;;
+            *)     include="[$arm64]" ;;
+          esac
+          echo "matrix={\"include\":$include}" >> "$GITHUB_OUTPUT"
+          echo "building leg(s): $arch"
 
   build:
     needs: version
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-            # universal x86_64 set: NERSC Perlmutter (znver3), GA omega
-            # (cascadelake/znver2/znver3), generic fallback for laptops
-            cpu_target: "generic;cascadelake,-xsaveopt,-rdrnd,clone_all;znver2,-xsaveopt,-rdrnd,clone_all;znver3,-xsaveopt,-rdrnd,clone_all"
-            workload: ${{ inputs.workload || 'full' }}
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            # generic aarch64 (Apple Silicon Docker/podman VMs, Graviton, …).
-            # No sysimage on aarch64 (see header) — cpu_target only shapes the
-            # pkgimages, and the fuse launcher unsets it at runtime so the JIT
-            # goes native.
-            cpu_target: "generic"
-            workload: none
+      matrix: ${{ fromJson(needs.version.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 355
     steps:
@@ -91,10 +128,13 @@ jobs:
                       /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h /
 
-      # sysimage object emission peaks beyond the 16 GB runner RAM (the OOM
-      # starves the runner agent -> "runner lost communication"); swap lets
-      # the peak spill to disk at the cost of some speed
+      # Only the sysimage legs need this: object emission peaks beyond the
+      # 16 GB runner RAM (the OOM starves the runner agent -> "runner lost
+      # communication"), and swap lets the peak spill to disk at the cost of
+      # some speed. workload=none (arm64) never emits a sysimage, so it stays
+      # well under the limit and skips this.
       - name: Add swap
+        if: matrix.workload != 'none'
         run: |
           for loc in /mnt /; do
             avail=$(df -BG --output=avail "$loc" | tail -1 | tr -dc '0-9')
@@ -118,7 +158,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image (heavy — compiles the FUSE sysimage)
+      # heavy: installs FUSE + every PTP package and precompiles them, plus the
+      # sysimage unless workload=none
+      - name: Build image
         run: |
           docker build \
             -f deploy/perlmutter-container/Containerfile \
@@ -148,9 +190,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # :<version> and :latest are manifest lists over BOTH per-arch tags, so
+      # they can only be published once both exist. On a release run only arm64
+      # was just built and amd64 arrives later from omega, so skip rather than
+      # publish a half manifest that would strand x86_64 users on :latest.
       - name: Publish multi-arch manifest (version + latest)
         run: |
           v="${{ needs.version.outputs.version }}"
+          missing=""
+          for arch in amd64 arm64; do
+            docker manifest inspect "$IMAGE:$v-$arch" >/dev/null 2>&1 || missing="$missing $arch"
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice::Skipping manifest — missing per-arch tag(s):$missing."
+            echo "Publish it once the missing leg is pushed:"
+            echo "    MANIFEST=1 FUSE_ENVIRONMENT=$v deploy/omega-container/publish_ghcr.sh"
+            exit 0
+          fi
           docker buildx imagetools create \
             -t "$IMAGE:$v" -t "$IMAGE:latest" \
             "$IMAGE:$v-amd64" "$IMAGE:$v-arm64"
