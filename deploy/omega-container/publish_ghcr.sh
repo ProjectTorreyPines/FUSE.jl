@@ -111,7 +111,10 @@ if [[ "${MANIFEST:-0}" == "1" ]]; then
         "${podman[@]}" manifest add --all "fuse-manifest-$version" "docker://$dest:$version-arm64"
         "${podman[@]}" manifest push --all "fuse-manifest-$version" "docker://$dest:$version"
         "${podman[@]}" manifest push --all "fuse-manifest-$version" "docker://$dest:latest"
-        "${podman[@]}" manifest inspect "docker://$dest:$version"
+        # No docker:// prefix here: `manifest add` accepts that transport but
+        # `manifest inspect` does not ("unsupported transport docker for looking
+        # up local images") — it takes a plain remote reference.
+        "${podman[@]}" manifest inspect "$dest:$version"
     fi
     echo
     echo "### Published $dest:$version and $dest:latest (multi-arch)"
