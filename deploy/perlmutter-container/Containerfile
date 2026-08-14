@@ -111,7 +111,7 @@ RUN printf '%s\n' \
 # by the install (plain julia) are invalid once sys_fuse.so is loaded, so
 # without this every user would re-precompile IJulia/Plots/... on first use —
 # in a read-only image, into their own home depot.
-RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse'
+RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse, Revise'
 
 # Registries are cloned 0700; without world-read every in-container Pkg
 # operation fails for non-root users.
