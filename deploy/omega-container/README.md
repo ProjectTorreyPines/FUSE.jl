@@ -84,6 +84,7 @@ The rest of this README covers building a new image and the full test flow.
 | `fuse-container.lua` | Lmod modulefile (`module load fuse-container`). |
 | `install_kernel.sh` | Installs a Jupyter kernelspec that runs via `fuse-container`. |
 | `kernel.json.template` | Template for the kernelspec. |
+| `acceptance.sh` | Pre-publish acceptance checks against a freshly built image + SIF. |
 | `test_slurm.sbatch` | Smoke test as a Slurm job (submit per architecture). |
 | `test_kernel_headless.py` | Headless Jupyter-kernel smoke test via `jupyter_client`. |
 
@@ -323,11 +324,16 @@ need `gh` authenticated with `write:packages`
 (`gh auth refresh --hostname github.com -s write:packages`).
 
 **1. amd64, after `build.sh` on the same omega node** (the podman store is
-node-local). This pushes only `:<version>-amd64` and does not move `latest`:
+node-local). Run the acceptance checks first — they are what catches a
+dependency that silently vanished between releases, and they exit nonzero if
+anything failed:
 
 ```bash
+FUSE_ENVIRONMENT=<version> ./deploy/omega-container/acceptance.sh
 FUSE_ENVIRONMENT=<version> ./deploy/omega-container/publish_ghcr.sh
 ```
+
+The push only creates `:<version>-amd64`; it does not move `latest`.
 
 **2. The manifest, once both arch tags exist and have passed their acceptance
 tests.** This is the step that moves `latest` for everyone. The CI run that
