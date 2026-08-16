@@ -8,7 +8,7 @@
 #   ./deploy/perlmutter-container/build.sh
 #
 # Override the image tag (defaults to the latest FUSE.jl release) with:
-#   FUSE_ENVIRONMENT=v1.1.3 ./deploy/perlmutter-container/build.sh
+#   FUSE_ENVIRONMENT=v1.2.0 ./deploy/perlmutter-container/build.sh
 #
 # Share the migrated image across the project (instead of personal SCRATCH):
 #   SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images ./build.sh
@@ -43,7 +43,7 @@ if [[ -z "${SLURM_JOB_ID:-}" ]]; then
 fi
 
 echo "### Building $image (context: $repo_root)"
-podman-hpc build -t "$image" -f "$scriptdir/Containerfile" "$repo_root"
+podman-hpc build -t "$image" --build-arg FUSE_VERSION="$version" -f "$scriptdir/Containerfile" "$repo_root"
 
 echo "### Migrating $image to a squashed read-only image"
 if [[ -n "${SQUASH_DIR:-}" ]]; then

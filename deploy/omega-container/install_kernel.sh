@@ -9,7 +9,7 @@
 #
 # Run this AFTER ./build.sh has produced the SIF. Usage:
 #   module load singularity/3.11.3
-#   SIF=/fusion/.../fuse_v2.6.0.sif ./deploy/omega-container/install_kernel.sh
+#   SIF=/fusion/.../fuse_v1.2.0.sif ./deploy/omega-container/install_kernel.sh
 #
 # Optional:
 #   THREADS=8  number of Julia threads the kernel starts with (default 1)

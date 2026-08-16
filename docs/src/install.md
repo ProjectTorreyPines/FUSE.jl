@@ -6,13 +6,17 @@ FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the
 
 !!! tip "No-install alternative: the FUSE container"
     If you just want to *run* released FUSE (not develop it), a self-contained
-    image with FUSE, all ProjectTorreyPines packages, and a precompiled
-    sysimage (startup in seconds) is published to
+    image with FUSE and all ProjectTorreyPines packages is published to
     [ghcr.io/projecttorreypines/fuse](https://github.com/orgs/ProjectTorreyPines/packages/container/package/fuse);
-    `latest` is the most recent FUSE release, and version tags (`v1.1.5`, ...)
-    are available for reproducibility.
+    `latest` is the most recent FUSE release, and version tags (`v1.2.0`, ...)
+    are available for reproducibility. The tags are multi-architecture, so the
+    same command pulls the right image on x86_64 and on Apple Silicon. The 
+    x86_64 image carries a precompiled sysimage, so `import FUSE` takes ~5 s; 
+    the arm64 image ships per-package precompilation instead (no aarch64 
+    sysimage can be linked), so `import FUSE` takes ~30–60 s there. Compute 
+    speed after loading is the same.
 
-    Laptop (Docker; on Apple Silicon add `--platform linux/amd64`):
+    Laptop (Docker or podman):
     ```bash
     docker run -it ghcr.io/projecttorreypines/fuse:latest
     ```

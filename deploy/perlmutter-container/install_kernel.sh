@@ -7,7 +7,7 @@
 # notebooks.
 #
 # Run this AFTER ./build.sh has built and migrated the image. Usage:
-#   FUSE_ENVIRONMENT=v1.1.3 ./deploy/perlmutter-container/install_kernel.sh
+#   FUSE_ENVIRONMENT=v1.2.0 ./deploy/perlmutter-container/install_kernel.sh
 #
 # Optional:
 #   THREADS=8      number of Julia threads the kernel starts with (default 1)
@@ -16,7 +16,7 @@
 #                  `podman-hpc --squash-dir <dir> run ...`. Example (project
 #                  image shared with all of m3739):
 #                    SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images \
-#                    FUSE_ENVIRONMENT=v1.1.3 ./install_kernel.sh
+#                    FUSE_ENVIRONMENT=v1.2.0 ./install_kernel.sh
 
 set -euo pipefail
 
