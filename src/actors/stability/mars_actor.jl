@@ -18,9 +18,21 @@ Base.@kwdef mutable struct MARS_BASIC
     NPROFT::Int = 2
     ETA::Float64 = 0.0
     NV::Int = 160
+    # Resistive walls. NWALL is the number of resistive shells; IWALL/TAUW are per-shell
+    # (Fortran declares them as IWALL(NWALL0), TAUW(NWALL0) with NWALL0=5, see globalm.f),
+    # so they are vectors here and must both have length NWALL — enforced by
+    # configure_wall!(), which also sets NWALL from par.wall_type.
+    #
+    # IWALL entries are indices into the VACUUM RADIAL MESH (MARS uses IV = NR + IWALL),
+    # NOT pointers to a wall contour supplied via EXPEQ. That mesh spans the plasma boundary
+    # (s=1) out to CHEASE's far-field REXT (s=6 in the shipped examples). MARS's only validity
+    # check is a bounds test, `IWALL(J) > 1 && IWALL(J) < NV` (marsq.f:2144), which cannot tell
+    # a CHEASE-computed wall position from an arbitrary vacuum grid point. A stale IWALL
+    # therefore silently places a resistive shell at an unintended radius rather than erroring,
+    # which is why configure_wall!() always re-derives it from log_chease.
     NWALL::Int = 1
-    TAUW::Float64 = 1.0e4
-    IWALL::Int = 22
+    TAUW::Vector{Float64} = [1.0e4]
+    IWALL::Vector{Int} = [22]
     IWO::Int = 1
     IVISC::Int = 1
     PVISC::Float64 = 0.1
@@ -136,6 +148,44 @@ Base.@kwdef mutable struct MARS_OUTOPT
     extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
+# REORBIT particle-tracing settings. These are Fortran variables declared in the
+# `OUTOPT` namelist (see MarsQ_package/MarsQ/newrun.inc), NOT a namelist of their own —
+# MARS has no `&REORBIT` block. Kept as a separate Julia struct for readability; see the
+# NAMELIST_GROUP mapping used by write_MARS_namelist(), which folds this struct's fields
+# into the `&OUTOPT ... &END` block alongside MARS_OUTOPT's.
+# Defaults below are taken from MarsQ_package/EXAMPLE/RwmFluid/Rmars_EXAMPLE_RwmFluid_EPs,
+# except NREORBIT, which is driven by `par.num_orbits` (see run_MARS).
+Base.@kwdef mutable struct MARS_REORBIT
+    NREORBIT::Int = 0
+    KRE_VAC::Int = 0
+    KRE_INIT::Int = 1
+    KRE1::Int = 1
+    KRE2::Int = 5
+    NRE1::Int = 30
+    NRE2::Int = 30
+    KRE_STAR::Int = 5
+    KRE_STEP::Int = 10
+    KRE_STEP_MAX::Int = 300000
+    KRE_SIGMA0::Int = 1
+    KRE_TRACE::Int = 5
+    RE_TSTEP::Float64 = 1.0e-3
+    RE_TIME::Float64 = 30000.0
+    RE_EFIELD::Float64 = 0.0
+    RE_SAC::Float64 = 0.0
+    RE_SYNCH::Float64 = 0.0
+    RE_BREMS::Float64 = 0.0
+    RE_S0::Float64 = 0.0
+    RE_CHI0::Float64 = 0.0
+    RE_P0::Float64 = 2.308627075871614e-02
+    RE_AN::Float64 = 2.0
+    RE_CN::Float64 = 1.0
+    RE_LAMBDA0::Float64 = 1.0
+    RE_ATOL::Float64 = 1.0e-7
+    RE_PERTURB::Float64 = 1.1995e-04
+    RE_CONST::Vector{Float64} = [1.18e+20, 15.0, 10.0, 1.0]
+    extras::Dict{Symbol,Any} = Dict{Symbol,Any}()
+end
+
 Base.@kwdef mutable struct MARSnamelist
     BASIC::MARS_BASIC = MARS_BASIC()
     FEEDBACK::MARS_FEEDBACK = MARS_FEEDBACK()
@@ -143,7 +193,21 @@ Base.@kwdef mutable struct MARSnamelist
     QLIN::MARS_QLIN = MARS_QLIN()
     NUMERIC::MARS_NUMERIC = MARS_NUMERIC()
     OUTOPT::MARS_OUTOPT = MARS_OUTOPT()
+    REORBIT::MARS_REORBIT = MARS_REORBIT()
 end
+
+# Maps each MARSnamelist field to the actual Fortran namelist group it must be written
+# under in RUN.IN. Only REORBIT differs from its own field name: MARS has no `&REORBIT`
+# namelist, so its fields are folded into `&OUTOPT` (see write_MARS_namelist()).
+const NAMELIST_GROUP = Dict(
+    :BASIC    => :BASIC,
+    :FEEDBACK => :FEEDBACK,
+    :KINETIC  => :KINETIC,
+    :QLIN     => :QLIN,
+    :NUMERIC  => :NUMERIC,
+    :OUTOPT   => :OUTOPT,
+    :REORBIT  => :OUTOPT,
+)
 
 Base.@kwdef mutable struct MarsOverrides
     BASIC::Dict{Symbol,Any} = Dict{Symbol,Any}()
@@ -152,6 +216,7 @@ Base.@kwdef mutable struct MarsOverrides
     QLIN::Dict{Symbol,Any} = Dict{Symbol,Any}()
     NUMERIC::Dict{Symbol,Any} = Dict{Symbol,Any}()
     OUTOPT::Dict{Symbol,Any} = Dict{Symbol,Any}()
+    REORBIT::Dict{Symbol,Any} = Dict{Symbol,Any}()
 end
 
 
@@ -215,13 +280,17 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         Entry{String}("-", "Path to CHEASE executable"; default="/fusion/projects/codes/mars/CHEASE/chease.x")
     mars_exec::Entry{String} =
         Entry{String}("-", "Path to MARS executable"; default="/fusion/projects/codes/mars/MARSQ/marsq.x")
+    mpirun_exec::Entry{String} =
+        Entry{String}("-", "mpirun/mpiexec executable used when num_orbits>0 (REORBIT tracing requires MPI even though MARS itself does not). Set to a full path if `mpirun` on PATH does not match the MPI marsq.x was built against (e.g. a conda-installed mpirun shadowing the system one)."; default="mpirun")
     offset::Entry{Float64} = Entry{Float64}("-", "Offset for conforming first wall (RW) in units of length"; default=0.2)
     n_points::Entry{Int} = Entry{Int}("-", "Number of points for discretizing plasma boundary and surrounding walls "; default=301)
     tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
-    wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)    
+    wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)
     wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :limiter], "-", "Machine wall shape to use for MARS"; default=:no_wall)
     number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
+    wall_time_constants::Entry{Vector{Float64}} =
+        Entry{Vector{Float64}}("-", "Resistive wall time constant τ_w per wall surface, in Alfvén times (MARS TAUW). Length must equal the number of resistive walls; a single-element vector is applied to every wall. Ignored when wall_type=:no_wall"; default=[1.0e4])
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
@@ -304,6 +373,10 @@ function _step(actor::ActorMars)
     chease_namelist = actor.chease_inputs
     mars_namelist = actor.mars_inputs
 
+    # Fail fast on an inconsistent wall setup, before any CHEASE/MARS work. Checked here
+    # rather than in run_CHEASE so it applies even when run_equilibrium=false.
+    validate_wall_configuration(par)
+
     # plot equilibrium if requested
     if par.do_plot
         if !isempty(dd.equilibrium.time_slice)
@@ -341,7 +414,6 @@ function _step(actor::ActorMars)
             actor.mars_outputs = run_MARS(dd, par, mars_namelist)
         end
 
-        #run_PARTICLE_TRACING(dd, par)
     finally
         cd(old_dir)
     end
@@ -473,12 +545,8 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist)
     chease_exec = par.chease_exec
     @assert chease_namelist !== nothing "CHEASE namelist not initialized"
 
-    # Do the No-wall checks and get MARS wall file from the FUSE repository
+    # wall_type/number_surfaces consistency is checked up front in validate_wall_configuration()
     limiter = nothing
-    if par.wall_type == :no_wall && par.number_surfaces > 1
-        error("Invalid configuration: number_surfaces > 1 but wall_type is set to :
-No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
-    end
 
     if par.restart_equilibrium
         if isfile("EXPEQ.OUT")
@@ -539,28 +607,152 @@ No_wall. Please specify a valid wall_type or set number_surfaces to 1.")
     # basic checks on CHEASE output
     keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
     println(julia_grep(keys, "log_chease"))
-    
+
     return nothing
 end
 
+
+"""
+    validate_wall_configuration(par)
+
+Check that `wall_type` and `number_surfaces` agree, in both directions, and that the implied
+number of resistive walls is supported.
+
+`number_surfaces` counts *bounding surfaces* (plasma boundary + walls), so the number of
+resistive walls is `number_surfaces - 1` and MARS's `NWALL` must equal it — see
+[`configure_wall!`](@ref), which derives `NWALL` from `number_surfaces` on that basis.
+
+A resistive wall needs an actual wall contour in the equilibrium: `write_EXPEQ_file` only
+builds one when `number_surfaces > 1`, so `wall_type != :no_wall` with the default
+`number_surfaces == 1` would send CHEASE no wall at all and silently produce a no-wall
+(far-field boundary at `REXT`) result instead of the requested resistive-wall one.
+"""
+function validate_wall_configuration(par)
+    if par.wall_type == :no_wall && par.number_surfaces > 1
+        error(
+            "Invalid wall configuration: number_surfaces = $(par.number_surfaces) > 1 but " *
+            "wall_type = :no_wall. Set a wall_type (:conformal or :limiter), or set " *
+            "number_surfaces = 1."
+        )
+    end
+    if par.wall_type != :no_wall && par.number_surfaces <= 1
+        error(
+            "Invalid wall configuration: wall_type = $(par.wall_type) requires a wall surface " *
+            "in the equilibrium, but number_surfaces = $(par.number_surfaces). Set " *
+            "number_surfaces > 1 so a wall contour is written to EXPEQ, or set " *
+            "wall_type = :no_wall."
+        )
+    end
+    # NWALL = number_surfaces - 1. Multi-wall (NWALL > 1) is not supported yet: CHEASE reports
+    # a single wall index NW, so the positions of any further walls cannot be derived.
+    if par.number_surfaces > 2
+        error(
+            "Unsupported wall configuration: number_surfaces = $(par.number_surfaces) implies " *
+            "$(par.number_surfaces - 1) resistive walls, but only NWALL <= 1 is supported " *
+            "(CHEASE reports a single wall index NW, so additional wall positions cannot be " *
+            "determined). Set number_surfaces <= 2."
+        )
+    end
+    return nothing
+end
+
+
+"""
+    configure_wall!(mars_namelist, par)
+
+Set the MARS resistive-wall inputs `NWALL`, `IWALL` and `TAUW` from `par`, so they can never
+be left at struct defaults that do not correspond to the equilibrium actually being run.
+
+- `wall_type == :no_wall` forces `NWALL = 0`, which is genuinely *no wall*. MARS's vacuum mesh
+  runs from the plasma boundary (s=1) out to CHEASE's `REXT` (s=6 in the shipped examples), so
+  the B1=0 condition BOWALL applies at the last grid point (marsq.f:3200) exists only to close
+  the system and sits far enough out to approximate a wall at infinity.
+
+  Forcing it matters because MARS validates `IWALL` only with the bounds test
+  `IWALL(J) > 1 && IWALL(J) < NV` (marsq.f:2144) against that same mesh, which exists
+  regardless of how many surfaces CHEASE computed. A leftover `NWALL = 1, IWALL = 22` is
+  silently accepted and puts a resistive shell at s≈1.30 — just outside the plasma, nowhere
+  near the far field — instead of being ignored.
+
+- otherwise `IWALL` is re-derived from the CHEASE-reported wall index `NW` in `log_chease`
+  (e.g. `NW=20` ↔ s=1.2308, matching CHEASE's own reported `RW`), and `TAUW` is taken from
+  `par.wall_time_constants`.
+"""
+function configure_wall!(mars_namelist, par)
+    basic = mars_namelist.BASIC
+
+    if par.wall_type == :no_wall
+        if basic.NWALL != 0
+            @info "wall_type=:no_wall — forcing NWALL=0 (no wall; boundary condition at the far-field mesh edge REXT)"
+        end
+        setfield!(basic, :NWALL, 0)
+        setfield!(basic, :IWALL, Int[])
+        setfield!(basic, :TAUW, Float64[])
+        return nothing
+    end
+
+    # Number of resistive walls is set by the equilibrium geometry, not by whatever length
+    # IWALL happens to have: number_surfaces counts plasma boundary + walls. Guaranteed to be
+    # exactly 1 here by validate_wall_configuration (number_surfaces == 2).
+    n_walls = par.number_surfaces - 1
+
+    # Wall position: CHEASE reports the wall grid index as `NW` in log_chease.
+    iwall = copy(basic.IWALL)
+    if isfile("log_chease")
+        NW_dict = julia_grep(["NW"], "log_chease"; extract_values=true)
+        if haskey(NW_dict, "NW")
+            NW = NW_dict["NW"]
+            @info "Setting IWALL from CHEASE wall index NW = $NW (log_chease)"
+            isempty(iwall) ? push!(iwall, NW) : (iwall[1] = NW)
+        else
+            @warn "NW not found in log_chease; IWALL left at $iwall — verify it indexes the " *
+                  "intended vacuum mesh position, MARS only bounds-checks it"
+        end
+    else
+        @warn "log_chease not found (run_equilibrium=false?); IWALL left at $iwall — verify it " *
+              "indexes the intended vacuum mesh position, MARS only bounds-checks it"
+    end
+
+    isempty(iwall) && error("wall_type=$(par.wall_type) but no wall position could be determined for IWALL")
+
+    # Drop any extra user-supplied entries: CHEASE wrote only n_walls wall contour(s), and MARS
+    # would read conductivity data for walls that do not exist in OUTVMAR.
+    if length(iwall) > n_walls
+        @warn "IWALL had $(length(iwall)) entries but number_surfaces=$(par.number_surfaces) " *
+              "implies $n_walls wall(s); discarding extra entries $(iwall[n_walls+1:end])"
+        iwall = iwall[1:n_walls]
+    end
+
+    # Wall time constants: a single value is broadcast to every wall.
+    tauw = collect(float.(par.wall_time_constants))
+    if length(tauw) == 1 && n_walls > 1
+        tauw = fill(tauw[1], n_walls)
+    elseif length(tauw) != n_walls
+        error(
+            "wall_time_constants has $(length(tauw)) entries but there are $n_walls wall " *
+            "surface(s) (number_surfaces = $(par.number_surfaces)). Provide one τ_w per wall, " *
+            "or a single value to apply to all."
+        )
+    end
+
+    setfield!(basic, :NWALL, n_walls)
+    setfield!(basic, :IWALL, iwall)
+    setfield!(basic, :TAUW, tauw)
+
+    @info "Resistive wall(s): NWALL=$(basic.NWALL), IWALL=$(basic.IWALL), TAUW=$(basic.TAUW)"
+    return nothing
+end
+
+
 function run_MARS(dd::IMAS.DD, par, mars_namelist)
 
-    # override IWALL in mars_namelist if number_surfaces > 1
-    # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
-    # the next step because if NWALL = 0, IWALL does NOT matter
-    if par.wall_type != :no_wall && par.number_surfaces > 1
-        if par.run_equilibrium && isfile("log_chease")
-            NW_dict = julia_grep(["NW"], "log_chease"; extract_values=true)
-            if haskey(NW_dict, "NW")
-                @info "Overriding IWALL in RUN.IN with NW = $(NW_dict["NW"]) from log_chease"
-                setfield!(mars_namelist.BASIC, :IWALL, NW_dict["NW"])
-            else
-                @warn "number_surfaces > 1 but NW not found in log_chease; IWALL left at $(mars_namelist.BASIC.IWALL)"
-            end
-        else
-            @warn "number_surfaces > 1 but CHEASE was not run (run_equilibrium=false) or log_chease not found; IWALL left at $(mars_namelist.BASIC.IWALL)"
-        end
-    end
+    # Resistive-wall settings (NWALL/IWALL/TAUW) are derived from par.wall_type and the
+    # CHEASE-computed wall position, never left at struct defaults.
+    configure_wall!(mars_namelist, par)
+
+    # NREORBIT is driven entirely by par.num_orbits, so it can't drift out of sync with
+    # the process count MARS is launched with below.
+    setfield!(mars_namelist.REORBIT, :NREORBIT, par.num_orbits)
 
     # Write final MARS namelist into run directory for MARS execution
     write_MARS_namelist(mars_namelist, "RUN.IN")
@@ -572,14 +764,21 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     mars_exec = par.mars_exec
     @assert isfile("RUN.IN") "MARS input file RUN.IN not found"
     isfile(mars_exec) || error("MARS executable not found: $mars_exec")
-    
+
+    # MARS itself is serial; REORBIT particle tracing (reorbit.f) is the only part that
+    # needs MPI, via a master rank plus one worker rank per orbit (see reorbit.f's
+    # RE_TRACING task farm — requesting more ranks than num_orbits+1 leaves the extras
+    # blocked forever, so nprocs must match exactly).
+    nprocs = par.num_orbits > 0 ? par.num_orbits + 1 : 1
+
     if par.run_mode == :batch
         @info "Submitting MARS job to batch system with command: $(par.batch_submit_cmd) and script: mars_job.sh"
-        ok = run_batch_mars(mars_exec, par)
+        ok = run_batch_mars(mars_exec, par, nprocs)
     elseif par.run_mode == :local
-        @info "Running MARS interactively with command: $mars_exec"
+        run_cmd = nprocs > 1 ? `time $(par.mpirun_exec) -n $nprocs $(mars_exec)` : `time $(mars_exec)`
+        @info "Running MARS interactively with command: $run_cmd"
         cmd = pipeline(
-        `time $(mars_exec)`,
+        run_cmd,
         stdout = "log_mars",
         stderr = "log_mars"
         )
@@ -587,7 +786,7 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     else
         error("Unknown run mode: $(par.run_mode). Supported modes are :local and :batch.")
     end
-    
+
 
     ok || error("MARS failed — see log_mars")
 
@@ -734,17 +933,20 @@ function mars_flux_surface_RZ(RM::Matrix{ComplexF64}, ZM::Matrix{ComplexF64}, R0
 end
 
 
-function run_batch_mars(mars_exec, par)
+function run_batch_mars(mars_exec, par, nprocs)
+
+    run_line = nprocs > 1 ? "time $(par.mpirun_exec) -n $nprocs $mars_exec" : "time $mars_exec"
 
     script = """
     #!/bin/bash
     #SBATCH --job-name=mars_job
+    #SBATCH --ntasks=$nprocs
     #SBATCH --output=log_mars
     #SBATCH --error=log_mars
 
     cd $(pwd())
 
-    time $mars_exec < RUN.IN
+    $run_line
     """
 
     script_file = "mars_job.sh"
@@ -820,58 +1022,53 @@ function write_MARS_namelist(
     filename::AbstractString
 )
 
+    format_namelist_value(v) =
+        if v isa Complex
+            "($(real(v)), $(imag(v)))"
+        elseif v isa AbstractVector{<:Complex}
+            join(["($(real(z)), $(imag(z)))" for z in v], ", ")
+        elseif v isa AbstractVector
+            join(v, ", ")
+        else
+            v
+        end
+
+    # Group MARSnamelist fields by the Fortran namelist name they must be written under
+    # (NAMELIST_GROUP), in order of first appearance. Most Julia blocks map 1:1 to a
+    # namelist of the same name; REORBIT is folded into OUTOPT since MARS has no
+    # `&REORBIT` namelist of its own.
+    group_order = Symbol[]
+    for block in fieldnames(typeof(nl))
+        g = NAMELIST_GROUP[block]
+        g in group_order || push!(group_order, g)
+    end
+    blocks_in_group(group) = (getfield(nl, block) for block in fieldnames(typeof(nl)) if NAMELIST_GROUP[block] == group)
+
+    # An empty vector has no valid Fortran namelist spelling (`IWALL = ,` is a syntax error
+    # that fails the READ). Omitting the variable entirely is the correct encoding of "unset":
+    # it keeps the Fortran-side default, and empty vectors only arise for inputs that are not
+    # read at all in that configuration (e.g. IWALL/TAUW when NWALL=0).
+    skip_value(v) = v isa AbstractVector && isempty(v)
+
     open(filename,"w") do io
 
-        for block in fieldnames(typeof(nl))
+        for group in group_order
 
-            println(io,"&",block)
+            println(io,"&",group)
 
-            b = getfield(nl,block)
+            for b in blocks_in_group(group)
 
-            for k in fieldnames(typeof(b))
-
-                k == :extras && continue
-
-                v = getfield(b,k)
-
-                if v isa Complex
-                    sval = "($(real(v)), $(imag(v)))"
-
-                elseif v isa AbstractVector{<:Complex}
-                    sval = join(
-                        ["($(real(z)), $(imag(z)))" for z in v],
-                        ", "
-                )
-
-                elseif v isa AbstractVector
-                    sval = join(v, ", ")
-
-                else
-                    sval = v
+                for k in fieldnames(typeof(b))
+                    k == :extras && continue
+                    v = getfield(b,k)
+                    skip_value(v) && continue
+                    println(io," $k = $(format_namelist_value(v)),")
                 end
 
-                println(io," $k = $sval,")
-            end
-
-            for (k,v) in b.extras
-
-                if v isa Complex
-                    sval = "($(real(v)), $(imag(v)))"
-
-                elseif v isa AbstractVector{<:Complex}
-                    sval = join(
-                        ["($(real(z)), $(imag(z)))" for z in v],
-                        ", "
-                    )
-
-                elseif v isa AbstractVector
-                    sval = join(v, ", ")
-
-                else
-                    sval = string(v)
+                for (k,v) in b.extras
+                    skip_value(v) && continue
+                    println(io," $k = $(format_namelist_value(v)),")
                 end
-
-                println(io," $k = $sval,")
             end
 
             println(io,"&END\n")
