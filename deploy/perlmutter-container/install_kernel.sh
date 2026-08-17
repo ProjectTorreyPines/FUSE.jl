@@ -79,6 +79,17 @@ sed -e "s|__IMAGE__|$image|g" \
     "$scriptdir/kernel.json.template" \
   | sed '/^[[:space:]]*$/d' > "$kernel_dir/kernel.json"
 
+# Copy the Julia logos out of the image so JupyterHub shows the Julia tile
+# instead of a generic placeholder (IJulia.installkernel does this for
+# module-based kernels).
+podman-hpc "${podman_global[@]}" run --rm --volume "$kernel_dir:/kout" "$image" \
+    julia -e 'import IJulia
+              deps = joinpath(dirname(dirname(pathof(IJulia))), "deps")
+              for f in readdir(deps)
+                  startswith(f, "logo") && cp(joinpath(deps, f), joinpath("/kout", f); force=true)
+              end' \
+    || echo "WARNING: could not copy kernel logos (kernel still works)"
+
 echo
 echo "### Installed kernelspec at $kernel_dir/kernel.json"
 [[ -n "$squash_dir" ]] && echo "    (kernel runs the image from squash-dir: $squash_dir)"
