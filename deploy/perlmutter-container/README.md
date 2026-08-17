@@ -179,8 +179,8 @@ FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
 
 ### Test the kernel
 
-1. Open [NERSC JupyterHub](https://jupyter.nersc.gov) and start a server on a
-   Perlmutter login node.
+1. Open [NERSC JupyterHub](https://jupyter.nersc.gov) and start a Perlmutter
+   server (login or compute node — the kernel works on both).
 2. Create a new notebook and select the **Julia FUSE-<version>** kernel
    (display name e.g. `Julia FUSE-v1.2.0 (1 thread(s))`).
 3. Run this test cell:

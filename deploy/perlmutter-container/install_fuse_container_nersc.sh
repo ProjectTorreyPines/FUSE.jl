@@ -87,6 +87,6 @@ SQUASH_DIR="$squash_dir" FUSE_ENVIRONMENT="$version" THREADS="${THREADS:-8}" "$i
 
 echo
 echo "### FUSE container ready."
-echo "Open https://jupyter.nersc.gov, start a 'Login Node' server, and select"
+echo "Open https://jupyter.nersc.gov, start a server, and select"
 echo "the 'Julia FUSE-$version' kernel. First cell to try:"
 echo "    using FUSE; ini, act = FUSE.case_parameters(:D3D, :L_mode); dd = FUSE.init(ini, act)"

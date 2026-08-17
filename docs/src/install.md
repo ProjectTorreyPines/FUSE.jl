@@ -26,8 +26,8 @@ FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the
     ```bash
     bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/deploy/perlmutter-container/install_fuse_container_nersc.sh)
     ```
-    then open [jupyter.nersc.gov](https://jupyter.nersc.gov), start a
-    login-node server, and select the **Julia FUSE-`<version>`** kernel.
+    then open [jupyter.nersc.gov](https://jupyter.nersc.gov), start a server,
+    and select the **Julia FUSE-`<version>`** kernel.
 
     Details: [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md)
     (omega) and [`deploy/perlmutter-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/perlmutter-container/README.md)
