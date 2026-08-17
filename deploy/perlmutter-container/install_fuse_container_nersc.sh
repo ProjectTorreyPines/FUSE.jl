@@ -10,7 +10,8 @@
 #
 # Optional:
 #   FUSE_ENVIRONMENT=v1.2.0   image version (default: latest FUSE.jl release)
-#   THREADS=8                 Julia threads for the kernel (default 1)
+#   THREADS=1                 Julia threads for the kernel (default 8, like
+#                             omega's one-command `fuse-container lab`)
 #   SQUASH_DIR=...            force a specific shared image store
 #
 # This is the NERSC counterpart of omega's
@@ -82,7 +83,7 @@ else
     installer="$tmp/install_kernel.sh"
 fi
 
-SQUASH_DIR="$squash_dir" FUSE_ENVIRONMENT="$version" THREADS="${THREADS:-1}" "$installer"
+SQUASH_DIR="$squash_dir" FUSE_ENVIRONMENT="$version" THREADS="${THREADS:-8}" "$installer"
 
 echo
 echo "### FUSE container ready."
