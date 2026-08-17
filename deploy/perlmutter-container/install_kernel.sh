@@ -72,10 +72,20 @@ else
     squash_repl=""
 fi
 
+# --jupyter only mounts /tmp and $HOME; also mount the user's scratch (same
+# path inside and out, so notebook paths resolve identically) or notebooks and
+# data under $PSCRATCH are invisible to the kernel.
+if [[ -n "${PSCRATCH:-}" ]]; then
+    volume_repl="    \"--volume\",\\n    \"$PSCRATCH:$PSCRATCH\","
+else
+    volume_repl=""
+fi
+
 sed -e "s|__IMAGE__|$image|g" \
     -e "s|__THREADS__|$threads|g" \
     -e "s|__DISPLAY__|$display|g" \
     -e "s|^__SQUASH_ARGS__\$|$squash_repl|" \
+    -e "s|^__VOLUME_ARGS__\$|$volume_repl|" \
     "$scriptdir/kernel.json.template" \
   | sed '/^[[:space:]]*$/d' > "$kernel_dir/kernel.json"
 

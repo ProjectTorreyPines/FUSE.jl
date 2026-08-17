@@ -7,6 +7,7 @@ __SQUASH_ARGS__
     "--jupyter",
     "--network",
     "host",
+__VOLUME_ARGS__
     "__IMAGE__",
     "julia",
     "--sysimage=/opt/fuse/sys_fuse.so",
