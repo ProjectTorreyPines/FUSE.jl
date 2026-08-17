@@ -13,8 +13,10 @@ single OCI image instead of an environment module.
 | `Containerfile` | Image definition (`FROM docker.io/library/julia:1.11.7`), installs FUSE + builds the sysimage. |
 | `install_fuse_container.jl` | Runs inside the build: adds registries, installs packages, compiles `sys_fuse.so`. |
 | `build.sh` | Builds and migrates the image on Perlmutter. |
-| `kernel.json.template` | Jupyter kernelspec template wrapping `podman-hpc run --jupyter`. |
+| `kernel.json.template` | Jupyter kernelspec template wrapping `podman-hpc run --jupyter --network host`. |
 | `install_kernel.sh` | Generates and installs the FUSE Jupyter kernel for the current user. |
+| `acceptance.sh` | Acceptance suite for a pulled/built image (mirrors `../omega-container/acceptance.sh`). |
+| `test_slurm.sbatch` | Compute-node smoke test (D3D L-mode init + flux matcher in a debug-queue job). |
 
 ## 1. Build the image
 
@@ -57,6 +59,38 @@ for a leaner Perlmutter-only build.
 
 > Re-run `build.sh` (build + migrate) after any change. A migrated image is
 > read-only; you must re-`migrate` to pick up a rebuild.
+
+## Acceptance testing
+
+After pulling (or building) and migrating an image, run the acceptance suite on
+a login node. It mirrors the omega suite (identity, sysimage, LFS-stub scan,
+D3D L-mode init + plot, offline flux matcher) minus the SIF-specific checks:
+
+```bash
+FUSE_ENVIRONMENT=v1.2.0 ./deploy/perlmutter-container/acceptance.sh
+# SKIP_SLOW=1 skips the flux-matcher solve; SQUASH_DIR=... tests a shared store
+```
+
+Then smoke-test a compute node (znver3) through Slurm:
+
+```bash
+FUSE_ENVIRONMENT=v1.2.0 sbatch --export=ALL deploy/perlmutter-container/test_slurm.sbatch
+# pass: output file ends with SLURM SMOKE OK
+```
+
+The Jupyter kernel can be tested headlessly (no JupyterHub session) after
+`install_kernel.sh`, reusing the omega test driver:
+
+```bash
+module load python   # provides jupyter_client
+python3 deploy/omega-container/test_kernel_headless.py fuse-v1.2.0
+# pass: HEADLESS KERNEL TEST PASSED
+```
+
+> Note: the kernelspec runs the container with `--network host`. Without it the
+> rootless podman container gets its own network namespace and the ZMQ ports the
+> kernel binds are unreachable from the Jupyter server on the host — the kernel
+> starts but never connects.
 
 ## Testing the shared image
 

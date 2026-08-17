@@ -4,7 +4,9 @@
 # $HOME/.local/share/jupyter/kernels/. The kernel's argv wraps the in-container
 # Julia (with the FUSE sysimage) using `podman-hpc run --jupyter`; the
 # --jupyter flag bind-mounts /tmp and $HOME so the kernel can connect and write
-# notebooks.
+# notebooks. `--network host` is required: rootless podman otherwise gives the
+# container its own network namespace, so the ZMQ ports the kernel binds are
+# unreachable from the Jupyter server on the host and the kernel never connects.
 #
 # Run this AFTER ./build.sh has built and migrated the image. Usage:
 #   FUSE_ENVIRONMENT=v1.2.0 ./deploy/perlmutter-container/install_kernel.sh
