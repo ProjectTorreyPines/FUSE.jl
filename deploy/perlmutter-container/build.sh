@@ -48,6 +48,10 @@ podman-hpc build -t "$image" --build-arg FUSE_VERSION="$version" -f "$scriptdir/
 echo "### Migrating $image to a squashed read-only image"
 if [[ -n "${SQUASH_DIR:-}" ]]; then
     podman-hpc --squash-dir "$SQUASH_DIR" migrate "$image"
+    # migrate writes with the caller's umask (600/700), which locks the shared
+    # store to the publisher; open it up to the project group.
+    echo "### Making $SQUASH_DIR group-readable"
+    find "$SQUASH_DIR" \( ! -perm -g+r -o -type d ! -perm -g+x \) -exec chmod g+rX {} +
 else
     podman-hpc migrate "$image"
 fi

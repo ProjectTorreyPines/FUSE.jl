@@ -54,7 +54,19 @@ for a leaner Perlmutter-only build.
 >
 > ```bash
 > podman-hpc pull ghcr.io/projecttorreypines/fuse:<version>
-> podman-hpc migrate ghcr.io/projecttorreypines/fuse:<version>
+> # tooling (install_kernel.sh, the scripts here) expects the localhost/fuse name:
+> podman-hpc tag ghcr.io/projecttorreypines/fuse:<version> localhost/fuse:<version>
+> podman-hpc migrate fuse:<version>
+> ```
+>
+> To publish the pulled image to the shared project store, migrate with
+> `--squash-dir` and then fix group permissions — `migrate` writes with your
+> umask (600/700), which would lock the store to you alone:
+>
+> ```bash
+> podman-hpc --squash-dir /global/cfs/cdirs/m3739/shared_images migrate fuse:<version>
+> find /global/cfs/cdirs/m3739/shared_images \
+>     \( ! -perm -g+r -o -type d ! -perm -g+x \) -exec chmod g+rX {} +
 > ```
 
 > Re-run `build.sh` (build + migrate) after any change. A migrated image is
