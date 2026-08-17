@@ -226,6 +226,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
+    batch_submit_cmd::Entry{String} = Entry{String}("-", "Batch submission command used when run_mode=:batch"; default="sbatch")
     num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=0)
     save_dir::Entry{String} =
         Entry{String}("-", "Directory in which to run CHEASE/MARS. If empty, a temporary directory is created and recorded here so it can be reused (e.g. for restart_equilibrium or run_MHD-only follow-up runs via `save_dir=actor.par.save_dir`)"; default="")
@@ -544,8 +545,6 @@ end
 
 function run_MARS(dd::IMAS.DD, par, mars_namelist)
 
-    core_profiles = dd.core_profiles.profiles_1d[]
-    
     # override IWALL in mars_namelist if number_surfaces > 1
     # NOTE - it's OK to overwrite IWALL here before NWALL is updated in
     # the next step because if NWALL = 0, IWALL does NOT matter
@@ -567,7 +566,7 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     write_MARS_namelist(mars_namelist, "RUN.IN")
 
     # Determine which profiles to pull from dd, i.e. experiment
-    write_exp_profiles(core_profiles, mars_namelist)
+    write_exp_profiles(dd, mars_namelist)
 
     # Execute MARS
     mars_exec = par.mars_exec
@@ -576,7 +575,7 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     
     if par.run_mode == :batch
         @info "Submitting MARS job to batch system with command: $(par.batch_submit_cmd) and script: mars_job.sh"
-        run_batch_mars(mars_exec, par)
+        ok = run_batch_mars(mars_exec, par)
     elseif par.run_mode == :local
         @info "Running MARS interactively with command: $mars_exec"
         cmd = pipeline(
@@ -586,7 +585,7 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
         )
         ok = success(cmd)
     else
-        error("Unknown run mode: $(par.run_mode). Supported modes are :interactive and :batch.")
+        error("Unknown run mode: $(par.run_mode). Supported modes are :local and :batch.")
     end
     
 
@@ -755,9 +754,9 @@ function run_batch_mars(mars_exec, par)
 
     run(`chmod +x $script_file`)
 
-    submit_cmd = par.batch_submit_cmd === nothing ? "sbatch" : par.batch_submit_cmd
+    run(`$(par.batch_submit_cmd) $script_file`)
 
-    run(`$submit_cmd $script_file`)
+    return true
 end
 
 """
@@ -882,54 +881,75 @@ end
 
 
 
-function write_exp_profiles(profiles, mars_namelist)
+function write_exp_profiles(dd::IMAS.DD, mars_namelist)
     @info "Generating additional PROF*.IN files from experiment or dd."
-    
+
+    profiles = dd.core_profiles.profiles_1d[]
     s = sqrt.(profiles.grid.psi_norm)  # radial coordinate
+
+    # core_transport has no single "chi_perp"/"chi_par" node; both are read off the
+    # :combined transport model (sum of all transport models) as the closest DD proxy:
+    #   chi_perp (NPROFTTCE) <- ion channel   (total_ion_energy.d, summed over ion species)
+    #   chi_par  (NPROFTTCA) <- electron channel (electrons.energy.d), since parallel
+    #                           thermal conduction is electron-dominated
+    # Evaluated lazily (only if the corresponding flag is actually set to 4 below), so
+    # this does not require a :combined model to exist in dd when these profiles are
+    # left at their MARS-internal default.
+    combined_1d() = dd.core_transport.model[:combined].profiles_1d[]
+
+    from_dd = Symbol[]
+    from_mars_default = Symbol[]
 
     for (flag, outputs, msg) in (
         (
             :NPROFR,
-            [("PROFROT.IN", p -> p.rotation_frequency_tor_sonic)],
+            [("PROFROT.IN", p -> p.ion[1].rotation_frequency_tor)],
             nothing
         ),
 
         (
             :NPROFN,
-            [("PROFDEN.IN", p -> p.ion[1].density)],
+            [
+                ("PROFDEN.IN", p -> p.ion[1].density),
+                ("PROFNE.IN", p -> p.electrons.density)
+            ],
             nothing
         ),
 
         (
             :NPROFWE,
-            [("PROFNE.IN", p -> p.ion[1].rotation_frequency_tor)],
-            "NO ExB rotation in dd, using bulk plasma rotation instead."
-        ),
-
-        (
-            :NPROFTTCA,
-            [("PROFTTCPARA.IN", p -> p.conductivity_parallel)],
+            [("PROFWE.IN", p -> p.rotation_frequency_tor_sonic)],
             nothing
         ),
 
         (
+            :NPROFTTCA,
+            [("PROFTTCPARA.IN", _ -> combined_1d().electrons.energy.d)],
+            "χ_parallel (thermal) has no dedicated dd node. Using electron energy diffusivity " *
+            "from the combined transport model (core_transport.model[:combined].profiles_1d[].electrons.energy.d) " *
+            "as a stand-in — not a lookup, an interpretation."
+        ),
+
+        (
             :NPROFTTCE,
-            [],
-            "NO χ_perpendicular in IMAS dd"
+            [("PROFTTCPERP.IN", _ -> combined_1d().total_ion_energy.d)],
+            "χ_perpendicular has no dedicated dd node. Using combined-model total ion energy diffusivity " *
+            "(core_transport.model[:combined].profiles_1d[].total_ion_energy.d) as a stand-in — not a lookup, an interpretation."
         ),
 
         (
             :NPROFIE,
             [
                 ("PROFTI.IN", p -> p.ion[1].temperature),
-                ("PROFTE.IN", p -> p.electron.temperature)
+                ("PROFTE.IN", p -> p.electrons.temperature)
             ],
             nothing
         )
-        
+
     )
 
         if getfield(mars_namelist.BASIC, flag) == 4
+            push!(from_dd, flag)
 
             msg !== nothing && @info msg
 
@@ -938,8 +958,15 @@ function write_exp_profiles(profiles, mars_namelist)
                 profile ./= maximum(profile)
                 write_profile_IN(file, s, profile)
             end
+        else
+            push!(from_mars_default, flag)
         end
-    end 
+    end
+
+    @info "Profiles written from dd: $from_dd"
+    if !isempty(from_mars_default)
+        @warn "Profiles NOT written from dd — MARS will use its own internal analytic profile for: $from_mars_default"
+    end
 end
 
     
