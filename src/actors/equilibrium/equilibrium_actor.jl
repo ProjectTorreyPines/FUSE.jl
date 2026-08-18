@@ -146,6 +146,15 @@ function _finalize(actor::ActorEquilibrium)
             display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
             rethrow(e)
         end
+
+        # an unconverged equilibrium can trace without error but with degenerate
+        # surfaces, which then blows up far away in downstream physics (e.g.
+        # Sauter bootstrap asserting on minor radius); fail fast here instead
+        a_eq = eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard
+        if !all(isfinite, a_eq) || any(x -> x <= 0.0, @views a_eq[2:end])
+            error("ActorEquilibrium (model=$(par.model)): traced flux surfaces are degenerate " *
+                  "(r_outboard - r_inboard = $a_eq); the equilibrium solve likely did not converge")
+        end
     end
 
     if par.do_plot
