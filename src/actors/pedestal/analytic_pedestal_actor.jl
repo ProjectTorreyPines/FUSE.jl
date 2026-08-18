@@ -163,10 +163,8 @@ Expression is a refit of that plot
 """
 function pedestal_poloidal_βn(dd::IMAS.DD)
     eqt = dd.equilibrium.time_slice[]
-    ip = eqt.global_quantities.ip
 
-    perimeter = eqt.global_quantities.length_pol
-    b_poloidal_from_per = IMAS.mks.μ_0 * ip / perimeter
+    b_poloidal_from_per = IMAS.b_field_poloidal_average(eqt)
 
     beta_n_core_profiles = @ddtime dd.core_profiles.global_quantities.beta_tor_norm
     betap_ped = pedestal_poloidal_βn_scaling_from_βn(beta_n_core_profiles)
