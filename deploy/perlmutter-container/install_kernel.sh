@@ -59,7 +59,11 @@ if ! podman-hpc "${podman_global[@]}" run --rm "$image" julia -e 'import IJulia'
     exit 1
 fi
 
-kernel_dir="$HOME/.local/share/jupyter/kernels/fuse-$version"
+# Thread count in the directory name so kernels with different thread counts
+# coexist (e.g. 8 threads for login nodes, 128 for exclusive compute nodes).
+kernel_dir="$HOME/.local/share/jupyter/kernels/fuse-$version-${threads}t"
+# drop the un-suffixed dir older versions of this script wrote
+rm -rf "$HOME/.local/share/jupyter/kernels/fuse-$version"
 mkdir -p "$kernel_dir"
 
 display="Julia FUSE-$version ($threads thread(s))"

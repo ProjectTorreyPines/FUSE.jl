@@ -96,7 +96,7 @@ The Jupyter kernel can be tested headlessly (no JupyterHub session) after
 
 ```bash
 module load python   # provides jupyter_client
-python3 deploy/omega-container/test_kernel_headless.py fuse-v1.2.0
+python3 deploy/omega-container/test_kernel_headless.py fuse-v1.2.0-8t
 # pass: HEADLESS KERNEL TEST PASSED
 ```
 
@@ -164,7 +164,7 @@ FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
 # optionally: THREADS=8 FUSE_ENVIRONMENT=<version> ./install_kernel.sh
 ```
 
-This writes `$HOME/.local/share/jupyter/kernels/fuse-<version>/kernel.json`,
+This writes `$HOME/.local/share/jupyter/kernels/fuse-<version>-<threads>t/kernel.json`,
 whose `argv` runs the in-container Julia via `podman-hpc run --rm --jupyter`.
 The `--jupyter` flag bind-mounts `/tmp` and `$HOME` so the kernel can connect
 and create notebooks in your home directory.
@@ -195,7 +195,7 @@ FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
 Expected: the kernel connects within a few seconds, `using FUSE` returns almost
 instantly (sysimage), the actors run, and `pkgversion(FUSE)` prints the image
 version. If the kernel fails to start, check the kernelspec at
-`$HOME/.local/share/jupyter/kernels/fuse-<version>/kernel.json` and confirm
+`$HOME/.local/share/jupyter/kernels/fuse-<version>-<threads>t/kernel.json` and confirm
 `podman-hpc images` (add `--squash-dir <dir>` if shared) lists `fuse:<version>`.
 
 ## Mounting data (optional)
