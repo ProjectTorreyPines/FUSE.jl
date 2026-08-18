@@ -93,11 +93,15 @@ Such an equilibrium only blows up much later — flux-surface tracing of the bad
 (e.g. Sauter bootstrap) — so validate here, where the failure can still be
 attributed to the solve and handled.
 
-The nodal ψ being monotonic is not sufficient: a stalled solve can carry
-garbage in the Hermite-derivative and poloidal-harmonic degrees of freedom
-with clean nodal values, so the check samples the interpolated ψ map itself
-(what flux-surface tracing sees) along the axis→outboard and axis→inboard
-rays — the very directions from which `r_outboard`/`r_inboard` are traced.
+The nodal ψ being monotonic is not sufficient. When the VEQ Newton stalls it
+leaves the solution vector partially converged: the nodal ψ values can look
+fine (and TEQUILA's own nested-writeback check pass) while the
+Hermite-derivative DOFs make the interpolant overshoot between radial nodes
+and the poloidal-harmonic DOFs make ψ vary along a surface. Flux-surface
+tracing then finds no midplane crossing for near-axis ψ levels
+(`r_outboard == r_inboard`) and non-monotonic crossings at mid radius — the
+KDEMO CI failure — so the check samples the interpolated ψ map itself, the
+same field tracing sees.
 """
 function assert_tequila_shot_valid(shot::TEQUILA.Shot)
     ψnodal = @views shot.C[2:2:end, 1] # nodal ψ on the shot radial grid (as read by _finalize)
@@ -111,8 +115,10 @@ function assert_tequila_shot_valid(shot::TEQUILA.Shot)
     a = @views shot.surfaces[1, :] .* shot.surfaces[3, :] # minor radius R0 * ϵ of each surface
     all(>(0.0), diff(a)) || error("TEQUILA solve returned non-nested flux surfaces: the equilibrium solve did not converge")
 
-    # ψ map consistency along rays from the axis to the boundary: catches garbage
-    # in the Hermite-derivative DOFs (ψ oscillating between radial nodes)
+    # ψ map consistency along rays from the axis to the boundary: unconverged
+    # Hermite-derivative DOFs make the interpolant overshoot between radial nodes,
+    # so ψ dips below/above the nodal axis value or reverses at mid radius, and
+    # the affected ψ contour levels trace with no or multiple midplane crossings
     RA, ZA = shot.R0fe(0.0), shot.Z0fe(0.0)
     ψax = shot(RA, ZA; extrapolate=true)
     abs(ψax - ψa) <= 0.01 * span || error("TEQUILA ψ map disagrees with nodal ψ at the axis (Δψ = $(abs(ψax - ψa)) vs span = $span): the equilibrium solve did not converge")
@@ -133,9 +139,10 @@ function assert_tequila_shot_valid(shot::TEQUILA.Shot)
             error("TEQUILA ψ map disagrees with the boundary ψ at θ=$θ (Δψ = $(abs(ψray - ψb)) vs span = $span): the equilibrium solve did not converge")
     end
 
-    # ψ must be (approximately) constant on each flux surface: catches garbage in
-    # the poloidal-harmonic DOFs of ψ, including sin components that vanish on
-    # every compass ray above
+    # ψ must be (approximately) constant on each flux surface: unconverged
+    # poloidal-harmonic DOFs make ψ vary along a surface, so the surface
+    # parametrization no longer agrees with the ψ contours that tracing follows;
+    # sin components vanish on every compass ray above, so rays cannot see this
     N = size(shot.surfaces, 2)
     for k in unique(round.(Int, range(2, N, 8)))
         mxh = IMAS.MXH(@views shot.surfaces[:, k])
