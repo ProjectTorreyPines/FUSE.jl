@@ -87,19 +87,67 @@ end
 
 Fail fast on an invalid TEQUILA solution: an unconverged solve can return
 without throwing (e.g. the VEQ inner Newton warns and proceeds when its
-residual stalls, as long as the surfaces remain nested) yet carry a
-non-monotonic ψ. Such an equilibrium only blows up much later — flux-surface
-tracing of the bad ψ map yields degenerate surfaces that fail in unrelated
-downstream physics (e.g. Sauter bootstrap) — so validate here, where the
-failure can still be attributed to the solve and handled.
+residual stalls, as long as the surfaces remain nested) yet carry an invalid ψ.
+Such an equilibrium only blows up much later — flux-surface tracing of the bad
+ψ map yields degenerate surfaces that fail in unrelated downstream physics
+(e.g. Sauter bootstrap) — so validate here, where the failure can still be
+attributed to the solve and handled.
+
+The nodal ψ being monotonic is not sufficient: a stalled solve can carry
+garbage in the Hermite-derivative and poloidal-harmonic degrees of freedom
+with clean nodal values, so the check samples the interpolated ψ map itself
+(what flux-surface tracing sees) along the axis→outboard and axis→inboard
+rays — the very directions from which `r_outboard`/`r_inboard` are traced.
 """
 function assert_tequila_shot_valid(shot::TEQUILA.Shot)
-    ψ = @views shot.C[2:2:end, 1] # nodal ψ on the shot radial grid (as read by _finalize)
-    all(isfinite, ψ) || error("TEQUILA solve returned non-finite ψ")
-    sgn = sign(ψ[end] - ψ[1])
-    all(x -> sign(x) == sgn, diff(ψ)) || error("TEQUILA solve returned non-monotonic ψ(ρ): the equilibrium solve did not converge")
+    ψnodal = @views shot.C[2:2:end, 1] # nodal ψ on the shot radial grid (as read by _finalize)
+    all(isfinite, ψnodal) || error("TEQUILA solve returned non-finite ψ")
+    ψa, ψb = ψnodal[1], ψnodal[end]
+    span = abs(ψb - ψa)
+    span > 0.0 || error("TEQUILA solve returned zero ψ span: the equilibrium solve did not converge")
+    sgn = sign(ψb - ψa)
+    all(x -> sign(x) == sgn, diff(ψnodal)) || error("TEQUILA solve returned non-monotonic ψ(ρ): the equilibrium solve did not converge")
+
     a = @views shot.surfaces[1, :] .* shot.surfaces[3, :] # minor radius R0 * ϵ of each surface
     all(>(0.0), diff(a)) || error("TEQUILA solve returned non-nested flux surfaces: the equilibrium solve did not converge")
+
+    # ψ map consistency along rays from the axis to the boundary: catches garbage
+    # in the Hermite-derivative DOFs (ψ oscillating between radial nodes)
+    RA, ZA = shot.R0fe(0.0), shot.Z0fe(0.0)
+    ψax = shot(RA, ZA; extrapolate=true)
+    abs(ψax - ψa) <= 0.01 * span || error("TEQUILA ψ map disagrees with nodal ψ at the axis (Δψ = $(abs(ψax - ψa)) vs span = $span): the equilibrium solve did not converge")
+    bnd = IMAS.MXH(shot.surfaces[:, end])
+    for θ in (0.0, 0.5π, π, 1.5π)
+        Rb, Zb = bnd(θ)
+        ψprev = ψax
+        ψray = ψax
+        for t in range(0.0, 1.0, 65)[2:end]
+            ψray = shot(RA + t * (Rb - RA), ZA + t * (Zb - ZA); extrapolate=true)
+            # tolerance well below the ~1% ψ contour spacing that tracing resolves,
+            # but robust to roundoff in the ψ'≈0 region near the axis
+            sgn * (ψray - ψprev) >= -1e-4 * span ||
+                error("TEQUILA ψ map is non-monotonic along the ray θ=$θ: the equilibrium solve did not converge")
+            ψprev = ψray
+        end
+        abs(ψray - ψb) <= 0.01 * span ||
+            error("TEQUILA ψ map disagrees with the boundary ψ at θ=$θ (Δψ = $(abs(ψray - ψb)) vs span = $span): the equilibrium solve did not converge")
+    end
+
+    # ψ must be (approximately) constant on each flux surface: catches garbage in
+    # the poloidal-harmonic DOFs of ψ, including sin components that vanish on
+    # every compass ray above
+    N = size(shot.surfaces, 2)
+    for k in unique(round.(Int, range(2, N, 8)))
+        mxh = IMAS.MXH(@views shot.surfaces[:, k])
+        ψmin = ψmax = shot(mxh(0.0)...; extrapolate=true)
+        for θ in range(0.0, 2π, 17)[2:end-1]
+            ψs = shot(mxh(θ)...; extrapolate=true)
+            ψmin = min(ψmin, ψs)
+            ψmax = max(ψmax, ψs)
+        end
+        ψmax - ψmin <= 0.02 * span ||
+            error("TEQUILA ψ varies by $(ψmax - ψmin) (vs span = $span) on flux surface $k/$N: the equilibrium solve did not converge")
+    end
     return nothing
 end
 

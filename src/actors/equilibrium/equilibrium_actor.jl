@@ -151,9 +151,11 @@ function _finalize(actor::ActorEquilibrium)
         # surfaces, which then blows up far away in downstream physics (e.g.
         # Sauter bootstrap asserting on minor radius); fail fast here instead
         a_eq = eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard
-        if !all(isfinite, a_eq) || any(x -> x <= 0.0, @views a_eq[2:end])
+        bad = [k for k in eachindex(a_eq) if !isfinite(a_eq[k]) || (k > 1 && a_eq[k] <= 0.0)]
+        if !isempty(bad)
             error("ActorEquilibrium (model=$(par.model)): traced flux surfaces are degenerate " *
-                  "(r_outboard - r_inboard = $a_eq); the equilibrium solve likely did not converge")
+                  "(r_outboard - r_inboard non-positive/non-finite at $(length(bad))/$(length(a_eq)) surfaces, first at indices $(first(bad, 5))); " *
+                  "the equilibrium solve likely did not converge")
         end
     end
 
