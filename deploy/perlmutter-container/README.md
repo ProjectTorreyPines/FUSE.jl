@@ -8,7 +8,7 @@ single OCI image instead of an environment module.
 
 The image also carries a JupyterLab server (`/opt/jupyter` venv) and a baked
 `fuse` kernelspec, so on a laptop one command serves JupyterLab with the FUSE
-kernel: `docker run -it -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -v
+kernel: `docker run -it --pull always -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -v
 "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:latest lab`
 (`-e THREADS=8` sets kernel threads; the fixed token also lets VS Code attach
 via "Select Kernel → Existing Jupyter Server").

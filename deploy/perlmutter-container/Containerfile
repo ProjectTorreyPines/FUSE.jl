@@ -157,7 +157,7 @@ RUN kdir=/usr/local/share/jupyter/kernels/fuse \
 
 # `lab` / `notebook` start a JupyterLab (or classic notebook) server bound to
 # 0.0.0.0 so a published port reaches it:
-#   docker run -it -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 \
+#   docker run -it --pull always -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 \
 #       -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:latest lab
 # THREADS=N sets the FUSE kernel's Julia threads; a fixed JUPYTER_TOKEN gives
 # a predictable URL (browser, or VS Code "Existing Jupyter Server" attach).

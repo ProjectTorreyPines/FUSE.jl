@@ -357,7 +357,7 @@ docker run -it ghcr.io/projecttorreypines/fuse:<version>
 # gives a predictable URL — for the browser, or for VS Code's
 # "Select Kernel -> Existing Jupyter Server" (bind 127.0.0.1 so the known
 # token is not reachable from the LAN).
-docker run -it -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 \
+docker run -it --pull always -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 \
     -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:<version> lab
 
 # NOTE: `docker run` re-uses a locally cached tag without consulting the

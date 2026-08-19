@@ -15,7 +15,7 @@ FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the
     Laptop (Docker or podman) — JupyterLab with the FUSE kernel, served from
     inside the container (`-e THREADS=8` sets the kernel's Julia threads):
     ```bash
-    docker run -it -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:latest lab
+    docker run -it --pull always -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:latest lab
     ```
     then open the link it prints:
     <http://localhost:8888/lab/tree/FuseExamples?token=fuse>. On first run a
