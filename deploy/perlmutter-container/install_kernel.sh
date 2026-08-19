@@ -4,10 +4,12 @@
 # $HOME/.local/share/jupyter/kernels/. The kernel's argv wraps the in-container
 # Julia (with the FUSE sysimage) using `podman-hpc run --jupyter`; the
 # --jupyter flag bind-mounts /tmp and $HOME so the kernel can connect and write
-# notebooks.
+# notebooks. `--network host` is required: rootless podman otherwise gives the
+# container its own network namespace, so the ZMQ ports the kernel binds are
+# unreachable from the Jupyter server on the host and the kernel never connects.
 #
 # Run this AFTER ./build.sh has built and migrated the image. Usage:
-#   FUSE_ENVIRONMENT=v1.1.3 ./deploy/perlmutter-container/install_kernel.sh
+#   FUSE_ENVIRONMENT=v1.2.0 ./deploy/perlmutter-container/install_kernel.sh
 #
 # Optional:
 #   THREADS=8      number of Julia threads the kernel starts with (default 1)
@@ -16,7 +18,7 @@
 #                  `podman-hpc --squash-dir <dir> run ...`. Example (project
 #                  image shared with all of m3739):
 #                    SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images \
-#                    FUSE_ENVIRONMENT=v1.1.3 ./install_kernel.sh
+#                    FUSE_ENVIRONMENT=v1.2.0 ./install_kernel.sh
 
 set -euo pipefail
 
@@ -47,18 +49,21 @@ if ! command -v podman-hpc >/dev/null 2>&1; then
     exit 1
 fi
 
-# Pull the IJulia kernel.jl path that install_fuse_container.jl recorded in the
-# image, so the kernelspec points at the right file inside the container.
-echo "### Resolving IJulia kernel path from $image${squash_dir:+ (squash-dir: $squash_dir)}"
-kernel_jl="$(podman-hpc "${podman_global[@]}" run --rm "$image" cat /opt/fuse/ijulia_kernel_path.txt | tr -d '\r\n')"
-if [[ -z "$kernel_jl" ]]; then
-    echo "ERROR: could not read /opt/fuse/ijulia_kernel_path.txt from $image." >&2
+# Confirm the image is usable before installing the kernelspec. The kernel
+# launches IJulia with `-e "import IJulia; IJulia.run_kernel()"` (the modern
+# IJulia entrypoint — running src/kernel.jl as a script no longer works).
+echo "### Checking $image${squash_dir:+ (squash-dir: $squash_dir)}"
+if ! podman-hpc "${podman_global[@]}" run --rm "$image" julia -e 'import IJulia' >/dev/null; then
+    echo "ERROR: could not import IJulia from $image." >&2
     echo "       Did you run build.sh (build + migrate) first?" >&2
     exit 1
 fi
-echo "    $kernel_jl"
 
-kernel_dir="$HOME/.local/share/jupyter/kernels/fuse-$version"
+# Thread count in the directory name so kernels with different thread counts
+# coexist (e.g. 8 threads for login nodes, 128 for exclusive compute nodes).
+kernel_dir="$HOME/.local/share/jupyter/kernels/fuse-$version-${threads}t"
+# drop the un-suffixed dir older versions of this script wrote
+rm -rf "$HOME/.local/share/jupyter/kernels/fuse-$version"
 mkdir -p "$kernel_dir"
 
 display="Julia FUSE-$version ($threads thread(s))"
@@ -71,13 +76,33 @@ else
     squash_repl=""
 fi
 
+# --jupyter only mounts /tmp and $HOME; also mount the user's scratch (same
+# path inside and out, so notebook paths resolve identically) or notebooks and
+# data under $PSCRATCH are invisible to the kernel.
+if [[ -n "${PSCRATCH:-}" ]]; then
+    volume_repl="    \"--volume\",\\n    \"$PSCRATCH:$PSCRATCH\","
+else
+    volume_repl=""
+fi
+
 sed -e "s|__IMAGE__|$image|g" \
-    -e "s|__KERNEL_JL__|$kernel_jl|g" \
     -e "s|__THREADS__|$threads|g" \
     -e "s|__DISPLAY__|$display|g" \
     -e "s|^__SQUASH_ARGS__\$|$squash_repl|" \
+    -e "s|^__VOLUME_ARGS__\$|$volume_repl|" \
     "$scriptdir/kernel.json.template" \
   | sed '/^[[:space:]]*$/d' > "$kernel_dir/kernel.json"
+
+# Copy the Julia logos out of the image so JupyterHub shows the Julia tile
+# instead of a generic placeholder (IJulia.installkernel does this for
+# module-based kernels).
+podman-hpc "${podman_global[@]}" run --rm --volume "$kernel_dir:/kout" "$image" \
+    julia -e 'import IJulia
+              deps = joinpath(dirname(dirname(pathof(IJulia))), "deps")
+              for f in readdir(deps)
+                  startswith(f, "logo") && cp(joinpath(deps, f), joinpath("/kout", f); force=true)
+              end' \
+    || echo "WARNING: could not copy kernel logos (kernel still works)"
 
 echo
 echo "### Installed kernelspec at $kernel_dir/kernel.json"

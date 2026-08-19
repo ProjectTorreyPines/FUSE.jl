@@ -8,7 +8,7 @@
 #   ./deploy/perlmutter-container/build.sh
 #
 # Override the image tag (defaults to the latest FUSE.jl release) with:
-#   FUSE_ENVIRONMENT=v1.1.3 ./deploy/perlmutter-container/build.sh
+#   FUSE_ENVIRONMENT=v1.2.0 ./deploy/perlmutter-container/build.sh
 #
 # Share the migrated image across the project (instead of personal SCRATCH):
 #   SQUASH_DIR=/global/cfs/cdirs/m3739/shared_images ./build.sh
@@ -42,12 +42,21 @@ if [[ -z "${SLURM_JOB_ID:-}" ]]; then
     echo "         prefer 'salloc -N 1 -C cpu -q interactive -A m3739 -t 04:00:00' first." >&2
 fi
 
-echo "### Building $image (context: $repo_root)"
-podman-hpc build -t "$image" -f "$scriptdir/Containerfile" "$repo_root"
+# Pin the baked FuseExamples to current master (also busts the clone layer's
+# cache when the notebooks changed).
+examples_sha="$(git ls-remote https://github.com/ProjectTorreyPines/FuseExamples.git refs/heads/master | cut -f1)"
+
+echo "### Building $image (context: $repo_root, FuseExamples: ${examples_sha:0:9})"
+podman-hpc build -t "$image" --build-arg FUSE_VERSION="$version" \
+    --build-arg FUSEEXAMPLES_SHA="$examples_sha" -f "$scriptdir/Containerfile" "$repo_root"
 
 echo "### Migrating $image to a squashed read-only image"
 if [[ -n "${SQUASH_DIR:-}" ]]; then
     podman-hpc --squash-dir "$SQUASH_DIR" migrate "$image"
+    # migrate writes with the caller's umask (600/700), which locks the shared
+    # store to the publisher; open it up to the project group.
+    echo "### Making $SQUASH_DIR group-readable"
+    find "$SQUASH_DIR" \( ! -perm -g+r -o -type d ! -perm -g+x \) -exec chmod g+rX {} +
 else
     podman-hpc migrate "$image"
 fi

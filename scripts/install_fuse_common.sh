@@ -8,6 +8,9 @@ INSTALL_DIR="${FUSE_WORK_DIR:-${PWD}}"
 CONDA_ENV_NAME="${FUSE_CONDA_ENV:-fuse}"
 MINICONDA_DIR="${MINICONDA_DIR:-${HOME}/.local/miniconda3}"
 JULIA_MODULE="${FUSE_JULIA_MODULE:-julia/1.11.7}"
+# Oldest Julia in the FUSE regression matrix (see .github/workflows/runtests.yml
+# and the julia compat entry in Project.toml).
+MIN_JULIA_VERSION="${FUSE_MIN_JULIA_VERSION:-1.11.0}"
 
 log() { echo "[install_fuse] $*"; }
 die() { echo "[install_fuse] ERROR: $*" >&2; exit 1; }
@@ -16,9 +19,54 @@ need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"
 }
 
+julia_version() {
+    julia --version 2>/dev/null | sed -nE 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n 1
+}
+
+# version_ge A B: true when dotted numeric version A >= B.
+version_ge() {
+    local IFS=.
+    local -a a b
+    read -r -a a <<< "$1"
+    read -r -a b <<< "$2"
+    local i ai bi
+    for i in 0 1 2; do
+        ai="${a[i]:-0}"
+        bi="${b[i]:-0}"
+        if (( ai > bi )); then return 0; fi
+        if (( ai < bi )); then return 1; fi
+    done
+    return 0
+}
+
+check_julia_version() {
+    local ver
+    ver="$(julia_version)"
+    [[ -n "${ver}" ]] || die "Could not determine the Julia version from 'julia --version'"
+    if version_ge "${ver}" "${MIN_JULIA_VERSION}"; then
+        return 0
+    fi
+
+    log "Julia ${ver} is older than the minimum supported ${MIN_JULIA_VERSION}"
+    if command -v juliaup >/dev/null 2>&1; then
+        log "Switching juliaup to the 'release' channel"
+        # 'juliaup add' fails harmlessly if the channel is already installed.
+        juliaup add release || true
+        juliaup default release || true
+        juliaup update release || true
+        ver="$(julia_version)"
+        if [[ -n "${ver}" ]] && version_ge "${ver}" "${MIN_JULIA_VERSION}"; then
+            log "Julia: $(julia --version)"
+            return 0
+        fi
+    fi
+    die "FUSE requires Julia >= ${MIN_JULIA_VERSION} (found ${ver}). Update Julia (e.g. 'juliaup add release && juliaup default release') and re-run."
+}
+
 ensure_julia() {
     if command -v julia >/dev/null 2>&1; then
         log "Julia: $(julia --version)"
+        check_julia_version
         return 0
     fi
     die "julia is not on PATH after setup"
@@ -80,7 +128,8 @@ install_miniconda() {
     cat > "${helper}" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-tmp="\$(mktemp)"
+# Constructor installers require the filename to end in ".sh" (they check \$0).
+tmp="\$(mktemp "\${TMPDIR:-/tmp}/miniconda-installer-XXXXXX.sh")"
 curl -fsSL "${installer}" -o "\${tmp}"
 bash "\${tmp}" -b -p "${MINICONDA_DIR}"
 rm -f "\${tmp}"
@@ -91,15 +140,28 @@ EOF
     [[ -x "${MINICONDA_DIR}/bin/conda" ]] || die "Miniconda install failed (conda not found at ${MINICONDA_DIR}/bin/conda)"
 }
 
+# conda's shell functions (activation, `shell.bash hook`, sourced conda.sh)
+# reference $PS1, which is unbound under `set -u` in a non-interactive shell.
+# Run them with nounset temporarily disabled so the install does not abort with
+# "PS1: unbound variable" (see conda/conda#3200).
+conda_activate() {
+    set +u
+    conda activate "$@"
+    set -u
+}
+
 activate_conda() {
   # shellcheck disable=SC1091
+    set +u
     if [[ -f "${MINICONDA_DIR}/etc/profile.d/conda.sh" ]]; then
         source "${MINICONDA_DIR}/etc/profile.d/conda.sh"
     elif command -v conda >/dev/null 2>&1; then
         eval "$("$(command -v conda)" shell.bash hook 2>/dev/null)" || true
     else
+        set -u
         die "conda is not available (install Miniconda or module load conda)"
     fi
+    set -u
 }
 
 bootstrap_conda_channels() {
@@ -165,7 +227,7 @@ ensure_fuse_conda_env() {
         log "Creating conda env '${CONDA_ENV_NAME}'"
         conda env create -f "${yml}"
     fi
-    conda activate "${CONDA_ENV_NAME}"
+    conda_activate "${CONDA_ENV_NAME}"
     log "Active Python: $(python -c 'import sys; print(sys.executable)')"
 }
 
@@ -215,18 +277,47 @@ install_fusebot_cli() {
     fi
 }
 
+resolve_fuse_script() {
+    local name="$1"
+    if [[ -f "${SCRIPT_DIR}/${name}" ]]; then
+        echo "${SCRIPT_DIR}/${name}"
+        return 0
+    fi
+    local from_pkg=""
+    if from_pkg="$(julia -e "using FUSE; print(joinpath(pkgdir(FUSE), \"scripts\", \"${name}\"))" 2>/dev/null)" \
+        && [[ -n "${from_pkg}" && -f "${from_pkg}" ]]; then
+        echo "${from_pkg}"
+        return 0
+    fi
+    # Last resort for curl-bootstrap / older registry packages.
+    local base_url="${FUSE_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts}"
+    local bundle_dir="${TMPDIR:-/tmp}/fuse-install-scripts-$$"
+    mkdir -p "${bundle_dir}"
+    curl -fsSL "${base_url}/${name}" -o "${bundle_dir}/${name}"
+    if [[ "${name}" == *.sh ]]; then
+        local companion="${name%.sh}.jl"
+        curl -fsSL "${base_url}/${companion}" -o "${bundle_dir}/${companion}" 2>/dev/null || true
+    fi
+    [[ -f "${bundle_dir}/${name}" ]] || die "Could not locate scripts/${name}"
+    echo "${bundle_dir}/${name}"
+}
+
 run_fusebot_or_make() {
     local target="$1"
     shift || true
     if command -v fusebot >/dev/null 2>&1; then
         log "fusebot ${target} $*"
-        fusebot "${target}" "$@"
-        return 0
+        if fusebot "${target}" "$@"; then
+            return 0
+        fi
+        log "fusebot ${target} failed — falling back to make"
+    else
+        log "fusebot not on PATH — falling back to make"
     fi
 
     local fuse_dir
     fuse_dir="$(fuse_pkg_dir)"
-    log "fusebot not on PATH — running make ${target} in ${fuse_dir}"
+    log "Running make ${target} in ${fuse_dir}"
     (
         cd "${fuse_dir}"
         export PTP_ORIGINAL_DIR="${INSTALL_DIR}"
@@ -235,12 +326,48 @@ run_fusebot_or_make() {
 }
 
 install_ijulia_kernels() {
-    run_fusebot_or_make install_IJulia
+    # fusebot → make → direct install_ijulia.sh (no make required).
+    # Keeps going when fusebot is missing/broken or make is not installed.
+    if command -v fusebot >/dev/null 2>&1; then
+        log "fusebot install_IJulia"
+        if fusebot install_IJulia; then
+            return 0
+        fi
+        log "fusebot install_IJulia failed — trying make / direct install"
+    else
+        log "fusebot not on PATH — trying make / direct install"
+    fi
+
+    local fuse_dir
+    fuse_dir="$(fuse_pkg_dir)"
+
+    if command -v make >/dev/null 2>&1; then
+        log "make install_IJulia in ${fuse_dir}"
+        if (
+            cd "${fuse_dir}"
+            export PTP_ORIGINAL_DIR="${INSTALL_DIR}"
+            make install_IJulia
+        ); then
+            return 0
+        fi
+        log "make install_IJulia failed — running scripts/install_ijulia.sh directly"
+    else
+        log "make not found — running scripts/install_ijulia.sh directly"
+    fi
+
+    bash "${fuse_dir}/scripts/install_ijulia.sh"
 }
 
 clone_fuse_examples() {
     cd "${INSTALL_DIR}"
     if [[ -d FuseExamples/.git ]]; then
+        if ! git -C FuseExamples rev-parse --is-inside-work-tree >/dev/null; then
+            # git's ownership check (CVE-2022-24765) rejects clones created by
+            # another user. Unlike the registries, FuseExamples may hold user
+            # work, so mark it safe instead of deleting it.
+            log "git rejected FuseExamples (ownership check) — adding safe.directory"
+            git config --global --add safe.directory "${INSTALL_DIR}/FuseExamples"
+        fi
         log "Updating FuseExamples"
         git -C FuseExamples fetch origin
         git -C FuseExamples reset --hard origin/master
@@ -248,6 +375,17 @@ clone_fuse_examples() {
         log "Cloning FuseExamples into ${INSTALL_DIR}"
         git clone https://github.com/ProjectTorreyPines/FuseExamples.git
     fi
+}
+
+verify_fluxmatcher_notebook() {
+    local verify_sh
+    verify_sh="$(resolve_fuse_script verify_fluxmatcher_notebook.sh)"
+    log "Verifying fluxmatcher.ipynb cells 0–2 (often ~6 minutes on one thread the first time)"
+    # Cell extraction needs Python from the fuse env.
+    if ! command -v python >/dev/null 2>&1; then
+        ensure_fuse_conda_env
+    fi
+    FUSE_WORK_DIR="${INSTALL_DIR}" bash "${verify_sh}"
 }
 
 run_julia_install() {
@@ -271,20 +409,33 @@ install_fuse_stack() {
     clone_fuse_examples
     run_julia_install smoke
 
-    log "FUSE install complete."
-    log "Step 2 — verify fluxmatcher.ipynb cells 0–2:"
-    log "  bash ${SCRIPT_DIR}/verify_fluxmatcher_notebook.sh"
+    if [[ "${FUSE_SKIP_VERIFY:-0}" == "1" ]]; then
+        export FUSE_VERIFY_FLUXMATCHER=false
+    fi
+
+    if [[ "${FUSE_VERIFY_FLUXMATCHER:-false}" == "true" ]]; then
+        verify_fluxmatcher_notebook
+        log "FUSE install complete (including fluxmatcher.ipynb cells 0–2)."
+    else
+        log "FUSE install complete."
+        log "Step 2 — verify fluxmatcher.ipynb cells 0–2:"
+        log "  bash $(resolve_fuse_script verify_fluxmatcher_notebook.sh)"
+    fi
 }
 
 platform="${1:-}"
 case "${platform}" in
     laptop)
         export FUSE_SETUP_SHELL="${FUSE_SETUP_SHELL:-false}"
+        # Laptop one-command install finishes by running fluxmatcher cells 0–2.
+        export FUSE_VERIFY_FLUXMATCHER="${FUSE_VERIFY_FLUXMATCHER:-true}"
         ensure_juliaup
         install_fuse_stack
         ;;
     nersc)
         export FUSE_SETUP_SHELL="${FUSE_SETUP_SHELL:-true}"
+        # Same finish as laptop: fluxmatcher cells 0–2 (~6 minutes on 1 thread is fine on a login node).
+        export FUSE_VERIFY_FLUXMATCHER="${FUSE_VERIFY_FLUXMATCHER:-true}"
         load_nersc_modules
         install_fuse_stack
         ;;

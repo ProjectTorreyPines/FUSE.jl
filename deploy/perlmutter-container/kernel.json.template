@@ -5,11 +5,16 @@ __SQUASH_ARGS__
     "run",
     "--rm",
     "--jupyter",
+    "--network",
+    "host",
+__VOLUME_ARGS__
     "__IMAGE__",
     "julia",
     "--sysimage=/opt/fuse/sys_fuse.so",
     "--threads=__THREADS__",
-    "__KERNEL_JL__",
+    "--color=yes",
+    "-e",
+    "import IJulia; IJulia.run_kernel()",
     "{connection_file}"
   ],
   "display_name": "__DISPLAY__",

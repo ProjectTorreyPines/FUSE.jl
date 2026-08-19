@@ -64,3 +64,42 @@ jobs:
           assert nb["cells"][2]["cell_type"] == "code"
           print("fluxmatcher.ipynb structure OK")
           '@
+
+  windows-full-install:
+    # End-to-end install on the latest stable Julia — what fresh juliaup users
+    # get. Covers registry add, Pkg.add(FUSE) + precompile, Revise, fusebot,
+    # the conda env, IJulia kernels, and the FuseExamples clone. The physics-
+    # heavy smoke test and notebook solve are covered by runtests on
+    # Linux/macOS and are skipped here to keep the job within CI limits.
+    name: Windows full FUSE install
+    runs-on: windows-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1'
+          show-versioninfo: true
+
+      - name: Run full Windows install (skip smoke test + notebook solve)
+        shell: pwsh
+        env:
+          FUSE_SKIP_SMOKE: '1'
+          FUSE_SKIP_VERIFY: '1'
+        run: ./scripts/install_fuse_windows.ps1
+
+      - name: Verify FUSE loads
+        shell: pwsh
+        run: julia -e 'using FUSE; println("FUSE ", pkgversion(FUSE), " loaded OK")'
+
+      - name: Verify IJulia kernels registered
+        shell: pwsh
+        run: |
+          $kernels = Join-Path $env:APPDATA "jupyter\kernels"
+          $found = @(Get-ChildItem $kernels -Directory -ErrorAction SilentlyContinue)
+          $found | ForEach-Object { Write-Host "kernel: $($_.Name)" }
+          if ($found.Count -eq 0) {
+            Write-Error "No Jupyter kernels registered under $kernels"
+            exit 1
+          }

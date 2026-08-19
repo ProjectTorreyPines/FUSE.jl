@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # One-shot FUSE install for NERSC Perlmutter login nodes.
 #
+# After creating the fuse conda env this activates it, runs
+# fusebot install_IJulia (with make / install_ijulia.sh fallbacks), clones
+# FuseExamples, and runs the first three cells of fluxmatcher.ipynb
+# (~6 minutes on 1 thread — fine on a login node).
+# Set FUSE_SKIP_VERIFY=1 to skip the notebook solve.
+#
 # Copy-paste (from any working directory, e.g. $HOME or $PSCRATCH):
 #   bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts/install_fuse_nersc.sh)
 #
@@ -15,6 +21,15 @@ set -euo pipefail
 
 SCRIPT_BASE_URL="${FUSE_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/scripts}"
 
+# If the caller passed this script's own raw URL as $1 (optional), derive the
+# companion base from it so a single curl to any fork/branch stays self-contained:
+#   u=https://raw.githubusercontent.com/ORG/FUSE.jl/REF/scripts/install_fuse_nersc.sh
+#   bash <(curl -fsSL "$u") "$u"
+if [[ "${1:-}" == http://* || "${1:-}" == https://* ]]; then
+    SCRIPT_BASE_URL="${FUSE_SCRIPT_BASE_URL:-${1%/*}}"
+    shift
+fi
+
 resolve_script_dir() {
     local self_dir
     self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,11 +40,12 @@ resolve_script_dir() {
 
     local bundle_dir="${TMPDIR:-/tmp}/fuse-install-$$"
     mkdir -p "${bundle_dir}"
-    for file in install_fuse_common.sh install_fuse_julia.jl; do
+    for file in install_fuse_common.sh install_fuse_julia.jl \
+                verify_fluxmatcher_notebook.sh verify_fluxmatcher_notebook.jl; do
         curl -fsSL "${SCRIPT_BASE_URL}/${file}" -o "${bundle_dir}/${file}"
     done
     echo "${bundle_dir}"
 }
 
 SCRIPT_DIR="$(resolve_script_dir)"
-exec bash "${SCRIPT_DIR}/install_fuse_common.sh" nersc
+exec bash "${SCRIPT_DIR}/install_fuse_common.sh" nersc "$@"

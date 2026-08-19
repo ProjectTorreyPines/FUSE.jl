@@ -199,6 +199,7 @@ include(joinpath("studies", "HDB5_validation.jl"))
 #  WORKFLOWS  #
 #= ========= =#
 include(joinpath("workflows", "optimization_workflow.jl"))
+include(joinpath("workflows", "pedestal_transport_workflow.jl"))
 
 #= ======= =#
 #  LOGGING  #
