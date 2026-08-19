@@ -110,7 +110,49 @@ if [[ "${1:-}" == "notebook" || "${1:-}" == "lab" ]]; then
 }
 EOF
     echo "fuse-container: kernelspec 'fuse-$version' installed ($threads thread(s); set THREADS=N to change)"
-    exec jupyter "$mode" "$@"
+
+    # Give users a writable FuseExamples in the current directory, copied from
+    # the clone baked into the SIF at /opt/fuse/FuseExamples (older SIFs don't
+    # have it — then this is a no-op). An existing copy is left alone so user
+    # edits survive re-runs. Best effort: any failure just skips the copy.
+    # The SIF is mounted briefly with the same tracked-foreground-squashfuse
+    # approach as the main path below (see header for why not --sif-fuse),
+    # and unmounted before jupyter starts — the kernelspec mounts per kernel.
+    if [[ ! -e FuseExamples && -w . ]]; then
+        offset="$(singularity sif list "$sif" 2>/dev/null \
+                  | awk -F'|' '/Squashfs/ {split($4,a,"-"); gsub(/ /,"",a[1]); print a[1]; exit}')"
+        exmnt="$(mktemp -d "${TMPDIR:-/tmp}/fuse-mnt.XXXXXX")"
+        expid=""
+        if [[ -n "$offset" ]]; then
+            squashfuse -f -o ro,offset="$offset" "$sif" "$exmnt" &
+            expid=$!
+            for _ in $(seq 1 100); do mountpoint -q "$exmnt" && break; sleep 0.1; done
+        fi
+        if mountpoint -q "$exmnt"; then
+            if [[ -d "$exmnt/opt/fuse/FuseExamples" ]]; then
+                cp -a "$exmnt/opt/fuse/FuseExamples" . \
+                    && echo "fuse-container: copied FuseExamples notebooks into $PWD"
+            fi
+            fusermount -u "$exmnt" 2>/dev/null
+        fi
+        [[ -n "$expid" ]] && kill "$expid" 2>/dev/null
+        rmdir "$exmnt" 2>/dev/null
+    fi
+
+    # Open Jupyter's file browser at FuseExamples: default_url makes the
+    # banner token URL the user pastes land there directly. It must be set on
+    # the frontend app class (lab/notebook override ServerApp.default_url);
+    # an older host jupyter that doesn't know the class ignores it gracefully.
+    jupyter_args=()
+    if [[ -d FuseExamples ]]; then
+        if [[ "$mode" == "notebook" ]]; then
+            jupyter_args+=(--JupyterNotebookApp.default_url=/tree/FuseExamples)
+        else
+            jupyter_args+=(--LabApp.default_url=/lab/tree/FuseExamples)
+        fi
+        echo "fuse-container: Jupyter opens at FuseExamples/"
+    fi
+    exec jupyter "$mode" "${jupyter_args[@]}" "$@"
 fi
 
 # Pre-flight: on the read-only SIF rootfs the in-image `fuse` entrypoint needs

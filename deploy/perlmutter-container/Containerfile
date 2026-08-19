@@ -177,7 +177,15 @@ RUN printf '%s\n' \
     '    fi' \
     '    echo "open in your browser:  http://localhost:${PORT:-8888}/$path?token=$JUPYTER_TOKEN"' \
     'fi' \
-    'exec jupyter "$mode" --ip=0.0.0.0 --port="${PORT:-8888}" --no-browser --allow-root "$@"' \
+    '# default_url makes any entry URL (including the banner ones jupyter' \
+    '# prints) land on the FuseExamples file browser. NOTE: must be set on the' \
+    '# frontend app class — lab/notebook override ServerApp.default_url.' \
+    'durl=""' \
+    'if [ -d FuseExamples ]; then' \
+    '    durl="--LabApp.default_url=/lab/tree/FuseExamples"' \
+    '    [ "$mode" = notebook ] && durl="--JupyterNotebookApp.default_url=/tree/FuseExamples"' \
+    'fi' \
+    'exec jupyter "$mode" --ip=0.0.0.0 --port="${PORT:-8888}" --no-browser --allow-root $durl "$@"' \
     > /usr/local/bin/lab \
     && chmod 0555 /usr/local/bin/lab \
     && ln -s lab /usr/local/bin/notebook
