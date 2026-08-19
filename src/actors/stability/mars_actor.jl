@@ -275,7 +275,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     _name::Symbol = :not_set
     _time::Float64 = NaN
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
-    EQDSK::Entry{Bool} = Entry{Bool}("-", "Enable EQDSK"; default=false)
+    EQDSK::Entry{Bool} = Entry{Bool}("-",
+        "Whether CHEASE reads its equilibrium input from a g-file instead of the EXPEQ built from dd " *
+        "(the current default chain). NOT YET IMPLEMENTED — reserved for future g-file input support."; default=false)
     chease_exec::Entry{String} =
         Entry{String}("-", "Path to CHEASE executable"; default="/fusion/projects/codes/mars/CHEASE/chease.x")
     mars_exec::Entry{String} =
@@ -300,7 +302,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     save_dir::Entry{String} =
         Entry{String}("-", "Directory in which to run CHEASE/MARS. If empty, a temporary directory is created and recorded here so it can be reused (e.g. for restart_equilibrium or run_MHD-only follow-up runs via `save_dir=actor.par.save_dir`)"; default="")
     clear_workdir::Entry{Bool} =
-        Entry{Bool}("-", "Remove the auto-created temporary run directory after the run (ignored when save_dir is provided)"; default=true)
+        Entry{Bool}("-", "Remove the auto-created temporary run directory after the run (ignored when save_dir is provided)"; default=false)
 end
 
 
@@ -367,6 +369,25 @@ function ActorMars(dd::IMAS.DD, act::ParametersAllActors; kw...)
 end
 
 
+"""
+    _label_recipe_series!(plt, label::AbstractString)
+
+IMAS's equilibrium recipe hard-codes `label := ""` on its own series (a forced
+default, so a `label` kwarg passed to `plot(dd.equilibrium; label=...)` is silently
+discarded — it never reaches the legend). Post-process the resulting plot object
+instead: fill in `label` on any still-blank *primary* series (non-primary series,
+e.g. the recipe's own dashed q=1 reference line, stay excluded from the legend
+regardless of label, so they're left alone).
+"""
+function _label_recipe_series!(plt, label::AbstractString)
+    for sp in plt.subplots, s in sp.series_list
+        if s[:primary] && isempty(s[:label])
+            s[:label] = label
+        end
+    end
+    return plt
+end
+
 function _step(actor::ActorMars)
     dd = actor.dd
     par = actor.par
@@ -377,11 +398,15 @@ function _step(actor::ActorMars)
     # rather than in run_CHEASE so it applies even when run_equilibrium=false.
     validate_wall_configuration(par)
 
-    # plot equilibrium if requested
+    # plot equilibrium if requested. run_CHEASE (below) overlays the plasma boundary and
+    # limiter/resistive-wall onto this same figure's flux-contour subplot, and _finalize
+    # overlays the post-CHEASE profiles — all via Plots.jl's implicit current-plot state,
+    # since nothing in between calls a fresh plot().
     if par.do_plot
         if !isempty(dd.equilibrium.time_slice)
             println("Plotting initial equilibrium...")
-            plt = FUSE.Plots.plot(dd.equilibrium; label="before ActorEquilibrium")
+            plt = FUSE.Plots.plot(dd.equilibrium; label="before CHEASE", linewidth=3)
+            _label_recipe_series!(plt, "before CHEASE")
         else
             plt = FUSE.Plots.plot()
         end
@@ -429,6 +454,38 @@ end
 
 
 """
+    parse_NGA(filename::AbstractString) -> (csm, p, dpdpsi, q)
+
+Parse the `NGA` file CHEASE writes on every run (its own ASCII export of the CSM=s
+mesh, pressure, dP/dψ, and q profiles — the block chease.f labels "SECTION ADDED TO
+MATCH WITH GA'S EQUILIBRIUM CODE"). `p`/`dpdpsi` are in CHEASE's internal normalized
+units; `q` is dimensionless already. `csm` is CHEASE's own equidistant s-mesh.
+"""
+function parse_NGA(filename::AbstractString)
+    lines = readlines(filename)
+    npsi1 = parse(Int, strip(lines[1]))
+
+    function read_block(label::AbstractString)
+        i = findfirst(l -> occursin(label, l), lines)
+        i === nothing && error("NGA: block \"$label\" not found in $filename")
+        vals = Float64[]
+        j = i + 1
+        while length(vals) < npsi1
+            append!(vals, parse.(Float64, split(lines[j])))
+            j += 1
+        end
+        return vals
+    end
+
+    csm    = read_block("CSM - MESH")
+    p      = read_block("P (CSM)")
+    dpdpsi = read_block("DP/DPSI(CSM)")
+    q      = read_block("Q (CSM)")
+
+    return csm, p, dpdpsi, q
+end
+
+"""
     _finalize(actor::ActorMars)
 
 Store the MARS results into `dd.mhd_linear`:
@@ -443,6 +500,47 @@ Does nothing if MARS was not run (e.g. an equilibrium-only run).
 """
 function _finalize(actor::ActorMars)
     dd = actor.dd
+    par = actor.par
+
+    # Overwrite dd.equilibrium with CHEASE's own recomputed pressure/q, read from NGA.
+    # NGA is written unconditionally by CHEASE on every run (no namelist flag gates it),
+    # so this always applies whenever CHEASE actually ran.
+    if par.run_equilibrium
+        nga_file = joinpath(par.save_dir, "NGA")
+        if isfile(nga_file)
+            csm, p_raw, _, q_new = parse_NGA(nga_file)
+            psi_norm_chease = csm .^ 2   # CSM assumed = s = sqrt(psi_norm)
+
+            B0EXP = actor.chease_inputs.B0EXP
+            p_new = p_raw .* B0EXP^2 ./ μ_0
+
+            eqt1d = dd.equilibrium.time_slice[].profiles_1d
+            psi_norm_dd = eqt1d.psi_norm
+
+            eqt1d.pressure = IMAS.interp1d(psi_norm_chease, p_new).(psi_norm_dd)
+            eqt1d.q = IMAS.interp1d(psi_norm_chease, q_new).(psi_norm_dd)
+
+            # overlay onto the "before CHEASE" figure from _step (which run_CHEASE's
+            # write_EXPEQ_file already added the plasma boundary/limiter to), via
+            # Plots.jl's current-plot state
+            if par.do_plot
+                try
+                    plt = FUSE.Plots.plot!(dd.equilibrium; label="after CHEASE", linewidth=3)
+                catch e
+                    if isa(e, BoundsError)
+                        plt = FUSE.Plots.plot(dd.equilibrium; label="after CHEASE", linewidth=3)
+                    else
+                        rethrow(e)
+                    end
+                end
+                _label_recipe_series!(plt, "after CHEASE")
+                display(plt)
+            end
+        else
+            @warn "$nga_file not found (clear_workdir may have removed it before _finalize ran) — dd.equilibrium not updated from CHEASE."
+        end
+    end
+
     out = actor.mars_outputs
     out === nothing && return actor
 
@@ -1326,36 +1424,34 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
     r_bound_norm = rb_new / R0
     z_bound_norm = zb_new / R0
 
-    #plt = plot()
-    plt = plot!(rb_new, zb_new; linewidth=3., aspect_ratio=:equal, label="Plasma Boundary")
-    display(plt)
+    # Overlay onto subplot 1 (the R,Z flux-contour panel) of the "before CHEASE" equilibrium
+    # figure already created in _step, via Plots.jl's current-plot state — not a separate figure.
+    par.do_plot && display(plot!(rb_new, zb_new; subplot=1, linewidth=3., aspect_ratio=:equal, label="Plasma Boundary"))
 
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
-    
+
     # if there is another surface, calclate its cooridanes given an offset and save to file
     if NWBPS > 1 ## WHAT TO DO if > 2
-        if par.wall_type == :conformal 
+        if par.wall_type == :conformal
             @info "Creating a conformal limiter offset from plasma boundary by $(par.offset)."
             r_lim, z_lim = offset_boundary(rb_new, zb_new, offset)
         elseif par.wall_type == :limiter
             @info "Using wall data .Json for CHEASE equilibrium generation."
             machine = dd.dataset_description.data_entry.machine
             limiter = get_limiter_data(machine)
-            r_lim, z_lim = limiter.r, limiter.z  
+            r_lim, z_lim = limiter.r, limiter.z
         end
 
 
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
-        
+
         chease_struct.r_limiter = r_lim
         chease_struct.z_limiter = z_lim
 
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
-        
-        plt = plot!(r_lim, z_lim; linewidth=1.5, aspect_ratio=:equal,label="MARS resistive wall", legend=:outertop)
-        display(plt)
-        
+
+        par.do_plot && display(plot!(r_lim, z_lim; subplot=1, linewidth=1.5, aspect_ratio=:equal, label="MARS resistive wall"))
     end
   
     # write to EXPEQ file
