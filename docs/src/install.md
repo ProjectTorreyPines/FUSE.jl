@@ -12,10 +12,19 @@ FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the
     are available for reproducibility. The tags are multi-architecture, so the
     same command pulls the right image on x86\_64 and on Apple Silicon.
 
-    Laptop (Docker or podman):
+    Laptop (Docker or podman) — JupyterLab with the FUSE kernel, served from
+    inside the container (`-e THREADS=8` sets the kernel's Julia threads):
     ```bash
-    docker run -it ghcr.io/projecttorreypines/fuse:latest
+    docker run -it --pull always -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:latest lab
     ```
+    then open the link it prints:
+    <http://localhost:8888/lab/tree/FuseExamples?token=fuse>. On first run a
+    copy of [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples)
+    is placed in the mounted current directory and the browser opens there, so
+    edits and new notebooks persist on your machine. (VS Code users can
+    instead paste that URL under **Select Kernel → Existing Jupyter Server**
+    in a notebook to get the **Julia FUSE (container)** kernel.)
+
     omega (JupyterLab, worker nodes).
     JupyterLab itself runs on the host, so `jupyter` must be on `PATH`
     (e.g. via `module load fuse`):
@@ -27,7 +36,8 @@ FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the
     bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/deploy/perlmutter-container/install_fuse_container_nersc.sh)
     ```
     then open [jupyter.nersc.gov](https://jupyter.nersc.gov), start a server,
-    and select the **Julia FUSE-`<version>`** kernel.
+    and select the **Julia FUSE-`<version>`** kernel — e.g. on one of the
+    `FuseExamples` notebooks the install placed in your `$HOME`.
 
     Details: [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md)
     (omega) and [`deploy/perlmutter-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/perlmutter-container/README.md)
