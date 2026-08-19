@@ -13,8 +13,11 @@ single OCI image instead of an environment module.
 | `Containerfile` | Image definition (`FROM docker.io/library/julia:1.11.7`), installs FUSE + builds the sysimage. |
 | `install_fuse_container.jl` | Runs inside the build: adds registries, installs packages, compiles `sys_fuse.so`. |
 | `build.sh` | Builds and migrates the image on Perlmutter. |
-| `kernel.json.template` | Jupyter kernelspec template wrapping `podman-hpc run --jupyter`. |
+| `kernel.json.template` | Jupyter kernelspec template wrapping `podman-hpc run --jupyter --network host`. |
 | `install_kernel.sh` | Generates and installs the FUSE Jupyter kernel for the current user. |
+| `acceptance.sh` | Acceptance suite for a pulled/built image (mirrors `../omega-container/acceptance.sh`). |
+| `test_slurm.sbatch` | Compute-node smoke test (D3D L-mode init + flux matcher in a debug-queue job). |
+| `install_fuse_container_nersc.sh` | One-command user setup: get the image (m3739 shared store, else registry pull) + install the Jupyter kernel. Curl-able, needs no checkout. |
 
 ## 1. Build the image
 
@@ -52,11 +55,55 @@ for a leaner Perlmutter-only build.
 >
 > ```bash
 > podman-hpc pull ghcr.io/projecttorreypines/fuse:<version>
-> podman-hpc migrate ghcr.io/projecttorreypines/fuse:<version>
+> # tooling (install_kernel.sh, the scripts here) expects the localhost/fuse name:
+> podman-hpc tag ghcr.io/projecttorreypines/fuse:<version> localhost/fuse:<version>
+> podman-hpc migrate fuse:<version>
+> ```
+>
+> To publish the pulled image to the shared project store, migrate with
+> `--squash-dir` and then fix group permissions — `migrate` writes with your
+> umask (600/700), which would lock the store to you alone:
+>
+> ```bash
+> podman-hpc --squash-dir /global/cfs/cdirs/m3739/shared_images migrate fuse:<version>
+> find /global/cfs/cdirs/m3739/shared_images \
+>     \( ! -perm -g+r -o -type d ! -perm -g+x \) -exec chmod g+rX {} +
 > ```
 
 > Re-run `build.sh` (build + migrate) after any change. A migrated image is
 > read-only; you must re-`migrate` to pick up a rebuild.
+
+## Acceptance testing
+
+After pulling (or building) and migrating an image, run the acceptance suite on
+a login node. It mirrors the omega suite (identity, sysimage, LFS-stub scan,
+D3D L-mode init + plot, offline flux matcher) minus the SIF-specific checks:
+
+```bash
+FUSE_ENVIRONMENT=v1.2.0 ./deploy/perlmutter-container/acceptance.sh
+# SKIP_SLOW=1 skips the flux-matcher solve; SQUASH_DIR=... tests a shared store
+```
+
+Then smoke-test a compute node (znver3) through Slurm:
+
+```bash
+FUSE_ENVIRONMENT=v1.2.0 sbatch --export=ALL deploy/perlmutter-container/test_slurm.sbatch
+# pass: output file ends with SLURM SMOKE OK
+```
+
+The Jupyter kernel can be tested headlessly (no JupyterHub session) after
+`install_kernel.sh`, reusing the omega test driver:
+
+```bash
+module load python   # provides jupyter_client
+python3 deploy/omega-container/test_kernel_headless.py fuse-v1.2.0-8t
+# pass: HEADLESS KERNEL TEST PASSED
+```
+
+> Note: the kernelspec runs the container with `--network host`. Without it the
+> rootless podman container gets its own network namespace and the ZMQ ports the
+> kernel binds are unreachable from the Jupyter server on the host — the kernel
+> starts but never connects.
 
 ## Testing the shared image
 
@@ -117,7 +164,7 @@ FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
 # optionally: THREADS=8 FUSE_ENVIRONMENT=<version> ./install_kernel.sh
 ```
 
-This writes `$HOME/.local/share/jupyter/kernels/fuse-<version>/kernel.json`,
+This writes `$HOME/.local/share/jupyter/kernels/fuse-<version>-<threads>t/kernel.json`,
 whose `argv` runs the in-container Julia via `podman-hpc run --rm --jupyter`.
 The `--jupyter` flag bind-mounts `/tmp` and `$HOME` so the kernel can connect
 and create notebooks in your home directory.
@@ -132,8 +179,8 @@ FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
 
 ### Test the kernel
 
-1. Open [NERSC JupyterHub](https://jupyter.nersc.gov) and start a server on a
-   Perlmutter login node.
+1. Open [NERSC JupyterHub](https://jupyter.nersc.gov) and start a Perlmutter
+   server (login or compute node — the kernel works on both).
 2. Create a new notebook and select the **Julia FUSE-<version>** kernel
    (display name e.g. `Julia FUSE-v1.2.0 (1 thread(s))`).
 3. Run this test cell:
@@ -148,7 +195,7 @@ FUSE_ENVIRONMENT=<version> ./deploy/perlmutter-container/install_kernel.sh
 Expected: the kernel connects within a few seconds, `using FUSE` returns almost
 instantly (sysimage), the actors run, and `pkgversion(FUSE)` prints the image
 version. If the kernel fails to start, check the kernelspec at
-`$HOME/.local/share/jupyter/kernels/fuse-<version>/kernel.json` and confirm
+`$HOME/.local/share/jupyter/kernels/fuse-<version>-<threads>t/kernel.json` and confirm
 `podman-hpc images` (add `--squash-dir <dir>` if shared) lists `fuse:<version>`.
 
 ## Mounting data (optional)
