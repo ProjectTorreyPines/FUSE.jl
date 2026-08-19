@@ -149,7 +149,11 @@ RUN kdir=/usr/local/share/jupyter/kernels/fuse \
     '  "language": "julia",' \
     '  "metadata": { "debugger": true }' \
     '}' \
-    > "$kdir/kernel.json"
+    > "$kdir/kernel.json" \
+    # drop the kernelspec IJulia's Pkg.build installed into root's home: it
+    # shows up in the picker next to the FUSE kernel but launches plain julia,
+    # bypassing the `fuse` entrypoint (no writable-depot handling)
+    && rm -rf /root/.local/share/jupyter/kernels/julia-1.11
 
 # `lab` / `notebook` start a JupyterLab (or classic notebook) server bound to
 # 0.0.0.0 so a published port reaches it:
