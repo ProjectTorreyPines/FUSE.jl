@@ -34,9 +34,9 @@ import NonlinearSolve, FixedPointAcceleration
     xtol::Entry{T} = Entry{T}("-", "Tolerance on the solution vector"; default=1E-3, check=x -> @assert x > 0.0 "must be: xtol > 0.0")
     algorithm::Switch{Symbol} =
         Switch{Symbol}(
-            [:default, :basic_polyalg, :polyalg, :broyden, :anderson, :simple_trust, :simple_dfsane, :trust, :simple, :old_anderson, :custom, :none],
+            [:default, :basic_polyalg, :polyalg, :broyden, :anderson, :simple_trust, :simple_dfsane, :trust, :simple, :old_anderson, :custom, :none, :external],
             "-",
-            "Optimizing algorithm used for the flux matching";
+            "Optimizing algorithm used for the flux matching (`:external` delegates to `ActorFluxMatcherGACODE`, e.g. PORTALS, via input.gacode)";
             default=:default
         )
     custom_algorithm::Entry{NonlinearSolve.AbstractNonlinearSolveAlgorithm} =
@@ -96,6 +96,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     actor_ct::ActorFluxCalculator{D,P}
     actor_replay::ActorReplay{D,P}
     actor_ped::ActorPedestal{D,P}
+    actor_gacode::ActorFluxMatcherGACODE{D,P}
     norms::Vector{D}
     error::D
     err_history::Vector{Vector{D}}
@@ -152,7 +153,8 @@ function ActorFluxMatcher(dd::IMAS.DD{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}())
+    actor_gacode = ActorFluxMatcherGACODE(dd, act.ActorFluxMatcherGACODE)
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, actor_gacode, D[], D(Inf), Vector{Vector{D}}())
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -166,6 +168,12 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     dd = actor.dd
     par = actor.par
     cp1d = dd.core_profiles.profiles_1d[]
+
+    # `:external` delegates the whole flux match to an external code (e.g. PORTALS) via
+    # `ActorFluxMatcherGACODE`, mapping the shared ActorFluxMatcher parameters across.
+    if par.algorithm == :external
+        return _step_external(actor)
+    end
 
     # Apply replay profiles if any evolve options are set to :replay
     evolve_densities = evolve_densities_dictionary(cp1d, par)
@@ -552,6 +560,57 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             IMAS.unfreeze!(ion, :rotation_frequency_tor)
         end
     end
+
+    return actor
+end
+
+"""
+    _step_external(actor::ActorFluxMatcher)
+
+Delegate the flux match to an external code (e.g. PORTALS) through `ActorFluxMatcherGACODE`.
+
+The shared `ActorFluxMatcher` parameters are mapped onto the external actor:
+  - `rho_transport`                       → `rho_transport`
+  - `evolve_Te/Ti/densities == :flux_match` → `predicted_channels` (`:te`/`:ti`/`:ne`)
+  - `evolve_rotation`                     → `evolve_rotation` (`:flux_match` or `:fixed`; `:replay` falls back to `:fixed`)
+  - `max_iterations` (when > 0)           → `max_iterations`
+  - `act.ActorTGLF.sat_rule`              → saturation rule for the external TGLF runs
+
+Code-plumbing parameters (`executable`, `save_dir`, file names) come from `act.ActorFluxMatcherGACODE`.
+"""
+function _step_external(actor::ActorFluxMatcher)
+    dd = actor.dd
+    par = actor.par
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    # Which channels the external code should flux-match
+    predicted_channels = Symbol[]
+    par.evolve_Te == :flux_match && push!(predicted_channels, :te)
+    par.evolve_Ti == :flux_match && push!(predicted_channels, :ti)
+    evolve_densities = evolve_densities_dictionary(cp1d, par)
+    if !isempty(evolve_densities) && any(evolve == :flux_match for (_, evolve) in evolve_densities)
+        push!(predicted_channels, :ne)
+    end
+
+    # Map ActorTGLF's saturation rule onto the base set the external code understands
+    # (`:sat0quench`→`:sat0`, `:sat1geo`→`:sat1`).
+    tglf_sat = actor.act.ActorTGLF.sat_rule
+    sat_rule = tglf_sat === :sat0quench ? :sat0 : tglf_sat === :sat1geo ? :sat1 : tglf_sat
+
+    # Only override max_iterations when the user set a positive value; otherwise keep the
+    # external actor's own default (ActorFluxMatcher defaults max_iterations to 0).
+    overrides = Dict{Symbol,Any}(
+        :rho_transport => par.rho_transport,
+        :predicted_channels => predicted_channels,
+        :sat_rule => sat_rule,
+        :evolve_rotation => (par.evolve_rotation == :flux_match ? :flux_match : :fixed)
+    )
+    if par.max_iterations > 0
+        overrides[:max_iterations] = par.max_iterations
+    end
+
+    actor.actor_gacode = ActorFluxMatcherGACODE(dd, actor.act.ActorFluxMatcherGACODE; overrides...)
+    finalize(step(actor.actor_gacode))
 
     return actor
 end
