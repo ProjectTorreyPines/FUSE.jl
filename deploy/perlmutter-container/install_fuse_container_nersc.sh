@@ -85,8 +85,22 @@ fi
 
 SQUASH_DIR="$squash_dir" FUSE_ENVIRONMENT="$version" THREADS="${THREADS:-8}" "$installer"
 
+# --- FuseExamples tutorials ---------------------------------------------------
+# Copy the notebooks baked into the image (a full clone with the github
+# origin, so `git pull` works later) into $HOME, where the JupyterHub file
+# browser starts. An existing copy is left alone so user edits survive
+# re-installs. Best effort: older images without the baked clone skip this.
+if [[ ! -e "$HOME/FuseExamples" ]]; then
+    echo "### Copying FuseExamples notebooks to \$HOME/FuseExamples"
+    run_args=(); [[ -n "$squash_dir" ]] && run_args=(--squash-dir "$squash_dir")
+    podman-hpc "${run_args[@]}" run --rm -v "$HOME:/mnt/home" "localhost/fuse:$version" \
+        bash -c 'if [ -d /opt/fuse/FuseExamples ]; then cp -a /opt/fuse/FuseExamples /mnt/home/; else echo "  (image predates the baked FuseExamples — skipping)"; fi' \
+        || echo "  (copy failed — get them with: git clone https://github.com/ProjectTorreyPines/FuseExamples)"
+fi
+
 echo
 echo "### FUSE container ready."
 echo "Open https://jupyter.nersc.gov, start a server, and select"
-echo "the 'Julia FUSE-$version' kernel. First cell to try:"
+echo "the 'Julia FUSE-$version' kernel — e.g. on FuseExamples/fluxmatcher.ipynb"
+echo "in the file browser. First cell to try:"
 echo "    using FUSE; ini, act = FUSE.case_parameters(:D3D, :L_mode); dd = FUSE.init(ini, act)"

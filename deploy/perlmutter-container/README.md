@@ -26,7 +26,7 @@ and only the kernel lives in the container (see below).
 | `install_kernel.sh` | Generates and installs the FUSE Jupyter kernel for the current user. |
 | `acceptance.sh` | Acceptance suite for a pulled/built image (mirrors `../omega-container/acceptance.sh`). |
 | `test_slurm.sbatch` | Compute-node smoke test (D3D L-mode init + flux matcher in a debug-queue job). |
-| `install_fuse_container_nersc.sh` | One-command user setup: get the image (m3739 shared store, else registry pull) + install the Jupyter kernel. Curl-able, needs no checkout. |
+| `install_fuse_container_nersc.sh` | One-command user setup: get the image (m3739 shared store, else registry pull), install the Jupyter kernel, and copy the baked FuseExamples notebooks to `$HOME`. Curl-able, needs no checkout. |
 
 ## 1. Build the image
 
