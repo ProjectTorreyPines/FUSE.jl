@@ -88,7 +88,31 @@ if [[ "${1:-}" == "notebook" || "${1:-}" == "lab" ]]; then
         exit 127
     fi
     version="$(basename "$sif")"; version="${version#fuse_}"; version="${version%.sif}"
-    threads="${THREADS:-1}"
+
+    # Thread count: THREADS=N wins; otherwise KEEP what the existing kernelspec
+    # for this version already has (the spec is rewritten on every run, so an
+    # unset THREADS would silently reset an 8-thread spec back to 1); 8 only
+    # when there is no prior spec.
+    threads="${THREADS:-}"
+    if [[ -z "$threads" ]]; then
+        threads="$(grep -oE -- '--threads=[0-9]+' \
+                   "$HOME/.local/share/jupyter/kernels/fuse-$version/kernel.json" 2>/dev/null \
+                   | head -1 | cut -d= -f2)"
+        threads="${threads:-8}"
+    fi
+
+    # Prune stale kernelspecs left by earlier runs: a retired SIF leaves a dead
+    # "Julia FUSE-<old>" entry in Jupyter's kernel picker, and a notebook saved
+    # with one restart-loops five times before dying. Only fuse-* specs whose
+    # kernel.json points at a SIF that is no longer readable are removed.
+    for spec in "$HOME"/.local/share/jupyter/kernels/fuse-*/kernel.json; do
+        [[ -f "$spec" ]] || continue
+        spec_sif="$(grep -oE '/[^"\\ ]*\.sif' "$spec" | head -1)"
+        if [[ -n "$spec_sif" && ! -r "$spec_sif" ]]; then
+            rm -rf "$(dirname "$spec")"
+            echo "fuse-container: pruned stale kernelspec '$(basename "$(dirname "$spec")")' ($spec_sif is gone)"
+        fi
+    done
     singularity_dir="$(dirname "$(command -v singularity)")"
     launcher="$self_dir/$(basename "${BASH_SOURCE[0]:-$0}")"
     kdir="$HOME/.local/share/jupyter/kernels/fuse-$version"

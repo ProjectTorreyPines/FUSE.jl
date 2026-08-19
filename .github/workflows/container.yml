@@ -162,11 +162,15 @@ jobs:
       # sysimage unless workload=none
       - name: Build image
         run: |
+          # pin the baked FuseExamples to current master (also busts the
+          # clone layer's cache when the notebooks changed)
+          examples_sha="$(git ls-remote https://github.com/ProjectTorreyPines/FuseExamples.git refs/heads/master | cut -f1)"
           docker build \
             -f deploy/perlmutter-container/Containerfile \
             --build-arg JULIA_CPU_TARGET="${{ matrix.cpu_target }}" \
             --build-arg FUSE_PRECOMPILE_WORKLOAD="${{ matrix.workload }}" \
             --build-arg FUSE_VERSION="${{ needs.version.outputs.version }}" \
+            --build-arg FUSEEXAMPLES_SHA="$examples_sha" \
             -t "$IMAGE:${{ needs.version.outputs.version }}-${{ matrix.arch }}" \
             .
 

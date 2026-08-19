@@ -164,8 +164,14 @@ RUN kdir=/usr/local/share/jupyter/kernels/fuse \
 RUN printf '%s\n' \
     '#!/bin/bash' \
     'mode="$(basename "$0")"' \
-    'export JULIA_NUM_THREADS="${THREADS:-${JULIA_NUM_THREADS:-1}}"' \
+    '# THREADS=N sets the kernel thread count; default 8, matching omega' \
+    '# fuse-container lab (the baked JULIA_NUM_THREADS=1 is a build artifact)' \
+    'export JULIA_NUM_THREADS="${THREADS:-8}"' \
     'echo "FUSE kernel threads: $JULIA_NUM_THREADS (set THREADS=N to change)"' \
+    '# stamp the session thread count into the kernel picker name — the' \
+    '# kernelspec is baked at build time but threads are chosen per docker run' \
+    't=threads; [ "$JULIA_NUM_THREADS" = 1 ] && t=thread' \
+    'sed -i "s/(container[^)]*)/(container, $JULIA_NUM_THREADS $t)/" /usr/local/share/jupyter/kernels/fuse/kernel.json 2>/dev/null || true' \
     '# give users a writable FuseExamples in the (mounted) working directory;' \
     '# an existing one is left alone so their edits survive re-runs' \
     'if [ ! -e FuseExamples ] && [ -w . ] && [ -d /opt/fuse/FuseExamples ]; then' \
@@ -207,10 +213,17 @@ RUN chmod -R a+rX /opt/fuse/.julia/registries
 # FuseExamples notebooks, served by the `lab` launcher below: on startup it
 # copies this clone into the (mounted) working directory so users get a
 # writable copy whose edits persist on the host. A full clone (not shallow)
-# with the github origin, so that copy can simply `git pull` later. Placed
-# after the FUSE_VERSION cache-bust: each release build snapshots current
-# master.
-RUN git clone https://github.com/ProjectTorreyPines/FuseExamples /opt/fuse/FuseExamples
+# with the github origin, so that copy can simply `git pull` later.
+#
+# FUSEEXAMPLES_SHA pins the snapshot AND busts the layer cache: without it a
+# same-version rebuild would cache-hit an old clone and silently ship stale
+# notebooks. Build scripts pass current master (git ls-remote); empty means
+# clone HEAD, correct only when no cached clone layer exists.
+ARG FUSEEXAMPLES_SHA=""
+RUN git clone https://github.com/ProjectTorreyPines/FuseExamples /opt/fuse/FuseExamples \
+    && if [ -n "$FUSEEXAMPLES_SHA" ]; then \
+           git -C /opt/fuse/FuseExamples reset --hard "$FUSEEXAMPLES_SHA"; \
+       fi
 
 # procps: FUSE's memory monitor shells out to `ps -o rss=` (utils_end.jl).
 # openssh-client + rsync: FUSE's remote D3D data fetching (src/cases/D3D.jl).

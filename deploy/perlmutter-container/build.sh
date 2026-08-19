@@ -42,8 +42,13 @@ if [[ -z "${SLURM_JOB_ID:-}" ]]; then
     echo "         prefer 'salloc -N 1 -C cpu -q interactive -A m3739 -t 04:00:00' first." >&2
 fi
 
-echo "### Building $image (context: $repo_root)"
-podman-hpc build -t "$image" --build-arg FUSE_VERSION="$version" -f "$scriptdir/Containerfile" "$repo_root"
+# Pin the baked FuseExamples to current master (also busts the clone layer's
+# cache when the notebooks changed).
+examples_sha="$(git ls-remote https://github.com/ProjectTorreyPines/FuseExamples.git refs/heads/master | cut -f1)"
+
+echo "### Building $image (context: $repo_root, FuseExamples: ${examples_sha:0:9})"
+podman-hpc build -t "$image" --build-arg FUSE_VERSION="$version" \
+    --build-arg FUSEEXAMPLES_SHA="$examples_sha" -f "$scriptdir/Containerfile" "$repo_root"
 
 echo "### Migrating $image to a squashed read-only image"
 if [[ -n "${SQUASH_DIR:-}" ]]; then
