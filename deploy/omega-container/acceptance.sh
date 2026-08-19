@@ -115,6 +115,15 @@ check "revise-loads" bash -c "
 check "host-tools-present" bash -c "
     ${podman[*]} run --rm $image bash -c 'for t in ps ssh rsync; do command -v \$t || { echo \"  missing \$t\"; exit 1; }; done'"
 
+# The laptop one-command flow (`docker run ... lab`) serves JupyterLab from
+# inside the image, so the server, launcher, and baked kernelspec must ship.
+check "jupyterlab-self-contained" bash -c "
+    ${podman[*]} run --rm $image bash -c '
+        jupyter lab --version || { echo \"  missing jupyter lab\"; exit 1; }
+        [ -x /usr/local/bin/lab ] || { echo \"  missing lab launcher\"; exit 1; }
+        jupyter kernelspec list | grep -q \"^  fuse \" || { echo \"  fuse kernelspec not found\"; jupyter kernelspec list; exit 1; }
+        [ -f /opt/fuse/FuseExamples/fluxmatcher.ipynb ] || { echo \"  missing baked FuseExamples clone\"; exit 1; }'"
+
 # --- physics smoke ----------------------------------------------------------
 check "init-and-plot-png" bash -c "
     ${podman[*]} run --rm -v $out:/out:Z $image fuse -e '

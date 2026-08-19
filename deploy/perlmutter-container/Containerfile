@@ -68,6 +68,19 @@ COPY Makefile /opt/build/Makefile
 # A failed warm-up is harmless — the sysimage bakes REPL regardless.
 RUN timeout 600 julia -e 'import REPL' || timeout 600 julia -e 'import REPL' || true
 
+# JupyterLab server, so the image is Jupyter-self-contained on laptops:
+#   docker run -it -p 8888:8888 ghcr.io/projecttorreypines/fuse:latest lab
+# (On omega/NERSC the server runs on the host instead and only the kernel
+# lives in the container — this venv is unused there and costs ~300 MB.)
+# Kept BEFORE the FUSE_VERSION cache-bust: it is version-independent, so
+# same-node rebuilds for a new release reuse this layer.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m venv /opt/jupyter \
+    && /opt/jupyter/bin/pip install --no-cache-dir jupyterlab notebook \
+    && ln -s /opt/jupyter/bin/jupyter /usr/local/bin/jupyter
+
 # Bust the install layer's cache per FUSE version: layer caching is
 # registry-blind, so without this a same-node rebuild for a NEW release would
 # cache-hit the old install and silently bake the previous FUSE version.
@@ -115,6 +128,60 @@ RUN printf '%s\n' \
     > /usr/local/bin/fuse \
     && chmod 0555 /usr/local/bin/fuse
 
+# In-image Jupyter kernelspec for the baked FUSE install. /usr/local/share/
+# jupyter is on Jupyter's default kernel search path, so the /opt/jupyter
+# server finds it with no install step. Thread count is read at kernel launch
+# from JULIA_NUM_THREADS, which the `lab` launcher below derives from THREADS —
+# mirroring `THREADS=8 fuse-container lab` on omega.
+RUN kdir=/usr/local/share/jupyter/kernels/fuse \
+    && mkdir -p "$kdir" \
+    && v="${FUSE_BUILD_VERSION:+-$FUSE_BUILD_VERSION}" \
+    && printf '%s\n' \
+    '{' \
+    '  "argv": [' \
+    '    "/bin/bash",' \
+    '    "-c",' \
+    '    "exec fuse --color=yes -e '"'"'import IJulia; IJulia.run_kernel()'"'"' \"$1\"",' \
+    '    "fuse-kernel",' \
+    '    "{connection_file}"' \
+    '  ],' \
+    "  \"display_name\": \"Julia FUSE$v (container)\"," \
+    '  "language": "julia",' \
+    '  "metadata": { "debugger": true }' \
+    '}' \
+    > "$kdir/kernel.json"
+
+# `lab` / `notebook` start a JupyterLab (or classic notebook) server bound to
+# 0.0.0.0 so a published port reaches it:
+#   docker run -it -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 \
+#       -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:latest lab
+# THREADS=N sets the FUSE kernel's Julia threads; a fixed JUPYTER_TOKEN gives
+# a predictable URL (browser, or VS Code "Existing Jupyter Server" attach).
+RUN printf '%s\n' \
+    '#!/bin/bash' \
+    'mode="$(basename "$0")"' \
+    'export JULIA_NUM_THREADS="${THREADS:-${JULIA_NUM_THREADS:-1}}"' \
+    'echo "FUSE kernel threads: $JULIA_NUM_THREADS (set THREADS=N to change)"' \
+    '# give users a writable FuseExamples in the (mounted) working directory;' \
+    '# an existing one is left alone so their edits survive re-runs' \
+    'if [ ! -e FuseExamples ] && [ -w . ] && [ -d /opt/fuse/FuseExamples ]; then' \
+    '    cp -a /opt/fuse/FuseExamples . && echo "copied FuseExamples notebooks into $PWD"' \
+    'fi' \
+    '# jupyter prints container-side URLs; with a fixed token we can print the' \
+    '# host-side link to click (assumes the documented -p HOSTPORT:8888 mapping),' \
+    '# opening the file browser at FuseExamples when it is there' \
+    'if [ -n "${JUPYTER_TOKEN:-}" ]; then' \
+    '    path=lab; [ "$mode" = notebook ] && path=tree' \
+    '    if [ -d FuseExamples ]; then' \
+    '        path="lab/tree/FuseExamples"; [ "$mode" = notebook ] && path="tree/FuseExamples"' \
+    '    fi' \
+    '    echo "open in your browser:  http://localhost:${PORT:-8888}/$path?token=$JUPYTER_TOKEN"' \
+    'fi' \
+    'exec jupyter "$mode" --ip=0.0.0.0 --port="${PORT:-8888}" --no-browser --allow-root "$@"' \
+    > /usr/local/bin/lab \
+    && chmod 0555 /usr/local/bin/lab \
+    && ln -s lab /usr/local/bin/notebook
+
 # Precompile the interactive stack UNDER the sysimage: package caches produced
 # by the install (plain julia) are invalid once sys_fuse.so is loaded, so
 # without this every user would re-precompile IJulia/Plots/... on first use —
@@ -124,6 +191,14 @@ RUN fuse -e 'import IJulia, Plots, WebIO, Interact, EFIT, ArgParse, Revise'
 # Registries are cloned 0700; without world-read every in-container Pkg
 # operation fails for non-root users.
 RUN chmod -R a+rX /opt/fuse/.julia/registries
+
+# FuseExamples notebooks, served by the `lab` launcher below: on startup it
+# copies this clone into the (mounted) working directory so users get a
+# writable copy whose edits persist on the host. A full clone (not shallow)
+# with the github origin, so that copy can simply `git pull` later. Placed
+# after the FUSE_VERSION cache-bust: each release build snapshots current
+# master.
+RUN git clone https://github.com/ProjectTorreyPines/FuseExamples /opt/fuse/FuseExamples
 
 # procps: FUSE's memory monitor shells out to `ps -o rss=` (utils_end.jl).
 # openssh-client + rsync: FUSE's remote D3D data fetching (src/cases/D3D.jl).
