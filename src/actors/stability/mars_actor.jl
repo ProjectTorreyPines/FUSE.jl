@@ -285,16 +285,20 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     mpirun_exec::Entry{String} =
         Entry{String}("-", "mpirun/mpiexec executable used when num_orbits>0 (REORBIT tracing requires MPI even though MARS itself does not). Set to a full path if `mpirun` on PATH does not match the MPI marsq.x was built against (e.g. a conda-installed mpirun shadowing the system one)."; default="mpirun")
     offset::Entry{Float64} = Entry{Float64}("-", "Offset for conforming first wall (RW) in units of length"; default=0.2)
-    n_points::Entry{Int} = Entry{Int}("-", "Number of points for discretizing plasma boundary and surrounding walls "; default=301)
-    tracer_type::Switch{Symbol} = Switch{Symbol}([:ORBIT, :REORBIT], "-", "Type of tracer to use: :ideal or :realistic"; default=:REORBIT)
+    n_points::Entry{Int} = Entry{Int}("-", "Number of points for discretizing plasma boundary and surrounding walls "; default=201)
     GS_rhs::Switch{Symbol} = Switch{Symbol}([:FFpr, :Jtor, :Jpar], "-", "Specification of Grad-Shaf RHS current"; default=:FFpr)
     wall_resistivity_type::Switch{Symbol} = Switch{Symbol}([:Constant, :Variable], "-", "Wall Resistivity Model"; default=:Constant)
     wall_type::Switch{Symbol} = Switch{Symbol}([:no_wall, :conformal, :limiter], "-", "Machine wall shape to use for MARS"; default=:no_wall)
-    number_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
+    num_surfaces::Entry{Int} = Entry{Int}("-", "Number of surfaces to specify"; default=1)
     wall_time_constants::Entry{Vector{Float64}} =
         Entry{Vector{Float64}}("-", "Resistive wall time constant τ_w per wall surface, in Alfvén times (MARS TAUW). Length must equal the number of resistive walls; a single-element vector is applied to every wall. Ignored when wall_type=:no_wall"; default=[1.0e4])
-    run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)  
+    run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
+    beta_fac::Entry{Float64} = Entry{Float64}("-",
+        "Sets CHEASE's CFBAL namelist parameter directly (rescales pressure gradient/edge pressure in " *
+        "the EXPEQ.OUT this run writes out). NOTE: CFBAL only affects EXPEQ.OUT, not the equilibrium this " *
+        "run itself solves — a beta scan needs restart_equilibrium=true on the next run to pick it up. " *
+        "Cannot be combined with chease_overrides.CFBAL (use this parameter instead)."; default=1.0)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
     batch_submit_cmd::Entry{String} = Entry{String}("-", "Batch submission command used when run_mode=:batch"; default="sbatch")
@@ -336,6 +340,10 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         # -------------------------
         # Apply user overrides
         # -------------------------
+        if :CFBAL ∈ keys(chease_overrides)
+            error("CFBAL cannot be set via chease_overrides — use the beta_fac actor parameter instead " *
+                  "(par.beta_fac is transmitted to CHEASE's CFBAL; having both would silently pick one).")
+        end
         for (k, v) in pairs(chease_overrides)
             if k ∉ fieldnames(CHEASE.CHEASEnamelist)
                 error("Unknown namelist entry '$k'")
@@ -435,7 +443,6 @@ function _step(actor::ActorMars)
 
         # run MARS
         if par.run_MHD
-            @info "Running MARS actor with parameters: tracer_type=$(par.tracer_type)"
             actor.mars_outputs = run_MARS(dd, par, mars_namelist)
         end
 
@@ -524,11 +531,12 @@ function _finalize(actor::ActorMars)
             # write_EXPEQ_file already added the plasma boundary/limiter to), via
             # Plots.jl's current-plot state
             if par.do_plot
+                plt = nothing
                 try
-                    plt = FUSE.Plots.plot!(dd.equilibrium; label="after CHEASE", linewidth=3)
+                    plt = FUSE.Plots.plot!(dd.equilibrium; label="after CHEASE", linewidth=2.5)
                 catch e
                     if isa(e, BoundsError)
-                        plt = FUSE.Plots.plot(dd.equilibrium; label="after CHEASE", linewidth=3)
+                        plt = FUSE.Plots.plot(dd.equilibrium; label="after CHEASE", linewidth=2.5)
                     else
                         rethrow(e)
                     end
@@ -643,8 +651,12 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist)
     chease_exec = par.chease_exec
     @assert chease_namelist !== nothing "CHEASE namelist not initialized"
 
-    # wall_type/number_surfaces consistency is checked up front in validate_wall_configuration()
+    # wall_type/num_surfaces consistency is checked up front in validate_wall_configuration()
     limiter = nothing
+
+    # CFBAL rescales pressure gradient/edge pressure in the EXPEQ.OUT this run writes out
+    # (chease.f RPPF/PREDGE *= CFBAL at output time) — applies regardless of clean/restart.
+    setfield!(chease_namelist, :CFBAL, par.beta_fac)
 
     if par.restart_equilibrium
         if isfile("EXPEQ.OUT")
@@ -670,7 +682,7 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist)
         setfield!(chease_namelist, :R0EXP, R0)
     end
    
-    if par.number_surfaces == 1 && chease_namelist.NVEXP == 8
+    if par.num_surfaces == 1 && chease_namelist.NVEXP == 8
         @info "Overriding NVEXP in CHEASE namelist"
         NVEXP = 1
         setfield!(chease_namelist, :NVEXP, NVEXP)
@@ -713,42 +725,42 @@ end
 """
     validate_wall_configuration(par)
 
-Check that `wall_type` and `number_surfaces` agree, in both directions, and that the implied
+Check that `wall_type` and `num_surfaces` agree, in both directions, and that the implied
 number of resistive walls is supported.
 
-`number_surfaces` counts *bounding surfaces* (plasma boundary + walls), so the number of
-resistive walls is `number_surfaces - 1` and MARS's `NWALL` must equal it — see
-[`configure_wall!`](@ref), which derives `NWALL` from `number_surfaces` on that basis.
+`num_surfaces` counts *bounding surfaces* (plasma boundary + walls), so the number of
+resistive walls is `num_surfaces - 1` and MARS's `NWALL` must equal it — see
+[`configure_wall!`](@ref), which derives `NWALL` from `num_surfaces` on that basis.
 
 A resistive wall needs an actual wall contour in the equilibrium: `write_EXPEQ_file` only
-builds one when `number_surfaces > 1`, so `wall_type != :no_wall` with the default
-`number_surfaces == 1` would send CHEASE no wall at all and silently produce a no-wall
+builds one when `num_surfaces > 1`, so `wall_type != :no_wall` with the default
+`num_surfaces == 1` would send CHEASE no wall at all and silently produce a no-wall
 (far-field boundary at `REXT`) result instead of the requested resistive-wall one.
 """
 function validate_wall_configuration(par)
-    if par.wall_type == :no_wall && par.number_surfaces > 1
+    if par.wall_type == :no_wall && par.num_surfaces > 1
         error(
-            "Invalid wall configuration: number_surfaces = $(par.number_surfaces) > 1 but " *
+            "Invalid wall configuration: num_surfaces = $(par.num_surfaces) > 1 but " *
             "wall_type = :no_wall. Set a wall_type (:conformal or :limiter), or set " *
-            "number_surfaces = 1."
+            "num_surfaces = 1."
         )
     end
-    if par.wall_type != :no_wall && par.number_surfaces <= 1
+    if par.wall_type != :no_wall && par.num_surfaces <= 1
         error(
             "Invalid wall configuration: wall_type = $(par.wall_type) requires a wall surface " *
-            "in the equilibrium, but number_surfaces = $(par.number_surfaces). Set " *
-            "number_surfaces > 1 so a wall contour is written to EXPEQ, or set " *
+            "in the equilibrium, but num_surfaces = $(par.num_surfaces). Set " *
+            "num_surfaces > 1 so a wall contour is written to EXPEQ, or set " *
             "wall_type = :no_wall."
         )
     end
-    # NWALL = number_surfaces - 1. Multi-wall (NWALL > 1) is not supported yet: CHEASE reports
+    # NWALL = num_surfaces - 1. Multi-wall (NWALL > 1) is not supported yet: CHEASE reports
     # a single wall index NW, so the positions of any further walls cannot be derived.
-    if par.number_surfaces > 2
+    if par.num_surfaces > 2
         error(
-            "Unsupported wall configuration: number_surfaces = $(par.number_surfaces) implies " *
-            "$(par.number_surfaces - 1) resistive walls, but only NWALL <= 1 is supported " *
+            "Unsupported wall configuration: num_surfaces = $(par.num_surfaces) implies " *
+            "$(par.num_surfaces - 1) resistive walls, but only NWALL <= 1 is supported " *
             "(CHEASE reports a single wall index NW, so additional wall positions cannot be " *
-            "determined). Set number_surfaces <= 2."
+            "determined). Set num_surfaces <= 2."
         )
     end
     return nothing
@@ -790,9 +802,9 @@ function configure_wall!(mars_namelist, par)
     end
 
     # Number of resistive walls is set by the equilibrium geometry, not by whatever length
-    # IWALL happens to have: number_surfaces counts plasma boundary + walls. Guaranteed to be
-    # exactly 1 here by validate_wall_configuration (number_surfaces == 2).
-    n_walls = par.number_surfaces - 1
+    # IWALL happens to have: num_surfaces counts plasma boundary + walls. Guaranteed to be
+    # exactly 1 here by validate_wall_configuration (num_surfaces == 2).
+    n_walls = par.num_surfaces - 1
 
     # Wall position: CHEASE reports the wall grid index as `NW` in log_chease.
     iwall = copy(basic.IWALL)
@@ -816,7 +828,7 @@ function configure_wall!(mars_namelist, par)
     # Drop any extra user-supplied entries: CHEASE wrote only n_walls wall contour(s), and MARS
     # would read conductivity data for walls that do not exist in OUTVMAR.
     if length(iwall) > n_walls
-        @warn "IWALL had $(length(iwall)) entries but number_surfaces=$(par.number_surfaces) " *
+        @warn "IWALL had $(length(iwall)) entries but num_surfaces=$(par.num_surfaces) " *
               "implies $n_walls wall(s); discarding extra entries $(iwall[n_walls+1:end])"
         iwall = iwall[1:n_walls]
     end
@@ -828,7 +840,7 @@ function configure_wall!(mars_namelist, par)
     elseif length(tauw) != n_walls
         error(
             "wall_time_constants has $(length(tauw)) entries but there are $n_walls wall " *
-            "surface(s) (number_surfaces = $(par.number_surfaces)). Provide one τ_w per wall, " *
+            "surface(s) (num_surfaces = $(par.num_surfaces)). Provide one τ_w per wall, " *
             "or a single value to apply to all."
         )
     end
@@ -1309,7 +1321,7 @@ end
 
 function run_PARTICLE_TRACING(dd::IMAS.DD, par)
     # Placeholder function to run particle tracing simulations
-    @info "Running particle tracing with tracer_type=$(par.tracer_type)."
+    @info "Running particle tracing with REORBIT."
 
     println("Particle tracing simulation completed.")
 end
@@ -1325,7 +1337,7 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
 
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
-    NWBPS = par.number_surfaces
+    NWBPS = par.num_surfaces
     
     # initialize eqt from pulse_schedule and core_profiles
     time_slice = dd.equilibrium.time_slice[]
