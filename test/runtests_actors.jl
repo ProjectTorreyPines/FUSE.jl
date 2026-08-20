@@ -31,7 +31,8 @@ end
     #act.ActorMars.mars_exec = "/path/to/MarsQ_package/MarsQ/marsq.x"
 
     # Configure CHEASE parameters for testing
-    chease_overrides = (NPSI=64, NVEXP=2, NCSCAL=4)
+    chease_overrides = (NPSI=64, NVEXP=2)
+    act.ActorMars.current_scaling = :none   # NCSCAL is owned by current_scaling, not chease_overrides
 
     # configure MARS parameters for testing
     mars_overrides = FUSE.MarsOverrides()
@@ -43,6 +44,7 @@ end
     else
         # The actor creates and manages its own run directory; keep it across the
         # chained runs below (restart / MHD-only depend on each other's files).
+        # (This is also the default now, but stated explicitly since the chaining needs it.)
         act.ActorMars.clear_workdir = false
 
         @info "Test 1: Clean CHEASE equilibrium run"
@@ -51,16 +53,35 @@ end
         @testset "CHEASE output files" begin
             @test isfile(joinpath(run_dir, "EXPEQ"))
             @test isfile(joinpath(run_dir, "datain"))
+            # CHEASE writes NGA unconditionally; _finalize reads pressure/q back from it
+            @test isfile(joinpath(run_dir, "NGA"))
+        end
+
+        @testset "dd.equilibrium updated from CHEASE (NGA)" begin
+            eqt1d = dd.equilibrium.time_slice[].profiles_1d
+            @test all(isfinite, eqt1d.pressure)
+            @test all(isfinite, eqt1d.q)
+            @test length(eqt1d.pressure) == length(eqt1d.psi_norm)
+            @test length(eqt1d.q) == length(eqt1d.psi_norm)
+        end
+
+        @testset "chease_overrides guards" begin
+            # CFBAL is owned by par.beta_fac, NCSCAL/CURRT by par.current_scaling; setting any
+            # of them via chease_overrides must be rejected rather than silently competing.
+            @test_throws ErrorException FUSE.ActorMars(dd, act; chease_overrides=(CFBAL=1.1,), save_dir=run_dir)
+            @test_throws ErrorException FUSE.ActorMars(dd, act; chease_overrides=(NCSCAL=2,), save_dir=run_dir)
+            @test_throws ErrorException FUSE.ActorMars(dd, act; chease_overrides=(CURRT=0.5,), save_dir=run_dir)
         end
 
         @info "Test 2: CHEASE with resistive wall & higher beta"
-        act.ActorMars.number_surfaces = 2
+        act.ActorMars.num_surfaces = 2
         act.ActorMars.wall_type = :limiter
-        FUSE.ActorMars(dd, act; chease_overrides=(CFBAL=1.1,), save_dir=run_dir)
+        FUSE.ActorMars(dd, act; beta_fac=1.1, save_dir=run_dir)
 
         @info "Test 3: CHEASE restart from existing equilibrium"
         act.ActorMars.restart_equilibrium = true
-        FUSE.ActorMars(dd, act; chease_overrides=(NCSCAL=2,), save_dir=run_dir) # keep Ip fixed
+        act.ActorMars.current_scaling = :fixed_ip # keep Ip fixed (NCSCAL=2 + CURRT derived from dd)
+        FUSE.ActorMars(dd, act; save_dir=run_dir)
 
         @info "Test 4: MARS MHD stability run"
         act.ActorMars.run_equilibrium = false # do NOT rerun CHEASE, just run MARS on the existing equilibrium

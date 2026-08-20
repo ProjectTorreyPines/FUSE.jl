@@ -223,16 +223,20 @@ end
 """
     MarsModeStructure
 
-Eigenfunction (mode structure) parsed from MARS `XPLASMA.OUT` (displacement ξ) and,
-when available, `VPLASMA.OUT` (perturbed velocity).
+Eigenfunction (mode structure) parsed from MARS `XPLASMA.OUT` (displacement ξ) and, when
+available, `VPLASMA.OUT` (perturbed velocity) and `BPLASMA.OUT` (perturbed magnetic field).
 
-- `s`         : radial coordinate `s = sqrt(ψ_norm)`, length `NRP1`
+- `s`         : plasma radial coordinate `s = sqrt(ψ_norm)`, length `Ns1`
 - `m_pol`     : poloidal Fourier mode numbers, length `MSMAX`
-- `xi1/2/3`   : complex contravariant components of the plasma displacement ξ, size `(NRP1, MSMAX)`
+- `xi1/2/3`   : complex contravariant components of the plasma displacement ξ, size `(Ns1, MSMAX)`
                 (`xi1` ≡ normal/radial component, `xi3` ≡ parallel-like component)
 - `v1/2/3`    : complex contravariant components of the perturbed velocity (`nothing` if not written)
+- `b1/2/3`    : complex contravariant components of the perturbed magnetic field [T], size
+                `(Ns, MSMAX)` where `Ns = Ns1 + Ns2` — unlike ξ and v, the perturbed field
+                extends into the vacuum region (`nothing` if `BPLASMA.OUT` was not written)
+- `s_full`    : plasma+vacuum radial grid, length `Ns` (the grid `b1/2/3` live on)
 - `chi`       : geometric poloidal angle χ ∈ [0,2π], length `Nχ`
-- `R`, `Z`    : real-space flux-surface geometry `R(s,χ)`, `Z(s,χ)` [m], size `(NRP1, Nχ)`,
+- `R`, `Z`    : real-space flux-surface geometry `R(s,χ)`, `Z(s,χ)` [m], size `(Ns1, Nχ)`,
                 reconstructed from the R,Z Fourier harmonics in `RMZM_F.OUT` (for R,Z-space plotting)
 """
 mutable struct MarsModeStructure
@@ -244,6 +248,10 @@ mutable struct MarsModeStructure
     v1::Union{Nothing,Matrix{ComplexF64}}
     v2::Union{Nothing,Matrix{ComplexF64}}
     v3::Union{Nothing,Matrix{ComplexF64}}
+    b1::Union{Nothing,Matrix{ComplexF64}}
+    b2::Union{Nothing,Matrix{ComplexF64}}
+    b3::Union{Nothing,Matrix{ComplexF64}}
+    s_full::Vector{Float64}
     chi::Vector{Float64}
     R::Matrix{Float64}
     Z::Matrix{Float64}
@@ -275,6 +283,11 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
     _name::Symbol = :not_set
     _time::Float64 = NaN
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
+    m_max_plot::Entry{Int} = Entry{Int}("-",
+        "Upper cutoff on the poloidal mode number m when plotting eigenmode harmonic profiles " *
+        "|Q_m|(s): harmonics with m < m_max_plot are drawn. Mirrors the Python pipeline's m_max " *
+        "convention (plot every harmonic below the cutoff), which is more robust across runs with " *
+        "differing harmonic content than MATLAB's fixed m=1:5 list."; default=10)
     EQDSK::Entry{Bool} = Entry{Bool}("-",
         "Whether CHEASE reads its equilibrium input from a g-file instead of the EXPEQ built from dd " *
         "(the current default chain). NOT YET IMPLEMENTED — reserved for future g-file input support."; default=false)
@@ -294,6 +307,16 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         Entry{Vector{Float64}}("-", "Resistive wall time constant τ_w per wall surface, in Alfvén times (MARS TAUW). Length must equal the number of resistive walls; a single-element vector is applied to every wall. Ignored when wall_type=:no_wall"; default=[1.0e4])
     run_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to run equilibrium solver"; default=true)
     restart_equilibrium::Entry{Bool} = Entry{Bool}("-", "Whether to restart from existing equilibrium"; default=false)
+    current_scaling::Switch{Symbol} = Switch{Symbol}([:fixed_ip, :fixed_q, :none], "-",
+        "How CHEASE rescales the equilibrium (owns the NCSCAL namelist parameter, and CURRT " *
+        "for :fixed_ip — neither may be set via chease_overrides). :fixed_ip (NCSCAL=2) holds " *
+        "the total plasma current at dd's Ip, deriving CURRT from it; this is what the CHEASE " *
+        "manual §3.6 recommends for a pressure/beta scan, since it best conserves the q-profile " *
+        "shape. :fixed_q (NCSCAL=1) instead holds q=QSPEC at radius s=CSSPEC (set both via " *
+        "chease_overrides). :none (NCSCAL=4) applies no scaling, so neither Ip nor q is held. " *
+        "NOTE: the manual's fix-qmin variant (NQMIN=1, which auto-locates CSSPEC at the q " *
+        "minimum) is not reachable — NQMIN is absent from CHEASE.jl's CHEASEnamelist, so " *
+        "write_CHEASEnamelist cannot emit it."; default=:fixed_ip)
     beta_fac::Entry{Float64} = Entry{Float64}("-",
         "Sets CHEASE's CFBAL namelist parameter directly (rescales pressure gradient/edge pressure in " *
         "the EXPEQ.OUT this run writes out). NOTE: CFBAL only affects EXPEQ.OUT, not the equilibrium this " *
@@ -343,6 +366,13 @@ mutable struct ActorMars{D,P} <: SingleAbstractActor{D,P}
         if :CFBAL ∈ keys(chease_overrides)
             error("CFBAL cannot be set via chease_overrides — use the beta_fac actor parameter instead " *
                   "(par.beta_fac is transmitted to CHEASE's CFBAL; having both would silently pick one).")
+        end
+        for k in (:NCSCAL, :CURRT)
+            if k ∈ keys(chease_overrides)
+                error("$k cannot be set via chease_overrides — use the current_scaling actor parameter " *
+                      "instead (:fixed_ip / :fixed_q / :none set NCSCAL, and :fixed_ip derives CURRT " *
+                      "from dd's Ip; having both would silently pick one).")
+            end
         end
         for (k, v) in pairs(chease_overrides)
             if k ∉ fieldnames(CHEASE.CHEASEnamelist)
@@ -406,19 +436,18 @@ function _step(actor::ActorMars)
     # rather than in run_CHEASE so it applies even when run_equilibrium=false.
     validate_wall_configuration(par)
 
-    # plot equilibrium if requested. run_CHEASE (below) overlays the plasma boundary and
-    # limiter/resistive-wall onto this same figure's flux-contour subplot, and _finalize
-    # overlays the post-CHEASE profiles — all via Plots.jl's implicit current-plot state,
-    # since nothing in between calls a fresh plot().
-    if par.do_plot
-        if !isempty(dd.equilibrium.time_slice)
-            println("Plotting initial equilibrium...")
-            plt = FUSE.Plots.plot(dd.equilibrium; label="before CHEASE", linewidth=3)
-            _label_recipe_series!(plt, "before CHEASE")
-        else
-            plt = FUSE.Plots.plot()
-        end
-        display(plt)
+    # "Before" half of the CHEASE before/after comparison. The figure handle is held in a
+    # local and passed explicitly to everything that draws onto it (run_CHEASE for the
+    # plasma boundary/wall, update_equilibrium_from_chease! for the post-CHEASE profiles),
+    # following the FUSE convention — cf. ActorStationaryPlasma's pe/pp/ps and the
+    # `plot(...)` / `plot!(peq, ...)` pattern in docs/src/tutorial.jl. Relying on Plots.jl's
+    # implicit current-plot state instead would silently break whenever anything in between
+    # opens a new figure.
+    plt = nothing
+    if par.do_plot && !isempty(dd.equilibrium.time_slice)
+        println("Plotting initial equilibrium...")
+        plt = FUSE.Plots.plot(dd.equilibrium; color=:gray, label="before CHEASE", linewidth=3)
+        _label_recipe_series!(plt, "before CHEASE")
     end
 
     # Determine the working directory for CHEASE/MARS execution.
@@ -438,7 +467,12 @@ function _step(actor::ActorMars)
         #run equilibrium solver to generate initial conditions for MARS
         if par.run_equilibrium
             @info "Running CHEASE equilibrium solver with EQDSK=$(par.EQDSK)."
-            run_CHEASE(dd, par, chease_namelist)
+            run_CHEASE(dd, par, chease_namelist; plt)
+            # Overwrite dd.equilibrium with CHEASE's own recomputed pressure/q (from NGA)
+            # here rather than in _finalize, so the whole equilibrium story — solve,
+            # write back to dd, draw before/after — stays in one place with one live
+            # figure handle. Must run before the clear_workdir cleanup below.
+            update_equilibrium_from_chease!(dd, par, chease_namelist; plt)
         end
 
         # run MARS
@@ -450,10 +484,84 @@ function _step(actor::ActorMars)
         cd(old_dir)
     end
 
+    # single display of the finished before/after figure (cf. ActorStationaryPlasma)
+    plt !== nothing && display(plt)
+
     # Only auto-clean a directory we created ourselves, and only if requested.
     # When chaining runs that depend on each other's files, set clear_workdir=false.
     if created_workdir && par.clear_workdir
         rm(run_dir; force=true, recursive=true)
+    end
+
+    return actor
+end
+
+
+"""
+    _finalize(actor::ActorMars)
+
+Store the MARS results into `dd.mhd_linear`:
+
+- growth rate and frequency (`Re(γ)·τ_A`, `Im(γ)·τ_A`, normalized to the Alfvén time)
+  in `time_slice[].toroidal_mode[].growthrate` / `.frequency` (see [`store_mode_scalars!`](@ref))
+- the toroidal mode number `n_tor` and the dominant poloidal mode number
+- the mode structure (displacement eigenfunction, and perturbed velocity if available)
+  in `time_slice[].toroidal_mode[].plasma` (see [`store_mode_structure!`](@ref))
+
+When `par.do_plot`, displays the eigenmode harmonic profiles `|Q_m|(s)` for each quantity
+MARS actually wrote (ξ⊥, v¹, b¹); the same plots are available on demand via
+`plot(actor; quantity=...)` — see [`plot_ActorMars`](@ref).
+
+Does nothing if MARS was not run (e.g. an equilibrium-only run). The `dd.equilibrium`
+write-back from CHEASE happens in [`_step`](@ref), not here — see
+[`update_equilibrium_from_chease!`](@ref).
+"""
+function _finalize(actor::ActorMars)
+    dd = actor.dd
+    par = actor.par
+
+    out = actor.mars_outputs
+    out === nothing && return actor
+
+    ml = dd.mhd_linear
+    ml.code.name = "MARSQ"
+    ml.model_type.index = 1            # global calculation
+    ml.model_type.name = "global"
+    ml.equations.index = 2             # full MHD
+    ml.equations.name = "full"
+    ml.ideal_flag = Int(out.ideal)
+    ml.ids_properties.comment = "MARS-F/Q linear MHD stability. growthrate and frequency converted " *
+                                "to SI from the MARS Alfvén-normalized eigenvalue using the on-axis Alfvén time."
+
+    # On-axis Alfvén time τ_A(0) = R0·sqrt(μ0·ρ0)/B0, used by MARS to normalize the eigenvalue.
+    # MARS reports Re(γ)·τ_A (growthrate) and Im(γ)·τ_A (angular frequency); convert back to SI.
+    eqt = dd.equilibrium.time_slice[]
+    B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
+    R0 = dd.equilibrium.vacuum_toroidal_field.r0
+    cp1d = dd.core_profiles.profiles_1d[]
+    ρ_mass = IMAS.total_mass_density(cp1d)             # [kg/m^3] on the core_profiles grid
+    s_cp = sqrt.(cp1d.grid.psi_norm)                   # MARS radial coordinate s = sqrt(ψ_norm)
+    τA0 = R0 * sqrt(μ_0 * ρ_mass[1]) / B0              # on-axis Alfvén time [s]
+
+    mhd = resize!(ml.time_slice; wipe=false)
+    mode = resize!(mhd.toroidal_mode, "n_tor" => out.n_tor)
+    store_mode_scalars!(mode, out, τA0)
+
+    # mode structure (eigenfunction)
+    if out.mode !== nothing
+        ms = out.mode
+        ρ_s = IMAS.interp1d(s_cp, ρ_mass).(ms.s)
+        τA_profile = R0 .* sqrt.(μ_0 .* ρ_s) ./ B0
+        store_mode_structure!(mode, ms, τA_profile)
+
+        # eigenmode harmonic profiles |Q_m|(s), one figure per available quantity.
+        # Skips quantities MARS did not write (e.g. :bnormal without BPLASMA.OUT).
+        if par.do_plot
+            for quantity in (:xi, :vnormal, :bnormal)
+                _harmonic_profile_series(mode.plasma, quantity) === nothing && continue
+                display(FUSE.Plots.plot(actor; quantity))
+            end
+        end
     end
 
     return actor
@@ -493,142 +601,159 @@ function parse_NGA(filename::AbstractString)
 end
 
 """
-    _finalize(actor::ActorMars)
+    update_equilibrium_from_chease!(dd::IMAS.DD, par, chease_inputs; plt=nothing)
 
-Store the MARS results into `dd.mhd_linear`:
+Overwrite `dd.equilibrium.time_slice[].profiles_1d` pressure and q with CHEASE's own
+recomputed profiles, read from the `NGA` file CHEASE writes on every run.
 
-- growth rate and frequency (`Re(γ)·τ_A`, `Im(γ)·τ_A`, normalized to the Alfvén time)
-  in `time_slice[].toroidal_mode[].growthrate` / `.frequency`
-- the toroidal mode number `n_tor` and the dominant poloidal mode number
-- the mode structure (displacement eigenfunction, and perturbed velocity if available)
-  in `time_slice[].toroidal_mode[].plasma`
+`NGA` carries CHEASE-normalized pressure, converted back to SI here using the `B0EXP`
+from the namelist actually used. When `plt` is a figure handle (the "before CHEASE" plot
+created in [`_step`](@ref)), the post-CHEASE profiles are overlaid onto it.
 
-Does nothing if MARS was not run (e.g. an equilibrium-only run).
+No-op (with a warning) if `NGA` is absent, e.g. when `clear_workdir` removed it.
 """
-function _finalize(actor::ActorMars)
-    dd = actor.dd
-    par = actor.par
-
-    # Overwrite dd.equilibrium with CHEASE's own recomputed pressure/q, read from NGA.
-    # NGA is written unconditionally by CHEASE on every run (no namelist flag gates it),
-    # so this always applies whenever CHEASE actually ran.
-    if par.run_equilibrium
-        nga_file = joinpath(par.save_dir, "NGA")
-        if isfile(nga_file)
-            csm, p_raw, _, q_new = parse_NGA(nga_file)
-            psi_norm_chease = csm .^ 2   # CSM assumed = s = sqrt(psi_norm)
-
-            B0EXP = actor.chease_inputs.B0EXP
-            p_new = p_raw .* B0EXP^2 ./ μ_0
-
-            eqt1d = dd.equilibrium.time_slice[].profiles_1d
-            psi_norm_dd = eqt1d.psi_norm
-
-            eqt1d.pressure = IMAS.interp1d(psi_norm_chease, p_new).(psi_norm_dd)
-            eqt1d.q = IMAS.interp1d(psi_norm_chease, q_new).(psi_norm_dd)
-
-            # overlay onto the "before CHEASE" figure from _step (which run_CHEASE's
-            # write_EXPEQ_file already added the plasma boundary/limiter to), via
-            # Plots.jl's current-plot state
-            if par.do_plot
-                plt = nothing
-                try
-                    plt = FUSE.Plots.plot!(dd.equilibrium; label="after CHEASE", linewidth=2.5)
-                catch e
-                    if isa(e, BoundsError)
-                        plt = FUSE.Plots.plot(dd.equilibrium; label="after CHEASE", linewidth=2.5)
-                    else
-                        rethrow(e)
-                    end
-                end
-                _label_recipe_series!(plt, "after CHEASE")
-                display(plt)
-            end
-        else
-            @warn "$nga_file not found (clear_workdir may have removed it before _finalize ran) — dd.equilibrium not updated from CHEASE."
-        end
+function update_equilibrium_from_chease!(dd::IMAS.DD, par, chease_inputs; plt=nothing)
+    nga_file = joinpath(par.save_dir, "NGA")
+    if !isfile(nga_file)
+        @warn "$nga_file not found (clear_workdir may have removed it) — dd.equilibrium not updated from CHEASE."
+        return nothing
     end
 
-    out = actor.mars_outputs
-    out === nothing && return actor
+    csm, p_raw, _, q_new = parse_NGA(nga_file)
+    psi_norm_chease = csm .^ 2   # CSM assumed = s = sqrt(psi_norm)
 
-    ml = dd.mhd_linear
-    ml.code.name = "MARSQ"
-    ml.model_type.index = 1            # global calculation
-    ml.model_type.name = "global"
-    ml.equations.index = 2             # full MHD
-    ml.equations.name = "full"
-    ml.ideal_flag = Int(out.ideal)
-    ml.ids_properties.comment = "MARS-F/Q linear MHD stability. growthrate and frequency converted " *
-                                "to SI from the MARS Alfvén-normalized eigenvalue using the on-axis Alfvén time."
+    p_new = p_raw .* chease_inputs.B0EXP^2 ./ μ_0
 
-    # On-axis Alfvén time τ_A(0) = R0·sqrt(μ0·ρ0)/B0, used by MARS to normalize the eigenvalue.
-    # MARS reports Re(γ)·τ_A (growthrate) and Im(γ)·τ_A (angular frequency); convert back to SI.
-    eqt = dd.equilibrium.time_slice[]
-    B0 = abs(eqt.global_quantities.vacuum_toroidal_field.b0)
-    R0 = dd.equilibrium.vacuum_toroidal_field.r0
-    cp1d = dd.core_profiles.profiles_1d[]
-    ρ_mass = IMAS.total_mass_density(cp1d)             # [kg/m^3] on the core_profiles grid
-    s_cp = sqrt.(cp1d.grid.psi_norm)                   # MARS radial coordinate s = sqrt(ψ_norm)
-    τA0 = R0 * sqrt(μ_0 * ρ_mass[1]) / B0              # on-axis Alfvén time [s]
+    eqt1d = dd.equilibrium.time_slice[].profiles_1d
+    psi_norm_dd = eqt1d.psi_norm
 
-    mhd = resize!(ml.time_slice; wipe=false)
-    mode = resize!(mhd.toroidal_mode, "n_tor" => out.n_tor)
+    eqt1d.pressure = IMAS.interp1d(psi_norm_chease, p_new).(psi_norm_dd)
+    eqt1d.q = IMAS.interp1d(psi_norm_chease, q_new).(psi_norm_dd)
+
+    # "after" half of the before/after comparison, drawn onto the handle from _step
+    if plt !== nothing
+        FUSE.Plots.plot!(plt, dd.equilibrium; label="after CHEASE", linewidth=2.5)
+        _label_recipe_series!(plt, "after CHEASE")
+    end
+
+    return nothing
+end
+
+
+"""
+    store_mode_scalars!(mode, out::MarsOutputs, τA0::Real)
+
+Store the MARS eigenvalue scalars into one `toroidal_mode`: toroidal mode number, and
+growth rate / frequency converted from MARS's Alfvén-normalized eigenvalue to SI using
+the on-axis Alfvén time `τA0`.
+"""
+function store_mode_scalars!(mode, out::MarsOutputs, τA0::Real)
     mode.n_tor = out.n_tor
     mode.growthrate = out.growthrate / τA0             # [1/s]
     mode.frequency = out.frequency / τA0 / (2π)        # [Hz] (MARS gives angular frequency ω·τ_A)
     mode.perturbation_type.name = "MHD"
     mode.perturbation_type.description = "MARS-F/Q linear MHD eigenmode"
+    return nothing
+end
 
-    # mode structure (eigenfunction)
-    if out.mode !== nothing
-        ms = out.mode
-        pl = mode.plasma
 
-        # radial label s = sqrt(ψ_norm) (dim1), poloidal Fourier modes m (dim2)
-        pl.grid_type.index = 24
-        pl.grid_type.name = "inverse_rhopolnorm_straight_field_line_fourier"
-        pl.grid.dim1 = ms.s
-        pl.grid.dim2 = ms.m_pol
+"""
+    store_mode_structure!(mode, ms::MarsModeStructure, τA_profile::AbstractVector)
 
-        # Alfvén time profile τ_A(s) on the MARS radial grid
-        ρ_s = IMAS.interp1d(s_cp, ρ_mass).(ms.s)
-        pl.tau_alfven = R0 .* sqrt.(μ_0 .* ρ_s) ./ B0
+Store the MARS eigenfunction into `mode.plasma`: the `(s, m)` harmonic grid, the Alfvén-time
+profile, the real-space `R(s,χ)`/`Z(s,χ)` geometry used for R,Z-space plotting, the
+displacement harmonics (perpendicular/parallel), and the perturbed velocity when MARS wrote
+`VPLASMA.OUT`. Also records the dominant poloidal harmonic on `mode`.
+"""
+function store_mode_structure!(mode, ms::MarsModeStructure, τA_profile::AbstractVector)
+    pl = mode.plasma
 
-        # Real-space flux-surface geometry R(s,χ), Z(s,χ) for plotting the mode in R,Z space.
-        # The displacement harmonics ξₘ(s) live on (s, m); reconstruct ξ(s,χ)=Σₘ ξₘ(s)·e^{imχ}
-        # on this same χ grid and evaluate at (R, Z) to plot.
-        cs = pl.coordinate_system
-        cs.grid_type.index = 2   # inverse: radial label (dim1) and poloidal angle (dim2)
-        cs.grid_type.name = "inverse"
-        cs.grid.dim1 = ms.s
-        cs.grid.dim2 = ms.chi
-        cs.r = ms.R
-        cs.z = ms.Z
+    # radial label s = sqrt(ψ_norm) (dim1), poloidal Fourier modes m (dim2)
+    pl.grid_type.index = 24
+    pl.grid_type.name = "inverse_rhopolnorm_straight_field_line_fourier"
+    pl.grid.dim1 = ms.s
+    pl.grid.dim2 = ms.m_pol
 
-        # dominant poloidal harmonic = the one with the largest normal displacement
-        idom = argmax(vec(maximum(abs.(ms.xi1); dims=1)))
-        mode.m_pol_dominant = ms.m_pol[idom]
+    # Alfvén time profile τ_A(s) on the MARS radial grid
+    pl.tau_alfven = τA_profile
 
-        # displacement ξ: normal contravariant component -> perpendicular, parallel-like -> parallel
-        pl.displacement_perpendicular.real = real.(ms.xi1)
-        pl.displacement_perpendicular.imaginary = imag.(ms.xi1)
-        pl.displacement_parallel.real = real.(ms.xi3)
-        pl.displacement_parallel.imaginary = imag.(ms.xi3)
+    # Real-space flux-surface geometry R(s,χ), Z(s,χ) for plotting the mode in R,Z space.
+    # The displacement harmonics ξₘ(s) live on (s, m); reconstruct ξ(s,χ)=Σₘ ξₘ(s)·e^{imχ}
+    # on this same χ grid and evaluate at (R, Z) to plot.
+    cs = pl.coordinate_system
+    cs.grid_type.index = 2   # inverse: radial label (dim1) and poloidal angle (dim2)
+    cs.grid_type.name = "inverse"
+    cs.grid.dim1 = ms.s
+    cs.grid.dim2 = ms.chi
+    cs.r = ms.R
+    cs.z = ms.Z
 
-        # perturbed velocity (3 contravariant components), if MARS wrote VPLASMA.OUT
-        if ms.v1 !== nothing
-            pl.velocity_perturbed.coordinate1.real = real.(ms.v1)
-            pl.velocity_perturbed.coordinate1.imaginary = imag.(ms.v1)
-            pl.velocity_perturbed.coordinate2.real = real.(ms.v2)
-            pl.velocity_perturbed.coordinate2.imaginary = imag.(ms.v2)
-            pl.velocity_perturbed.coordinate3.real = real.(ms.v3)
-            pl.velocity_perturbed.coordinate3.imaginary = imag.(ms.v3)
+    # dominant poloidal harmonic = the one with the largest normal displacement
+    idom = argmax(vec(maximum(abs.(ms.xi1); dims=1)))
+    mode.m_pol_dominant = ms.m_pol[idom]
+
+    # displacement ξ: normal contravariant component -> perpendicular, parallel-like -> parallel
+    pl.displacement_perpendicular.real = real.(ms.xi1)
+    pl.displacement_perpendicular.imaginary = imag.(ms.xi1)
+    pl.displacement_parallel.real = real.(ms.xi3)
+    pl.displacement_parallel.imaginary = imag.(ms.xi3)
+
+    # perturbed velocity (3 contravariant components), if MARS wrote VPLASMA.OUT
+    if ms.v1 !== nothing
+        pl.velocity_perturbed.coordinate1.real = real.(ms.v1)
+        pl.velocity_perturbed.coordinate1.imaginary = imag.(ms.v1)
+        pl.velocity_perturbed.coordinate2.real = real.(ms.v2)
+        pl.velocity_perturbed.coordinate2.imaginary = imag.(ms.v2)
+        pl.velocity_perturbed.coordinate3.real = real.(ms.v3)
+        pl.velocity_perturbed.coordinate3.imaginary = imag.(ms.v3)
+    end
+
+    # perturbed magnetic field [T], if MARS wrote BPLASMA.OUT. Unlike ξ and v this spans
+    # plasma+vacuum, so it is split across the two DD nodes that exist for exactly that:
+    # coordinate1 is the DD's "first coordinate (radial)", i.e. b-normal.
+    if ms.b1 !== nothing
+        ns_plasma = length(ms.s)
+
+        pl.b_field_perturbed.coordinate1.real = real.(ms.b1[1:ns_plasma, :])
+        pl.b_field_perturbed.coordinate1.imaginary = imag.(ms.b1[1:ns_plasma, :])
+        pl.b_field_perturbed.coordinate2.real = real.(ms.b2[1:ns_plasma, :])
+        pl.b_field_perturbed.coordinate2.imaginary = imag.(ms.b2[1:ns_plasma, :])
+        pl.b_field_perturbed.coordinate3.real = real.(ms.b3[1:ns_plasma, :])
+        pl.b_field_perturbed.coordinate3.imaginary = imag.(ms.b3[1:ns_plasma, :])
+
+        # Vacuum region. BPLASMA's vacuum rows live on MARS's OWN vacuum grid (namelist NV),
+        # which is NOT in general the CHEASE vacuum grid carried by RMZM_F.OUT (Ns2 = NVEQ1-1).
+        # They coincide only when NV == Ns2; overriding NV makes the counts differ. Storing the
+        # rows against the RMZM_F grid in that case would silently pair b-field values with the
+        # wrong radial coordinates, so only store when the two actually agree.
+        n_vac_rows = size(ms.b1, 1) - ns_plasma
+        n_vac_grid = length(ms.s_full) - ns_plasma
+        if n_vac_rows > 0
+            if n_vac_rows == n_vac_grid
+                vac = mode.vacuum
+                vac.grid_type.index = 24
+                vac.grid_type.name = "inverse_rhopolnorm_straight_field_line_fourier"
+                vac.grid.dim1 = ms.s_full[ns_plasma+1:end]
+                vac.grid.dim2 = ms.m_pol
+                vac.b_field_perturbed.coordinate1.real = real.(ms.b1[ns_plasma+1:end, :])
+                vac.b_field_perturbed.coordinate1.imaginary = imag.(ms.b1[ns_plasma+1:end, :])
+                vac.b_field_perturbed.coordinate2.real = real.(ms.b2[ns_plasma+1:end, :])
+                vac.b_field_perturbed.coordinate2.imaginary = imag.(ms.b2[ns_plasma+1:end, :])
+                vac.b_field_perturbed.coordinate3.real = real.(ms.b3[ns_plasma+1:end, :])
+                vac.b_field_perturbed.coordinate3.imaginary = imag.(ms.b3[ns_plasma+1:end, :])
+            else
+                @warn "BPLASMA.OUT has $n_vac_rows vacuum rows (MARS NV grid) but RMZM_F.OUT " *
+                      "provides $n_vac_grid vacuum grid points (CHEASE NVEQ1-1); these are different " *
+                      "grids, so the vacuum perturbed field is NOT stored in dd.mhd_linear " *
+                      "(the plasma region is stored normally). Set MARS NV to match to store both."
+            end
         end
     end
 
-    return actor
+    return nothing
 end
+
+
 
 
 """
@@ -646,7 +771,7 @@ function chease_normalization(dd::IMAS.DD)
 end
 
 
-function run_CHEASE(dd::IMAS.DD, par, chease_namelist)
+function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
 
     chease_exec = par.chease_exec
     @assert chease_namelist !== nothing "CHEASE namelist not initialized"
@@ -676,18 +801,39 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist)
     else
         @info "Clean CHEASE run from dd."
         # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
-        B0, R0 = write_EXPEQ_file(dd, par)
+        B0, R0 = write_EXPEQ_file(dd, par; plt)
         #CHEASE.write_EXPEQ_file(eq_chease)
         setfield!(chease_namelist, :B0EXP, B0)
         setfield!(chease_namelist, :R0EXP, R0)
     end
    
+    # Equilibrium rescaling (NCSCAL), owned by par.current_scaling — see its docstring and
+    # CHEASE manual §3.6 ("How to perform pressure scan?"). For :fixed_ip, CURRT is CHEASE's
+    # dimensionless total current and must be derived from dd's Ip; leaving it at the
+    # CHEASEnamelist default (0.3) would silently rescale the equilibrium to an unrelated
+    # current, which is precisely the setting a beta scan relies on to hold Ip.
+    if par.current_scaling == :fixed_ip
+        Ip = dd.equilibrium.time_slice[].global_quantities.ip
+        CURRT = abs(Ip / (R0 * B0 / μ_0))   # same normalization CHEASE.jl's own writer uses
+        setfield!(chease_namelist, :NCSCAL, 2)
+        setfield!(chease_namelist, :CURRT, CURRT)
+        @info "current_scaling=:fixed_ip — holding Ip=$(round(Ip/1e6; digits=4)) MA (NCSCAL=2, CURRT=$(round(CURRT; digits=6)))"
+    elseif par.current_scaling == :fixed_q
+        setfield!(chease_namelist, :NCSCAL, 1)
+        @info "current_scaling=:fixed_q — holding q=$(chease_namelist.QSPEC) at s=$(chease_namelist.CSSPEC) (NCSCAL=1); Ip will float"
+    elseif par.current_scaling == :none
+        setfield!(chease_namelist, :NCSCAL, 4)
+        @info "current_scaling=:none — no equilibrium rescaling (NCSCAL=4); neither Ip nor q is held"
+    else
+        error("Unknown current_scaling: $(par.current_scaling)")
+    end
+
     if par.num_surfaces == 1 && chease_namelist.NVEXP == 8
         @info "Overriding NVEXP in CHEASE namelist"
         NVEXP = 1
         setfield!(chease_namelist, :NVEXP, NVEXP)
     end
-    
+
     # Write CHEASE namelist file
     CHEASE.write_CHEASEnamelist(chease_namelist, "datain")
 
@@ -714,9 +860,15 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist)
     ok = success(cmd)
     ok || error("CHEASE failed — see log_chease")
 
-    # basic checks on CHEASE output
-    keys = ["GEXP", "Q_ZERO", "Q_EDGE"]
-    println(julia_grep(keys, "log_chease"))
+    # basic checks on CHEASE output. Key names below match CHEASE's own log labels
+    # (GEXP = Troyon normalized beta β_N, "Q AT 95% FLUX SURFACE" = q95, Q_ZERO/Q_EDGE
+    # = q0/q_edge); only the printed labels below are human-readable, not CHEASE's own.
+    # "TOTAL CURRENT" is picked out of CHEASE's MKSA block, so Ip comes back in Amps
+    # rather than CHEASE's normalized units — worth watching across a beta scan, since
+    # whether it stays fixed is exactly what NCSCAL controls (see run_CHEASE's NCSCAL note).
+    keys = ["GEXP", "Q_ZERO", "Q AT 95% FLUX SURFACE", "Q_EDGE", "TOTAL CURRENT"]
+    info = julia_grep(keys, "log_chease"; extract_values=true)
+    @info "CHEASE equilibrium summary" βN = get(info, "GEXP", missing) Ip_A = get(info, "TOTAL CURRENT", missing) q0 = get(info, "Q_ZERO", missing) q95 = get(info, "Q AT 95% FLUX SURFACE", missing) q_edge = get(info, "Q_EDGE", missing)
 
     return nothing
 end
@@ -916,13 +1068,22 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     mode = nothing
     if isfile("XPLASMA.OUT") && isfile("RMZM_F.OUT")
         m_pol, xi1, xi2, xi3 = read_MARS_eigenfunction("XPLASMA.OUT")
-        s, R0EXP, RM, ZM, Ns1 = read_MARS_geometry("RMZM_F.OUT")
+        s, R0EXP, RM, ZM, Ns1, s_full, B0EXP = read_MARS_geometry("RMZM_F.OUT")
         chi, R, Z = mars_flux_surface_RZ(RM, ZM, R0EXP, Ns1)
         v1 = v2 = v3 = nothing
         if isfile("VPLASMA.OUT")
             _, v1, v2, v3 = read_MARS_eigenfunction("VPLASMA.OUT")
         end
-        mode = MarsModeStructure(s, m_pol, xi1, xi2, xi3, v1, v2, v3, chi, R, Z)
+        # Perturbed magnetic field. BPLASMA.OUT has NO equilibrium block (unlike X/VPLASMA)
+        # and spans plasma+vacuum. MARS writes it B0EXP-normalized; scale to Tesla for dd.
+        b1 = b2 = b3 = nothing
+        if isfile("BPLASMA.OUT")
+            _, b1, b2, b3 = read_MARS_eigenfunction("BPLASMA.OUT"; has_equilibrium_block=false)
+            b1 .*= B0EXP
+            b2 .*= B0EXP
+            b3 .*= B0EXP
+        end
+        mode = MarsModeStructure(s, m_pol, xi1, xi2, xi3, v1, v2, v3, b1, b2, b3, s_full, chi, R, Z)
     else
         @info "XPLASMA.OUT and/or RMZM_F.OUT not found; mode structure will not be stored in dd."
     end
@@ -932,22 +1093,33 @@ end
 
 
 """
-    read_MARS_eigenfunction(filename) -> (m_pol, c1, c2, c3)
+    read_MARS_eigenfunction(filename; has_equilibrium_block=true) -> (m_pol, c1, c2, c3)
 
-Parse a MARS eigenfunction file (`XPLASMA.OUT` displacement, or `VPLASMA.OUT` velocity).
+Parse a MARS eigenfunction file (`XPLASMA.OUT` displacement, `VPLASMA.OUT` velocity, or
+`BPLASMA.OUT` perturbed magnetic field).
 
 File layout:
 
     header:       MSMAX  NRP1  RNTOR  0 0 0
     MSMAX lines:  poloidal mode number m (repeated across columns)
-    NRP1 lines:   dψ/ds (×3), T=R·Bφ (×3)   [equilibrium quantities, NOT the radial grid]
+    NRP1 lines:   dψ/ds (×3), T=R·Bφ (×3)   [equilibrium block; X/VPLASMA only]
     MSMAX×NRP1:   Re,Im of the three complex contravariant components
+
+`has_equilibrium_block` selects whether the `NRP1` equilibrium rows are present:
+`XPLASMA.OUT`/`VPLASMA.OUT` have them, **`BPLASMA.OUT` does not** — pass `false` for it.
+(Verified by line count on a real run with MSMAX=43: XPLASMA has NRP1=65 and
+1+43+65+43·65 = 2904 lines; BPLASMA has NRP1=225 and 1+43+43·225 = 9719 lines, i.e. no
+equilibrium block.)
+
+Note `NRP1` differs by file: for `X/VPLASMA` it is the plasma grid (`Ns1`), while for
+`BPLASMA` it spans plasma **and** vacuum (`Ns = Ns1 + Ns2`), since the perturbed field
+extends outside the plasma while the displacement does not.
 
 Returns the poloidal Fourier mode numbers `m_pol` (length `MSMAX`) and three complex
 matrices of size `(NRP1, MSMAX)`. The radial grid `s` is not in this file; read it from
-`RMZM_F.OUT` with [`read_MARS_sgrid`](@ref).
+`RMZM_F.OUT` with [`read_MARS_geometry`](@ref).
 """
-function read_MARS_eigenfunction(filename::AbstractString)
+function read_MARS_eigenfunction(filename::AbstractString; has_equilibrium_block::Bool=true)
     isfile(filename) || error("File not found: $filename")
     lines = readlines(filename)
 
@@ -962,7 +1134,8 @@ function read_MARS_eigenfunction(filename::AbstractString)
     c1 = Matrix{ComplexF64}(undef, NRP1, MSMAX)
     c2 = similar(c1)
     c3 = similar(c1)
-    idx = 1 + MSMAX + NRP1   # skip header + MSMAX poloidal rows + NRP1 equilibrium rows
+    # skip header + MSMAX poloidal rows (+ NRP1 equilibrium rows when present)
+    idx = 1 + MSMAX + (has_equilibrium_block ? NRP1 : 0)
     for ms in 1:MSMAX, ii in 1:NRP1
         idx += 1
         v = parse.(Float64, split(lines[idx]))
@@ -975,7 +1148,7 @@ function read_MARS_eigenfunction(filename::AbstractString)
 end
 
 """
-    read_MARS_geometry(filename="RMZM_F.OUT") -> (s, R0EXP, RM, ZM, Ns1)
+    read_MARS_geometry(filename="RMZM_F.OUT") -> (s, R0EXP, RM, ZM, Ns1, s_full, B0EXP)
 
 Read the MARS flux-surface geometry from the equilibrium file `RMZM_F.OUT`. Layout:
 
@@ -984,7 +1157,9 @@ Read the MARS flux-surface geometry from the equilibrium file `RMZM_F.OUT`. Layo
     Nm0×Ns lines:  Re,Im of R̂ₘ(s), Re,Im of Ẑₘ(s)    [R,Z Fourier harmonics, normalized by R0EXP]
 
 Returns the plasma radial grid `s` (length `Ns1=NRP1`), the normalization `R0EXP`, the
-complex R,Z Fourier harmonics `RM`/`ZM` of size `(Ns, Nm0)`, and the plasma point count `Ns1`.
+complex R,Z Fourier harmonics `RM`/`ZM` of size `(Ns, Nm0)`, the plasma point count `Ns1`,
+the full plasma+vacuum radial grid `s_full` (length `Ns`, needed for `BPLASMA.OUT` which
+spans both regions), and the field normalization `B0EXP` [T].
 """
 function read_MARS_geometry(filename::AbstractString="RMZM_F.OUT")
     isfile(filename) || error("File not found: $filename")
@@ -997,8 +1172,13 @@ function read_MARS_geometry(filename::AbstractString="RMZM_F.OUT")
     R0EXP = parse(Float64, h[4])
     Ns = Ns1 + Ns2
 
-    # plasma radial grid s = sqrt(ψ_pol_norm), column 1 of the first Ns1 rows
-    s = [parse(Float64, split(lines[1+i])[1]) for i in 1:Ns1]
+    # B0EXP: column 4 of row 2 (cross-checked against the CHEASE namelist's B0EXP)
+    B0EXP = parse(Float64, split(lines[2])[4])
+
+    # full radial grid s = sqrt(ψ_pol_norm), column 1 of the first Ns rows
+    # (first Ns1 are plasma, remaining Ns2 are vacuum)
+    s_full = [parse(Float64, split(lines[1+i])[1]) for i in 1:Ns]
+    s = s_full[1:Ns1]
 
     # R,Z Fourier harmonics: Ns rows per harmonic, Nm0 harmonics, after the Ns radial rows
     RM = Matrix{ComplexF64}(undef, Ns, Nm0)
@@ -1012,7 +1192,7 @@ function read_MARS_geometry(filename::AbstractString="RMZM_F.OUT")
         ZM[i, j] = complex(v[3], v[4])
     end
 
-    return s, R0EXP, RM, ZM, Ns1
+    return s, R0EXP, RM, ZM, Ns1, s_full, B0EXP
 end
 
 """
@@ -1333,7 +1513,7 @@ end
         NWBPS: Number of wall boundary points
         NSTTP: Number of steps in pressure and current profiles
 """
-function write_EXPEQ_file(dd::IMAS.DD, par)
+function write_EXPEQ_file(dd::IMAS.DD, par; plt=nothing)
 
     offset = par.offset  # offset for first wall (RW) in meters
     n_points = par.n_points  # number of points for first wall (RW)
@@ -1436,9 +1616,10 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
     r_bound_norm = rb_new / R0
     z_bound_norm = zb_new / R0
 
-    # Overlay onto subplot 1 (the R,Z flux-contour panel) of the "before CHEASE" equilibrium
-    # figure already created in _step, via Plots.jl's current-plot state — not a separate figure.
-    par.do_plot && display(plot!(rb_new, zb_new; subplot=1, linewidth=3., aspect_ratio=:equal, label="Plasma Boundary"))
+    # Overlay onto subplot 1 (the R,Z flux-contour panel) of the "before CHEASE" figure
+    # created in _step, using the handle passed in — not a separate figure, and not
+    # Plots.jl's implicit current-plot state. _step display()s the finished figure once.
+    plt !== nothing && plot!(plt, rb_new, zb_new; subplot=1, linewidth=3., aspect_ratio=:equal, label="Plasma Boundary")
 
     @assert length(rb_new) == length(zb_new) "R,Z boundary arrays must have the same shape"
 
@@ -1463,7 +1644,7 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
         r_lim_norm = r_lim / R0
         z_lim_norm = z_lim / R0
 
-        par.do_plot && display(plot!(r_lim, z_lim; subplot=1, linewidth=1.5, aspect_ratio=:equal, label="MARS resistive wall"))
+        plt !== nothing && plot!(plt, r_lim, z_lim; subplot=1, linewidth=1.5, aspect_ratio=:equal, label="MARS resistive wall")
     end
   
     # write to EXPEQ file
@@ -1552,9 +1733,24 @@ function julia_grep(
     open(filename, "r") do file
         for line in eachline(file)
             for key in patterns
-                # standalone KEY = value
-                pattern = Regex("\\b$(key)\\b\\s*=\\s*([^,\\s]+)")
-                if (m = match(pattern, line)) !== nothing
+                # CHEASE's MKSA conversion block: "<normalized> KEY --> [unit]  <SI value>"
+                # e.g. "5.05545352E-01 TOTAL CURRENT --> [A]     1.16573401E+06".
+                # Captures the SI value on the right, not the normalized one on the left.
+                # Tried FIRST, since vk_pattern below would otherwise grab the leading
+                # normalized number off the same line.
+                mksa_pattern = Regex("$(key)\\s*-->\\s*\\[[^\\]]*\\]\\s*([+-]?[0-9.]+(?:[EeDd][+-]?[0-9]+)?)")
+                # "KEY = value", allowing arbitrary text (e.g. a units annotation like
+                # "GEXP  (MA,T,M)          =   9.72519208E-02") between the key and "="
+                kv_pattern = Regex("\\b$(key)\\b.*?=\\s*([^,\\s]+)")
+                # "value KEY", no equals sign (e.g. CHEASE's "1.71317951E+00 Q_ZERO",
+                # written as WRITE(IUNIT,9101) Q0,' Q_ZERO' — value precedes the label)
+                vk_pattern = Regex("([+-]?[0-9.]+(?:[EeDd][+-]?[0-9]+)?)\\s+$(key)\\b")
+
+                m = match(mksa_pattern, line)
+                m === nothing && (m = match(kv_pattern, line))
+                m === nothing && (m = match(vk_pattern, line))
+
+                if m !== nothing
                     raw = strip(m.captures[1])
 
                     if (v = tryparse(Int, raw)) !== nothing
@@ -1611,3 +1807,81 @@ function extract_lines_for_keys(
 end
 
 
+#= ======== =#
+#  plotting  #
+#= ======== =#
+
+"""
+    _harmonic_profile_series(pl, quantity::Symbol) -> (s, m_pol, Q) or nothing
+
+Pull one eigenmode quantity off `mode.plasma` as complex harmonics `Q[s, m]`, together with
+its radial grid and poloidal mode numbers. `nothing` when that quantity was not stored.
+
+- `:xi`      -> perpendicular displacement ξ⊥ [m]
+- `:vnormal` -> perturbed velocity, radial (contravariant coordinate1) [m/s]
+- `:bnormal` -> perturbed magnetic field, radial (contravariant coordinate1) [T]
+"""
+function _harmonic_profile_series(pl, quantity::Symbol)
+    field, label = if quantity === :xi
+        pl.displacement_perpendicular, "|ξ⊥_m|  [m]"
+    elseif quantity === :vnormal
+        ismissing(pl.velocity_perturbed.coordinate1, :real) && return nothing
+        pl.velocity_perturbed.coordinate1, "|v¹_m|  [m/s]"
+    elseif quantity === :bnormal
+        ismissing(pl.b_field_perturbed.coordinate1, :real) && return nothing
+        pl.b_field_perturbed.coordinate1, "|b¹_m|  [T]"
+    else
+        error("quantity must be :xi, :vnormal or :bnormal, got :$quantity")
+    end
+    ismissing(field, :real) && return nothing
+
+    Q = field.real .+ im .* field.imaginary
+    return pl.grid.dim1, pl.grid.dim2, Q, label
+end
+
+"""
+    plot(actor::ActorMars; quantity=:xi, m_max=nothing, mode_index=1)
+
+Poloidal-harmonic profiles of a MARS eigenmode: `|Q_m|` versus the radial coordinate
+`s = sqrt(ψ_norm)`, one line per poloidal mode number `m`.
+
+This is the spectral counterpart to `plot(dd.mhd_linear)`, which draws the same mode as an
+R,Z cross-section instead.
+
+Keyword arguments:
+- `quantity`   : `:xi` (displacement ξ⊥), `:vnormal` (v¹), or `:bnormal` (b¹)
+- `m_max`      : only harmonics with `m < m_max` are drawn; defaults to `par.m_max_plot`.
+                 Follows the Python pipeline's `m_max` convention rather than MATLAB's
+                 fixed `m=1:5` list, so it adapts to runs with differing harmonic content.
+- `mode_index` : which `toroidal_mode` to plot (default 1)
+"""
+@recipe function plot_ActorMars(actor::ActorMars; quantity=:xi, m_max=nothing, mode_index=1)
+    par = actor.par
+    dd = actor.dd
+
+    @assert !isempty(dd.mhd_linear.time_slice) "No MARS results in dd.mhd_linear — was run_MHD=true?"
+    mode = dd.mhd_linear.time_slice[].toroidal_mode[mode_index]
+    pl = mode.plasma
+
+    got = _harmonic_profile_series(pl, quantity)
+    @assert got !== nothing ":$quantity is not stored in dd.mhd_linear for this run " *
+                            "(bnormal needs BPLASMA.OUT, vnormal needs VPLASMA.OUT)"
+    s, m_pol, Q, ylab = got
+
+    mmax = m_max === nothing ? par.m_max_plot : m_max
+    keep = findall(m -> m < mmax, m_pol)
+    @assert !isempty(keep) "No harmonics with m < $mmax (available m: $(extrema(m_pol)))"
+
+    xguide --> "s = √ψ_norm"
+    yguide --> ylab
+    title --> "$(quantity) harmonics (m < $mmax), n=$(mode.n_tor)"
+    legend --> :outerright
+    grid --> true
+
+    for k in keep
+        @series begin
+            label := "m=$(Int(m_pol[k]))"
+            s, abs.(Q[:, k])
+        end
+    end
+end
