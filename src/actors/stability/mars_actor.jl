@@ -316,7 +316,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "chease_overrides). :none (NCSCAL=4) applies no scaling, so neither Ip nor q is held. " *
         "NOTE: the manual's fix-qmin variant (NQMIN=1, which auto-locates CSSPEC at the q " *
         "minimum) is not reachable — NQMIN is absent from CHEASE.jl's CHEASEnamelist, so " *
-        "write_CHEASEnamelist cannot emit it."; default=:fixed_ip)
+        "write_CHEASEnamelist cannot emit it."; default=:none)
     beta_fac::Entry{Float64} = Entry{Float64}("-",
         "Sets CHEASE's CFBAL namelist parameter directly (rescales pressure gradient/edge pressure in " *
         "the EXPEQ.OUT this run writes out). NOTE: CFBAL only affects EXPEQ.OUT, not the equilibrium this " *
