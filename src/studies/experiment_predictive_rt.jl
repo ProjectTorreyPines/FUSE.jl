@@ -135,29 +135,29 @@ function run_predictive_rt_case!(
 
     # keep aside the dd with experimental data
     IMAS.fill!(dd_exp, dd)
-
     # identify LH transitions
-    #@info "LH_analysis"
+    @info "LH_analysis"
     #experiment_LH = FUSE.LH_analysis(dd; do_plot=false)
 
+    # LH-transition at user-defined times
+    #act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
+
     act.ActorPedestal.model = :dynamic
-    act.ActorPedestal.tau_n = 0.3 #experiment_LH.tau_n 
-    act.ActorPedestal.tau_t = 0.15 #experiment_LH.tau_t
+    act.ActorPedestal.tau_n = 0.3 #experiment_LH.tau_n # 0.3
+    act.ActorPedestal.tau_t = 0.15 #experiment_LH.tau_t # 0.15
     act.ActorEPED.ped_factor = 0.8
     act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
     act.ActorWPED.ped_to_core_fraction = missing
 
     # ZMQ coupling to GSLite/GSEvolve
-    act.ActorZMQ.enabled = false
-    act.ActorPedestal.fpe_source = :dd # :zmq
+    act.ActorZMQ.enabled = false # true
+    act.ActorPedestal.fpe_source = :dd #:zmq # dd
     act.ActorPedestal.ne_from = :nn_predictor  #:pulse_schedule 
+    act.ActorPedestal.nn_ped_quantities = :ne_lh # :ne_lh (ne_ped + L/H only, Te/Ti from EPED/WPED) or :all (also apply NN te_ped, ti_ped, rotation)
 
     # density and Zeff from experiment
     act.ActorPedestal.density_ratio_L_over_H = 1.0
     act.ActorPedestal.zeff_ratio_L_over_H = 1.0
-
-    # LH-transition at user-defined times
-    #act.ActorPedestal.mode_transitions = experiment_LH.mode_transitions
 
     act.ActorEquilibrium.model = :FRESCO
     act.ActorFRESCO.nR = 65
@@ -178,13 +178,13 @@ function run_predictive_rt_case!(
 
 
     # FINN transport — replaces FluxMatcher + TGLF
-    act.ActorCoreTransport.model = :FINN
-    act.ActorFINN.finn_model = "finn_sat3_d3d_withnegD"
-    act.ActorFINN.rho_transport = 0.1:0.025:0.85
-    act.ActorFINN.warn_nn_train_bounds = false
+    #act.ActorCoreTransport.model = :FINN
+    #act.ActorFINN.finn_model = "finn_sat3_d3d_withnegD"
+    #act.ActorFINN.rho_transport = 0.1:0.025:0.85
+    #act.ActorFINN.warn_nn_train_bounds = false
 
-    #act.ActorTGLF.model = :GKNN
-    #act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
+    act.ActorTGLF.model = :TGLFNN
+    act.ActorTGLF.tglfnn_model = "sat3_em_d3d_azf-1_withnegD"
 
     act.ActorPedestal.rotation_model = :replay
 
@@ -261,10 +261,10 @@ function run_predictive_rt_case!(
         act.ActorReplay.replay_dd = tmp
 
         #@info "StudyPostdictive: save dd_sim.json"
-        #IMAS.imas2json(dd, joinpath(savedir, "dd_sim.json"))
+        IMAS.imas2json(dd, joinpath(savedir, "dd_sim.json"))
 
         #@info "StudyPostdictive: save dd_exp.json"
-        #IMAS.imas2json(dd_exp, joinpath(savedir, "dd_exp.json"))
+        IMAS.imas2json(dd_exp, joinpath(savedir, "dd_exp.json"))
 
         @info "save dd_benchmark.json"
         IMAS.imas2json(bnch.dd, joinpath(savedir, "dd_benchmark.json"))

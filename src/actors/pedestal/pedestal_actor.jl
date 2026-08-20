@@ -31,6 +31,10 @@
     zeff_ratio_L_over_H::Entry{T} = Entry{T}("-", "zeff_Lmode / zeff_Hmode")
     #== nn_predictor FPE source ==#
     fpe_source::Switch{Symbol} = Switch{Symbol}([:zmq, :dd], "-", "Source of FPE actuator inputs for nn_predictor: `:zmq` (from ActorZMQ via dd._aux) or `:dd` (directly from dd fields, no ZMQ required)"; default=:zmq)
+    nn_ped_quantities::Switch{Symbol} = Switch{Symbol}(
+        [:ne_lh, :all], "-",
+        "NN predictor outputs to apply: `:ne_lh` (ne_ped and L/H classification only, Te/Ti from EPED/WPED) or `:all` (ne_ped, te_ped, ti_ped, and rotation from NN)";
+        default=:ne_lh)
     #== display and debugging parameters ==#
     do_plot::Entry{Bool} = act_common_parameters(; do_plot=false)
 end
@@ -157,12 +161,26 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
         history = mse_history_from_aux(dd, actor.nn_predictor)
         actor.nn_prediction = predict_pedestal(actor.nn_predictor; sequences, signal_mask, history)
     end
-
     if !ismissing(par, :mode_transitions)
         causal_transition_time = IMAS.nearest_causal_time(sort!(collect(keys(par.mode_transitions))), dd.global_time).causal_time
         mode = par.mode_transitions[causal_transition_time]
     elseif par.ne_from == :nn_predictor && actor.nn_prediction !== nothing
-        mode = actor.nn_prediction.is_h_mode ? :H_mode : :L_mode
+        @info "t = $(dd.global_time) s | hmode_prob = $(actor.nn_prediction.hmode_prob)"
+        nn_mode = actor.nn_prediction.hmode_prob >= 0.35f0 ? :H_mode : :L_mode
+        # Persist raw NN predictions in dd._aux so history survives actor recreation
+        if !haskey(dd._aux, :nn_mode_history)
+            dd._aux[:nn_mode_history] = Symbol[]
+        end
+        push!(dd._aux[:nn_mode_history], nn_mode)
+        history = dd._aux[:nn_mode_history]
+        N = 2
+        previous_mode = haskey(dd._aux, :nn_decided_mode) ? dd._aux[:nn_decided_mode] : nn_mode
+        if length(history) >= N && all(s == nn_mode for s in history[end-N+1:end])
+            mode = nn_mode
+        else
+            mode = previous_mode
+        end
+        dd._aux[:nn_decided_mode] = mode
     elseif IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=1.2)
         mode = :H_mode
     elseif !IMAS.satisfies_h_mode_conditions(dd; threshold_multiplier=0.8)
@@ -209,6 +227,7 @@ function _step(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
                 actor.t_lh = -Inf
                 actor.t_hl = -Inf
                 actor.cp1d_transition = deepcopy(cp1d)
+                # save initial L-mode ratio for use in future H→L back-transitions
 
             elseif length(actor.state) >= 2 && actor.state[end-1:end] == [:L_mode, :H_mode]
                 # L to H
@@ -505,9 +524,9 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.DD; T::Integer=20
         # dd path: read FPE inputs directly from dd fields (no ZMQ required)
         t_now = dd.global_time
 
-        # ip
+        # ip — use abs to match ZMQ/training convention (PCS reports unsigned Ip)
         if !isempty(dd.equilibrium.time_slice)
-            _set_channel!("ip", dd.equilibrium.time_slice[].global_quantities.ip)
+            _set_channel!("ip", abs(dd.equilibrium.time_slice[].global_quantities.ip))
         end
 
         # pohm — from core_sources ohmic source
@@ -539,7 +558,28 @@ function build_fpe_sequences_from_aux(nn::PedestalNN, dd::IMAS.DD; T::Integer=20
             _set_channel!("ech_total", Pech / 1e6)
         end
 
-        # ipspr15v, gasa..gase_cal, ecoila, ecoilb, f1a..f9b — not available from dd; fall back to training mean
+        # coil currents from dd.pf_active — map uppercase dd names to lowercase NN channel names
+        coil_name_map = Dict(
+            "ECOILA" => "ecoila", "ECOILB" => "ecoilb",
+            "F1A" => "f1a", "F2A" => "f2a", "F3A" => "f3a", "F4A" => "f4a", "F5A" => "f5a",
+            "F6A" => "f6a", "F7A" => "f7a", "F8A" => "f8a", "F9A" => "f9a",
+            "F1B" => "f1b", "F2B" => "f2b", "F3B" => "f3b", "F4B" => "f4b", "F5B" => "f5b",
+            "F6B" => "f6b", "F7B" => "f7b", "F8B" => "f8b", "F9B" => "f9b"
+        )
+        for coil in dd.pf_active.coil
+            ch_name = get(coil_name_map, coil.name, nothing)
+            ch_name === nothing && continue
+            if !ismissing(coil.current, :data) && !isempty(coil.current.data)
+                turns = isempty(coil.element) ? 1.0 : coil.element[1].turns_with_sign
+                v = IMAS.interp1d(coil.current.time, coil.current.data, :linear)(t_now) / turns
+                _set_channel!(ch_name, v)
+            end
+        end
+        # ipspr15v — approximated as 2 * ip [MA]
+        if !isempty(dd.equilibrium.time_slice)
+            _set_channel!("ipspr15v", abs(dd.equilibrium.time_slice[].global_quantities.ip) * 2e-6)
+        end
+        # gasa..gase_cal — not available from dd; fall back to training mean
 
     else
         # zmq path: read FPE inputs from dd._aux populated by ActorZMQ.receive!
@@ -622,6 +662,19 @@ function pedestal_nn_apply!(actor::ActorPedestal)
     nn = actor.nn_prediction
     (par.ne_from == :nn_predictor && nn !== nothing) || return actor
 
+    # NN regression bundles (te_ped, ti_ped) are trained on H-mode data only.
+    # Applying their outputs during L-mode creates an artificial steep pedestal.
+    # Skip te/ti overwrite when in L-mode — WPED already gives the correct flat profile.
+    is_h_mode = !isempty(actor.state) && actor.state[end] == :H_mode
+    if !is_h_mode
+        return actor
+    end
+
+    # When :ne_lh, Te/Ti/rotation come from EPED/WPED; NN used only for ne_ped and L/H.
+    if par.nn_ped_quantities == :ne_lh
+        return actor
+    end
+
     cp1d = actor.dd.core_profiles.profiles_1d[]
     rho = cp1d.grid.rho_tor_norm
     rho09 = 0.9
@@ -643,7 +696,6 @@ function pedestal_nn_apply!(actor::ActorPedestal)
         Te[end] = par.Te_sep
         Te = IMAS.blend_core_edge_Hmode(Te, rho, Te_ped_eV, w_ped, par.rho_nml, par.rho_ped; method=:scale)
         cp1d.electrons.temperature = IMAS.ped_height_at_09(rho, Te, Te_ped_eV)
-        @info "ActorPedestal: nn_predictor Te_ped = $(round(Te_ped_keV; digits=3)) keV"
     end
 
     Ti_ped_keV = _trace_mean(nn.ti_ped)
@@ -658,7 +710,6 @@ function pedestal_nn_apply!(actor::ActorPedestal)
                 ion.temperature = IMAS.ped_height_at_09(rho, Ti, Ti_ped_eV)
             end
         end
-        @info "ActorPedestal: nn_predictor Ti_ped = $(round(Ti_ped_keV; digits=3)) keV"
     end
 
     # rotation_frequency_tor can be negative, so we cannot use blend_core_edge_Hmode
@@ -710,6 +761,9 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
         # Here we convert the desirred pulse_schedule ne_line to ne_ped
         @assert par.ne_from in (:pulse_schedule, :nn_predictor) ":ne_line density_match requires ne_from ∈ (:pulse_schedule, :nn_predictor)"
 
+        # save original ne_from so we can restore it (not hardcode :pulse_schedule)
+        original_ne_from = par.ne_from
+
         # run pedestal model on scaled density
         par.ne_from = :core_profiles
         pedestal_density_tanh(dd, par; density_factor=1.0, zeff_factor, nn_prediction=actor.nn_prediction)
@@ -739,7 +793,7 @@ function run_selected_pedestal_model(actor::ActorPedestal; density_factor::Float
             finalize(step(actor.ped_actor))
 
         finally
-            par.ne_from = :pulse_schedule
+            par.ne_from = original_ne_from
         end
 
     else

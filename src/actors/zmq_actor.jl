@@ -114,7 +114,7 @@ function connect!(actor::ActorZMQ)
     @info "ActorZMQ: connecting to $(actor.par.endpoint)"
     ctx = ZMQ.Context()
     sock = ZMQ.Socket(ctx, ZMQ.REQ)
-    ZMQ.setsockopt(sock, ZMQ.RCVTIMEO, actor.par.timeout_ms)
+    sock.rcvtimeo = actor.par.timeout_ms
     ZMQ.connect(sock, string(actor.par.endpoint))
     actor.context = ctx
     actor.socket = sock
@@ -309,7 +309,7 @@ function receive!(actor::ActorZMQ)
         if !isempty(msg.r_grid) && !isempty(msg.z_grid)
             p2d.grid.dim1 = msg.r_grid
             p2d.grid.dim2 = msg.z_grid
-        elseif isempty(p2d.grid.dim1)
+        elseif ismissing(p2d.grid, :dim1)
             # Default DIII-D 33×33 grid (GSLite does not send r_grid/z_grid)
             p2d.grid.dim1 = collect(range(0.84, 2.54, length=33))
             p2d.grid.dim2 = collect(range(-1.6, 1.6, length=33))
