@@ -315,6 +315,53 @@ function _cached_pedestal_nn(dir::AbstractString, only)
     return nn
 end
 
+
+# ---------------------------------------------------------------------------
+# ONNX Runtime thread cap.
+#
+# `ONNXRunTime.load_inference` creates the session with default options, so the
+# intra-op pool gets one thread per *host* core with per-core affinity. Inside a
+# container / Slurm cpuset that is fatal: on a 128-core omega node with a 32-CPU
+# cpuset every pthread_setaffinity_np outside the set fails (EINVAL, ~1000 log
+# lines) and the session hung the coupled run; on a 256-thread Perlmutter node
+# it is a 256-thread pool per model for a handful of tiny inferences. Cap the
+# pool (FUSE_ONNX_THREADS, default min(Threads.nthreads(), 8)); with an explicit
+# thread count ORT does not apply affinities.
+# ---------------------------------------------------------------------------
+const ONNX_THREADS_ENV = "FUSE_ONNX_THREADS"
+
+function _ort_threads()
+    n = tryparse(Int, get(ENV, ONNX_THREADS_ENV, ""))
+    return n === nothing ? max(1, min(Threads.nthreads(), 8)) : max(1, n)
+end
+
+# separate function: an interpolated-pointer @ccall inside try/catch trips Julia's lowering
+function _set_intra_op_threads!(api, session_options, n::Integer)
+    status = @ccall $(api.SetIntraOpNumThreads)(session_options::Ptr{Cvoid}, Cint(n)::Cint)::Ptr{Cvoid}
+    ONNXRunTime.CAPI.check_and_release(api, status)
+    return nothing
+end
+
+function _load_inference_capped(path::AbstractString; threads::Int=_ort_threads())
+    ORT = ONNXRunTime
+    try
+        api = ORT.GetApi(; execution_provider=:cpu)
+        env = ORT.CAPI.CreateEnv(api; name="defaultenv", logging_level=ORT.parse_logging_level(:warning))
+        so = ORT.CAPI.CreateSessionOptions(api)
+        _set_intra_op_threads!(api, so, threads)
+        session = ORT.CAPI.CreateSession(api, env, path, so)
+        meminfo = ORT.CAPI.CreateCpuMemoryInfo(api)
+        allocator = ORT.CAPI.CreateAllocator(api, session, meminfo)
+        ins = ORT.input_names(api, session, allocator)
+        outs = ORT.output_names(api, session, allocator)
+        @debug "PedestalNN: ONNX session for $(basename(path)) with $threads intra-op thread(s)"
+        return ORT.InferenceSession(api, :cpu, session, meminfo, allocator, ins, outs)
+    catch e
+        @warn "PedestalNN: could not create a thread-capped ONNX session (ONNXRunTime.jl API changed?); falling back to load_inference with default threading" exception = e
+        return ORT.load_inference(path)
+    end
+end
+
 function _load_bundle(slug::AbstractString, bdir::AbstractString)
     cfg_path = joinpath(bdir, "model_config.json")
     norm_path = joinpath(bdir, "normalization_params.json")
@@ -368,8 +415,8 @@ function _load_bundle(slug::AbstractString, bdir::AbstractString)
         default_threshold = Float32(get(cfg, "default_threshold", 0.5))
     end
 
-    mse = ONNXRunTime.load_inference(mse_path)
-    fpe = ONNXRunTime.load_inference(fpe_path)
+    mse = _load_inference_capped(mse_path)
+    fpe = _load_inference_capped(fpe_path)
 
     return PedestalNNBundle(
         String(slug), task, String(cfg["target_name"]), dsv, expected_width,

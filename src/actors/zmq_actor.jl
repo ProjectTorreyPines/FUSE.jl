@@ -198,8 +198,24 @@ function receive!(actor::ActorZMQ)
 
     @info "ActorZMQ: received data at sim_time=$(msg.sim_time) s"
 
-    # --- Sync FUSE clock to GSLite ---
-    dd.global_time = msg.sim_time
+    # --- Clock: ActorDynamicPlasma owns dd.global_time (its δt grid and the
+    # time slices it creates). GSLite's sim_time carries the PCS cycle jitter
+    # (it syncs when sim_time >= next_sync_time, e.g. 1.10005 for 1.1) and
+    # overwriting global_time with it breaks IMAS time-slice bookkeeping
+    # ("cannot resize ... already ranges"). Record GSLite's time and the drift
+    # instead; warn when the two clocks diverge by more than half a sync step.
+    aux = getfield(dd, :_aux)
+    if :zmq_sim_time ∉ keys(aux)
+        aux[:zmq_sim_time] = (times=Float64[], values=Float64[])
+    end
+    push!(aux[:zmq_sim_time].times, dd.global_time)
+    push!(aux[:zmq_sim_time].values, msg.sim_time)
+    # receive! runs at phase-1 start (time0 = t + δt/2) while GSLite syncs on its
+    # own DT_FUSE grid, so a half-step offset is normal; warn beyond a full step.
+    drift = msg.sim_time - dd.global_time
+    if abs(drift) > 0.05
+        @warn "ActorZMQ: GSLite sim_time=$(msg.sim_time) s differs from FUSE time $(dd.global_time) s by $(round(drift; digits=5)) s"
+    end
 
     # --- Check for end-of-simulation signal from GSLite ---
     if msg.done
@@ -209,15 +225,20 @@ function receive!(actor::ActorZMQ)
     end
 
     # --- Update Ip in pulse_schedule so QED/FRESCO pick it up ---
-    if msg.has_Ip_latest
+    # A message whose psizr is all zeros AND whose Ip is exactly zero carries no
+    # equilibrium data (GSLite y_gs outputs not populated); keep FUSE's own
+    # pulse schedule rather than driving FRESCO to a zero-current solve.
+    gs_has_eq = !isempty(msg.psizr) && !all(iszero, msg.psizr)
+    if msg.has_Ip_latest && (gs_has_eq || msg.Ip_latest != 0.0)
         ps_fc = dd.pulse_schedule.flux_control
         IMAS.set_time_array(ps_fc.i_plasma, :reference, dd.global_time, msg.Ip_latest)
+    elseif msg.has_Ip_latest
+        @warn "ActorZMQ: GSLite sent Ip_latest=0 with an empty psizr at t=$(dd.global_time) s — keeping FUSE's pulse_schedule Ip"
     end
 
     # --- Store auxiliary signals for NN ne predictor ---
     # Uses dd._aux (same pattern as FUSE workflow/logging metadata)
     # Stored as (times=Float64[], values=...) parallel vectors to avoid Float64 dict keys
-    aux = getfield(dd, :_aux)
     if msg.has_Ip_avg
         if :zmq_Ip_avg ∉ keys(aux)
             aux[:zmq_Ip_avg] = (times=Float64[], values=Float64[])
@@ -305,49 +326,100 @@ function receive!(actor::ActorZMQ)
         end
         p2d = eqt.profiles_2d[1]
 
-        # Resolve grid: prefer the wire grid; fall back to the cached dd grid.
+        # Resolve the grid into locals (the slice is only modified once the psizr
+        # proved usable): prefer the wire grid; else the dd grid if it matches the
+        # payload; else GSLite's fixed DIII-D 33×33 grid (gslite_config.h NR/NZ —
+        # after init!/FRESCO the dd carries e.g. 65×65, so the sizes disagree).
         if !isempty(msg.r_grid) && !isempty(msg.z_grid)
-            p2d.grid.dim1 = msg.r_grid
-            p2d.grid.dim2 = msg.z_grid
-        elseif ismissing(p2d.grid, :dim1)
-            # Default DIII-D 33×33 grid (GSLite does not send r_grid/z_grid)
-            p2d.grid.dim1 = collect(range(0.84, 2.54, length=33))
-            p2d.grid.dim2 = collect(range(-1.6, 1.6, length=33))
+            dim1 = collect(Float64, msg.r_grid)
+            dim2 = collect(Float64, msg.z_grid)
+        elseif !ismissing(p2d.grid, :dim1) && !ismissing(p2d.grid, :dim2) &&
+               length(p2d.grid.dim1) * length(p2d.grid.dim2) == length(psizr_flat)
+            dim1 = p2d.grid.dim1
+            dim2 = p2d.grid.dim2
+        else
+            dim1 = collect(range(0.84, 2.54, length=33))
+            dim2 = collect(range(-1.6, 1.6, length=33))
         end
-        nR = length(p2d.grid.dim1)
-        nZ = length(p2d.grid.dim2)
+        nR = length(dim1)
+        nZ = length(dim2)
         if length(psizr_flat) != nR * nZ
             error("ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ) — check GSLite vs FUSE grid agreement")
         end
         psi_rz = reshape(psizr_flat, nR, nZ)  # GSLite stores column-major (R varies fastest)
-        p2d.psi = psi_rz
-        p2d.grid_type.index = 1  # rectangular grid
 
-        rgrid = range(p2d.grid.dim1[1], p2d.grid.dim1[end], length=length(p2d.grid.dim1))
-        zgrid = range(p2d.grid.dim2[1], p2d.grid.dim2[end], length=length(p2d.grid.dim2))
+        rgrid = range(dim1[1], dim1[end], length=nR)
+        zgrid = range(dim2[1], dim2[end], length=nZ)
         fw_r, fw_z = IMAS.first_wall(dd.wall)
 
-        if !actor.had_psizr
-            # First step: full flux_surfaces (Method 2) to get all 1D profiles for QED
-            # First find axis and boundary from psizr (Method 1)
-            PSI_itp = Interpolations.cubic_spline_interpolation(
-                (rgrid, zgrid), psi_rz;
-                extrapolation_bc=Interpolations.Line())
-            psi_sign = sign(PSI_itp(rgrid[1], zgrid[1]) - PSI_itp((rgrid[1]+rgrid[end])/2, (zgrid[1]+zgrid[end])/2))
-            axis_result = IMAS.find_magnetic_axis(rgrid, zgrid, PSI_itp, psi_sign)
-            Ψaxis = PSI_itp(axis_result.RA, axis_result.ZA)
-            axis2bnd = psi_sign > 0 ? :increasing : :decreasing
-            psi_bnd = IMAS.find_psi_boundary(
-                rgrid, zgrid, psi_rz, Ψaxis, axis2bnd, axis_result.RA, axis_result.ZA, fw_r, fw_z;
-                raise_error_on_not_open=false, raise_error_on_not_closed=false)
-            Ψbnd = psi_bnd.last_closed
+        if all(iszero, psizr_flat)
+            # seen with GSLite gslite_oop: y_gs psizr entries not populated
+            @warn "ActorZMQ: GSLite sent an all-zero psizr at t=$(dd.global_time) s — keeping the previous equilibrium for this step"
+            @goto psizr_done
+        end
 
-            # Set up 1D seed arrays for flux_surfaces
+        # Axis and boundary from psizr (Method 1) — shared by both branches
+        PSI_itp = Interpolations.cubic_spline_interpolation(
+            (rgrid, zgrid), psi_rz;
+            extrapolation_bc=Interpolations.Line())
+        psi_sign = sign(PSI_itp(rgrid[1], zgrid[1]) - PSI_itp((rgrid[1]+rgrid[end])/2, (zgrid[1]+zgrid[end])/2))
+        axis_result = IMAS.find_magnetic_axis(rgrid, zgrid, PSI_itp, psi_sign)
+        Ψaxis = PSI_itp(axis_result.RA, axis_result.ZA)
+        axis2bnd = psi_sign > 0 ? :increasing : :decreasing
+        psi_bnd = IMAS.find_psi_boundary(
+            rgrid, zgrid, psi_rz, Ψaxis, axis2bnd, axis_result.RA, axis_result.ZA, fw_r, fw_z;
+            raise_error_on_not_open=false, raise_error_on_not_closed=false)
+        # GSLite can legitimately send a psizr with no closed flux surface inside the
+        # wall (breakdown, early ramp-up, limiter transitions). Prefer the last closed
+        # surface, fall back to the first open one, otherwise keep the previous
+        # equilibrium for this step instead of aborting the coupled run.
+        Ψbnd = psi_bnd.last_closed === nothing ? psi_bnd.first_open : psi_bnd.last_closed
+
+        if Ψbnd === nothing
+            # leave the slice untouched (grid, psi and the derived 2-D fields stay consistent)
+            @warn "ActorZMQ: no closed or open flux surface found in psizr at t=$(dd.global_time) s — keeping the previous equilibrium for this step" Ψaxis axis_R = axis_result.RA axis_Z = axis_result.ZA psi_extrema = extrema(psi_rz) psi_sign
+            # FUSE_ZMQ_DEBUG_DIR: dump the offending psizr for offline analysis
+            dbg = get(ENV, "FUSE_ZMQ_DEBUG_DIR", "")
+            if !isempty(dbg)
+                try
+                    mkpath(dbg)
+                    open(joinpath(dbg, "zmq_psizr_nobnd_t$(round(dd.global_time; digits=4)).json"), "w") do io
+                        print(io, "{\"time\":", dd.global_time, ",\"r\":", collect(rgrid), ",\"z\":", collect(zgrid),
+                              ",\"psizr\":", psizr_flat, ",\"wall_r\":", fw_r, ",\"wall_z\":", fw_z, "}")
+                    end
+                catch e
+                    @warn "ActorZMQ: could not write psizr debug dump" exception = e
+                end
+            end
+        else
+            # Commit GSLite's psi on its grid. Stored 2-D fields derived from the old psi
+            # (phi, b_field_*, j_tor from FRESCO) are dropped so they are recomputed:
+            # flux_surfaces rewrites phi on the first step, the others are expressions.
+            p2d.grid.dim1 = dim1
+            p2d.grid.dim2 = dim2
+            p2d.psi = psi_rz
+            p2d.grid_type.index = 1  # rectangular grid
+            for f in (:phi, :b_field_r, :b_field_z, :b_field_tor, :j_tor, :j_parallel, :theta)
+                if IMAS.hasdata(p2d, f)
+                    empty!(p2d, f)
+                end
+            end
+        end
+
+        if Ψbnd === nothing
+            nothing
+        elseif !actor.had_psizr
+            # First step: full flux_surfaces (Method 2) to get all 1D profiles for QED.
+            # Set up 1D seed arrays for flux_surfaces. After init!/FRESCO the slice
+            # already carries 1D profiles (e.g. 65 points): keep that length so the
+            # stored arrays flux_surfaces reads (dpressure_dpsi, …) stay consistent
+            # with the new psi, and reset the pressure gradient together with pressure.
             eqt1d = eqt.profiles_1d
-            n_psi = 101
+            n_psi = ismissing(eqt1d, :psi) ? 101 : length(eqt1d.psi)
             eqt1d.psi = collect(range(Ψaxis, Ψbnd, length=n_psi))
             eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
             eqt1d.pressure = zeros(n_psi)
+            eqt1d.dpressure_dpsi = zeros(n_psi)
             eqt1d.f_df_dpsi = zeros(n_psi)
 
             # Set global quantities
@@ -358,22 +430,10 @@ function receive!(actor::ActorZMQ)
 
             # Run full flux_surfaces to get all 1D profiles (gm1, gm9, q, volume, etc.)
             IMAS.flux_surfaces(eqt, fw_r, fw_z)
+            actor.had_psizr = true
             @info "ActorZMQ: first step — full flux_surfaces from psizr ($(nR)×$(nZ))"
         else
             # Subsequent steps: extract boundary only (Method 1), FRESCO handles the rest
-            PSI_itp = Interpolations.cubic_spline_interpolation(
-                (rgrid, zgrid), psi_rz;
-                extrapolation_bc=Interpolations.Line())
-            psi_sign = sign(PSI_itp(rgrid[1], zgrid[1]) - PSI_itp((rgrid[1]+rgrid[end])/2, (zgrid[1]+zgrid[end])/2))
-            axis_result = IMAS.find_magnetic_axis(rgrid, zgrid, PSI_itp, psi_sign)
-            Ψaxis = PSI_itp(axis_result.RA, axis_result.ZA)
-            axis2bnd = psi_sign > 0 ? :increasing : :decreasing
-            psi_bnd = IMAS.find_psi_boundary(
-                rgrid, zgrid, psi_rz, Ψaxis, axis2bnd, axis_result.RA, axis_result.ZA, fw_r, fw_z;
-                raise_error_on_not_open=false, raise_error_on_not_closed=false)
-            Ψbnd = psi_bnd.last_closed
-
-            # Trace LCFS boundary
             psi_levels = Float64[Ψaxis, Ψbnd]
             surfaces = IMAS.trace_simple_surfaces(psi_levels, rgrid, zgrid, psi_rz, PSI_itp,
                 axis_result.RA, axis_result.ZA, fw_r, fw_z)
@@ -390,7 +450,7 @@ function receive!(actor::ActorZMQ)
 
             @info "ActorZMQ: updated boundary from psizr ($(nR)×$(nZ))"
         end
-        actor.had_psizr = true
+        @label psizr_done
     end
 
     # --- Compute and store ohmic power in dd._aux for NN predictor ---
@@ -464,19 +524,28 @@ function send!(actor::ActorZMQ)
 
     dd = actor.dd
     eqt = dd.equilibrium.time_slice[]
-
-
-    betap = eqt.global_quantities.beta_pol
-    li = eqt.global_quantities.li_1
     time_now = dd.global_time
 
+    # Equilibrium quantities. They can be unavailable (e.g. receive! kept the
+    # previous equilibrium because GSLite's psizr had no flux surface, or the
+    # dd has no 1D profiles yet): GSLite applies whatever it gets without
+    # checks, so repeat the last known values (0 before any) with valid=false
+    # rather than aborting the coupled run on a transient.
+    eq_ok = true
+    betap, li, psipla_now = try
+        (eqt.global_quantities.beta_pol, eqt.global_quantities.li_1, _compute_psipla(eqt))
+    catch e
+        eq_ok = false
+        @warn "ActorZMQ.send!: equilibrium quantities unavailable at t=$time_now s — repeating previous values with valid=false" exception = e
+        (isnan(actor.prev_betap) ? 0.0 : actor.prev_betap, isnan(actor.prev_li) ? 0.0 : actor.prev_li, NaN)
+    end
+
     # Time derivatives (0.0 on first step when prev values are NaN)
-    psipla_now = _compute_psipla(eqt)
     dt = time_now - actor.prev_time
-    if isnan(actor.prev_time) || dt <= 0.0
+    if !eq_ok || isnan(actor.prev_time) || dt <= 0.0
         betap_dot = 0.0
         li_dot = 0.0
-        p_res = 0.0
+        p_res = eq_ok || isnan(actor.prev_p_res) ? 0.0 : actor.prev_p_res
     else
         betap_dot = (betap - actor.prev_betap) / dt
         li_dot = (li - actor.prev_li) / dt
@@ -485,9 +554,28 @@ function send!(actor::ActorZMQ)
         p_res = max((psipla_now - actor.prev_psipla) / dt / Ip_val, 1e-9)
     end
 
+    # Never put non-finite numbers on the wire: GSLite feeds betap/li/p_res
+    # straight into its state equations without checks. Fall back to the last
+    # finite value (0 before any) and flag the step as not valid.
+    finite_ok = true
+    function _finite(x, prev, name)
+        if isfinite(x)
+            return x
+        end
+        finite_ok = false
+        @warn "ActorZMQ.send!: $name is $x at t=$time_now s — sending $(isfinite(prev) ? prev : 0.0) with valid=false"
+        return isfinite(prev) ? prev : 0.0
+    end
+    betap = _finite(betap, actor.prev_betap, "betap")
+    li = _finite(li, actor.prev_li, "li")
+    p_res = _finite(p_res, actor.prev_p_res, "p_res")
+    betap_dot = isfinite(betap_dot) ? betap_dot : (finite_ok = false; 0.0)
+    li_dot = isfinite(li_dot) ? li_dot : (finite_ok = false; 0.0)
+    eq_ok = eq_ok && finite_ok
+
     msg = WireDataFromFUSE(
         time_now,
-        !isnan(actor.prev_time),  # valid: false on first send (no prior data for derivatives)
+        eq_ok && !isnan(actor.prev_time),  # valid: false on first send (no prior data for derivatives), without equilibrium, or non-finite values
         betap,
         betap_dot,
         li,
@@ -518,12 +606,14 @@ function send!(actor::ActorZMQ)
     end
     @info "ActorZMQ: sent betap=$betap, li=$li, p_res=$p_res at t=$(time_now) s"
 
-    # Store current values for next step's derivatives
-    actor.prev_time = time_now
-    actor.prev_betap = betap
-    actor.prev_li = li
-    actor.prev_psipla = psipla_now
-    actor.prev_p_res = p_res
+    # Store current values for next step's derivatives (only from a real equilibrium)
+    if eq_ok
+        actor.prev_time = time_now
+        actor.prev_betap = betap
+        actor.prev_li = li
+        actor.prev_psipla = psipla_now
+        actor.prev_p_res = p_res
+    end
 
     return actor
 end
