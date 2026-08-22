@@ -2,14 +2,14 @@
 #  ActorCoreTransport  #
 #= ================== =#
 @actor_parameters_struct ActorCoreTransport{T} begin
-    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :FINN, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
+    model::Switch{Symbol} = Switch{Symbol}([:FluxMatcher, :FINN, :BetaMatch, :EPEDProfiles, :replay, :none], "-", "Transport actor to run"; default=:FluxMatcher)
 end
 
 mutable struct ActorCoreTransport{D,P} <: CompoundAbstractActor{D,P}
     dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCoreTransport{P}}
     act::ParametersAllActors{P}
-    tr_actor::Union{ActorFluxMatcher{D,P},ActorFINN{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
+    tr_actor::Union{ActorFluxMatcher{D,P},ActorFINN{D,P},ActorBetaMatch{D,P},ActorEPEDprofiles{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
@@ -24,6 +24,7 @@ Transport model options:
   neoclassical models to evolve temperature and density profiles
 - `:FINN`: Direct gradient prediction using the Flux-matcher Inversion Neural Network,
   bypassing iterative flux matching for 10-millisecond profile prediction
+- `:BetaMatch`: Scale temperature profiles to match target betaN value    
 - `:EPEDProfiles`: Use EPED model predictions for pedestal and core profiles
 - `:replay`: Replay profiles from experimental data or previous simulations
 - `:none`: No core transport evolution (fixed profiles)
@@ -49,6 +50,8 @@ function ActorCoreTransport(dd::IMAS.DD, par::FUSEparameters__ActorCoreTransport
         actor.tr_actor = ActorFluxMatcher(dd, act.ActorFluxMatcher, act)
     elseif par.model == :FINN
         actor.tr_actor = ActorFINN(dd, act.ActorFINN, act)
+    elseif par.model == :BetaMatch
+        actor.tr_actor = ActorBetaMatch(dd, act.ActorBetaMatch, act)
     elseif par.model == :EPEDProfiles
         actor.tr_actor = ActorEPEDprofiles(dd, act.ActorEPEDprofiles, act)
     elseif par.model == :replay
