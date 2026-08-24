@@ -119,6 +119,106 @@ end
 
             # plot recipe for the mode structure works
             @test (FUSE.plot(dd.mhd_linear); true)
+
+            # Test 4 ran with run_equilibrium=false, i.e. MARS replayed an OUT*MAR this actor
+            # did not produce. The CHEASE namelist here need not describe it, so the poloidal
+            # angle convention is unknowable and grid_type must be left unset rather than
+            # asserting SFL vs equal-arc (see mars_grid_type).
+            @test ismissing(mode.plasma.grid_type, :index)
+        end
+
+        @testset "grid_type follows CHEASE NER/NEGP (manual §2.3)" begin
+            # J = C(psi)*R^NER*|grad psi|^NEGP fixes the poloidal angle: (2,0) is PEST/SFL,
+            # (1,-1) is equal-arc and explicitly NOT a SFL system. Only the poloidal-angle half
+            # of the DD identifier changes (radial label is sqrt(psi_norm) either way).
+            nl = FUSE.CHEASE.CHEASEnamelist()                       # defaults: NER=1, NEGP=-1
+            @test (nl.NER, nl.NEGP) == (1, -1)
+            @test FUSE.mars_grid_type(nl, true) == (25, "inverse_rhopolnorm_equal_arc_fourier")
+
+            nl_sfl = FUSE.CHEASE.CHEASEnamelist()
+            nl_sfl.NER = 2
+            nl_sfl.NEGP = 0
+            @test FUSE.mars_grid_type(nl_sfl, true) == (24, "inverse_rhopolnorm_straight_field_line_fourier")
+
+            nl_odd = FUSE.CHEASE.CHEASEnamelist()
+            nl_odd.NER = 0
+            nl_odd.NEGP = 0
+            @test FUSE.mars_grid_type(nl_odd, true) === nothing     # no DD counterpart
+            @test FUSE.mars_grid_type(nl, false) === nothing        # supplied OUT*MAR
+        end
+
+        @testset "wall / NV configuration recipes (manual §5.1)" begin
+            # The four supported ideal-/resistive-wall configurations. NV indexes CHEASE's
+            # vacuum radial mesh; NWALL/IWALL/TAUW describe a RESISTIVE wall, which is a
+            # separate thing. Row 4 is the only one where the wall sits at an interior index
+            # while the computational boundary stays at NV -- that cannot be expressed with NV
+            # alone, which is why the extra surface (num_surfaces=2) is required there.
+            NW = get(FUSE.julia_grep(["NW"], joinpath(run_dir, "log_chease"); extract_values=true), "NW", nothing)
+            @test NW !== nothing   # the last CHEASE run had a wall, so NW must be reported
+
+            p = act.ActorMars
+            saved = (p.num_surfaces, p.wall_type)
+            try
+                for (name, nsurf, wall, nv, want_nwall) in (
+                    ("no-wall",                          1, :no_wall, 160, 0),
+                    ("ideal wall at physical wall",      1, :no_wall, NW - 1, 0),
+                    ("ideal wall on plasma surface",     1, :no_wall, 1, 0),
+                    ("resistive wall at physical wall",  2, :limiter, 160, 1),
+                )
+                    p.num_surfaces = nsurf
+                    p.wall_type = wall
+                    @test FUSE.validate_wall_configuration(p) === nothing
+
+                    nl = FUSE.MARSnamelist()
+                    nl.BASIC.NV = nv
+                    cd(run_dir) do          # configure_wall! reads NW from ./log_chease
+                        FUSE.configure_wall!(nl, p)
+                    end
+                    @test nl.BASIC.NV == nv
+                    @test nl.BASIC.NWALL == want_nwall
+                    if want_nwall == 0
+                        # no resistive wall: IWALL/TAUW must be empty, not stale leftovers
+                        @test isempty(nl.BASIC.IWALL)
+                        @test isempty(nl.BASIC.TAUW)
+                    else
+                        @test nl.BASIC.IWALL == [NW]       # wall index from CHEASE, not NV
+                        @test length(nl.BASIC.TAUW) == 1
+                        @test all(nl.BASIC.TAUW .> 0)      # finite wall time
+                    end
+                end
+            finally
+                p.num_surfaces, p.wall_type = saved
+            end
+        end
+
+        @testset "NV vs CHEASE vacuum mesh guard (manual §5.1)" begin
+            # MARS NV indexes CHEASE's vacuum mesh and must not exceed the CHEASE NV; MARS
+            # itself only bounds-checks IWALL, not NV, so an over-large NV would silently
+            # index past the mesh.
+            nl_ok = FUSE.MARSnamelist()
+            nl_ok.BASIC.NV = 160
+            cnl = FUSE.CHEASE.CHEASEnamelist()      # NV = 160
+            p = act.ActorMars
+            saved = (p.run_equilibrium, p.run_MHD)
+            try
+                p.run_equilibrium = true
+                p.run_MHD = true
+                @test FUSE.validate_vacuum_mesh(p, nl_ok, cnl) === nothing
+
+                nl_big = FUSE.MARSnamelist()
+                nl_big.BASIC.NV = cnl.NV + 1
+                @test_throws ErrorException FUSE.validate_vacuum_mesh(p, nl_big, cnl)
+
+                nl_zero = FUSE.MARSnamelist()
+                nl_zero.BASIC.NV = 0
+                @test_throws ErrorException FUSE.validate_vacuum_mesh(p, nl_zero, cnl)
+
+                # not enforced when the equilibrium came from outside this actor
+                p.run_equilibrium = false
+                @test FUSE.validate_vacuum_mesh(p, nl_big, cnl) === nothing
+            finally
+                p.run_equilibrium, p.run_MHD = saved
+            end
         end
     end
 end

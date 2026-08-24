@@ -318,10 +318,17 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "minimum) is not reachable — NQMIN is absent from CHEASE.jl's CHEASEnamelist, so " *
         "write_CHEASEnamelist cannot emit it."; default=:none)
     beta_fac::Entry{Float64} = Entry{Float64}("-",
-        "Sets CHEASE's CFBAL namelist parameter directly (rescales pressure gradient/edge pressure in " *
-        "the EXPEQ.OUT this run writes out). NOTE: CFBAL only affects EXPEQ.OUT, not the equilibrium this " *
-        "run itself solves — a beta scan needs restart_equilibrium=true on the next run to pick it up. " *
-        "Cannot be combined with chease_overrides.CFBAL (use this parameter instead)."; default=1.0)
+        "Pressure scale factor for a beta scan; sets CHEASE's CFBAL namelist parameter. CHEASE applies " *
+        "it as RPPF *= CFBAL immediately on READING EXPEQ (chease.f, \"Simple pressure profile scaling ... " *
+        "Could be useful for finding beta_N limits\"), so it rescales dP/dψ for the equilibrium THIS run " *
+        "solves — no restart needed. That Fortran block is guarded by NBLOPT==0 (the default) and its " *
+        "comment notes it \"works only if current I^* is given\", i.e. it is meant to be used with " *
+        "current_scaling=:fixed_ip (NCSCAL=2). Successive ActorMars calls on the SAME dd do NOT compound: " *
+        "update_equilibrium_from_chease! writes back only pressure and q, whereas EXPEQ is built from " *
+        "dpressure_dpsi / f_df_dpsi / boundary.outline, which it leaves untouched (only pressure[end] " *
+        "feeds back, a ~0.1% effect) — a same-dd scan was measured identical to a fresh-dd scan to 4 " *
+        "decimals. That would change if the write-back is ever extended to dpressure_dpsi or f_df_dpsi. " *
+        "Cannot be combined with chease_overrides.CFBAL."; default=1.0)
     run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
     batch_submit_cmd::Entry{String} = Entry{String}("-", "Batch submission command used when run_mode=:batch"; default="sbatch")
@@ -435,6 +442,7 @@ function _step(actor::ActorMars)
     # Fail fast on an inconsistent wall setup, before any CHEASE/MARS work. Checked here
     # rather than in run_CHEASE so it applies even when run_equilibrium=false.
     validate_wall_configuration(par)
+    validate_vacuum_mesh(par, mars_namelist, chease_namelist)
 
     # "Before" half of the CHEASE before/after comparison. The figure handle is held in a
     # local and passed explicitly to everything that draws onto it (run_CHEASE for the
@@ -552,7 +560,8 @@ function _finalize(actor::ActorMars)
         ms = out.mode
         ρ_s = IMAS.interp1d(s_cp, ρ_mass).(ms.s)
         τA_profile = R0 .* sqrt.(μ_0 .* ρ_s) ./ B0
-        store_mode_structure!(mode, ms, τA_profile)
+        grid_type = mars_grid_type(actor.chease_inputs, par.run_equilibrium)
+        store_mode_structure!(mode, ms, τA_profile; grid_type)
 
         # eigenmode harmonic profiles |Q_m|(s), one figure per available quantity.
         # Skips quantities MARS did not write (e.g. :bnormal without BPLASMA.OUT).
@@ -658,19 +667,72 @@ end
 
 
 """
-    store_mode_structure!(mode, ms::MarsModeStructure, τA_profile::AbstractVector)
+    mars_grid_type(chease_inputs, run_equilibrium::Bool) -> Union{Nothing,Tuple{Int,String}}
+
+DD `grid_type` for the eigenfunction's `(s, m)` harmonic grid, derived from the magnetic
+coordinate system CHEASE was run in.
+
+MARS manual §2.3: the poloidal angle χ is fixed by the Jacobian `J = C(ψ)·R^α·|∇ψ|^µ` with
+`α = NER`, `µ = NEGP`. `(α,µ) = (2,0)` is PEST-like straight-field-line; `(α,µ) = (1,-1)` is
+equal-arc, which the manual states explicitly is **not** a SFL system. CHEASE.jl defaults to
+`(1,-1)`, i.e. equal-arc — the manual's recommended choice for pressure-driven kink/RWM, which
+balloon on the low field side.
+
+The radial label is `s = sqrt(ψ_norm)` either way, so only the poloidal-angle half of the
+identifier changes: index 24 (`..._straight_field_line_fourier`) vs 25 (`..._equal_arc_fourier`).
+
+Getting this right matters for interpretation, not just bookkeeping: the familiar
+"dominant m ≈ n·q" rule holds only in a SFL system, so a spectrum labelled SFL but computed
+in equal-arc would be mis-read.
+
+Returns `nothing` when the coordinate system cannot be established — either the equilibrium
+came from outside this actor (`run_equilibrium=false`, e.g. `OUT*MAR` copied in, so
+`chease_inputs` need not describe it) or `NER`/`NEGP` are a combination with no DD
+counterpart. Callers should then leave `grid_type` unset rather than assert a guess.
+"""
+function mars_grid_type(chease_inputs, run_equilibrium::Bool)
+    if !run_equilibrium
+        @warn "run_equilibrium=false: the MARS equilibrium (OUT*MAR) was not produced by this " *
+              "actor, so the CHEASE NER/NEGP in chease_inputs need not describe it — leaving " *
+              "mhd_linear grid_type unset rather than guessing the poloidal angle convention."
+        return nothing
+    end
+    chease_inputs === nothing && return nothing
+
+    α, µ = chease_inputs.NER, chease_inputs.NEGP
+    if (α, µ) == (2, 0)
+        return (24, "inverse_rhopolnorm_straight_field_line_fourier")
+    elseif (α, µ) == (1, -1)
+        return (25, "inverse_rhopolnorm_equal_arc_fourier")
+    else
+        @warn "CHEASE Jacobian exponents (NER=$α, NEGP=$µ) are neither PEST/SFL (2,0) nor " *
+              "equal-arc (1,-1) (MARS manual §2.3), so the poloidal angle has no DD grid_type " *
+              "counterpart — leaving mhd_linear grid_type unset."
+        return nothing
+    end
+end
+
+
+"""
+    store_mode_structure!(mode, ms::MarsModeStructure, τA_profile::AbstractVector; grid_type=nothing)
 
 Store the MARS eigenfunction into `mode.plasma`: the `(s, m)` harmonic grid, the Alfvén-time
 profile, the real-space `R(s,χ)`/`Z(s,χ)` geometry used for R,Z-space plotting, the
 displacement harmonics (perpendicular/parallel), and the perturbed velocity when MARS wrote
 `VPLASMA.OUT`. Also records the dominant poloidal harmonic on `mode`.
+
+`grid_type` is the `(index, name)` pair from [`mars_grid_type`](@ref); when `nothing`, the DD
+`grid_type` is left unset rather than asserting an unverified poloidal-angle convention.
 """
-function store_mode_structure!(mode, ms::MarsModeStructure, τA_profile::AbstractVector)
+function store_mode_structure!(mode, ms::MarsModeStructure, τA_profile::AbstractVector; grid_type=nothing)
     pl = mode.plasma
 
-    # radial label s = sqrt(ψ_norm) (dim1), poloidal Fourier modes m (dim2)
-    pl.grid_type.index = 24
-    pl.grid_type.name = "inverse_rhopolnorm_straight_field_line_fourier"
+    # radial label s = sqrt(ψ_norm) (dim1), poloidal Fourier modes m (dim2).
+    # The poloidal angle convention (SFL vs equal-arc) comes from CHEASE's NER/NEGP —
+    # see mars_grid_type; left unset when it cannot be established.
+    if grid_type !== nothing
+        pl.grid_type.index, pl.grid_type.name = grid_type
+    end
     pl.grid.dim1 = ms.s
     pl.grid.dim2 = ms.m_pol
 
@@ -731,8 +793,9 @@ function store_mode_structure!(mode, ms::MarsModeStructure, τA_profile::Abstrac
         if n_vac_rows > 0
             if n_vac_rows == n_vac_grid
                 vac = mode.vacuum
-                vac.grid_type.index = 24
-                vac.grid_type.name = "inverse_rhopolnorm_straight_field_line_fourier"
+                if grid_type !== nothing
+                    vac.grid_type.index, vac.grid_type.name = grid_type
+                end
                 vac.grid.dim1 = ms.s_full[ns_plasma+1:end]
                 vac.grid.dim2 = ms.m_pol
                 vac.b_field_perturbed.coordinate1.real = real.(ms.b1[ns_plasma+1:end, :])
@@ -802,7 +865,6 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
         @info "Clean CHEASE run from dd."
         # extract B0 and R0 for CHEASE normalization and overwrite namelist entries
         B0, R0 = write_EXPEQ_file(dd, par; plt)
-        #CHEASE.write_EXPEQ_file(eq_chease)
         setfield!(chease_namelist, :B0EXP, B0)
         setfield!(chease_namelist, :R0EXP, R0)
     end
@@ -828,8 +890,16 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
         error("Unknown current_scaling: $(par.current_scaling)")
     end
 
+    # NVEXP selects the vacuum radial mesh. NVEXP=8 builds an exponential mesh anchored on the
+    # FIRST WALL radius RW(2), so chease.f:4447 gates it on `NV.GT.4 .AND. NWBPS.GT.2` — with
+    # num_surfaces=1 there is no wall, no branch matches, and CHEASE aborts with
+    # `STOP 'INVALID NVEXP OR NV'` (chease.f:4696). Fall back to 1 (equidistant mesh with
+    # wall-position matching), which has no such requirement.
+    # Valid NVEXP per chease.f: 0,1,2,3,4,5,6,8,10,20,50,60,80,800 — anything else STOPs.
+    # Avoid 4: it Newton-iterates for the mesh ratio and can die with `STOP 'NO_CONV'` or
+    # `STOP 'NVEXP=4 REXT'`. 1,2,3,5,6 are safe here.
     if par.num_surfaces == 1 && chease_namelist.NVEXP == 8
-        @info "Overriding NVEXP in CHEASE namelist"
+        @info "num_surfaces=1 leaves no wall for NVEXP=8 to anchor on (CHEASE would abort) — overriding NVEXP=1"
         NVEXP = 1
         setfield!(chease_namelist, :NVEXP, NVEXP)
     end
@@ -870,6 +940,46 @@ function run_CHEASE(dd::IMAS.DD, par, chease_namelist; plt=nothing)
     info = julia_grep(keys, "log_chease"; extract_values=true)
     @info "CHEASE equilibrium summary" βN = get(info, "GEXP", missing) Ip_A = get(info, "TOTAL CURRENT", missing) q0 = get(info, "Q_ZERO", missing) q95 = get(info, "Q AT 95% FLUX SURFACE", missing) q_edge = get(info, "Q_EDGE", missing)
 
+    return nothing
+end
+
+
+"""
+    validate_vacuum_mesh(par, mars_namelist, chease_namelist)
+
+Check MARS's `NV` against the CHEASE vacuum radial mesh it indexes into.
+
+`NV` selects where the ideal-wall boundary condition sits on that mesh (MARS manual §5.1):
+`NV=1` puts it on the plasma surface (no vacuum region at all), `NV` = the CHEASE `NV` puts it
+at the far field `REXT` (effectively no wall), and intermediate values scan the ideal-wall
+radius. The manual states MARS's `NV` "does not have to be equal to (but should not exceed)
+the CHEASE input NV" — exceeding it indexes past the end of the vacuum mesh, which MARS does
+not check.
+
+Only enforced when this actor actually ran CHEASE (`run_equilibrium=true`) *and* MARS will use
+the mesh (`run_MHD=true`). With a supplied `OUT*MAR` the CHEASE namelist here need not describe
+the equilibrium that produced it, so there would be nothing trustworthy to compare against.
+"""
+function validate_vacuum_mesh(par, mars_namelist, chease_namelist)
+    (par.run_equilibrium && par.run_MHD) || return nothing
+    (mars_namelist === nothing || chease_namelist === nothing) && return nothing
+
+    nv_mars = mars_namelist.BASIC.NV
+    nv_chease = chease_namelist.NV
+
+    if nv_mars < 1
+        error("Invalid MARS NV = $nv_mars: NV indexes the vacuum radial mesh and must be >= 1 " *
+              "(NV=1 places the ideal wall on the plasma surface).")
+    end
+    if nv_mars > nv_chease
+        error(
+            "MARS NV = $nv_mars exceeds the CHEASE vacuum mesh NV = $nv_chease. MARS's NV indexes " *
+            "the vacuum radial mesh CHEASE built (NV=1 -> ideal wall on the plasma surface, " *
+            "NV=$nv_chease -> far field at REXT); MARS manual §5.1 requires it not to exceed the " *
+            "CHEASE NV, and MARS itself does not check this. Either lower the MARS NV " *
+            "(mars_overrides.BASIC[:NV]) or raise the CHEASE NV (chease_overrides=(NV=...,))."
+        )
+    end
     return nothing
 end
 
