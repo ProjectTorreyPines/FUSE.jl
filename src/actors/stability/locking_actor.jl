@@ -23,9 +23,9 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
     task::Switch{Symbol} = Switch{Symbol}(
-        [:solve_system, :single_case, :calc_prob, :calc_conv_prob, :calc_kde_prob, :Monte_Carlo, :eval_prob, :transfer_learning],
+        [:solve_system, :single_case, :calc_prob, :Monte_Carlo, :eval_prob, :transfer_learning],
         "-",
-        "Choose whether to simulate system on full-grid, do a single case, retrain NN only (:calc_prob), convolution (:calc_conv_prob), KDE (:calc_kde_prob), or Monte Carlo (NOT implemented)";
+        "Solve the system on the full grid (:solve_system), run a single case (:single_case), build the probability model (:calc_prob — engine chosen by prob_method), evaluate it at operating points (:eval_prob), fine-tune it (:transfer_learning), or Monte Carlo (NOT implemented)";
         default = :solve_system
     )
     application::Switch{String} = Switch{String}(
@@ -52,8 +52,27 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "meter", 
         "Length scale for the integration , usually minor radius"; default=1.)
     source_torque::Entry{Float64} = Entry{Float64}("Newton.meter", "NBI torque"; default=5.)
+    error_field::Entry{Float64} = Entry{Float64}(
+        "Gauss",
+        "Fixed n=1 error field. Used as the ODE right-hand side's ε whenever the error " *
+        "field is NOT the swept control (control_type=:LinStab/:NLsaturation); for " *
+        "control_type=:EF the swept Control2 supplies ε instead and this is ignored. " *
+        "This is the only place the error field is set — ode_params.error_field is " *
+        "derived from it and holds the dimensionless form ModeLocking reads";
+        default=10.0)
     plot_orientation::Switch{Symbol} = Switch{Symbol}([:portrait, :landscape], "-",
         "Tile-plot layout: :portrait = 3×2 (paper), :landscape = 2×3 (slides)"; default=:portrait)
+    save_plots::Entry{Bool} = Entry{Bool}(
+        "-",
+        "Write the locking figures to disk at the end of any task that produces results " *
+        "(:solve_system, :calc_prob, :eval_prob, :transfer_learning). Which figures appear " *
+        "depends on what the task produced: the probability map needs a trained model, and " *
+        "the operating-point markers need :eval_prob";
+        default=false)
+    plots_dir::Entry{String} = Entry{String}(
+        "-",
+        "Directory for save_plots output; empty = current working directory";
+        default="")
     op_times::Entry{Vector{Float64}} = Entry{Vector{Float64}}(
         "s",
         "Times at which to evaluate locking probability; empty = use current dd.global_time";
@@ -73,13 +92,16 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "-",
         "Locking probability above which the limit is considered breached";
         default=0.5)
+    prob_method::Switch{Symbol} = Switch{Symbol}([:nn, :conv, :kde], "-",
+        "Engine that turns the classified ODE grid into P(locked): neural net, windowed convolution, or KDE";
+        default=:nn)
     conv_window_C1::Entry{Int} = Entry{Int}(
         "-",
-        "Convolution window size along C1 (Ω₀) axis (must be odd); 0 = use NN instead";
+        "Window size along the C1 (Ω₀) axis for prob_method=:conv/:kde (must be odd); ignored by :nn";
         default=5)
     conv_window_C2::Entry{Int} = Entry{Int}(
         "-",
-        "Convolution window size along C2 (EF/Δ'/α) axis (must be odd); 0 = use NN instead";
+        "Window size along the C2 (EF/Δ'/α) axis for prob_method=:conv/:kde (must be odd); ignored by :nn";
         default=5)
 end
 
@@ -90,9 +112,14 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     ode_params::Union{Nothing, ODEparams}
     results::Union{Nothing, LockingResults}
     nn_params::NNparams
-    op_times::Vector{Float64}   # actual times evaluated (set during :eval_prob)
-    op_C1::Vector{Float64}      # dimensionless rotation at each op time
-    op_C2::Vector{Float64}      # C2 in user-facing units (Gauss for :EF) at each op time
+    # Operating points resolved by :eval_prob — `nothing` until it runs.
+    # Grouped rather than kept as three parallel vectors so they cannot disagree
+    # in length, and so the names do not collide with par.op_C1/op_C2, which are
+    # user *inputs* in different units (par.op_C1 is a scalar in kHz).
+    #   times : evaluated times [s]
+    #   C1    : dimensionless rotation (f·t₀) at each time, computed from dd
+    #   C2    : Control2 in user-facing units (Gauss for :EF and :LinStab)
+    eval::Union{Nothing,@NamedTuple{times::Vector{Float64}, C1::Vector{Float64}, C2::Vector{Float64}}}
 
     function ActorLocking(
         dd::IMAS.dd{D},
@@ -107,18 +134,23 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
         # Apply standard FUSE parameter overrides
         par = OverrideParameters(par; kw...)
 
-        # Handle ODE params
+        # Handle ODE params. par.error_field (Gauss) is the single user-facing
+        # error field; ode_params.error_field is derived from it and holds the
+        # dimensionless form ModeLocking's resolve_control reads.
         ode = if ode_params === nothing
-            nothing
-        elseif ode_params isa ODEparams
-            ode_params
+            ODEparams()
         elseif ode_params isa NamedTuple
             ODEparams(; ode_params...)
+        elseif ode_params isa ODEparams
+            ode_params
         else
             error("ode_params must be nothing, ODEparams, or NamedTuple")
         end
+        # Safe on every path, including a reused ODEparams: the value is assigned
+        # from par.error_field rather than scaled in place, so it cannot compound
+        _normalize_error_field!(ode, par)
 
-        return new{D,P}(dd, par, ode, nothing, nn_params, Float64[], Float64[], Float64[])
+        return new{D,P}(dd, par, ode, nothing, nn_params, nothing)
     end
 end
 
@@ -144,82 +176,86 @@ function _step(actor::ActorLocking)
     task = par.task
     application = par.application
 
-    # Populate the physical parameters needed to solve the ODEs
-    if actor.ode_params === nothing
-        actor.ode_params = ODEparams(;)
-    end
+    # Populate the physical parameters needed to solve the ODEs. ode_params is
+    # always set by the constructor (with error_field already normalized), so
+    # building a bare ODEparams here would silently reintroduce a Gauss-valued
+    # error_field into the model.
+    actor.ode_params === nothing && error("actor.ode_params is unset — construct the actor through ActorLocking(dd, par; ode_params=...)")
     actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
 
     # Main driver routine
     # Time evolve the ODEs, calculate locking probability, or load/evaluate model
     if task == :single_case
-        C1 = isnan(par.op_C1) ? nothing : par.op_C1 * 1e3 * par.t0  # kHz → dimensionless f·t₀
+        # Default the operating rotation to what the plasma is actually doing at
+        # dd.global_time, same as :eval_prob; an explicit op_C1 (kHz) overrides
+        C1 = if isnan(par.op_C1)
+            c1 = _rotation_at_rat_surface(dd, par, actor.ode_params.rat_surface)
+            @info "op_C1 not set — using rotation from dd at ρ=$(round(actor.ode_params.rat_surface; sigdigits=4)): C1=$(round(c1; sigdigits=4))"
+            c1
+        else
+            par.op_C1 * 1e3 * par.t0   # kHz → dimensionless f·t₀
+        end
         c2_user = _op_C2_scalar(par)   # first entry when op_C2 was given as a vector
         C2 = isnan(c2_user) ? nothing : _op_C2_to_control2(actor, c2_user)
-        @info "Solving one case: C1=$(something(C1, "default"))  C2=$(something(c2_user, "default"))"
+        @info "Solving one case: C1=$(C1)  C2=$(something(c2_user, "default"))"
         solve_one_case(par, actor.ode_params, application; C1, C2)
     
     elseif task == :solve_system
         @info "Solving the ODEs for $(application) system"
         compute_br_max(actor)   # log br_max implied by current Drw + max(EF)
-        # Solve the ODE system on the whole control grid, normalize, and
+        
+	# Solve the ODE system on the whole control grid, normalize, and
         # classify (prob=nothing; filled in-place by train_locking_nn below)
         actor.results = _solve_grid_and_classify(actor, application)
-
-        # Train NN with hyperparameters stored on the actor
-        #train_locking_nn(actor, actor.nn_params)
 
         # Checkpoint ODE results to disk so calc_prob can run in a future session
         save_ode_results(actor)
 
     elseif task == :calc_prob
-        # Retrain NN only — ODEs are NOT re-solved.
+        # Build the probability model — ODEs are NOT re-solved.
         # Use in-memory results if available; otherwise load from disk.
         if actor.results === nothing
             @info "No in-memory ODE results — loading from disk"
             load_ode_results!(actor)
         end
-        @info "Training NN classifier to calculate probability of locking as a function of Controls"
-        train_locking_nn(actor)
-        save_locking_nn(actor)
 
-    elseif task == :calc_conv_prob
-        if actor.results === nothing
-            @info "No in-memory ODE results — loading from disk"
-            load_ode_results!(actor)
+        # Both windowed engines centre their window on a grid point, so an even
+        # size has no centre — reject it here rather than silently off-setting.
+        if par.prob_method in (:conv, :kde)
+            iseven(par.conv_window_C1) && error("conv_window_C1 = $(par.conv_window_C1) must be odd for prob_method=$(repr(par.prob_method))")
+            iseven(par.conv_window_C2) && error("conv_window_C2 = $(par.conv_window_C2) must be odd for prob_method=$(repr(par.prob_method))")
         end
-        @info "Computing convolution probability (window = $(par.conv_window_C1)×$(par.conv_window_C2))"
-        conv_locking_probability(actor)
-        save_prob_model(actor)
 
-    elseif task == :calc_kde_prob
-        if actor.results === nothing
-            @info "No in-memory ODE results — loading from disk"
-            load_ode_results!(actor)
+        # Build the probability model with the engine par.prob_method selects.
+        # Both windows are available to both windowed engines.
+        if par.prob_method == :nn
+            @info "Training NN classifier to calculate probability of locking as a function of Controls"
+            train_locking_nn(actor)
+
+        elseif par.prob_method == :conv
+            @info "Computing convolution probability (window = $(par.conv_window_C1)×$(par.conv_window_C2))"
+            conv_locking_probability(actor)
+        elseif par.prob_method == :kde
+            @info "Computing KDE probability (window = $(par.conv_window_C1)×$(par.conv_window_C2))"
+            kde_locking_probability(actor)
+        else
+            error("Unknown prob_method: $(repr(par.prob_method)) — supported engines are :nn, :conv, :kde")
         end
-        @info "Computing KDE probability (window = $(par.conv_window_C1)×$(par.conv_window_C2))"
-        kde_locking_probability(actor)
+
         save_prob_model(actor)
 
     elseif task == :eval_prob
-        # Load saved probability model from disk (KDE → conv → NN fallback).
+        # Load the saved probability model named by par.prob_method.
         if actor.results === nothing
             @info "No in-memory ODE results — loading from disk"
             load_ode_results!(actor)
         end
         # Prefer the model already in memory (e.g. just trained by :calc_prob);
         # only hit disk when nothing has been loaded yet this session.
+        # No silent fallback across engines: loading a different model than the
+        # one asked for produced plausible-looking numbers from the wrong source.
         if actor.results.prob === nothing
-            prob_model = try
-                load_prob_model(actor; method=:nn)
-            catch
-                try
-                    load_prob_model(actor; method=:conv)
-                catch
-                    load_prob_model(actor; method=:kde)
-                end
-            end
-            actor.results.prob = prob_model
+            actor.results.prob = load_prob_model(actor; method=par.prob_method)
         end
         prob_model = actor.results.prob
 
@@ -241,24 +277,23 @@ function _step(actor::ActorLocking)
 
         rt = actor.ode_params.rat_surface
 
-        actor.op_times = times
-        actor.op_C1    = Float64[]
-        actor.op_C2    = Float64[]
+        # Accumulate locally, then publish as one unit so the three vectors
+        # cannot be left inconsistent if the loop throws part-way through
+        eval_C1 = Float64[]
+        eval_C2 = Float64[]
 
         t_orig = dd.global_time
         for (t, c2_user) in zip(times, C2_user)
             dd.global_time  = t
-            rho_cp      = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
-            rot_profile = dd.core_profiles.profiles_1d[].ion[1].rotation_frequency_tor
-            rot_rs_rads = IMAS.interp1d(rho_cp, rot_profile)(rt)
-            C1_op       = (rot_rs_rads / (2π)) * par.t0
+            C1_op       = _rotation_at_rat_surface(dd, par, rt)
             C2_ctrl     = _op_C2_to_control2(actor, c2_user)
             P_locked    = prob_model(C1_op, C2_ctrl)
-            push!(actor.op_C1, C1_op)
-            push!(actor.op_C2, c2_user)
+            push!(eval_C1, C1_op)
+            push!(eval_C2, c2_user)
             @info "  t=$(round(t*1e3; digits=1)) ms  C1=$(round(C1_op; sigdigits=4))  C2=$(round(c2_user; sigdigits=4)) [user] → $(round(C2_ctrl; sigdigits=4)) [Control2]  P=$(round(P_locked; sigdigits=4))"
         end
         dd.global_time = t_orig
+        actor.eval = (times=times, C1=eval_C1, C2=eval_C2)
         @info "eval_prob: $(length(times)) point(s)  model=$(typeof(prob_model))"
 
     elseif task == :transfer_learning
@@ -285,7 +320,16 @@ function _step(actor::ActorLocking)
         error("Unknown task: $(task)")
 
     end
-    
+
+    # Figures are opt-in. Gated on results rather than on task: :single_case
+    # displays its own traces and leaves results unset, and every task that does
+    # produce results is worth plotting. save_locking_plots itself decides which
+    # figures apply — the probability map only when a model exists, the
+    # operating-point markers only when :eval_prob populated actor.eval.
+    if par.save_plots && actor.results !== nothing
+        save_locking_plots(actor; dir=isempty(par.plots_dir) ? pwd() : par.plots_dir)
+    end
+
     return actor
 end
 
@@ -361,8 +405,9 @@ function _finalize(actor::ActorLocking)
     @info "Locked fraction of scanned grid: $(round(frac_locked; sigdigits=3))"
 
     # An operating point needs a probability model and time-aligned coordinates
-    have_op = results.prob !== nothing && !isempty(actor.op_C1) &&
-              length(actor.op_times) == length(actor.op_C1) == length(actor.op_C2)
+    # Lengths are equal by construction now that eval is built as one unit
+    ev = actor.eval
+    have_op = results.prob !== nothing && ev !== nothing && !isempty(ev.C1)
 
     if !have_op
         # Record the mode's identity, but leave stability_metric unfilled rather
@@ -371,7 +416,7 @@ function _finalize(actor::ActorLocking)
         return actor
     end
 
-    # actor.op_C2 holds user units (Gauss for :EF and :LinStab); the model axis is
+    # ev.C2 holds user units (Gauss for :EF and :LinStab); the model axis is
     # dimensionless Control2. Reuse the mapping _step applied so the two can't diverge.
     c2_dim(c2) = _op_C2_to_control2(actor, c2)
 
@@ -379,13 +424,13 @@ function _finalize(actor::ActorLocking)
     c2_axis = unique(ode_params.Control2)
 
     # Ascending order: resize! at global_time can only append forward in time
-    order = sortperm(actor.op_times)
+    order = sortperm(ev.times)
 
     # Bistability is written all-or-nothing across op times: set_time_array fills
     # gaps by repeating the previous value (or NaN-padding a late-created array),
     # so a ragged `fraction` would read back as a real limit at times where the
     # fold was never resolved.
-    folds = [_lower_fold_C2(results.bifurcation_bounds, c1_axis, c2_axis, actor.op_C1[k];
+    folds = [_lower_fold_C2(results.bifurcation_bounds, c1_axis, c2_axis, ev.C1[k];
                             nl=par.NL_saturation) for k in order]
     write_bistability = all(!isnothing, folds)
     if !write_bistability && any(!isnothing, folds)
@@ -393,11 +438,11 @@ function _finalize(actor::ActorLocking)
     end
 
     # The `C2_op / C2_fold > 1` convention assumes a positive Control2 axis. For
-    # :LinStab the axis is Δt < 0 (Control2_max = l₂₁·l₁₂/Δw − 0.05), so the ratio
+    # :LinStab the axis is Δt^RW < 0, so the ratio
     # of two negatives loses the "further past the fold" ordering — skip rather
     # than publish a limit whose direction is undefined.
     if write_bistability
-        c2_ops = [c2_dim(actor.op_C2[k]) for k in order]
+        c2_ops = [c2_dim(ev.C2[k]) for k in order]
         if any(<=(0), c2_ops) || any(f -> f[1] <= 0, folds)
             @info "Bistability limit skipped: Control2 axis is not strictly positive (control_type=$(par.control_type)), so the fraction convention does not apply"
             write_bistability = false
@@ -419,11 +464,11 @@ function _finalize(actor::ActorLocking)
 
     t_orig = dd.global_time
     for (i, k) in enumerate(order)
-        dd.global_time = actor.op_times[k]
-        c2 = c2_dim(actor.op_C2[k])
+        dd.global_time = ev.times[k]
+        c2 = c2_dim(ev.C2[k])
 
         # stability_metric carries exactly one quantity: P(locked) at the op point
-        P_op = results.prob(actor.op_C1[k], c2)
+        P_op = results.prob(ev.C1[k], c2)
         _locking_mode_entry(dd, par).stability_metric = P_op
         @ddtime(prob_model.fraction = P_op / par.P_locked_threshold)   # > 1 → locked
 
@@ -516,23 +561,20 @@ function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
     ode_params.DeltaW = DeltaWr - DeltaWl
     ode_params.stability_index = par.RPRW_stability_index + ode_params.l21 * ode_params.l12 / ode_params.DeltaW
 
-    ## In case control_type=:LinStab, adjust the upper Deltat to keep the
-    ## RP-RW system weakly stable. Then, adjust the lower Deltat
+    # For :LinStab the swept Control2 supplies Δt directly (ModeLocking.resolve_control
+    # takes Deltat = C2), so stability_index — and therefore RPRW_stability_index — has
+    # no effect on the solved system. It survives only in the br_max diagnostic log and
+    # in the _Drw output filename tag.
     if par.control_type == :LinStab
-        @info "Adjusting Deltat range for LinStab control to keep RW-RP system stable"
-        if ode_params.Control2_min > 0.0
-            ode_params.Control2_min = -3.5
-            println("Setting Deltat minimum to $(ode_params.Control2_min) for RP-RW system to be stable")
-        end
-
-        ode_params.Control2_max = ode_params.l21 * ode_params.l12 / ode_params.DeltaW - 5.e-2
-        if ode_params.Control2_max > 0.0
-            error("Maximum Deltat for stability must be <0 for RP-RW system to be stable")
-        end
-        
-        println(ode_params.Control2_min, ode_params.Control2_max)
+        @warn @sprintf(
+            "control_type=:LinStab — par.RPRW_stability_index (%.4g) is unused: Δ_RW is the swept quantity, set with ode_params.Control2_min/max (in Δ_RW)",
+            par.RPRW_stability_index)
     end
-    
+
+    # NOTE: the :LinStab sweep bounds are NOT clamped here. Control2_min/max are
+    # user input and stay exactly as supplied; set_control_parameters! derives the
+    # effective range into locals when it builds the grid. Read the range that was
+    # actually used off `extrema(ode_params.Control2)`.
 
     return ode_params
 end
@@ -642,7 +684,7 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
       rot(q=2, ρ=$(round(rt; digits=3))) = $(round(rot_rs_kHz; sigdigits=4)) kHz
       μ_SI               = $(round(muSI; sigdigits=4)) N·m·s
       inertia            = $(round(inertia; sigdigits=4)) kg·m²
-      tau_μ               = $(round(tau_mu; sigdigits=4)) s
+      tau_μ (viscous time) = $(round(tau_mu; sigdigits=4)) s
       mass_dens(q=2)     = $(round(mass_dens_atq2; sigdigits=4)) kg/m³
       ⟨R⟩(q=2)   = gm8  = $(round(R0; sigdigits=4)) m
       ⟨R²⟩(q=2)  = gm10 = $(round(R2_avg; sigdigits=4)) m²
@@ -659,7 +701,7 @@ function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
       l12                = $(round(ode_params.l12; sigdigits=4))
       l21                = $(round(ode_params.l21; sigdigits=4))
       l32                = $(round(ode_params.l32; sigdigits=4))
-      error_field        = $(ode_params.error_field) Gauss
+      error_field        = $(par.error_field) Gauss  →  $(ode_params.error_field) (dimensionless EF flux function)
       EF_phase           = $(par.EF_phase)°"""
 
     return ode_params
@@ -698,13 +740,19 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     rot_at_rs_rads = IMAS.interp1d(rho_rot, rot_prof)(rt)   # rad/s
     rot_at_rs_kHz  = rot_at_rs_rads / (2π * 1e3)            # kHz
 
-    # Control1_min/max are in kHz; ensure max covers the actual rotation
-    ode_params.Control1_max = max(ode_params.Control1_max, rot_at_rs_kHz)
-    @info("Control1 (f₀) range: [$(ode_params.Control1_min), $(round(ode_params.Control1_max; sigdigits=4))] kHz")
+    # Control1_min/max are in kHz and stay as the user supplied them; the grid is
+    # built from a local raised, if needed, to cover the actual rotation
+    c1min = ode_params.Control1_min
+    c1max = max(ode_params.Control1_max, rot_at_rs_kHz)
+    if c1max != ode_params.Control1_max
+        @info @sprintf("Control1_max raised from %.4g to %.4g kHz to cover the rotation at the rational surface",
+                       ode_params.Control1_max, c1max)
+    end
+    @info("Control1 (f₀) range: [$(c1min), $(round(c1max; sigdigits=4))] kHz")
 
     # Build grid in kHz, convert to dimensionless frequency units: f_dim = f_kHz * 1e3 * t0
     # (the 2π relating f to ω lives explicitly in the RHS)
-    C1_kHz_vals = range(ode_params.Control1_min, ode_params.Control1_max, length=N) |> collect
+    C1_kHz_vals = range(c1min, c1max, length=N) |> collect
     C1_dim_vals = C1_kHz_vals .* (1e3 * par.t0)
     ode_params.Control1 = vec(repeat(C1_dim_vals, 1, M))
 
@@ -723,16 +771,29 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
         EF_Tesla_vals = EF_Gauss_vals .* 1.e-4 / b0   # Gauss -> Tesla -> dimensionless
         Control2_vals = rc .* EF_Tesla_vals ./ m_pol  # psi_eps, units of b0*r0
         @info("Maximum error field is $(c2max) Gauss")
+    elseif control_type == :LinStab
+        # Control2_min/max are Δ_RW here, not Δt. Δ_RW is the physically meaningful
+        # quantity (Δt = Δ_RW + Δt_crit with Δt_crit purely geometric), and the
+        # stability requirement reads directly as Δ_RW < 0 instead of being encoded
+        # as an offset from Δt_crit. The grid itself holds Δt, which is what
+        # ModeLocking.resolve_control expects from Control2.
+        Δt_crit = l21 * l12 / DeltaW
+        c2max < 0.0 || error("control_type=:LinStab — Control2_max is Δ_RW and must be < 0 for the RP-RW system to be weakly stable; got $(c2max)")
+        c2min < c2max || error("control_type=:LinStab — Control2_min ($(c2min)) must be below Control2_max ($(c2max)) in Δ_RW")
+        Control2_vals = collect(range(c2min, c2max, length=M)) .+ Δt_crit
+        @info @sprintf("RP-RW stability sweep: Δ_RW ∈ [%.4g, %.4g]  →  Δt ∈ [%.4g, %.4g]  (Δt_crit=%.4g)",
+                       c2min, c2max, first(Control2_vals), last(Control2_vals), Δt_crit)
+        @info("Fixed EF in ODEs: $(par.error_field) Gauss → $(ode_params.error_field) (dimensionless)")
+
     else
         Control2_vals = range(c2min, c2max, length=M) |> collect
-        @info("Fixed error field: $(ode_params.error_field) Gauss")
+        @info("Fixed EF in ODEs: $(par.error_field) Gauss → $(ode_params.error_field) (dimensionless)")
     end
 
-    # Convert error_field from Gauss to the same dimensionless normalization as
-    # EF Control2: errF = EF_Gauss * 1e-4 / b0 * rc / m_pol.
-    # After this point ode_params.error_field is dimensionless and ready for
-    # direct use in resolve_control and simulate_one_case.
-    ode_params.error_field = ode_params.error_field * (1e-4 / b0) * rc / m_pol
+    # NOTE: error_field is NOT converted here. It is normalized once, in the
+    # ActorLocking constructor (see _normalize_error_field!), because this
+    # function runs on every `step` and an in-place Gauss→dimensionless rescale
+    # here compounded silently whenever an ODEparams was reused across actors.
 
     Control2 = vec(repeat(Control2_vals', N, 1))
     ode_params.Control2 = Control2
@@ -906,15 +967,13 @@ function save_prob_model(actor::ActorLocking; kwargs...)
     actor.results.prob === nothing && error("No trained model — run train_locking_nn, conv_, or kde_locking_probability first")
     ct  = actor.par.control_type
     nl  = actor.par.NL_saturation
-    wc1 = actor.par.conv_window_C1
-    wc2 = actor.par.conv_window_C2
     prob = actor.results.prob
     if prob isa LockingNNModel
         return ModeLocking.save_locking_nn(prob; control_type=ct, nl_sat=nl, kwargs...)
     elseif prob isa ModeLocking.ConvProbModel
-        return ModeLocking.save_conv_prob(prob; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.save_conv_prob(prob; control_type=ct, nl_sat=nl, window_C1=actor.par.conv_window_C1, window_C2=actor.par.conv_window_C2, kwargs...)
     elseif prob isa ModeLocking.KDEProbModel
-        return ModeLocking.save_kde_prob(prob; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.save_kde_prob(prob; control_type=ct, nl_sat=nl, window_C1=actor.par.conv_window_C1, window_C2=actor.par.conv_window_C2, kwargs...)
     else
         error("Unknown prob model type: $(typeof(prob))")
     end
@@ -932,14 +991,12 @@ Load a saved probability model from disk.
 function load_prob_model(actor::ActorLocking; method::Symbol=:nn, kwargs...)
     ct  = actor.par.control_type
     nl  = actor.par.NL_saturation
-    wc1 = actor.par.conv_window_C1
-    wc2 = actor.par.conv_window_C2
     if method == :nn
         return ModeLocking.load_locking_nn(; control_type=ct, nl_sat=nl, kwargs...)
     elseif method == :conv
-        return ModeLocking.load_conv_prob(; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.load_conv_prob(; control_type=ct, nl_sat=nl, window_C1=actor.par.conv_window_C1, window_C2=actor.par.conv_window_C2, kwargs...)
     elseif method == :kde
-        return ModeLocking.load_kde_prob(; control_type=ct, nl_sat=nl, window_C1=wc1, window_C2=wc2, kwargs...)
+        return ModeLocking.load_kde_prob(; control_type=ct, nl_sat=nl, window_C1=actor.par.conv_window_C1, window_C2=actor.par.conv_window_C2, kwargs...)
     else
         error("Unknown method: $method — use :nn, :conv, or :kde")
     end
@@ -989,18 +1046,27 @@ plot_phase_diagrams(actor::ActorLocking) = ModeLocking.plot_phase_diagrams(actor
 
 "plot_probability(actor) → Figure 3 — locking probability with optional operating-point markers"
 function plot_probability(actor::ActorLocking;
-                          op_C1::Vector{Float64}=actor.op_C1,
-                          op_C2::Vector{Float64}=actor.op_C2,
-                          op_label::Vector{String}=["t = $(round(t*1e3; digits=1)) ms" for t in actor.op_times],
+                          op_C1::Vector{Float64}=actor.eval === nothing ? Float64[] : actor.eval.C1,
+                          op_C2::Vector{Float64}=actor.eval === nothing ? Float64[] : actor.eval.C2,
+                          op_label::Vector{String}=actor.eval === nothing ? String[] :
+                              ["t = $(round(t*1e3; digits=1)) ms" for t in actor.eval.times],
                           show_shot_label::Bool=true)
-    drw      = round(actor.par.RPRW_stability_index; sigdigits=3)
+    drw      = round(actor.par.control_type == :LinStab ?
+                     actor.ode_params.Control2_max : actor.par.RPRW_stability_index; sigdigits=3)
     base_lbl = _shot_label(actor.dd; overwrite=actor.par.overwrite_params, with_time=false)
     shot_lbl = show_shot_label ?
                    latexstring("\\mathrm{$(base_lbl)},\\;\\Delta^t_{rw} = $(drw)") : ""
+    # ModeLocking places the operating-point markers on the DISPLAY axis. That
+    # axis is Gauss for :EF (op_C2 is already Gauss) and 1/α for :NLsaturation
+    # (ModeLocking inverts α itself), but Δt for :LinStab — where op_C2 is the br
+    # amplitude in Gauss. Map it so the markers land on the axis being drawn.
+    op_C2_disp = actor.par.control_type == :LinStab ?
+                 [_op_C2_to_control2(actor, c2; verbose=false) for c2 in op_C2] : op_C2
+
     ModeLocking.plot_probability(actor.results, actor.ode_params, actor.par.control_type;
         b0=actor.par.b0, t0=actor.par.t0, m_pol=Float64(actor.par.m_pol),
         shot_label=shot_lbl, op_label=op_label,
-        op_C1=op_C1, op_C2=op_C2)
+        op_C1=op_C1, op_C2=op_C2_disp)
 end
 
 """
@@ -1011,7 +1077,8 @@ the run metadata: control type, grid size, application, shot, time.
 
 Example filenames:
   scatter_EF_100x100_RPRW_175060.2500_Drw0.5.png       (shot 175060, t=2500ms)
-  NN_probability_op_EF_100x100_RPRW_175060.450_Drw0.5.png  (snapshot at t=450ms)
+  NN_probability_all_op_points_EF_100x100_RPRW_175060.2500_Drw0.5.png  (all op points)
+  NN_probability_op_EF_100x100_RPRW_175060.450_Drw0.5.png              (single snapshot, t=450ms)
 """
 function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:png)
     actor.results === nothing && error("No results to plot — run the actor first")
@@ -1030,9 +1097,10 @@ function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:pn
         "_default$(ow)"
     end
 
-    drw     = round(abs(par.RPRW_stability_index); sigdigits=3)
+    drw     = round(abs(par.control_type == :LinStab ?
+                        actor.ode_params.Control2_max : par.RPRW_stability_index); sigdigits=3)
     drw_tag = "_Drw$(drw)"
-    tag = "$(par.control_type)_$(par.grid_size)x$(par.grid_size)_$(replace(par.application, "-" => ""))_$(shot_tag)$(drw_tag)"
+    tag = "$(par.control_type)_$(par.grid_size)x$(par.grid_size)_$(replace(par.application, "-" => ""))$(shot_tag)$(drw_tag)"
     ext = string(format)
 
     Plots.savefig(plot_scatter(actor),       joinpath(dir, "scatter_$(tag).$(ext)"))
@@ -1051,14 +1119,14 @@ function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:pn
         # Clean plot (no operating-point overlay)
         Plots.savefig(plot_probability(actor; op_C1=Float64[], op_C2=Float64[]),
                       joinpath(dir, "$(prob_prefix)_$(tag).$(ext)"))
-        # Duplicate with all operating-point markers
-        if !isempty(actor.op_C1)
+        # Duplicate with every operating point overlaid at once
+        if actor.eval !== nothing && !isempty(actor.eval.C1)
             Plots.savefig(plot_probability(actor; show_shot_label=false),
-                          joinpath(dir, "$(prob_prefix)_op_$(tag).$(ext)"))
+                          joinpath(dir, "$(prob_prefix)_all_op_points_$(tag).$(ext)"))
             # One figure per snapshot with a single yellow star;
             # filename encodes the snapshot time in place of dd.global_time
-            for i in eachindex(actor.op_C1)
-                t_snap = round(actor.op_times[i] * 1e3; digits=1)
+            for i in eachindex(actor.eval.C1)
+                t_snap = round(actor.eval.times[i] * 1e3; digits=1)
                 snap_shot_tag = try
                     pulse = dd.dataset_description.data_entry.pulse
                     ow_str = par.overwrite_params ? "_OW" : ""
@@ -1070,7 +1138,7 @@ function save_locking_plots(actor::ActorLocking; dir::String, format::Symbol=:pn
                 lbl_i = ["t = $(t_snap) ms"]
                 Plots.savefig(
                     plot_probability(actor;
-                        op_C1=[actor.op_C1[i]], op_C2=[actor.op_C2[i]],
+                        op_C1=[actor.eval.C1[i]], op_C2=[actor.eval.C2[i]],
                         op_label=lbl_i, show_shot_label=false),
                     joinpath(dir, "$(prob_prefix)_op_$(snap_tag).$(ext)"))
             end
@@ -1088,11 +1156,11 @@ end
 """
     _eps_ref(actor) -> ε
 
-Reference error-field amplitude (dimensionless psi_eps) for the br ↔ Δ_RW
+Reference error-field flux perturbation (dimensionless psi_eps) for the br ↔ Δ_RW
 relation.  Which quantity carries ε depends on `control_type`: for `:EF` the
 swept `Control2` *is* the error field, so the peak of the scan is used; for
 `:LinStab` and `:NLsaturation` the swept axis is Δt / α and ε is the fixed
-`ode_params.error_field` (already made dimensionless by `set_control_parameters!`).
+`ode_params.error_field` (made dimensionless once by `_normalize_error_field!`).
 """
 function _eps_ref(actor::ActorLocking)
     op  = actor.ode_params
@@ -1102,6 +1170,8 @@ function _eps_ref(actor::ActorLocking)
                op.Control2_max * 1e-4 / par.b0 * op.control_surf / Float64(par.m_pol) :
                maximum(op.Control2)
     else
+        # Already dimensionless — _normalize_error_field! converted it once, in the
+        # constructor. Re-normalizing here would apply (1e-4/b0)·r_c/m a second time.
         return op.error_field
     end
 end
@@ -1112,19 +1182,26 @@ end
 Locked-state relation between the peak normal b-field at the rational surface and
 the effective RP-RW stability index Δ_RW (`RPRW_stability_index`):
 
-    psit_max = (Δt / Δw) · l₂₁ · l₃₂ · ε / Δ_RW
-    br_max   = (rt / m) · psit_max
+    psit_max = l₂₁ · l₃₂ · ε / (Δw · Δ_RW)
+    br_max   = (m / rt) · psit_max
+
+Derived from the RP-RW steady state (`dydt[1]`/`dydt[4]` with Ω=0, α=0) and
+independently reproduced by the Q=0 limit of `_nl_bifurcation_indicator`.  Note
+Δ_RW = Δt − l₂₁·l₁₂/Δw, so the Δt dependence is carried entirely by Δ_RW.
 
 `direction=:forward`  — given `drw` (Δ_RW), return br in Gauss.
 `direction=:backward` — given `br_Gauss`, return Δ_RW.
 
-`eps` defaults to `_eps_ref(actor)`.  On the backward pass the result is forced
-negative: Δ_RW < 0 is the weak-stability invariant the `:LinStab` sweep range and
-`ModeLocking.resolve_control` both enforce, while `br_Gauss` is an amplitude and
-carries no sign.
+`eps` defaults to `_eps_ref(actor)`.
+
+Δ_RW comes out negative on its own: Δw < 0 while l₂₁, l₃₂, ε and ψt are positive.
+No sign is imposed, so a positive result means the inputs are unphysical and is
+reported rather than silently flipped.
 """
 function br_drw(actor::ActorLocking; direction::Symbol,
-                drw::Float64=actor.par.RPRW_stability_index,
+                drw::Float64 = actor.par.control_type == :LinStab ?
+                               actor.ode_params.Control2_max :
+                               actor.par.RPRW_stability_index,
                 br_Gauss::Float64=NaN,
                 eps::Float64=NaN,
                 verbose::Bool=true)
@@ -1134,23 +1211,23 @@ function br_drw(actor::ActorLocking; direction::Symbol,
     ε  = isnan(eps) ? _eps_ref(actor) : eps
 
     if direction === :forward
-        psit_max = (op.stability_index / op.DeltaW) * op.l21 * op.l32 * ε / drw
-        br_Gauss = (op.rat_surface / m) * psit_max * b0 * 1e4
+        psit_max = op.l21 * op.l32 * ε / (op.DeltaW * drw)
+        br_Gauss = (m / op.rat_surface) * psit_max * b0 * 1e4   # b_r = (m/r)·ψ
         verbose && @info @sprintf(
-            "br_drw[→]: Δt=%.4g  Δw=%.4g  l₂₁=%.4g  l₃₂=%.4g  ε=%.4g  Δ_RW=%.4g  →  ψt_max=%.4g  br=%.4g G",
-            op.stability_index, op.DeltaW, op.l21, op.l32, ε, drw, psit_max, br_Gauss)
+            "br_drw[→]: Δw=%.4g  l₂₁=%.4g  l₃₂=%.4g  ε=%.4g  Δ_RW=%.4g  →  ψt_max=%.4g  br=%.4g G",
+            op.DeltaW, op.l21, op.l32, ε, drw, psit_max, br_Gauss)
         return br_Gauss
 
     elseif direction === :backward
         isnan(br_Gauss) && error("br_drw(direction=:backward) requires br_Gauss")
-        psit_max = (br_Gauss / (b0 * 1e4)) * m / op.rat_surface
-        raw      = (op.stability_index / op.DeltaW) * op.l21 * op.l32 * ε / psit_max
-        out      = -abs(raw)
-        verbose && raw > 0 && @warn @sprintf(
-            "br_drw[←]: raw Δ_RW = %.4g > 0; using %.4g to satisfy the Δ_RW < 0 stability invariant", raw, out)
+        psit_max = (br_Gauss / (b0 * 1e4)) * op.rat_surface / m  # ψ = r·b_r/m
+        out = op.l21 * op.l32 * ε / (op.DeltaW * psit_max)
+        out >= 0 && error(@sprintf(
+            "br_drw[←]: Δ_RW = %.4g ≥ 0 for br = %.4g G — the RP-RW system is not weakly stable at this amplitude (check ε=%.4g and Δw=%.4g)",
+            out, br_Gauss, ε, op.DeltaW))
         verbose && @info @sprintf(
-            "br_drw[←]: br=%.4g G  →  ψt_max=%.4g   (Δt=%.4g  Δw=%.4g  l₂₁=%.4g  l₃₂=%.4g  ε=%.4g)  →  Δ_RW=%.4g",
-            br_Gauss, psit_max, op.stability_index, op.DeltaW, op.l21, op.l32, ε, out)
+            "br_drw[←]: br=%.4g G  →  ψt_max=%.4g   (Δw=%.4g  l₂₁=%.4g  l₃₂=%.4g  ε=%.4g)  →  Δ_RW=%.4g",
+            br_Gauss, psit_max, op.DeltaW, op.l21, op.l32, ε, out)
         return out
 
     else
@@ -1158,9 +1235,18 @@ function br_drw(actor::ActorLocking; direction::Symbol,
     end
 end
 
-"Forward br relation — returns `(br_norm, br_Gauss)`.  Thin wrapper over `br_drw`."
+"""
+Forward br relation — returns `(br_norm, br_Gauss)`.  Thin wrapper over `br_drw`.
+
+`drw` defaults to the Δ_RW the run actually uses. For `:LinStab` that is the top
+of the sweep, `ode_params.Control2_max` (Δ_RW there), which gives the largest br
+in the scan since br ∝ 1/|Δ_RW|. For `:EF`/`:NLsaturation` Δ_RW is fixed and comes
+from `par.RPRW_stability_index`, which `:LinStab` ignores entirely.
+"""
 function compute_br_max(actor::ActorLocking;
-                        drw::Float64=actor.par.RPRW_stability_index,
+                        drw::Float64 = actor.par.control_type == :LinStab ?
+                                       actor.ode_params.Control2_max :
+                                       actor.par.RPRW_stability_index,
                         eps_max::Float64=NaN)
     br_Gauss = br_drw(actor; direction=:forward, drw, eps=eps_max)
     return br_Gauss / (actor.par.b0 * 1e4), br_Gauss
@@ -1170,6 +1256,55 @@ end
 compute_drw_from_br(actor::ActorLocking, br_Gauss::Float64; eps_max::Float64=NaN) =
     br_drw(actor; direction=:backward, br_Gauss, eps=eps_max)
 
+
+"""
+    _normalize_error_field!(ode_params, par) -> ODEparams
+
+Derive `ode_params.error_field` from `par.error_field` (Gauss) into the
+dimensionless psi_eps normalization the model uses throughout:
+
+    errF = EF_Gauss · 1e-4 / b0 · r_c / m_pol
+
+the same scaling `:EF` applies when building the Control2 grid, so a fixed error
+field and a swept one land in identical units.  `ModeLocking.resolve_control`
+reads `ode_params.error_field` expecting this normalization, which is why the
+field cannot simply hold Gauss.
+
+The value is *assigned* from `par`, never accumulated onto whatever the field
+already held, so calling this repeatedly is a no-op — the compounding that made
+error_field drift by ~1000× is impossible by construction.
+
+`control_surf` is only ever read at run time, never reassigned, so its value is
+already final here.
+"""
+function _normalize_error_field!(ode_params::ODEparams, par)
+    norm = (1e-4 / par.b0) * ode_params.control_surf / Float64(par.m_pol)
+    want = par.error_field * norm
+    # ODEparams' own default is in Gauss; anything else means the caller set it
+    # via ode_params, which par.error_field now overrides
+    had = ode_params.error_field
+    if had != ODEparams().error_field && !isapprox(had, want; rtol=1e-8)
+        @warn @sprintf(
+            "ode_params.error_field=%.4g is ignored — par.error_field=%.4g Gauss is authoritative (→ %.4g dimensionless)",
+            had, par.error_field, want)
+    end
+    ode_params.error_field = want
+    return ode_params
+end
+
+"""
+    _rotation_at_rat_surface(dd, par, rt) -> Float64
+
+Dimensionless rotation (f·t₀) at the rational surface `rt`, interpolated from
+`core_profiles` at the current `dd.global_time`.  This is the Control1 value the
+plasma actually sits at, as opposed to a user-supplied `par.op_C1`.
+"""
+function _rotation_at_rat_surface(dd::IMAS.dd, par, rt::Real)
+    rho_cp      = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
+    rot_profile = dd.core_profiles.profiles_1d[].ion[1].rotation_frequency_tor
+    rot_rs_rads = IMAS.interp1d(rho_cp, rot_profile)(rt)
+    return (rot_rs_rads / (2π)) * par.t0
+end
 
 """
     _op_C2_scalar(par) -> Float64
@@ -1198,7 +1333,7 @@ axis the probability model was trained on:
 Warns when a `:LinStab` inversion lands outside the scanned Control2 range, since
 the probability model is then extrapolating.
 """
-function _op_C2_to_control2(actor::ActorLocking, c2_user::Real)
+function _op_C2_to_control2(actor::ActorLocking, c2_user::Real; verbose::Bool=true)
     par = actor.par
     op  = actor.ode_params
 
@@ -1206,13 +1341,21 @@ function _op_C2_to_control2(actor::ActorLocking, c2_user::Real)
         return Float64(c2_user) * 1e-4 / par.b0 * op.control_surf / Float64(par.m_pol)
 
     elseif par.control_type == :LinStab
-        drw = br_drw(actor; direction=:backward, br_Gauss=Float64(c2_user))
-        Δt  = drw + op.l21 * op.l12 / op.DeltaW
+        # br (Gauss) → ψt → Δ_RW → Δt.  Δt_crit is the marginal value where
+        # Δ_RW = 0 and the RP-RW system stops being weakly stable; Δt must stay
+        # strictly below it. br_drw already errors on Δ_RW ≥ 0, so this is a
+        # belt-and-braces check that also names the limit in the message.
+        drw     = br_drw(actor; direction=:backward, br_Gauss=Float64(c2_user), verbose)
+        Δt_crit = op.l21 * op.l12 / op.DeltaW
+        Δt      = drw + Δt_crit
+        Δt >= Δt_crit && error(@sprintf(
+            "op_C2: br=%.4g G → Δt=%.4g ≥ Δt_crit=%.4g — RP-RW system would not be weakly stable",
+            Float64(c2_user), Δt, Δt_crit))
         c2min, c2max = isempty(op.Control2) ? (op.Control2_min, op.Control2_max) : extrema(op.Control2)
         if !(c2min <= Δt <= c2max)
             @warn @sprintf(
-                "op_C2: br=%.4g G → Δt=%.4g is outside the scanned Control2 range [%.4g, %.4g] — probability model is extrapolating",
-                Float64(c2_user), Δt, c2min, c2max)
+                "op_C2: br=%.4g G → Δt=%.4g is outside the scanned Control2 range [%.4g, %.4g] (Δt_crit=%.4g) — probability model is extrapolating",
+                Float64(c2_user), Δt, c2min, c2max, Δt_crit)
         end
         return Δt
 
