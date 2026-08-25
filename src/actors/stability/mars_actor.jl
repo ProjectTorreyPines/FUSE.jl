@@ -1178,6 +1178,16 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     mode = nothing
     if isfile("XPLASMA.OUT") && isfile("RMZM_F.OUT")
         m_pol, xi1, xi2, xi3 = read_MARS_eigenfunction("XPLASMA.OUT")
+        # XPLASMA.OUT zeroes its first radial row for every harmonic, but ξ¹ ∝ s^(|m|-1) means
+        # |m|=1 is finite on axis — see fix_axis_regularity! for the evidence and provenance.
+        fixed_m = fix_axis_regularity!(m_pol, xi1)
+        if !isempty(fixed_m)
+            @warn "Corrected on-axis displacement for m=$fixed_m: XPLASMA.OUT writes 0 at s=0 for " *
+                  "all harmonics, but ξ¹ ∝ s^(|m|-1) leaves |m|=1 finite there (VPLASMA's v¹, which " *
+                  "shares the same radial structure since v=γξ, carries the non-zero value). Copied " *
+                  "the adjacent radial point into s=0, as RZplot/MacReadVPLASMA.m:41 does. " *
+                  "dd.mhd_linear therefore differs from XPLASMA.OUT in exactly these $(length(fixed_m)) point(s)."
+        end
         s, R0EXP, RM, ZM, Ns1, s_full, B0EXP = read_MARS_geometry("RMZM_F.OUT")
         chi, R, Z = mars_flux_surface_RZ(RM, ZM, R0EXP, Ns1)
         v1 = v2 = v3 = nothing
@@ -1255,6 +1265,44 @@ function read_MARS_eigenfunction(filename::AbstractString; has_equilibrium_block
     end
 
     return m_pol, c1, c2, c3
+end
+
+"""
+    fix_axis_regularity!(m_pol, c1) -> Vector{Int}
+
+Repair the on-axis value of the `|m|=1` harmonics of the MARS **displacement** ξ¹, modifying
+`c1` in place and returning the poloidal mode numbers actually corrected.
+
+Near the magnetic axis the contravariant radial component behaves as `ξ¹ ∝ s^(|m|-1)`, so
+`|m|=1` is the only case that is finite (and generally non-zero) at `s=0` — every other
+harmonic correctly vanishes there. This is directly visible in the data as
+`|ξ¹(i=3)|/|ξ¹(i=2)| = 2^(|m|-1)`: 1 for `|m|=1`, 2 for `|m|=2`, 4 for `|m|=3`, and so on.
+`XPLASMA.OUT` nevertheless writes exactly `0.0` in its first radial row for *all* harmonics,
+which leaves the `|m|=1` curves jumping discontinuously between the first two grid points.
+
+`VPLASMA.OUT` is the witness that this is an output artifact rather than physics: since
+`v = γξ` the two must share radial structure — and they do, their `c(3)/c(2)` ratios agree to
+5 significant figures — yet `v¹` carries the correct non-zero value at `s=0` for `m=±1`.
+`BPLASMA.OUT` is unaffected (`b¹` has its own, genuinely vanishing, axis behaviour).
+
+The correction copies the adjacent radial point into the axis point, matching the reference
+implementation's own fix in `RZplot/MacReadVPLASMA.m:41`:
+
+    %VM1(1,2-Mac.Mm(1)) = VM1(2,2-Mac.Mm(1));
+
+which is present but commented out there, and covers only `m=+1` — `m=-1` is affected too, so
+this handles both.
+"""
+function fix_axis_regularity!(m_pol, c1)
+    fixed = Int[]
+    for (k, m) in enumerate(m_pol)
+        abs(m) == 1 || continue
+        # only touch the artifact: an exact zero on axis with a finite neighbour
+        (c1[1, k] == 0 && abs(c1[2, k]) > 0) || continue
+        c1[1, k] = c1[2, k]
+        push!(fixed, Int(m))
+    end
+    return fixed
 end
 
 """
