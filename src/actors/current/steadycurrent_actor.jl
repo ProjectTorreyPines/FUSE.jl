@@ -14,9 +14,9 @@
 end
 
 mutable struct ActorSteadyStateCurrent{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSteadyStateCurrent{P}}
-    function ActorSteadyStateCurrent(dd::IMAS.dd{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
+    function ActorSteadyStateCurrent(dd::IMAS.DD{D}, par::FUSEparameters__ActorSteadyStateCurrent{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSteadyStateCurrent)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -24,7 +24,7 @@ mutable struct ActorSteadyStateCurrent{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSteadyStateCurrent(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Computes the steady-state ohmic current distribution using plasma conductivity and target plasma current.
 
@@ -43,7 +43,7 @@ Key features:
 
     The fundamental quantitiy being solved is `j_total` in `dd.core_profiles.profiles_1d[]`
 """
-function ActorSteadyStateCurrent(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSteadyStateCurrent(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSteadyStateCurrent(dd, act.ActorSteadyStateCurrent; kw...)
     step(actor)
     finalize(actor)

@@ -57,6 +57,7 @@ LocalPreferences.toml
 
 # editors
 /.vscode/*
+/.cursor/
 .ipynb_checkpoints
 .DS_Store
 

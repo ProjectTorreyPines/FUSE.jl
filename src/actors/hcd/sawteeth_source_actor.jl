@@ -9,9 +9,9 @@
 end
 
 mutable struct ActorSawteethSource{D,P} <: AbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSawteethSource{P}}
-    function ActorSawteethSource(dd::IMAS.dd{D}, par::FUSEparameters__ActorSawteethSource{P}; kw...) where {D<:Real,P<:Real}
+    function ActorSawteethSource(dd::IMAS.DD{D}, par::FUSEparameters__ActorSawteethSource{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSawteethSource)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -19,7 +19,7 @@ mutable struct ActorSawteethSource{D,P} <: AbstractActor{D,P}
 end
 
 """
-    ActorSawteethSource(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSawteethSource(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Applies sawtooth reconnection effects to plasma sources when the safety factor q < 1.0.
 
@@ -39,14 +39,14 @@ during sawtooth crashes in tokamak plasmas.
 - `ignore_before_time`: Ignore sawteeth diagnostics at times <= this value. If `-Inf` (default),
     considers entire history. Only non-zero `rho_tor_norm_inversion` values are considered as sawteeth events.
 """
-function ActorSawteethSource(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSawteethSource(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSawteethSource(dd, act.ActorSawteethSource; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function _last_sawteeth_event(dd::IMAS.dd, ignore_before_time::Float64)
+function _last_sawteeth_event(dd::IMAS.DD, ignore_before_time::Float64)
     diag = dd.sawteeth.diagnostics
     if ismissing(dd.sawteeth, :time) || ismissing(diag, :rho_tor_norm_inversion) || isempty(diag.rho_tor_norm_inversion)
         return nothing, nothing

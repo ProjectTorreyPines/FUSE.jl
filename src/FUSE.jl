@@ -119,6 +119,9 @@ include(joinpath("actors", "hcd", "ec", "torbeam_actor.jl"))
 include(joinpath("actors", "hcd", "ic_simple_actor.jl"))
 include(joinpath("actors", "hcd", "lh_simple_actor.jl"))
 include(joinpath("actors", "hcd", "nbi", "nb_simple_actor.jl"))
+
+include(joinpath("actors", "hcd", "pam_actor.jl"))
+
 include(joinpath("actors", "hcd", "nbi", "rabbit_actor.jl"))
 include(joinpath("actors", "hcd", "pl_simple_actor.jl"))
 include(joinpath("actors", "hcd", "neutral_fueling_actor.jl"))
@@ -165,6 +168,7 @@ include(joinpath("actors", "wall_loading", "particle_hf_actor.jl"))
 include(joinpath("actors", "wall_loading", "corerad_hf_actor.jl"))
 
 include(joinpath("actors", "sol", "sol_box_actor.jl"))
+include(joinpath("actors", "sol", "solps_nn_actor.jl"))
 include(joinpath("actors", "sol", "sol_actor.jl"))
 
 # NOTE: compound actors should be defined last
@@ -196,6 +200,7 @@ include(joinpath("studies", "HDB5_validation.jl"))
 #  WORKFLOWS  #
 #= ========= =#
 include(joinpath("workflows", "optimization_workflow.jl"))
+include(joinpath("workflows", "pedestal_transport_workflow.jl"))
 
 #= ======= =#
 #  LOGGING  #

@@ -5,7 +5,7 @@
 end
 
 mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorBalanceOfPlant{P}}
     act::ParametersAllActors{P}
     thermal_plant_actor::ActorThermalPlant{D}
@@ -13,7 +13,7 @@ mutable struct ActorBalanceOfPlant{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorBalanceOfPlant(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Orchestrates the complete balance of plant analysis by coordinating thermal plant efficiency calculations
 and electrical power needs assessment. Collects heat loads from various tokamak sources (blanket, 
@@ -40,14 +40,14 @@ and determines net electrical power output.
 
     Stores data in `dd.balance_of_plant`
 """
-function ActorBalanceOfPlant(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorBalanceOfPlant(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorBalanceOfPlant(dd, act.ActorBalanceOfPlant, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorBalanceOfPlant(dd::IMAS.dd, par::FUSEparameters__ActorBalanceOfPlant, act::ParametersAllActors; kw...)
+function ActorBalanceOfPlant(dd::IMAS.DD, par::FUSEparameters__ActorBalanceOfPlant, act::ParametersAllActors; kw...)
     logging_actor_init(ActorBalanceOfPlant)
     par = OverrideParameters(par; kw...)
 

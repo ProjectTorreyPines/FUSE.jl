@@ -18,7 +18,7 @@
 end
 
 mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorDynamicPlasma{P}}
     act::ParametersAllActors{P}
     actor_tr::ActorCoreTransport{D,P}
@@ -32,7 +32,7 @@ mutable struct ActorDynamicPlasma{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorDynamicPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Evolves plasma profiles forward in time using coupled physics models.
 
@@ -78,14 +78,14 @@ Control options:
   - Individual physics component enable/disable switches
   - Configurable time step size and number of steps
 """
-function ActorDynamicPlasma(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorDynamicPlasma(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorDynamicPlasma(dd, act.ActorDynamicPlasma, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorDynamicPlasma(dd::IMAS.dd, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
+function ActorDynamicPlasma(dd::IMAS.DD, par::FUSEparameters__ActorDynamicPlasma, act::ParametersAllActors; kw...)
     logging_actor_init(ActorDynamicPlasma)
     par = OverrideParameters(par; kw...)
 
@@ -443,7 +443,7 @@ function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractAc
 end
 
 """
-    plot_plasma_overview(dd::IMAS.dd, time0::Float64)
+    plot_plasma_overview(dd::IMAS.DD, time0::Float64)
 
 Plot layout useful to get an overview of a (time dependent) plasma simulation.
 
@@ -462,7 +462,7 @@ Inclusinon in BEAMER presentation can then be done with:
 
     \\animategraphics[loop,autoplay,controls,poster=0,width=\\linewidth]{24}{frame_}{0000}{0120}
 """
-function plot_plasma_overview(dd::IMAS.dd, time0::Float64=dd.global_time;
+function plot_plasma_overview(dd::IMAS.DD, time0::Float64=dd.global_time;
     min_power::Float64=0.0,
     aggregate_radiation::Bool=true,
     aggregate_hcd::Bool=true,

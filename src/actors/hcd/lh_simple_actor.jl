@@ -12,9 +12,9 @@ end
 end
 
 mutable struct ActorSimpleLH{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSimpleLH{P}}
-    function ActorSimpleLH(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleLH{P}; kw...) where {D<:Real,P<:Real}
+    function ActorSimpleLH(dd::IMAS.DD{D}, par::FUSEparameters__ActorSimpleLH{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimpleLH)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -22,7 +22,7 @@ mutable struct ActorSimpleLH{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleLH(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates lower hybrid (LH) wave heating and current drive using a simplified Gaussian deposition model.
 
@@ -45,7 +45,7 @@ Where the parallel current is: j_∥ = η_CD / R₀ / n_e[10²⁰] × P_launched
 
     Reads data in `dd.lh_antennas`, `dd.pulse_schedule` and stores results in `dd.waves` and `dd.core_sources`
 """
-function ActorSimpleLH(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSimpleLH(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSimpleLH(dd, act.ActorSimpleLH; kw...)
     step(actor)
     finalize(actor)

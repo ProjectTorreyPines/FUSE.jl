@@ -12,9 +12,9 @@
 end
 
 mutable struct ActorLFSsizing{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorLFSsizing{P}}
-    function ActorLFSsizing(dd::IMAS.dd{D}, par::FUSEparameters__ActorLFSsizing{P}; kw...) where {D<:Real,P<:Real}
+    function ActorLFSsizing(dd::IMAS.DD{D}, par::FUSEparameters__ActorLFSsizing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorLFSsizing)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -22,7 +22,7 @@ mutable struct ActorLFSsizing{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorLFSsizing(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Optimizes the low-field-side (LFS) radial build layout for toroidal field ripple and maintenance requirements.
 
@@ -50,7 +50,7 @@ the required TF coil repositioning while maintaining geometric consistency.
     Reads and modifies radial build information in `dd.build.layer`, using TF coil specifications 
     from `dd.build.tf` (ripple tolerance, coil count)
 """
-function ActorLFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorLFSsizing(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorLFSsizing(dd, act.ActorLFSsizing; kw...)
     if actor.par.do_plot
         plot(dd.build.layer)

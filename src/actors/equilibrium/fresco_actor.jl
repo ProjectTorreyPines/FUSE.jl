@@ -18,7 +18,7 @@ import FRESCO
 end
 
 mutable struct ActorFRESCO{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFRESCO{P}}
     act::ParametersAllActors{P}
     canvas::Union{Nothing,FRESCO.Canvas}
@@ -26,7 +26,7 @@ mutable struct ActorFRESCO{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFRESCO(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Solves the tokamak MHD equilibrium using the FRESCO free-boundary equilibrium solver.
 
@@ -54,14 +54,14 @@ The solver supports:
     Reads data from `dd.equilibrium`, `dd.core_profiles`, `dd.pf_active`, and `dd.wall`,
     and updates `dd.equilibrium` and `dd.pf_active` with the solved equilibrium
 """
-function ActorFRESCO(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorFRESCO(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFRESCO(dd, act.ActorFRESCO, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorFRESCO(dd::IMAS.dd{D}, par::FUSEparameters__ActorFRESCO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorFRESCO(dd::IMAS.DD{D}, par::FUSEparameters__ActorFRESCO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFRESCO)
     par = OverrideParameters(par; kw...)
     return ActorFRESCO(dd, par, act, nothing, nothing)

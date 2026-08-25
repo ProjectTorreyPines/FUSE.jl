@@ -1,15 +1,7 @@
 {
   "argv": [
-    "podman-hpc",
-__SQUASH_ARGS__
-    "run",
-    "--rm",
-    "--jupyter",
-    "__IMAGE__",
-    "julia",
-    "--sysimage=/opt/fuse/sys_fuse.so",
-    "--threads=__THREADS__",
-    "__KERNEL_JL__",
+    "/bin/bash",
+    "__KERNEL_DIR__/launch.sh",
     "{connection_file}"
   ],
   "display_name": "__DISPLAY__",

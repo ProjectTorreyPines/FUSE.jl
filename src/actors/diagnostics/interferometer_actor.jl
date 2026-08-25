@@ -9,12 +9,12 @@
 end
 
 mutable struct ActorInterferometer{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorInterferometer{P}}
 end
 
 """
-    ActorInterferometer(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorInterferometer(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates synthetic interferometer measurements from equilibrium and core profiles.
 
@@ -45,14 +45,14 @@ Parameters:
     The `dd.interferometer` must have channels defined with `line_of_sight` geometry.
     Results are stored in `dd.interferometer.channel[:].n_e_line_average`.
 """
-function ActorInterferometer(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorInterferometer(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorInterferometer(dd, act.ActorInterferometer; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorInterferometer(dd::IMAS.dd, par::FUSEparameters__ActorInterferometer; kw...)
+function ActorInterferometer(dd::IMAS.DD, par::FUSEparameters__ActorInterferometer; kw...)
     logging_actor_init(ActorInterferometer)
     par = OverrideParameters(par; kw...)
     return ActorInterferometer(dd, par)

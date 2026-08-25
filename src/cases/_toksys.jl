@@ -1,4 +1,4 @@
-function from_TokSys(dd::IMAS.dd, mat::Dict; what...)
+function from_TokSys(dd::IMAS.DD, mat::Dict; what...)
     # ================
     # parse TokSys mat
     # ================

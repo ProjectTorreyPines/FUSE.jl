@@ -1,9 +1,9 @@
 """
-    init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+    init_missing_from_ods!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
 
 Initialize missing IDSs from ODS, only if `ini.general.init_from == :ods`.
 """
-function init_missing_from_ods!(dd::IMAS.dd, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.dd=IMAS.dd())
+function init_missing_from_ods!(dd::IMAS.DD, ini::ParametersAllInits, act::ParametersAllActors, dd1::IMAS.DD=IMAS.dd())
     TimerOutputs.reset_timer!("init_missing_from_ods")
     TimerOutputs.@timeit timer "init_missing_from_ods" begin
         init_from = ini.general.init_from

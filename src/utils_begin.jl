@@ -91,11 +91,11 @@ end
 import FileIO, JpegTurbo
 
 """
-    dd_build_layers_to_ini(dd::IMAS.dd)
+    dd_build_layers_to_ini(dd::IMAS.DD)
 
 Utility function to convert layers in dd.build to layers in `ini.build.layers = layers = OrderedCollections.OrderedDict{Symbol,Float64}()`
 """
-function dd_build_layers_to_ini(dd::IMAS.dd)
+function dd_build_layers_to_ini(dd::IMAS.DD)
     for layer in dd.build.layer
         name = replace(layer.name, " " => "_")
         println("layers[:$name] = $(layer.thickness)")

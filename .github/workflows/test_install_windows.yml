@@ -1,0 +1,105 @@
+name: test-install-windows
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/install_fuse_windows.ps1'
+      - 'scripts/verify_fluxmatcher_notebook.ps1'
+      - 'scripts/install_fuse_julia.jl'
+      - '.github/workflows/test_install_windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-bootstrap:
+    name: Windows install script bootstrap
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1.11'
+          show-versioninfo: true
+
+      - name: Parse PowerShell install scripts
+        shell: pwsh
+        run: |
+          foreach ($script in @(
+            'scripts/install_fuse_windows.ps1',
+            'scripts/verify_fluxmatcher_notebook.ps1'
+          )) {
+            $errors = $null
+            $tokens = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
+            if ($errors) {
+              $errors | ForEach-Object { Write-Error $_ }
+              exit 1
+            }
+            Write-Host "Parsed $script OK"
+          }
+
+      - name: Bootstrap Julia + Miniconda (Windows install script)
+        shell: pwsh
+        run: ./scripts/install_fuse_windows.ps1 -BootstrapOnly
+
+      - name: Clone FuseExamples for notebook structure check
+        shell: pwsh
+        run: git clone --depth 1 https://github.com/ProjectTorreyPines/FuseExamples.git
+
+      - name: Verify fluxmatcher notebook structure (no FUSE import)
+        shell: pwsh
+        run: |
+          python -c @'
+          import json
+          from pathlib import Path
+          nb = json.loads(Path("FuseExamples/fluxmatcher.ipynb").read_text(encoding="utf-8"))
+          assert len(nb["cells"]) >= 3
+          assert nb["cells"][0]["cell_type"] == "code"
+          assert nb["cells"][1]["cell_type"] == "markdown"
+          assert nb["cells"][2]["cell_type"] == "code"
+          print("fluxmatcher.ipynb structure OK")
+          '@
+
+  windows-full-install:
+    # End-to-end install on the latest stable Julia — what fresh juliaup users
+    # get. Covers registry add, Pkg.add(FUSE) + precompile, Revise, fusebot,
+    # the conda env, IJulia kernels, and the FuseExamples clone. The physics-
+    # heavy smoke test and notebook solve are covered by runtests on
+    # Linux/macOS and are skipped here to keep the job within CI limits.
+    name: Windows full FUSE install
+    runs-on: windows-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1'
+          show-versioninfo: true
+
+      - name: Run full Windows install (skip smoke test + notebook solve)
+        shell: pwsh
+        env:
+          FUSE_SKIP_SMOKE: '1'
+          FUSE_SKIP_VERIFY: '1'
+        run: ./scripts/install_fuse_windows.ps1
+
+      - name: Verify FUSE loads
+        shell: pwsh
+        run: julia -e 'using FUSE; println("FUSE ", pkgversion(FUSE), " loaded OK")'
+
+      - name: Verify IJulia kernels registered
+        shell: pwsh
+        run: |
+          $kernels = Join-Path $env:APPDATA "jupyter\kernels"
+          $found = @(Get-ChildItem $kernels -Directory -ErrorAction SilentlyContinue)
+          $found | ForEach-Object { Write-Host "kernel: $($_.Name)" }
+          if ($found.Count -eq 0) {
+            Write-Error "No Jupyter kernels registered under $kernels"
+            exit 1
+          }

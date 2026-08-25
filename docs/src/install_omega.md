@@ -46,6 +46,26 @@ The FUSE module does several things:
        restart too quickly and the precompilation was not finished. In any case, if the problem
        does not resolve after restarting the kernel twice, reach out to the FUSE developers.
 
+## FUSE container (Singularity)
+
+As an alternative to the `fuse` module, FUSE also ships as a self-contained
+Singularity image: a single `.sif` file with FUSE, all ProjectTorreyPines
+packages, and a precompiled sysimage baked in — no modules, no private depot,
+startup in seconds, runnable on any omega node (REPL, Slurm jobs, or as a
+Jupyter kernel). A prebuilt image lives at
+`/fusion/projects/dt/fuse_containers/` and is easiest to use via its module:
+
+```bash
+module use /fusion/projects/dt/fuse_containers/modules   # once, or add to ~/.bashrc
+module load fuse-container
+fuse-container                                            # FUSE REPL
+fuse-container -e 'using FUSE; @show pkgversion(FUSE)'    # run a script
+```
+
+See
+[`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md)
+for how to build, run, and install the Jupyter kernel.
+
 ## Connecting to a Jupyter-lab server running on OMEGA from your laptop
 
 1. Connect to `omega` and launch `screen`

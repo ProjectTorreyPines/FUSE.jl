@@ -10,14 +10,15 @@ import NNeutronics
         "Fraction of thermal power that is carried out by the coolant at the blanket interface, rather than being lost in the surrounding strutures.";
         default=1.0)
     max_Li6_enrichment_fraction::Entry{T} = Entry{T}("-", "Maximum allowed Li6 enrichment_fraction"; default=0.9)
+    update_build::Entry{Bool} = Entry{Bool}("-", "Let the TBR optimization re-split the first wall / blanket / shield thicknesses in dd.build.layer"; default=true)
     verbose::Entry{Bool} = act_common_parameters(; verbose=false)
 end
 
 mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorBlanket{P}}
     act::ParametersAllActors{P}
-    function ActorBlanket(dd::IMAS.dd{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
+    function ActorBlanket(dd::IMAS.DD{D}, par::FUSEparameters__ActorBlanket{P}, act::ParametersAllActors; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorBlanket)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par, act)
@@ -25,7 +26,7 @@ mutable struct ActorBlanket{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorBlanket(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates blanket performance including tritium breeding ratio (TBR), thermal power
 generation, and neutron leakage using 1D neutronics models. The actor optimizes
@@ -46,7 +47,7 @@ geometric and material configurations.
 
     Stores data in `dd.blanket`
 """
-function ActorBlanket(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorBlanket(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorBlanket(dd, act.ActorBlanket, act; kw...)
     step(actor)
     finalize(actor)
@@ -183,7 +184,7 @@ function _step(actor::ActorBlanket)
         blanket_model::NNeutronics.Blanket,
         modules_relative_thickness13::Vector{<:Real},
         Li6::Real,
-        dd::IMAS.dd,
+        dd::IMAS.DD,
         modules_effective_thickness::Vector{Matrix{Float64}},
         modules_wall_loading_power::Vector{<:Any},
         total_power_neutrons::Real,
@@ -218,9 +219,10 @@ function _step(actor::ActorBlanket)
                 ed2 = modules_effective_thickness[ibm][k, 2] * x2
                 ed3 = modules_effective_thickness[ibm][k, 3] * x3
                 module_tritium_breeding_ratio += (NNeutronics.TBR(blanket_model, ed1, ed2, ed3, Li6) * modules_wall_loading_power[ibm][k] / module_wall_loading_power)
-                #NOTE: leakeage_energy is total number of neutrons in each energy bin, so just a sum is correct
+                # NOTE: leakeage_energy is total number of neutrons in each energy bin, so need to sum times energy grid
                 LE = NNeutronics.leakeage_energy(blanket_model, ed1, ed2, ed3, Li6, energy_grid)::Vector{Float64}
-                escape_flux = sum(LE) * modules_wall_loading_power[ibm][k] * modules_flux_geometric_scale[ibm][k]
+                escape_power_fraction = sum(LE .* energy_grid) / 14.1
+                escape_flux = escape_power_fraction * modules_wall_loading_power[ibm][k] * modules_flux_geometric_scale[ibm][k]
                 if escape_flux > modules_peak_escape_flux[ibm]
                     modules_peak_escape_flux[ibm] = escape_flux
                 end
@@ -242,32 +244,58 @@ function _step(actor::ActorBlanket)
         else
             cost = norm((
                 (total_tritium_breeding_ratio - target) / target,
-                exp(Li6) / exp(100.0),
+                1e-6*maximum(modules_peak_escape_flux) / (sum(modules_peak_wall_flux) / length(modules_peak_wall_flux)),
+                1e-6*exp(0.01*Li6) / exp(1.0),
                 extra_cost
             ))
             return cost
         end
     end
 
-    res = Optim.optimize(
-        x -> target_TBR2D(
-            blanket_model_1d,
-            x[1:end-1],
-            x[end],
-            dd,
-            modules_effective_thickness,
-            modules_wall_loading_power,
-            total_power_neutrons,
-            par.minimum_first_wall_thickness,
-            dd.requirements.tritium_breeding_ratio
-        ),
-        vcat(modules_relative_thickness13, 50.0),
-        Optim.NelderMead()
-    )#; autodiff=:forward)#, rel_tol=1E-6)
+    if par.update_build
+        res = Optim.optimize(
+            x -> target_TBR2D(
+                blanket_model_1d,
+                x[1:end-1],
+                x[end],
+                dd,
+                modules_effective_thickness,
+                modules_wall_loading_power,
+                total_power_neutrons,
+                par.minimum_first_wall_thickness,
+                dd.requirements.tritium_breeding_ratio
+            ),
+            vcat(modules_relative_thickness13, 50.0),
+            Optim.NelderMead()
+        )#; autodiff=:forward)#, rel_tol=1E-6)
+        best_relative_thickness13 = res.minimizer[1:end-1]
+        best_Li6 = abs(res.minimizer[end])
+    else
+        # the radial build is frozen: the layer split stays as it is in dd.build.layer
+        # (relative thicknesses of 1.0) and Li6 enrichment is the only free variable
+        res = Optim.optimize(
+            Li6 -> target_TBR2D(
+                blanket_model_1d,
+                modules_relative_thickness13,
+                Li6,
+                dd,
+                modules_effective_thickness,
+                modules_wall_loading_power,
+                total_power_neutrons,
+                par.minimum_first_wall_thickness,
+                dd.requirements.tritium_breeding_ratio
+            ),
+            0.0,
+            100.0 * par.max_Li6_enrichment_fraction,
+            Optim.Brent()
+        )
+        best_relative_thickness13 = modules_relative_thickness13
+        best_Li6 = abs(res.minimizer)
+    end
     total_tritium_breeding_ratio = target_TBR2D(
         blanket_model_1d,
-        res.minimizer[1:end-1],
-        abs(res.minimizer[end]),
+        best_relative_thickness13,
+        best_Li6,
         dd,
         modules_effective_thickness,
         modules_wall_loading_power,
@@ -279,17 +307,19 @@ function _step(actor::ActorBlanket)
     end
 
     # assign the thicknesses back to the dd.build.layer
-    for (istructure, structure) in enumerate(blankets)
-        bm = dd.blanket.module[istructure]
+    if par.update_build
+        for (istructure, structure) in enumerate(blankets)
+            bm = dd.blanket.module[istructure]
 
-        d1, d2, d3 = d1_d2_d3_layers(structure, dd.build.layer, eqt.boundary.geometric_axis.r, length(blankets))
+            d1, d2, d3 = d1_d2_d3_layers(structure, dd.build.layer, eqt.boundary.geometric_axis.r, length(blankets))
 
-        if !isempty(d1)
-            d1.thickness = bm.layer[1].midplane_thickness
-        end
-        d2.thickness = bm.layer[2].midplane_thickness
-        if !isempty(d3)
-            d3.thickness = bm.layer[3].midplane_thickness
+            if !isempty(d1)
+                d1.thickness = bm.layer[1].midplane_thickness
+            end
+            d2.thickness = bm.layer[2].midplane_thickness
+            if !isempty(d3)
+                d3.thickness = bm.layer[3].midplane_thickness
+            end
         end
     end
 

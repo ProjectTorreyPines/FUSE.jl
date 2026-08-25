@@ -38,14 +38,14 @@ import GACODE
 end
 
 mutable struct ActorFINN{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFINN{P}}
     finn_results::NamedTuple
     actor_replay::ActorReplay{D,P}
 end
 
 """
-    ActorFINN(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFINN(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Predicts flux-matched plasma profiles using the FINN (Flux-matcher Inversion Neural Network).
 
@@ -67,20 +67,20 @@ Unpredicted channels (retain experimental/initialized values):
 - Individual ion densities (Deuterium, Tritium, impurities)
 - Any profiles outside the `rho_transport` grid (edge/pedestal region)
 """
-function ActorFINN(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorFINN(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFINN(dd, act.ActorFINN, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorFINN(dd::IMAS.dd{D}, par::FUSEparameters__ActorFINN{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorFINN(dd::IMAS.DD{D}, par::FUSEparameters__ActorFINN{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFINN)
     par = OverrideParameters(par; kw...)
     empty_results = (RLTS_1=Float64[], RLTS_2=Float64[], RLNS_1=Float64[], VEXB_SHEAR=Float64[], rho=Float64[])
     # Build a placeholder ActorReplay so the parent struct can be constructed,
     # then reassign with the parent-actor reference so dispatch reaches
-    # `_step(::ActorReplay, ::ActorFINN, ::IMAS.dd)` (mirrors ActorFluxMatcher).
+    # `_step(::ActorReplay, ::ActorFINN, ::IMAS.DD)` (mirrors ActorFluxMatcher).
     actor_replay = ActorReplay(dd, act.ActorReplay, ActorNoOperation(dd, act.ActorNoOperation))
     actor = ActorFINN(dd, par, empty_results, actor_replay)
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
@@ -244,7 +244,7 @@ function _finalize(actor::ActorFINN)
 end
 
 """
-    _step(replay_actor::ActorReplay, actor::ActorFINN, replay_dd::IMAS.dd)
+    _step(replay_actor::ActorReplay, actor::ActorFINN, replay_dd::IMAS.DD)
 
 Replay rotation profile from `replay_dd` into the current `dd` when
 `actor.par.evolve_rotation == :replay`. Mirrors the rotation block of
@@ -254,7 +254,7 @@ and per-ion `rotation_frequency_tor` are copied — the latter is the measured
 quantity, and copying only sonic rotation would let it get recomputed from
 simulated pressure gradients via the IMAS expression.
 """
-function _step(replay_actor::ActorReplay, actor::ActorFINN, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorFINN, replay_dd::IMAS.DD)
     par = actor.par
     par.evolve_rotation == :replay || return replay_actor
 

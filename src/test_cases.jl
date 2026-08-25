@@ -10,49 +10,49 @@ function ini_act_tests_customizations!(ini::ParametersAllInits, act::ParametersA
     return (ini=ini, act=act)
 end
 
-function test_case(::Val{:ITER_ods}, dd::IMAS.dd)
+function test_case(::Val{:ITER_ods}, dd::IMAS.DD)
     ini, act = case_parameters(:ITER; init_from=:ods)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:ITER_scalars}, dd::IMAS.dd)
+function test_case(::Val{:ITER_scalars}, dd::IMAS.DD)
     ini, act = case_parameters(:ITER; init_from=:scalars)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:D3D_Hmode}, dd::IMAS.dd)
+function test_case(::Val{:D3D_Hmode}, dd::IMAS.DD)
     ini, act = case_parameters(:D3D, :H_mode)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:D3D_Lmode}, dd::IMAS.dd)
+function test_case(::Val{:D3D_Lmode}, dd::IMAS.DD)
     ini, act = case_parameters(:D3D, :L_mode)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:D3D}, dd::IMAS.dd)
+function test_case(::Val{:D3D}, dd::IMAS.DD)
     ini, act = case_parameters(:D3D, :default)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:FPP}, dd::IMAS.dd)
+function test_case(::Val{:FPP}, dd::IMAS.DD)
     ini, act = case_parameters(:FPP)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:CAT}, dd::IMAS.dd)
+function test_case(::Val{:CAT}, dd::IMAS.DD)
     ini, act = case_parameters(:CAT)
     ini_act_tests_customizations!(ini, act)
     act.ActorStationaryPlasma.max_iterations = 1
@@ -64,14 +64,14 @@ function test_case(::Val{:CAT}, dd::IMAS.dd)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:JET_HDB5}, dd::IMAS.dd)
+function test_case(::Val{:JET_HDB5}, dd::IMAS.DD)
     ini, act = case_parameters(:HDB5; tokamak=:JET, database_case=500)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:ARC}, dd::IMAS.dd)
+function test_case(::Val{:ARC}, dd::IMAS.DD)
     ini, act = case_parameters(:ARC)
     # There could be an engineering problem here but this shouldn't fail the tests
     act.ActorHFSsizing.error_on_performance = false
@@ -82,14 +82,14 @@ function test_case(::Val{:ARC}, dd::IMAS.dd)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:SPARC}, dd::IMAS.dd)
+function test_case(::Val{:SPARC}, dd::IMAS.DD)
     ini, act = case_parameters(:SPARC; init_from=:ods)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:KDEMO}, dd::IMAS.dd)
+function test_case(::Val{:KDEMO}, dd::IMAS.DD)
     ini, act = case_parameters(:KDEMO)
     ini_act_tests_customizations!(ini, act)
     act.ActorFluxMatcher.max_iterations = 5
@@ -97,42 +97,42 @@ function test_case(::Val{:KDEMO}, dd::IMAS.dd)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:KDEMO_compact}, dd::IMAS.dd)
+function test_case(::Val{:KDEMO_compact}, dd::IMAS.DD)
     ini, act = case_parameters(:KDEMO_compact)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:DTT}, dd::IMAS.dd)
+function test_case(::Val{:DTT}, dd::IMAS.DD)
     ini, act = case_parameters(:DTT)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:EXCITE}, dd::IMAS.dd)
+function test_case(::Val{:EXCITE}, dd::IMAS.DD)
     ini, act = case_parameters(:EXCITE)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:MANTA}, dd::IMAS.dd)
+function test_case(::Val{:MANTA}, dd::IMAS.DD)
     ini, act = case_parameters(:MANTA)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:UNIT}, dd::IMAS.dd)
+function test_case(::Val{:UNIT}, dd::IMAS.DD)
     ini, act = case_parameters(:UNIT)
     ini_act_tests_customizations!(ini, act)
     test_ini_act_save_load(dd, ini, act)
     return (dd=dd, ini=ini, act=act)
 end
 
-function test_case(::Val{:ITER_time}, dd::IMAS.dd; verbose::Bool=false)
+function test_case(::Val{:ITER_time}, dd::IMAS.DD; verbose::Bool=false)
     # ========
     # hardware setup from ODS
 
@@ -184,11 +184,11 @@ end
 
 function test_case(case::Symbol)
     dd = IMAS.dd()
-    return test_case(Val(case), dd::IMAS.dd)
+    return test_case(Val(case), dd::IMAS.DD)
 end
 
-function test_case(case::Symbol, dd::IMAS.dd)
-    dd, ini, act = test_case(Val(case), dd::IMAS.dd)
+function test_case(case::Symbol, dd::IMAS.DD)
+    dd, ini, act = test_case(Val(case), dd::IMAS.DD)
     @assert typeof(dd) <: IMAS.dd
     @assert typeof(ini) <: ParametersAllInits
     @assert typeof(act) <: ParametersAllActors

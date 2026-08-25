@@ -9,7 +9,7 @@
 end
 
 mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorHFSsizing{P}}
     act::ParametersAllActors{P}
     stresses_actor::ActorStresses{D,P}
@@ -17,7 +17,7 @@ mutable struct ActorHFSsizing{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorHFSsizing(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Optimizes the High Field Side (HFS) radial build dimensions to satisfy engineering constraints
 and performance requirements. Uses metaheuristic optimization to find the optimal thicknesses
@@ -47,7 +47,7 @@ stress limits, current density limits, magnetic field requirements, and flattop 
 
     Manipulates radial build information in `dd.build.layer`
 """
-function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorHFSsizing(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorHFSsizing(dd, act.ActorHFSsizing, act; kw...)
     if actor.par.do_plot
         p = plot(dd.build.layer)
@@ -61,7 +61,7 @@ function ActorHFSsizing(dd::IMAS.dd, act::ParametersAllActors; kw...)
     return actor
 end
 
-function ActorHFSsizing(dd::IMAS.dd, par::FUSEparameters__ActorHFSsizing, act::ParametersAllActors; kw...)
+function ActorHFSsizing(dd::IMAS.DD, par::FUSEparameters__ActorHFSsizing, act::ParametersAllActors; kw...)
     logging_actor_init(ActorHFSsizing)
     par = OverrideParameters(par; kw...)
     fluxswing_actor = ActorFluxSwing(dd, act.ActorFluxSwing)

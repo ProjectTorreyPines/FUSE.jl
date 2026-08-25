@@ -11,14 +11,14 @@ import CHEASE
 end
 
 mutable struct ActorCHEASE{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorCHEASE{P}}
     act::ParametersAllActors{P}
     chease::Union{Nothing,CHEASE.Chease}
 end
 
 """
-    ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorCHEASE(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Runs the CHEASE fixed-boundary equilibrium solver to compute a 2D equilibrium from the plasma boundary,
 pressure profile, and current density profile. The solver takes the R-Z boundary coordinates from
@@ -43,14 +43,14 @@ to find PF coil currents that reproduce the same plasma shape and flux surfaces.
     
     Stores data in `dd.equilibrium`
 """
-function ActorCHEASE(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorCHEASE(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorCHEASE(dd, act.ActorCHEASE, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorCHEASE(dd::IMAS.dd{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
+function ActorCHEASE(dd::IMAS.DD{D}, par::FUSEparameters__ActorCHEASE{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorCHEASE)
     par = OverrideParameters(par; kw...)
     return ActorCHEASE(dd, par, act, nothing)

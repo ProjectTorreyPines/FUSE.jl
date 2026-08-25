@@ -21,14 +21,14 @@ using LaTeXStrings
 end
 
 mutable struct ActorModeID{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorModeID{P}}
     labeled_dds::Vector{Pair{String,IMAS.dd{D}}}
     results::Vector{Pair{String,Vector{<:AbstractModeIdentification{D}}}}
 end
 
 """
-    ActorModeID(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorModeID(dd::IMAS.DD, act::ParametersAllActors; kw...)
     ActorModeID(labeled_dds::AbstractVector{<:Pair{String,<:IMAS.dd}}, act::ParametersAllActors; kw...)
 
 Identifies the dominant turbulence mode (ITG, TEM, KBM, ETG, MTM) driving heat flux
@@ -71,7 +71,7 @@ actor = ActorModeID(dd, act)
 actor = ActorModeID(["initial" => dd, "flux-matched" => dd_tjlf], act)
 ```
 """
-function ActorModeID(dd::IMAS.dd{D}, act::ParametersAllActors; kw...) where {D<:Real}
+function ActorModeID(dd::IMAS.DD{D}, act::ParametersAllActors; kw...) where {D<:Real}
     actor = ActorModeID(dd, act.ActorModeID; kw...)
     step(actor)
     finalize(actor)
@@ -89,7 +89,7 @@ function ActorModeID(labeled_dds::AbstractVector{<:Pair{String,<:IMAS.dd{D}}}, a
     return actor
 end
 
-function ActorModeID(dd::IMAS.dd{D}, par::FUSEparameters__ActorModeID; kw...) where {D<:Real}
+function ActorModeID(dd::IMAS.DD{D}, par::FUSEparameters__ActorModeID; kw...) where {D<:Real}
     logging_actor_init(ActorModeID)
     par = OverrideParameters(par; kw...)
     entries = Pair{String,IMAS.dd{D}}["" => dd]

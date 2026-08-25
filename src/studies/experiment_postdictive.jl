@@ -97,8 +97,8 @@ function run_postdictive_case(device::Symbol, shot::Int; kw_case_parameters::Dic
 end
 
 function run_postdictive_case!(
-    dd::IMAS.dd,
-    dd_exp::IMAS.dd,
+    dd::IMAS.DD,
+    dd_exp::IMAS.DD,
     device::Symbol,
     shot::Int;
     savedir::AbstractString=abspath("."),
@@ -255,7 +255,7 @@ function run_postdictive_case!(
     return nothing
 end
 
-function animated_plasma_overview(dd::IMAS.dd, dir::AbstractString, dd1::Union{IMAS.dd,Nothing}=nothing; aggregate_hcd::Bool=true, fps::Int=12)
+function animated_plasma_overview(dd::IMAS.DD, dir::AbstractString, dd1::Union{IMAS.dd,Nothing}=nothing; aggregate_hcd::Bool=true, fps::Int=12)
     fulldir = abspath(dir)
     @assert isdir(fulldir) "$fulldir directory does not exist"
     a = Plots.@animate for (k, time0) in enumerate(dd.equilibrium.time)

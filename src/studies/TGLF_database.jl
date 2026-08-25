@@ -344,7 +344,7 @@ function run_case(filename::AbstractString, study::StudyTGLFdb, item)
     end
 end
 
-function workflow_actor(dd::IMAS.dd, act::ParametersAllActors)
+function workflow_actor(dd::IMAS.DD, act::ParametersAllActors)
     # Actors to run on the input dd
 
     actor_transport = ActorCoreTransport(dd, act)
@@ -361,7 +361,7 @@ function save_inputtglfs(actor_transport, output_dir, name, item)
     end
 end
 
-function create_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
+function create_data_frame_row(dd::IMAS.DD, exp_values::AbstractArray)
     cp1d = dd.core_profiles.profiles_1d[]
     eqt = dd.equilibrium.time_slice[]
 
@@ -435,7 +435,7 @@ function FINN_dataframe()
         timef=Int[])
 end
 
-function create_finn_data_frame_row(dd::IMAS.dd, exp_values::AbstractArray)
+function create_finn_data_frame_row(dd::IMAS.DD, exp_values::AbstractArray)
     cp1d = dd.core_profiles.profiles_1d[]
     return (
       shot    = dd.dataset_description.data_entry.pulse,

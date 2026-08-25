@@ -37,11 +37,11 @@ function load_init_expressions()
 end
 
 """
-    restore_init_expressions!(dd::IMAS.dd; verbose::Bool)
+    restore_init_expressions!(dd::IMAS.DD; verbose::Bool)
 
 Turn into expressions Make fields that FUSE expects to be expressions after init
 """
-function restore_init_expressions!(dd::IMAS.dd; verbose::Bool)
+function restore_init_expressions!(dd::IMAS.DD; verbose::Bool)
     restored_expressions = Set()
     for ulocation in load_init_expressions()
         restored = IMAS.selective_delete!(dd, IMAS.i2p(ulocation))

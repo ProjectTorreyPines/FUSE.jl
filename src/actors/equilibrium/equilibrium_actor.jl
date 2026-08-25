@@ -14,14 +14,14 @@
 end
 
 mutable struct ActorEquilibrium{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorEquilibrium{P}}
     act::ParametersAllActors{P}
     eq_actor::Union{Nothing,ActorTEQUILA{D,P},ActorFRESCO{D,P},ActorEGGO{D,P},ActorCHEASE{D,P},ActorReplay{D,P},ActorNoOperation{D,P}}
 end
 
 """
-    ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorEquilibrium(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Unified interface for tokamak MHD equilibrium solvers with automatic data preparation and postprocessing.
 
@@ -56,14 +56,14 @@ flux surface reconstruction → validation and visualization.
     Reads from `dd.core_profiles`, `dd.pulse_schedule.position_control`, and optionally `dd.wall`, 
     `dd.pf_active`. Updates `dd.equilibrium` with the solved MHD equilibrium.
 """
-function ActorEquilibrium(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorEquilibrium(dd, act.ActorEquilibrium, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorEquilibrium(dd::IMAS.dd, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
+function ActorEquilibrium(dd::IMAS.DD, par::FUSEparameters__ActorEquilibrium, act::ParametersAllActors; kw...)
     logging_actor_init(ActorEquilibrium)
     par = OverrideParameters(par; kw...)
 
@@ -146,6 +146,17 @@ function _finalize(actor::ActorEquilibrium)
             display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
             rethrow(e)
         end
+
+        # an unconverged equilibrium can trace without error but with degenerate
+        # surfaces, which then blows up far away in downstream physics (e.g.
+        # Sauter bootstrap asserting on minor radius); fail fast here instead
+        a_eq = eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard
+        bad = [k for k in eachindex(a_eq) if !isfinite(a_eq[k]) || (k > 1 && a_eq[k] <= 0.0)]
+        if !isempty(bad)
+            error("ActorEquilibrium (model=$(par.model)): traced flux surfaces are degenerate " *
+                  "(r_outboard - r_inboard non-positive/non-finite at $(length(bad))/$(length(a_eq)) surfaces, first at indices $(first(bad, 5))); " *
+                  "the equilibrium solve likely did not converge")
+        end
     end
 
     if par.do_plot
@@ -201,6 +212,12 @@ function prepare(actor::ActorEquilibrium)
         rho_pol_norm_sqrt0 = sqrt.(eqt1d.psi_norm)
         j_tor0 = eqt1d.j_tor
         pressure0 = eqt1d.pressure
+        if !issorted(rho_pol_norm_sqrt0)
+            idx = sortperm(rho_pol_norm_sqrt0)
+            rho_pol_norm_sqrt0 = rho_pol_norm_sqrt0[idx]
+            j_tor0 = j_tor0[idx]
+            pressure0 = pressure0[idx]
+        end
         j_itp = IMAS.interp1d(rho_pol_norm_sqrt0, j_tor0, :pchip)
         p_itp = IMAS.interp1d(rho_pol_norm_sqrt0, pressure0, :pchip)
     else
@@ -368,7 +385,7 @@ when iterating between equilibrium and other actors.
 
 See: IMAS/src/expressions/onetime.jl
 """
-function latest_equilibrium_grids!(dd::IMAS.dd)
+function latest_equilibrium_grids!(dd::IMAS.DD)
     # core_profiles
     old_rho_tor_norm = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
     empty!(dd.core_profiles.profiles_1d[].grid)
@@ -418,7 +435,7 @@ function IMAS2Equilibrium(eqt::IMAS.equilibrium__time_slice)
     )
 end
 
-function _step(replay_actor::ActorReplay, actor::ActorEquilibrium, replay_dd::IMAS.dd)
+function _step(replay_actor::ActorReplay, actor::ActorEquilibrium, replay_dd::IMAS.DD)
     IMAS.copy_timeslice!(actor.dd.equilibrium, replay_dd.equilibrium, actor.dd.global_time)
     return replay_actor
 end

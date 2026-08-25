@@ -125,10 +125,13 @@ function case_parameters(
     ini.core_profiles.Te_shaping = 1.8
     ini.core_profiles.Ti_Te_ratio = 1.0
     ini.core_profiles.zeff = 2.0
-    ini.core_profiles.helium_fraction = 0.01
+    ini.core_profiles.helium_fraction = 0.05
     ini.core_profiles.rot_core = 1e4
     ini.core_profiles.bulk = :DT
     ini.core_profiles.impurity = :Ne
+    # Optionally set wall material impurity (activates 4-ion path: bulk + wall + seeding + He)
+    # ini.core_profiles.wall_impurity = :W
+    # ini.core_profiles.wall_impurity_fraction = 1e-5
 
     resize!(ini.nb_unit, 2)
     ini.nb_unit[1].power_launched = 16.7e6

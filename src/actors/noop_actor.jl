@@ -5,9 +5,9 @@
 end
 
 mutable struct ActorNoOperation{D,P} <: AbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorNoOperation{P}}
-    function ActorNoOperation(dd::IMAS.dd{D}, par::FUSEparameters__ActorNoOperation{P}; kw...) where {D<:Real,P<:Real}
+    function ActorNoOperation(dd::IMAS.DD{D}, par::FUSEparameters__ActorNoOperation{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorNoOperation)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -15,7 +15,7 @@ mutable struct ActorNoOperation{D,P} <: AbstractActor{D,P}
 end
 
 """
-    ActorNoOperation(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorNoOperation(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 A no-operation actor that performs no calculations or modifications.
 
@@ -30,7 +30,7 @@ in compound actors or actor workflows. It implements the standard actor interfac
 
 The actor simply returns itself from both `_step()` and `_finalize()` methods.
 """
-function ActorNoOperation(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorNoOperation(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorNoOperation(dd, act.ActorNoOperation; kw...)
     step(actor)
     finalize(actor)

@@ -7,7 +7,7 @@
 end
 
 mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorWholeFacility{P}}
     act::ParametersAllActors
     StationaryPlasma::Union{Nothing,ActorStationaryPlasma{D,P}}
@@ -29,7 +29,7 @@ mutable struct ActorWholeFacility{D,P} <: CompoundAbstractActor{D,P}
 end
 
 """
-    ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorWholeFacility(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Integrates all physics, engineering, and economic models for complete tokamak facility design.
 
@@ -72,14 +72,14 @@ based on the final equilibrium solution.
 
     Stores comprehensive facility design data across all `dd` structures
 """
-function ActorWholeFacility(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorWholeFacility(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorWholeFacility(dd, act.ActorWholeFacility, act; kw...)
     step(actor)
     finalize(actor)
     return actor
 end
 
-function ActorWholeFacility(dd::IMAS.dd, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
+function ActorWholeFacility(dd::IMAS.DD, par::FUSEparameters__ActorWholeFacility, act::ParametersAllActors; kw...)
     logging_actor_init(ActorWholeFacility)
     par = OverrideParameters(par; kw...)
 
@@ -161,10 +161,14 @@ function _step(actor::ActorWholeFacility)
         # ActorNeutronics evaluates the neutron flux on the first wall
         actor.Neutronics = ActorNeutronics(dd, act)
 
-        # ActorBlanket optimizes the radial build thickness of the first wall, blanket, shield and Li6 enrichment to achieve a target TBR
-        actor.Blanket = ActorBlanket(dd, act)
-        # We must re-generate the CX build since we updated the radial build
-        actor.CXbuild = ActorCXbuild(dd, act)
+        # ActorBlanket optimizes the radial build thickness of the first wall, blanket, shield and Li6 enrichment to achieve a target TBR.
+        # With `update_build == false` the radial build is left alone and only Li6 enrichment is optimized.
+        actor.Blanket = ActorBlanket(dd, act; update_build=par.update_build)
+
+        if par.update_build
+            # We must re-generate the CX build since we updated the radial build
+            actor.CXbuild = ActorCXbuild(dd, act)
+        end
 
         # ActorPassiveStructures populates dd.pf_passive based on the vacuum vessel layer(s)
         actor.PassiveStructures = ActorPassiveStructures(dd, act)

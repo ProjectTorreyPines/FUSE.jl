@@ -13,9 +13,9 @@ If dd.requirements.flattop_duration is not set, then operate_oh_at_j_crit is ass
 end
 
 mutable struct ActorFluxSwing{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorFluxSwing{P}}
-    function ActorFluxSwing(dd::IMAS.dd{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}
+    function ActorFluxSwing(dd::IMAS.DD{D}, par::FUSEparameters__ActorFluxSwing{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorFluxSwing)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -23,7 +23,7 @@ mutable struct ActorFluxSwing{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorFluxSwing(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Analyzes OH coil flux swing capability and determines operating limits based on current density constraints
 and flattop duration requirements. Calculates flux consumption during different operational phases
@@ -53,7 +53,7 @@ and determines maximum achievable flattop duration or required current levels.
 
     Stores data in `dd.build.flux_swing`, `dd.build.tf`, and `dd.build.oh`
 """
-function ActorFluxSwing(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorFluxSwing(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorFluxSwing(dd, act.ActorFluxSwing; kw...)
     step(actor)
     finalize(actor)

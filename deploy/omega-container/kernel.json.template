@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/bin/bash",
+    "-c",
+    "export PATH=\"__SINGULARITY_DIR__:$PATH\"; exec \"__LAUNCHER__\" \"__SIF__\" --threads=__THREADS__ --color=yes -e 'import IJulia; IJulia.run_kernel()' \"$1\"",
+    "fuse-kernel",
+    "{connection_file}"
+  ],
+  "display_name": "__DISPLAY__",
+  "language": "julia",
+  "metadata": {
+    "debugger": true
+  }
+}

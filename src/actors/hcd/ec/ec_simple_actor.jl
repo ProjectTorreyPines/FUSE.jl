@@ -12,9 +12,9 @@ end
 end
 
 mutable struct ActorSimpleEC{D,P} <: SingleAbstractActor{D,P}
-    dd::IMAS.dd{D}
+    dd::IMAS.DD{D}
     par::OverrideParameters{P,FUSEparameters__ActorSimpleEC{P}}
-    function ActorSimpleEC(dd::IMAS.dd{D}, par::FUSEparameters__ActorSimpleEC{P}; kw...) where {D<:Real,P<:Real}
+    function ActorSimpleEC(dd::IMAS.DD{D}, par::FUSEparameters__ActorSimpleEC{P}; kw...) where {D<:Real,P<:Real}
         logging_actor_init(ActorSimpleEC)
         par = OverrideParameters(par; kw...)
         return new{D,P}(dd, par)
@@ -22,7 +22,7 @@ mutable struct ActorSimpleEC{D,P} <: SingleAbstractActor{D,P}
 end
 
 """
-    ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
+    ActorSimpleEC(dd::IMAS.DD, act::ParametersAllActors; kw...)
 
 Calculates electron cyclotron (EC) heating and current drive using simplified Gaussian 
 deposition profiles. The actor performs vacuum ray tracing to determine beam paths and
@@ -41,7 +41,7 @@ Current drive efficiency is calculated using the formula from G. Tonon's work on
 
     Reads data in `dd.ec_launchers`, `dd.pulse_schedule` and stores data in `dd.waves` and `dd.core_sources`
 """
-function ActorSimpleEC(dd::IMAS.dd, act::ParametersAllActors; kw...)
+function ActorSimpleEC(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorSimpleEC(dd, act.ActorSimpleEC; kw...)
     step(actor)
     finalize(actor)
