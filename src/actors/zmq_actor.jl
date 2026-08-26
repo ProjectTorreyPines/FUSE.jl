@@ -13,6 +13,7 @@
 import Interpolations
 import ZMQ
 import ProtoBuf
+import CoordinateConventions
 
 include(joinpath(@__DIR__, "zmq_proto_generated", "zmq_messages_pb.jl"))
 using .zmq_messages_pb: FUSERequest, WireDataForFUSE, WireDataFromFUSE, Ack
@@ -22,6 +23,14 @@ using .zmq_messages_pb: FUSERequest, WireDataForFUSE, WireDataFromFUSE, Ack
 # breaking schema change. FUSE sends this in every FUSERequest and refuses any
 # WireDataForFUSE whose schema_version does not match.
 const SCHEMA_VERSION = Int32(1)
+
+# FUSE's internal COCOS ID (the IMAS data dictionary convention). Wire messages
+# carry the sender's convention in their `cocos` field; receive! transforms the
+# quantities that enter the IMAS dd (psizr, Ip_latest, Bt) from the declared
+# convention to this one. The dd._aux mirrors of raw PCS pointnames (Ip_avg,
+# pr15v, I_coil, gas_cal, ...) are deliberately NOT transformed: the NN
+# predictors that consume them are trained on raw machine-convention signals.
+const FUSE_COCOS = Int32(11)
 
 # --- Protobuf over ZMQ helpers ---
 
@@ -164,10 +173,12 @@ WireDataForFUSE fields (matching C++ struct):
                                         16:PCF1B..24:PCF9B
                                        PedestalPredictor FPE consumes ecoila (idx 1), ecoilb (idx 4),
                                        and f1a..f9b (idx 7..24); the C-coil entries (idx 2,3,5,6) are unused.
-- `psizr`:           double[NGG]      — Flat flux matrix ψ(R,Z) [Wb/rad], reshaped to (nR, nZ)
+- `psizr`:           double[NGG]      — Flat flux matrix ψ(R,Z), reshaped to (nR, nZ); units/sign per `cocos`
 - `pinj_per_beam`:   double[NNBI]     — NBI injected power per beam [W] → pulse_schedule.nbi
 - `nbi_acc_voltage`: double[NNBI]     — NBI acceleration voltage per beam [eV] → pulse_schedule.nbi
 - `gas_cal`:         double[NGAS]     — Gas calibration values → dd._aux (for NN ne predictor)
+- `cocos`:           int32            — COCOS ID of the sender's convention; 0 = undeclared/legacy.
+                                       psizr/Ip_latest/Bt are transformed to FUSE's COCOS 11; dd._aux mirrors stay raw.
 """
 function receive!(actor::ActorZMQ)
     if !actor.par.enabled || !actor.is_connected
@@ -197,6 +208,19 @@ function receive!(actor::ActorZMQ)
     end
 
     @info "ActorZMQ: received data at sim_time=$(msg.sim_time) s"
+
+    # --- COCOS translation factors (declared wire convention -> IMAS COCOS 11) ---
+    # msg.cocos == 0 means a legacy/undeclared sender: no transform is applied and
+    # the psi orientation is inferred empirically below (which tolerates either
+    # sign convention), i.e. behavior is identical to the pre-cocos wire contract.
+    f_PSI, f_I, f_B = 1.0, 1.0, 1.0
+    if msg.cocos != 0 && msg.cocos != FUSE_COCOS
+        tc = CoordinateConventions.transform_cocos(Int(msg.cocos), Int(FUSE_COCOS))
+        f_PSI, f_I, f_B = tc["PSI"], tc["I"], tc["B"]
+        @info "ActorZMQ: GSLite declared COCOS $(msg.cocos) — transforming to COCOS $(FUSE_COCOS) on receive (ψ ×$(round(f_PSI; sigdigits=5)), Ip ×$(f_I), Bt ×$(f_B))" maxlog = 1
+    elseif msg.cocos == 0
+        @info "ActorZMQ: GSLite did not declare a COCOS (legacy wire contract) — no convention transform applied" maxlog = 1
+    end
 
     # --- Clock: ActorDynamicPlasma owns dd.global_time (its δt grid and the
     # time slices it creates). GSLite's sim_time carries the PCS cycle jitter
@@ -231,12 +255,14 @@ function receive!(actor::ActorZMQ)
     gs_has_eq = !isempty(msg.psizr) && !all(iszero, msg.psizr)
     if msg.has_Ip_latest && (gs_has_eq || msg.Ip_latest != 0.0)
         ps_fc = dd.pulse_schedule.flux_control
-        IMAS.set_time_array(ps_fc.i_plasma, :reference, dd.global_time, msg.Ip_latest)
+        IMAS.set_time_array(ps_fc.i_plasma, :reference, dd.global_time, f_I * msg.Ip_latest)  # wire COCOS -> 11
     elseif msg.has_Ip_latest
         @warn "ActorZMQ: GSLite sent Ip_latest=0 with an empty psizr at t=$(dd.global_time) s — keeping FUSE's pulse_schedule Ip"
     end
 
     # --- Store auxiliary signals for NN ne predictor ---
+    # NOTE: aux[:zmq_*] mirrors the raw PCS-convention pointnames and is deliberately
+    # NOT COCOS-transformed (the NNs are trained on raw machine-convention signals).
     # Uses dd._aux (same pattern as FUSE workflow/logging metadata)
     # Stored as (times=Float64[], values=...) parallel vectors to avoid Float64 dict keys
     if msg.has_Ip_avg
@@ -256,7 +282,7 @@ function receive!(actor::ActorZMQ)
 
     # --- Update Bt (first step only, constant per shot) ---
     if msg.has_Bt
-        b0 = msg.Bt
+        b0 = f_B * msg.Bt  # wire COCOS -> 11
         if length(dd.equilibrium.vacuum_toroidal_field.b0) == 0
             push!(dd.equilibrium.vacuum_toroidal_field.b0, b0)
         else
@@ -347,6 +373,9 @@ function receive!(actor::ActorZMQ)
             error("ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ) — check GSLite vs FUSE grid agreement")
         end
         psi_rz = reshape(psizr_flat, nR, nZ)  # GSLite stores column-major (R varies fastest)
+        if f_PSI != 1.0
+            psi_rz = f_PSI .* psi_rz  # wire COCOS -> 11 (sign and/or 2π per the declared convention)
+        end
 
         rgrid = range(dim1[1], dim1[end], length=nR)
         zgrid = range(dim2[1], dim2[end], length=nZ)
@@ -516,6 +545,7 @@ WireDataFromFUSE fields (matching C++ struct):
 - `li_dot`:       double        — Time derivative of li_1 [1/s]
 - `p_res`:        double        — Plasma resistance [Ohm] (circuit-model: dψ_plasma/dt / Ip)
 - `dens_co2_sig`: double[NCO2]  — CO2 interferometer line-integrated density [m/cm³] (PCS convention)
+- `cocos`:        int32         — COCOS ID of this message's quantities; FUSE stamps 11 (IMAS)
 """
 function send!(actor::ActorZMQ)
     if !actor.par.enabled || !actor.is_connected
@@ -581,7 +611,8 @@ function send!(actor::ActorZMQ)
         li,
         li_dot,
         p_res,
-        _compute_co2_density(actor)
+        _compute_co2_density(actor),
+        FUSE_COCOS  # convention of the quantities in this message (all sign-free today)
     )
 
     # REQ: send data, then receive acknowledgment.

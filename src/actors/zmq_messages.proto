@@ -42,7 +42,7 @@ message WireDataForFUSE {
                                             //   1:PCECOILA  2:PCE89DN   3:PCE567UP  4:PCECOILB
                                             //   5:PCE89UP   6:PCE567DN  7:PCF1A ... 15:PCF9A
                                             //  16:PCF1B ... 24:PCF9B
-    repeated double psizr = 8;              // flat flux matrix psi(R,Z) [Wb/rad], R-fast
+    repeated double psizr = 8;              // flat flux matrix psi(R,Z), R-fast; units/sign per `cocos` (GSLite sends full [Wb], e_Bp=1)
     repeated double r_grid = 9;             // R grid points [m]
     repeated double z_grid = 10;            // Z grid points [m]
     repeated double pinj_per_beam = 11;     // NBI injected power per beam [W]
@@ -55,6 +55,12 @@ message WireDataForFUSE {
     int32  schema_version = 18;             // GSLite wire-contract version; MUST match FUSERequest.schema_version sent by FUSE. Bump in lockstep with SCHEMA_VERSION constant in zmq_actor.jl.
     double Rp = 19;                         // plasma resistance [Ohm]; only valid if has_Rp. Used by FUSE to compute Pohm = Ip² × Rp for NN predictor.
     bool   has_Rp = 20;                     // true if Rp carries a meaningful value (incl. 0.0)
+    int32  cocos = 21;                      // COCOS ID (Sauter-Medvedev, doi:10.1016/j.cpc.2012.09.010) of the signed/
+                                            // flux quantities in this message (psizr, Ip_latest/Ip_avg/pr15v, Bt, I_coil).
+                                            // 0 (proto3 default, i.e. a legacy GSLite that predates this field) means
+                                            // "undeclared": FUSE applies no transform and infers the psi orientation
+                                            // empirically. Nonzero: FUSE transforms psizr/Ip/Bt to its internal COCOS 11
+                                            // on receive. GSLite stamps FuseConnection::COCOS (D3D/EFIT convention).
 }
 
 // Sent by FUSE after completing a time step
@@ -67,6 +73,9 @@ message WireDataFromFUSE {
     double li_dot = 6;                    // time derivative of li_1 [1/s]
     double p_res = 7;                     // plasma resistance [Ohm]
     repeated double dens_co2_sig = 8;     // CO2 line-integrated density [m/cm^3] (PCS convention)
+    int32  cocos = 9;                     // COCOS ID of the quantities in this message; FUSE stamps 11 (IMAS convention).
+                                          // betap/li/p_res/dens_co2_sig are sign-convention-free, so no translation is
+                                          // needed today; the field exists so future signed quantities carry their convention.
 }
 
 // Sent by GSLite as acknowledgment.
