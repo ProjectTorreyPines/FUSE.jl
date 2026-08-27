@@ -1167,6 +1167,7 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
     @info "MARS iterations = $iter"
     @info "Growth rate = $growth"
     @info "Frequency = $freq"
+    check_MARS_convergence("log_mars")
 
     # Collect results for storage into dd.mhd_linear (see _finalize).
     # growth/freq are Re(γ)·τ_A and Im(γ)·τ_A, normalized to the Alfvén time.
@@ -1655,6 +1656,68 @@ function parse_MARS_results(filename::AbstractString)
     end
 
     return iter, growth, freq
+end
+
+"""
+    check_MARS_convergence(logfile="log_mars") -> (nx, ny)
+
+Report MARS's per-component convergence counters from `log_mars` and warn when the eigenvector
+solve did not converge. Returns `(nx, ny)`, or `nothing` for a counter that could not be read.
+
+MARS prints two counters after the inverse-vector iteration (`pams.f:130 FORMAT`):
+
+    NUMBER OF NON CONVERGED X COMPONENTS =    0
+    NUMBER OF NON CONVERGED Y COMPONENTS = 1447
+
+They are **not** equally meaningful. MARS's own convergence flag uses the X counter alone —
+`pams.f:1894-1895` reads
+
+    C     NONCON = NXDEV + NYDEV
+          NONCON = NXDEV
+
+with the sum deliberately commented out. So a large Y count is routine even in runs that are
+fully converged and reproduce published results (the shipped `EXAMPLE/Kink` reference run has
+X=0 with Y=1028, and our validation of it X=0 with Y=1447), whereas X>0 marks a genuine
+failure of the eigenvector iteration — the non-converged `EXAMPLE`-style RWM run has X=4636.
+Warning on Y would therefore fire on every healthy run; only X is escalated here, with Y
+reported for context.
+
+Both counters are written with an `I5` edit descriptor, so a value above 99999 overflows to
+`*****`; that is surfaced as an unparsable counter rather than silently dropped.
+"""
+function check_MARS_convergence(logfile::AbstractString="log_mars")
+    if !isfile(logfile)
+        @warn "$logfile not found — cannot check MARS per-component convergence."
+        return nothing
+    end
+
+    keys = ["NUMBER OF NON CONVERGED X COMPONENTS", "NUMBER OF NON CONVERGED Y COMPONENTS"]
+    info = julia_grep(keys, logfile; extract_values=true)
+    nx = get(info, keys[1], nothing)
+    ny = get(info, keys[2], nothing)
+
+    # I5 overflow ("*****") comes back as a String rather than an Int
+    for (label, v) in (("X", nx), ("Y", ny))
+        if v !== nothing && !isa(v, Integer)
+            @warn "MARS non-converged $label component count could not be parsed from $logfile " *
+                  "(got $(repr(v)); MARS writes these with an I5 format, which overflows to " *
+                  "\"*****\" above 99999)."
+        end
+    end
+
+    if nx === nothing
+        @warn "Could not read the non-converged X component count from $logfile."
+    elseif isa(nx, Integer) && nx > 0
+        @warn "MARS eigenvector solve did NOT converge: $nx non-converged X components " *
+              "(Y = $(ny === nothing ? "unknown" : ny)). MARS's own convergence flag is the X " *
+              "counter alone (pams.f: NONCON = NXDEV), so this eigenvalue should not be trusted. " *
+              "Try a better TALPHA1 initial guess — the manual's §5.1 recipe is to feed the " *
+              "un-converged eigenvalue from RESULT.OUT back in and repeat — or raise NITMAX."
+    else
+        @info "MARS component convergence" non_converged_X = nx non_converged_Y = ny
+    end
+
+    return (nx, ny)
 end
 
 function run_PARTICLE_TRACING(dd::IMAS.DD, par)

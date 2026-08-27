@@ -93,6 +93,18 @@ end
             @test isfile(joinpath(run_dir, "RESULT.OUT"))
         end
 
+        @testset "MARS per-component convergence counters" begin
+            # MARS reports NUMBER OF NON CONVERGED X / Y COMPONENTS after the inverse vector
+            # iteration. Only X is escalated: MARS's own flag is `NONCON = NXDEV` (pams.f),
+            # with the X+Y sum commented out, so a large Y is routine even in runs that
+            # reproduce published results.
+            nx, ny = FUSE.check_MARS_convergence(joinpath(run_dir, "log_mars"))
+            @test nx isa Integer && nx >= 0
+            @test ny isa Integer && ny >= 0
+            # missing log must warn and return nothing, not throw
+            @test FUSE.check_MARS_convergence(joinpath(run_dir, "no_such_log")) === nothing
+        end
+
         @testset "MARS outputs in dd.mhd_linear" begin
             mode = dd.mhd_linear.time_slice[].toroidal_mode[1]
 
