@@ -107,11 +107,19 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
             end
         end
 
-        # Overwrite TGLF / TJLF parameters with the custom parameters mask
+        # Overwrite TGLF / TJLF parameters with the custom parameters mask.
+        # Input structs are concretely typed (no `missing`), so "explicitly set by the
+        # user" is approximated as: not an unset sentinel (NaN float / empty string) AND
+        # different from a freshly-constructed default. NOTE: a custom field explicitly
+        # set to its exact struct-default value is indistinguishable from "never set"
+        # and will not overwrite the actor input.
         if !ismissing(par, :custom_input_files)
+            custom = par.custom_input_files[k]
+            ref = typeof(custom)()
             for field_name in fieldnames(typeof(actor.input_tglfs[k]))
-                if !ismissing(getproperty(par.custom_input_files[k], field_name))
-                    setproperty!(actor.input_tglfs[k], field_name, getproperty(par.custom_input_files[k], field_name))
+                v = getproperty(custom, field_name)
+                if !TJLF.is_unset(v) && !isequal(v, getfield(ref, field_name))
+                    setproperty!(actor.input_tglfs[k], field_name, v)
                 end
             end
         end
