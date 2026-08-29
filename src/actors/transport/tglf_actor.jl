@@ -108,19 +108,25 @@ function _step(actor::ActorTGLF{D,P}) where {D<:Real, P<:Real}
         end
 
         # Overwrite TGLF / TJLF parameters with the custom parameters mask.
-        # Input structs are concretely typed (no `missing`), so "explicitly set by the
-        # user" is approximated as: not an unset sentinel (NaN float / empty string) AND
-        # different from a freshly-constructed default. NOTE: a custom field explicitly
-        # set to its exact struct-default value is indistinguishable from "never set"
-        # and will not overwrite the actor input.
+        # Input structs are concretely typed (no `missing`), so "the user set this field"
+        # cannot be read off the value: for ints/bools/strings the unset default is a
+        # legal value. InputTGLF records assigned names (TJLF.set_fields), which makes
+        # the mask exact; fall back to "not a sentinel and differs from a fresh default"
+        # only when no tracking is available (InputTJLF, or a struct populated purely
+        # through setfield!), where a field set to its exact default cannot be detected.
         if !ismissing(par, :custom_input_files)
             custom = par.custom_input_files[k]
-            ref = typeof(custom)()
+            tracked = custom isa TJLF.InputTGLF ? TJLF.set_fields(custom) : Set{Symbol}()
+            ref = isempty(tracked) ? typeof(custom)() : nothing
             for field_name in fieldnames(typeof(actor.input_tglfs[k]))
+                startswith(String(field_name), "_") && continue
                 v = getproperty(custom, field_name)
-                if !TJLF.is_unset(v) && !isequal(v, getfield(ref, field_name))
-                    setproperty!(actor.input_tglfs[k], field_name, v)
+                apply = if ref === nothing
+                    field_name in tracked
+                else
+                    !TJLF.is_unset(v) && !isequal(v, getfield(ref, field_name))
                 end
+                apply && setproperty!(actor.input_tglfs[k], field_name, v)
             end
         end
         if isdir(par.save_input_tglfs_to_folder)
