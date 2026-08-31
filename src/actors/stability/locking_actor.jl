@@ -734,11 +734,11 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     c2min = ode_params.Control2_min
     c2max = ode_params.Control2_max
 
-    # Rotation at the rational surface in kHz (from dd)
-    rho_rot = dd.core_sources.source[1].profiles_1d[1].grid.rho_tor_norm
-    rot_prof = dd.core_profiles.profiles_1d[1].rotation_frequency_tor_sonic
-    rot_at_rs_rads = IMAS.interp1d(rho_rot, rot_prof)(rt)   # rad/s
-    rot_at_rs_kHz  = rot_at_rs_rads / (2π * 1e3)            # kHz
+    # Rotation at the rational surface in kHz, at dd.global_time.
+    # Same guarded lookup :eval_prob and :single_case use, so the sweep bounds and the
+    # evaluated operating point can never come from different quantities or time slices.
+    # _rotation_at_rat_surface returns f·t0 (dimensionless); undo it to get kHz.
+    rot_at_rs_kHz = _rotation_at_rat_surface(dd, par, rt) / (1e3 * par.t0)
 
     # Control1_min/max are in kHz and stay as the user supplied them; the grid is
     # built from a local raised, if needed, to cover the actual rotation
@@ -1300,8 +1300,24 @@ Dimensionless rotation (f·t₀) at the rational surface `rt`, interpolated from
 plasma actually sits at, as opposed to a user-supplied `par.op_C1`.
 """
 function _rotation_at_rat_surface(dd::IMAS.dd, par, rt::Real)
-    rho_cp      = dd.core_profiles.profiles_1d[].grid.rho_tor_norm
-    rot_profile = dd.core_profiles.profiles_1d[].ion[1].rotation_frequency_tor
+    cp1d = dd.core_profiles.profiles_1d[]
+
+    # Both rotation fields are IMAS dynamic expressions, so reading them NEVER fails
+    # — it silently substitutes. With no ion rotation stored, rotation_frequency_tor_sonic
+    # returns exactly zeros and ion.rotation_frequency_tor returns minus the diamagnetic
+    # correction: finite, plausible, and physically meaningless. Control1 is the rotation
+    # axis of the whole locking calculation, so refuse rather than run on a substitution.
+    any(IMAS.hasdata(ion, :rotation_frequency_tor) for ion in cp1d.ion) ||
+        IMAS.hasdata(cp1d, :rotation_frequency_tor_sonic) ||
+        error("no stored rotation in core_profiles at t=$(dd.global_time) s — neither any " *
+              "ion's rotation_frequency_tor nor rotation_frequency_tor_sonic. IMAS would " *
+              "substitute an expression fallback and Control1 would be meaningless.")
+
+    rho_cp      = cp1d.grid.rho_tor_norm
+    rot_profile = cp1d.ion[1].rotation_frequency_tor
+    all(iszero, rot_profile) &&
+        error("ion[1].rotation_frequency_tor is identically zero at t=$(dd.global_time) s")
+
     rot_rs_rads = IMAS.interp1d(rho_cp, rot_profile)(rt)
     return (rot_rs_rads / (2π)) * par.t0
 end
