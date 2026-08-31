@@ -107,7 +107,7 @@ function _run(study::StudyDatabaseGenerator)
 
     if study.sty.database_policy == :separate_folders
         FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
-        extract_results(study)
+        extract_results(study; dd_type=study.dd_type)
 
     elseif study.sty.database_policy == :single_hdf5
 
