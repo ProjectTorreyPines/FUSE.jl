@@ -55,8 +55,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "schedule" ] || [ "${{ github.event.inputs.run_fuse_with_extensions }}" == "true" ]; then
             echo "FUSE_WITH_EXTENSIONS=true" >> $GITHUB_ENV
+            echo "FUSE_ALL_TEST_CASES=true" >> $GITHUB_ENV
           else
             echo "FUSE_WITH_EXTENSIONS=false" >> $GITHUB_ENV
+            echo "FUSE_ALL_TEST_CASES=false" >> $GITHUB_ENV
           fi
 
       - name: Display Run Type
@@ -93,7 +95,7 @@ jobs:
       # Cache key generation
       - name: Generate cache key with date
         id: cache-date
-        run: echo "{date}=$(date +%Y-%m-%d)" >> $GITHUB_STATE
+        run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
 
       # Cache Julia artifacts
       - name: Cache Julia artifacts
@@ -105,6 +107,8 @@ jobs:
             ~/.julia/packages
             ~/.julia/compiled
           key: ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-${{ steps.cache-date.outputs.date }}
+          restore-keys: |
+            ${{ runner.os }}-julia-${{ matrix.flavor.version }}-${{ matrix.flavor.os }}-${{ matrix.flavor.arch }}-
 
       # FuseRegistry management on macOS
       - name: Remove FuseRegistry and Add Registry on macOS
@@ -138,6 +142,14 @@ jobs:
             (Get-Content $_.FullName) -replace 'git@github.com:', 'https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/' | Set-Content $_.FullName
           }
 
+      # FUSE is precompiled fresh on every CI run and the test suite warms up
+      # in-process (runtests_warmup.jl), so the precompile workload would only
+      # duplicate that work here. The nightly scheduled run keeps it enabled to
+      # exercise the code path users hit when installing FUSE.
+      - name: Disable FUSE precompile workload
+        if: github.event_name != 'schedule'
+        run: printf '[FUSE]\nprecompile_workload = false\n' > LocalPreferences.toml
+
       - name: 'Install (without extensions)'
         if: env.FUSE_WITH_EXTENSIONS == 'false'
         run: |
@@ -167,7 +179,11 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
 
       # Run tests
+      # coverage instrumentation forces a full re-precompile of all dependencies
+      # under a separate config; keep it off unless coverage upload is re-enabled
       - uses: julia-actions/julia-runtest@v1
+        with:
+          coverage: false
 
     #   # Code coverage
     #   - uses: julia-actions/julia-processcoverage@v1
