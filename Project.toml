@@ -89,6 +89,16 @@ Weave = "44d3d7a6-8a23-5bf8-98c5-b353f8df5ec9"
 ThermalSystemModelsExt = "ThermalSystemModels"
 WeaveExt = "Weave"
 
+# TEMPORARY - REMOVE BEFORE MERGING.
+# The compat bounds below require IMAS 7.4 and EPEDNN 1.1, which exist only on the
+# eped_nn_ensemble branch of each repo and are not registered yet. Without these
+# sources the first Pkg operation of `make install_ci_dev` cannot resolve this
+# project against the registry and CI dies before it gets to dev the branches.
+# Drop this section once EPEDNN 1.1.0 and IMAS 7.4.0 are registered.
+[sources]
+EPEDNN = {url = "https://github.com/ProjectTorreyPines/EPEDNN.jl", rev = "eped_nn_ensemble"}
+IMAS = {url = "https://github.com/ProjectTorreyPines/IMAS.jl", rev = "eped_nn_ensemble"}
+
 [compat]
 CoordinateConventions = "1"
 ALPHA = "1"
@@ -102,7 +112,7 @@ ClusterManagers = "0.4"
 DataFrames = "1"
 DelimitedFiles = "1"
 EGGO = "2.1"
-EPEDNN = "1"
+EPEDNN = "1.1"
 FRESCO = "0.7"
 FileIO = "1"
 FixedPointAcceleration = "1.0.1"
@@ -112,7 +122,7 @@ GACODE = "1"
 GeoInterface = "1"
 HDF5 = "0.17.2"
 HelpPlots = "1"
-IMAS = "6, 7"
+IMAS = "7.4"
 IMASutils = "1.5.1"
 Interpolations = "0.15, 0.16.1"
 JSON = "0.21, 1"
