@@ -4,6 +4,9 @@
 @actor_parameters_struct ActorBetaMatch{T} begin
     βn_target::Entry{T} = Entry{T}("-", "Target value for normalized toroidal beta")
     T_shaping::Entry{T} = Entry{T}("-", "Shaping coefficient for the temperature profile")
+    thermal::Entry{Bool} = Entry{Bool}("-", "Match thermal beta or total beta"; default=true)
+    norm::Entry{Bool} = Entry{Bool}("-", "Match normalized beta or toroidal beta"; default=true)
+    fix_pedestal::Entry{Bool} = Entry{Bool}("-", "Only scale core temperature using Hmode_Profiles"; default=true)
 end
 
 mutable struct ActorBetaMatch{D,P} <: CompoundAbstractActor{D,P}
@@ -52,13 +55,18 @@ function _step(actor::ActorBetaMatch)
     t_ratio = ti[1]/te[1]
     
     function cost_function(x)
-        te_new = IMAS.Hmode_profiles(te_sep, te_ped, x[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
-        ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, x[1]*t_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
+        if par.fix_pedestal
+            te_new = IMAS.Hmode_profiles(te_sep, te_ped, x[1], length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
+            ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, x[1]*t_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
+        else
+            te_new  = x[1] / te[1] * te
+            ti_new = te_new * t_ratio
+        end
         cp1d.electrons.temperature = te_new
         for ion in cp1d.ion
             ion.temperature = ti_new
         end
-        βn_new = IMAS.beta_tor_norm(dd.equilibrium.time_slice[], cp1d)
+        βn_new = IMAS.beta_tor(dd.equilibrium.time_slice[], cp1d, norm=par.norm, thermal=par.thermal)
         return abs(par.βn_target - βn_new)
     end
     
@@ -68,13 +76,15 @@ function _step(actor::ActorBetaMatch)
     Te0 = res.minimizer[1]
     
     # if optimized Te0 is less than te_ped, increase to be equal to te_ped
-    if Te0 < te_ped
-        Te0 = te_ped
-        te_new = IMAS.Hmode_profiles(te_sep, te_ped, Te0, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
-        ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, Te0*t_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
-        cp1d.electrons.temperature = te_new
-        for ion in cp1d.ion
-            ion.temperature = ti_new
+    if par.fix_pedestal
+        if Te0 < te_ped
+            Te0 = te_ped
+            te_new = IMAS.Hmode_profiles(te_sep, te_ped, Te0, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
+            ti_new = IMAS.Hmode_profiles(ti_sep, ti_ped, Te0*t_ratio, length(cp1d.grid.rho_tor_norm), par.T_shaping, par.T_shaping, wped)
+            cp1d.electrons.temperature = te_new
+            for ion in cp1d.ion
+                ion.temperature = ti_new
+            end
         end
     end
 
