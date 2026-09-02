@@ -173,7 +173,9 @@ WireDataForFUSE fields (matching C++ struct):
                                         16:PCF1B..24:PCF9B
                                        PedestalPredictor FPE consumes ecoila (idx 1), ecoilb (idx 4),
                                        and f1a..f9b (idx 7..24); the C-coil entries (idx 2,3,5,6) are unused.
-- `psizr`:           double[NGG]      — Flat flux matrix ψ(R,Z), reshaped to (nR, nZ); units/sign per `cocos`
+- `psizr`:           double[NGG]      — Flat flux matrix ψ(R,Z), **Z varying fastest** (GSLite's `psizr(nz, nr)`,
+                                       column-major); transposed into `[iR, iZ]` by `_psizr_to_matrix`.
+                                       Units/sign per `cocos`
 - `pinj_per_beam`:   double[NNBI]     — NBI injected power per beam [W] → pulse_schedule.nbi
 - `nbi_acc_voltage`: double[NNBI]     — NBI acceleration voltage per beam [eV] → pulse_schedule.nbi
 - `gas_cal`:         double[NGAS]     — Gas calibration values → dd._aux (for NN ne predictor)
@@ -370,10 +372,7 @@ function receive!(actor::ActorZMQ)
         end
         nR = length(dim1)
         nZ = length(dim2)
-        if length(psizr_flat) != nR * nZ
-            error("ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR*nZ) — check GSLite vs FUSE grid agreement")
-        end
-        psi_rz = reshape(psizr_flat, nR, nZ)  # GSLite stores column-major (R varies fastest)
+        psi_rz = _psizr_to_matrix(psizr_flat, nR, nZ)
         if f_PSI != 1.0
             psi_rz = f_PSI .* psi_rz  # wire COCOS -> 11 (sign and/or 2π per the declared convention)
         end
@@ -466,6 +465,15 @@ function receive!(actor::ActorZMQ)
             n_psi = ismissing(eqt1d, :psi) ? 101 : length(eqt1d.psi)
             eqt1d.psi = collect(range(Ψaxis, Ψbnd, length=n_psi))
             eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
+            # Seed only what is genuinely absent. On a slice that has been through
+            # init!/FRESCO these already hold real profiles and must survive (see the
+            # NOTE above); on a slice that never carried any, flux_surfaces still needs
+            # arrays of the right length to read.
+            for fld in (:pressure, :dpressure_dpsi, :f_df_dpsi)
+                if ismissing(eqt1d, fld) || length(getproperty(eqt1d, fld)) != n_psi
+                    setproperty!(eqt1d, fld, zeros(n_psi))
+                end
+            end
 
             # Set global quantities
             eqt.global_quantities.magnetic_axis.r = axis_result.RA
@@ -673,6 +681,38 @@ end
 #= ========== =#
 #  Utilities   #
 #= ========== =#
+
+"""
+    _psizr_to_matrix(psizr_flat, nR, nZ) -> Matrix (nR × nZ, [iR, iZ])
+
+Reshape GSLite's flat flux vector into FUSE's `psi[iR, iZ]` layout.
+
+GSLite stores the map as `psizr(nz, nr)` — Z index first, the TokSys/GS convention the
+field name itself carries — and flattens it column-major, so **Z varies fastest on the
+wire** and the vector transposes into `[iR, iZ]`.
+
+This is worth a named function because getting it wrong is silent: GSLite's grid is
+33×33, so `reshape(v, nR, nZ)` and `reshape(v, nZ, nR)` both succeed and differ only by
+a transpose. FUSE ran that way against real GSLite data — the transposed plasma landed
+outside the wall among the F-coils, FRESCO's `set_Ψvac!` then subtracted the real coil
+flux from a map whose plasma was in the wrong place, and the unconstrained Newton in
+`IMAS.find_magnetic_axis` walked off the canvas (BoundsError at `[0, 0]`).
+
+The orientation was confirmed against the coils rather than the plasma shape: on a
+square grid a transpose barely moves the ψ extremum (the axis sits near the diagonal of
+index space), but the coil vacuum flux computed from `pf_active` geometry and the wire's
+own `I_coil` correlates 0.90 with the Z-fastest reading and 0.08–0.16 with the R-fastest
+one, over the grid points outside the first wall.
+
+A GSLite that sends `r_grid`/`z_grid` with `nR != nZ` makes any future mismatch a hard
+error here instead of a silent transpose.
+"""
+function _psizr_to_matrix(psizr_flat::AbstractVector, nR::Integer, nZ::Integer)
+    if length(psizr_flat) != nR * nZ
+        error("ActorZMQ: psizr length $(length(psizr_flat)) != nR*nZ = $(nR * nZ) — check GSLite vs FUSE grid agreement")
+    end
+    return permutedims(reshape(psizr_flat, nZ, nR))  # wire is [iZ, iR]; FUSE wants [iR, iZ]
+end
 
 """
     _compute_psipla(eqt)
