@@ -283,11 +283,12 @@ function receive!(actor::ActorZMQ)
     # --- Update Bt (first step only, constant per shot) ---
     if msg.has_Bt
         b0 = f_B * msg.Bt  # wire COCOS -> 11
-        if length(dd.equilibrium.vacuum_toroidal_field.b0) == 0
-            push!(dd.equilibrium.vacuum_toroidal_field.b0, b0)
-        else
-            dd.equilibrium.vacuum_toroidal_field.b0[end] = b0
-        end
+        # NOTE: b0 is a time-dependent array coordinated by `equilibrium.time`, so it
+        # cannot be read or assigned directly on a dd that carries neither: reading it
+        # resolves through the expression machinery and raises "is missing", and a plain
+        # assignment raises "can't assign before equilibrium.time". set_time_array is the
+        # same idiom used for the pulse-schedule writes above and handles both cases.
+        IMAS.set_time_array(dd.equilibrium.vacuum_toroidal_field, :b0, dd.global_time, b0)
         @info "ActorZMQ: set Bt = $b0 T"
     end
 
@@ -422,13 +423,20 @@ function receive!(actor::ActorZMQ)
             end
         else
             # Commit GSLite's psi on its grid. Stored 2-D fields derived from the old psi
-            # (phi, b_field_*, j_tor from FRESCO) are dropped so they are recomputed:
-            # flux_surfaces rewrites phi on the first step, the others are expressions.
+            # (b_field_*, j_tor from FRESCO) are dropped so they are recomputed: they are
+            # IMAS expressions and re-evaluate lazily from the new psi.
+            # NOTE: :phi is deliberately NOT dropped. It is stored data, not an expression,
+            # and only the first-step branch below rebuilds it (via flux_surfaces); on later
+            # steps the rebuild happens in ActorEquilibrium._finalize, which runs at the END
+            # of the :run_equilibrium substep — while :run_sources (ActorSimpleNB reads
+            # profiles_2d.phi) runs BEFORE it. Dropping phi here therefore leaves it missing
+            # exactly when sources needs it. A one-substep-stale phi is tolerable, the same
+            # way the inherited 1-D profiles are; a missing one is fatal.
             p2d.grid.dim1 = dim1
             p2d.grid.dim2 = dim2
             p2d.psi = psi_rz
             p2d.grid_type.index = 1  # rectangular grid
-            for f in (:phi, :b_field_r, :b_field_z, :b_field_tor, :j_tor, :j_parallel, :theta)
+            for f in (:b_field_r, :b_field_z, :b_field_tor, :j_tor, :j_parallel, :theta)
                 if IMAS.hasdata(p2d, f)
                     empty!(p2d, f)
                 end
@@ -439,17 +447,25 @@ function receive!(actor::ActorZMQ)
             nothing
         elseif !actor.had_psizr
             # First step: full flux_surfaces (Method 2) to get all 1D profiles for QED.
-            # Set up 1D seed arrays for flux_surfaces. After init!/FRESCO the slice
-            # already carries 1D profiles (e.g. 65 points): keep that length so the
-            # stored arrays flux_surfaces reads (dpressure_dpsi, …) stay consistent
-            # with the new psi, and reset the pressure gradient together with pressure.
+            # Re-grid the 1D psi onto GSLite's [Ψaxis, Ψbnd]. After init!/FRESCO the slice
+            # already carries 1D profiles (e.g. 65 points): keep that length so the stored
+            # arrays flux_surfaces reads (pressure, dpressure_dpsi, f_df_dpsi) stay
+            # consistent with the new psi.
+            #
+            # NOTE: pressure / dpressure_dpsi / f_df_dpsi are deliberately NOT reset here.
+            # `eqt` is a deep copy of the previous time slice (new_timeslice!), so they
+            # already hold that slice's real profiles, and because eqt1d.psi is a uniform
+            # range, index k keeps mapping to the same psi_norm — i.e. leaving them alone
+            # preserves p(psi_norm) from one substep ago, a perfectly good seed.
+            # Zeroing them is not local to flux_surfaces: ActorFRESCO builds its source
+            # with FRESCO.PressureJt(dd; ...), which defaults to j_p_from=:equilibrium and
+            # reads exactly these arrays (j_tor is derived from the two gradients). Zeros
+            # here hand FRESCO p=0, Jt=0 — it solves a vacuum field, finds no closed
+            # boundary, and flux_bounds! assigns nothing into a Float64.
             eqt1d = eqt.profiles_1d
             n_psi = ismissing(eqt1d, :psi) ? 101 : length(eqt1d.psi)
             eqt1d.psi = collect(range(Ψaxis, Ψbnd, length=n_psi))
             eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
-            eqt1d.pressure = zeros(n_psi)
-            eqt1d.dpressure_dpsi = zeros(n_psi)
-            eqt1d.f_df_dpsi = zeros(n_psi)
 
             # Set global quantities
             eqt.global_quantities.magnetic_axis.r = axis_result.RA
