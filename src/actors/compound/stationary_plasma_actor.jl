@@ -165,12 +165,29 @@ function _step(actor::ActorStationaryPlasma)
             j_tor_before = cp1d.j_tor
             pressure_before = cp1d.pressure
 
+            # check to see if ohmic current is negative
+            if true
+                    ip_ohm = dd.summary.global_quantities.current_ohm.value[1]
+                    ip_ni = dd.summary.global_quantities.current_non_inductive.value[1]
+                    ip_bs = dd.summary.global_quantities.current_bootstrap.value[1]
+                    ip_aux = ip_ni - ip_bs
+                    @printf("ip_ohm = %.2fMA\n", ip_ohm/1e6)
+                    @printf("ip_aux = %.2fMA\n", ip_aux/1e6)
+                if ip_ohm < 0
+                    # reduce auxiliary current drive
+                    f_cd = ip_aux > abs(ip_ohm) ? 0.75 * (ip_aux-abs(ip_ohm))/ip_aux : 0.0
+                    actor.actor_src.ec_actor.par.actuator[1].ηcd_scale = f_cd
+                    @printf("ηcd_scale = %.3f\n", actor.actor_src.ec_actor.par.actuator[1].ηcd_scale)
+                end
+            end
+
             # core_profiles, core_sources, core_transport grids from latest equilibrium
             latest_equilibrium_grids!(dd)
 
             # run sources to get updated current drive
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_src))
             finalize(step(actor.actor_src))
+
 
             # run pedestal actor
             ProgressMeter.next!(prog; showvalues=progress_ActorStationaryPlasma(total_error, actor, actor.actor_ped))
