@@ -464,7 +464,21 @@ function receive!(actor::ActorZMQ)
             eqt1d = eqt.profiles_1d
             n_psi = ismissing(eqt1d, :psi) ? 101 : length(eqt1d.psi)
             eqt1d.psi = collect(range(Ψaxis, Ψbnd, length=n_psi))
-            eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
+            # NOTE: f is deliberately KEPT from the previous slice (eqt is a deepcopy),
+            # not reset to the vacuum value. flux_surfaces derives
+            #   j_tor = -(p' + ff'*gm1/μ0)*2π/gm9        (IMAS fluxsurfaces.jl)
+            # and then RECOMPUTES gq.ip = trapz(area, j_tor). A constant (vacuum) f
+            # makes the ff' expression ≡ 0, so the recomputed ip keeps only the
+            # pressure-driven fraction (~20-25% of the true current, scaling inversely
+            # with the committed psi span) and every Ip²-normalized global
+            # (beta_pol, li) inflates ~20x — the garbage betap/li that drove GSLite's
+            # 1-D model unstable. The previous slice's f(psi_norm) is a perfectly good
+            # seed for the same reason its pressure is (uniform psi grid: index k keeps
+            # mapping to the same psi_norm). Fall back to vacuum f only when the slice
+            # genuinely carries none.
+            if ismissing(eqt1d, :f) || length(eqt1d.f) != n_psi
+                eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
+            end
             # Seed only what is genuinely absent. On a slice that has been through
             # init!/FRESCO these already hold real profiles and must survive (see the
             # NOTE above); on a slice that never carried any, flux_surfaces still needs
