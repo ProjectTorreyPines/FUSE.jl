@@ -101,6 +101,21 @@ end
 function ActorPedestal(dd::IMAS.DD{D}, par::FUSEparameters__ActorPedestal{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorPedestal)
     par = OverrideParameters(par; kw...)
+
+    # The :ne_line branch of run_selected_pedestal_model temporarily overrides ne_from to
+    # :core_profiles before calling pedestal_density_tanh, so the NN density is computed and
+    # then discarded. The config still reads ne_from=:nn_predictor and nothing logs the
+    # override, which makes this combination look like the NN is driving the density when it
+    # is not. cases/D3D.jl selects :ne_line by default for every shot with experimental
+    # profiles, so this is the default a D3D user lands on.
+    if par.ne_from == :nn_predictor && par.density_match == :ne_line
+        @warn "ActorPedestal: ne_from=:nn_predictor with density_match=:ne_line — the fuse29 density is " *
+              "computed and then discarded (the :ne_line branch overrides ne_from to :core_profiles; the " *
+              "magnitude comes from the line-averaged target instead). To let the NN drive the density set " *
+              "ini.core_profiles.ne_setting=:ne_ped and act.ActorPedestal.density_match=:ne_ped *before* " *
+              "FUSE.init! — init_pulse_schedule asserts the two agree."
+    end
+
     eped_actor =
         ActorEPED(dd, act.ActorEPED; par.rho_nml, par.rho_ped, par.T_ratio_pedestal, par.Te_sep, par.ip_from, par.βn_from, ne_from=:core_profiles, zeff_from=:core_profiles)
     wped_actor =
@@ -457,6 +472,7 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
     u = fuse29_median_actuators(nn)
     live = falses(FUSE29_N_ACTUATORS)
     aux = getfield(dd, :_aux)
+    period = nn.period_s
 
     function _set!(name::AbstractString, value)
         value === nothing && return
@@ -486,6 +502,30 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
         return IMAS.interp1d(t, y, scheme)(time)
     end
 
+    # Mean of `y` over the tick interval (time - period, time], for sources that are
+    # modulated faster than the tick. Point-sampling those is not a coarse estimate but
+    # a wrong one: DIII-D beams are chopped, and because the chop period divides the
+    # 50 ms tick the sample lands on the same phase every tick — for shot 200000 that
+    # reads 0 MW at every tick from t = 2.5 to 4.0 s while the true mean is 0.95 MW.
+    # The training convention is a windowed mean as well (IO_CONTRACT.md: actuators are
+    # a 3-tap causal box over 20 ms samples, i.e. ~(t_k - 60 ms, t_k]).
+    # Falls back to point sampling when the trace is too coarse to average.
+    function _window_mean(t::AbstractVector, y::AbstractVector)
+        (isempty(t) || length(t) != length(y)) && return nothing
+        length(t) == 1 && return y[1]
+        lo = time - period
+        n = 0
+        acc = zero(float(eltype(y)))
+        @inbounds for k in eachindex(t)
+            if lo < t[k] <= time
+                acc += y[k]
+                n += 1
+            end
+        end
+        n == 0 && return _interp_at(t, y, :constant)
+        return acc / n
+    end
+
     if source == :dd
         # pinj — total NBI power from pulse_schedule (W -> MW)
         if !isempty(dd.pulse_schedule.nbi.unit) && !isempty(dd.pulse_schedule.nbi.time)
@@ -493,7 +533,7 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             found = false
             for unit in dd.pulse_schedule.nbi.unit
                 if !ismissing(unit.power, :reference) && !isempty(unit.power.reference)
-                    v = _interp_at(dd.pulse_schedule.nbi.time, unit.power.reference, :constant)
+                    v = _window_mean(dd.pulse_schedule.nbi.time, unit.power.reference)
                     v === nothing && continue
                     Pnbi += v
                     found = true
@@ -508,7 +548,7 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             found = false
             for beam in dd.ec_launchers.beam
                 if !ismissing(beam, :power_launched) && !isempty(beam.power_launched.time)
-                    v = _interp_at(beam.power_launched.time, beam.power_launched.data, :constant)
+                    v = _window_mean(beam.power_launched.time, beam.power_launched.data)
                     v === nothing && continue
                     Pech += v
                     found = true
