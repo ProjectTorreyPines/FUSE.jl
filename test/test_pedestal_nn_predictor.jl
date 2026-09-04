@@ -1,9 +1,10 @@
 #= ============================================================ =#
-#  Smoke test for the PedestalNN ensemble wrapper.                #
+#  Test for the fuse29 pedestal predictor wrapper.                 #
 #                                                                  #
-#  Activates the FUSE project and exercises the nn_predictor.jl    #
-#  module in isolation (no actors, no dd, no ZMQ) so it runs       #
-#  even while other FUSE files are in flux.                        #
+#  Activates the FUSE project and exercises nn_predictor.jl in     #
+#  isolation (no actors, no dd, no ZMQ). Offline-safe: the parts   #
+#  that need the ONNX bundle are skipped with a warning when it is #
+#  not on disk (set FUSE_PEDESTAL_NN_DIR, or let auto-fetch run).  #
 #                                                                  #
 #  Run with:                                                       #
 #    cd FUSE && julia --project test/test_pedestal_nn_predictor.jl #
@@ -13,432 +14,228 @@ Pkg.activate(joinpath(@__DIR__, ".."))
 
 using Test
 using Statistics: mean, std
+import NPZ
 
 const __FUSE__ = abspath(joinpath(@__DIR__, ".."))
 include(joinpath(__FUSE__, "src", "actors", "pedestal", "nn_predictor.jl"))
 
-@testset "PedestalNN ensemble" begin
-    onnx_dir = get(ENV, PEDESTAL_NN_ENV,
-        normpath(joinpath(__FUSE__, "..", "pedestal-predictor-onnx", "onnx_models")))
+const REFERENCE_NPZ = joinpath(__FUSE__, "data", "pedestal_nn", "fuse29_reference_shot.npz")
 
-    canonical_slug = "edensfit89"
-    if !isfile(joinpath(onnx_dir, canonical_slug, "mse_encoder.onnx"))
-        @warn "Skipping PedestalNN smoke test: ONNX bundle artefacts not found at $onnx_dir/$canonical_slug/"
-        return
-    end
-
-    nn = load_pedestal_nn(; onnx_dir)
-
-    @test length(nn.bundles) == 5
-    @test sort(collect(keys(nn.bundles))) == sort(["edensfit89", "hmode_89", "te_ped_89", "ti_ped_89", "t_rot_ped_89"])
-    @test length(nn.signal_names) == 32
-    @test nn.signal_names[1] == "pohm"
-    @test nn.signal_names[end] == "bt"
-    @test length(nn.signal_means) == 32 == length(nn.signal_stds)
-
-    # Per-bundle metadata sanity checks (values from manifest.json + target_norm.json)
-    bedens = nn.bundles["edensfit89"]
-    @test bedens.task === :regression
-    @test bedens.target == "edens_ped"
-    @test bedens.dataset_version == "v1_446"
-    @test bedens.history_features == 446
-    @test 2.0f0 < bedens.target_mean < 3.0f0     # ~2.58
-    @test 1.0f0 < bedens.target_std  < 2.5f0     # ~1.61
-
-    bte = nn.bundles["te_ped_89"]
-    @test bte.task === :regression
-    @test bte.dataset_version == "v2_458"
-    @test bte.history_features == 458
-    @test 0.3f0 < bte.target_mean < 0.7f0        # ~0.516 keV
-    @test 0.2f0 < bte.target_std  < 0.6f0        # ~0.410 keV
-    @test bte.target_units == "keV"
-
-    bti = nn.bundles["ti_ped_89"]
-    @test bti.task === :regression
-    @test 0.6f0 < bti.target_mean < 1.2f0        # ~0.902 keV
-    @test bti.target_units == "keV"
-
-    bt_rot = nn.bundles["t_rot_ped_89"]
-    @test bt_rot.task === :regression
-    @test 10.0f0 < bt_rot.target_mean < 25.0f0   # ~17.19 krad/s
-    @test bt_rot.target_units == "krad/s"
-
-    bhmode = nn.bundles["hmode_89"]
-    @test bhmode.task === :classification
-    @test bhmode.dataset_version == "v1_446"
-    @test bhmode.default_threshold == 0.5f0
-
-    # Cached: second load returns the same object
-    @test load_pedestal_nn(; onnx_dir) === nn
-
-    # ── Run the ensemble with mean inputs (z-scored zeros everywhere) ──
-    T = 200
-    result = predict_pedestal(nn; T)
-
-    @test length(result.te_ped) == T
-    @test length(result.ti_ped) == T
-    @test length(result.t_rot_ped) == T
-    @test length(result.edens_ped) == T
-    @test length(result.hmode_logit_seq) == T
-    @test length(result.hmode_prob_seq) == T
-    @test length(result.is_h_mode_seq) == T
-    @test result.predictions_physical === result.edens_ped
-    @test size(result.machine_embed) == (1, 512)
-    @test size(result.aux_embed) == (1, 64)
-
-    # Output statistics — for constant inputs the FPE produces a flat trace,
-    # but it can still vary slightly via positional encodings; we just take
-    # the per-trace mean and bound it to a physically plausible window.
-    function trace_mean(x::AbstractVector)
-        v = filter(!isnan, x)
-        return isempty(v) ? NaN32 : Float32(sum(v) / length(v))
-    end
-
-    te_mean = trace_mean(result.te_ped)
-    ti_mean = trace_mean(result.ti_ped)
-    tr_mean = trace_mean(result.t_rot_ped)
-    ne_mean = trace_mean(result.edens_ped)
-    pH = result.hmode_prob
-
-    @test 0.0f0 <= te_mean <= 5.0f0          # keV
-    @test 0.0f0 <= ti_mean <= 5.0f0          # keV
-    @test -200.0f0 <= tr_mean <= 200.0f0     # krad/s
-    @test 0.5f0 <= ne_mean <= 10.0f0         # 1e19 m^-3
-    @test 0.0f0 <= pH <= 1.0f0
-
-    @info """
-    predict_pedestal (all-zero / trained-mean inputs):
-      ne_ped = $(round(ne_mean;  digits=3)) × 10^19 m^-3   [min=$(round(minimum(result.edens_ped);   digits=3)), max=$(round(maximum(result.edens_ped);   digits=3))]
-      Te_ped = $(round(te_mean;  digits=3)) keV            [min=$(round(minimum(result.te_ped);     digits=3)), max=$(round(maximum(result.te_ped);     digits=3))]
-      Ti_ped = $(round(ti_mean;  digits=3)) keV            [min=$(round(minimum(result.ti_ped);     digits=3)), max=$(round(maximum(result.ti_ped);     digits=3))]
-      T_rot  = $(round(tr_mean;  digits=3)) krad/s         [min=$(round(minimum(result.t_rot_ped);  digits=3)), max=$(round(maximum(result.t_rot_ped);  digits=3))]
-      P(H)   = $(round(pH;       digits=3))   logit=$(round(result.hmode_logit; digits=3))   is_h_mode=$(result.is_h_mode)
-    """
-
-    # Normalization helper round-trip: raw zeros z-scored should give -mean/std
-    raw_zeros = zeros(Float32, 3, 32)
-    znorm = normalized_signals(nn, raw_zeros)
-    @test size(znorm) == (3, 32)
-    @test all(isapprox.(znorm[1, :], -nn.signal_means ./ (nn.signal_stds .+ 1f-8); atol=1f-5))
-
-    # Backward-compat alias (predict_density forwards to predict_pedestal)
-    legacy = predict_density(nn; T=8)
-    @test length(legacy.predictions_physical) == 8
-
-    # ── ZMQ → FPE channel mapping table sanity ──
-    # Every channel used by build_fpe_sequences_from_aux (in pedestal_actor.jl)
-    # must exist in nn.signal_names with the expected index. Catches any future
-    # bundle re-export that renames or reorders these channels.
-    expected_indices = Dict(
-        "pohm" => 1, "pinj" => 2,           # mapped from :zmq_Pohm (W) and :zmq_Pnbi (W → MW)
-        "ip" => 30, "ipspr15v" => 31, "bt" => 32,
-        "gasa_cal" => 25, "gasb_cal" => 26, "gasc_cal" => 27, "gasd_cal" => 28, "gase_cal" => 29,
-        "f1a" => 5,  "f2a" => 6,  "f3a" => 7,  "f4a" => 8,  "f5a" => 9,
-        "f6a" => 10, "f7a" => 11, "f8a" => 12, "f9a" => 13,
-        "f1b" => 14, "f2b" => 15, "f3b" => 16, "f4b" => 17, "f5b" => 18,
-        "f6b" => 19, "f7b" => 20, "f8b" => 21, "f9b" => 22,
-        "ecoila" => 23, "ecoilb" => 24,    # mapped from :zmq_I_coil[1] (PCECOILA) and [4] (PCECOILB)
-    )
-    for (name, idx) in expected_indices
-        @test fpe_signal_index(nn, name) == idx
-    end
-    # Channels still on training mean (pending GSLite-side :zmq_Tnbi / :zmq_Pech)
-    for name in ("tinj", "ech_total")
-        @test fpe_signal_index(nn, name) > 0
-    end
-
-    # Per-channel mean-fill convention: raw values equal to nn.signal_means
-    # z-score to exactly zero (this is the fallback for unmapped channels in
-    # build_fpe_sequences_from_aux).
-    raw_means = repeat(reshape(nn.signal_means, 1, 32), 4, 1)
-    @test all(abs.(normalized_signals(nn, raw_means)) .< 1f-5)
-
-    # mean_normalized_history's aux_features must use the
-    # (bzn=0, dis=-1, cov=0) sentinel from HistoryManager._init_from_raw,
-    # not zeros (which would falsely claim disrupt-list coverage).
-    _, _, aux_default = mean_normalized_history()
-    @test aux_default == reshape(Float32[0f0, -1f0, 0f0], 1, 3)
-    @test AUX_DEFAULT_SENTINEL == (0f0, -1f0, 0f0)
-
-    # ── load_history_npz: round-trip via a synthetic NPZ ──
-    # Builds an in-memory NPZ that matches HistoryManager.save_state's contract
-    # (history_stats / history_masks / shot_ids / bzn/dis/cov scalars /
-    # n_history_features), exercises both v2_458 and v1_446 widths, and asserts
-    # shapes + z-score behavior + aux_features wiring. A real fixture from
-    # `run_inference.py --save-history` lives behind FUSE_PEDESTAL_NN_HISTORY_NPZ;
-    # if set, we additionally run predict_pedestal on it for a sanity sweep.
-    import NPZ as _NPZ_test
-    let tmpdir = mktempdir()
-        for (n_features, label) in ((458, "v2_458"), (446, "v1_446"))
-            n_slots_in = 50          # matches _MSE_HISTORY_LENGTH
-            stats_raw = randn(Float32, n_slots_in, n_features)
-            masks_in  = ones(Float32, n_slots_in)
-            shots_in  = collect(Int64, 200_000:200_000+n_slots_in-1)
-            bzn, dis, cov = 1234.5, -1.0, 0.0
-            npz_path = joinpath(tmpdir, "synth_$(label).npz")
-            _NPZ_test.npzwrite(npz_path, Dict(
-                "history_stats"      => stats_raw,
-                "history_masks"      => masks_in,
-                "shot_ids"           => shots_in,
-                "bzn_seconds"        => [bzn],
-                "disrupt_seconds"    => [dis],
-                "disrupt_coverage"   => [cov],
-                "n_history_features" => Int64[n_features],
-            ))
-
-            # 1. Raw load (no norm params) — warns but should succeed and not z-score.
-            hist, hmask, aux = @test_logs (:warn,) load_history_npz(npz_path)
-            @test size(hist)  == (1, 50, 458)
-            @test size(hmask) == (1, 50)
-            @test size(aux)   == (1, 3)
-            @test aux[1,1] ≈ Float32(bzn)
-            @test aux[1,2] ≈ Float32(dis)
-            @test aux[1,3] ≈ Float32(cov)
-            # Width-padding: trailing channels [n_features+1:458] must be zero.
-            if n_features < 458
-                @test all(iszero, hist[1, :, n_features+1:end])
-            end
-            # Round-trip values for present channels match raw_stats (no z-score).
-            @test all(isapprox.(hist[1, :, 1:n_features], stats_raw; atol=0))
-
-            # 2. With matching norm-params JSON: z-scored stats land near 0 ± 1.
-            μ = mean(stats_raw; dims=1) |> vec
-            σ = max.(std(stats_raw; dims=1) |> vec, 1f-6)
-            norm_json = joinpath(tmpdir, "norm_$(label).json")
-            open(norm_json, "w") do io
-                JSON.print(io, Dict("history_means"=>collect(μ), "history_stds"=>collect(σ)))
-            end
-            histz, _, _ = load_history_npz(npz_path; norm_params_path=norm_json)
-            # z-scored values along the feature axis should have ~0 mean and ~1 std
-            μ_z = vec(sum(histz[1, :, 1:n_features]; dims=1)) ./ size(histz, 2)
-            @test maximum(abs, μ_z) < 1f-3
-        end
-
-        # 3. Slot truncation: 60 slots in → take latest 50, right-aligned.
-        big = randn(Float32, 60, 458)
-        big_masks = ones(Float32, 60)
-        big_path = joinpath(tmpdir, "synth_60slots.npz")
-        _NPZ_test.npzwrite(big_path, Dict(
-            "history_stats"      => big,
-            "history_masks"      => big_masks,
-            "shot_ids"           => collect(Int64, 1:60),
-            "bzn_seconds"        => [0.0],
-            "disrupt_seconds"    => [-1.0],
-            "disrupt_coverage"   => [0.0],
-            "n_history_features" => Int64[458],
-        ))
-        hist60, _, _ = @test_logs (:warn,) load_history_npz(big_path)
-        @test all(isapprox.(hist60[1, :, :], big[end-49:end, :]; atol=0))
-
-        # 4. Slot zero-padding: 30 slots in → pad first 20 rows with zeros, mask=0.
-        small = randn(Float32, 30, 458)
-        small_path = joinpath(tmpdir, "synth_30slots.npz")
-        _NPZ_test.npzwrite(small_path, Dict(
-            "history_stats"      => small,
-            "history_masks"      => ones(Float32, 30),
-            "shot_ids"           => collect(Int64, 1:30),
-            "bzn_seconds"        => [0.0],
-            "disrupt_seconds"    => [-1.0],
-            "disrupt_coverage"   => [0.0],
-            "n_history_features" => Int64[458],
-        ))
-        hist30, hmask30, _ = @test_logs (:warn,) load_history_npz(small_path)
-        @test all(iszero, hist30[1, 1:20, :])
-        @test all(iszero, hmask30[1, 1:20])
-        @test all(isone, hmask30[1, 21:50])
-        @test all(isapprox.(hist30[1, 21:50, :], small; atol=0))
-    end
-
-    # ── Live history buffer round-trip (push_shot_history! → mse_history_from_aux) ──
-    # Stand up a minimal `dd`-like that shares the `_aux::Dict{Symbol,Any}`
-    # field accessed via `getfield(dd, :_aux)`. Avoids spinning up an IMAS.dd
-    # for this skeleton test.
-    mutable struct _MockDD
-        _aux::Dict{Symbol,Any}
-    end
-    let mock = _MockDD(Dict{Symbol,Any}())
-        # Empty buffer → mse_history_from_aux falls back to mean_normalized_history
-        # (which warns about z-scoring? no — it doesn't z-score, it just returns zeros).
-        h0, m0, a0 = mse_history_from_aux(mock, nn)
-        @test size(h0) == (1, 50, 458)
-        @test size(m0) == (1, 50)
-        @test all(iszero, h0)
-        @test all(isone, m0)             # mean fallback flags every slot as valid
-        @test a0 == reshape(Float32[0f0, -1f0, 0f0], 1, 3)
-
-        # Push 3 synthetic shots, each with distinct stats. With < 50 entries,
-        # the buffer should right-align and zero-pad the earlier slots.
-        s1 = randn(Float32, 458)
-        s2 = randn(Float32, 458)
-        s3 = randn(Float32, 458)
-        push_shot_history!(mock, s1; shot_id=200_001, bzn_seconds=10.0)
-        push_shot_history!(mock, s2; shot_id=200_002)
-        push_shot_history!(mock, s3; shot_id=200_003,
-                           disrupt_seconds=-1.0, disrupt_coverage=0.0)
-        buf = mock._aux[:nn_history_buffer]
-        @test buf.shot_ids == Int64[200_001, 200_002, 200_003]
-        @test size(buf.history_stats) == (3, 458)
-        @test buf.bzn_seconds == [10.0]              # set on first push, preserved through next two
-
-        # mse_history_from_aux assembles the (1, 50, 458) tensor with the 3
-        # latest rows right-aligned at slots 48-50 and zeros + mask=0 elsewhere.
-        h, m, a = mse_history_from_aux(mock, nn)
-        @test all(iszero, h[1, 1:47, :])
-        @test all(iszero, m[1, 1:47])
-        @test all(isone,  m[1, 48:50])
-        @test all(isapprox.(h[1, 48, :], s1; atol=0))
-        @test all(isapprox.(h[1, 49, :], s2; atol=0))
-        @test all(isapprox.(h[1, 50, :], s3; atol=0))
-        @test a[1,1] ≈ 10f0    # bzn from first push
-        @test a[1,2] ≈ -1f0    # dis sentinel from third push
-        @test a[1,3] ≈ 0f0     # cov sentinel from third push
-
-        # Cap-at-50 behavior: push 60 more → buffer keeps only the latest 50.
-        for k in 1:60
-            push_shot_history!(mock, randn(Float32, 458); shot_id=300_000 + k)
-        end
-        buf2 = mock._aux[:nn_history_buffer]
-        @test size(buf2.history_stats, 1) == 50
-        @test buf2.shot_ids[end] == 300_060
-        @test buf2.shot_ids[1]   == 300_011
-
-        # Round-trip: save_history_npz → load_history_npz reproduces the buffer.
-        let tmp = mktempdir()
-            npz_out = joinpath(tmp, "rt.npz")
-            save_history_npz(mock, npz_out)
-            h_rt, m_rt, a_rt = load_history_npz(npz_out)
-            h_buf, m_buf, a_buf = mse_history_from_aux(mock, nn)
-            @test h_rt == h_buf
-            @test m_rt == m_buf
-            @test a_rt == a_buf
-        end
-
-        # compute_shot_stats stub returns zeros + warns; v1_446 vs v2_458 width.
-        s_v2 = compute_shot_stats(mock; dataset_version="v2_458")
-        s_v1 = compute_shot_stats(mock; dataset_version="v1_446")
-        @test length(s_v2) == 458
-        @test length(s_v1) == 446
-        @test all(iszero, s_v2)
-        @test_throws ErrorException compute_shot_stats(mock; dataset_version="bogus")
-    end
-
-    # Optional: real fixture from `run_inference.py --save-history`. Skipped if absent.
-    # No norm_params_path is passed by default: none of the per-bundle
-    # `normalization_params.json` files in onnx_models/ ship `history_means` /
-    # `history_stds` keys, so the Python `HistoryManager` also forwards raw
-    # stats to the encoder. Override with FUSE_PEDESTAL_NN_HISTORY_NORM_JSON if
-    # a future bundle adds the per-feature norm vectors.
-    history_npz = get(ENV, "FUSE_PEDESTAL_NN_HISTORY_NPZ", "")
-    if !isempty(history_npz) && isfile(history_npz)
-        @info "Running predict_pedestal on real history NPZ: $history_npz"
-        norm_override = get(ENV, "FUSE_PEDESTAL_NN_HISTORY_NORM_JSON", "")
-        norm_path = (!isempty(norm_override) && isfile(norm_override)) ? norm_override : nothing
-        history = if norm_path === nothing
-            @test_logs (:warn,) load_history_npz(history_npz)
-        else
-            load_history_npz(history_npz; norm_params_path=norm_path)
-        end
-        out = predict_pedestal(nn; history)
-        for k in (:edens_ped, :te_ped, :ti_ped, :t_rot_ped)
-            v = filter(isfinite, getfield(out, k))
-            @test !isempty(v)
-        end
-    end
-
-    # ── HuggingFace auto-fetch surface (offline-only checks) ──────────────
-    @testset "download_pedestal_nn! manifest + cache-detection" begin
-        files = pedestal_nn_files()
-        # 1 top-level (manifest.json) + 4 regression bundles × 5 files + 1 classification × 4
-        @test length(files) == 1 + 4 * 5 + 1 * 4
-        @test "manifest.json" in files
-        @test "edensfit89/mse_encoder.onnx" in files
-        @test "edensfit89/fpe_encoder.onnx" in files
-        @test "edensfit89/target_norm.json" in files
-        # hmode_89 is classification — no target_norm.json
-        @test "hmode_89/mse_encoder.onnx" in files
-        @test !("hmode_89/target_norm.json" in files)
-        # All 5 canonical slugs present
-        for slug in _CANONICAL_SLUGS
-            @test any(startswith(f, slug * "/") for f in files)
-        end
-
-        # pedestal_nn_dir_complete: false on empty dir, true on a fake-populated one
-        mktempdir() do empty_tmp
-            @test pedestal_nn_dir_complete(empty_tmp) === false
-        end
-        mktempdir() do fake_tmp
-            for rel in files
-                p = joinpath(fake_tmp, rel)
-                mkpath(dirname(p))
-                write(p, "x")  # non-empty stub
-            end
-            @test pedestal_nn_dir_complete(fake_tmp) === true
-            # zero-byte file should make it incomplete again
-            zero_target = joinpath(fake_tmp, files[end])
-            write(zero_target, "")
-            @test pedestal_nn_dir_complete(fake_tmp) === false
-        end
-
-        # Auto-fetch hook: explicit opt-out (`0`/`false`/`no`/`off`) skips the
-        # download even on an empty dir. No network call expected.
-        for v in ("0", "false", "no", "off", "FALSE", "Off")
-            mktempdir() do tmp
-                old = get(ENV, PEDESTAL_NN_AUTOFETCH_ENV, nothing)
-                ENV[PEDESTAL_NN_AUTOFETCH_ENV] = v
-                try
-                    @test _maybe_autofetch!(tmp) === false
-                finally
-                    old === nothing ? delete!(ENV, PEDESTAL_NN_AUTOFETCH_ENV) :
-                                      (ENV[PEDESTAL_NN_AUTOFETCH_ENV] = old)
-                end
-            end
-        end
-
-        # Auto-fetch hook: when the dir is *already complete*, no fetch is
-        # attempted regardless of the env var (idempotency). This is the
-        # branch that protects against repeated downloads on every container
-        # restart and against `using FUSE` re-fetching when files exist.
-        for v in ("", "1", "true", "0", "false")
-            mktempdir() do tmp
-                # Stub a complete bundle dir.
-                for rel in pedestal_nn_files()
-                    p = joinpath(tmp, rel)
-                    mkpath(dirname(p))
-                    write(p, "x")
-                end
-                @assert pedestal_nn_dir_complete(tmp)
-                old = get(ENV, PEDESTAL_NN_AUTOFETCH_ENV, nothing)
-                if isempty(v)
-                    delete!(ENV, PEDESTAL_NN_AUTOFETCH_ENV)
-                else
-                    ENV[PEDESTAL_NN_AUTOFETCH_ENV] = v
-                end
-                try
-                    @test _maybe_autofetch!(tmp) === false
-                finally
-                    old === nothing ? delete!(ENV, PEDESTAL_NN_AUTOFETCH_ENV) :
-                                      (ENV[PEDESTAL_NN_AUTOFETCH_ENV] = old)
-                end
-            end
-        end
-
-        # Optional: real network round-trip, gated by env var (CI doesn't run).
-        # Set FUSE_PEDESTAL_NN_DOWNLOAD_TEST=1 to fetch a single small JSON
-        # from HuggingFace and verify the URL/header pipeline works.
-        if get(ENV, "FUSE_PEDESTAL_NN_DOWNLOAD_TEST", "0") == "1"
-            mktempdir() do tmp
-                # download just the cheapest file (manifest.json, ~few KB) by
-                # temporarily monkey-patching the file manifest at the call site
-                # via a stripped-down call.
-                base = "https://huggingface.co/$(PEDESTAL_NN_HF_REPO_DEFAULT)/resolve/$(PEDESTAL_NN_HF_REVISION_DEFAULT)"
-                dest = joinpath(tmp, "manifest.json")
-                Downloads.download("$base/manifest.json", dest)
-                @test isfile(dest)
-                @test filesize(dest) > 0
-                m = JSON.parsefile(dest)
-                @test haskey(m, "bundles")
-                @test "edensfit89" in keys(m["bundles"])
-            end
-        end
-    end
+@testset "fuse29 contract constants" begin
+    @test length(FUSE29_ACTUATOR_NAMES) == FUSE29_N_ACTUATORS == 29
+    @test length(FUSE29_ACTUATOR_UNITS) == 29
+    @test length(FUSE29_HEAD_NAMES) == FUSE29_N_HEADS == 9
+    @test length(FUSE29_HEAD_UNITS) == 9
+    @test FUSE29_ACTUATOR_NAMES[1] == "pinj"
+    @test FUSE29_ACTUATOR_NAMES[end] == "bt"
+    @test FUSE29_HEAD_NAMES[1] == "ne"
+    @test FUSE29_HEAD_NAMES[end] == "hmode"
+    @test all(h in FUSE29_HEAD_NAMES for h in FUSE29_GATED_HEADS)
+    @test !("ne" in FUSE29_GATED_HEADS) && !("hmode" in FUSE29_GATED_HEADS)
+    # the old 32-channel plasma-response inputs must be gone
+    @test !any(n in FUSE29_ACTUATOR_NAMES for n in ("pohm", "ip", "ipspr15v"))
+    # order survives the migration from the 32-channel ResNet list (MIGRATION_FROM_RESNET.md §4)
+    resnet32 = vcat(["pohm", "pinj", "tinj", "ech_total"],
+                    ["f$(i)a" for i in 1:9], ["f$(i)b" for i in 1:9],
+                    ["ecoila", "ecoilb"], ["gas$(c)_cal" for c in "abcde"],
+                    ["ip", "ipspr15v", "bt"])
+    @test filter(n -> !(n in ("pohm", "ip", "ipspr15v")), resnet32) == collect(FUSE29_ACTUATOR_NAMES)
 end
+
+@testset "fuse29 file manifest & auto-fetch surface" begin
+    files = pedestal_nn_files()
+    @test length(files) == 1 + length(FUSE29_BUNDLE_FILES)
+    @test files[1] == "manifest.json"
+    @test all(startswith(f, "s0/") for f in files[2:end])
+    @test "s0/fuse29_step.onnx" in files && "s0/fuse29_seq.onnx" in files && "s0/model_config.json" in files
+    @test pedestal_nn_files(; seed=3)[2] == "s3/fuse29_step.onnx"
+    @test PEDESTAL_NN_HF_REPO_DEFAULT == "SCS-Lab/FUSE29-Pedestal-model"
+
+    mktempdir() do tmp
+        @test !pedestal_nn_dir_complete(tmp)
+        # zero-byte stragglers count as missing
+        for rel in pedestal_nn_files()
+            mkpath(dirname(joinpath(tmp, rel)))
+            touch(joinpath(tmp, rel))
+        end
+        @test !pedestal_nn_dir_complete(tmp)
+        for rel in pedestal_nn_files()
+            write(joinpath(tmp, rel), "x")
+        end
+        @test pedestal_nn_dir_complete(tmp)
+        @test !pedestal_nn_dir_complete(tmp; seed=1)
+        # a bare bundle dir is also "complete"
+        @test pedestal_nn_dir_complete(joinpath(tmp, "s0"))
+    end
+
+    # auto-fetch opt-out never touches the network
+    withenv(PEDESTAL_NN_AUTOFETCH_ENV => "0") do
+        mktempdir() do tmp
+            @test _maybe_autofetch!(tmp) == false
+            @test !pedestal_nn_dir_complete(tmp)
+        end
+    end
+
+    # env-var resolution
+    withenv(PEDESTAL_NN_ENV => "/some/dir", PEDESTAL_NN_SEED_ENV => "5") do
+        @test resolve_pedestal_nn_dir() == "/some/dir"
+        @test _default_seed() == 5
+    end
+    withenv(PEDESTAL_NN_ENV => nothing, PEDESTAL_NN_SEED_ENV => nothing) do
+        @test endswith(resolve_pedestal_nn_dir(), joinpath("pedestal-predictor-mamba-onnx-fuse", "artifacts"))
+        @test _default_seed() == 0
+    end
+    @test resolve_pedestal_nn_dir(; onnx_dir="/explicit") == "/explicit"
+end
+
+# ── everything below needs the bundle on disk ────────────────────────────────
+onnx_dir = resolve_pedestal_nn_dir()
+have_bundle = withenv(PEDESTAL_NN_AUTOFETCH_ENV => "0") do
+    pedestal_nn_dir_complete(onnx_dir)
+end
+if !have_bundle
+    @warn "Skipping fuse29 inference tests: ONNX bundle not found at $onnx_dir (set FUSE_PEDESTAL_NN_DIR or run FUSE.download_pedestal_nn!)"
+else
+
+nn = load_pedestal_nn()
+
+@testset "fuse29 load & contract assertions" begin
+    @test load_pedestal_nn() === nn                  # process cache
+    @test nn.actuator_names == collect(FUSE29_ACTUATOR_NAMES)
+    @test nn.head_names == collect(FUSE29_HEAD_NAMES)
+    @test nn.period_s ≈ 0.05
+    @test nn.rho_ref ≈ 0.85
+    @test nn.seq_len == 256
+    @test nn.conv_shape == (6, 1, 1536, 3)
+    @test nn.ssm_shape == (6, 1, 8, 128, 128)
+    @test nn.actuator_ranges !== nothing
+    @test ONNXRunTime.input_names(nn.step) == collect(FUSE29_STEP_INPUTS)
+    @test ONNXRunTime.output_names(nn.step) == collect(FUSE29_STEP_OUTPUTS)
+
+    s0 = fuse29_init_state(nn)
+    @test size(s0.conv) == reverse(nn.conv_shape) && size(s0.ssm) == reverse(nn.ssm_shape)   # ORT-native layout
+    @test all(iszero, s0.conv) && all(iszero, s0.ssm)
+    s1 = copy(s0)
+    @test s1 !== s0 && s1.conv !== s0.conv
+
+    med = fuse29_median_actuators(nn)
+    @test length(med) == 29
+    @test isempty(fuse29_check_units(nn, med))
+    @test isempty(fuse29_in_distribution(nn, med))
+    # a factor-of-1e6 unit error on pinj must be caught
+    bad = copy(med); bad[1] = 3.0e6
+    w = fuse29_check_units(nn, bad)
+    @test length(w) == 1 && startswith(w[1], "pinj")
+    @test length(fuse29_in_distribution(nn, bad)) == 1
+end
+
+@testset "fuse29 reference shot replay (both graphs)" begin
+    # actuator_names/head_names/readme are numpy '<U' unicode arrays, which NPZ.jl
+    # cannot parse; read only the numeric keys.
+    ref = NPZ.npzread(REFERENCE_NPZ, ["actuators", "predictions", "seed", "period_ms", "shot"])
+    A = Float32.(ref["actuators"])
+    P = Float32.(ref["predictions"])
+    @test size(A, 2) == 29 && size(P, 2) == 9 && size(A, 1) == size(P, 1)
+    @test Float64(ref["period_ms"]) ≈ nn.period_s * 1000
+    @test isempty(fuse29_check_units(nn, A))
+
+    K = size(A, 1)
+    R = fuse29_rollout(nn, A)
+    S = fuse29_sequence(nn, A)
+    @test size(R) == (K, 9) == size(S)
+    @test maximum(abs, R .- S) < 1e-3                      # step graph == sequence graph
+    if Int(ref["seed"]) == nn.seed
+        @test maximum(abs, R .- P) < 1e-3                  # matches the shipped reference (seed 0)
+        @test maximum(abs, S .- P) < 1e-3
+    else
+        @warn "bundle is seed $(nn.seed), reference is seed $(ref["seed"]); skipping exact comparison"
+    end
+    # right-padding is exact: predictions for the real ticks do not change
+    S2 = fuse29_sequence(nn, A[1:K-10, :])
+    @test maximum(abs, S2 .- S[1:K-10, :]) < 1e-5
+    @test_throws ErrorException fuse29_sequence(nn, zeros(Float32, nn.seq_len + 1, 29))
+
+    hm = R[:, end]
+    @test all(0 .<= hm .<= 1)
+    @test any(hm .< 0.5) && any(hm .> 0.5)                 # the shot has an L-H transition
+    @test 0.5 < mean(R[:, 1]) < 10                          # ne, 1e19 m^-3
+    @test 0.05 < mean(R[:, 2]) < 3                          # te_ped, keV
+end
+
+@testset "fuse29_step is functional; commit semantics" begin
+    ref = NPZ.npzread(REFERENCE_NPZ, ["actuators"])
+    A = Float32.(ref["actuators"])
+    s = fuse29_init_state(nn)
+    for k in 1:20
+        _, s = fuse29_step(nn, A[k, :], s)
+    end
+    conv_before = copy(s.conv); ssm_before = copy(s.ssm)
+    p1, s1 = fuse29_step(nn, A[21, :], s)
+    @test s.conv == conv_before && s.ssm == ssm_before     # input state untouched
+    # re-stepping N times from the same committed state == one tick
+    for _ in 1:4
+        p, sn = fuse29_step(nn, A[21, :], s)
+        @test p == p1
+        @test sn.ssm == s1.ssm
+    end
+    @test_throws ErrorException fuse29_step(nn, A[21, 1:28], s)
+    @test_throws ErrorException fuse29_step(nn, [NaN32; A[21, 2:end]], s)
+
+    nt = fuse29_named(p1)
+    @test keys(nt) == Symbol.(FUSE29_HEAD_NAMES)
+    pr = fuse29_prediction(nn, p1, false; time=1.0, n_ticks=1)
+    @test isnan(pr.neped_prmtan) && isnan(pr.rho_sym) && isfinite(pr.ne) && isfinite(pr.te_ped)
+    @test pr.hmode_prob == Float64(p1[end]) && pr.is_h_mode == false && pr.rho_ref == nn.rho_ref
+    pr = fuse29_prediction(nn, p1, true)
+    @test isfinite(pr.neped_prmtan) && pr.is_h_mode
+end
+
+@testset "Fuse29Tracker: one tick per 50 ms, hold, catch-up, re-run, rewind" begin
+    med = fuse29_median_actuators(nn)
+    calls = Float64[]
+    act = t -> (push!(calls, t); med)
+    period = nn.period_s
+
+    tr = Fuse29Tracker(nn, 1.0 - period)           # first call at t=1.0 -> exactly one tick
+    p1, h1, n1 = fuse29_advance!(tr, nn, 1.0, act)
+    @test n1 == 1 && calls ≈ [1.0]
+    @test tr.pending_time ≈ 1.0 && tr.committed_time ≈ 1.0 - period
+
+    # re-run of the same step: nothing committed, re-stepped from committed
+    empty!(calls)
+    p1b, _, n1b = fuse29_advance!(tr, nn, 1.0, act)
+    @test n1b == 1 && p1b == p1 && tr.committed_time ≈ 1.0 - period && tr.n_total == 2
+
+    # host steps faster than 50 ms: zero-order hold, no model tick
+    empty!(calls)
+    p2, _, n2 = fuse29_advance!(tr, nn, 1.02, act)
+    @test n2 == 0 && isempty(calls) && p2 == p1
+    @test tr.committed_time ≈ 1.0                  # the 1.0 tick got committed when time advanced
+
+    # host steps slower than 50 ms: catch-up with one call per 50 ms sub-interval
+    empty!(calls)
+    p3, _, n3 = fuse29_advance!(tr, nn, 1.10, act)
+    @test n3 == 2 && calls ≈ [1.05, 1.10]
+    @test tr.pending_time ≈ 1.10
+
+    # consistency: the tracker's trajectory equals a plain rollout on the same grid
+    R = fuse29_rollout(nn, repeat(med', 3, 1))
+    @test maximum(abs, p3 .- R[3, :]) < 1e-5
+
+    # rewind is an error at this level (the actor resets the tracker)
+    @test_throws ErrorException fuse29_advance!(tr, nn, 0.5, act)
+    @test_throws ErrorException fuse29_advance!(tr, nn, 1.2, act; hmode_enter=0.3, hmode_exit=0.7)
+
+    # Schmitt trigger: enter above `enter`, stay until below `exit`
+    tr2 = Fuse29Tracker(nn, 0.0)
+    hs = Bool[]
+    for k in 1:40
+        _, h, _ = fuse29_advance!(tr2, nn, k * period, act; hmode_enter=0.7, hmode_exit=0.3)
+        push!(hs, h)
+    end
+    @test hs[1] == false                            # first tick from zero state is L-mode-ish
+    @test any(hs)                                   # median actuators reach H-mode within 2 s
+    @test count(i -> hs[i] != hs[i-1], 2:length(hs)) <= 2
+end
+
+end # have_bundle
