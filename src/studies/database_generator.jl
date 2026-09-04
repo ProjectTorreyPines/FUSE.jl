@@ -48,9 +48,37 @@ mutable struct StudyDatabaseGenerator{T<:Real} <: AbstractStudy
     sty::OverrideParameters{T,FUSEparameters__ParametersStudyDatabaseGenerator{T}}
     ini::Union{ParametersAllInits,Vector{<:ParametersAllInits}}
     act::Union{ParametersAllActors,Vector{<:ParametersAllActors}}
+    dd::Union{IMAS.DD,Vector{<:IMAS.DD},Missing}
     dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
+end
+
+function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors, dd::IMAS.DD; kw...)
+    sty = OverrideParameters(sty; kw...)
+    study = StudyDatabaseGenerator(sty, ini, act, dd, missing, missing, missing)
+
+    check_and_create_file_save_mode(sty)
+
+    parallel_environment(sty.server, sty.n_workers)
+
+    return study
+end
+
+function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}, dds::Vector{<:IMAS.DD}; kw...)
+    @assert length(inis) == length(acts)
+    sty = OverrideParameters(sty; kw...)
+    if sty.n_simulations ≠ length(inis)
+        @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
+        sty.n_simulations = length(inis)
+    end
+    study = StudyDatabaseGenerator(sty, inis, acts, dds, missing, missing, missing)
+
+    check_and_create_file_save_mode(sty)
+
+    parallel_environment(sty.server, sty.n_workers)
+
+    return study
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
@@ -153,7 +181,7 @@ function run_case(study::AbstractStudy, item::Int)
     original_stderr = stderr  # Save the original stderr
     file_log = open("log.txt", "w")
 
-    # ini/act variations
+    # ini/act/dd variations
     if typeof(study.ini) <: ParametersAllInits
         ini = rand(study.ini)
     elseif typeof(study.ini) <: Vector{<:ParametersAllInits}
@@ -164,8 +192,13 @@ function run_case(study::AbstractStudy, item::Int)
     elseif typeof(study.act) <: Vector{<:ParametersAllActors}
         act = study.act[item]
     end
-
-    dd = IMAS.dd()
+    if typeof(study.dd) <: IMAS.DD
+        dd = rand(study.dd)
+    elseif typeof(study.dd) <: Vector{<:IMAS.DD}
+        dd = study.dd[item]
+    else
+        dd = IMAS.dd()
+    end
 
     try
         redirect_stdout(file_log)
