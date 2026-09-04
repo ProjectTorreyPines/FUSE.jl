@@ -129,6 +129,9 @@ function run_predictive_rt_case!(
         ini.time.simulation_start = start_time
     end
 
+    ini.core_profiles.ne_setting    = :ne_ped
+    act.ActorPedestal.density_match = :ne_ped
+
     # init
     @info "ini.time.simulation_start = $(ini.time.simulation_start)"
     FUSE.init!(dd, ini, act)
@@ -145,8 +148,8 @@ function run_predictive_rt_case!(
     act.ActorPedestal.model = :dynamic
     act.ActorPedestal.tau_n = 0.3 #experiment_LH.tau_n # 0.3
     act.ActorPedestal.tau_t = 0.15 #experiment_LH.tau_t # 0.15
-    act.ActorEPED.ped_factor = 0.8
-    act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
+    act.ActorEPED.ped_factor = 1.
+    act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal 
     act.ActorWPED.ped_to_core_fraction = missing
 
     # ZMQ coupling to GSLite/GSEvolve
