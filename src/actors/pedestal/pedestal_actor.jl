@@ -450,8 +450,8 @@ standard IMAS fields (no ZMQ required).
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6 |
 | `tinj` | N·m | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities[time].torque_tor` | same |
 | `ech_total` | MW † | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6 |
-| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `dd.pf_active.coil` named `F1A..F9B`, `current` as stored |
-| `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `dd.pf_active.coil` named `ECOILA`, `ECOILB` |
+| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` as stored |
+| `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB` |
 | `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | (no dd source → median) |
 | `bt` | T (signed) | `dd.equilibrium.vacuum_toroidal_field.b0` at `time` | same |
 
@@ -468,7 +468,8 @@ expected rather than as evidence the wiring is wrong.
 The predecessor's `pohm`, `ip` and `ipspr15v` inputs are gone: they are plasma
 responses, not commands, and fuse29 deliberately does not take them.
 """
-function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, time::Float64=dd.global_time)
+function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, time::Float64=dd.global_time,
+                                replay_dd::Union{Nothing,IMAS.DD}=nothing)
     u = fuse29_median_actuators(nn)
     live = falses(FUSE29_N_ACTUATORS)
     aux = getfield(dd, :_aux)
@@ -565,7 +566,18 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             "F1B" => "f1b", "F2B" => "f2b", "F3B" => "f3b", "F4B" => "f4b", "F5B" => "f5b",
             "F6B" => "f6b", "F7B" => "f7b", "F8B" => "f8b", "F9B" => "f9b"
         )
-        for coil in dd.pf_active.coil
+        # Prefer the experimental coil currents when a replay dd is available. The
+        # free-boundary solver overwrites dd.pf_active.coil[].current every step
+        # (ActorFRESCO._finalize -> VacuumFields.set_current_per_turn!), and in :dd
+        # mode nothing constrains that solve to the real machine: recovering "some"
+        # coil set that reproduces the boundary is an underdetermined problem, so the
+        # currents it lands on are physically fine but unrelated to PTDATA — on shot
+        # 199055 they run from 9x too large to sign-flipped. The contract wants the
+        # PTDATA point, which is what the replay dd still carries. Reading it back
+        # took the mode gate from 75/100 to 100/100 and ne from 26.2% to 12.7%.
+        coil_source = replay_dd === nothing ? dd.pf_active.coil : replay_dd.pf_active.coil
+        isempty(coil_source) && (coil_source = dd.pf_active.coil)
+        for coil in coil_source
             ch_name = get(coil_name_map, uppercase(strip(coil.name)), nothing)
             ch_name === nothing && continue
             if !ismissing(coil.current, :data) && !isempty(coil.current.data)
@@ -674,6 +686,8 @@ function fuse29_predict!(actor::ActorPedestal)
     end
     nn = actor.nn_predictor
     aux = getfield(dd, :_aux)
+    # experimental dd kept aside by init!, still holding the PTDATA coil currents
+    replay_dd = ismissing(actor.act.ActorReplay, :replay_dd) ? nothing : actor.act.ActorReplay.replay_dd
     t_now = dd.global_time
     eps = 1e-3 * nn.period_s
 
@@ -691,7 +705,7 @@ function fuse29_predict!(actor::ActorPedestal)
     end
 
     function actuators_at(t::Float64)
-        u, live = build_fuse29_actuators(nn, dd; source=par.fpe_source, time=t)
+        u, live = build_fuse29_actuators(nn, dd; source=par.fpe_source, time=t, replay_dd)
         if !tr.units_checked
             tr.units_checked = true
             for w in fuse29_check_units(nn, u)

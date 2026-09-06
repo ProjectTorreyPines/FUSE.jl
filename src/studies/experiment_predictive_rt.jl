@@ -131,6 +131,7 @@ function run_predictive_rt_case!(
 
     ini.core_profiles.ne_setting    = :ne_ped
     act.ActorPedestal.density_match = :ne_ped
+    act.ActorPedestal.nn_warmup_time = 0.0 # replay actuators from shot start so the recurrent state is warm at t_start
 
     # init
     @info "ini.time.simulation_start = $(ini.time.simulation_start)"
