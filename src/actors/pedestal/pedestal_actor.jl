@@ -450,7 +450,7 @@ standard IMAS fields (no ZMQ required).
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6 |
 | `tinj` | N·m | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities[time].torque_tor` | same |
 | `ech_total` | MW † | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6 |
-| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `dd.pf_active.coil` named `F1A..F9B`, current / `turns_with_sign` |
+| `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `dd.pf_active.coil` named `F1A..F9B`, `current` as stored |
 | `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `dd.pf_active.coil` named `ECOILA`, `ECOILB` |
 | `gasa_cal..gase_cal` | Torr·L/s | `dd._aux[:zmq_gas[a-e]_cal]` | (no dd source → median) |
 | `bt` | T (signed) | `dd.equilibrium.vacuum_toroidal_field.b0` at `time` | same |
@@ -569,10 +569,17 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             ch_name = get(coil_name_map, uppercase(strip(coil.name)), nothing)
             ch_name === nothing && continue
             if !ismissing(coil.current, :data) && !isempty(coil.current.data)
-                turns = isempty(coil.element) ? 1.0 : coil.element[1].turns_with_sign
+                # No division by turns_with_sign. The contract wants the PTDATA point
+                # (F1A..F9B, ECOILA/B), which is the same quantity dd.pf_active.coil[].current
+                # already carries. Dividing gave 1/58 of the truth on every F-coil: against
+                # the reference shot 199055 at t = 3.0 s, f6a read -53.6 A where PTDATA has
+                # -3065 A, ratio 0.017 across all eighteen. ECOILA/B have turns = 1 and were
+                # therefore right either way, which is what made the error hard to see.
+                # Coils are the strongest channel group for ne (f6b: dne = 3.22 in
+                # sensitivity_s0.json, four times pinj), so this was the dominant input error.
                 v = _interp_at(coil.current.time, coil.current.data, :linear)
                 v === nothing && continue
-                _set!(ch_name, v / turns)
+                _set!(ch_name, v)
             end
         end
         # gasa..gase_cal — no dd source; stay at the training median
