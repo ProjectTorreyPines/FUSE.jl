@@ -55,7 +55,8 @@ using Test
                     control_type     = :LinStab,
                     grid_size        = N_grid,
                     overwrite_params = true,
-                    ode_params       = (Control2_min=-3.0, Control2_max=-1.0))
+                    Control2_min     = -3.0,
+                    Control2_max     = -1.0)
         r = actor.results
         @test r !== nothing
         @test size(r.ode_sols, 1) == N_grid^2
@@ -71,7 +72,8 @@ using Test
                     NL_saturation    = true,
                     grid_size        = N_grid,
                     overwrite_params = true,
-                    ode_params       = (Control2_min=0.05, Control2_max=0.5))
+                    Control2_min     = 0.05,
+                    Control2_max     = 0.5)
         r = actor.results
         @test r !== nothing
         
@@ -145,11 +147,10 @@ using Test
         end
         dd.global_time = t_ref
 
-        # Probability limit written over the same time base
-        probs = filter(m -> occursin("probability", m.identifier.name), dd.limits.model)
-        @test length(probs) == 1
-        @test length(probs[1].fraction) == length(op_times)
-        @test all(isfinite, probs[1].fraction)
+        # The actor asserts NO limits. It reports what it measured — stability_metric
+        # on mhd_linear — and a limit model in limit_models.jl owns the thresholds and
+        # writes limits.model, the same split ActorVerticalStability uses.
+        @test isempty(dd.limits.model)
 
         # A vector op_C2 must match op_times one-for-one
         @test_throws ErrorException FUSE.ActorLocking(dd, act;
@@ -181,7 +182,8 @@ using Test
                        grid_size        = 5,
                        overwrite_params = true,
                        nn_params        = tl_nn,
-                       ode_params       = (Control1_min=1.0, Control1_max=3.0))
+                       Control1_min     = 1.0,
+                       Control1_max     = 3.0)
         r = actor_tl.results
 
         @test r !== nothing
@@ -197,8 +199,8 @@ using Test
 
     # ─── control_type = :LinStab — br (Gauss) → Δt inversion ─────────────────
     @testset "eval_prob, br to Δt inversion (LinStab)" begin
-        # Control2_min/max are Δ_RW for :LinStab and must be < 0; the ODEparams
-        # defaults are positive, so they have to be given explicitly
+        # Control2_min/max are Δ_RW for :LinStab and must be < 0; the defaults
+        # are positive, so they have to be given explicitly
         drw_range = (Control2_min=-3.5, Control2_max=-0.05)
 
         FUSE.ActorLocking(dd, act;
@@ -206,13 +208,13 @@ using Test
             control_type     = :LinStab,
             grid_size        = N_grid,
             overwrite_params = true,
-            ode_params       = drw_range)
+            drw_range...)
         FUSE.ActorLocking(dd, act;
             task             = :calc_prob,
             control_type     = :LinStab,
             grid_size        = N_grid,
             overwrite_params = true,
-            ode_params       = drw_range,
+            drw_range...,
             nn_params        = fast_nn)
 
         # later than the times the :EF eval_prob testset already appended
@@ -225,7 +227,7 @@ using Test
                     control_type     = :LinStab,
                     grid_size        = N_grid,
                     overwrite_params = true,
-                    ode_params       = drw_range,
+                    drw_range...,
                     op_times         = op_times,
                     op_C2            = [10.0, 20.0])
 
@@ -283,6 +285,101 @@ using Test
             C2 = actor.ode_params.Control2[1]
             @test 0.0 ≤ actor.results.prob(C1, C2) ≤ 1.0
         end
+    end
+
+
+    # ─── task = :bounds — hysteresis onset, no ODE solve and no NN ────────────
+    @testset "bounds, hysteresis onset without solving the ODEs" begin
+        # No :solve_system and no :calc_prob beforehand: calculate_bifurcation_bounds
+        # reads only geometry and the control grid.
+        drw_range = (Control2_min=-3.5, Control2_max=-0.05)
+        actor = FUSE.ActorLocking(dd, act;
+                    task             = :bounds,
+                    control_type     = :LinStab,
+                    grid_size        = N_grid,
+                    overwrite_params = true,
+                    drw_range...)
+
+        b = actor.bounds
+        @test b !== nothing
+        @test actor.results === nothing            # nothing was solved
+        @test length(b.C1) == N_grid
+        @test size(b.map) == (N_grid, N_grid)
+        @test length(b.C2_onset) == length(b.C1) == length(b.C2_onset_user)
+        @test b.bracketed == false                 # NL_saturation off ⇒ smooth discriminant
+
+        # at least some rotations must resolve an onset, else the rest is vacuous
+        keep = findall(isfinite, b.C2_onset_user)
+        @test !isempty(keep)
+
+        # C1_user is kHz; the onset in user units is a positive amplitude
+        @test all(>(0), b.C2_onset_user[keep])
+        @test issorted(b.C1_user)
+
+        # Monotone increasing in rotation — faster rotation tolerates a larger island.
+        # The inverse lookup (min rotation for a given amplitude) depends on this.
+        @test issorted(b.C2_onset_user[keep])
+
+        # :bounds asserts no limits either
+        @test isempty(dd.limits.model)
+    end
+
+    # ─── br ↔ Δ_RW relation, including NL saturation ──────────────────────────
+    @testset "br_drw, PoP2024 quadratic and its alpha=0 limit" begin
+        actor = FUSE.ActorLocking(dd, act;
+                    task             = :bounds,
+                    control_type     = :LinStab,
+                    grid_size        = N_grid,
+                    overwrite_params = true,
+                    Control2_min     = -3.5,
+                    Control2_max     = -0.05)
+        op = actor.ode_params
+
+        # α = 0 must reproduce the closed form ψt = P_rw/Δ_RW exactly
+        P_rw = op.l21 * op.l32 * FUSE._eps_ref(actor) / op.DeltaW
+        b0   = actor.par.mag_perturbation_amplitude
+        for drw in (-2.0, -0.5)
+            br = FUSE.br_drw(actor; direction=:forward, drw, alpha=0.0, verbose=false)
+            ψ  = (br / (b0 * 1e4)) * op.rat_surface / actor.par.m_pol
+            @test ψ ≈ P_rw / drw
+        end
+
+        # α ≠ 0 takes the upper root of the quadratic, and forward/backward invert
+        for α in (0.0, 0.05, 0.2, 0.5), drw in (-2.0, -0.5)
+            br   = FUSE.br_drw(actor; direction=:forward, drw, alpha=α, verbose=false)
+            back = FUSE.br_drw(actor; direction=:backward, br_Gauss=br, alpha=α, verbose=false)
+            @test back ≈ drw rtol=1e-10
+        end
+
+        # saturation reduces the amplitude: ψ(α) is strictly decreasing
+        brs = [FUSE.br_drw(actor; direction=:forward, drw=-2.0, alpha=α, verbose=false)
+               for α in (0.0, 0.1, 0.3, 0.6)]
+        @test issorted(brs; rev=true)
+    end
+
+    # ─── r0 comes from dd unless overwrite_params pins it ─────────────────────
+    @testset "r0 from dd.equilibrium, pinned by overwrite_params" begin
+        a_minor = dd.equilibrium.time_slice[].boundary.minor_radius
+        @test a_minor > 0
+
+        # default (NaN) resolves to the minor radius; an explicit value wins;
+        # overwrite_params pins 1.0 for PoP2024 regardless of either
+        actor_dd = FUSE.ActorLocking(dd, act;
+                       task=:bounds, control_type=:LinStab, grid_size=N_grid,
+                       overwrite_params=false, Control2_min=-3.5, Control2_max=-0.05)
+        @test FUSE._length_scale(dd, actor_dd.par) ≈ a_minor
+
+        actor_fixed = FUSE.ActorLocking(dd, act;
+                          task=:bounds, control_type=:LinStab, grid_size=N_grid,
+                          overwrite_params=false, r0=0.75,
+                          Control2_min=-3.5, Control2_max=-0.05)
+        @test FUSE._length_scale(dd, actor_fixed.par) == 0.75
+
+        actor_ow = FUSE.ActorLocking(dd, act;
+                       task=:bounds, control_type=:LinStab, grid_size=N_grid,
+                       overwrite_params=true, r0=0.75,
+                       Control2_min=-3.5, Control2_max=-0.05)
+        @test FUSE._length_scale(dd, actor_ow.par) == 1.0
     end
 
 end  # @testset "ActorLocking"
