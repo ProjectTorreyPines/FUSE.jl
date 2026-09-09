@@ -702,11 +702,21 @@ function fuse29_predict!(actor::ActorPedestal)
         end
         tr = Fuse29Tracker(nn, t_start)
         aux[:fuse29] = tr
+        # Hand-off time: ticks before this are replay, ticks from here on are live.
+        aux[:fuse29_handoff] = t_now
     end
+    handoff = get(aux, :fuse29_handoff, t_now)
 
     function actuators_at(t::Float64)
-        u, live = build_fuse29_actuators(nn, dd; source=par.fpe_source, time=t, replay_dd)
-        if !tr.units_checked
+        # Warm-up (replay) steps read FUSE's own stored experimental traces even when
+        # the live path is :zmq. GSLite pushes current values only, so `dd._aux` holds
+        # no pre-history and a :zmq warm-up would feed the training median on all 29
+        # channels, which is worse than not warming up at all. `dd` carries the whole
+        # shot from `init!`, so the replay phase can source from it and the live phase
+        # switches to the wire at hand-off.
+        src = t < handoff - eps ? :dd : par.fpe_source
+        u, live = build_fuse29_actuators(nn, dd; source=src, time=t, replay_dd)
+        if !tr.units_checked && src == par.fpe_source
             tr.units_checked = true
             for w in fuse29_check_units(nn, u)
                 @warn "ActorPedestal: fuse29 unit check — $w"
