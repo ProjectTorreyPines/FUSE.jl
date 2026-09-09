@@ -52,6 +52,7 @@ mutable struct StudyDatabaseGenerator{T<:Real} <: AbstractStudy
     dataframe::Union{DataFrame,Missing}
     iterator::Union{Vector{Int},Missing}
     workflow::Union{Function,Missing}
+    dd_type::Type{<:IMAS.DD} 
 end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors, dd::IMAS.DD; kw...)
@@ -83,7 +84,7 @@ end
 
 function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, act::ParametersAllActors; kw...)
     sty = OverrideParameters(sty; kw...)
-    study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing)
+    study = StudyDatabaseGenerator(sty, ini, act, missing, missing, missing, dd_type)
 
     check_and_create_file_save_mode(sty)
 
@@ -92,14 +93,14 @@ function StudyDatabaseGenerator(sty::ParametersStudy, ini::ParametersAllInits, a
     return study
 end
 
-function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; kw...)
+function StudyDatabaseGenerator(sty::ParametersStudy, inis::Vector{<:ParametersAllInits}, acts::Vector{<:ParametersAllActors}; dd_type::Type{<:IMAS.DD}=IMAS.dd, kw...)
     @assert length(inis) == length(acts)
     sty = OverrideParameters(sty; kw...)
     if sty.n_simulations ≠ length(inis)
         @warn "sty.n_simulations is set to legth(inis)=$(length(inis))"
         sty.n_simulations = length(inis)
     end
-    study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing)
+    study = StudyDatabaseGenerator(sty, inis, acts, missing, missing, missing, dd_type)
 
     check_and_create_file_save_mode(sty)
 
@@ -134,7 +135,7 @@ function _run(study::StudyDatabaseGenerator)
 
     if study.sty.database_policy == :separate_folders
         FUSE.ProgressMeter.@showprogress pmap(item -> run_case(study, item), iterator)
-        extract_results(study)
+        extract_results(study; dd_type=study.dd_type)
 
     elseif study.sty.database_policy == :single_hdf5
 
@@ -252,7 +253,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         act = study.act[item]
     end
 
-    dd = IMAS.dd()
+    dd = study.dd_type()
 
 
     zero_pad_length = length(string(sty.n_simulations))
@@ -279,7 +280,7 @@ function run_case(study::AbstractStudy, item::Int, ::Val{:hdf5}; kw...)
         df[!, :worker_id] = fill(myid, nrow(df))
         df[!, :elapsed_time] = fill(time() - start_time, nrow(df))
 
-        save_study_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : IMAS.dd()), ini, act, tmp_log_io; timer=true, freeze=false, overwrite_groups=true, kw...)
+        save_study_database("tmp_h5_output", parent_group, (sty.save_dd ? dd : study.dd_type()), ini, act, tmp_log_io; timer=true, freeze=false, overwrite_groups=true, kw...)
 
         # Write into temporary csv files, in case the whole Julia session is crashed
         tmp_csv_folder = "tmp_csv_output"
