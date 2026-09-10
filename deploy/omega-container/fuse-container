@@ -241,6 +241,15 @@ for var_dir in "FUSE_PEDESTAL_NN_DIR:pedestal_nn" "FUSE_SOLPS_NN_DIR:solps_nn_on
     fi
 done
 
+# TORBEAM (ActorTORBEAM): the image ships only the TORBEAM.jl wrapper, which
+# ccalls $TORBEAM_DIR/../lib/libtorbeamB.so at runtime. Use the caller's
+# TORBEAM_DIR (e.g. from `module load torbeam`), else omega's torbeam module
+# build; either must be inside a bind (default /fusion) to be visible.
+torbeam_dir="${TORBEAM_DIR:-/fusion/projects/codes/torbeam/c8/202505/build-generic/bin}"
+if [[ -f "$torbeam_dir/../lib/libtorbeamB.so" ]]; then
+    extra_env+=(--env "TORBEAM_DIR=$torbeam_dir")
+fi
+
 # A redirected depot (e.g. /local-scratch) is outside the default binds —
 # bind it explicitly so it exists inside the container. Nested/duplicate
 # binds (depot under /fusion or $HOME) are harmless.
