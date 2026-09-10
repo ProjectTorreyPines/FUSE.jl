@@ -162,10 +162,9 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     # the classical slowing-down profile and `min(classical, marginal)` keeps the
     # (un-flattened) classical EP density there.
     dndr = _sanitize_crit_grad(dndr_crit_out)
-    # runTHD returns the alpha_dpdr_crit.input values (10 kPa/m); ALPHA's public dpdr_crit is
-    # 10^19 m^-3·keV/m and it multiplies by 0.16022 again internally, so the stiff solver applies
-    # the file value unchanged, as the Fortran Alpha does
-    dpdr = _sanitize_crit_grad(dpdr_crit_out) ./ 0.16022
+    # ALPHA takes both critical gradients in the TGLF-EP file units (dpdr in 10 kPa/m), as
+    # the Fortran Alpha does; runTHD returns exactly those values
+    dpdr = _sanitize_crit_grad(dpdr_crit_out)
 
     crit_grad = (; dndr_crit=dndr, dpdr_crit=dpdr)
 
