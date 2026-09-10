@@ -160,7 +160,7 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     # the classical slowing-down profile and `min(classical, marginal)` keeps the
     # (un-flattened) classical EP density there.
     dndr = _sanitize_crit_grad(dndr_crit_out)
-    dpdr = _sanitize_crit_grad(dpdr_crit_out) ./ 0.16022   # 10 kPa/m -> 10^19 m^-3·keV /m (see runTHD)
+    dpdr = _sanitize_crit_grad(dpdr_crit_out) ./ 0.16022   # 10 kPa/m -> 10^19 m^-3·keV/m (ALPHA's dpdr_crit convention; see runTHD)
 
     crit_grad = (; dndr_crit=dndr, dpdr_crit=dpdr)
 
@@ -184,6 +184,10 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     actor.alpha = ALPHA.run_alpha(dd, actor.rho_grid, crit_grad;
         solver=par.alpha_solver, method=par.alpha_method, E_alpha=Float64(par.E_alpha),
         transport_params=transport_params, ql_modes=ql_modes)
+    if par.alpha_solver == :stiff
+        @debug "ActorTJLFEP: ALPHA stiff-CGM solve" n_iter = actor.alpha.stiff_n_iter exit_reason = actor.alpha.stiff_exit_reason error = actor.alpha.stiff_error
+        actor.alpha.stiff_converged || @warn "ActorTJLFEP: ALPHA stiff-CGM solver did not converge (error=$(actor.alpha.stiff_error) after $(actor.alpha.stiff_n_iter) iterations)"
+    end
 
     return actor
 end

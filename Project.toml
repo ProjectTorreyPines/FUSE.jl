@@ -91,7 +91,7 @@ WeaveExt = "Weave"
 
 [compat]
 CoordinateConventions = "1"
-ALPHA = "1"
+ALPHA = "1.1"
 AbstractTrees = "0.4"
 ArgParse = "1.2.0"
 BalanceOfPlantSurrogate = "3"
