@@ -36,7 +36,9 @@ import TurbulentTransport
     reject_tearing::Entry{Bool} = Entry{Bool}("-", "reject tearing-parity modes"; default=true)
     rotational_suppression::Entry{Bool} = Entry{Bool}("-", "apply rotational suppression"; default=true)
     alpha_method::Switch{Symbol} =
-        Switch{Symbol}([:density, :pressure], "-", "ALPHA critical-gradient variable (density or pressure threshold)"; default=:density)
+        Switch{Symbol}([:pressure, :density], "-",
+            "ALPHA critical-gradient variable: :pressure = EP pressure-gradient drive against the TGLF-EP alpha_dpdr_crit threshold (Fortran i_tot_TAE=-1 with the dpdr file; standard); :density = density-gradient drive against dndr_crit (i_tot_TAE=0)";
+            default=:pressure)
     alpha_solver::Switch{Symbol} =
         Switch{Symbol}([:stiff, :marginal], "-", "ALPHA solver (:stiff = Fortran stiff-CGM; :marginal = analytic min(classical,marginal))"; default=:stiff)
     alpha_use_ql::Entry{Bool} =
@@ -160,7 +162,10 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     # the classical slowing-down profile and `min(classical, marginal)` keeps the
     # (un-flattened) classical EP density there.
     dndr = _sanitize_crit_grad(dndr_crit_out)
-    dpdr = _sanitize_crit_grad(dpdr_crit_out) ./ 0.16022   # 10 kPa/m -> 10^19 m^-3·keV/m (ALPHA's dpdr_crit convention; see runTHD)
+    # runTHD returns the alpha_dpdr_crit.input values (10 kPa/m); ALPHA's public dpdr_crit is
+    # 10^19 m^-3·keV/m and it multiplies by 0.16022 again internally, so the stiff solver applies
+    # the file value unchanged, as the Fortran Alpha does
+    dpdr = _sanitize_crit_grad(dpdr_crit_out) ./ 0.16022
 
     crit_grad = (; dndr_crit=dndr, dpdr_crit=dpdr)
 
