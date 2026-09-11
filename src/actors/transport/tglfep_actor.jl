@@ -36,7 +36,9 @@ import TurbulentTransport
     reject_tearing::Entry{Bool} = Entry{Bool}("-", "reject tearing-parity modes"; default=true)
     rotational_suppression::Entry{Bool} = Entry{Bool}("-", "apply rotational suppression"; default=true)
     alpha_method::Switch{Symbol} =
-        Switch{Symbol}([:density, :pressure], "-", "ALPHA critical-gradient variable (density or pressure threshold)"; default=:density)
+        Switch{Symbol}([:pressure, :density], "-",
+            "ALPHA critical-gradient variable: :pressure = EP pressure-gradient drive against the TGLF-EP alpha_dpdr_crit threshold (Fortran i_tot_TAE=-1 with the dpdr file; standard); :density = density-gradient drive against dndr_crit (i_tot_TAE=0)";
+            default=:pressure)
     alpha_solver::Switch{Symbol} =
         Switch{Symbol}([:stiff, :marginal], "-", "ALPHA solver (:stiff = Fortran stiff-CGM; :marginal = analytic min(classical,marginal))"; default=:stiff)
     alpha_use_ql::Entry{Bool} =
@@ -160,7 +162,9 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     # the classical slowing-down profile and `min(classical, marginal)` keeps the
     # (un-flattened) classical EP density there.
     dndr = _sanitize_crit_grad(dndr_crit_out)
-    dpdr = _sanitize_crit_grad(dpdr_crit_out) ./ 0.16022   # 10 kPa/m -> 10^19 m^-3·keV /m (see runTHD)
+    # ALPHA takes both critical gradients in the TGLF-EP file units (dpdr in 10 kPa/m), as
+    # the Fortran Alpha does; runTHD returns exactly those values
+    dpdr = _sanitize_crit_grad(dpdr_crit_out)
 
     crit_grad = (; dndr_crit=dndr, dpdr_crit=dpdr)
 
@@ -184,6 +188,10 @@ function _step(actor::ActorTJLFEP{D,P}) where {D<:Real,P<:Real}
     actor.alpha = ALPHA.run_alpha(dd, actor.rho_grid, crit_grad;
         solver=par.alpha_solver, method=par.alpha_method, E_alpha=Float64(par.E_alpha),
         transport_params=transport_params, ql_modes=ql_modes)
+    if par.alpha_solver == :stiff
+        @debug "ActorTJLFEP: ALPHA stiff-CGM solve" n_iter = actor.alpha.stiff_n_iter exit_reason = actor.alpha.stiff_exit_reason error = actor.alpha.stiff_error
+        actor.alpha.stiff_converged || @warn "ActorTJLFEP: ALPHA stiff-CGM solver did not converge (error=$(actor.alpha.stiff_error) after $(actor.alpha.stiff_n_iter) iterations)"
+    end
 
     return actor
 end
