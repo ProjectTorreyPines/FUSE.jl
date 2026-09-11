@@ -156,6 +156,11 @@ handles the details:
 - The SIF is fully read-only, and Julia package init **crashes** if it cannot
   write logs/scratch to a depot. The in-image `fuse` entrypoint handles this:
   it prepends `$HOME/.julia_fuse_container` as a writable first depot.
+- TORBEAM (`ec_model=:TORBEAM`): the image has only the TORBEAM.jl wrapper,
+  which loads `$TORBEAM_DIR/../lib/libtorbeamB.so` from the host. The launcher
+  passes your `TORBEAM_DIR` (e.g. after `module load torbeam`) through
+  `--cleanenv`, else defaults to omega's `torbeam/gcc11.x` build under
+  `/fusion/projects/codes/torbeam`.
 
 ### Home directory over quota
 
