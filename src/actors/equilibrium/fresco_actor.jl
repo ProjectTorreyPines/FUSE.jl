@@ -23,6 +23,7 @@ mutable struct ActorFRESCO{D,P} <: CompoundAbstractActor{D,P}
     act::ParametersAllActors{P}
     canvas::Union{Nothing,FRESCO.Canvas}
     profile::Union{Nothing,FRESCO.PressureJt}
+    converged::Bool
 end
 
 """
@@ -64,7 +65,7 @@ end
 function ActorFRESCO(dd::IMAS.DD{D}, par::FUSEparameters__ActorFRESCO{P}, act::ParametersAllActors{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorFRESCO)
     par = OverrideParameters(par; kw...)
-    return ActorFRESCO(dd, par, act, nothing, nothing)
+    return ActorFRESCO(dd, par, act, nothing, nothing, true)
 end
 
 """
@@ -121,13 +122,23 @@ function _step(actor::ActorFRESCO{D,P}) where {D<:Real,P<:Real}
 
     actor.profile = FRESCO.PressureJt(dd; grid=par.fixed_grid)
 
-    FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
+    status = FRESCO.solve!(actor.canvas, actor.profile, par.number_of_iterations...; par.relax, par.debug, par.control, par.tolerance)
+    actor.converged = (status == 0)
 
     return actor
 end
 
 # finalize by converting FRESCO canvas to dd.equilibrium and updating currents in dd.pf_active and dd.pf_passive
 function _finalize(actor::ActorFRESCO)
+    if !actor.converged
+        # A non-converged canvas carries an unreliable current distribution
+        # (observed: recomputed ip at ~50% of target, inflated psi span whose
+        # edge-anchored pressure reconstruction then ratchets betap/li).
+        # Keep dd's existing equilibrium (the committed/previous slice) for
+        # this substep instead of finalizing garbage.
+        @warn "ActorFRESCO: solve did not converge — keeping previous equilibrium for this step" maxlog = 20
+        return actor
+    end
     canvas = actor.canvas
     profile = actor.profile
     dd = actor.dd
