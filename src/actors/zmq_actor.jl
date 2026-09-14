@@ -285,11 +285,12 @@ function receive!(actor::ActorZMQ)
     # --- Update Bt (first step only, constant per shot) ---
     if msg.has_Bt
         b0 = f_B * msg.Bt  # wire COCOS -> 11
-        if length(dd.equilibrium.vacuum_toroidal_field.b0) == 0
-            push!(dd.equilibrium.vacuum_toroidal_field.b0, b0)
-        else
-            dd.equilibrium.vacuum_toroidal_field.b0[end] = b0
-        end
+        # NOTE: b0 is a time-dependent array coordinated by `equilibrium.time`, so it
+        # cannot be read or assigned directly on a dd that carries neither: reading it
+        # resolves through the expression machinery and raises "is missing", and a plain
+        # assignment raises "can't assign before equilibrium.time". set_time_array is the
+        # same idiom used for the pulse-schedule writes above and handles both cases.
+        IMAS.set_time_array(dd.equilibrium.vacuum_toroidal_field, :b0, dd.global_time, b0)
         @info "ActorZMQ: set Bt = $b0 T"
     end
 
@@ -302,6 +303,68 @@ function receive!(actor::ActorZMQ)
         end
         push!(aux[:zmq_I_coil].times, dd.global_time)
         push!(aux[:zmq_I_coil].values, msg.I_coil)
+    end
+
+    # --- Mirror wire coil currents into dd.pf_active (per-turn amps) ---
+    # FRESCO's Canvas reads coil currents via VacuumFields.current_per_turn ==
+    # @ddtime(coil.current.data), and the machine-data series loaded at init
+    # ends at the init time — @ddtime clamps to the last sample, so on every
+    # later step FRESCO solved against the coil state frozen at t_init while
+    # the committed psi embedded GSLite's live currents. That inconsistency is
+    # what drove the vacuum-field mismatch and the axis-off-canvas BoundsError
+    # ([0,0]/[0,65]) with evolve_equilibrium=true. Appending the wire values at
+    # global_time keeps pf_active in lockstep with the psizr GSLite computed
+    # from those same currents.
+    # Convention verified against the D3D cache series at the init time: wire
+    # I_coil is per-turn amps, channel signs and magnitudes match
+    # coil.current.data directly (F-coils within ~10-20%), so no scaling and no
+    # COCOS transform. The dd._aux mirror above stays raw for the NNs.
+    if !isempty(msg.I_coil) && !all(iszero, msg.I_coil) && !isempty(dd.pf_active.coil)
+        # Per-coil scale calibrated ONCE at the first exchange against the
+        # machine-data value the init loaded at t_init. FUSE's own init runs
+        # FRESCO from those machine-data currents successfully, so that is the
+        # per-turn convention VacuumFields needs. The wire's F-coil channels
+        # already match it (ratio ~1); the E-coil channels are a per-bank
+        # constant off (measured ~24x on the A bank, ~4.4x on the B bank —
+        # PCS bank-level pointnames vs per-turn segment currents). Calibrating
+        # against the dd instead of hardcoding bank factors keeps this correct
+        # for any machine description. Coils with no usable reference (either
+        # value < 1 A at t_init) fall back to scale 1.0.
+        # FUSE_ZMQ_ICOIL_CAL=1 rescales wire values into the machine-data
+        # convention. Default OFF: the committed psi embeds GSLite's own coil
+        # flux, and coil-region correlation against pf_active geometry showed
+        # the RAW wire values reproduce it (0.90) — Psi_vac consistency with
+        # the committed map matters more than agreement with the D3D series.
+        calibrate = get(ENV, "FUSE_ZMQ_ICOIL_CAL", "0") == "1"
+        scales = get(aux, :zmq_icoil_scale, nothing)
+        if scales === nothing && !calibrate
+            scales = Dict{String,Float64}()
+            aux[:zmq_icoil_scale] = scales  # empty -> every lookup falls back to 1.0 (raw)
+        elseif scales === nothing
+            scales = Dict{String,Float64}()
+            for coil in dd.pf_active.coil
+                nm = uppercase(coil.name)
+                wi = get(_WIRE_COIL_INDEX, nm, 0)
+                (wi == 0 || wi > length(msg.I_coil)) && continue
+                wirev = msg.I_coil[wi]
+                ddv = ismissing(coil.current, :data) ? 0.0 : IMAS.@ddtime(coil.current.data)
+                scales[nm] = (abs(wirev) > 1.0 && abs(ddv) > 1.0) ? clamp(ddv / wirev, -1e3, 1e3) : 1.0
+            end
+            aux[:zmq_icoil_scale] = scales
+            @info "ActorZMQ: I_coil -> pf_active scales calibrated at t=$(dd.global_time) s" scales
+        end
+        n_mapped = 0
+        for coil in dd.pf_active.coil
+            nm = uppercase(coil.name)
+            wi = get(_WIRE_COIL_INDEX, nm, 0)
+            if wi != 0 && wi <= length(msg.I_coil)
+                IMAS.set_time_array(coil.current, :data, dd.global_time, get(scales, nm, 1.0) * msg.I_coil[wi])
+                n_mapped += 1
+            end
+        end
+        if !actor.had_psizr  # log once, on the first real exchange
+            @info "ActorZMQ: mapped $n_mapped/$(length(dd.pf_active.coil)) pf_active coil currents from wire I_coil"
+        end
     end
 
     # --- Update NBI power per beam [W] ---
@@ -421,13 +484,37 @@ function receive!(actor::ActorZMQ)
             end
         else
             # Commit GSLite's psi on its grid. Stored 2-D fields derived from the old psi
-            # (phi, b_field_*, j_tor from FRESCO) are dropped so they are recomputed:
-            # flux_surfaces rewrites phi on the first step, the others are expressions.
+            # (b_field_*, j_tor from FRESCO) are dropped so they are recomputed: they are
+            # IMAS expressions and re-evaluate lazily from the new psi.
+            # NOTE: :phi is deliberately NOT dropped. It is stored data, not an expression,
+            # and only the first-step branch below rebuilds it (via flux_surfaces); on later
+            # steps the rebuild happens in ActorEquilibrium._finalize, which runs at the END
+            # of the :run_equilibrium substep — while :run_sources (ActorSimpleNB reads
+            # profiles_2d.phi) runs BEFORE it. Dropping phi here therefore leaves it missing
+            # exactly when sources needs it. A one-substep-stale phi is tolerable, the same
+            # way the inherited 1-D profiles are; a missing one is fatal.
+            # Re-grid the kept phi onto the committed grid. With evolve_equilibrium
+            # on, the grids alternate: FRESCO/flux_surfaces write phi on the canvas
+            # grid (e.g. 65x65) while this commit switches back to GSLite's grid
+            # (33x33). ActorSimpleNB then builds an interpolant from grid.dim1/dim2
+            # against phi and dies "incommensurate" on the size mismatch. Linear
+            # re-gridding preserves the #1168 intent (a one-substep-stale phi seed
+            # for sources) at the committed resolution.
+            if IMAS.hasdata(p2d, :phi) && size(p2d.phi) != (nR, nZ)
+                old1, old2 = p2d.grid.dim1, p2d.grid.dim2
+                if length(old1) * length(old2) == length(p2d.phi)
+                    phi_itp = Interpolations.linear_interpolation((old1, old2), p2d.phi;
+                        extrapolation_bc=Interpolations.Line())
+                    p2d.phi = [phi_itp(r, z) for r in dim1, z in dim2]
+                else
+                    empty!(p2d, :phi)  # stored phi inconsistent with any known grid
+                end
+            end
             p2d.grid.dim1 = dim1
             p2d.grid.dim2 = dim2
             p2d.psi = psi_rz
             p2d.grid_type.index = 1  # rectangular grid
-            for f in (:phi, :b_field_r, :b_field_z, :b_field_tor, :j_tor, :j_parallel, :theta)
+            for f in (:b_field_r, :b_field_z, :b_field_tor, :j_tor, :j_parallel, :theta)
                 if IMAS.hasdata(p2d, f)
                     empty!(p2d, f)
                 end
@@ -438,17 +525,48 @@ function receive!(actor::ActorZMQ)
             nothing
         elseif !actor.had_psizr
             # First step: full flux_surfaces (Method 2) to get all 1D profiles for QED.
-            # Set up 1D seed arrays for flux_surfaces. After init!/FRESCO the slice
-            # already carries 1D profiles (e.g. 65 points): keep that length so the
-            # stored arrays flux_surfaces reads (dpressure_dpsi, …) stay consistent
-            # with the new psi, and reset the pressure gradient together with pressure.
+            # Re-grid the 1D psi onto GSLite's [Ψaxis, Ψbnd]. After init!/FRESCO the slice
+            # already carries 1D profiles (e.g. 65 points): keep that length so the stored
+            # arrays flux_surfaces reads (pressure, dpressure_dpsi, f_df_dpsi) stay
+            # consistent with the new psi.
+            #
+            # NOTE: pressure / dpressure_dpsi / f_df_dpsi are deliberately NOT reset here.
+            # `eqt` is a deep copy of the previous time slice (new_timeslice!), so they
+            # already hold that slice's real profiles, and because eqt1d.psi is a uniform
+            # range, index k keeps mapping to the same psi_norm — i.e. leaving them alone
+            # preserves p(psi_norm) from one substep ago, a perfectly good seed.
+            # Zeroing them is not local to flux_surfaces: ActorFRESCO builds its source
+            # with FRESCO.PressureJt(dd; ...), which defaults to j_p_from=:equilibrium and
+            # reads exactly these arrays (j_tor is derived from the two gradients). Zeros
+            # here hand FRESCO p=0, Jt=0 — it solves a vacuum field, finds no closed
+            # boundary, and flux_bounds! assigns nothing into a Float64.
             eqt1d = eqt.profiles_1d
             n_psi = ismissing(eqt1d, :psi) ? 101 : length(eqt1d.psi)
             eqt1d.psi = collect(range(Ψaxis, Ψbnd, length=n_psi))
-            eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
-            eqt1d.pressure = zeros(n_psi)
-            eqt1d.dpressure_dpsi = zeros(n_psi)
-            eqt1d.f_df_dpsi = zeros(n_psi)
+            # NOTE: f is deliberately KEPT from the previous slice (eqt is a deepcopy),
+            # not reset to the vacuum value. flux_surfaces derives
+            #   j_tor = -(p' + ff'*gm1/μ0)*2π/gm9        (IMAS fluxsurfaces.jl)
+            # and then RECOMPUTES gq.ip = trapz(area, j_tor). A constant (vacuum) f
+            # makes the ff' expression ≡ 0, so the recomputed ip keeps only the
+            # pressure-driven fraction (~20-25% of the true current, scaling inversely
+            # with the committed psi span) and every Ip²-normalized global
+            # (beta_pol, li) inflates ~20x — the garbage betap/li that drove GSLite's
+            # 1-D model unstable. The previous slice's f(psi_norm) is a perfectly good
+            # seed for the same reason its pressure is (uniform psi grid: index k keeps
+            # mapping to the same psi_norm). Fall back to vacuum f only when the slice
+            # genuinely carries none.
+            if ismissing(eqt1d, :f) || length(eqt1d.f) != n_psi
+                eqt1d.f = fill(eqt.global_quantities.vacuum_toroidal_field.b0 * eqt.global_quantities.vacuum_toroidal_field.r0, n_psi)
+            end
+            # Seed only what is genuinely absent. On a slice that has been through
+            # init!/FRESCO these already hold real profiles and must survive (see the
+            # NOTE above); on a slice that never carried any, flux_surfaces still needs
+            # arrays of the right length to read.
+            for fld in (:pressure, :dpressure_dpsi, :f_df_dpsi)
+                if ismissing(eqt1d, fld) || length(getproperty(eqt1d, fld)) != n_psi
+                    setproperty!(eqt1d, fld, zeros(n_psi))
+                end
+            end
 
             # Set global quantities
             eqt.global_quantities.magnetic_axis.r = axis_result.RA
@@ -656,6 +774,15 @@ end
 #= ========== =#
 #  Utilities   #
 #= ========== =#
+
+# DIII-D `PCSpcsRtnetCoilNames` wire order -> dd.pf_active.coil.name (D3D
+# machine description names). Same 24-channel order documented on `receive!`
+# and confirmed against the MATLAB lookup (see pedestal_actor.jl table).
+const _WIRE_COIL_INDEX = Dict{String,Int}(
+    "ECOILA" => 1, "E89DN" => 2, "E567UP" => 3, "ECOILB" => 4, "E89UP" => 5, "E567DN" => 6,
+    ("F$(i)A" => 6 + i for i in 1:9)...,
+    ("F$(i)B" => 15 + i for i in 1:9)...,
+)
 
 """
     _psizr_to_matrix(psizr_flat, nR, nZ) -> Matrix (nR × nZ, [iR, iZ])
