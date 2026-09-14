@@ -1,7 +1,7 @@
-# Pedestal NN data assets
+# Pedestal NN data assets (fuse29)
 
-Small binary assets consumed by the pedestal-predictor NN pipeline in
-`src/actors/pedestal/`. Large ONNX model weights deliberately **do not live
+Small assets for the fuse29 pedestal-predictor pipeline in
+`src/actors/pedestal/`. The ONNX model weights deliberately **do not live
 here** — they are distributed via HuggingFace and resolved at runtime via the
 `FUSE_PEDESTAL_NN_DIR` environment variable (see
 [`nn_predictor.jl`](../../src/actors/pedestal/nn_predictor.jl)).
@@ -10,102 +10,79 @@ here** — they are distributed via HuggingFace and resolved at runtime via the
 
 | File | Size | Purpose |
 |---|---|---|
-| `history_morning.npz` | ~90 KB | DIII-D MSE history snapshot (50 shots × 446 features, shots 206717–206804) produced by `pedestal-predictor-onnx/scripts/dump_history_npz.py` on an Omega-cluster MDSplus run. Used as the default `FUSE_PEDESTAL_NN_HISTORY_NPZ` for smoke tests and real-time containers. |
+| `fuse29_reference_shot.npz` | ~24 KB | One real DIII-D discharge (shot 199055, test split) with the model's expected outputs for seed 0: `actuators` (K, 29) raw units, `predictions` (K, 9), `labels`/`label_mask`, `seed`, `period_ms`. Replayed by `test/test_pedestal_nn_predictor.jl` to verify routing, units, column order, timing and state handling of the Julia wrapper against the model authors' reference (tolerance 1e-3). Copied verbatim from the model repo's `examples/reference_shot.npz`. |
 
-The NPZ schema matches `HistoryManager.save_state` — see
-[`nn_predictor.jl::load_history_npz`](../../src/actors/pedestal/nn_predictor.jl) for the
-key-by-key contract.
+## The model
 
-## Why we ship a pre-computed NPZ (source-of-truth split)
+[`SCS-Lab/FUSE29-Pedestal-model`](https://huggingface.co/SCS-Lab/FUSE29-Pedestal-model)
+(source: [NoahH72/FUSE-Pedestal-Predictor-Mamba-ONNX](https://github.com/NoahH72/FUSE-Pedestal-Predictor-Mamba-ONNX))
+is a 6-layer Mamba-2 state-space model for DIII-D:
 
-The pedestal predictor has **two** distinct data inputs, fed from two
-different places at runtime:
+- **Inputs**: 29 actuator channels in **raw physical units** every 50 ms —
+  `pinj` (MW), `tinj` (N·m), `ech_total` (MW), the 18 shaping F-coil currents
+  `f1a..f9b` (A), `ecoila`/`ecoilb` (A), five gas valves `gasa_cal..gase_cal`
+  (Torr·L/s), `bt` (T, signed). Normalisation is inside the graph. No shot
+  history, no aux features, no plasma-response inputs (`ip`, `pohm` are gone).
+- **Outputs**: `ne`, `te_ped`, `ti_ped`, `t_rot_ped` — profile values at
+  ρ_tor = 0.85, valid in every regime; `neped_prmtan`, `teped_prmtan`,
+  `rho_sym`, `ne_top_loc` — tanh-fit pedestal height/location, **H-mode only**;
+  `hmode` — H-mode probability.
+- **Stateful**: `fuse29_step.onnx` carries a ~3.1 MB recurrent state that must
+  be zero at shot start and advanced exactly once per 50 ms of simulated time.
+  `ActorPedestal` keeps it in `dd._aux[:fuse29]` (`Fuse29Tracker`) and handles
+  catch-up, zero-order hold, iterated steps and rewinds.
 
-| Input | Shape | Source | Update cadence |
-|---|---|---|---|
-| 32-channel FPE actuator sequence | `(T, 32)` | **GSLite** via ZMQ → `dd._aux[:zmq_*]` → `build_fpe_sequences_from_aux` | every control cycle (real-time) |
-| 50-slot × 446/458-feature MSE history | `(50, 446 or 458)` | **This NPZ** → `load_history_npz` → `dd._aux[:nn_history_buffer]` | operator-refreshed (not live) |
+HuggingFace layout (what `FUSE_PEDESTAL_NN_DIR` must contain):
 
-GSLite only provides real-time actuator/state signals; it does **not**
-compute or supply the 50-shot machine-state history window the MSE encoder
-needs. That window requires fetching ~67 PTDATA signals from MDSplus for
-each of the last 50 shots and rolling them up into the feature vector —
-an offline job that doesn't fit GSLite's realtime wire contract.
+```
+manifest.json
+s0/  fuse29_step.onnx  fuse29_seq.onnx  model_config.json  norms.json  actuator_ranges.json  provenance.json
+s1/ … s7/   (optional: independently trained seeds, for spread across training runs)
+```
 
-For the real-time container, the practical consequence is:
-
-1. **Live path** — `ActorZMQ.receive!` keeps the `:zmq_*` aux records
-   fresh from GSLite every cycle. Accurate per time step.
-2. **History path** — a pre-computed NPZ (committed here) is loaded once at
-   FUSE startup and held constant for the container's entire session.
-   Updated only when an operator runs `dump_history_npz.py` against
-   MDSplus and pushes a new NPZ into this directory.
-
-This is acceptable today because the MSE history captures a *slow* machine
-context (boronization state, last-week coil usage, typical gas mix) that
-is stable across a run-day. A future enhancement (`compute_shot_stats` in
-`nn_predictor.jl`, currently stubbed) would let FUSE compute this shot's
-stats directly from `dd` and append to the buffer via
-`push_shot_history!`, removing the MDSplus dependency entirely — but that
-still doesn't live on the GSLite wire, it would be FUSE-side bookkeeping.
+Seed 0 is the champion and the default (`FUSE_PEDESTAL_NN_SEED` selects another).
+One seed is ~90 MB; all eight are ~724 MB.
 
 ## Why ONNX weights are *not* in this repo
 
-1. **Size** — 854 MB across 5 bundles, with `fpe_encoder.onnx` at 112 MB
-   per bundle (over GitHub's 100 MB per-file hard limit). Committing them
-   would permanently bloat FUSE.jl's git history.
-2. **Canonical home** — models are already published on HuggingFace at
-   [`SCS-Lab/pedestal-predictor-onnx`](https://huggingface.co/SCS-Lab/pedestal-predictor-onnx),
-   SHA-addressed and cached.
-3. **Env-var contract** — `resolve_pedestal_nn_dir` already prefers
-   `ENV["FUSE_PEDESTAL_NN_DIR"]`, so containers just bind-mount or bake in
-   a `onnx_models/` directory.
+1. **Size** — two ~45 MB graphs per seed. Committing them would permanently
+   bloat FUSE.jl's git history.
+2. **Canonical home** — published on HuggingFace, SHA-addressed
+   (`manifest.json` carries per-file sha256).
+3. **Env-var contract** — `resolve_pedestal_nn_dir` prefers
+   `ENV["FUSE_PEDESTAL_NN_DIR"]`, so containers bind-mount or bake in the
+   artefact directory. Default when unset: the sibling checkout
+   `<FUSE>/../pedestal-predictor-mamba-onnx-fuse/artifacts/`.
 
 ## Auto-fetch is on by default
 
-A fresh `using FUSE; FUSE.load_pedestal_nn()` on a clean machine will
-notice the bundles aren't there and pull them from
-[`SCS-Lab/pedestal-predictor-onnx`](https://huggingface.co/SCS-Lab/pedestal-predictor-onnx)
-on the spot — no Python tooling, no manual setup. The downloader is a
-stdlib-only `Downloads.download` loop driven by the file manifest in
-[`download_pedestal_nn!`](../../src/actors/pedestal/nn_predictor.jl).
-
-This is intentional: the operator UX is "just run FUSE."
+A fresh `using FUSE; FUSE.load_pedestal_nn()` on a clean machine notices the
+bundle is not there and pulls **seed 0** from HuggingFace on the spot — a
+stdlib-only `Downloads.download` loop, no Python tooling.
 
 ```julia
 using FUSE
-nn = FUSE.load_pedestal_nn()  # ~700 MB on first call, idempotent on repeats
+nn = FUSE.load_pedestal_nn()          # ~90 MB on first call, idempotent on repeats
+nn = FUSE.load_pedestal_nn(; seed=3)  # another seed (fetched on demand)
 ```
 
 ### Production containers — pre-bake at image build time
 
-Auto-fetch on first GSLite handshake means a one-time ~700 MB download
-during the first prediction. Pre-bake at build time to keep first-cycle
-latency tight:
-
 ```dockerfile
 ARG PEDESTAL_NN_HF_REVISION=main
-ENV FUSE_PEDESTAL_NN_DIR=/opt/pedestal-onnx/onnx_models
+ENV FUSE_PEDESTAL_NN_DIR=/opt/fuse29/artifacts
 RUN julia --project=$FUSE_DIR -e \
     'using FUSE; FUSE.download_pedestal_nn!(ENV["FUSE_PEDESTAL_NN_DIR"]; \
                                             revision = ENV["PEDESTAL_NN_HF_REVISION"])'
-
-# Runtime: point FUSE at the history NPZ shipped with this repo
-ENV FUSE_PEDESTAL_NN_HISTORY_NPZ=/opt/FUSE/data/pedestal_nn/history_morning.npz
 ```
 
-After the build step the directory is fully populated, so the runtime
-auto-fetch hook becomes a no-op (it checks for completeness before
-attempting any network call).
+After the build step the runtime auto-fetch hook is a no-op (it checks for
+completeness before attempting any network call).
 
 ### Bind-mount mode (no auto-fetch)
 
-If you mount the ONNX dir from an NFS share or a read-only volume, opt
-out of auto-fetch so the loader fails loudly on missing files instead of
-trying to write into the mount:
-
 ```bash
-export FUSE_PEDESTAL_NN_DIR=/nfs/pedestal-onnx/onnx_models
+export FUSE_PEDESTAL_NN_DIR=/nfs/fuse29/artifacts
 export FUSE_PEDESTAL_NN_AUTOFETCH=0
 ```
 
@@ -113,28 +90,50 @@ Accepted opt-out values: `0`, `false`, `no`, `off` (case-insensitive).
 
 ### Pinning a revision
 
-`download_pedestal_nn!` defaults to `revision="main"` for ergonomics.
-Production containers should pin a specific HuggingFace commit SHA for
-reproducible image rebuilds — override via the `revision` kwarg or
-`ENV["FUSE_PEDESTAL_NN_HF_REVISION"]`. The repo URL itself is overridable
-via `ENV["FUSE_PEDESTAL_NN_HF_REPO"]` for in-house mirrors.
+`download_pedestal_nn!` defaults to `revision="main"`. Production containers
+should pin a HuggingFace commit SHA via the `revision` kwarg or
+`ENV["FUSE_PEDESTAL_NN_HF_REVISION"]`. The repo id is overridable via
+`ENV["FUSE_PEDESTAL_NN_HF_REPO"]` for in-house mirrors.
 
-## Refreshing the NPZ
+## Environment variables
 
-The NPZ is intentionally static at runtime — GSLite does not resupply it.
-When you want to advance the reference window (e.g. between run-days, or
-to pin a specific campaign's machine state), regenerate it offline from
-MDSplus on a network-reachable host. See
-[`pedestal-predictor-onnx/docs/MAC_SETUP.md`](https://github.com/NoahH72/pedestal-predictor-onnx/blob/main/docs/MAC_SETUP.md)
-for the full walkthrough.
+| Variable | Default | Meaning |
+|---|---|---|
+| `FUSE_PEDESTAL_NN_DIR` | `<FUSE>/../pedestal-predictor-mamba-onnx-fuse/artifacts` | artefact root (or a bare bundle dir) |
+| `FUSE_PEDESTAL_NN_SEED` | `0` | which `s<seed>/` bundle to load |
+| `FUSE_PEDESTAL_NN_AUTOFETCH` | on | `0/false/no/off` disables the HuggingFace fetch |
+| `FUSE_PEDESTAL_NN_HF_REPO` | `SCS-Lab/FUSE29-Pedestal-model` | HuggingFace repo id |
+| `FUSE_PEDESTAL_NN_HF_REVISION` | `main` | HuggingFace revision / commit SHA |
+| `FUSE_ONNX_THREADS` | `min(nthreads, 8)` | ONNX Runtime intra-op thread cap |
 
-```bash
-conda activate pedestal-onnx
-python scripts/dump_history_npz.py \
-    --history-shots 206717:206804 \
-    --out /path/to/FUSE/data/pedestal_nn/history_morning.npz
+## Using it in a simulation
+
+```julia
+act.ActorPedestal.ne_from = :nn_predictor     # selects fuse29
+act.ActorPedestal.fpe_source = :dd            # or :zmq (GSLite via ActorZMQ)
+act.ActorPedestal.nn_ped_quantities = :ne_lh  # or :all (Te/Ti/rotation from the NN too)
+act.ActorPedestal.nn_hmode_enter = 0.7        # Schmitt trigger on the hmode probability
+act.ActorPedestal.nn_hmode_exit = 0.3
+act.ActorPedestal.nn_warmup_time = 1.0        # optional: replay actuators from t=1 s before the first prediction
 ```
 
-Then commit the replaced NPZ. The file is small enough that committing a
-new revision occasionally is cheap, and SHA-pinning the NPZ alongside the
-ONNX weights gives reproducible real-time container builds.
+Things to know (from the model's own documentation):
+
+- **Units have no guard rail.** `pinj` is MW, coils are A. The actor runs
+  `fuse29_check_units` once on the first live actuator vector and warns.
+- **Median fill.** Channels the host cannot supply (e.g. gas valves on the
+  `:dd` path) are held at the training-split median, never the mean or zero.
+- **Warm-up.** Outputs need ~1 s (20 ticks) from the zero state to settle.
+- **Long steady state.** Under constant actuators the `hmode` probability decays
+  slowly beyond the ~12.8 s training window; the hysteretic gate absorbs this,
+  but treat the gate with suspicion in very long steady-state runs.
+- **`ne`/`te_ped`/`ti_ped` are values at ρ_tor = 0.85**, not pedestal-top
+  values at 0.9; the actor pins the profiles at 0.85.
+
+## Tests
+
+```bash
+cd FUSE
+julia --project test/test_pedestal_nn_predictor.jl   # contract, reference-shot replay, tracker semantics
+julia --project test/smoke_pedestal_nn_shot.jl       # synthetic shot through the ZMQ actuator path
+```
