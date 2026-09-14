@@ -352,6 +352,13 @@ function _finalize(actor::ActorPedestal{D,P}) where {D<:Real,P<:Real}
     @ddtime summary_ped.t_e.value = IMAS.interp1d(rho, cp1d.electrons.temperature).(position)
     @ddtime summary_ped.t_i_average.value = IMAS.interp1d(rho, cp1d.t_i_average).(position)
 
+    # uncertainty of the EPED-NN pedestal height, carried over to the pedestal temperatures
+    # (σ_frac is 0.0 when the model has no uncertainty to report, in which case nothing is written)
+    if actor.par.model == :EPED && actor.eped_actor.σ_frac > 0.0
+        @ddtime summary_ped.t_e.value_σ = @ddtime(summary_ped.t_e.value) * actor.eped_actor.σ_frac
+        @ddtime summary_ped.t_i_average.value_σ = @ddtime(summary_ped.t_i_average.value) * actor.eped_actor.σ_frac
+    end
+
     return actor
 end
 
