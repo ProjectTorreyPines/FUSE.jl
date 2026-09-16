@@ -474,7 +474,7 @@ function _locking_mode_entry(dd::IMAS.dd, par)
     mode = resize!(mhd_ts.toroidal_mode,
         "perturbation_type.name" => "Island locking m=$(par.m_pol)/n=$(par.n_tor)",
         "n_tor" => par.n_tor)
-    mode.perturbation_type.description = "Tearing-mode locking hazard (ActorLocking)"
+    mode.perturbation_type.description = "Tearing-mode locking hazard (ActorLocking, control_type=$(par.control_type))"
     mode.m_pol_dominant = Float64(par.m_pol)
     return mode
 end
