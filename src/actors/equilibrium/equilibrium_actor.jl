@@ -168,6 +168,17 @@ function _finalize(actor::ActorEquilibrium)
                 plot!(fw.r, fw.z; color=:gray)
                 display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
             end
+            isa(e, InterruptException) && rethrow(e)
+            # a converged solve can still write a psi map whose contour walk
+            # runs off the grid (observed: BoundsError [66,65]/[0,65] in
+            # contour_from_midplane! on GSLite-coupled shots); with the
+            # pre-prepare snapshot available, keep the previous equilibrium
+            # instead of killing the whole run
+            if bkp !== nothing
+                @warn "ActorEquilibrium: flux_surfaces failed after $(par.model) solve — restored previous equilibrium slice" exception = e maxlog = 20
+                IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+                return actor
+            end
             rethrow(e)
         end
 
@@ -177,6 +188,11 @@ function _finalize(actor::ActorEquilibrium)
         a_eq = eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard
         bad = [k for k in eachindex(a_eq) if !isfinite(a_eq[k]) || (k > 1 && a_eq[k] <= 0.0)]
         if !isempty(bad)
+            if bkp !== nothing
+                @warn "ActorEquilibrium: traced flux surfaces are degenerate after $(par.model) solve — restored previous equilibrium slice" n_bad = length(bad) maxlog = 20
+                IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+                return actor
+            end
             error("ActorEquilibrium (model=$(par.model)): traced flux surfaces are degenerate " *
                   "(r_outboard - r_inboard non-positive/non-finite at $(length(bad))/$(length(a_eq)) surfaces, first at indices $(first(bad, 5))); " *
                   "the equilibrium solve likely did not converge")
