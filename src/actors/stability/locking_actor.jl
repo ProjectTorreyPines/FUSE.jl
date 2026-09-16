@@ -22,6 +22,10 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
     control_type::Switch{Symbol} = Switch{Symbol}([:EF, :LinStab, :NLsaturation], # EF: error field
         "-",                                                            # LinStab: vary stability_index,
         "Use a user specified Control case to run the locking models"; default=:EF) # NLsaturation: vary NL saturation
+    Control1_min::Entry{Float64} = Entry{Float64}(
+        "kHz",
+        "Lower bound of the Control1 (rotation frequency) scan";
+        default=1.0e-2)
     Control1_max::Entry{Float64} = Entry{Float64}(
         "kHz",
         "Upper bound of the Control1 (rotation frequency) scan; raised automatically if the " *
@@ -29,14 +33,17 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         default=10.0)
     Control2_min::Entry{Float64} = Entry{Float64}(
         "-",
-        "Lower bound of the Control2 scan. Units follow control_type: Gauss (error field) for " *
-        ":EF; Δ_RW for :LinStab (both bounds must be < 0, since Δ_RW ≥ 0 is not weakly stable); " *
-        "native α for :NLsaturation";
-        default=0.01)
+        "Lower bound of the Control2 scan. NO DEFAULT (NaN): Control2 is a different " *
+        "physical quantity for each control_type — Gauss (error field) for :EF, Δ_RW for " *
+        ":LinStab (both bounds must be < 0, since Δ_RW ≥ 0 is not weakly stable), native α " *
+        "for :NLsaturation — so any default would be silently wrong for two of the three. " *
+        "Set it for the control_type you are running";
+        default=NaN)
     Control2_max::Entry{Float64} = Entry{Float64}(
         "-",
-        "Upper bound of the Control2 scan; same units as Control2_min";
-        default=10.0)
+        "Upper bound of the Control2 scan; same units as Control2_min, and likewise NaN " *
+        "by default";
+        default=NaN)
     task::Switch{Symbol} = Switch{Symbol}(
         [:solve_system, :single_case, :calc_prob, :eval_prob, :transfer_learning, :bounds],
         "-",
@@ -69,6 +76,19 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "dd.equilibrium.time_slice[].boundary.minor_radius rather than guessing it; " *
         "set a value to override. overwrite_params=true forces 1.0 for PoP2024";
         default=NaN)
+    res_wall_radius::Entry{Float64} = Entry{Float64}(
+        "m",
+        "Resistive wall minor radius. NaN (default) takes half the R-extent of the " *
+        "first-wall limiter contour from dd.wall; set a value to override. " *
+        "Normalized by r0 at use; ModeLocking never reads ode_params.res_wall";
+        default=NaN)
+    control_surf_radius::Entry{Float64} = Entry{Float64}(
+        "m",
+        "Minor radius of the surface where the n=1 error field is applied. No dd source " *
+        "— which coils constitute the EF is a physics choice — so set it for your machine; " *
+        "the default is the PoP2024 value. ode_params.control_surf is derived from it as " *
+        "control_surf_radius/r0, which is what ModeLocking's :EF axis conversion reads";
+        default=1.25)
     error_field::Entry{Float64} = Entry{Float64}(
         "Gauss",
         "Fixed n=1 error field. Used as the ODE right-hand side's ε whenever the error " *
@@ -76,7 +96,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "control_type=:EF the swept Control2 supplies ε instead and this is ignored. " *
         "This is the only place the error field is set — ode_params.error_field is " *
         "derived from it and holds the dimensionless form ModeLocking reads";
-        default=10.0)
+        default=NaN)
     plot_orientation::Switch{Symbol} = Switch{Symbol}([:portrait, :landscape], "-",
         "Tile-plot layout: :portrait = 3×2 (paper), :landscape = 2×3 (slides)"; default=:portrait)
     save_plots::Entry{Bool} = Entry{Bool}(
@@ -105,10 +125,6 @@ Base.@kwdef mutable struct FUSEparameters__ActorLocking{T<:Real} <: ParametersAc
         "rational surface, inverted to Δt) for :LinStab; native α for :NLsaturation. " *
         "NaN = use ode_params default";
         default=NaN)
-    Control1_min::Entry{Float64} = Entry{Float64}(
-        "kHz",
-        "Lower bound of the Control1 (rotation frequency) scan";
-        default=1.0e-2)
     prob_method::Switch{Symbol} = Switch{Symbol}([:nn, :conv, :kde], "-",
         "Engine that turns the classified ODE grid into P(locked): neural net, windowed convolution, or KDE";
         default=:nn)
@@ -148,7 +164,7 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     #   C1, C2_onset  : model units — f·t₀ and Control2 (psi_eps / Δt / α)
     #   C1_user      : kHz
     #   C2_onset_user : Gauss for :EF (error field) and :LinStab (br), native α otherwise
-    #   bracketed    : NL branch — onset resolved only to one grid column
+    #   bracketed    : α≠0 path — onset resolved only to one grid column
     # NaN in C2_onset marks a rotation at which no onset was resolved.
     bounds::Union{Nothing,@NamedTuple{map::Matrix{Float64}, C1::Vector{Float64},
                                       C2_onset::Vector{Float64}, C1_user::Vector{Float64},
@@ -167,9 +183,7 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
         # Apply standard FUSE parameter overrides
         par = OverrideParameters(par; kw...)
 
-        # Handle ODE params. par.error_field (Gauss) is the single user-facing
-        # error field; ode_params.error_field is derived from it and holds the
-        # dimensionless form ModeLocking's resolve_control reads.
+        # Handle ODE params. 
         ode = if ode_params === nothing
             ODEparams()
         elseif ode_params isa NamedTuple
@@ -179,9 +193,6 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
         else
             error("ode_params must be nothing, ODEparams, or NamedTuple")
         end
-        # Safe on every path, including a reused ODEparams: the value is assigned
-        # from par.error_field rather than scaled in place, so it cannot compound
-        _normalize_error_field!(ode, par)
 
         # The scan bounds moved to par. ODEparams still declares them (ModeLocking's
         # struct, which never reads them), so setting them through ode_params now does
@@ -219,9 +230,8 @@ function _step(actor::ActorLocking)
     application = par.application
 
     # Populate the physical parameters needed to solve the ODEs. ode_params is
-    # always set by the constructor (with error_field already normalized), so
-    # building a bare ODEparams here would silently reintroduce a Gauss-valued
-    # error_field into the model.
+    # always created by the constructor; error_field is normalized inside
+    # set_ode_parameters!, once control_surf = r_c/r0 is known.
     actor.ode_params === nothing && error("actor.ode_params is unset — construct the actor through ActorLocking(dd, par; ode_params=...)")
     actor.ode_params = set_up_ode_params!(dd, par, actor.ode_params)
 
@@ -479,12 +489,21 @@ returning `(C2_onset, bracketed)` in dimensionless `Control2` units.
 `bb` is `results.bifurcation_bounds`, laid out with **rows = Control1 (rotation)
 and columns = Control2** — a consequence of the column-major flattening in
 `set_control_parameters!` (`Control1` varies fastest) combined with the square `reshape`
-in `ModeLocking.calculate_bifurcation_bounds`.  `bb < 0` marks bistability in
-both branches: the linear branch stores the cubic discriminant (D < 0 → three
-real roots), the NL branch stores -1.0 where ≥ 2 positive real roots exist.
+in `ModeLocking.calculate_bifurcation_bounds`.
 
-`bracketed=true` flags the NL branch, where `bb ∈ {-1,+1}` carries no within-cell
-information and the hysteresis onset is only resolved to one grid column.
+`bb < 0` marks a bistable cell on both code paths, but what fills `bb` differs:
+the α=0 path stores the cubic discriminant D (bistable where D < 0, i.e. three
+real roots), while the α≠0 path has no closed form and root-counts numerically,
+storing only a flag — -1.0 where the steady-state equation has ≥ 2 positive real
+roots, +1.0 otherwise. The ±1 is an encoding chosen so that the same `bb < 0`
+test serves both; its magnitude carries no information.
+
+That is what `bracketed=true` records. On the α=0 path D varies smoothly across
+the D = 0 crossing, so the onset is interpolated *between* two grid columns and is
+sub-grid accurate. On the α≠0 path there is nothing to interpolate between a +1
+and a -1: the crossing is only known to lie in `(c2[j-1], c2[j])`, and `c2[j]` is
+reported. Its resolution is therefore one grid spacing — refine `grid_size` to
+sharpen it.
 
 Returns `nothing` — meaning *unresolved*, never *safe* — when the boundary was
 not computed, when `C1q` falls outside the scanned rotation range, or when the
@@ -502,7 +521,7 @@ function _hysteresis_onset_C2(bb::Union{AbstractMatrix,Nothing},
     j = findfirst(<(0), row)                     # first bistable column
     (j === nothing || j == 1) && return nothing
 
-    nl && return (Float64(c2[j]), true)          # ±1 only: no sub-grid refinement
+    nl && return (Float64(c2[j]), true)          # ±1 flag only: no sub-grid refinement
 
     v1, v2 = row[j-1], row[j]                    # interpolate the D = 0 crossing
     return (Float64(c2[j-1] + v1 / (v1 - v2) * (c2[j] - c2[j-1])), false)
@@ -581,7 +600,7 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     rho = dd.equilibrium.time_slice[].profiles_1d.rho_tor_norm
     ode_params.rat_surface = find_rat_surface(q_prof, rho, q_surf)
 
-    # PoP2024 pins rat_surface, so it must be set BEFORE calculate_stability_index!
+    # PoP2024 pins rat_surface, so it must be set BEFORE set_ode_parameters!
     # builds l21/l12/l32/DeltaW from it — otherwise the inductances describe the real
     # q=2 location while rat_surface says 0.67, and br_drw mixes the two.
     if par.overwrite_params
@@ -591,12 +610,10 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
     end
 
     # calculate the stability indices and mutual inductances
-    ode_params = calculate_stability_index!(dd, par, ode_params)
+    ode_params = set_ode_parameters!(dd, par, ode_params)
 
-    # Set physical parameters in dimensionless form
-    ode_params = set_phys_params!(dd, par, ode_params)
 
-    # μ and Inertia are pinned AFTER set_phys_params! computes them, since PoP2024
+    # μ and Inertia are pinned AFTER set_ode_parameters! computes them, since PoP2024
     # replaces the derived values outright
     if par.overwrite_params
         ode_params.mu = 0.1
@@ -611,8 +628,6 @@ function set_up_ode_params!(dd::IMAS.dd, par, ode_params::ODEparams)
 end
 
 
-
-
 function find_rat_surface(q_prof::Vector{Float64}, rho::Vector{Float64}, rat_surface::Float64)
     q_interp = IMAS.interp1d(rho, q_prof)
     f = x -> abs(q_interp(x)) - rat_surface
@@ -625,11 +640,51 @@ end
 
 
 
-function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
-    rt = ode_params.rat_surface  
-    rw = ode_params.res_wall
-    rc = ode_params.control_surf
+"""
+    set_ode_parameters!(dd, par, ode_params) -> ODEparams
+
+Inductances, wall stability index and the dimensionless physical parameters — one
+function because r0 must be resolved ONCE and used for both: the radii are given in
+metres in par and normalized by the same r0 that sets psi0 and U0.
+"""
+function set_ode_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
+    r0 = _length_scale(dd, par)
+
+    # PoP2024 pins the geometry: r0 = 1 m with the wall at 1.0 and the control surface
+    # at 1.25 in those units. _length_scale already forces r0 = 1.0 under
+    # overwrite_params; the two radii have to follow or the paper is not reproduced.
+    r_wall = par.overwrite_params ? 1.0 :
+             isnan(par.res_wall_radius) ? _wall_minor_radius(dd) : par.res_wall_radius
+    r_ctrl = par.overwrite_params ? 1.25 : par.control_surf_radius
+    # only report a pin that actually discards something the user chose; NaN is the
+    # "derive from dd" default, not a competing value
+    if par.overwrite_params &&
+       ((!isnan(par.res_wall_radius) && par.res_wall_radius != 1.0) || par.control_surf_radius != 1.25)
+        @info @sprintf("overwrite_params: geometry pinned to PoP2024 — res_wall_radius %.4g→1.0 m, control_surf_radius %.4g→1.25 m",
+                       par.res_wall_radius, par.control_surf_radius)
+    end
+
+    # ode_params.control_surf is DERIVED and dimensionless. ModeLocking's :EF axis
+    # conversion reads it (plotting.jl: x .* m_pol/control_surf .* b0 .* 1e4), which is
+    # why the field still exists at all.
+    if ode_params.control_surf != ODEparams().control_surf &&
+       !isapprox(ode_params.control_surf, r_ctrl / r0; rtol=1e-8)
+        @warn @sprintf("ode_params.control_surf=%.4g is ignored — par.control_surf_radius=%.4g m is authoritative (→ %.4g)",
+                       ode_params.control_surf, r_ctrl, r_ctrl / r0)
+    end
+    ode_params.control_surf = r_ctrl / r0
+
+    # The fixed error field scales with r_c/r0, so normalize it only now that
+    # control_surf is final. Assigned from par, not scaled in place, so rebuilding
+    # on every step cannot compound it.
+    _normalize_error_field!(ode_params, par)
+
+    rt = ode_params.rat_surface        # rho_tor_norm, already dimensionless
+    rw = r_wall / r0                   # metres -> r_w/r0
+    rc = ode_params.control_surf       # r_c/r0
     m0 = par.m_pol
+    @info @sprintf("geometry: r0=%.4g m   r_t=%.4g   r_w=%.4g (%.4g m)   r_c=%.4g (%.4g m)",
+                   r0, rt, rw, r_wall, rc, r_ctrl)
     
     rat21 = (rw / rt)^m0
     rat12 = rat21^(-1)
@@ -661,37 +716,18 @@ function calculate_stability_index!(dd::IMAS.dd, par, ode_params::ODEparams)
     # effective range into locals when it builds the grid. Read the range that was
     # actually used off `extrema(ode_params.Control2)`.
 
-    return ode_params
-end
-
-
-function set_phys_params!(dd::IMAS.dd, par, ode_params::ODEparams)
-    """
-    Set the physical parameters in dimensionless form
-    
-    Args:
-        dd: IMAS data structure
-        par: Parameters for the simulation
-        ode_params: ODE parameters to be set
-    Returns:
-        ode_params: Updated ODE parameters with physical constants set
-    """
-
-    # Define some constants
+    # ── dimensionless physical parameters ────────────────────────────────────
     #      Also NEED Zeff
     cp1d = dd.core_profiles.profiles_1d[]
     eqp1d = dd.equilibrium.time_slice[].profiles_1d
     mu0_val = IMAS.mks.μ_0
     
-    r0 = _length_scale(dd, par)
-
     # Set the scales for non-dimensionalization
     psi0 = par.mag_perturbation_amplitude * r0
     U0 = psi0^2 * r0 / mu0_val
     
     mass_ion = cp1d.ion[1].element[1].a * IMAS.mks.m_p  # kg, mass of the main ion species
 
-    rt = ode_params.rat_surface  # dimensionless, scaled by r0
     rho_cp = cp1d.grid.rho_tor_norm
     rho_eq = eqp1d.rho_tor_norm
 
@@ -821,10 +857,30 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
     DeltaW = ode_params.DeltaW
     rt = ode_params.rat_surface
     rc    = ode_params.control_surf
+    
     # Scan bounds come from par — ModeLocking declares Control1/2_min/max on ODEparams
     # but never reads them, so par is the single home and they are never overwritten.
     c2min = par.Control2_min
     c2max = par.Control2_max
+
+    # Control2 means a different physical quantity per control_type, so it has no
+    # default that is right for more than one of them. Refuse to guess.
+    if isnan(c2min) || isnan(c2max)
+        quantity, units, example = if control_type == :EF
+            ("the applied n=1 error field", "Gauss", "Control2_min=0.01, Control2_max=10.0")
+        elseif control_type == :LinStab
+            ("Δ_RW (the wall-corrected tearing index)", "dimensionless, both bounds < 0",
+             "Control2_min=-3.5, Control2_max=-0.05")
+        else
+            ("α (the nonlinear saturation coefficient)", "dimensionless, both bounds > 0",
+             "Control2_min=0.05, Control2_max=0.5")
+        end
+        missing_bounds = isnan(c2min) && isnan(c2max) ? "Control2_min and Control2_max are" :
+                         isnan(c2min) ? "Control2_min is" : "Control2_max is"
+        error("control_type=$(repr(control_type)) — $(missing_bounds) unset. Control2 here is " *
+              "$(quantity), in $(units); there is no default because the same field is Gauss, " *
+              "Δ_RW or α depending on control_type. For example: $(example)")
+    end
 
     # Rotation at the rational surface in kHz, at dd.global_time.
     # Same guarded lookup :eval_prob and :single_case use, so the sweep bounds and the
@@ -882,10 +938,9 @@ function set_control_parameters!(dd::IMAS.dd, par, ode_params::ODEparams)
         @info("Fixed EF in ODEs: $(par.error_field) Gauss → $(ode_params.error_field) (dimensionless)")
     end
 
-    # NOTE: error_field is NOT converted here. It is normalized once, in the
-    # ActorLocking constructor (see _normalize_error_field!), because this
-    # function runs on every `step` and an in-place Gauss→dimensionless rescale
-    # here compounded silently whenever an ODEparams was reused across actors.
+    # NOTE: error_field is NOT converted here. set_ode_parameters! assigns it from
+    # par.error_field (see _normalize_error_field!) — an in-place Gauss→dimensionless
+    # rescale on every `step` compounded silently whenever an ODEparams was reused.
 
     Control2 = vec(repeat(Control2_vals', N, 1))
     ode_params.Control2 = Control2
@@ -1184,15 +1239,23 @@ function plot_hysteresis_onset(actor::ActorLocking)
     ylbl = par.control_type == :EF       ? "error field (Gauss)" :
            par.control_type == :LinStab  ? L"b_r\;\mathrm{at}\;r_t\;\mathrm{(Gauss)}" :
                                            L"\alpha"
-    p = plot(b.C1_user, b.C2_onset_user;
-             xlabel = L"f_0\;\mathrm{(kHz)}",
-             ylabel = ylbl,
+    p = plot(b.C2_onset_user, b.C1_user;
+             fillrange = 0,
+             fillcolor = :gray,
+             fillalpha = 0.5,
+             ylabel = L"f_0\;\mathrm{(kHz)}",
+             xlabel = ylbl,
              title  = "Hysteresis onset" * (b.bracketed ? " (grid-bracketed)" : ""),
-             label  = "onset", linewidth = 2.5, marker = :circle, markersize = 3)
+             label  = "onset", linewidth = 3.0, marker = :circle, markersize = 5,
+             legendfontsize=12,
+             xguidefontsize=16, yguidefontsize=16,
+             xtickfontsize=13, ytickfontsize=13)
     # the operating points, when :bounds was given any
     if actor.eval !== nothing && !isempty(actor.eval.C1)
-        scatter!(p, actor.eval.C1 ./ (1e3 * par.time_scale), actor.eval.C2;
-                 label = "operating", marker = :star5, markersize = 8, color = :yellow)
+        scatter!(p,  actor.eval.C2, actor.eval.C1 ./ (1e3 * par.time_scale);
+                 label = "operating", marker = :star5, markersize =10, color = :yellow)
+        #scatter!(p, actor.eval.C1 ./ (1e3 * par.time_scale), actor.eval.C2;
+        #         label = "operating", marker = :star5, markersize = 8, color = :yellow)
     end
     return p
 end
@@ -1288,7 +1351,7 @@ Reference error-field flux perturbation (dimensionless psi_eps) for the br ↔ �
 relation.  Which quantity carries ε depends on `control_type`: for `:EF` the
 swept `Control2` *is* the error field, so the peak of the scan is used; for
 `:LinStab` and `:NLsaturation` the swept axis is Δt / α and ε is the fixed
-`ode_params.error_field` (made dimensionless once by `_normalize_error_field!`).
+`ode_params.error_field` (made dimensionless by `_normalize_error_field!`).
 """
 function _eps_ref(actor::ActorLocking)
     op  = actor.ode_params
@@ -1298,8 +1361,8 @@ function _eps_ref(actor::ActorLocking)
                par.Control2_max * 1e-4 / par.mag_perturbation_amplitude * op.control_surf / Float64(par.m_pol) :
                maximum(op.Control2)
     else
-        # Already dimensionless — _normalize_error_field! converted it once, in the
-        # constructor. Re-normalizing here would apply (1e-4/b0)·r_c/m a second time.
+        # Already dimensionless — set_ode_parameters! normalized it. Re-normalizing
+        # here would apply (1e-4/b0)·r_c/m a second time.
         return op.error_field
     end
 end
@@ -1335,7 +1398,7 @@ are eliminated directly and never squared, so only the physical branch appears.
                         Δ_RW = (P_rw − Δt_crit·α·ψt²) / (ψt·(1 + α·ψt)).
 
 `eps` defaults to `_eps_ref(actor)`; `alpha` to `ode_params.saturation_param`, which
-`set_phys_params!` zeroes when `NL_saturation = false`. For `:NLsaturation`, α is the
+`set_ode_parameters!` zeroes when `NL_saturation = false`. For `:NLsaturation`, α is the
 swept control, so pass the value of interest explicitly.
 
 Δ_RW comes out negative on its own: Δw < 0 while l₂₁, l₃₂, ε and ψt are positive.
@@ -1428,6 +1491,7 @@ compute_drw_from_br(actor::ActorLocking, br_Gauss::Float64; eps_max::Float64=NaN
 
 Derive `ode_params.error_field` from `par.error_field` (Gauss) into the
 dimensionless psi_eps normalization the model uses throughout:
+*** errF is the dimensionless EF flux function, NOT the dimensionless EF itself
 
     errF = EF_Gauss · 1e-4 / b0 · r_c / m_pol
 
@@ -1440,11 +1504,18 @@ The value is *assigned* from `par`, never accumulated onto whatever the field
 already held, so calling this repeatedly is a no-op — the compounding that made
 error_field drift by ~1000× is impossible by construction.
 
-`control_surf` is only ever read at run time, never reassigned, so its value is
-already final here.
+Must run after `control_surf` is set to r_c/r0, which is why `set_ode_parameters!`
+calls it immediately after that assignment rather than the constructor calling it.
 """
 function _normalize_error_field!(ode_params::ODEparams, par)
-    norm = (1e-4 / par.mag_perturbation_amplitude) * ode_params.control_surf / Float64(par.m_pol)
+    # No default: the fixed background EF is machine- and shot-specific. :EF sweeps
+    # the error field through Control2 instead, so only the other two need it.
+    if isnan(par.error_field) && par.control_type != :EF
+        error("control_type=$(repr(par.control_type)) — error_field is unset. It is the fixed " *
+              "n=1 background error field in Gauss that supplies ε while Control2 sweeps " *
+              "$(par.control_type == :LinStab ? "Δ_RW" : "α"); set it explicitly, e.g. error_field=10.0")
+    end
+    norm =(1e-4 / par.mag_perturbation_amplitude) * ode_params.control_surf / Float64(par.m_pol)
     want = par.error_field * norm
     # ODEparams' own default is in Gauss; anything else means the caller set it
     # via ode_params, which par.error_field now overrides
@@ -1456,6 +1527,30 @@ function _normalize_error_field!(ode_params::ODEparams, par)
     end
     ode_params.error_field = want
     return ode_params
+end
+
+"""
+    _wall_minor_radius(dd) -> Float64
+
+Effective minor radius of the resistive wall, in metres: half the R-extent of the
+first-wall limiter contour,
+
+    (max(R) - min(R)) / 2
+
+which is identical to averaging the outboard and inboard midplane gaps about any
+R₀, so the choice of R₀ does not enter.
+
+CRUDE BY CONSTRUCTION: this is a cylindrical approximation that discards elongation
+entirely — it is the midplane half-width, not a shape-aware radius. That matches what
+it feeds: the inductances and Δw are cylindrical forms (l ~ 2m/r, Δw ~ m/r_w), and the
+m/n=2/1 island couples to the wall at the midplane. It is the same order of crudeness
+as `rat_surface` being rho_tor_norm rather than a geometric radius.
+"""
+function _wall_minor_radius(dd::IMAS.dd)
+    r, _ = IMAS.first_wall(dd.wall)
+    isempty(r) && error("res_wall_radius is NaN and dd.wall has no first-wall limiter " *
+                        "contour to derive it from — set par.res_wall_radius (m) explicitly")
+    return (maximum(r) - minimum(r)) / 2
 end
 
 """
@@ -1555,7 +1650,7 @@ axis the probability model was trained on:
   - `:LinStab`      — Gauss (n=1 br amplitude at the rational surface) → Δt, by
                       inverting the locked-state br relation for Δ_RW and then
                       applying Δt = Δ_RW + l₂₁·l₁₂/Δw (the inverse of the
-                      `stability_index` assignment in `calculate_stability_index!`)
+                      `stability_index` assignment in `set_ode_parameters!`)
   - `:NLsaturation` — α, already native
 
 Warns when a `:LinStab` inversion lands outside the scanned Control2 range, since
