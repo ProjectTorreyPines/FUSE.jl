@@ -9,10 +9,10 @@
 #
 # Run this AFTER ./build.sh has produced the SIF. Usage:
 #   module load singularity/3.11.3
-#   SIF=/fusion/.../fuse_v2.6.0.sif ./deploy/omega-container/install_kernel.sh
+#   SIF=/fusion/.../fuse_v1.2.0.sif ./deploy/omega-container/install_kernel.sh
 #
 # Optional:
-#   THREADS=8  number of Julia threads the kernel starts with (default 1)
+#   THREADS=N  number of Julia threads the kernel starts with (default 8)
 
 set -euo pipefail
 
@@ -23,7 +23,7 @@ if [[ ! -r "$SIF" ]]; then
     echo "ERROR: SIF not found/readable: $SIF" >&2
     exit 1
 fi
-threads="${THREADS:-1}"
+threads="${THREADS:-8}"
 
 # Version for the kernel name: parse from the SIF filename (fuse_<version>.sif).
 version="$(basename "$SIF" .sif)"

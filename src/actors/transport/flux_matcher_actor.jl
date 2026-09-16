@@ -48,6 +48,17 @@ import NonlinearSolve, FixedPointAcceleration
             "Method for computing the transport Jacobian: `:default` (`:forward_ad` for `:simple_trust`, `:finite_diff` otherwise) or explicit `:finite_diff` / `:forward_ad`";
             default=:default
         )
+    ad_chunksize::Entry{Int} = Entry{Int}(
+        "-",
+        """
+        ForwardDiff chunk size N for `:forward_ad` Jacobians (0 = let ForwardDiff pick).
+        Pinning it keeps the set of `Dual{Tag,Float64,N}` specializations of the TJLF solve finite
+        and precompilable, instead of a function of `channels × length(rho_transport)`.
+        The default 8 divides the unknown count evenly (no remainder chunk) for 8-radii grids such
+        as `rho_transport = 0.1:0.1:0.8` with 2, 3, or 4 evolved channels.""";
+        default=8,
+        check=x -> @assert x >= 0 "must be: ad_chunksize >= 0"
+    )
     step_size::Entry{T} = Entry{T}(
         "-",
         "Step size for each algorithm iteration (note this has a different meaning for each algorithm)";
@@ -250,7 +261,11 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     end
 
     autodiff = if (D <: ForwardDiff.Dual) || jacobian_method === :forward_ad
-        NonlinearSolve.ADTypes.AutoForwardDiff()
+        if par.ad_chunksize > 0
+            NonlinearSolve.ADTypes.AutoForwardDiff(; chunksize=par.ad_chunksize)
+        else
+            NonlinearSolve.ADTypes.AutoForwardDiff()
+        end
     else
         NonlinearSolve.ADTypes.AutoFiniteDiff()
     end

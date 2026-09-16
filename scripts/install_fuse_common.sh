@@ -8,6 +8,9 @@ INSTALL_DIR="${FUSE_WORK_DIR:-${PWD}}"
 CONDA_ENV_NAME="${FUSE_CONDA_ENV:-fuse}"
 MINICONDA_DIR="${MINICONDA_DIR:-${HOME}/.local/miniconda3}"
 JULIA_MODULE="${FUSE_JULIA_MODULE:-julia/1.11.7}"
+# Oldest Julia in the FUSE regression matrix (see .github/workflows/runtests.yml
+# and the julia compat entry in Project.toml).
+MIN_JULIA_VERSION="${FUSE_MIN_JULIA_VERSION:-1.11.0}"
 
 log() { echo "[install_fuse] $*"; }
 die() { echo "[install_fuse] ERROR: $*" >&2; exit 1; }
@@ -16,9 +19,54 @@ need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"
 }
 
+julia_version() {
+    julia --version 2>/dev/null | sed -nE 's/.*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -n 1
+}
+
+# version_ge A B: true when dotted numeric version A >= B.
+version_ge() {
+    local IFS=.
+    local -a a b
+    read -r -a a <<< "$1"
+    read -r -a b <<< "$2"
+    local i ai bi
+    for i in 0 1 2; do
+        ai="${a[i]:-0}"
+        bi="${b[i]:-0}"
+        if (( ai > bi )); then return 0; fi
+        if (( ai < bi )); then return 1; fi
+    done
+    return 0
+}
+
+check_julia_version() {
+    local ver
+    ver="$(julia_version)"
+    [[ -n "${ver}" ]] || die "Could not determine the Julia version from 'julia --version'"
+    if version_ge "${ver}" "${MIN_JULIA_VERSION}"; then
+        return 0
+    fi
+
+    log "Julia ${ver} is older than the minimum supported ${MIN_JULIA_VERSION}"
+    if command -v juliaup >/dev/null 2>&1; then
+        log "Switching juliaup to the 'release' channel"
+        # 'juliaup add' fails harmlessly if the channel is already installed.
+        juliaup add release || true
+        juliaup default release || true
+        juliaup update release || true
+        ver="$(julia_version)"
+        if [[ -n "${ver}" ]] && version_ge "${ver}" "${MIN_JULIA_VERSION}"; then
+            log "Julia: $(julia --version)"
+            return 0
+        fi
+    fi
+    die "FUSE requires Julia >= ${MIN_JULIA_VERSION} (found ${ver}). Update Julia (e.g. 'juliaup add release && juliaup default release') and re-run."
+}
+
 ensure_julia() {
     if command -v julia >/dev/null 2>&1; then
         log "Julia: $(julia --version)"
+        check_julia_version
         return 0
     fi
     die "julia is not on PATH after setup"
@@ -313,6 +361,13 @@ install_ijulia_kernels() {
 clone_fuse_examples() {
     cd "${INSTALL_DIR}"
     if [[ -d FuseExamples/.git ]]; then
+        if ! git -C FuseExamples rev-parse --is-inside-work-tree >/dev/null; then
+            # git's ownership check (CVE-2022-24765) rejects clones created by
+            # another user. Unlike the registries, FuseExamples may hold user
+            # work, so mark it safe instead of deleting it.
+            log "git rejected FuseExamples (ownership check) — adding safe.directory"
+            git config --global --add safe.directory "${INSTALL_DIR}/FuseExamples"
+        fi
         log "Updating FuseExamples"
         git -C FuseExamples fetch origin
         git -C FuseExamples reset --hard origin/master

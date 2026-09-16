@@ -161,10 +161,14 @@ function _step(actor::ActorWholeFacility)
         # ActorNeutronics evaluates the neutron flux on the first wall
         actor.Neutronics = ActorNeutronics(dd, act)
 
-        # ActorBlanket optimizes the radial build thickness of the first wall, blanket, shield and Li6 enrichment to achieve a target TBR
-        actor.Blanket = ActorBlanket(dd, act)
-        # We must re-generate the CX build since we updated the radial build
-        actor.CXbuild = ActorCXbuild(dd, act)
+        # ActorBlanket optimizes the radial build thickness of the first wall, blanket, shield and Li6 enrichment to achieve a target TBR.
+        # With `update_build == false` the radial build is left alone and only Li6 enrichment is optimized.
+        actor.Blanket = ActorBlanket(dd, act; update_build=par.update_build)
+
+        if par.update_build
+            # We must re-generate the CX build since we updated the radial build
+            actor.CXbuild = ActorCXbuild(dd, act)
+        end
 
         # ActorPassiveStructures populates dd.pf_passive based on the vacuum vessel layer(s)
         actor.PassiveStructures = ActorPassiveStructures(dd, act)

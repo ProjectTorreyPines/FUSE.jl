@@ -330,7 +330,7 @@ end
 """
     save(
         savedir::AbstractString,
-        dd::Union{Nothing,IMAS.dd},
+        dd::Union{Nothing,IMAS.DD},
         ini::Union{Nothing,ParametersAllInits},
         act::Union{Nothing,ParametersAllActors};
         error::Any=nothing,
@@ -350,7 +350,7 @@ If `dd`, `ini`, `act`, or `e` are `nothing` then the corresponding file is not c
 """
 function save(
     savedir::AbstractString,
-    dd::Union{Nothing,IMAS.dd},
+    dd::Union{Nothing,IMAS.DD},
     ini::Union{Nothing,ParametersAllInits},
     act::Union{Nothing,ParametersAllActors};
     error::Any=nothing,

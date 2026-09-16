@@ -83,6 +83,82 @@ function ActorTEQUILA(dd::IMAS.DD{D}, par::FUSEparameters__ActorTEQUILA{P}, act:
 end
 
 """
+    assert_tequila_shot_valid(shot::TEQUILA.Shot)
+
+Fail fast on an invalid TEQUILA solution: an unconverged solve can return
+without throwing (e.g. the VEQ inner Newton warns and proceeds when its
+residual stalls, as long as the surfaces remain nested) yet carry an invalid ψ.
+Such an equilibrium only blows up much later — flux-surface tracing of the bad
+ψ map yields degenerate surfaces that fail in unrelated downstream physics
+(e.g. Sauter bootstrap) — so validate here, where the failure can still be
+attributed to the solve and handled.
+
+The nodal ψ being monotonic is not sufficient. When the VEQ Newton stalls it
+leaves the solution vector partially converged: the nodal ψ values can look
+fine (and TEQUILA's own nested-writeback check pass) while the
+Hermite-derivative DOFs make the interpolant overshoot between radial nodes
+and the poloidal-harmonic DOFs make ψ vary along a surface. Flux-surface
+tracing then finds no midplane crossing for near-axis ψ levels
+(`r_outboard == r_inboard`) and non-monotonic crossings at mid radius — the
+KDEMO CI failure — so the check samples the interpolated ψ map itself, the
+same field tracing sees.
+"""
+function assert_tequila_shot_valid(shot::TEQUILA.Shot)
+    ψnodal = @views shot.C[2:2:end, 1] # nodal ψ on the shot radial grid (as read by _finalize)
+    all(isfinite, ψnodal) || error("TEQUILA solve returned non-finite ψ")
+    ψa, ψb = ψnodal[1], ψnodal[end]
+    span = abs(ψb - ψa)
+    span > 0.0 || error("TEQUILA solve returned zero ψ span: the equilibrium solve did not converge")
+    sgn = sign(ψb - ψa)
+    all(x -> sign(x) == sgn, diff(ψnodal)) || error("TEQUILA solve returned non-monotonic ψ(ρ): the equilibrium solve did not converge")
+
+    a = @views shot.surfaces[1, :] .* shot.surfaces[3, :] # minor radius R0 * ϵ of each surface
+    all(>(0.0), diff(a)) || error("TEQUILA solve returned non-nested flux surfaces: the equilibrium solve did not converge")
+
+    # ψ map consistency along rays from the axis to the boundary: unconverged
+    # Hermite-derivative DOFs make the interpolant overshoot between radial nodes,
+    # so ψ dips below/above the nodal axis value or reverses at mid radius, and
+    # the affected ψ contour levels trace with no or multiple midplane crossings
+    RA, ZA = shot.R0fe(0.0), shot.Z0fe(0.0)
+    ψax = shot(RA, ZA; extrapolate=true)
+    abs(ψax - ψa) <= 0.01 * span || error("TEQUILA ψ map disagrees with nodal ψ at the axis (Δψ = $(abs(ψax - ψa)) vs span = $span): the equilibrium solve did not converge")
+    bnd = IMAS.MXH(shot.surfaces[:, end])
+    for θ in (0.0, 0.5π, π, 1.5π)
+        Rb, Zb = bnd(θ)
+        ψprev = ψax
+        ψray = ψax
+        for t in range(0.0, 1.0, 65)[2:end]
+            ψray = shot(RA + t * (Rb - RA), ZA + t * (Zb - ZA); extrapolate=true)
+            # tolerance well below the ~1% ψ contour spacing that tracing resolves,
+            # but robust to roundoff in the ψ'≈0 region near the axis
+            sgn * (ψray - ψprev) >= -1e-4 * span ||
+                error("TEQUILA ψ map is non-monotonic along the ray θ=$θ: the equilibrium solve did not converge")
+            ψprev = ψray
+        end
+        abs(ψray - ψb) <= 0.01 * span ||
+            error("TEQUILA ψ map disagrees with the boundary ψ at θ=$θ (Δψ = $(abs(ψray - ψb)) vs span = $span): the equilibrium solve did not converge")
+    end
+
+    # ψ must be (approximately) constant on each flux surface: unconverged
+    # poloidal-harmonic DOFs make ψ vary along a surface, so the surface
+    # parametrization no longer agrees with the ψ contours that tracing follows;
+    # sin components vanish on every compass ray above, so rays cannot see this
+    N = size(shot.surfaces, 2)
+    for k in unique(round.(Int, range(2, N, 8)))
+        mxh = IMAS.MXH(@views shot.surfaces[:, k])
+        ψmin = ψmax = shot(mxh(0.0)...; extrapolate=true)
+        for θ in range(0.0, 2π, 17)[2:end-1]
+            ψs = shot(mxh(θ)...; extrapolate=true)
+            ψmin = min(ψmin, ψs)
+            ψmax = max(ψmax, ψs)
+        end
+        ψmax - ψmin <= 0.02 * span ||
+            error("TEQUILA ψ varies by $(ψmax - ψmin) (vs span = $span) on flux surface $k/$N: the equilibrium solve did not converge")
+    end
+    return nothing
+end
+
+"""
     _step(actor::ActorTEQUILA)
 
 Runs TEQUILA on the r_z boundary, equilibrium pressure and equilibrium j_tor
@@ -128,18 +204,22 @@ function _step(actor::ActorTEQUILA)
     end
 
     # TEQUILA shot
-    if actor.shot === nothing || !same_boundary
+    function fresh_boundary_shot()
         pr = eqt.boundary.outline.r
         pz = eqt.boundary.outline.z
         ab = sqrt((maximum(pr) - minimum(pr))^2 + (maximum(pz) - minimum(pz))^2) / 2.0
         pr, pz = limit_curvature(pr, pz, ab / 20.0)
         pr, pz = IMAS.resample_2d_path(pr, pz; n_points=2 * length(pr), method=:linear)
         mxh = IMAS.MXH(pr, pz, par.number_of_MXH_harmonics; spline=true)
-        actor.shot = TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
-        solve_function = TEQUILA.solve
-        concentric_first = true
         actor.old_boundary_outline_r = eqt.boundary.outline.r
         actor.old_boundary_outline_z = eqt.boundary.outline.z
+        return TEQUILA.Shot(par.number_of_radial_grid_points, par.number_of_fourier_modes, mxh; P, Jt, Pbnd, Fbnd, Ip_target)
+    end
+
+    if actor.shot === nothing || !same_boundary
+        actor.shot = fresh_boundary_shot()
+        solve_function = TEQUILA.solve
+        concentric_first = true
     else
         # reuse flux surface information if boundary has not changed
         actor.shot = TEQUILA.Shot(actor.shot; P, Jt, Pbnd, Fbnd, Ip_target)
@@ -158,12 +238,29 @@ function _step(actor::ActorTEQUILA)
             # stalls at |r| ~ 1e-2 and the solution is invalid)
             psin_count = 13
             Nr = max(24, 2 * psin_count)
-            actor.shot = TEQUILA.veq_solve!(actor.shot;
-                h_count=5, v_count=5, kappa_count=8, c0_count=5, psin_count,
-                c_counts=harmonic_counts, s_counts=harmonic_counts,
-                Nr, Nt=32, outer_tol=par.tolerance, par.debug)
+            veq_error = nothing
+            try
+                actor.shot = TEQUILA.veq_solve!(actor.shot;
+                    h_count=5, v_count=5, kappa_count=8, c0_count=5, psin_count,
+                    c_counts=harmonic_counts, s_counts=harmonic_counts,
+                    Nr, Nt=32, outer_tol=par.tolerance, par.debug)
+                assert_tequila_shot_valid(actor.shot)
+            catch e
+                isa(e, InterruptException) && rethrow(e)
+                veq_error = e
+            end
+            if veq_error !== nothing
+                # The VEQ Newton occasionally stalls on marginal inputs (a warm-started
+                # shot whose profiles moved a lot between iterations); fall back to the
+                # Picard solver from a fresh boundary shot rather than failing the run.
+                @warn "ActorTEQUILA :veq solve failed; retrying with the :picard solver from a fresh boundary shot" veq_error
+                actor.shot = fresh_boundary_shot()
+                actor.shot = TEQUILA.solve(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first=true)
+                assert_tequila_shot_valid(actor.shot)
+            end
         else
             actor.shot = solve_function(actor.shot, par.number_of_iterations; tol=par.tolerance, par.debug, par.relax, concentric_first)
+            assert_tequila_shot_valid(actor.shot)
         end
     catch e
         plot(eqt.boundary.outline.r, eqt.boundary.outline.z; marker=:circle, aspect_ratio=:equal)

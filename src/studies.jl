@@ -60,15 +60,17 @@ end
 # ========= #
 
 """
-    extract_results(simulations_path::String)
+    extract_results(simulations_path::String, dd_type::Type{<:IMAS.DD}=IMAS.dd)
 
 Extracts informatation from all the simulation results in simulations_path and returns them inside a dataframe (This is done safely in parallel and with checkpoints)
 
 Note : If you want to speed up this process incrase the number of threads
 """
-function extract_results(simulations_path::String)
+function extract_results(simulations_path::String, dd_type::Type{<:IMAS.DD}=IMAS.dd)
     function get_dataframe(file_path)
-        dd = IMAS.json2imas(file_path)
+        # `dd.json` carries no type marker, so the container has to be supplied:
+        # reconstructing into `IMAS.dd` silently drops any satellite-only IDS.
+        dd = IMAS.json2imas(file_path, dd_type())
         df = DataFrame(IMAS.extract(dd, :all))
         df.dir = [file_path]
         df.gen = [parse(Int, split(split(file_path, "/")[end-1], "__")[1])]
@@ -189,15 +191,15 @@ function extract_results(simulations_path::String)
     return final_df
 end
 
-function extract_results(study::AbstractStudy; re_extract::Bool=false)
+function extract_results(study::AbstractStudy; re_extract::Bool=false, dd_type::Type{<:IMAS.DD}=IMAS.dd)
     csv_loc = joinpath(study.sty.save_folder, "output.csv")
     if isfile(csv_loc) && !re_extract
         study.dataframe = CSV.read(csv_loc, DataFrame)
     elseif re_extract && isfile(csv_loc)
         rm(csv_loc)
         rm(joinpath(study.sty.save_folder, "checkpoints"); force=true, recursive=true)
-        study.dataframe = extract_results(study.sty.save_folder)
+        study.dataframe = extract_results(study.sty.save_folder, dd_type)
     else
-        study.dataframe = extract_results(study.sty.save_folder)
+        study.dataframe = extract_results(study.sty.save_folder, dd_type)
     end
 end

@@ -2,19 +2,30 @@
 
 This guide walks you through setting up everything you need to run FUSE: the **Julia** language, the **FUSE** package, the **`fusebot`** helper, and an optional **JupyterLab** environment with Julia kernels.
 
+FUSE requires **Julia 1.11 or newer** (the regression suite runs on 1.11 and the latest stable release). The install scripts verify this and leave your Julia untouched when it is compatible or switch juliaup to the `release` channel if necessary.
+
 !!! tip "No-install alternative: the FUSE container"
     If you just want to *run* released FUSE (not develop it), a self-contained
-    image with FUSE, all ProjectTorreyPines packages, and a precompiled
-    sysimage (startup in seconds) is published to
+    image with FUSE and all ProjectTorreyPines packages is published to
     [ghcr.io/projecttorreypines/fuse](https://github.com/orgs/ProjectTorreyPines/packages/container/package/fuse);
-    `latest` is the most recent FUSE release, and version tags (`v1.1.5`, ...)
-    are available for reproducibility.
+    `latest` is the most recent FUSE release, and version tags (`v1.2.0`, ...)
+    are available for reproducibility. The tags are multi-architecture, so the
+    same command pulls the right image on x86\_64 and on Apple Silicon.
 
-    Laptop (Docker; on Apple Silicon add `--platform linux/amd64`):
+    Laptop (Docker or podman) — JupyterLab with the FUSE kernel, served from
+    inside the container (`-e THREADS=8` sets the kernel's Julia threads):
     ```bash
-    docker run -it ghcr.io/projecttorreypines/fuse:latest
+    docker run -it --pull always -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:latest lab
     ```
-    omega (JupyterLab, worker nodes; use plain `fuse-container` for a REPL).
+    then open the link it prints:
+    <http://localhost:8888/lab/tree/FuseExamples?token=fuse>. On first run a
+    copy of [`FuseExamples`](https://github.com/ProjectTorreyPines/FuseExamples)
+    is placed in the mounted current directory and the browser opens there, so
+    edits and new notebooks persist on your machine. (VS Code users can
+    instead paste that URL under **Select Kernel → Existing Jupyter Server**
+    in a notebook to get the **Julia FUSE (container)** kernel.)
+
+    omega (JupyterLab, worker nodes).
     JupyterLab itself runs on the host, so `jupyter` must be on `PATH`
     (e.g. via `module load fuse`):
     ```bash
@@ -22,9 +33,15 @@ This guide walks you through setting up everything you need to run FUSE: the **J
     ```
     NERSC (Perlmutter):
     ```bash
-    podman-hpc pull ghcr.io/projecttorreypines/fuse:latest && podman-hpc migrate ghcr.io/projecttorreypines/fuse:latest && podman-hpc run --rm -it ghcr.io/projecttorreypines/fuse:latest
+    bash <(curl -fsSL https://raw.githubusercontent.com/ProjectTorreyPines/FUSE.jl/master/deploy/perlmutter-container/install_fuse_container_nersc.sh)
     ```
-    Details: [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md).
+    then open [jupyter.nersc.gov](https://jupyter.nersc.gov), start a server,
+    and select the **Julia FUSE-`<version>`** kernel — e.g. on one of the
+    `FuseExamples` notebooks the install placed in your `$HOME`.
+
+    Details: [`deploy/omega-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/omega-container/README.md)
+    (omega) and [`deploy/perlmutter-container/README.md`](https://github.com/ProjectTorreyPines/FUSE.jl/blob/master/deploy/perlmutter-container/README.md)
+    (NERSC).
 
 ## One-command install
 
@@ -359,6 +376,13 @@ Depth = 2
 !!! warning "`Pkg.Registry.add` fails"
     Make sure `git` is installed and that you can reach GitHub. Behind a proxy or offline node, configure
     your proxy first. You can re-run the registry/add commands; they are safe to repeat.
+
+!!! warning "`GitError(Code:EOWNER, ...) repository path ... is not owned by current user`"
+    libgit2 refuses to open a registry that was cloned under a different ownership context — on Windows
+    this typically means an earlier install ran in an elevated ("Run as administrator") PowerShell.
+    The install scripts recover from this automatically by re-adding the registries. To fix it manually,
+    delete the offending directory (e.g. `~/.julia/registries/FuseRegistry`) and re-run the install;
+    registries are disposable caches and will be re-cloned.
 
 !!! warning "Wrong Jupyter kernel"
     `fusebot install_IJulia` registers single- and multi-thread Julia kernels. In JupyterLab pick the

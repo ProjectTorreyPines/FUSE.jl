@@ -284,8 +284,11 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                 resize!(ini.ec_launcher, k)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.ec_launcher[k].power_launched = @ddtime beam.power_launched.data
-                else
+                elseif !isempty(beam.power_launched.time)
                     ini.ec_launcher[k].power_launched = TimeData(beam.power_launched.time, beam.power_launched.data)
+                else
+                    @warn "EC launcher $k ($(beam.name)) has empty power_launched time array in ODS; defaulting to 0.0"
+                    ini.ec_launcher[k].power_launched = 0.0
                 end
             end
         end
@@ -296,8 +299,11 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                 resize!(ini.ic_antenna, k)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.ic_antenna[k].power_launched = @ddtime antenna.power_launched.data
-                else
+                elseif !isempty(antenna.power_launched.time)
                     ini.ic_antenna[k].power_launched = TimeData(antenna.power_launched.time, antenna.power_launched.data)
+                else
+                    @warn "IC antenna $k ($(antenna.name)) has empty power_launched time array in ODS; defaulting to 0.0"
+                    ini.ic_antenna[k].power_launched = 0.0
                 end
             end
         end
@@ -308,8 +314,11 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                 resize!(ini.lh_antenna, k)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.lh_antenna[k].power_launched = @ddtime antenna.power_launched.data
-                else
+                elseif !isempty(antenna.power_launched.time)
                     ini.lh_antenna[k].power_launched = TimeData(antenna.power_launched.time, antenna.power_launched.data)
+                else
+                    @warn "LH antenna $k ($(antenna.name)) has empty power_launched time array in ODS; defaulting to 0.0"
+                    ini.lh_antenna[k].power_launched = 0.0
                 end
             end
         end
@@ -320,8 +329,11 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                 resize!(ini.nb_unit, k)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.nb_unit[k].power_launched = @ddtime unit.power_launched.data
-                else
+                elseif !isempty(unit.power_launched.time)
                     ini.nb_unit[k].power_launched = TimeData(unit.power_launched.time, unit.power_launched.data)
+                else
+                    @warn "NB unit $k ($(unit.name)) has empty power_launched time array in ODS; defaulting to 0.0"
+                    ini.nb_unit[k].power_launched = 0.0
                 end
                 # make beam energy constant
                 ini.nb_unit[k].beam_energy = maximum(unit.energy.data)
@@ -348,8 +360,11 @@ function set_ini_act_from_ods!(ini::ParametersAllInits, act::ParametersAllActors
                 resize!(ini.pellet_launcher, k)
                 if ismissing(ini.time, :pulse_shedule_time_basis)
                     ini.pellet_launcher[k].frequency = @ddtime launcher.frequency.data
-                else
+                elseif !isempty(launcher.frequency.time)
                     ini.pellet_launcher[k].frequency = TimeData(launcher.frequency.time, launcher.frequency.data)
+                else
+                    @warn "Pellet launcher $k ($(launcher.name)) has empty frequency time array in ODS; defaulting to 0.0"
+                    ini.pellet_launcher[k].frequency = 0.0
                 end
             end
         end

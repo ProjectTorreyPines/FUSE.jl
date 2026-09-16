@@ -79,7 +79,12 @@ println("    ", packages)
 println()
 println("### Setup FUSE environment in ", install_dir)
 Pkg.activate(install_dir)
-Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT", "ArgParse"]; packages])
+# Revise is listed explicitly: FuseExamples notebooks open with `using Revise`
+# (fluxmatcher.ipynb cell 0), and the container serves those through its Jupyter
+# kernel. It is NOT a FUSE dependency. The v1.1.6 image got it from a dedicated
+# late Containerfile layer that was built into that release but never merged to
+# master, so v1.2.0 — built from master — shipped without it.
+Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT", "ArgParse", "Revise"]; packages])
 Pkg.build("IJulia")
 
 println()
@@ -146,6 +151,8 @@ println("### Create precompile script")
 # ActorWholeFacility pipeline) instead of tutorial + test suite — a smaller
 # sysimage emission for memory-constrained builders (e.g. 16 GB CI runners),
 # at the cost of precompile coverage for the per-case/actor variants.
+# FUSE_PRECOMPILE_WORKLOAD=none skips the sysimage entirely (pkgimages only) —
+# required on aarch64, where no FUSE sysimage variant can link (see below).
 precompile_execution_file = joinpath(install_dir, "precompile_script.jl")
 workload = get(ENV, "FUSE_PRECOMPILE_WORKLOAD", "full")
 println("    workload: $workload")
@@ -163,11 +170,22 @@ else
 end
 write(precompile_execution_file, precompile_cmds)
 
-println()
-println("### Precompile FUSE sys image")
-sysimage_path = joinpath(install_dir, "sys_fuse.so")
-create_sysimage(["FUSE"]; sysimage_path, precompile_execution_file, cpu_target)
-chmod(sysimage_path, 0o555)
+if workload == "none"
+    # aarch64: the FUSE sysimage data blob (~3.2 GB) exceeds the ±2 GiB span
+    # of the R_AARCH64_PREL32 relocations Julia emits, so sys_fuse.so cannot
+    # link there regardless of CPU target or workload (x86_64 escapes via the
+    # medium code model's .ldata large-data section, which aarch64 lacks).
+    # Ship the image with per-package pkgimages only; the fuse launcher falls
+    # back to plain julia when sys_fuse.so is absent.
+    println()
+    println("### Skipping sysimage build (FUSE_PRECOMPILE_WORKLOAD=none) — pkgimages only")
+else
+    println()
+    println("### Precompile FUSE sys image")
+    sysimage_path = joinpath(install_dir, "sys_fuse.so")
+    create_sysimage(["FUSE"]; sysimage_path, precompile_execution_file, cpu_target)
+    chmod(sysimage_path, 0o555)
+end
 
 println()
 println("### Record IJulia kernel.jl path for host-side kernelspec")

@@ -1,6 +1,6 @@
 Base.@kwdef mutable struct study_database_item
     name::Union{Nothing,String} = nothing # item name (will be used to name the group in HDF5)
-    dd::Union{Nothing,IMAS.dd} = nothing
+    dd::Union{Nothing,IMAS.DD} = nothing
     ini::Union{Nothing,ParametersAllInits} = nothing
     act::Union{Nothing,ParametersAllActors} = nothing
     log::Union{Nothing,String} = nothing
@@ -157,7 +157,7 @@ end
 function save_study_database(
     savedir::AbstractString,
     parent_group::AbstractString,
-    dd::Union{Nothing,IMAS.dd},
+    dd::Union{Nothing,IMAS.DD},
     ini::Union{Nothing,ParametersAllInits},
     act::Union{Nothing,ParametersAllActors},
     log_io::IO; 

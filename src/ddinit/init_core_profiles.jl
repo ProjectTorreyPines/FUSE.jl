@@ -15,9 +15,20 @@ function init_core_profiles!(dd::IMAS.DD, ini::ParametersAllInits, act::Paramete
 
                 # also set the pedestal in summary IDS
                 if any([ismissing(getproperty(dd.summary.local.pedestal, field), :value) for field in (:n_e, :zeff, :t_e)])
-                    pedestal = IMAS.pedestal_finder(cp1d.electrons.pressure, cp1d.grid.psi_norm)
+                    psi_norm = cp1d.grid.psi_norm
+                    rho_tor_norm = cp1d.grid.rho_tor_norm
+                    pressure = cp1d.electrons.pressure
+                    if !issorted(psi_norm)
+                        idx = sortperm(psi_norm)
+                        psi_norm = psi_norm[idx]
+                        rho_tor_norm = rho_tor_norm[idx]
+                        pressure = pressure[idx]
+                    end
+                    # normalize to [0, 1] so pedestal_finder assertion is satisfied
+                    psi_norm = psi_norm ./ psi_norm[end]
+                    pedestal = IMAS.pedestal_finder(pressure, psi_norm)
                     ped_summ = dd.summary.local.pedestal
-                    @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - pedestal.width)
+                    @ddtime ped_summ.position.rho_tor_norm = IMAS.interp1d(psi_norm, rho_tor_norm).(1 - pedestal.width)
                     if ismissing(getproperty(dd1.summary.local.pedestal.n_e, :value, missing))
                         @ddtime ped_summ.n_e.value =
                             IMAS.interp1d(cp1d.grid.rho_tor_norm, cp1d.electrons.density_thermal).(1 - pedestal.width)
