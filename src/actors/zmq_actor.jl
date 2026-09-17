@@ -449,17 +449,31 @@ function receive!(actor::ActorZMQ)
             @goto psizr_done
         end
 
-        # Axis and boundary from psizr (Method 1) — shared by both branches
-        PSI_itp = Interpolations.cubic_spline_interpolation(
-            (rgrid, zgrid), psi_rz;
-            extrapolation_bc=Interpolations.Line())
-        psi_sign = sign(PSI_itp(rgrid[1], zgrid[1]) - PSI_itp((rgrid[1]+rgrid[end])/2, (zgrid[1]+zgrid[end])/2))
-        axis_result = IMAS.find_magnetic_axis(rgrid, zgrid, PSI_itp, psi_sign)
-        Ψaxis = PSI_itp(axis_result.RA, axis_result.ZA)
-        axis2bnd = psi_sign > 0 ? :increasing : :decreasing
-        psi_bnd = IMAS.find_psi_boundary(
-            rgrid, zgrid, psi_rz, Ψaxis, axis2bnd, axis_result.RA, axis_result.ZA, fw_r, fw_z;
-            raise_error_on_not_open=false, raise_error_on_not_closed=false)
+        # Axis and boundary from psizr (Method 1) — shared by both branches.
+        # Wrapped: a degenerate map (during/after a disruption) can make the
+        # axis search or the boundary contour walk off the grid and THROW
+        # (BoundsError [34,22] on the 33×33 committed map, observed at the
+        # 207123 disruption) — treat any analysis failure exactly like the
+        # handled "no boundary found" case below: keep the previous
+        # equilibrium for this step.
+        psi_sign = NaN
+        Ψaxis, psi_bnd, axis_result, PSI_itp = try
+            PSI_itp = Interpolations.cubic_spline_interpolation(
+                (rgrid, zgrid), psi_rz;
+                extrapolation_bc=Interpolations.Line())
+            psi_sign = sign(PSI_itp(rgrid[1], zgrid[1]) - PSI_itp((rgrid[1]+rgrid[end])/2, (zgrid[1]+zgrid[end])/2))
+            ar = IMAS.find_magnetic_axis(rgrid, zgrid, PSI_itp, psi_sign)
+            Ψa = PSI_itp(ar.RA, ar.ZA)
+            axis2bnd = psi_sign > 0 ? :increasing : :decreasing
+            pb = IMAS.find_psi_boundary(
+                rgrid, zgrid, psi_rz, Ψa, axis2bnd, ar.RA, ar.ZA, fw_r, fw_z;
+                raise_error_on_not_open=false, raise_error_on_not_closed=false)
+            (Ψa, pb, ar, PSI_itp)
+        catch e
+            isa(e, InterruptException) && rethrow(e)
+            @warn "ActorZMQ: psizr axis/boundary analysis threw at t=$(dd.global_time) s — keeping the previous equilibrium for this step" exception = e maxlog = 20
+            (NaN, (last_closed=nothing, first_open=nothing), (RA=NaN, ZA=NaN), nothing)
+        end
         # GSLite can legitimately send a psizr with no closed flux surface inside the
         # wall (breakdown, early ramp-up, limiter transitions). Prefer the last closed
         # surface, fall back to the first open one, otherwise keep the previous
