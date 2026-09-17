@@ -1,69 +1,12 @@
 using Interpolations
 import CHEASE
-using MARS: MARSnamelist, MarsOverrides, apply_overrides!, write_MARS_namelist, write_profile_IN,
+using MARS: MARSnamelist, MarsOverrides, MarsModeStructure, MarsOutputs,
+    apply_overrides!, write_MARS_namelist, write_profile_IN,
     read_MARS_eigenfunction, fix_axis_regularity!, read_MARS_geometry, mars_flux_surface_RZ,
     parse_MARS_results, check_MARS_convergence, julia_grep
 
 const μ_0 = 4pi * 1E-7
 
-
-"""
-    MarsModeStructure
-
-Eigenfunction (mode structure) parsed from MARS `XPLASMA.OUT` (displacement ξ) and, when
-available, `VPLASMA.OUT` (perturbed velocity) and `BPLASMA.OUT` (perturbed magnetic field).
-
-- `s`         : plasma radial coordinate `s = sqrt(ψ_norm)`, length `Ns1`
-- `m_pol`     : poloidal Fourier mode numbers, length `MSMAX`
-- `xi1/2/3`   : complex contravariant components of the plasma displacement ξ, size `(Ns1, MSMAX)`
-                (`xi1` ≡ normal/radial component, `xi3` ≡ parallel-like component)
-- `v1/2/3`    : complex contravariant components of the perturbed velocity (`nothing` if not written)
-- `b1/2/3`    : complex contravariant components of the perturbed magnetic field [T], size
-                `(Ns, MSMAX)` where `Ns = Ns1 + Ns2` — unlike ξ and v, the perturbed field
-                extends into the vacuum region (`nothing` if `BPLASMA.OUT` was not written)
-- `s_full`    : plasma+vacuum radial grid, length `Ns` (the grid `b1/2/3` live on)
-- `chi`       : geometric poloidal angle χ ∈ [0,2π], length `Nχ`
-- `R`, `Z`    : real-space flux-surface geometry `R(s,χ)`, `Z(s,χ)` [m], size `(Ns1, Nχ)`,
-                reconstructed from the R,Z Fourier harmonics in `RMZM_F.OUT` (for R,Z-space plotting)
-"""
-mutable struct MarsModeStructure
-    s::Vector{Float64}
-    m_pol::Vector{Float64}
-    xi1::Matrix{ComplexF64}
-    xi2::Matrix{ComplexF64}
-    xi3::Matrix{ComplexF64}
-    v1::Union{Nothing,Matrix{ComplexF64}}
-    v2::Union{Nothing,Matrix{ComplexF64}}
-    v3::Union{Nothing,Matrix{ComplexF64}}
-    b1::Union{Nothing,Matrix{ComplexF64}}
-    b2::Union{Nothing,Matrix{ComplexF64}}
-    b3::Union{Nothing,Matrix{ComplexF64}}
-    s_full::Vector{Float64}
-    chi::Vector{Float64}
-    R::Matrix{Float64}
-    Z::Matrix{Float64}
-end
-
-"""
-    MarsOutputs
-
-Container for the MARS results that are stored into `dd.mhd_linear`.
-
-- `n_tor`       : toroidal mode number (from `RNTOR`)
-- `iterations`  : number of MARS eigenvalue iterations
-- `growthrate`  : `Re(γ)·τ_A`, growth rate normalized to the Alfvén time
-- `frequency`   : `Im(γ)·τ_A`, frequency normalized to the Alfvén time
-- `ideal`       : `true` for ideal MHD (`ETA == 0`), `false` for resistive
-- `mode`        : eigenfunction (`MarsModeStructure`), or `nothing` if output files are absent
-"""
-mutable struct MarsOutputs
-    n_tor::Int
-    iterations::Int
-    growthrate::Float64
-    frequency::Float64
-    ideal::Bool
-    mode::Union{Nothing,MarsModeStructure}
-end
 
 Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor{T}
     _parent::WeakRef = WeakRef(nothing)
@@ -116,7 +59,7 @@ Base.@kwdef mutable struct FUSEparameters__ActorMars{T<:Real} <: ParametersActor
         "feeds back, a ~0.1% effect) — a same-dd scan was measured identical to a fresh-dd scan to 4 " *
         "decimals. That would change if the write-back is ever extended to dpressure_dpsi or f_df_dpsi. " *
         "Cannot be combined with chease_overrides.CFBAL."; default=1.0)
-    run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MHD stability code"; default=true)  
+    run_MHD::Entry{Bool} = Entry{Bool}("-", "Whether to run MARS-Q MHD code"; default=true)  
     run_mode::Switch{Symbol} = Switch{Symbol}([:local, :batch], "-", "Whether to run MARS locally or submit to batch system"; default=:local)
     batch_submit_cmd::Entry{String} = Entry{String}("-", "Batch submission command used when run_mode=:batch"; default="sbatch")
     num_orbits::Entry{Int} = Entry{Int}("-", "Number of orbits to simulate in particle tracing"; default=0)
