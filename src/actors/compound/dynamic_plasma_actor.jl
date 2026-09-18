@@ -427,19 +427,32 @@ end
 
 function progress_ActorDynamicPlasma(t0::Float64, t1::Float64, actor::AbstractActor, phase::Int)
     dd = actor.dd
-    cp1d = dd.core_profiles.profiles_1d[]
-    return (
-        ("    start time", t0),
-        ("      end time", t1),
-        ("          time", dd.global_time),
-        ("         stage", "$(name(actor)) ($phase/2)"),
-        ("       Ip [MA]", IMAS.get_from(dd, Val(:ip), :core_profiles) / 1E6),
-        ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
-        ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
-        ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
-        ("     max(zeff)", maximum(cp1d.zeff)),
-        ("   ω0 [krad/s]", cp1d.rotation_frequency_tor_sonic[1] / 1E3)
-    )
+    # display-only: never let a transiently inconsistent dd kill the run
+    # (observed: get_from(:ip) cubic-interp length assertion right after an
+    # equilibrium-slice restore on a GSLite-coupled shot)
+    try
+        cp1d = dd.core_profiles.profiles_1d[]
+        return (
+            ("    start time", t0),
+            ("      end time", t1),
+            ("          time", dd.global_time),
+            ("         stage", "$(name(actor)) ($phase/2)"),
+            ("       Ip [MA]", IMAS.get_from(dd, Val(:ip), :core_profiles) / 1E6),
+            ("     Ti0 [keV]", cp1d.t_i_average[1] / 1E3),
+            ("     Te0 [keV]", cp1d.electrons.temperature[1] / 1E3),
+            ("ne0 [10²⁰ m⁻³]", cp1d.electrons.density_thermal[1] / 1E20),
+            ("     max(zeff)", maximum(cp1d.zeff)),
+            ("   ω0 [krad/s]", cp1d.rotation_frequency_tor_sonic[1] / 1E3)
+        )
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        return (
+            ("    start time", t0),
+            ("      end time", t1),
+            ("          time", dd.global_time),
+            ("         stage", "$(name(actor)) ($phase/2)"),
+        )
+    end
 end
 
 """

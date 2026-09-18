@@ -185,6 +185,36 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.actor_replay))
     end
 
+    # sanitize primary profiles: a coupled/replayed exchange can leave
+    # numerically-negative-zero values (observed -2e-11) that blow up
+    # fractional powers in collision_frequencies; floor like IMAS's avgZ clamp
+    for (arr, floor_val, what) in (
+        (cp1d.electrons.temperature, 1.0, "Te"),
+        (cp1d.electrons.density_thermal, 1.0, "ne"),
+    )
+        n_bad = count(x -> !isfinite(x) || x < floor_val, arr)
+        if n_bad > 0
+            @warn "ActorFluxMatcher: flooring $n_bad unphysical $what values" maxlog = 10
+            @. arr = ifelse(isfinite(arr) & (arr >= floor_val), arr, floor_val)
+        end
+    end
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            n_bad = count(x -> !isfinite(x) || x < 1.0, ion.temperature)
+            if n_bad > 0
+                @warn "ActorFluxMatcher: flooring $n_bad unphysical Ti values ($(ion.label))" maxlog = 10
+                @. ion.temperature = ifelse(isfinite(ion.temperature) & (ion.temperature >= 1.0), ion.temperature, 1.0)
+            end
+        end
+        if !ismissing(ion, :density_thermal)
+            n_bad = count(x -> !isfinite(x) || x < 0.0, ion.density_thermal)
+            if n_bad > 0
+                @warn "ActorFluxMatcher: flooring $n_bad negative ni values ($(ion.label))" maxlog = 10
+                @. ion.density_thermal = ifelse(isfinite(ion.density_thermal) & (ion.density_thermal >= 0.0), ion.density_thermal, 0.0)
+            end
+        end
+    end
+
     # make intrinsic sources consistent to start
     modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
     IMAS.intrinsic_sources!(dd; modify_electron_density)
