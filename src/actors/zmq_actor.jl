@@ -375,7 +375,14 @@ function receive!(actor::ActorZMQ)
         n_beams = min(length(msg.pinj_per_beam), length(ps_nbi.unit))
         time0 = dd.global_time
         for k in 1:n_beams
-            IMAS.set_time_array(ps_nbi.unit[k].power, :reference, time0, msg.pinj_per_beam[k])
+            # sanitize: a terminated/post-disruption GSLite can send garbage
+            # (observed |values| ~1e7+); clamp to a physical per-beam range
+            pk = msg.pinj_per_beam[k]
+            if !isfinite(pk) || pk < 0.0 || pk > 5e6
+                @warn "ActorZMQ: clamping unphysical NBI power beam $k: $pk W" maxlog = 10
+                pk = clamp(isfinite(pk) ? pk : 0.0, 0.0, 5e6)
+            end
+            IMAS.set_time_array(ps_nbi.unit[k].power, :reference, time0, pk)
         end
         @info "ActorZMQ: updated NBI power for $n_beams beams"
     end
@@ -386,7 +393,12 @@ function receive!(actor::ActorZMQ)
         n_beams = min(length(msg.nbi_acc_voltage), length(ps_nbi.unit))
         time0 = dd.global_time
         for k in 1:n_beams
-            IMAS.set_time_array(ps_nbi.unit[k].energy, :reference, time0, msg.nbi_acc_voltage[k])
+            vk = msg.nbi_acc_voltage[k]
+            if !isfinite(vk) || vk < 0.0 || vk > 2e5
+                @warn "ActorZMQ: clamping unphysical NBI voltage beam $k: $vk eV" maxlog = 10
+                vk = clamp(isfinite(vk) ? vk : 0.0, 0.0, 2e5)
+            end
+            IMAS.set_time_array(ps_nbi.unit[k].energy, :reference, time0, vk)
         end
         @info "ActorZMQ: updated NBI voltage for $n_beams beams"
     end
@@ -497,6 +509,9 @@ function receive!(actor::ActorZMQ)
                 end
             end
         else
+            # snapshot for the first-step flux_surfaces recovery below: by the
+            # time it runs, the commit has already rewritten grid/psi in place
+            eqt_bkp = actor.had_psizr ? nothing : deepcopy(eqt)
             # Commit GSLite's psi on its grid. Stored 2-D fields derived from the old psi
             # (b_field_*, j_tor from FRESCO) are dropped so they are recomputed: they are
             # IMAS expressions and re-evaluate lazily from the new psi.
@@ -589,9 +604,22 @@ function receive!(actor::ActorZMQ)
             eqt.global_quantities.psi_boundary = Ψbnd
 
             # Run full flux_surfaces to get all 1D profiles (gm1, gm9, q, volume, etc.)
-            IMAS.flux_surfaces(eqt, fw_r, fw_z)
-            actor.had_psizr = true
-            @info "ActorZMQ: first step — full flux_surfaces from psizr ($(nR)×$(nZ))"
+            # Guarded: a marginal handoff map can make flux_surfaces derive a
+            # `nothing` boundary psi and throw mid-write (observed on the 33×33
+            # gslite_oop handoff map). Restore the pre-commit slice and leave
+            # had_psizr=false so the next exchange retries the first-step path.
+            try
+                IMAS.flux_surfaces(eqt, fw_r, fw_z)
+                actor.had_psizr = true
+                @info "ActorZMQ: first step — full flux_surfaces from psizr ($(nR)×$(nZ))"
+            catch e
+                isa(e, InterruptException) && rethrow(e)
+                @warn "ActorZMQ: first-step flux_surfaces failed — restoring previous equilibrium for this step" exception = e maxlog = 20
+                if eqt_bkp !== nothing
+                    empty!(eqt)
+                    IMAS.fill!(eqt, eqt_bkp)
+                end
+            end
         else
             # Subsequent steps: extract boundary only (Method 1), FRESCO handles the rest
             psi_levels = Float64[Ψaxis, Ψbnd]
