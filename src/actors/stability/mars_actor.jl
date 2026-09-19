@@ -1,8 +1,6 @@
 using Interpolations
 import CHEASE
 
-const μ_0 = 4pi * 1E-7
-
 
 Base.@kwdef mutable struct MARS_BASIC
     NCASE::Int = 1
@@ -391,7 +389,7 @@ function _finalize(actor::ActorMars)
     cp1d = dd.core_profiles.profiles_1d[]
     ρ_mass = IMAS.total_mass_density(cp1d)             # [kg/m^3] on the core_profiles grid
     s_cp = sqrt.(cp1d.grid.psi_norm)                   # MARS radial coordinate s = sqrt(ψ_norm)
-    τA0 = R0 * sqrt(μ_0 * ρ_mass[1]) / B0              # on-axis Alfvén time [s]
+    τA0 = R0 * sqrt(IMAS.mks.μ_0 * ρ_mass[1]) / B0              # on-axis Alfvén time [s]
 
     mhd = resize!(ml.time_slice; wipe=false)
     mode = resize!(mhd.toroidal_mode, "n_tor" => out.n_tor)
@@ -414,7 +412,7 @@ function _finalize(actor::ActorMars)
 
         # Alfvén time profile τ_A(s) on the MARS radial grid
         ρ_s = IMAS.interp1d(s_cp, ρ_mass).(ms.s)
-        pl.tau_alfven = R0 .* sqrt.(μ_0 .* ρ_s) ./ B0
+        pl.tau_alfven = R0 .* sqrt.(IMAS.mks.μ_0 .* ρ_s) ./ B0
 
         # Real-space flux-surface geometry R(s,χ), Z(s,χ) for plotting the mode in R,Z space.
         # The displacement harmonics ξₘ(s) live on (s, m); reconstruct ξ(s,χ)=Σₘ ξₘ(s)·e^{imχ}
@@ -1053,11 +1051,11 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
     elseif par.GS_rhs == :Jtor
         NSTTP = 2
         Jtor = abs.(eqt1d.j_tor)
-        GS_RHS = Jtor / (B0 / R0 * μ_0)
+        GS_RHS = Jtor / (B0 / R0 * IMAS.mks.μ_0)
     elseif par.GS_rhs == :Jpar
         NSTTP = 3
         Jpar = abs.(eqt1d.j_parallel) # NOT right!
-        GS_RHS = Jpar / (B0 / R0 * μ_0)
+        GS_RHS = Jpar / (B0 / R0 * IMAS.mks.μ_0)
     end
 
     if par.wall_resistivity_type == :Constant
@@ -1072,8 +1070,8 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
 
     # Make pressure terms dimensionless for CHEASE input
     # throw in a 2pi to scale P' correctly
-    pressure_sep_norm = pressure_sep / (B0^2 / μ_0)
-    pprime_final = 2 * pi * pprime * R0^2 * μ_0 / B0
+    pressure_sep_norm = pressure_sep / (B0^2 / IMAS.mks.μ_0)
+    pprime_final = 2 * pi * pprime * R0^2 * IMAS.mks.μ_0 / B0
 
     # Remove/smooth the X-point along the boundary
     ab = sqrt((maximum(r_bound) - minimum(r_bound))^2 + (maximum(z_bound) - minimum(z_bound))^2) / 2.0
@@ -1119,6 +1117,7 @@ function write_EXPEQ_file(dd::IMAS.DD, par)
             limiter = get_limiter_data(machine)
             r_lim, z_lim = limiter.r, limiter.z  
         end
+
 
 
         r_lim, z_lim = IMAS.resample_2d_path(r_lim, z_lim; n_points=n_points, method=:linear)
