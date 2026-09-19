@@ -103,6 +103,12 @@ function _step(actor::ActorEquilibrium)
     end
 
     if par.model !== :none
+        # Snapshot the incoming slice: prepare() clears it in place, and if the
+        # equilibrium solve then fails to converge (see _finalize) the snapshot
+        # is restored so downstream actors keep a self-consistent equilibrium.
+        if !isempty(dd.equilibrium.time_slice)
+            getfield(dd, :_aux)[:_eq_slice_backup] = deepcopy(dd.equilibrium.time_slice[])
+        end
         # initialize eqt for equilibrium actors
         prepare(actor)
     end
@@ -125,6 +131,19 @@ function _finalize(actor::ActorEquilibrium)
     # finalize selected equilibrium actor
     finalize(actor.eq_actor)
 
+    # If the solver reported non-convergence (e.g. ActorFRESCO.converged), the
+    # sub-actor skipped writing its solution; the slice is the empty shell
+    # prepare() left behind. Restore the pre-prepare snapshot (a complete,
+    # already-traced equilibrium) and skip the post-processing on it.
+    aux = getfield(dd, :_aux)  # ThreadSafeDict: no 3-arg pop!, use get+delete!
+    bkp = get(aux, :_eq_slice_backup, nothing)
+    bkp === nothing || delete!(aux, :_eq_slice_backup)
+    if hasfield(typeof(actor.eq_actor), :converged) && !actor.eq_actor.converged && bkp !== nothing
+        @warn "ActorEquilibrium: $(par.model) did not converge — restored previous equilibrium slice" maxlog = 20
+        IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+        return actor
+    end
+
     if par.model ∉ (:none, :replay)
         eqt = dd.equilibrium.time_slice[]
 
@@ -139,11 +158,27 @@ function _finalize(actor::ActorEquilibrium)
         try
             IMAS.flux_surfaces(eqt, fw.r, fw.z)
         catch e
+            # diagnostic plot only when plotting was requested AND the slice
+            # actually carries a rectangular psi map — an unguarded plot here
+            # crashed on `nothing.grid` and hangs headless GR
             eqt2d = findfirst(:rectangular, eqt.profiles_2d)
-            par.do_plot && display(current())
-            contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
-            plot!(fw.r, fw.z; color=:gray)
-            display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
+            if par.do_plot && eqt2d !== nothing
+                display(current())
+                contour(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; aspect_ratio=:equal)
+                plot!(fw.r, fw.z; color=:gray)
+                display(contour!(eqt2d.grid.dim1, eqt2d.grid.dim2, eqt2d.psi'; levels=[0], lw=3, color=:black, colorbar_entry=false))
+            end
+            isa(e, InterruptException) && rethrow(e)
+            # a converged solve can still write a psi map whose contour walk
+            # runs off the grid (observed: BoundsError [66,65]/[0,65] in
+            # contour_from_midplane! on GSLite-coupled shots); with the
+            # pre-prepare snapshot available, keep the previous equilibrium
+            # instead of killing the whole run
+            if bkp !== nothing
+                @warn "ActorEquilibrium: flux_surfaces failed after $(par.model) solve — restored previous equilibrium slice" exception = e maxlog = 20
+                IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+                return actor
+            end
             rethrow(e)
         end
 
@@ -153,6 +188,11 @@ function _finalize(actor::ActorEquilibrium)
         a_eq = eqt.profiles_1d.r_outboard .- eqt.profiles_1d.r_inboard
         bad = [k for k in eachindex(a_eq) if !isfinite(a_eq[k]) || (k > 1 && a_eq[k] <= 0.0)]
         if !isempty(bad)
+            if bkp !== nothing
+                @warn "ActorEquilibrium: traced flux surfaces are degenerate after $(par.model) solve — restored previous equilibrium slice" n_bad = length(bad) maxlog = 20
+                IMAS.fill!(dd.equilibrium.time_slice[], bkp)
+                return actor
+            end
             error("ActorEquilibrium (model=$(par.model)): traced flux surfaces are degenerate " *
                   "(r_outboard - r_inboard non-positive/non-finite at $(length(bad))/$(length(a_eq)) surfaces, first at indices $(first(bad, 5))); " *
                   "the equilibrium solve likely did not converge")

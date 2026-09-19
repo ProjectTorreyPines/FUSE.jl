@@ -42,8 +42,18 @@ message WireDataForFUSE {
                                             //   1:PCECOILA  2:PCE89DN   3:PCE567UP  4:PCECOILB
                                             //   5:PCE89UP   6:PCE567DN  7:PCF1A ... 15:PCF9A
                                             //  16:PCF1B ... 24:PCF9B
-    repeated double psizr = 8;              // flat flux matrix psi(R,Z), R-fast; units/sign per `cocos` (GSLite sends full [Wb], e_Bp=1)
-    repeated double r_grid = 9;             // R grid points [m]
+    repeated double psizr = 8;              // flat flux matrix psi(R,Z), **Z-FAST**: GSLite stores psizr(nz, nr) — Z index
+                                            // first, TokSys/GS convention — and flattens it column-major, so the wire
+                                            // vector runs iZ fastest and transposes into FUSE's [iR, iZ].
+                                            // DO NOT "fix" this on the GSLite side without bumping schema_version:
+                                            // GSLite's grid is square (33x33), so a reshape with the axes swapped
+                                            // succeeds silently and hands FUSE the transpose. That was a live bug —
+                                            // the transposed plasma landed outside the first wall among the F-coils
+                                            // and crashed FRESCO's magnetic-axis search.
+                                            // Units/sign per `cocos` (GSLite sends full [Wb], e_Bp=1).
+    repeated double r_grid = 9;             // R grid points [m]. Sending these with nR != nZ turns any future
+                                            // orientation mismatch into a hard error in FUSE instead of a silent
+                                            // transpose — strongly recommended.
     repeated double z_grid = 10;            // Z grid points [m]
     repeated double pinj_per_beam = 11;     // NBI injected power per beam [W]
     repeated double nbi_acc_voltage = 12;   // NBI acceleration voltage per beam [eV]
