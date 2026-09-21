@@ -450,21 +450,30 @@ Loads a combined HDF5 database for a single parent group path
     data = FUSE.load_study_database("database.h5", "/case01"; kw...)
 ```
 """
-function load_study_database(filename::AbstractString, parent_group::AbstractString, kw...)
+function load_study_database(filename::AbstractString, parent_group::AbstractString; kw...)
     return load_study_database(filename, [parent_group]; kw...)
 end
 
 """
-    load_study_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
+    load_study_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", ini_type=ParametersInits, act_type=ParametersActors, kw...)
 
 Loads a combined HDF5 database for the specified parent group paths.
+
+`ini_type` and `act_type` are the containers that the `ini` and `act` entries (`.h5` or `.json`) are read into.
 
 ### Example:
 ```julia
     data = FUSE.load_study_database("database.h5", ["/case01", "/case02"]; pattern=r"dd.h5")
 ```
 """
-function load_study_database(filename::AbstractString, parent_groups::Vector{<:AbstractString}; pattern::Regex=r"", kw...)
+function load_study_database(
+    filename::AbstractString,
+    parent_groups::Vector{<:AbstractString};
+    pattern::Regex=r"",
+    ini_type::Type{<:ParametersAllInits}=ParametersInits,
+    act_type::Type{<:ParametersAllActors}=ParametersActors,
+    kw...
+)
     @assert HDF5.ishdf5(filename) "\"$filename\" is not the HDF5 format"
 
     parent_groups = IMAS.norm_hdf5_path.(parent_groups)
@@ -490,13 +499,13 @@ function load_study_database(filename::AbstractString, parent_groups::Vector{<:A
             elseif key == "dd.json"
                 items[k].dd = IMAS.jstr2imas(H5_fid[h5path][])
             elseif key == "ini.h5"
-                items[k].ini = SimulationParameters.hdf2par(H5_fid[h5path], ParametersInits())
+                items[k].ini = SimulationParameters.hdf2par(H5_fid[h5path], ini_type())
             elseif key == "ini.json"
-                items[k].ini = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersInits())
+                items[k].ini = SimulationParameters.jstr2par(H5_fid[h5path][], ini_type())
             elseif key == "act.h5"
-                items[k].act = SimulationParameters.hdf2par(H5_fid[h5path], ParametersActors())
+                items[k].act = SimulationParameters.hdf2par(H5_fid[h5path], act_type())
             elseif key == "act.json"
-                items[k].act = SimulationParameters.jstr2par(H5_fid[h5path][], ParametersActors())
+                items[k].act = SimulationParameters.jstr2par(H5_fid[h5path][], act_type())
             elseif key == "log.txt"
                 items[k].log = H5_fid[h5path][]
             elseif key == "timer.txt"

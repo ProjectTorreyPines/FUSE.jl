@@ -168,6 +168,35 @@ using FUSE.DataFrames
         # mktempdir do ... end ensures temporary dir cleanup automatically
     end
 
+    @testset "ini/act container types" begin
+        mktempdir() do save_dir
+            h5file = joinpath(save_dir, "pars_db.h5")
+
+            ini = FUSE.ParametersInits()
+            ini.equilibrium.B0 = 5.3
+            act = FUSE.ParametersActors()
+            act.ActorCosting.model = :Sheffield
+            db_pars = FUSE.study_database(DataFrame(case=[1]), [FUSE.study_database_item(; name="case1", dd=deepcopy(dd1), ini, act)])
+            FUSE.save_study_database(h5file, db_pars; timer=false)
+
+            # default: FUSE's own containers
+            loaded = FUSE.load_study_database(h5file)
+            @test loaded.items[1].ini isa FUSE.ParametersInits
+            @test loaded.items[1].act isa FUSE.ParametersActors
+            @test loaded.items[1].ini.equilibrium.B0 == ini.equilibrium.B0
+            @test loaded.items[1].act.ActorCosting.model == act.ActorCosting.model
+
+            # `ini_type`/`act_type` pick what the entries are read into, and every
+            # entry point forwards them
+            typed = FUSE.load_study_database(h5file; ini_type=FUSE.ParametersInits, act_type=FUSE.ParametersActors)
+            @test typed.items[1].ini.equilibrium.B0 == ini.equilibrium.B0
+            single = FUSE.load_study_database(h5file, "/case1"; ini_type=FUSE.ParametersInits, act_type=FUSE.ParametersActors)
+            @test single.items[1].act.ActorCosting.model == act.ActorCosting.model
+            cond = FUSE.load_study_database(h5file, x -> x.case == 1; ini_type=FUSE.ParametersInits)
+            @test cond.items[1].ini.equilibrium.B0 == ini.equilibrium.B0
+        end
+    end
+
     @testset "Edge cases - empty names and :gparent handling" begin
         # Test items with nothing/empty names
         dd_test = FUSE.IMAS.json2imas(joinpath(@__DIR__, "..", "sample", "CAT_eq_ods.json"))
