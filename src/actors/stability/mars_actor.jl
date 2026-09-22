@@ -3,7 +3,7 @@ import CHEASE
 using MARS: MARSnamelist, MarsOverrides, MarsModeStructure, MarsOutputs,
     apply_overrides!, write_MARS_namelist, write_profile_IN,
     read_MARS_eigenfunction, fix_axis_regularity!, read_MARS_geometry, mars_flux_surface_RZ,
-    parse_MARS_results, check_MARS_convergence, julia_grep
+    parse_MARS_results, check_MARS_convergence, check_MARS_finished, julia_grep
 
 const μ_0 = 4pi * 1E-7
 
@@ -388,8 +388,12 @@ the on-axis Alfvén time `τA0`.
 """
 function store_mode_scalars!(mode, out::MarsOutputs, τA0::Real)
     mode.n_tor = out.n_tor
-    mode.growthrate = out.growthrate / τA0             # [1/s]
-    mode.frequency = out.frequency / τA0 / (2π)        # [Hz] (MARS gives angular frequency ω·τ_A)
+    # A linear response run has no eigenvalue (empty RESULT.OUT -> NaN in run_MARS): leave
+    # growthrate/frequency unset rather than writing NaN into dd.
+    if isfinite(out.growthrate) && isfinite(out.frequency)
+        mode.growthrate = out.growthrate / τA0         # [1/s]
+        mode.frequency = out.frequency / τA0 / (2π)    # [Hz] (MARS gives angular frequency ω·τ_A)
+    end
     mode.perturbation_type.name = "MHD"
     mode.perturbation_type.description = "MARS-F/Q linear MHD eigenmode"
     return nothing
@@ -890,11 +894,23 @@ function run_MARS(dd::IMAS.DD, par, mars_namelist)
 
     ok || error("MARS failed — see log_mars")
 
-    # Display growth rate and iteration count
-    iter, growth, freq = parse_MARS_results("RESULT.OUT")
-    @info "MARS iterations = $iter"
-    @info "Growth rate = $growth"
-    @info "Frequency = $freq"
+    # MARS signals failure through its STOP line, not the exit status, and leaves the previous
+    # run's *.OUT in place when it aborts — check before reading anything back.
+    check_MARS_finished("log_mars")
+
+    # Display growth rate and iteration count. A linear response run (NCASE=2, e.g. the
+    # INCFEED=4/8 coil runs) has no eigenvalue and writes an EMPTY RESULT.OUT; that is normal,
+    # so record the run without eigenvalue scalars rather than failing.
+    if filesize("RESULT.OUT") == 0
+        @info "RESULT.OUT is empty (no eigenvalue — expected for a NCASE=$(mars_namelist.BASIC.NCASE) " *
+              "response run); dd.mhd_linear will get the mode structure but no growth rate/frequency."
+        iter, growth, freq = -1, NaN, NaN
+    else
+        iter, growth, freq = parse_MARS_results("RESULT.OUT")
+        @info "MARS iterations = $iter"
+        @info "Growth rate = $growth"
+        @info "Frequency = $freq"
+    end
     check_MARS_convergence("log_mars")
 
     # Collect results for storage into dd.mhd_linear (see _finalize).
