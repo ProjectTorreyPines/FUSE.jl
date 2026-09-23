@@ -243,6 +243,31 @@ end
 finalize(actor)
 ```
 """
+# Coupled-robustness fault boundary: run one physics substep; if it throws,
+# restore the core_profiles + equilibrium time slices and continue (the
+# plasma holds for this substep, the next exchange retries). The PCS side is
+# non-reproducible run-to-run, so FUSE must survive every trajectory —
+# site-specific guards cannot enumerate all cold/low-power failure modes
+# (observed: critical_energy DomainError, TGLFNN P_PRIME_LOC, solver ldiv!
+# MethodError, interp1d "x must be sorted", manion_scale assertion).
+function guarded_substep(actor::ActorDynamicPlasma, v::Val, δt::Float64; progr=nothing, kw...)
+    dd = actor.dd
+    cp1d_bkp = deepcopy(dd.core_profiles.profiles_1d[])
+    eqt_bkp = deepcopy(dd.equilibrium.time_slice[])
+    try
+        substep(actor, v, δt; progr, kw...)
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        name = first(typeof(v).parameters)
+        @warn "ActorDynamicPlasma: substep $(name) failed ($(sprint(showerror, e))) — restoring profiles/equilibrium and continuing" maxlog = 20
+        empty!(dd.core_profiles.profiles_1d[])
+        IMAS.fill!(dd.core_profiles.profiles_1d[], cp1d_bkp)
+        empty!(dd.equilibrium.time_slice[])
+        IMAS.fill!(dd.equilibrium.time_slice[], eqt_bkp)
+    end
+    return actor
+end
+
 function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=nothing)
     dd = actor.dd
     par = actor.par
@@ -269,24 +294,24 @@ function dynamic_step!(actor::ActorDynamicPlasma, kk::Int, t0::Float64; progr=no
         receive!(actor.actor_zmq)
     end
 
-    substep(actor, Val(:run_sources), δt / 2; progr)
+    guarded_substep(actor, Val(:run_sources), δt / 2; progr)
 
     # apply sawteeth to sources after sources have been recomputed
-    substep(actor, Val(:run_sawteeth), δt / 2; progr)
+    guarded_substep(actor, Val(:run_sawteeth), δt / 2; progr)
 
     if phase == 1
-        substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
+        guarded_substep(actor, Val(:evolve_j_ohmic), kk == 1 ? δt / 2 : δt; progr)
     else
-        substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
-        substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
+        guarded_substep(actor, Val(:run_pedestal), kk == 1 ? δt / 2 : δt; progr)
+        guarded_substep(actor, Val(:run_transport), kk == 1 ? δt / 2 : δt; progr)
     end
 
     # sync core_profiles/core_sources/core_transport grids to the equilibrium used in core_profiles,
     # so that new_timeslice! in the next step copies consistent (not stale) grid values
     latest_equilibrium_grids!(actor.dd)
 
-    substep(actor, Val(:run_equilibrium), δt / 2; progr)
-    substep(actor, Val(:run_pf_active), δt / 2; progr)
+    guarded_substep(actor, Val(:run_equilibrium), δt / 2; progr)
+    guarded_substep(actor, Val(:run_pf_active), δt / 2; progr)
 
     # ZMQ: send results to GSLite at Phase 2 end
     if phase == 2

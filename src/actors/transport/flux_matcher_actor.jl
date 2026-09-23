@@ -217,7 +217,38 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
 
     # make intrinsic sources consistent to start
     modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
-    IMAS.intrinsic_sources!(dd; modify_electron_density)
+    try
+        IMAS.intrinsic_sources!(dd; modify_electron_density)
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        # cold/low-power coupled regimes: thermalization_time blows up and the
+        # fast-ion bookkeeping can transiently produce density-scale negatives
+        # inside fast_particles_profiles! (critical_energy x^y DomainError).
+        # Sanitize the fast-ion fields and retry; if it still fails, continue
+        # with the previous step's sources rather than killing the run.
+        @warn "ActorFluxMatcher: intrinsic_sources! failed ($(sprint(showerror, e))); sanitizing fast-ion fields and retrying" maxlog = 10
+        for ion in cp1d.ion
+            for field in (:density_fast, :pressure_fast_parallel, :pressure_fast_perpendicular)
+                if !ismissing(ion, field)
+                    arr = getproperty(ion, field)
+                    @. arr = ifelse(isfinite(arr) & (arr >= 0.0), arr, 0.0)
+                end
+            end
+            if !ismissing(ion, :density_fast) && !ismissing(ion, :density_thermal)
+                @. ion.density_fast = min(ion.density_fast, 0.8 * ion.density_thermal)
+            end
+        end
+        if !ismissing(cp1d.electrons, :density_fast)
+            arr = cp1d.electrons.density_fast
+            @. arr = ifelse(isfinite(arr) & (arr >= 0.0), arr, 0.0)
+        end
+        try
+            IMAS.intrinsic_sources!(dd; modify_electron_density)
+        catch e2
+            isa(e2, InterruptException) && rethrow(e2)
+            @warn "ActorFluxMatcher: intrinsic_sources! retry failed ($(sprint(showerror, e2))); continuing with stale sources" maxlog = 10
+        end
+    end
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -441,14 +472,42 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         actor_logging(dd, old_logging)
     end
 
-    # detect cases where all optimization calls failed
+    # detect cases where all optimization calls failed (e.g. the transport
+    # model throws for ANY z when a broken equilibrium poisons its inputs —
+    # observed: TGLFNN "P_PRIME_LOC is Missing" after FRESCO non-convergence).
+    # Restore entry profiles and soft-fail instead of killing the coupled run.
     if algorithm != :none && isempty(err_history)
-        flux_match_errors(actor, opt_parameters, initial_cp1d)
-        error("FluxMatcher failed")
+        @warn "ActorFluxMatcher: all optimization calls failed — restoring entry profiles for this step" maxlog = 10
+        cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
+        actor.error = Inf
+        actor.err_history = err_history
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
+        try
+            ProgressMeter.finish!(prog)
+        catch
+        end
+        return actor
     end
 
-    # evaluate profiles at the best-matching gradients
-    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    # evaluate profiles at the best-matching gradients; same soft-fail if the
+    # final evaluation throws (it re-runs the full transport pipeline)
+    out = try
+        flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        @warn "ActorFluxMatcher: final flux_match_errors failed ($(sprint(showerror, e))) — restoring entry profiles for this step" maxlog = 10
+        cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
+        actor.error = Inf
+        actor.err_history = err_history
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
+        try
+            ProgressMeter.finish!(prog)
+        catch
+        end
+        return actor
+    end
 
     # statistics
     actor.error = norm(out.errors)
