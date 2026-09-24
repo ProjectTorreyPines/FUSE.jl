@@ -110,6 +110,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     norms::Vector{D}
     error::D
     err_history::Vector{Vector{D}}
+    soft_failures::Dict{Symbol,Int}   # counts of the soft-fail paths below, so a completed run cannot hide them
 end
 
 """
@@ -163,7 +164,7 @@ function ActorFluxMatcher(dd::IMAS.DD{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}())
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}(), Dict{Symbol,Int}())
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -226,6 +227,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         # inside fast_particles_profiles! (critical_energy x^y DomainError).
         # Sanitize the fast-ion fields and retry; if it still fails, continue
         # with the previous step's sources rather than killing the run.
+        actor.soft_failures[:intrinsic_sources_retry] = get(actor.soft_failures, :intrinsic_sources_retry, 0) + 1
         @warn "ActorFluxMatcher: intrinsic_sources! failed ($(sprint(showerror, e))); sanitizing fast-ion fields and retrying" maxlog = 10
         for ion in cp1d.ion
             for field in (:density_fast, :pressure_fast_parallel, :pressure_fast_perpendicular)
@@ -246,6 +248,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
             IMAS.intrinsic_sources!(dd; modify_electron_density)
         catch e2
             isa(e2, InterruptException) && rethrow(e2)
+            actor.soft_failures[:stale_sources] = get(actor.soft_failures, :stale_sources, 0) + 1
             @warn "ActorFluxMatcher: intrinsic_sources! retry failed ($(sprint(showerror, e2))); continuing with stale sources" maxlog = 10
         end
     end
@@ -477,6 +480,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     # observed: TGLFNN "P_PRIME_LOC is Missing" after FRESCO non-convergence).
     # Restore entry profiles and soft-fail instead of killing the coupled run.
     if algorithm != :none && isempty(err_history)
+        actor.soft_failures[:all_optimizations_failed] = get(actor.soft_failures, :all_optimizations_failed, 0) + 1
         @warn "ActorFluxMatcher: all optimization calls failed — restoring entry profiles for this step" maxlog = 10
         cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
         actor.error = Inf
@@ -496,6 +500,7 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
     catch e
         isa(e, InterruptException) && rethrow(e)
+        actor.soft_failures[:final_evaluation_failed] = get(actor.soft_failures, :final_evaluation_failed, 0) + 1
         @warn "ActorFluxMatcher: final flux_match_errors failed ($(sprint(showerror, e))) — restoring entry profiles for this step" maxlog = 10
         cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
         actor.error = Inf
