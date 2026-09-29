@@ -178,6 +178,9 @@ WireDataForFUSE fields (matching C++ struct):
                                        Units/sign per `cocos`
 - `pinj_per_beam`:   double[NNBI]     — NBI injected power per beam [W] → pulse_schedule.nbi
 - `nbi_acc_voltage`: double[NNBI]     — NBI acceleration voltage per beam [eV] → pulse_schedule.nbi
+- `tinj_per_beam`:   double[NNBI]     — NBI injected torque per beam [N m] → dd._aux[:zmq_tinj_per_beam]
+                                       (pulse_schedule has no torque node; ActorSimpleNB rescales its
+                                       pencil-beam momentum source to match when this is present)
 - `gas_cal`:         double[NGAS]     — Gas calibration values → dd._aux (for NN ne predictor)
 - `cocos`:           int32            — COCOS ID of the sender's convention; 0 = undeclared/legacy.
                                        psizr/Ip_latest/Bt are transformed to FUSE's COCOS 11; dd._aux mirrors stay raw.
@@ -401,6 +404,30 @@ function receive!(actor::ActorZMQ)
             IMAS.set_time_array(ps_nbi.unit[k].energy, :reference, time0, vk)
         end
         @info "ActorZMQ: updated NBI voltage for $n_beams beams"
+    end
+
+    # --- Store NBI injected torque per beam [N m] ---
+    # IMAS pulse_schedule.nbi has no torque node, so the measured/commanded
+    # torque rides dd._aux (same pattern as gas_cal / I_coil). ActorSimpleNB
+    # rescales its pencil-beam momentum deposition to match these totals.
+    # An empty wire field means the GSLite build predates torque support;
+    # FUSE then keeps its internal beam-model torque unscaled.
+    if !isempty(msg.tinj_per_beam)
+        tinj = collect(Float64, msg.tinj_per_beam)
+        for k in eachindex(tinj)
+            tk = tinj[k]
+            # counter-injection beams are legitimately negative; clamp magnitude only
+            if !isfinite(tk) || abs(tk) > 10.0
+                @warn "ActorZMQ: clamping unphysical NBI torque beam $k: $tk N m" maxlog = 10
+                tinj[k] = clamp(isfinite(tk) ? tk : 0.0, -10.0, 10.0)
+            end
+        end
+        if :zmq_tinj_per_beam ∉ keys(aux)
+            aux[:zmq_tinj_per_beam] = (times=Float64[], values=Vector{Float64}[])
+        end
+        push!(aux[:zmq_tinj_per_beam].times, dd.global_time)
+        push!(aux[:zmq_tinj_per_beam].values, tinj)
+        @info "ActorZMQ: stored NBI torque for $(length(tinj)) beams (total $(round(sum(tinj); digits=3)) N m)"
     end
 
     # --- Store gas calibration values for NN ne predictor ---
