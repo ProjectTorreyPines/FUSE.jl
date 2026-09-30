@@ -240,21 +240,6 @@ function _step(actor::ActorSimpleNB)
         electrons_energy = sum(sum(qbeame; dims=1); dims=2)[1, 1, :]
         total_ion_energy = sum(sum(qbeami; dims=1); dims=2)[1, 1, :]
         momentum_tor = sum(sum(mombeam; dims=1); dims=2)[1, 1, :]
-
-        # Coupled-run torque calibration: when GSLite streams measured injected
-        # torque per beam (dd._aux[:zmq_tinj_per_beam], see ActorZMQ), rescale
-        # this beam's pencil-beam momentum deposition so its volume integral
-        # matches the measurement. Profile shape stays model-driven; only the
-        # total is pinned. No-op outside coupled runs (aux key absent) and for
-        # beams the model has off (near-zero integral: nothing to rescale).
-        aux_tinj = get(getfield(dd, :_aux), :zmq_tinj_per_beam, nothing)
-        if aux_tinj !== nothing && !isempty(aux_tinj.values) && ibeam <= length(aux_tinj.values[end])
-            tinj_meas = aux_tinj.values[end][ibeam]
-            tinj_model = IMAS.trapz(volume_cp, momentum_tor)
-            if isfinite(tinj_meas) && abs(tinj_model) > 1e-6
-                momentum_tor .*= tinj_meas / tinj_model
-            end
-        end
         curbeam_tot = sum(sum(curbeam; dims=1); dims=2)[1, 1, :]
         electrons_particles = sum(sum(sbeam; dims=1); dims=2)[1, 1, :]
 

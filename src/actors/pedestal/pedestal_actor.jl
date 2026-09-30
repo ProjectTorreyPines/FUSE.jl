@@ -448,7 +448,7 @@ standard IMAS fields (no ZMQ required).
 | channel | units | `:zmq` | `:dd` |
 |---|---|---|---|
 | `pinj` | MW | `dd._aux[:zmq_Pnbi]` (W) / 1e6 | Σ `dd.pulse_schedule.nbi.unit[].power.reference` (W) / 1e6 |
-| `tinj` | N·m | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities[time].torque_tor` | same |
+| `tinj` | N·m | Σ `dd._aux[:zmq_tinj_per_beam]` (measured, from GSLite wire; fallback: model `torque_tor` below) | Σ `dd.core_sources` NBI (`identifier.index == 2`) `global_quantities[time].torque_tor` |
 | `ech_total` | MW † | `dd._aux[:zmq_Pech]` (W) / 1e6 | Σ `dd.ec_launchers.beam[].power_launched` (W) / 1e6 |
 | `f1a..f9b` | A | `dd._aux[:zmq_I_coil][7..24]` (PCF1A..PCF9B) | `replay_dd.pf_active.coil` (else `dd`) named `F1A..F9B`, `current` as stored |
 | `ecoila`, `ecoilb` | A | `dd._aux[:zmq_I_coil][1]`, `[4]` (PCECOILA, PCECOILB) | `replay_dd.pf_active.coil` (else `dd`) named `ECOILA`, `ECOILB` |
@@ -622,7 +622,21 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
         error("build_fuse29_actuators: source must be :zmq or :dd, got $(repr(source))")
     end
 
-    # tinj — NBI torque from core_sources for both paths (NBI identifier index = 2)
+    # tinj — in :zmq mode prefer the measured injected torque streamed by
+    # GSLite (dd._aux[:zmq_tinj_per_beam], summed over beams); otherwise fall
+    # back to the model torque from core_sources (NBI identifier index = 2).
+    # The beam actor itself is never rescaled: its energy/particles/current/
+    # momentum outputs stay mutually consistent, and only this NN input is
+    # pinned to the measurement.
+    tinj_set = false
+    if source == :zmq
+        let v = _aux_value_at(:zmq_tinj_per_beam)
+            if v !== nothing
+                _set!("tinj", sum(v))
+                tinj_set = true
+            end
+        end
+    end
     tinj = 0.0
     found_tinj = false
     for src in dd.core_sources.source
@@ -638,7 +652,7 @@ function build_fuse29_actuators(nn::Fuse29NN, dd::IMAS.DD; source::Symbol=:zmq, 
             end
         end
     end
-    found_tinj && _set!("tinj", tinj)
+    !tinj_set && found_tinj && _set!("tinj", tinj)
 
     # bt — signed vacuum toroidal field at `time` for both paths
     # (b0's time coordinate is dd.equilibrium.time, resolved by get_time_array)

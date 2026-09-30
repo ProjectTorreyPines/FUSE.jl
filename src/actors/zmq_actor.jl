@@ -179,8 +179,9 @@ WireDataForFUSE fields (matching C++ struct):
 - `pinj_per_beam`:   double[NNBI]     — NBI injected power per beam [W] → pulse_schedule.nbi
 - `nbi_acc_voltage`: double[NNBI]     — NBI acceleration voltage per beam [eV] → pulse_schedule.nbi
 - `tinj_per_beam`:   double[NNBI]     — NBI injected torque per beam [N m] → dd._aux[:zmq_tinj_per_beam]
-                                       (pulse_schedule has no torque node; ActorSimpleNB rescales its
-                                       pencil-beam momentum source to match when this is present)
+                                       (pulse_schedule has no torque node; consumed as the fuse29
+                                       pedestal-NN `tinj` input via build_fuse29_actuators — the beam
+                                       actor is NOT rescaled, keeping its outputs self-consistent)
 - `gas_cal`:         double[NGAS]     — Gas calibration values → dd._aux (for NN ne predictor)
 - `cocos`:           int32            — COCOS ID of the sender's convention; 0 = undeclared/legacy.
                                        psizr/Ip_latest/Bt are transformed to FUSE's COCOS 11; dd._aux mirrors stay raw.
@@ -408,8 +409,9 @@ function receive!(actor::ActorZMQ)
 
     # --- Store NBI injected torque per beam [N m] ---
     # IMAS pulse_schedule.nbi has no torque node, so the measured/commanded
-    # torque rides dd._aux (same pattern as gas_cal / I_coil). ActorSimpleNB
-    # rescales its pencil-beam momentum deposition to match these totals.
+    # torque rides dd._aux (same pattern as gas_cal / I_coil). Consumed by
+    # build_fuse29_actuators as the pedestal-NN tinj input (measured beats
+    # model there); the beam actor itself is left untouched.
     # An empty wire field means the GSLite build predates torque support;
     # FUSE then keeps its internal beam-model torque unscaled.
     if !isempty(msg.tinj_per_beam)
