@@ -197,16 +197,21 @@ function _step(actor::ActorFitProfiles{D,P}) where {D<:Real,P<:Real}
     #     cp1d.zeff = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
     # end
 
-    # fit ni
-    itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=abs)
+    # fit ni in log space to guarantee positivity (mirrors the ne and Ti fits above).
+    # With a linear-space fit1d the smoothing spline can undershoot below zero wherever
+    # CER coverage is thin -- on shot 208869 it returned a negative carbon density over
+    # rho < 0.22, which the quasi-neutrality clip below cannot repair (it only clips from
+    # above, to keep n_D >= 0) and which then throws in sivukhin_fraction during ActorSimpleNB.
+    itp_nimp = IMAS.fit2d(Val(:n_i_over_n_e), dd; transform=x -> log(max(abs(x), 1e-6)))
     for (k, time0) in enumerate(time_basis)
         cp1d = dd.core_profiles.profiles_1d[k]
         bulk_ion = cp1d.ion[1]
         imp_ion = cp1d.ion[2]
 
+        # log(n_i/n_e) + log(n_e) = log(n_i): stay in log space all the way through fit1d
         data = itp_nimp(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
-        data .*= exp.(itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method))
-        n_i = IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit
+        data .+= itp_ne(rho_tor_norm12, range(time0, time0, length(rho_tor_norm12)); method)
+        n_i = exp.(IMAS.fit1d(rho_tor_norm12, data, rho_tor_norm; smooth1, smooth2).fit)
 
         bulk_ion.density_thermal = zero(rho_tor_norm)
         imp_ion.density_thermal = n_i
