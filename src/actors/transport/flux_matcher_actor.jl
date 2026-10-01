@@ -236,8 +236,12 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
     if jacobian_method === :forward_ad
         turb_ok = actor.actor_ct.actor_turb isa ActorTGLF && actor.actor_ct.actor_turb.par.model in (:TJLF, :TGLFNN, :GKNN, :QLNN)
         scale_ok = ismissing(par, :scale_turbulence_law)
-        if !turb_ok || !scale_ok
-            @warn "jacobian_method=:forward_ad not supported (turb=$(actor.actor_ct.actor_turb isa ActorTGLF ? actor.actor_ct.actor_turb.par.model : typeof(actor.actor_ct.actor_turb)), scale_turbulence_law=$(ismissing(par, :scale_turbulence_law) ? "unset" : par.scale_turbulence_law)); falling back to :finite_diff"
+        actor_neoc = actor.actor_ct.actor_neoc
+        neoc_ok = !(actor_neoc isa ActorNeoclassical) || actor_neoc.par.model in (:hirshmansigmar, :changhinton) ||
+                  (actor_neoc.par.model == :neo && actor_neoc.par.neo_backend == :julia)
+        if !turb_ok || !scale_ok || !neoc_ok
+            neoc_desc = actor_neoc isa ActorNeoclassical ? (actor_neoc.par.model == :neo ? "neo/$(actor_neoc.par.neo_backend)" : string(actor_neoc.par.model)) : string(typeof(actor_neoc))
+            @warn "jacobian_method=:forward_ad not supported (turb=$(actor.actor_ct.actor_turb isa ActorTGLF ? actor.actor_ct.actor_turb.par.model : typeof(actor.actor_ct.actor_turb)), neoc=$neoc_desc, scale_turbulence_law=$(ismissing(par, :scale_turbulence_law) ? "unset" : par.scale_turbulence_law)); falling back to :finite_diff"
             jacobian_method = :finite_diff
         end
     end
@@ -1578,8 +1582,9 @@ AD-compatible flux matching residual evaluation using the full pipeline through 
 
 Creates a lightweight `dd{Dual}` with only the data needed for flux matching,
 then runs the same pipeline as `flux_match_errors`: profile reconstruction,
-intrinsic sources, turbulent transport (TJLF), neoclassical transport (Hirshman-Sigmar),
-flux aggregation, and error computation — all with ForwardDiff.Dual types.
+intrinsic sources, turbulent transport (TJLF), neoclassical transport (Hirshman-Sigmar,
+Chang-Hinton, or the native NEO solve with `neo_backend=:julia`), flux aggregation, and
+error computation — all with ForwardDiff.Dual types.
 
 This captures derivatives through: profile gradients (RLTS/RLNS), gyrobohm normalization
 factors (ne, Te), intrinsic sources (radiation, collisional exchange, fusion, ohmic),
@@ -1693,6 +1698,15 @@ function ad_flux_match_errors!(
             neoc_flux_solutions = map(ir -> NeoclassicalTransport.hirshmansigmar(ir, eqt_ad, cp1d_ad, plasma_profiles, eq_geom; rho_s, rmin), cp_gridpoints)
         elseif neoc_par.model == :changhinton
             neoc_flux_solutions = [NeoclassicalTransport.changhinton(eqt_ad, cp1d_ad, rho, 1) for rho in par.rho_transport]
+        elseif neoc_par.model == :neo && neoc_par.neo_backend == :julia
+            # Native NEO on Dual inputs: the drift-kinetic solve applies the implicit-function
+            # rule on the Float64 factorization, which the primal step at this point just
+            # built (actor_neoc.neo_caches), so each AD pass costs triangular solves only
+            input_neos_ad = neo_inputs(eqt_ad, cp1d_ad, cp_gridpoints, neoc_par)
+            caches = length(actor_neoc.neo_caches) == length(input_neos_ad) ? actor_neoc.neo_caches : nothing
+            neoc_flux_solutions = GACODE.FluxSolution.(NeoclassicalTransport.run_neo_native(input_neos_ad; caches))
+        elseif neoc_par.model == :neo
+            error("jacobian_method=:forward_ad does not support neoclassical model :neo with neo_backend=:fortran (use neo_backend=:julia)")
         else
             error("jacobian_method=:forward_ad does not support neoclassical model :$(neoc_par.model)")
         end
@@ -1705,6 +1719,9 @@ function ad_flux_match_errors!(
         neoc_m1d.grid_flux.rho_tor_norm = T.(par.rho_transport)
         if neoc_par.model == :changhinton
             GACODE.flux_gacode_to_imas((:ion_energy_flux,), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
+        elseif neoc_par.model == :neo
+            # same channels as ActorNeoclassical._finalize writes for :neo
+            GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
         else
             GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux), neoc_flux_solutions, neoc_m1d, eqt_ad, cp1d_ad)
         end

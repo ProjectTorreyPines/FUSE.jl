@@ -22,6 +22,7 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     flux_solutions::Vector{GACODE.FluxSolution{D}}
     equilibrium_geometry::Union{NeoclassicalTransport.EquilibriumGeometry,Missing}
     neo_solutions::Vector{NeoclassicalTransport.NEOSolution{D}}
+    neo_caches::Vector{NeoclassicalTransport.NEOFactorCache}
 end
 
 """
@@ -55,7 +56,23 @@ end
 function ActorNeoclassical(dd::IMAS.DD{D}, par::FUSEparameters__ActorNeoclassical{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorNeoclassical)
     par = OverrideParameters(par; kw...)
-    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing, NeoclassicalTransport.NEOSolution{D}[])
+    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing, NeoclassicalTransport.NEOSolution{D}[],
+        NeoclassicalTransport.NEOFactorCache[])
+end
+
+"""
+    neo_inputs(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, gridpoint_cps::AbstractVector{Int}, par)
+
+The `InputNEO`s of `model=:neo` at the given `cp1d` grid points, with the actor's
+`collision_model` applied. Generic in the `dd` number type, so the forward-AD
+flux-matcher path can build Dual-valued inputs with it.
+"""
+function neo_inputs(eqt::IMAS.equilibrium__time_slice, cp1d::IMAS.core_profiles__profiles_1d, gridpoint_cps::AbstractVector{Int}, par)
+    input_neos = [NeoclassicalTransport.InputNEO(eqt, cp1d, i) for i in gridpoint_cps]
+    for input_neo in input_neos
+        input_neo.COLLISION_MODEL = par.collision_model
+    end
+    return input_neos
 end
 
 """
@@ -82,12 +99,16 @@ function _step(actor::ActorNeoclassical)
 
     elseif par.model == :neo
         gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
-        actor.input_neos = [NeoclassicalTransport.InputNEO(eqt, cp1d, i) for i in gridpoint_cps]
-        for input_neo in actor.input_neos
-            input_neo.COLLISION_MODEL = par.collision_model
-        end
+        actor.input_neos = neo_inputs(eqt, cp1d, gridpoint_cps, par)
         if par.neo_backend == :julia
-            actor.neo_solutions = NeoclassicalTransport.run_neo_native(actor.input_neos)
+            # one factorization cache per grid point, kept across calls: flux-matcher
+            # evaluations at nearby profiles reuse the previous factorization as a GMRES
+            # preconditioner (refine=true), forward-AD passes at the same point reuse it
+            # outright, and a new point on the same grid reuses the symbolic analysis
+            if length(actor.neo_caches) != length(actor.input_neos)
+                actor.neo_caches = [NeoclassicalTransport.NEOFactorCache(; refine=true) for _ in actor.input_neos]
+            end
+            actor.neo_solutions = NeoclassicalTransport.run_neo_native(actor.input_neos; caches=actor.neo_caches)
             actor.flux_solutions = GACODE.FluxSolution.(actor.neo_solutions)
         else
             actor.flux_solutions = asyncmap(input_neo -> NeoclassicalTransport.run_neo(input_neo), actor.input_neos)

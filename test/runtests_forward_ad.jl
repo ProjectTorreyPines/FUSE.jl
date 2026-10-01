@@ -53,6 +53,35 @@ using Test
         @test isapprox(Te_ad, Te_fd; rtol=0.05)
     end
 
+    @testset "native NEO (model=:neo, neo_backend=:julia) forward_ad" begin
+        # the native drift-kinetic solve differentiates through its sparse solve with
+        # an implicit-function rule; the Fortran backend is not AD-capable
+        dd_neo = deepcopy(dd)
+        act_neo = deepcopy(act)
+        act_neo.ActorTGLF.model = :TGLFNN   # isolates the neoclassical AD path from TJLF's
+        act_neo.ActorTGLF.tglfnn_model = "sat1_em_iter"
+        act_neo.ActorNeoclassical.model = :neo
+        act_neo.ActorNeoclassical.neo_backend = :julia
+        act_neo.ActorFluxMatcher.algorithm = :simple_trust
+        act_neo.ActorFluxMatcher.jacobian_method = :forward_ad
+        act_neo.ActorFluxMatcher.max_iterations = 1
+
+        dd_fd = deepcopy(dd)
+        act_fd = deepcopy(act_neo)
+        act_fd.ActorFluxMatcher.jacobian_method = :finite_diff
+
+        actor_neo = FUSE.ActorFluxMatcher(dd_neo, act_neo)
+        FUSE.ActorFluxMatcher(dd_fd, act_fd)
+
+        @test dd_neo.core_transport.model[:neoclassical].identifier.name == "NEO (Julia)"
+        # the AD passes reuse the primal factorizations held by the neoclassical actor
+        @test length(actor_neo.actor_ct.actor_neoc.neo_caches) == length(act_neo.ActorNeoclassical.rho_transport)
+        @test all(c.F !== nothing for c in actor_neo.actor_ct.actor_neoc.neo_caches)
+        Te_ad = dd_neo.core_profiles.profiles_1d[].electrons.temperature
+        Te_fd = dd_fd.core_profiles.profiles_1d[].electrons.temperature
+        @test isapprox(Te_ad, Te_fd; rtol=0.05)
+    end
+
     @testset "TGLFNN forward_ad" begin
         dd_nn = deepcopy(dd)
         act_nn = deepcopy(act)
