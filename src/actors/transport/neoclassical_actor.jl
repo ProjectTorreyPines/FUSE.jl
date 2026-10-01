@@ -6,6 +6,12 @@ import GACODE
 #= ================= =#
 @actor_parameters_struct ActorNeoclassical{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar], "-", "Neoclassical model to run"; default=:hirshmansigmar)
+    neo_backend::Switch{Symbol} = Switch{Symbol}([:fortran, :julia], "-",
+        "NEO backend for model=:neo: the external Fortran NEO binary (run_neo), or the native Julia port (run_neo_native, in process and threaded over the grid points)";
+        default=:fortran)
+    collision_model::Entry{Int} = Entry{Int}("-",
+        "NEO collision model: 1 Connor, 2 reduced Hirshman-Sigmar, 3 full Hirshman-Sigmar, 4 full linearized Fokker-Planck, 5 Fokker-Planck with ad-hoc field-particle terms";
+        default=4)
     rho_transport::Entry{AbstractVector{T}} = Entry{AbstractVector{T}}("-", "rho_tor_norm values to compute neoclassical fluxes on"; default=0.25:0.1:0.85)
 end
 
@@ -15,6 +21,7 @@ mutable struct ActorNeoclassical{D,P} <: SingleAbstractActor{D,P}
     input_neos::Vector{<:NeoclassicalTransport.InputNEO}
     flux_solutions::Vector{GACODE.FluxSolution{D}}
     equilibrium_geometry::Union{NeoclassicalTransport.EquilibriumGeometry,Missing}
+    neo_solutions::Vector{NeoclassicalTransport.NEOSolution{D}}
 end
 
 """
@@ -25,7 +32,12 @@ Evaluates neoclassical (collisional) transport fluxes using established theoreti
 Supported neoclassical models:
 - `:changhinton`: Chang-Hinton model for ion heat transport in the banana/plateau regime
 - `:neo`: Full drift-kinetic NEO code for comprehensive neoclassical transport including 
-  bootstrap current, providing electron/ion energy, particle, and momentum fluxes
+  bootstrap current, providing electron/ion energy, particle, and momentum fluxes.
+  `neo_backend=:fortran` shells out to the GACODE NEO binary; `neo_backend=:julia` runs
+  NeoclassicalTransport's native port in process (threaded over the grid points) and
+  keeps the full per-species `NEOSolution`s (bootstrap current, parallel flows,
+  poloidal/toroidal velocities) in `actor.neo_solutions`. `collision_model` selects
+  the NEO collision operator for both backends (default 4, full Fokker-Planck).
 - `:hirshmansigmar`: Hirshman-Sigmar analytical model for comprehensive neoclassical transport
   in various collisionality regimes
 
@@ -43,7 +55,7 @@ end
 function ActorNeoclassical(dd::IMAS.DD{D}, par::FUSEparameters__ActorNeoclassical{P}; kw...) where {D<:Real,P<:Real}
     logging_actor_init(ActorNeoclassical)
     par = OverrideParameters(par; kw...)
-    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing)
+    return ActorNeoclassical(dd, par, NeoclassicalTransport.InputNEO[], GACODE.FluxSolution{D}[], missing, NeoclassicalTransport.NEOSolution{D}[])
 end
 
 """
@@ -52,7 +64,8 @@ end
 Runs the selected neoclassical transport model to evaluate collisional fluxes on radial grid points.
 
 For Chang-Hinton: Calculates ion heat transport using local parameters.
-For NEO: Creates InputNEO structures and runs the NEO code in parallel for each grid point.
+For NEO: Creates InputNEO structures and runs NEO for each grid point (the Fortran binary
+through `asyncmap`, or the native Julia solver as one threaded batch).
 For Hirshman-Sigmar: Uses cached equilibrium geometry and evaluates the analytical model
 with local plasma parameters, providing comprehensive neoclassical transport coefficients.
 """
@@ -69,8 +82,16 @@ function _step(actor::ActorNeoclassical)
 
     elseif par.model == :neo
         gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
-        actor.input_neos = [NeoclassicalTransport.InputNEO(eqt, cp1d, i) for (idx, i) in enumerate(gridpoint_cps)]
-        actor.flux_solutions = asyncmap(input_neo -> NeoclassicalTransport.run_neo(input_neo), actor.input_neos)
+        actor.input_neos = [NeoclassicalTransport.InputNEO(eqt, cp1d, i) for i in gridpoint_cps]
+        for input_neo in actor.input_neos
+            input_neo.COLLISION_MODEL = par.collision_model
+        end
+        if par.neo_backend == :julia
+            actor.neo_solutions = NeoclassicalTransport.run_neo_native(actor.input_neos)
+            actor.flux_solutions = GACODE.FluxSolution.(actor.neo_solutions)
+        else
+            actor.flux_solutions = asyncmap(input_neo -> NeoclassicalTransport.run_neo(input_neo), actor.input_neos)
+        end
 
     elseif par.model == :hirshmansigmar
         gridpoint_cps = [argmin_abs(rho_cp, rho) for rho in par.rho_transport]
@@ -112,7 +133,7 @@ function _finalize(actor::ActorNeoclassical)
         GACODE.flux_gacode_to_imas((:ion_energy_flux,), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :neo
-        model.identifier.name = "NEO"
+        model.identifier.name = par.neo_backend == :julia ? "NEO (Julia)" : "NEO"
         GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :hirshmansigmar
