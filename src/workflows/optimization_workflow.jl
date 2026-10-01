@@ -89,14 +89,17 @@ function workflow_multiobjective_optimization(
 
     else
         # set algorithm parameters depending on exploitation_vs_exploration index
+        # NOTE: an intermediate 4th anchor at x=1.5 is added to each table because the
+        # :cubic backend (FastInterpolations PolyFit{3}) requires at least 4 points. The
+        # extra points lie on the existing trend, so the curves are unchanged at x=0,1,2.
         # crossover distribution index
-        η_cr = round(Int, IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 40.0], :cubic).(exploitation_vs_exploration))
+        η_cr = round(Int, IMAS.interp1d([0.0, 1.0, 1.5, 2.0], [20.0, 30.0, 35.0, 40.0], :cubic).(exploitation_vs_exploration))
         # crossover probability
-        p_cr = IMAS.interp1d([0.0, 1.0, 2.0], [0.9, 0.6, 0.5], :cubic).(exploitation_vs_exploration)
+        p_cr = IMAS.interp1d([0.0, 1.0, 1.5, 2.0], [0.9, 0.6, 0.55, 0.5], :cubic).(exploitation_vs_exploration)
         # mutation distribution index
-        η_m = round(Int, IMAS.interp1d([0.0, 1.0, 2.0], [20.0, 30.0, 50.0], :cubic).(exploitation_vs_exploration))
+        η_m = round(Int, IMAS.interp1d([0.0, 1.0, 1.5, 2.0], [20.0, 30.0, 40.0, 50.0], :cubic).(exploitation_vs_exploration))
         # mutation probability
-        p_m = IMAS.interp1d([0.0, 1.0, 2.0], [1.0, 2.0, 4.0], :cubic).(exploitation_vs_exploration)
+        p_m = IMAS.interp1d([0.0, 1.0, 1.5, 2.0], [1.0, 2.0, 3.0, 4.0], :cubic).(exploitation_vs_exploration)
 
         # algorithm = Metaheuristics.NSGA2(; N, options) # converges to one point and does not cover well the pareto front
         # algorithm = Metaheuristics.SMS_EMOA(; N, options) # does not converge
