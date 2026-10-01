@@ -110,6 +110,7 @@ mutable struct ActorFluxMatcher{D,P} <: CompoundAbstractActor{D,P}
     norms::Vector{D}
     error::D
     err_history::Vector{Vector{D}}
+    soft_failures::Dict{Symbol,Int}   # counts of the soft-fail paths below, so a completed run cannot hide them
 end
 
 """
@@ -163,7 +164,7 @@ function ActorFluxMatcher(dd::IMAS.DD{D}, par::FUSEparameters__ActorFluxMatcher{
         zeff_from=:pulse_schedule,
         rho_nml=par.rho_transport[end-1],
         rho_ped=par.rho_transport[end])
-    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}())
+    actor = ActorFluxMatcher(dd, par, act, actor_ct, actor_replay, actor_ped, D[], D(Inf), Vector{Vector{D}}(), Dict{Symbol,Int}())
     actor.actor_replay = ActorReplay(dd, act.ActorReplay, actor)
     return actor
 end
@@ -185,9 +186,72 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         finalize(step(actor.actor_replay))
     end
 
+    # sanitize primary profiles: a coupled/replayed exchange can leave
+    # numerically-negative-zero values (observed -2e-11) that blow up
+    # fractional powers in collision_frequencies; floor like IMAS's avgZ clamp
+    for (arr, floor_val, what) in (
+        (cp1d.electrons.temperature, 1.0, "Te"),
+        (cp1d.electrons.density_thermal, 1.0, "ne"),
+    )
+        n_bad = count(x -> !isfinite(x) || x < floor_val, arr)
+        if n_bad > 0
+            @warn "ActorFluxMatcher: flooring $n_bad unphysical $what values" maxlog = 10
+            @. arr = ifelse(isfinite(arr) & (arr >= floor_val), arr, floor_val)
+        end
+    end
+    for ion in cp1d.ion
+        if !ismissing(ion, :temperature)
+            n_bad = count(x -> !isfinite(x) || x < 1.0, ion.temperature)
+            if n_bad > 0
+                @warn "ActorFluxMatcher: flooring $n_bad unphysical Ti values ($(ion.label))" maxlog = 10
+                @. ion.temperature = ifelse(isfinite(ion.temperature) & (ion.temperature >= 1.0), ion.temperature, 1.0)
+            end
+        end
+        if !ismissing(ion, :density_thermal)
+            n_bad = count(x -> !isfinite(x) || x < 0.0, ion.density_thermal)
+            if n_bad > 0
+                @warn "ActorFluxMatcher: flooring $n_bad negative ni values ($(ion.label))" maxlog = 10
+                @. ion.density_thermal = ifelse(isfinite(ion.density_thermal) & (ion.density_thermal >= 0.0), ion.density_thermal, 0.0)
+            end
+        end
+    end
+
     # make intrinsic sources consistent to start
     modify_electron_density = evolve_densities[:electrons] == :quasi_neutrality
-    IMAS.intrinsic_sources!(dd; modify_electron_density)
+    try
+        IMAS.intrinsic_sources!(dd; modify_electron_density)
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        # cold/low-power coupled regimes: thermalization_time blows up and the
+        # fast-ion bookkeeping can transiently produce density-scale negatives
+        # inside fast_particles_profiles! (critical_energy x^y DomainError).
+        # Sanitize the fast-ion fields and retry; if it still fails, continue
+        # with the previous step's sources rather than killing the run.
+        actor.soft_failures[:intrinsic_sources_retry] = get(actor.soft_failures, :intrinsic_sources_retry, 0) + 1
+        @warn "ActorFluxMatcher: intrinsic_sources! failed ($(sprint(showerror, e))); sanitizing fast-ion fields and retrying" maxlog = 10
+        for ion in cp1d.ion
+            for field in (:density_fast, :pressure_fast_parallel, :pressure_fast_perpendicular)
+                if !ismissing(ion, field)
+                    arr = getproperty(ion, field)
+                    @. arr = ifelse(isfinite(arr) & (arr >= 0.0), arr, 0.0)
+                end
+            end
+            if !ismissing(ion, :density_fast) && !ismissing(ion, :density_thermal)
+                @. ion.density_fast = min(ion.density_fast, 0.8 * ion.density_thermal)
+            end
+        end
+        if !ismissing(cp1d.electrons, :density_fast)
+            arr = cp1d.electrons.density_fast
+            @. arr = ifelse(isfinite(arr) & (arr >= 0.0), arr, 0.0)
+        end
+        try
+            IMAS.intrinsic_sources!(dd; modify_electron_density)
+        catch e2
+            isa(e2, InterruptException) && rethrow(e2)
+            actor.soft_failures[:stale_sources] = get(actor.soft_failures, :stale_sources, 0) + 1
+            @warn "ActorFluxMatcher: intrinsic_sources! retry failed ($(sprint(showerror, e2))); continuing with stale sources" maxlog = 10
+        end
+    end
 
     # freeze current expressions for speed
     IMAS.refreeze!(cp1d, :j_non_inductive) # sum from sources
@@ -411,14 +475,44 @@ function _step(actor::ActorFluxMatcher{D,P}) where {D<:Real,P<:Real}
         actor_logging(dd, old_logging)
     end
 
-    # detect cases where all optimization calls failed
+    # detect cases where all optimization calls failed (e.g. the transport
+    # model throws for ANY z when a broken equilibrium poisons its inputs —
+    # observed: TGLFNN "P_PRIME_LOC is Missing" after FRESCO non-convergence).
+    # Restore entry profiles and soft-fail instead of killing the coupled run.
     if algorithm != :none && isempty(err_history)
-        flux_match_errors(actor, opt_parameters, initial_cp1d)
-        error("FluxMatcher failed")
+        actor.soft_failures[:all_optimizations_failed] = get(actor.soft_failures, :all_optimizations_failed, 0) + 1
+        @warn "ActorFluxMatcher: all optimization calls failed — restoring entry profiles for this step" maxlog = 10
+        cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
+        actor.error = Inf
+        actor.err_history = err_history
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
+        try
+            ProgressMeter.finish!(prog)
+        catch
+        end
+        return actor
     end
 
-    # evaluate profiles at the best-matching gradients
-    out = flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    # evaluate profiles at the best-matching gradients; same soft-fail if the
+    # final evaluation throws (it re-runs the full transport pipeline)
+    out = try
+        flux_match_errors(actor, collect(res.zero), initial_cp1d) # z_profiles for the smallest error iteration
+    catch e
+        isa(e, InterruptException) && rethrow(e)
+        actor.soft_failures[:final_evaluation_failed] = get(actor.soft_failures, :final_evaluation_failed, 0) + 1
+        @warn "ActorFluxMatcher: final flux_match_errors failed ($(sprint(showerror, e))) — restoring entry profiles for this step" maxlog = 10
+        cp1d_copy_primary_quantities!(cp1d, initial_cp1d)
+        actor.error = Inf
+        actor.err_history = err_history
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.time = dd.global_time)
+        @ddtime(dd.transport_solver_numerics.convergence.time_step.data = actor.error)
+        try
+            ProgressMeter.finish!(prog)
+        catch
+        end
+        return actor
+    end
 
     # statistics
     actor.error = norm(out.errors)
