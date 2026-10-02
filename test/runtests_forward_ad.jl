@@ -73,7 +73,7 @@ using Test
         actor_neo = FUSE.ActorFluxMatcher(dd_neo, act_neo)
         FUSE.ActorFluxMatcher(dd_fd, act_fd)
 
-        @test dd_neo.core_transport.model[:neoclassical].identifier.name == "NEO (Julia)"
+        @test dd_neo.core_transport.model[:neoclassical].identifier.name == "NEO"
         # the AD passes reuse the primal factorizations held by the neoclassical actor
         @test length(actor_neo.actor_ct.actor_neoc.neo_caches) == length(act_neo.ActorNeoclassical.rho_transport)
         @test all(c.F !== nothing for c in actor_neo.actor_ct.actor_neoc.neo_caches)

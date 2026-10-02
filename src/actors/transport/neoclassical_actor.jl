@@ -155,7 +155,7 @@ function _finalize(actor::ActorNeoclassical)
         GACODE.flux_gacode_to_imas((:ion_energy_flux,), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :neo
-        model.identifier.name = par.neo_backend == :julia ? "NEO (Julia)" : "NEO"
+        model.identifier.name = "NEO"
         GACODE.flux_gacode_to_imas((:electron_energy_flux, :ion_energy_flux, :electron_particle_flux, :ion_particle_flux, :momentum_flux), actor.flux_solutions, m1d, eqt, cp1d)
 
     elseif par.model == :hirshmansigmar
