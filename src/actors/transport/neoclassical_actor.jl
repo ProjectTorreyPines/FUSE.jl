@@ -6,9 +6,9 @@ import GACODE
 #= ================= =#
 @actor_parameters_struct ActorNeoclassical{T} begin
     model::Switch{Symbol} = Switch{Symbol}([:changhinton, :neo, :hirshmansigmar], "-", "Neoclassical model to run"; default=:hirshmansigmar)
-    neo_backend::Switch{Symbol} = Switch{Symbol}([:fortran, :julia], "-",
-        "NEO backend for model=:neo: the external Fortran NEO binary (run_neo), or the native Julia port (run_neo_native, in process and threaded over the grid points)";
-        default=:fortran)
+    neo_backend::Switch{Symbol} = Switch{Symbol}([:julia, :fortran], "-",
+        "NEO backend for model=:neo: the native Julia port (run_neo_native, in process, threaded over the grid points, forward-AD capable), or the external Fortran NEO binary (run_neo)";
+        default=:julia)
     collision_model::Entry{Int} = Entry{Int}("-",
         "NEO collision model: 1 Connor, 2 reduced Hirshman-Sigmar, 3 full Hirshman-Sigmar, 4 full linearized Fokker-Planck, 5 Fokker-Planck with ad-hoc field-particle terms";
         default=4)
@@ -34,11 +34,12 @@ Supported neoclassical models:
 - `:changhinton`: Chang-Hinton model for ion heat transport in the banana/plateau regime
 - `:neo`: Full drift-kinetic NEO code for comprehensive neoclassical transport including 
   bootstrap current, providing electron/ion energy, particle, and momentum fluxes.
-  `neo_backend=:fortran` shells out to the GACODE NEO binary; `neo_backend=:julia` runs
-  NeoclassicalTransport's native port in process (threaded over the grid points) and
-  keeps the full per-species `NEOSolution`s (bootstrap current, parallel flows,
-  poloidal/toroidal velocities) in `actor.neo_solutions`. `collision_model` selects
-  the NEO collision operator for both backends (default 4, full Fokker-Planck).
+  `neo_backend=:julia` (default) runs NeoclassicalTransport's native port in process
+  (threaded over the grid points, usable with `jacobian_method=:forward_ad`) and keeps the
+  full per-species `NEOSolution`s (bootstrap current, parallel flows, poloidal/toroidal
+  velocities) in `actor.neo_solutions`; `neo_backend=:fortran` shells out to the GACODE
+  NEO binary. `collision_model` selects the NEO collision operator for both backends
+  (default 4, full Fokker-Planck).
 - `:hirshmansigmar`: Hirshman-Sigmar analytical model for comprehensive neoclassical transport
   in various collisionality regimes
 
@@ -81,8 +82,8 @@ end
 Runs the selected neoclassical transport model to evaluate collisional fluxes on radial grid points.
 
 For Chang-Hinton: Calculates ion heat transport using local parameters.
-For NEO: Creates InputNEO structures and runs NEO for each grid point (the Fortran binary
-through `asyncmap`, or the native Julia solver as one threaded batch).
+For NEO: Creates InputNEO structures and runs NEO for each grid point (the native Julia
+solver as one threaded batch, or the Fortran binary through `asyncmap`).
 For Hirshman-Sigmar: Uses cached equilibrium geometry and evaluates the analytical model
 with local plasma parameters, providing comprehensive neoclassical transport coefficients.
 """
