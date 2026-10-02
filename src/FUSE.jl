@@ -146,6 +146,7 @@ include(joinpath("actors", "transport", "flux_matcher_actor.jl"))
 include(joinpath("actors", "transport", "mode_id_actor.jl"))
 include(joinpath("actors", "transport", "finn_actor.jl"))
 include(joinpath("actors", "transport", "eped_profiles_actor.jl"))
+include(joinpath("actors", "transport", "beta_match_actor.jl"))
 include(joinpath("actors", "transport", "core_transport_actor.jl"))
 
 include(joinpath("actors", "stability", "limits_actor.jl"))

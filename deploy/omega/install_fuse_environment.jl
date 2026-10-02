@@ -33,14 +33,88 @@ println("    ", packages)
 println()
 println("### Setup new environment")
 Pkg.activate(env_dir)
-Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT", "ArgParse"]; packages])
+Pkg.add([["FUSE", "Plots", "IJulia", "WebIO", "Interact", "EFIT", "ArgParse", "PrecompileTools"]; packages])
 Pkg.build("IJulia")
 Pkg.build("WebIO")
+
+println()
+println("### Disable PrecompileTools workloads")
+#===
+Belt and braces for the precompilation below: if a cache is invalidated between
+here and `create_sysimage` the package falls back to being included from source,
+and a `@compile_workload` is the most likely thing to blow up when it does. The
+sysimage still gets its precompiled code from the trace further down, which
+exercises the paths FUSE actually uses. Drop this if you would rather have the
+workloads' coverage.
+
+PrecompileTools must be a direct dependency for the preference to have any
+effect (hence its presence in the `Pkg.add` above): `Base.get_uuid_name` maps a
+UUID to a LocalPreferences.toml section by searching only the project's own
+name, `deps`, `extras` and `weakdeps`, so a section naming an indirect
+dependency is silently ignored.
+===#
+local_preferences_file = joinpath(env_dir, "LocalPreferences.toml")
+write(local_preferences_file, """
+[PrecompileTools]
+precompile_workloads = false
+""")
+
+println()
+println("### Precompile the environment the way PackageCompiler loads it")
+#===
+PackageCompiler runs both its tracing script and the `--output-o` process with
+`--pkgimages=no` (see `PackageCompiler.get_julia_cmd`), and a cache built with
+pkgimages is rejected under that flag. The `--output-o` process is additionally
+forbidden from precompiling on demand, so every package that `Pkg.add` cached
+but `precompile_script.jl` does not itself load gets *included from source*
+there. That runs the package's load-time code in the one process where Julia
+defers every module's `__init__`, so JLL libraries are never dlopened:
+
+  - `@compile_workload` blocks that call a JLL -- IJulia starts a real Jupyter
+    kernel over ZMQ, HiGHS instantiates a `HiGHS.Optimizer`:
+        could not load symbol "zmq_ctx_new" / "Highs_create"
+  - top-level module code that calls a JLL -- GPUCompiler builds LLVM IR at
+    load time, via CUDA:
+        could not load symbol "LLVMGetValueContext"
+
+Precompiling the whole manifest with `--pkgimages=no` gives every package a
+cache the sysimage build will accept, so none of that code ever runs. This must
+come after LocalPreferences.toml is written, or the preference change would
+invalidate what we just built.
+===#
+run(`$(Base.julia_cmd()) --startup-file=no --pkgimages=no --project=$env_dir -e "using Pkg; Pkg.precompile()"`)
+
+println()
+println("### Check the environment is ready for PackageCompiler")
+#===
+Fail here rather than minutes into `create_sysimage`, which only reports the
+first package it trips over and costs a full trace run to reach.
+===#
+check_script, check_io = mktemp()
+write(check_io, """
+using Pkg
+bad = String[]
+for (uuid, entry) in Pkg.Types.Context().env.manifest
+    pkgid = Base.PkgId(uuid, entry.name)
+    Base.in_sysimage(pkgid) && continue
+    Base.isprecompiled(pkgid) || push!(bad, entry.name)
+end
+print(join(sort(bad), " "))
+""")
+close(check_io)
+source_loaded = readchomp(`$(Base.julia_cmd()) --startup-file=no --pkgimages=no --project=$env_dir $check_script`)
+@assert isempty(source_loaded) "these packages would be included from source by create_sysimage: $source_loaded"
+
+# The global switch is checked before the per-package one, so `workload_enabled`
+# of any module is `false` exactly when the preference is being honored.
+workloads_enabled = readchomp(`$(Base.julia_cmd()) --startup-file=no --pkgimages=no --project=$env_dir -e "import PrecompileTools; print(PrecompileTools.workload_enabled(Base))"`)
+@assert workloads_enabled == "false" "PrecompileTools workloads still enabled ($workloads_enabled): check $local_preferences_file"
 
 println()
 println("### Freeze Project and Manifest to read only")
 chmod(joinpath(env_dir, "Project.toml"),  0o444)
 chmod(joinpath(env_dir, "Manifest.toml"), 0o444)
+chmod(local_preferences_file, 0o444)
 
 println()
 println("### Create precompile script")

@@ -19,9 +19,10 @@ struct WireDataFromFUSE
     li_dot::Float64
     p_res::Float64
     dens_co2_sig::Vector{Float64}
+    cocos::Int32
 end
-PB.default_values(::Type{WireDataFromFUSE}) = (;sim_time = zero(Float64), valid = false, betap = zero(Float64), betap_dot = zero(Float64), li = zero(Float64), li_dot = zero(Float64), p_res = zero(Float64), dens_co2_sig = Vector{Float64}())
-PB.field_numbers(::Type{WireDataFromFUSE}) = (;sim_time = 1, valid = 2, betap = 3, betap_dot = 4, li = 5, li_dot = 6, p_res = 7, dens_co2_sig = 8)
+PB.default_values(::Type{WireDataFromFUSE}) = (;sim_time = zero(Float64), valid = false, betap = zero(Float64), betap_dot = zero(Float64), li = zero(Float64), li_dot = zero(Float64), p_res = zero(Float64), dens_co2_sig = Vector{Float64}(), cocos = zero(Int32))
+PB.field_numbers(::Type{WireDataFromFUSE}) = (;sim_time = 1, valid = 2, betap = 3, betap_dot = 4, li = 5, li_dot = 6, p_res = 7, dens_co2_sig = 8, cocos = 9)
 
 function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataFromFUSE}, _endpos::Int=0, _group::Bool=false)
     sim_time = zero(Float64)
@@ -32,6 +33,7 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataFromFUSE}, _endp
     li_dot = zero(Float64)
     p_res = zero(Float64)
     dens_co2_sig = PB.BufferedVector{Float64}()
+    cocos = zero(Int32)
     while !PB.message_done(d, _endpos, _group)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
@@ -50,11 +52,13 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataFromFUSE}, _endp
             p_res = PB.decode(d, Float64)
         elseif field_number == 8
             PB.decode!(d, wire_type, dens_co2_sig)
+        elseif field_number == 9
+            cocos = PB.decode(d, Int32)
         else
             Base.skip(d, wire_type)
         end
     end
-    return WireDataFromFUSE(sim_time, valid, betap, betap_dot, li, li_dot, p_res, dens_co2_sig[])
+    return WireDataFromFUSE(sim_time, valid, betap, betap_dot, li, li_dot, p_res, dens_co2_sig[], cocos)
 end
 
 function PB.encode(e::PB.AbstractProtoEncoder, x::WireDataFromFUSE)
@@ -67,6 +71,7 @@ function PB.encode(e::PB.AbstractProtoEncoder, x::WireDataFromFUSE)
     x.li_dot !== zero(Float64) && PB.encode(e, 6, x.li_dot)
     x.p_res !== zero(Float64) && PB.encode(e, 7, x.p_res)
     !isempty(x.dens_co2_sig) && PB.encode(e, 8, x.dens_co2_sig)
+    x.cocos != zero(Int32) && PB.encode(e, 9, x.cocos)
     return position(e.io) - initpos
 end
 function PB._encoded_size(x::WireDataFromFUSE)
@@ -79,6 +84,7 @@ function PB._encoded_size(x::WireDataFromFUSE)
     x.li_dot !== zero(Float64) && (encoded_size += PB._encoded_size(x.li_dot, 6))
     x.p_res !== zero(Float64) && (encoded_size += PB._encoded_size(x.p_res, 7))
     !isempty(x.dens_co2_sig) && (encoded_size += PB._encoded_size(x.dens_co2_sig, 8))
+    x.cocos != zero(Int32) && (encoded_size += PB._encoded_size(x.cocos, 9))
     return encoded_size
 end
 
@@ -103,9 +109,10 @@ struct WireDataForFUSE
     schema_version::Int32
     Rp::Float64
     has_Rp::Bool
+    cocos::Int32
 end
-PB.default_values(::Type{WireDataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}(), has_Ip_latest = false, has_Ip_avg = false, has_Bt = false, has_pr15v = false, schema_version = zero(Int32), Rp = zero(Float64), has_Rp = false)
-PB.field_numbers(::Type{WireDataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13, has_Ip_latest = 14, has_Ip_avg = 15, has_Bt = 16, has_pr15v = 17, schema_version = 18, Rp = 19, has_Rp = 20)
+PB.default_values(::Type{WireDataForFUSE}) = (;sim_time = zero(Float64), done = false, Ip_latest = zero(Float64), Ip_avg = zero(Float64), Bt = zero(Float64), pr15v = zero(Float64), I_coil = Vector{Float64}(), psizr = Vector{Float64}(), r_grid = Vector{Float64}(), z_grid = Vector{Float64}(), pinj_per_beam = Vector{Float64}(), nbi_acc_voltage = Vector{Float64}(), gas_cal = Vector{Float64}(), has_Ip_latest = false, has_Ip_avg = false, has_Bt = false, has_pr15v = false, schema_version = zero(Int32), Rp = zero(Float64), has_Rp = false, cocos = zero(Int32))
+PB.field_numbers(::Type{WireDataForFUSE}) = (;sim_time = 1, done = 2, Ip_latest = 3, Ip_avg = 4, Bt = 5, pr15v = 6, I_coil = 7, psizr = 8, r_grid = 9, z_grid = 10, pinj_per_beam = 11, nbi_acc_voltage = 12, gas_cal = 13, has_Ip_latest = 14, has_Ip_avg = 15, has_Bt = 16, has_pr15v = 17, schema_version = 18, Rp = 19, has_Rp = 20, cocos = 21)
 
 function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataForFUSE}, _endpos::Int=0, _group::Bool=false)
     sim_time = zero(Float64)
@@ -128,6 +135,7 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataForFUSE}, _endpo
     schema_version = zero(Int32)
     Rp = zero(Float64)
     has_Rp = false
+    cocos = zero(Int32)
     while !PB.message_done(d, _endpos, _group)
         field_number, wire_type = PB.decode_tag(d)
         if field_number == 1
@@ -170,11 +178,13 @@ function PB.decode(d::PB.AbstractProtoDecoder, ::Type{<:WireDataForFUSE}, _endpo
             Rp = PB.decode(d, Float64)
         elseif field_number == 20
             has_Rp = PB.decode(d, Bool)
+        elseif field_number == 21
+            cocos = PB.decode(d, Int32)
         else
             Base.skip(d, wire_type)
         end
     end
-    return WireDataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[], has_Ip_latest, has_Ip_avg, has_Bt, has_pr15v, schema_version, Rp, has_Rp)
+    return WireDataForFUSE(sim_time, done, Ip_latest, Ip_avg, Bt, pr15v, I_coil[], psizr[], r_grid[], z_grid[], pinj_per_beam[], nbi_acc_voltage[], gas_cal[], has_Ip_latest, has_Ip_avg, has_Bt, has_pr15v, schema_version, Rp, has_Rp, cocos)
 end
 
 function PB.encode(e::PB.AbstractProtoEncoder, x::WireDataForFUSE)
@@ -199,6 +209,7 @@ function PB.encode(e::PB.AbstractProtoEncoder, x::WireDataForFUSE)
     x.schema_version != zero(Int32) && PB.encode(e, 18, x.schema_version)
     x.Rp !== zero(Float64) && PB.encode(e, 19, x.Rp)
     x.has_Rp != false && PB.encode(e, 20, x.has_Rp)
+    x.cocos != zero(Int32) && PB.encode(e, 21, x.cocos)
     return position(e.io) - initpos
 end
 function PB._encoded_size(x::WireDataForFUSE)
@@ -223,6 +234,7 @@ function PB._encoded_size(x::WireDataForFUSE)
     x.schema_version != zero(Int32) && (encoded_size += PB._encoded_size(x.schema_version, 18))
     x.Rp !== zero(Float64) && (encoded_size += PB._encoded_size(x.Rp, 19))
     x.has_Rp != false && (encoded_size += PB._encoded_size(x.has_Rp, 20))
+    x.cocos != zero(Int32) && (encoded_size += PB._encoded_size(x.cocos, 21))
     return encoded_size
 end
 

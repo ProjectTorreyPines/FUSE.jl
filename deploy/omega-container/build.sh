@@ -81,10 +81,16 @@ sif_dir="${SIF_DIR:-$scratch}"
 mkdir -p "$sif_dir"
 sif="$sif_dir/fuse_${version}.sif"
 
-echo "### Building $image (context: $repo_root, CPU target: $cpu_target)"
+# Pin the baked FuseExamples to current master (also busts the clone layer's
+# cache when the notebooks changed — same-version rebuilds would otherwise
+# silently ship a stale snapshot).
+examples_sha="$(git ls-remote https://github.com/ProjectTorreyPines/FuseExamples.git refs/heads/master | cut -f1)"
+
+echo "### Building $image (context: $repo_root, CPU target: $cpu_target, FuseExamples: ${examples_sha:0:9})"
 "${podman[@]}" build -t "$image" \
     --build-arg JULIA_CPU_TARGET="$cpu_target" \
     --build-arg FUSE_VERSION="$version" \
+    --build-arg FUSEEXAMPLES_SHA="$examples_sha" \
     -f "$scriptdir/../perlmutter-container/Containerfile" "$repo_root"
 
 echo "### Verifying the image contains FUSE $version"

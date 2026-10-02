@@ -351,6 +351,21 @@ Consuming the published image:
 # Laptop / any machine with Docker or podman — architecture selected automatically
 docker run -it ghcr.io/projecttorreypines/fuse:<version>
 
+# Laptop JupyterLab: the image ships a Jupyter server + FUSE kernelspec, so
+# one command serves JupyterLab on localhost:8888 (like `fuse-container lab`
+# on omega; THREADS=N sets the kernel's Julia threads). A fixed JUPYTER_TOKEN
+# gives a predictable URL — for the browser, or for VS Code's
+# "Select Kernel -> Existing Jupyter Server" (bind 127.0.0.1 so the known
+# token is not reachable from the LAN).
+docker run -it --pull always -p 127.0.0.1:8888:8888 -e JUPYTER_TOKEN=fuse -e THREADS=8 \
+    -v "$PWD":/work -w /work ghcr.io/projecttorreypines/fuse:<version> lab
+
+# NOTE: `docker run` re-uses a locally cached tag without consulting the
+# registry. If a machine pulled `latest` before the multi-arch manifest was
+# published it will keep running the wrong architecture (e.g. amd64 under
+# emulation on Apple Silicon, with HostCPUFeatures "CPU info is out-of-date"
+# warnings) until an explicit `docker pull ghcr.io/projecttorreypines/fuse:latest`.
+
 # NERSC Perlmutter
 podman-hpc pull ghcr.io/projecttorreypines/fuse:<version>
 podman-hpc migrate ghcr.io/projecttorreypines/fuse:<version>
