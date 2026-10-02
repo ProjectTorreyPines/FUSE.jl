@@ -29,9 +29,9 @@ using Test
     N_grid  = 10
     fast_nn = FUSE.NNparams(hidden_sizes=[10], n_epochs=10, batch_size=8)
 
-    # Control2_min/max have no default — the field is Gauss for :EF, Δ_RW for :LinStab
+    # Control2_min/max have no default — the field is Tesla for :EF, Δ_RW for :LinStab
     # and α for :NLsaturation, so the actor refuses to guess. Each group names its own.
-    ef_range = (Control2_min=0.01, Control2_max=10.0)   # Gauss
+    ef_range = (Control2_min=1e-6, Control2_max=1e-3)   # Tesla
 
     # ═══ control_type = :EF — error field ════════════════════════════════════
     @testset verbose = true "EF control" begin
@@ -48,7 +48,7 @@ using Test
             # Solve one ODE trajectory only — no grid, no NN, no stored results
             actor = FUSE.ActorLocking(dd, act;
                         task             = :single_case,
-                        op_C2            = 5.0,
+                        op_C2            = 5e-4,
                         overwrite_params = true,
                         ef_range...)
             @test actor.results === nothing
@@ -134,13 +134,13 @@ using Test
                         overwrite_params = true,
                         ef_range...,
                         op_times         = op_times,
-                        op_C2            = 5.0)
+                        op_C2            = 5e-4)
 
             ev = actor.eval
             @test ev !== nothing
             @test length(ev.times) == length(op_times)
             @test length(ev.C1)    == length(op_times)
-            @test ev.C2 == fill(5.0, length(op_times))   # scalar broadcast
+            @test ev.C2 == fill(5e-4, length(op_times))   # scalar broadcast
             @test all(isfinite, ev.C1)
 
             # One mhd_linear time_slice per op time, each carrying P(locked) —
@@ -166,7 +166,7 @@ using Test
                 overwrite_params = true,
                 ef_range...,
                 op_times         = op_times,
-                op_C2            = [1.0, 5.0])
+                op_C2            = [1e-4, 5e-4])
         end
 
         @testset "transfer_learning, fine-tune on focused grid" begin
@@ -180,8 +180,8 @@ using Test
                            overwrite_params = true,
                            ef_range...,
                            nn_params        = tl_nn,
-                           Control1_min     = 1.0,
-                           Control1_max     = 3.0)
+                           Control1_min     = 1e3,
+                           Control1_max     = 3e3)
             r = actor_tl.results
 
             @test r !== nothing
@@ -203,13 +203,13 @@ using Test
         # The one LinStab solve, plus the model the eval testset evaluates
         actor_LS = FUSE.ActorLocking(dd, act;
                        task             = :solve_system,
-                       control_type     = :LinStab, error_field=10.0,
+                       control_type     = :LinStab, error_field=1e-3,
                        grid_size        = N_grid,
                        overwrite_params = true,
                        drw_range...)
         FUSE.ActorLocking(dd, act;
             task             = :calc_prob,
-            control_type     = :LinStab, error_field=10.0,
+            control_type     = :LinStab, error_field=1e-3,
             grid_size        = N_grid,
             overwrite_params = true,
             drw_range...,
@@ -218,7 +218,7 @@ using Test
         # task=:bounds solves no ODEs — one actor serves both geometry testsets
         actor_bounds = FUSE.ActorLocking(dd, act;
                            task             = :bounds,
-                           control_type     = :LinStab, error_field=10.0,
+                           control_type     = :LinStab, error_field=1e-3,
                            grid_size        = N_grid,
                            overwrite_params = true,
                            drw_range...)
@@ -236,23 +236,23 @@ using Test
             t_ref    = dd.global_time
             op_times = t_ref .+ [3e-3, 4e-3]
 
-            # op_C2 is the n=1 br amplitude in Gauss here, one per time
+            # op_C2 is the n=1 br amplitude in Tesla here, one per time
             actor = FUSE.ActorLocking(dd, act;
                         task             = :eval_prob,
-                        control_type     = :LinStab, error_field=10.0,
+                        control_type     = :LinStab, error_field=1e-3,
                         grid_size        = N_grid,
                         overwrite_params = true,
                         drw_range...,
                         op_times         = op_times,
-                        op_C2            = [10.0, 20.0])
+                        op_C2            = [1e-3, 2e-3])
 
             ev = actor.eval
             @test ev !== nothing
-            @test ev.C2 == [10.0, 20.0]            # stored in user units, not Δt
+            @test ev.C2 == [1e-3, 2e-3]            # stored in user units, not Δt
 
             op = actor.ode_params
-            # error_field is derived from par.error_field (Gauss), never accumulated
-            @test op.error_field ≈ actor.par.error_field * 1e-4 / actor.par.mag_perturbation_amplitude *
+            # error_field is derived from par.error_field (Tesla), never accumulated
+            @test op.error_field ≈ actor.par.error_field / actor.par.mag_perturbation_amplitude *
                                    op.control_surf / actor.par.m_pol
 
             # br → Δt must stay below the marginal Δt_crit, and rise with br:
@@ -289,7 +289,10 @@ using Test
             keep = findall(isfinite, b.C2_onset_user)
             @test !isempty(keep)
 
-            # C1_user is kHz; the onset in user units is a positive amplitude
+            # the operating-point answers are stored, one per evaluated time
+            @test length(b.op_C2_max) == length(b.op_C1_min) == length(actor_bounds.eval.times)
+
+            # C1_user is Hz; the onset in user units is a positive amplitude
             @test all(>(0), b.C2_onset_user[keep])
             @test issorted(b.C1_user)
 
@@ -309,7 +312,7 @@ using Test
             # selects the path — for :NLsaturation α is the swept axis regardless.
             actor_nl = FUSE.ActorLocking(dd, act;
                            task             = :bounds,
-                           control_type     = :LinStab, error_field=10.0,
+                           control_type     = :LinStab, error_field=1e-3,
                            grid_size        = N_grid,
                            overwrite_params = true,
                            NL_saturation    = true,
@@ -346,14 +349,14 @@ using Test
             b0   = actor_bounds.par.mag_perturbation_amplitude
             for drw in (-2.0, -0.5)
                 br = FUSE.br_drw(actor_bounds; direction=:forward, drw, alpha=0.0, verbose=false)
-                ψ  = (br / (b0 * 1e4)) * op.rat_surface / actor_bounds.par.m_pol
+                ψ  = (br / b0) * op.rat_surface / actor_bounds.par.m_pol
                 @test ψ ≈ P_rw / drw
             end
 
             # α ≠ 0 takes the upper root of the quadratic, and forward/backward invert
             for α in (0.0, 0.05, 0.2, 0.5), drw in (-2.0, -0.5)
                 br   = FUSE.br_drw(actor_bounds; direction=:forward, drw, alpha=α, verbose=false)
-                back = FUSE.br_drw(actor_bounds; direction=:backward, br_Gauss=br, alpha=α, verbose=false)
+                back = FUSE.br_drw(actor_bounds; direction=:backward, br, alpha=α, verbose=false)
                 @test back ≈ drw rtol=1e-10
             end
 
@@ -368,7 +371,7 @@ using Test
     @testset "NLsaturation control, solve_system over the alpha grid" begin
         actor = FUSE.ActorLocking(dd, act;
                     task             = :solve_system,
-                    control_type     = :NLsaturation, error_field=10.0,
+                    control_type     = :NLsaturation, error_field=1e-3,
                     NL_saturation    = true,
                     grid_size        = N_grid,
                     overwrite_params = true,
@@ -380,12 +383,12 @@ using Test
 
     # ═══ Control2 bounds have no default ═════════════════════════════════════
     @testset "Control2_min/max are required, not defaulted" begin
-        # Control2 is Gauss / Δ_RW / α depending on control_type, so a default that
+        # Control2 is Tesla / Δ_RW / α depending on control_type, so a default that
         # suits one silently mis-scans the other two. Every control_type must refuse.
         for ct in (:EF, :LinStab, :NLsaturation)
             @test_throws ErrorException FUSE.ActorLocking(dd, act;
                 task=:bounds, control_type=ct, grid_size=N_grid, overwrite_params=true,
-                error_field=10.0)
+                error_field=1e-3)
         end
 
         # error_field has no default either, but only :LinStab/:NLsaturation read it
@@ -395,18 +398,23 @@ using Test
 
         # one bound alone is not enough either
         @test_throws ErrorException FUSE.ActorLocking(dd, act;
-            task=:bounds, control_type=:LinStab, error_field=10.0, grid_size=N_grid,
+            task=:bounds, control_type=:LinStab, error_field=1e-3, grid_size=N_grid,
             overwrite_params=true, Control2_min=-3.5)
 
         # and the :LinStab sign check still fires once both are given, so the NaN
         # guard has not displaced the validation that follows it
         @test_throws ErrorException FUSE.ActorLocking(dd, act;
-            task=:bounds, control_type=:LinStab, error_field=10.0, grid_size=N_grid,
+            task=:bounds, control_type=:LinStab, error_field=1e-3, grid_size=N_grid,
             overwrite_params=true, Control2_min=0.01, Control2_max=10.0)
     end
 
     # ═══ geometry — r0 comes from dd unless overwrite_params pins it ═════════
     @testset "geometry, r0 from dd.equilibrium and the pinned radii" begin
+        # rational surface: outermost crossing of the piecewise-linear |q| profile
+        @test FUSE.find_rat_surface([1.0, 2.0, 3.0], [0.0, 0.5, 1.0], 2.5) ≈ 0.75
+        @test FUSE.find_rat_surface([-3.0, -1.0, -3.0], [0.0, 0.5, 1.0], 2.0) ≈ 0.75
+        @test_throws ErrorException FUSE.find_rat_surface([1.0, 1.5], [0.0, 1.0], 2.0)
+
         a_minor = dd.equilibrium.time_slice[].boundary.minor_radius
         @test a_minor > 0
 
@@ -415,20 +423,20 @@ using Test
         # the radii are in metres, also pins r_w=1.0 and r_c=1.25.
         # task=:bounds so this exercises the dd-derived geometry without an ODE solve.
         actor_dd = FUSE.ActorLocking(dd, act;
-                       task=:bounds, control_type=:LinStab, error_field=10.0, grid_size=N_grid,
+                       task=:bounds, control_type=:LinStab, error_field=1e-3, grid_size=N_grid,
                        overwrite_params=false, Control2_min=-3.5, Control2_max=-0.05)
         @test FUSE._length_scale(dd, actor_dd.par) ≈ a_minor
         # radii are metres: the derived dimensionless value tracks r0
         @test actor_dd.ode_params.control_surf ≈ actor_dd.par.control_surf_radius / a_minor
 
         actor_fixed = FUSE.ActorLocking(dd, act;
-                          task=:bounds, control_type=:LinStab, error_field=10.0, grid_size=N_grid,
+                          task=:bounds, control_type=:LinStab, error_field=1e-3, grid_size=N_grid,
                           overwrite_params=false, r0=0.75,
                           Control2_min=-3.5, Control2_max=-0.05)
         @test FUSE._length_scale(dd, actor_fixed.par) == 0.75
 
         actor_ow = FUSE.ActorLocking(dd, act;
-                       task=:bounds, control_type=:LinStab, error_field=10.0, grid_size=N_grid,
+                       task=:bounds, control_type=:LinStab, error_field=1e-3, grid_size=N_grid,
                        overwrite_params=true, r0=0.75,
                        res_wall_radius=0.6, control_surf_radius=0.9,
                        Control2_min=-3.5, Control2_max=-0.05)
