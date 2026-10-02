@@ -78,11 +78,12 @@ function _step(actor::ActorEPEDprofiles)
 
     cp1d = dd.core_profiles.profiles_1d[]
 
-    sol = run_EPED(dd; ne_from=:pulse_schedule, zeff_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule, act.ActorEPED.only_powerlaw, act.ActorEPED.warn_nn_train_bounds)
-    pped = sol.pressure.GH.H
-    wped = sol.width.GH.H
+    sol = run_EPED(dd; ne_from=:pulse_schedule, zeff_from=:pulse_schedule, βn_from=:equilibrium, ip_from=:pulse_schedule,
+        act.ActorEPED.Te_sep, act.ActorEPED.only_powerlaw, act.ActorEPED.warn_nn_train_bounds, act.ActorEPED.nn_model)
+    pped = sol.pped
+    wped = sol.wped
 
-    rho_ped = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - sol.width.GH.H)
+    rho_ped = IMAS.interp1d(cp1d.grid.psi_norm, cp1d.grid.rho_tor_norm).(1 - wped)
 
     ne_ped = IMAS.get_from(dd, Val(:ne_ped), :pulse_schedule, rho_ped)
     zeff_ped = IMAS.get_from(dd, Val(:zeff_ped), :pulse_schedule, rho_ped)

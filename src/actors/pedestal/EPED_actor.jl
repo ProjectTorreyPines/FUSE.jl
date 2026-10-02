@@ -15,8 +15,11 @@ import EPEDNN
     ne_from::Switch{Symbol} = switch_get_from(:ne_ped)
     zeff_from::Switch{Symbol} = switch_get_from(:zeff_ped)
     #== actor parameters==#
+    nn_model::Switch{Symbol} = Switch{Symbol}([:variable_nesep_ratio, :fixed_nesep_ratio], "-",
+        "EPED-NN model: :variable_nesep_ratio (ensemble that takes ne_sep/ne_ped and Te_sep as inputs, and predicts the pedestal height with an uncertainty)" *
+        " or :fixed_nesep_ratio (single network, trained at a fixed ne_sep/ne_ped ~ 0.25)"; default=:variable_nesep_ratio)
     ped_factor::Entry{T} = Entry{T}("-", "Pedestal height multiplier (width is scaled by sqrt of this factor)"; default=1.0, check=x -> @assert x > 0 "ped_factor must be > 0")
-    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction)"; default=true)
+    only_powerlaw::Entry{Bool} = Entry{Bool}("-", "EPED-NN uses power-law pedestal fit (without NN correction). Only applies to nn_model=:fixed_nesep_ratio"; default=true)
     #== display and debugging parameters ==#
     warn_nn_train_bounds::Entry{Bool} = Entry{Bool}("-", "EPED-NN raises warnings if querying cases that are certainly outside of the training range"; default=false)
 end
@@ -28,6 +31,7 @@ mutable struct ActorEPED{D,P} <: SingleAbstractActor{D,P}
     inputs::EPEDNN.InputEPED
     wped::Union{Missing,Real} # pedestal width using EPED definition (1/2 width as fraction of psi_norm)
     pped::Union{Missing,Real} # pedestal height using EPED units (MPa)
+    σ_frac::Float64 # uncertainty of the pedestal height, as a fraction of the height itself
 end
 
 """
@@ -53,7 +57,15 @@ Key inputs (extracted from plasma state):
 Outputs:
 - Pedestal pressure height in MPa (pped)
 - Pedestal width as fraction of normalized poloidal flux (wped)
+- Fractional uncertainty of the pedestal height (σ_frac)
 - Automatic fallback to edge pressure + 10% if EPED prediction is too low
+
+Two EPED-NN models are available, see `act.ActorEPED.nn_model`:
+- `:variable_nesep_ratio` (default): a deep ensemble that adds the separatrix conditions
+  (`ne_sep/ne_ped` and `Te_sep`) to the inputs and predicts the pedestal height with an
+  uncertainty; the pedestal width follows the analytic EPED1 width law
+- `:fixed_nesep_ratio`: the original single network, trained at a fixed `ne_sep/ne_ped ~ 0.25`,
+  which predicts both the pedestal height and its width
 """
 function ActorEPED(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorEPED(dd, act.ActorEPED; kw...)
@@ -66,8 +78,22 @@ end
 function ActorEPED(dd::IMAS.DD, par::FUSEparameters__ActorEPED; kw...)
     logging_actor_init(ActorEPED)
     par = OverrideParameters(par; kw...)
-    epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return ActorEPED(dd, par, epedmod, EPEDNN.InputEPED(), missing, missing)
+    return ActorEPED(dd, par, eped_model(par.nn_model), EPEDNN.InputEPED(), missing, missing, 0.0)
+end
+
+"""
+    eped_model(nn_model::Symbol)
+
+Load the EPED-NN model selected by `act.ActorEPED.nn_model`
+"""
+function eped_model(nn_model::Symbol)
+    if nn_model == :variable_nesep_ratio
+        return EPEDNN.loadmodelonce("EPED1NNensemble.bson")
+    elseif nn_model == :fixed_nesep_ratio
+        return EPEDNN.loadmodelonce("EPED1NNmodel.bson")
+    else
+        error("act.ActorEPED.nn_model can only be :variable_nesep_ratio or :fixed_nesep_ratio")
+    end
 end
 
 """
@@ -85,16 +111,23 @@ function _step(actor::ActorEPED{D,P}) where {D<:Real,P<:Real}
     par = actor.par
 
     cp1d = dd.core_profiles.profiles_1d[]
-    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.only_powerlaw, par.warn_nn_train_bounds)
+    eqt = dd.equilibrium.time_slice[]
 
-    if sol.pressure.GH.H < 1.1 * cp1d.pressure_thermal[end] / 1e6
+    sol = run_EPED!(dd, actor.inputs, actor.epedmod; par.ne_from, par.zeff_from, par.βn_from, par.ip_from, par.Te_sep, par.only_powerlaw, par.warn_nn_train_bounds)
+    pped, actor.σ_frac = EPEDNN.pedestal_height(actor.epedmod, actor.inputs, sol)
+
+    if pped < 1.1 * cp1d.pressure_thermal[end] / 1e6
         actor.pped = 1.1 * cp1d.pressure_thermal[end] / 1E6
-        actor.wped = max(sol.width.GH.H, 0.005)
         @warn "EPED-NN output pedestal pressure is lower than separatrix pressure, p_ped=p_edge * 1.1 = $(round(actor.pped*1e6)) [Pa] assumed "
     else
-        actor.pped = sol.pressure.GH.H
-        actor.wped = sol.width.GH.H
+        actor.pped = pped
     end
+
+    # NOTE: the width is evaluated on `actor.pped`, so that it stays consistent with the pedestal
+    # pressure that is actually used, also when the separatrix pressure sets the pedestal height.
+    # βpol_ped is only used by the models that predict the pedestal height alone.
+    βpol_ped = IMAS.pedestal_poloidal_beta(eqt, actor.pped * 1e6)
+    actor.wped = max(EPEDNN.pedestal_width(actor.epedmod, sol, βpol_ped), 0.005)
 
     return actor
 end
@@ -159,42 +192,65 @@ function __finalize(actor::Union{ActorEPED,ActorAnalyticPedestal})
     return actor
 end
 
+"""
+    run_EPED(
+        dd::IMAS.DD;
+        ne_from::Symbol,
+        zeff_from::Symbol,
+        βn_from::Symbol,
+        ip_from::Symbol,
+        Te_sep::Real,
+        only_powerlaw::Bool,
+        warn_nn_train_bounds::Bool,
+        nn_model::Symbol=:variable_nesep_ratio)
+
+Runs EPED-NN from dd and returns the pedestal height `pped` [MPa], its width `wped` (1/2 width as a
+fraction of psi_norm) and the uncertainty `σ_frac` of the height (as a fraction of the height)
+"""
 function run_EPED(
     dd::IMAS.DD;
     ne_from::Symbol,
     zeff_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
+    Te_sep::Real,
     only_powerlaw::Bool,
-    warn_nn_train_bounds::Bool)
+    warn_nn_train_bounds::Bool,
+    nn_model::Symbol=:variable_nesep_ratio)
 
     inputs = EPEDNN.InputEPED()
-    epedmod = EPEDNN.loadmodelonce("EPED1NNmodel.bson")
-    return run_EPED!(dd, inputs, epedmod; ne_from, zeff_from, βn_from, ip_from, only_powerlaw, warn_nn_train_bounds)
+    epedmod = eped_model(nn_model)
+    sol = run_EPED!(dd, inputs, epedmod; ne_from, zeff_from, βn_from, ip_from, Te_sep, only_powerlaw, warn_nn_train_bounds)
+    pped, σ_frac = EPEDNN.pedestal_height(epedmod, inputs, sol)
+    βpol_ped = IMAS.pedestal_poloidal_beta(dd.equilibrium.time_slice[], pped * 1e6)
+    return (pped=pped, wped=EPEDNN.pedestal_width(epedmod, sol, βpol_ped), σ_frac=σ_frac)
 end
 
 """
     run_EPED!(
         dd::IMAS.DD,
         eped_inputs::EPEDNN.InputEPED,
-        epedmod::EPEDNN.EPED1NNmodel;
+        epedmod::EPEDNN.EPEDmodel;
         ne_from::Symbol,
         zeff_from::Symbol,
         βn_from::Symbol,
         ip_from::Symbol,
+        Te_sep::Real,
         only_powerlaw::Bool,
         warn_nn_train_bounds::Bool)
 
-Runs EPED from dd and outputs the EPED solution as the sol struct
+Fills `eped_inputs` from dd, runs EPED-NN and outputs the solution of `epedmod`
+(a `PedestalSolution` for a `EPED1NNmodel`, height and uncertainty for a `EPED1NNensemble`)
 """
 function run_EPED!(
     dd::IMAS.DD,
     eped_inputs::EPEDNN.InputEPED,
-    epedmod::EPEDNN.EPED1NNmodel;
+    epedmod::EPEDNN.EPEDmodel;
     ne_from::Symbol,
     zeff_from::Symbol,
     βn_from::Symbol,
     ip_from::Symbol,
+    Te_sep::Real,
     only_powerlaw::Bool,
     warn_nn_train_bounds::Bool)
 
@@ -258,6 +314,9 @@ function run_EPED!(
     eped_inputs.neped = neped / 1e19
     eped_inputs.r = R
     eped_inputs.zeffped = zeffped
+    # separatrix conditions: only used by the EPED1NNensemble model
+    eped_inputs.nesep_ratio = cp1d.electrons.density_thermal[end] / neped
+    eped_inputs.tesep = Te_sep
 
-    return epedmod(eped_inputs; only_powerlaw, warn_nn_train_bounds)
+    return EPEDNN.run_epednn(epedmod, eped_inputs; only_powerlaw, warn_nn_train_bounds)
 end
