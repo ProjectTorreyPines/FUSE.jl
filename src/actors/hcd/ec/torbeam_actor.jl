@@ -5,6 +5,7 @@ using Plots
 #  ActorTORBEAM  #
 #= =========== =#
 @actor_parameters_struct ActorTORBEAM{T} begin
+    backend::Switch{Symbol} = Switch{Symbol}([:fortran, :julia], "-", "TORBEAM implementation: the Fortran library (needs TORBEAM_DIR) or the pure-Julia one"; default=:fortran)
 end
 
 mutable struct ActorTORBEAM{D,P} <: SingleAbstractActor{D,P}
@@ -16,7 +17,15 @@ end
 function ActorTORBEAM(dd::IMAS.DD, par::FUSEparameters__ActorTORBEAM; kw...)
     logging_actor_init(ActorTORBEAM)
     par = OverrideParameters(par; kw...)
-    return ActorTORBEAM(dd, par, TORBEAM.TorbeamParams())
+    # TorbeamParams gained `backend` in TORBEAM 1.1; keep working with older releases
+    if hasfield(TORBEAM.TorbeamParams, :backend)
+        torbeam_params = TORBEAM.TorbeamParams(; backend=par.backend)
+    elseif par.backend == :fortran
+        torbeam_params = TORBEAM.TorbeamParams()
+    else
+        error("ActorTORBEAM backend=:$(par.backend) needs TORBEAM.jl >= 1.1 (installed: $(pkgversion(TORBEAM)))")
+    end
+    return ActorTORBEAM(dd, par, torbeam_params)
 end
 
 """
@@ -32,8 +41,10 @@ and realistic wave-plasma interactions.
 
 !!! note
 
-    Requires TORBEAM external code. Reads data from `dd.ec_launchers` and 
-    equilibrium data, stores results in appropriate IMAS data structures.
+    With `backend=:fortran` (default) this requires the external TORBEAM library
+    (`TORBEAM_DIR`); `backend=:julia` runs TORBEAM.jl's pure-Julia implementation.
+    Reads data from `dd.ec_launchers` and equilibrium data, stores results in
+    appropriate IMAS data structures.
 """
 function ActorTORBEAM(dd::IMAS.DD, act::ParametersAllActors; kw...)
     actor = ActorTORBEAM(dd, act.ActorTORBEAM; kw...)
