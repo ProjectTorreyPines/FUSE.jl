@@ -77,15 +77,10 @@ mutable struct ActorLocking{D,P} <: SingleAbstractActor{D,P}
     #   C1_user      : Hz
     #   C2_onset_user : T for :EF (error field) and :LinStab (br), native α otherwise
     #   bracketed    : α≠0 path — onset resolved only to one grid column
-    #   op_C2_max    : largest tolerable amplitude at each operating point's rotation (user units)
-    #   op_C1_min    : slowest rotation (Hz) at which each operating point's op_C2 cannot lock
-    # NaN in C2_onset marks a rotation at which no onset was resolved; NaN in op_C2_max /
-    # op_C1_min marks an operating point outside the resolved onset curve. Both op_
-    # vectors pair with actor.eval.times and are empty when no onset was resolved at all.
+    # NaN in C2_onset marks a rotation at which no onset was resolved.
     bounds::Union{Nothing,@NamedTuple{map::Matrix{Float64}, C1::Vector{Float64},
                                       C2_onset::Vector{Float64}, C1_user::Vector{Float64},
-                                      C2_onset_user::Vector{Float64}, bracketed::Bool,
-                                      op_C2_max::Vector{Float64}, op_C1_min::Vector{Float64}}}
+                                      C2_onset_user::Vector{Float64}, bracketed::Bool}}
 
     function ActorLocking(
         dd::IMAS.dd{D},
@@ -289,9 +284,7 @@ function _step(actor::ActorLocking)
                         C2_onset      = C2_onset,
                         C1_user      = collect(c1_axis) ./ par.time_scale,
                         C2_onset_user = [_control2_to_op_C2(actor, c2) for c2 in C2_onset],
-                        bracketed    = nl,
-                        op_C2_max    = Float64[],
-                        op_C1_min    = Float64[])
+                        bracketed    = nl)
 
         n_ok = count(!isnan, C2_onset)
         par.verbose && @info "Hysteresis onset resolved at $(n_ok)/$(length(c1_axis)) rotations" *
@@ -318,9 +311,7 @@ function _step(actor::ActorLocking)
             onset_of_C1 = IMAS.interp1d(c1u[keep], c2u[keep])
             C1_of_onset = IMAS.interp1d(c2u[keep], c1u[keep])
 
-            eval_C1   = Float64[]
-            op_C2_max = Float64[]
-            op_C1_min = Float64[]
+            eval_C1 = Float64[]
             t_orig  = dd.global_time
             for (t, c2_user) in zip(times, C2_user)
                 dd.global_time = t
@@ -330,15 +321,12 @@ function _step(actor::ActorLocking)
                 tol   = (f_Hz < first(c1u[keep]) || f_Hz > last(c1u[keep])) ? NaN : onset_of_C1(f_Hz)
                 need  = (isnan(c2_user) || c2_user < first(c2u[keep]) || c2_user > last(c2u[keep])) ?
                         NaN : C1_of_onset(c2_user)
-                push!(op_C2_max, tol)
-                push!(op_C1_min, need)
                 par.verbose && @info "  t=$(round(t; digits=4)) s  f₀=$(round(f_Hz; sigdigits=4)) Hz  " *
                       "max tolerable amplitude=$(round(tol; sigdigits=4))  " *
                       "min safe rotation for $(round(c2_user; sigdigits=4))=$(round(need; sigdigits=4)) Hz"
             end
             dd.global_time = t_orig
             actor.eval = (times=times, C1=eval_C1, C2=C2_user)
-            actor.bounds = (; actor.bounds..., op_C2_max, op_C1_min)
         end
 
     elseif task == :transfer_learning

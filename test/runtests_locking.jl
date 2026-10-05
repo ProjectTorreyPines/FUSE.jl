@@ -289,9 +289,6 @@ using Test
             keep = findall(isfinite, b.C2_onset_user)
             @test !isempty(keep)
 
-            # the operating-point answers are stored, one per evaluated time
-            @test length(b.op_C2_max) == length(b.op_C1_min) == length(actor_bounds.eval.times)
-
             # C1_user is Hz; the onset in user units is a positive amplitude
             @test all(>(0), b.C2_onset_user[keep])
             @test issorted(b.C1_user)
