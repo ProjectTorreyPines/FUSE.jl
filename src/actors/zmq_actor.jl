@@ -750,15 +750,17 @@ function send!(actor::ActorZMQ)
         # this shot, kRef reads 0.354 uOhm: the new estimate gives 0.459 (30% high) against
         # the old estimate's 0.706 (100% high). Note the coupled plasma is not the real
         # discharge, so exact agreement with kRef is not expected even in principle.
+        # The old estimate, kept for two purposes: it is logged next to the new one on every
+        # step so the two can be compared on a live run, and it is the fallback if vloop is
+        # unavailable (e.g. core_profiles has no conductivity on this slice).
+        p_res_flux = (psipla_now - actor.prev_psipla) / dt / Ip_val
+
         p_res = try
             IMAS.vloop(dd.core_profiles.profiles_1d[], eqt) / Ip_val
         catch e
             @warn "ActorZMQ.send!: vloop unavailable at t=$time_now s — falling back to the flux-difference estimate" exception = e maxlog = 5
-            (psipla_now - actor.prev_psipla) / dt / Ip_val
+            p_res_flux
         end
-
-        # Old estimate, computed for the log only so the two can be compared on a live run.
-        p_res_flux = (psipla_now - actor.prev_psipla) / dt / Ip_val
         p_res_fresh = true
     end
 
