@@ -252,7 +252,14 @@ function case_parameters(::Val{:D3D}, shot::Int;
     end
     # profile fitting starting from diagnostic measurements
     if fit_profiles
-        n_cer = count(ch -> !isempty(ch.ion) && IMAS.hasdata(ch.ion[1].t_i, :data), dd1.charge_exchange.channel)
+        # Require at least two time samples per channel, not just the presence of data: on
+        # shot 207787 CERAUTO returns 7 channels with a single slice each (t = 1.94 s), which
+        # clears a bare channel count but is useless to fit. time_basis_average! then
+        # convolves that single sample onto the full time basis and yields all-NaN, and the
+        # NaN coordinates blow up the Delaunay triangulation inside fit2d.
+        n_cer = count(
+            ch -> !isempty(ch.ion) && IMAS.hasdata(ch.ion[1].t_i, :data) && length(ch.ion[1].t_i.time) >= 2,
+            dd1.charge_exchange.channel)
         if n_cer < 5 && CER_analysis_type != "CERQUICK"
             @warn "Shot $shot: only $n_cer CER channels with $CER_analysis_type — retrying with CERQUICK"
             return case_parameters(Val(:D3D), shot;
