@@ -38,6 +38,11 @@ jobs:
         run: |
           find ~/.julia/registries/FuseRegistry -type f -name 'Package.toml' -exec sed -i 's|git@github.com:|https://project-torrey-pines:${{secrets.PTP_READ_TOKEN}}@github.com/|g' {} +
 
+      # docs are built in a single process, so the precompile workload would
+      # only slow this job down
+      - name: Disable FUSE precompile workload
+        run: printf '[FUSE]\nprecompile_workload = false\n' > docs/LocalPreferences.toml
+
       - name: Install dependencies
         run: |
           julia --project=docs -e '
