@@ -167,7 +167,7 @@ else
             @assert dir == ENV[\"FUSE_PEDESTAL_NN_DIR\"] \"env var not honoured\"
             @assert FUSE.pedestal_nn_dir_complete(dir) \"shared pedestal-NN dir incomplete\"
             FUSE.load_pedestal_nn()
-            println(\"  loaded PedestalNN bundles OK\")'"
+            println(\"  loaded fuse29 pedestal NN bundle OK\")'"
 
     # SOLPS-NN runs through ActorSOL's model switch, not by calling ActorSOLPSNN
     # directly.

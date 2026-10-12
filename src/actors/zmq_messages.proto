@@ -71,6 +71,10 @@ message WireDataForFUSE {
                                             // "undeclared": FUSE applies no transform and infers the psi orientation
                                             // empirically. Nonzero: FUSE transforms psizr/Ip/Bt to its internal COCOS 11
                                             // on receive. GSLite stamps FuseConnection::COCOS (D3D/EFIT convention).
+    repeated double tinj_per_beam = 22;     // NBI injected torque per beam [N m], same beam order as pinj_per_beam.
+                                            // Computed by GSLite as I*V*cmd*nbi_tinj_ratio (actuator config, ratios
+                                            // fitted from measured tinj per source). Empty = sender predates torque
+                                            // support; FUSE then falls back to its internal pencil-beam torque model.
 }
 
 // Sent by FUSE after completing a time step

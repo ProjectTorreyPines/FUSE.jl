@@ -129,6 +129,10 @@ function run_predictive_rt_case!(
         ini.time.simulation_start = start_time
     end
 
+    ini.core_profiles.ne_setting    = :ne_ped
+    act.ActorPedestal.density_match = :ne_ped
+    act.ActorPedestal.nn_warmup_time = 0.0 # replay actuators from shot start so the recurrent state is warm at t_start
+
     # init
     @info "ini.time.simulation_start = $(ini.time.simulation_start)"
     FUSE.init!(dd, ini, act)
@@ -145,15 +149,15 @@ function run_predictive_rt_case!(
     act.ActorPedestal.model = :dynamic
     act.ActorPedestal.tau_n = 0.3 #experiment_LH.tau_n # 0.3
     act.ActorPedestal.tau_t = 0.15 #experiment_LH.tau_t # 0.15
-    act.ActorEPED.ped_factor = 0.8
-    act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal
+    act.ActorEPED.ped_factor = 1.
+    act.ActorPedestal.T_ratio_pedestal = 1.0 # Ti/Te in the pedestal 
     act.ActorWPED.ped_to_core_fraction = missing
 
     # ZMQ coupling to GSLite/GSEvolve
     act.ActorZMQ.enabled = false # true
     act.ActorPedestal.fpe_source = :dd #:zmq # dd
     act.ActorPedestal.ne_from = :nn_predictor  #:pulse_schedule 
-    act.ActorPedestal.nn_ped_quantities = :ne_lh # :ne_lh (ne_ped + L/H only, Te/Ti from EPED/WPED) or :all (also apply NN te_ped, ti_ped, rotation)
+    act.ActorPedestal.nn_ped_quantities = :all # :ne_lh (ne_ped + L/H only, Te/Ti from EPED/WPED) or :all (also apply NN te_ped, ti_ped, rotation)
 
     # density and Zeff from experiment
     act.ActorPedestal.density_ratio_L_over_H = 1.0

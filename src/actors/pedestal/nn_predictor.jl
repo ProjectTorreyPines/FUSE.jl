@@ -1,118 +1,147 @@
 #= ============================================================================ =#
-#  PedestalNN — DIII-D pedestal NN ensemble (PedestalPredictor v2)              #
+#  fuse29 — DIII-D Mamba-2 pedestal predictor (ONNX)                             #
 #                                                                                #
-#  Five-bundle ONNX ensemble published at                                        #
-#    https://huggingface.co/SCS-Lab/pedestal-predictor-onnx                      #
+#  Published at https://huggingface.co/SCS-Lab/FUSE29-Pedestal-model             #
+#  Source repo: https://github.com/NoahH72/FUSE-Pedestal-Predictor-Mamba-ONNX    #
 #                                                                                #
-#    edensfit89   regression  -> edens_ped   (10^19 m^-3, v1_446)                #
-#    hmode_89     classification -> hmode    (probability,  v1_446)              #
-#    te_ped_89    regression  -> te_ped      (keV,          v2_458)              #
-#    ti_ped_89    regression  -> ti_ped      (keV,          v2_458)              #
-#    t_rot_ped_89 regression  -> t_rot_ped   (krad/s,       v2_458)              #
+#  29 DIII-D actuator channels in RAW PHYSICAL UNITS in, 9 pedestal heads in     #
+#  physical units out, one tick per 50 ms. Normalisation is baked into the       #
+#  graphs; there is no shot-history, aux or machine-state input. The model is    #
+#  strictly causal and stateful: `fuse29_step.onnx` carries a recurrent state    #
+#  (conv_state (6,B,1536,3) + ssm_state (6,B,8,128,128), ~3.1 MB) that must be   #
+#  zero at shot start and advanced exactly once per 50 ms of simulated time.     #
+#  `fuse29_seq.onnx` evaluates the same weights over a whole shot at a fixed     #
+#  256-tick length (offline scoring / tests).                                    #
 #                                                                                #
-#  Each bundle has its own MSE + FPE encoder pair sharing the same architecture, #
-#  the same FPE input contract (32 actuators), and (per docs / verified at load) #
-#  the same per-channel FPE normalization. The MSE history width differs:        #
-#  v1 bundles want 446-wide history, v2 bundles want 458-wide. We keep the       #
-#  superset (458) internally and slice to 446 for v1 bundles.                    #
+#  Heads (in order):                                                             #
+#    ne, te_ped, ti_ped, t_rot_ped        profile values at rho_tor = 0.85,      #
+#                                         valid in every confinement regime      #
+#    neped_prmtan, teped_prmtan,          tanh-fit pedestal height / location,   #
+#    rho_sym, ne_top_loc                  ONLY DEFINED IN H-MODE (gate on hmode) #
+#    hmode                                H-mode probability (sigmoid applied)   #
 #                                                                                #
-#  Runtime: ONNXRunTime.jl (Microsoft onnxruntime C library). The PyTorch        #
-#  opset-17 graphs use Cast / ConstantOfShape / ScatterND / masked-Unsqueeze     #
-#  patterns that ONNXNaiveNASflux cannot lower.                                  #
+#  Runtime: ONNXRunTime.jl (Microsoft onnxruntime C library, opset 17).          #
 #                                                                                #
-#  Artefacts live *outside* FUSE (~700 MB of weights). Their root directory is   #
+#  Artefacts live *outside* FUSE (~90 MB per seed). Their root directory is      #
 #  resolved from, in order:                                                      #
 #    (1) the `onnx_dir` kwarg passed to `load_pedestal_nn`,                      #
 #    (2) the environment variable `FUSE_PEDESTAL_NN_DIR`,                        #
-#    (3) `<pedestal-predictor-onnx repo>/onnx_models/` alongside FUSE.           #
+#    (3) `<pedestal-predictor-mamba-onnx-fuse repo>/artifacts/` alongside FUSE.  #
+#  Missing bundles are auto-fetched from HuggingFace (seed 0 only by default).   #
 #= ============================================================================ =#
 
 import ONNXRunTime
 import JSON
-import NPZ
 import Downloads
-import OrderedCollections: OrderedDict
 
 const PEDESTAL_NN_ENV = "FUSE_PEDESTAL_NN_DIR"
 const PEDESTAL_NN_AUTOFETCH_ENV = "FUSE_PEDESTAL_NN_AUTOFETCH"
 const PEDESTAL_NN_HF_REPO_ENV = "FUSE_PEDESTAL_NN_HF_REPO"
 const PEDESTAL_NN_HF_REVISION_ENV = "FUSE_PEDESTAL_NN_HF_REVISION"
+const PEDESTAL_NN_SEED_ENV = "FUSE_PEDESTAL_NN_SEED"
 
-const PEDESTAL_NN_HF_REPO_DEFAULT     = "SCS-Lab/pedestal-predictor-onnx"
+const PEDESTAL_NN_HF_REPO_DEFAULT = "SCS-Lab/FUSE29-Pedestal-model"
 const PEDESTAL_NN_HF_REVISION_DEFAULT = "main"
+const PEDESTAL_NN_DEFAULT_SEED = 0
 
-const _CANONICAL_SLUGS = ("edensfit89", "hmode_89", "te_ped_89", "ti_ped_89", "t_rot_ped_89")
-const _CLASSIFICATION_SLUGS = ("hmode_89",)
-const _BUNDLE_FILES_REGRESSION = ("mse_encoder.onnx", "fpe_encoder.onnx",
-                                  "model_config.json", "normalization_params.json",
-                                  "target_norm.json")
-const _BUNDLE_FILES_CLASSIFICATION = ("mse_encoder.onnx", "fpe_encoder.onnx",
-                                      "model_config.json", "normalization_params.json")
+# ── The fuse29 I/O contract (mirrors fuse29/spec.py; asserted against the bundle at load) ──
+const FUSE29_ACTUATOR_NAMES = (
+    "pinj", "tinj", "ech_total",
+    "f1a", "f2a", "f3a", "f4a", "f5a", "f6a", "f7a", "f8a", "f9a",
+    "f1b", "f2b", "f3b", "f4b", "f5b", "f6b", "f7b", "f8b", "f9b",
+    "ecoila", "ecoilb",
+    "gasa_cal", "gasb_cal", "gasc_cal", "gasd_cal", "gase_cal",
+    "bt")
+const FUSE29_ACTUATOR_UNITS = (
+    "MW", "N*m", "MW",
+    "A", "A", "A", "A", "A", "A", "A", "A", "A",
+    "A", "A", "A", "A", "A", "A", "A", "A", "A",
+    "A", "A",
+    "Torr*L/s", "Torr*L/s", "Torr*L/s", "Torr*L/s", "Torr*L/s",
+    "T")
+const FUSE29_HEAD_NAMES = ("ne", "te_ped", "ti_ped", "t_rot_ped",
+                           "neped_prmtan", "teped_prmtan", "rho_sym", "ne_top_loc",
+                           "hmode")
+const FUSE29_HEAD_UNITS = ("1e19 m^-3", "keV", "keV", "krad/s",
+                           "1e19 m^-3", "keV", "rho_tor", "rho_tor",
+                           "probability")
+const FUSE29_GATED_HEADS = ("neped_prmtan", "teped_prmtan", "rho_sym", "ne_top_loc")
+const FUSE29_N_ACTUATORS = length(FUSE29_ACTUATOR_NAMES)
+const FUSE29_N_HEADS = length(FUSE29_HEAD_NAMES)
+const FUSE29_STEP_INPUTS = ("actuators", "conv_state", "ssm_state")
+const FUSE29_STEP_OUTPUTS = ("predictions", "conv_state_out", "ssm_state_out")
+const FUSE29_BUNDLE_FILES = ("fuse29_step.onnx", "fuse29_seq.onnx", "model_config.json",
+                             "norms.json", "actuator_ranges.json", "provenance.json")
 const _TOPLEVEL_FILES = ("manifest.json",)
-const _DATASET_WIDTH = Dict("v1_446" => 446, "v2_458" => 458)
-const _MSE_HISTORY_LENGTH = 50
-const _FPE_SIGNAL_DIM = 32
-const _AUX_DIM = 3
-const _MAX_HISTORY_WIDTH = 458    # v2_458 superset; v1_446 bundles get [..., 1:446]
 
 """
-    PedestalNNBundle
+    Fuse29NN
 
-One ONNX bundle (MSE + FPE encoder pair) plus its sidecar metadata.
-"""
-struct PedestalNNBundle
-    slug::String
-    task::Symbol                       # :regression | :classification
-    target::String                     # te_ped, ti_ped, t_rot_ped, edens_ped, hmode
-    dataset_version::String            # v1_446 | v2_458
-    history_features::Int
-    signal_names::Vector{String}
-    means::Vector{Float32}
-    stds::Vector{Float32}
-    target_mean::Float32               # NaN32 for classification
-    target_std::Float32                # NaN32 for classification
-    target_units::String               # "" for classification
-    default_threshold::Float32         # 0.5 for classification, NaN32 for regression
-    mse::ONNXRunTime.InferenceSession
-    fpe::ONNXRunTime.InferenceSession
-end
-
-is_regression(b::PedestalNNBundle) = b.task === :regression
-is_classification(b::PedestalNNBundle) = b.task === :classification
-
-"""
-    PedestalNN
-
-Loaded PedestalPredictor ONNX ensemble. Exposes one inference entry point —
-[`predict_pedestal`](@ref) — that runs all loaded bundles on a shared set of
-inputs and returns physical-unit predictions for ne_ped, Te_ped, Ti_ped,
-T_rot_ped, and the H-mode probability.
+One loaded fuse29 bundle (a single training seed): the stateful step graph, the
+fixed-length sequence graph and the JSON sidecars.
 
 Fields:
-- `bundles`      : ordered slug -> [`PedestalNNBundle`](@ref)
-- `signal_names` : 32 FPE channel names shared by every bundle
-- `signal_means` : per-channel FPE training means  (Float32 × 32)
-- `signal_stds`  : per-channel FPE training stdevs (Float32 × 32)
-- `onnx_dir`     : directory the artefacts were loaded from (for reporting)
+- `step`, `seq`        : ONNX Runtime sessions
+- `config`             : parsed `model_config.json`
+- `actuator_names`     : 29 input channel names, in graph column order
+- `head_names`         : 9 output head names, in graph column order
+- `actuator_ranges`    : parsed `actuator_ranges.json` (training-split distribution, or `nothing`)
+- `seq_len`            : fixed sequence length of `fuse29_seq.onnx` (256)
+- `seed`               : training seed of this bundle
+- `period_s`           : model cadence (0.05 s)
+- `rho_ref`            : radius the continuous heads are defined at (rho_tor = 0.85)
+- `conv_shape`, `ssm_shape` : recurrent state shapes for batch 1
+- `bundle_dir`         : directory the artefacts were loaded from
 """
-struct PedestalNN
-    bundles::OrderedDict{String,PedestalNNBundle}
-    signal_names::Vector{String}
-    signal_means::Vector{Float32}
-    signal_stds::Vector{Float32}
-    onnx_dir::String
+struct Fuse29NN
+    step::ONNXRunTime.InferenceSession
+    seq::ONNXRunTime.InferenceSession
+    config::Dict{String,Any}
+    actuator_names::Vector{String}
+    head_names::Vector{String}
+    actuator_ranges::Union{Nothing,Dict{String,Any}}
+    seq_len::Int
+    seed::Int
+    period_s::Float64
+    rho_ref::Float64
+    conv_shape::NTuple{4,Int}
+    ssm_shape::NTuple{5,Int}
+    bundle_dir::String
 end
 
-# Backward-compat alias for any consumer that still references the old type
-const PedestalDensityNN = PedestalNN
+function Base.show(io::IO, nn::Fuse29NN)
+    print(io, "Fuse29NN(seed=$(nn.seed), $(FUSE29_N_ACTUATORS)→$(FUSE29_N_HEADS), period=$(nn.period_s)s, rho_ref=$(nn.rho_ref), dir=\"$(nn.bundle_dir)\")")
+end
 
-# ── Path resolution & loading ───────────────────────────────────────────────
+"""
+    Fuse29State
+
+Recurrent state of the fuse29 step graph for a single shot (batch 1).
+Zeros are the correct initial condition at shot start. `fuse29_step` never
+mutates the state it is given; it returns a new one.
+
+The arrays are stored in ONNX Runtime's native row-major layout, i.e. as Julia
+column-major arrays with the ONNX dimensions **reversed** (`conv` is
+`(3, 1536, 1, 6)` for the ONNX `(6, batch, 1536, 3)`, `ssm` is
+`(128, 128, 8, 1, 6)` for `(6, batch, 8, 128, 128)`). `vec(arr)` is then exactly
+the buffer ORT wants, so a tick costs no `permutedims` of the ~3 MB state — the
+generic ONNXRunTime.jl path permutes it on the way in and out and was ~50x
+slower than the graph itself.
+"""
+struct Fuse29State
+    conv::Array{Float32,4}
+    ssm::Array{Float32,5}
+end
+Base.copy(s::Fuse29State) = Fuse29State(copy(s.conv), copy(s.ssm))
+
+# ── Path resolution ─────────────────────────────────────────────────────────
 
 """
     resolve_pedestal_nn_dir(; onnx_dir=nothing) -> String
 
-Resolve the directory that holds the per-bundle ONNX subdirs
-(`edensfit89/`, `hmode_89/`, `te_ped_89/`, `ti_ped_89/`, `t_rot_ped_89/`).
+Resolve the fuse29 artefact root: the directory that holds `manifest.json` and
+the per-seed bundle subdirectories `s0/ … s7/` (a bare bundle directory that
+itself contains `model_config.json` is also accepted by `load_pedestal_nn`).
 """
 function resolve_pedestal_nn_dir(; onnx_dir::Union{Nothing,AbstractString}=nothing)
     if onnx_dir !== nothing
@@ -121,84 +150,73 @@ function resolve_pedestal_nn_dir(; onnx_dir::Union{Nothing,AbstractString}=nothi
     if haskey(ENV, PEDESTAL_NN_ENV)
         return ENV[PEDESTAL_NN_ENV]
     end
-    return normpath(joinpath(__FUSE__, "..", "pedestal-predictor-onnx", "onnx_models"))
+    return normpath(joinpath(__FUSE__, "..", "pedestal-predictor-mamba-onnx-fuse", "artifacts"))
+end
+
+function _default_seed()
+    s = tryparse(Int, strip(get(ENV, PEDESTAL_NN_SEED_ENV, "")))
+    return s === nothing ? PEDESTAL_NN_DEFAULT_SEED : s
 end
 
 # ── HuggingFace auto-fetch ──────────────────────────────────────────────────
 
 """
-    pedestal_nn_files() -> Vector{String}
+    pedestal_nn_files(; seed=0) -> Vector{String}
 
-Manifest of relative paths (under the onnx-models root) that
-[`download_pedestal_nn!`](@ref) fetches from HuggingFace. Same set of files
-that `_load_bundle` reads, plus `manifest.json` for parity with the upstream
-layout. Exposed for test-side enumeration.
+Relative paths (under the artefact root) that [`download_pedestal_nn!`](@ref)
+fetches from HuggingFace for one seed: `manifest.json` plus the six files of
+`s<seed>/`. Same set of files that `load_pedestal_nn` reads.
 """
-function pedestal_nn_files()
+function pedestal_nn_files(; seed::Integer=PEDESTAL_NN_DEFAULT_SEED)
     files = String[String(f) for f in _TOPLEVEL_FILES]
-    for slug in _CANONICAL_SLUGS
-        per_bundle = slug in _CLASSIFICATION_SLUGS ?
-            _BUNDLE_FILES_CLASSIFICATION : _BUNDLE_FILES_REGRESSION
-        for f in per_bundle
-            push!(files, "$slug/$f")
-        end
+    for f in FUSE29_BUNDLE_FILES
+        push!(files, "s$seed/$f")
     end
     return files
 end
 
 """
     download_pedestal_nn!(target_dir::AbstractString;
-                         repo=PEDESTAL_NN_HF_REPO_DEFAULT,
-                         revision=PEDESTAL_NN_HF_REVISION_DEFAULT,
-                         force=false,
-                         verbose=true) -> target_dir
+                          repo=PEDESTAL_NN_HF_REPO_DEFAULT,
+                          revision=PEDESTAL_NN_HF_REVISION_DEFAULT,
+                          seed=0, force=false, verbose=true) -> target_dir
 
-Pull the PedestalPredictor ONNX bundles from HuggingFace into `target_dir`,
-producing the exact directory layout `load_pedestal_nn` expects. Idempotent:
-files already present on disk are skipped unless `force=true`.
+Pull one fuse29 seed bundle from HuggingFace into `target_dir`, producing the
+directory layout `load_pedestal_nn` expects (`manifest.json` + `s<seed>/…`).
+Idempotent: files already present on disk are skipped unless `force=true`.
 
-Set `repo` / `revision` to pin a specific HF mirror or commit SHA — both are
-also overridable via `ENV[$(repr(PEDESTAL_NN_HF_REPO_ENV))]` and
-`ENV[$(repr(PEDESTAL_NN_HF_REVISION_ENV))]`.
-
-Total download for a fresh install: ~700 MB compressed (5 × `mse_encoder.onnx`
-≈ 31 MB + 5 × `fpe_encoder.onnx` ≈ 112 MB + JSON sidecars).
+`repo` / `revision` pin a specific HF mirror or commit SHA and are also
+overridable via `ENV[$(repr(PEDESTAL_NN_HF_REPO_ENV))]` and
+`ENV[$(repr(PEDESTAL_NN_HF_REVISION_ENV))]`. One seed is ~92 MB
+(two ~45 MB ONNX graphs + JSON sidecars); all eight seeds are ~724 MB.
 
 # Default behavior
 
-`load_pedestal_nn` calls this automatically when the configured
-`onnx_dir` is missing or incomplete. Override by setting
-`ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"] = \"0\"` (or `"false"` / `"no"` / `"off"`)
-when you want to bind-mount a read-only ONNX dir and have the loader fail
-fast on missing files instead of trying to write into the mount.
+`load_pedestal_nn` calls this automatically when the configured artefact root
+is missing the requested seed. Opt out with
+`ENV["$PEDESTAL_NN_AUTOFETCH_ENV"] = "0"` (or `"false"` / `"no"` / `"off"`)
+when bind-mounting a read-only directory, so the loader fails fast instead of
+trying to write into the mount.
 
 # Container build usage (eager, pre-baked)
 
-Pre-fetching at image-build time keeps first-cycle latency predictable —
-no 700 MB pull on the first GSLite handshake.
-
 ```
 ARG PEDESTAL_NN_HF_REVISION=main
-ENV FUSE_PEDESTAL_NN_DIR=/opt/pedestal-onnx/onnx_models
+ENV FUSE_PEDESTAL_NN_DIR=/opt/fuse29/artifacts
 RUN julia --project=\$FUSE_DIR -e \\
     'using FUSE; FUSE.download_pedestal_nn!(ENV["FUSE_PEDESTAL_NN_DIR"]; revision=ENV["PEDESTAL_NN_HF_REVISION"])'
 ```
-
-# Runtime usage on a fresh dev machine
-
-Just call `using FUSE` — the auto-fetch hook in `load_pedestal_nn` handles
-it. To direct the cache somewhere specific, set `FUSE_PEDESTAL_NN_DIR`
-first; it'll be created and populated on first load.
 """
 function download_pedestal_nn!(target_dir::AbstractString;
         repo::AbstractString=get(ENV, PEDESTAL_NN_HF_REPO_ENV, PEDESTAL_NN_HF_REPO_DEFAULT),
         revision::AbstractString=get(ENV, PEDESTAL_NN_HF_REVISION_ENV, PEDESTAL_NN_HF_REVISION_DEFAULT),
+        seed::Integer=_default_seed(),
         force::Bool=false,
         verbose::Bool=true)
     mkpath(target_dir)
-    files = pedestal_nn_files()
+    files = pedestal_nn_files(; seed)
     base_url = "https://huggingface.co/$repo/resolve/$revision"
-    verbose && @info "PedestalNN: fetching $(length(files)) files from $repo @ $revision -> $target_dir"
+    verbose && @info "fuse29: fetching $(length(files)) files (seed $seed) from $repo @ $revision -> $target_dir"
     for (i, rel) in enumerate(files)
         dest = joinpath(target_dir, rel)
         if !force && isfile(dest) && filesize(dest) > 0
@@ -220,101 +238,98 @@ function download_pedestal_nn!(target_dir::AbstractString;
         end
         verbose && @info "  [$i/$(length(files))] -> $(filesize(dest)) B"
     end
-    verbose && @info "PedestalNN: download complete ($(length(files)) files)"
+    verbose && @info "fuse29: download complete ($(length(files)) files)"
     return String(target_dir)
 end
 
 """
-    pedestal_nn_dir_complete(dir::AbstractString) -> Bool
+    pedestal_nn_dir_complete(dir::AbstractString; seed=0) -> Bool
 
 True iff `dir` already contains every file [`pedestal_nn_files`](@ref) lists
-(skips zero-byte stragglers from interrupted downloads). Useful for
-container-build cache checks.
+for `seed` (zero-byte stragglers from interrupted downloads count as missing),
+or `dir` is itself a complete bare bundle directory.
 """
-function pedestal_nn_dir_complete(dir::AbstractString)
+function pedestal_nn_dir_complete(dir::AbstractString; seed::Integer=_default_seed())
     isdir(dir) || return false
-    for rel in pedestal_nn_files()
+    _bundle_complete(dir) && return true
+    for rel in pedestal_nn_files(; seed)
         path = joinpath(dir, rel)
         (isfile(path) && filesize(path) > 0) || return false
     end
     return true
 end
 
-# Auto-fetch is on by default so a fresh `using FUSE; load_pedestal_nn()`
-# Just Works on a clean machine without manual setup. Opt out by setting
-# `ENV[PEDESTAL_NN_AUTOFETCH_ENV] = "0"` (or "false"/"no"/"off") — useful
-# when bind-mounting the ONNX dir from an NFS share or a read-only image
-# layer and you want the loader to fail fast instead of trying to write.
-function _maybe_autofetch!(dir::AbstractString)
-    autofetch = lowercase(strip(get(ENV, PEDESTAL_NN_AUTOFETCH_ENV, "")))
-    autofetch in ("0", "false", "no", "off") && return false
-    pedestal_nn_dir_complete(dir) && return false
-    @info "PedestalNN: ONNX bundles missing or incomplete; auto-fetching from HuggingFace ($(get(ENV, PEDESTAL_NN_HF_REPO_ENV, PEDESTAL_NN_HF_REPO_DEFAULT)) @ $(get(ENV, PEDESTAL_NN_HF_REVISION_ENV, PEDESTAL_NN_HF_REVISION_DEFAULT))) -> $dir\n  Set ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"] = \"0\" to opt out."
-    download_pedestal_nn!(dir)
+function _bundle_complete(bdir::AbstractString)
+    isdir(bdir) || return false
+    for f in FUSE29_BUNDLE_FILES
+        path = joinpath(bdir, f)
+        (isfile(path) && filesize(path) > 0) || return false
+    end
     return true
 end
 
-"""
-    load_pedestal_nn(; onnx_dir=nothing, only=nothing) -> PedestalNN
-
-Load every available PedestalPredictor ONNX bundle from `onnx_dir` (resolved
-via [`resolve_pedestal_nn_dir`](@ref)). Cached per-process: subsequent calls
-with the same directory return the same object.
-
-Pass `only=["edensfit89", "hmode_89"]` to restrict to a subset of bundles
-(the others' fields in [`predict_pedestal`](@ref)'s NamedTuple will be NaN).
-
-Set `ENV["FUSE_PEDESTAL_NN_DIR"]` or pass `onnx_dir=...` to point at a
-non-default location. The directory must contain one subdirectory per
-loaded slug, each holding `mse_encoder.onnx`, `fpe_encoder.onnx`,
-`model_config.json`, `normalization_params.json`, and (for regression
-bundles) `target_norm.json`.
-"""
-function load_pedestal_nn(; onnx_dir::Union{Nothing,AbstractString}=nothing,
-                            only::Union{Nothing,AbstractVector{<:AbstractString}}=nothing)
-    dir = resolve_pedestal_nn_dir(; onnx_dir)
-    return _cached_pedestal_nn(dir, only)
+# Auto-fetch is on by default so a fresh `using FUSE; load_pedestal_nn()`
+# Just Works on a clean machine without manual setup.
+function _maybe_autofetch!(dir::AbstractString; seed::Integer=_default_seed())
+    autofetch = lowercase(strip(get(ENV, PEDESTAL_NN_AUTOFETCH_ENV, "")))
+    autofetch in ("0", "false", "no", "off") && return false
+    pedestal_nn_dir_complete(dir; seed) && return false
+    @info "fuse29: ONNX bundle for seed $seed missing or incomplete; auto-fetching from HuggingFace ($(get(ENV, PEDESTAL_NN_HF_REPO_ENV, PEDESTAL_NN_HF_REPO_DEFAULT)) @ $(get(ENV, PEDESTAL_NN_HF_REVISION_ENV, PEDESTAL_NN_HF_REVISION_DEFAULT))) -> $dir\n  Set ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"] = \"0\" to opt out."
+    download_pedestal_nn!(dir; seed)
+    return true
 end
 
-const _PEDESTAL_NN_CACHE = Dict{Tuple{String,Vector{String}},PedestalNN}()
+# ── Loading ─────────────────────────────────────────────────────────────────
 
-function _cached_pedestal_nn(dir::AbstractString, only)
-    keep = only === nothing ? collect(_CANONICAL_SLUGS) : sort(String.(only))
-    cache_key = (abspath(dir), keep)
+"""
+    load_pedestal_nn(; onnx_dir=nothing, seed=nothing) -> Fuse29NN
+
+Load one fuse29 bundle. `onnx_dir` (or `ENV["FUSE_PEDESTAL_NN_DIR"]`) may be
+either the artefact root holding `manifest.json` and `s0/ … s7/`, in which case
+`seed` (default `ENV["FUSE_PEDESTAL_NN_SEED"]`, else 0 — the champion) selects
+the bundle, or a bare bundle directory containing `model_config.json`.
+Cached per process; repeated calls return the same object.
+
+The bundle is validated against the contract in this file at load time
+(actuator and head names/order, graph input/output names, state shapes), so a
+mismatched or mislabelled bundle fails here rather than producing plausible
+nonsense downstream.
+"""
+function load_pedestal_nn(; onnx_dir::Union{Nothing,AbstractString}=nothing,
+                            seed::Union{Nothing,Integer}=nothing)
+    dir = resolve_pedestal_nn_dir(; onnx_dir)
+    s = seed === nothing ? _default_seed() : Int(seed)
+    return _cached_pedestal_nn(dir, s)
+end
+
+const _PEDESTAL_NN_CACHE = Dict{Tuple{String,Int},Fuse29NN}()
+
+function _cached_pedestal_nn(dir::AbstractString, seed::Int)
+    cache_key = (abspath(dir), seed)
     haskey(_PEDESTAL_NN_CACHE, cache_key) && return _PEDESTAL_NN_CACHE[cache_key]
-    _maybe_autofetch!(cache_key[1])
-    isdir(cache_key[1]) || error("PedestalNN: onnx directory does not exist: $(cache_key[1])\n" *
+    root = cache_key[1]
+    _bundle_complete(root) || _maybe_autofetch!(root; seed)
+    isdir(root) || error("fuse29: artefact directory does not exist: $root\n" *
         "Auto-fetch was skipped (ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"] is set to opt-out) " *
         "or failed before creating the directory. Either:\n" *
         "  • Unset / set ENV[\"$PEDESTAL_NN_AUTOFETCH_ENV\"]=\"1\" and retry (downloads from HuggingFace)\n" *
-        "  • Run `FUSE.download_pedestal_nn!(\"$(cache_key[1])\")` explicitly\n" *
+        "  • Run `FUSE.download_pedestal_nn!(\"$root\")` explicitly\n" *
         "  • Set ENV[\"$PEDESTAL_NN_ENV\"] or pass `onnx_dir=...` to point at an existing copy")
-
-    bundles = OrderedDict{String,PedestalNNBundle}()
-    for slug in _CANONICAL_SLUGS
-        only === nothing || (slug in only) || continue
-        bdir = joinpath(cache_key[1], slug)
-        isdir(bdir) || (@warn "PedestalNN: bundle directory missing, skipping: $bdir"; continue)
-        bundles[slug] = _load_bundle(slug, bdir)
-    end
-    isempty(bundles) && error("PedestalNN: no bundles loaded from $(cache_key[1]). " *
-                              "Expected one or more of: $(_CANONICAL_SLUGS)")
-
-    ref = first(values(bundles))
-    for b in values(bundles)
-        b.signal_names == ref.signal_names ||
-            error("PedestalNN: $(b.slug) FPE signal_names differ from $(ref.slug) — cannot run a joint ensemble.")
-        maximum(abs.(b.means .- ref.means)) < 1f-5 ||
-            @warn "PedestalNN: $(b.slug) FPE means differ from $(ref.slug) by up to $(maximum(abs.(b.means .- ref.means)))"
-        maximum(abs.(b.stds .- ref.stds)) < 1f-5 ||
-            @warn "PedestalNN: $(b.slug) FPE stds differ from $(ref.slug) by up to $(maximum(abs.(b.stds .- ref.stds)))"
-    end
-
-    nn = PedestalNN(bundles, ref.signal_names, ref.means, ref.stds, cache_key[1])
+    bdir = _resolve_bundle_dir(root, seed)
+    nn = _load_fuse29(bdir, seed)
     _PEDESTAL_NN_CACHE[cache_key] = nn
     return nn
 end
 
+# Mirrors fuse29.runtime.from_pretrained: a bare bundle dir wins, else `s<seed>/` under the root.
+function _resolve_bundle_dir(root::AbstractString, seed::Int)
+    isfile(joinpath(root, "model_config.json")) && return String(root)
+    bdir = joinpath(root, "s$seed")
+    _bundle_complete(bdir) && return bdir
+    missing_files = [f for f in FUSE29_BUNDLE_FILES if !(isfile(joinpath(bdir, f)) && filesize(joinpath(bdir, f)) > 0)]
+    error("fuse29: bundle directory $bdir is missing $(missing_files). " *
+          "Expected a per-seed bundle (`$(root)/s$seed/`) or a bare bundle directory with model_config.json.")
+end
 
 # ---------------------------------------------------------------------------
 # ONNX Runtime thread cap.
@@ -354,673 +369,332 @@ function _load_inference_capped(path::AbstractString; threads::Int=_ort_threads(
         allocator = ORT.CAPI.CreateAllocator(api, session, meminfo)
         ins = ORT.input_names(api, session, allocator)
         outs = ORT.output_names(api, session, allocator)
-        @debug "PedestalNN: ONNX session for $(basename(path)) with $threads intra-op thread(s)"
+        @debug "fuse29: ONNX session for $(basename(path)) with $threads intra-op thread(s)"
         return ORT.InferenceSession(api, :cpu, session, meminfo, allocator, ins, outs)
     catch e
-        @warn "PedestalNN: could not create a thread-capped ONNX session (ONNXRunTime.jl API changed?); falling back to load_inference with default threading" exception = e
+        @warn "fuse29: could not create a thread-capped ONNX session (ONNXRunTime.jl API changed?); falling back to load_inference with default threading" exception = e
         return ORT.load_inference(path)
     end
 end
 
-function _load_bundle(slug::AbstractString, bdir::AbstractString)
-    cfg_path = joinpath(bdir, "model_config.json")
-    norm_path = joinpath(bdir, "normalization_params.json")
-    mse_path = joinpath(bdir, "mse_encoder.onnx")
-    fpe_path = joinpath(bdir, "fpe_encoder.onnx")
-    for p in (cfg_path, norm_path, mse_path, fpe_path)
-        isfile(p) || error("PedestalNN $slug: missing artefact: $p")
-    end
-
-    cfg = JSON.parsefile(cfg_path)
-    norm = JSON.parsefile(norm_path)
-
-    task_str = String(cfg["task_type"])
-    task = task_str == "regression" ? :regression :
-           task_str == "classification" ? :classification :
-           error("$slug: invalid task_type=$(task_str)")
-
-    dsv = String(cfg["dataset_version"])
-    haskey(_DATASET_WIDTH, dsv) || error("$slug: invalid dataset_version=$(dsv)")
-    expected_width = _DATASET_WIDTH[dsv]
-    Int(cfg["history_features"]) == expected_width ||
-        error("$slug: model_config.json::history_features $(cfg["history_features"]) " *
-              "!= expected $expected_width for dataset_version=$dsv")
-
-    signal_names = String.(norm["signal_names"])
-    means = Float32.(norm["means"])
-    stds = Float32.(norm["stds"])
-    length(means) == _FPE_SIGNAL_DIM ||
-        error("$slug: expected $_FPE_SIGNAL_DIM FPE means, got $(length(means))")
-    length(stds) == _FPE_SIGNAL_DIM ||
-        error("$slug: expected $_FPE_SIGNAL_DIM FPE stds, got $(length(stds))")
-
-    target_mean = NaN32
-    target_std = NaN32
-    target_units = ""
-    default_threshold = NaN32
-    if task === :regression
-        tmean = get(cfg, "target_mean", nothing)
-        tstd = get(cfg, "target_std", nothing)
-        if tmean === nothing || tstd === nothing
-            tn_path = joinpath(bdir, "target_norm.json")
-            isfile(tn_path) || error("$slug: regression bundle missing target_mean/target_std and no target_norm.json")
-            tn = JSON.parsefile(tn_path)
-            tmean = something(tmean, tn["target_mean"])
-            tstd = something(tstd, tn["target_std"])
-        end
-        target_mean = Float32(tmean)
-        target_std = Float32(tstd)
-        target_units = String(get(cfg, "target_units", ""))
-    else
-        default_threshold = Float32(get(cfg, "default_threshold", 0.5))
-    end
-
-    mse = _load_inference_capped(mse_path)
-    fpe = _load_inference_capped(fpe_path)
-
-    return PedestalNNBundle(
-        String(slug), task, String(cfg["target_name"]), dsv, expected_width,
-        signal_names, means, stds, target_mean, target_std, target_units, default_threshold,
-        mse, fpe)
+function _shape_from_config(dims::AbstractVector, batch::Int)
+    return Tuple(Int[d == "batch" ? batch : Int(d) for d in dims])
 end
 
-# ── Normalization helpers ───────────────────────────────────────────────────
+function _load_fuse29(bdir::AbstractString, seed::Int)
+    config = JSON.parsefile(joinpath(bdir, "model_config.json"); dicttype=Dict{String,Any})
 
-"""
-    fpe_signal_index(nn::PedestalNN, name::AbstractString) -> Int
+    # -- contract assertions (names & order are load-bearing) --
+    actuator_names = String.(config["inputs"]["names"])
+    head_names = String.(config["outputs"]["names"])
+    actuator_names == collect(FUSE29_ACTUATOR_NAMES) ||
+        error("fuse29: actuator names/order in $(bdir)/model_config.json do not match FUSE29_ACTUATOR_NAMES:\n  bundle: $actuator_names\n  FUSE:   $(collect(FUSE29_ACTUATOR_NAMES))")
+    head_names == collect(FUSE29_HEAD_NAMES) ||
+        error("fuse29: head names/order in $(bdir)/model_config.json do not match FUSE29_HEAD_NAMES:\n  bundle: $head_names\n  FUSE:   $(collect(FUSE29_HEAD_NAMES))")
+    gated = haskey(config["outputs"], "hmode_gated") ? String.(config["outputs"]["hmode_gated"]["heads"]) : collect(FUSE29_GATED_HEADS)
+    gated == collect(FUSE29_GATED_HEADS) ||
+        error("fuse29: hmode-gated heads in bundle ($gated) differ from FUSE29_GATED_HEADS $(collect(FUSE29_GATED_HEADS))")
 
-Return the FPE channel index for `name` (e.g. "pinj", "bt"), or 0 if absent.
-"""
-function fpe_signal_index(nn::PedestalNN, name::AbstractString)
-    idx = findfirst(==(String(name)), nn.signal_names)
-    return idx === nothing ? 0 : idx
-end
+    gstep = config["graphs"]["fuse29_step.onnx"]
+    gseq = config["graphs"]["fuse29_seq.onnx"]
+    conv_shape = _shape_from_config(gstep["inputs"]["conv_state"], 1)
+    ssm_shape = _shape_from_config(gstep["inputs"]["ssm_state"], 1)
+    length(conv_shape) == 4 || error("fuse29: unexpected conv_state rank $(length(conv_shape)) (expected 4)")
+    length(ssm_shape) == 5 || error("fuse29: unexpected ssm_state rank $(length(ssm_shape)) (expected 5)")
+    seq_len = Int(get(gseq, "seq_len", gseq["inputs"]["actuators"][2]))
 
-"""
-    normalized_signals(nn::PedestalNN, raw::AbstractMatrix) -> Matrix{Float32}
+    cadence = get(config, "cadence", Dict{String,Any}())
+    period_s = Float64(get(cadence, "period_ms", 50.0)) / 1000
+    rho_ref = Float64(get(cadence, "rho_tor", 0.85))
+    bundle_seed = Int(get(config, "seed", seed))
+    bundle_seed == seed || @warn "fuse29: bundle in $bdir reports seed $bundle_seed but was requested as seed $seed"
 
-Z-score a `(T, 32)` matrix of raw-physical FPE signals using the training
-per-channel mean/std stored in `nn`.
-"""
-function normalized_signals(nn::PedestalNN, raw::AbstractMatrix)
-    size(raw, 2) == _FPE_SIGNAL_DIM ||
-        error("normalized_signals: expected $_FPE_SIGNAL_DIM channels, got $(size(raw,2))")
-    T = size(raw, 1)
-    out = Matrix{Float32}(undef, T, _FPE_SIGNAL_DIM)
-    @inbounds for c in 1:_FPE_SIGNAL_DIM, t in 1:T
-        out[t, c] = (Float32(raw[t, c]) - nn.signal_means[c]) / (nn.signal_stds[c] + 1f-8)
-    end
-    return out
-end
+    ranges_path = joinpath(bdir, "actuator_ranges.json")
+    actuator_ranges = isfile(ranges_path) ? JSON.parsefile(ranges_path; dicttype=Dict{String,Any}) : nothing
 
-const _AUX_HISTORY_KEY = :nn_history_buffer
+    step = _load_inference_capped(joinpath(bdir, "fuse29_step.onnx"))
+    seq = _load_inference_capped(joinpath(bdir, "fuse29_seq.onnx"))
+    ORT = ONNXRunTime
+    ORT.input_names(step) == collect(FUSE29_STEP_INPUTS) ||
+        error("fuse29: fuse29_step.onnx inputs $(ORT.input_names(step)) != $(collect(FUSE29_STEP_INPUTS))")
+    ORT.output_names(step) == collect(FUSE29_STEP_OUTPUTS) ||
+        error("fuse29: fuse29_step.onnx outputs $(ORT.output_names(step)) != $(collect(FUSE29_STEP_OUTPUTS))")
+    ORT.input_names(seq) == ["actuators"] ||
+        error("fuse29: fuse29_seq.onnx inputs $(ORT.input_names(seq)) != [\"actuators\"]")
 
-"""
-    AUX_DEFAULT_SENTINEL :: NTuple{3,Float32}
-
-Default `aux_features = [bzn_seconds, disrupt_seconds, disrupt_coverage]` triple
-matching `HistoryManager._init_from_raw`'s sentinel branch (when no
-`AuxFeaturesProvider` is wired). Per `pedestal-predictor-onnx/inference/aux_features.py`:
-
-- `bzn_seconds = 0.0` — "no boronization data" sentinel.
-- `disrupt_seconds = -1.0` — out-of-coverage sentinel (DIII-D shots > 180,847,
-  i.e. the entire edensfit89 training shot range 196,000–205,000).
-- `disrupt_coverage = 0.0` — false (correct for the same shot range).
-
-Using `(0.0, -1.0, 0.0)` rather than `(0, 0, 0)` is closer to the H5/log path
-the model was trained against, so mean-input runs don't accidentally tell the
-encoder "this shot is in disrupt-list coverage with 0 s since last disruption".
-"""
-const AUX_DEFAULT_SENTINEL = (0f0, -1f0, 0f0)
-
-"""
-    mean_normalized_history() -> (hist, hmask, aux)
-
-Produce the "neutral" MSE inputs corresponding to the normalization means
-(z-score zeros for `history_stats`) plus the [`AUX_DEFAULT_SENTINEL`](@ref)
-triple for `aux_features`. Use this when no machine-state history file is
-available. Shapes match the v2 ONNX graph: `(1, 50, 458)`, `(1, 50)`, `(1, 3)`.
-v1 bundles internally see `[..., 1:446]`.
-"""
-function mean_normalized_history()
-    hist = zeros(Float32, 1, _MSE_HISTORY_LENGTH, _MAX_HISTORY_WIDTH)
-    hmask = ones(Float32, 1, _MSE_HISTORY_LENGTH)
-    aux = reshape(Float32[AUX_DEFAULT_SENTINEL...], 1, _AUX_DIM)
-    return hist, hmask, aux
-end
-
-"""
-    load_history_npz(path; norm_params_path=nothing) -> (hist, hmask, aux)
-
-Load an MSE-history NPZ produced by PedestalPredictor's
-`HistoryManager.save_state` (i.e. via `run_inference.py --save-history`),
-returning a triple shaped to match the ONNX graph inputs and ready to pass
-into [`predict_pedestal`](@ref) as the `history` keyword.
-
-NPZ contract (per `pedestal-predictor-onnx/inference/history_manager.py::save_state`):
-
-| key                  | dtype     | shape           | meaning                              |
-|----------------------|-----------|-----------------|--------------------------------------|
-| `history_stats`      | float32   | `(n_slots, F)`  | per-slot rolled-up signals (RAW)     |
-| `history_masks`      | float32   | `(n_slots,)`    | 1.0 = real slot, 0.0 = padding       |
-| `shot_ids`           | int64     | `(n_slots,)`    | shot id per slot (informational)     |
-| `bzn_seconds`        | float     | `(1,)`          | seconds since last boronization      |
-| `disrupt_seconds`    | float     | `(1,)`          | seconds since last disruption (-1 = sentinel) |
-| `disrupt_coverage`   | float     | `(1,)`          | 1 if shot in disrupt-list coverage   |
-| `n_history_features` | int       | `(1,)`          | 446 (v1) or 458 (v2)                 |
-
-Returned arrays:
-- `hist::Array{Float32,3}`  — `(1, _MSE_HISTORY_LENGTH, _MAX_HISTORY_WIDTH)` z-scored
-   if `norm_params_path` was provided, else raw.
-- `hmask::Matrix{Float32}`  — `(1, _MSE_HISTORY_LENGTH)`
-- `aux::Matrix{Float32}`    — `(1, 3)` = `[bzn_sec, dis_sec, dis_cov]` (raw, not z-scored)
-
-Adaptation behavior:
-- Slot count != `_MSE_HISTORY_LENGTH (=50)` → zero-pad (stats and mask) or take
-  the **latest** `_MSE_HISTORY_LENGTH` slots.
-- Width < `_MAX_HISTORY_WIDTH (=458)` (v1_446 NPZs) → zero-pad on the right; v1
-  bundles ignore the trailing 12 features via the slicing in `predict_pedestal`.
-- `norm_params_path` should point to a JSON with either
-  `history_means`/`history_stds` or `means`/`stds` keys (length F). Without it,
-  raw stats are returned and a warning is emitted — useful only for offline
-  debugging since the encoder was trained on z-scored inputs.
-
-Mirrors what `HistoryManager.get_mse_inputs` produces in Python so this is the
-on-ramp for `--save-history` round-trip / parity testing.
-"""
-function load_history_npz(path::AbstractString;
-        norm_params_path::Union{Nothing,AbstractString}=nothing)
-    isfile(path) || error("load_history_npz: NPZ not found at $path")
-    data = NPZ.npzread(path)
-    return _assemble_history(data; norm_params_path, source="NPZ at $path")
-end
-
-"""
-    _assemble_history(record::AbstractDict; norm_params_path=nothing, source="<source>") -> (hist, hmask, aux)
-
-Shared back-end for both [`load_history_npz`](@ref) and
-[`mse_history_from_aux`](@ref). Validates the required keys, optionally
-z-scores `history_stats`, pads/truncates to the encoder's `(1, 50, 458)`
-contract, and assembles the `(1, 3)` aux triple from `[bzn, dis, cov]`.
-
-`record` accepts any AbstractDict (or NamedTuple-like) with the same key set
-as PedestalPredictor's `HistoryManager.save_state` NPZ. `source` is used in
-error messages only.
-"""
-function _assemble_history(record;
-        norm_params_path::Union{Nothing,AbstractString}=nothing,
-        source::AbstractString="<unknown>")
-    # NamedTuple only supports Symbol keys; AbstractDict from NPZ uses String.
-    # Try Symbol first (cheap, total for NamedTuple), then fall back to String.
-    function _get(k)
-        sym = Symbol(k)
-        if record isa NamedTuple
-            return haskey(record, sym) ? getfield(record, sym) : nothing
-        end
-        return haskey(record, k) ? record[k] :
-               (haskey(record, sym) ? record[sym] : nothing)
-    end
-    for k in ("history_stats", "history_masks", "bzn_seconds",
-              "disrupt_seconds", "disrupt_coverage")
-        _get(k) === nothing && error("_assemble_history: $source missing required key '$k'")
-    end
-
-    raw_stats = _get("history_stats")
-    raw_masks = _get("history_masks")
-    ndims(raw_stats) == 2 || error("_assemble_history: history_stats must be 2-D, got $(ndims(raw_stats))-D")
-    ndims(raw_masks) == 1 || error("_assemble_history: history_masks must be 1-D, got $(ndims(raw_masks))-D")
-    size(raw_stats, 1) == size(raw_masks, 1) ||
-        error("_assemble_history: history_stats rows ($(size(raw_stats,1))) != history_masks length ($(size(raw_masks,1)))")
-
-    n_slots_in = size(raw_stats, 1)
-    n_features = size(raw_stats, 2)
-    n_features <= _MAX_HISTORY_WIDTH ||
-        error("_assemble_history: history width $n_features exceeds max $_MAX_HISTORY_WIDTH")
-
-    n_hist_decl_v = _get("n_history_features")
-    if n_hist_decl_v !== nothing
-        n_hist_decl = Int(first(n_hist_decl_v))
-        n_hist_decl == n_features ||
-            error("_assemble_history: n_history_features=$n_hist_decl != actual width $n_features")
-        n_hist_decl in (446, 458) ||
-            @warn "_assemble_history: unusual history width $n_hist_decl (expected 446 or 458)"
-    end
-
-    stats_typed = Float32.(raw_stats)
-    if norm_params_path !== nothing
-        isfile(norm_params_path) ||
-            error("_assemble_history: norm_params_path not found: $norm_params_path")
-        params = JSON.parsefile(norm_params_path)
-        # Match Python `HistoryManager._load_norm_params`: only the per-feature
-        # `history_means`/`history_stds` keys (length == 446 or 458) trigger
-        # z-scoring. Per-base-signal files (e.g. `normalization_params_prmtan67.json`,
-        # which has `means`/`stds` of length 67) are intentionally NOT accepted
-        # here — they encode a different normalization step that's already
-        # baked into `compute_shot_stats`'s raw-signal preprocessing.
-        hmean = get(params, "history_means", get(params, "history_mean", nothing))
-        hstd  = get(params, "history_stds",  get(params, "history_std",  nothing))
-        if hmean === nothing || hstd === nothing
-            @warn "_assemble_history: $norm_params_path lacks history_means/history_stds — history will be passed un-normalized"
-        else
-            length(hmean) == n_features ||
-                error("_assemble_history: history_means length $(length(hmean)) != $n_features")
-            length(hstd) == n_features ||
-                error("_assemble_history: history_stds length $(length(hstd)) != $n_features")
-            μ = reshape(Float32.(hmean), 1, n_features)
-            σ = reshape(Float32.(hstd),  1, n_features)
-            @. stats_typed = (stats_typed - μ) / (σ + 1f-8)
-        end
-    else
-        @warn "_assemble_history: no norm_params_path supplied for $source — history will be passed un-normalized (matches Python `HistoryManager` default when no normalization_params.json contains history_means/history_stds)"
-    end
-
-    stats_padded = zeros(Float32, _MSE_HISTORY_LENGTH, _MAX_HISTORY_WIDTH)
-    masks_padded = zeros(Float32, _MSE_HISTORY_LENGTH)
-    n_take = min(n_slots_in, _MSE_HISTORY_LENGTH)
-    src_lo = n_slots_in - n_take + 1
-    dst_lo = _MSE_HISTORY_LENGTH - n_take + 1
-    stats_padded[dst_lo:end, 1:n_features] .= @view stats_typed[src_lo:end, :]
-    masks_padded[dst_lo:end] .= @view Float32.(raw_masks)[src_lo:end]
-
-    hist = reshape(stats_padded, 1, _MSE_HISTORY_LENGTH, _MAX_HISTORY_WIDTH)
-    hmask = reshape(masks_padded, 1, _MSE_HISTORY_LENGTH)
-
-    aux = reshape(Float32[
-        Float32(first(_get("bzn_seconds"))),
-        Float32(first(_get("disrupt_seconds"))),
-        Float32(first(_get("disrupt_coverage"))),
-    ], 1, _AUX_DIM)
-
-    return hist, hmask, aux
-end
-
-# ── Live history buffer (dd._aux[:nn_history_buffer]) ───────────────────────
-#
-# Schema (NamedTuple identical to HistoryManager.save_state's NPZ):
-#   history_stats        :: Matrix{Float32}   # (n_slots, n_features) — RAW
-#   history_masks        :: Vector{Float32}   # (n_slots,)
-#   shot_ids             :: Vector{Int64}     # (n_slots,)
-#   bzn_seconds          :: Vector{Float64}   # (1,)
-#   disrupt_seconds      :: Vector{Float64}   # (1,)
-#   disrupt_coverage     :: Vector{Float64}   # (1,)
-#   n_history_features   :: Vector{Int64}     # (1,) — 446 or 458
-#
-# The matching schema means save_history_npz / load_history_npz round-trip
-# directly with this struct, and `mse_history_from_aux` uses the same
-# `_assemble_history` back-end as `load_history_npz`.
-
-"""
-    init_history_buffer(; n_features=458, bzn_seconds=0.0, disrupt_seconds=-1.0,
-                        disrupt_coverage=0.0) -> NamedTuple
-
-Construct an empty live MSE-history buffer matching `HistoryManager.save_state`'s
-NPZ schema. Use `n_features = 446` for v1-only deployments. Aux scalars default
-to [`AUX_DEFAULT_SENTINEL`](@ref).
-"""
-function init_history_buffer(;
-        n_features::Integer=_MAX_HISTORY_WIDTH,
-        bzn_seconds::Real=AUX_DEFAULT_SENTINEL[1],
-        disrupt_seconds::Real=AUX_DEFAULT_SENTINEL[2],
-        disrupt_coverage::Real=AUX_DEFAULT_SENTINEL[3])
-    n_features in (446, 458) ||
-        @warn "init_history_buffer: unusual n_features=$n_features (expected 446 or 458)"
-    return (
-        history_stats      = Matrix{Float32}(undef, 0, Int(n_features)),
-        history_masks      = Float32[],
-        shot_ids           = Int64[],
-        bzn_seconds        = Float64[bzn_seconds],
-        disrupt_seconds    = Float64[disrupt_seconds],
-        disrupt_coverage   = Float64[disrupt_coverage],
-        n_history_features = Int64[Int(n_features)],
-    )
-end
-
-"""
-    push_shot_history!(dd, stats_vec; shot_id, mask=1.0, max_slots=50,
-                       bzn_seconds=nothing, disrupt_seconds=nothing,
-                       disrupt_coverage=nothing) -> NamedTuple
-
-Append a shot-summary stats row to `dd._aux[:nn_history_buffer]`. Creates the
-buffer if absent (using `length(stats_vec)` as the feature width). The buffer
-is kept bounded at `max_slots` rows by dropping the oldest entries. Aux
-scalars are updated in place when supplied; otherwise their previous values
-(or sentinel defaults) are preserved.
-
-The expected workflow at end-of-shot:
-
-```julia
-stats = compute_shot_stats(dd)         # Vector{Float32}, length 446 or 458 — TODO
-push_shot_history!(dd, stats; shot_id=current_shot)
-```
-
-so the next shot's `predict_pedestal` call sees this shot's contribution via
-[`mse_history_from_aux`](@ref).
-"""
-function push_shot_history!(dd, stats_vec::AbstractVector;
-        shot_id::Integer,
-        mask::Real=1f0,
-        max_slots::Integer=_MSE_HISTORY_LENGTH,
-        bzn_seconds::Union{Nothing,Real}=nothing,
-        disrupt_seconds::Union{Nothing,Real}=nothing,
-        disrupt_coverage::Union{Nothing,Real}=nothing)
-    aux = getfield(dd, :_aux)
-    if !haskey(aux, _AUX_HISTORY_KEY)
-        aux[_AUX_HISTORY_KEY] = init_history_buffer(; n_features=length(stats_vec))
-    end
-    buf = aux[_AUX_HISTORY_KEY]
-    n_features = Int(first(buf.n_history_features))
-    length(stats_vec) == n_features ||
-        error("push_shot_history!: stats_vec length $(length(stats_vec)) != buffer width $n_features")
-
-    new_row = reshape(Float32.(stats_vec), 1, n_features)
-    new_stats = vcat(buf.history_stats, new_row)
-    new_masks = vcat(buf.history_masks, Float32(mask))
-    new_ids   = vcat(buf.shot_ids, Int64(shot_id))
-
-    # Drop oldest entries if over capacity
-    if size(new_stats, 1) > max_slots
-        cut = size(new_stats, 1) - Int(max_slots)
-        new_stats = new_stats[cut+1:end, :]
-        new_masks = new_masks[cut+1:end]
-        new_ids   = new_ids[cut+1:end]
-    end
-
-    bzn_v = bzn_seconds === nothing ? buf.bzn_seconds : Float64[bzn_seconds]
-    dis_v = disrupt_seconds === nothing ? buf.disrupt_seconds : Float64[disrupt_seconds]
-    cov_v = disrupt_coverage === nothing ? buf.disrupt_coverage : Float64[disrupt_coverage]
-
-    aux[_AUX_HISTORY_KEY] = (
-        history_stats      = new_stats,
-        history_masks      = new_masks,
-        shot_ids           = new_ids,
-        bzn_seconds        = bzn_v,
-        disrupt_seconds    = dis_v,
-        disrupt_coverage   = cov_v,
-        n_history_features = buf.n_history_features,
-    )
-    return aux[_AUX_HISTORY_KEY]
-end
-
-"""
-    mse_history_from_aux(dd, nn::PedestalNN; norm_params_path=nothing) -> (hist, hmask, aux)
-
-Build the `(hist, hmask, aux)` triple that `predict_pedestal` consumes from
-the MSE history buffer stored in `dd._aux[:nn_history_buffer]`. Returns
-[`mean_normalized_history`](@ref) when the buffer is absent or empty, so this
-is a drop-in replacement for the trained-mean fallback.
-
-# Data-source contract
-
-The MSE history is **not** supplied by GSLite on the real-time ZMQ wire —
-GSLite only provides the 32-channel FPE actuator state via `dd._aux[:zmq_*]`.
-The 50-slot × 446/458-feature history tensor captures a slow machine-state
-context (boronization age, last-week coil usage, gas mix, etc.) that
-requires fetching ~67 PTDATA signals from MDSplus per shot and rolling
-them up offline. It reaches `dd._aux[:nn_history_buffer]` via one of:
-
-1. **Static NPZ** (production path today) — loaded once at FUSE startup
-   from `ENV["FUSE_PEDESTAL_NN_HISTORY_NPZ"]` (e.g. the reference snapshot
-   in `FUSE/data/pedestal_nn/history_morning.npz`) via
-   [`load_history_npz`](@ref). Operator-refreshed between run-days.
-2. **Live FUSE-side bookkeeping** (future) — `compute_shot_stats(dd)` +
-   [`push_shot_history!`](@ref) at the end of each shot in FUSE itself.
-   Currently stubbed; wires up the feed-forward path so this function
-   becomes self-sufficient once the per-block source registries land.
-
-`norm_params_path` should point at the encoder's history-norm JSON (typically
-`onnx_models/normalization_params_prmtan67.json` or its `prmtan_clean`
-variant). Without it, raw stats pass through unscaled and a warning is emitted
-— useful for debugging but the encoder was trained on z-scored inputs.
-"""
-function mse_history_from_aux(dd, nn::PedestalNN;
-        norm_params_path::Union{Nothing,AbstractString}=nothing)
-    aux = getfield(dd, :_aux)
-    if !haskey(aux, _AUX_HISTORY_KEY) || isempty(getproperty(aux[_AUX_HISTORY_KEY], :history_masks))
-        return mean_normalized_history()
-    end
-    return _assemble_history(aux[_AUX_HISTORY_KEY]; norm_params_path,
-                             source="dd._aux[:$(_AUX_HISTORY_KEY)]")
-end
-
-"""
-    save_history_npz(dd, path) -> path
-
-Dump `dd._aux[:nn_history_buffer]` to `path` as an NPZ matching
-`HistoryManager.save_state`'s schema (round-trippable with
-[`load_history_npz`](@ref)). Errors if the buffer is absent.
-"""
-function save_history_npz(dd, path::AbstractString)
-    aux = getfield(dd, :_aux)
-    haskey(aux, _AUX_HISTORY_KEY) ||
-        error("save_history_npz: dd._aux[:$(_AUX_HISTORY_KEY)] missing; nothing to save")
-    buf = aux[_AUX_HISTORY_KEY]
-    NPZ.npzwrite(path, Dict(
-        "history_stats"      => buf.history_stats,
-        "history_masks"      => buf.history_masks,
-        "shot_ids"           => buf.shot_ids,
-        "bzn_seconds"        => buf.bzn_seconds,
-        "disrupt_seconds"    => buf.disrupt_seconds,
-        "disrupt_coverage"   => buf.disrupt_coverage,
-        "n_history_features" => buf.n_history_features,
-    ))
-    return path
-end
-
-"""
-    compute_shot_stats(dd; dataset_version="v2_458") -> Vector{Float32}
-
-Compute the per-shot stats vector (length 446 for v1_446, 458 for v2_458) for
-the current shot in `dd`, suitable for [`push_shot_history!`](@ref). Mirrors
-the Python `HistoryManager.compute_shot_stats` layout (Block 1–6 from
-`pedestal-predictor-onnx/inference/history_manager.py` and
-`docs/onnx_export_spec.md` §"Block 1: Base signals (indices 0-267, 67 signals
-x 4)").
-
-!!! warning "Stub"
-    This is a skeleton: the per-block source registries that map each of the
-    67 Block-1 signals (kappa, betap, …, density, n1rms, n2rms, prad), the 40
-    ECE channels (Block 3), the radiation diagnostics (Block 4), and the
-    self-referential blocks 2/5/6 (previous-shot edensfit100/edensfit89/te_ped/
-    ti_ped/t_rot_ped) onto FUSE `dd` paths and `dd._aux[:zmq_*]` records are
-    **not yet wired**. This stub returns all-zero stats with a warning so the
-    buffer plumbing can be exercised end-to-end. Filling in the registries is
-    the next milestone after this skeleton lands.
-"""
-function compute_shot_stats(dd; dataset_version::AbstractString="v2_458")
-    haskey(_DATASET_WIDTH, dataset_version) ||
-        error("compute_shot_stats: unknown dataset_version=$dataset_version (expected v1_446 or v2_458)")
-    n = _DATASET_WIDTH[dataset_version]
-    @warn "compute_shot_stats: stub returning all-zero stats — Block 1–6 source registries not yet wired"
-    return zeros(Float32, n)
+    return Fuse29NN(step, seq, config, actuator_names, head_names, actuator_ranges,
+                    seq_len, bundle_seed, period_s, rho_ref, conv_shape, ssm_shape, String(bdir))
 end
 
 # ── Inference ───────────────────────────────────────────────────────────────
 
 """
-    predict_pedestal(nn::PedestalNN; sequences=nothing, T=200, prenormalized=false,
-                     signal_mask=nothing, padding_mask=nothing,
-                     history=nothing, h_mode_threshold=nothing) -> NamedTuple
+    fuse29_init_state(nn::Fuse29NN) -> Fuse29State
 
-Run every loaded bundle on a shared set of inputs and return a NamedTuple of
-*physical-unit* predictions plus advanced raw outputs. Defaults to "z-scored
-zero" inputs (= per-channel training means) for both the MSE history and the
-FPE actuator sequences.
-
-Arguments:
-- `sequences`     : `(T, 32)` matrix of FPE actuator signals. If `nothing`,
-                    uses an all-zeros (= z-scored mean) sequence of length `T`.
-- `prenormalized` : set `true` when `sequences` is already z-scored. Default
-                    `false` means raw physical values are z-scored inside.
-- `signal_mask`   : length-32 vector, 1.0 where the channel is present.
-                    Defaults to all-ones.
-- `padding_mask`  : length-T vector, 1.0 for valid timesteps. Defaults to
-                    all-ones.
-- `history`       : `(hist, hmask, aux)` triple of MSE inputs (full v2_458
-                    width). Defaults to [`mean_normalized_history`](@ref).
-- `h_mode_threshold` : override for the H-mode classifier threshold (default
-                    `0.5` from `hmode_89/model_config.json::default_threshold`).
-
-Returns a NamedTuple with:
-- `te_ped`, `ti_ped`, `t_rot_ped`, `edens_ped` :: Vector{Float32} (length T)
-   — denormalized physical-unit traces (filled with `NaN32` if the bundle
-   wasn't loaded; units in the `units` dict).
-- `hmode_logit_seq`, `hmode_prob_seq` :: Vector{Float32} (length T)
-   — per-timestep raw logit and sigmoid probability.
-- `is_h_mode_seq` :: Vector{Bool} (length T) — `hmode_prob_seq .>= threshold`.
-- `hmode_logit`, `hmode_prob` :: Float32 — scalar (mean over T) summary used
-   by `ActorPedestal` for L/H mode dispatch.
-- `is_h_mode` :: Bool — `hmode_prob >= threshold`.
-- `predictions_physical`, `predictions_norm` :: Vector{Float32}
-   — backward-compat aliases for the density-only predictor (= `edens_ped`
-   and the corresponding pre-denormalization output).
-- `raw` :: Dict{String,Vector{Float32}} — per-slug pre-denorm / pre-sigmoid
-   ONNX outputs, keyed by bundle slug.
-- `units` :: Dict{Symbol,String} — physical-unit labels by output name.
-- `machine_embed`, `aux_embed` :: Matrix{Float32} — kept for backward
-   compatibility (taken from any bundle's MSE since they're independently
-   trained but the same shape `(1, 512)` / `(1, 64)`).
+Zero state: the start of a shot. Zeros are the correct initial condition, not a
+placeholder — they are what the sequence graph implicitly assumes before tick 0.
 """
-function predict_pedestal(nn::PedestalNN;
-        sequences::Union{Nothing,AbstractMatrix}=nothing,
-        T::Integer=200,
-        prenormalized::Bool=false,
-        signal_mask::Union{Nothing,AbstractVector}=nothing,
-        padding_mask::Union{Nothing,AbstractVector}=nothing,
-        history::Union{Nothing,Tuple}=nothing,
-        h_mode_threshold::Union{Nothing,Real}=nothing)
+fuse29_init_state(nn::Fuse29NN) = Fuse29State(zeros(Float32, reverse(nn.conv_shape)), zeros(Float32, reverse(nn.ssm_shape)))
 
-    # ── Inputs ──
-    hist, hmask, aux = history === nothing ? mean_normalized_history() : history
-    size(hist) == (1, _MSE_HISTORY_LENGTH, _MAX_HISTORY_WIDTH) ||
-        error("history_stats must be (1, $_MSE_HISTORY_LENGTH, $_MAX_HISTORY_WIDTH), got $(size(hist))")
-    size(hmask) == (1, _MSE_HISTORY_LENGTH) ||
-        error("history_masks must be (1, $_MSE_HISTORY_LENGTH), got $(size(hmask))")
-    size(aux) == (1, _AUX_DIM) || error("aux_features must be (1, $_AUX_DIM), got $(size(aux))")
+# Wrap a Julia array that already holds ORT's row-major buffer (reversed dims) as an OrtValue of `onnx_shape`.
+function _ort_tensor(sess::ONNXRunTime.InferenceSession, data::Array{Float32}, onnx_shape)
+    size(data) == reverse(Tuple(onnx_shape)) || error("fuse29: array of size $(size(data)) is not the reversed ONNX shape $(Tuple(onnx_shape))")
+    return ONNXRunTime.CAPI.CreateTensorWithDataAsOrtValue(sess.api, sess.meminfo, vec(data), onnx_shape)
+end
 
-    if sequences === nothing
-        sequences_z = zeros(Float32, T, _FPE_SIGNAL_DIM)
-    else
-        size(sequences, 2) == _FPE_SIGNAL_DIM ||
-            error("sequences must have $_FPE_SIGNAL_DIM channels, got $(size(sequences,2))")
-        T = size(sequences, 1)
-        sequences_z = prenormalized ? Matrix{Float32}(sequences) :
-                      normalized_signals(nn, sequences)
+# Copy an output OrtValue into an owned Julia array with reversed ONNX dims (no permutation).
+function _ort_output_native(sess::ONNXRunTime.InferenceSession, val)
+    GC.@preserve val begin
+        pda = ONNXRunTime.CAPI.unsafe_GetTensorMutableData(sess.api, val)
+        return copy(parent(pda))
     end
-    smask = signal_mask === nothing ? ones(Float32, _FPE_SIGNAL_DIM) : Float32.(signal_mask)
-    length(smask) == _FPE_SIGNAL_DIM || error("signal_mask must have length $_FPE_SIGNAL_DIM")
-    pmask = padding_mask === nothing ? ones(Float32, T) : Float32.(padding_mask)
-    length(pmask) == T || error("padding_mask length ($(length(pmask))) must equal T ($T)")
-
-    hist_f = Float32.(hist)
-    hmask_f = Float32.(hmask)
-    aux_f = Float32.(aux)
-    seq3 = reshape(sequences_z, 1, T, _FPE_SIGNAL_DIM)
-    smask2 = reshape(smask, 1, _FPE_SIGNAL_DIM)
-    pmask2 = reshape(pmask, 1, T)
-
-    # ── Defaults ──
-    nan_T = fill(NaN32, T)
-    raw = Dict{String,Vector{Float32}}()
-    te_ped = copy(nan_T)
-    ti_ped = copy(nan_T)
-    t_rot_ped = copy(nan_T)
-    edens_ped = copy(nan_T)
-    edens_norm = copy(nan_T)
-    hmode_logit_seq = copy(nan_T)
-    hmode_prob_seq = copy(nan_T)
-    is_h_mode_seq = falses(T)
-    units = Dict{Symbol,String}()
-    machine_embed = zeros(Float32, 1, 512)
-    aux_embed = zeros(Float32, 1, 64)
-    used_threshold = h_mode_threshold === nothing ? 0.5f0 : Float32(h_mode_threshold)
-
-    # ── Run each bundle ──
-    for (slug, b) in nn.bundles
-        h_sliced = b.history_features == _MAX_HISTORY_WIDTH ? hist_f :
-                   Float32.(@view hist_f[:, :, 1:b.history_features])
-
-        mse_out = b.mse(Dict(
-            "history_stats" => h_sliced,
-            "history_masks" => hmask_f,
-            "aux_features" => aux_f))
-        me = mse_out["machine_embed"]::AbstractMatrix
-        ae = mse_out["aux_embed"]::AbstractMatrix
-        machine_embed = Matrix{Float32}(me)
-        aux_embed = Matrix{Float32}(ae)
-
-        fpe_out = b.fpe(Dict(
-            "sequences" => seq3,
-            "machine_embed" => Float32.(me),
-            "aux_embed" => Float32.(ae),
-            "signal_masks" => smask2,
-            "padding_mask" => pmask2))
-        pred_arr = fpe_out["predictions"]
-        pred = _squeeze_predictions(pred_arr, T)
-        raw[slug] = pred
-
-        if is_regression(b)
-            phys = @. pred * b.target_std + b.target_mean
-            if b.target == "te_ped"
-                te_ped = phys
-                units[:te_ped] = b.target_units
-            elseif b.target == "ti_ped"
-                ti_ped = phys
-                units[:ti_ped] = b.target_units
-            elseif b.target == "t_rot_ped"
-                t_rot_ped = phys
-                units[:t_rot_ped] = b.target_units
-            elseif b.target == "edens_ped"
-                edens_ped = phys
-                edens_norm = pred
-                units[:edens_ped] = isempty(b.target_units) ? "1e19 m^-3" : b.target_units
-            else
-                @warn "PedestalNN: regression bundle $slug has unrecognised target=$(b.target); only available via raw[\"$slug\"]"
-            end
-        else
-            thr = h_mode_threshold === nothing ? b.default_threshold : Float32(h_mode_threshold)
-            used_threshold = thr
-            hmode_logit_seq = pred
-            hmode_prob_seq = Float32.(@. 1f0 / (1f0 + exp(-pred)))
-            is_h_mode_seq = hmode_prob_seq .>= thr
-        end
-    end
-
-    # Scalar summaries used by ActorPedestal (mean over the FPE window matches
-    # the convention applied to predictions_physical further downstream).
-    hmode_logit_scalar = any(isnan, hmode_logit_seq) ? NaN32 :
-                         Float32(sum(hmode_logit_seq) / length(hmode_logit_seq))
-    hmode_prob_scalar = any(isnan, hmode_prob_seq) ? NaN32 :
-                        Float32(sum(hmode_prob_seq) / length(hmode_prob_seq))
-    is_h_mode_scalar = isnan(hmode_prob_scalar) ? false : (hmode_prob_scalar >= used_threshold)
-
-    return (;
-        te_ped, ti_ped, t_rot_ped, edens_ped,
-        hmode_logit_seq, hmode_prob_seq, is_h_mode_seq,
-        hmode_logit=hmode_logit_scalar, hmode_prob=hmode_prob_scalar, is_h_mode=is_h_mode_scalar,
-        predictions_physical=edens_ped, predictions_norm=edens_norm,
-        raw, units, machine_embed, aux_embed)
 end
 
 """
-    predict_density(nn::PedestalNN; kwargs...) -> NamedTuple
+    fuse29_step(nn::Fuse29NN, u::AbstractVector{<:Real}, s::Fuse29State) -> (pred::Vector{Float32}, s_new::Fuse29State)
 
-Backward-compatible alias for [`predict_pedestal`](@ref). Returns the same
-NamedTuple, including density (`predictions_physical`) along with the
-temperature / rotation / H-mode fields.
+One 50 ms tick. `u` is the 29-vector of actuators in raw physical units
+(`FUSE29_ACTUATOR_NAMES` order). Returns the 9 heads in physical units
+(`FUSE29_HEAD_NAMES` order) and the advanced state. Functional: `s` is left
+untouched, so a host that iterates inside a time step can re-step from the same
+committed state any number of times.
+
+Goes through the ONNX Runtime C API directly with the state in ORT's native
+layout (see [`Fuse29State`](@ref)); ~5 ms per tick on one core.
 """
-predict_density(nn::PedestalNN; kwargs...) = predict_pedestal(nn; kwargs...)
-
-# Helper: ONNX FPE output may be (1, T) or (1, T, 1) depending on bundle export.
-function _squeeze_predictions(arr, T::Integer)
-    if ndims(arr) == 2
-        size(arr, 1) == 1 && size(arr, 2) == T ||
-            error("predictions tensor expected (1, $T), got $(size(arr))")
-        return Float32.(vec(arr))
-    elseif ndims(arr) == 3
-        size(arr, 1) == 1 && size(arr, 2) == T && size(arr, 3) == 1 ||
-            error("predictions tensor expected (1, $T, 1), got $(size(arr))")
-        return Float32.(reshape(arr, T))
-    else
-        error("predictions tensor has unsupported ndims=$(ndims(arr)), shape=$(size(arr))")
+function fuse29_step(nn::Fuse29NN, u::AbstractVector{<:Real}, s::Fuse29State)
+    length(u) == FUSE29_N_ACTUATORS || error("fuse29_step: expected $(FUSE29_N_ACTUATORS) actuators, got $(length(u))")
+    all(isfinite, u) || error("fuse29_step: non-finite actuator value(s): $(collect(zip(FUSE29_ACTUATOR_NAMES, u))[.!isfinite.(u)])")
+    sess = nn.step
+    x = Array{Float32}(undef, FUSE29_N_ACTUATORS, 1)      # reversed (1, 29)
+    x[:, 1] .= Float32.(u)
+    inputs = ONNXRunTime.CAPI.OrtValue[
+        _ort_tensor(sess, x, (1, FUSE29_N_ACTUATORS)),
+        _ort_tensor(sess, s.conv, nn.conv_shape),
+        _ort_tensor(sess, s.ssm, nn.ssm_shape)]
+    GC.@preserve x s inputs begin
+        outs = ONNXRunTime.CAPI.Run(sess.api, sess.session, nothing,
+                                    collect(FUSE29_STEP_INPUTS), inputs, collect(FUSE29_STEP_OUTPUTS))
+        pred = vec(_ort_output_native(sess, outs[1]))       # reversed (1, 9) -> 9-vector
+        conv = _ort_output_native(sess, outs[2])
+        ssm = _ort_output_native(sess, outs[3])
     end
+    size(conv) == size(s.conv) && size(ssm) == size(s.ssm) || error("fuse29_step: unexpected state shapes $(size(conv)), $(size(ssm))")
+    return pred, Fuse29State(conv, ssm)
+end
+
+"""
+    fuse29_rollout(nn::Fuse29NN, U::AbstractMatrix{<:Real}) -> Matrix{Float32}
+
+Drive the step graph over a whole `(K, 29)` actuator sequence from the zero
+state. Returns `(K, 9)`. No length limit.
+"""
+function fuse29_rollout(nn::Fuse29NN, U::AbstractMatrix{<:Real})
+    size(U, 2) == FUSE29_N_ACTUATORS || error("fuse29_rollout: expected (K, $(FUSE29_N_ACTUATORS)), got $(size(U))")
+    K = size(U, 1)
+    out = Matrix{Float32}(undef, K, FUSE29_N_HEADS)
+    s = fuse29_init_state(nn)
+    for k in 1:K
+        pred, s = fuse29_step(nn, @view(U[k, :]), s)
+        out[k, :] .= pred
+    end
+    return out
+end
+
+"""
+    fuse29_sequence(nn::Fuse29NN, U::AbstractMatrix{<:Real}) -> Matrix{Float32}
+
+Score a whole `(K, 29)` shot with the fixed-length sequence graph. Shorter shots
+are right-padded with zeros and trimmed (exact, since the model is strictly
+causal); `K > nn.seq_len` is an error — use [`fuse29_rollout`](@ref).
+"""
+function fuse29_sequence(nn::Fuse29NN, U::AbstractMatrix{<:Real})
+    size(U, 2) == FUSE29_N_ACTUATORS || error("fuse29_sequence: expected (K, $(FUSE29_N_ACTUATORS)), got $(size(U))")
+    K = size(U, 1)
+    K <= nn.seq_len || error("fuse29_sequence: shot has $K ticks but the sequence graph is fixed at $(nn.seq_len); use fuse29_rollout")
+    padded = zeros(Float32, 1, nn.seq_len, FUSE29_N_ACTUATORS)
+    padded[1, 1:K, :] .= Float32.(U)
+    out = nn.seq(Dict{String,Any}("actuators" => padded))
+    pred = collect(Float32, out["predictions"])
+    return pred[1, 1:K, :]
+end
+
+"""
+    fuse29_named(pred::AbstractVector) -> NamedTuple
+
+The 9-vector of heads as a NamedTuple keyed by `FUSE29_HEAD_NAMES`.
+"""
+fuse29_named(pred::AbstractVector) = NamedTuple{Symbol.(FUSE29_HEAD_NAMES)}(Tuple(Float64.(pred)))
+
+"""
+    fuse29_prediction(nn::Fuse29NN, pred::AbstractVector, is_h_mode::Bool; time=NaN, n_ticks=0) -> NamedTuple
+
+Assemble the `ActorPedestal.nn_prediction` record from one tick's raw heads and
+the (hysteretic) H-mode gate decision. The four H-mode-only heads
+(`FUSE29_GATED_HEADS`) are `NaN` unless `is_h_mode`, on purpose: they were never
+trained on L-mode ticks and the graph emits unconstrained numbers for them there.
+"""
+function fuse29_prediction(nn::Fuse29NN, pred::AbstractVector, is_h_mode::Bool; time::Float64=NaN, n_ticks::Int=0)
+    p = Float64.(pred)
+    gate(name, v) = (name in FUSE29_GATED_HEADS && !is_h_mode) ? NaN : v
+    vals = Tuple(gate(name, p[i]) for (i, name) in enumerate(FUSE29_HEAD_NAMES))
+    heads = NamedTuple{Symbol.(FUSE29_HEAD_NAMES)}(vals)
+    return (; heads..., hmode_prob=p[end], is_h_mode, raw=Float32.(pred), rho_ref=nn.rho_ref, time, n_ticks)
+end
+
+"""
+    fuse29_median_actuators(nn::Fuse29NN) -> Vector{Float32}
+
+Training-split median of every channel (from `actuator_ranges.json`), the
+recommended stand-in for a channel the host cannot supply. Not the mean: the
+mean vector is jointly unphysical (`bt` is signed and bimodal, ECH is zero on
+most ticks), and zeros put the coil channels several sigma out.
+"""
+function fuse29_median_actuators(nn::Fuse29NN)
+    nn.actuator_ranges === nothing && error("fuse29: actuator_ranges.json not present in $(nn.bundle_dir); cannot build the median actuator vector")
+    ch = nn.actuator_ranges["channels"]
+    return Float32[Float64(ch[name]["pct"]["50"]) for name in nn.actuator_names]
+end
+
+"""
+    fuse29_check_units(nn::Fuse29NN, U; tol_sigma=12.0) -> Vector{String}
+
+Compare actuators (a 29-vector or a `(K, 29)` matrix, raw units) against the
+training distribution. Catches the one preprocessing mistake that cannot raise:
+watts where the graph wants megawatts, kA where it wants A. Returns
+human-readable warnings; empty means every channel is within `tol_sigma` of the
+training mean. A smoke test for unit errors, not a distribution-shift detector.
+"""
+function fuse29_check_units(nn::Fuse29NN, U::AbstractVecOrMat{<:Real}; tol_sigma::Float64=12.0)
+    nn.actuator_ranges === nothing && return ["actuator_ranges.json not present in this bundle; cannot check units"]
+    X = U isa AbstractVector ? reshape(Float64.(U), 1, :) : Float64.(U)
+    size(X, 2) == FUSE29_N_ACTUATORS || error("fuse29_check_units: expected 29 columns, got $(size(X, 2))")
+    warnings = String[]
+    ch = nn.actuator_ranges["channels"]
+    for (j, name) in enumerate(nn.actuator_names)
+        ref = ch[name]
+        std = max(Float64(ref["std"]), 1e-12)
+        col = @view X[:, j]
+        z = maximum(abs.((col .- Float64(ref["mean"])) ./ std))
+        if z > tol_sigma
+            push!(warnings, "$name: observed [$(round(minimum(col); sigdigits=4)), $(round(maximum(col); sigdigits=4))] reaches $(round(Int, z)) sigma from the training mean $(round(Float64(ref["mean"]); sigdigits=4)). Training p1..p99 was [$(round(Float64(ref["pct"]["1"]); sigdigits=4)), $(round(Float64(ref["pct"]["99"]); sigdigits=4))] $(ref["units"]). Check units.")
+        end
+    end
+    return warnings
+end
+
+"""
+    fuse29_in_distribution(nn::Fuse29NN, u::AbstractVector; tol_frac=1e-3) -> Vector{NamedTuple}
+
+Per-channel excursions of one actuator vector outside the training p1..p99
+envelope (each bound padded by `tol_frac` of the channel's own span). A
+bookkeeping aid for annotating counterfactual scans, not a validity test — the
+check is per channel and cannot see whether the *combination* has ever been run.
+"""
+function fuse29_in_distribution(nn::Fuse29NN, u::AbstractVector{<:Real}; tol_frac::Float64=1e-3)
+    nn.actuator_ranges === nothing && error("fuse29: actuator_ranges.json not present in $(nn.bundle_dir)")
+    ch = nn.actuator_ranges["channels"]
+    excursions = NamedTuple{(:channel, :value, :lo, :hi),Tuple{String,Float64,Float64,Float64}}[]
+    for (j, name) in enumerate(nn.actuator_names)
+        ref = ch[name]
+        lo, hi = Float64(ref["pct"]["1"]), Float64(ref["pct"]["99"])
+        pad = tol_frac * max(hi - lo, Float64(ref["std"]), 1e-30)
+        v = Float64(u[j])
+        if v < lo - pad || v > hi + pad
+            push!(excursions, (channel=name, value=v, lo=lo, hi=hi))
+        end
+    end
+    return excursions
+end
+
+# ── Time-step bookkeeping for a host simulation ─────────────────────────────
+
+"""
+    Fuse29Tracker
+
+Per-shot bookkeeping that guarantees the recurrent state is advanced exactly
+once per 50 ms of simulated time, however often the host evaluates the pedestal
+inside a step (implicit coupling, rejected/repeated steps). Lives in
+`dd._aux[:fuse29]` so it survives actor re-creation.
+
+- `committed*` : state/time/gate after the last *accepted* host step
+- `pending*`   : state/time/gate advanced to the most recent `t_now` (not yet committed)
+- `last`       : most recent 9-vector, for zero-order hold when the host steps faster than 50 ms
+- `t_start`    : start of the model's 50 ms grid (shot start, or `nn_warmup_time`)
+"""
+mutable struct Fuse29Tracker
+    committed::Fuse29State
+    committed_time::Float64
+    committed_hmode::Bool
+    pending::Fuse29State
+    pending_time::Float64
+    pending_hmode::Bool
+    t_start::Float64
+    last::Vector{Float32}
+    n_total::Int
+    units_checked::Bool
+end
+
+function Fuse29Tracker(nn::Fuse29NN, t_start::Float64)
+    s = fuse29_init_state(nn)
+    return Fuse29Tracker(s, t_start, false, s, t_start, false, t_start, fill(NaN32, FUSE29_N_HEADS), 0, false)
+end
+
+"""
+    fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuators_at::Function;
+                    hmode_enter=0.7, hmode_exit=0.3) -> (pred::Vector{Float32}, is_h_mode::Bool, n_ticks::Int)
+
+Bring the model up to `t_now`. `actuators_at(t)` must return the 29-vector of
+raw-unit actuators for the 50 ms interval ending at `t`.
+
+1. If `t_now` is past the pending time, the pending state is committed (exactly
+   one commit per accepted host step). A re-run at the same `t_now` commits
+   nothing and re-steps from the committed state, so iterating inside a step
+   never advances the model's clock.
+2. `n = floor((t_now - committed_time) / period)` ticks are stepped, each fed the
+   actuators for its own 50 ms sub-interval (catch-up when the host steps slower
+   than 50 ms; warm-up replay from `t_start`).
+3. `n == 0` (host steps faster than 50 ms): zero-order hold of the last output.
+
+The H-mode gate is a Schmitt trigger: enter H-mode when `hmode > hmode_enter`,
+leave when `hmode < hmode_exit`, ignore the ambiguous middle — `hmode` is right
+~94% of the time with the errors concentrated at L–H / H–L transitions, so a
+bare threshold chatters there. Note also that under a constant actuator request
+the `hmode` probability decays slowly beyond the ~12.8 s the model was trained
+on (the state encodes elapsed shot time); the hysteresis makes the gate robust
+to that, but very long steady-state runs should treat the gate with suspicion.
+"""
+function fuse29_advance!(tr::Fuse29Tracker, nn::Fuse29NN, t_now::Float64, actuators_at::Function;
+                         hmode_enter::Float64=0.7, hmode_exit::Float64=0.3)
+    period = nn.period_s
+    eps = 1e-3 * period
+    hmode_exit <= hmode_enter || error("fuse29_advance!: hmode_exit ($hmode_exit) must be <= hmode_enter ($hmode_enter)")
+    t_now >= tr.committed_time - eps || error("fuse29_advance!: t_now=$t_now is before the committed time $(tr.committed_time); reset the tracker for a rewind")
+
+    # commit exactly once per accepted host step
+    if t_now > tr.pending_time + eps
+        tr.committed = tr.pending
+        tr.committed_time = tr.pending_time
+        tr.committed_hmode = tr.pending_hmode
+    end
+
+    n = floor(Int, (t_now - tr.committed_time) / period + 1e-6)
+    s = tr.committed
+    h = tr.committed_hmode
+    pred = tr.last
+    for i in 1:n
+        t_i = tr.committed_time + i * period
+        u = actuators_at(t_i)
+        pred, s = fuse29_step(nn, u, s)
+        p = Float64(pred[end])
+        h = h ? (p > hmode_exit) : (p > hmode_enter)
+    end
+    if n > 0
+        tr.pending = s
+        tr.pending_time = tr.committed_time + n * period
+        tr.pending_hmode = h
+        tr.last = pred
+        tr.n_total += n
+    end
+    return pred, h, n
 end
